@@ -1,19 +1,17 @@
 import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
 import { TIMEOUTS } from './constants';
-import { loginAsAdminAndUsePrimarySpace } from './fixtures/testUser';
+import { loginAsAdminAndUsePrimaryServer } from './fixtures/testUser';
 import * as routes from './routes';
 
-interface TestSpace {
+interface TestServer {
   id: string;
   name: string;
 }
 
-/**
- * Creates a space via GraphQL API.
- */
-async function createSpaceViaAPI(page: Page, name: string): Promise<TestSpace> {
-  return loginAsAdminAndUsePrimarySpace(page);
+/** Log in as the bootstrap admin and return the primary server metadata. */
+async function usePrimaryServerViaAPI(page: Page, _name: string): Promise<TestServer> {
+  return loginAsAdminAndUsePrimaryServer(page);
 }
 
 /**
@@ -117,7 +115,7 @@ test.describe('Space navigation race condition fix', () => {
     adminPage
   }) => {
     // Create a space with banner
-    const space = await createSpaceViaAPI(page, 'Rapid Nav Test');
+    const space = await usePrimaryServerViaAPI(page, 'Rapid Nav Test');
     const roomId = await createRoomViaAPI(page, space.id, 'test-room');
     await uploadBannerViaUI(page, space.id);
 

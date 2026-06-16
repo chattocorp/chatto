@@ -1,6 +1,6 @@
 import { test, expect } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
-import { ChatPage, RoomPage, ExplorePage } from './pages';
+import { ChatPage, RoomPage } from './pages';
 import { TIMEOUTS } from './constants';
 
 test.describe('Emoji reactions', () => {
@@ -46,7 +46,7 @@ test.describe('Emoji reactions', () => {
     // User 1: Create space and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.getServerName();
+    const serverName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     const testMessage = `LiveEvent sync test ${Date.now()}`;
@@ -68,11 +68,8 @@ test.describe('Emoji reactions', () => {
       // User 2's page objects
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
-      const explorePage2 = new ExplorePage(page2);
 
       await chatPage2.goto();
-      await chatPage2.goToExploreSpaces();
-      await explorePage2.joinSpace(spaceName);
 
       // Enter the general room
       await chatPage2.enterRoom('general');
@@ -122,7 +119,7 @@ test.describe('Emoji reactions', () => {
     // User 1: Create space and post a message
     const user1 = await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.getServerName();
+    const serverName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     const testMessage = `Multi-user tooltip test ${Date.now()}`;
@@ -144,11 +141,8 @@ test.describe('Emoji reactions', () => {
 
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
-      const explorePage2 = new ExplorePage(page2);
 
       await chatPage2.goto();
-      await chatPage2.goToExploreSpaces();
-      await explorePage2.joinSpace(spaceName);
       await chatPage2.enterRoom('general');
 
       await roomPage2.expectMessageVisible(testMessage);

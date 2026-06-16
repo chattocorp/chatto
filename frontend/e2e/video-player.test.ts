@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
-import { ChatPage, RoomPage, ExplorePage } from './pages';
+import { ChatPage, RoomPage } from './pages';
 import * as routes from './routes';
 import { TIMEOUTS } from './constants';
 
@@ -30,7 +30,7 @@ test.describe('video player @ffmpeg', () => {
 
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		const testSpaceName = await chatPage.getServerName();
+		const testServerName = await chatPage.getServerName();
 		await chatPage.enterRoom('general');
 
 		// Set up a second user who will observe the real-time processing event.
@@ -44,10 +44,7 @@ test.describe('video player @ffmpeg', () => {
 			await chatPage2.goto();
 
 			// User 2 joins the space via Explore, then enters the room.
-			const explorePage2 = new ExplorePage(page2);
-			await page2.goto(routes.spaces);
-			await page2.waitForURL(routes.patterns.spaceOrRoom);
-			await explorePage2.joinSpace(testSpaceName);
+			await chatPage2.goto();
 			await chatPage2.enterRoom('general');
 
 			// Upload a small test video
@@ -109,7 +106,7 @@ test.describe('video player @ffmpeg', () => {
 	}) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		const testSpaceName = await chatPage.getServerName();
+		const testServerName = await chatPage.getServerName();
 		await chatPage.enterRoom('general');
 
 		const context2 = await browser!.newContext({ baseURL: serverURL });
@@ -119,10 +116,6 @@ test.describe('video player @ffmpeg', () => {
 		try {
 			await createAndLoginTestUser(page2);
 			await chatPage2.goto();
-			const explorePage2 = new ExplorePage(page2);
-			await page2.goto(routes.spaces);
-			await page2.waitForURL(routes.patterns.spaceOrRoom);
-			await explorePage2.joinSpace(testSpaceName);
 			await chatPage2.enterRoom('general');
 
 			// Upload bytes that claim to be a video but aren't — ffprobe rejects

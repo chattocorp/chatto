@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test';
-import { createAndLoginTestUser, joinSpace } from './fixtures/testUser';
+import { createAndLoginTestUser, openServer } from './fixtures/testUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { waitForSpaceUnread, getRoomIdByName, waitForRoomRead } from './fixtures/graphqlHelpers';
 import { test } from './setup';
@@ -195,7 +195,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
       await chatPage.enterRoom('general');
-      spaceId = await chatPage.getSpaceId();
+      spaceId = await chatPage.getServerScopeId();
     });
 
     const rootMessage = `Root for realtime echo ${Date.now()}`;
@@ -209,7 +209,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     try {
       await test.step('User B joins the space', async () => {
         await createAndLoginTestUser(page2);
-        await joinSpace(page2);
+        await openServer(page2);
         await page2.goto(routes.space());
       });
 
@@ -952,7 +952,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     try {
       await test.step('User B joins space and enters room', async () => {
         await createAndLoginTestUser(page2);
-        await joinSpace(page2);
+        await openServer(page2);
         await page2.goto(routes.space());
 
         const chatPage2 = new ChatPage(page2);
@@ -988,7 +988,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
       await chatPage.enterRoom('general');
-      spaceId = await chatPage.getSpaceId();
+      spaceId = await chatPage.getServerScopeId();
     });
 
     const rootMessage = `Root for unread test ${Date.now()}`;
@@ -1002,7 +1002,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     try {
       await test.step('User B joins space and marks room as read', async () => {
         await createAndLoginTestUser(page2);
-        await joinSpace(page2);
+        await openServer(page2);
         await page2.goto(routes.space());
 
         const chatPage2 = new ChatPage(page2);

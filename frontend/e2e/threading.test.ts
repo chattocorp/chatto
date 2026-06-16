@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test';
-import { createAndLoginTestUser, joinSpace } from './fixtures/testUser';
+import { createAndLoginTestUser, openServer } from './fixtures/testUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { test } from './setup';
 import { TIMEOUTS } from './constants';
@@ -85,7 +85,7 @@ test.describe('Message Threading', () => {
       await chatPage.enterRoom('general');
     });
 
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     const rootMessage = `Root message ${Date.now()}`;
     let message1: Awaited<ReturnType<typeof roomPage.sendMessage>>;
@@ -103,7 +103,7 @@ test.describe('Message Threading', () => {
       });
 
       await test.step('User B joins the space', async () => {
-        await joinSpace(page2);
+        await openServer(page2);
         await page2.goto(routes.space());
       });
 
@@ -153,7 +153,7 @@ test.describe('Message Threading', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     const rootMessage = `Thread root ${Date.now()}`;
     const message1 = await roomPage.sendMessage(rootMessage);
@@ -169,7 +169,7 @@ test.describe('Message Threading', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
 
       const chatPage2 = new ChatPage(page2);
@@ -213,7 +213,7 @@ test.describe('Message Threading', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     const rootMessage = `Thread root for edit ${Date.now()}`;
     const message1 = await roomPage.sendMessage(rootMessage);
@@ -229,7 +229,7 @@ test.describe('Message Threading', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
 
       const chatPage2 = new ChatPage(page2);
@@ -864,7 +864,7 @@ test.describe('Message Threading', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     const rootMessage = `Unread separator test ${Date.now()}`;
     const message1 = await roomPage.sendMessage(rootMessage);
@@ -875,7 +875,7 @@ test.describe('Message Threading', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
 
       const chatPage2 = new ChatPage(page2);
@@ -946,7 +946,7 @@ test.describe('Message Threading', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
 
       const chatPage2 = new ChatPage(page2);
@@ -1189,7 +1189,7 @@ test.describe('Message Threading', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     // Extract roomId from URL
     const url = page.url();
@@ -1396,7 +1396,7 @@ test.describe('Message Threading', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
 
       const chatPage2 = new ChatPage(page2);

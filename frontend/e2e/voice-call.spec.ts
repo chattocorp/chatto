@@ -13,7 +13,7 @@
  */
 
 import { test, expect } from './setup';
-import { createAndLoginTestUser, joinSpace } from './fixtures/testUser';
+import { createAndLoginTestUser, openServer } from './fixtures/testUser';
 import { graphqlQuery, getRoomIdByName } from './fixtures/graphqlHelpers';
 import { DMPage } from './pages/DMPage';
 import { TIMEOUTS } from './constants';
@@ -120,7 +120,7 @@ test.describe('Voice calls', () => {
 		// User A creates a space and room
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		const spaceId = await chatPage.getSpaceId();
+		const spaceId = await chatPage.getServerScopeId();
 		await chatPage.enterRoom('general');
 		const roomId = await getRoomIdByName(page, 'general');
 
@@ -178,7 +178,7 @@ test.describe('Voice calls', () => {
 	test('activeCallRoomIds returns empty when no calls active', async ({ page, chatPage }) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		const spaceId = await chatPage.getSpaceId();
+		const spaceId = await chatPage.getServerScopeId();
 
 		const data = await graphqlQuery<{ activeCallRoomIds: string[] }>(
 			page,
@@ -198,7 +198,7 @@ test.describe('Voice calls', () => {
 		// User A creates a space and enters a room
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		const spaceId = await chatPage.getSpaceId();
+		const spaceId = await chatPage.getServerScopeId();
 		await chatPage.enterRoom('general');
 		const roomId = await getRoomIdByName(page, 'general');
 
@@ -212,7 +212,7 @@ test.describe('Voice calls', () => {
 
 		try {
 			const userB = await createAndLoginTestUser(page2);
-			await joinSpace(page2, spaceId);
+			await openServer(page2, spaceId);
 
 			// User B joins the room via API (use page2.request to avoid page navigation requirement)
 			await page2.request.post('/api/graphql', {
@@ -263,7 +263,7 @@ test.describe('Voice calls', () => {
 	}) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		const spaceId = await chatPage.getSpaceId();
+		const spaceId = await chatPage.getServerScopeId();
 		await chatPage.enterRoom('general');
 		const roomId = await getRoomIdByName(page, 'general');
 
@@ -279,7 +279,7 @@ test.describe('Voice calls', () => {
 
 		try {
 			const userB = await createAndLoginTestUser(page2);
-			await joinSpace(page2, spaceId);
+			await openServer(page2, spaceId);
 			await page2.request.post('/api/graphql', {
 				headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
 				data: {
@@ -332,7 +332,7 @@ test.describe('Voice calls', () => {
 		// User A creates a space and enters a room
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		const spaceId = await chatPage.getSpaceId();
+		const spaceId = await chatPage.getServerScopeId();
 		await chatPage.enterRoom('general');
 		const roomId = await getRoomIdByName(page, 'general');
 
@@ -345,7 +345,7 @@ test.describe('Voice calls', () => {
 
 		try {
 			const userB = await createAndLoginTestUser(page2);
-			await joinSpace(page2, spaceId);
+			await openServer(page2, spaceId);
 			await page2.request.post('/api/graphql', {
 				headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
 				data: {
@@ -394,7 +394,7 @@ test.describe('Voice calls', () => {
 		// User A creates a space and enters a room
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		const spaceId = await chatPage.getSpaceId();
+		const spaceId = await chatPage.getServerScopeId();
 		await chatPage.enterRoom('general');
 		const roomId = await getRoomIdByName(page, 'general');
 
@@ -406,7 +406,7 @@ test.describe('Voice calls', () => {
 
 		try {
 			const userB = await createAndLoginTestUser(page2);
-			await joinSpace(page2, spaceId);
+			await openServer(page2, spaceId);
 			await page2.request.post('/api/graphql', {
 				headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
 				data: {
@@ -416,7 +416,7 @@ test.describe('Voice calls', () => {
 			});
 
 			const userC = await createAndLoginTestUser(page3);
-			await joinSpace(page3, spaceId);
+			await openServer(page3, spaceId);
 			await page3.request.post('/api/graphql', {
 				headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
 				data: {
@@ -490,7 +490,7 @@ test.describe('Voice calls', () => {
 		// User A creates a space and enters a room
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		const spaceId = await chatPage.getSpaceId();
+		const spaceId = await chatPage.getServerScopeId();
 		await chatPage.enterRoom('general');
 		const roomId = await getRoomIdByName(page, 'general');
 
@@ -504,7 +504,7 @@ test.describe('Voice calls', () => {
 
 		try {
 			const userB = await createAndLoginTestUser(page2);
-			await joinSpace(page2, spaceId);
+			await openServer(page2, spaceId);
 			await page2.request.post('/api/graphql', {
 				headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
 				data: {

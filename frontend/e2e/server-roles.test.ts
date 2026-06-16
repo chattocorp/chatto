@@ -4,22 +4,19 @@ import {
   createAndLoginTestUser,
   generateRoleName,
   logoutCurrentUser,
-  loginAsAdminAndUsePrimarySpace,
+  loginAsAdminAndUsePrimaryServer,
   type TestUser
 } from './fixtures/testUser';
 import * as routes from './routes';
 
-interface TestSpace {
+interface TestServer {
   id: string;
   name: string;
 }
 
-/**
- * Creates a space via GraphQL API (requires authenticated user).
- * The creator becomes the space admin.
- */
-async function createSpaceViaAPI(page: Page, name?: string): Promise<TestSpace> {
-  return loginAsAdminAndUsePrimarySpace(page);
+/** Log in as the bootstrap admin and return the primary server metadata. */
+async function usePrimaryServerViaAPI(page: Page, _name?: string): Promise<TestServer> {
+  return loginAsAdminAndUsePrimaryServer(page);
 }
 
 /**
@@ -246,40 +243,40 @@ async function denyPermission(
   expect(data.data?.denyPermission).toBe(true);
 }
 
-test.describe('Space Roles Management', () => {
+test.describe('Server Roles Management', () => {
   test.describe('Roles List Page', () => {
-    test('space admin can view roles list', async ({ spaceRolesPage }) => {
-      const { page } = spaceRolesPage;
+    test('server admin can view roles list', async ({ serverRolesPage }) => {
+      const { page } = serverRolesPage;
 
       // Create user and space (creator is admin)
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
       // Navigate to roles list
-      await spaceRolesPage.gotoRolesList(space.id);
+      await serverRolesPage.gotoRolesList(space.id);
 
       // Should see the roles table with default roles
-      await spaceRolesPage.expectRolesListVisible();
-      await spaceRolesPage.expectRoleInList('owner');
-      await spaceRolesPage.expectRoleInList('everyone');
+      await serverRolesPage.expectRolesListVisible();
+      await serverRolesPage.expectRoleInList('owner');
+      await serverRolesPage.expectRoleInList('everyone');
     });
 
-    test('space admin can see Create Role button', async ({ spaceRolesPage }) => {
-      const { page } = spaceRolesPage;
+    test('server admin can see Create Role button', async ({ serverRolesPage }) => {
+      const { page } = serverRolesPage;
 
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
-      await spaceRolesPage.gotoRolesList(space.id);
-      await spaceRolesPage.expectCreateRoleButtonVisible();
+      await serverRolesPage.gotoRolesList(space.id);
+      await serverRolesPage.expectCreateRoleButtonVisible();
     });
 
-    test('non-admin member sees access denied on roles page', async ({ spaceRolesPage }) => {
-      const { page } = spaceRolesPage;
+    test('non-admin member sees access denied on roles page', async ({ serverRolesPage }) => {
+      const { page } = serverRolesPage;
 
       // Create admin user and space
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
       // Create and login as non-admin user
       const nonAdmin = await createSecondTestUser(page);
@@ -291,76 +288,76 @@ test.describe('Space Roles Management', () => {
       await page.goto(routes.serverAdminRoles);
 
       // Users without roles.manage permission see Access Denied
-      await spaceRolesPage.expectAccessDenied();
+      await serverRolesPage.expectAccessDenied();
     });
   });
 
   test.describe('Create Role', () => {
-    test('space admin can create a new role', async ({ spaceRolesPage }) => {
-      const { page } = spaceRolesPage;
+    test('server admin can create a new role', async ({ serverRolesPage }) => {
+      const { page } = serverRolesPage;
 
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
       const roleName = generateRoleName('test');
 
       // Create a new role
-      await spaceRolesPage.createRole(space.id, {
+      await serverRolesPage.createRole(space.id, {
         name: roleName,
         displayName: 'Test Role',
         description: 'A role for testing'
       });
 
       // Should be redirected to edit page for the new role
-      await spaceRolesPage.expectRoleName(roleName);
+      await serverRolesPage.expectRoleName(roleName);
 
       // Navigate back to list and verify role appears
-      await spaceRolesPage.backToRolesButton.click();
-      await spaceRolesPage.expectRoleInList(roleName);
+      await serverRolesPage.backToRolesButton.click();
+      await serverRolesPage.expectRoleInList(roleName);
     });
 
-    test('role name validation rejects invalid characters', async ({ spaceRolesPage }) => {
-      const { page } = spaceRolesPage;
+    test('role name validation rejects invalid characters', async ({ serverRolesPage }) => {
+      const { page } = serverRolesPage;
 
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
-      await spaceRolesPage.gotoCreateRole(space.id);
+      await serverRolesPage.gotoCreateRole(space.id);
 
       // Try to enter an invalid name (uppercase)
-      await spaceRolesPage.fillRoleForm({ name: 'InvalidName' });
-      await spaceRolesPage.expectValidationError(
+      await serverRolesPage.fillRoleForm({ name: 'InvalidName' });
+      await serverRolesPage.expectValidationError(
         'Name must use lowercase letters, numbers, and dashes; start with a letter'
       );
 
       // Try special characters
-      await spaceRolesPage.fillRoleForm({ name: 'test-role!' });
-      await spaceRolesPage.expectValidationError(
+      await serverRolesPage.fillRoleForm({ name: 'test-role!' });
+      await serverRolesPage.expectValidationError(
         'Name must use lowercase letters, numbers, and dashes; start with a letter'
       );
     });
 
-    test('role name validation rejects names starting with number', async ({ spaceRolesPage }) => {
-      const { page } = spaceRolesPage;
+    test('role name validation rejects names starting with number', async ({ serverRolesPage }) => {
+      const { page } = serverRolesPage;
 
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
-      await spaceRolesPage.gotoCreateRole(space.id);
+      await serverRolesPage.gotoCreateRole(space.id);
 
       // Try to enter a name starting with a number
-      await spaceRolesPage.fillRoleForm({ name: '123role' });
-      await spaceRolesPage.expectValidationError(
+      await serverRolesPage.fillRoleForm({ name: '123role' });
+      await serverRolesPage.expectValidationError(
         'Name must use lowercase letters, numbers, and dashes; start with a letter'
       );
     });
 
-    test('non-admin member sees access denied on create page', async ({ spaceRolesPage }) => {
-      const { page } = spaceRolesPage;
+    test('non-admin member sees access denied on create page', async ({ serverRolesPage }) => {
+      const { page } = serverRolesPage;
 
       // Create admin user and space
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
       // Create and login as non-admin user
       const nonAdmin = await createSecondTestUser(page);
@@ -372,180 +369,180 @@ test.describe('Space Roles Management', () => {
       await page.goto(routes.serverAdminRolesNew);
 
       // Should see access denied
-      await spaceRolesPage.expectAccessDenied();
+      await serverRolesPage.expectAccessDenied();
     });
   });
 
   test.describe('Edit Role', () => {
-    test('space admin can edit a custom role', async ({ spaceRolesPage }) => {
-      const { page } = spaceRolesPage;
+    test('server admin can edit a custom role', async ({ serverRolesPage }) => {
+      const { page } = serverRolesPage;
 
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
       const roleName = generateRoleName('edit');
 
       // Create a role first
-      await spaceRolesPage.createRole(space.id, {
+      await serverRolesPage.createRole(space.id, {
         name: roleName,
         displayName: 'Edit Test Role',
         description: 'Original description'
       });
 
       // Update the display name and description
-      await spaceRolesPage.fillRoleForm({
+      await serverRolesPage.fillRoleForm({
         displayName: 'Updated Role Name',
         description: 'Updated description'
       });
-      await spaceRolesPage.saveChangesButton.click();
+      await serverRolesPage.saveChangesButton.click();
 
       // Verify changes persist after reload
       await page.reload();
-      await expect(spaceRolesPage.displayNameInput).toHaveValue('Updated Role Name');
-      await expect(spaceRolesPage.descriptionInput).toHaveValue('Updated description');
+      await expect(serverRolesPage.displayNameInput).toHaveValue('Updated Role Name');
+      await expect(serverRolesPage.descriptionInput).toHaveValue('Updated description');
     });
 
-    test('space admin can grant permission to a role', async ({ spaceRolesPage }) => {
-      const { page } = spaceRolesPage;
+    test('server admin can grant permission to a role', async ({ serverRolesPage }) => {
+      const { page } = serverRolesPage;
 
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
       const roleName = generateRoleName('perm');
 
       // Create a role
-      await spaceRolesPage.createRole(space.id, {
+      await serverRolesPage.createRole(space.id, {
         name: roleName,
         displayName: 'Permission Test Role'
       });
 
       // The role should start without server.manage permission
-      await spaceRolesPage.expectPermissionNotGranted('server.manage');
+      await serverRolesPage.expectPermissionNotGranted('server.manage');
 
       // Grant the permission
-      await spaceRolesPage.togglePermission('server.manage');
+      await serverRolesPage.togglePermission('server.manage');
 
       // Wait for the toast confirmation, then verify persistence
-      await spaceRolesPage.expectToast('Granted server.manage');
+      await serverRolesPage.expectToast('Granted server.manage');
       await page.reload();
-      await spaceRolesPage.expectPermissionGranted('server.manage');
+      await serverRolesPage.expectPermissionGranted('server.manage');
     });
 
-    test('space admin can clear permission from a role', async ({ spaceRolesPage }) => {
-      const { page } = spaceRolesPage;
+    test('server admin can clear permission from a role', async ({ serverRolesPage }) => {
+      const { page } = serverRolesPage;
 
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
       // The everyone role has room.list by default
-      await spaceRolesPage.gotoEditRole(space.id, 'everyone');
-      await spaceRolesPage.expectPermissionGranted('room.list');
+      await serverRolesPage.gotoEditRole(space.id, 'everyone');
+      await serverRolesPage.expectPermissionGranted('room.list');
 
       // Clear the permission (set to neutral)
-      await spaceRolesPage.togglePermission('room.list');
+      await serverRolesPage.togglePermission('room.list');
 
       // Wait for the toast confirmation, then verify persistence
-      await spaceRolesPage.expectToast('Cleared room.list');
+      await serverRolesPage.expectToast('Cleared room.list');
       await page.reload();
-      await spaceRolesPage.expectPermissionNotGranted('room.list');
+      await serverRolesPage.expectPermissionNotGranted('room.list');
     });
 
     test('system role owner has virtual admin permissions granted read-only', async ({
-      spaceRolesPage
+      serverRolesPage
     }) => {
-      const { page } = spaceRolesPage;
+      const { page } = serverRolesPage;
 
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
-      await spaceRolesPage.gotoEditRole(space.id, 'owner');
+      await serverRolesPage.gotoEditRole(space.id, 'owner');
 
       // Owner permissions are virtual, not persisted editable grants.
-      await spaceRolesPage.expectOwnerPermissionVirtuallyGranted('user.delete-any');
-      await spaceRolesPage.expectPermissionReadOnly('user.delete-any');
+      await serverRolesPage.expectOwnerPermissionVirtuallyGranted('user.delete-any');
+      await serverRolesPage.expectPermissionReadOnly('user.delete-any');
     });
 
-    test('system roles cannot be deleted', async ({ spaceRolesPage }) => {
-      const { page } = spaceRolesPage;
+    test('system roles cannot be deleted', async ({ serverRolesPage }) => {
+      const { page } = serverRolesPage;
 
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
       // Check owner role
-      await spaceRolesPage.gotoEditRole(space.id, 'owner');
-      await spaceRolesPage.expectDeleteRoleButtonNotVisible();
+      await serverRolesPage.gotoEditRole(space.id, 'owner');
+      await serverRolesPage.expectDeleteRoleButtonNotVisible();
 
       // Check everyone role
-      await spaceRolesPage.gotoEditRole(space.id, 'everyone');
-      await spaceRolesPage.expectDeleteRoleButtonNotVisible();
+      await serverRolesPage.gotoEditRole(space.id, 'everyone');
+      await serverRolesPage.expectDeleteRoleButtonNotVisible();
     });
   });
 
   test.describe('Delete Role', () => {
-    test('space admin can delete a custom role', async ({ spaceRolesPage }) => {
-      const { page } = spaceRolesPage;
+    test('server admin can delete a custom role', async ({ serverRolesPage }) => {
+      const { page } = serverRolesPage;
 
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
       const roleName = generateRoleName('del');
 
       // Create a role
-      await spaceRolesPage.createRole(space.id, {
+      await serverRolesPage.createRole(space.id, {
         name: roleName,
         displayName: 'Delete Test Role'
       });
 
       // Delete the role
-      await spaceRolesPage.deleteCurrentRole();
+      await serverRolesPage.deleteCurrentRole();
 
       // Should be redirected to roles list
-      await spaceRolesPage.expectRolesListVisible();
+      await serverRolesPage.expectRolesListVisible();
 
       // Role should no longer be in the list
-      await spaceRolesPage.expectRoleNotInList('Delete Test Role');
+      await serverRolesPage.expectRoleNotInList('Delete Test Role');
     });
 
-    test('custom roles show delete button', async ({ spaceRolesPage }) => {
-      const { page } = spaceRolesPage;
+    test('custom roles show delete button', async ({ serverRolesPage }) => {
+      const { page } = serverRolesPage;
 
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
       const roleName = generateRoleName('custom');
 
       // Create a role
-      await spaceRolesPage.createRole(space.id, {
+      await serverRolesPage.createRole(space.id, {
         name: roleName,
         displayName: 'Custom Role'
       });
 
       // Should see delete button for custom role
-      await spaceRolesPage.expectDeleteRoleButtonVisible();
+      await serverRolesPage.expectDeleteRoleButtonVisible();
     });
   });
 });
 
 test.describe('Roles Management', () => {
   test.describe('Roles List', () => {
-    test('space admin can see roles in roles list', async ({ spaceRolesPage }) => {
-      const { page } = spaceRolesPage;
+    test('server admin can see roles in roles list', async ({ serverRolesPage }) => {
+      const { page } = serverRolesPage;
 
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
-      await spaceRolesPage.gotoRolesList(space.id);
+      await serverRolesPage.gotoRolesList(space.id);
 
       // The unified roles matrix should be visible
-      await spaceRolesPage.expectRolesPanelVisible();
+      await serverRolesPage.expectRolesPanelVisible();
 
       // Should see system roles (not universal roles like `everyone`)
-      await spaceRolesPage.expectRoleInList('admin');
+      await serverRolesPage.expectRoleInList('admin');
     });
 
-    // Removed: "space admin can navigate to role detail page".
+    // Removed: "server admin can navigate to role detail page".
     // The matrix gates role column-header clicks on
-    // admin.manage-roles, so a non-admin space admin sees the header
+    // admin.manage-roles, so a non-admin server admin sees the header
     // as plain text — there's nothing to click. The
     // unit specs cover the onRoleClick wiring; the navigation flow itself
     // is exercised end-to-end by `admin can deny a permission on a role
@@ -553,76 +550,76 @@ test.describe('Roles Management', () => {
   });
 
   test.describe('Role Permissions', () => {
-    test('space admin can grant permission to role', async ({ spaceRolesPage }) => {
-      const { page } = spaceRolesPage;
+    test('server admin can grant permission to role', async ({ serverRolesPage }) => {
+      const { page } = serverRolesPage;
 
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
       // Navigate to moderator role detail page; admin already has role.manage by default.
-      await spaceRolesPage.gotoRoleDetail(space.id, 'moderator');
+      await serverRolesPage.gotoRoleDetail(space.id, 'moderator');
 
       // The role should start without role.manage permission
-      await spaceRolesPage.expectPermissionNotGranted('role.manage');
+      await serverRolesPage.expectPermissionNotGranted('role.manage');
 
       // Grant the permission
-      await spaceRolesPage.togglePermission('role.manage');
+      await serverRolesPage.togglePermission('role.manage');
 
       // Wait for toast and verify persistence
-      await spaceRolesPage.expectToast('Granted role.manage');
+      await serverRolesPage.expectToast('Granted role.manage');
       await page.reload();
-      await spaceRolesPage.expectPermissionGranted('role.manage');
+      await serverRolesPage.expectPermissionGranted('role.manage');
     });
 
-    test('space admin can deny permission for role', async ({ spaceRolesPage }) => {
-      const { page } = spaceRolesPage;
+    test('server admin can deny permission for role', async ({ serverRolesPage }) => {
+      const { page } = serverRolesPage;
 
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
       // Navigate to admin role detail page
-      await spaceRolesPage.gotoRoleDetail(space.id, 'admin');
+      await serverRolesPage.gotoRoleDetail(space.id, 'admin');
 
       // Deny a permission
-      await spaceRolesPage.denyPermission('room.list');
+      await serverRolesPage.denyPermission('room.list');
 
       // Wait for toast and verify persistence
-      await spaceRolesPage.expectToast('Denied room.list');
+      await serverRolesPage.expectToast('Denied room.list');
       await page.reload();
-      await spaceRolesPage.expectPermissionDenied('room.list');
+      await serverRolesPage.expectPermissionDenied('room.list');
     });
 
-    test('space admin can clear permission from role', async ({ spaceRolesPage }) => {
-      const { page } = spaceRolesPage;
+    test('server admin can clear permission from role', async ({ serverRolesPage }) => {
+      const { page } = serverRolesPage;
 
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
       // Navigate to admin role detail page
-      await spaceRolesPage.gotoRoleDetail(space.id, 'admin');
+      await serverRolesPage.gotoRoleDetail(space.id, 'admin');
 
       // First grant a permission
-      await spaceRolesPage.togglePermission('role.manage');
-      await spaceRolesPage.expectToast('Granted role.manage');
+      await serverRolesPage.togglePermission('role.manage');
+      await serverRolesPage.expectToast('Granted role.manage');
       await page.reload();
 
       // Now clear it (uncheck the Allow checkbox)
-      await spaceRolesPage.togglePermission('role.manage');
-      await spaceRolesPage.expectToast('Cleared role.manage');
+      await serverRolesPage.togglePermission('role.manage');
+      await serverRolesPage.expectToast('Cleared role.manage');
 
       // Verify it's no longer granted
       await page.reload();
-      await spaceRolesPage.expectPermissionNotGranted('role.manage');
+      await serverRolesPage.expectPermissionNotGranted('role.manage');
     });
   });
 
   test.describe('Instance Role Permission Enforcement', () => {
-    test('user with everyone role grant gets permission', async ({ spaceRolesPage }) => {
-      const { page } = spaceRolesPage;
+    test('user with everyone role grant gets permission', async ({ serverRolesPage }) => {
+      const { page } = serverRolesPage;
 
       // Create admin user and space
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
       // Grant role.manage to the "everyone" space role
       await grantPermission(page, space.id, 'everyone', 'role.manage');
@@ -636,16 +633,16 @@ test.describe('Roles Management', () => {
       // Navigate to roles list - should have create/manage access via everyone role grant.
       // The matrix itself is intentionally hidden from non-admins because role
       // permission inspection is still restricted.
-      await spaceRolesPage.gotoRolesList(space.id);
-      await spaceRolesPage.expectCreateRoleButtonVisible();
+      await serverRolesPage.gotoRolesList(space.id);
+      await serverRolesPage.expectCreateRoleButtonVisible();
     });
 
-    test('user with everyone role denial is blocked', async ({ spaceRolesPage }) => {
-      const { page } = spaceRolesPage;
+    test('user with everyone role denial is blocked', async ({ serverRolesPage }) => {
+      const { page } = serverRolesPage;
 
       // Create admin user and space
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
       // Deny role.manage on the "everyone" space role
       await denyPermission(page, space.id, 'everyone', 'role.manage');
@@ -658,17 +655,17 @@ test.describe('Roles Management', () => {
 
       // Navigate to roles list - should be denied because everyone role has denial
       await page.goto(routes.serverAdminRoles);
-      await spaceRolesPage.expectAccessDenied();
+      await serverRolesPage.expectAccessDenied();
     });
   });
 });
 
 test.describe('Space Permission Enforcement', () => {
   test.describe('rooms.manage permission (room creation)', () => {
-    test('space admin can create a room via admin page', async ({ page }) => {
+    test('server admin can create a room via admin page', async ({ page }) => {
       // Create admin user and space
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
       // Navigate to admin rooms page
       await page.goto(routes.serverAdminRooms);
@@ -686,7 +683,7 @@ test.describe('Space Permission Enforcement', () => {
     test('non-admin user cannot access admin rooms page', async ({ page }) => {
       // Create admin user and space
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
       // Create second user and log them in
       const member = await createSecondTestUser(page);
@@ -702,13 +699,13 @@ test.describe('Space Permission Enforcement', () => {
 
   test.describe('roles.manage permission', () => {
     test('user with roles.manage permission can access roles settings', async ({
-      spaceRolesPage
+      serverRolesPage
     }) => {
-      const { page } = spaceRolesPage;
+      const { page } = serverRolesPage;
 
       // Create admin user and space
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
       // Grant role.manage to everyone role
       await grantPermission(page, space.id, 'everyone', 'role.manage');
@@ -720,18 +717,18 @@ test.describe('Space Permission Enforcement', () => {
       await joinSpaceViaAPI(page, space.id);
 
       // Navigate to roles list
-      await spaceRolesPage.gotoRolesList(space.id);
+      await serverRolesPage.gotoRolesList(space.id);
 
       // Should see Create Role button (has roles.manage)
-      await spaceRolesPage.expectCreateRoleButtonVisible();
+      await serverRolesPage.expectCreateRoleButtonVisible();
     });
 
-    test('user without roles.manage permission sees access denied', async ({ spaceRolesPage }) => {
-      const { page } = spaceRolesPage;
+    test('user without roles.manage permission sees access denied', async ({ serverRolesPage }) => {
+      const { page } = serverRolesPage;
 
       // Create admin user and space
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
       // Create second user (everyone role doesn't have role.manage by default)
       const member = await createSecondTestUser(page);
@@ -743,33 +740,33 @@ test.describe('Space Permission Enforcement', () => {
       await page.goto(routes.serverAdminRoles);
 
       // Users without roles.manage permission see Access Denied
-      await spaceRolesPage.expectAccessDenied();
+      await serverRolesPage.expectAccessDenied();
     });
   });
 
   test.describe('space.manage permission', () => {
-    test('user with space.manage permission can see settings link', async ({ spaceAdminPage }) => {
-      const { page } = spaceAdminPage;
+    test('user with space.manage permission can see settings link', async ({ serverAdminPage }) => {
+      const { page } = serverAdminPage;
 
       // Create admin user and space
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
       // Navigate to space
       await page.goto(routes.space());
 
       // Admin should see settings link in sidebar
-      await spaceAdminPage.expectAdminLinkVisible();
+      await serverAdminPage.expectAdminLinkVisible();
     });
 
     test('user without space.manage permission cannot see settings link', async ({
-      spaceAdminPage
+      serverAdminPage
     }) => {
-      const { page } = spaceAdminPage;
+      const { page } = serverAdminPage;
 
       // Create admin user and space
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
       // Create second user (regular member)
       const member = await createSecondTestUser(page);
@@ -782,7 +779,7 @@ test.describe('Space Permission Enforcement', () => {
       await expect(page.getByRole('heading', { name: space.name })).toBeVisible();
 
       // Non-admin should not see settings link in sidebar
-      await spaceAdminPage.expectAdminLinkNotVisible();
+      await serverAdminPage.expectAdminLinkNotVisible();
     });
   });
 
@@ -790,7 +787,7 @@ test.describe('Space Permission Enforcement', () => {
     test('user with room.list permission can list rooms via API', async ({ page }) => {
       // Create admin user and space
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
       // Create second user (everyone role has room.list by default)
       const member = await createSecondTestUser(page);
@@ -826,7 +823,7 @@ test.describe('Space Permission Enforcement', () => {
     test('user without room.list permission cannot list rooms via API', async ({ page }) => {
       // Create admin user and space
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
       const hiddenRoomId = await createRoomViaAPI(page);
 
@@ -878,7 +875,7 @@ test.describe('Space Permission Enforcement', () => {
     test('user with room.join permission can join a room', async ({ page }) => {
       // Create admin user and space
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
       const groupId = await getDefaultRoomGroupId(page);
 
       // Create a room (admin has room.create by default)
@@ -936,7 +933,7 @@ test.describe('Space Permission Enforcement', () => {
     test('user without room.join permission cannot join a room', async ({ page }) => {
       // Create admin user and space
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
       const groupId = await getDefaultRoomGroupId(page);
 
       // Create a room (admin has room.create by default)
@@ -997,7 +994,7 @@ test.describe('Space Permission Enforcement', () => {
     test('chat input is disabled when user lacks message.post permission', async ({ page }) => {
       // Admin creates space and room
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
       const groupId = await getDefaultRoomGroupId(page);
 
       const roomResponse = await page.request.post('/api/graphql', {
@@ -1061,7 +1058,7 @@ test.describe('Space Permission Enforcement', () => {
     }) => {
       // Admin creates space, room, joins, and sends a message
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
       const roomId = await createRoomViaAPI(page, space.id);
       await joinRoomViaAPI(page, space.id, roomId);
 
@@ -1102,7 +1099,7 @@ test.describe('Space Permission Enforcement', () => {
     test('administration gear hidden when user lacks room.manage permission', async ({ page }) => {
       // Admin creates space and room
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
       const roomId = await createRoomViaAPI(page, space.id);
       await joinRoomViaAPI(page, space.id, roomId);
 
@@ -1124,7 +1121,7 @@ test.describe('Space Permission Enforcement', () => {
     test('administration gear visible when user has room.manage permission', async ({ page }) => {
       // Admin creates space and room
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
       const roomId = await createRoomViaAPI(page, space.id);
       await joinRoomViaAPI(page, space.id, roomId);
 

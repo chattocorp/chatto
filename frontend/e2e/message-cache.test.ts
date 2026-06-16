@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test';
-import { createAndLoginTestUser, joinSpace } from './fixtures/testUser';
+import { createAndLoginTestUser, openServer } from './fixtures/testUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { test } from './setup';
 import { ChatPage, RoomPage } from './pages';
@@ -20,7 +20,7 @@ test.describe('Message Cache - Cross-Room and Cross-Space Scenarios', () => {
       await chatPage.goto();
       await chatPage.enterRoom('general');
 
-      const spaceId = await chatPage.getSpaceId();
+      const spaceId = await chatPage.getServerScopeId();
 
       // User A posts root message
       const rootMessage = `Root message for cross-room test ${Date.now()}`;
@@ -35,7 +35,7 @@ test.describe('Message Cache - Cross-Room and Cross-Space Scenarios', () => {
 
       try {
         await createAndLoginTestUser(page2);
-        await joinSpace(page2);
+        await openServer(page2);
         await page2.goto(routes.space());
 
         const chatPage2 = new ChatPage(page2);
@@ -89,7 +89,7 @@ test.describe('Message Cache - Cross-Room and Cross-Space Scenarios', () => {
       await chatPage.goto();
       await chatPage.enterRoom('general');
 
-      const spaceId = await chatPage.getSpaceId();
+      const spaceId = await chatPage.getServerScopeId();
 
       const rootMessage = `Cross-room realtime test ${Date.now()}`;
       const message1 = await roomPage.sendMessage(rootMessage);
@@ -109,7 +109,7 @@ test.describe('Message Cache - Cross-Room and Cross-Space Scenarios', () => {
 
       try {
         await createAndLoginTestUser(page2);
-        await joinSpace(page2);
+        await openServer(page2);
         await page2.goto(routes.space());
 
         const chatPage2 = new ChatPage(page2);
@@ -160,7 +160,7 @@ test.describe('Message Cache - Cross-Room and Cross-Space Scenarios', () => {
       await chatPage.goto();
       await chatPage.enterRoom('general');
 
-      const spaceId = await chatPage.getSpaceId();
+      const spaceId = await chatPage.getServerScopeId();
 
       const rootMessage = `Multiple replies test ${Date.now()}`;
       await roomPage.sendMessage(rootMessage);
@@ -171,7 +171,7 @@ test.describe('Message Cache - Cross-Room and Cross-Space Scenarios', () => {
 
       try {
         await createAndLoginTestUser(page2);
-        await joinSpace(page2);
+        await openServer(page2);
         await page2.goto(routes.space());
 
         const chatPage2 = new ChatPage(page2);

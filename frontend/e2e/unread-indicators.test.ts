@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test';
-import { createAndLoginTestUser, joinSpace } from './fixtures/testUser';
+import { createAndLoginTestUser, openServer } from './fixtures/testUser';
 import {
   waitForRoomUnread,
   waitForRoomRead,
@@ -23,7 +23,7 @@ test.describe('Multi-Tab Unread Sync', () => {
     // User A: Create space (auto-enters a room due to redirect behavior)
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     // Navigate User A to announcements room (not general) so general stays unread
     await chatPage.enterRoom('announcements');
@@ -37,7 +37,7 @@ test.describe('Multi-Tab Unread Sync', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
 
       const chatPage2 = new ChatPage(page2);
@@ -114,7 +114,7 @@ test.describe('Multi-window unread sync', () => {
     // User A: Create account and space
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     // User A visits general room then leaves to announcements
     await chatPage.enterRoom('general');
@@ -157,7 +157,7 @@ test.describe('Multi-window unread sync', () => {
 
       try {
         await createAndLoginTestUser(page3);
-        await joinSpace(page3);
+        await openServer(page3);
         await page3.goto(routes.space());
         await page3.waitForURL(routes.patterns.anySpace);
 
@@ -203,7 +203,7 @@ test.describe('Unread indicators', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
 
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     // Navigate to "announcements" room (User A will observe from here)
     await chatPage.enterRoom('announcements');
@@ -225,7 +225,7 @@ test.describe('Unread indicators', () => {
       await createAndLoginTestUser(page2);
 
       // User B joins the space via API helper
-      await joinSpace(page2);
+      await openServer(page2);
 
       // Navigate to the space
       await page2.goto(routes.space());
@@ -310,7 +310,7 @@ test.describe('Room unread separator', () => {
     // User A: Create account and space
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     // User A enters general room and posts initial messages
     await chatPage.enterRoom('general');
@@ -327,7 +327,7 @@ test.describe('Room unread separator', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
@@ -380,7 +380,7 @@ test.describe('Room unread separator', () => {
     // User A: Create account and space
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     // User A enters general room and posts a message
     await chatPage.enterRoom('general');
@@ -393,7 +393,7 @@ test.describe('Room unread separator', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
@@ -424,7 +424,7 @@ test.describe('Room unread separator', () => {
     // User A: Create account and space
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     // User A enters general room and posts initial message
     await chatPage.enterRoom('general');
@@ -440,7 +440,7 @@ test.describe('Room unread separator', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
@@ -497,7 +497,7 @@ test.describe('Room unread separator', () => {
     // User A: Create account and space, post an initial message in general.
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     await chatPage.enterRoom('general');
     await waitForRoomReady(page, 'general');
@@ -512,7 +512,7 @@ test.describe('Room unread separator', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
@@ -606,7 +606,7 @@ test.describe('Room unread separator', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
@@ -704,7 +704,7 @@ test.describe('Room unread separator', () => {
     // User A: Create account and space, post an existing message in general.
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     await chatPage.enterRoom('general');
     await waitForRoomReady(page, 'general');
@@ -720,7 +720,7 @@ test.describe('Room unread separator', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
@@ -768,7 +768,7 @@ test.describe('Room unread separator', () => {
     // User creates account and space
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     // Enter room
     await chatPage.enterRoom('general');
@@ -888,7 +888,7 @@ test.describe('Unread dot stability after loadRooms refresh', () => {
     // User A: Create account and space
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     // User A enters general room and posts a message
     await chatPage.enterRoom('general');
@@ -903,7 +903,7 @@ test.describe('Unread dot stability after loadRooms refresh', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
@@ -1001,7 +1001,7 @@ test.describe('Thread reply unread behavior', () => {
     // User A: Create account and space
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     // User A enters general room and posts a root message
     await chatPage.enterRoom('general');
@@ -1017,7 +1017,7 @@ test.describe('Thread reply unread behavior', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 

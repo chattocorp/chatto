@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test';
-import { createAndLoginTestUser, joinSpace } from './fixtures/testUser';
+import { createAndLoginTestUser, openServer } from './fixtures/testUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { test } from './setup';
 import { ChatPage, RoomPage } from './pages';
@@ -147,7 +147,7 @@ test.describe('Thread Following', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     const rootText = `Root ${Date.now()}`;
     const rootMsg = await roomPage.sendMessage(rootText);
@@ -158,7 +158,7 @@ test.describe('Thread Following', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
 
       const chatPage2 = new ChatPage(page2);
@@ -198,7 +198,7 @@ test.describe('Thread Following', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     const rootText = `Root ${Date.now()}`;
     await roomPage.sendMessage(rootText);
@@ -209,7 +209,7 @@ test.describe('Thread Following', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
 
       const chatPage2 = new ChatPage(page2);
@@ -246,7 +246,7 @@ test.describe('Thread Following', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     // User A posts root message and creates a thread
     const rootText = `Root ${Date.now()}`;
@@ -266,7 +266,7 @@ test.describe('Thread Following', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
 
       const chatPage2 = new ChatPage(page2);
@@ -306,7 +306,7 @@ test.describe('Thread Following', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     const firstMsg = await roomPage.sendMessage(`First ${Date.now()}`);
 
@@ -322,7 +322,7 @@ test.describe('Thread Following', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
 
       const chatPage2 = new ChatPage(page2);

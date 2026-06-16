@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test';
-import { createAndLoginTestUser, joinSpace } from './fixtures/testUser';
+import { createAndLoginTestUser, openServer } from './fixtures/testUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { test } from './setup';
 import { ChatPage, RoomPage, MyThreadsPage } from './pages';
@@ -14,7 +14,7 @@ test.describe('My Threads', () => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
 
-		const spaceId = await chatPage.getSpaceId();
+		const spaceId = await chatPage.getServerScopeId();
 		const myThreads = new MyThreadsPage(page);
 
 		await myThreads.goto(spaceId);
@@ -35,7 +35,7 @@ test.describe('My Threads', () => {
 		await chatPage.goto();
 		await chatPage.enterRoom('general');
 
-		const spaceId = await chatPage.getSpaceId();
+		const spaceId = await chatPage.getServerScopeId();
 		const myThreads = new MyThreadsPage(page);
 
 		// Post a message, open thread, reply (auto-follows)
@@ -65,7 +65,7 @@ test.describe('My Threads', () => {
 		await chatPage.goto();
 		await chatPage.enterRoom('general');
 
-		const spaceId = await chatPage.getSpaceId();
+		const spaceId = await chatPage.getServerScopeId();
 		const myThreads = new MyThreadsPage(page);
 
 		// Create a thread
@@ -95,7 +95,7 @@ test.describe('My Threads', () => {
 		await chatPage.goto();
 		await chatPage.enterRoom('general');
 
-		const spaceId = await chatPage.getSpaceId();
+		const spaceId = await chatPage.getServerScopeId();
 		const myThreads = new MyThreadsPage(page);
 
 		// Create a thread (auto-followed)
@@ -127,7 +127,7 @@ test.describe('My Threads', () => {
 		await chatPage.goto();
 		await chatPage.enterRoom('general');
 
-		const spaceId = await chatPage.getSpaceId();
+		const spaceId = await chatPage.getServerScopeId();
 		const myThreads = new MyThreadsPage(page);
 
 		// User A creates a thread
@@ -149,7 +149,7 @@ test.describe('My Threads', () => {
 
 		try {
 			await createAndLoginTestUser(page2);
-			await joinSpace(page2);
+			await openServer(page2);
 			await page2.goto(routes.space());
 
 			const chatPage2 = new ChatPage(page2);
@@ -184,7 +184,7 @@ test.describe('My Threads', () => {
 		await chatPage.goto();
 		await chatPage.enterRoom('general');
 
-		const spaceId = await chatPage.getSpaceId();
+		const spaceId = await chatPage.getServerScopeId();
 		const myThreads = new MyThreadsPage(page);
 
 		// User A creates a thread and navigates to My Threads
@@ -211,7 +211,7 @@ test.describe('My Threads', () => {
 
 		try {
 			await createAndLoginTestUser(page2);
-			await joinSpace(page2);
+			await openServer(page2);
 			await page2.goto(routes.space());
 
 			const chatPage2 = new ChatPage(page2);
@@ -245,7 +245,7 @@ test.describe('My Threads', () => {
 		await chatPage.goto();
 		await chatPage.enterRoom('general');
 
-		const spaceId = await chatPage.getSpaceId();
+		const spaceId = await chatPage.getServerScopeId();
 		const myThreads = new MyThreadsPage(page);
 
 		// User A creates a thread
@@ -268,7 +268,7 @@ test.describe('My Threads', () => {
 
 		try {
 			await createAndLoginTestUser(page2);
-			await joinSpace(page2);
+			await openServer(page2);
 			await page2.goto(routes.space());
 
 			const chatPage2 = new ChatPage(page2);
@@ -307,7 +307,7 @@ test.describe('My Threads', () => {
 		await chatPage.goto();
 		await chatPage.enterRoom('general');
 
-		const spaceId = await chatPage.getSpaceId();
+		const spaceId = await chatPage.getServerScopeId();
 		const myThreads = new MyThreadsPage(page);
 
 		// User A creates a thread
@@ -324,7 +324,7 @@ test.describe('My Threads', () => {
 
 		try {
 			await createAndLoginTestUser(page2);
-			await joinSpace(page2);
+			await openServer(page2);
 			await page2.goto(routes.space());
 
 			const chatPage2 = new ChatPage(page2);
@@ -368,7 +368,7 @@ test.describe('My Threads', () => {
 		await chatPage.goto();
 		await chatPage.enterRoom('general');
 
-		const spaceId = await chatPage.getSpaceId();
+		const spaceId = await chatPage.getServerScopeId();
 		const myThreads = new MyThreadsPage(page);
 
 		// User B creates a thread (so User A doesn't auto-follow)
@@ -379,7 +379,7 @@ test.describe('My Threads', () => {
 
 		try {
 			await createAndLoginTestUser(page2);
-			await joinSpace(page2);
+			await openServer(page2);
 			await page2.goto(routes.space());
 
 			const chatPage2 = new ChatPage(page2);
@@ -426,7 +426,7 @@ test.describe('My Threads', () => {
 		await chatPage.goto();
 		await chatPage.enterRoom('general');
 
-		const spaceId = await chatPage.getSpaceId();
+		const spaceId = await chatPage.getServerScopeId();
 		const myThreads = new MyThreadsPage(page);
 
 		// Create a thread (we just replied, so it's "read")
@@ -465,7 +465,7 @@ test.describe('My Threads', () => {
 		await chatPage.goto();
 		await chatPage.enterRoom('general');
 
-		const spaceId = await chatPage.getSpaceId();
+		const spaceId = await chatPage.getServerScopeId();
 		const myThreads = new MyThreadsPage(page);
 
 		// Create two threads
@@ -489,7 +489,7 @@ test.describe('My Threads', () => {
 
 		try {
 			await createAndLoginTestUser(page2);
-			await joinSpace(page2);
+			await openServer(page2);
 			await page2.goto(routes.space());
 
 			const chatPage2 = new ChatPage(page2);
@@ -529,7 +529,7 @@ test.describe('My Threads', () => {
 		await chatPage.goto();
 		await chatPage.enterRoom('general');
 
-		const spaceId = await chatPage.getSpaceId();
+		const spaceId = await chatPage.getServerScopeId();
 		const myThreads = new MyThreadsPage(page);
 
 		// Create a thread
@@ -575,7 +575,7 @@ test.describe('My Threads', () => {
 		await chatPage.goto();
 		await chatPage.enterRoom('general');
 
-		const spaceId = await chatPage.getSpaceId();
+		const spaceId = await chatPage.getServerScopeId();
 		const myThreads = new MyThreadsPage(page);
 
 		// Create a second room to navigate to
@@ -635,7 +635,7 @@ test.describe('My Threads', () => {
 		await chatPage.goto();
 		await chatPage.enterRoom('general');
 
-		const spaceId = await chatPage.getSpaceId();
+		const spaceId = await chatPage.getServerScopeId();
 		const myThreads = new MyThreadsPage(page);
 
 		// Create first thread

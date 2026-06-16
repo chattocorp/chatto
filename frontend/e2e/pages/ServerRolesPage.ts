@@ -2,10 +2,10 @@ import { expect, type Locator, type Page } from '@playwright/test';
 import * as routes from '../routes';
 
 /**
- * Page object for the Space Roles management pages.
- * Handles viewing, creating, editing, and deleting space roles.
+ * Page object for the Server Roles management pages.
+ * Handles viewing, creating, editing, and deleting server roles.
  */
-export class SpaceRolesPage {
+export class ServerRolesPage {
   constructor(readonly page: Page) {}
 
   /**
@@ -99,7 +99,7 @@ export class SpaceRolesPage {
   // --- Navigation ---
 
   /**
-   * Navigate to the space roles list page.
+   * Navigate to the server roles list page.
    */
   async gotoRolesList(spaceId: string): Promise<void> {
     await this.page.goto(routes.serverAdminRoles);
@@ -218,7 +218,7 @@ export class SpaceRolesPage {
   private currentCell(permission: string): Locator {
     if (!this.currentRoleName) {
       throw new Error(
-        'SpaceRolesPage permission helpers require a current role — call gotoEditRole(...) first.'
+        'ServerRolesPage permission helpers require a current role — call gotoEditRole(...) first.'
       );
     }
     return this.matrixCellFor(this.currentRoleName, permission);
@@ -258,7 +258,7 @@ export class SpaceRolesPage {
   private async ensureOnMatrix(): Promise<void> {
     if (!this.currentSpaceId) {
       throw new Error(
-        'SpaceRolesPage permission helpers require a current space — call gotoEditRole(...) first.'
+        'ServerRolesPage permission helpers require a current space — call gotoEditRole(...) first.'
       );
     }
     if (!this.page.url().endsWith(`/server-admin/permissions`)) {

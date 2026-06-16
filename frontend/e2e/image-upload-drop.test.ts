@@ -1,16 +1,14 @@
 import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
-import { createAndLoginTestUser, loginAsAdminAndUsePrimarySpace } from './fixtures/testUser';
+import { createAndLoginTestUser, loginAsAdminAndUsePrimaryServer } from './fixtures/testUser';
 import { simulateDragEnter, simulateDragLeave, simulateFileDrop } from './helpers/dragDrop';
 import * as routes from './routes';
 import { TIMEOUTS } from './constants';
 
-/**
- * Creates a space via GraphQL API and returns its ID.
- */
-async function createSpaceViaAPI(page: Page): Promise<string> {
-  const space = await loginAsAdminAndUsePrimarySpace(page);
-  return space.id;
+/** Log in as the bootstrap admin and return the legacy server scope ID. */
+async function usePrimaryServerViaAPI(page: Page): Promise<string> {
+  const server = await loginAsAdminAndUsePrimaryServer(page);
+  return server.id;
 }
 
 test.describe('drag and drop image upload on settings pages', () => {
@@ -54,14 +52,14 @@ test.describe('drag and drop image upload on settings pages', () => {
     });
   });
 
-  test.describe('space logo', () => {
+  test.describe('server logo', () => {
     test('drop zone overlay appears when dragging image over logo section', async ({
       page,
-      spaceAdminPage
+      serverAdminPage
     }) => {
       await createAndLoginTestUser(page);
-      const spaceId = await createSpaceViaAPI(page);
-      await spaceAdminPage.gotoGeneralDirectly(spaceId);
+      const spaceId = await usePrimaryServerViaAPI(page);
+      await serverAdminPage.gotoGeneralDirectly(spaceId);
 
       const logoDropZone = page.getByTestId('logo-drop-zone');
       await simulateDragEnter(logoDropZone);
@@ -69,10 +67,10 @@ test.describe('drag and drop image upload on settings pages', () => {
       await expect(page.getByText('Upload as instance logo')).toBeVisible();
     });
 
-    test('dropping image uploads logo', async ({ page, spaceAdminPage }) => {
+    test('dropping image uploads logo', async ({ page, serverAdminPage }) => {
       await createAndLoginTestUser(page);
-      const spaceId = await createSpaceViaAPI(page);
-      await spaceAdminPage.gotoGeneralDirectly(spaceId);
+      const spaceId = await usePrimaryServerViaAPI(page);
+      await serverAdminPage.gotoGeneralDirectly(spaceId);
 
       const logoDropZone = page.getByTestId('logo-drop-zone');
       await simulateFileDrop(logoDropZone, 'e2e/fixtures/brighton.jpg');
@@ -83,14 +81,14 @@ test.describe('drag and drop image upload on settings pages', () => {
     });
   });
 
-  test.describe('space banner', () => {
+  test.describe('server banner', () => {
     test('drop zone overlay appears when dragging image over banner section', async ({
       page,
-      spaceAdminPage
+      serverAdminPage
     }) => {
       await createAndLoginTestUser(page);
-      const spaceId = await createSpaceViaAPI(page);
-      await spaceAdminPage.gotoGeneralDirectly(spaceId);
+      const spaceId = await usePrimaryServerViaAPI(page);
+      await serverAdminPage.gotoGeneralDirectly(spaceId);
 
       const bannerDropZone = page.getByTestId('banner-drop-zone');
       await simulateDragEnter(bannerDropZone);
@@ -98,10 +96,10 @@ test.describe('drag and drop image upload on settings pages', () => {
       await expect(page.getByText('Upload as instance banner')).toBeVisible();
     });
 
-    test('dropping image uploads banner', async ({ page, spaceAdminPage }) => {
+    test('dropping image uploads banner', async ({ page, serverAdminPage }) => {
       await createAndLoginTestUser(page);
-      const spaceId = await createSpaceViaAPI(page);
-      await spaceAdminPage.gotoGeneralDirectly(spaceId);
+      const spaceId = await usePrimaryServerViaAPI(page);
+      await serverAdminPage.gotoGeneralDirectly(spaceId);
 
       const bannerDropZone = page.getByTestId('banner-drop-zone');
       await simulateFileDrop(bannerDropZone, 'e2e/fixtures/brighton.jpg');

@@ -169,7 +169,7 @@ test.describe('Notification Level - Server-Side Enforcement', () => {
   test('setting notification level persists via GraphQL roundtrip', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     // Set space level to MUTED via API
     await setServerNotificationLevel(page, 'MUTED');
@@ -189,7 +189,7 @@ test.describe('Notification Level - Server-Side Enforcement', () => {
   test('room inherits space notification level when set to DEFAULT', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
     const roomId = await getRoomIdByName(page, 'general');
 
     // Set space level to MUTED
@@ -214,7 +214,7 @@ test.describe('Notification Level - Server-Side Enforcement', () => {
   test('room level overrides space level', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
     const roomId = await getRoomIdByName(page, 'general');
 
     // Set space level to MUTED

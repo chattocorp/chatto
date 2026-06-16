@@ -1,6 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
-import { createAndLoginTestUser, joinSpace } from './fixtures/testUser';
+import { createAndLoginTestUser, openServer } from './fixtures/testUser';
 import { ChatPage } from './pages';
 import { TIMEOUTS } from './constants';
 import { waitForRoomReady } from './fixtures/realtimeSync';
@@ -99,7 +99,7 @@ test.describe('Virtualizer stability', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
 
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     // Enter the default "general" room and post many messages
     await chatPage.enterRoom('general');
@@ -170,7 +170,7 @@ test.describe('Virtualizer stability', () => {
     // User 1: Create space with two rooms
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     await chatPage.enterRoom('general');
     const generalRoomId = getRoomIdFromUrl(page);
@@ -189,7 +189,7 @@ test.describe('Virtualizer stability', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       // Navigate to the space so the room list is visible
       await page2.goto(routes.space());
       const chatPage2 = new ChatPage(page2);

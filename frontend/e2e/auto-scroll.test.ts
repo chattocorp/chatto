@@ -1,7 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
-import { ChatPage, RoomPage, ExplorePage } from './pages';
+import { ChatPage, RoomPage } from './pages';
 import { TIMEOUTS, POLLING_INTERVALS } from './constants';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 
@@ -55,8 +55,8 @@ test.describe('Message pane auto-scroll', () => {
     // User 1: Create space and post enough messages to make container scrollable
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const testSpaceName = await chatPage.getServerName();
-    const spaceId = await chatPage.getSpaceId();
+    const testServerName = await chatPage.getServerName();
+    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     // Extract roomId from URL for API-based message posting
@@ -135,15 +135,13 @@ test.describe('Message pane auto-scroll', () => {
     const page2 = await context2.newPage();
     const chatPage2 = new ChatPage(page2);
     const roomPage2 = new RoomPage(page2);
-    const explorePage2 = new ExplorePage(page2);
 
     try {
       await createAndLoginTestUser(page2);
       await chatPage2.goto();
 
       // Join the space via Explore Spaces
-      await chatPage2.goToExploreSpaces();
-      await explorePage2.joinSpace(testSpaceName);
+      await chatPage2.goto();
 
       // User 2 is auto-joined to "general" room - enter it
       await chatPage2.enterRoom('general');
@@ -174,8 +172,8 @@ test.describe('Message pane auto-scroll', () => {
     // User 1: Create space and post enough messages to make container scrollable
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const testSpaceName = await chatPage.getServerName();
-    const spaceId = await chatPage.getSpaceId();
+    const testServerName = await chatPage.getServerName();
+    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     // Extract roomId from URL for API-based message posting
@@ -227,15 +225,13 @@ test.describe('Message pane auto-scroll', () => {
     const page2 = await context2.newPage();
     const chatPage2 = new ChatPage(page2);
     const roomPage2 = new RoomPage(page2);
-    const explorePage2 = new ExplorePage(page2);
 
     try {
       await createAndLoginTestUser(page2);
       await chatPage2.goto();
 
       // Join the space via Explore Spaces
-      await chatPage2.goToExploreSpaces();
-      await explorePage2.joinSpace(testSpaceName);
+      await chatPage2.goto();
 
       // User 2 is auto-joined to "general" room - enter it
       await chatPage2.enterRoom('general');
@@ -281,8 +277,8 @@ test.describe('Message pane auto-scroll', () => {
     // User 1: Create space and post enough messages to fill the screen
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const testSpaceName = await chatPage.getServerName();
-    const spaceId = await chatPage.getSpaceId();
+    const testServerName = await chatPage.getServerName();
+    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     // Extract roomId from URL for API-based message posting
@@ -309,15 +305,13 @@ test.describe('Message pane auto-scroll', () => {
     });
     const page2 = await context2.newPage();
     const chatPage2 = new ChatPage(page2);
-    const explorePage2 = new ExplorePage(page2);
 
     try {
       await createAndLoginTestUser(page2);
       await chatPage2.goto();
 
       // Join the space via Explore Spaces
-      await chatPage2.goToExploreSpaces();
-      await explorePage2.joinSpace(testSpaceName);
+      await chatPage2.goto();
 
       // Enter the general room
       await chatPage2.enterRoom('general');
@@ -357,8 +351,8 @@ test.describe('Message pane auto-scroll', () => {
     // User 1: Create space and post enough messages to make container scrollable
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const testSpaceName = await chatPage.getServerName();
-    const spaceId = await chatPage.getSpaceId();
+    const testServerName = await chatPage.getServerName();
+    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     // Extract roomId from URL for API-based message posting
@@ -389,15 +383,13 @@ test.describe('Message pane auto-scroll', () => {
     const page2 = await context2.newPage();
     const chatPage2 = new ChatPage(page2);
     const roomPage2 = new RoomPage(page2);
-    const explorePage2 = new ExplorePage(page2);
 
     try {
       const user2 = await createAndLoginTestUser(page2);
       await chatPage2.goto();
 
       // Join the space
-      await chatPage2.goToExploreSpaces();
-      await explorePage2.joinSpace(testSpaceName);
+      await chatPage2.goto();
 
       await chatPage2.enterRoom('general');
 
@@ -462,7 +454,7 @@ test.describe('Message pane auto-scroll', () => {
     const url = page.url();
     const match = url.match(/\/chat\/-\/([^/]+)/);
     const roomId = match![1];
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     const timestamp = Date.now();
 
@@ -525,7 +517,7 @@ test.describe('Message pane auto-scroll', () => {
     // Setup: Create user, space, and navigate to room
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     // Extract roomId from URL for API-based message posting
@@ -591,7 +583,7 @@ test.describe('Message pane auto-scroll', () => {
     // Create user, space, and enter room
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     // Extract roomId from URL for API-based message posting
@@ -667,7 +659,7 @@ test.describe('Message pane auto-scroll', () => {
 
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     const url = page.url();
@@ -747,7 +739,7 @@ test.describe('Message pane auto-scroll', () => {
     // Setup: Create user, space, and navigate to room
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     // Extract roomId from URL for API-based message posting
@@ -810,7 +802,7 @@ test.describe('Message pane auto-scroll', () => {
     // Setup: Create user, space, and navigate to room
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     // Extract roomId from URL for API-based message posting
@@ -871,7 +863,7 @@ Line 8: This is the last line of this long message.`;
     // Create user, space, and enter room
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     // Extract roomId from URL for API-based message posting
@@ -931,7 +923,7 @@ Line 8: This is the last line of this long message.`;
     // Create space and enter general room
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     // Extract roomId from URL for API-based message posting

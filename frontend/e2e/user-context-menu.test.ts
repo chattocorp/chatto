@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test';
-import { createAndLoginTestUser, joinSpace } from './fixtures/testUser';
+import { createAndLoginTestUser, openServer } from './fixtures/testUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { test } from './setup';
 import { ChatPage, RoomPage } from './pages';
@@ -18,7 +18,7 @@ test.describe('User context menu', () => {
       // User A: Create space and send a message
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      const spaceId = await chatPage.getSpaceId();
+      const spaceId = await chatPage.getServerScopeId();
       await chatPage.enterRoom('general');
       await roomPage.sendMessage('Hello from User A');
 
@@ -28,7 +28,7 @@ test.describe('User context menu', () => {
 
       try {
         const userB = await createAndLoginTestUser(page2);
-        await joinSpace(page2);
+        await openServer(page2);
         await page2.goto(routes.space());
         await page2.waitForURL(routes.patterns.anySpace);
 

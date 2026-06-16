@@ -2,10 +2,10 @@ import { expect, type Locator, type Page } from '@playwright/test';
 import * as routes from '../routes';
 
 /**
- * Page object for the Space Admin Rooms page (/chat/-/{spaceId}/admin/rooms).
+ * Page object for the Server Admin Rooms page (/chat/-/{spaceId}/admin/rooms).
  * Covers room listing, archiving/unarchiving, global-room toggle, groups, and CRUD.
  */
-export class SpaceAdminRoomsPage {
+export class ServerAdminRoomsPage {
   constructor(readonly page: Page) {}
 
   // --- Page-level Locators ---

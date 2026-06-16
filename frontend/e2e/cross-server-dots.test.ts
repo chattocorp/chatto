@@ -1,12 +1,12 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { test } from './setup';
-import { createAndLoginTestUser, joinSpace } from './fixtures/testUser';
+import { createAndLoginTestUser, openServer } from './fixtures/testUser';
 import {
 	startSecondServer,
 	stopSecondServer,
 	createUserOnRemote,
-	createSpaceOnRemote,
-	joinSpaceOnRemote,
+	getPrimaryServerScopeOnRemote,
+	joinDefaultRoomsOnRemote,
 	getRoomOnRemote,
 	postMessageOnRemote,
 	postThreadReplyOnRemote,
@@ -81,11 +81,11 @@ test.describe('Cross-instance dots', () => {
 		const ts = Date.now();
 		const viewerLogin = `xviewer${ts}`;
 		const owner = await createUserOnRemote(baseURL, `xowner${ts}`, 'password123');
-		const spaceId = await createSpaceOnRemote(baseURL, owner.token, 'Cross Instance Mention');
+		const spaceId = await getPrimaryServerScopeOnRemote(baseURL, owner.token, 'Cross Instance Mention');
 		const viewer = await createUserOnRemote(baseURL, viewerLogin, 'password123');
-		await joinSpaceOnRemote(baseURL, viewer.token);
+		await joinDefaultRoomsOnRemote(baseURL, viewer.token);
 		const mentioner = await createUserOnRemote(baseURL, `xmentioner${ts}`, 'password123');
-		await joinSpaceOnRemote(baseURL, mentioner.token);
+		await joinDefaultRoomsOnRemote(baseURL, mentioner.token);
 		const generalRoomId = await getRoomOnRemote(baseURL, owner.token, 'general');
 
 		// Connect the remote instance as `viewer` and stay on /chat (away from the
@@ -95,7 +95,7 @@ test.describe('Cross-instance dots', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Sanity: no dot on the remote space icon yet. Issue #330: home and
-		// remote share the bootstrap space name "E2E Test Server", so
+		// remote share the bootstrap server name "E2E Test Server", so
 		// disambiguate the remote icon by the host segment in its href —
 		// home links use "/chat/-" while remote links use "/chat/<host>".
 		const remoteHostSegment = new URL(baseURL).hostname;
@@ -261,7 +261,7 @@ test.describe('Cross-instance dots', () => {
 		// Home: User A creates a space, posts a root message, then leaves the room.
 		const userA = await createAndLoginTestUser(page);
 		await chatPage.goto();
-		const spaceId = await chatPage.getSpaceId();
+		const spaceId = await chatPage.getServerScopeId();
 
 		await chatPage.enterRoom('general');
 		const generalRoomId = await getRoomIdByName(page, 'general');
@@ -276,7 +276,7 @@ test.describe('Cross-instance dots', () => {
 		const pageB = await ctxB.newPage();
 		try {
 			await createAndLoginTestUser(pageB);
-			await joinSpace(pageB);
+			await openServer(pageB);
 			await postThreadReplyViaAPI(
 				pageB,
 				generalRoomId,

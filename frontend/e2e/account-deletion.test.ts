@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test';
-import { createAndLoginTestUser, joinSpace } from './fixtures/testUser';
+import { createAndLoginTestUser, openServer } from './fixtures/testUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { waitForUserDeleted } from './fixtures/graphqlHelpers';
 import { test } from './setup';
@@ -88,7 +88,7 @@ test.describe('Account Deletion', () => {
       await chatPage.goto();
       await chatPage.enterRoom('general');
 
-      const spaceId = await chatPage.getSpaceId();
+      const spaceId = await chatPage.getServerScopeId();
       const messageText = `Hello from ${userA.login} at ${Date.now()}`;
       await roomPage.sendMessage(messageText);
 
@@ -100,7 +100,7 @@ test.describe('Account Deletion', () => {
         await createAndLoginTestUser(page2);
 
         // User B joins the space
-        await joinSpace(page2);
+        await openServer(page2);
         await page2.goto(routes.space());
 
         const chatPage2 = new ChatPage(page2);
@@ -157,7 +157,7 @@ test.describe('Account Deletion', () => {
       await chatPage.goto();
       await chatPage.enterRoom('general');
 
-      const spaceId = await chatPage.getSpaceId();
+      const spaceId = await chatPage.getServerScopeId();
       const messageText = `Real-time test from ${userA.login} at ${Date.now()}`;
       await roomPage.sendMessage(messageText);
 
@@ -169,7 +169,7 @@ test.describe('Account Deletion', () => {
         await createAndLoginTestUser(page2);
 
         // User B joins the space
-        await joinSpace(page2);
+        await openServer(page2);
         await page2.goto(routes.space());
 
         const chatPage2 = new ChatPage(page2);
@@ -220,7 +220,7 @@ test.describe('Account Deletion', () => {
       await chatPage.goto();
       await chatPage.enterRoom('general');
 
-      const spaceId = await chatPage.getSpaceId();
+      const spaceId = await chatPage.getServerScopeId();
 
       // User B joins the space (this creates a join event)
       const context2 = await browser!.newContext({ baseURL: serverURL });
@@ -229,7 +229,7 @@ test.describe('Account Deletion', () => {
       try {
         const userB = await createAndLoginTestUser(page2);
 
-        await joinSpace(page2);
+        await openServer(page2);
         await page2.goto(routes.space());
 
         const chatPage2 = new ChatPage(page2);
@@ -278,7 +278,7 @@ test.describe('Account Deletion', () => {
       await chatPage.goto();
       await chatPage.enterRoom('general');
 
-      const spaceId = await chatPage.getSpaceId();
+      const spaceId = await chatPage.getServerScopeId();
 
       // User B joins the space and room
       const context2 = await browser!.newContext({ baseURL: serverURL });
@@ -287,7 +287,7 @@ test.describe('Account Deletion', () => {
       try {
         const userB = await createAndLoginTestUser(page2);
 
-        await joinSpace(page2);
+        await openServer(page2);
         await page2.goto(routes.space());
 
         const chatPage2 = new ChatPage(page2);
@@ -332,7 +332,7 @@ test.describe('Account Deletion', () => {
         try {
           const userC = await createAndLoginTestUser(page3);
 
-          await joinSpace(page3);
+          await openServer(page3);
           await page3.goto(routes.space());
 
           const chatPage3 = new ChatPage(page3);

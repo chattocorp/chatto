@@ -3,27 +3,23 @@ import { test } from './setup';
 import {
   createAndLoginTestUser,
   logoutCurrentUser,
-  loginAsAdminAndUsePrimarySpace,
+  loginAsAdminAndUsePrimaryServer,
   type TestUser
 } from './fixtures/testUser';
 import * as routes from './routes';
 
-interface TestSpace {
+interface TestServer {
   id: string;
   name: string;
 }
 
-/**
- * Issue #330 / ADR-027: createSpace mutation is gone. Re-login as e2eadmin
- * (bootstrap space owner) and return the primary space so the admin-style
- * tests in this file still run with sufficient permissions.
- */
-async function createSpaceViaAPI(page: Page, _options?: { name?: string }): Promise<TestSpace> {
-  return loginAsAdminAndUsePrimarySpace(page);
+/** Log in as the bootstrap admin and return the primary server metadata. */
+async function usePrimaryServerViaAPI(page: Page, _options?: { name?: string }): Promise<TestServer> {
+  return loginAsAdminAndUsePrimaryServer(page);
 }
 
 /**
- * Creates a second test user (different from the space creator).
+ * Creates a second test user (different from the server admin).
  * The user has a verified email so they can join/create spaces.
  */
 async function createSecondTestUser(page: Page): Promise<TestUser> {
@@ -94,94 +90,94 @@ async function gotoSpace(page: Page): Promise<void> {
   await page.goto(routes.space());
 }
 
-test.describe('Space Admin Page', () => {
-  test('space admin can access admin page', async ({ spaceAdminPage }) => {
-    const { page } = spaceAdminPage;
+test.describe('Server Admin Page', () => {
+  test('server admin can access admin page', async ({ serverAdminPage }) => {
+    const { page } = serverAdminPage;
 
     // Create user and space (creator is admin)
     await createAndLoginTestUser(page);
-    const space = await createSpaceViaAPI(page, { name: 'Admin Settings Test' });
+    const space = await usePrimaryServerViaAPI(page, { name: 'Admin Settings Test' });
 
     // Navigate to space and go to General settings page
-    await spaceAdminPage.gotoGeneralDirectly(space.id);
+    await serverAdminPage.gotoGeneralDirectly(space.id);
 
-    // Should see the form with space name
-    await expect(spaceAdminPage.nameInput).toBeVisible();
-    await spaceAdminPage.expectName(space.name);
+    // Should see the form with server name
+    await expect(serverAdminPage.nameInput).toBeVisible();
+    await serverAdminPage.expectName(space.name);
   });
 
-  test('space admin can edit name and save changes', async ({ spaceAdminPage }) => {
-    const { page } = spaceAdminPage;
+  test('server admin can edit name and save changes', async ({ serverAdminPage }) => {
+    const { page } = serverAdminPage;
 
     // Create user and space
     await createAndLoginTestUser(page);
-    const space = await createSpaceViaAPI(page, { name: 'Original Name' });
+    const space = await usePrimaryServerViaAPI(page, { name: 'Original Name' });
 
     // Navigate to General settings page
-    await spaceAdminPage.gotoGeneralDirectly(space.id);
+    await serverAdminPage.gotoGeneralDirectly(space.id);
 
     // Change the name
     const newName = `Updated Name ${Date.now()}`;
-    await spaceAdminPage.updateName(newName);
+    await serverAdminPage.updateName(newName);
 
     // Should see success message
-    await spaceAdminPage.expectSaveSuccess();
+    await serverAdminPage.expectSaveSuccess();
 
     // Reload page to verify the name persisted
     await page.reload();
-    await spaceAdminPage.expectName(newName);
+    await serverAdminPage.expectName(newName);
   });
 
-  test('space name with leading whitespace shows validation error', async ({ spaceAdminPage }) => {
-    const { page } = spaceAdminPage;
+  test('server name with leading whitespace shows validation error', async ({ serverAdminPage }) => {
+    const { page } = serverAdminPage;
 
     // Create user and space
     await createAndLoginTestUser(page);
-    const space = await createSpaceViaAPI(page, { name: 'Whitespace Test' });
+    const space = await usePrimaryServerViaAPI(page, { name: 'Whitespace Test' });
 
     // Navigate to General settings page
-    await spaceAdminPage.gotoGeneralDirectly(space.id);
+    await serverAdminPage.gotoGeneralDirectly(space.id);
 
     // Type a name with leading whitespace
-    await spaceAdminPage.setName(' Leading Space');
+    await serverAdminPage.setName(' Leading Space');
 
     // Should show validation error
-    await spaceAdminPage.expectValidationError('Name cannot have leading or trailing whitespace');
+    await serverAdminPage.expectValidationError('Name cannot have leading or trailing whitespace');
 
     // Save button should be disabled
-    await spaceAdminPage.expectSaveDisabled();
+    await serverAdminPage.expectSaveDisabled();
   });
 
-  test('space name with trailing whitespace shows validation error', async ({ spaceAdminPage }) => {
-    const { page } = spaceAdminPage;
+  test('server name with trailing whitespace shows validation error', async ({ serverAdminPage }) => {
+    const { page } = serverAdminPage;
 
     // Create user and space
     await createAndLoginTestUser(page);
-    const space = await createSpaceViaAPI(page, { name: 'Whitespace Test' });
+    const space = await usePrimaryServerViaAPI(page, { name: 'Whitespace Test' });
 
     // Navigate to General settings page
-    await spaceAdminPage.gotoGeneralDirectly(space.id);
+    await serverAdminPage.gotoGeneralDirectly(space.id);
 
     // Type a name with trailing whitespace
-    await spaceAdminPage.setName('Trailing Space ');
+    await serverAdminPage.setName('Trailing Space ');
 
     // Should show validation error
-    await spaceAdminPage.expectValidationError('Name cannot have leading or trailing whitespace');
+    await serverAdminPage.expectValidationError('Name cannot have leading or trailing whitespace');
 
     // Save button should be disabled
-    await spaceAdminPage.expectSaveDisabled();
+    await serverAdminPage.expectSaveDisabled();
   });
 
-  test('admin link only visible for space admins', async ({ spaceAdminPage }) => {
-    const { page } = spaceAdminPage;
+  test('admin link only visible for server admins', async ({ serverAdminPage }) => {
+    const { page } = serverAdminPage;
 
-    // Create first user (space creator/admin)
+    // Create first user (server admin/admin)
     await createAndLoginTestUser(page);
-    const space = await createSpaceViaAPI(page, { name: 'Settings Link Test' });
+    const space = await usePrimaryServerViaAPI(page, { name: 'Settings Link Test' });
 
     // Navigate to space - admin should see admin link in sidebar
     await gotoSpace(page, space.id);
-    await spaceAdminPage.expectAdminLinkVisible();
+    await serverAdminPage.expectAdminLinkVisible();
 
     // Create second user (non-admin)
     const nonAdmin = await createSecondTestUser(page);
@@ -196,26 +192,26 @@ test.describe('Space Admin Page', () => {
     // Navigate to space - non-admin should NOT see admin link
     await gotoSpace(page, space.id);
 
-    // Wait for the page to load (space name should be visible)
+    // Wait for the page to load (server name should be visible)
     await expect(page.getByRole('heading', { name: space.name })).toBeVisible();
 
     // Settings link should not be visible
-    await spaceAdminPage.expectAdminLinkNotVisible();
+    await serverAdminPage.expectAdminLinkNotVisible();
   });
 
-  test('space admin can upload and remove a logo', async ({ spaceAdminPage }) => {
-    const { page } = spaceAdminPage;
+  test('server admin can upload and remove a logo', async ({ serverAdminPage }) => {
+    const { page } = serverAdminPage;
 
     // Create user and space
     await createAndLoginTestUser(page);
-    const space = await createSpaceViaAPI(page, { name: 'Logo Upload Test' });
+    const space = await usePrimaryServerViaAPI(page, { name: 'Logo Upload Test' });
 
     // Navigate to General settings page
-    await spaceAdminPage.gotoGeneralDirectly(space.id);
+    await serverAdminPage.gotoGeneralDirectly(space.id);
 
     // Should see Logo section
-    await spaceAdminPage.expectLogoSectionVisible();
-    await spaceAdminPage.expectUploadLogoButtonVisible();
+    await serverAdminPage.expectLogoSectionVisible();
+    await serverAdminPage.expectUploadLogoButtonVisible();
 
     // Create a minimal valid 1x1 red PNG for testing
     const pngData = Buffer.from(
@@ -224,51 +220,51 @@ test.describe('Space Admin Page', () => {
     );
 
     // Upload logo
-    await spaceAdminPage.uploadLogo(pngData, 'test-logo.png');
+    await serverAdminPage.uploadLogo(pngData, 'test-logo.png');
 
     // Should see success toast
-    await spaceAdminPage.expectToast('Logo uploaded successfully', 15000);
+    await serverAdminPage.expectToast('Logo uploaded successfully', 15000);
 
     // Button text should change to "Change Logo"
-    await spaceAdminPage.expectChangeLogoButtonVisible();
+    await serverAdminPage.expectChangeLogoButtonVisible();
 
     // Remove button should now be visible
-    await spaceAdminPage.expectRemoveLogoButtonVisible();
+    await serverAdminPage.expectRemoveLogoButtonVisible();
 
     // Logo image should be displayed in the preview
-    await spaceAdminPage.expectLogoPreviewVisible();
+    await serverAdminPage.expectLogoPreviewVisible();
 
     // Remove the logo
-    await spaceAdminPage.removeLogo();
+    await serverAdminPage.removeLogo();
 
     // Should see success toast
-    await spaceAdminPage.expectToast('Logo removed');
+    await serverAdminPage.expectToast('Logo removed');
 
     // Button should go back to "Upload Logo"
-    await spaceAdminPage.expectUploadLogoButtonVisible();
+    await serverAdminPage.expectUploadLogoButtonVisible();
 
     // Remove button should no longer be visible
-    await spaceAdminPage.expectRemoveLogoButtonNotVisible();
+    await serverAdminPage.expectRemoveLogoButtonNotVisible();
   });
 
-  test('space admin can upload banner and it updates in sidebar immediately', async ({
-    spaceAdminPage
+  test('server admin can upload banner and it updates in sidebar immediately', async ({
+    serverAdminPage
   }) => {
-    const { page } = spaceAdminPage;
+    const { page } = serverAdminPage;
 
     // Create user and space
     await createAndLoginTestUser(page);
-    const space = await createSpaceViaAPI(page, { name: 'Banner Realtime Test' });
+    const space = await usePrimaryServerViaAPI(page, { name: 'Banner Realtime Test' });
 
     // Navigate to General settings page
-    await spaceAdminPage.gotoGeneralDirectly(space.id);
+    await serverAdminPage.gotoGeneralDirectly(space.id);
 
     // Should see Banner section
-    await spaceAdminPage.expectBannerSectionVisible();
-    await spaceAdminPage.expectUploadBannerButtonVisible();
+    await serverAdminPage.expectBannerSectionVisible();
+    await serverAdminPage.expectUploadBannerButtonVisible();
 
     // Banner should NOT be visible in sidebar initially
-    await spaceAdminPage.expectSidebarBannerNotVisible();
+    await serverAdminPage.expectSidebarBannerNotVisible();
 
     // Create a minimal valid 1x1 red PNG for testing
     const pngData = Buffer.from(
@@ -277,37 +273,37 @@ test.describe('Space Admin Page', () => {
     );
 
     // Upload banner
-    await spaceAdminPage.uploadBanner(pngData, 'test-banner.png');
+    await serverAdminPage.uploadBanner(pngData, 'test-banner.png');
 
     // Should see success toast
-    await spaceAdminPage.expectToast('Banner uploaded successfully', 15000);
+    await serverAdminPage.expectToast('Banner uploaded successfully', 15000);
 
     // Button text should change to "Change Banner"
-    await spaceAdminPage.expectChangeBannerButtonVisible();
+    await serverAdminPage.expectChangeBannerButtonVisible();
 
     // Remove button should now be visible
-    await spaceAdminPage.expectRemoveBannerButtonVisible();
+    await serverAdminPage.expectRemoveBannerButtonVisible();
 
     // Banner image should be displayed in the preview
-    await spaceAdminPage.expectBannerPreviewVisible();
+    await serverAdminPage.expectBannerPreviewVisible();
 
     // CRITICAL: Banner should now be visible in sidebar WITHOUT page reload
     // This tests that the ServerUpdatedEvent is being received and processed
-    await spaceAdminPage.expectSidebarBannerVisible();
+    await serverAdminPage.expectSidebarBannerVisible();
 
     // Remove the banner
-    await spaceAdminPage.removeBanner();
+    await serverAdminPage.removeBanner();
 
     // Should see success toast
-    await spaceAdminPage.expectToast('Banner removed');
+    await serverAdminPage.expectToast('Banner removed');
 
     // Button should go back to "Upload Banner"
-    await spaceAdminPage.expectUploadBannerButtonVisible();
+    await serverAdminPage.expectUploadBannerButtonVisible();
 
     // Remove button should no longer be visible
-    await spaceAdminPage.expectRemoveBannerButtonNotVisible();
+    await serverAdminPage.expectRemoveBannerButtonNotVisible();
 
     // Banner should no longer be visible in sidebar
-    await spaceAdminPage.expectSidebarBannerNotVisible();
+    await serverAdminPage.expectSidebarBannerNotVisible();
   });
 });

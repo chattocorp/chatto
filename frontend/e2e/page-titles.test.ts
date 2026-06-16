@@ -21,18 +21,18 @@ async function createAndLoginAdminUser(page: Page): Promise<TestUser> {
 }
 
 test.describe('Page titles', () => {
-  test('room page has room and space name in title', async ({ page, chatPage }) => {
+  test('room page has room and server name in title', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.getServerName();
+    const serverName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     // Wait for room header to be visible (indicates room data is loaded)
     await expect(chatPage.getRoomHeader('general')).toBeVisible();
 
     // Title: "#room - <space> | <instance>". Post-PR(a) instance name falls
-    // back to the space name when no runtime override is configured.
-    await expect(page).toHaveTitle(`#general - ${spaceName} | ${spaceName}`);
+    // back to the server name when no runtime override is configured.
+    await expect(page).toHaveTitle(`#general - ${serverName} | ${serverName}`);
   });
 
   test('room page title uses custom instance name', async ({ page, chatPage }) => {
@@ -46,14 +46,14 @@ test.describe('Page titles', () => {
 
     // Create space and enter room
     await chatPage.goto();
-    const spaceName = await chatPage.getServerName();
+    const serverName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     // Wait for room header to be visible
     await expect(chatPage.getRoomHeader('general')).toBeVisible();
 
     // Title should use custom instance name
-    await expect(page).toHaveTitle(`#general - ${spaceName} | Test Server`);
+    await expect(page).toHaveTitle(`#general - ${serverName} | Test Server`);
   });
 
   test('page title updates in real-time when instance name changes', async ({ page, browser }) => {

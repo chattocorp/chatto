@@ -139,9 +139,9 @@ export class NotificationsPage {
   async expectNotificationWithLocation(
     notification: Locator,
     roomName: string,
-    spaceName: string
+    serverName: string
   ): Promise<void> {
-    const locationText = `#${roomName} in ${spaceName}`;
+    const locationText = `#${roomName} in ${serverName}`;
     await expect(notification.getByText(locationText)).toBeVisible();
   }
 

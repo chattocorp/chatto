@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
-import { ChatPage, RoomPage, ExplorePage } from './pages';
+import { ChatPage, RoomPage } from './pages';
 import { TIMEOUTS } from './constants';
 
 test.describe('Up arrow to edit last message', () => {
@@ -65,7 +65,7 @@ test.describe('Up arrow to edit last message', () => {
     // User 1: Create space and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.getServerName();
+    const serverName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     const user1Message = `User1 message ${Date.now()}`;
@@ -83,11 +83,8 @@ test.describe('Up arrow to edit last message', () => {
 
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
-      const explorePage2 = new ExplorePage(page2);
 
       await chatPage2.goto();
-      await chatPage2.goToExploreSpaces();
-      await explorePage2.joinSpace(spaceName);
       await chatPage2.enterRoom('general');
 
       // User 2 posts a message
@@ -281,7 +278,7 @@ test.describe('Message editing', () => {
     // User 1: Create space and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.getServerName();
+    const serverName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     // Post a message
@@ -301,11 +298,8 @@ test.describe('Message editing', () => {
 
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
-      const explorePage2 = new ExplorePage(page2);
 
       await chatPage2.goto();
-      await chatPage2.goToExploreSpaces();
-      await explorePage2.joinSpace(spaceName);
       await chatPage2.enterRoom('general');
 
       // User 2 should see the original message
@@ -353,7 +347,7 @@ test.describe('Message editing', () => {
     // User 1: Create space and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.getServerName();
+    const serverName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     // Post a message
@@ -372,11 +366,8 @@ test.describe('Message editing', () => {
 
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
-      const explorePage2 = new ExplorePage(page2);
 
       await chatPage2.goto();
-      await chatPage2.goToExploreSpaces();
-      await explorePage2.joinSpace(spaceName);
       await chatPage2.enterRoom('general');
 
       // User 2 should see the original message

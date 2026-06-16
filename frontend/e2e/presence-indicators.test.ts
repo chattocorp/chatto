@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 import { TIMEOUTS } from './constants';
-import { createAndLoginTestUser, joinSpace } from './fixtures/testUser';
+import { createAndLoginTestUser, openServer } from './fixtures/testUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { test } from './setup';
 import { ChatPage, SettingsPage } from './pages';
@@ -17,7 +17,7 @@ test.describe('Presence indicators', () => {
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
 
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     // Navigate to "general" room to see member list
     const roomPage = await chatPage.enterRoom('general');
@@ -44,9 +44,9 @@ test.describe('Presence indicators', () => {
       userBLogin = userB.login;
 
       // User B joins the space via API helper
-      await joinSpace(page2);
+      await openServer(page2);
 
-      // Navigate to the space. After joinSpace, the user lands on the
+      // Navigate to the space. After openServer, the user lands on the
       // server overview (`/chat/-`) — the auto-redirect to a default
       // room was removed when default-room auto-join became permission-
       // derived. Accepting either shape keeps this resilient.
@@ -171,7 +171,7 @@ test.describe('Member list display format', () => {
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
 
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
     const roomPage = await chatPage.enterRoom('general');
 
     // Verify User A's display format (test users get "Test User {timestamp}")
@@ -195,7 +195,7 @@ test.describe('Member list display format', () => {
       await expect(page2.getByText('Profile updated')).toBeVisible();
 
       // User B joins the space
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.chatRootOrRoom);
 
@@ -241,7 +241,7 @@ test.describe('Member list grouping', () => {
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
 
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
     const roomPage = await chatPage.enterRoom('general');
 
     // Initially only online section with User A
@@ -258,7 +258,7 @@ test.describe('Member list grouping', () => {
       userBLogin = userB.login;
 
       // User B joins the space
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.chatRootOrRoom);
 
@@ -304,7 +304,7 @@ test.describe('Member list grouping', () => {
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
 
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
     const roomPage = await chatPage.enterRoom('general');
 
     // Wait for member list to load
@@ -318,7 +318,7 @@ test.describe('Member list grouping', () => {
     const page2 = await context2.newPage();
 
     const _userB = await createAndLoginTestUser(page2);
-    await joinSpace(page2);
+    await openServer(page2);
     await page2.goto(routes.space());
     await page2.waitForURL(routes.patterns.chatRootOrRoom);
 

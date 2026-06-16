@@ -2,7 +2,7 @@ import { expect } from '@playwright/test';
 import { TIMEOUTS } from './constants';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
-import { ChatPage, RoomPage, ExplorePage } from './pages';
+import { ChatPage, RoomPage } from './pages';
 import * as routes from './routes';
 
 test('consecutive messages from same user are grouped', async ({ page, chatPage, roomPage }) => {
@@ -338,7 +338,7 @@ test('deleted message disappears for other connected clients in real-time', asyn
   // User 1: Create space and post a message
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  const spaceName = await chatPage.getServerName();
+  const serverName = await chatPage.getServerName();
   await chatPage.enterRoom('general');
 
   const testMessage = `Real-time delete test ${Date.now()}`;
@@ -358,7 +358,7 @@ test('deleted message disappears for other connected clients in real-time', asyn
     // Post-#330 PR(a): signup auto-joins the server space; the Browse Spaces
     // UI is gone, so user 2 just navigates to the chat root and clicks into
     // the room.
-    void spaceName;
+    void serverName;
     await page2.goto(routes.chat);
     await page2.waitForURL(routes.patterns.spaceOrRoom);
 
@@ -515,7 +515,7 @@ test('deletion of a reacted message shows placeholder for other connected client
   // doesn't cover and that the previous refetch-only path failed silently on.
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  const spaceName = await chatPage.getServerName();
+  const serverName = await chatPage.getServerName();
   await chatPage.enterRoom('general');
 
   const testMessage = `Real-time delete with reaction ${Date.now()}`;
@@ -534,11 +534,8 @@ test('deletion of a reacted message shows placeholder for other connected client
 
     const chatPage2 = new ChatPage(page2);
     const roomPage2 = new RoomPage(page2);
-    const explorePage2 = new ExplorePage(page2);
 
     await chatPage2.goto();
-    await chatPage2.goToExploreSpaces();
-    await explorePage2.joinSpace(spaceName);
     await chatPage2.enterRoom('general');
     await roomPage2.expectMessageVisible(testMessage);
 

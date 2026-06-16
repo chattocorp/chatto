@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test';
-import { createAndLoginTestUser, joinSpace } from './fixtures/testUser';
+import { createAndLoginTestUser, openServer } from './fixtures/testUser';
 import { test } from './setup';
 import * as routes from './routes';
 import { TIMEOUTS } from './constants';
@@ -15,7 +15,7 @@ test.describe('Room auto-join', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
 
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     // User B: Create account and join the space
     const context2 = await browser!.newContext({ baseURL: serverURL });
@@ -25,7 +25,7 @@ test.describe('Room auto-join', () => {
       await createAndLoginTestUser(page2);
 
       // User B joins the space
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
 
       // Verify User B sees both default auto-join rooms in the sidebar
@@ -64,7 +64,7 @@ test.describe('Room auto-join', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
 
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     // User A enters general room and posts a message
     await chatPage.enterRoom('general');
@@ -80,7 +80,7 @@ test.describe('Room auto-join', () => {
       await createAndLoginTestUser(page2);
 
       // User B joins via the join page
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
 
       // User B clicks on general room (auto-joined)

@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test';
-import { createAndLoginTestUser, joinSpace } from './fixtures/testUser';
+import { createAndLoginTestUser, openServer } from './fixtures/testUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { test } from './setup';
 import { ChatPage, RoomPage } from './pages';
@@ -47,7 +47,7 @@ test.describe('WebSocket reconnect recovery', () => {
     await chatPage.enterRoom('general');
     await waitForRoomReady(page, 'general');
 
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
     const baselineMessage = `baseline-${Date.now()}`;
     await roomPage.sendMessage(baselineMessage);
     await roomPage.expectMessageVisible(baselineMessage);
@@ -59,7 +59,7 @@ test.describe('WebSocket reconnect recovery', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.spaceOrRoom);
       await chatPage2.enterRoom('general');
@@ -95,7 +95,7 @@ test.describe('WebSocket reconnect recovery', () => {
     await chatPage.enterRoom('general');
     await waitForRoomReady(page, 'general');
 
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     // Post a message that will become the thread root
     const threadRoot = `thread-root-${Date.now()}`;
@@ -124,7 +124,7 @@ test.describe('WebSocket reconnect recovery', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
 
       // Go offline to simulate tab suspension
       await page.context().setOffline(true);

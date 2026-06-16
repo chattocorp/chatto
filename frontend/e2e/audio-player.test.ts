@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
-import { ChatPage, RoomPage, ExplorePage } from './pages';
+import { ChatPage, RoomPage } from './pages';
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
 
@@ -23,7 +23,7 @@ test.describe('audio player', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const testSpaceName = await chatPage.getServerName();
+    const testServerName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     // Set up a second user
@@ -37,10 +37,7 @@ test.describe('audio player', () => {
       await chatPage2.goto();
 
       // User 2 joins the space via Explore, then enters the room
-      const explorePage2 = new ExplorePage(page2);
-      await page2.goto(routes.spaces);
-      await page2.waitForURL(routes.patterns.spaceOrRoom);
-      await explorePage2.joinSpace(testSpaceName);
+      await chatPage2.goto();
       await chatPage2.enterRoom('general');
 
       // User 1 uploads and sends an audio file

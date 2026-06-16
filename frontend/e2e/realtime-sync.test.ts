@@ -1,9 +1,9 @@
 import { expect } from '@playwright/test';
 import { TIMEOUTS, POLLING_INTERVALS } from './constants';
-import { createAndLoginTestUser, joinSpace } from './fixtures/testUser';
+import { createAndLoginTestUser, openServer } from './fixtures/testUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { test } from './setup';
-import { ChatPage, ExplorePage, SettingsPage } from './pages';
+import { ChatPage, SettingsPage } from './pages';
 import * as routes from './routes';
 
 test.describe('Real-time synchronization', () => {
@@ -61,10 +61,9 @@ test.describe('Real-time synchronization', () => {
     browser,
     serverURL
   }) => {
-    // User 1: Create space and room, stay in it
+    // User 1: create a room and stay in it
     const _user1 = await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = `Leave Event Test ${Date.now()}`;
     await chatPage.createRoom('leave-test');
     await chatPage.expectRoomHeaderVisible('leave-test');
 
@@ -74,11 +73,8 @@ test.describe('Real-time synchronization', () => {
 
     try {
       const user2 = await createAndLoginTestUser(page2);
-      const explorePage2 = new ExplorePage(page2);
-      await explorePage2.goto();
-
-      // Join the space
-      await explorePage2.joinSpace(spaceName);
+      const chatPage2 = new ChatPage(page2);
+      await chatPage2.goto();
 
       // Join the room (via the Overview directory). Playwright leaves the
       // cursor over the Join button after click, which keeps the row in
@@ -93,7 +89,6 @@ test.describe('Real-time synchronization', () => {
       ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
       // Navigate to the room via sidebar
-      const chatPage2 = new ChatPage(page2);
       await chatPage2.enterRoom('leave-test');
 
       // User 1 should see User 2's join event
@@ -157,10 +152,9 @@ test.describe('Real-time synchronization', () => {
     browser,
     serverURL
   }) => {
-    // User 1: Create space and room
+    // User 1: create a room
     const user1 = await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = `Display Name Test ${Date.now()}`;
     await chatPage.createRoom('test-room');
     await chatPage.expectRoomHeaderVisible('test-room');
 
@@ -170,9 +164,8 @@ test.describe('Real-time synchronization', () => {
 
     try {
       const _user2 = await createAndLoginTestUser(page2);
-      const explorePage2 = new ExplorePage(page2);
-      await explorePage2.goto();
-      await explorePage2.joinSpace(spaceName);
+      const chatPage2 = new ChatPage(page2);
+      await chatPage2.goto();
 
       // Join the room via Browse Rooms, then navigate to it
       await page2.getByRole('link', { name: 'Overview' }).click();
@@ -180,7 +173,6 @@ test.describe('Real-time synchronization', () => {
       await testRoomItem2.getByRole('button', { name: 'Join' }).click();
       await expect(testRoomItem2.locator('button[title^="Joined "]')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
-      const chatPage2 = new ChatPage(page2);
       await chatPage2.enterRoom('test-room');
 
       // User 1: Send a message now that both users are in the room
@@ -227,10 +219,9 @@ test.describe('Real-time synchronization', () => {
     // This test specifically checks that receiving display name updates doesn't crash
     // the frontend (regression test for lifecycle_outside_component bug)
 
-    // User 1: Create space and room
+    // User 1: create a room
     const _user1 = await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = `Error Check Test ${Date.now()}`;
     await chatPage.createRoom('error-test');
     await chatPage.expectRoomHeaderVisible('error-test');
 
@@ -253,9 +244,8 @@ test.describe('Real-time synchronization', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      const explorePage2 = new ExplorePage(page2);
-      await explorePage2.goto();
-      await explorePage2.joinSpace(spaceName);
+      const chatPage2 = new ChatPage(page2);
+      await chatPage2.goto();
 
       // Join the room via Browse Rooms, then navigate to it
       await page2.getByRole('link', { name: 'Overview' }).click();
@@ -263,7 +253,6 @@ test.describe('Real-time synchronization', () => {
       await errorTestItem.getByRole('button', { name: 'Join' }).click();
       await expect(errorTestItem.locator('button[title^="Joined "]')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
-      const chatPage2 = new ChatPage(page2);
       await chatPage2.enterRoom('error-test');
 
       // Wait for room to be ready (connection established)
@@ -309,7 +298,7 @@ test.describe('Real-time synchronization', () => {
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
 
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     // Navigate to "general" room to see member list
     const roomPage = await chatPage.enterRoom('general');
@@ -326,7 +315,7 @@ test.describe('Real-time synchronization', () => {
       const userB = await createAndLoginTestUser(page2);
 
       // User B joins the space via API helper
-      await joinSpace(page2);
+      await openServer(page2);
 
       // Navigate to the space
       await page2.goto(routes.space());

@@ -2,10 +2,10 @@ import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
 import {
   createAndLoginTestUser,
-  joinSpace,
-  loginAsAdminAndUsePrimarySpace
+  openServer,
+  loginAsAdminAndUsePrimaryServer
 } from './fixtures/testUser';
-import { SpaceAdminPage } from './pages';
+import { ServerAdminPage } from './pages';
 import { TIMEOUTS } from './constants';
 import { postMessageViaAPI } from './fixtures/graphqlHelpers';
 import * as routes from './routes';
@@ -14,7 +14,7 @@ import * as routes from './routes';
 // Types
 // ============================================================================
 
-interface TestSpace {
+interface TestServer {
   id: string;
   name: string;
 }
@@ -44,11 +44,8 @@ async function gqlRequest<T>(
   return json.data;
 }
 
-async function createSpaceViaAPI(page: Page, _name?: string): Promise<TestSpace> {
-  // Issue #330 / ADR-027: createSpace mutation is gone. Re-login as e2eadmin
-  // (the bootstrap space owner) and return the primary space, so admin-style
-  // operations in this test still run with sufficient permissions.
-  return loginAsAdminAndUsePrimarySpace(page);
+async function usePrimaryServerViaAPI(page: Page, _name?: string): Promise<TestServer> {
+  return loginAsAdminAndUsePrimaryServer(page);
 }
 
 async function createRoomViaAPI(page: Page, name: string): Promise<string> {
@@ -321,7 +318,7 @@ test.describe('Room Layout', () => {
       // order they were created. There is no "no layout" / alphabetical
       // fallback anymore.
       await createAndLoginTestUser(page);
-      await createSpaceViaAPI(page);
+      await usePrimaryServerViaAPI(page);
 
       const charlieId = await createRoomViaAPI(page, 'charlie');
       const alphaId = await createRoomViaAPI(page, 'alpha');
@@ -341,7 +338,7 @@ test.describe('Room Layout', () => {
 
     test('layout sets render in sidebar', async ({ page }) => {
       await createAndLoginTestUser(page);
-      await createSpaceViaAPI(page);
+      await usePrimaryServerViaAPI(page);
 
       const { generalId, announcementsId } = await getDefaultRoomIds(page);
       const alphaId = await createRoomViaAPI(page, 'alpha');
@@ -373,7 +370,7 @@ test.describe('Room Layout', () => {
     test('empty sets are hidden from sidebar', async ({ page, browser, serverURL }) => {
       // User A (owner) creates space and configures layout
       await createAndLoginTestUser(page);
-      await createSpaceViaAPI(page);
+      await usePrimaryServerViaAPI(page);
 
       const { generalId, announcementsId } = await getDefaultRoomIds(page);
       const secretId = await createRoomViaAPI(page, 'secret');
@@ -392,7 +389,7 @@ test.describe('Room Layout', () => {
 
       try {
         await createAndLoginTestUser(page2);
-        await joinSpace(page2, '');
+        await openServer(page2, '');
 
         await navigateToSpace(page2);
 
@@ -409,7 +406,7 @@ test.describe('Room Layout', () => {
 
     test('set collapse/expand persists across navigation', async ({ page }) => {
       await createAndLoginTestUser(page);
-      await createSpaceViaAPI(page);
+      await usePrimaryServerViaAPI(page);
 
       const { generalId, announcementsId } = await getDefaultRoomIds(page);
       const alphaId = await createRoomViaAPI(page, 'alpha');
@@ -474,7 +471,7 @@ test.describe('Room Layout', () => {
     }) => {
       // User A (owner) creates space and rooms
       await createAndLoginTestUser(page);
-      await createSpaceViaAPI(page);
+      await usePrimaryServerViaAPI(page);
 
       const { generalId, announcementsId } = await getDefaultRoomIds(page);
       const alphaId = await createRoomViaAPI(page, 'alpha');
@@ -487,7 +484,7 @@ test.describe('Room Layout', () => {
 
       try {
         await createAndLoginTestUser(page2);
-        await joinSpace(page2, '');
+        await openServer(page2, '');
         await joinRoomViaAPI(page2, alphaId);
 
         // User B navigates to space — rooms render under the seed "Lobby" group.
@@ -516,7 +513,7 @@ test.describe('Room Layout', () => {
   test.describe('API & Permissions', () => {
     test('admin can configure room layout via API', async ({ page }) => {
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
       const { generalId, announcementsId } = await getDefaultRoomIds(page);
       const alphaId = await createRoomViaAPI(page, 'alpha');
@@ -559,7 +556,7 @@ test.describe('Room Layout', () => {
     }) => {
       // User A (owner) creates space
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
       const { generalId } = await getDefaultRoomIds(page);
 
       // User B joins as regular member
@@ -568,7 +565,7 @@ test.describe('Room Layout', () => {
 
       try {
         await createAndLoginTestUser(page2);
-        await joinSpace(page2, "");
+        await openServer(page2, "");
 
         // User B tries to mutate the room layout — should fail. Hits
         // createRoomGroup since it shares the role.manage gate with every
@@ -596,14 +593,14 @@ test.describe('Room Layout', () => {
       }
     });
 
-    test('regular member does not see Rooms nav item in space admin', async ({
+    test('regular member does not see Rooms nav item in server admin', async ({
       page,
       browser,
       serverURL
     }) => {
       // User A (owner) creates space
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
       // User B joins as regular member
       const context2 = await browser!.newContext({ baseURL: serverURL });
@@ -611,15 +608,15 @@ test.describe('Room Layout', () => {
 
       try {
         await createAndLoginTestUser(page2);
-        await joinSpace(page2, "");
+        await openServer(page2, "");
 
         // Navigate to Rooms directly — User B should be denied.
         await page2.goto(routes.serverAdminRooms);
         await expect(page2.getByText('Access Denied', { exact: true })).toBeVisible();
 
         // User B shouldn't see the Rooms nav item (requires room.manage)
-        const spaceAdminPage2 = new SpaceAdminPage(page2);
-        await expect(spaceAdminPage2.roomsNavItem).not.toBeVisible();
+        const serverAdminPage2 = new ServerAdminPage(page2);
+        await expect(serverAdminPage2.roomsNavItem).not.toBeVisible();
       } finally {
         await context2.close();
       }
@@ -629,56 +626,56 @@ test.describe('Room Layout', () => {
   test.describe('Admin UI', () => {
     test('admin can navigate to rooms page and see layout editor', async ({
       page,
-      spaceAdminPage,
-      spaceAdminRoomsPage
+      serverAdminPage,
+      serverAdminRoomsPage
     }) => {
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
-      // Navigate to space admin
-      await spaceAdminPage.goto(space.id);
+      // Navigate to server admin
+      await serverAdminPage.goto(space.id);
 
       // Click Rooms nav item
-      await expect(spaceAdminPage.roomsNavItem).toBeVisible();
-      await spaceAdminPage.roomsNavItem.click();
+      await expect(serverAdminPage.roomsNavItem).toBeVisible();
+      await serverAdminPage.roomsNavItem.click();
 
       // Should see the rooms admin page with action buttons and default rooms
-      await spaceAdminRoomsPage.expectVisible();
-      await spaceAdminRoomsPage.expectRoomVisible('general');
+      await serverAdminRoomsPage.expectVisible();
+      await serverAdminRoomsPage.expectRoomVisible('general');
     });
 
-    test('admin can create, rename, and delete sections', async ({ page, spaceAdminRoomsPage }) => {
+    test('admin can create, rename, and delete sections', async ({ page, serverAdminRoomsPage }) => {
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
-      await spaceAdminRoomsPage.goto(space.id);
+      await serverAdminRoomsPage.goto(space.id);
 
       // Create a section (the seed "Lobby" group is also present)
-      await spaceAdminRoomsPage.createGroup('My Section');
-      await spaceAdminRoomsPage.expectGroupVisible('My Section');
+      await serverAdminRoomsPage.createGroup('My Section');
+      await serverAdminRoomsPage.expectGroupVisible('My Section');
 
       // Rename the section
-      await spaceAdminRoomsPage.renameGroup('My Section', 'Renamed Section');
-      await spaceAdminRoomsPage.expectGroupVisible('Renamed Section');
+      await serverAdminRoomsPage.renameGroup('My Section', 'Renamed Section');
+      await serverAdminRoomsPage.expectGroupVisible('Renamed Section');
 
       // Delete the section
-      await spaceAdminRoomsPage.deleteGroup('Renamed Section');
-      await spaceAdminRoomsPage.expectGroupNotVisible('Renamed Section');
+      await serverAdminRoomsPage.deleteGroup('Renamed Section');
+      await serverAdminRoomsPage.expectGroupNotVisible('Renamed Section');
     });
 
-    test('layout auto-saves and persists', async ({ page, spaceAdminRoomsPage }) => {
+    test('layout auto-saves and persists', async ({ page, serverAdminRoomsPage }) => {
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
       // Create extra rooms
       await createRoomViaAPI(page, 'alpha');
       await createRoomViaAPI(page, 'bravo');
 
-      await spaceAdminRoomsPage.goto(space.id);
+      await serverAdminRoomsPage.goto(space.id);
 
       // Create a section
-      await spaceAdminRoomsPage.createGroup('Important');
-      await spaceAdminRoomsPage.expectGroupVisible('Important');
+      await serverAdminRoomsPage.createGroup('Important');
+      await serverAdminRoomsPage.expectGroupVisible('Important');
 
       // Verify layout auto-saves (poll API until it appears)
       await expect(async () => {
@@ -699,7 +696,7 @@ test.describe('Room Layout', () => {
     }) => {
       // User A creates space with extra rooms
       await createAndLoginTestUser(page);
-      await createSpaceViaAPI(page);
+      await usePrimaryServerViaAPI(page);
 
       const { generalId, announcementsId } = await getDefaultRoomIds(page);
       const privateId = await createRoomViaAPI(page, 'private');
@@ -724,7 +721,7 @@ test.describe('Room Layout', () => {
 
       try {
         await createAndLoginTestUser(page2);
-        await joinSpace(page2, "");
+        await openServer(page2, "");
         await joinRoomViaAPI(page2, publicId);
 
         await navigateToSpace(page2);
@@ -742,45 +739,45 @@ test.describe('Room Layout', () => {
   });
 
   test.describe('Archiving', () => {
-    test('admin can archive a room via admin UI', async ({ page, spaceAdminRoomsPage }) => {
+    test('admin can archive a room via admin UI', async ({ page, serverAdminRoomsPage }) => {
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
       const roomId = await createRoomViaAPI(page, 'to-archive');
       await joinRoomViaAPI(page, roomId);
 
-      await spaceAdminRoomsPage.goto(space.id);
+      await serverAdminRoomsPage.goto(space.id);
 
       // Archive the room via UI (click Archive, confirm dialog)
-      await spaceAdminRoomsPage.archiveRoom('to-archive');
+      await serverAdminRoomsPage.archiveRoom('to-archive');
 
       // Room stays in its set (archive only flips the archived flag) but
       // its row now shows the Unarchive affordance instead of Archive.
       await expect(async () => {
-        await spaceAdminRoomsPage.expectRoomVisible('to-archive');
+        await serverAdminRoomsPage.expectRoomVisible('to-archive');
         const layout = await getRoomLayoutViaAPI(page);
         if (layout) {
           const allRoomIds = layout.groups.flatMap((s) => s.rooms.map((r) => r.id));
           expect(allRoomIds).toContain(roomId);
         }
         await expect(
-          spaceAdminRoomsPage.roomRow('to-archive').getByTitle('Unarchive room')
+          serverAdminRoomsPage.roomRow('to-archive').getByTitle('Unarchive room')
         ).toBeVisible();
       }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [100, 250, 500, 1000] });
     });
 
-    test('admin can unarchive a room via admin UI', async ({ page, spaceAdminRoomsPage }) => {
+    test('admin can unarchive a room via admin UI', async ({ page, serverAdminRoomsPage }) => {
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
       const roomId = await createRoomViaAPI(page, 'was-archived');
       await joinRoomViaAPI(page, roomId);
 
       // Archive via API first
       await archiveRoomViaAPI(page, roomId);
 
-      await spaceAdminRoomsPage.goto(space.id);
+      await serverAdminRoomsPage.goto(space.id);
 
       // Unarchive the room via UI
-      await spaceAdminRoomsPage.unarchiveRoom('was-archived');
+      await serverAdminRoomsPage.unarchiveRoom('was-archived');
 
       // Room should be unarchived via API
       await expect(async () => {
@@ -794,16 +791,16 @@ test.describe('Room Layout', () => {
       }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [100, 250, 500, 1000] });
     });
 
-    test('cancel archive dialog keeps room in place', async ({ page, spaceAdminRoomsPage }) => {
+    test('cancel archive dialog keeps room in place', async ({ page, serverAdminRoomsPage }) => {
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
       const roomId = await createRoomViaAPI(page, 'stay-put');
 
-      await spaceAdminRoomsPage.goto(space.id);
+      await serverAdminRoomsPage.goto(space.id);
 
       // Click Archive but cancel the dialog
-      await spaceAdminRoomsPage.clickArchive('stay-put');
-      await spaceAdminRoomsPage.cancelDialog();
+      await serverAdminRoomsPage.clickArchive('stay-put');
+      await serverAdminRoomsPage.cancelDialog();
 
       // Room should still be non-archived — verify via API
       const data = await gqlRequest<{ server: { rooms: { id: string; archived: boolean }[] } }>(
@@ -818,7 +815,7 @@ test.describe('Room Layout', () => {
     test('archived room disappears from member sidebar', async ({ page, browser, serverURL }) => {
       // User A (owner) creates space and rooms
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
       const roomId = await createRoomViaAPI(page, 'will-vanish');
       await joinRoomViaAPI(page, roomId);
 
@@ -828,7 +825,7 @@ test.describe('Room Layout', () => {
 
       try {
         await createAndLoginTestUser(page2);
-        await joinSpace(page2, "");
+        await openServer(page2, "");
         await joinRoomViaAPI(page2, roomId);
 
         // User B navigates to the space and sees the room
@@ -851,7 +848,7 @@ test.describe('Room Layout', () => {
 
     test('archived room excluded from Browse Rooms', async ({ page, browser, serverURL }) => {
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
       const visibleId = await createRoomViaAPI(page, 'visible-room');
       const hiddenId = await createRoomViaAPI(page, 'hidden-room');
       await joinRoomViaAPI(page, visibleId);
@@ -866,7 +863,7 @@ test.describe('Room Layout', () => {
 
       try {
         await createAndLoginTestUser(page2);
-        await joinSpace(page2, "");
+        await openServer(page2, "");
 
         // Navigate to the Overview page (where the room directory now lives)
         await page2.goto(routes.browseRooms);
@@ -884,7 +881,7 @@ test.describe('Room Layout', () => {
 
     test('unarchived room reappears in member sidebar', async ({ page, browser, serverURL }) => {
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
       const roomId = await createRoomViaAPI(page, 'comeback');
       await joinRoomViaAPI(page, roomId);
 
@@ -894,7 +891,7 @@ test.describe('Room Layout', () => {
 
       try {
         await createAndLoginTestUser(page2);
-        await joinSpace(page2, "");
+        await openServer(page2, "");
         await joinRoomViaAPI(page2, roomId);
 
         // Archive the room
@@ -920,41 +917,41 @@ test.describe('Room Layout', () => {
   });
 
   test.describe('Admin Room Management', () => {
-    test('admin can edit room name and description', async ({ page, spaceAdminRoomsPage }) => {
+    test('admin can edit room name and description', async ({ page, serverAdminRoomsPage }) => {
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
       await createRoomViaAPI(page, 'old-name');
 
-      await spaceAdminRoomsPage.goto(space.id);
+      await serverAdminRoomsPage.goto(space.id);
 
       // Edit the room
-      await spaceAdminRoomsPage.editRoom('old-name', 'new-name', 'A shiny new description');
+      await serverAdminRoomsPage.editRoom('old-name', 'new-name', 'A shiny new description');
 
       // Should see updated name in the list
       await expect(async () => {
-        await spaceAdminRoomsPage.expectRoomVisible('new-name');
+        await serverAdminRoomsPage.expectRoomVisible('new-name');
       }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [100, 250, 500, 1000] });
     });
 
-    test('admin can create a room from admin page', async ({ page, spaceAdminRoomsPage }) => {
+    test('admin can create a room from admin page', async ({ page, serverAdminRoomsPage }) => {
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
-      await spaceAdminRoomsPage.goto(space.id);
+      await serverAdminRoomsPage.goto(space.id);
 
       // Create a room from the seed "Lobby" group's header.
-      await spaceAdminRoomsPage.createRoom('Lobby', 'fresh-room');
+      await serverAdminRoomsPage.createRoom('Lobby', 'fresh-room');
 
       // Room should appear in admin page
-      await spaceAdminRoomsPage.expectRoomVisible('fresh-room', TIMEOUTS.UI_STANDARD);
+      await serverAdminRoomsPage.expectRoomVisible('fresh-room', TIMEOUTS.UI_STANDARD);
     });
 
-    test('admin can create a room in a non-seed set', async ({ page, spaceAdminRoomsPage }) => {
+    test('admin can create a room in a non-seed set', async ({ page, serverAdminRoomsPage }) => {
       // Regression: previously, creating a room from a set other than the
       // seed "Lobby" group silently dropped the groupId or the room didn't
       // appear after refetch. Verify the room lands in the chosen set.
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
       // Pre-create a second set via API so we don't race the autosave.
       // The per-key delta path generates real group IDs server-side, so
@@ -967,14 +964,14 @@ test.describe('Room Layout', () => {
         { id: 'projects-placeholder', name: 'Projects', roomIds: [] }
       ]);
 
-      await spaceAdminRoomsPage.goto(space.id);
-      await spaceAdminRoomsPage.expectGroupVisible('Projects');
+      await serverAdminRoomsPage.goto(space.id);
+      await serverAdminRoomsPage.expectGroupVisible('Projects');
 
       // Create a room from the "Projects" set's header.
-      await spaceAdminRoomsPage.createRoom('Projects', 'project-room');
+      await serverAdminRoomsPage.createRoom('Projects', 'project-room');
 
       // Room must show up in the admin layout, inside the Projects set.
-      await spaceAdminRoomsPage.expectRoomVisible('project-room', TIMEOUTS.UI_STANDARD);
+      await serverAdminRoomsPage.expectRoomVisible('project-room', TIMEOUTS.UI_STANDARD);
       await expect(async () => {
         const layout = await getRoomLayoutViaAPI(page);
         expect(layout).not.toBeNull();
@@ -989,10 +986,10 @@ test.describe('Room Layout', () => {
 
     test('delete button is disabled while a set still has rooms', async ({
       page,
-      spaceAdminRoomsPage
+      serverAdminRoomsPage
     }) => {
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      const space = await usePrimaryServerViaAPI(page);
 
       const { generalId, announcementsId } = await getDefaultRoomIds(page);
 
@@ -1005,12 +1002,12 @@ test.describe('Room Layout', () => {
         }
       ]);
 
-      await spaceAdminRoomsPage.goto(space.id);
-      await spaceAdminRoomsPage.expectGroupVisible('Has Rooms');
+      await serverAdminRoomsPage.goto(space.id);
+      await serverAdminRoomsPage.expectGroupVisible('Has Rooms');
 
       // With Unsorted gone, deletion of a non-empty set would orphan the
       // rooms — so the Delete button is disabled until they're moved out.
-      const deleteBtn = spaceAdminRoomsPage
+      const deleteBtn = serverAdminRoomsPage
         .groupHeaderRow('Has Rooms')
         .getByTitle('Move all rooms out of this group before deleting');
       await expect(deleteBtn).toBeVisible();
@@ -1027,7 +1024,7 @@ test.describe('Room Layout', () => {
       // Admin owns the server and creates three new rooms (which land in
       // the seed "Lobby" group alongside the bootstrap rooms).
       await createAndLoginTestUser(page);
-      await createSpaceViaAPI(page);
+      await usePrimaryServerViaAPI(page);
       await createRoomViaAPI(page, 'alpha');
       await createRoomViaAPI(page, 'bravo');
       await createRoomViaAPI(page, 'charlie');
@@ -1039,7 +1036,7 @@ test.describe('Room Layout', () => {
 
       try {
         await createAndLoginTestUser(page2, { skipDefaultRooms: true });
-        await joinSpace(page2, '');
+        await openServer(page2, '');
 
         // Go to the server Overview (which hosts the room directory).
         await page2.goto(routes.browseRooms);

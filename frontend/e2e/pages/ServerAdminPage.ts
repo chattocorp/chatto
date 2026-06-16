@@ -2,10 +2,10 @@ import { expect, type Locator, type Page } from '@playwright/test';
 import * as routes from '../routes';
 
 /**
- * Page object for the Space Admin pages.
+ * Page object for the Server Admin pages.
  * Covers General (name, branding) and Permissions pages.
  */
-export class SpaceAdminPage {
+export class ServerAdminPage {
   constructor(readonly page: Page) {}
 
   // --- Locators ---
@@ -61,7 +61,7 @@ export class SpaceAdminPage {
     return this.page.getByRole('link', { name: 'Back to Space' });
   }
 
-  /** The space name input field */
+  /** The server name input field */
   get nameInput(): Locator {
     return this.page.getByRole('textbox', { name: 'Name' });
   }
@@ -172,7 +172,7 @@ export class SpaceAdminPage {
   // --- Form Interactions ---
 
   /**
-   * Update the space name.
+   * Update the server name.
    */
   async setName(name: string): Promise<void> {
     await this.nameInput.fill(name);
@@ -186,7 +186,7 @@ export class SpaceAdminPage {
   }
 
   /**
-   * Update the space name and save changes.
+   * Update the server name and save changes.
    */
   async updateName(name: string): Promise<void> {
     await this.setName(name);
