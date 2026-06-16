@@ -76,11 +76,12 @@ async function loginUser(page: Page, login: string, password: string): Promise<v
  * Logs out the current user.
  */
 async function logoutUser(page: Page): Promise<void> {
-  const response = await page.request.post('/auth/logout', { headers: await csrfHeaders(page) });
-  expect(response.ok()).toBeTruthy();
+  const headers = await csrfHeaders(page);
   // Unload the SPA before switching identities. Otherwise the old authenticated
   // app can react to logout and race a later page.goto() with its own redirect.
   await page.goto('about:blank');
+  const response = await page.request.post('/auth/logout', { headers });
+  expect(response.ok()).toBeTruthy();
 }
 
 /**
@@ -94,11 +95,7 @@ async function joinSpaceViaAPI(_page: Page, _spaceId: string): Promise<void> {
 /**
  * Grants a space permission to a role via GraphQL API.
  */
-async function grantPermission(
-  page: Page,
-  role: string,
-  permission: string
-): Promise<void> {
+async function grantPermission(page: Page, role: string, permission: string): Promise<void> {
   const response = await page.request.post('/api/graphql', {
     headers: {
       'Content-Type': 'application/json',
@@ -371,9 +368,7 @@ test.describe('Space Admin Navigation Permissions', () => {
       await spaceAdminPage.expectGeneralSettingsNotVisible();
     });
 
-    test('admin uses General as the first concrete admin page', async ({
-      spaceAdminPage
-    }) => {
+    test('admin uses General as the first concrete admin page', async ({ spaceAdminPage }) => {
       const { page } = spaceAdminPage;
 
       // Create user and space (creator is admin)
@@ -469,6 +464,5 @@ test.describe('Space Admin Navigation Permissions', () => {
       // Should see Access Denied
       await spaceAdminPage.expectAccessDenied();
     });
-
   });
 });
