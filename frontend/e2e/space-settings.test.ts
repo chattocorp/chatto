@@ -78,10 +78,11 @@ async function loginUser(page: Page, login: string, password: string): Promise<v
  * Logs out the current user.
  */
 async function logoutUser(page: Page): Promise<void> {
+  const headers = await csrfHeaders(page);
   // Unload the SPA before switching identities. Otherwise the old authenticated
   // app can react to logout and race later navigations with its own redirect.
   await unloadPageForIdentitySwitch(page);
-  const response = await page.request.post('/auth/logout', { headers: await csrfHeaders(page) });
+  const response = await page.request.post('/auth/logout', { headers });
   expect(response.ok()).toBeTruthy();
 }
 

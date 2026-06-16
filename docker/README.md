@@ -6,7 +6,9 @@ automation.
 ## Files
 
 - `Dockerfile.goreleaser` builds the backend release image that GoReleaser
-  publishes as `ghcr.io/chattocorp/chatto`.
+  publishes as `ghcr.io/chattocorp/chatto`. The release image uses
+  `/config/chatto.toml` as its default config path and `/data` as the embedded
+  NATS data directory.
 - `docker-entrypoint.sh` is copied into the backend release image. It writes a
   NATS CLI context from Chatto's runtime NATS environment before starting the
   `chatto` binary.

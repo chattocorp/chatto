@@ -52,6 +52,15 @@ func TestInitGeneratesCoreSecret(t *testing.T) {
 	if got := cfg.Auth.EmailOTP.ThrottlingEnabledOrDefault(); got != true {
 		t.Fatalf("generated email OTP throttling enabled = %v, want true", got)
 	}
+	if cfg.SMTP.Enabled {
+		t.Fatal("generated SMTP config should be disabled by default")
+	}
+	if cfg.SMTP.Port != 587 {
+		t.Fatalf("generated SMTP port = %d, want 587", cfg.SMTP.Port)
+	}
+	if cfg.SMTP.TLS != config.SMTPTLSMandatory {
+		t.Fatalf("generated SMTP TLS policy = %q, want %q", cfg.SMTP.TLS, config.SMTPTLSMandatory)
+	}
 	raw, err := os.ReadFile(filepath.Join(tmpDir, "chatto.toml"))
 	if err != nil {
 		t.Fatalf("read generated raw config: %v", err)
@@ -110,6 +119,15 @@ func TestInitGeneratesCoreSecret(t *testing.T) {
 	}
 	if !strings.Contains(rawText, "storage_backend = 'nats'") {
 		t.Fatal("generated config should set core.assets.storage_backend to 'nats'")
+	}
+	if !strings.Contains(rawText, "\n[smtp]\n") {
+		t.Fatal("generated config should include SMTP defaults")
+	}
+	if !strings.Contains(rawText, "\nport = 587\n") {
+		t.Fatal("generated SMTP config should default to STARTTLS submission port 587")
+	}
+	if !strings.Contains(rawText, "\ntls = 'mandatory'\n") {
+		t.Fatal("generated SMTP config should default to mandatory STARTTLS")
 	}
 	if !strings.Contains(rawText, "\nreplicas = 1\n") {
 		t.Fatal("generated config should set nats.replicas to 1")

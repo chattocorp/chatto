@@ -1,5 +1,6 @@
 /// <reference types="vitest/config" />
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import devtoolsJson from 'vite-plugin-devtools-json';
 import tailwindcss from '@tailwindcss/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
@@ -14,6 +15,9 @@ const backendTarget =
   `http://localhost:${process.env.CHATTO_WEBSERVER_PORT || '4000'}`;
 const enableGraphqlCodegenClientOptimizer =
   process.env.CHATTO_DISABLE_GRAPHQL_CODEGEN_OPTIMIZER !== '1';
+const tiptapDeps = ['@tiptap/pm/state'];
+const highlightLanguageMetadataModule = 'virtual:chatto-highlight-language-metadata';
+const resolvedHighlightLanguageMetadataModule = `\0${highlightLanguageMetadataModule}`;
 
 function graphqlCodegenClientOptimizer(): Plugin {
   const graphqlCallPattern = /\bgraphql\s*\(\s*`([\s\S]*?)`\s*\)/g;
@@ -141,10 +145,103 @@ function graphqlCodegenClientOptimizer(): Plugin {
   };
 }
 
+function normalizeHighlightLanguageToken(value: string): string | null {
+  return value.trim().toLowerCase().match(/[a-z0-9+#_.-]+/)?.[0] ?? null;
+}
+
+function highlightLanguageNameCandidates(name: string): string[] {
+  const base = name
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/&[a-z]+;/g, ' ')
+    .replace(/[^a-z0-9+#_.-]+/g, ' ')
+    .trim();
+  const parts = base.split(/\s+/).filter(Boolean);
+  return [...new Set([base, parts.join(''), parts.join('-')].filter(Boolean))];
+}
+
+function parseMarkdownTableCell(value: string): string {
+  return value
+    .replace(/<[^>]*>/g, '')
+    .replace(/\[[^\]]*]\([^)]*\)/g, '')
+    .trim();
+}
+
+function buildHighlightLanguageAliasMaps(): {
+  aliasesByLanguage: Record<string, string[]>;
+  languageAliases: Record<string, string>;
+} {
+  const supportedLanguagesMarkdown = readFileSync(
+    new URL('./node_modules/highlight.js/SUPPORTED_LANGUAGES.md', import.meta.url),
+    'utf8'
+  );
+  const bundledLanguages = new Set(
+    readdirSync(new URL('./node_modules/highlight.js/es/languages/', import.meta.url))
+      .filter((file) => file.endsWith('.js') && !file.endsWith('.js.js'))
+      .map((file) => file.replace(/\.js$/, ''))
+  );
+  const aliasesByLanguage: Record<string, string[]> = {};
+  const languageAliases: Record<string, string> = {};
+
+  for (const line of supportedLanguagesMarkdown.split('\n')) {
+    if (!line.startsWith('|') || line.includes('---')) continue;
+
+    const cells = line
+      .slice(1, -1)
+      .split('|')
+      .map((cell) => parseMarkdownTableCell(cell));
+    const [rawName, rawAliases] = cells;
+    if (!rawName || !rawAliases || rawName === 'Language') continue;
+
+    const aliases = rawAliases
+      .split(',')
+      .map((alias) => normalizeHighlightLanguageToken(alias))
+      .filter((alias): alias is string => Boolean(alias));
+    const language = [...aliases, ...highlightLanguageNameCandidates(rawName)].find((candidate) =>
+      bundledLanguages.has(candidate)
+    );
+    if (!language) continue;
+
+    for (const alias of aliases) {
+      if (alias === language || languageAliases[alias]) continue;
+      languageAliases[alias] = language;
+      aliasesByLanguage[language] ??= [];
+      aliasesByLanguage[language].push(alias);
+    }
+  }
+
+  return { aliasesByLanguage, languageAliases };
+}
+
+function highlightLanguageMetadata(): Plugin {
+  let generatedCode: string | null = null;
+
+  return {
+    name: 'chatto-highlight-language-metadata',
+    resolveId(id) {
+      return id === highlightLanguageMetadataModule ? resolvedHighlightLanguageMetadataModule : null;
+    },
+    load(id) {
+      if (id !== resolvedHighlightLanguageMetadataModule) return null;
+
+      generatedCode ??= (() => {
+        const metadata = buildHighlightLanguageAliasMaps();
+        return [
+          `export const aliasesByLanguage = ${JSON.stringify(metadata.aliasesByLanguage)};`,
+          `export const languageAliases = ${JSON.stringify(metadata.languageAliases)};`
+        ].join('\n');
+      })();
+
+      return generatedCode;
+    }
+  };
+}
+
 export default defineConfig({
   clearScreen: false,
   plugins: [
     tailwindcss(),
+    highlightLanguageMetadata(),
     sveltekit(),
     ...(enableGraphqlCodegenClientOptimizer ? [graphqlCodegenClientOptimizer()] : []),
     devtoolsJson()
@@ -156,14 +253,29 @@ export default defineConfig({
       }
     }
   },
+  resolve: {
+    alias: {
+      // The lowlight package root re-exports `all`, which imports every
+      // highlight.js grammar. We only need createLowlight, so point bundling
+      // at the implementation module to keep language grammars lazy.
+      lowlight: fileURLToPath(new URL('./node_modules/lowlight/lib/index.js', import.meta.url))
+    }
+  },
   ssr: {
     // TipTap is browser-only but imported in Svelte components that are
     // compiled for SSR. Bundle them into the SSR output to avoid
     // "could not be resolved" warnings (the code paths are guarded by
     // $effect which doesn't run during SSR).
-    noExternal: ['@tiptap/core', '@tiptap/starter-kit', '@tiptap/extension-placeholder']
+    noExternal: [
+      '@tiptap/core',
+      '@tiptap/extension-code-block-lowlight',
+      '@tiptap/extension-placeholder',
+      '@tiptap/markdown',
+      '@tiptap/starter-kit'
+    ]
   },
   optimizeDeps: {
+    include: [...tiptapDeps],
     exclude: ['@urql/svelte']
   },
   server: {
@@ -225,10 +337,9 @@ export default defineConfig({
           exclude: ['src/lib/server/**'],
           setupFiles: ['./vitest-setup-client.ts'],
           deps: {
-            // Pre-bundle Shiki theme packages for dynamic import in browser tests
             optimizer: {
               web: {
-                include: ['@shikijs/themes/github-light', '@shikijs/themes/nord']
+                include: [...tiptapDeps]
               }
             }
           }

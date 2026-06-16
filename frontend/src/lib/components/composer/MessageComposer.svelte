@@ -15,11 +15,13 @@
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import EmojiAutocomplete from '$lib/components/composer/EmojiAutocomplete.svelte';
   import MentionAutocomplete from '$lib/components/composer/MentionAutocomplete.svelte';
-  import TipTapEditor, { type TipTapEditorApi } from './TipTapEditor.svelte';
+  import type { TipTapEditorApi } from './TipTapEditor.svelte';
   import { DraftState, draftKey } from './draft.svelte';
   import { AttachmentsState } from './attachments.svelte';
   import { LinkPreviewState } from './linkPreviews.svelte';
   import { AutocompleteState, type MentionRole } from './autocomplete.svelte';
+
+  const tipTapEditorModule = import('./TipTapEditor.svelte');
 
   const stores = serverRegistry.getStore(getActiveServer());
   const serverInfo = stores.serverInfo;
@@ -582,7 +584,17 @@
       }
     }
 
-    if (event.key === 'Enter' && !event.shiftKey && !isTouchDevice()) {
+    if (event.key === 'Enter' && !event.shiftKey && (event.metaKey || event.ctrlKey)) {
+      handleSubmit(); // Fire-and-forget (async, but keydown must return sync)
+      return true;
+    }
+
+    if (
+      event.key === 'Enter' &&
+      !event.shiftKey &&
+      !isTouchDevice() &&
+      editorApi?.isInPlainParagraph()
+    ) {
       handleSubmit(); // Fire-and-forget (async, but keydown must return sync)
       return true;
     }
@@ -594,10 +606,9 @@
   function handleEditorUpdate(text: string) {
     const previousMessage = message;
     message = text;
-    // Only trigger typing indicator for actual user input. Programmatic
-    // setContent calls (drafts, edit mode) always set `message` before
-    // calling setContent, so by the time TipTap fires onUpdate, message
-    // already equals the new text — this guard skips those updates.
+    // Only trigger typing indicator for actual user input.
+    // Programmatic setContent calls suppress TipTap update events, but this
+    // guard still protects any same-value editor update from emitting typing.
     if (text !== previousMessage) {
       onTyping?.();
     }
@@ -620,7 +631,7 @@
   bind:this={composerEl}
   class="flex flex-col gap-2 p-2"
   onclick={(e) => {
-    if (!(e.target as HTMLElement).closest('button, a, input, label, .tiptap')) {
+    if (!(e.target as HTMLElement).closest('button, a, input, label, select, .tiptap')) {
       editorApi?.focus();
     }
   }}
@@ -735,16 +746,20 @@
     {/if}
 
     <!-- Text input (TipTap editor) -->
-    <TipTapEditor
-      placeholder={currentPlaceholder}
-      editable={!inputDisabled}
-      autofocus={autoFocus && shouldAutoFocus()}
-      {testid}
-      onUpdate={handleEditorUpdate}
-      onKeyDown={handleEditorKeyDown}
-      onPaste={handlePaste}
-      onReady={handleEditorReady}
-    />
+    {#await tipTapEditorModule}
+      <div class="min-h-8 min-w-0 flex-1 py-1" aria-hidden="true"></div>
+    {:then { default: TipTapEditor }}
+      <TipTapEditor
+        placeholder={currentPlaceholder}
+        editable={!inputDisabled}
+        autofocus={autoFocus && shouldAutoFocus()}
+        {testid}
+        onUpdate={handleEditorUpdate}
+        onKeyDown={handleEditorKeyDown}
+        onPaste={handlePaste}
+        onReady={handleEditorReady}
+      />
+    {/await}
 
     <!-- Send button -->
     <button

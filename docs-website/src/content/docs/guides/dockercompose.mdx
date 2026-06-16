@@ -197,6 +197,9 @@ By the end of this section, your project directory will look like this:
 
    Replace all `<generate-me>` values with output from `openssl rand -hex 32`. Make sure `NATS_TOKEN` and `CHATTO_NATS_CLIENT_TOKEN` match, and the LiveKit key/secret match what's in `livekit.yaml`.
 
+   The SMTP example uses STARTTLS submission on port `587`. For providers that
+   require SMTPS on port `465`, set `CHATTO_SMTP_TLS=implicit`.
+
    Set `CHATTO_OWNERS_EMAILS` to the email address you will use for the first account. Registration sends a code by email and creates the account with that email already verified; if it matches this list, Chatto assigns the owner role automatically.
 
 6. **Start the stack**
@@ -364,7 +367,7 @@ rtc:
 
 **Chatto can't connect to NATS** — Ensure `NATS_TOKEN` and `CHATTO_NATS_CLIENT_TOKEN` match in `.env`.
 
-**Registration says email delivery is not configured** — Direct email/password registration requires SMTP. Set `CHATTO_SMTP_ENABLED=true` and configure `CHATTO_SMTP_HOST`, `CHATTO_SMTP_PORT`, `CHATTO_SMTP_TLS`, and `CHATTO_SMTP_FROM`. Add username and password when your SMTP server requires authentication.
+**Registration says email delivery is not configured** — Direct email/password registration requires SMTP. Set `CHATTO_SMTP_ENABLED=true` and configure `CHATTO_SMTP_HOST`, `CHATTO_SMTP_PORT`, `CHATTO_SMTP_TLS`, and `CHATTO_SMTP_FROM`. Use `CHATTO_SMTP_TLS=implicit` for SMTPS providers on port `465`. Add username and password when your SMTP server requires authentication.
 
 **The first account is not an owner** — Make sure `CHATTO_OWNERS_EMAILS` contains the verified email address for that account. For an already-verified account, restart Chatto after updating the variable; Chatto applies matching owner roles on boot.
 

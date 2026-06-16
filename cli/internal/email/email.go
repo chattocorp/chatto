@@ -65,11 +65,7 @@ func (m *Mailer) SendContext(ctx context.Context, msg Message) error {
 	message.SetBodyString(mail.TypeTextPlain, msg.Body)
 
 	// Build client options
-	opts := []mail.Option{
-		mail.WithPort(m.config.Port),
-		mail.WithTLSPortPolicy(mailTLSPolicy(m.config)),
-		mail.WithHELO("localhost"), // Use consistent HELO domain across all environments
-	}
+	opts := mailOptions(m.config)
 
 	// Add authentication if credentials provided
 	if m.config.Username != "" && m.config.Password != "" {
@@ -98,11 +94,20 @@ func (m *Mailer) IsEnabled() bool {
 	return m.config.Enabled
 }
 
-func mailTLSPolicy(cfg config.SMTPConfig) mail.TLSPolicy {
-	switch cfg.TLSPolicyOrDefault() {
-	case config.SMTPTLSOpportunistic:
-		return mail.TLSOpportunistic
-	default:
-		return mail.TLSMandatory
+func mailOptions(cfg config.SMTPConfig) []mail.Option {
+	opts := []mail.Option{
+		mail.WithPort(cfg.Port),
+		mail.WithHELO("localhost"), // Use consistent HELO domain across all environments
 	}
+
+	switch cfg.TLSPolicyOrDefault() {
+	case config.SMTPTLSImplicit:
+		opts = append(opts, mail.WithSSL())
+	case config.SMTPTLSOpportunistic:
+		opts = append(opts, mail.WithTLSPortPolicy(mail.TLSOpportunistic))
+	default:
+		opts = append(opts, mail.WithTLSPortPolicy(mail.TLSMandatory))
+	}
+
+	return opts
 }
