@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 import { test } from './setup';
-import { loginAsBootstrapUser, loginTestUser } from './fixtures/testUser';
+import { createAndLoginTestUser } from './fixtures/testUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { RoomPage } from './pages';
 import { TIMEOUTS } from './constants';
@@ -14,8 +14,10 @@ test.describe('Composer drafts', () => {
     browser,
     serverURL
   }) => {
-    const user = await loginAsBootstrapUser(page, 'alice');
+    // Create user and space
+    const user = await createAndLoginTestUser(page);
     await chatPage.goto();
+    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Get the room URL for the second tab
@@ -36,7 +38,14 @@ test.describe('Composer drafts', () => {
     const page2 = await context2.newPage();
 
     try {
-      await loginTestUser(page2, user);
+      // Login as the same user in tab 2
+      const loginResponse = await page2.request.post('/auth/login', {
+        data: {
+          login: user.login,
+          password: user.password
+        }
+      });
+      expect(loginResponse.ok()).toBeTruthy();
 
       // Navigate to the same room
       await page2.goto(roomUrl);
@@ -65,8 +74,10 @@ test.describe('Composer drafts', () => {
     chatPage,
     roomPage
   }) => {
-    await loginAsBootstrapUser(page, 'alice');
+    // Create user and space
+    await createAndLoginTestUser(page);
     await chatPage.goto();
+    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Type a draft message
@@ -91,8 +102,9 @@ test.describe('Composer drafts', () => {
     chatPage,
     roomPage
   }) => {
-    await loginAsBootstrapUser(page, 'alice');
+    await createAndLoginTestUser(page);
     await chatPage.goto();
+    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Attach an image in general
@@ -115,8 +127,9 @@ test.describe('Composer focus', () => {
     chatPage,
     roomPage
   }) => {
-    await loginAsBootstrapUser(page, 'alice');
+    await createAndLoginTestUser(page);
     await chatPage.goto();
+    await chatPage.createSpace();
     await chatPage.enterRoom('general');
     await waitForRoomReady(page, 'general');
 
@@ -144,8 +157,9 @@ test.describe('Composer focus', () => {
   });
 
   test('clicking attach button opens file dialog, not just focus', async ({ page, chatPage }) => {
-    await loginAsBootstrapUser(page, 'alice');
+    await createAndLoginTestUser(page);
     await chatPage.goto();
+    await chatPage.createSpace();
     await chatPage.enterRoom('general');
     await waitForRoomReady(page, 'general');
 
@@ -173,8 +187,9 @@ async function setupTwoRooms(
   page: import('@playwright/test').Page,
   chatPage: import('./pages').ChatPage
 ): Promise<string> {
-  await loginAsBootstrapUser(page, 'alice');
+  await createAndLoginTestUser(page);
   await chatPage.goto();
+  await chatPage.createSpace();
   const targetRoom = await chatPage.createRoom();
   await chatPage.enterRoom('general');
   await waitForRoomReady(page, 'general');

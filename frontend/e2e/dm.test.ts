@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test';
 import { test } from './setup';
 import {
-  loginAsBootstrapUser,
+  createAndLoginTestUser,
   loginAsAdmin,
   denyUserPermission,
   clearUserPermissionOverride
@@ -29,12 +29,12 @@ test.describe('Direct Messages (room-shaped)', () => {
     serverURL
   }) => {
     // Two users on the same server.
-    const userA = await loginAsBootstrapUser(page, 'alice');
+    const userA = await createAndLoginTestUser(page);
 
     const context2 = await browser.newContext({ baseURL: serverURL });
     const page2 = await context2.newPage();
     try {
-      await loginAsBootstrapUser(page2, 'bob');
+      await createAndLoginTestUser(page2);
 
       // User B starts a DM with User A and seeds a message so the DM is in
       // User A's merged sidebar (the active DM-room list filters empty rooms).
@@ -77,12 +77,12 @@ test.describe('Direct Messages (room-shaped)', () => {
     browser,
     serverURL
   }) => {
-    const userA = await loginAsBootstrapUser(page, 'alice');
+    const userA = await createAndLoginTestUser(page);
 
     const context2 = await browser.newContext({ baseURL: serverURL });
     const page2 = await context2.newPage();
     try {
-      const userB = await loginAsBootstrapUser(page2, 'bob');
+      const userB = await createAndLoginTestUser(page2);
 
       // User B → User A: start DM and post so the DM survives the active
       // DM-room empty-room filter.
@@ -120,15 +120,15 @@ test.describe('Direct Messages (room-shaped)', () => {
     browser,
     serverURL
   }) => {
-    const userA = await loginAsBootstrapUser(page, 'alice');
+    const userA = await createAndLoginTestUser(page);
 
     const ctxB = await browser.newContext({ baseURL: serverURL });
     const ctxC = await browser.newContext({ baseURL: serverURL });
     const pageB = await ctxB.newPage();
     const pageC = await ctxC.newPage();
     try {
-      const userB = await loginAsBootstrapUser(pageB, 'bob');
-      const userC = await loginAsBootstrapUser(pageC, 'carol');
+      const userB = await createAndLoginTestUser(pageB);
+      const userC = await createAndLoginTestUser(pageC);
 
       // Seed two existing DMs from User A's side, B last so it sorts above C
       // by last-activity (newest first). User A then leaves the chat root open
@@ -191,15 +191,15 @@ test.describe('Direct Messages (room-shaped)', () => {
     browser,
     serverURL
   }) => {
-    const userA = await loginAsBootstrapUser(page, 'alice');
+    const userA = await createAndLoginTestUser(page);
 
     const ctxB = await browser.newContext({ baseURL: serverURL });
     const ctxC = await browser.newContext({ baseURL: serverURL });
     const pageB = await ctxB.newPage();
     const pageC = await ctxC.newPage();
     try {
-      const userB = await loginAsBootstrapUser(pageB, 'bob');
-      const userC = await loginAsBootstrapUser(pageC, 'carol');
+      const userB = await createAndLoginTestUser(pageB);
+      const userC = await createAndLoginTestUser(pageC);
 
       // Seed two DMs from User A. C goes second so it ends up at the top by
       // last-activity. We then post into B's DM (not at the top) and assert
@@ -247,12 +247,12 @@ test.describe('Direct Messages (room-shaped)', () => {
     browser,
     serverURL
   }) => {
-    const userA = await loginAsBootstrapUser(page, 'alice');
+    const userA = await createAndLoginTestUser(page);
 
     const ctxB = await browser.newContext({ baseURL: serverURL });
     const pageB = await ctxB.newPage();
     try {
-      await loginAsBootstrapUser(pageB, 'bob');
+      await createAndLoginTestUser(pageB);
 
       // User A on chat root with no DMs yet — server icon has no indicator.
       await page.goto(routes.chat);
@@ -292,15 +292,15 @@ test.describe('Direct Messages (room-shaped)', () => {
     browser,
     serverURL
   }) => {
-    const userA = await loginAsBootstrapUser(page, 'alice');
+    const userA = await createAndLoginTestUser(page);
 
     const ctxB = await browser.newContext({ baseURL: serverURL });
     const ctxC = await browser.newContext({ baseURL: serverURL });
     const pageB = await ctxB.newPage();
     const pageC = await ctxC.newPage();
     try {
-      const userB = await loginAsBootstrapUser(pageB, 'bob');
-      const userC = await loginAsBootstrapUser(pageC, 'carol');
+      const userB = await createAndLoginTestUser(pageB);
+      const userC = await createAndLoginTestUser(pageC);
 
       // Seed two existing DMs from User A. Both have content, so both end
       // up in the merged sidebar.
@@ -363,7 +363,7 @@ test.describe('Direct Messages (room-shaped)', () => {
     const regularContext = await browser.newContext({ baseURL: serverURL });
     const regularPage = await regularContext.newPage();
     try {
-      const regularUser = await loginAsBootstrapUser(regularPage, 'bob');
+      const regularUser = await createAndLoginTestUser(regularPage);
 
       // Admin starts a DM with the regular user (via API) and seeds it so
       // the conversation isn't filtered by the active DM-room list.

@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect } from '@playwright/test';
 import { createAndLoginTestUser, joinSpace } from './fixtures/testUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { waitForUserDeleted } from './fixtures/graphqlHelpers';
@@ -6,41 +6,6 @@ import { test } from './setup';
 import { AccountPage, ChatPage, RoomPage } from './pages';
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
-
-const BOOTSTRAP_GENERAL_MEMBER_COUNT = 4;
-
-async function getRoomIdByName(page: Page, roomName: string): Promise<string> {
-  const response = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `query { server { rooms(type: CHANNEL) { id name } } }`
-    }
-  });
-  expect(response.ok()).toBeTruthy();
-  const data = await response.json();
-  const room = data.data?.server?.rooms?.find(
-    (candidate: { id: string; name: string }) => candidate.name === roomName
-  );
-  if (!room) {
-    throw new Error(`Room ${roomName} not found`);
-  }
-  return room.id;
-}
-
-async function joinRoomByName(page: Page, roomName: string): Promise<string> {
-  const roomId = await getRoomIdByName(page, roomName);
-  const response = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) { id } }`,
-      variables: { input: { roomId } }
-    }
-  });
-  expect(response.ok()).toBeTruthy();
-  const data = await response.json();
-  expect(data.data?.joinRoom?.id).toBe(roomId);
-  return roomId;
-}
 
 test.describe('Account Deletion', () => {
   test.describe('Account Settings Page', () => {
@@ -256,26 +221,24 @@ test.describe('Account Deletion', () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
       await chatPage.createSpace();
-      const targetRoom = await chatPage.createRoom();
+      await chatPage.enterRoom('general');
 
       const spaceId = await chatPage.getSpaceId();
 
-      // User B joins the fresh room (this creates a specific join event,
-      // unlike the bootstrap default-room batch).
+      // User B joins the space (this creates a join event)
       const context2 = await browser!.newContext({ baseURL: serverURL });
       const page2 = await context2.newPage();
 
       try {
-        const userB = await createAndLoginTestUser(page2, { skipDefaultRooms: true });
+        const userB = await createAndLoginTestUser(page2);
 
         await joinSpace(page2);
-        const roomId = await joinRoomByName(page2, targetRoom);
-        await page2.goto(routes.room(roomId));
+        await page2.goto(routes.space());
 
         const chatPage2 = new ChatPage(page2);
 
-        await chatPage2.enterRoom(targetRoom);
-        await waitForRoomReady(page2, targetRoom);
+        await chatPage2.enterRoom('general');
+        await waitForRoomReady(page2, 'general');
 
         // User A should see User B's join event
         await expect(
@@ -292,7 +255,7 @@ test.describe('Account Deletion', () => {
 
         // User A refreshes to see updated state
         await page.reload();
-        await waitForRoomReady(page, targetRoom);
+        await waitForRoomReady(page, 'general');
 
         // User A should now see "Deleted User joined the room"
         await expect(page.getByText(/Deleted User joined the room/)).toBeVisible({
@@ -337,15 +300,14 @@ test.describe('Account Deletion', () => {
         await chatPage2.enterRoom('general');
         await waitForRoomReady(page2, 'general');
 
-        // Both users should see bootstrap members plus userA and userB.
+        // Both users should see member list with 3 members initially: e2eadmin
+        // (bootstrap space owner) + userA + userB. Issue #330 / ADR-027:
+        // bootstrap creates the primary space owned by e2eadmin, so they
+        // count among general's members.
         await page.reload();
         await waitForRoomReady(page, 'general');
-        await expect(roomPage.memberCount).toHaveText(
-          `Members (${BOOTSTRAP_GENERAL_MEMBER_COUNT + 2})`
-        );
-        await expect(roomPage2.memberCount).toHaveText(
-          `Members (${BOOTSTRAP_GENERAL_MEMBER_COUNT + 2})`
-        );
+        await expect(roomPage.memberCount).toHaveText('Members (3)');
+        await expect(roomPage2.memberCount).toHaveText('Members (3)');
 
         // User A deletes their account
         const accountPage = new AccountPage(page);
@@ -359,13 +321,10 @@ test.describe('Account Deletion', () => {
         await page2.reload();
         await waitForRoomReady(page2, 'general');
 
-        // User B should see bootstrap members + themselves.
-        await expect(roomPage2.memberCount).toHaveText(
-          `Members (${BOOTSTRAP_GENERAL_MEMBER_COUNT + 1})`,
-          {
-            timeout: TIMEOUTS.REALTIME_EVENT
-          }
-        );
+        // User B should see e2eadmin + themselves (not 0, not 3)
+        await expect(roomPage2.memberCount).toHaveText('Members (2)', {
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
 
         // User B's name should still be visible in the member list
         await expect(page2.getByLabel('Members').getByText(userB.login)).toBeVisible();
@@ -386,17 +345,13 @@ test.describe('Account Deletion', () => {
           await chatPage3.enterRoom('general');
           await waitForRoomReady(page3, 'general');
 
-          // User C should see bootstrap members + User B + themselves.
-          await expect(roomPage3.memberCount).toHaveText(
-            `Members (${BOOTSTRAP_GENERAL_MEMBER_COUNT + 2})`
-          );
+          // User C should see 3 members (e2eadmin + User B + themselves)
+          await expect(roomPage3.memberCount).toHaveText('Members (3)');
 
-          // User B refreshes and should see the same count.
+          // User B refreshes and should also see 3 members
           await page2.reload();
           await waitForRoomReady(page2, 'general');
-          await expect(roomPage2.memberCount).toHaveText(
-            `Members (${BOOTSTRAP_GENERAL_MEMBER_COUNT + 2})`
-          );
+          await expect(roomPage2.memberCount).toHaveText('Members (3)');
 
           // Both User B and User C should be visible in the member list
           await expect(page2.getByLabel('Members').getByText(userB.login)).toBeVisible();

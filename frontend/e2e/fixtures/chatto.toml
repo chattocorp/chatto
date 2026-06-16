@@ -56,24 +56,6 @@ email = 'e2eadmin@test.local'
 password = 'adminpassword123'
 server_role = 'owner'
 
-[[bootstrap.users]]
-login = 'e2eu1'
-display_name = 'User One Test'
-email = 'e2eu1@test.local'
-password = 'testpassword123'
-
-[[bootstrap.users]]
-login = 'e2eu2'
-display_name = 'User Two Test'
-email = 'e2eu2@test.local'
-password = 'testpassword123'
-
-[[bootstrap.users]]
-login = 'e2eu3'
-display_name = 'User Three Test'
-email = 'e2eu3@test.local'
-password = 'testpassword123'
-
 # Bootstrap the deployment's server config (per ADR-027 the server is the
 # server — there is no separately-named "space" concept any more). New users
 # created during tests auto-join the server, so most tests can drop their

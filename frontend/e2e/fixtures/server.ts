@@ -89,7 +89,7 @@ export async function startServer(
   }
   mkdirSync(dataDir, { recursive: true });
 
-  // chatto.toml seeds stable e2e personas via [bootstrap] for each fresh data dir.
+  // chatto.toml seeds the e2eadmin user via [bootstrap] for each fresh data dir.
   const serverProcess = spawn(
     path.join(__dirname, 'bin', 'chatto'),
     ['start', '-c', 'chatto.toml'],
@@ -123,8 +123,9 @@ export async function startServer(
     }
   });
 
-  // Wait for server to be ready. Bootstrap users are created during startup, so
-  // by the time the readiness check passes the personas exist.
+  // Wait for server to be ready. The admin user is created during startup via
+  // the [bootstrap] section in chatto.toml, so by the time the readiness check
+  // passes the user exists.
   await waitForServer(ports.webserver);
 
   return {
