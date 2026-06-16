@@ -5,7 +5,7 @@
  *
  * The sidebar wires handlers against any connected server's bus through
  * the manager (not just the one in URL focus), which is how cross-server
- * notification dots work without each server holding its own subscription
+ * notification indicators work without each server holding its own subscription
  * context.
  */
 

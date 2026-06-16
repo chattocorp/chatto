@@ -23,6 +23,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { useFragment } from './gql';
   import { RoomType, type PresenceStatus } from '$lib/gql/graphql';
   import UserAvatar, { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
+  import NotificationBadge from '$lib/ui/NotificationBadge.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
   import { appState } from '$lib/state/globals.svelte';
@@ -120,9 +121,9 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     if (activeCallRooms.has(room.id)) return true;
     if (room.hasUnread) return true;
     if (room.type === RoomType.Dm) {
-      return notificationStore.hasDMRoomNotification(room.id);
+      return room.viewerNotificationCount > 0;
     }
-    return notificationStore.hasRoomNotification(room.id);
+    return room.viewerNotificationCount > 0;
   }
 
   // --- Real-time event handlers ---
@@ -225,26 +226,32 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     goto(resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId }));
   }
 
-  // Handle click on room notification dot - navigate to notification source and dismiss
+  // Handle click on room notification badge - navigate to notification source and dismiss
   async function handleRoomNotificationClick(event: MouseEvent, roomId: string) {
     event.preventDefault();
     event.stopPropagation();
 
     const notification = notificationStore.getRoomNotification(roomId);
-    if (!notification) return;
+    if (!notification) {
+      await goto(resolve('/chat/notifications'));
+      return;
+    }
 
     const target = notificationTarget(notification);
     if (target.eventId && target.roomId) {
       stores.pendingHighlights.set(target.roomId, target.threadRootId, target.eventId);
     }
-    void notificationStore.dismiss(notification.id);
+    roomsStore.decrementUnreadNotification(roomId);
+    void notificationStore.dismiss(notification.id).then((dismissed) => {
+      if (!dismissed) roomsStore.incrementUnreadNotification(roomId);
+    });
 
     const path = notificationStore.getCleanPath(getActiveServer(), notification);
     // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
     await goto(path);
   }
 
-  // Handle click on a DM notification dot. Mirrors handleRoomNotificationClick
+  // Handle click on a DM notification badge. Mirrors handleRoomNotificationClick
   // but uses the DM-flavoured store accessors — `getRoomNotification` /
   // `hasRoomNotification` deliberately exclude DMs.
   async function handleDMNotificationClick(event: MouseEvent, roomId: string) {
@@ -252,9 +259,15 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     event.stopPropagation();
 
     const notification = notificationStore.getDMRoomNotification(roomId);
-    if (!notification) return;
+    if (!notification) {
+      await goto(resolve('/chat/notifications'));
+      return;
+    }
 
-    void notificationStore.dismiss(notification.id);
+    roomsStore.decrementUnreadNotification(roomId);
+    void notificationStore.dismiss(notification.id).then((dismissed) => {
+      if (!dismissed) roomsStore.incrementUnreadNotification(roomId);
+    });
 
     const path = notificationStore.getCleanPath(getActiveServer(), notification);
     // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
@@ -316,16 +329,19 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     <span class="flex-1 truncate">{room.name}</span>
 
     <!-- Notification Indicator (warning color for mentions and thread replies) -->
-    {#if notificationStore.hasRoomNotification(room.id)}
+    {#if room.viewerNotificationCount > 0}
       <button
         type="button"
         onclick={(e) => handleRoomNotificationClick(e, room.id)}
-        class="-mr-2 flex h-6 w-6 cursor-pointer items-center justify-center notification-dot"
-        aria-label="Go to notification"
+        class="-mr-2 flex h-6 min-w-6 cursor-pointer items-center justify-center notification-dot"
+        aria-label={`Go to ${room.viewerNotificationCount} notifications`}
       >
-        <UnreadDot />
+        <NotificationBadge
+          count={room.viewerNotificationCount}
+          testid="room-notification-badge"
+        />
       </button>
-      <span class="sr-only">notification</span>
+      <span class="sr-only">{room.viewerNotificationCount} notifications</span>
       <!-- Unread Indicator (subtle) -->
     {:else if room.hasUnread && !notificationLevelStore.isRoomMuted(room.id)}
       <UnreadDot color="primary" testid="room-unread-dot" />
@@ -360,16 +376,19 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     </div>
     <span class="flex-1 truncate">{dmDisplayName(room)}</span>
 
-    {#if notificationStore.hasDMRoomNotification(room.id)}
+    {#if room.viewerNotificationCount > 0}
       <button
         type="button"
         onclick={(e) => handleDMNotificationClick(e, room.id)}
-        class="-mr-2 flex h-6 w-6 cursor-pointer items-center justify-center notification-dot"
-        aria-label="Go to notification"
+        class="-mr-2 flex h-6 min-w-6 cursor-pointer items-center justify-center notification-dot"
+        aria-label={`Go to ${room.viewerNotificationCount} direct message notifications`}
       >
-        <UnreadDot />
+        <NotificationBadge
+          count={room.viewerNotificationCount}
+          testid="dm-notification-badge"
+        />
       </button>
-      <span class="sr-only">new direct message</span>
+      <span class="sr-only">{room.viewerNotificationCount} new direct messages</span>
     {:else if room.hasUnread}
       <UnreadDot color="primary" testid="dm-unread-dot" />
       <span class="sr-only">unread messages</span>

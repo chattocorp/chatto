@@ -237,6 +237,15 @@ func (r *serverResolver) ViewerHasUnreadRooms(ctx context.Context, obj *model.Se
 	return false, nil
 }
 
+// ViewerNotifications is the resolver for the viewerNotifications field.
+func (r *serverResolver) ViewerNotifications(ctx context.Context, obj *model.Server, limit *int32, offset *int32) (*model.NotificationsConnection, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return emptyNotificationsConnection(), nil
+	}
+	return r.resolveNotificationsConnection(ctx, user.Id, limit, offset, nil)
+}
+
 // Name is the resolver for the name field.
 func (r *serverProfileResolver) Name(ctx context.Context, obj *model.ServerProfile) (string, error) {
 	if r.core == nil {

@@ -38,11 +38,17 @@ Include this component once in the chat layout (unconditionally).
 
         if (event.event.__typename === 'NotificationCreatedEvent') {
           notificationStore.addNotification();
+          stores.rooms.incrementUnreadNotification(event.event.roomId);
           playNotificationSound(userPreferences.notificationSound);
         }
 
         if (event.event.__typename === 'NotificationDismissedEvent') {
-          notificationStore.removeNotification(event.event.notificationId);
+          const roomId = notificationStore.removeNotification(event.event.notificationId);
+          if (roomId) {
+            stores.rooms.decrementUnreadNotification(roomId);
+          } else if (!notificationStore.consumeLocalDismissal(event.event.notificationId)) {
+            void Promise.allSettled([notificationStore.fetch(), stores.rooms.refresh()]);
+          }
         }
       };
 

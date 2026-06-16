@@ -112,6 +112,13 @@ type Server {
   viewerCanManageRooms: Boolean! @goField(forceResolver: true)
   "Whether the current user has any unread messages in rooms they've joined."
   viewerHasUnreadRooms: Boolean! @goField(forceResolver: true)
+  "Pending notifications for the current user on this server, newest first."
+  viewerNotifications(
+    "Maximum number of results to return (default 50, max 100)."
+    limit: Int
+    "Offset for pagination."
+    offset: Int
+  ): NotificationsConnection! @goField(forceResolver: true)
 }
 
 extend type Query {

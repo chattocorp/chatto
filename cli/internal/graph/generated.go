@@ -637,6 +637,7 @@ type ComplexityRoot struct {
 		ViewerCanPostMessage         func(childComplexity int) int
 		ViewerCanReact               func(childComplexity int) int
 		ViewerNotificationPreference func(childComplexity int) int
+		ViewerNotifications          func(childComplexity int, limit *int32, offset *int32) int
 		VoiceCallToken               func(childComplexity int) int
 	}
 
@@ -789,6 +790,7 @@ type ComplexityRoot struct {
 		ViewerHasAnyAdminPermission    func(childComplexity int) int
 		ViewerHasUnreadRooms           func(childComplexity int) int
 		ViewerNotificationPreference   func(childComplexity int) int
+		ViewerNotifications            func(childComplexity int, limit *int32, offset *int32) int
 		ViewerPermissions              func(childComplexity int) int
 	}
 
@@ -1211,6 +1213,7 @@ type RoomResolver interface {
 
 	Members(ctx context.Context, obj *corev1.Room, limit *int32, offset *int32) (*model.RoomMembersConnection, error)
 	HasUnread(ctx context.Context, obj *corev1.Room) (bool, error)
+	ViewerNotifications(ctx context.Context, obj *corev1.Room, limit *int32, offset *int32) (*model.NotificationsConnection, error)
 	ViewerCanPostMessage(ctx context.Context, obj *corev1.Room) (bool, error)
 	ViewerCanPostInThread(ctx context.Context, obj *corev1.Room) (bool, error)
 	ViewerCanReact(ctx context.Context, obj *corev1.Room) (bool, error)
@@ -1275,6 +1278,7 @@ type ServerResolver interface {
 	ViewerCanCreateRoom(ctx context.Context, obj *model.Server) (bool, error)
 	ViewerCanManageRooms(ctx context.Context, obj *model.Server) (bool, error)
 	ViewerHasUnreadRooms(ctx context.Context, obj *model.Server) (bool, error)
+	ViewerNotifications(ctx context.Context, obj *model.Server, limit *int32, offset *int32) (*model.NotificationsConnection, error)
 	ViewerNotificationPreference(ctx context.Context, obj *model.Server) (*model.ViewerNotificationPreference, error)
 	Member(ctx context.Context, obj *model.Server, userID string) (*corev1.User, error)
 	Members(ctx context.Context, obj *model.Server, search *string, limit *int32, offset *int32) (*model.ServerMembersConnection, error)
@@ -4155,6 +4159,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Room.ViewerNotificationPreference(childComplexity), true
+	case "Room.viewerNotifications":
+		if e.ComplexityRoot.Room.ViewerNotifications == nil {
+			break
+		}
+
+		args, err := ec.field_Room_viewerNotifications_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Room.ViewerNotifications(childComplexity, args["limit"].(*int32), args["offset"].(*int32)), true
 	case "Room.voiceCallToken":
 		if e.ComplexityRoot.Room.VoiceCallToken == nil {
 			break
@@ -4784,6 +4799,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Server.ViewerNotificationPreference(childComplexity), true
+	case "Server.viewerNotifications":
+		if e.ComplexityRoot.Server.ViewerNotifications == nil {
+			break
+		}
+
+		args, err := ec.field_Server_viewerNotifications_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Server.ViewerNotifications(childComplexity, args["limit"].(*int32), args["offset"].(*int32)), true
 	case "Server.viewerPermissions":
 		if e.ComplexityRoot.Server.ViewerPermissions == nil {
 			break
@@ -6275,6 +6301,8 @@ func (ec *executionContext) childFields_Room(ctx context.Context, field graphql.
 		return ec.fieldContext_Room_members(ctx, field)
 	case "hasUnread":
 		return ec.fieldContext_Room_hasUnread(ctx, field)
+	case "viewerNotifications":
+		return ec.fieldContext_Room_viewerNotifications(ctx, field)
 	case "viewerCanPostMessage":
 		return ec.fieldContext_Room_viewerCanPostMessage(ctx, field)
 	case "viewerCanPostInThread":
@@ -6487,6 +6515,8 @@ func (ec *executionContext) childFields_Server(ctx context.Context, field graphq
 		return ec.fieldContext_Server_viewerCanManageRooms(ctx, field)
 	case "viewerHasUnreadRooms":
 		return ec.fieldContext_Server_viewerHasUnreadRooms(ctx, field)
+	case "viewerNotifications":
+		return ec.fieldContext_Server_viewerNotifications(ctx, field)
 	case "viewerNotificationPreference":
 		return ec.fieldContext_Server_viewerNotificationPreference(ctx, field)
 	case "member":
@@ -8447,6 +8477,28 @@ func (ec *executionContext) field_Room_members_args(ctx context.Context, rawArgs
 	return args, nil
 }
 
+func (ec *executionContext) field_Room_viewerNotifications_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "limit",
+		func(ctx context.Context, v any) (*int32, error) {
+			return ec.unmarshalOInt2ᚖint32(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "offset",
+		func(ctx context.Context, v any) (*int32, error) {
+			return ec.unmarshalOInt2ᚖint32(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg1
+	return args, nil
+}
+
 func (ec *executionContext) field_Server_member_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -8572,6 +8624,28 @@ func (ec *executionContext) field_Server_viewerCanManageUser_args(ctx context.Co
 		return nil, err
 	}
 	args["userId"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Server_viewerNotifications_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "limit",
+		func(ctx context.Context, v any) (*int32, error) {
+			return ec.unmarshalOInt2ᚖint32(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "offset",
+		func(ctx context.Context, v any) (*int32, error) {
+			return ec.unmarshalOInt2ᚖint32(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg1
 	return args, nil
 }
 
@@ -19384,6 +19458,50 @@ func (ec *executionContext) fieldContext_Room_hasUnread(_ context.Context, field
 	return graphql.NewScalarFieldContext("Room", field, true, true, errors.New("field of type Boolean does not have child fields"))
 }
 
+func (ec *executionContext) _Room_viewerNotifications(ctx context.Context, field graphql.CollectedField, obj *corev1.Room) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Room_viewerNotifications(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Room().ViewerNotifications(ctx, obj, fc.Args["limit"].(*int32), fc.Args["offset"].(*int32))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.NotificationsConnection) graphql.Marshaler {
+			return ec.marshalNNotificationsConnection2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐNotificationsConnection(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Room_viewerNotifications(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Room",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_NotificationsConnection(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Room_viewerNotifications_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Room_viewerCanPostMessage(ctx context.Context, field graphql.CollectedField, obj *corev1.Room) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -21962,6 +22080,50 @@ func (ec *executionContext) _Server_viewerHasUnreadRooms(ctx context.Context, fi
 }
 func (ec *executionContext) fieldContext_Server_viewerHasUnreadRooms(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Server", field, true, true, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _Server_viewerNotifications(ctx context.Context, field graphql.CollectedField, obj *model.Server) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Server_viewerNotifications(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Server().ViewerNotifications(ctx, obj, fc.Args["limit"].(*int32), fc.Args["offset"].(*int32))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.NotificationsConnection) graphql.Marshaler {
+			return ec.marshalNNotificationsConnection2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐNotificationsConnection(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Server_viewerNotifications(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Server",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_NotificationsConnection(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Server_viewerNotifications_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
 }
 
 func (ec *executionContext) _Server_viewerNotificationPreference(ctx context.Context, field graphql.CollectedField, obj *model.Server) (ret graphql.Marshaler) {
@@ -36307,6 +36469,42 @@ func (ec *executionContext) _Room(ctx context.Context, sel ast.SelectionSet, obj
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "viewerNotifications":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Room_viewerNotifications(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "viewerCanPostMessage":
 			field := field
 
@@ -38833,6 +39031,42 @@ func (ec *executionContext) _Server(ctx context.Context, sel ast.SelectionSet, o
 					}
 				}()
 				res = ec._Server_viewerHasUnreadRooms(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "viewerNotifications":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Server_viewerNotifications(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}

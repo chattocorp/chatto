@@ -17,6 +17,7 @@ mounting the full chat room shell.
     activePanel = 'members',
     presentation = 'desktop',
     currentUserId = 'viewer',
+    canBanRoomMembers = false,
     onPresenceCacheReady,
     onClose
   }: {
@@ -25,6 +26,7 @@ mounting the full chat room shell.
     activePanel?: RoomSidebarPanel;
     presentation?: 'desktop' | 'overlay';
     currentUserId?: string | null;
+    canBanRoomMembers?: boolean;
     onPresenceCacheReady?: (cache: PresenceCache) => void;
     onClose?: () => void;
   } = $props();
@@ -47,7 +49,7 @@ mounting the full chat room shell.
   {activePanel}
   {presentation}
   loading={false}
-  canBanRoomMembers={false}
+  {canBanRoomMembers}
   {currentUserId}
   onLoadMoreMembers={roomMembers.loadMoreMembers}
   {onClose}

@@ -22,8 +22,8 @@ import type { GraphQLClient } from './graphqlClient.svelte';
 import type { RegisteredServer } from './registry.svelte';
 
 /**
- * What kind of indicator dot a server (or the DM area) should display.
- * - 'notification' = orange dot, has a pending mention/reply/room-message
+ * What kind of indicator a server (or the DM area) should display.
+ * - 'notification' = warning badge, has a pending mention/reply/room-message
  * - 'unread' = grey dot, has unread rooms but no pending notification
  * - null = no indicator
  */
@@ -272,6 +272,7 @@ export class ServerStateStore {
    */
   serverIndicator(): ServerIndicator {
     // Channel + DM activity both roll up to the single server indicator.
+    if (this.notifications.unreadNotificationCount > 0) return 'notification';
     if (this.notifications.hasSpaceNotification()) return 'notification';
     if (this.notifications.hasDMNotifications()) return 'notification';
     if (this.roomUnread.hasAnyUnread) return 'unread';

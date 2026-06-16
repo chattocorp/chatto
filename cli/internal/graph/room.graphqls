@@ -33,6 +33,16 @@ type Room {
   Returns false if user is not a member or room has no new messages.
   """
   hasUnread: Boolean! @goField(forceResolver: true)
+  """
+  Pending notifications for the current user in this room, newest first.
+  Returns an empty connection if the user is unauthenticated or not a member.
+  """
+  viewerNotifications(
+    "Maximum number of results to return (default 50, max 100)."
+    limit: Int
+    "Offset for pagination."
+    offset: Int
+  ): NotificationsConnection! @goField(forceResolver: true)
   "Whether the current user can post new root messages in this room."
   viewerCanPostMessage: Boolean! @goField(forceResolver: true)
   "Whether the current user can post messages in threads in this room."

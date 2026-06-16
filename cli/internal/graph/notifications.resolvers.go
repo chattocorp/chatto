@@ -108,28 +108,7 @@ func (r *replyNotificationItemResolver) Room(ctx context.Context, obj *model.Rep
 
 // Notifications is the resolver for the notifications field.
 func (r *viewerResolver) Notifications(ctx context.Context, obj *model.Viewer, limit *int32, offset *int32) (*model.NotificationsConnection, error) {
-	notifications, err := r.core.GetNotifications(ctx, obj.UserID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get notifications: %w", err)
-	}
-
-	limitVal, offsetVal := paginationArgs(limit, offset, 50, 100)
-	page, totalCount, hasMore := paginateSlice(notifications, limitVal, offsetVal)
-
-	items := make([]model.NotificationItem, 0, len(page))
-	for _, notif := range page {
-		item, err := convertNotification(notif)
-		if err != nil {
-			r.logger.Warn("Failed to convert notification", "id", notif.Id, "error", err)
-			continue
-		}
-		items = append(items, item)
-	}
-	return &model.NotificationsConnection{
-		Items:      items,
-		TotalCount: int32(totalCount),
-		HasMore:    hasMore,
-	}, nil
+	return r.resolveNotificationsConnection(ctx, obj.UserID, limit, offset, nil)
 }
 
 // HasNotifications is the resolver for the hasNotifications field.

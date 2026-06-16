@@ -1,6 +1,7 @@
 import { untrack } from 'svelte';
 import type { Client } from '@urql/svelte';
 import { graphql, useFragment } from '$lib/gql';
+import { isUnsupportedGraphQLFieldError } from '$lib/gql/compatibility';
 import { RoomType, UserAvatarUserFragmentDoc, type UserAvatarUserFragment } from '$lib/gql/graphql';
 import type { NotificationLevelStore } from '$lib/state/server/notificationLevel.svelte';
 import type { RoomUnreadStore } from '$lib/state/server/roomUnread.svelte';
@@ -10,6 +11,7 @@ export type RoomsListItem = {
   name: string;
   type: RoomType;
   hasUnread: boolean;
+  viewerNotificationCount: number;
   // Populated for DM rooms only — used to derive the display name in the sidebar.
   members: UserAvatarUserFragment[];
 };
@@ -49,6 +51,21 @@ const MyRoomsQuery = graphql(`
         name
         rooms {
           id
+        }
+      }
+    }
+  }
+`);
+
+const MyRoomNotificationCountsQuery = graphql(`
+  query GetMyServerRoomNotificationCounts {
+    viewer {
+      user {
+        rooms {
+          id
+          viewerNotifications(limit: 1) {
+            totalCount
+          }
         }
       }
     }
@@ -140,11 +157,13 @@ export class RoomsStore {
         name: r.name,
         type: r.type,
         hasUnread: r.hasUnread,
+        viewerNotificationCount: 0,
         members: r.members.users.map((m: (typeof r.members.users)[number]) =>
           useFragment(UserAvatarUserFragmentDoc, m)
         )
       }));
       this.roomUnread.initRooms(visible);
+      void this.refreshNotificationCounts(thisLoad);
     }
 
     if (result.data?.server?.roomGroups) {
@@ -161,6 +180,35 @@ export class RoomsStore {
     this.isInitialLoading = false;
   }
 
+  private async refreshNotificationCounts(loadId: number): Promise<void> {
+    try {
+      const result = await this.client.query(MyRoomNotificationCountsQuery, {}).toPromise();
+      if (this.loadId !== loadId) return;
+
+      if (result.error) {
+        if (!isUnsupportedGraphQLFieldError(result.error, 'viewerNotifications')) {
+          console.warn('failed to load room notification counts', result.error);
+        }
+        return;
+      }
+
+      const rooms = result.data?.viewer?.user.rooms ?? [];
+      const countsByRoomId: Record<string, number> = Object.create(null);
+      for (const room of rooms) {
+        countsByRoomId[room.id] = room.viewerNotifications.totalCount;
+      }
+
+      untrack(() => {
+        this.rooms = this.rooms.map((room) => ({
+          ...room,
+          viewerNotificationCount: countsByRoomId[room.id] ?? 0
+        }));
+      });
+    } catch (err) {
+      console.warn('failed to load room notification counts', err);
+    }
+  }
+
   // -------------------------------------------------------------------------
   // Per-room flag mutations
   // -------------------------------------------------------------------------
@@ -171,6 +219,33 @@ export class RoomsStore {
 
   setUnread(roomId: string): void {
     this.patchRoom(roomId, { hasUnread: true });
+  }
+
+  incrementUnreadNotification(roomId: string): void {
+    const room = this.rooms.find((r) => r.id === roomId);
+    if (!room) return;
+    this.patchRoom(roomId, { viewerNotificationCount: room.viewerNotificationCount + 1 });
+  }
+
+  decrementUnreadNotification(roomId: string, amount = 1): void {
+    const room = this.rooms.find((r) => r.id === roomId);
+    if (!room) return;
+    this.patchRoom(roomId, {
+      viewerNotificationCount: Math.max(0, room.viewerNotificationCount - amount)
+    });
+  }
+
+  clearUnreadNotifications(roomId: string): void {
+    this.patchRoom(roomId, { viewerNotificationCount: 0 });
+  }
+
+  clearAllUnreadNotifications(): void {
+    untrack(() => {
+      this.rooms = this.rooms.map((room) => ({
+        ...room,
+        viewerNotificationCount: 0
+      }));
+    });
   }
 
   /**

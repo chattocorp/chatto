@@ -172,7 +172,7 @@ test.describe('Direct Messages (room-shaped)', () => {
 
       // Some indicator is present on C's row. An incoming DM creates a
       // persistent DMMessageNotification, so the row renders the
-      // higher-priority notification dot — "new direct message" — rather
+      // higher-priority notification badge — "new direct message" — rather
       // than the plain unread dot. Assert on whichever applies.
       const cRow = page
         .locator('nav a.sidebar-item')

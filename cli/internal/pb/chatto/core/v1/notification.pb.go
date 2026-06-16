@@ -24,8 +24,8 @@ const (
 
 // Notification is the unified wrapper for all notification types.
 //
-// Notifications are stored in the NOTIFICATIONS KV bucket with key format:
-// {recipientId}.{notificationId}
+// Notifications are stored in the RUNTIME_STATE KV bucket with key format:
+// notification.{recipientId}.{notificationId}
 //
 // This enables efficient user-scoped queries via prefix filtering.
 type Notification struct {
