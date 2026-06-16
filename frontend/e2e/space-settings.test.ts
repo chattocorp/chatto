@@ -6,6 +6,7 @@ import {
   type TestUser
 } from './fixtures/testUser';
 import { csrfHeaders } from './fixtures/csrf';
+import { unloadPageForIdentitySwitch } from './fixtures/navigation';
 import * as routes from './routes';
 
 interface TestSpace {
@@ -18,10 +19,7 @@ interface TestSpace {
  * (bootstrap space owner) and return the primary space so the admin-style
  * tests in this file still run with sufficient permissions.
  */
-async function createSpaceViaAPI(
-  page: Page,
-  _options?: { name?: string }
-): Promise<TestSpace> {
+async function createSpaceViaAPI(page: Page, _options?: { name?: string }): Promise<TestSpace> {
   return loginAsAdminAndUsePrimarySpace(page);
 }
 
@@ -80,11 +78,12 @@ async function loginUser(page: Page, login: string, password: string): Promise<v
  * Logs out the current user.
  */
 async function logoutUser(page: Page): Promise<void> {
-  const response = await page.request.post('/auth/logout', { headers: await csrfHeaders(page) });
-  expect(response.ok()).toBeTruthy();
+  const headers = await csrfHeaders(page);
   // Unload the SPA before switching identities. Otherwise the old authenticated
-  // app can react to logout and race a later page.goto() with its own redirect.
-  await page.goto('about:blank');
+  // app can react to logout and race later navigations with its own redirect.
+  await unloadPageForIdentitySwitch(page);
+  const response = await page.request.post('/auth/logout', { headers });
+  expect(response.ok()).toBeTruthy();
 }
 
 /**
@@ -153,9 +152,7 @@ test.describe('Space Admin Page', () => {
     await spaceAdminPage.setName(' Leading Space');
 
     // Should show validation error
-    await spaceAdminPage.expectValidationError(
-      'Name cannot have leading or trailing whitespace'
-    );
+    await spaceAdminPage.expectValidationError('Name cannot have leading or trailing whitespace');
 
     // Save button should be disabled
     await spaceAdminPage.expectSaveDisabled();
@@ -175,9 +172,7 @@ test.describe('Space Admin Page', () => {
     await spaceAdminPage.setName('Trailing Space ');
 
     // Should show validation error
-    await spaceAdminPage.expectValidationError(
-      'Name cannot have leading or trailing whitespace'
-    );
+    await spaceAdminPage.expectValidationError('Name cannot have leading or trailing whitespace');
 
     // Save button should be disabled
     await spaceAdminPage.expectSaveDisabled();
@@ -321,5 +316,4 @@ test.describe('Space Admin Page', () => {
     // Banner should no longer be visible in sidebar
     await spaceAdminPage.expectSidebarBannerNotVisible();
   });
-
 });

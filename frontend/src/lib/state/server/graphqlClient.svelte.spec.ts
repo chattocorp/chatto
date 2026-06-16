@@ -1,19 +1,23 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Declare mock values via vi.hoisted so they're available in vi.mock factories
-const { mockWsDispose, mockWsTerminate, mockWsSubscribe, mockServers, clientConfigs, wsConfigs } =
-	vi.hoisted(() => ({
-		mockWsDispose: vi.fn(),
-		mockWsTerminate: vi.fn(),
-		mockWsSubscribe: vi.fn(() => vi.fn()),
-		mockServers: new Map<
-			string,
-			{ id: string; url: string; token: string | null }
-		>(),
-		clientConfigs: [] as Record<string, unknown>[],
-		wsConfigs: [] as Record<string, unknown>[]
-	}));
-
+const {
+	mockWsDispose,
+	mockWsTerminate,
+	mockWsSubscribe,
+	mockHandleAuthenticationRequired,
+	mockServers,
+	clientConfigs,
+	wsConfigs
+} = vi.hoisted(() => ({
+	mockWsDispose: vi.fn(),
+	mockWsTerminate: vi.fn(),
+	mockWsSubscribe: vi.fn(() => vi.fn()),
+	mockHandleAuthenticationRequired: vi.fn(),
+	mockServers: new Map<string, { id: string; url: string; token: string | null }>(),
+	clientConfigs: [] as Record<string, unknown>[],
+	wsConfigs: [] as Record<string, unknown>[]
+}));
 
 vi.mock('graphql-ws', () => ({
 	createClient: vi.fn((config: Record<string, unknown>) => {
@@ -43,7 +47,11 @@ vi.mock('@urql/svelte', () => ({
 vi.mock('./registry.svelte', () => ({
 	serverRegistry: {
 		getServer: (id: string) => mockServers.get(id),
-		isOriginServer: (id: string) => mockServers.get(id)?.token === null
+		isOriginServer: (id: string) => mockServers.get(id)?.url === window.location.origin,
+		get originServer() {
+			return [...mockServers.values()].find((s) => s.url === window.location.origin);
+		},
+		handleAuthenticationRequired: mockHandleAuthenticationRequired
 	}
 }));
 
@@ -93,6 +101,7 @@ describe('GraphQLClient', () => {
 		vi.clearAllMocks();
 		clientConfigs.length = 0;
 		wsConfigs.length = 0;
+		mockServers.clear();
 		document.cookie = 'chatto_csrf=; Max-Age=0; path=/';
 	});
 
@@ -135,6 +144,22 @@ describe('GraphQLClient', () => {
 		expect(opts).toEqual({
 			headers: { 'X-REQUEST-TYPE': 'GraphQL', Authorization: 'Bearer my-token' }
 		});
+	});
+
+	it('clears registered server auth on authentication-required results', () => {
+		new GraphQLClient(makeConfig({ token: 'my-token', serverId: 'remote-1' }));
+		const exchange = (
+			lastClientConfig()!.exchanges as Array<{
+				name: string;
+				onResult?: (result: unknown) => unknown;
+			}>
+		).find((e) => e.name === 'mapExchange');
+
+		exchange?.onResult?.({
+			error: { graphQLErrors: [{ message: 'authentication required' }] }
+		});
+
+		expect(mockHandleAuthenticationRequired).toHaveBeenCalledWith('remote-1');
 	});
 
 	it('sets connectionParams when token is provided', () => {
@@ -216,12 +241,28 @@ describe('GraphQLClientManager', () => {
 		const mod = await import('./graphqlClient.svelte');
 		mockServers.set('my-home', {
 			id: 'my-home',
-			url: 'http://localhost:4000',
-			token: null
+			url: window.location.origin,
+			token: 'origin-token'
 		});
 
 		const client = mod.graphqlClientManager.getClient('my-home');
 		expect(client).toBe(mod.graphqlClientManager.originClient);
+	});
+
+	it('originClient uses the registered origin token when present', async () => {
+		const mod = await import('./graphqlClient.svelte');
+		mockServers.set('my-home', {
+			id: 'my-home',
+			url: window.location.origin,
+			token: 'origin-token'
+		});
+
+		mod.graphqlClientManager.destroyClient('my-home');
+		expect(mod.graphqlClientManager.originClient).toBeDefined();
+		const opts = (lastClientConfig()!.fetchOptions as () => Record<string, unknown>)();
+		expect(opts).toEqual({
+			headers: { 'X-REQUEST-TYPE': 'GraphQL', Authorization: 'Bearer origin-token' }
+		});
 	});
 
 	it('getClient throws for unknown instance IDs', async () => {
@@ -269,5 +310,4 @@ describe('GraphQLClientManager', () => {
 		const mod = await import('./graphqlClient.svelte');
 		expect(mod.graphqlClientManager.destroyClient('nope')).toBe(false);
 	});
-
 });

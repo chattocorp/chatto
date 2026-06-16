@@ -253,6 +253,10 @@ func setupTestHTTPServerWithHook(t *testing.T, configure func(*HTTPServer)) (*ht
 // setupTestHTTPServerWithMailer creates an HTTPServer with MockSender enabled.
 // Returns the test server, client, ChattoCore, and the MockSender for inspection.
 func setupTestHTTPServerWithMailer(t *testing.T) (*httptest.Server, *http.Client, *core.ChattoCore, *email.MockSender) {
+	return setupTestHTTPServerWithMailerConfig(t, config.EmailOTPConfig{})
+}
+
+func setupTestHTTPServerWithMailerConfig(t *testing.T, emailOTP config.EmailOTPConfig) (*httptest.Server, *http.Client, *core.ChattoCore, *email.MockSender) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 
@@ -261,7 +265,7 @@ func setupTestHTTPServerWithMailer(t *testing.T) (*httptest.Server, *http.Client
 	ctx := testContext(t)
 
 	// Create ChattoCore
-	coreConfig := config.CoreConfig{}
+	coreConfig := config.CoreConfig{EmailOTP: emailOTP}
 	chattoCore, err := core.NewChattoCore(ctx, nc, coreConfig)
 	if err != nil {
 		t.Fatalf("Failed to create ChattoCore: %v", err)
@@ -287,7 +291,9 @@ func setupTestHTTPServerWithMailer(t *testing.T) (*httptest.Server, *http.Client
 	// Create HTTPServer with mailer enabled
 	s := &HTTPServer{
 		config: config.ChattoConfig{
-			Auth: config.AuthConfig{},
+			Auth: config.AuthConfig{
+				EmailOTP: emailOTP,
+			},
 			Webserver: config.WebserverConfig{
 				URL:                 "http://localhost:4000",
 				CookieSigningSecret: "test-secret-key-32-bytes-long!!",
@@ -649,6 +655,33 @@ func TestAuthRoutes_Register_SendsRegistrationEmail(t *testing.T) {
 	}
 }
 
+func TestAuthRoutes_Register_EmailUsesConfiguredOTPExpiration(t *testing.T) {
+	ts, client, _, mockMailer := setupTestHTTPServerWithMailerConfig(t, config.EmailOTPConfig{
+		TTL: config.Duration(30 * time.Minute),
+	})
+
+	body, _ := json.Marshal(map[string]string{"email": "custom-ttl@example.com"})
+	resp, err := client.Post(ts.URL+"/auth/register", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("Failed to send register request: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d", resp.StatusCode)
+	}
+
+	msg := mockMailer.LastMessage()
+	if msg == nil {
+		t.Fatal("Expected registration email to be sent")
+	}
+	if !strings.Contains(msg.Body, "This code will expire in 30 minutes.") {
+		t.Fatalf("Expected email body to mention configured 30-minute expiration, got: %s", msg.Body)
+	}
+	if strings.Contains(msg.Body, "15 minutes") {
+		t.Fatalf("Expected email body not to mention default expiration, got: %s", msg.Body)
+	}
+}
+
 func TestAuthRoutes_Register_RequiresMailer(t *testing.T) {
 	ts, client, _ := setupTestHTTPServer(t) // No mailer
 
@@ -663,6 +696,41 @@ func TestAuthRoutes_Register_RequiresMailer(t *testing.T) {
 
 	if resp.StatusCode != http.StatusServiceUnavailable {
 		t.Errorf("Expected status 503 when mailer not configured, got %d", resp.StatusCode)
+	}
+}
+
+func TestAuthRoutes_Register_SendFailureDoesNotConsumeThrottle(t *testing.T) {
+	ts, client, _, mockMailer := setupTestHTTPServerWithMailer(t)
+	mockMailer.SendError = errors.New("smtp unavailable")
+
+	body, _ := json.Marshal(map[string]string{"email": "delivery-debug@example.com"})
+	for i := 0; i < 10; i++ {
+		resp, err := client.Post(ts.URL+"/auth/register", "application/json", bytes.NewReader(body))
+		if err != nil {
+			t.Fatalf("Failed to send register request %d: %v", i+1, err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusInternalServerError {
+			t.Fatalf("failed send %d status = %d, want 500", i+1, resp.StatusCode)
+		}
+	}
+
+	if msg := mockMailer.LastMessage(); msg != nil {
+		t.Fatalf("failed sends should not capture email, got %#v", msg)
+	}
+
+	mockMailer.SendError = nil
+	resp, err := client.Post(ts.URL+"/auth/register", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("Failed to send register request after SMTP recovery: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		t.Fatalf("Expected status 200 after SMTP recovery, got %d: %s", resp.StatusCode, string(respBody))
+	}
+	if msg := mockMailer.LastMessage(); msg == nil {
+		t.Fatal("expected registration email after SMTP recovery")
 	}
 }
 
@@ -1303,6 +1371,49 @@ func TestAuthRoutes_EmailVerification_Success(t *testing.T) {
 	}
 }
 
+func TestAuthRoutes_EmailVerification_EmailUsesConfiguredOTPExpiration(t *testing.T) {
+	ts, client, chattoCore, mockMailer := setupTestHTTPServerWithMailerConfig(t, config.EmailOTPConfig{
+		TTL: config.Duration(2 * time.Hour),
+	})
+	ctx := testContext(t)
+
+	user, err := chattoCore.CreateUser(ctx, "system", "verify-custom-ttl", "Verify Custom TTL", "password123")
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+
+	loginBody, _ := json.Marshal(map[string]string{"login": user.Login, "password": "password123"})
+	loginResp, err := client.Post(ts.URL+"/auth/login", "application/json", bytes.NewReader(loginBody))
+	if err != nil {
+		t.Fatalf("Failed to login: %v", err)
+	}
+	loginResp.Body.Close()
+	if loginResp.StatusCode != http.StatusOK {
+		t.Fatalf("Login failed with status %d", loginResp.StatusCode)
+	}
+
+	requestBody, _ := json.Marshal(map[string]string{"email": "verify-custom-ttl@example.com"})
+	requestResp, err := client.Post(ts.URL+"/auth/verify-email/request-code", "application/json", bytes.NewReader(requestBody))
+	if err != nil {
+		t.Fatalf("Failed to request verification code: %v", err)
+	}
+	requestResp.Body.Close()
+	if requestResp.StatusCode != http.StatusOK {
+		t.Fatalf("Verification code request failed with status %d", requestResp.StatusCode)
+	}
+
+	msg := mockMailer.LastMessage()
+	if msg == nil {
+		t.Fatal("Expected verification email to be sent")
+	}
+	if !strings.Contains(msg.Body, "This code will expire in 2 hours.") {
+		t.Fatalf("Expected email body to mention configured 2-hour expiration, got: %s", msg.Body)
+	}
+	if strings.Contains(msg.Body, "15 minutes") {
+		t.Fatalf("Expected email body not to mention default expiration, got: %s", msg.Body)
+	}
+}
+
 func TestAuthRoutes_EmailVerification_RequestCodeLimit(t *testing.T) {
 	ts, client, chattoCore, _ := setupTestHTTPServerWithMailer(t)
 	ctx := testContext(t)
@@ -1348,6 +1459,57 @@ func TestAuthRoutes_EmailVerification_RequestCodeLimit(t *testing.T) {
 		t.Fatalf("HasVerifiedEmail: %v", err)
 	} else if verified {
 		t.Fatal("request-code limit should not verify email")
+	}
+}
+
+func TestAuthRoutes_EmailVerification_SendFailureDoesNotConsumeThrottle(t *testing.T) {
+	ts, client, chattoCore, mockMailer := setupTestHTTPServerWithMailer(t)
+	ctx := testContext(t)
+
+	user, err := chattoCore.CreateUser(ctx, "system", "verify-delivery-debug", "Verify Delivery Debug", "password123")
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+
+	loginBody, _ := json.Marshal(map[string]string{"login": user.Login, "password": "password123"})
+	loginResp, err := client.Post(ts.URL+"/auth/login", "application/json", bytes.NewReader(loginBody))
+	if err != nil {
+		t.Fatalf("Failed to login: %v", err)
+	}
+	loginResp.Body.Close()
+	if loginResp.StatusCode != http.StatusOK {
+		t.Fatalf("Login failed with status %d", loginResp.StatusCode)
+	}
+
+	mockMailer.SendError = errors.New("smtp unavailable")
+	body, _ := json.Marshal(map[string]string{"email": "verify-delivery-debug@example.com"})
+	for i := 0; i < 10; i++ {
+		resp, err := client.Post(ts.URL+"/auth/verify-email/request-code", "application/json", bytes.NewReader(body))
+		if err != nil {
+			t.Fatalf("Failed to request verification code %d: %v", i+1, err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusInternalServerError {
+			t.Fatalf("failed send %d status = %d, want 500", i+1, resp.StatusCode)
+		}
+	}
+
+	if msg := mockMailer.LastMessage(); msg != nil {
+		t.Fatalf("failed sends should not capture email, got %#v", msg)
+	}
+
+	mockMailer.SendError = nil
+	resp, err := client.Post(ts.URL+"/auth/verify-email/request-code", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("Failed to request verification code after SMTP recovery: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		t.Fatalf("Expected status 200 after SMTP recovery, got %d: %s", resp.StatusCode, string(respBody))
+	}
+	if msg := mockMailer.LastMessage(); msg == nil {
+		t.Fatal("expected verification email after SMTP recovery")
 	}
 }
 
@@ -2264,6 +2426,70 @@ func TestAuthRoutes_LoginStaleBearerTokenIssuanceIsInvalidCredentials(t *testing
 	}
 	if _, ok := result["token"]; ok {
 		t.Fatal("Stale login response should not include a bearer token")
+	}
+
+	if _, err := chattoCore.ValidateCookieSession(ctx, capturedUserID, capturedSessionID); !errors.Is(err, core.ErrCookieSessionNotFound) {
+		t.Fatalf("ValidateCookieSession err = %v, want ErrCookieSessionNotFound", err)
+	}
+}
+
+func TestAuthRoutes_LoginBearerTokenFailureRevokesCookieSession(t *testing.T) {
+	var capture struct {
+		sync.Mutex
+		userID    string
+		sessionID string
+	}
+
+	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
+		s.passwordLoginSessionCreatedHook = func(c *gin.Context, userID string, _ uint64) {
+			sessionUserID, sessionID, ok := cookieSessionIDs(sessions.Default(c))
+
+			capture.Lock()
+			defer capture.Unlock()
+
+			if ok {
+				capture.userID = sessionUserID
+				capture.sessionID = sessionID
+			}
+			s.core.EventPublisher = nil
+		}
+	})
+	ctx := testContext(t)
+
+	if _, err := chattoCore.CreateUser(ctx, "", "tokenfailure", "Token Failure", "password123"); err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	loginBody := map[string]string{"login": "tokenfailure", "password": "password123"}
+	body, _ := json.Marshal(loginBody)
+	resp, err := client.Post(ts.URL+"/auth/login", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("Login request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	capture.Lock()
+	capturedUserID := capture.userID
+	capturedSessionID := capture.sessionID
+	capture.Unlock()
+
+	if capturedUserID == "" || capturedSessionID == "" {
+		t.Fatal("password-login hook did not capture a cookie session")
+	}
+
+	if resp.StatusCode != http.StatusInternalServerError {
+		t.Fatalf("Login status = %d, want 500", resp.StatusCode)
+	}
+
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("Decode login response: %v", err)
+	}
+	if result["error"] != "Failed to create session" {
+		t.Fatalf("Login error = %v, want Failed to create session", result["error"])
+	}
+	if _, ok := result["token"]; ok {
+		t.Fatal("Failed login response should not include a bearer token")
 	}
 
 	if _, err := chattoCore.ValidateCookieSession(ctx, capturedUserID, capturedSessionID); !errors.Is(err, core.ErrCookieSessionNotFound) {

@@ -29,7 +29,6 @@ class FakeGqlClient {
       subscription: vi.fn(() => this.subject.source as unknown as Source<unknown>)
     } as unknown as Client;
   }
-
 }
 
 const registered: RegisteredServer = {
@@ -45,8 +44,45 @@ const registered: RegisteredServer = {
   addedAt: 1
 };
 
+const cookieRegistered: RegisteredServer = {
+  ...registered,
+  token: null
+};
+
+function deferred<T = void>(): {
+  promise: Promise<T>;
+  resolve: (value: T | PromiseLike<T>) => void;
+  reject: (reason?: unknown) => void;
+} {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
+const stores: ServerStateStore[] = [];
+
+function makeStore(fake: FakeGqlClient, server: RegisteredServer = registered): ServerStateStore {
+  const store = new ServerStateStore(server, fake as unknown as GraphQLClient);
+  stores.push(store);
+  return store;
+}
+
+async function flushPromises(times = 5): Promise<void> {
+  for (let i = 0; i < times; i++) {
+    await Promise.resolve();
+  }
+}
+
 afterEach(() => {
+  for (const store of stores.splice(0)) {
+    store.dispose();
+  }
   eventBusManager.stopBus(registered.id);
+  vi.restoreAllMocks();
 });
 
 describe('ServerStateStore live server updates', () => {
@@ -96,9 +132,9 @@ describe('ServerStateStore live server updates', () => {
         }
       }
     ]);
-    const store = new ServerStateStore(registered, fake as unknown as GraphQLClient);
+    const store = makeStore(fake);
     store.currentUser.user = { id: 'U1', login: 'alice', displayName: 'Alice' } as never;
-    await Promise.resolve();
+    await flushPromises();
     await Promise.resolve();
     fake.query.mockClear();
 
@@ -130,7 +166,7 @@ describe('ServerStateStore live server updates', () => {
     expect(store.serverInfo.livekitUrl).toBe('wss://livekit');
   });
 
-  it('forwards RoomGroupsUpdatedEvent to the admin room layout store', async () => {
+  it('forwards RoomGroupsUpdatedEvent once to every room-state store', async () => {
     const fake = new FakeGqlClient([
       {
         server: {
@@ -156,11 +192,13 @@ describe('ServerStateStore live server updates', () => {
       { server: { rooms: [] } },
       { server: { rooms: [] } }
     ]);
-    const store = new ServerStateStore(registered, fake as unknown as GraphQLClient);
+    const store = makeStore(fake);
     store.currentUser.user = { id: 'U1', login: 'alice', displayName: 'Alice' } as never;
     await Promise.resolve();
     await Promise.resolve();
-    fake.query.mockClear();
+    store.rooms.refresh = vi.fn().mockResolvedValue(undefined);
+    store.roomDirectory.refresh = vi.fn().mockResolvedValue(undefined);
+    store.adminRoomLayout.refresh = vi.fn().mockResolvedValue(undefined);
 
     eventBusManager.startBus(registered.id, fake as unknown as GraphQLClient);
     flushSync();
@@ -179,13 +217,176 @@ describe('ServerStateStore live server updates', () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(fake.query).toHaveBeenCalledTimes(3);
-    expect(store.adminRoomLayout.groups).toEqual([
-      {
-        id: 'g1',
-        name: 'Lobby',
-        rooms: [{ id: 'r1', name: 'general', description: null, archived: false }]
-      }
-    ]);
+    expect(store.rooms.refresh).toHaveBeenCalledOnce();
+    expect(store.roomDirectory.refresh).toHaveBeenCalledOnce();
+    expect(store.adminRoomLayout.refresh).toHaveBeenCalledOnce();
+  });
+
+  it('refreshes projected server state for bearer-auth sessions', async () => {
+    const fake = new FakeGqlClient([]);
+    const store = makeStore(fake);
+    store.serverInfo.livekitUrl = 'wss://livekit';
+    store.serverInfo.refreshProfile = vi.fn().mockResolvedValue(undefined);
+    store.serverInfo.refreshAuthenticatedSettings = vi.fn().mockResolvedValue(undefined);
+    store.notifications.fetch = vi.fn().mockResolvedValue(undefined);
+    store.rooms.refresh = vi.fn().mockResolvedValue(undefined);
+    store.roomDirectory.refresh = vi.fn().mockResolvedValue(undefined);
+    store.adminRoomLayout.refresh = vi.fn().mockResolvedValue(undefined);
+    store.activeCallRooms.load = vi.fn().mockResolvedValue(undefined);
+
+    eventBusManager.startBus(registered.id, fake as unknown as GraphQLClient);
+    flushSync();
+    const bus = eventBusManager.getBus(registered.id);
+    if (!bus) throw new Error('event bus did not start');
+
+    for (const handler of bus.catchUpHandlers) {
+      handler('ws-reconnected');
+    }
+    await Promise.resolve();
+
+    expect(store.serverInfo.refreshProfile).toHaveBeenCalledOnce();
+    expect(store.serverInfo.refreshAuthenticatedSettings).toHaveBeenCalledOnce();
+    expect(store.notifications.fetch).toHaveBeenCalledOnce();
+    expect(store.rooms.refresh).toHaveBeenCalledOnce();
+    expect(store.roomDirectory.refresh).toHaveBeenCalledOnce();
+    expect(store.adminRoomLayout.refresh).toHaveBeenCalledOnce();
+    expect(store.activeCallRooms.load).toHaveBeenCalledOnce();
+  });
+
+  it('refreshes projected server state for cookie-auth sessions', async () => {
+    const fake = new FakeGqlClient([]);
+    const store = makeStore(fake, cookieRegistered);
+    store.currentUser.user = { id: 'U1', login: 'alice', displayName: 'Alice' } as never;
+    await flushPromises();
+    store.serverInfo.refreshProfile = vi.fn().mockResolvedValue(undefined);
+    store.serverInfo.refreshAuthenticatedSettings = vi.fn().mockResolvedValue(undefined);
+    store.notifications.fetch = vi.fn().mockResolvedValue(undefined);
+    store.rooms.refresh = vi.fn().mockResolvedValue(undefined);
+    store.roomDirectory.refresh = vi.fn().mockResolvedValue(undefined);
+    store.adminRoomLayout.refresh = vi.fn().mockResolvedValue(undefined);
+
+    eventBusManager.startBus(registered.id, fake as unknown as GraphQLClient);
+    flushSync();
+    const bus = eventBusManager.getBus(registered.id);
+    if (!bus) throw new Error('event bus did not start');
+
+    for (const handler of bus.catchUpHandlers) {
+      handler('ws-reconnected');
+    }
+    await Promise.resolve();
+
+    expect(store.serverInfo.refreshProfile).toHaveBeenCalledOnce();
+    expect(store.serverInfo.refreshAuthenticatedSettings).toHaveBeenCalledOnce();
+    expect(store.notifications.fetch).toHaveBeenCalledOnce();
+    expect(store.rooms.refresh).toHaveBeenCalledOnce();
+    expect(store.roomDirectory.refresh).toHaveBeenCalledOnce();
+    expect(store.adminRoomLayout.refresh).toHaveBeenCalledOnce();
+  });
+
+  it('runs one queued projected-state refresh after an in-flight catch-up succeeds', async () => {
+    const fake = new FakeGqlClient([]);
+    const store = makeStore(fake);
+    const rooms = deferred();
+    store.serverInfo.refreshProfile = vi.fn().mockResolvedValue(undefined);
+    store.serverInfo.refreshAuthenticatedSettings = vi.fn().mockResolvedValue(undefined);
+    store.notifications.fetch = vi.fn().mockResolvedValue(undefined);
+    store.rooms.refresh = vi.fn().mockReturnValueOnce(rooms.promise).mockResolvedValue(undefined);
+    store.roomDirectory.refresh = vi.fn().mockResolvedValue(undefined);
+    store.adminRoomLayout.refresh = vi.fn().mockResolvedValue(undefined);
+
+    eventBusManager.startBus(registered.id, fake as unknown as GraphQLClient);
+    flushSync();
+    const bus = eventBusManager.getBus(registered.id);
+    if (!bus) throw new Error('event bus did not start');
+
+    for (const handler of bus.catchUpHandlers) {
+      handler('subscription-ended');
+      handler('ws-reconnected');
+    }
+    await Promise.resolve();
+
+    expect(store.rooms.refresh).toHaveBeenCalledOnce();
+
+    rooms.resolve();
+    await vi.waitFor(() => expect(store.rooms.refresh).toHaveBeenCalledTimes(2));
+
+    expect(store.serverInfo.refreshProfile).toHaveBeenCalledTimes(2);
+    expect(store.serverInfo.refreshAuthenticatedSettings).toHaveBeenCalledTimes(2);
+    expect(store.notifications.fetch).toHaveBeenCalledTimes(2);
+    expect(store.roomDirectory.refresh).toHaveBeenCalledTimes(2);
+    expect(store.adminRoomLayout.refresh).toHaveBeenCalledTimes(2);
+  });
+
+  it('runs a queued projected-state refresh after the in-flight catch-up fails', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const fake = new FakeGqlClient([]);
+    const store = makeStore(fake);
+    const rooms = deferred();
+    store.serverInfo.refreshProfile = vi.fn().mockResolvedValue(undefined);
+    store.serverInfo.refreshAuthenticatedSettings = vi.fn().mockResolvedValue(undefined);
+    store.notifications.fetch = vi.fn().mockResolvedValue(undefined);
+    store.rooms.refresh = vi.fn().mockReturnValueOnce(rooms.promise).mockResolvedValue(undefined);
+    store.roomDirectory.refresh = vi.fn().mockResolvedValue(undefined);
+    store.adminRoomLayout.refresh = vi.fn().mockResolvedValue(undefined);
+
+    eventBusManager.startBus(registered.id, fake as unknown as GraphQLClient);
+    flushSync();
+    const bus = eventBusManager.getBus(registered.id);
+    if (!bus) throw new Error('event bus did not start');
+
+    for (const handler of bus.catchUpHandlers) {
+      handler('subscription-ended');
+      handler('ws-reconnected');
+    }
+    await Promise.resolve();
+
+    expect(store.rooms.refresh).toHaveBeenCalledOnce();
+
+    rooms.reject(new Error('network waking'));
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(store.serverInfo.refreshProfile).toHaveBeenCalledTimes(2);
+    expect(store.serverInfo.refreshAuthenticatedSettings).toHaveBeenCalledTimes(2);
+    expect(store.notifications.fetch).toHaveBeenCalledTimes(2);
+    expect(store.rooms.refresh).toHaveBeenCalledTimes(2);
+    expect(store.roomDirectory.refresh).toHaveBeenCalledTimes(2);
+    expect(store.adminRoomLayout.refresh).toHaveBeenCalledTimes(2);
+    expect(consoleError).toHaveBeenCalledOnce();
+  });
+
+  it('does not dedupe the next projected-state catch-up after a failed refresh', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const fake = new FakeGqlClient([]);
+    const store = makeStore(fake);
+    store.serverInfo.refreshProfile = vi.fn().mockResolvedValue(undefined);
+    store.serverInfo.refreshAuthenticatedSettings = vi.fn().mockResolvedValue(undefined);
+    store.notifications.fetch = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValue(undefined);
+    store.rooms.refresh = vi.fn().mockResolvedValue(undefined);
+    store.roomDirectory.refresh = vi.fn().mockResolvedValue(undefined);
+    store.adminRoomLayout.refresh = vi.fn().mockResolvedValue(undefined);
+
+    eventBusManager.startBus(registered.id, fake as unknown as GraphQLClient);
+    flushSync();
+    const bus = eventBusManager.getBus(registered.id);
+    if (!bus) throw new Error('event bus did not start');
+
+    for (const handler of bus.catchUpHandlers) {
+      handler('heartbeat-stalled');
+    }
+    await flushPromises();
+
+    for (const handler of bus.catchUpHandlers) {
+      handler('ws-reconnected');
+    }
+    await flushPromises();
+
+    expect(store.notifications.fetch).toHaveBeenCalledTimes(2);
+    expect(store.rooms.refresh).toHaveBeenCalledTimes(2);
+    expect(consoleError).toHaveBeenCalledOnce();
   });
 });

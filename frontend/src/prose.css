@@ -3,6 +3,14 @@
  * Replaces @tailwindcss/typography with minimal, opinionated styles.
  */
 .prose {
+  --composer-code-text: #24292f;
+  --composer-code-comment: #6e7781;
+  --composer-code-keyword: #cf222e;
+  --composer-code-string: #0a3069;
+  --composer-code-title: #8250df;
+  --composer-code-literal: #0550ae;
+  --composer-code-attribute: #953800;
+
   font-size: inherit;
   line-height: 1.5;
   overflow: hidden;
@@ -90,34 +98,79 @@
     @apply overflow-x-auto rounded-md bg-surface-200 p-3 font-mono text-sm;
   }
 
-  /* Shiki code block styling - overflow moved to code element so the
+  /* Highlighted code block styling - overflow moved to code element so the
 	   language label (positioned on pre) stays fixed during horizontal scroll */
-  & pre.shiki {
+  & pre.hljs {
     @apply relative overflow-hidden border border-surface-200 py-2 shadow-xs;
     background-color: transparent !important;
+    color: var(--composer-code-text);
+    line-height: 1.5;
   }
 
   /* Language label */
-  & pre.shiki[data-language]::after {
+  & pre.hljs[data-language]::after {
     content: attr(data-language);
     @apply absolute right-0 bottom-0 rounded-tl-md bg-surface-200 px-2 py-0.5 text-xs tracking-wide text-muted uppercase;
   }
 
   /* Line numbers */
-  & pre.shiki code {
+  & pre.hljs code {
     counter-reset: line;
     display: block;
     overflow-x: auto;
+    line-height: inherit;
   }
 
-  & pre.shiki .line {
-    @apply pl-12;
+  & pre.hljs .line {
+    @apply block pl-12;
+    line-height: inherit;
   }
 
-  & pre.shiki .line::before {
+  & pre.hljs .line::before {
     counter-increment: line;
     content: counter(line);
     @apply -ml-12 inline-block w-8 pr-4 text-right text-muted/50 select-none;
+  }
+
+  & .hljs-comment,
+  & .hljs-quote {
+    color: var(--composer-code-comment);
+    font-style: italic;
+  }
+
+  & .hljs-keyword,
+  & .hljs-selector-tag,
+  & .hljs-subst {
+    color: var(--composer-code-keyword);
+  }
+
+  & .hljs-string,
+  & .hljs-regexp,
+  & .hljs-symbol,
+  & .hljs-bullet {
+    color: var(--composer-code-string);
+  }
+
+  & .hljs-title,
+  & .hljs-section,
+  & .hljs-name,
+  & .hljs-selector-id,
+  & .hljs-selector-class {
+    color: var(--composer-code-title);
+  }
+
+  & .hljs-number,
+  & .hljs-literal,
+  & .hljs-type,
+  & .hljs-built_in {
+    color: var(--composer-code-literal);
+  }
+
+  & .hljs-attr,
+  & .hljs-attribute,
+  & .hljs-variable,
+  & .hljs-template-variable {
+    color: var(--composer-code-attribute);
   }
 
   /* Horizontal rules */
@@ -159,6 +212,16 @@
   }
 }
 
+:root[data-theme='dark'] .prose {
+  --composer-code-text: #d0d7de;
+  --composer-code-comment: #8b949e;
+  --composer-code-keyword: #ff7b72;
+  --composer-code-string: #a5d6ff;
+  --composer-code-title: #d2a8ff;
+  --composer-code-literal: #79c0ff;
+  --composer-code-attribute: #ffa657;
+}
+
 /* Compact prose - for inline contexts like MOTD */
 .prose-compact {
   & p {
@@ -177,17 +240,5 @@
       color: inherit;
       opacity: 0.8;
     }
-  }
-}
-
-/*
- * Shiki dual themes: light colors are rendered directly on tokens,
- * dark colors are stored in --shiki-dark CSS variable.
- */
-@media (prefers-color-scheme: dark) {
-  .prose .shiki,
-  .prose .shiki span {
-    color: var(--shiki-dark) !important;
-    background-color: transparent !important;
   }
 }

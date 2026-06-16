@@ -17,7 +17,7 @@ export interface RegisteredServer {
 	name: string;
 	/** Server icon URL, or null if none */
 	iconUrl: string | null;
-	/** Bearer token for cross-origin auth, or null for origin server (uses cookies) */
+	/** Bearer token for API auth, or null when unauthenticated/legacy cookie auth */
 	token: string | null;
 	/** Authenticated user ID on this server, or null if not yet authenticated */
 	userId: string | null;
@@ -29,6 +29,13 @@ export interface RegisteredServer {
 	userAvatarUrl: string | null;
 	/** When this server was added (epoch ms) */
 	addedAt: number;
+}
+
+export interface AuthenticatedUserSummary {
+	id: string;
+	login: string;
+	displayName?: string | null;
+	avatarUrl?: string | null;
 }
 
 /**
@@ -180,29 +187,96 @@ class ServerRegistry {
 			});
 	}
 
-	#registerOrigin(id: string, url: string, name: string, iconUrl: string | null): void {
+	#registerOrigin(
+		id: string,
+		url: string,
+		name: string,
+		iconUrl: string | null,
+		token: string | null = null,
+		user: AuthenticatedUserSummary | null = null
+	): void {
 		this.addServer({
 			id,
 			url,
 			name,
 			iconUrl,
-			token: null,
-			userId: null,
-			userLogin: null,
-			userDisplayName: null,
-			userAvatarUrl: null,
+			token,
+			userId: user?.id ?? null,
+			userLogin: user?.login ?? null,
+			userDisplayName: user?.displayName ?? user?.login ?? null,
+			userAvatarUrl: user?.avatarUrl ?? null,
 			addedAt: Date.now()
 		});
+	}
+
+	authenticateOrigin(token: string, user: AuthenticatedUserSummary | null = null): void {
+		if (typeof window === 'undefined') return;
+		const origin = this.originServer;
+		if (!origin) {
+			const originUrl = window.location.origin;
+			const id = generateServerId(originUrl, this.servers.map((s) => s.id));
+			this.#registerOrigin(id, originUrl, 'Chatto', null, token, user);
+			this.originProbed = true;
+			return;
+		}
+
+		this.#replaceServerAuth(origin.id, {
+			token,
+			userId: user?.id ?? origin.userId,
+			userLogin: user?.login ?? origin.userLogin,
+			userDisplayName: user?.displayName ?? user?.login ?? origin.userDisplayName,
+			userAvatarUrl: user?.avatarUrl ?? origin.userAvatarUrl
+		});
+		this.originProbed = true;
 	}
 
 	/** Settle the origin cookie-auth store when root load found no user. */
 	settleOriginUnauthenticated(): void {
 		const origin = this.originServer;
 		if (!origin) return;
+		if (origin.token !== null) return;
 		const store = this.tryGetStore(origin.id);
 		if (!store) return;
 		store.currentUser.user = undefined;
 		store.currentUser.loading = false;
+	}
+
+	clearServerAuthentication(id: string): void {
+		const server = this.getServer(id);
+		if (!server) return;
+		this.#replaceServerAuth(id, {
+			token: null,
+			userId: null,
+			userLogin: null,
+			userDisplayName: null,
+			userAvatarUrl: null
+		});
+		const store = this.tryGetStore(id);
+		if (store) {
+			store.currentUser.user = undefined;
+			store.currentUser.loading = false;
+		}
+	}
+
+	clearOriginAuthentication(): void {
+		const origin = this.originServer;
+		if (!origin) return;
+		this.clearServerAuthentication(origin.id);
+	}
+
+	handleAuthenticationRequired(id: string): void {
+		const server = this.getServer(id);
+		if (!server) return;
+		const isOrigin = this.isOriginServer(id);
+		if (isOrigin) {
+			this.clearServerAuthentication(id);
+		} else {
+			this.removeServer(id);
+		}
+		if (isOrigin && typeof window !== 'undefined') {
+			sessionStorage.setItem('returnUrl', window.location.pathname + window.location.search);
+			window.location.href = '/';
+		}
 	}
 
 	/**
@@ -284,6 +358,28 @@ class ServerRegistry {
 
 		Object.assign(server, data);
 		serversSlot.set(this.servers);
+		return true;
+	}
+
+	#replaceServerAuth(
+		id: string,
+		data: Pick<
+			RegisteredServer,
+			'token' | 'userId' | 'userLogin' | 'userDisplayName' | 'userAvatarUrl'
+		>
+	): boolean {
+		const server = this.servers.find((s) => s.id === id);
+		if (!server) return false;
+
+		eventBusManager.stopBus(id);
+		this.#stores.get(id)?.dispose();
+		this.#stores.delete(id);
+		graphqlClientManager.destroyClient(id);
+		clearAssetProxyCache(id);
+
+		Object.assign(server, data);
+		serversSlot.set(this.servers);
+		this.#createStore(server);
 		return true;
 	}
 

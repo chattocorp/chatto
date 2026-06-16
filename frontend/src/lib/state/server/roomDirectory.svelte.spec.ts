@@ -263,7 +263,7 @@ describe('RoomDirectoryStore — ingestServerEvent', () => {
     expect(queryMock).toHaveBeenCalledTimes(2);
   });
 
-  it('refreshes on RoomArchivedEvent and RoomUnarchivedEvent', async () => {
+  it('refreshes on room catalog and layout changes', async () => {
     const { client, queryMock } = makeClient({
       query: { server: { id: SPACE_ID, rooms: [] } }
     });
@@ -271,12 +271,20 @@ describe('RoomDirectoryStore — ingestServerEvent', () => {
     void store.refresh();
     await settle();
 
+    store.ingestServerEvent(makeEvent('RoomCreatedEvent'));
+    await settle();
+    store.ingestServerEvent(makeEvent('RoomUpdatedEvent'));
+    await settle();
     store.ingestServerEvent(makeEvent('RoomArchivedEvent'));
     await settle();
     store.ingestServerEvent(makeEvent('RoomUnarchivedEvent'));
     await settle();
+    store.ingestServerEvent(makeEvent('RoomDeletedEvent'));
+    await settle();
+    store.ingestServerEvent(makeEvent('RoomGroupsUpdatedEvent'));
+    await settle();
 
-    expect(queryMock).toHaveBeenCalledTimes(3);
+    expect(queryMock).toHaveBeenCalledTimes(7);
   });
 
   it('does NOT refresh on irrelevant event types', async () => {

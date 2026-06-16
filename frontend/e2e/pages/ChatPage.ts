@@ -3,6 +3,7 @@ import * as routes from '../routes';
 import { graphqlQuery } from '../fixtures/graphqlHelpers';
 import { csrfHeaders } from '../fixtures/csrf';
 import { loginAsAdmin } from '../fixtures/testUser';
+import { unloadPageForIdentitySwitch } from '../fixtures/navigation';
 import { RoomPage } from './RoomPage';
 
 const E2E_ADMIN_LOGIN = 'e2eadmin';
@@ -187,13 +188,15 @@ export class ChatPage {
    * state.
    */
   async openCreateRoomModal(): Promise<void> {
+    const headers = await csrfHeaders(this.page);
+    // Unload the currently mounted app before logging out. If the SPA stays
+    // mounted during API logout, it can observe the session change and race the
+    // following admin navigation with its own redirect.
+    await unloadPageForIdentitySwitch(this.page);
     const logoutResponse = await this.page.request.post('/auth/logout', {
-      headers: await csrfHeaders(this.page)
+      headers
     });
     expect(logoutResponse.ok()).toBeTruthy();
-    // Unload the currently mounted app before re-authenticating as admin; the
-    // previous session can otherwise issue a late redirect during navigation.
-    await this.page.goto('about:blank');
     await loginAsAdmin(this.page);
     await this.page.goto(routes.serverAdminRooms);
     await expect(this.page).toHaveURL(/\/server-admin\/rooms/);

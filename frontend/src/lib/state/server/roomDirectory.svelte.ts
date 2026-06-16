@@ -1,6 +1,7 @@
 import { SvelteSet } from 'svelte/reactivity';
 import type { Client } from '@urql/svelte';
 import { graphql } from '$lib/gql';
+import { isRoomStateRefreshEvent } from './rooms.svelte';
 
 export type DirectoryRoom = {
   id: string;
@@ -195,8 +196,9 @@ export class RoomDirectoryStore {
   // ---------------------------------------------------------------------------
 
   /**
-   * Refresh on membership / archive changes. Other event types are no-ops.
-   * Mirrors the trigger set used by {@link RoomsStore.ingestServerEvent}.
+   * Refresh on membership, room catalog, and group layout changes. Other
+   * event types are no-ops. Mirrors the trigger set used by
+   * {@link RoomsStore.ingestServerEvent}.
    *
    * Accepts a discriminated-union envelope so the test harness can pass a
    * minimal stub without needing to materialise a full RoomEventViewFragment
@@ -205,12 +207,7 @@ export class RoomDirectoryStore {
   ingestServerEvent(serverEvent: { event?: { __typename?: string } | null }): void {
     const event = serverEvent.event;
     if (!event) return;
-    if (
-      event.__typename === 'UserJoinedRoomEvent' ||
-      event.__typename === 'UserLeftRoomEvent' ||
-      event.__typename === 'RoomArchivedEvent' ||
-      event.__typename === 'RoomUnarchivedEvent'
-    ) {
+    if (isRoomStateRefreshEvent(event.__typename)) {
       void this.refresh();
     }
   }

@@ -141,6 +141,12 @@
         return;
       }
 
+      if (typeof result.token !== 'string' || !result.token) {
+        error = 'Login response did not include an auth token';
+        return;
+      }
+
+      serverRegistry.authenticateOrigin(result.token, result.user ?? null);
       clearCachedUser();
       await invalidateAll();
 

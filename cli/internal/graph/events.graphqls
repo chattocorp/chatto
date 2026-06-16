@@ -15,8 +15,6 @@ type Event {
   actorId: ID @goField(forceResolver: true)
   "The user who triggered this event. May be null if user was deleted."
   actor: User @goField(forceResolver: true)
-  "Server-signed opaque cursor for resuming durable subscription delivery. Null for transient and synthetic events."
-  deliveryCursor: String @goField(forceResolver: true)
   "The concrete event data."
   event: EventType! @goField(forceResolver: true)
 }
@@ -327,6 +325,13 @@ type MessagePostedEvent {
   `Room.events`.
   """
   threadReplies(limit: Int = 50, before: String, after: String): RoomEventsConnection!
+    @goField(forceResolver: true)
+  """
+  Replies to this message centered around a reply event ID. Returns an empty
+  page when this message is itself a thread reply. The root event is not
+  included.
+  """
+  threadRepliesAround(eventId: ID!, limit: Int = 50): RoomEventsConnection!
     @goField(forceResolver: true)
 }
 

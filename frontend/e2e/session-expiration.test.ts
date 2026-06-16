@@ -27,21 +27,59 @@ async function gotoAndWaitForHydration(page: Page, url: string): Promise<void> {
 }
 
 /**
- * Clear cookies and reload the protected route.
+ * Clear stored credentials and reload the protected route.
  *
  * Session expiry is observed on the next app load or protected request. There
  * is intentionally no passive visibilitychange validation hook anymore: that
  * hook made transient auth/API failures look like real logouts.
  */
-async function clearCookiesAndReloadProtectedRoute(page: Page): Promise<void> {
+async function clearCredentialsAndReloadProtectedRoute(page: Page): Promise<void> {
   const target = new URL(page.url());
   const targetPath = target.pathname + target.search + target.hash;
 
   await page.context().clearCookies();
+  await page.evaluate((origin) => {
+    const raw = localStorage.getItem('chatto:instances');
+    if (raw === null) return;
+
+    let servers: unknown;
+    try {
+      servers = JSON.parse(raw);
+    } catch {
+      return;
+    }
+    if (!Array.isArray(servers)) return;
+
+    localStorage.setItem(
+      'chatto:instances',
+      JSON.stringify(
+        servers.map((server) => {
+          if (server === null || typeof server !== 'object') return server;
+          const serverRecord = server as Record<string, unknown>;
+          if (typeof serverRecord.url !== 'string') return server;
+
+          try {
+            if (new URL(serverRecord.url).origin !== origin) return server;
+          } catch {
+            return server;
+          }
+
+          return {
+            ...serverRecord,
+            token: null,
+            userId: null,
+            userLogin: null,
+            userDisplayName: null,
+            userAvatarUrl: null
+          };
+        })
+      )
+    );
+  }, target.origin);
 
   const currentUserResponse = page.waitForResponse(
     async (resp) => {
-      if (!resp.url().includes('/api/graphql') || resp.status() !== 200) return false;
+      if (!resp.url().includes('/api/graphql')) return false;
       const postData = resp.request().postData();
       return postData !== null && postData.includes('LoadCurrentUser');
     },
@@ -60,7 +98,7 @@ async function expectLoggedOutRedirect(page: Page): Promise<void> {
 }
 
 test.describe('Session Expiration Handling', () => {
-  test('redirects to login when session cookie is cleared', async ({ page, authPage }) => {
+  test('redirects to login when stored credentials are cleared', async ({ page, authPage }) => {
     const timestamp = Date.now();
     const testLogin = `sessionexp${timestamp}`;
     const testPassword = 'testpassword123';
@@ -74,8 +112,8 @@ test.describe('Session Expiration Handling', () => {
     await gotoAndWaitForHydration(page, routes.settings);
     await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible();
 
-    // Clear cookies and reload the protected route
-    await clearCookiesAndReloadProtectedRoute(page);
+    // Clear credentials and reload the protected route
+    await clearCredentialsAndReloadProtectedRoute(page);
 
     // Should leave the authenticated chat surface.
     await expectLoggedOutRedirect(page);
@@ -96,8 +134,8 @@ test.describe('Session Expiration Handling', () => {
     await gotoAndWaitForHydration(page, routes.settings);
     await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible();
 
-    // Clear cookies and reload the protected route
-    await clearCookiesAndReloadProtectedRoute(page);
+    // Clear credentials and reload the protected route
+    await clearCredentialsAndReloadProtectedRoute(page);
 
     // Wait for redirect
     await expectLoggedOutRedirect(page);
@@ -124,8 +162,8 @@ test.describe('Session Expiration Handling', () => {
     await gotoAndWaitForHydration(page, routes.settings);
     await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible();
 
-    // Clear cookies and reload the protected route
-    await clearCookiesAndReloadProtectedRoute(page);
+    // Clear credentials and reload the protected route
+    await clearCredentialsAndReloadProtectedRoute(page);
 
     // Wait for redirect to login
     await expectLoggedOutRedirect(page);

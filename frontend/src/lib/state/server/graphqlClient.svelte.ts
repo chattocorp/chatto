@@ -1,6 +1,7 @@
 import { Client, fetchExchange, subscriptionExchange, mapExchange } from '@urql/svelte';
 import { createClient as createWSClient } from 'graphql-ws';
 import { serverRegistry } from './registry.svelte';
+import { isAuthenticationRequiredError } from '$lib/auth/errors';
 
 const GRAPHQL_REQUEST_HEADERS = { 'X-REQUEST-TYPE': 'GraphQL' };
 
@@ -25,8 +26,10 @@ export interface GraphQLClientConfig {
 	url: string;
 	/** WebSocket URL (relative for origin, absolute wss:// for remote) */
 	wsUrl: string;
-	/** Bearer token for cross-origin auth, or null to use cookies */
+	/** Bearer token for GraphQL auth, or null for unauthenticated/legacy cookie auth */
 	token: string | null;
+	/** Registered server ID, used to clear stale credentials after auth failures */
+	serverId?: string;
 }
 
 /** Construct a WebSocket URL from an HTTP URL (http→ws, https→wss). */
@@ -117,7 +120,7 @@ export class GraphQLClient {
 	}
 
 	constructor(config: GraphQLClientConfig) {
-		const { url, wsUrl, token } = config;
+		const { url, wsUrl, token, serverId } = config;
 		this.#host = hostFromGraphQLEndpoint(url);
 
 		// Client pings the server every 15s. The `ping` handler starts a 5s
@@ -248,8 +251,8 @@ export class GraphQLClient {
 			preferGetMethod: false,
 			fetchOptions: () => ({
 				// GraphQL does not participate in the double-submit CSRF token
-				// flow. Cookie-authenticated requests carry only the non-simple
-				// GraphQL marker; remote servers add bearer auth.
+				// flow. Authenticated clients use bearer tokens; the marker keeps
+				// legacy cookie-auth fallback requests non-simple.
 				headers: token
 					? { ...GRAPHQL_REQUEST_HEADERS, Authorization: `Bearer ${token}` }
 					: { ...GRAPHQL_REQUEST_HEADERS }
@@ -261,6 +264,9 @@ export class GraphQLClient {
 						// the server is reachable — force reconnect the WebSocket
 						if (!result.error && this.status === 'disconnected') {
 							this.forceReconnect('HTTP request succeeded while WS disconnected');
+						}
+						if (serverId && result.error && isAuthenticationRequiredError(result.error)) {
+							serverRegistry.handleAuthenticationRequired(serverId);
 						}
 
 						return result;
@@ -378,25 +384,39 @@ export class GraphQLClient {
  */
 class GraphQLClientManager {
 	#clients = new Map<string, GraphQLClient>();
-	#originClient: GraphQLClient;
+	#originClient: GraphQLClient | null = null;
+	#originClientToken: string | null = null;
+	#originClientServerId: string | undefined;
 
-	constructor() {
+	/** The origin instance client (serves the SPA, prefers bearer auth when available). */
+	get originClient(): GraphQLClient {
+		const origin = serverRegistry.originServer;
+		const token = origin?.token ?? null;
+		const serverId = origin?.id;
+		if (
+			this.#originClient &&
+			this.#originClientToken === token &&
+			this.#originClientServerId === serverId
+		) {
+			return this.#originClient;
+		}
+
+		this.#originClient?.dispose();
 		this.#originClient = new GraphQLClient({
 			url: HOME_URL,
 			wsUrl: HOME_URL,
-			token: null
+			token,
+			serverId
 		});
-	}
-
-	/** The origin instance client (serves the SPA, uses cookies). */
-	get originClient(): GraphQLClient {
+		this.#originClientToken = token;
+		this.#originClientServerId = serverId;
 		return this.#originClient;
 	}
 
 	/** Get or create a client for a registered instance. */
 	getClient(serverId: string): GraphQLClient {
 		if (serverRegistry.isOriginServer(serverId)) {
-			return this.#originClient;
+			return this.originClient;
 		}
 
 		const existing = this.#clients.get(serverId);
@@ -411,15 +431,25 @@ class GraphQLClientManager {
 		const client = new GraphQLClient({
 			url,
 			wsUrl: httpToWsUrl(url),
-			token: server.token
+			token: server.token,
+			serverId
 		});
 
 		this.#clients.set(serverId, client);
 		return client;
 	}
 
-	/** Destroy and remove a client. Cannot destroy the origin client. */
+	/** Destroy and remove a client. */
 	destroyClient(serverId: string): boolean {
+		if (serverRegistry.isOriginServer(serverId)) {
+			if (!this.#originClient) return false;
+			this.#originClient.dispose();
+			this.#originClient = null;
+			this.#originClientToken = null;
+			this.#originClientServerId = undefined;
+			return true;
+		}
+
 		const client = this.#clients.get(serverId);
 		if (!client) return false;
 

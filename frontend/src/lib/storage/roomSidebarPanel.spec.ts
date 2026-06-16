@@ -42,22 +42,21 @@ describe('room sidebar panel storage', () => {
     expect(getRoomSidebarPanel('server-b', 'room-1')).toBe('members');
   });
 
-  it('persists closed state per server and room', () => {
+  it('does not persist closed state across sessions', () => {
+    setRoomSidebarPanel('server-a', 'room-1', 'files');
     setRoomSidebarPanelState('server-a', 'room-1', null);
-    setRoomSidebarPanelState('server-a', 'room-2', 'files');
-    setRoomSidebarPanelState('server-b', 'room-1', 'members');
 
     const key = serverStorageKey('server-a', roomSidebarPanelStorageSuffix('room-1'));
 
-    expect(localStorage.getItem(key)).toBe('closed');
-    expect(getRoomSidebarPanelState('server-a', 'room-1')).toBeNull();
-    expect(getRoomSidebarPanelState('server-a', 'room-2')).toBe('files');
-    expect(getRoomSidebarPanelState('server-b', 'room-1')).toBe('members');
+    expect(localStorage.getItem(key)).toBe('files');
+    expect(getRoomSidebarPanelState('server-a', 'room-1')).toBe('files');
   });
 
-  it('keeps panel-only reads compatible when the sidebar is closed', () => {
-    setRoomSidebarPanelState('server-a', 'room-1', null);
+  it('falls back to members for legacy closed values', () => {
+    const key = serverStorageKey('server-a', roomSidebarPanelStorageSuffix('room-1'));
 
+    localStorage.setItem(key, 'closed');
+    expect(getRoomSidebarPanelState('server-a', 'room-1')).toBe('members');
     expect(getRoomSidebarPanel('server-a', 'room-1')).toBe('members');
   });
 

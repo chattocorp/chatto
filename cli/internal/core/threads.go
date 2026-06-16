@@ -137,6 +137,78 @@ func (c *ChattoCore) GetThreadReplyEvents(ctx context.Context, kind RoomKind, ro
 	return result, nil
 }
 
+// GetThreadReplyEventsAround returns a chronological page of replies centered
+// on anchorEventID. The root event itself is not included.
+//
+// Authorization: caller must verify room membership before calling.
+func (c *ChattoCore) GetThreadReplyEventsAround(ctx context.Context, kind RoomKind, roomID, threadRootEventID, anchorEventID string, limit int) (*RoomEventsResult, error) {
+	limit = clampHistoricalMessageLimit(limit)
+
+	rootEntry, ok := c.rooms().timelineEntry(threadRootEventID)
+	if !ok {
+		return nil, fmt.Errorf("thread root message not found: event ID %s", threadRootEventID)
+	}
+	if rootEntry.Event.GetMessagePosted() == nil {
+		return nil, fmt.Errorf("event ID %s is not a message event", threadRootEventID)
+	}
+	if roomIDOfEvent(rootEntry.Event) != roomID {
+		return nil, fmt.Errorf("thread root message not found in room %s: event ID %s", roomID, threadRootEventID)
+	}
+
+	entries := c.rooms().threadEvents(threadRootEventID)
+	replies := make([]*TimelineEntry, 0, len(entries))
+	targetIndex := 0
+	foundAnchor := anchorEventID == threadRootEventID
+	for _, entry := range entries {
+		if !isThreadReplyEventForPage(entry) {
+			continue
+		}
+		if entry.Event.GetId() == anchorEventID {
+			targetIndex = len(replies)
+			foundAnchor = true
+		}
+		replies = append(replies, entry)
+	}
+	if !foundAnchor {
+		return nil, ErrMessageNotFound
+	}
+
+	start := 0
+	end := len(replies)
+	if anchorEventID == threadRootEventID {
+		if end > limit {
+			end = limit
+		}
+	} else {
+		beforeCount := (limit - 1) / 2
+		start = targetIndex - beforeCount
+		if start < 0 {
+			start = 0
+		}
+		end = start + limit
+		if end > len(replies) {
+			end = len(replies)
+			start = end - limit
+			if start < 0 {
+				start = 0
+			}
+		}
+	}
+
+	raw := make([]*RoomEvent, 0, end-start)
+	for _, entry := range replies[start:end] {
+		raw = append(raw, &RoomEvent{Event: entry.Event, Sequence: entry.StreamSeq})
+	}
+
+	result := &RoomEventsResult{
+		Events:   raw,
+		HasOlder: start > 0,
+		HasNewer: end < len(replies),
+	}
+	setRoomEventsResultCursors(result)
+	return result, nil
+}
+
 func threadReplyEventsAfter(entries []*TimelineEntry, afterSeq uint64, limit int) *RoomEventsResult {
 	raw := make([]*RoomEvent, 0, limit+1)
 	for _, entry := range entries {

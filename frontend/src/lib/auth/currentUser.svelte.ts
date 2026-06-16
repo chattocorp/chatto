@@ -3,6 +3,7 @@ import { resolve } from '$app/paths';
 import type { Client } from '@urql/svelte';
 import { LoadCurrentUserDocument, clearCachedUser, type CurrentUser } from './loadAuth';
 import { csrfFetch } from './csrf';
+import { isAuthenticationRequiredError } from './errors';
 
 export type { CurrentUser };
 
@@ -36,6 +37,11 @@ export class CurrentUserState {
     const resp = await this.#client.query(LoadCurrentUserDocument, {});
 
     if (resp.error) {
+      if (isAuthenticationRequiredError(resp.error)) {
+        this.user = undefined;
+        this.loading = false;
+        return;
+      }
       // Surface network failures (CORS, DNS, server down) as a console
       // error so unreachable instances are visible in the dev console.
       // Don't throw — the caller treats this as a per-instance soft
@@ -44,9 +50,7 @@ export class CurrentUserState {
     }
 
     const fetched = resp.data?.viewer?.user;
-    if (fetched) {
-      this.user = fetched;
-    }
+    this.user = fetched ?? undefined;
     this.loading = false;
   }
 

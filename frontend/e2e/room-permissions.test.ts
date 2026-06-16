@@ -6,6 +6,7 @@ import {
   type TestUser
 } from './fixtures/testUser';
 import { csrfHeaders } from './fixtures/csrf';
+import { unloadPageForIdentitySwitch } from './fixtures/navigation';
 import * as routes from './routes';
 
 interface TestSpace {
@@ -59,11 +60,12 @@ async function loginUser(page: Page, login: string, password: string): Promise<v
 }
 
 async function logoutUser(page: Page): Promise<void> {
-  const response = await page.request.post('/auth/logout', { headers: await csrfHeaders(page) });
-  expect(response.ok()).toBeTruthy();
+  const headers = await csrfHeaders(page);
   // Unload the SPA before switching identities. Otherwise the old authenticated
   // app can react to logout and race a later page.goto() with its own redirect.
-  await page.goto('about:blank');
+  await unloadPageForIdentitySwitch(page);
+  const response = await page.request.post('/auth/logout', { headers });
+  expect(response.ok()).toBeTruthy();
 }
 
 async function joinSpaceViaAPI(_page: Page, _spaceId: string): Promise<void> {

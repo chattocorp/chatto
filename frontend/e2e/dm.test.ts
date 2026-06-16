@@ -131,7 +131,7 @@ test.describe('Direct Messages (room-shaped)', () => {
       const userC = await createAndLoginTestUser(pageC);
 
       // Seed two existing DMs from User A's side, B last so it sorts above C
-      // by last-activity (newest first). User A then leaves the chat root open
+      // by last-activity (newest first). User A then leaves the Overview open
       // — *not* in either DM — so subsequent activity must bump via subscription.
       const dmA = new DMPage(page);
       const aToC = await dmA.startConversation(userC.login);
@@ -139,8 +139,8 @@ test.describe('Direct Messages (room-shaped)', () => {
       const aToB = await dmA.startConversation(userB.login);
       await aToB.sendMessage('seed B');
 
-      await page.goto(routes.chat);
-      await page.waitForURL(routes.chat);
+      await page.goto(routes.browseRooms);
+      await page.waitForURL(routes.browseRooms);
       await expect(
         page.getByRole('button', { name: /direct messages/i })
       ).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
@@ -211,8 +211,8 @@ test.describe('Direct Messages (room-shaped)', () => {
       await aToC.sendMessage('seed C');
       // C is now most-recent.
 
-      await page.goto(routes.chat);
-      await page.waitForURL(routes.chat);
+      await page.goto(routes.browseRooms);
+      await page.waitForURL(routes.browseRooms);
       const dmRows = () =>
         page.locator('nav a.sidebar-item').filter({
           has: page.getByText(new RegExp(`^(${userB.displayName}|${userC.displayName})$`))
@@ -254,9 +254,9 @@ test.describe('Direct Messages (room-shaped)', () => {
     try {
       await createAndLoginTestUser(pageB);
 
-      // User A on chat root with no DMs yet — server icon has no indicator.
-      await page.goto(routes.chat);
-      await page.waitForURL(routes.chat);
+      // User A on Overview with no DMs yet — server icon has no indicator.
+      await page.goto(routes.browseRooms);
+      await page.waitForURL(routes.browseRooms);
       // Scope to the Server Gutter so we don't collide with notification
       // buttons rendered inside the Server Sidebar.
       const serverIconWrapper = page
@@ -310,8 +310,8 @@ test.describe('Direct Messages (room-shaped)', () => {
       const aToC = await dmA.startConversation(userC.login);
       await aToC.sendMessage('seed C');
 
-      await page.goto(routes.chat);
-      await page.waitForURL(routes.chat);
+      await page.goto(routes.browseRooms);
+      await page.waitForURL(routes.browseRooms);
 
       const groupHeader = page.getByRole('button', { name: /direct messages/i });
       const dmRow = (displayName: string) =>

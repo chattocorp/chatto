@@ -175,10 +175,13 @@ fi
 exec tilt up --stream
 """
 
-[tasks.dev-conductor]
-description = "Build and run Chatto with Conductor-style per-workspace ports"
+[tasks.chatto]
+description = "Build and run the bundled Chatto CLI"
 depends = ["build-dev-cli"]
 dir = "cli"
+usage = '''
+arg "[args]" var=#true
+'''
 env = {
   CHATTO_WEBSERVER_PORT = "{{env.CONDUCTOR_PORT | default(value='4000')}}",
   CHATTO_WEBSERVER_URL = "http://localhost:{{env.CONDUCTOR_PORT | default(value='4000')}}",
@@ -189,13 +192,17 @@ env = {
   CHATTO_METRICS_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 2}}",
   CHATTO_METRICS_PATH = "/metrics",
 }
-run = "bin/chatto run"
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
 
-[tasks.chatto]
-description = "Runs the CLI app with the given arguments"
-depends = ["deps-cli"]
-dir = "cli"
-run = "go run -tags bootstrap . ${@}"
+if [ -z "${usage_args:-}" ]; then
+  exec bin/chatto run
+fi
+
+eval "chatto_args=($usage_args)"
+exec bin/chatto "${chatto_args[@]}"
+"""
 
 # =============================================================================
 # Testing

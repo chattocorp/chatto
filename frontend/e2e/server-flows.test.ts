@@ -7,6 +7,7 @@ import {
 	createUserOnRemote
 } from './fixtures/multiServer';
 import type { ServerInfo } from './fixtures/server';
+import { DMPage } from './pages/DMPage';
 import * as routes from './routes';
 import { TIMEOUTS } from './constants';
 
@@ -113,6 +114,54 @@ test.describe('Last-Room Memory', () => {
 		await expect(chatPage.getRoomHeader(roomName)).toBeVisible();
 	});
 
+	test('navigating to /chat/- redirects to the last visited DM', async ({
+		page,
+		browser,
+		serverURL
+	}) => {
+		const userA = await createAndLoginTestUser(page);
+
+		const context2 = await browser.newContext({ baseURL: serverURL });
+		const page2 = await context2.newPage();
+		try {
+			await createAndLoginTestUser(page2);
+
+			const room = await new DMPage(page2).startConversation(userA.login);
+			await room.sendMessage('seed for remembered DM');
+			const dmUrl = page2.url();
+
+			await page2.goto(routes.chat);
+			await expect(page2).toHaveURL(dmUrl);
+			await expect(page2.getByTestId('message-input')).toBeVisible();
+		} finally {
+			await context2.close();
+		}
+	});
+
+	test('navigating to / redirects to the home server last visited DM', async ({
+		page,
+		browser,
+		serverURL
+	}) => {
+		const userA = await createAndLoginTestUser(page);
+
+		const context2 = await browser.newContext({ baseURL: serverURL });
+		const page2 = await context2.newPage();
+		try {
+			await createAndLoginTestUser(page2);
+
+			const room = await new DMPage(page2).startConversation(userA.login);
+			await room.sendMessage('seed for root remembered DM');
+			const dmUrl = page2.url();
+
+			await page2.goto(routes.root);
+			await expect(page2).toHaveURL(dmUrl);
+			await expect(page2.getByTestId('message-input')).toBeVisible();
+		} finally {
+			await context2.close();
+		}
+	});
+
 	test('/chat/- falls through to Overview when no last room is stored', async ({
 		page,
 		chatPage
@@ -126,21 +175,29 @@ test.describe('Last-Room Memory', () => {
 		await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
 	});
 
-	test('Overview page is reachable directly even when a last room is stored', async ({
+	test('Overview page is reachable directly even when a last DM is stored', async ({
 		page,
-		chatPage
+		browser,
+		serverURL
 	}) => {
-		await createAndLoginTestUser(page);
-		await chatPage.goto();
+		const userA = await createAndLoginTestUser(page);
 
-		// Visit a room so a last-room is stored.
-		await chatPage.createRoom();
+		const context2 = await browser.newContext({ baseURL: serverURL });
+		const page2 = await context2.newPage();
+		try {
+			await createAndLoginTestUser(page2);
 
-		// Navigating directly to the Overview URL should stay on Overview,
-		// not bounce to the last room.
-		await page.goto('/chat/-/overview');
-		await expect(page).toHaveURL(/\/chat\/-\/overview$/);
-		await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
+			const room = await new DMPage(page2).startConversation(userA.login);
+			await room.sendMessage('seed for overview reachability');
+
+			// Navigating directly to the Overview URL should stay on Overview,
+			// not bounce to the last room.
+			await page2.goto(routes.browseRooms);
+			await expect(page2).toHaveURL(/\/chat\/-\/overview$/);
+			await expect(page2.getByRole('heading', { name: 'Overview' })).toBeVisible();
+		} finally {
+			await context2.close();
+		}
 	});
 });
 

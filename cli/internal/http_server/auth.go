@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/gin-contrib/sessions"
@@ -34,6 +35,32 @@ func (s *HTTPServer) authEmailServerName(ctx context.Context) string {
 		}
 	}
 	return "Chatto"
+}
+
+func (s *HTTPServer) emailOTPExpirationText() string {
+	ttl := s.config.Auth.EmailOTP.TTLOrDefault()
+	switch {
+	case ttl%time.Hour == 0:
+		hours := int(ttl / time.Hour)
+		if hours == 1 {
+			return "1 hour"
+		}
+		return fmt.Sprintf("%d hours", hours)
+	case ttl%time.Minute == 0:
+		minutes := int(ttl / time.Minute)
+		if minutes == 1 {
+			return "1 minute"
+		}
+		return fmt.Sprintf("%d minutes", minutes)
+	case ttl%time.Second == 0:
+		seconds := int(ttl / time.Second)
+		if seconds == 1 {
+			return "1 second"
+		}
+		return fmt.Sprintf("%d seconds", seconds)
+	default:
+		return ttl.String()
+	}
 }
 
 func (s *HTTPServer) setupAuthRoutes() {
@@ -188,12 +215,17 @@ func (s *HTTPServer) setupAuthRoutes() {
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 				return
 			}
-			log.Warn("Failed to create auth token on login", "userId", user.Id, "error", err)
+			log.Error("Failed to create auth token on login", "userId", user.Id, "error", err)
+			_ = s.core.RevokeCookieSession(ctx, cookieUserID, cookieSessionID)
+			clearCookieSessionAuth(session)
+			_ = session.Save()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
+			return
 		} else {
 			bearerToken = token
 		}
 
-		if err := s.ensureCSRFToken(c, session); err != nil {
+		if err := s.ensureCSRFToken(c); err != nil {
 			log.Error("Failed to create CSRF token", "error", err)
 			_ = s.core.RevokeCookieSession(ctx, cookieUserID, cookieSessionID)
 			if bearerToken != "" {
@@ -295,13 +327,17 @@ func (s *HTTPServer) setupAuthRoutes() {
 
 		// Send registration email
 		serverName := s.authEmailServerName(ctx)
+		expirationText := s.emailOTPExpirationText()
 		err = s.mailer.Send(email.Message{
 			To:      req.Email,
 			Subject: fmt.Sprintf("Complete your registration for %s", serverName),
-			Body:    fmt.Sprintf("Welcome to %s!\n\nUse this verification code to finish creating your account on %s:\n\n%s\n\nThis code will expire in 15 minutes.\n\nIf you didn't request this, you can ignore this email.", serverName, serverName, code),
+			Body:    fmt.Sprintf("Welcome to %s!\n\nUse this verification code to finish creating your account on %s:\n\n%s\n\nThis code will expire in %s.\n\nIf you didn't request this, you can ignore this email.", serverName, serverName, code, expirationText),
 		})
 		if err != nil {
 			log.Error("Failed to send registration email", "error", err)
+			if cancelErr := s.core.CancelRegistrationCode(ctx, req.Email, code); cancelErr != nil {
+				log.Warn("Failed to cancel undelivered registration code", "error", cancelErr)
+			}
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send email"})
 			return
 		}
@@ -463,7 +499,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 			return
 		}
 		session := sessions.Default(c)
-		if err := s.ensureCSRFToken(c, session); err != nil {
+		if err := s.ensureCSRFToken(c); err != nil {
 			log.Error("Failed to create CSRF token", "error", err)
 			cookieUserID, cookieSessionID, _ := cookieSessionIDs(session)
 			_ = s.core.RevokeCookieSession(ctx, cookieUserID, cookieSessionID)
@@ -481,11 +517,18 @@ func (s *HTTPServer) setupAuthRoutes() {
 			"user":    gin.H{"id": user.Id, "login": user.Login},
 		}
 
-		if token, err := s.core.CreateAuthTokenWithSource(ctx, user.Id, "registration"); err == nil {
-			response["token"] = token
-		} else {
-			log.Warn("Failed to create auth token on register", "userId", user.Id, "error", err)
+		token, err := s.core.CreateAuthTokenWithSource(ctx, user.Id, "registration")
+		if err != nil {
+			log.Error("Failed to create auth token on register", "userId", user.Id, "error", err)
+			cookieUserID, cookieSessionID, _ := cookieSessionIDs(session)
+			_ = s.core.RevokeCookieSession(ctx, cookieUserID, cookieSessionID)
+			session.Clear()
+			_ = session.Save()
+			clearCSRFCookie(c)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
+			return
 		}
+		response["token"] = token
 
 		c.JSON(http.StatusOK, response)
 	})
@@ -524,12 +567,16 @@ func (s *HTTPServer) setupAuthRoutes() {
 			return
 		}
 		serverName := s.authEmailServerName(req.Context())
+		expirationText := s.emailOTPExpirationText()
 		if err := s.mailer.Send(email.Message{
 			To:      body.Email,
 			Subject: fmt.Sprintf("Verify your email for %s", serverName),
-			Body:    fmt.Sprintf("Use this verification code to add this email address to your %s account:\n\n%s\n\nThis code will expire in 15 minutes.\n\nIf you didn't request this, you can ignore this email.", serverName, code),
+			Body:    fmt.Sprintf("Use this verification code to add this email address to your %s account:\n\n%s\n\nThis code will expire in %s.\n\nIf you didn't request this, you can ignore this email.", serverName, code, expirationText),
 		}); err != nil {
 			log.Error("Failed to send email verification code", "userId", user.Id, "error", err)
+			if cancelErr := s.core.CancelEmailVerificationCode(req.Context(), user.Id, body.Email, code); cancelErr != nil {
+				log.Warn("Failed to cancel undelivered email verification code", "userId", user.Id, "error", cancelErr)
+			}
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send verification code"})
 			return
 		}

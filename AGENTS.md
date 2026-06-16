@@ -18,10 +18,8 @@ This codebase keeps agent-relevant context in six places. Read the one that fits
 Please use the following facts when making decisions about features or implementation:
 
 - This project is currently in early development.
-- The 0.1.x event-sourcing architecture has been rolled out to all existing Chatto servers/instances, which are now running in the 0.1.0-beta.x stream.
-- Pre-0.1.0 boot importers and their verification settings have been removed. Do not add new code that depends on importing a 0.0.x server into the 0.1.x event-sourced shape.
-- We're preparing a release of 0.1.0, the first public version that users can self-host or provision through Chatto Cloud. A milestone of the same name is available on GitHub to track work related to this release.
-- The focus of 0.1.x is on stabilizing the core data model and APIs, improving documentation, and building out a solid foundation for future features. We want to avoid adding new features that aren't necessary for this stabilization effort.
+- We've made the software public and users can now self-host. We're advising self-hosters to use the `:latest` image tag to keep up to date, but there may be stragglers.
+- The next big new version will be 0.2.0, but for now we're concentrating on smaller, non-breaking changes to improve the application.
 
 Please update this section as the project evolves, and refer to it when making decisions about features or implementation.
 

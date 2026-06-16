@@ -135,7 +135,7 @@ func TestChattoCore_VerifyEmailCode(t *testing.T) {
 			wrongCode = "111111"
 		}
 
-		for i := 1; i < emailOTPMaxAttempts; i++ {
+		for i := 1; i < core.emailOTPMaxAttempts(); i++ {
 			_, err := core.VerifyEmailCode(ctx, user.Id, "attempt-email@example.com", wrongCode)
 			if !errors.Is(err, ErrEmailVerificationCodeInvalid) {
 				t.Fatalf("attempt %d error = %v, want ErrEmailVerificationCodeInvalid", i, err)
@@ -211,7 +211,7 @@ func TestChattoCore_VerifyEmailCode(t *testing.T) {
 	t.Run("active code limit", func(t *testing.T) {
 		user, _ := core.CreateUser(ctx, "system", "limit-email-user", "Limit User", "password123")
 
-		for i := 0; i < emailOTPMaxActiveCodes; i++ {
+		for i := 0; i < core.emailOTPMaxDeliveredCodes(); i++ {
 			if _, err := core.CreateEmailVerificationCode(ctx, user.Id, "limit-email@example.com"); err != nil {
 				t.Fatalf("CreateEmailVerificationCode %d: %v", i+1, err)
 			}

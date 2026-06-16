@@ -9,8 +9,10 @@ import { redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import { browser } from '$app/environment';
 import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
+import { serverRegistry } from '$lib/state/server/registry.svelte';
 import { graphql } from '$lib/gql';
 import type { LoadCurrentUserQuery } from '$lib/gql/graphql';
+import { isAuthenticationRequiredError } from './errors';
 
 export const LoadCurrentUserDocument = graphql(`
   query LoadCurrentUser {
@@ -66,6 +68,11 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
     }
 
     if (resp.error) {
+      if (isAuthenticationRequiredError(resp.error)) {
+        cachedUser = null;
+        serverRegistry.clearOriginAuthentication();
+        return null;
+      }
       return cachedUser;
     }
 
