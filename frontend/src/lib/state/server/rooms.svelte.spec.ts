@@ -11,6 +11,9 @@ type QueryRoom = {
   name: string;
   type: RoomType;
   hasUnread: boolean;
+  viewerNotifications: {
+    totalCount: number;
+  };
   archived: boolean;
   viewerNotificationPreference: {
     level: NotificationLevel;
@@ -49,6 +52,7 @@ function makeRoom(id: string, overrides: Partial<QueryRoom> = {}): QueryRoom {
     name: overrides.name ?? id,
     type: overrides.type ?? RoomType.Channel,
     hasUnread: overrides.hasUnread ?? false,
+    viewerNotifications: overrides.viewerNotifications ?? { totalCount: 0 },
     archived: overrides.archived ?? false,
     viewerNotificationPreference:
       overrides.viewerNotificationPreference === undefined
