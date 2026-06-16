@@ -9,8 +9,7 @@ import {
 export class RoomSidebarPanelsState {
   #getServerId: () => string;
   #getRoomId: () => string;
-  #desktopState = $state<RoomSidebarPanelState>(ROOM_SIDEBAR_DEFAULT_PANEL);
-  #desktopScope = $state<string | null>(null);
+  #desktopSessionState = $state<Record<string, RoomSidebarPanelState | undefined>>({});
   #mobilePanel = $state<RoomSidebarPanelState>(null);
   #mobileScope = $state<string | null>(null);
 
@@ -64,8 +63,8 @@ export class RoomSidebarPanelsState {
   }
 
   get #desktopStateForRoom(): RoomSidebarPanelState {
-    if (this.#desktopScope === this.#currentScope) {
-      return this.#desktopState;
+    if (this.#currentScope in this.#desktopSessionState) {
+      return this.#desktopSessionState[this.#currentScope] ?? null;
     }
 
     return getRoomSidebarPanelState(this.#getServerId(), this.#getRoomId());
@@ -74,8 +73,12 @@ export class RoomSidebarPanelsState {
   #setDesktopState(state: RoomSidebarPanelState): void {
     const serverId = this.#getServerId();
     const roomId = this.#getRoomId();
-    setRoomSidebarPanelState(serverId, roomId, state);
-    this.#desktopScope = `${serverId}:${roomId}`;
-    this.#desktopState = state;
+    if (state !== null) {
+      setRoomSidebarPanelState(serverId, roomId, state);
+    }
+    this.#desktopSessionState = {
+      ...this.#desktopSessionState,
+      [`${serverId}:${roomId}`]: state
+    };
   }
 }
