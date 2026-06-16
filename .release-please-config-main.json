@@ -1,7 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
   "release-type": "simple",
-  "release-as": "0.1.0",
+  "versioning": "prerelease",
+  "release-as": "0.1.0-rc.0",
   "bump-minor-pre-major": true,
   "bump-patch-for-minor-pre-major": true,
   "include-component-in-tag": false,
@@ -10,6 +11,8 @@
     ".": {
       "package-name": "chatto",
       "changelog-path": "CHANGELOG.md",
+      "prerelease": true,
+      "prerelease-type": "rc",
       "extra-files": [
         {
           "type": "generic",
