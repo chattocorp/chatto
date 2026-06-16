@@ -281,6 +281,30 @@ describe('MessageContent component', () => {
     expect(link.getAttribute('rel')).toBe('noopener noreferrer');
   });
 
+  it('renders fenced code blocks with highlighted markup and hides raw fences', async () => {
+    const { container } = renderMessage('```javascript\nconst x = 1;\n```');
+
+    await expect.poll(() => q(container, 'pre.hljs')).toBeTruthy();
+
+    const pre = q(container, 'pre.hljs')!;
+    const code = q(container, 'pre.hljs code.language-javascript')!;
+    expect(pre.getAttribute('data-language')).toBe('javascript');
+    expect(code.textContent).toContain('const x = 1;');
+    expect(container.textContent).not.toContain('```javascript');
+  });
+
+  it('renders a highlighted code block after leading text', async () => {
+    const { container } = renderMessage(
+      'Check this out:\n```javascript\nconsole.log("hello");\n```'
+    );
+
+    await expect.poll(() => q(container, 'pre.hljs')).toBeTruthy();
+    expect(container.textContent).toContain('Check this out:');
+    expect(q(container, 'pre.hljs code.language-javascript')?.textContent).toContain(
+      'console.log("hello");'
+    );
+  });
+
   describe('mention wiring', () => {
     // wrapValidMentions itself is exhaustively tested in $lib/mentions.svelte.test.ts.
     // These tests assert that MessageContent actually invokes it — i.e., that the

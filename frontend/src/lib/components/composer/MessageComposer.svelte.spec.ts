@@ -213,6 +213,8 @@ describe('MessageComposer', () => {
   beforeEach(() => {
     mockClient = createMockGraphqlClient({ mutationData });
     mockInstanceStores.serverInfo.videoProcessingEnabled = false;
+    mockInstanceStores.serverInfo.maxUploadSize = 25 * 1024 * 1024;
+    mockInstanceStores.serverInfo.maxVideoUploadSize = 25 * 1024 * 1024;
     mockInstanceStores.roomUnread.setRoomUnread.mockClear();
     roomStateMock.members = [];
     roomStateMock.editState.eventId = null;
@@ -352,6 +354,23 @@ describe('MessageComposer', () => {
       await expect
         .poll(() => q(container, '[data-testid="video-attachment-preview"]'))
         .toBeTruthy();
+    });
+
+    it('rejects selected files over the server upload size limit', async () => {
+      mockInstanceStores.serverInfo.maxUploadSize = 1;
+      const { container } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const input = q(container, 'input[type="file"]') as HTMLInputElement;
+
+      selectFiles(input, [
+        new File([new Uint8Array([1, 2])], 'too-large.png', { type: 'image/png' })
+      ]);
+
+      expect(getToasts().map((t) => t.message).join('\n')).toContain('too-large.png is too large');
+      expect(q(container, 'img')).toBeNull();
+      expect(prepareFilesMock).not.toHaveBeenCalled();
     });
   });
 

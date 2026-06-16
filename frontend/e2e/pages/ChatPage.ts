@@ -1,9 +1,7 @@
 import { expect, request, type APIRequestContext, type Locator, type Page } from '@playwright/test';
 import * as routes from '../routes';
 import { graphqlQuery } from '../fixtures/graphqlHelpers';
-import { csrfHeaders } from '../fixtures/csrf';
-import { loginAsAdmin } from '../fixtures/testUser';
-import { unloadPageForIdentitySwitch } from '../fixtures/navigation';
+import { loginAsAdmin, logoutCurrentUser } from '../fixtures/testUser';
 import { RoomPage } from './RoomPage';
 
 const E2E_ADMIN_LOGIN = 'e2eadmin';
@@ -188,15 +186,7 @@ export class ChatPage {
    * state.
    */
   async openCreateRoomModal(): Promise<void> {
-    const headers = await csrfHeaders(this.page);
-    // Unload the currently mounted app before logging out. If the SPA stays
-    // mounted during API logout, it can observe the session change and race the
-    // following admin navigation with its own redirect.
-    await unloadPageForIdentitySwitch(this.page);
-    const logoutResponse = await this.page.request.post('/auth/logout', {
-      headers
-    });
-    expect(logoutResponse.ok()).toBeTruthy();
+    await logoutCurrentUser(this.page);
     await loginAsAdmin(this.page);
     await this.page.goto(routes.serverAdminRooms);
     await expect(this.page).toHaveURL(/\/server-admin\/rooms/);
