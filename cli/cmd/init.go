@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/c2h5oh/datasize"
 	"github.com/charmbracelet/log"
@@ -120,12 +121,35 @@ var initCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal("Failed to marshal config", "error", err)
 		}
+		text := addAuthProviderExamples(string(b))
 
-		if err := os.WriteFile(configPath, b, 0600); err != nil {
+		if err := os.WriteFile(configPath, []byte(text), 0600); err != nil {
 			log.Fatal("Failed to write config file", "error", err)
 		}
 		fmt.Printf("Configuration written to %s\n", configPath)
 	},
+}
+
+func addAuthProviderExamples(tomlText string) string {
+	const generatedEmptyProviders = "# External login providers. Configure as repeated [[auth.providers]] tables.\nproviders = []"
+	const providerExamples = `# External login providers. Uncomment and adapt one or more [[auth.providers]] tables.
+#
+# [[auth.providers]]
+# id = 'chatto-hub'
+# type = 'oidc'
+# label = 'Chatto Hub'
+# issuer_url = 'https://id.example.com/realms/chatto'
+# client_id = 'chatto'
+# client_secret = 'replace-me'
+# scopes = ['openid', 'profile', 'email']
+#
+# [[auth.providers]]
+# id = 'github'
+# type = 'github'
+# client_id = 'replace-me'
+# client_secret = 'replace-me'`
+
+	return strings.Replace(tomlText, generatedEmptyProviders, providerExamples, 1)
 }
 
 func init() {

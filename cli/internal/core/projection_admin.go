@@ -16,6 +16,7 @@ const (
 // ProjectionAdminState is the operator-facing runtime state for one
 // event-sourced projection.
 type ProjectionAdminState struct {
+	Key               string
 	Name              string
 	Subjects          []string
 	Started           bool
@@ -49,7 +50,7 @@ func (c *ChattoCore) ProjectionAdminStates(ctx context.Context) ([]ProjectionAdm
 	streamLastSeq := info.State.LastSeq
 
 	states := make([]ProjectionAdminState, 0, len(c.projections))
-	add := func(name string, projector *events.Projector, entries int64, estimatedBytes int64, metrics []ProjectionAdminMetric) error {
+	add := func(key string, name string, projector *events.Projector, entries int64, estimatedBytes int64, metrics []ProjectionAdminMetric) error {
 		targetSeq, err := projector.CurrentTargetSeq(ctx)
 		if err != nil {
 			return err
@@ -65,6 +66,7 @@ func (c *ChattoCore) ProjectionAdminStates(ctx context.Context) ([]ProjectionAdm
 			avg = estimatedBytes / entries
 		}
 		states = append(states, ProjectionAdminState{
+			Key:               key,
 			Name:              name,
 			Subjects:          projector.Subjects(),
 			Started:           status.Started,
@@ -85,7 +87,7 @@ func (c *ChattoCore) ProjectionAdminStates(ctx context.Context) ([]ProjectionAdm
 
 	for _, projection := range c.projections {
 		entries, bytes, metrics := projection.estimate()
-		if err := add(projection.name, projection.projector, entries, bytes, metrics); err != nil {
+		if err := add(projection.key, projection.name, projection.projector, entries, bytes, metrics); err != nil {
 			return nil, err
 		}
 	}
@@ -526,8 +528,8 @@ func (p *UserProjection) adminProjectionEstimate() (int64, int64, []ProjectionAd
 	for hash, userID := range p.emailIndex {
 		emailBytes += int64(len(hash) + len(userID))
 	}
-	oidcBytes := int64(len(p.oidcIndex)) * projectionMapEntryOverhead
-	for hash, userID := range p.oidcIndex {
+	oidcBytes := int64(len(p.identityIndex)) * projectionMapEntryOverhead
+	for hash, userID := range p.identityIndex {
 		oidcBytes += int64(len(hash) + len(userID))
 	}
 	seenBytes := int64(len(p.eventIDSeen)) * projectionMapEntryOverhead
@@ -538,7 +540,7 @@ func (p *UserProjection) adminProjectionEstimate() (int64, int64, []ProjectionAd
 		{Name: "verified_emails", Value: verifiedEmails, Bytes: 0},
 		{Name: "login_index", Value: int64(len(p.loginIndex)), Bytes: loginBytes},
 		{Name: "email_index", Value: int64(len(p.emailIndex)), Bytes: emailBytes},
-		{Name: "oidc_index", Value: int64(len(p.oidcIndex)), Bytes: oidcBytes},
+		{Name: "external_identity_index", Value: int64(len(p.identityIndex)), Bytes: oidcBytes},
 		{Name: "seen_event_ids", Value: int64(len(p.eventIDSeen)), Bytes: seenBytes},
 	}
 }

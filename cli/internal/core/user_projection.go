@@ -21,14 +21,14 @@ import (
 // durable evt.user.{userID} events.
 type UserProjection struct {
 	events.MemoryProjection
-	users       map[string]*projectedUser
-	loginIndex  map[string]string
-	emailIndex  map[string]string
-	oidcIndex   map[string]string
-	eventIDSeen eventIDSet
-	keyWrapper  kms.KeyWrapper
-	dekStore    dekstore.Reader
-	contentKeys map[string]map[corev1.UserDEKPurpose]map[int32][]byte
+	users         map[string]*projectedUser
+	loginIndex    map[string]string
+	emailIndex    map[string]string
+	identityIndex map[string]string
+	eventIDSeen   eventIDSet
+	keyWrapper    kms.KeyWrapper
+	dekStore      dekstore.Reader
+	contentKeys   map[string]map[corev1.UserDEKPurpose]map[int32][]byte
 }
 
 type projectedUser struct {
@@ -46,14 +46,14 @@ type projectedUser struct {
 
 func NewUserProjection(keyWrapper kms.KeyWrapper, dekStore dekstore.Reader) *UserProjection {
 	return &UserProjection{
-		users:       make(map[string]*projectedUser),
-		loginIndex:  make(map[string]string),
-		emailIndex:  make(map[string]string),
-		oidcIndex:   make(map[string]string),
-		eventIDSeen: newEventIDSet(),
-		keyWrapper:  keyWrapper,
-		dekStore:    dekStore,
-		contentKeys: make(map[string]map[corev1.UserDEKPurpose]map[int32][]byte),
+		users:         make(map[string]*projectedUser),
+		loginIndex:    make(map[string]string),
+		emailIndex:    make(map[string]string),
+		identityIndex: make(map[string]string),
+		eventIDSeen:   newEventIDSet(),
+		keyWrapper:    keyWrapper,
+		dekStore:      dekStore,
+		contentKeys:   make(map[string]map[corev1.UserDEKPurpose]map[int32][]byte),
 	}
 }
 
@@ -94,6 +94,8 @@ func (p *UserProjection) Apply(event *corev1.Event, seq uint64) error {
 		p.applyPasswordHashChanged(e.UserPasswordHashChanged, event.GetCreatedAt(), seq)
 	case *corev1.Event_UserOidcSubjectLinked:
 		p.applyOIDCSubjectLinked(e.UserOidcSubjectLinked)
+	case *corev1.Event_UserExternalIdentityLinked:
+		p.applyExternalIdentityLinked(e.UserExternalIdentityLinked)
 	case *corev1.Event_UserServerPreferencesChanged:
 		p.applyServerPreferencesChanged(e.UserServerPreferencesChanged)
 	case *corev1.Event_UserLoginCooldownStarted:
@@ -295,12 +297,26 @@ func (p *UserProjection) applyOIDCSubjectLinked(e *corev1.UserOIDCSubjectLinkedE
 	}
 	hash := e.GetSubjectHash()
 	if hash == "" && e.GetIssuer() != "" && e.GetSubject() != "" {
-		hash = oidcSubjectHash(e.GetIssuer(), e.GetSubject())
+		hash = externalIdentityHash(e.GetIssuer(), e.GetSubject())
 	}
 	if hash == "" {
 		return
 	}
-	p.oidcIndex[hash] = e.GetUserId()
+	p.identityIndex[hash] = e.GetUserId()
+}
+
+func (p *UserProjection) applyExternalIdentityLinked(e *corev1.UserExternalIdentityLinkedEvent) {
+	if e == nil || e.GetUserId() == "" {
+		return
+	}
+	hash := e.GetSubjectHash()
+	if hash == "" && e.GetIssuer() != "" && e.GetSubject() != "" {
+		hash = externalIdentityHash(e.GetIssuer(), e.GetSubject())
+	}
+	if hash == "" {
+		return
+	}
+	p.identityIndex[hash] = e.GetUserId()
 }
 
 func (p *UserProjection) applyOAuthConsentGranted(e *corev1.OAuthConsentGrantedEvent) {
@@ -354,9 +370,9 @@ func (p *UserProjection) applyAccountDeleted(e *corev1.UserAccountDeletedEvent, 
 			delete(p.emailIndex, hash)
 		}
 	}
-	for hash, userID := range p.oidcIndex {
+	for hash, userID := range p.identityIndex {
 		if userID == e.GetUserId() {
-			delete(p.oidcIndex, hash)
+			delete(p.identityIndex, hash)
 		}
 	}
 	u.avatar = nil
@@ -383,9 +399,9 @@ func (p *UserProjection) applyKeyShredded(e *corev1.UserKeyShreddedEvent) {
 			delete(p.emailIndex, hash)
 		}
 	}
-	for hash, userID := range p.oidcIndex {
+	for hash, userID := range p.identityIndex {
 		if userID == e.GetUserId() {
-			delete(p.oidcIndex, hash)
+			delete(p.identityIndex, hash)
 		}
 	}
 	u.user = &corev1.User{Id: e.GetUserId()}
@@ -453,8 +469,12 @@ func (p *UserProjection) GetByEmail(email string) (*corev1.User, bool) {
 }
 
 func (p *UserProjection) GetByOIDCSubject(issuer, subject string) (*corev1.User, bool) {
+	return p.GetByExternalIdentity(issuer, subject)
+}
+
+func (p *UserProjection) GetByExternalIdentity(issuer, subject string) (*corev1.User, bool) {
 	p.RLock()
-	userID := p.oidcIndex[oidcSubjectHash(issuer, subject)]
+	userID := p.identityIndex[externalIdentityHash(issuer, subject)]
 	p.RUnlock()
 	if userID == "" {
 		return nil, false
@@ -618,6 +638,6 @@ func (p *UserProjection) Stats() (users int, verifiedEmails int, oidcSubjects in
 		users++
 		verifiedEmails += len(u.verifiedEmail)
 	}
-	oidcSubjects = len(p.oidcIndex)
+	oidcSubjects = len(p.identityIndex)
 	return users, verifiedEmails, oidcSubjects
 }

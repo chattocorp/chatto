@@ -166,6 +166,7 @@ message Event {
     UserLoginCooldownStartedEvent user_login_cooldown_started = 711;
     UserKeyShreddedEvent user_key_shredded = 712;
     UserDEKGeneratedEvent user_dek_generated = 713;
+    UserExternalIdentityLinkedEvent user_external_identity_linked = 714;
 
     // ----- RBAC (800-839, durable, evt.rbac.>) -----
     RbacRoleCreatedEvent rbac_role_created = 800;

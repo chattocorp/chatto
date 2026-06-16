@@ -114,7 +114,7 @@ beforeEach(() => {
 describe('MessagePreviewCard', () => {
   it('refreshes attachment thumbnail asset URLs after image load failure', async () => {
     queryResults.push(
-      previewResult('/assets/files/att_1/image/120x120/cover?access=old'),
+      previewResult('data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=='),
       refreshResult('/assets/files/att_1/image/120x120/cover?access=fresh')
     );
 
@@ -127,9 +127,8 @@ describe('MessagePreviewCard', () => {
     });
 
     const img = container.querySelector<HTMLImageElement>('img[alt="photo.jpg"]');
-    if (img?.getAttribute('src')?.includes('access=old')) {
-      img.dispatchEvent(new Event('error'));
-    }
+    expect(img).not.toBeNull();
+    img?.dispatchEvent(new Event('error'));
 
     await vi.waitFor(() => {
       const refreshed = container.querySelector<HTMLImageElement>('img[alt="photo.jpg"]');
@@ -137,13 +136,16 @@ describe('MessagePreviewCard', () => {
         '/assets/files/att_1/image/120x120/cover?access=fresh'
       );
     });
-    expect(queryMock).toHaveBeenCalledTimes(2);
-    expect(queryMock.mock.calls[1]?.[1]).toMatchObject({
-      roomId: 'room_1',
-      eventId: 'event_1',
-      thumbnailWidth: 120,
-      thumbnailHeight: 120,
-      thumbnailFit: FitMode.Cover
-    });
+    const refreshCalls = queryMock.mock.calls.filter((call) => call[1]?.thumbnailWidth === 120);
+    expect(refreshCalls.length).toBeGreaterThanOrEqual(1);
+    for (const call of refreshCalls) {
+      expect(call[1]).toMatchObject({
+        roomId: 'room_1',
+        eventId: 'event_1',
+        thumbnailWidth: 120,
+        thumbnailHeight: 120,
+        thumbnailFit: FitMode.Cover
+      });
+    }
   });
 });

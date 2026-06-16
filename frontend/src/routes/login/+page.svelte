@@ -13,6 +13,13 @@
 
   const { data } = $props();
 
+  type AuthProviderInfo = {
+    id: string;
+    type: string;
+    label: string;
+    loginUrl: string;
+  };
+
   let identifier = $state('');
   let password = $state('');
   let error = $state('');
@@ -36,17 +43,22 @@
     }
   });
 
-  // Fetch enabled auth providers and registration setting from GraphQL
+  // Fetch auth providers and registration setting from GraphQL
   const LoginInfoQuery = graphql(`
     query LoginPageInfo {
       server {
-        enabledAuthProviders
+        authProviders {
+          id
+          type
+          label
+          loginUrl
+        }
         directRegistrationEnabled
       }
     }
   `);
 
-  let enabledProviders = $state<string[]>([]);
+  let authProviders = $state.raw<AuthProviderInfo[]>([]);
   let directRegistrationEnabled = $state(true);
 
   graphqlClientManager.originClient.client
@@ -54,7 +66,7 @@
     .toPromise()
     .then((result) => {
       if (result.data) {
-        enabledProviders = result.data.server.enabledAuthProviders;
+        authProviders = result.data.server.authProviders;
         directRegistrationEnabled = result.data.server.directRegistrationEnabled;
       }
     });
@@ -88,6 +100,25 @@
       // eslint-disable-next-line svelte/no-navigation-without-resolve -- target is validated by isSafeInternalPath; backend routes (e.g. /oauth/...) are not SvelteKit routes
       goto(target);
     }
+  }
+
+  function providerIcon(type: string): string {
+    switch (type) {
+      case 'github':
+        return 'mdi--github';
+      case 'gitlab':
+        return 'mdi--gitlab';
+      case 'google':
+        return 'mdi--google';
+      case 'discord':
+        return 'mdi--discord';
+      default:
+        return 'mdi--shield-account';
+    }
+  }
+
+  function providerLoginHref(provider: AuthProviderInfo): string {
+    return `${provider.loginUrl}?redirect=${encodeURIComponent(data.redirectUrl)}`;
   }
 
   async function handleSubmit(e: Event) {
@@ -157,17 +188,19 @@
       {/if}
 
       <!-- SSO providers -->
-      {#if enabledProviders.includes('oidc')}
+      {#if authProviders.length > 0}
         <div class="flex flex-col gap-3">
-          <Button
-            variant="secondary"
-            size="lg"
-            fullWidth
-            href="/auth/oidc?redirect={encodeURIComponent(data.redirectUrl)}"
-          >
-            <span class="iconify text-lg mdi--shield-account"></span>
-            Continue with Chatto Hub
-          </Button>
+          {#each authProviders as provider (provider.id)}
+            <Button
+              variant="secondary"
+              size="lg"
+              fullWidth
+              href={providerLoginHref(provider)}
+            >
+              <span class={["iconify text-lg", providerIcon(provider.type)]}></span>
+              Continue with {provider.label}
+            </Button>
+          {/each}
 
           <Divider label="or" />
         </div>

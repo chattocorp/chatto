@@ -10,8 +10,9 @@ Chatto is not accepting outside contributions at this time, but feedback, bug re
 | ----------------- | ---------------------------------- |
 | `$CONDUCTOR_PORT` | Chatto webserver (user-facing URL) |
 | `+1`              | Embedded NATS                      |
+| `+2`              | Prometheus metrics                 |
 
-The repository-level Conductor settings are shared in `.conductor/settings.toml`. The run command builds the frontend and development CLI, then starts `bin/chatto run` without live reloads. Put machine-specific overrides in `.conductor/settings.local.toml`; that file is gitignored and wins over shared settings on your machine. Conductor also reads `.worktreeinclude` to copy gitignored local environment files, such as `.env` and `.env.*`, into new workspaces.
+The repository-level Conductor settings are shared in `.conductor/settings.toml`. The run command delegates to `mise run dev-conductor`, which builds the frontend and development CLI, wires the per-workspace ports, and starts `bin/chatto run` without live reloads. Put machine-specific overrides in `.conductor/settings.local.toml`; that file is gitignored and wins over shared settings on your machine. Conductor also reads `.worktreeinclude` to copy gitignored local environment files, such as `.env` and `.env.*`, into new workspaces.
 
 ## Developing Outside of Conductor
 
@@ -22,17 +23,13 @@ mise trust
 mise run setup
 ```
 
-To run the bundled executable without live reloads:
+To run the bundled executable without live reloads using the same port wiring as Conductor:
 
 ```sh
-export CHATTO_WEBSERVER_PORT=4000
-export CHATTO_WEBSERVER_URL=http://localhost:4000
-export CHATTO_NATS_EMBEDDED_PORT=4555
-export CHATTO_NATS_CLIENT_URL=nats://localhost:4555
-mise run build-dev-cli
-cd cli
-bin/chatto run
+mise run dev-conductor
 ```
+
+When `CONDUCTOR_PORT` is unset, `mise run dev-conductor` uses `4000` for Chatto, `4001` for embedded NATS, and `4002` for Prometheus metrics.
 
 For the live-reload development stack, use Tilt:
 
@@ -40,7 +37,7 @@ For the live-reload development stack, use Tilt:
 mise run dev
 ```
 
-The Tilt stack uses Vite on port `5173`, the Go backend on port `4000`, and embedded NATS on port `4555`.
+The Tilt stack uses Vite on port `5173`, the Go backend on port `4000`, embedded NATS on port `4555`, and Prometheus metrics on `http://localhost:9090/metrics`.
 
 ## Local Bootstrap Users
 
