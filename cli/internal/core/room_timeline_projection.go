@@ -741,15 +741,17 @@ func (p *RoomTimelineProjection) VisibleRoomTimelineAround(
 		return nil, 0, false, false, false
 	}
 
-	beforeCount := (limit - 1) / 2
-	afterCount := limit - beforeCount - 1
-	start := targetVisibleIndex - beforeCount
+	start := targetVisibleIndex - (limit-1)/2
 	if start < 0 {
 		start = 0
 	}
-	end := targetVisibleIndex + afterCount + 1
+	end := start + limit
 	if end > visibleCount {
 		end = visibleCount
+		start = end - limit
+		if start < 0 {
+			start = 0
+		}
 	}
 
 	out := make([]*TimelineEntry, 0, end-start)

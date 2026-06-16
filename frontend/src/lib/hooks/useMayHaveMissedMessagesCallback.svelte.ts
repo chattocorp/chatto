@@ -16,6 +16,10 @@ export type MayHaveMissedMessagesReason =
 
 const DEDUPE_MS = 1_000;
 
+function isEventBusReason(reason: MayHaveMissedMessagesReason): boolean {
+  return reason.startsWith('event-bus-');
+}
+
 /**
  * Run a callback when the tab/client has a credible chance of having missed
  * live room events. Bursty browser wake signals are collapsed so one phone
@@ -52,20 +56,31 @@ export function useMayHaveMissedMessagesCallback(
 
   async function run(reason: MayHaveMissedMessagesReason): Promise<void> {
     inFlight = true;
+    let succeeded = false;
+    let nextReason: MayHaveMissedMessagesReason | null = null;
     console.debug('[room-refresh] maybe-missed signal', { reason });
     try {
       const refreshed = await callback(reason);
       if (refreshed !== false) {
         lastSucceededAt = Date.now();
+        succeeded = true;
       }
     } catch (error) {
       console.debug('[room-refresh] maybe-missed callback failed', { reason, error });
     } finally {
       inFlight = false;
-      const nextReason = queuedReason;
+      nextReason = queuedReason;
       queuedReason = null;
-      if (nextReason && Date.now() - lastSucceededAt >= DEDUPE_MS) {
+    }
+
+    if (nextReason) {
+      if (!succeeded || isEventBusReason(nextReason)) {
+        console.debug('[room-refresh] running queued maybe-missed signal', { reason: nextReason });
         void run(nextReason);
+      } else {
+        console.debug('[room-refresh] skipped queued duplicate after successful refresh', {
+          reason: nextReason
+        });
       }
     }
   }

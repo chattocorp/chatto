@@ -216,7 +216,10 @@ func (s *MyEventsService) StreamMyEvents(ctx context.Context, userID string) (<-
 				}
 
 			case msg := <-msgChan:
-				event, ok := s.filterLiveEvent(ctx, userID, memberRooms, msg)
+				event, ok, closeStream := s.filterLiveEvent(ctx, userID, memberRooms, msg)
+				if closeStream {
+					return
+				}
 				if !ok {
 					continue
 				}
@@ -286,28 +289,30 @@ func (s *MyEventsService) populateMemberRoomsCache(ctx context.Context, userID s
 }
 
 // filterLiveEvent unmarshals a message from one of the live delivery roots and
-// applies per-user authorization. Returns the event and true if it should be
-// delivered. Mutates memberRooms when the subscriber themselves joins/leaves a
-// room or when a room is deleted.
-func (s *MyEventsService) filterLiveEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg) (EventEnvelope, bool) {
+// applies per-user authorization. The third return value tells the caller to
+// close the stream because a deliverable event could not be made projection-safe;
+// the client will resubscribe and refresh projected state. Mutates memberRooms
+// when the subscriber themselves joins/leaves a room or when a room is deleted.
+func (s *MyEventsService) filterLiveEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg) (EventEnvelope, bool, bool) {
 	if strings.HasPrefix(msg.Subject, "live.sync.") {
 		var live corev1.LiveEvent
 		if err := proto.Unmarshal(msg.Data, &live); err != nil {
 			s.core.logger.Warn("Failed to unmarshal live sync event", "subject", msg.Subject, "error", err)
-			return nil, false
+			return nil, false, false
 		}
-		return s.filterLiveSyncEvent(ctx, userID, memberRooms, msg, &live)
+		event, ok := s.filterLiveSyncEvent(ctx, userID, memberRooms, msg, &live)
+		return event, ok, false
 	}
 
 	if !strings.HasPrefix(msg.Subject, events.LiveSubjectRoot) {
 		s.core.logger.Warn("Unknown live event subject root", "subject", msg.Subject)
-		return nil, false
+		return nil, false, false
 	}
 
 	var event corev1.Event
 	if err := proto.Unmarshal(msg.Data, &event); err != nil {
 		s.core.logger.Warn("Failed to unmarshal live event", "subject", msg.Subject, "error", err)
-		return nil, false
+		return nil, false, false
 	}
 
 	return s.filterLiveEVTEvent(ctx, userID, memberRooms, msg, &event)
@@ -349,48 +354,50 @@ func (s *MyEventsService) filterLiveSyncEvent(ctx context.Context, userID string
 	return NewLiveEventEnvelope(event), true
 }
 
-func (s *MyEventsService) filterLiveEVTEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *corev1.Event) (EventEnvelope, bool) {
+func (s *MyEventsService) filterLiveEVTEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *corev1.Event) (EventEnvelope, bool, bool) {
 	seq := liveEVTMsgSeq(msg)
 	if seq == 0 {
 		s.core.logger.Warn("live EVT message missing stream sequence", "subject", msg.Subject, "sequence", msg.Header.Get(nats.JSSequence))
-		return nil, false
+		return nil, false, false
 	}
 
 	if roomID, ok := events.ParseRoomSubject(msg.Subject); ok {
 		if !isDeliverableLiveEVTRoomEvent(event) {
-			return nil, false
+			return nil, false, false
 		}
 		waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
 		defer cancel()
 		evtSubject := events.SubjectRoot + strings.TrimPrefix(msg.Subject, events.LiveSubjectRoot)
 		if err := s.waitForLiveEVTRoomEvent(waitCtx, evtSubject, event, seq); err != nil {
-			s.core.logger.Warn("Timed out waiting for live EVT projection readiness", "subject", msg.Subject, "sequence", seq, "error", err)
-			return nil, false
+			s.core.logger.Warn("Live EVT projection readiness failed - tearing down stream", "subject", msg.Subject, "sequence", seq, "error", err)
+			return nil, false, true
 		}
 
-		return s.filterReadyEVTRoomSubjectEvent(userID, memberRooms, roomID, event, seq)
+		filtered, ok := s.filterReadyEVTRoomSubjectEvent(userID, memberRooms, roomID, event, seq)
+		return filtered, ok, false
 	}
 
 	if _, ok := events.ParseAssetSubject(msg.Subject); ok {
 		if !isDeliverableLiveEVTAssetEvent(event) {
-			return nil, false
+			return nil, false, false
 		}
 		waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
 		defer cancel()
 		evtSubject := events.SubjectRoot + strings.TrimPrefix(msg.Subject, events.LiveSubjectRoot)
 		if err := s.waitForLiveEVTAssetEvent(waitCtx, evtSubject, seq); err != nil {
-			s.core.logger.Warn("Timed out waiting for live EVT asset projection readiness", "subject", msg.Subject, "sequence", seq, "error", err)
-			return nil, false
+			s.core.logger.Warn("Live EVT asset projection readiness failed - tearing down stream", "subject", msg.Subject, "sequence", seq, "error", err)
+			return nil, false, true
 		}
 		assetID := assetIDOfLifecycleEvent(event)
 		roomID, ok := s.core.assetLifecycle().AssetRoomID(assetID)
 		if !ok {
-			return nil, false
+			return nil, false, false
 		}
-		return s.filterReadyEVTAssetSubjectEvent(userID, memberRooms, roomID, event, seq)
+		filtered, ok := s.filterReadyEVTAssetSubjectEvent(userID, memberRooms, roomID, event, seq)
+		return filtered, ok, false
 	}
 
-	return nil, false
+	return nil, false, false
 }
 
 func liveEVTMsgSeq(msg *nats.Msg) uint64 {

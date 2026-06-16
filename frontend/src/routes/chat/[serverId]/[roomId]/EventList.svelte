@@ -497,7 +497,7 @@
 
     const bottomDistance = distanceFromBottom();
     const wasAtBottom =
-      alwaysScrollToBottom || shouldScrollToBottom || bottomDistance === null || bottomDistance < 50;
+      alwaysScrollToBottom || (bottomDistance === null ? shouldScrollToBottom : bottomDistance < 50);
     const anchor = wasAtBottom ? null : captureRefreshAnchor();
 
     softRefreshInFlight = true;

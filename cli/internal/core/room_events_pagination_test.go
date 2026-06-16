@@ -26,6 +26,36 @@ func TestChattoCore_GetRoomEventsAroundReturnsChronologicalWindow(t *testing.T) 
 	if !result.HasNewer {
 		t.Error("HasNewer = false, want true")
 	}
+
+	nearStart, err := core.GetRoomEventsAround(context.Background(), KindChannel, "R1", "M2", 5)
+	if err != nil {
+		t.Fatalf("GetRoomEventsAround near start: %v", err)
+	}
+	assertRoomEventIDs(t, nearStart.Events, []string{"M1", "M2", "M3", "M4", "M5"})
+	if nearStart.TargetIndex != 1 {
+		t.Errorf("near-start TargetIndex = %d, want 1", nearStart.TargetIndex)
+	}
+	if nearStart.HasOlder {
+		t.Error("near-start HasOlder = true, want false")
+	}
+	if !nearStart.HasNewer {
+		t.Error("near-start HasNewer = false, want true")
+	}
+
+	nearEnd, err := core.GetRoomEventsAround(context.Background(), KindChannel, "R1", "M9", 5)
+	if err != nil {
+		t.Fatalf("GetRoomEventsAround near end: %v", err)
+	}
+	assertRoomEventIDs(t, nearEnd.Events, []string{"M6", "M7", "M8", "M9", "M10"})
+	if nearEnd.TargetIndex != 3 {
+		t.Errorf("near-end TargetIndex = %d, want 3", nearEnd.TargetIndex)
+	}
+	if !nearEnd.HasOlder {
+		t.Error("near-end HasOlder = false, want true")
+	}
+	if nearEnd.HasNewer {
+		t.Error("near-end HasNewer = true, want false")
+	}
 }
 
 func TestChattoCore_GetRoomEventsAfterReturnsNearestNewerPage(t *testing.T) {

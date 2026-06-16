@@ -3,9 +3,12 @@ package core
 import (
 	"context"
 	"errors"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/events"
@@ -224,6 +227,56 @@ func TestStreamMyEvents_DoesNotDeliverMessageBodyEvent(t *testing.T) {
 		case <-timeout:
 			t.Fatal("viewer never received public MessagePostedEvent")
 		}
+	}
+}
+
+func TestStreamMyEvents_ClosesWhenLiveEVTProjectionReadinessFails(t *testing.T) {
+	harness := newTestEventHarness(t)
+	ctx := testContext(t)
+	roomID := "R-projection-fail"
+	userID := "U-projection-fail"
+	event := &corev1.Event{
+		Id:      "E-projection-fail",
+		ActorId: userID,
+		Event: &corev1.Event_MessagePosted{
+			MessagePosted: &corev1.MessagePostedEvent{RoomId: roomID},
+		},
+	}
+	subject := events.RoomAggregate(roomID).SubjectFor(event)
+	seq, err := harness.publisher.Append(ctx, subject, event)
+	if err != nil {
+		t.Fatalf("Append: %v", err)
+	}
+
+	// Use a projector whose subject filters do not consume room events. The
+	// projection readiness wait fails immediately, matching the production
+	// failure mode without waiting for the timeout.
+	wrongProjector := harness.projector(NewAssetProjection())
+	core := &ChattoCore{logger: testServiceLogger()}
+	core.roomService = newRoomService(
+		nil,
+		nil,
+		nil,
+		nil,
+		NewRoomTimelineProjection(),
+		wrongProjector,
+		NewThreadProjection(),
+		wrongProjector,
+		nil,
+		nil,
+	)
+	service := NewMyEventsService(core)
+	msg := &nats.Msg{
+		Subject: events.LiveSubjectRoot + strings.TrimPrefix(subject, events.SubjectRoot),
+		Header:  nats.Header{nats.JSSequence: []string{strconv.FormatUint(seq, 10)}},
+	}
+
+	delivered, ok, closeStream := service.filterLiveEVTEvent(ctx, userID, map[string]struct{}{roomID: {}}, msg, event)
+	if delivered != nil || ok {
+		t.Fatalf("filterLiveEVTEvent delivered %T/%v, want dropped", delivered, ok)
+	}
+	if !closeStream {
+		t.Fatal("filterLiveEVTEvent closeStream = false, want true")
 	}
 }
 

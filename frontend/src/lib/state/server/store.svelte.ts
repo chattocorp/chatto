@@ -70,7 +70,9 @@ export class ServerStateStore {
 
   /** Disposer for the internal effect root that wires lifecycle reactivity. */
   readonly #disposeEffects: () => void;
-  #lastCatchUpRefreshAt = 0;
+  #lastSuccessfulCatchUpRefreshAt = 0;
+  #catchUpRefreshInFlight = false;
+  #queuedCatchUpRefreshReason: EventBusCatchUpReason | null = null;
 
   constructor(registered: RegisteredServer, gqlClient: GraphQLClient) {
     this.serverId = registered.id;
@@ -172,42 +174,75 @@ export class ServerStateStore {
     });
   }
 
-  private async refreshProjectedStateAfterMissedEvents(reason: EventBusCatchUpReason): Promise<void> {
+  private async refreshProjectedStateAfterMissedEvents(
+    reason: EventBusCatchUpReason,
+    force = false
+  ): Promise<void> {
     if (!this.isAuthenticated) return;
 
+    if (this.#catchUpRefreshInFlight) {
+      this.#queuedCatchUpRefreshReason = reason;
+      console.debug(`[server:${this.#registered.url}] queued catch-up refresh while one is running`, {
+        reason
+      });
+      return;
+    }
+
     const now = Date.now();
-    if (now - this.#lastCatchUpRefreshAt < CATCH_UP_REFRESH_DEDUPE_MS) {
+    if (!force && now - this.#lastSuccessfulCatchUpRefreshAt < CATCH_UP_REFRESH_DEDUPE_MS) {
       console.debug(`[server:${this.#registered.url}] skipped duplicate catch-up refresh`, {
         reason
       });
       return;
     }
-    this.#lastCatchUpRefreshAt = now;
 
-    console.debug(`[server:${this.#registered.url}] refreshing projected state after event bus gap`, {
-      reason
-    });
+    this.#catchUpRefreshInFlight = true;
+    let failed = false;
 
-    const run = async (label: string, task: () => Promise<unknown>) => {
-      try {
-        await task();
-      } catch (err) {
-        console.error(`[server:${this.#registered.url}] catch-up refresh failed: ${label}`, err);
+    try {
+      console.debug(`[server:${this.#registered.url}] refreshing projected state after event bus gap`, {
+        reason
+      });
+
+      const run = async (label: string, task: () => Promise<unknown>) => {
+        try {
+          await task();
+        } catch (err) {
+          failed = true;
+          console.error(`[server:${this.#registered.url}] catch-up refresh failed: ${label}`, err);
+        }
+      };
+
+      await Promise.all([
+        run('session', () => this.currentUser.validateSession()),
+        run('server profile', () => this.serverInfo.refreshProfile()),
+        run('authenticated settings', () => this.serverInfo.refreshAuthenticatedSettings()),
+        run('notifications', () => this.notifications.fetch()),
+        run('rooms', () => this.rooms.refresh()),
+        run('room directory', () => this.roomDirectory.refresh()),
+        run('admin room layout', () => this.adminRoomLayout.refresh()),
+        this.serverInfo.livekitUrl
+          ? run('active calls', () => this.activeCallRooms.load())
+          : Promise.resolve()
+      ]);
+
+      if (!failed) {
+        this.#lastSuccessfulCatchUpRefreshAt = Date.now();
+        console.debug(`[server:${this.#registered.url}] projected state catch-up refresh completed`, {
+          reason
+        });
       }
-    };
-
-    await Promise.all([
-      run('session', () => this.currentUser.validateSession()),
-      run('server profile', () => this.serverInfo.refreshProfile()),
-      run('authenticated settings', () => this.serverInfo.refreshAuthenticatedSettings()),
-      run('notifications', () => this.notifications.fetch()),
-      run('rooms', () => this.rooms.refresh()),
-      run('room directory', () => this.roomDirectory.refresh()),
-      run('admin room layout', () => this.adminRoomLayout.refresh()),
-      this.serverInfo.livekitUrl
-        ? run('active calls', () => this.activeCallRooms.load())
-        : Promise.resolve()
-    ]);
+    } finally {
+      this.#catchUpRefreshInFlight = false;
+      const queuedReason = this.#queuedCatchUpRefreshReason;
+      this.#queuedCatchUpRefreshReason = null;
+      if (queuedReason) {
+        console.debug(`[server:${this.#registered.url}] running queued catch-up refresh`, {
+          reason: queuedReason
+        });
+        void this.refreshProjectedStateAfterMissedEvents(queuedReason, true);
+      }
+    }
   }
 
   /**
