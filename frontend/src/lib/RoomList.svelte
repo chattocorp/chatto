@@ -117,6 +117,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   // hasRoomNotification deliberately excludes DMs.
   function isHighlighted(room: RoomsListItem): boolean {
     if (room.id === activeRoomId) return true;
+    if (activeCallRooms.has(room.id)) return true;
     if (room.hasUnread) return true;
     if (room.type === RoomType.Dm) {
       return notificationStore.hasDMRoomNotification(room.id);
@@ -261,13 +262,47 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   }
 </script>
 
+{#snippet callBadge(room: RoomsListItem, callParticipants: CallRoomParticipant[])}
+  <div
+    class="basis-full pl-7 cursor-pointer"
+    role="button"
+    tabindex="0"
+    aria-label="Join active call"
+    data-testid="room-call-badge"
+    onclick={(e) => handleCallBadgeClick(e, room.id)}
+    onkeydown={(e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        handleCallBadgeClick(e, room.id);
+      }
+    }}
+  >
+    <div
+      class={[
+        'meta-badge border-transparent gap-1.5 px-1.5 py-0.5',
+        room.id === activeRoomId ? 'bg-surface-200' : ''
+      ]}
+    >
+      <span class="iconify animate-pulse text-accent uil--phone text-sm"></span>
+      {#if callParticipants.length > 0}
+        <div class="inline-flex -space-x-1.5">
+          {#each callParticipants as p (p.userId)}
+            <UserAvatar user={toAvatarUser(p)} size="xs" showPresence={false} />
+          {/each}
+        </div>
+      {/if}
+    </div>
+  </div>
+{/snippet}
+
 {#snippet roomLink(room: RoomsListItem)}
-  {@const callParticipants = activeCallRooms.has(room.id) ? activeCallRooms.getParticipants(room.id) : []}
+  {@const hasActiveCall = activeCallRooms.has(room.id)}
+  {@const callParticipants = hasActiveCall ? activeCallRooms.getParticipants(room.id) : []}
   <a
     href={resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId: room.id })}
     class={[
       'sidebar-item group/badges',
-      callParticipants.length > 0 ? 'flex-wrap gap-y-1' : '',
+      hasActiveCall ? 'flex-wrap gap-y-1' : '',
       room.id === activeRoomId ? 'bg-surface-100' : '',
       room.hasUnread &&
       room.id !== activeRoomId &&
@@ -299,32 +334,20 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
     <!-- Call participant avatars (badge row, wraps below room name).
          Clicking the badge navigates to the room AND joins the call. -->
-    {#if callParticipants.length > 0}
-      <div
-        class="basis-full pl-7 cursor-pointer"
-        role="button"
-        tabindex="0"
-        onclick={(e) => handleCallBadgeClick(e, room.id)}
-        onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCallBadgeClick(e, room.id); } }}
-      >
-        <div class={["meta-badge border-transparent gap-1.5 px-1.5 py-0.5", room.id === activeRoomId ? 'bg-surface-200' : '']}>
-          <span class="iconify animate-pulse text-accent uil--phone text-sm"></span>
-          <div class="inline-flex -space-x-1.5">
-            {#each callParticipants as p (p.userId)}
-              <UserAvatar user={toAvatarUser(p)} size="xs" showPresence={false} />
-            {/each}
-          </div>
-        </div>
-      </div>
+    {#if hasActiveCall}
+      {@render callBadge(room, callParticipants)}
     {/if}
   </a>
 {/snippet}
 
 {#snippet dmLink(room: RoomsListItem)}
+  {@const hasActiveCall = activeCallRooms.has(room.id)}
+  {@const callParticipants = hasActiveCall ? activeCallRooms.getParticipants(room.id) : []}
   <a
     href={resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId: room.id })}
     class={[
-      'sidebar-item',
+      'sidebar-item group/badges',
+      hasActiveCall ? 'flex-wrap gap-y-1' : '',
       room.id === activeRoomId ? 'bg-surface-100' : '',
       room.hasUnread && room.id !== activeRoomId ? 'font-semibold' : ''
     ]}
@@ -350,6 +373,10 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     {:else if room.hasUnread}
       <UnreadDot color="primary" testid="dm-unread-dot" />
       <span class="sr-only">unread messages</span>
+    {/if}
+
+    {#if hasActiveCall}
+      {@render callBadge(room, callParticipants)}
     {/if}
   </a>
 {/snippet}
