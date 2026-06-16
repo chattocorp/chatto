@@ -520,7 +520,6 @@ test('complete user journey: signup -> create space -> post message', async ({
 
   // Step 2: Navigate to chat and create a new space
   await chatPage.goto();
-  await chatPage.createSpace();
 
   // Step 3: Navigate to #general room (should be auto-created)
   await chatPage.enterRoom('general');

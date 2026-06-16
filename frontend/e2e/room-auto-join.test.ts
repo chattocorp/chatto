@@ -14,7 +14,6 @@ test.describe('Room auto-join', () => {
     // User A: Create account and space
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
 
     const spaceId = await chatPage.getSpaceId();
 
@@ -64,7 +63,6 @@ test.describe('Room auto-join', () => {
     // User A: Create account, space, and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
 
     const spaceId = await chatPage.getSpaceId();
 

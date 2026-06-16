@@ -18,7 +18,6 @@ test.describe('User context menu', () => {
       // User A: Create space and send a message
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       const spaceId = await chatPage.getSpaceId();
       await chatPage.enterRoom('general');
       await roomPage.sendMessage('Hello from User A');
@@ -70,7 +69,6 @@ test.describe('User context menu', () => {
       // Create space and send a message
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
       await roomPage.sendMessage('Test message');
 
@@ -96,7 +94,6 @@ test.describe('User context menu', () => {
     }) => {
       const user = await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
       await roomPage.sendMessage('Test message');
 
@@ -123,7 +120,6 @@ test.describe('User context menu', () => {
     }) => {
       const user = await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
 
       // Wait for the member to be visible in the member list
@@ -149,7 +145,6 @@ test.describe('User context menu', () => {
     }) => {
       const user = await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
 
       await roomPage.expectMemberVisible(user.login, { timeout: TIMEOUTS.UI_STANDARD });
@@ -171,7 +166,6 @@ test.describe('User context menu', () => {
     test('pressing Escape closes the user profile dialog', async ({ page, chatPage, roomPage }) => {
       const user = await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
       await roomPage.sendMessage('Test message');
 
@@ -197,7 +191,6 @@ test.describe('User context menu', () => {
     }) => {
       const user = await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
       await roomPage.sendMessage('Test message');
 
@@ -221,7 +214,6 @@ test.describe('User context menu', () => {
     test('user profile dialog shows Send Message button', async ({ page, chatPage, roomPage }) => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
 
       // Send a message so we have an avatar to click

@@ -131,7 +131,6 @@ test.describe('Cross-instance dots', () => {
 		// remote notification dot routes to another server.
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		await chatPage.createSpace();
 		await chatPage.enterRoom('general');
 		const homeGeneralRoomId = await getRoomIdByName(page, 'general');
 		const homeBody = `Home room before remote dot ${Date.now()}`;
@@ -199,7 +198,6 @@ test.describe('Cross-instance dots', () => {
 		// already-rendered room subtree when it jumps to the remote instance.
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		await chatPage.createSpace();
 		await chatPage.enterRoom('general');
 		const homeGeneralRoomId = await getRoomIdByName(page, 'general');
 		const homeBody = `Home room before remote DM switch ${Date.now()}`;
@@ -263,7 +261,6 @@ test.describe('Cross-instance dots', () => {
 		// Home: User A creates a space, posts a root message, then leaves the room.
 		const userA = await createAndLoginTestUser(page);
 		await chatPage.goto();
-		await chatPage.createSpace();
 		const spaceId = await chatPage.getSpaceId();
 
 		await chatPage.enterRoom('general');

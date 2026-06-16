@@ -33,9 +33,8 @@ export class ExplorePage {
    * member, or the "Joined" link if they already are. Issue #330 / ADR-027:
    * signup auto-joins the primary space, so the directory often shows a
    * Joined badge by the time tests interact with it. The `_spaceName` arg
-   * is ignored — the directory has at most one card and we just open it,
-   * because tests that pass custom names from `chatPage.createSpace(name)`
-   * (now a no-op) won't find their card otherwise.
+   * is ignored — server membership is implicit and the directory has at most
+   * one card.
    */
   async joinSpace(_spaceName?: string): Promise<void> {
     // Post-#330 PR(a) the Browse Spaces UI is gone — server membership is

@@ -23,7 +23,6 @@ test.describe('Multi-Tab Unread Sync', () => {
     // User A: Create space (auto-enters a room due to redirect behavior)
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
 
     // Navigate User A to announcements room (not general) so general stays unread
@@ -115,7 +114,6 @@ test.describe('Multi-window unread sync', () => {
     // User A: Create account and space
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace('Shared Space');
     const spaceId = await chatPage.getSpaceId();
 
     // User A visits general room then leaves to announcements
@@ -204,7 +202,6 @@ test.describe('Unread indicators', () => {
     // (User A stays in announcements while User B posts in general)
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
 
     const spaceId = await chatPage.getSpaceId();
 
@@ -279,7 +276,6 @@ test.describe('Unread indicators', () => {
   test('unread indicator clears when navigating to room', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
 
     // Navigate to general room first
     await chatPage.enterRoom('general');
@@ -314,7 +310,6 @@ test.describe('Room unread separator', () => {
     // User A: Create account and space
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace('Separator Test Space');
     const spaceId = await chatPage.getSpaceId();
 
     // User A enters general room and posts initial messages
@@ -385,7 +380,6 @@ test.describe('Room unread separator', () => {
     // User A: Create account and space
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace('First Visit Test');
     const spaceId = await chatPage.getSpaceId();
 
     // User A enters general room and posts a message
@@ -430,7 +424,6 @@ test.describe('Room unread separator', () => {
     // User A: Create account and space
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace('Fixed Separator Test');
     const spaceId = await chatPage.getSpaceId();
 
     // User A enters general room and posts initial message
@@ -504,7 +497,6 @@ test.describe('Room unread separator', () => {
     // User A: Create account and space, post an initial message in general.
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace('Hidden Tab Separator Test');
     const spaceId = await chatPage.getSpaceId();
 
     await chatPage.enterRoom('general');
@@ -600,7 +592,6 @@ test.describe('Room unread separator', () => {
     // so User B has a real read cursor anchored on a root message.
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace('Non-Message Hidden Tab Test');
 
     await chatPage.enterRoom('general');
     await waitForRoomReady(page, 'general');
@@ -713,7 +704,6 @@ test.describe('Room unread separator', () => {
     // User A: Create account and space, post an existing message in general.
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace('Own Message Hidden Tab Test');
     const spaceId = await chatPage.getSpaceId();
 
     await chatPage.enterRoom('general');
@@ -778,7 +768,6 @@ test.describe('Room unread separator', () => {
     // User creates account and space
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace('Own Message Test');
     const spaceId = await chatPage.getSpaceId();
 
     // Enter room
@@ -835,7 +824,6 @@ test.describe('Room unread separator', () => {
     // separator even though the user obviously saw their first message.
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace('Background Refocus Post Test');
 
     await chatPage.enterRoom('general');
     await waitForRoomReady(page, 'general');
@@ -900,7 +888,6 @@ test.describe('Unread dot stability after loadRooms refresh', () => {
     // User A: Create account and space
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace('Sticky Dot Test');
     const spaceId = await chatPage.getSpaceId();
 
     // User A enters general room and posts a message
@@ -1014,7 +1001,6 @@ test.describe('Thread reply unread behavior', () => {
     // User A: Create account and space
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace('Thread Unread Test');
     const spaceId = await chatPage.getSpaceId();
 
     // User A enters general room and posts a root message

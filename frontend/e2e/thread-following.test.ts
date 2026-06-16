@@ -14,7 +14,6 @@ test.describe('Thread Following', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post root message and open thread
@@ -33,7 +32,6 @@ test.describe('Thread Following', () => {
   test('clicking follow bell toggles follow state', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Create a thread
@@ -62,7 +60,6 @@ test.describe('Thread Following', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post root message and open thread
@@ -80,7 +77,6 @@ test.describe('Thread Following', () => {
   test('thread pane follow button toggles follow state', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Create a thread and stay in the pane
@@ -108,7 +104,6 @@ test.describe('Thread Following', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Create a second room to navigate to
@@ -150,7 +145,6 @@ test.describe('Thread Following', () => {
     // User A (Alice) posts a root message
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const spaceId = await chatPage.getSpaceId();
@@ -202,7 +196,6 @@ test.describe('Thread Following', () => {
     // User A (Alice) posts a root message
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const spaceId = await chatPage.getSpaceId();
@@ -251,7 +244,6 @@ test.describe('Thread Following', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const spaceId = await chatPage.getSpaceId();
@@ -312,7 +304,6 @@ test.describe('Thread Following', () => {
     // User A posts two messages: a root and a reply-attributed reply (inReplyTo set)
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const spaceId = await chatPage.getSpaceId();

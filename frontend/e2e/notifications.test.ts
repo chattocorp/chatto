@@ -23,7 +23,6 @@ test.describe('Mention Notifications', () => {
     // User A: Create account, space, and navigate to announcements room
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
 
     const spaceId = await chatPage.getSpaceId();
 
@@ -79,7 +78,6 @@ test.describe('Mention Notifications', () => {
     // User A: Create account, space
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
 
     // Issue #330: upload the logo as e2eadmin (the bootstrap space owner) since
@@ -150,7 +148,6 @@ test.describe('Mention Notifications', () => {
     // User A: Create account, space, and navigate to announcements room
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
 
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('announcements');
@@ -199,7 +196,6 @@ test.describe('Thread Reply Notifications (Cascading Orange Dot)', () => {
     // User A: Create account, space, and post a root message
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
 
     await chatPage.enterRoom('general');
@@ -289,7 +285,6 @@ test.describe('Notification Bell & Page', () => {
     // User A: Create account, space
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('announcements');
 
@@ -353,7 +348,7 @@ test.describe('Notification Page Display', () => {
     // User A: Create account, space
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.createSpace();
+    const spaceName = await chatPage.getServerName();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('announcements');
 
@@ -398,7 +393,7 @@ test.describe('Notification Page Display', () => {
     // User A: Create space and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.createSpace();
+    const spaceName = await chatPage.getServerName();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('general');
     const rootMessage = `Reply notification test ${Date.now()}`;
@@ -448,7 +443,6 @@ test.describe('Notification Page Display', () => {
     // User A: Create space, post a message in general, and create an additional room
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('general');
     const rootMessage = `Multiple notifications test ${Date.now()}`;
@@ -511,7 +505,6 @@ test.describe('Notification Dismissal', () => {
     // User A: Create account, space
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('announcements');
 
@@ -554,7 +547,6 @@ test.describe('Notification Dismissal', () => {
     // User A: Create space, post message in general, and create an additional room
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('general');
     const rootMessage = `Clear all test ${Date.now()}`;
@@ -620,7 +612,6 @@ test.describe('Notification Dismissal', () => {
     // User A: Create account, space
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('announcements');
 
@@ -664,7 +655,6 @@ test.describe('Navigation from Notifications', () => {
     // User A: Create account, space
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('announcements');
 
@@ -706,7 +696,6 @@ test.describe('Navigation from Notifications', () => {
     // User A: Create space and post message
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('general');
     const rootMessage = `Thread nav test ${Date.now()}`;
@@ -758,7 +747,6 @@ test.describe('Navigation from Notifications', () => {
     // User A: Create account, space
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('announcements');
 
@@ -802,7 +790,6 @@ test.describe('Cross-Tab Sync', () => {
     // User A: Create account, space
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('announcements');
 
@@ -857,7 +844,6 @@ test.describe('Cross-Tab Sync', () => {
     // User A: Create account, space
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('announcements');
 
@@ -918,7 +904,6 @@ test.describe('Cross-Tab Sync', () => {
     // User A: Create account, space
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('announcements');
 
@@ -972,7 +957,6 @@ test.describe('Cross-Tab Sync', () => {
     // User A: Create space and post message
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('general');
     const rootMessage = `Thread sync test ${Date.now()}`;
@@ -1039,7 +1023,6 @@ test.describe('Cross-Tab Sync', () => {
 
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('announcements');
 
     // The room-level orange dot on #general (warning-colored). Scoped to
@@ -1120,7 +1103,6 @@ test.describe('Real-time Notification Updates', () => {
     // User A: Create account, space, go to notifications page
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
 
     // Navigate to notifications page (empty)
@@ -1163,7 +1145,6 @@ test.describe('Real-time Notification Updates', () => {
     // User A: Create space, post message, go to notifications
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('general');
     const rootMessage = `Count test ${Date.now()}`;
@@ -1214,7 +1195,6 @@ test.describe('Page Title Notification Count', () => {
     // User A: Create account, space
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('announcements');
 
@@ -1251,7 +1231,6 @@ test.describe('Page Title Notification Count', () => {
     // User A: Create space, post message in general, and create an additional room
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('general');
     const rootMessage = `Title count test ${Date.now()}`;
@@ -1317,7 +1296,6 @@ test.describe('Page Title Notification Count', () => {
     // User A: Create account, space
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('announcements');
 
@@ -1359,7 +1337,6 @@ test.describe('Page Title Notification Count', () => {
     // User A: Create space, post message in general, and create an additional room
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('general');
     const rootMessage = `Title decrement test ${Date.now()}`;
@@ -1437,7 +1414,6 @@ test.describe('Clickable Notification Dots', () => {
     // User A: Create account, space
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('announcements');
 
@@ -1491,7 +1467,6 @@ test.describe('Clickable Notification Dots', () => {
     // User A: Create space and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('general');
     const rootMessage = `Room reply dot test ${Date.now()}`;
@@ -1557,7 +1532,7 @@ test.describe('Room Reply Notifications', () => {
     // User A: Create space and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.createSpace();
+    const spaceName = await chatPage.getServerName();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('general');
     const rootMessage = `Room reply notify test ${Date.now()}`;
@@ -1619,7 +1594,6 @@ test.describe('Room Reply Notifications', () => {
     // User A: Create space and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('general');
     const rootMessage = `Room reply nav test ${Date.now()}`;
@@ -1669,7 +1643,6 @@ test.describe('Room Reply Notifications', () => {
     // User A: Create space and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('general');
     const rootMessage = `Room reply dismiss test ${Date.now()}`;

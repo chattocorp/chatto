@@ -23,7 +23,7 @@ test.describe('audio player', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const testSpaceName = await chatPage.createSpace();
+    const testSpaceName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     // Set up a second user

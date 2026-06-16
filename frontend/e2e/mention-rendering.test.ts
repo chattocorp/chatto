@@ -24,7 +24,7 @@ test.describe('Mention highlighting', () => {
     // User 1 creates space
     const user1 = await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.createSpace();
+    const spaceName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     // User 2 joins and mentions user 1
@@ -69,7 +69,6 @@ test.describe('Mention highlighting', () => {
   }) => {
     const user = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Send a message mentioning yourself

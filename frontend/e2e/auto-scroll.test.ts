@@ -55,7 +55,7 @@ test.describe('Message pane auto-scroll', () => {
     // User 1: Create space and post enough messages to make container scrollable
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const testSpaceName = await chatPage.createSpace();
+    const testSpaceName = await chatPage.getServerName();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('general');
 
@@ -174,7 +174,7 @@ test.describe('Message pane auto-scroll', () => {
     // User 1: Create space and post enough messages to make container scrollable
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const testSpaceName = await chatPage.createSpace();
+    const testSpaceName = await chatPage.getServerName();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('general');
 
@@ -281,7 +281,7 @@ test.describe('Message pane auto-scroll', () => {
     // User 1: Create space and post enough messages to fill the screen
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const testSpaceName = await chatPage.createSpace();
+    const testSpaceName = await chatPage.getServerName();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('general');
 
@@ -357,7 +357,7 @@ test.describe('Message pane auto-scroll', () => {
     // User 1: Create space and post enough messages to make container scrollable
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const testSpaceName = await chatPage.createSpace();
+    const testSpaceName = await chatPage.getServerName();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('general');
 
@@ -455,7 +455,6 @@ test.describe('Message pane auto-scroll', () => {
     // Create user and space
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Extract roomId from URL; resolve spaceId via GraphQL (post-ADR-027 the
@@ -526,7 +525,6 @@ test.describe('Message pane auto-scroll', () => {
     // Setup: Create user, space, and navigate to room
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('general');
 
@@ -593,7 +591,6 @@ test.describe('Message pane auto-scroll', () => {
     // Create user, space, and enter room
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('general');
 
@@ -670,7 +667,6 @@ test.describe('Message pane auto-scroll', () => {
 
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('general');
 
@@ -751,7 +747,6 @@ test.describe('Message pane auto-scroll', () => {
     // Setup: Create user, space, and navigate to room
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('general');
 
@@ -815,7 +810,6 @@ test.describe('Message pane auto-scroll', () => {
     // Setup: Create user, space, and navigate to room
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('general');
 
@@ -877,7 +871,6 @@ Line 8: This is the last line of this long message.`;
     // Create user, space, and enter room
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('general');
 
@@ -938,7 +931,6 @@ Line 8: This is the last line of this long message.`;
     // Create space and enter general room
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('general');
 

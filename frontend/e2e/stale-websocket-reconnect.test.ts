@@ -44,7 +44,6 @@ test.describe('WebSocket reconnect recovery', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
     await waitForRoomReady(page, 'general');
 
@@ -93,7 +92,6 @@ test.describe('WebSocket reconnect recovery', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
     await waitForRoomReady(page, 'general');
 

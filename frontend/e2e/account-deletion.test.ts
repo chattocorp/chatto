@@ -86,7 +86,6 @@ test.describe('Account Deletion', () => {
       // User A creates a space and posts a message
       const userA = await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
 
       const spaceId = await chatPage.getSpaceId();
@@ -156,7 +155,6 @@ test.describe('Account Deletion', () => {
       // User A creates a space and posts a message
       const userA = await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
 
       const spaceId = await chatPage.getSpaceId();
@@ -220,7 +218,6 @@ test.describe('Account Deletion', () => {
       // User A creates a space
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
 
       const spaceId = await chatPage.getSpaceId();
@@ -279,7 +276,6 @@ test.describe('Account Deletion', () => {
       // User A creates a space
       const userA = await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
 
       const spaceId = await chatPage.getSpaceId();

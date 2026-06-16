@@ -41,7 +41,6 @@ test.describe('message pagination', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const { roomId } = await getIdsFromUrl(page);
@@ -72,7 +71,6 @@ test.describe('message pagination', () => {
 
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const { roomId } = await getIdsFromUrl(page);
@@ -199,7 +197,6 @@ test.describe('message pagination', () => {
 
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const { roomId } = await getIdsFromUrl(page);
@@ -265,7 +262,6 @@ test.describe('message pagination', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
 
     const timestamp = Date.now();
 

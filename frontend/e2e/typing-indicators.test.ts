@@ -21,7 +21,7 @@ test.describe('Typing indicators', () => {
     // User 1: Create space and enter room
     const user1 = await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.createSpace();
+    const spaceName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     // User 2: Join the same space and room
@@ -76,7 +76,7 @@ test.describe('Typing indicators', () => {
     // User 1: Create space and enter room
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.createSpace();
+    const spaceName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     // User 2: Join the same space and room
@@ -121,7 +121,7 @@ test.describe('Typing indicators', () => {
     // User 1: Create space, post a message to start a thread
     const _user1 = await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.createSpace();
+    const spaceName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     const rootMessage = `Thread root ${Date.now()}`;
@@ -187,7 +187,7 @@ test.describe('Typing indicators', () => {
     // User 1: Create space, post a message to start a thread
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.createSpace();
+    const spaceName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     const rootMessage = `Thread root ${Date.now()}`;
@@ -246,7 +246,7 @@ test.describe('Typing indicators', () => {
     // User 1: Create space and enter room
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.createSpace();
+    const spaceName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     // User 2 and User 3: Join the same space and room
@@ -315,7 +315,7 @@ test.describe('Typing indicators', () => {
     // User 1: Create space and enter room
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.createSpace();
+    const spaceName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     // User 2: Join and set up error capture

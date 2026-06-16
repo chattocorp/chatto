@@ -82,7 +82,6 @@ test.describe('Message Threading', () => {
     await test.step('User A creates space and posts root message', async () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
     });
 
@@ -153,7 +152,6 @@ test.describe('Message Threading', () => {
     // because ThreadMessagesStore inherits ingestSpaceEvent from MessageListStore.
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
     const spaceId = await chatPage.getSpaceId();
 
@@ -214,7 +212,6 @@ test.describe('Message Threading', () => {
     // refetchByMessageEventId branch surfaces here.
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
     const spaceId = await chatPage.getSpaceId();
 
@@ -272,7 +269,6 @@ test.describe('Message Threading', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a root message
@@ -312,7 +308,6 @@ test.describe('Message Threading', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Step 1: Post a root message
@@ -363,7 +358,6 @@ test.describe('Message Threading', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post first root message
@@ -402,7 +396,6 @@ test.describe('Message Threading', () => {
   test('thread replies are filtered from main room view', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a root message
@@ -433,7 +426,6 @@ test.describe('Message Threading', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a root message
@@ -455,7 +447,6 @@ test.describe('Message Threading', () => {
   test('re-opening a thread shows both root and replies', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a root message
@@ -484,7 +475,6 @@ test.describe('Message Threading', () => {
   test('browser back button closes thread', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a root message
@@ -511,7 +501,6 @@ test.describe('Message Threading', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a root message and get its event ID
@@ -553,7 +542,6 @@ test.describe('Message Threading', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Resolve roomId from URL and spaceId from the GraphQL primary-space
@@ -582,7 +570,6 @@ test.describe('Message Threading', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a root message
@@ -617,7 +604,6 @@ test.describe('Message Threading', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a root message
@@ -651,7 +637,6 @@ test.describe('Message Threading', () => {
   test('opening thread auto-focuses the reply input', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a root message
@@ -673,7 +658,6 @@ test.describe('Message Threading', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a root message
@@ -701,7 +685,6 @@ test.describe('Message Threading', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a root message
@@ -730,7 +713,6 @@ test.describe('Message Threading', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a root message
@@ -759,7 +741,6 @@ test.describe('Message Threading', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a root message and open thread
@@ -786,7 +767,6 @@ test.describe('Message Threading', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a root message to create a thread target
@@ -816,7 +796,6 @@ test.describe('Message Threading', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a root message
@@ -855,7 +834,6 @@ test.describe('Message Threading', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a root message
@@ -884,7 +862,6 @@ test.describe('Message Threading', () => {
     // User A: Create space and post root message
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const spaceId = await chatPage.getSpaceId();
@@ -955,7 +932,6 @@ test.describe('Message Threading', () => {
     // User A: Create space, post a root message.
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const rootMessage = `Hidden-tab thread root ${Date.now()}`;
@@ -1022,7 +998,6 @@ test.describe('Message Threading', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a root message
@@ -1060,7 +1035,6 @@ test.describe('Message Threading', () => {
   test('different threads have separate draft storage', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post two root messages for two threads
@@ -1108,7 +1082,6 @@ test.describe('Message Threading', () => {
   test('Escape closes thread when reply input is focused', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a root message and open its thread
@@ -1132,7 +1105,6 @@ test.describe('Message Threading', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a root message and open its thread
@@ -1156,7 +1128,6 @@ test.describe('Message Threading', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a message with an image attachment and open its thread
@@ -1192,7 +1163,6 @@ test.describe('Message Threading', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a root message and open thread
@@ -1217,7 +1187,6 @@ test.describe('Message Threading', () => {
 
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const spaceId = await chatPage.getSpaceId();
@@ -1300,7 +1269,6 @@ test.describe('Message Threading', () => {
   test('reply attribution shows avatar for the replied-to author', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const { roomId } = await getIdsFromUrl(page);
@@ -1332,7 +1300,6 @@ test.describe('Message Threading', () => {
   test('clicking reply attribution author opens user context menu', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const { roomId } = await getIdsFromUrl(page);
@@ -1369,7 +1336,6 @@ test.describe('Message Threading', () => {
     test.setTimeout(60_000);
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const { roomId } = await getIdsFromUrl(page);
@@ -1416,7 +1382,6 @@ test.describe('Message Threading', () => {
     // User A creates space and posts a message
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const { roomId } = await getIdsFromUrl(page);
@@ -1474,7 +1439,6 @@ test.describe('Message Threading', () => {
   }) => {
     const user = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const timestamp = Date.now();

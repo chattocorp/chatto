@@ -110,7 +110,6 @@ test.describe('jump to message', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const { roomId } = await getIdsFromUrl(page);
@@ -163,7 +162,6 @@ test.describe('jump to message', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const { roomId } = await getIdsFromUrl(page);
@@ -220,7 +218,6 @@ test.describe('jump to message', () => {
 
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const { roomId } = await getIdsFromUrl(page);
@@ -264,7 +261,6 @@ test.describe('jump to message', () => {
   test('switching rooms resets jump state', async ({ page, chatPage, roomPage: _roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const { roomId } = await getIdsFromUrl(page);

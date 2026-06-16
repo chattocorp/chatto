@@ -8,7 +8,6 @@ import * as routes from './routes';
 test('consecutive messages from same user are grouped', async ({ page, chatPage, roomPage }) => {
   const testUser = await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
   await chatPage.enterRoom('general');
 
   const timestamp = Date.now();
@@ -41,7 +40,6 @@ test('deleting first message in group leaves a tombstone as the group leader', a
 }) => {
   const testUser = await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
   await chatPage.enterRoom('general');
 
   const timestamp = Date.now();
@@ -79,7 +77,6 @@ test('deleting first message in group leaves a tombstone as the group leader', a
 test('day separator appears for first message', async ({ page, chatPage, roomPage }) => {
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
   await chatPage.enterRoom('general');
 
   const testMessage = `Test message ${Date.now()}`;
@@ -92,7 +89,6 @@ test('day separator appears for first message', async ({ page, chatPage, roomPag
 test('post message with image attachment', async ({ page, chatPage, roomPage }) => {
   const testUser = await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
   await chatPage.enterRoom('general');
 
   const testMessage = `Image attachment test ${Date.now()}`;
@@ -113,7 +109,6 @@ test('image attachment refreshes URL after an expired lazy-load request', async 
 }) => {
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
   await chatPage.enterRoom('general');
 
   let refreshQueryCount = 0;
@@ -147,7 +142,6 @@ test('image attachment refreshes URL after an expired lazy-load request', async 
 test('can post message with attachment but no text', async ({ page, chatPage, roomPage }) => {
   const testUser = await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
   await chatPage.enterRoom('general');
 
   // Send attachment-only message
@@ -168,7 +162,6 @@ test('image attachment respects container width on narrow viewport', async ({
   // Setup at normal viewport (sidebar needs space to be visible)
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
   await chatPage.enterRoom('general');
 
   // Upload an image (1024px wide, should be constrained)
@@ -197,7 +190,6 @@ test('room scrolls to bottom on load even with slow-loading images', async ({
 }) => {
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
   await chatPage.enterRoom('general');
 
   // Send a message with an image attachment
@@ -243,7 +235,6 @@ test('cannot post message with neither text nor attachments', async ({
 }) => {
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
   await chatPage.enterRoom('general');
 
   // Try to submit with empty text and no attachments
@@ -259,7 +250,6 @@ test('cannot post message with neither text nor attachments', async ({
 test('send button is visible', async ({ page, chatPage, roomPage }) => {
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
   await chatPage.enterRoom('general');
 
   await expect(roomPage.sendButton).toBeVisible();
@@ -268,7 +258,6 @@ test('send button is visible', async ({ page, chatPage, roomPage }) => {
 test('send button is disabled when input is empty', async ({ page, chatPage, roomPage }) => {
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
   await chatPage.enterRoom('general');
 
   // Ensure input is empty
@@ -281,7 +270,6 @@ test('send button is disabled when input is empty', async ({ page, chatPage, roo
 test('send button is enabled when input has text', async ({ page, chatPage, roomPage }) => {
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
   await chatPage.enterRoom('general');
 
   // Type some text
@@ -294,7 +282,6 @@ test('send button is enabled when input has text', async ({ page, chatPage, room
 test('can send message by clicking send button', async ({ page, chatPage, roomPage }) => {
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
   await chatPage.enterRoom('general');
 
   const testMessage = `Send button test ${Date.now()}`;
@@ -307,7 +294,6 @@ test('can send message by clicking send button', async ({ page, chatPage, roomPa
 test('user can delete their own message', async ({ page, chatPage, roomPage }) => {
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
   await chatPage.enterRoom('general');
 
   const testMessage = `Delete test ${Date.now()}`;
@@ -330,7 +316,6 @@ test('user can delete their own message', async ({ page, chatPage, roomPage }) =
 test('user can cancel deleting a message', async ({ page, chatPage, roomPage }) => {
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
   await chatPage.enterRoom('general');
 
   const testMessage = `Cancel delete test ${Date.now()}`;
@@ -353,7 +338,7 @@ test('deleted message disappears for other connected clients in real-time', asyn
   // User 1: Create space and post a message
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  const spaceName = await chatPage.createSpace();
+  const spaceName = await chatPage.getServerName();
   await chatPage.enterRoom('general');
 
   const testMessage = `Real-time delete test ${Date.now()}`;
@@ -414,7 +399,6 @@ test('deleted message disappears for other connected clients in real-time', asyn
 test('deleted attachment-only message shows placeholder', async ({ page, chatPage, roomPage }) => {
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
   await chatPage.enterRoom('general');
 
   // Send attachment-only message
@@ -438,7 +422,6 @@ test('deleting attachment-only message in group does not mark text message as ed
 }) => {
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
   await chatPage.enterRoom('general');
 
   const timestamp = Date.now();
@@ -474,7 +457,6 @@ test('removing attachment from attachment-only message hides it', async ({
 }) => {
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
   await chatPage.enterRoom('general');
 
   // Send attachment-only message (no text body)
@@ -497,7 +479,6 @@ test('removing attachment from attachment-only message hides it', async ({
 test('deleted message with reactions remains visible', async ({ page, chatPage, roomPage }) => {
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
   await chatPage.enterRoom('general');
 
   const testMessage = `Delete with reaction ${Date.now()}`;
@@ -534,7 +515,7 @@ test('deletion of a reacted message shows placeholder for other connected client
   // doesn't cover and that the previous refetch-only path failed silently on.
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  const spaceName = await chatPage.createSpace();
+  const spaceName = await chatPage.getServerName();
   await chatPage.enterRoom('general');
 
   const testMessage = `Real-time delete with reaction ${Date.now()}`;
@@ -587,7 +568,6 @@ test('deleted message with thread replies remains visible', async ({
 }) => {
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
   await chatPage.enterRoom('general');
 
   const testMessage = `Delete with thread ${Date.now()}`;
@@ -624,7 +604,6 @@ test('image lightbox supports keyboard navigation with multiple images', async (
 }) => {
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
   await chatPage.enterRoom('general');
 
   // Upload two images in a single message
@@ -688,7 +667,6 @@ test('image lightbox does not show navigation for single image', async ({
 }) => {
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
   await chatPage.enterRoom('general');
 
   // Upload a single image
@@ -721,7 +699,6 @@ test.describe('image lightbox back button and tap behavior', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     await roomPage.sendAttachment('e2e/fixtures/brighton.jpg');
@@ -746,7 +723,6 @@ test.describe('image lightbox back button and tap behavior', () => {
   test('closes lightbox by clicking backdrop', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     await roomPage.sendAttachment('e2e/fixtures/brighton.jpg');
@@ -765,7 +741,6 @@ test.describe('Message link rendering', () => {
   test('long URLs do not overflow the message container', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Send a message with a very long URL that would overflow without wrapping

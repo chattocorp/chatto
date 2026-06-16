@@ -29,7 +29,7 @@ test.describe('animated GIF to video conversion @ffmpeg', () => {
 
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		const testSpaceName = await chatPage.createSpace();
+		const testSpaceName = await chatPage.getServerName();
 		await chatPage.enterRoom('general');
 
 		// Set up a second user who will observe the real-time processing event.
@@ -110,7 +110,6 @@ test.describe('animated GIF to video conversion @ffmpeg', () => {
 	test('static GIF renders as image, not video', async ({ page, chatPage, roomPage }) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		await chatPage.createSpace();
 		await chatPage.enterRoom('general');
 
 		// Upload a static (single-frame) GIF

@@ -13,7 +13,6 @@ test.describe('My Threads', () => {
 	}) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		await chatPage.createSpace();
 
 		const spaceId = await chatPage.getSpaceId();
 		const myThreads = new MyThreadsPage(page);
@@ -34,7 +33,6 @@ test.describe('My Threads', () => {
 	}) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		await chatPage.createSpace();
 		await chatPage.enterRoom('general');
 
 		const spaceId = await chatPage.getSpaceId();
@@ -65,7 +63,6 @@ test.describe('My Threads', () => {
 	}) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		await chatPage.createSpace();
 		await chatPage.enterRoom('general');
 
 		const spaceId = await chatPage.getSpaceId();
@@ -96,7 +93,6 @@ test.describe('My Threads', () => {
 	}) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		await chatPage.createSpace();
 		await chatPage.enterRoom('general');
 
 		const spaceId = await chatPage.getSpaceId();
@@ -129,7 +125,6 @@ test.describe('My Threads', () => {
 	}) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		await chatPage.createSpace();
 		await chatPage.enterRoom('general');
 
 		const spaceId = await chatPage.getSpaceId();
@@ -187,7 +182,6 @@ test.describe('My Threads', () => {
 	}) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		await chatPage.createSpace();
 		await chatPage.enterRoom('general');
 
 		const spaceId = await chatPage.getSpaceId();
@@ -249,7 +243,6 @@ test.describe('My Threads', () => {
 	}) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		await chatPage.createSpace();
 		await chatPage.enterRoom('general');
 
 		const spaceId = await chatPage.getSpaceId();
@@ -312,7 +305,6 @@ test.describe('My Threads', () => {
 	}) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		await chatPage.createSpace();
 		await chatPage.enterRoom('general');
 
 		const spaceId = await chatPage.getSpaceId();
@@ -374,7 +366,6 @@ test.describe('My Threads', () => {
 	}) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		await chatPage.createSpace();
 		await chatPage.enterRoom('general');
 
 		const spaceId = await chatPage.getSpaceId();
@@ -433,7 +424,6 @@ test.describe('My Threads', () => {
 	}) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		await chatPage.createSpace();
 		await chatPage.enterRoom('general');
 
 		const spaceId = await chatPage.getSpaceId();
@@ -473,7 +463,6 @@ test.describe('My Threads', () => {
 	}) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		await chatPage.createSpace();
 		await chatPage.enterRoom('general');
 
 		const spaceId = await chatPage.getSpaceId();
@@ -538,7 +527,6 @@ test.describe('My Threads', () => {
 	}) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		await chatPage.createSpace();
 		await chatPage.enterRoom('general');
 
 		const spaceId = await chatPage.getSpaceId();
@@ -585,7 +573,6 @@ test.describe('My Threads', () => {
 	}) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		await chatPage.createSpace();
 		await chatPage.enterRoom('general');
 
 		const spaceId = await chatPage.getSpaceId();
@@ -646,7 +633,6 @@ test.describe('My Threads', () => {
 	}) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		await chatPage.createSpace();
 		await chatPage.enterRoom('general');
 
 		const spaceId = await chatPage.getSpaceId();

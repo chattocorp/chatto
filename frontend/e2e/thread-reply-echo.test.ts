@@ -81,7 +81,6 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     await test.step('Setup: User creates space and posts root message', async () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
     });
 
@@ -106,7 +105,6 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     await test.step('Setup: User creates space and posts root message', async () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
     });
 
@@ -150,7 +148,6 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     await test.step('Setup: User creates space and posts root message', async () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
     });
 
@@ -197,7 +194,6 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     await test.step('User A creates space and posts root message', async () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
       spaceId = await chatPage.getSpaceId();
     });
@@ -258,7 +254,6 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     await test.step('Setup: User creates space and posts root message', async () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
     });
 
@@ -303,7 +298,6 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     await test.step('Setup: User creates space and posts root message', async () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
     });
 
@@ -357,7 +351,6 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     await test.step('Setup: User creates space and posts root message', async () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
     });
 
@@ -415,7 +408,6 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     await test.step('Setup: User creates space and posts root message', async () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
     });
 
@@ -463,7 +455,6 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     await test.step('Setup: User creates space and posts root message', async () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
     });
 
@@ -509,7 +500,6 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     await test.step('Setup: User creates space and posts root message', async () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
     });
 
@@ -555,7 +545,6 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     await test.step('Setup: User creates space and posts root message', async () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
     });
 
@@ -609,7 +598,6 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     await test.step('Setup: User creates space and posts root message', async () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
     });
 
@@ -682,7 +670,6 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     await test.step('Setup: User creates space and posts root message', async () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
     });
 
@@ -722,7 +709,6 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     await test.step('Setup: User creates space and posts root message', async () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
     });
 
@@ -763,7 +749,6 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     await test.step('Setup: User creates space and enters room', async () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
     });
 
@@ -846,7 +831,6 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     await test.step('Setup: User creates space and posts root message', async () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
     });
 
@@ -879,7 +863,6 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     await test.step('Setup: User creates space and posts root message', async () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
     });
 
@@ -916,7 +899,6 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     await test.step('User A creates space and posts root message', async () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
     });
 
@@ -1005,7 +987,6 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     await test.step('User A creates space and posts root message', async () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
       spaceId = await chatPage.getSpaceId();
     });
@@ -1075,7 +1056,6 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     await test.step('Setup: User creates space and enters room', async () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
     });
 
@@ -1176,7 +1156,6 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     await test.step('Setup: User creates space and enters room', async () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
     });
 
@@ -1266,7 +1245,6 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     await test.step('Setup: User creates space and enters room', async () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
     });
 
@@ -1352,7 +1330,6 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     await test.step('Setup: User creates space and enters room', async () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
     });
 

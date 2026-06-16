@@ -17,7 +17,6 @@ test.describe('Real-time synchronization', () => {
     // Session 1: Create user, space
     const user1 = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace(`Room Sync Test ${Date.now()}`);
 
     // Session 1: Create a new room via API (creator is auto-joined)
     const testRoomName = await chatPage.createRoom();
@@ -66,7 +65,6 @@ test.describe('Real-time synchronization', () => {
     const _user1 = await createAndLoginTestUser(page);
     await chatPage.goto();
     const spaceName = `Leave Event Test ${Date.now()}`;
-    await chatPage.createSpace(spaceName);
     await chatPage.createRoom('leave-test');
     await chatPage.expectRoomHeaderVisible('leave-test');
 
@@ -122,7 +120,6 @@ test.describe('Real-time synchronization', () => {
 
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace(`Room Join Test ${Date.now()}`);
 
     // User is auto-joined to general and announcements
     await expect(chatPage.roomList.getByText('# general')).toBeVisible();
@@ -164,7 +161,6 @@ test.describe('Real-time synchronization', () => {
     const user1 = await createAndLoginTestUser(page);
     await chatPage.goto();
     const spaceName = `Display Name Test ${Date.now()}`;
-    await chatPage.createSpace(spaceName);
     await chatPage.createRoom('test-room');
     await chatPage.expectRoomHeaderVisible('test-room');
 
@@ -235,7 +231,6 @@ test.describe('Real-time synchronization', () => {
     const _user1 = await createAndLoginTestUser(page);
     await chatPage.goto();
     const spaceName = `Error Check Test ${Date.now()}`;
-    await chatPage.createSpace(spaceName);
     await chatPage.createRoom('error-test');
     await chatPage.expectRoomHeaderVisible('error-test');
 
@@ -313,7 +308,6 @@ test.describe('Real-time synchronization', () => {
     // User A: Create account, space, and navigate to general room
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
 
     const spaceId = await chatPage.getSpaceId();
 

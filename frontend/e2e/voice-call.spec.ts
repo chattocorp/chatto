@@ -52,7 +52,6 @@ test.describe('Voice calls', () => {
 	test('call button appears in room header', async ({ page, chatPage }) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		await chatPage.createSpace();
 		await chatPage.enterRoom('general');
 
 		const callButton = page.getByTitle('Join voice call');
@@ -84,7 +83,6 @@ test.describe('Voice calls', () => {
 	test('voiceCallToken query returns a valid JWT', async ({ page, chatPage }) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		await chatPage.createSpace();
 		await chatPage.enterRoom('general');
 		const roomId = await getRoomIdByName(page, 'general');
 
@@ -122,7 +120,6 @@ test.describe('Voice calls', () => {
 		// User A creates a space and room
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		await chatPage.createSpace();
 		const spaceId = await chatPage.getSpaceId();
 		await chatPage.enterRoom('general');
 		const roomId = await getRoomIdByName(page, 'general');
@@ -181,7 +178,6 @@ test.describe('Voice calls', () => {
 	test('activeCallRoomIds returns empty when no calls active', async ({ page, chatPage }) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		await chatPage.createSpace();
 		const spaceId = await chatPage.getSpaceId();
 
 		const data = await graphqlQuery<{ activeCallRoomIds: string[] }>(
@@ -202,7 +198,6 @@ test.describe('Voice calls', () => {
 		// User A creates a space and enters a room
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		await chatPage.createSpace();
 		const spaceId = await chatPage.getSpaceId();
 		await chatPage.enterRoom('general');
 		const roomId = await getRoomIdByName(page, 'general');
@@ -268,7 +263,6 @@ test.describe('Voice calls', () => {
 	}) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		await chatPage.createSpace();
 		const spaceId = await chatPage.getSpaceId();
 		await chatPage.enterRoom('general');
 		const roomId = await getRoomIdByName(page, 'general');
@@ -338,7 +332,6 @@ test.describe('Voice calls', () => {
 		// User A creates a space and enters a room
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		await chatPage.createSpace();
 		const spaceId = await chatPage.getSpaceId();
 		await chatPage.enterRoom('general');
 		const roomId = await getRoomIdByName(page, 'general');
@@ -401,7 +394,6 @@ test.describe('Voice calls', () => {
 		// User A creates a space and enters a room
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		await chatPage.createSpace();
 		const spaceId = await chatPage.getSpaceId();
 		await chatPage.enterRoom('general');
 		const roomId = await getRoomIdByName(page, 'general');
@@ -498,7 +490,6 @@ test.describe('Voice calls', () => {
 		// User A creates a space and enters a room
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		await chatPage.createSpace();
 		const spaceId = await chatPage.getSpaceId();
 		await chatPage.enterRoom('general');
 		const roomId = await getRoomIdByName(page, 'general');

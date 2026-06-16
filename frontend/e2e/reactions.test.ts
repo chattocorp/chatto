@@ -7,7 +7,6 @@ test.describe('Emoji reactions', () => {
   test('add a reaction to a message', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const testMessage = `Reaction test ${Date.now()}`;
@@ -23,7 +22,6 @@ test.describe('Emoji reactions', () => {
   test('toggle reaction off by clicking it', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const testMessage = `Toggle reaction test ${Date.now()}`;
@@ -48,7 +46,7 @@ test.describe('Emoji reactions', () => {
     // User 1: Create space and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.createSpace();
+    const spaceName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     const testMessage = `LiveEvent sync test ${Date.now()}`;
@@ -101,7 +99,6 @@ test.describe('Emoji reactions', () => {
   }) => {
     const user = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const testMessage = `Tooltip test ${Date.now()}`;
@@ -125,7 +122,7 @@ test.describe('Emoji reactions', () => {
     // User 1: Create space and post a message
     const user1 = await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.createSpace();
+    const spaceName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     const testMessage = `Multi-user tooltip test ${Date.now()}`;
@@ -175,7 +172,6 @@ test.describe('Emoji reactions', () => {
   test('add a reaction via emoji picker search', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const testMessage = `Emoji picker test ${Date.now()}`;
@@ -195,7 +191,6 @@ test.describe('Emoji reactions', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const testMessage = `Unicode 14 emoji test ${Date.now()}`;
@@ -211,7 +206,6 @@ test.describe('Emoji reactions', () => {
   test('add a reaction via the meta bar picker button', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const testMessage = `Meta bar picker test ${Date.now()}`;
@@ -236,7 +230,6 @@ test.describe('Emoji reactions', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const testMessage = `Thread-only meta bar test ${Date.now()}`;
@@ -259,7 +252,6 @@ test.describe('Emoji reactions', () => {
   test('emoji picker closes after selecting an emoji', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const testMessage = `Picker close test ${Date.now()}`;

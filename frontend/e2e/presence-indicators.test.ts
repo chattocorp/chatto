@@ -16,7 +16,6 @@ test.describe('Presence indicators', () => {
     // User A: Create account, space, and navigate to general room
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
 
     const spaceId = await chatPage.getSpaceId();
 
@@ -87,7 +86,6 @@ test.describe('Presence indicators', () => {
     // Create user and space
     const user = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
 
     // Navigate to general room
     const roomPage = await chatPage.enterRoom('general');
@@ -107,7 +105,6 @@ test.describe('Message avatar presence', () => {
     // Create user and space
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
 
     // Navigate to general room and send a message
     const roomPage = await chatPage.enterRoom('general');
@@ -126,7 +123,6 @@ test.describe('Member list display format', () => {
     // Create user with specific login
     const user = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
 
     // Navigate to general room to see member list
     const roomPage = await chatPage.enterRoom('general');
@@ -153,7 +149,6 @@ test.describe('Member list display format', () => {
 
     // Create a space and navigate to room
     await chatPage.goto();
-    await chatPage.createSpace();
     const roomPage = await chatPage.enterRoom('general');
 
     // Wait for member list to load
@@ -175,7 +170,6 @@ test.describe('Member list display format', () => {
     // User A: Create account and space
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
 
     const spaceId = await chatPage.getSpaceId();
     const roomPage = await chatPage.enterRoom('general');
@@ -224,7 +218,6 @@ test.describe('Member list grouping', () => {
     // Create user and space
     const user = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
 
     // Navigate to general room
     const roomPage = await chatPage.enterRoom('general');
@@ -247,7 +240,6 @@ test.describe('Member list grouping', () => {
     // User A: Create account, space, and navigate to general room
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
 
     const spaceId = await chatPage.getSpaceId();
     const roomPage = await chatPage.enterRoom('general');
@@ -311,7 +303,6 @@ test.describe('Member list grouping', () => {
     // User A: Create account, space, and navigate to general room
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
 
     const spaceId = await chatPage.getSpaceId();
     const roomPage = await chatPage.enterRoom('general');

@@ -58,7 +58,6 @@ test.describe('Notification Level - Notifications Settings', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace('Test Space');
 
     // Navigate to notification settings page
     await page.goto(routes.settingsNotifications);
@@ -86,7 +85,6 @@ test.describe('Notification Level - Notifications Settings', () => {
   test('can set space notification level via UI', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace('Test Space');
 
     // Navigate to notification settings
     await page.goto(routes.settingsNotifications);
@@ -123,7 +121,6 @@ test.describe('Notification Level - Notifications Settings', () => {
   test('can set room notification level via UI', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace('Test Space');
 
     // Navigate to notification settings
     await page.goto(routes.settingsNotifications);
@@ -153,7 +150,6 @@ test.describe('Notification Level - Notifications Settings', () => {
   test('notification levels are available from settings sidebar', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace('Test Space');
 
     await page.goto(routes.settings);
 
@@ -173,7 +169,6 @@ test.describe('Notification Level - Server-Side Enforcement', () => {
   test('setting notification level persists via GraphQL roundtrip', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace('API Test');
     const spaceId = await chatPage.getSpaceId();
 
     // Set space level to MUTED via API
@@ -194,7 +189,6 @@ test.describe('Notification Level - Server-Side Enforcement', () => {
   test('room inherits space notification level when set to DEFAULT', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace('Inherit Test');
     const spaceId = await chatPage.getSpaceId();
     const roomId = await getRoomIdByName(page, 'general');
 
@@ -220,7 +214,6 @@ test.describe('Notification Level - Server-Side Enforcement', () => {
   test('room level overrides space level', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace('Override Test');
     const spaceId = await chatPage.getSpaceId();
     const roomId = await getRoomIdByName(page, 'general');
 

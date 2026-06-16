@@ -17,7 +17,6 @@ test.describe('Composer drafts', () => {
     // Create user and space
     const user = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Get the room URL for the second tab
@@ -77,7 +76,6 @@ test.describe('Composer drafts', () => {
     // Create user and space
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Type a draft message
@@ -104,7 +102,6 @@ test.describe('Composer drafts', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Attach an image in general
@@ -129,7 +126,6 @@ test.describe('Composer focus', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
     await waitForRoomReady(page, 'general');
 
@@ -159,7 +155,6 @@ test.describe('Composer focus', () => {
   test('clicking attach button opens file dialog, not just focus', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
     await waitForRoomReady(page, 'general');
 
@@ -189,7 +184,6 @@ async function setupTwoRooms(
 ): Promise<string> {
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
   const targetRoom = await chatPage.createRoom();
   await chatPage.enterRoom('general');
   await waitForRoomReady(page, 'general');

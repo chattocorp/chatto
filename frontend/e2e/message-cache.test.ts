@@ -18,7 +18,6 @@ test.describe('Message Cache - Cross-Room and Cross-Space Scenarios', () => {
       // User A creates space, posts root message, stays in general room
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
 
       const spaceId = await chatPage.getSpaceId();
@@ -88,7 +87,6 @@ test.describe('Message Cache - Cross-Room and Cross-Space Scenarios', () => {
       // User A creates space and root message
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
 
       const spaceId = await chatPage.getSpaceId();
@@ -160,7 +158,6 @@ test.describe('Message Cache - Cross-Room and Cross-Space Scenarios', () => {
       // User A creates space and root message
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
 
       const spaceId = await chatPage.getSpaceId();

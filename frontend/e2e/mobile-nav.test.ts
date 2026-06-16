@@ -8,7 +8,6 @@ test.describe('Mobile Navigation', () => {
   test('hamburger menu toggles sidebar on mobile', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const roomPage = await chatPage.enterRoom('general');
 
     // Verify we're in the room (use locator from RoomPage)
@@ -41,7 +40,6 @@ test.describe('Mobile Navigation', () => {
   test('sidebar closes when navigating to a room on mobile', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
 
     // Create a second room so we can navigate between rooms
     const roomPage = await chatPage.enterRoom('general');
@@ -73,7 +71,6 @@ test.describe('Mobile Navigation', () => {
   test('sidebar is visible by default on desktop', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const roomPage = await chatPage.enterRoom('general');
 
     // Verify we're in the room first
@@ -91,7 +88,6 @@ test.describe('Mobile Navigation', () => {
   test('sidebar reappears when resizing back to desktop', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const roomPage = await chatPage.enterRoom('general');
     await expect(roomPage.messageInput).toBeVisible();
 
@@ -116,7 +112,6 @@ test.describe('Mobile Navigation', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const roomPage = await chatPage.enterRoom('general');
     await expect(roomPage.messageInput).toBeVisible();
 

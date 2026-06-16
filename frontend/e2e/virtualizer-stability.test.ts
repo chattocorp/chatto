@@ -54,7 +54,6 @@ test.describe('Virtualizer stability', () => {
     await page.setViewportSize({ width: 1280, height: 500 });
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
 
     await chatPage.enterRoom('general');
     const generalRoomId = getRoomIdFromUrl(page);
@@ -99,7 +98,6 @@ test.describe('Virtualizer stability', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
 
     const spaceId = await chatPage.getSpaceId();
 
@@ -172,7 +170,6 @@ test.describe('Virtualizer stability', () => {
     // User 1: Create space with two rooms
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
 
     await chatPage.enterRoom('general');

@@ -12,7 +12,6 @@ test.describe('Up arrow to edit last message', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a message
@@ -38,7 +37,6 @@ test.describe('Up arrow to edit last message', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a message
@@ -67,7 +65,7 @@ test.describe('Up arrow to edit last message', () => {
     // User 1: Create space and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.createSpace();
+    const spaceName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     const user1Message = `User1 message ${Date.now()}`;
@@ -119,7 +117,6 @@ test.describe('Up arrow to edit last message', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a root message and open its thread
@@ -156,7 +153,6 @@ test.describe('Message editing', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a multi-line message that will require the editor to expand
@@ -187,7 +183,6 @@ test.describe('Message editing', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a multi-line message
@@ -211,7 +206,6 @@ test.describe('Message editing', () => {
   test('user can edit their own message', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a message
@@ -241,7 +235,6 @@ test.describe('Message editing', () => {
   test('user can cancel editing with Escape', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a message
@@ -263,7 +256,6 @@ test.describe('Message editing', () => {
   test('user can cancel editing with Cancel button', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a message
@@ -289,7 +281,7 @@ test.describe('Message editing', () => {
     // User 1: Create space and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.createSpace();
+    const spaceName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     // Post a message
@@ -361,7 +353,7 @@ test.describe('Message editing', () => {
     // User 1: Create space and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.createSpace();
+    const spaceName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     // Post a message
@@ -421,7 +413,6 @@ test.describe('Message editing', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a message
@@ -448,7 +439,6 @@ test.describe('Message editing', () => {
   test('attachment button is hidden during edit mode', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Attach button should be visible in normal mode
@@ -481,7 +471,6 @@ test.describe('Message editing', () => {
 
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Compose "line1" + blank line + "line2". Shift+Enter inserts a hard
@@ -550,7 +539,6 @@ test.describe('Message editing', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a message first

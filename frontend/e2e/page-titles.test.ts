@@ -24,7 +24,7 @@ test.describe('Page titles', () => {
   test('room page has room and space name in title', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.createSpace();
+    const spaceName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     // Wait for room header to be visible (indicates room data is loaded)
@@ -46,7 +46,7 @@ test.describe('Page titles', () => {
 
     // Create space and enter room
     await chatPage.goto();
-    const spaceName = await chatPage.createSpace();
+    const spaceName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     // Wait for room header to be visible

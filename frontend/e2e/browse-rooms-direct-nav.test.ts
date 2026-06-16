@@ -20,7 +20,6 @@ test.describe('Browse Rooms direct navigation', () => {
     await chatPage.goto();
 
     // Create a space (user gets default admin role with browse permission)
-    await chatPage.createSpace('Test Space');
 
     // Get the space ID from the URL
     const spaceId = await chatPage.getSpaceId();
@@ -39,7 +38,6 @@ test.describe('Browse Rooms direct navigation', () => {
     await chatPage.goto();
 
     // Create a space
-    await chatPage.createSpace('Test Space');
 
     // Click the Overview link in the sidebar (which hosts the room
     // directory now that Browse Rooms has been folded in).
@@ -56,7 +54,6 @@ test.describe('Browse Rooms direct navigation', () => {
     await chatPage.goto();
 
     // Create a space and navigate to Browse Rooms via link
-    await chatPage.createSpace('Test Space');
     await page.getByRole('link', { name: 'Overview' }).click();
     await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
 

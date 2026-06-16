@@ -30,7 +30,7 @@ test.describe('video player @ffmpeg', () => {
 
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		const testSpaceName = await chatPage.createSpace();
+		const testSpaceName = await chatPage.getServerName();
 		await chatPage.enterRoom('general');
 
 		// Set up a second user who will observe the real-time processing event.
@@ -109,7 +109,7 @@ test.describe('video player @ffmpeg', () => {
 	}) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		const testSpaceName = await chatPage.createSpace();
+		const testSpaceName = await chatPage.getServerName();
 		await chatPage.enterRoom('general');
 
 		const context2 = await browser!.newContext({ baseURL: serverURL });

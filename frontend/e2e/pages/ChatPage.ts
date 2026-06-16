@@ -14,7 +14,7 @@ interface GraphQLResponse<T> {
 
 /**
  * Page object for the main chat interface.
- * Handles sidebar navigation, space creation, and room entry.
+ * Handles sidebar navigation, server metadata, and room entry.
  */
 export class ChatPage {
   constructor(readonly page: Page) {}
@@ -79,14 +79,8 @@ export class ChatPage {
     return 'server';
   }
 
-  /**
-   * Wait until the user is in the deployment's bootstrap server and return
-   * the server name. Post-ADR-030 there is no per-deployment Space record;
-   * signup auto-joins the default rooms and this just confirms the server
-   * profile is reachable. `name` and `description` args are ignored,
-   * retained only so existing call sites compile.
-   */
-  async createSpace(_name?: string, _description?: string): Promise<string> {
+  /** Return the bootstrap server display name. */
+  async getServerName(): Promise<string> {
     const data = await graphqlQuery<{
       server: { profile: { name: string } } | null;
     }>(this.page, `query { server { profile { name } } }`);
@@ -99,8 +93,8 @@ export class ChatPage {
   /**
    * Enter a room by clicking it in the sidebar.
    * Returns a RoomPage for interacting with messages.
-   * If already in the room (e.g., after createSpace redirect), skips navigation
-   * to avoid disrupting WebSocket subscriptions.
+   * If already in the room, skips navigation to avoid disrupting WebSocket
+   * subscriptions.
    * Always waits for room UI to be ready before returning.
    */
   async enterRoom(roomName: string): Promise<RoomPage> {
