@@ -76,24 +76,17 @@ async function logoutUser(page: Page): Promise<void> {
   await logoutCurrentUser(page);
 }
 
-/**
- * Vestigial helper kept for source-compat: post-#330 PR(a) joinSpace is gone.
- */
-async function joinSpaceViaAPI(_page: Page, _spaceId: string): Promise<void> {
-  // no-op
-}
-
 test.describe('Server Admin Members', () => {
   test.describe('Members List Page', () => {
     test('server admin can view members list', async ({ serverAdminPage }) => {
       const { page } = serverAdminPage;
 
-      // Create user and space (creator is admin)
+      // Create user and load the primary server
       const admin = await createAndLoginTestUser(page);
-      const space = await usePrimaryServerViaAPI(page);
+      const server = await usePrimaryServerViaAPI(page);
 
       // Navigate to members list
-      await serverAdminPage.gotoMembersDirectly(space.id);
+      await serverAdminPage.gotoMembersDirectly(server.id);
 
       // Should see the members page header
       await expect(page.getByRole('heading', { name: 'Members', exact: true })).toBeVisible();
@@ -107,12 +100,12 @@ test.describe('Server Admin Members', () => {
     }) => {
       const { page } = serverAdminPage;
 
-      // Create admin user and space
+      // Create admin user and load the primary server
       const admin = await createAndLoginTestUser(page);
-      const space = await usePrimaryServerViaAPI(page);
+      const server = await usePrimaryServerViaAPI(page);
 
       // Navigate to members list
-      await serverAdminPage.gotoMembersDirectly(space.id);
+      await serverAdminPage.gotoMembersDirectly(server.id);
 
       // Wait for members to load
       await expect(page.getByText(`@${admin.login}`)).toBeVisible({
@@ -136,12 +129,12 @@ test.describe('Server Admin Members', () => {
     test('admin can view their own member details', async ({ serverAdminPage }) => {
       const { page } = serverAdminPage;
 
-      // Create admin user and space (admin is automatically the first member)
+      // Create admin user and load the primary server (admin is automatically the first member)
       const admin = await createAndLoginTestUser(page);
-      const space = await usePrimaryServerViaAPI(page);
+      const server = await usePrimaryServerViaAPI(page);
 
       // Navigate to the admin's own member details page
-      await serverAdminPage.gotoMemberDetails(space.id, admin.id!);
+      await serverAdminPage.gotoMemberDetails(server.id, admin.id!);
 
       // The Member Details heading should be visible (page loaded)
       await expect(page.getByRole('heading', { name: 'Member Details' })).toBeVisible({
@@ -168,12 +161,12 @@ test.describe('Server Admin Members', () => {
     test('member details page shows role assignments', async ({ serverAdminPage }) => {
       const { page } = serverAdminPage;
 
-      // Create admin user and space
+      // Create admin user and load the primary server
       const admin = await createAndLoginTestUser(page);
-      const space = await usePrimaryServerViaAPI(page);
+      const server = await usePrimaryServerViaAPI(page);
 
       // Navigate to admin's own member details
-      await serverAdminPage.gotoMemberDetails(space.id, admin.id!);
+      await serverAdminPage.gotoMemberDetails(server.id, admin.id!);
 
       // Wait for page to load
       await expect(page.getByRole('heading', { name: 'Member Details' })).toBeVisible({
@@ -195,12 +188,12 @@ test.describe('Server Admin Members', () => {
     test('back to members button works', async ({ serverAdminPage }) => {
       const { page } = serverAdminPage;
 
-      // Create admin user and space
+      // Create admin user and load the primary server
       const admin = await createAndLoginTestUser(page);
-      const space = await usePrimaryServerViaAPI(page);
+      const server = await usePrimaryServerViaAPI(page);
 
       // Navigate to admin's own member details
-      await serverAdminPage.gotoMemberDetails(space.id, admin.id!);
+      await serverAdminPage.gotoMemberDetails(server.id, admin.id!);
 
       // Wait for page to load
       await expect(page.getByRole('heading', { name: 'Member Details' })).toBeVisible({
@@ -220,16 +213,14 @@ test.describe('Server Admin Members', () => {
     }) => {
       const { page } = serverAdminPage;
 
-      // Create admin user and space
+      // Create admin user and load the primary server
       const admin = await createAndLoginTestUser(page);
-      const space = await usePrimaryServerViaAPI(page);
+      await usePrimaryServerViaAPI(page);
 
       // Create and add a second member (non-admin)
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-
       // Try to access the admin's member details page as non-admin
       await page.goto(routes.serverAdminMember(admin.id!));
 

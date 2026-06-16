@@ -14,13 +14,16 @@ interface TestServer {
 }
 
 /** Log in as the bootstrap admin and return the primary server metadata. */
-async function usePrimaryServerViaAPI(page: Page, _options?: { name?: string }): Promise<TestServer> {
+async function usePrimaryServerViaAPI(
+  page: Page,
+  _options?: { name?: string }
+): Promise<TestServer> {
   return loginAsAdminAndUsePrimaryServer(page);
 }
 
 /**
  * Creates a second test user (different from the server admin).
- * The user has a verified email so they can join/create spaces.
+ * The user has a verified email so account setup mirrors a real member.
  */
 async function createSecondTestUser(page: Page): Promise<TestUser> {
   const timestamp = Date.now();
@@ -77,16 +80,9 @@ async function logoutUser(page: Page): Promise<void> {
 }
 
 /**
- * Joins a space via GraphQL API (requires authenticated user).
+ * Navigates to the primary server root.
  */
-async function joinSpaceViaAPI(_page: Page, _spaceId: string): Promise<void> {
-  // no-op post-#330 PR(a) — server membership is implicit on signup.
-}
-
-/**
- * Navigates to a specific space by ID.
- */
-async function gotoSpace(page: Page): Promise<void> {
+async function gotoServer(page: Page): Promise<void> {
   await page.goto(routes.space());
 }
 
@@ -94,27 +90,27 @@ test.describe('Server Admin Page', () => {
   test('server admin can access admin page', async ({ serverAdminPage }) => {
     const { page } = serverAdminPage;
 
-    // Create user and space (creator is admin)
+    // Create user and load the primary server
     await createAndLoginTestUser(page);
-    const space = await usePrimaryServerViaAPI(page, { name: 'Admin Settings Test' });
+    const server = await usePrimaryServerViaAPI(page, { name: 'Admin Settings Test' });
 
-    // Navigate to space and go to General settings page
-    await serverAdminPage.gotoGeneralDirectly(space.id);
+    // Navigate to server admin General settings
+    await serverAdminPage.gotoGeneralDirectly(server.id);
 
     // Should see the form with server name
     await expect(serverAdminPage.nameInput).toBeVisible();
-    await serverAdminPage.expectName(space.name);
+    await serverAdminPage.expectName(server.name);
   });
 
   test('server admin can edit name and save changes', async ({ serverAdminPage }) => {
     const { page } = serverAdminPage;
 
-    // Create user and space
+    // Create user and load the primary server
     await createAndLoginTestUser(page);
-    const space = await usePrimaryServerViaAPI(page, { name: 'Original Name' });
+    const server = await usePrimaryServerViaAPI(page, { name: 'Original Name' });
 
     // Navigate to General settings page
-    await serverAdminPage.gotoGeneralDirectly(space.id);
+    await serverAdminPage.gotoGeneralDirectly(server.id);
 
     // Change the name
     const newName = `Updated Name ${Date.now()}`;
@@ -128,15 +124,17 @@ test.describe('Server Admin Page', () => {
     await serverAdminPage.expectName(newName);
   });
 
-  test('server name with leading whitespace shows validation error', async ({ serverAdminPage }) => {
+  test('server name with leading whitespace shows validation error', async ({
+    serverAdminPage
+  }) => {
     const { page } = serverAdminPage;
 
-    // Create user and space
+    // Create user and load the primary server
     await createAndLoginTestUser(page);
-    const space = await usePrimaryServerViaAPI(page, { name: 'Whitespace Test' });
+    const server = await usePrimaryServerViaAPI(page, { name: 'Whitespace Test' });
 
     // Navigate to General settings page
-    await serverAdminPage.gotoGeneralDirectly(space.id);
+    await serverAdminPage.gotoGeneralDirectly(server.id);
 
     // Type a name with leading whitespace
     await serverAdminPage.setName(' Leading Space');
@@ -148,15 +146,17 @@ test.describe('Server Admin Page', () => {
     await serverAdminPage.expectSaveDisabled();
   });
 
-  test('server name with trailing whitespace shows validation error', async ({ serverAdminPage }) => {
+  test('server name with trailing whitespace shows validation error', async ({
+    serverAdminPage
+  }) => {
     const { page } = serverAdminPage;
 
-    // Create user and space
+    // Create user and load the primary server
     await createAndLoginTestUser(page);
-    const space = await usePrimaryServerViaAPI(page, { name: 'Whitespace Test' });
+    const server = await usePrimaryServerViaAPI(page, { name: 'Whitespace Test' });
 
     // Navigate to General settings page
-    await serverAdminPage.gotoGeneralDirectly(space.id);
+    await serverAdminPage.gotoGeneralDirectly(server.id);
 
     // Type a name with trailing whitespace
     await serverAdminPage.setName('Trailing Space ');
@@ -171,12 +171,12 @@ test.describe('Server Admin Page', () => {
   test('admin link only visible for server admins', async ({ serverAdminPage }) => {
     const { page } = serverAdminPage;
 
-    // Create first user (server admin/admin)
+    // Create first user (server admin)
     await createAndLoginTestUser(page);
-    const space = await usePrimaryServerViaAPI(page, { name: 'Settings Link Test' });
+    const server = await usePrimaryServerViaAPI(page, { name: 'Settings Link Test' });
 
-    // Navigate to space - admin should see admin link in sidebar
-    await gotoSpace(page, space.id);
+    // Navigate to server - admin should see admin link in sidebar
+    await gotoServer(page);
     await serverAdminPage.expectAdminLinkVisible();
 
     // Create second user (non-admin)
@@ -186,14 +186,11 @@ test.describe('Server Admin Page', () => {
     await logoutUser(page);
     await loginUser(page, nonAdmin.login, nonAdmin.password);
 
-    // Join the space as non-admin
-    await joinSpaceViaAPI(page, space.id);
-
-    // Navigate to space - non-admin should NOT see admin link
-    await gotoSpace(page, space.id);
+    // Navigate to server - non-admin should NOT see admin link
+    await gotoServer(page);
 
     // Wait for the page to load (server name should be visible)
-    await expect(page.getByRole('heading', { name: space.name })).toBeVisible();
+    await expect(page.getByRole('heading', { name: server.name })).toBeVisible();
 
     // Settings link should not be visible
     await serverAdminPage.expectAdminLinkNotVisible();
@@ -202,12 +199,12 @@ test.describe('Server Admin Page', () => {
   test('server admin can upload and remove a logo', async ({ serverAdminPage }) => {
     const { page } = serverAdminPage;
 
-    // Create user and space
+    // Create user and load the primary server
     await createAndLoginTestUser(page);
-    const space = await usePrimaryServerViaAPI(page, { name: 'Logo Upload Test' });
+    const server = await usePrimaryServerViaAPI(page, { name: 'Logo Upload Test' });
 
     // Navigate to General settings page
-    await serverAdminPage.gotoGeneralDirectly(space.id);
+    await serverAdminPage.gotoGeneralDirectly(server.id);
 
     // Should see Logo section
     await serverAdminPage.expectLogoSectionVisible();
@@ -252,12 +249,12 @@ test.describe('Server Admin Page', () => {
   }) => {
     const { page } = serverAdminPage;
 
-    // Create user and space
+    // Create user and load the primary server
     await createAndLoginTestUser(page);
-    const space = await usePrimaryServerViaAPI(page, { name: 'Banner Realtime Test' });
+    const server = await usePrimaryServerViaAPI(page, { name: 'Banner Realtime Test' });
 
     // Navigate to General settings page
-    await serverAdminPage.gotoGeneralDirectly(space.id);
+    await serverAdminPage.gotoGeneralDirectly(server.id);
 
     // Should see Banner section
     await serverAdminPage.expectBannerSectionVisible();

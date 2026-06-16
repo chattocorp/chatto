@@ -48,11 +48,6 @@ export class ChatPage {
     return json.data;
   }
 
-  /** Legacy browse-spaces link locator, retained for assertions that it is absent. */
-  get exploreSpacesLink(): Locator {
-    return this.page.getByRole('link', { name: 'Explore Spaces' });
-  }
-
   /** The room list container in the sidebar */
   get roomList(): Locator {
     return this.page.locator('.room-list');
@@ -172,7 +167,7 @@ export class ChatPage {
    * Navigates to the admin rooms page and clicks "New Room".
    *
    * Issue #330 / ADR-027: with auto-join, the test user lands as a regular
-   * member of the bootstrap space and the admin route 403s. Logout then
+   * member of the bootstrap server and the admin route 403s. Logout then
    * re-authenticate as e2eadmin (the bootstrap owner) before navigating so
    * the previous session's permissions don't leak into the page's reactive
    * state.
@@ -254,14 +249,5 @@ export class ChatPage {
    */
   async expectRoomHeaderVisible(roomName: string): Promise<void> {
     await expect(this.getRoomHeader(roomName)).toBeVisible();
-  }
-
-  // --- Assertions ---
-
-  /**
-   * Assert that the explore spaces button is visible.
-   */
-  async expectExploreSpacesVisible(): Promise<void> {
-    await expect(this.page.locator('[title="Explore Spaces"]')).toBeVisible();
   }
 }

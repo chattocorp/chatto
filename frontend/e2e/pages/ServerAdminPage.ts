@@ -50,7 +50,7 @@ export class ServerAdminPage {
     return this.page.getByText('Access Denied', { exact: true });
   }
 
-  /** General settings heading (shown when user has space.manage permission) */
+  /** General settings heading (shown when user has server.manage permission) */
   get generalSettingsHeading(): Locator {
     // Use h1 specifically to avoid matching section h2 headings
     return this.page.locator('h1', { hasText: 'General' });

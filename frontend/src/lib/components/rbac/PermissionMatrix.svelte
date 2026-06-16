@@ -63,20 +63,22 @@ under it. Column headers are clickable when `onRoleClick` is provided
 
   const CATEGORY_META: Record<string, { title: string; description: string }> = {
     space: {
-      title: 'Space Permissions',
-      description: 'Legacy space-level capabilities kept for compatibility during the server model transition'
+      title: 'Server Permissions',
+      description: 'Server-level capabilities kept under the legacy category key for compatibility'
     },
     room: {
       title: 'Room Permissions',
-      description: 'Server defaults for room discovery and joining, plus room creation. Add room/group denies for local restrictions'
+      description:
+        'Server defaults for room discovery and joining, plus room creation. Add room/group denies for local restrictions'
     },
     message: {
       title: 'Message Permissions',
-      description: 'Server defaults for posting, threads, reactions, echoing, and message moderation. Room/group denies create local exceptions'
+      description:
+        'Server defaults for posting, threads, reactions, echoing, and message moderation. Room/group denies create local exceptions'
     },
     member: {
       title: 'Member Permissions',
-      description: 'Control who can invite and remove space members'
+      description: 'Control who can invite and remove server members'
     },
     role: {
       title: 'Role Permissions',
@@ -89,7 +91,8 @@ under it. Column headers are clickable when `onRoleClick` is provided
     dm: { title: 'DM Permissions', description: 'Control access to direct messaging entry points' },
     user: {
       title: 'User Permissions',
-      description: 'Control user account and per-user permission operations. Any non-owner deny cancels grants'
+      description:
+        'Control user account and per-user permission operations. Any non-owner deny cancels grants'
     }
   };
 
@@ -119,8 +122,8 @@ under it. Column headers are clickable when `onRoleClick` is provided
     /**
      * Per-role gate for header click. Return `false` to render the header
      * as plain text (e.g. when the viewer can't access the destination —
-     * a role detail page requires server admin, which a space role.manage
-     * holder doesn't necessarily have). Defaults to `true`.
+     * a role detail page requires server admin, which a server-scope
+     * role.manage holder doesn't necessarily have). Defaults to `true`.
      */
     isRoleClickable?: (role: TierRole) => boolean;
   } = $props();
@@ -171,11 +174,7 @@ under it. Column headers are clickable when `onRoleClick` is provided
       { roomId: rm ?? undefined, groupId: st ?? undefined }
     );
 
-    if (
-      s !== (spaceId ?? null) ||
-      rm !== (roomId ?? null) ||
-      st !== (groupId ?? null)
-    ) {
+    if (s !== (spaceId ?? null) || rm !== (roomId ?? null) || st !== (groupId ?? null)) {
       return;
     }
 
@@ -274,12 +273,7 @@ under it. Column headers are clickable when `onRoleClick` is provided
     updating = cellKey;
     error = null;
 
-    const result = await setRolePermission(
-      connection().client,
-      scopeFor(role),
-      permission,
-      next
-    );
+    const result = await setRolePermission(connection().client, scopeFor(role), permission, next);
     if (result.error) {
       error = result.error;
       toast.error(result.error);
@@ -388,7 +382,10 @@ under it. Column headers are clickable when `onRoleClick` is provided
                     ].filter(Boolean)}
                 {@const ariaLabel = ariaParts.join(', ')}
                 {@const titleParts = virtualOwner
-                  ? ['Allow (owners are always granted all permissions)', 'Owner permissions are not editable']
+                  ? [
+                      'Allow (owners are always granted all permissions)',
+                      'Owner permissions are not editable'
+                    ]
                   : [
                       ov !== 'neutral'
                         ? `${ov === 'allow' ? 'Allow' : 'Deny'} (override at this tier)`

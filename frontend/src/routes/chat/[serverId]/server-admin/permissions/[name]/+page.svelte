@@ -207,7 +207,7 @@
   const canEditPingable = $derived(role?.name !== 'everyone');
 </script>
 
-<PageTitle title={`${role?.displayName ?? 'Edit Role'} | Space Admin`} />
+<PageTitle title={`${role?.displayName ?? 'Edit Role'} | Server Admin`} />
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
   <PaneHeader
@@ -317,7 +317,8 @@
             permissions are not stored as editable grants or denials.
           {:else}
             This role's grants and denials across every scope. Combined with the user's other roles
-            at resolution time — use the per-user matrix to see what an individual user ends up with.
+            at resolution time — use the per-user matrix to see what an individual user ends up
+            with.
           {/if}
         </Hint>
         <RolePermissionsMatrix roleName={role.name} />
@@ -326,7 +327,7 @@
       <!-- Users with this role -->
       <Panel title="Users with this Role" icon="iconify uil--users-alt">
         {#if role?.name === 'everyone'}
-          <p class="text-muted">All space members have the everyone role implicitly.</p>
+          <p class="text-muted">All server members have the everyone role implicitly.</p>
         {:else}
           <UserList
             users={roleUsers}

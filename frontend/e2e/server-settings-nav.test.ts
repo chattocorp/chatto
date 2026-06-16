@@ -75,17 +75,7 @@ async function logoutUser(page: Page): Promise<void> {
   await logoutCurrentUser(page);
 }
 
-/**
- * Vestigial helper kept for source-compat: post-#330 PR(a) joinSpace is
- * gone — server membership is implicit on signup.
- */
-async function joinSpaceViaAPI(_page: Page, _spaceId: string): Promise<void> {
-  // no-op
-}
-
-/**
- * Grants a space permission to a role via GraphQL API.
- */
+/** Grants a server-scope permission to a role via GraphQL API. */
 async function grantPermission(page: Page, role: string, permission: string): Promise<void> {
   const response = await page.request.post('/api/graphql', {
     headers: {
@@ -112,13 +102,13 @@ test.describe('Server Admin Navigation Permissions', () => {
     test('server admin sees Server Admin button', async ({ serverAdminPage }) => {
       const { page } = serverAdminPage;
 
-      // Create user and space (creator is admin)
+      // Create user and load the primary server
       await createAndLoginTestUser(page);
-      const space = await usePrimaryServerViaAPI(page);
+      const server = await usePrimaryServerViaAPI(page);
 
-      // Navigate to space
+      // Navigate to server
       await page.goto(routes.space());
-      await expect(page.getByRole('heading', { name: space.name })).toBeVisible();
+      await expect(page.getByRole('heading', { name: server.name })).toBeVisible();
 
       // Admin should see Server Admin link
       await serverAdminPage.expectAdminLinkVisible();
@@ -129,19 +119,17 @@ test.describe('Server Admin Navigation Permissions', () => {
     }) => {
       const { page } = serverAdminPage;
 
-      // Create admin user and space
+      // Create admin user and load the primary server
       await createAndLoginTestUser(page);
-      const space = await usePrimaryServerViaAPI(page);
+      const server = await usePrimaryServerViaAPI(page);
 
       // Create and login as non-admin user
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-
-      // Navigate to space
+      // Navigate to server
       await page.goto(routes.space());
-      await expect(page.getByRole('heading', { name: space.name })).toBeVisible();
+      await expect(page.getByRole('heading', { name: server.name })).toBeVisible();
 
       // Regular member without admin permissions should NOT see Server Admin link
       await serverAdminPage.expectAdminLinkNotVisible();
@@ -152,9 +140,9 @@ test.describe('Server Admin Navigation Permissions', () => {
     }) => {
       const { page } = serverAdminPage;
 
-      // Create admin user and space
+      // Create admin user and load the primary server
       await createAndLoginTestUser(page);
-      const space = await usePrimaryServerViaAPI(page);
+      const server = await usePrimaryServerViaAPI(page);
 
       // Grant role.assign to everyone role
       await grantPermission(page, 'everyone', 'role.assign');
@@ -163,11 +151,9 @@ test.describe('Server Admin Navigation Permissions', () => {
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-
-      // Navigate to space
+      // Navigate to server
       await page.goto(routes.space());
-      await expect(page.getByRole('heading', { name: space.name })).toBeVisible();
+      await expect(page.getByRole('heading', { name: server.name })).toBeVisible();
 
       // Member with role.assign should see Server Admin link
       await serverAdminPage.expectAdminLinkVisible();
@@ -178,9 +164,9 @@ test.describe('Server Admin Navigation Permissions', () => {
     }) => {
       const { page } = serverAdminPage;
 
-      // Create admin user and space
+      // Create admin user and load the primary server
       await createAndLoginTestUser(page);
-      const space = await usePrimaryServerViaAPI(page);
+      const server = await usePrimaryServerViaAPI(page);
 
       // Grant user.delete-any to everyone role. Like the other tests in
       // this block, this picks a single admin-tier permission that is part
@@ -192,11 +178,9 @@ test.describe('Server Admin Navigation Permissions', () => {
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-
-      // Navigate to space
+      // Navigate to server
       await page.goto(routes.space());
-      await expect(page.getByRole('heading', { name: space.name })).toBeVisible();
+      await expect(page.getByRole('heading', { name: server.name })).toBeVisible();
 
       // Member with user.delete-any should see Server Admin link
       await serverAdminPage.expectAdminLinkVisible();
@@ -207,9 +191,9 @@ test.describe('Server Admin Navigation Permissions', () => {
     }) => {
       const { page } = serverAdminPage;
 
-      // Create admin user and space
+      // Create admin user and load the primary server
       await createAndLoginTestUser(page);
-      const space = await usePrimaryServerViaAPI(page);
+      const server = await usePrimaryServerViaAPI(page);
 
       // Grant role.manage to everyone role
       await grantPermission(page, 'everyone', 'role.manage');
@@ -218,11 +202,9 @@ test.describe('Server Admin Navigation Permissions', () => {
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-
-      // Navigate to space
+      // Navigate to server
       await page.goto(routes.space());
-      await expect(page.getByRole('heading', { name: space.name })).toBeVisible();
+      await expect(page.getByRole('heading', { name: server.name })).toBeVisible();
 
       // Member with role.manage should see Server Admin link
       await serverAdminPage.expectAdminLinkVisible();
@@ -233,12 +215,12 @@ test.describe('Server Admin Navigation Permissions', () => {
     test('server admin sees all settings nav items', async ({ serverAdminPage }) => {
       const { page } = serverAdminPage;
 
-      // Create user and space (creator is admin)
+      // Create user and load the primary server
       await createAndLoginTestUser(page);
-      const space = await usePrimaryServerViaAPI(page);
+      const server = await usePrimaryServerViaAPI(page);
 
       // Navigate to settings
-      await serverAdminPage.goto(space.id);
+      await serverAdminPage.goto(server.id);
 
       // Admin should see all nav items
       await serverAdminPage.expectGeneralNavVisible();
@@ -251,9 +233,9 @@ test.describe('Server Admin Navigation Permissions', () => {
     }) => {
       const { page } = serverAdminPage;
 
-      // Create admin user and space
+      // Create admin user and load the primary server
       await createAndLoginTestUser(page);
-      const space = await usePrimaryServerViaAPI(page);
+      const server = await usePrimaryServerViaAPI(page);
 
       // Grant role.assign to everyone role (enables Members page access)
       await grantPermission(page, 'everyone', 'role.assign');
@@ -262,10 +244,8 @@ test.describe('Server Admin Navigation Permissions', () => {
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-
       // Navigate to settings
-      await serverAdminPage.gotoMembersDirectly(space.id);
+      await serverAdminPage.gotoMembersDirectly(server.id);
 
       // Wait for page to load
       await expect(page.getByRole('heading', { name: 'Members', exact: true })).toBeVisible();
@@ -284,9 +264,9 @@ test.describe('Server Admin Navigation Permissions', () => {
     }) => {
       const { page } = serverAdminPage;
 
-      // Create admin user and space
+      // Create admin user and load the primary server
       await createAndLoginTestUser(page);
-      const space = await usePrimaryServerViaAPI(page);
+      const server = await usePrimaryServerViaAPI(page);
 
       // Grant role.manage to everyone role (enables Roles page access)
       await grantPermission(page, 'everyone', 'role.manage');
@@ -295,10 +275,8 @@ test.describe('Server Admin Navigation Permissions', () => {
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-
       // Navigate directly to roles page using the roles page object
-      await serverRolesPage.gotoRolesList(space.id);
+      await serverRolesPage.gotoRolesList(server.id);
 
       // Should see Roles (has role.manage)
       await serverAdminPage.expectRolesNavVisible();
@@ -315,16 +293,14 @@ test.describe('Server Admin Navigation Permissions', () => {
     }) => {
       const { page } = serverAdminPage;
 
-      // Create admin user and space
+      // Create admin user and load the primary server
       await createAndLoginTestUser(page);
-      const space = await usePrimaryServerViaAPI(page);
+      const server = await usePrimaryServerViaAPI(page);
 
       // Create and login as non-admin user (no admin permissions)
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-
       // Navigate directly to a concrete admin URL
       await page.goto(routes.serverAdminGeneral);
 
@@ -337,19 +313,17 @@ test.describe('Server Admin Navigation Permissions', () => {
     }) => {
       const { page } = serverAdminPage;
 
-      // Create admin user and space
+      // Create admin user and load the primary server
       await createAndLoginTestUser(page);
-      const space = await usePrimaryServerViaAPI(page);
+      const server = await usePrimaryServerViaAPI(page);
 
-      // Grant only role.assign to everyone role (no space.manage)
+      // Grant only role.assign to everyone role (no server.manage)
       await grantPermission(page, 'everyone', 'role.assign');
 
       // Create and login as non-admin user
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-
       // Navigate to the concrete section unlocked by role.assign
       await page.goto(routes.serverAdminMembers);
 
@@ -362,11 +336,11 @@ test.describe('Server Admin Navigation Permissions', () => {
     test('admin uses General as the first concrete admin page', async ({ serverAdminPage }) => {
       const { page } = serverAdminPage;
 
-      // Create user and space (creator is admin)
+      // Create user and load the primary server
       await createAndLoginTestUser(page);
-      const space = await usePrimaryServerViaAPI(page);
+      const server = await usePrimaryServerViaAPI(page);
 
-      await serverAdminPage.goto(space.id);
+      await serverAdminPage.goto(server.id);
 
       await serverAdminPage.expectGeneralSettingsVisible();
       await serverAdminPage.expectAccessNotDenied();
@@ -375,40 +349,38 @@ test.describe('Server Admin Navigation Permissions', () => {
     test('admin sees General settings on /admin/general page', async ({ serverAdminPage }) => {
       const { page } = serverAdminPage;
 
-      // Create user and space (creator is admin)
+      // Create user and load the primary server
       await createAndLoginTestUser(page);
-      const space = await usePrimaryServerViaAPI(page);
+      const server = await usePrimaryServerViaAPI(page);
 
       // Navigate to General settings page directly
-      await serverAdminPage.gotoGeneralDirectly(space.id);
+      await serverAdminPage.gotoGeneralDirectly(server.id);
 
       // Admin should see General settings content
       await serverAdminPage.expectGeneralSettingsVisible();
       await serverAdminPage.expectAccessNotDenied();
     });
 
-    test('member without space.manage permission sees Access Denied on General settings', async ({
+    test('member without server.manage permission sees Access Denied on General settings', async ({
       serverAdminPage
     }) => {
       const { page } = serverAdminPage;
 
-      // Create admin user and space
+      // Create admin user and load the primary server
       await createAndLoginTestUser(page);
-      const space = await usePrimaryServerViaAPI(page);
+      const server = await usePrimaryServerViaAPI(page);
 
-      // Grant only role.assign to member role (NOT space.manage)
+      // Grant only role.assign to member role (NOT server.manage)
       await grantPermission(page, 'everyone', 'role.assign');
 
       // Create and login as non-admin user
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-
       // Navigate directly to General settings
       await page.goto(routes.serverAdminGeneral);
 
-      // Should see Access Denied (no space.manage permission)
+      // Should see Access Denied (no server.manage permission)
       await serverAdminPage.expectAccessDenied();
     });
 
@@ -417,18 +389,16 @@ test.describe('Server Admin Navigation Permissions', () => {
     }) => {
       const { page } = serverAdminPage;
 
-      // Create admin user and space
+      // Create admin user and load the primary server
       await createAndLoginTestUser(page);
-      const space = await usePrimaryServerViaAPI(page);
+      const server = await usePrimaryServerViaAPI(page);
 
       // Create and login as non-admin user (no admin permissions)
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-
       // Navigate directly to Members settings
-      await serverAdminPage.gotoMembersDirectly(space.id);
+      await serverAdminPage.gotoMembersDirectly(server.id);
 
       // Should see Access Denied
       await serverAdminPage.expectAccessDenied();
@@ -439,18 +409,16 @@ test.describe('Server Admin Navigation Permissions', () => {
     }) => {
       const { page } = serverAdminPage;
 
-      // Create admin user and space
+      // Create admin user and load the primary server
       await createAndLoginTestUser(page);
-      const space = await usePrimaryServerViaAPI(page);
+      const server = await usePrimaryServerViaAPI(page);
 
       // Create and login as non-admin user (no admin permissions)
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-
       // Navigate directly to Roles settings
-      await serverAdminPage.gotoRolesDirectly(space.id);
+      await serverAdminPage.gotoRolesDirectly(server.id);
 
       // Should see Access Denied
       await serverAdminPage.expectAccessDenied();

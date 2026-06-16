@@ -31,7 +31,9 @@ test.describe('Presence indicators', () => {
     // User A's presence indicator should be green (online)
     // Use a longer timeout as presence update requires subscription establishment
     const userAPresenceDot = roomPage.getMember(userA.login).locator('span.rounded-full');
-    await expect(userAPresenceDot).toHaveClass(/bg-green-500/, { timeout: TIMEOUTS.REALTIME_EVENT });
+    await expect(userAPresenceDot).toHaveClass(/bg-green-500/, {
+      timeout: TIMEOUTS.REALTIME_EVENT
+    });
 
     // User B: Create account and join the space
     const context2 = await browser!.newContext({ baseURL: serverURL });
@@ -225,10 +227,12 @@ test.describe('Member list grouping', () => {
     // Wait for member list to be populated first
     await roomPage.expectMemberVisible(user.login);
 
-    // Issue #330 / ADR-027: bootstrap-space members include e2eadmin (the
+    // Issue #330 / ADR-027: bootstrap server members include e2eadmin (the
     // owner) plus the test user; only the test user is connected, so Online
     // is exactly 1.
-    await expect(roomPage.onlineSectionHeader).toHaveText('Online (1)', { timeout: TIMEOUTS.REALTIME_EVENT });
+    await expect(roomPage.onlineSectionHeader).toHaveText('Online (1)', {
+      timeout: TIMEOUTS.REALTIME_EVENT
+    });
   });
 
   test('offline members appear in Offline section with reduced opacity', async ({
@@ -245,7 +249,9 @@ test.describe('Member list grouping', () => {
     const roomPage = await chatPage.enterRoom('general');
 
     // Initially only online section with User A
-    await expect(roomPage.onlineSectionHeader).toHaveText('Online (1)', { timeout: TIMEOUTS.REALTIME_EVENT });
+    await expect(roomPage.onlineSectionHeader).toHaveText('Online (1)', {
+      timeout: TIMEOUTS.REALTIME_EVENT
+    });
 
     // User B: Create account and join the space
     const context2 = await browser!.newContext({ baseURL: serverURL });
@@ -267,7 +273,9 @@ test.describe('Member list grouping', () => {
       await waitForRoomReady(page2, 'general');
 
       // User A should see both users in Online section
-      await expect(roomPage.onlineSectionHeader).toHaveText('Online (2)', { timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(roomPage.onlineSectionHeader).toHaveText('Online (2)', {
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
 
       // User B should be visible and not dimmed
       const userBItem = roomPage.getMember(userB.login);
@@ -282,7 +290,9 @@ test.describe('Member list grouping', () => {
     // scenarios. The offline transition is tested in unit tests.
 
     // User B should still be in the Online section (TTL hasn't expired)
-    await expect(roomPage.onlineSectionHeader).toHaveText('Online (2)', { timeout: TIMEOUTS.UI_STANDARD });
+    await expect(roomPage.onlineSectionHeader).toHaveText('Online (2)', {
+      timeout: TIMEOUTS.UI_STANDARD
+    });
 
     // User B should still be visible and not dimmed
     const userBItem = roomPage.getMember(userBLogin!);
@@ -311,7 +321,9 @@ test.describe('Member list grouping', () => {
     await roomPage.expectMemberVisible(userA.login);
 
     // Initially just User A online
-    await expect(roomPage.onlineSectionHeader).toHaveText('Online (1)', { timeout: TIMEOUTS.REALTIME_EVENT });
+    await expect(roomPage.onlineSectionHeader).toHaveText('Online (1)', {
+      timeout: TIMEOUTS.REALTIME_EVENT
+    });
 
     // User B: Create account and join the space
     const context2 = await browser!.newContext({ baseURL: serverURL });
@@ -329,7 +341,9 @@ test.describe('Member list grouping', () => {
     // Both should be online - count should update
     // Issue #330: e2eadmin counts as an offline member of the bootstrap space,
     // so we no longer assert offline section is invisible.
-    await expect(roomPage.onlineSectionHeader).toHaveText('Online (2)', { timeout: TIMEOUTS.REALTIME_EVENT });
+    await expect(roomPage.onlineSectionHeader).toHaveText('Online (2)', {
+      timeout: TIMEOUTS.REALTIME_EVENT
+    });
 
     // User B disconnects
     await context2.close();
@@ -337,6 +351,8 @@ test.describe('Member list grouping', () => {
     // User B remains online until TTL expires (60s). We use TTL-based expiry
     // to support multi-device scenarios. The offline transition is tested in
     // unit tests which can control timing.
-    await expect(roomPage.onlineSectionHeader).toHaveText('Online (2)', { timeout: TIMEOUTS.UI_STANDARD });
+    await expect(roomPage.onlineSectionHeader).toHaveText('Online (2)', {
+      timeout: TIMEOUTS.UI_STANDARD
+    });
   });
 });
