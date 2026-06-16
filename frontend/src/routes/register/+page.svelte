@@ -189,6 +189,12 @@
 				return;
 			}
 
+			if (typeof body.token !== 'string' || !body.token) {
+				error = 'Registration response did not include an auth token';
+				return;
+			}
+
+			serverRegistry.authenticateOrigin(body.token, body.user ?? null);
 			clearCachedUser();
 			await invalidateAll();
 

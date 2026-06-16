@@ -229,9 +229,12 @@
     actionLabel="Sign Out"
     actionIcon="iconify uil--signout"
     onconfirm={async () => {
-      // Revoke the origin session cookie (if authenticated on origin)
+      const originToken = serverRegistry.originServer?.token;
       if (serverRegistry.originServer) {
-        await csrfFetch('/auth/logout', { method: 'POST' }).catch(() => {});
+        await csrfFetch('/auth/logout', {
+          method: 'POST',
+          headers: originToken ? { Authorization: `Bearer ${originToken}` } : undefined
+        }).catch(() => {});
       }
       // Clear all registered instances and their state
       serverRegistry.removeAll();

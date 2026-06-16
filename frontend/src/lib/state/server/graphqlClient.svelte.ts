@@ -1,9 +1,8 @@
 import { Client, fetchExchange, subscriptionExchange, mapExchange } from '@urql/svelte';
 import { createClient as createWSClient } from 'graphql-ws';
 import { serverRegistry } from './registry.svelte';
-import { csrfHeaders } from '$lib/auth/csrf';
+import { isAuthenticationRequiredError } from '$lib/auth/errors';
 
-const SESSION_VALIDATION_COOLDOWN_MS = 5000;
 const GRAPHQL_REQUEST_HEADERS = { 'X-REQUEST-TYPE': 'GraphQL' };
 
 /**
@@ -22,25 +21,27 @@ const RETRY_WAIT_MS = 5000;
 
 export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
 
-export interface AuthHandlers {
-	/** Called when an auth-failure error is detected in a GraphQL response. */
-	onAuthFailure?: () => void;
-	/** Called on reconnect or when the tab becomes visible (for session re-validation). */
-	onSessionValidation?: () => void;
-}
-
 export interface GraphQLClientConfig {
 	/** GraphQL HTTP endpoint URL (relative for origin, absolute for remote) */
 	url: string;
 	/** WebSocket URL (relative for origin, absolute wss:// for remote) */
 	wsUrl: string;
-	/** Bearer token for cross-origin auth, or null to use cookies */
+	/** Bearer token for GraphQL auth, or null for unauthenticated/legacy cookie auth */
 	token: string | null;
+	/** Registered server ID, used to clear stale credentials after auth failures */
+	serverId?: string;
 }
 
 /** Construct a WebSocket URL from an HTTP URL (http→ws, https→wss). */
 export function httpToWsUrl(httpUrl: string): string {
 	return httpUrl.replace(/^http/, 'ws');
+}
+
+function hostFromGraphQLEndpoint(url: string): string {
+	if (url.startsWith('/')) {
+		return typeof window !== 'undefined' ? window.location.host : 'localhost';
+	}
+	return url.match(/^[a-z][a-z0-9+.-]*:\/\/([^/?#]+)/i)?.[1] ?? url;
 }
 
 const HOME_URL = '/api/graphql';
@@ -74,8 +75,6 @@ export class GraphQLClient {
 	#onlineHandler: (() => void) | null = null;
 	#suspendDetectorInterval: ReturnType<typeof setInterval> | null = null;
 	#host: string;
-	#handlers: AuthHandlers = {};
-	#lastSessionValidation = 0;
 
 	get isConnected() {
 		return this.status === 'connected';
@@ -120,29 +119,9 @@ export class GraphQLClient {
 		this.forceReconnect('user-initiated retry');
 	}
 
-	/**
-	 * Wire per-instance auth handlers. Called by ServerStateStore once both the
-	 * client and the store's CurrentUserState exist. May be called more than once;
-	 * the latest handlers win.
-	 */
-	setAuthHandlers(handlers: AuthHandlers) {
-		this.#handlers = handlers;
-	}
-
-	#triggerSessionValidation() {
-		if (!this.#handlers.onSessionValidation) return;
-		const now = Date.now();
-		if (now - this.#lastSessionValidation < SESSION_VALIDATION_COOLDOWN_MS) return;
-		this.#lastSessionValidation = now;
-		this.#handlers.onSessionValidation();
-	}
-
 	constructor(config: GraphQLClientConfig) {
-		const { url, wsUrl, token } = config;
-		this.#host = url.startsWith('/')
-			? (typeof window !== 'undefined' ? window.location.host : 'localhost')
-			: // eslint-disable-next-line svelte/prefer-svelte-reactivity -- extracting host string, URL not stored
-				new URL(url).host;
+		const { url, wsUrl, token, serverId } = config;
+		this.#host = hostFromGraphQLEndpoint(url);
 
 		// Client pings the server every 15s. The `ping` handler starts a 5s
 		// pong timeout; if the server doesn't respond, we close the socket.
@@ -240,7 +219,6 @@ export class GraphQLClient {
 							this.#host,
 							this.reconnectCount
 						);
-						this.#triggerSessionValidation();
 					}
 					this.status = 'connected';
 					this.#failedAttempts = 0;
@@ -272,32 +250,23 @@ export class GraphQLClient {
 			url,
 			preferGetMethod: false,
 			fetchOptions: () => ({
-				// The backend's CSRF middleware treats explicitly-marked GraphQL
-				// requests as safe to authenticate with the session cookie alone.
-				// Keep the marker on every GraphQL POST; add the CSRF token when
-				// this browser has one, or bearer auth for remote servers.
+				// GraphQL does not participate in the double-submit CSRF token
+				// flow. Authenticated clients use bearer tokens; the marker keeps
+				// legacy cookie-auth fallback requests non-simple.
 				headers: token
 					? { ...GRAPHQL_REQUEST_HEADERS, Authorization: `Bearer ${token}` }
-					: { ...GRAPHQL_REQUEST_HEADERS, ...csrfHeaders() }
+					: { ...GRAPHQL_REQUEST_HEADERS }
 			}),
 			exchanges: [
 				mapExchange({
 					onResult: (result) => {
-						if (
-							this.#handlers.onAuthFailure &&
-							result.error?.graphQLErrors?.some((e) => e.message?.includes('not authenticated'))
-						) {
-							console.warn(
-								'[auth] GraphQL "not authenticated" error → triggering auth failure',
-								{ operation: result.operation.kind, errors: result.error.graphQLErrors }
-							);
-							this.#handlers.onAuthFailure();
-						}
-
 						// If an HTTP request succeeded but WebSocket is disconnected,
 						// the server is reachable — force reconnect the WebSocket
 						if (!result.error && this.status === 'disconnected') {
 							this.forceReconnect('HTTP request succeeded while WS disconnected');
+						}
+						if (serverId && result.error && isAuthenticationRequiredError(result.error)) {
+							serverRegistry.handleAuthenticationRequired(serverId);
 						}
 
 						return result;
@@ -326,8 +295,6 @@ export class GraphQLClient {
 			this.#visibilityHandler = () => {
 				if (document.visibilityState === 'visible') {
 					const hiddenDuration = Date.now() - this.#lastVisibleAt;
-
-					this.#triggerSessionValidation();
 
 					if (this.status === 'disconnected' || hiddenDuration > 30_000) {
 						console.debug(
@@ -417,25 +384,39 @@ export class GraphQLClient {
  */
 class GraphQLClientManager {
 	#clients = new Map<string, GraphQLClient>();
-	#originClient: GraphQLClient;
+	#originClient: GraphQLClient | null = null;
+	#originClientToken: string | null = null;
+	#originClientServerId: string | undefined;
 
-	constructor() {
+	/** The origin instance client (serves the SPA, prefers bearer auth when available). */
+	get originClient(): GraphQLClient {
+		const origin = serverRegistry.originServer;
+		const token = origin?.token ?? null;
+		const serverId = origin?.id;
+		if (
+			this.#originClient &&
+			this.#originClientToken === token &&
+			this.#originClientServerId === serverId
+		) {
+			return this.#originClient;
+		}
+
+		this.#originClient?.dispose();
 		this.#originClient = new GraphQLClient({
 			url: HOME_URL,
 			wsUrl: HOME_URL,
-			token: null
+			token,
+			serverId
 		});
-	}
-
-	/** The origin instance client (serves the SPA, uses cookies). */
-	get originClient(): GraphQLClient {
+		this.#originClientToken = token;
+		this.#originClientServerId = serverId;
 		return this.#originClient;
 	}
 
 	/** Get or create a client for a registered instance. */
 	getClient(serverId: string): GraphQLClient {
 		if (serverRegistry.isOriginServer(serverId)) {
-			return this.#originClient;
+			return this.originClient;
 		}
 
 		const existing = this.#clients.get(serverId);
@@ -450,15 +431,25 @@ class GraphQLClientManager {
 		const client = new GraphQLClient({
 			url,
 			wsUrl: httpToWsUrl(url),
-			token: server.token
+			token: server.token,
+			serverId
 		});
 
 		this.#clients.set(serverId, client);
 		return client;
 	}
 
-	/** Destroy and remove a client. Cannot destroy the origin client. */
+	/** Destroy and remove a client. */
 	destroyClient(serverId: string): boolean {
+		if (serverRegistry.isOriginServer(serverId)) {
+			if (!this.#originClient) return false;
+			this.#originClient.dispose();
+			this.#originClient = null;
+			this.#originClientToken = null;
+			this.#originClientServerId = undefined;
+			return true;
+		}
+
 		const client = this.#clients.get(serverId);
 		if (!client) return false;
 

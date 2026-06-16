@@ -6,11 +6,9 @@ import { TIMEOUTS } from './constants';
 /**
  * Navigate to a route and wait for the client-side app to be fully hydrated.
  *
- * When navigating via page.goto() to SSR pages, the server-rendered HTML may be
- * visible before client-side hydration completes. The visibilitychange handler
- * depends on onSessionValidationNeeded being registered (which happens during
- * hydration in initCurrentUserFromData). Waiting for the WebSocket connection
- * console log proves the full client-side app is initialized.
+ * When navigating via page.goto(), visible route content can appear before
+ * client-side hydration completes. Waiting for the WebSocket connection console
+ * log proves the full client-side app is initialized.
  */
 async function gotoAndWaitForHydration(page: Page, url: string): Promise<void> {
   // Set up listener BEFORE navigating so we don't miss the console message
@@ -29,38 +27,78 @@ async function gotoAndWaitForHydration(page: Page, url: string): Promise<void> {
 }
 
 /**
- * Clear cookies and trigger session validation via visibilitychange event.
- * Waits for the LoadCurrentUser query response specifically, ensuring the
- * validation completes before we check for the redirect.
+ * Clear stored credentials and reload the protected route.
+ *
+ * Session expiry is observed on the next app load or protected request. There
+ * is intentionally no passive visibilitychange validation hook anymore: that
+ * hook made transient auth/API failures look like real logouts.
  */
-async function clearCookiesAndTriggerValidation(page: Page): Promise<void> {
-  await page.context().clearCookies();
+async function clearCredentialsAndReloadProtectedRoute(page: Page): Promise<void> {
+  const target = new URL(page.url());
+  const targetPath = target.pathname + target.search + target.hash;
 
-  // Watch specifically for the LoadCurrentUser validation query
-  const validationResponse = page.waitForResponse(
+  await page.context().clearCookies();
+  await page.evaluate((origin) => {
+    const raw = localStorage.getItem('chatto:instances');
+    if (raw === null) return;
+
+    let servers: unknown;
+    try {
+      servers = JSON.parse(raw);
+    } catch {
+      return;
+    }
+    if (!Array.isArray(servers)) return;
+
+    localStorage.setItem(
+      'chatto:instances',
+      JSON.stringify(
+        servers.map((server) => {
+          if (server === null || typeof server !== 'object') return server;
+          const serverRecord = server as Record<string, unknown>;
+          if (typeof serverRecord.url !== 'string') return server;
+
+          try {
+            if (new URL(serverRecord.url).origin !== origin) return server;
+          } catch {
+            return server;
+          }
+
+          return {
+            ...serverRecord,
+            token: null,
+            userId: null,
+            userLogin: null,
+            userDisplayName: null,
+            userAvatarUrl: null
+          };
+        })
+      )
+    );
+  }, target.origin);
+
+  const currentUserResponse = page.waitForResponse(
     async (resp) => {
-      if (!resp.url().includes('/api/graphql') || resp.status() !== 200) return false;
+      if (!resp.url().includes('/api/graphql')) return false;
       const postData = resp.request().postData();
       return postData !== null && postData.includes('LoadCurrentUser');
     },
     { timeout: TIMEOUTS.REALTIME_EVENT }
   );
 
-  await page.evaluate(() => {
-    Object.defineProperty(document, 'visibilityState', {
-      value: 'visible',
-      writable: true,
-      configurable: true
-    });
-    document.dispatchEvent(new Event('visibilitychange'));
-  });
+  await page.goto(targetPath);
+  await currentUserResponse;
+}
 
-  // Wait for the validation query to complete before checking redirect
-  await validationResponse;
+async function expectLoggedOutRedirect(page: Page): Promise<void> {
+  await expect(page).toHaveURL(
+    (url) => url.pathname === routes.root || url.pathname === routes.login,
+    { timeout: TIMEOUTS.REALTIME_EVENT }
+  );
 }
 
 test.describe('Session Expiration Handling', () => {
-  test('redirects to login when session cookie is cleared', async ({ page, authPage }) => {
+  test('redirects to login when stored credentials are cleared', async ({ page, authPage }) => {
     const timestamp = Date.now();
     const testLogin = `sessionexp${timestamp}`;
     const testPassword = 'testpassword123';
@@ -74,11 +112,11 @@ test.describe('Session Expiration Handling', () => {
     await gotoAndWaitForHydration(page, routes.settings);
     await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible();
 
-    // Clear cookies and trigger session validation
-    await clearCookiesAndTriggerValidation(page);
+    // Clear credentials and reload the protected route
+    await clearCredentialsAndReloadProtectedRoute(page);
 
-    // Should be redirected to home (login) page
-    await page.waitForURL('/', { timeout: TIMEOUTS.REALTIME_EVENT });
+    // Should leave the authenticated chat surface.
+    await expectLoggedOutRedirect(page);
     await authPage.expectLoggedOut();
   });
 
@@ -96,11 +134,11 @@ test.describe('Session Expiration Handling', () => {
     await gotoAndWaitForHydration(page, routes.settings);
     await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible();
 
-    // Clear cookies and trigger session validation
-    await clearCookiesAndTriggerValidation(page);
+    // Clear credentials and reload the protected route
+    await clearCredentialsAndReloadProtectedRoute(page);
 
     // Wait for redirect
-    await page.waitForURL('/', { timeout: TIMEOUTS.REALTIME_EVENT });
+    await expectLoggedOutRedirect(page);
 
     // Check that returnUrl was saved
     const returnUrl = await page.evaluate(() => sessionStorage.getItem('returnUrl'));
@@ -124,11 +162,11 @@ test.describe('Session Expiration Handling', () => {
     await gotoAndWaitForHydration(page, routes.settings);
     await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible();
 
-    // Clear cookies and trigger session validation
-    await clearCookiesAndTriggerValidation(page);
+    // Clear credentials and reload the protected route
+    await clearCredentialsAndReloadProtectedRoute(page);
 
     // Wait for redirect to login
-    await page.waitForURL('/', { timeout: TIMEOUTS.REALTIME_EVENT });
+    await expectLoggedOutRedirect(page);
 
     // Login again
     await authPage.gotoLogin();
@@ -182,7 +220,7 @@ test.describe('Session Expiration Handling', () => {
     expect(updatedSessionCookie!.value).toBeTruthy();
   });
 
-  test('handles rapid session validation without multiple redirects', async ({
+  test('handles repeated expired-session loads without multiple redirects', async ({
     page,
     authPage
   }) => {
@@ -200,8 +238,6 @@ test.describe('Session Expiration Handling', () => {
     await authPage.expectLoggedIn();
 
     // Intercept LoadCurrentUser queries to return viewer: null (simulating expired session).
-    // This is more reliable than clearing cookies, which can have timing issues with
-    // in-flight requests and WebSocket reconnection attempts.
     await page.route('**/api/graphql', async (route) => {
       const postData = route.request().postData();
       if (postData && postData.includes('LoadCurrentUser')) {
@@ -215,21 +251,16 @@ test.describe('Session Expiration Handling', () => {
       }
     });
 
-    // Trigger multiple rapid visibility changes (simulates user switching tabs quickly)
-    await page.evaluate(() => {
-      Object.defineProperty(document, 'visibilityState', {
-        value: 'visible',
-        writable: true,
-        configurable: true
-      });
-      // Rapid fire events
-      document.dispatchEvent(new Event('visibilitychange'));
-      document.dispatchEvent(new Event('visibilitychange'));
-      document.dispatchEvent(new Event('visibilitychange'));
-    });
+    await page.goto(routes.settings);
 
-    // Should still end up at landing page (only one redirect)
-    await page.waitForURL('/', { timeout: TIMEOUTS.REALTIME_EVENT });
+    // Should still end up at landing page.
+    await expectLoggedOutRedirect(page);
+    await authPage.expectLoggedOut();
+
+    // Re-entering the stale protected URL should settle to the same logged-out
+    // route without bouncing between app shells.
+    await page.goto(routes.settings);
+    await expectLoggedOutRedirect(page);
     await authPage.expectLoggedOut();
 
     // Clean up route handler

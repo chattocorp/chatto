@@ -11,54 +11,13 @@
 
 import { pipe, subscribe as urqlSubscribe, onEnd } from 'wonka';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import type { EventHandler, EventBus } from '$lib/eventBus.svelte';
+import type { EventBusCatchUpReason, EventHandler, EventBus } from '$lib/eventBus.svelte';
 import { MyServerEventsSubscriptionDoc } from '$lib/eventBus.svelte';
 import type { GraphQLClient } from './graphqlClient.svelte';
 
-// Safety-net watchdog: if no event arrives within this window while the
-// tab is visible, force a re-subscribe. The server emits a HeartbeatEvent
-// every 25s (see StreamMyEvents in core.go), so 40s tolerates one missed
-// heartbeat plus jitter without thrashing.
-//
-// This is the floor, not the primary detector — `onEnd` and the WS-
-// reconnect handler below catch the common failure modes immediately.
-const STALE_THRESHOLD_MS = 40_000;
-const WATCHDOG_INTERVAL_MS = 15_000;
-// On visibilitychange → visible, re-subscribe if last event is older
-// than this. Catches laptop-wake-from-sleep cases without thrashing the
-// connection on quick tab toggles.
-const VISIBILITY_RESUBSCRIBE_AFTER_MS = 30_000;
-
-// Periodic liveness summary cadence. Emitted at log level (not debug) so
-// post-incident screenshots show a clean timeline of subscription health
-// without needing verbose console filtering enabled.
-const LIVENESS_SUMMARY_INTERVAL_MS = 60_000;
-const FULL_REFRESH_REQUIRED_CODE = 'MY_EVENTS_FULL_REFRESH_REQUIRED';
-export const FULL_REFRESH_REQUIRED_EVENT = 'chattofullrefreshrequired';
-
-function requiresFullRefresh(error: unknown): boolean {
-	const graphQLErrors = (error as { graphQLErrors?: Array<{ extensions?: { code?: unknown } }> })
-		?.graphQLErrors;
-	return graphQLErrors?.some((e) => e.extensions?.code === FULL_REFRESH_REQUIRED_CODE) ?? false;
-}
-
-function requestFullRefresh(serverId: string) {
-	if (typeof window === 'undefined') return;
-	window.dispatchEvent(
-		new CustomEvent(FULL_REFRESH_REQUIRED_EVENT, {
-			detail: { serverId }
-		})
-	);
-}
-
-function cursorDebug(cursor: string | null) {
-	if (!cursor) return { present: false };
-	return {
-		present: true,
-		length: cursor.length,
-		suffix: cursor.slice(-8)
-	};
-}
+const HEARTBEAT_STALL_MS = 75_000;
+const HEARTBEAT_WATCHDOG_MS = 15_000;
+const CATCH_UP_RETRY_MS = 2_500;
 
 function errorDebug(error: unknown) {
 	const graphQLErrors = (error as { graphQLErrors?: Array<{ message?: string; extensions?: { code?: unknown } }> })
@@ -87,21 +46,11 @@ class EventBusManager {
 	 * stores the bus. If a bus already exists for this server, returns a
 	 * cleanup function without creating a duplicate.
 	 *
-	 * Three layers of resubscribe coverage, in order of fastest reaction:
-	 *
-	 *  1. **`onEnd`** — urql/wonka emits an End signal when the source
-	 *     terminates (server sent Complete or Error for the subscription
-	 *     ID, or graphql-ws closed the Sink). graphql-ws does NOT auto-
-	 *     resubscribe a closed Sink on later reconnects, so we explicitly
-	 *     re-establish.
-	 *  2. **WS reconnect** — when the underlying WebSocket transitions
-	 *     disconnected → connected (tracked by `GraphQLClient.reconnectCount`),
-	 *     we proactively re-subscribe. Belt-and-suspenders for the case
-	 *     where graphql-ws's own auto-resubscribe didn't deliver us a new
-	 *     subscription (silently-inert Sink, no `onEnd` to catch).
-	 *  3. **Watchdog** — if neither of the above fires but events stop
-	 *     flowing for STALE_THRESHOLD_MS (one missed 25s heartbeat + buffer),
-	 *     re-subscribe as a last resort.
+	 * The bus stays intentionally small: it re-subscribes when the current
+	 * source ends, when the underlying WebSocket reconnects, or when the
+	 * server heartbeat goes silent while the tab is visible. Consumers that
+	 * own projected state can register `catchUpHandlers` to refetch after
+	 * those gaps instead of relying on subscription replay.
 	 *
 	 * @returns Cleanup function that stops the bus.
 	 */
@@ -114,16 +63,14 @@ class EventBusManager {
 
 		const client = gqlClient.client;
 		const handlers = new SvelteSet<EventHandler>();
-		const bus: EventBus = { handlers };
+		const catchUpHandlers = new SvelteSet<(reason: EventBusCatchUpReason) => void>();
+		const bus: EventBus = { handlers, catchUpHandlers };
 		let lastEventAt = Date.now();
-		// Running counters so the periodic liveness summary and post-mortem
-		// logs can quote concrete numbers ("5 events, 12 heartbeats in the
-		// last minute") rather than just "subscription is alive".
 		let heartbeatCount = 0;
 		let dispatchedEventCount = 0;
 		let resubscribeCount = 0;
-		let lastDeliveryCursor: string | null = null;
 		let subscriptionGeneration = 0;
+		let catchUpRetryTimer: ReturnType<typeof setTimeout> | null = null;
 		// Set while we're tearing down a subscription (either to replace it
 		// or because the bus is stopping). Prevents `onEnd` from firing a
 		// reentrant resubscribe in response to our own unsubscribe.
@@ -136,9 +83,7 @@ class EventBusManager {
 			events: dispatchedEventCount,
 			heartbeats: heartbeatCount,
 			resubscribes: resubscribeCount,
-			lastEventAgeMs: Date.now() - lastEventAt,
-			cursor: cursorDebug(lastDeliveryCursor),
-			visible: typeof document === 'undefined' ? undefined : document.visibilityState === 'visible'
+			lastEventAgeMs: Date.now() - lastEventAt
 		});
 
 		const subscribeOnce = (reason: string) => {
@@ -149,7 +94,7 @@ class EventBusManager {
 				...debugState()
 			});
 			return pipe(
-				client.subscription(MyServerEventsSubscriptionDoc, { after: lastDeliveryCursor }),
+				client.subscription(MyServerEventsSubscriptionDoc, {}),
 				onEnd(() => {
 					if (teardownInProgress || stopped) return;
 					console.debug(`[eventBus:${serverId}] subscription source ended`, {
@@ -157,37 +102,16 @@ class EventBusManager {
 						...debugState()
 					});
 					console.warn(`[eventBus:${serverId}] subscription source ended`);
-					resubscribe('subscription source ended');
+					resubscribe('subscription source ended', 'subscription-ended');
 				}),
 				urqlSubscribe((result) => {
 					if (result.error) {
-						if (requiresFullRefresh(result.error)) {
-							console.debug(`[eventBus:${serverId}] replay cursor rejected`, {
-								generation,
-								state: debugState(),
-								error: errorDebug(result.error)
-							});
-							lastDeliveryCursor = null;
-							console.warn(
-								`[eventBus:${serverId}] replay cursor rejected; forcing full refresh`,
-								result.error
-							);
-							requestFullRefresh(serverId);
-							return;
-						}
-						// Surface subscription errors so unreachable servers and other
-						// real failures are visible in the dev console. Don't refresh
-						// lastEventAt — an error storm without data should not mask a
-						// stalled pipeline from the watchdog.
 						console.debug(`[eventBus:${serverId}] subscription error state`, {
 							generation,
 							state: debugState(),
 							error: errorDebug(result.error)
 						});
-						console.error(
-							`[eventBus:${serverId}] subscription error`,
-							result.error
-						);
+						console.error(`[eventBus:${serverId}] subscription error`, result.error);
 						return;
 					}
 					lastEventAt = Date.now();
@@ -199,17 +123,6 @@ class EventBusManager {
 						return;
 					}
 					const event = result.data.myEvents;
-					if (event.deliveryCursor) {
-						const previousCursor = lastDeliveryCursor;
-						lastDeliveryCursor = event.deliveryCursor;
-						console.debug(`[eventBus:${serverId}] delivery cursor advanced`, {
-							generation,
-							eventId: event.id,
-							eventType: event.event?.__typename,
-							previous: cursorDebug(previousCursor),
-							next: cursorDebug(lastDeliveryCursor)
-						});
-					}
 					// Heartbeats are pure liveness signals — already accounted for
 					// via lastEventAt above. Don't dispatch to handlers.
 					if (event.event?.__typename === 'HeartbeatEvent') {
@@ -224,8 +137,7 @@ class EventBusManager {
 						{
 							generation,
 							eventId: event.id,
-							total: dispatchedEventCount,
-							cursor: cursorDebug(lastDeliveryCursor)
+							total: dispatchedEventCount
 						}
 					);
 					// Run handlers in isolation: a throw from one handler must not
@@ -234,17 +146,46 @@ class EventBusManager {
 						try {
 							handler(event);
 						} catch (err) {
-							console.error(
-								`[eventBus:${serverId}] handler threw`,
-								err
-							);
+							console.error(`[eventBus:${serverId}] handler threw`, err);
 						}
 					}
 				})
 			);
 		};
 
-		const resubscribe = (reason: string) => {
+		const notifyCatchUpHandlers = (
+			reason: EventBusCatchUpReason,
+			phase: 'immediate' | 'projection-grace' = 'immediate'
+		) => {
+			console.debug(`[eventBus:${serverId}] notifying catch-up handlers`, {
+				reason,
+				phase,
+				catchUpHandlers: catchUpHandlers.size,
+				...debugState()
+			});
+			for (const handler of catchUpHandlers) {
+				try {
+					handler(reason);
+				} catch (err) {
+					console.error(`[eventBus:${serverId}] catch-up handler threw`, err);
+				}
+			}
+		};
+
+		const scheduleCatchUpRetry = (reason: EventBusCatchUpReason) => {
+			if (catchUpRetryTimer) clearTimeout(catchUpRetryTimer);
+			catchUpRetryTimer = setTimeout(() => {
+				catchUpRetryTimer = null;
+				if (stopped) return;
+				console.debug(`[eventBus:${serverId}] retrying catch-up after projection grace period`, {
+					reason,
+					...debugState()
+				});
+				notifyCatchUpHandlers(reason, 'projection-grace');
+			}, CATCH_UP_RETRY_MS);
+		};
+
+		const resubscribe = (reason: string, catchUpReason: EventBusCatchUpReason) => {
 			if (stopped) return;
 			resubscribeCount++;
 			console.debug(`[eventBus:${serverId}] resubscribe requested`, {
@@ -259,52 +200,12 @@ class EventBusManager {
 			teardownInProgress = false;
 			lastEventAt = Date.now();
 			this.#subscriptions.set(serverId, subscribeOnce(reason));
+			notifyCatchUpHandlers(catchUpReason);
+			scheduleCatchUpRetry(catchUpReason);
 		};
 
 		console.debug(`[eventBus:${serverId}] bus started`, debugState());
 		this.#subscriptions.set(serverId, subscribeOnce('initial start'));
-
-		const watchdog = setInterval(() => {
-			if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
-				console.debug(`[eventBus:${serverId}] watchdog skipped (tab hidden)`);
-				return;
-			}
-			const gap = Date.now() - lastEventAt;
-			if (gap < STALE_THRESHOLD_MS) return;
-			console.warn(
-				`[eventBus:${serverId}] watchdog: stale (${Math.round(gap / 1000)}s since last event, threshold ${STALE_THRESHOLD_MS / 1000}s)`
-			);
-			resubscribe(`no event for ${STALE_THRESHOLD_MS}ms`);
-		}, WATCHDOG_INTERVAL_MS);
-
-		// Periodic at-a-glance health snapshot so a multi-hour log shows
-		// whether the subscription was alive throughout — invaluable when
-		// debugging post-sleep "no events received" reports where the
-		// per-event debug lines may be too noisy to scroll through.
-		const livenessSummary = setInterval(() => {
-			const gapSec = Math.round((Date.now() - lastEventAt) / 1000);
-			console.debug(
-				`[eventBus:${serverId}] alive (handlers=${handlers.size}, events=${dispatchedEventCount}, heartbeats=${heartbeatCount}, resubscribes=${resubscribeCount}, lastEvent=${gapSec}s ago, visible=${typeof document === 'undefined' ? 'n/a' : document.visibilityState === 'visible'})`
-			);
-		}, LIVENESS_SUMMARY_INTERVAL_MS);
-
-		const onVisibility = () => {
-			if (document.visibilityState !== 'visible') return;
-			const gap = Date.now() - lastEventAt;
-			if (gap > VISIBILITY_RESUBSCRIBE_AFTER_MS) {
-				console.debug(
-					`[eventBus:${serverId}] visibility=visible, gap=${Math.round(gap / 1000)}s → resubscribing`
-				);
-				resubscribe('tab became visible after gap');
-			} else {
-				console.debug(
-					`[eventBus:${serverId}] visibility=visible, gap=${Math.round(gap / 1000)}s → no resubscribe (under threshold)`
-				);
-			}
-		};
-		if (typeof document !== 'undefined') {
-			document.addEventListener('visibilitychange', onVisibility);
-		}
 
 		// Force resubscribe on every WebSocket reconnect. graphql-ws's
 		// internal auto-resubscribe should handle the live Sinks, but we
@@ -321,21 +222,33 @@ class EventBusManager {
 						`[eventBus:${serverId}] ws reconnectCount ${lastSeenReconnects} → ${n}, resubscribing`
 					);
 					lastSeenReconnects = n;
-					resubscribe('ws reconnected');
+					resubscribe('ws reconnected', 'ws-reconnected');
 				}
 			});
 		});
+
+		const heartbeatWatchdog = setInterval(() => {
+			if (stopped) return;
+			if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+			const ageMs = Date.now() - lastEventAt;
+			if (ageMs < HEARTBEAT_STALL_MS) return;
+			console.debug(`[eventBus:${serverId}] heartbeat watchdog detected stale stream`, {
+				ageMs,
+				...debugState()
+			});
+			console.warn(
+				`[eventBus:${serverId}] heartbeat stalled; re-subscribing (${Math.round(ageMs / 1000)}s since last event)`
+			);
+			resubscribe('heartbeat stalled', 'heartbeat-stalled');
+		}, HEARTBEAT_WATCHDOG_MS);
 
 		this.#cleanups.set(serverId, () => {
 			// Flag the closure so the upcoming sub.unsubscribe() in stopBus
 			// doesn't fire a reentrant resubscribe through onEnd.
 			stopped = true;
 			console.debug(`[eventBus:${serverId}] bus stopping`, debugState());
-			clearInterval(watchdog);
-			clearInterval(livenessSummary);
-			if (typeof document !== 'undefined') {
-				document.removeEventListener('visibilitychange', onVisibility);
-			}
+			if (catchUpRetryTimer) clearTimeout(catchUpRetryTimer);
+			clearInterval(heartbeatWatchdog);
 			stopReconnectEffect();
 		});
 

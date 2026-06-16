@@ -16,6 +16,7 @@ import {
   RoomAroundQuery,
   RoomBeforeQuery,
   RoomLatestQuery,
+  ThreadEventsAroundQuery,
   ThreadEventsQuery
 } from './queries';
 import { isRootRoomEvent, isThreadEvent } from './filters';
@@ -29,8 +30,18 @@ import {
 
 type MessageScope = 'room' | 'thread';
 
+export type RefreshCurrentWindowResult = {
+  hasOlder: boolean;
+  hasNewer: boolean;
+  refreshed: boolean;
+};
+
 function eventCacheKey(roomId: string, eventId: string): string {
   return `${roomId}\u0000${eventId}`;
+}
+
+function compareEventCreatedAt(a: RoomEventViewFragment, b: RoomEventViewFragment): number {
+  return Date.parse(a.createdAt) - Date.parse(b.createdAt);
 }
 
 /**
@@ -393,6 +404,80 @@ export class MessagesStore {
     this.resetAndFetchLatest();
   }
 
+  /**
+   * Refresh the currently displayed message window from projected state without
+   * clearing the buffer. Used after tab wake / reconnect when the client may
+   * have missed subscription events.
+   */
+  async refreshCurrentWindow(anchorEventId?: string | null): Promise<RefreshCurrentWindowResult> {
+    if (!this.scope || !this.roomId) return { hasOlder: false, hasNewer: false, refreshed: false };
+
+    const thisLoad = this.startLoad();
+    const existingBeforeFetch = new SvelteSet(this.events.map((e) => e.id));
+    console.debug('[room-refresh] store refresh started', {
+      roomId: this.roomId,
+      scope: this.scope,
+      anchorEventId: anchorEventId ?? null,
+      existingCount: this.events.length
+    });
+
+    try {
+      if (this.scope === 'thread') {
+        const result = await this.refreshThreadWindow(
+          thisLoad,
+          existingBeforeFetch,
+          anchorEventId ?? null
+        );
+        console.debug('[room-refresh] store refresh finished', {
+          roomId: this.roomId,
+          scope: this.scope,
+          mode: anchorEventId ? 'thread-around' : 'thread-latest',
+          anchorEventId: anchorEventId ?? null,
+          result,
+          eventCount: this.events.length
+        });
+        return result;
+      }
+
+      if (anchorEventId) {
+        const refreshedAroundAnchor = await this.refreshRoomAround(
+          thisLoad,
+          anchorEventId,
+          existingBeforeFetch
+        );
+        if (refreshedAroundAnchor) {
+          console.debug('[room-refresh] store refresh finished', {
+            roomId: this.roomId,
+            scope: this.scope,
+            mode: 'around',
+            anchorEventId,
+            result: refreshedAroundAnchor,
+            eventCount: this.events.length
+          });
+          return refreshedAroundAnchor;
+        }
+        console.debug('[room-refresh] anchor refresh unavailable, falling back to latest', {
+          roomId: this.roomId,
+          anchorEventId
+        });
+      }
+
+      const result = await this.refreshRoomLatest(thisLoad, existingBeforeFetch);
+      console.debug('[room-refresh] store refresh finished', {
+        roomId: this.roomId,
+        scope: this.scope,
+        mode: 'latest',
+        result,
+        eventCount: this.events.length
+      });
+      return result;
+    } catch (error) {
+      if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false, refreshed: false };
+      console.error('MessagesStore: refreshCurrentWindow failed:', error);
+      return { hasOlder: false, hasNewer: false, refreshed: false };
+    }
+  }
+
   private onMessagePosted(
     spaceEvent: RoomEventViewFragment,
     eventData: Extract<RoomEventViewFragment['event'], { __typename: 'MessagePostedEvent' }>
@@ -407,7 +492,7 @@ export class MessagesStore {
       }
 
       if (eventData.threadRootEventId === this.threadRootEventId) {
-        this.addEvent(spaceEvent);
+        this.addEvent(spaceEvent, { sortRoom: false });
         this.sortThreadEvents();
       }
       return;
@@ -588,15 +673,23 @@ export class MessagesStore {
     }
   }
 
-  private addEvent(event: RoomEventViewFragment): boolean {
+  private addEvent(
+    event: RoomEventViewFragment,
+    options: { sortRoom?: boolean } = {}
+  ): boolean {
     if (this.seenIds.has(event.id)) return false;
     this.seenIds.add(event.id);
     this.events.push(event);
+    if ((options.sortRoom ?? true) && this.scope === 'room') this.sortRoomEvents();
     return true;
   }
 
   private appendMany(events: RoomEventViewFragment[]): void {
-    for (const e of events) this.addEvent(e);
+    let added = false;
+    for (const e of events) {
+      added = this.addEvent(e, { sortRoom: false }) || added;
+    }
+    if (added && this.scope === 'room') this.sortRoomEvents();
   }
 
   private prependEvents(olderEvents: RoomEventViewFragment[]): number {
@@ -630,6 +723,7 @@ export class MessagesStore {
       merged.push(e);
     }
     this.events = merged;
+    if (this.scope === 'room') this.sortRoomEvents();
     this.seenIds = newSeen;
   }
 
@@ -653,6 +747,151 @@ export class MessagesStore {
     this.oldestCursor = connection.startCursor ?? undefined;
     this.newestCursor = connection.endCursor ?? undefined;
     this.hasReachedStart = false;
+  }
+
+  private replaceWithSnapshotAndUpdateCursors(
+    connection: {
+      events: readonly RawEvent[];
+      startCursor?: string | null;
+      endCursor?: string | null;
+      hasOlder?: boolean;
+    },
+    existingBeforeFetch: ReadonlySet<string>
+  ): void {
+    const fetched = unmask(connection.events);
+    const newSeen = new SvelteSet<string>();
+    const merged: RoomEventViewFragment[] = [];
+
+    for (const e of fetched) {
+      if (newSeen.has(e.id)) continue;
+      newSeen.add(e.id);
+      merged.push(e);
+    }
+
+    // Preserve subscription events that arrived while the refresh query was in
+    // flight. Older pre-refresh rows outside the fetched window are deliberately
+    // dropped: this is a projected-state reload of the current window.
+    for (const e of this.events) {
+      if (existingBeforeFetch.has(e.id) || newSeen.has(e.id)) continue;
+      newSeen.add(e.id);
+      merged.push(e);
+    }
+
+    this.events = merged;
+    if (this.scope === 'room') this.sortRoomEvents();
+    this.seenIds = newSeen;
+    this.oldestCursor = connection.startCursor ?? undefined;
+    this.newestCursor = connection.endCursor ?? undefined;
+    this.hasReachedStart = !(connection.hasOlder ?? false);
+    console.debug('[room-refresh] snapshot applied', {
+      fetchedCount: fetched.length,
+      preservedInFlightCount: merged.length - fetched.length,
+      eventCount: this.events.length,
+      hasOlder: connection.hasOlder ?? false,
+      hasReachedStart: this.hasReachedStart
+    });
+  }
+
+  private async refreshRoomLatest(
+    thisLoad: number,
+    existingBeforeFetch: ReadonlySet<string>
+  ): Promise<RefreshCurrentWindowResult> {
+    const result = await this.client
+      .query(
+        RoomLatestQuery,
+        {
+          roomId: this.roomId,
+          limit: PAGE_SIZE
+        },
+        { requestPolicy: 'network-only' }
+      )
+      .toPromise();
+
+    if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false, refreshed: false };
+    if (result.error) {
+      console.error('MessagesStore: refreshRoomLatest error:', result.error);
+      return { hasOlder: false, hasNewer: false, refreshed: false };
+    }
+
+    const page = result.data?.room?.events;
+    if (!page) return { hasOlder: false, hasNewer: false, refreshed: false };
+    this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch);
+    return { hasOlder: page.hasOlder, hasNewer: page.hasNewer, refreshed: true };
+  }
+
+  private async refreshRoomAround(
+    thisLoad: number,
+    anchorEventId: string,
+    existingBeforeFetch: ReadonlySet<string>
+  ): Promise<RefreshCurrentWindowResult | null> {
+    const result = await this.client
+      .query(
+        RoomAroundQuery,
+        {
+          roomId: this.roomId,
+          eventId: anchorEventId,
+          limit: PAGE_SIZE
+        },
+        { requestPolicy: 'network-only' }
+      )
+      .toPromise();
+
+    if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false, refreshed: false };
+    if (result.error) {
+      console.error('MessagesStore: refreshRoomAround error:', result.error);
+      return null;
+    }
+
+    const page = result.data?.room?.eventsAround;
+    if (!page) return null;
+    this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch);
+    return { hasOlder: page.hasOlder, hasNewer: page.hasNewer, refreshed: true };
+  }
+
+  private async refreshThreadWindow(
+    thisLoad: number,
+    existingBeforeFetch: ReadonlySet<string>,
+    anchorEventId: string | null
+  ): Promise<RefreshCurrentWindowResult> {
+    const query = anchorEventId ? ThreadEventsAroundQuery : ThreadEventsQuery;
+    const variables = anchorEventId
+      ? {
+          roomId: this.roomId,
+          threadRootEventId: this.threadRootEventId,
+          anchorEventId,
+          limit: PAGE_SIZE
+        }
+      : {
+          roomId: this.roomId,
+          threadRootEventId: this.threadRootEventId,
+          limit: PAGE_SIZE
+        };
+    const result = await this.client
+      .query(query, variables, { requestPolicy: 'network-only' })
+      .toPromise();
+
+    if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false, refreshed: false };
+    if (result.error) {
+      console.error('MessagesStore: refreshThreadWindow error:', result.error);
+      return { hasOlder: false, hasNewer: false, refreshed: false };
+    }
+
+    const root = result.data?.room?.event;
+    if (!root) return { hasOlder: false, hasNewer: false, refreshed: false };
+
+    const page = threadRepliesConnection(root);
+    const replies = page?.events ?? [];
+    this.replaceWithSnapshotAndUpdateCursors(
+      {
+        events: [root, ...replies],
+        startCursor: page?.startCursor,
+        endCursor: page?.endCursor,
+        hasOlder: page?.hasOlder
+      },
+      existingBeforeFetch
+    );
+    this.sortThreadEvents();
+    return { hasOlder: page?.hasOlder ?? false, hasNewer: page?.hasNewer ?? false, refreshed: true };
   }
 
   private resetAndFetchLatest(): void {
@@ -763,14 +1002,24 @@ export class MessagesStore {
   }
 
   private sortThreadEvents(): void {
-    this.events = [...this.events].sort((a, b) => {
-      if (a.id === this.threadRootEventId) return -1;
-      if (b.id === this.threadRootEventId) return 1;
+    this.events = this.events
+      .map((event, index) => ({ event, index }))
+      .sort((a, b) => {
+        const aIsRoot = a.event.id === this.threadRootEventId;
+        const bIsRoot = b.event.id === this.threadRootEventId;
+        if (aIsRoot && !bIsRoot) return -1;
+        if (!aIsRoot && bIsRoot) return 1;
 
-      const aTime = Date.parse(a.createdAt);
-      const bTime = Date.parse(b.createdAt);
-      if (aTime !== bTime) return aTime - bTime;
-      return a.id.localeCompare(b.id);
-    });
+        const byCreatedAt = compareEventCreatedAt(a.event, b.event);
+        return byCreatedAt || a.index - b.index;
+      })
+      .map(({ event }) => event);
+  }
+
+  private sortRoomEvents(): void {
+    this.events = this.events
+      .map((event, index) => ({ event, index }))
+      .sort((a, b) => compareEventCreatedAt(a.event, b.event) || a.index - b.index)
+      .map(({ event }) => event);
   }
 }

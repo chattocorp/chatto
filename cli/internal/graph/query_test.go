@@ -223,7 +223,7 @@ func TestGraphQLDefaultAuthentication(t *testing.T) {
 		}
 	})
 
-	t.Run("viewer root requires authentication", func(t *testing.T) {
+	t.Run("viewer root returns null for unauthenticated callers", func(t *testing.T) {
 		resp := executeGraphQL(t, env, env.unauthContext(), `
 			query Viewer {
 				viewer {
@@ -234,11 +234,21 @@ func TestGraphQLDefaultAuthentication(t *testing.T) {
 			}
 		`, nil)
 
-		if len(resp.Errors) == 0 {
-			t.Fatal("Expected GraphQL authentication error")
+		if len(resp.Errors) != 0 {
+			t.Fatalf("Unexpected GraphQL errors: %v", resp.Errors)
 		}
-		if resp.Errors[0].Message != ErrNotAuthenticated.Error() {
-			t.Errorf("Expected authentication error, got %q", resp.Errors[0].Message)
+		var data struct {
+			Viewer *struct {
+				User struct {
+					ID string `json:"id"`
+				} `json:"user"`
+			} `json:"viewer"`
+		}
+		if err := json.Unmarshal(resp.Data, &data); err != nil {
+			t.Fatalf("Failed to unmarshal response data: %v", err)
+		}
+		if data.Viewer != nil {
+			t.Fatalf("Expected nil viewer, got %+v", data.Viewer)
 		}
 	})
 

@@ -71,7 +71,7 @@ type Viewer {
 
 extend type Query {
   "The current authenticated user's server-level permissions. Null if not authenticated."
-  viewer: Viewer @goField(forceResolver: true)
+  viewer: Viewer @public @goField(forceResolver: true)
 }
 
 extend type Mutation {

@@ -1,18 +1,77 @@
-import { describe, it, expect } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const { gotoMock, clearCachedUserMock } = vi.hoisted(() => ({
+  gotoMock: vi.fn(() => Promise.resolve()),
+  clearCachedUserMock: vi.fn()
+}));
+
+vi.mock('$app/navigation', () => ({
+  goto: gotoMock
+}));
+
+vi.mock('$app/paths', () => ({
+  resolve: (path: string) => path
+}));
+
+vi.mock('./loadAuth', () => ({
+  LoadCurrentUserDocument: {},
+  clearCachedUser: clearCachedUserMock
+}));
 
 /**
  * CurrentUserState class structure tests.
  *
- * The class itself depends on Svelte 5 reactive state and is exercised
- * end-to-end through `ServerStateStore`, which constructs one per
- * registered server. Component-level tests should mount real components
- * and read the state via `serverRegistry.getStore(id).currentUser` rather
- * than instantiating `CurrentUserState` directly.
+ * Most behavior is exercised end-to-end through `ServerStateStore`, which
+ * constructs one instance per registered server. These tests cover the
+ * isolated auth-failure contract because it protects against destructive
+ * logout regressions.
  */
 describe('CurrentUserState', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response('{}', { status: 200 }))));
+    vi.stubGlobal('sessionStorage', {
+      setItem: vi.fn(),
+      getItem: vi.fn(),
+      removeItem: vi.fn(),
+      clear: vi.fn()
+    });
+    vi.stubGlobal('window', {
+      location: {
+        pathname: '/chat/-/overview',
+        search: '?tab=profile'
+      }
+    });
+  });
+
   it('exports the class', async () => {
     const module = await import('./currentUser.svelte');
     expect(module.CurrentUserState).toBeDefined();
     expect(typeof module.CurrentUserState).toBe('function');
+  });
+
+  it('does not revoke the server session by default for cookie auth failures', async () => {
+    const { CurrentUserState } = await import('./currentUser.svelte');
+    const state = new CurrentUserState({} as never, true);
+
+    await state.handleAuthFailure();
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(clearCachedUserMock).toHaveBeenCalledOnce();
+    expect(sessionStorage.setItem).toHaveBeenCalledWith('returnUrl', '/chat/-/overview?tab=profile');
+    expect(gotoMock).toHaveBeenCalledWith('/', { invalidateAll: true });
+  });
+
+  it('revokes the server session when explicitly requested', async () => {
+    const { CurrentUserState } = await import('./currentUser.svelte');
+    const state = new CurrentUserState({} as never, true);
+
+    await state.handleAuthFailure({ revokeServerSession: true });
+
+    expect(fetch).toHaveBeenCalledWith('/auth/logout', {
+      method: 'POST',
+      headers: expect.any(Headers)
+    });
+    expect(gotoMock).toHaveBeenCalledWith('/', { invalidateAll: true });
   });
 });

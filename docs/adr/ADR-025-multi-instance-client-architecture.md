@@ -18,7 +18,7 @@ The frontend is instance-agnostic by default. It doesn't assume it's served by a
 
 1. **Probe-based origin detection**: On init, fetch `/api/server` on the current origin. If it responds, auto-register the origin as an instance. If it fails (static hosting), skip.
 2. **No `isHome` flag**: The origin instance is identified by comparing `instance.url` to `window.location.origin` at runtime — no stored flag.
-3. **Dual auth**: Origin uses cookie auth (HttpOnly, SameSite). Remote instances use opaque bearer tokens stored in `localStorage`.
+3. **Bearer-first client auth**: The client stores opaque bearer tokens in `localStorage` for every authenticated instance, including the origin when direct login or registration returns a token. Cookie auth remains as an origin-only fallback for compatibility flows that have not yet handed the SPA a bearer token.
 
 ### Unified Registry + State
 
@@ -52,7 +52,7 @@ Bearer tokens use NATS KV TTL (default 90 days). Each successful `ValidateAuthTo
 
 ### Negative
 
-- Remote instance bearer tokens in `localStorage` are vulnerable to XSS (cookie auth is not)
+- Registered-instance bearer tokens in `localStorage` are vulnerable to XSS (cookie auth is not)
 - `/api/server` is the only cross-origin endpoint with wildcard CORS — rich data needed pre-registration must go there, not in GraphQL
 - Separately hosted multi-instance frontends must be listed explicitly in each remote server's `webserver.oauth_redirect_origins` or exact `webserver.allowed_origins` before OAuth authorization codes can redirect back to them; wildcard CORS does not imply OAuth redirect trust. `oauth_redirect_origins = ["*"]` exists only as a temporary controlled-alpha escape hatch.
 - Users approve the first OAuth authorization for each trusted client origin; Chatto remembers that consent per user + origin instead of relying on an operator-managed OAuth client registry
@@ -60,5 +60,5 @@ Bearer tokens use NATS KV TTL (default 90 days). Each successful `ValidateAuthTo
 
 ### Trade-offs
 
-- Cookie vs token auth creates two distinct disconnect flows: cookie requires server-side logout + hard reload; token just removes the `localStorage` entry
+- During the transition, cookie and token auth still create two disconnect flows: token failures remove the registered credential, while origin cookie fallback can still require server-side logout + hard reload for compatibility paths.
 - SvelteMap for the store map enables reactive `$derived` reads but requires careful separation of imperative writes (`addInstance`) from pure reads (`getStore`)

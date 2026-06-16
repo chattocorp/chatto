@@ -114,15 +114,10 @@ export class JumpToMessageState {
   isLoadingNewer = $state(false);
 
   private _jumpFn: ((eventId: string) => Promise<void>) | null = null;
-  private _jumpToPresentFn: (() => void) | null = null;
   private _loadNewerFn: (() => Promise<void>) | null = null;
 
   setJumpHandler(fn: (eventId: string) => Promise<void>) {
     this._jumpFn = fn;
-  }
-
-  setJumpToPresentHandler(fn: () => void) {
-    this._jumpToPresentFn = fn;
   }
 
   setLoadNewerHandler(fn: () => Promise<void>) {
@@ -132,12 +127,6 @@ export class JumpToMessageState {
   async jumpToMessage(eventId: string): Promise<void> {
     if (this._jumpFn) {
       await this._jumpFn(eventId);
-    }
-  }
-
-  jumpToPresent(): void {
-    if (this._jumpToPresentFn) {
-      this._jumpToPresentFn();
     }
   }
 

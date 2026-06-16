@@ -3,8 +3,8 @@ name: release-please
 # Maintains a rolling release PR on main. As conventional-commit PRs
 # land on main, release-please updates the PR with the aggregated changelog
 # and bumped versions (cli/version.go + frontend/package.json). Merging the
-# Release PR creates the `vX.Y.Z-rc.N` tag + GitHub prerelease. The tag push
-# then fires ci.yml's `release` job (GoReleaser + frontend image push).
+# Release PR creates the `vX.Y.Z` tag + GitHub release. The tag push then
+# fires ci.yml's `release` job (GoReleaser + frontend image push).
 #
 # Also runs on `release-*` maintenance branches (e.g. `release-0.0.x`) to
 # support backport patches against older versions. release-please keeps a
@@ -12,11 +12,9 @@ name: release-please
 # its own latest version, so a backport on `release-0.0.x` bumps from the
 # tag reachable on that branch without jumping to main's version.
 #
-# The `main` branch is the active release-candidate line. Its current config
-# forces the first RC after the beta stream to `0.1.0-rc.0`; when the line is
-# ready for stable, switch main back to the default stable config/manifest and
-# release `0.1.0`. Maintenance branches use the default stable config/manifest
-# so backports continue to cut patches.
+# The `main` branch is the active stable release line and uses the shared
+# stable config with its own manifest. Maintenance branches use the shared
+# stable config/manifest so backports continue to cut patches.
 #
 # Replaces the old `mise bump` flow (goversion + manual tag + push).
 #
@@ -52,7 +50,7 @@ jobs:
       # Captured into env per workflow-injection best practice, even
       # though it's only used as an action input here (never in `run:`).
       TARGET_BRANCH: ${{ github.ref_name }}
-      CONFIG_FILE: ${{ github.ref_name == 'main' && '.release-please-config-main.json' || '.release-please-config.json' }}
+      CONFIG_FILE: .release-please-config.json
       MANIFEST_FILE: ${{ github.ref_name == 'main' && '.release-please-manifest-main.json' || '.release-please-manifest.json' }}
     steps:
       - uses: googleapis/release-please-action@v5

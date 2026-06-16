@@ -72,7 +72,7 @@
 </script>
 
 {#if actors.length > 0}
-  <div class="mt-4 flex items-center gap-4 px-2 md:px-4">
+  <div class="mt-4 flex items-center gap-4 px-2 md:px-4" data-event-id={events[0].id}>
     <!-- Avatar column (w-11 matches MessageEvent avatar width) -->
     <div class="flex w-11 shrink-0 items-center justify-center">
       <div class="flex -space-x-1.5">
