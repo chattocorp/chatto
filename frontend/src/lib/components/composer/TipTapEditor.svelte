@@ -646,9 +646,18 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     return markdown.replace(/ {2,}(\n\s*\n\s*(?:[-+*]|\d{1,9}[.)])\s)/g, '$1');
   }
 
+  function normalizeSerializedBlankLines(markdown: string): string {
+    return transformMarkdownOutsideCode(markdown, (text) => text.replace(/\n{3,}/g, '\n\n')).replace(
+      /\n+$/g,
+      ''
+    );
+  }
+
   function getSerializedMarkdown(e: Editor): string {
-    return normalizeSerializedHardBreaksBeforeLists(
-      trimSerializedTrailingEmptyParagraph(decodeSerializedMarkdownText(e.getMarkdown()), e)
+    return normalizeSerializedBlankLines(
+      normalizeSerializedHardBreaksBeforeLists(
+        trimSerializedTrailingEmptyParagraph(decodeSerializedMarkdownText(e.getMarkdown()), e)
+      )
     );
   }
 
