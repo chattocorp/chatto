@@ -555,20 +555,29 @@ func (c *OwnersConfig) IsServerOwnerEmail(email string) bool {
 	return false
 }
 
-// SMTPTLSPolicy controls how the SMTP client negotiates STARTTLS.
+// SMTPTLSPolicy controls how the SMTP client encrypts the transport.
 type SMTPTLSPolicy string
 
 const (
 	SMTPTLSMandatory     SMTPTLSPolicy = "mandatory"
 	SMTPTLSOpportunistic SMTPTLSPolicy = "opportunistic"
+	SMTPTLSImplicit      SMTPTLSPolicy = "implicit"
 )
 
 // TLSPolicyOrDefault returns the configured SMTP TLS policy, defaulting to
 // mandatory STARTTLS so transactional email tokens are not sent in plaintext.
+// Port 465 is the standard implicit TLS/SMTPS submission port, so treat the
+// default/mandatory policy as implicit TLS there for operator compatibility.
 func (c *SMTPConfig) TLSPolicyOrDefault() SMTPTLSPolicy {
 	policy := SMTPTLSPolicy(strings.ToLower(strings.TrimSpace(string(c.TLS))))
 	if policy == "" {
+		if c.Port == 465 {
+			return SMTPTLSImplicit
+		}
 		return SMTPTLSMandatory
+	}
+	if policy == SMTPTLSMandatory && c.Port == 465 {
+		return SMTPTLSImplicit
 	}
 	return policy
 }
@@ -578,7 +587,7 @@ type SMTPConfig struct {
 	Enabled  bool          `toml:"enabled" env:"CHATTO_SMTP_ENABLED" comment:"Enable SMTP for sending transactional emails (verification, password reset, etc.)."`
 	Host     string        `toml:"host" env:"CHATTO_SMTP_HOST" comment:"SMTP server hostname. Example: smtp.example.com"`
 	Port     int           `toml:"port" env:"CHATTO_SMTP_PORT" comment:"SMTP server port. Common value: 587 (STARTTLS)."`
-	TLS      SMTPTLSPolicy `toml:"tls,commented" env:"CHATTO_SMTP_TLS" comment:"SMTP TLS policy: mandatory (default) or opportunistic. Opportunistic allows plaintext fallback and should only be used when explicitly required."`
+	TLS      SMTPTLSPolicy `toml:"tls" env:"CHATTO_SMTP_TLS" comment:"SMTP TLS policy: mandatory STARTTLS (default), implicit TLS/SMTPS, or opportunistic. Opportunistic allows plaintext fallback and should only be used when explicitly required."`
 	Username string        `toml:"username" env:"CHATTO_SMTP_USERNAME" comment:"SMTP authentication username."`
 	Password string        `toml:"password" env:"CHATTO_SMTP_PASSWORD" comment:"SMTP authentication password. NEVER SHARE THIS!"`
 	From     string        `toml:"from" env:"CHATTO_SMTP_FROM" comment:"From address for outgoing emails. Example: noreply@example.com"`
@@ -911,9 +920,9 @@ func (c *ChattoConfig) Validate() error {
 
 	// SMTP configuration
 	switch c.SMTP.TLSPolicyOrDefault() {
-	case SMTPTLSMandatory, SMTPTLSOpportunistic:
+	case SMTPTLSMandatory, SMTPTLSOpportunistic, SMTPTLSImplicit:
 	default:
-		errs = append(errs, "smtp.tls must be one of: mandatory, opportunistic")
+		errs = append(errs, "smtp.tls must be one of: mandatory, opportunistic, implicit")
 	}
 	if c.SMTP.Enabled {
 		if c.Webserver.URL == "" {

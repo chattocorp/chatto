@@ -23,18 +23,20 @@ RUN set -eux; \
  && rm "/tmp/${archive}" /tmp/nats-SHA256SUMS \
  && apk del .build-deps \
  && addgroup -g 10001 chatto \
- && adduser -D -u 10001 -G chatto -h /home/chatto -s /sbin/nologin chatto
+ && adduser -D -u 10001 -G chatto -h /home/chatto -s /sbin/nologin chatto \
+ && mkdir -p /config /data \
+ && chown chatto:chatto /config /data
 
-COPY chatto /usr/local/bin/chatto
+COPY chatto /chatto
 COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /chatto /usr/local/bin/docker-entrypoint.sh
 
 # Tell the nats CLI which context to use by default. The file itself is
 # written at container start by docker-entrypoint.sh.
 ENV NATS_CONTEXT=chatto
 
-WORKDIR /home/chatto
+WORKDIR /
 USER chatto:chatto
 EXPOSE 4000
 ENTRYPOINT ["docker-entrypoint.sh"]
-CMD ["start"]
+CMD ["start", "-c", "/config/chatto.toml"]

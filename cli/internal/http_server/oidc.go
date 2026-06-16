@@ -491,7 +491,7 @@ func (s *HTTPServer) completeProviderLogin(c *gin.Context, session sessions.Sess
 	if err := s.createCookieSession(c, userID, source); err != nil {
 		return fmt.Errorf("save cookie session: %w", err)
 	}
-	if err := s.ensureCSRFToken(c, session); err != nil {
+	if err := s.ensureCSRFToken(c); err != nil {
 		session = sessions.Default(c)
 		cookieUserID, cookieSessionID, _ := cookieSessionIDs(session)
 		_ = s.core.RevokeCookieSession(ctx, cookieUserID, cookieSessionID)

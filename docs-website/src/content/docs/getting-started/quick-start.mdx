@@ -12,48 +12,36 @@ there's also a Docker image available. For production-style examples, see the de
 
 ## Using Docker (Recommended)
 
-You're on the Quick Start page, so let's start quickly! The The fastest way to try Chatto:
-
-```bash
-docker run -p 4000:4000 ghcr.io/chattocorp/chatto:latest
-```
-
-Open [http://localhost:4000](http://localhost:4000) in your browser.
-
-:::note
-This runs Chatto with default settings and an embedded NATS server. Data is stored inside the container and will be lost when it stops. See below for persistent setup.
-:::
-
-### Persistent Docker Setup
-
-To keep your configuration and data across container restarts, use a bind mount:
+You're on the Quick Start page, so let's start quickly. The Docker image keeps configuration in `/config/chatto.toml` and embedded NATS data in `/data`, so mount those paths to keep your server across container restarts:
 
 <Steps>
 
-1. **Create a directory for Chatto data:**
+1. **Create directories for Chatto configuration and data:**
 
    ```bash
-   mkdir -p chatto-data
+   mkdir -p chatto-config chatto-data
    ```
 
 2. **Generate a configuration file:**
 
    ```bash
    docker run --rm \
+     -v ./chatto-config:/config \
      -v ./chatto-data:/data \
      ghcr.io/chattocorp/chatto:latest \
-     init -c /data/chatto.toml
+     init -c /config/chatto.toml
    ```
 
-   This writes `chatto.toml` with generated secrets into your `chatto-data/` directory on the host.
+   This writes `chatto.toml` with generated secrets into your `chatto-config/` directory on the host. In the Docker image, the generated embedded NATS data directory resolves to the `/data` mount.
 
 3. **Start the server:**
 
    ```bash
    docker run -p 4000:4000 \
+     -v ./chatto-config:/config \
      -v ./chatto-data:/data \
      ghcr.io/chattocorp/chatto:latest \
-     run -c /data/chatto.toml
+     run -c /config/chatto.toml
    ```
 
 4. **Open your browser** to [http://localhost:4000](http://localhost:4000).

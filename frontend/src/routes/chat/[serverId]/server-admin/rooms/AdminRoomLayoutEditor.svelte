@@ -21,10 +21,12 @@
 
   let {
     layout,
-    serverSegment
+    serverSegment,
+    onroomcreated
   }: {
     layout: AdminRoomLayoutStore;
     serverSegment: string;
+    onroomcreated?: () => void;
   } = $props();
 
   type DndRoomItem = RoomInfo & { id: string };
@@ -287,6 +289,7 @@
     createRoomGroupId = null;
     toast.success('Room created');
     layout.handleRoomCreated();
+    onroomcreated?.();
   }
 </script>
 

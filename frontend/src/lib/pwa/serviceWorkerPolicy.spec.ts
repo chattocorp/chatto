@@ -6,7 +6,11 @@ import {
 } from './serviceWorkerPolicy';
 
 const ORIGIN = 'https://chatto.example';
-const SHELL_ASSETS = new Set(['/manifest.webmanifest', '/icons/icon-192.png', '/_app/immutable/app.js']);
+const SHELL_ASSETS = new Set([
+  '/manifest.webmanifest',
+  '/icons/icon-192.png',
+  '/_app/immutable/app.js'
+]);
 
 function request(method: string, mode: RequestMode = 'same-origin') {
   return {

@@ -5,10 +5,6 @@ on:
     branches: [main]
     paths:
       - "docs-website/**"
-  pull_request:
-    branches: [main]
-    paths:
-      - "docs-website/**"
   workflow_dispatch:
     inputs:
       ref:
@@ -27,7 +23,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.ref || github.ref_name }}
+          ref: ${{ inputs.ref || github.ref }}
 
       - name: Resolve image metadata
         id: image

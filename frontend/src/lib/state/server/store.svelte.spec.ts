@@ -29,7 +29,6 @@ class FakeGqlClient {
       subscription: vi.fn(() => this.subject.source as unknown as Source<unknown>)
     } as unknown as Client;
   }
-
 }
 
 const registered: RegisteredServer = {
@@ -167,7 +166,7 @@ describe('ServerStateStore live server updates', () => {
     expect(store.serverInfo.livekitUrl).toBe('wss://livekit');
   });
 
-  it('forwards RoomGroupsUpdatedEvent to the admin room layout store', async () => {
+  it('forwards RoomGroupsUpdatedEvent once to every room-state store', async () => {
     const fake = new FakeGqlClient([
       {
         server: {
@@ -197,7 +196,9 @@ describe('ServerStateStore live server updates', () => {
     store.currentUser.user = { id: 'U1', login: 'alice', displayName: 'Alice' } as never;
     await Promise.resolve();
     await Promise.resolve();
-    fake.query.mockClear();
+    store.rooms.refresh = vi.fn().mockResolvedValue(undefined);
+    store.roomDirectory.refresh = vi.fn().mockResolvedValue(undefined);
+    store.adminRoomLayout.refresh = vi.fn().mockResolvedValue(undefined);
 
     eventBusManager.startBus(registered.id, fake as unknown as GraphQLClient);
     flushSync();
@@ -216,14 +217,9 @@ describe('ServerStateStore live server updates', () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(fake.query).toHaveBeenCalledTimes(3);
-    expect(store.adminRoomLayout.groups).toEqual([
-      {
-        id: 'g1',
-        name: 'Lobby',
-        rooms: [{ id: 'r1', name: 'general', description: null, archived: false }]
-      }
-    ]);
+    expect(store.rooms.refresh).toHaveBeenCalledOnce();
+    expect(store.roomDirectory.refresh).toHaveBeenCalledOnce();
+    expect(store.adminRoomLayout.refresh).toHaveBeenCalledOnce();
   });
 
   it('refreshes projected server state for bearer-auth sessions', async () => {

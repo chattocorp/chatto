@@ -189,6 +189,10 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
+		if err := s.ensureCSRFToken(c); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create CSRF token"})
+			return
+		}
 		if err := s.core.RecordLoginSucceeded(ctx, user.Id, req.Login); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -291,6 +295,10 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save session"})
 				return
 			}
+			if err := s.ensureCSRFToken(c); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create CSRF token"})
+				return
+			}
 
 			c.JSON(http.StatusOK, gin.H{
 				"success":   true,
@@ -306,6 +314,10 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 		// Create server-side cookie session for existing user
 		if err := s.createCookieSession(c, existingUser.Id, "test_oauth"); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save session"})
+			return
+		}
+		if err := s.ensureCSRFToken(c); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create CSRF token"})
 			return
 		}
 

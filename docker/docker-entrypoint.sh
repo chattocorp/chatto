@@ -27,4 +27,4 @@ if [ -n "${CHATTO_NATS_CLIENT_URL:-}" ]; then
     printf 'chatto\n' > "$nats_dir/context.txt"
 fi
 
-exec chatto "$@"
+exec /chatto "$@"

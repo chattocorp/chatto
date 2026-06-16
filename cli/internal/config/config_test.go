@@ -624,6 +624,48 @@ func TestReadConfig_SMTPPolicyFromEnv(t *testing.T) {
 	}
 }
 
+func TestSMTPConfig_TLSPolicyOrDefault(t *testing.T) {
+	tests := []struct {
+		name string
+		cfg  SMTPConfig
+		want SMTPTLSPolicy
+	}{
+		{
+			name: "empty policy defaults to mandatory STARTTLS",
+			cfg:  SMTPConfig{Port: 587},
+			want: SMTPTLSMandatory,
+		},
+		{
+			name: "empty policy on port 465 defaults to implicit TLS",
+			cfg:  SMTPConfig{Port: 465},
+			want: SMTPTLSImplicit,
+		},
+		{
+			name: "mandatory policy on port 465 uses implicit TLS",
+			cfg:  SMTPConfig{Port: 465, TLS: SMTPTLSMandatory},
+			want: SMTPTLSImplicit,
+		},
+		{
+			name: "explicit implicit TLS",
+			cfg:  SMTPConfig{Port: 465, TLS: SMTPTLSImplicit},
+			want: SMTPTLSImplicit,
+		},
+		{
+			name: "opportunistic policy",
+			cfg:  SMTPConfig{Port: 587, TLS: SMTPTLSOpportunistic},
+			want: SMTPTLSOpportunistic,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.cfg.TLSPolicyOrDefault(); got != tt.want {
+				t.Errorf("TLSPolicyOrDefault() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestTLSConfig_CacheDirOrDefault(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1869,12 +1911,24 @@ func TestChattoConfig_Validate_SMTP(t *testing.T) {
 			wantError: false,
 		},
 		{
+			name: "valid config with explicit implicit SMTP TLS",
+			modify: func(c *ChattoConfig) {
+				c.Webserver.URL = "https://chat.example"
+				c.SMTP.Enabled = true
+				c.SMTP.Host = "smtp.example.com"
+				c.SMTP.Port = 465
+				c.SMTP.TLS = SMTPTLSImplicit
+				c.SMTP.From = "noreply@example.com"
+			},
+			wantError: false,
+		},
+		{
 			name: "invalid SMTP TLS policy fails",
 			modify: func(c *ChattoConfig) {
 				c.SMTP.TLS = "plaintext"
 			},
 			wantError: true,
-			errorMsg:  "smtp.tls must be one of: mandatory, opportunistic",
+			errorMsg:  "smtp.tls must be one of: mandatory, opportunistic, implicit",
 		},
 		{
 			name: "SMTP enabled without host fails",

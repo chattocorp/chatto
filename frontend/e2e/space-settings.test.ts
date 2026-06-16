@@ -18,10 +18,7 @@ interface TestSpace {
  * (bootstrap space owner) and return the primary space so the admin-style
  * tests in this file still run with sufficient permissions.
  */
-async function createSpaceViaAPI(
-  page: Page,
-  _options?: { name?: string }
-): Promise<TestSpace> {
+async function createSpaceViaAPI(page: Page, _options?: { name?: string }): Promise<TestSpace> {
   return loginAsAdminAndUsePrimarySpace(page);
 }
 
@@ -149,9 +146,7 @@ test.describe('Space Admin Page', () => {
     await spaceAdminPage.setName(' Leading Space');
 
     // Should show validation error
-    await spaceAdminPage.expectValidationError(
-      'Name cannot have leading or trailing whitespace'
-    );
+    await spaceAdminPage.expectValidationError('Name cannot have leading or trailing whitespace');
 
     // Save button should be disabled
     await spaceAdminPage.expectSaveDisabled();
@@ -171,9 +166,7 @@ test.describe('Space Admin Page', () => {
     await spaceAdminPage.setName('Trailing Space ');
 
     // Should show validation error
-    await spaceAdminPage.expectValidationError(
-      'Name cannot have leading or trailing whitespace'
-    );
+    await spaceAdminPage.expectValidationError('Name cannot have leading or trailing whitespace');
 
     // Save button should be disabled
     await spaceAdminPage.expectSaveDisabled();
@@ -317,5 +310,4 @@ test.describe('Space Admin Page', () => {
     // Banner should no longer be visible in sidebar
     await spaceAdminPage.expectSidebarBannerNotVisible();
   });
-
 });
