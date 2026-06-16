@@ -1,17 +1,21 @@
 package http_server
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/testutil"
 )
 
 func setupCSRFTestServer(t *testing.T) (*httptest.Server, *http.Client) {
@@ -19,7 +23,8 @@ func setupCSRFTestServer(t *testing.T) (*httptest.Server, *http.Client) {
 	gin.SetMode(gin.TestMode)
 
 	router := gin.New()
-	sessionStore := cookie.NewStore([]byte("test-secret-key-32-bytes-long!!"))
+	cookieSecret := "test-secret-key-32-bytes-long!!"
+	sessionStore := cookie.NewStore([]byte(cookieSecret))
 	sessionStore.Options(sessions.Options{
 		MaxAge:   60 * 60 * 24 * 90,
 		HttpOnly: true,
@@ -28,26 +33,44 @@ func setupCSRFTestServer(t *testing.T) (*httptest.Server, *http.Client) {
 	})
 	router.Use(sessions.Sessions("chatto_session", sessionStore))
 
+	_, nc := testutil.StartNATS(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Cleanup(cancel)
+	chattoCore, err := core.NewChattoCore(ctx, nc, config.CoreConfig{})
+	if err != nil {
+		t.Fatalf("NewChattoCore: %v", err)
+	}
+	startCoreServices(t, chattoCore)
+	user, err := chattoCore.CreateUser(ctx, "", "csrf-test-user", "CSRF Test User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
 	s := &HTTPServer{
 		config: config.ChattoConfig{
-			Webserver: config.WebserverConfig{URL: "http://localhost:4000"},
+			Webserver: config.WebserverConfig{
+				URL:                 "http://localhost:4000",
+				CookieSigningSecret: cookieSecret,
+			},
 		},
 		router: router,
+		core:   chattoCore,
 	}
 	router.Use(s.csrfMiddleware())
 
 	router.GET("/login-test", func(c *gin.Context) {
-		session := sessions.Default(c)
-		session.Set("user_id", "u_test")
-		if err := session.Save(); err != nil {
+		if err := s.createCookieSession(c, user.Id, "csrf_test"); err != nil {
 			c.String(http.StatusInternalServerError, err.Error())
 			return
 		}
-		if err := s.ensureCSRFToken(c, session); err != nil {
+		if err := s.ensureCSRFToken(c); err != nil {
 			c.String(http.StatusInternalServerError, err.Error())
 			return
 		}
 		c.String(http.StatusOK, "logged in")
+	})
+	router.GET("/csrf-refresh", func(c *gin.Context) {
+		c.String(http.StatusOK, "refreshed")
 	})
 	router.POST("/api/graphql", func(c *gin.Context) {
 		c.String(http.StatusOK, "graphql ok")
@@ -288,6 +311,38 @@ func TestCSRFMiddleware(t *testing.T) {
 		if resp.StatusCode != http.StatusOK {
 			body, _ := io.ReadAll(resp.Body)
 			t.Fatalf("status = %d, want 200; body=%s", resp.StatusCode, body)
+		}
+	})
+
+	t.Run("does not rotate CSRF token or rewrite session cookie when refreshing CSRF cookie", func(t *testing.T) {
+		server, client := setupCSRFTestServer(t)
+		initialToken := csrfCookieValue(t, client, server.URL)
+
+		resp, err := client.Get(server.URL + "/csrf-refresh")
+		if err != nil {
+			t.Fatalf("CSRF refresh request: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			t.Fatalf("status = %d, want 200; body=%s", resp.StatusCode, body)
+		}
+
+		foundCSRFCookie := false
+		for _, cookie := range resp.Cookies() {
+			switch cookie.Name {
+			case csrfCookieName:
+				foundCSRFCookie = true
+				if cookie.Value != initialToken {
+					t.Fatal("CSRF refresh should reuse the existing signed token")
+				}
+			case "chatto_session":
+				t.Fatal("CSRF refresh should not rewrite the signed session cookie")
+			}
+		}
+		if !foundCSRFCookie {
+			t.Fatal("CSRF refresh did not set CSRF cookie")
 		}
 	})
 

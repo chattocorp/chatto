@@ -198,7 +198,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 			bearerToken = token
 		}
 
-		if err := s.ensureCSRFToken(c, session); err != nil {
+		if err := s.ensureCSRFToken(c); err != nil {
 			log.Error("Failed to create CSRF token", "error", err)
 			_ = s.core.RevokeCookieSession(ctx, cookieUserID, cookieSessionID)
 			if bearerToken != "" {
@@ -468,7 +468,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 			return
 		}
 		session := sessions.Default(c)
-		if err := s.ensureCSRFToken(c, session); err != nil {
+		if err := s.ensureCSRFToken(c); err != nil {
 			log.Error("Failed to create CSRF token", "error", err)
 			cookieUserID, cookieSessionID, _ := cookieSessionIDs(session)
 			_ = s.core.RevokeCookieSession(ctx, cookieUserID, cookieSessionID)
