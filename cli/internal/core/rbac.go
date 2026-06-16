@@ -26,16 +26,9 @@ import (
 // can never match a valid user ID.
 const SystemActorID = "system"
 
-// Errors specific to role-assignment hierarchy enforcement.
 var (
-	// ErrCannotAssignHigherRole is returned when a user tries to assign a role equal to or higher than their own.
-	ErrCannotAssignHigherRole = errors.New("cannot assign role equal to or higher than your own")
 	// ErrCannotRevokeSelfAdmin is returned when an admin tries to remove their own admin role.
 	ErrCannotRevokeSelfAdmin = errors.New("cannot revoke your own admin role")
-	// ErrCannotRevokeHigherRole is returned when a user tries to revoke a role equal to or higher than their own.
-	ErrCannotRevokeHigherRole = errors.New("cannot revoke role equal to or higher than your own")
-	// ErrCannotManageHigherUser is returned when a user tries to modify roles for a user with equal or higher rank.
-	ErrCannotManageHigherUser = errors.New("cannot modify roles for a user with equal or higher rank")
 )
 
 // RoleWithPermissions represents a role with its grants and denials, used by
@@ -47,7 +40,7 @@ type RoleWithPermissions struct {
 	Permissions       []Permission // Permissions granted (allowed) by this role
 	PermissionDenials []Permission // Permissions denied by this role
 	IsSystem          bool
-	Position          int32 // Higher = higher rank. Everyone=0, Owner=1000
+	Position          int32 // Display/order position. Everyone=0, Owner=1000.
 	Pingable          bool
 }
 
@@ -162,8 +155,8 @@ func (c *ChattoCore) hasKindPermission(ctx context.Context, kind RoomKind, userI
 }
 
 // hasRoomPermission checks a permission at the room level. Room-scoped
-// grants/denials take precedence over server-scoped ones for the same
-// role; across roles the hierarchy walk decides.
+// decisions, group decisions, and server decisions all contribute; any
+// applicable deny wins for non-owners.
 func (c *ChattoCore) hasRoomPermission(ctx context.Context, kind RoomKind, roomID, userID string, perm Permission) (bool, error) {
 	return c.permissionResolver.HasRoomPermission(ctx, userID, kind, roomID, perm)
 }
@@ -737,13 +730,6 @@ func (c *ChattoCore) ClearGroupPermissionState(ctx context.Context, actorID, gro
 	}})
 	_, err := c.appendRBACEvent(ctx, event, nil)
 	return err
-}
-
-// OutranksUser reports whether actor has a higher role position than target.
-// Kept for legacy diagnostics/tests; role position is not an authorization
-// rank in the current model.
-func (c *ChattoCore) OutranksUser(ctx context.Context, actorID, targetID string) (bool, error) {
-	return c.RBAC.GetUserHighestPosition(actorID) > c.RBAC.GetUserHighestPosition(targetID), nil
 }
 
 // GetUserEffectiveSpacePermissions returns all permissions the user effectively has for a

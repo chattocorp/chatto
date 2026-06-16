@@ -22,10 +22,9 @@ type DefaultGlobalRoom struct {
 }
 
 // DefaultGlobalRooms is the list of channel rooms seeded on a fresh
-// deployment. Each lands in the seed "Lobby" group. Room-tier default
-// permissions are auto-applied by `CreateRoom`; the "announcements" room
-// simply omits the everyone/message.post grant and grants root posting to
-// moderator/admin/owner.
+// deployment. Each lands in the seed "Lobby" group. Normal rooms inherit the
+// server-tier everyone defaults; the "announcements" room adds a room-tier
+// everyone/message.post denial.
 var DefaultGlobalRooms = []DefaultGlobalRoom{
 	{Name: AnnouncementsRoomName, Description: "Announcements and news"},
 	{Name: "general", Description: "General discussion"},

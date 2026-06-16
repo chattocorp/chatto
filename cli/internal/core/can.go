@@ -178,7 +178,7 @@ func (c *ChattoCore) CanCreateRoom(ctx context.Context, userID string, kind Room
 // (no specific room context). Used as a top-level "is the join action
 // available at all" check. For per-room decisions — including "is this
 // user implicitly a member of this global room" — use CanJoinRoomAt,
-// which walks the room → group → server hierarchy.
+// which evaluates room, group, and server decisions.
 //
 // DM-sensitive: DMs grant join implicitly to participants.
 func (c *ChattoCore) CanJoinRoom(ctx context.Context, userID string, kind RoomKind) (bool, error) {

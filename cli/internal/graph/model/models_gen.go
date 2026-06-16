@@ -696,7 +696,7 @@ type PostMessageInput struct {
 	Body *string `json:"body,omitempty"`
 	// Optional file attachments (images, videos, etc.).
 	Attachments []*graphql.Upload `json:"attachments,omitempty"`
-	// Event ID of the thread root message. Determines thread membership and controls permission check (message.start_thread vs message.post_in_thread vs message.post).
+	// Event ID of the thread root message. Determines thread membership and controls permission check (`message.post-in-thread` vs `message.post`).
 	ThreadRootEventID *string `json:"threadRootEventId,omitempty"`
 	// Event ID of the message this responds to (attribution only, does not affect routing or permissions).
 	InReplyTo *string `json:"inReplyTo,omitempty"`
@@ -1020,7 +1020,7 @@ type Server struct {
 	MaxUploadSize int64 `json:"maxUploadSize"`
 	// Maximum upload size for video attachments in bytes. Same as maxUploadSize when video processing is disabled.
 	MaxVideoUploadSize int64 `json:"maxVideoUploadSize"`
-	// Duration in seconds after posting during which a user can edit their own message. Moderators with `message.edit-any` are not bound by this window.
+	// Duration in seconds after posting during which a user can edit their own message. Moderators with `message.manage` are not bound by this window.
 	MessageEditWindowSeconds int32 `json:"messageEditWindowSeconds"`
 	// List of rooms on this server.
 	//
@@ -1619,7 +1619,7 @@ func (e PermissionMatrixDecision) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// Where a PermissionMatrixScope sits in the resolution hierarchy.
+// Where a PermissionMatrixScope sits in the resolution scope tree.
 type PermissionMatrixScopeKind string
 
 const (

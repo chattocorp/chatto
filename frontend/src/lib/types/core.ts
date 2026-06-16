@@ -61,8 +61,8 @@ export const PermRoomManage: Permission = "room.manage";
 export const PermRoomMemberBan: Permission = "room.ban-member";
 /**
  * PermMessagePost allows posting new root messages in rooms. Server-scope
- * decisions act as global overrides; default room posting grants are seeded
- * at room scope.
+ * decisions act as global defaults/overrides; room or group denies can narrow
+ * that default where a room should be more restrictive.
  */
 export const PermMessagePost: Permission = "message.post";
 /**
@@ -134,10 +134,10 @@ export interface PermissionMetadata {
 /**
  * PermissionKeyParts holds the verb and objectType components for KV key generation.
  * Permission strings follow the format "{objectType}.{verb}" (e.g., "room.create",
- * "message.delete-own", "admin.view-users"), so key parts are derived directly from
+ * "message.post-in-thread", "admin.view-users"), so key parts are derived directly from
  * the permission string — no separate mapping needed.
  */
 export interface PermissionKeyParts {
-  Verb: string; // The action: "create", "join", "delete-own", "view-users", etc.
+  Verb: string; // The action: "create", "join", "post-in-thread", "view-users", etc.
   ObjectType: string; // The target type: "server", "room", "message", "admin", etc.
 }

@@ -15,8 +15,8 @@ The main pressure points were:
 - operators had to understand when rank affected capability and when it only
   affected display order;
 - direct per-user permission editing was coupled to role-management concepts;
-- announcement rooms depended on hierarchy behavior instead of explicit
-  room-scope defaults;
+- announcement rooms depended on hierarchy behavior instead of a simple local
+  exception to broad member defaults;
 - owners could be locked out by unusual RBAC configuration unless runtime code
   treated effective owners specially.
 
@@ -35,11 +35,10 @@ Use a permission-only RBAC model for everyone except effective owners.
 - Targeted operations are gated by concrete permissions only: for example
   `role.assign` gates role assignment, `room.ban-member` gates room bans, and
   `user.manage-permissions` gates direct per-user permission overrides.
-- Default channel-room messaging permissions are materialized at room scope.
-  Normal rooms grant `message.post` to `everyone`; announcement rooms omit that
-  room-level allow and grant posting to staff roles. Server-scope message
-  permissions remain available as optional global overrides and start blank by
-  default.
+- Default channel-room member permissions are granted at server scope on
+  `everyone`, so normal rooms work immediately. Room and group decisions are
+  local exceptions; the built-in announcements room adds a room-level
+  `everyone` deny for `message.post`.
 
 This supersedes ADR-005.
 
@@ -49,8 +48,9 @@ This supersedes ADR-005.
   everyone else is permission-based.
 - Custom roles and per-user overrides cover ordinary moderation and
   administration cases without role-rank comparisons.
-- `#announcements` works by absent room-level grants instead of explicit deny
-  workarounds.
+- `#announcements` works by a local room-level `everyone` deny for
+  `message.post`. Because deny-wins is literal, that deny blocks every
+  non-owner in the room.
 - Deny-wins enables future broad restriction roles such as a suspended role.
 - Operators cannot lock out effective owners through RBAC state, but owner
   access now depends on protecting `owners.emails` configuration and verified

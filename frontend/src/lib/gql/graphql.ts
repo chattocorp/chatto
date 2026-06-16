@@ -2025,7 +2025,7 @@ export type PermissionMatrixScope = {
   parentGroupId: Scalars['ID']['output'];
 };
 
-/** Where a PermissionMatrixScope sits in the resolution hierarchy. */
+/** Where a PermissionMatrixScope sits in the resolution scope tree. */
 export enum PermissionMatrixScopeKind {
   /** A room group's scope (channel-room permissions). */
   Group = 'GROUP',
@@ -2068,7 +2068,7 @@ export type PostMessageInput = {
   mentionConfirmationToken?: InputMaybe<Scalars['String']['input']>;
   /** The ID of the room to post to. */
   roomId: Scalars['ID']['input'];
-  /** Event ID of the thread root message. Determines thread membership and controls permission check (message.start_thread vs message.post_in_thread vs message.post). */
+  /** Event ID of the thread root message. Determines thread membership and controls permission check (`message.post-in-thread` vs `message.post`). */
   threadRootEventId?: InputMaybe<Scalars['ID']['input']>;
 };
 
@@ -2917,7 +2917,7 @@ export type Server = {
    * Search matches login and display name (case-insensitive partial match).
    */
   members: ServerMembersConnection;
-  /** Duration in seconds after posting during which a user can edit their own message. Moderators with `message.edit-any` are not bound by this window. */
+  /** Duration in seconds after posting during which a user can edit their own message. Moderators with `message.manage` are not bound by this window. */
   messageEditWindowSeconds: Scalars['Int']['output'];
   /** Public-facing identity and branding for this server. */
   profile: ServerProfile;

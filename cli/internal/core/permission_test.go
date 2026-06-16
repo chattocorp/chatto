@@ -2,7 +2,6 @@ package core
 
 import (
 	"slices"
-	"strings"
 	"testing"
 )
 
@@ -253,6 +252,12 @@ func TestDefaultEveryonePermissions(t *testing.T) {
 
 	mustInclude := []Permission{
 		PermUserDeleteSelf,
+		PermRoomList,
+		PermRoomJoin,
+		PermMessagePost,
+		PermMessagePostInThread,
+		PermMessageReact,
+		PermMessageEcho,
 	}
 	for _, want := range mustInclude {
 		if !slices.Contains(perms, want) {
@@ -273,6 +278,8 @@ func TestDefaultModeratorPermissions(t *testing.T) {
 
 	mustInclude := []Permission{
 		PermAdminUsersView,
+		PermMessageManage,
+		PermRoomMemberBan,
 	}
 	for _, want := range mustInclude {
 		if !slices.Contains(perms, want) {
@@ -291,15 +298,8 @@ func TestDefaultModeratorPermissions(t *testing.T) {
 func TestDefaultRoomEveryonePermissions(t *testing.T) {
 	perms := DefaultRoomEveryonePermissions()
 
-	mustInclude := []Permission{
-		PermRoomJoin,
-		PermMessagePost,
-		PermMessagePostInThread,
-	}
-	for _, want := range mustInclude {
-		if !slices.Contains(perms, want) {
-			t.Errorf("Expected %v in room everyone defaults", want)
-		}
+	if len(perms) != 0 {
+		t.Errorf("Expected room everyone defaults to be empty, got %v", perms)
 	}
 }
 
@@ -362,17 +362,28 @@ func TestPermissionConsistency(t *testing.T) {
 		}
 	})
 
-	t.Run("admin defaults only grant room.create from room namespace", func(t *testing.T) {
-		for _, perm := range DefaultAdminPermissions() {
-			if !strings.HasPrefix(string(perm), "room.") {
-				continue
-			}
-			if perm != PermRoomCreate {
-				t.Errorf("admin server defaults must not include %v", perm)
+	t.Run("admin defaults grant room administration and message management", func(t *testing.T) {
+		for _, want := range []Permission{
+			PermRoomCreate,
+			PermRoomJoin,
+			PermRoomList,
+			PermRoomManage,
+			PermRoomMemberBan,
+			PermMessageManage,
+		} {
+			if !slices.Contains(DefaultAdminPermissions(), want) {
+				t.Errorf("admin server defaults should include %v", want)
 			}
 		}
-		if !slices.Contains(DefaultAdminPermissions(), PermRoomCreate) {
-			t.Error("admin server defaults should include room.create")
+		for _, mustNotInclude := range []Permission{
+			PermMessagePost,
+			PermMessagePostInThread,
+			PermMessageReact,
+			PermMessageEcho,
+		} {
+			if slices.Contains(DefaultAdminPermissions(), mustNotInclude) {
+				t.Errorf("admin-specific defaults should rely on everyone for %v", mustNotInclude)
+			}
 		}
 	})
 }

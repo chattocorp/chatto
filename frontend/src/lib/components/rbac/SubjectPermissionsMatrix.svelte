@@ -60,11 +60,11 @@ apply at that scope's tier).
     },
     room: {
       title: 'Room Permissions',
-      description: 'Use this tier mainly for global room creation. Configure joining, visibility, moderation, and room management on rooms or room groups'
+      description: 'Server defaults for room discovery and joining, plus room creation. Add room/group denies for local restrictions'
     },
     message: {
       title: 'Message Permissions',
-      description: 'Global message defaults and overrides. Configure normal posting policy on rooms or room groups first'
+      description: 'Server defaults for posting, threads, reactions, echoing, and message moderation. Room/group denies create local exceptions'
     },
     member: {
       title: 'Member Permissions',

@@ -504,51 +504,6 @@ func (p *RBACProjection) DecisionsForRoleServer(roleName string) (grants []Permi
 	return p.DecisionsFor(ScopeServer, "", roleName)
 }
 
-func (p *RBACProjection) RolePosition(roleName string) (int32, bool) {
-	p.RLock()
-	defer p.RUnlock()
-	role := p.roles[roleName]
-	if role == nil {
-		return PositionEveryone, false
-	}
-	return role.GetPosition(), true
-}
-
-func (p *RBACProjection) GetUserHighestPosition(userID string) int32 {
-	p.RLock()
-	defer p.RUnlock()
-	maxPos := PositionEveryone
-	for roleName := range p.assignments[userID] {
-		if role := p.roles[roleName]; role != nil && role.GetPosition() > maxPos {
-			maxPos = role.GetPosition()
-		}
-	}
-	return maxPos
-}
-
-func (p *RBACProjection) RolesWithPositionsForUser(userID string) []roleWithPosition {
-	p.RLock()
-	defer p.RUnlock()
-	result := make([]roleWithPosition, 0, len(p.assignments[userID])+1)
-	for roleName := range p.assignments[userID] {
-		pos := PositionEveryone
-		if role := p.roles[roleName]; role != nil {
-			pos = role.GetPosition()
-		}
-		result = append(result, roleWithPosition{name: roleName, position: pos})
-	}
-	if _, ok := p.assignments[userID][RoleEveryone]; !ok {
-		result = append(result, roleWithPosition{name: RoleEveryone, position: PositionEveryone})
-	}
-	sort.SliceStable(result, func(i, j int) bool {
-		if result[i].position != result[j].position {
-			return result[i].position > result[j].position
-		}
-		return result[i].name < result[j].name
-	})
-	return result
-}
-
 func (p *RBACProjection) NextAvailablePosition() int32 {
 	p.RLock()
 	defer p.RUnlock()

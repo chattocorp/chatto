@@ -197,7 +197,7 @@ func assignBootstrapRole(ctx context.Context, logger *log.Logger, c *core.Chatto
 		logger.Warn("Unknown server_role in [bootstrap]; ignoring", "user_id", userID, "role", role)
 		return
 	}
-	// SystemActorID bypasses hierarchy checks — bootstrap operates as the system.
+	// SystemActorID is trusted bootstrap context rather than a user action.
 	if err := c.AssignServerRole(ctx, core.SystemActorID, userID, roleName); err != nil {
 		logger.Warn("Failed to assign role for [bootstrap] user", "user_id", userID, "role", role, "error", err)
 	}

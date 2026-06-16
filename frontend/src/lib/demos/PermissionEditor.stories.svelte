@@ -38,23 +38,23 @@
       state: 'allow'
     },
     {
-      id: 'message.edit-own',
-      label: 'message.edit-own',
-      help: 'Edit your own messages after sending.',
+      id: 'message.react',
+      label: 'message.react',
+      help: 'Add and remove reactions on messages.',
       inherited: 'allow',
       state: 'neutral'
     },
     {
-      id: 'message.delete-own',
-      label: 'message.delete-own',
-      help: 'Delete your own messages after sending.',
+      id: 'message.manage',
+      label: 'message.manage',
+      help: "Edit and delete other users' messages.",
       inherited: 'deny',
       state: 'neutral'
     },
     {
-      id: 'rooms.create',
-      label: 'rooms.create',
-      help: 'Create new rooms inside this space.',
+      id: 'room.create',
+      label: 'room.create',
+      help: 'Create new rooms.',
       inherited: 'allow',
       state: 'deny'
     }

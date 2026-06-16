@@ -277,10 +277,8 @@ func expectNoServerUpdatedLiveEvent(t *testing.T, events <-chan *corev1.LiveEven
 	}
 }
 
-// TestAdminUpdateUser_Authorization verifies authorization, role-hierarchy
-// enforcement, and config-admin bypass for the admin user-management
-// mutations. The hierarchy check is the privilege-escalation guard — a
-// regression here lets a moderator-rank admin rename an instance-owner.
+// TestAdminUpdateUser_Authorization verifies authorization and owner-protection
+// behavior for the admin user-management mutations.
 func TestAdminUpdateUser_Authorization(t *testing.T) {
 	t.Run("unauthenticated caller gets not authenticated", func(t *testing.T) {
 		env := setupTestResolver(t)

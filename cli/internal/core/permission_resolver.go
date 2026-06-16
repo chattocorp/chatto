@@ -18,8 +18,8 @@ import (
 // Applicable decisions include user-level overrides and all roles assigned to
 // the user, including the implicit everyone role. For room checks, server,
 // group, and room scopes can all contribute. Server-scope message/room
-// decisions therefore act as global overrides, while default room behavior is
-// seeded at room scope.
+// decisions therefore act as global defaults/overrides, while room/group
+// decisions are local exceptions.
 type PermissionResolver struct {
 	core *ChattoCore
 }
@@ -231,8 +231,8 @@ func (r *PermissionResolver) HasSpacePermission(ctx context.Context, userID stri
 }
 
 // HasRoomPermission checks a permission with a room context. Room-scoped
-// grants/denials take precedence over server-scoped ones within the same role;
-// across roles the hierarchy walk decides.
+// grants/denials, group decisions, and server decisions all contribute; any
+// applicable deny wins for non-owners.
 func (r *PermissionResolver) HasRoomPermission(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission) (bool, error) {
 	if !PermissionAppliesAtScope(perm, ScopeRoom) && !PermissionAppliesAtScope(perm, ScopeGroup) && !PermissionAppliesAtScope(perm, ScopeServer) {
 		return false, fmt.Errorf("permission %s does not apply at room scope", perm)
@@ -321,15 +321,14 @@ func (t permissionScopeTarget) objectID() string {
 	return t.id
 }
 
-// dmBoundaryDeniedPermissions are capabilities that DM rooms forbid
-// unconditionally, regardless of any role grants. The deny applies to every
-// role including owner. Two reasons appear in this set:
+// dmBoundaryDeniedPermissions are capabilities that DM rooms forbid for
+// non-owners, regardless of any role grants. Two reasons appear in this set:
 //
 //   - **Privacy**: operators cannot moderate DM contents.
 //   - **Category mismatch**: capabilities that semantically don't apply to
 //     DMs (DMs have their own listing/creation/membership APIs).
 //
-// Everything else resolves through the standard hierarchy walk. Access to
+// Everything else resolves through the standard deny-wins resolver. Access to
 // DM rooms is gated by participation at the API boundary (`requireRoomMember`);
 // this set only governs *what* a participant can do once inside, and *what*
 // DM rooms refuse to answer for channel-style operations.
@@ -388,15 +387,4 @@ func (r *PermissionResolver) getUserServerRoles(ctx context.Context, userID stri
 	}
 
 	return roles, nil
-}
-
-// roleWithPosition pairs a role name with its position for hierarchy sorting.
-type roleWithPosition struct {
-	name     string
-	position int32
-}
-
-// getUserServerRolesWithPositions returns the user's roles with positions, sorted by hierarchy.
-func (r *PermissionResolver) getUserServerRolesWithPositions(ctx context.Context, userID string) ([]roleWithPosition, error) {
-	return r.core.RBAC.RolesWithPositionsForUser(userID), nil
 }

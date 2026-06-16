@@ -46,7 +46,7 @@ This work evolves the existing `RoomLayout` / `RoomLayoutSection` storage (`prot
 
 For **server-scope** permissions: server decisions remain global defaults/overrides. ADR-040's deny-wins resolver considers user and role decisions without using role position as an authorization rank.
 
-For **DM rooms**: room groups do not apply. Reading is membership-based, starting/sending DMs uses message permissions, and the `dmBoundaryDeniedPermissions` deny-list still applies inside DM rooms.
+For **DM rooms**: room groups do not apply. Reading is membership-based, starting/sending DMs uses message permissions, and the `dmBoundaryDeniedPermissions` deny-list applies inside DM rooms for non-owners.
 
 For **channel-room-scope** permissions in room R (belonging to group G):
 
@@ -59,11 +59,9 @@ For **channel-room-scope** permissions in room R (belonging to group G):
 
 A small revision from the original ADR text: server scope acts as the **global default** for channel-room perms. The walker checks group state first, room state on top of that, and falls back to server only when neither tier emits a decision. This gives operators a single "global default" they can adjust once and have apply everywhere, while still letting per-group and per-room edits override locally. DMs (which aren't in any group) resolve at server scope only.
 
-The earlier ADR text said "there is no cascade from server scope into channel-room scope." That was the initial intent; in practice it made DMs and operator-friendly defaults awkward, so we restored the cascade as the lowest-priority tier in the walk. Per-group config still wins over the server default — the ADR's headline goal ("groups are the natural permission container") is preserved; the walker just doesn't deny when nothing is configured at group or room scope.
+The earlier ADR text said "there is no cascade from server scope into channel-room scope." That was the initial intent; in practice it made DMs and operator-friendly defaults awkward, so we restored the cascade. ADR-040 later simplified the combination rule further: for non-owners, all applicable server/group/room decisions contribute, any deny wins, and any allow grants only when no deny applies.
 
-Within the role walk, room-scope decisions override group-scope decisions *within the same role*. Across roles, hierarchy wins as today (higher rank's decision is examined first, lower-rank roles not consulted if a higher rank decided).
-
-**The announcements pattern still uses a deny**, but now scoped to a room inside a group instead of overriding a server-scope grant. The group "Lobby" grants `message.post` to `everyone`; the `announcements` room inside it has a per-room deny for `everyone.message.post`. Moderators' grant comes through the group (no per-room override needed); the walker visits moderator first, finds the group's allow, and returns. The win over the previous model isn't "no denies" — it's that the deny is scoped, audit-visible inside its room, and doesn't compete with cross-room operator intent.
+**The announcements pattern uses a room-scoped deny** against `everyone.message.post`. With deny-wins this blocks root posts for all non-owner users in that room, because every authenticated user carries `everyone`. The benefit over a server-level restriction is locality: the deny is scoped, audit-visible inside its room, and doesn't affect other rooms.
 
 ### Moderation actions
 

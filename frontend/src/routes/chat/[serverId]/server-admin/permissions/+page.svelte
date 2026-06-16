@@ -51,7 +51,7 @@
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
   <PaneHeader
     title="Permissions"
-    subtitle="Manage server-wide role defaults and global overrides"
+    subtitle="Manage server-wide role defaults"
     showMobileNav
   />
 
@@ -80,22 +80,21 @@
       <Hint>
         <div class="space-y-2">
           <p>
-            This page is for <strong>server-tier</strong> role permissions: broad defaults and
-            global overrides that should apply everywhere.
+            This page is for <strong>server-tier</strong> role permissions: broad defaults that
+            apply across the server.
           </p>
           <p>
-            Configure room behavior from the
+            Normal room permissions such as posting, joining, discovery, reactions, and thread
+            replies are granted here by default so new rooms work immediately. Use the
             <a
               href={resolve('/chat/[serverId]/server-admin/rooms', { serverId: serverSegment })}
               class="link">Rooms</a
-            > page first. Posting, joining, discovering, moderating, and managing rooms should
-            normally be decided on the room or room-group tier so one room can differ from another.
-            Use server-tier room or message permissions only when you intentionally want a
-            server-wide default or global override.
+            > page to add room or room-group exceptions when one room should behave differently.
           </p>
           <p>
             For non-owners, any applicable deny anywhere cancels out grants from every role and
-            tier. Owners are always granted all permissions.
+            tier. Use denies deliberately: denying <code>everyone</code> in a room blocks all
+            non-owner users there. Owners are always granted all permissions.
           </p>
         </div>
       </Hint>

@@ -67,8 +67,8 @@ const (
 	// ===== Message Permissions =====
 
 	// PermMessagePost allows posting new root messages in rooms. Server-scope
-	// decisions act as global overrides; default room posting grants are seeded
-	// at room scope.
+	// decisions act as global defaults/overrides; room or group denies can narrow
+	// that default where a room should be more restrictive.
 	PermMessagePost Permission = "message.post"
 
 	// PermMessagePostInThread allows posting messages in a thread (first or subsequent reply).
@@ -242,12 +242,18 @@ func PermissionsForCategory(category PermissionCategory) []PermissionMetadata {
 // ============================================================================
 
 // DefaultEveryonePermissions returns server-scope permissions granted to every
-// authenticated user (the implicit everyone role). Room/message permissions
-// are seeded per room so each room can be customized without relying on a
-// global server-scope allow.
+// authenticated user (the implicit everyone role). These defaults make normal
+// rooms usable out of the box; operators can deny the room/group permissions at
+// room or group scope where they need local restrictions.
 func DefaultEveryonePermissions() []Permission {
 	return []Permission{
 		PermUserDeleteSelf,
+		PermRoomList,
+		PermRoomJoin,
+		PermMessagePost,
+		PermMessagePostInThread,
+		PermMessageReact,
+		PermMessageEcho,
 	}
 }
 
@@ -257,14 +263,15 @@ func DefaultEveryonePermissions() []Permission {
 func DefaultModeratorPermissions() []Permission {
 	return []Permission{
 		PermAdminUsersView,
+		PermMessageManage,
+		PermRoomMemberBan,
 	}
 }
 
 // DefaultAdminPermissions returns the server-scope permissions granted to
-// admins by default. Room access, room moderation, and message behavior are
-// seeded at room tier so individual rooms can be customized without fighting
-// broad server allows. `room.create` is the only room.* default here because it
-// authorizes creating new rooms rather than operating inside an existing room.
+// admins by default. Admins inherit the implicit everyone role at runtime, so
+// this list contains only admin-specific capabilities plus global room
+// administration defaults.
 func DefaultAdminPermissions() []Permission {
 	seen := map[Permission]bool{}
 	var result []Permission
@@ -272,10 +279,7 @@ func DefaultAdminPermissions() []Permission {
 		if seen[meta.Permission] {
 			continue
 		}
-		if meta.Category == CategoryMessage {
-			continue
-		}
-		if meta.Category == CategoryRoom && meta.Permission != PermRoomCreate {
+		if meta.Category == CategoryMessage && meta.Permission != PermMessageManage {
 			continue
 		}
 		seen[meta.Permission] = true
@@ -292,53 +296,46 @@ func DefaultOwnerPermissions() []Permission {
 }
 
 // DefaultRoomEveryonePermissions returns the default room-scope permissions
-// for normal channel rooms.
+// for normal channel rooms. Normal member behavior comes from server-scope
+// everyone grants; this intentionally starts empty so the room tier shows only
+// local exceptions.
 func DefaultRoomEveryonePermissions() []Permission {
-	return []Permission{
-		PermRoomList,
-		PermRoomJoin,
-		PermMessagePost,
-		PermMessagePostInThread,
-		PermMessageReact,
-		PermMessageEcho,
-	}
+	return nil
 }
 
 // DefaultAnnouncementsEveryonePermissions returns the default room-scope
-// permissions for the built-in announcements room. New root posts are omitted
-// instead of denied, so moderator/admin/owner grants can allow posting without
-// introducing a deny that affects all users through the everyone role.
+// permissions for the built-in announcements room. Normal room behavior comes
+// from server defaults, so announcements only materialize local denials.
 func DefaultAnnouncementsEveryonePermissions() []Permission {
-	return []Permission{
-		PermRoomList,
-		PermRoomJoin,
-		PermMessagePostInThread,
-		PermMessageReact,
-		PermMessageEcho,
-	}
+	return nil
 }
 
-// DefaultAnnouncementsPosterPermissions returns the room-scope permissions
-// seeded for built-in roles that may post root messages in announcements.
-func DefaultAnnouncementsPosterPermissions() []Permission {
+// DefaultAnnouncementsEveryoneDenials returns the room-scope denials for the
+// built-in announcements room. Under deny-wins, this blocks root posts for all
+// non-owner users because every authenticated user carries the everyone role.
+func DefaultAnnouncementsEveryoneDenials() []Permission {
 	return []Permission{PermMessagePost}
 }
 
-// DefaultRoomModeratorPermissions returns room-scope moderation permissions
-// seeded for moderator/admin/owner on every channel room.
+// DefaultAnnouncementsPosterPermissions returns room-scope staff poster grants
+// for announcements. Deny-wins means the everyone denial still blocks
+// non-owner staff, so there are no default staff poster grants.
+func DefaultAnnouncementsPosterPermissions() []Permission {
+	return nil
+}
+
+// DefaultRoomModeratorPermissions returns room-scope moderator defaults.
+// Moderator moderation defaults now live at server tier, so this intentionally
+// starts empty.
 func DefaultRoomModeratorPermissions() []Permission {
-	return []Permission{
-		PermMessageManage,
-		PermRoomMemberBan,
-	}
+	return nil
 }
 
 // DefaultRoomAdminPermissions returns room-scope room-management permissions
-// seeded for admin/owner on every channel room.
+// seeded for admins on every channel room. Admin room defaults now live at
+// server tier, so this intentionally starts empty.
 func DefaultRoomAdminPermissions() []Permission {
-	return []Permission{
-		PermRoomManage,
-	}
+	return nil
 }
 
 // ============================================================================
@@ -347,10 +344,10 @@ func DefaultRoomAdminPermissions() []Permission {
 
 // PermissionKeyParts holds the verb and objectType components for KV key generation.
 // Permission strings follow the format "{objectType}.{verb}" (e.g., "room.create",
-// "message.delete-own", "admin.view-users"), so key parts are derived directly from
+// "message.post-in-thread", "admin.view-users"), so key parts are derived directly from
 // the permission string — no separate mapping needed.
 type PermissionKeyParts struct {
-	Verb       string // The action: "create", "join", "delete-own", "view-users", etc.
+	Verb       string // The action: "create", "join", "post-in-thread", "view-users", etc.
 	ObjectType string // The target type: "server", "room", "message", "admin", etc.
 }
 

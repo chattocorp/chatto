@@ -378,7 +378,7 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 		t.Fatalf("failed to create member user: %v", err)
 	}
 
-	t.Run("member does NOT have rooms.create by default", func(t *testing.T) {
+	t.Run("member does NOT have room.create by default", func(t *testing.T) {
 		can, err := core.CanCreateRoom(ctx, member.Id, KindChannel, "")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -388,8 +388,8 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 		}
 	})
 
-	// Grant and then revoke rooms.create from the everyone role
-	t.Run("grant then revoke rooms.create from everyone role", func(t *testing.T) {
+	// Grant and then revoke room.create from the everyone role
+	t.Run("grant then revoke room.create from everyone role", func(t *testing.T) {
 		// First grant room.create to everyone role (since it's not granted by default)
 		err := core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermRoomCreate)
 		if err != nil {
@@ -432,7 +432,7 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 
 	// Deny room.join from the everyone role. Joining is default-available
 	// unless an applicable deny blocks it.
-	t.Run("deny rooms.join from everyone role", func(t *testing.T) {
+	t.Run("deny room.join from everyone role", func(t *testing.T) {
 		err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermRoomJoin)
 		if err != nil {
 			t.Fatalf("failed to deny permission: %v", err)

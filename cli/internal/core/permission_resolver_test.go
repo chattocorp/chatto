@@ -25,13 +25,13 @@ func TestPermissionResolver_HasServerPermission(t *testing.T) {
 		}
 	})
 
-	t.Run("returns false for message.post at server scope by default", func(t *testing.T) {
+	t.Run("returns true for message.post at server scope by default", func(t *testing.T) {
 		has, err := core.permissionResolver.HasServerPermission(ctx, user.Id, PermMessagePost)
 		if err != nil {
 			t.Fatalf("HasServerPermission() error = %v", err)
 		}
-		if has {
-			t.Error("Expected user not to have server-scope message.post by default")
+		if !has {
+			t.Error("Expected user to have server-scope message.post by default")
 		}
 	})
 
@@ -282,7 +282,7 @@ func TestPermissionResolver_HasSpacePermission_ServerFallback(t *testing.T) {
 		}
 	})
 
-	t.Run("non-member does NOT get server-scope message.post by default", func(t *testing.T) {
+	t.Run("authenticated user gets server-scope message.post by default", func(t *testing.T) {
 		// Create user who is NOT a space member
 		nonMember, _ := core.CreateUser(ctx, "system", "nonmember2", "Non Member 2", "password123")
 
@@ -290,8 +290,8 @@ func TestPermissionResolver_HasSpacePermission_ServerFallback(t *testing.T) {
 		if err != nil {
 			t.Fatalf("HasSpacePermission() error = %v", err)
 		}
-		if has {
-			t.Error("Expected non-member not to have server-scope message.post by default")
+		if !has {
+			t.Error("Expected authenticated user to have server-scope message.post by default")
 		}
 	})
 }
@@ -300,17 +300,15 @@ func TestPermissionResolver_ExplicitDenyOnHighestRole(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Use an admin user. An owner deny would be just as effective now
-	// that the bypass short-circuit is gone, but admin makes the test
-	// less dependent on owner-role role-management quirks.
+	// Use an admin user so this test covers an ordinary non-owner role denial.
 	user, _ := core.CreateUser(ctx, "system", "deny-on-highest", "Test User", "password123")
 	if err := core.AssignServerRole(ctx, SystemActorID, user.Id, RoleAdmin); err != nil {
 		t.Fatalf("AssignServerRole: %v", err)
 	}
 
-	t.Run("explicit deny on highest-rank role wins over lower-rank grant", func(t *testing.T) {
-		// `everyone` grants the perm; `admin` (the user's highest role) denies it.
-		// Walker visits admin first → deny → stop. Result: denied.
+	t.Run("explicit deny on one role beats allow on another role", func(t *testing.T) {
+		// `everyone` grants the perm; `admin` denies it. Deny-wins means the
+		// effective result is denied without consulting role position.
 		if err := core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost); err != nil {
 			t.Fatalf("Failed to grant permission: %v", err)
 		}
@@ -619,7 +617,7 @@ func TestPermissionResolver_HasRoomPermission_ConflictingRoles(t *testing.T) {
 	room, _ := core.CreateRoom(ctx, admin.Id, KindChannel, "", "general", "General")
 
 	member, _ := core.CreateUser(ctx, "system", "conflictrolemember", "Member", "password123")
-	// Create a custom role (gets a positive custom position, higher rank than everyone).
+	// Create a custom role.
 	core.CreateServerRole(ctx, SystemActorID, "poster", "Poster", "Can post")
 
 	// Grant message.post to poster role at room level
@@ -880,10 +878,10 @@ func TestPermissionResolver_UserLevelOverrides(t *testing.T) {
 	})
 
 	t.Run("DM boundary deny beats user-level room grant", func(t *testing.T) {
-		// Security invariant: the DM boundary deny-list is checked BEFORE
-		// user-level overrides. Even an explicit user-level grant of
-		// message.delete-any in a DM room must not allow it — DM privacy
-		// is non-negotiable.
+		// Security invariant: the DM boundary deny-list is checked before
+		// user-level overrides for non-owners. Even an explicit user-level
+		// grant of message.manage in a DM room must not allow it — DM
+		// privacy is non-negotiable.
 		c, _ := setupTestCore(t)
 		ctx2 := testContext(t)
 		user, _ := c.CreateUser(ctx2, SystemActorID, "dm-boundary-user", "User", "password123")
@@ -893,7 +891,7 @@ func TestPermissionResolver_UserLevelOverrides(t *testing.T) {
 		}
 		has, _ := c.permissionResolver.HasRoomPermission(ctx2, user.Id, KindDM, dmRoomID, PermMessageManage)
 		if has {
-			t.Error("expected DM boundary deny to override user-level grant for message.delete-any")
+			t.Error("expected DM boundary deny to override user-level grant for message.manage")
 		}
 	})
 

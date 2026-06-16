@@ -34,13 +34,13 @@ Chatto controls who can do what through role-based access control. Every authent
 
 **Decision:** For non-owners, any applicable deny wins. If there is no deny, any applicable allow grants the permission. If nothing applies, the result is denied at the API boundary.
 **Why:** Deny-wins is simple, supports future restriction roles such as `suspended`, and avoids making role position part of authorization. See ADR-040.
-**Tradeoff:** Announcement rooms cannot be modeled as "deny everyone, allow moderators" because the deny would win. Instead, Chatto seeds room-level allows per room and omits the `everyone` `message.post` allow in announcement rooms.
+**Tradeoff:** An `everyone` deny really applies to every non-owner because all authenticated users carry `everyone`. The built-in announcements room therefore uses a room-level `everyone` deny for `message.post`, which blocks root posts for all non-owner users in that room.
 
 ### 3. Three permission scopes (server / group / room)
 
-**Decision:** Room checks consider room, group, and server-scope decisions. Server-scope message and room permissions act as global overrides/defaults; room-scope defaults are seeded for normal rooms and announcement rooms. Fresh dev/bootstrap servers do not grant `room.create` to `everyone` at server scope, and `room.create` is the only `room.*` permission granted to admins at server scope by default.
+**Decision:** Room checks consider room, group, and server-scope decisions. Server-scope message and room permissions act as broad defaults; room/group decisions are local exceptions. Fresh dev/bootstrap servers grant ordinary member capabilities such as `room.list`, `room.join`, `message.post`, `message.post-in-thread`, `message.react`, and `message.echo` to `everyone` at server scope. They do not grant `room.create` to `everyone`. Admins get server-tier `room.*` defaults plus `message.manage`; moderators get server-tier `message.manage` and `room.ban-member`.
 **Why:** Operators want both "system-wide policy" and "this one channel works differently" without modelling separate role systems. See ADR-031 and ADR-040.
-**Tradeoff:** A broad server-scope deny blocks the permission everywhere for affected non-owner users. That is intentional, but operators should prefer room/group scope for local changes.
+**Tradeoff:** A broad server-scope deny blocks the permission everywhere for affected non-owner users. That is intentional, but operators should prefer room/group denies for local restrictions.
 
 ### 4. Owners are effective-owner overrides
 
@@ -82,7 +82,7 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
 - `role.assign` — assign roles to users.
 - `user.manage-permissions` — edit direct per-user permission overrides.
 - `admin.view-users`, `admin.view-system`, `admin.view-audit` — gate specific admin UI sub-views; admin UI entry is derived from concrete capabilities rather than a standalone `admin.access` permission.
-- `message.post` — post root messages in rooms and start DMs. Normal rooms seed this at room scope for `everyone`; announcement rooms do not.
+- `message.post` — post root messages in rooms and start DMs. Fresh servers grant this to `everyone` at server scope; announcement rooms add a room-level `everyone` deny.
 - `room.manage` — edit/configure/delete channel rooms.
 - `room.ban-member` — ban members from channel rooms. DM membership is not managed through this permission.
 

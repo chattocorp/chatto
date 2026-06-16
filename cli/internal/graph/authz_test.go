@@ -275,7 +275,7 @@ func TestGrantUserPermission_Authorization(t *testing.T) {
 	mutation := env.resolver.Mutation()
 
 	// testUser starts as owner (created first in setupTestResolver).
-	// Create three other users at different ranks for the matrix.
+	// Create three other users with different roles for the matrix.
 	regular := env.createVerifiedUser(t, "ugrant-regular", "Regular", "password123")
 	moderator := env.createVerifiedUser(t, "ugrant-moderator", "Moderator", "password123")
 	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, moderator.Id, core.RoleModerator); err != nil {

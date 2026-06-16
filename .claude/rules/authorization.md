@@ -37,13 +37,13 @@ Chatto uses permission-only RBAC with a non-lockout owner override. See ADR-040.
 
 Resolution order:
 
-1. **DM boundary deny-list.** In DM rooms, privacy/category-mismatch permissions are denied regardless of grants. Owners are not exempt from this DM boundary.
-2. **Effective-owner override.** A user with the durable `owner` role, or a verified email matching `owners.emails`, receives every known RBAC permission.
-3. **Deny-wins for everyone else.** Any applicable user or role deny blocks the permission.
+1. **Effective-owner override.** A user with the durable `owner` role, or a verified email matching `owners.emails`, receives every known RBAC permission.
+2. **DM boundary deny-list for non-owners.** In DM rooms, privacy/category-mismatch permissions are denied regardless of grants for everyone else.
+3. **Deny-wins for non-owners.** Any applicable user or role deny blocks the permission.
 4. **Allow if any allow applies.** If no deny applies, any applicable user or role allow grants the permission.
 5. **Default deny.** If nothing applies, the API treats the result as denied.
 
-Applicable decisions include direct user decisions and all roles assigned to the user, including implicit `everyone`. For room checks, room, group, and server scopes all contribute. Server-scope room/message decisions therefore work as global overrides/defaults, while normal room behavior is seeded at room scope.
+Applicable decisions include direct user decisions and all roles assigned to the user, including implicit `everyone`. For room checks, room, group, and server scopes all contribute. Server-scope room/message decisions therefore work as broad defaults/global overrides, while room and group decisions are local exceptions.
 
 ### Role Positions
 
@@ -59,7 +59,7 @@ Role `position` is ordering/display metadata and legacy event compatibility. It 
 
 ### DM Privacy Boundary
 
-DM rooms use the same permission resolver with one extra rule: a static set of permissions is denied in DM contexts regardless of role grants or owner status. See `dmBoundaryDeniedPermissions` in `permission_resolver.go`.
+DM rooms use the same permission resolver with one extra rule: a static set of permissions is denied in DM contexts regardless of role grants for non-owners. See `dmBoundaryDeniedPermissions` in `permission_resolver.go`.
 
 - **Privacy** — owners/admins/moderators cannot moderate DM contents (`message.manage`, `room.manage`, `room.ban-member`, `message.echo`).
 - **Category mismatch** — DMs have fixed membership APIs, so channel-style `room.create` / `room.ban-member` do not apply.
@@ -96,13 +96,13 @@ Permission strings use **hyphens** as word separators (e.g., `message.post-in-th
 
 ### Permission Scopes (server / group / room)
 
-Most channel-room permissions are configurable at **three tiers** that
-the resolver walks in order (room → group → server) when checking
-permissions in a channel room. The first explicit allow/deny wins.
+Most channel-room permissions are configurable at **three tiers**. The
+resolver collects all applicable decisions from server, group, and room scope:
+any deny wins for non-owners, otherwise any allow grants the permission.
 
-- **Server scope** — the global default. Stored on the server RBAC bucket.
+- **Server scope** — the broad default. Stored on the server RBAC bucket.
   Used as-is for DM rooms (which aren't in any group) and as a fallback
-  for channel rooms with no per-group / per-room override.
+  for channel rooms unless a per-group / per-room deny narrows it.
 - **Group scope** — per-room-group config (ADR-031). Stored against a
   group ID. Overrides server-scope when present.
 - **Room scope** — per-room override. Stored against a room ID.
@@ -192,8 +192,8 @@ the ability to create rooms only in specific groups.
 | `updateSpace` | Yes | `space.manage` |
 | `joinSpace` | Yes | None |
 | `leaveSpace` | Yes | None |
-| `createRoom` | Yes | `rooms.create` |
-| `joinRoom` | Yes | Space membership + `rooms.join` |
+| `createRoom` | Yes | `room.create` |
+| `joinRoom` | Yes | Space membership + `room.join` |
 | `leaveRoom` | Yes | None |
 | `banRoomMember` | Yes | Channel rooms only; `room.ban-member` |
 | `postMessage` | Yes | Room membership + `message.post` (root) or `message.post-in-thread` (thread reply), + `message.echo` (if `alsoSendToChannel`) |
@@ -214,7 +214,7 @@ the ability to create rooms only in specific groups.
 
 | Field | Auth Required | Additional Check |
 |-------|---------------|------------------|
-| `Space.rooms` | Yes | Space membership + `rooms.browse` |
+| `Space.rooms` | Yes | Space membership + `room.list` |
 | `Space.memberCount` | No | Public count |
 | `Space.roomCount` | No | Public count |
 | `Space.assetCount` | No | Public count |
@@ -274,7 +274,7 @@ if caller.Id != obj.Id {
 
 ## Customizable Permissions
 
-Default member permissions (`rooms.browse`, `rooms.create`, `rooms.join`) can be revoked from the member role. When implementing or modifying permission checks:
+Default member permissions (`room.list`, `room.join`, `message.post`, `message.post-in-thread`, `message.react`, `message.echo`, and `user.delete-self`) can be denied or cleared from the `everyone` role. When implementing or modifying permission checks:
 
 1. **Always use RBAC resolution** - Never hardcode permission grants based on role names or "default" lists
 2. **Test both grant and revoke** - Permissions must work when granted AND when revoked
@@ -301,25 +301,23 @@ return canPost, nil
 ## Server Owner via Config
 
 Owners can be designated via `owners.emails` in `chatto.toml`. After
-Phase 5 of #330 there is no special-case fallthrough in the permission
-resolver — the config flow materialises a real `owner` role assignment:
+the RBAC simplification, this is both a runtime effective-owner path and a
+best-effort materialized role assignment:
 
 - On email verification (registration / OAuth / admin-direct add),
   `addVerifiedEmail` checks the new email against `owners.emails` and
   auto-assigns the `owner` role if it matches. Fresh deployments work
   without a restart.
-- For existing deployments, run `chatto reset rbac` after upgrading
-  the binary. The command appends reset facts, re-seeds the system roles plus
-  default permissions, and assigns `owner` to every user whose verified email
-  matches `owners.emails`.
+- If the durable role assignment is missing, the verified config email still
+  grants effective owner access.
 
-Owners pass every permission check through the standard hierarchy
-walk (owner is position 1000, the highest rank). They have access to:
+Owners pass every known permission check through the effective-owner override.
+They have access to:
 
 - `/admin` routes in the frontend
 - `Query.admin` in GraphQL; member-directory reads use authenticated `Server.members`
 - System monitoring data (NATS stats, streams, KV buckets)
-- Everything else (the owner role's grants cover all permissions)
+- Everything else (owners are virtual all-allow subjects)
 
 See `admin.md` for the role / config-owner narrative.
 

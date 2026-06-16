@@ -369,7 +369,7 @@ func TestMessageModeration_PermissionOnly(t *testing.T) {
 
 	// Build owner (testUser, default), admin, moderator, and regular members.
 	// All are members of the seeded test room.
-	admin := env.createVerifiedUser(t, "rank-mod-admin", "Admin", "password123")
+	admin := env.createVerifiedUser(t, "perm-mod-admin", "Admin", "password123")
 	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, admin.Id, core.RoleAdmin); err != nil {
 		t.Fatalf("AssignServerRole admin: %v", err)
 	}
@@ -377,7 +377,7 @@ func TestMessageModeration_PermissionOnly(t *testing.T) {
 		t.Fatalf("JoinRoom admin: %v", err)
 	}
 
-	moderator := env.createVerifiedUser(t, "rank-mod-mod", "Moderator", "password123")
+	moderator := env.createVerifiedUser(t, "perm-mod-moderator", "Moderator", "password123")
 	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, moderator.Id, core.RoleModerator); err != nil {
 		t.Fatalf("AssignServerRole moderator: %v", err)
 	}
@@ -385,7 +385,7 @@ func TestMessageModeration_PermissionOnly(t *testing.T) {
 		t.Fatalf("JoinRoom moderator: %v", err)
 	}
 
-	regular := env.createVerifiedUser(t, "rank-mod-regular", "Regular", "password123")
+	regular := env.createVerifiedUser(t, "perm-mod-regular", "Regular", "password123")
 	if _, err := env.core.JoinRoom(env.ctx, regular.Id, core.KindChannel, regular.Id, env.testRoom.Id); err != nil {
 		t.Fatalf("JoinRoom regular: %v", err)
 	}
@@ -482,7 +482,7 @@ func TestMessageModeration_PermissionOnly(t *testing.T) {
 		}
 	})
 
-	t.Run("author can always delete own message regardless of rank", func(t *testing.T) {
+	t.Run("author can always delete own message", func(t *testing.T) {
 		eventID := post(regular, "regular self-delete")
 		if _, err := mutation.DeleteMessage(env.authContextForUser(regular), model.DeleteMessageInput{
 			RoomID:  env.testRoom.Id,
