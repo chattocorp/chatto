@@ -3,6 +3,7 @@ import { flushSync } from 'svelte';
 import type { Client } from '@urql/svelte';
 import type { GraphQLClient } from '$lib/state/server/graphqlClient.svelte';
 import { MessagesStore } from './messages.svelte';
+import { JumpToMessageState } from './composerContext.svelte';
 
 class FakeGqlClient {
 	reconnectCount = 0;
@@ -694,6 +695,75 @@ describe('MessagesStore — room lifecycle ownership', () => {
 			limit: 50
 		});
 		expect(fake.queryMock.mock.calls[0][2]).toEqual({ requestPolicy: 'network-only' });
+		store.dispose();
+	});
+
+	it('keeps live events ordered when anchored refresh races forward pagination', async () => {
+		let resolveAnchoredRefresh!: (value: unknown) => void;
+		const anchoredRefresh = new Promise((resolve) => {
+			resolveAnchoredRefresh = resolve;
+		});
+		const fake = new FakeGqlClient([
+			roomEventsResult({
+				events: [
+					threadMessageEvent('m1'),
+					threadMessageEvent('m2'),
+					threadMessageEvent('m3'),
+					threadMessageEvent('m4'),
+					threadMessageEvent('m5')
+				],
+				startCursor: 'seq:1',
+				endCursor: 'seq:5',
+				hasOlder: false,
+				hasNewer: true
+			}),
+			anchoredRefresh,
+			roomEventsResult({
+				events: [threadMessageEvent('m6'), threadMessageEvent('m7')],
+				startCursor: 'seq:6',
+				endCursor: 'seq:7',
+				hasOlder: true,
+				hasNewer: true
+			})
+		]);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+
+		store.setRoom('room-1');
+		await settle();
+		fake.queryMock.mockClear();
+
+		const refresh = store.refreshCurrentWindow('m3');
+		store.ingestServerEvent(threadMessageEvent('m8') as never);
+		resolveAnchoredRefresh({
+			room: {
+				eventsAround: {
+					events: [threadMessageEvent('m3'), threadMessageEvent('m4'), threadMessageEvent('m5')],
+					targetIndex: 0,
+					startCursor: 'seq:3',
+					endCursor: 'seq:5',
+					hasOlder: true,
+					hasNewer: true
+				}
+			}
+		});
+
+		await refresh;
+		await settle();
+		expect(store.rootEvents.map((event) => event.id)).toEqual(['m3', 'm4', 'm5', 'm8']);
+
+		const jumpState = new JumpToMessageState();
+		jumpState.isJumpedMode = true;
+		await store.loadNewer(jumpState);
+		await settle();
+
+		expect(store.rootEvents.map((event) => event.id)).toEqual([
+			'm3',
+			'm4',
+			'm5',
+			'm6',
+			'm7',
+			'm8'
+		]);
 		store.dispose();
 	});
 

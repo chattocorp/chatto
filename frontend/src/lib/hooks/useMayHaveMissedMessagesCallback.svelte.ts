@@ -15,6 +15,11 @@ export type MayHaveMissedMessagesReason =
   | 'manual-shortcut';
 
 const DEDUPE_MS = 1_000;
+const EVENT_BUS_RETRY_MS = 2_500;
+
+type RunOptions = {
+  scheduleEventBusRetry?: boolean;
+};
 
 function isEventBusReason(reason: MayHaveMissedMessagesReason): boolean {
   return reason.startsWith('event-bus-');
@@ -31,6 +36,7 @@ export function useMayHaveMissedMessagesCallback(
   let lastSucceededAt = 0;
   let inFlight = false;
   let queuedReason: MayHaveMissedMessagesReason | null = null;
+  let eventBusRetryTimer: ReturnType<typeof setTimeout> | null = null;
 
   function isEditableTarget(target: EventTarget | null): boolean {
     if (!(target instanceof HTMLElement)) return false;
@@ -54,7 +60,16 @@ export function useMayHaveMissedMessagesCallback(
     }
   }
 
-  async function run(reason: MayHaveMissedMessagesReason): Promise<void> {
+  function scheduleEventBusRetry(reason: MayHaveMissedMessagesReason): void {
+    if (eventBusRetryTimer) clearTimeout(eventBusRetryTimer);
+    eventBusRetryTimer = setTimeout(() => {
+      eventBusRetryTimer = null;
+      console.debug('[room-refresh] retrying after event-bus projection grace period', { reason });
+      void run(reason);
+    }, EVENT_BUS_RETRY_MS);
+  }
+
+  async function run(reason: MayHaveMissedMessagesReason, options: RunOptions = {}): Promise<void> {
     inFlight = true;
     let succeeded = false;
     let nextReason: MayHaveMissedMessagesReason | null = null;
@@ -73,10 +88,14 @@ export function useMayHaveMissedMessagesCallback(
       queuedReason = null;
     }
 
+    if (options.scheduleEventBusRetry && isEventBusReason(reason)) {
+      scheduleEventBusRetry(reason);
+    }
+
     if (nextReason) {
       if (!succeeded || isEventBusReason(nextReason)) {
         console.debug('[room-refresh] running queued maybe-missed signal', { reason: nextReason });
-        void run(nextReason);
+        void run(nextReason, { scheduleEventBusRetry: isEventBusReason(nextReason) });
       } else {
         console.debug('[room-refresh] skipped queued duplicate after successful refresh', {
           reason: nextReason
@@ -96,7 +115,7 @@ export function useMayHaveMissedMessagesCallback(
       console.debug('[room-refresh] skipped duplicate maybe-missed signal', { reason });
       return;
     }
-    void run(reason);
+    void run(reason, { scheduleEventBusRetry: isEventBusReason(reason) });
   }
 
   useReconnectCallback(() => trigger('reconnect'));
@@ -113,6 +132,10 @@ export function useMayHaveMissedMessagesCallback(
     };
     bus.catchUpHandlers.add(catchUpHandler);
     return () => {
+      if (eventBusRetryTimer) {
+        clearTimeout(eventBusRetryTimer);
+        eventBusRetryTimer = null;
+      }
       bus.catchUpHandlers.delete(catchUpHandler);
     };
   });
@@ -139,6 +162,10 @@ export function useMayHaveMissedMessagesCallback(
     window.addEventListener('keydown', onKeyDown);
 
     return () => {
+      if (eventBusRetryTimer) {
+        clearTimeout(eventBusRetryTimer);
+        eventBusRetryTimer = null;
+      }
       document.removeEventListener('visibilitychange', onVisibilityChange);
       window.removeEventListener('pageshow', onPageShow);
       window.removeEventListener('online', onOnline);

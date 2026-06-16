@@ -40,6 +40,10 @@ function eventCacheKey(roomId: string, eventId: string): string {
   return `${roomId}\u0000${eventId}`;
 }
 
+function compareEventCreatedAt(a: RoomEventViewFragment, b: RoomEventViewFragment): number {
+  return Date.parse(a.createdAt) - Date.parse(b.createdAt);
+}
+
 /**
  * Message store for both the main room timeline and a single thread pane.
  * The scope-specific methods (`setRoom` / `setThread`) choose which Core
@@ -488,7 +492,7 @@ export class MessagesStore {
       }
 
       if (eventData.threadRootEventId === this.threadRootEventId) {
-        this.addEvent(spaceEvent);
+        this.addEvent(spaceEvent, { sortRoom: false });
         this.sortThreadEvents();
       }
       return;
@@ -669,15 +673,23 @@ export class MessagesStore {
     }
   }
 
-  private addEvent(event: RoomEventViewFragment): boolean {
+  private addEvent(
+    event: RoomEventViewFragment,
+    options: { sortRoom?: boolean } = {}
+  ): boolean {
     if (this.seenIds.has(event.id)) return false;
     this.seenIds.add(event.id);
     this.events.push(event);
+    if ((options.sortRoom ?? true) && this.scope === 'room') this.sortRoomEvents();
     return true;
   }
 
   private appendMany(events: RoomEventViewFragment[]): void {
-    for (const e of events) this.addEvent(e);
+    let added = false;
+    for (const e of events) {
+      added = this.addEvent(e, { sortRoom: false }) || added;
+    }
+    if (added && this.scope === 'room') this.sortRoomEvents();
   }
 
   private prependEvents(olderEvents: RoomEventViewFragment[]): number {
@@ -711,6 +723,7 @@ export class MessagesStore {
       merged.push(e);
     }
     this.events = merged;
+    if (this.scope === 'room') this.sortRoomEvents();
     this.seenIds = newSeen;
   }
 
@@ -765,6 +778,7 @@ export class MessagesStore {
     }
 
     this.events = merged;
+    if (this.scope === 'room') this.sortRoomEvents();
     this.seenIds = newSeen;
     this.oldestCursor = connection.startCursor ?? undefined;
     this.newestCursor = connection.endCursor ?? undefined;
@@ -988,14 +1002,24 @@ export class MessagesStore {
   }
 
   private sortThreadEvents(): void {
-    this.events = [...this.events].sort((a, b) => {
-      if (a.id === this.threadRootEventId) return -1;
-      if (b.id === this.threadRootEventId) return 1;
+    this.events = this.events
+      .map((event, index) => ({ event, index }))
+      .sort((a, b) => {
+        const aIsRoot = a.event.id === this.threadRootEventId;
+        const bIsRoot = b.event.id === this.threadRootEventId;
+        if (aIsRoot && !bIsRoot) return -1;
+        if (!aIsRoot && bIsRoot) return 1;
 
-      const aTime = Date.parse(a.createdAt);
-      const bTime = Date.parse(b.createdAt);
-      if (aTime !== bTime) return aTime - bTime;
-      return a.id.localeCompare(b.id);
-    });
+        const byCreatedAt = compareEventCreatedAt(a.event, b.event);
+        return byCreatedAt || a.index - b.index;
+      })
+      .map(({ event }) => event);
+  }
+
+  private sortRoomEvents(): void {
+    this.events = this.events
+      .map((event, index) => ({ event, index }))
+      .sort((a, b) => compareEventCreatedAt(a.event, b.event) || a.index - b.index)
+      .map(({ event }) => event);
   }
 }
