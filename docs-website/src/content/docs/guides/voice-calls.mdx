@@ -9,9 +9,9 @@ Chatto supports real-time voice and video calls inside rooms using [LiveKit](htt
 
 ## How It Works
 
-LiveKit runs as a **separate service** alongside Chatto. Chatto handles authentication and signaling, while LiveKit handles the actual audio transport:
+LiveKit runs as a **separate service** alongside Chatto. Chatto handles authentication and call state, while LiveKit handles the WebRTC media transport:
 
-1. A user clicks the phone icon in a room header to join a call.
+1. A user joins the call from the room header.
 2. Chatto verifies the user's room membership and generates a short-lived LiveKit JWT token.
 3. The user's browser connects directly to the LiveKit server using the token and a per-call E2EE key from Chatto.
 4. Other room members see active call indicators update in real time.
@@ -92,11 +92,11 @@ Chatto records call start/join/leave/end facts durably and reconciles active par
      api_key: your-api-key
    ```
 
-   For local development with `livekit-server --dev`, the `--dev` flag disables webhooks. You can use Chatto's [test webhook endpoints](/reference/environment-variables) for development testing instead.
+   For local development with `livekit-server --dev`, the `--dev` flag disables webhooks. That is useful for testing local media connectivity, but active-call indicators and participant reconciliation require webhook delivery in normal deployments.
 
 4. **Restart Chatto**
 
-   Calls will be available immediately. A phone icon appears in every room header when LiveKit is configured.
+   Calls will be available immediately. Call controls appear in room headers when LiveKit is configured.
 
 </Steps>
 
@@ -108,7 +108,7 @@ Use `wss://` (WebSocket Secure) URLs in production. Plain `ws://` should only be
 
 - **Network**: Users connect directly to the LiveKit server from their browsers. Make sure your LiveKit server is reachable from the public internet (or your private network, for internal deployments).
 - **TURN/STUN**: LiveKit includes a built-in TURN server for NAT traversal. For restrictive networks, you may need to configure it to listen on port 443.
-- **Scaling**: A single LiveKit server handles hundreds of concurrent audio-only participants. For larger deployments, LiveKit supports multi-node clustering with Redis.
+- **Scaling**: A single LiveKit server handles hundreds of concurrent participants for typical small deployments. For larger deployments, LiveKit supports multi-node clustering with Redis.
 - **End-to-end encryption**: Chatto enables LiveKit E2EE automatically for clients. No additional LiveKit server configuration is required.
 - **API Secret**: Keep your API secret confidential. It's used to sign JWT tokens and should never be exposed to clients.
 
@@ -116,7 +116,9 @@ Use `wss://` (WebSocket Secure) URLs in production. Plain `ws://` should only be
 
 - **Mute/unmute** — Toggle your microphone during a call
 - **Audio device selection** — Switch between microphones without leaving the call
-- **Active call indicators** — Rooms with active calls show a phone icon in the room list
+- **Camera toggle** — Turn your camera on and off during a call
+- **Video device selection** — Switch between cameras without leaving the call
+- **Active call indicators** — Rooms with active calls show a call indicator in the room list
 - **Audio level visualization** — Participant avatars pulse with accent-colored rings based on speaking volume
 - **Call history notices** — Room history shows when a call starts and when the active call ends
 
@@ -129,4 +131,4 @@ To disable voice and video calls, either remove the `[livekit]` section from `ch
 enabled = false
 ```
 
-When disabled, the phone icon is hidden and all call API endpoints return `null`.
+When disabled, call controls are hidden and all call API endpoints return `null`.
