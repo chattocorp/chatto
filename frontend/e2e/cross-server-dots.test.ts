@@ -9,6 +9,7 @@ import {
 	joinSpaceOnRemote,
 	getRoomOnRemote,
 	postMessageOnRemote,
+	postThreadReplyOnRemote,
 	connectRemoteInstance
 } from './fixtures/multiServer';
 import {
@@ -97,6 +98,75 @@ test.describe('Cross-instance dots', () => {
 	// "DM on a remote instance lights up the DM icon" was removed with the
 	// cross-instance DM icon (#330 phase 3). Cross-server DM aggregation will
 	// be re-tested when that view is reintroduced.
+
+	test('clicking a remote thread notification dot remounts the containing room timeline', async ({
+		page,
+		chatPage,
+		roomPage
+	}) => {
+		// Home: mount a normal room first. This is the stale-state setup: the
+		// currently rendered Room subtree belongs to the home server before the
+		// remote notification dot routes to another server.
+		await createAndLoginTestUser(page);
+		await chatPage.goto();
+		await chatPage.createSpace();
+		await chatPage.enterRoom('general');
+		const homeGeneralRoomId = await getRoomIdByName(page, 'general');
+		const homeBody = `Home room before remote dot ${Date.now()}`;
+		await roomPage.sendMessage(homeBody);
+
+		// Remote: viewer will receive a mention on a thread reply.
+		const baseURL = remoteBaseURL(remoteServer);
+		const suffix = Date.now().toString(36);
+		const viewerLogin = `tv${suffix}`;
+		const owner = await createUserOnRemote(baseURL, `to${suffix}`, 'password123');
+		const viewer = await createUserOnRemote(baseURL, viewerLogin, 'password123');
+		const mentioner = await createUserOnRemote(baseURL, `tm${suffix}`, 'password123');
+		const remoteGeneralRoomId = await getRoomOnRemote(baseURL, owner.token, 'general');
+		const remoteRootBody = `Remote thread root ${suffix}`;
+		const remoteRootEventId = await postMessageOnRemote(
+			baseURL,
+			owner.token,
+			remoteGeneralRoomId,
+			remoteRootBody
+		);
+
+		await connectRemoteInstance(page, { ...remoteServer, baseURL }, viewer.userId);
+		await page.goto(routes.room(homeGeneralRoomId));
+		await expect(page.getByText(homeBody)).toBeVisible();
+
+		const remoteHostSegment = new URL(baseURL).hostname;
+		const remoteSpaceWrapper = page
+			.locator('.server-gutter .server-icon-wrapper')
+			.filter({ has: page.locator(`a[data-testid="server-icon"][href*="/chat/${remoteHostSegment}"]`) });
+		const remoteSpaceDot = remoteSpaceWrapper.locator('.bg-warning');
+		await expect(remoteSpaceDot).not.toBeVisible();
+
+		const remoteReplyBody = `@${viewerLogin} remote thread reply ${suffix}`;
+		await postThreadReplyOnRemote(
+			baseURL,
+			mentioner.token,
+			remoteGeneralRoomId,
+			remoteReplyBody,
+			remoteRootEventId
+		);
+
+		await expect(remoteSpaceDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+		await remoteSpaceDot.click();
+
+		await page.waitForURL(
+			(url) =>
+				url.pathname ===
+				`/chat/${remoteHostSegment}/${remoteGeneralRoomId}/${remoteRootEventId}`
+		);
+		await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
+		await roomPage.expectThreadPaneVisible();
+		await roomPage.expectTextInThreadPane(remoteReplyBody);
+
+		const mainRoomTimeline = page.locator('[data-testid="messages-container"]').first();
+		await expect(mainRoomTimeline.locator('[role="article"]')).not.toHaveCount(0);
+		await expect(mainRoomTimeline.getByText(remoteRootBody)).toBeVisible();
+	});
 
 	test('mention on a thread message: clicking the space dot opens the thread', async ({
 		page,

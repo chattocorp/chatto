@@ -8,11 +8,13 @@
 
   let { roomId } = $derived(data);
 
+  const activeServerId = $derived(getActiveServer());
+
   // Wait for the active server's merged rooms store (channels + DMs) to
   // settle before letting children mount. Without this, a freshly-loaded
   // room page can fire queries against the URL roomId before the store has
   // decided whether the room exists, briefly showing the not-found redirect.
-  const roomsStore = $derived(serverRegistry.getStore(getActiveServer()).rooms);
+  const roomsStore = $derived(serverRegistry.getStore(activeServerId).rooms);
   const ready = $derived(!roomsStore.isInitialLoading);
 
   let threadId = $derived(page.params.threadId);
@@ -29,6 +31,8 @@
 			Room is rendered in the layout so it stays mounted when navigating
 			between room and thread URLs. This prevents unnecessary reloads.
 		-->
-    <Room {roomId} {threadId} />
+    {#key activeServerId}
+      <Room {roomId} {threadId} />
+    {/key}
   {/if}
 {/if}

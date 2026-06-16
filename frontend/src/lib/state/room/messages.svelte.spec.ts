@@ -191,6 +191,32 @@ function roomEventsResult({
 }
 
 describe('MessagesStore — room lifecycle ownership', () => {
+	it('does not refetch or clear events when setRoom is called for the current room', async () => {
+		const loaded = threadMessageEvent('m1');
+		const fake = new FakeGqlClient(
+			roomEventsResult({
+				events: [loaded],
+				startCursor: null,
+				endCursor: null,
+				hasOlder: false,
+				hasNewer: false
+			})
+		);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+
+		store.setRoom('room-1');
+		await settle();
+		fake.queryMock.mockClear();
+
+		store.setRoom('room-1');
+		await settle();
+
+		expect(fake.queryMock).not.toHaveBeenCalled();
+		expect(store.rootEvents.map((event) => event.id)).toEqual(['m1']);
+		expect(store.isInitialLoading).toBe(false);
+		store.dispose();
+	});
+
 	it('serves already-loaded events by id without querying GraphQL', async () => {
 		const loaded = threadMessageEvent('m1');
 		const fake = new FakeGqlClient(
@@ -872,6 +898,31 @@ describe('MessagesStore — room lifecycle ownership', () => {
 });
 
 describe('MessagesStore — thread lifecycle ownership', () => {
+	it('does not refetch or clear events when setThread is called for the current thread', async () => {
+		const fake = new FakeGqlClient(
+			threadQueryResult({
+				replies: [threadMessageEvent('r1', 't1')],
+				startCursor: null,
+				endCursor: null,
+				hasOlder: false,
+				hasNewer: false
+			})
+		);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+
+		store.setThread('room-1', 't1');
+		await settle();
+		fake.queryMock.mockClear();
+
+		store.setThread('room-1', 't1');
+		await settle();
+
+		expect(fake.queryMock).not.toHaveBeenCalled();
+		expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r1']);
+		expect(store.isInitialLoading).toBe(false);
+		store.dispose();
+	});
+
 	it('links and unlinks visible echoes for thread replies from live events', async () => {
 		const fake = new FakeGqlClient(
 			threadQueryResult({
