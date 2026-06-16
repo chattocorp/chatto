@@ -2,6 +2,7 @@ package email
 
 import (
 	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/wneessen/go-mail"
@@ -47,39 +48,52 @@ func TestMailer_IsEnabled(t *testing.T) {
 	}
 }
 
-func TestMailTLSPolicy(t *testing.T) {
+func TestMailOptionsTLS(t *testing.T) {
 	tests := []struct {
-		name string
-		cfg  config.SMTPConfig
-		want mail.TLSPolicy
+		name    string
+		cfg     config.SMTPConfig
+		wantSSL bool
 	}{
 		{
-			name: "defaults to mandatory",
-			cfg:  config.SMTPConfig{},
-			want: mail.TLSMandatory,
+			name:    "mandatory STARTTLS does not use implicit TLS",
+			cfg:     config.SMTPConfig{Port: 587, TLS: config.SMTPTLSMandatory},
+			wantSSL: false,
 		},
 		{
-			name: "mandatory",
-			cfg:  config.SMTPConfig{TLS: config.SMTPTLSMandatory},
-			want: mail.TLSMandatory,
+			name:    "opportunistic STARTTLS does not use implicit TLS",
+			cfg:     config.SMTPConfig{Port: 587, TLS: config.SMTPTLSOpportunistic},
+			wantSSL: false,
 		},
 		{
-			name: "opportunistic",
-			cfg:  config.SMTPConfig{TLS: config.SMTPTLSOpportunistic},
-			want: mail.TLSOpportunistic,
+			name:    "explicit implicit TLS uses SSL mode",
+			cfg:     config.SMTPConfig{Port: 465, TLS: config.SMTPTLSImplicit},
+			wantSSL: true,
 		},
 		{
-			name: "unknown falls back to mandatory",
-			cfg:  config.SMTPConfig{TLS: "unexpected"},
-			want: mail.TLSMandatory,
+			name:    "port 465 with default policy uses SSL mode",
+			cfg:     config.SMTPConfig{Port: 465},
+			wantSSL: true,
+		},
+		{
+			name:    "port 465 with mandatory policy uses SSL mode",
+			cfg:     config.SMTPConfig{Port: 465, TLS: config.SMTPTLSMandatory},
+			wantSSL: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := mailTLSPolicy(tt.cfg); got != tt.want {
-				t.Errorf("mailTLSPolicy() = %v, want %v", got, tt.want)
+			client, err := mail.NewClient("smtp.example.com", mailOptions(tt.cfg)...)
+			if err != nil {
+				t.Fatalf("NewClient() failed: %v", err)
+			}
+			if got := clientUsesSSL(client); got != tt.wantSSL {
+				t.Errorf("implicit TLS = %v, want %v", got, tt.wantSSL)
 			}
 		})
 	}
+}
+
+func clientUsesSSL(client *mail.Client) bool {
+	return reflect.ValueOf(client).Elem().FieldByName("useSSL").Bool()
 }

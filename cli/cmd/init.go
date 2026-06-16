@@ -97,6 +97,11 @@ var initCmd = &cobra.Command{
 					StorageBackend: config.StorageBackendNATS,
 				},
 			},
+			SMTP: config.SMTPConfig{
+				Enabled: false,
+				Port:    587,
+				TLS:     config.SMTPTLSMandatory,
+			},
 			NATS: config.NATSConfig{
 				Replicas: 1,
 				Client: config.NATSClientConfig{
