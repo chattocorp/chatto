@@ -1,5 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { csrfHeaders } from './csrf';
+import { unloadPageForIdentitySwitch } from './navigation';
 
 export interface TestUser {
   id?: string;
@@ -64,7 +65,7 @@ export async function loginAsAdmin(page: Page): Promise<TestUser> {
  */
 export async function logoutCurrentUser(page: Page): Promise<void> {
   const headers = await csrfHeaders(page);
-  await page.goto('about:blank');
+  await unloadPageForIdentitySwitch(page);
   const response = await page.request.post('/auth/logout', { headers });
   expect(response.ok()).toBeTruthy();
 }

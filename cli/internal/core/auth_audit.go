@@ -99,7 +99,7 @@ func (c *ChattoCore) recordRegistrationCodeIssued(ctx context.Context, email str
 	event := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_RegistrationVerificationCodeIssued{
 		RegistrationVerificationCodeIssued: &corev1.RegistrationVerificationCodeIssuedEvent{
 			EmailHash: emailHash(email),
-			ExpiresAt: tokenExpiresAt(createdAt, RegistrationCodeTTL),
+			ExpiresAt: tokenExpiresAt(createdAt, c.registrationCodeTTL()),
 			Request:   auditRequestMetadata(ctx),
 		},
 	}})
@@ -114,7 +114,7 @@ func (c *ChattoCore) recordEmailVerificationCodeIssued(ctx context.Context, user
 		EmailVerificationCodeIssued: &corev1.EmailVerificationCodeIssuedEvent{
 			UserId:    userID,
 			EmailHash: emailHash(email),
-			ExpiresAt: tokenExpiresAt(createdAt, EmailVerificationCodeTTL),
+			ExpiresAt: tokenExpiresAt(createdAt, c.emailVerificationCodeTTL()),
 			Request:   auditRequestMetadata(ctx),
 		},
 	}})

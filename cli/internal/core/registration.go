@@ -94,6 +94,10 @@ func normalizeRegistrationEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
 }
 
+func (c *ChattoCore) registrationCodeTTL() time.Duration {
+	return c.config.EmailOTP.TTLOrDefault()
+}
+
 // ============================================================================
 // Registration Code Operations
 // ============================================================================
@@ -107,7 +111,8 @@ func (c *ChattoCore) CreateRegistrationCode(ctx context.Context, email string) (
 		return "", fmt.Errorf("email is required")
 	}
 
-	code, err := c.createEmailOTP(ctx, registrationOTPScope, email, RegistrationCodeTTL, func(createdAt time.Time) ([]byte, error) {
+	ttl := c.registrationCodeTTL()
+	code, err := c.createEmailOTP(ctx, registrationOTPScope, email, ttl, func(createdAt time.Time) ([]byte, error) {
 		return json.Marshal(RegistrationCode{
 			Email:     email,
 			CreatedAt: createdAt,
@@ -133,7 +138,8 @@ func (c *ChattoCore) VerifyRegistrationCode(ctx context.Context, email, code str
 		return "", ErrRegistrationCodeInvalid
 	}
 
-	entry, err := c.getEmailOTPCode(ctx, registrationOTPScope, email, code, RegistrationCodeTTL)
+	ttl := c.registrationCodeTTL()
+	entry, err := c.getEmailOTPCode(ctx, registrationOTPScope, email, code, ttl)
 	if err != nil {
 		switch {
 		case errors.Is(err, errEmailOTPNotFound):
@@ -154,7 +160,7 @@ func (c *ChattoCore) VerifyRegistrationCode(ctx context.Context, email, code str
 		return "", fmt.Errorf("failed to unmarshal registration code: %w", err)
 	}
 
-	if time.Since(codeData.CreatedAt) > RegistrationCodeTTL {
+	if time.Since(codeData.CreatedAt) > ttl {
 		_ = c.storage.runtimeStateKV.Delete(ctx, entry.key, jetstream.LastRevision(entry.revision))
 		return "", ErrRegistrationCodeExpired
 	}
@@ -173,6 +179,12 @@ func (c *ChattoCore) VerifyRegistrationCode(ctx context.Context, email, code str
 		return "", err
 	}
 	return token, nil
+}
+
+// CancelRegistrationCode removes a registration OTP that was created but not
+// delivered, so failed email sends do not consume resend throttle slots.
+func (c *ChattoCore) CancelRegistrationCode(ctx context.Context, email, code string) error {
+	return c.cancelEmailOTP(ctx, registrationOTPScope, normalizeRegistrationEmail(email), code, c.registrationCodeTTL())
 }
 
 func isRuntimeStateRevisionConflict(err error) bool {

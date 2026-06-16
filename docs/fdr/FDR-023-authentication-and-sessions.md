@@ -92,7 +92,7 @@ Chatto authenticates users via two parallel mechanisms: opaque bearer tokens for
 **Why:** `EVT` is Chatto's durable audit trail as well as the event-sourcing stream. Operators need to answer "what happened?" for sensitive workflows, but the audit log must not become a secondary secret store.
 **Tradeoff:** Failed-login and unknown-code exchange attempts intentionally do not reveal whether the submitted identifier or code matched an account. Admins get timing, request metadata, and stable hashes for known-user workflows, not raw credential guesses.
 
-**OTP guardrails:** Registration and authenticated email-verification OTPs share `RUNTIME_STATE` `email_otp.*` records. Each challenge allows at most ten issued codes and five wrong-code attempts in its 15-minute TTL window; exhaustion blocks fresh codes for that challenge until TTL.
+**OTP guardrails:** Registration and authenticated email-verification OTPs share `RUNTIME_STATE` `email_otp.*` records. By default, throttling is enabled and each challenge allows at most ten successfully delivered codes and five wrong-code attempts in its 15-minute TTL window; operators can tune or disable these throttles through `auth.email_otp` / `CHATTO_AUTH_EMAIL_OTP_*`. Exhaustion blocks fresh codes for that challenge until TTL. If email delivery fails, the just-created OTP record is cancelled and does not count against the issued-code limit.
 
 ### 10. Short-lived auth codes in runtime state
 

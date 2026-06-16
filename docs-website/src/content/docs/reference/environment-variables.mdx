@@ -235,6 +235,22 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
   Inactivity TTL for bearer auth tokens. Supports durations like `90d`, `2160h`. Successful validation refreshes the TTL; inactive tokens expire automatically.
 </EnvVar>
 
+<EnvVar name="CHATTO_AUTH_EMAIL_OTP_THROTTLING_ENABLED" toml="auth.email_otp.throttling_enabled" default="true">
+  Enable throttling for registration and email-verification code delivery and wrong-code attempts. Set to `false` to disable these throttles while keeping OTP TTL enforcement.
+</EnvVar>
+
+<EnvVar name="CHATTO_AUTH_EMAIL_OTP_TTL" toml="auth.email_otp.ttl" default="15m">
+  How long registration and email-verification codes remain valid. Supports durations like `15m`, `30m`, or `1h`.
+</EnvVar>
+
+<EnvVar name="CHATTO_AUTH_EMAIL_OTP_MAX_DELIVERED_CODES" toml="auth.email_otp.max_delivered_codes" default="10">
+  Maximum successfully delivered registration or email-verification codes allowed for the same email challenge before fresh code requests are throttled.
+</EnvVar>
+
+<EnvVar name="CHATTO_AUTH_EMAIL_OTP_MAX_WRONG_ATTEMPTS" toml="auth.email_otp.max_wrong_attempts" default="5">
+  Maximum wrong-code submissions allowed for the same email challenge before the challenge is exhausted until its TTL expires.
+</EnvVar>
+
 ### External Login Providers
 
 External login providers are configured as repeated `[[auth.providers]]` tables in `chatto.toml`.

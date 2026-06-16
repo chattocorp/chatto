@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/c2h5oh/datasize"
 	"github.com/charmbracelet/log"
@@ -78,6 +79,12 @@ var initCmd = &cobra.Command{
 			},
 			Auth: config.AuthConfig{
 				DirectRegistration: &directRegistration,
+				EmailOTP: config.EmailOTPConfig{
+					ThrottlingEnabled: &directRegistration,
+					TTL:               config.Duration(15 * time.Minute),
+					MaxDeliveredCodes: 10,
+					MaxWrongAttempts:  5,
+				},
 			},
 			Limits: config.LimitsConfig{
 				MaxUsers: &unlimited,
@@ -127,6 +134,7 @@ var initCmd = &cobra.Command{
 			log.Fatal("Failed to marshal config", "error", err)
 		}
 		text := addAuthProviderExamples(string(b))
+		text = addEmailOTPDefaults(text)
 
 		if err := os.WriteFile(configPath, []byte(text), 0600); err != nil {
 			log.Fatal("Failed to write config file", "error", err)
@@ -155,6 +163,35 @@ func addAuthProviderExamples(tomlText string) string {
 # client_secret = 'replace-me'`
 
 	return strings.Replace(tomlText, generatedEmptyProviders, providerExamples, 1)
+}
+
+func addEmailOTPDefaults(tomlText string) string {
+	const marker = "# Email OTP guardrails for registration and email verification."
+	start := strings.Index(tomlText, marker)
+	if start == -1 {
+		return tomlText
+	}
+
+	endMarker := "\n# Instance-wide resource limits."
+	end := strings.Index(tomlText[start:], endMarker)
+	if end == -1 {
+		return tomlText
+	}
+	end += start
+
+	const emailOTPDefaults = `# Email OTP guardrails for registration and email verification.
+[auth.email_otp]
+# Enable email OTP throttling for registration and email verification. Default: true.
+throttling_enabled = true
+# How long registration and email-verification codes stay valid. Default: 15m.
+# ttl = '15m'
+# Maximum successfully delivered codes per email challenge before throttling. Default: 10.
+# max_delivered_codes = 10
+# Maximum wrong-code attempts per email challenge before throttling. Default: 5.
+# max_wrong_attempts = 5
+`
+
+	return tomlText[:start] + emailOTPDefaults + tomlText[end:]
 }
 
 func init() {

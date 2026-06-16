@@ -315,12 +315,13 @@ type AssetsConfig struct {
 
 // CoreConfig contains settings for the Chatto core service.
 type CoreConfig struct {
-	SecretKey    string        `toml:"secret_key" env:"CHATTO_CORE_SECRET_KEY" comment:"Server-wide secret for deriving HMAC verifiers for bearer tokens and account-flow credentials. NEVER SHARE THIS!\nIf it changes, existing bearer tokens and pending registration, verification, password reset, account deletion, and OAuth authorization-code credentials become invalid."`
-	Assets       AssetsConfig  `toml:"assets"`
-	AuthTokenTTL time.Duration `toml:"-" env:"-"` // Set by caller from AuthConfig.TokenTTLOrDefault()
-	Replicas     int           `toml:"-" env:"-"` // Set by caller from NATSConfig.ReplicasOrDefault()
-	Limits       LimitsConfig  `toml:"-" env:"-"` // Set by caller from ChattoConfig.Limits
-	Owners       OwnersConfig  `toml:"-" env:"-"` // Set by caller from ChattoConfig.Owners — used by core to auto-promote on email verification
+	SecretKey    string         `toml:"secret_key" env:"CHATTO_CORE_SECRET_KEY" comment:"Server-wide secret for deriving HMAC verifiers for bearer tokens and account-flow credentials. NEVER SHARE THIS!\nIf it changes, existing bearer tokens and pending registration, verification, password reset, account deletion, and OAuth authorization-code credentials become invalid."`
+	Assets       AssetsConfig   `toml:"assets"`
+	AuthTokenTTL time.Duration  `toml:"-" env:"-"` // Set by caller from AuthConfig.TokenTTLOrDefault()
+	EmailOTP     EmailOTPConfig `toml:"-" env:"-"` // Set by caller from AuthConfig.EmailOTP
+	Replicas     int            `toml:"-" env:"-"` // Set by caller from NATSConfig.ReplicasOrDefault()
+	Limits       LimitsConfig   `toml:"-" env:"-"` // Set by caller from ChattoConfig.Limits
+	Owners       OwnersConfig   `toml:"-" env:"-"` // Set by caller from ChattoConfig.Owners — used by core to auto-promote on email verification
 }
 
 const (
@@ -380,7 +381,48 @@ func IsAllowedAuthProviderType(providerType string) bool {
 type AuthConfig struct {
 	DirectRegistration *bool                `toml:"direct_registration" env:"CHATTO_AUTH_DIRECT_REGISTRATION" comment:"Enable direct (email/password) registration. When false, users can only sign in via SSO providers. Default: true."`
 	TokenTTL           Duration             `toml:"token_ttl,commented" env:"CHATTO_AUTH_TOKEN_TTL" comment:"TTL for bearer auth tokens. Supports human-readable durations like '90d', '2160h'. Default: 90d."`
+	EmailOTP           EmailOTPConfig       `toml:"email_otp,commented" comment:"Email OTP guardrails for registration and email verification."`
 	Providers          []AuthProviderConfig `toml:"providers" comment:"External login providers. Configure as repeated [[auth.providers]] tables."`
+}
+
+// EmailOTPConfig controls registration and email-verification one-time-password guardrails.
+type EmailOTPConfig struct {
+	ThrottlingEnabled *bool    `toml:"throttling_enabled,commented" env:"CHATTO_AUTH_EMAIL_OTP_THROTTLING_ENABLED" comment:"Enable email OTP throttling for registration and email verification. Default: true."`
+	TTL               Duration `toml:"ttl,commented" env:"CHATTO_AUTH_EMAIL_OTP_TTL" comment:"How long registration and email-verification codes stay valid. Default: 15m."`
+	MaxDeliveredCodes int      `toml:"max_delivered_codes,commented" env:"CHATTO_AUTH_EMAIL_OTP_MAX_DELIVERED_CODES" comment:"Maximum successfully delivered codes per email challenge before throttling. Default: 10."`
+	MaxWrongAttempts  int      `toml:"max_wrong_attempts,commented" env:"CHATTO_AUTH_EMAIL_OTP_MAX_WRONG_ATTEMPTS" comment:"Maximum wrong-code attempts per email challenge before throttling. Default: 5."`
+}
+
+// ThrottlingEnabledOrDefault returns whether email OTP throttling is enabled (default: true).
+func (c *EmailOTPConfig) ThrottlingEnabledOrDefault() bool {
+	if c.ThrottlingEnabled == nil {
+		return true
+	}
+	return *c.ThrottlingEnabled
+}
+
+// TTLOrDefault returns the configured email OTP TTL, or 15 minutes if unset.
+func (c *EmailOTPConfig) TTLOrDefault() time.Duration {
+	if c.TTL == 0 {
+		return 15 * time.Minute
+	}
+	return c.TTL.Duration()
+}
+
+// MaxDeliveredCodesOrDefault returns the delivered-code limit, or 10 if unset.
+func (c *EmailOTPConfig) MaxDeliveredCodesOrDefault() int {
+	if c.MaxDeliveredCodes == 0 {
+		return 10
+	}
+	return c.MaxDeliveredCodes
+}
+
+// MaxWrongAttemptsOrDefault returns the wrong-code attempt limit, or 5 if unset.
+func (c *EmailOTPConfig) MaxWrongAttemptsOrDefault() int {
+	if c.MaxWrongAttempts == 0 {
+		return 5
+	}
+	return c.MaxWrongAttempts
 }
 
 // TokenTTLOrDefault returns the configured bearer token TTL, or 90 days if not set.
@@ -906,6 +948,15 @@ func (c *ChattoConfig) Validate() error {
 				errs = append(errs, err.Error())
 			}
 		}
+	}
+	if c.Auth.EmailOTP.TTL.Duration() < 0 {
+		errs = append(errs, "auth.email_otp.ttl must be positive when set")
+	}
+	if c.Auth.EmailOTP.MaxDeliveredCodes < 0 {
+		errs = append(errs, "auth.email_otp.max_delivered_codes must be positive when set")
+	}
+	if c.Auth.EmailOTP.MaxWrongAttempts < 0 {
+		errs = append(errs, "auth.email_otp.max_wrong_attempts must be positive when set")
 	}
 
 	// TLS configuration

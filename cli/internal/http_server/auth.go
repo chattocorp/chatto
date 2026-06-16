@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/gin-contrib/sessions"
@@ -34,6 +35,32 @@ func (s *HTTPServer) authEmailServerName(ctx context.Context) string {
 		}
 	}
 	return "Chatto"
+}
+
+func (s *HTTPServer) emailOTPExpirationText() string {
+	ttl := s.config.Auth.EmailOTP.TTLOrDefault()
+	switch {
+	case ttl%time.Hour == 0:
+		hours := int(ttl / time.Hour)
+		if hours == 1 {
+			return "1 hour"
+		}
+		return fmt.Sprintf("%d hours", hours)
+	case ttl%time.Minute == 0:
+		minutes := int(ttl / time.Minute)
+		if minutes == 1 {
+			return "1 minute"
+		}
+		return fmt.Sprintf("%d minutes", minutes)
+	case ttl%time.Second == 0:
+		seconds := int(ttl / time.Second)
+		if seconds == 1 {
+			return "1 second"
+		}
+		return fmt.Sprintf("%d seconds", seconds)
+	default:
+		return ttl.String()
+	}
 }
 
 func (s *HTTPServer) setupAuthRoutes() {
@@ -300,13 +327,17 @@ func (s *HTTPServer) setupAuthRoutes() {
 
 		// Send registration email
 		serverName := s.authEmailServerName(ctx)
+		expirationText := s.emailOTPExpirationText()
 		err = s.mailer.Send(email.Message{
 			To:      req.Email,
 			Subject: fmt.Sprintf("Complete your registration for %s", serverName),
-			Body:    fmt.Sprintf("Welcome to %s!\n\nUse this verification code to finish creating your account on %s:\n\n%s\n\nThis code will expire in 15 minutes.\n\nIf you didn't request this, you can ignore this email.", serverName, serverName, code),
+			Body:    fmt.Sprintf("Welcome to %s!\n\nUse this verification code to finish creating your account on %s:\n\n%s\n\nThis code will expire in %s.\n\nIf you didn't request this, you can ignore this email.", serverName, serverName, code, expirationText),
 		})
 		if err != nil {
 			log.Error("Failed to send registration email", "error", err)
+			if cancelErr := s.core.CancelRegistrationCode(ctx, req.Email, code); cancelErr != nil {
+				log.Warn("Failed to cancel undelivered registration code", "error", cancelErr)
+			}
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send email"})
 			return
 		}
@@ -536,12 +567,16 @@ func (s *HTTPServer) setupAuthRoutes() {
 			return
 		}
 		serverName := s.authEmailServerName(req.Context())
+		expirationText := s.emailOTPExpirationText()
 		if err := s.mailer.Send(email.Message{
 			To:      body.Email,
 			Subject: fmt.Sprintf("Verify your email for %s", serverName),
-			Body:    fmt.Sprintf("Use this verification code to add this email address to your %s account:\n\n%s\n\nThis code will expire in 15 minutes.\n\nIf you didn't request this, you can ignore this email.", serverName, code),
+			Body:    fmt.Sprintf("Use this verification code to add this email address to your %s account:\n\n%s\n\nThis code will expire in %s.\n\nIf you didn't request this, you can ignore this email.", serverName, code, expirationText),
 		}); err != nil {
 			log.Error("Failed to send email verification code", "userId", user.Id, "error", err)
+			if cancelErr := s.core.CancelEmailVerificationCode(req.Context(), user.Id, body.Email, code); cancelErr != nil {
+				log.Warn("Failed to cancel undelivered email verification code", "userId", user.Id, "error", cancelErr)
+			}
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send verification code"})
 			return
 		}
