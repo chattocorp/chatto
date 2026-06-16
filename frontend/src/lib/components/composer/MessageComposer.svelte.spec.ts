@@ -181,7 +181,7 @@ async function insertEditorLiteralText(editor: HTMLElement, text: string) {
 async function pressEditorKey(
   editor: HTMLElement,
   key: string,
-  options: { shiftKey?: boolean } = {}
+  options: { ctrlKey?: boolean; metaKey?: boolean; shiftKey?: boolean } = {}
 ) {
   editor.dispatchEvent(
     new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...options })
@@ -1243,6 +1243,172 @@ describe('MessageComposer', () => {
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
         roomId,
         body: '```ts\nconst first = 1;\n```\n\nbetween blocks\n\n```ts\nconst second = 2;\n```'
+      });
+    });
+
+    it('sends with Cmd+Enter inside an active code block', async () => {
+      const { container, roomId } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+
+      await typeEditorLiteralText(editor, '```ts');
+      await pressEditorKey(editor, 'Enter', { shiftKey: true });
+      await vi.waitFor(() => expect(editor.querySelector('pre code')).toBeTruthy());
+      document.execCommand('insertText', false, 'const answer = 42;');
+      await vi.waitFor(() =>
+        expect(editor.querySelector('pre code')?.textContent).toContain('const answer = 42;')
+      );
+
+      await pressEditorKey(editor, 'Enter', { metaKey: true });
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: '```ts\nconst answer = 42;\n```'
+      });
+    });
+
+    it('lets Enter create another bullet list item instead of submitting', async () => {
+      const { container, roomId } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+
+      await typeEditorLiteralText(editor, '- first');
+      await vi.waitFor(() => expect(editor.querySelector('ul li')?.textContent).toBe('first'));
+      await pressEditorKey(editor, 'Enter');
+      expect(mutationMock).not.toHaveBeenCalled();
+
+      document.execCommand('insertText', false, 'second');
+      await vi.waitFor(() => expect(editor.querySelectorAll('ul li')).toHaveLength(2));
+      await vi.waitFor(() =>
+        expect(editor.querySelectorAll('ul li')[1]?.textContent).toBe('second')
+      );
+
+      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: '- first\n- second'
+      });
+    });
+
+    it('sends with Enter only after the cursor has left a bullet list', async () => {
+      const { container, roomId } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+
+      await typeEditorLiteralText(editor, '- first');
+      await vi.waitFor(() => expect(editor.querySelector('ul li')?.textContent).toBe('first'));
+      await pressEditorKey(editor, 'Enter');
+      await vi.waitFor(() => expect(editor.querySelectorAll('ul li')).toHaveLength(2));
+      await pressEditorKey(editor, 'Enter');
+      expect(mutationMock).not.toHaveBeenCalled();
+      await vi.waitFor(() => expect(editor.querySelectorAll('ul li')).toHaveLength(1));
+
+      await pressEditorKey(editor, 'Enter');
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: '- first'
+      });
+    });
+
+    it('sends with Cmd+Enter inside a bullet list', async () => {
+      const { container, roomId } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+
+      await typeEditorLiteralText(editor, '- first');
+      await vi.waitFor(() => expect(editor.querySelector('ul li')?.textContent).toBe('first'));
+      await pressEditorKey(editor, 'Enter', { metaKey: true });
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: '- first'
+      });
+    });
+
+    it('starts a bullet list from a visual line after hard breaks', async () => {
+      const { container, roomId } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+
+      await typeEditorLiteralText(editor, 'Things I hate:');
+      await pressEditorKey(editor, 'Enter', { shiftKey: true });
+      await pressEditorKey(editor, 'Enter', { shiftKey: true });
+      await insertEditorLiteralText(editor, '- ');
+      await vi.waitFor(() => expect(editor.querySelector('ul li')).toBeTruthy());
+      expect(editor.querySelector('p br')).toBeTruthy();
+
+      document.execCommand('insertText', false, 'lists');
+      await vi.waitFor(() => expect(editor.querySelector('ul li')?.textContent).toBe('lists'));
+
+      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: 'Things I hate:\n\n- lists'
+      });
+    });
+
+    it('starts an ordered list from a visual line after hard breaks', async () => {
+      const { container, roomId } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+
+      await typeEditorLiteralText(editor, 'Things I like:');
+      await pressEditorKey(editor, 'Enter', { shiftKey: true });
+      await insertEditorLiteralText(editor, '1. ');
+      await vi.waitFor(() => expect(editor.querySelector('ol li')).toBeTruthy());
+
+      document.execCommand('insertText', false, 'lists');
+      await vi.waitFor(() => expect(editor.querySelector('ol li')?.textContent).toBe('lists'));
+
+      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: 'Things I like:\n\n1. lists'
+      });
+    });
+
+    it('lets Enter leave a heading before the next Enter can submit', async () => {
+      const { container, roomId } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+
+      await typeEditorLiteralText(editor, '# Heading');
+      await vi.waitFor(() => expect(editor.querySelector('h1')?.textContent).toBe('Heading'));
+      await pressEditorKey(editor, 'Enter');
+      expect(mutationMock).not.toHaveBeenCalled();
+
+      document.execCommand('insertText', false, 'body');
+      await vi.waitFor(() => expect(editor.querySelector('p')?.textContent).toBe('body'));
+      await pressEditorKey(editor, 'Enter');
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: '# Heading\n\nbody'
       });
     });
 

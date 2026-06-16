@@ -31,6 +31,8 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 
   const markdownLinkInputRegex = /(^|\s)\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)$/;
   const codeFenceLineRegex = /^```([\w-]+)?$/;
+  const markdownBulletListLineRegex = /^[ \t]{0,3}[-+*]\s(.*)$/;
+  const markdownOrderedListLineRegex = /^[ \t]{0,3}(\d{1,9})[.)]\s(.*)$/;
 
   const ComposerCodeBlockLowlight = CodeBlockLowlight.extend({
     renderHTML({ node, HTMLAttributes }) {
@@ -114,6 +116,50 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     }
 
     return { nodes, codeNode, beforeNodeSize: beforeNode?.nodeSize ?? 0 };
+  }
+
+  function buildListMarkerReplacement({
+    schema,
+    paragraph,
+    markerLineIndex
+  }: {
+    schema: Schema;
+    paragraph: Parameters<typeof paragraphTextWithLineBreaks>[0];
+    markerLineIndex: number;
+  }) {
+    const text = paragraphTextWithLineBreaks(paragraph);
+    const lines = text.split('\n');
+    const markerLine = lines[markerLineIndex] ?? '';
+    const bulletMatch = markerLine.match(markdownBulletListLineRegex);
+    const orderedMatch = markerLine.match(markdownOrderedListLineRegex);
+    if (!bulletMatch && !orderedMatch) return null;
+
+    const listNodeType = bulletMatch ? schema.nodes.bulletList : schema.nodes.orderedList;
+    const listItem = schema.nodes.listItem;
+    const paragraphNode = schema.nodes.paragraph;
+    if (!listNodeType || !listItem || !paragraphNode) return null;
+
+    const itemText = bulletMatch ? (bulletMatch[1] ?? '') : (orderedMatch?.[2] ?? '');
+    const beforeText = lines.slice(0, markerLineIndex).join('\n');
+    const afterText = lines.slice(markerLineIndex + 1).join('\n');
+    const beforeNode = beforeText ? createParagraphFromText(schema, beforeText) : null;
+    const itemParagraph = itemText
+      ? paragraphNode.create(null, schema.text(itemText))
+      : paragraphNode.create();
+    const listAttrs = orderedMatch ? { start: Number.parseInt(orderedMatch[1], 10) } : undefined;
+    const listNode = listNodeType.create(listAttrs, listItem.create(null, itemParagraph));
+    const nodes = [];
+
+    if (beforeNode) nodes.push(beforeNode);
+    nodes.push(listNode);
+    if (afterText) nodes.push(createParagraphFromText(schema, afterText));
+
+    return {
+      nodes,
+      itemText,
+      listNode,
+      beforeNodeSize: beforeNode?.nodeSize ?? 0
+    };
   }
 
   const MarkdownLinkInputRule = Extension.create({
@@ -264,6 +310,61 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
             }
 
             return null;
+          }
+        })
+      ];
+    }
+  });
+
+  const MarkdownListMarkerAfterHardBreak = Extension.create({
+    name: 'markdownListMarkerAfterHardBreak',
+
+    addProseMirrorPlugins() {
+      return [
+        new Plugin({
+          key: new PluginKey('markdownListMarkerAfterHardBreak'),
+          appendTransaction: (transactions, _oldState, newState) => {
+            if (!transactions.some((transaction) => transaction.docChanged)) return null;
+
+            const selectionFrom = newState.selection.$from;
+            if (selectionFrom.depth !== 1 || selectionFrom.parent.type.name !== 'paragraph') {
+              return null;
+            }
+
+            const paragraph = selectionFrom.parent;
+            const paragraphPos = selectionFrom.before(1);
+            const textBeforeCursor = paragraph.textBetween(
+              0,
+              selectionFrom.parentOffset,
+              '\n',
+              '\n'
+            );
+            const currentLineIndex = textBeforeCursor.split('\n').length - 1;
+            const currentLine = textBeforeCursor.split('\n').at(-1) ?? '';
+
+            if (
+              !markdownBulletListLineRegex.test(currentLine) &&
+              !markdownOrderedListLineRegex.test(currentLine)
+            ) {
+              return null;
+            }
+
+            const replacement = buildListMarkerReplacement({
+              schema: newState.schema,
+              paragraph,
+              markerLineIndex: currentLineIndex
+            });
+            if (!replacement) return null;
+
+            const listPosition = paragraphPos + replacement.beforeNodeSize;
+            const selectionPosition = listPosition + 3 + replacement.itemText.length;
+            const tr = newState.tr.replaceWith(
+              paragraphPos,
+              paragraphPos + paragraph.nodeSize,
+              replacement.nodes
+            );
+            tr.setSelection(TextSelection.create(tr.doc, selectionPosition));
+            return tr;
           }
         })
       ];
@@ -530,6 +631,27 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     return transformMarkdownOutsideCode(markdown, decodeSerializedTextEntities);
   }
 
+  function hasTrailingEmptyParagraph(e: Editor): boolean {
+    if (e.state.doc.childCount <= 1) return false;
+    const lastChild = e.state.doc.lastChild;
+    return lastChild?.type.name === 'paragraph' && lastChild.content.size === 0;
+  }
+
+  function trimSerializedTrailingEmptyParagraph(markdown: string, e: Editor): string {
+    if (!hasTrailingEmptyParagraph(e)) return markdown;
+    return markdown.replace(/(?:\n\n(?:&nbsp;|\u00a0))+$/, '');
+  }
+
+  function normalizeSerializedHardBreaksBeforeLists(markdown: string): string {
+    return markdown.replace(/ {2,}(\n\s*\n\s*(?:[-+*]|\d{1,9}[.)])\s)/g, '$1');
+  }
+
+  function getSerializedMarkdown(e: Editor): string {
+    return normalizeSerializedHardBreaksBeforeLists(
+      trimSerializedTrailingEmptyParagraph(decodeSerializedMarkdownText(e.getMarkdown()), e)
+    );
+  }
+
   export type TipTapEditorApi = {
     /** Get the editor's plain text content */
     getText: () => string;
@@ -541,6 +663,8 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     getTextBeforeCursor: () => string;
     /** Whether the current selection is inside a code block */
     isInCodeBlock: () => boolean;
+    /** Whether the current selection is inside a top-level plain paragraph */
+    isInPlainParagraph: () => boolean;
     /**
      * Replace N characters before the cursor with new text.
      * Used for mention/emoji completion where we know the pattern
@@ -826,6 +950,11 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
       },
 
       isInCodeBlock: () => !e.isDestroyed && e.isActive('codeBlock'),
+      isInPlainParagraph: () => {
+        if (e.isDestroyed) return false;
+        const selectionFrom = e.state.selection.$from;
+        return selectionFrom.depth === 1 && selectionFrom.parent.type.name === 'paragraph';
+      },
 
       replaceTextBeforeCursor: (charCount: number, replacement: string) => {
         if (e.isDestroyed) return;
@@ -872,6 +1001,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
             MarkdownLinkInputRule,
             MarkdownCodeFenceShortcut,
             CompletedMarkdownCodeFence,
+            MarkdownListMarkerAfterHardBreak,
             TrailingParagraphAfterCodeBlock,
             Placeholder.configure({ placeholder })
           ],
@@ -891,7 +1021,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           onUpdate: ({ editor: ed }) => {
             updateActiveControls(ed);
             ensureEditorCodeLanguages(ed);
-            onUpdate?.(ed.isEmpty ? '' : decodeSerializedMarkdownText(ed.getMarkdown()));
+            onUpdate?.(ed.isEmpty ? '' : getSerializedMarkdown(ed));
           },
           onSelectionUpdate: ({ editor: ed }) => {
             updateActiveControls(ed);

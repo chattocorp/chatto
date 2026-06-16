@@ -584,11 +584,17 @@
       }
     }
 
-    if (event.key === 'Enter' && !event.shiftKey && editorApi?.isInCodeBlock()) {
-      return false;
+    if (event.key === 'Enter' && !event.shiftKey && (event.metaKey || event.ctrlKey)) {
+      handleSubmit(); // Fire-and-forget (async, but keydown must return sync)
+      return true;
     }
 
-    if (event.key === 'Enter' && !event.shiftKey && !isTouchDevice()) {
+    if (
+      event.key === 'Enter' &&
+      !event.shiftKey &&
+      !isTouchDevice() &&
+      editorApi?.isInPlainParagraph()
+    ) {
       handleSubmit(); // Fire-and-forget (async, but keydown must return sync)
       return true;
     }
