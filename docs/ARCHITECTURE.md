@@ -143,7 +143,7 @@ The schema is modular: each feature area lives in its own `.graphqls` file and e
 | Query                                | Description                                                                    |
 | ------------------------------------ | ------------------------------------------------------------------------------ |
 | `server`                             | Information about this Chatto server (name, branding, member counts). Public. |
-| `viewer`                             | Current authenticated user's identity, permissions, follows, notifications.    |
+| `viewer`                             | Nullable current-user scope: authenticated identity, permissions, follows, notifications; `null` for unauthenticated callers. |
 
 Note: there is no top-level `me` query — viewer-scoped state hangs off the `viewer` field (which is extended by several feature files, e.g. `threads.graphqls` adds `viewer.followedThreads`, `notifications.graphqls` adds `viewer.notifications` / `viewer.hasNotifications`).
 

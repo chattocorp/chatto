@@ -40,16 +40,6 @@
   useVisualViewport();
   usePinchZoomPrevention();
 
-  // Mark the origin store's currentUser as not-loading at app init.
-  // SvelteKit's load function already resolved auth state by the time this
-  // script runs — any further changes flow through `currentUser.user`. The
-  // registry is the single source of truth for `CurrentUserState`;
-  // consumers read it via `serverRegistry.getStore(serverId).currentUser`.
-  const originId = serverRegistry.originServer?.id;
-  if (originId) {
-    serverRegistry.getStore(originId).currentUser.loading = false;
-  }
-
   const userSettings = new UserSettingsState();
   setUserSettings(userSettings);
 

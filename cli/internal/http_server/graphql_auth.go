@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/log"
-	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/auth"
@@ -45,7 +44,6 @@ func (s *HTTPServer) injectUserIntoContext(c *gin.Context) *http.Request {
 	user, err := s.core.GetUser(ctx, userID)
 	if err != nil {
 		log.Warn("Failed to load user from session", "userId", userID, "error", err)
-		clearCookieSessionAuth(sessions.Default(c))
 		return c.Request
 	}
 

@@ -88,20 +88,6 @@ export class ServerStateStore {
     this.roomDirectory = new RoomDirectoryStore(client);
     this.adminRoomLayout = new AdminRoomLayoutStore(client);
 
-    // Gate session-revalidation and auth-failure dispatch to cookie-auth
-    // servers only. Bearer auth's `handleAuthFailure` would clear
-    // `currentUser.user` while leaving the bearer token intact, producing
-    // an inconsistent state where `isAuthenticated` (token != null) is
-    // still true but the user is gone. Until the data model has a clean
-    // way to represent "remote with revoked token", keep the existing
-    // behavior of letting the next failed query surface the error.
-    if (cookieAuth) {
-      gqlClient.setAuthHandlers({
-        onAuthFailure: () => this.currentUser.handleAuthFailure(),
-        onSessionValidation: () => this.currentUser.validateSession()
-      });
-    }
-
     // Self-managed lifecycle for the substores that need fetch / event
     // wiring. Living here (in the per-server bundle) means consumers
     // don't have to scatter $effect + useEvent pairs through pages and
