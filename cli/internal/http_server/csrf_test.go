@@ -314,9 +314,9 @@ func TestCSRFMiddleware(t *testing.T) {
 		}
 	})
 
-	t.Run("does not rewrite session cookie when refreshing CSRF cookie", func(t *testing.T) {
+	t.Run("does not rotate CSRF token or rewrite session cookie when refreshing CSRF cookie", func(t *testing.T) {
 		server, client := setupCSRFTestServer(t)
-		csrfCookieValue(t, client, server.URL)
+		initialToken := csrfCookieValue(t, client, server.URL)
 
 		resp, err := client.Get(server.URL + "/csrf-refresh")
 		if err != nil {
@@ -334,6 +334,9 @@ func TestCSRFMiddleware(t *testing.T) {
 			switch cookie.Name {
 			case csrfCookieName:
 				foundCSRFCookie = true
+				if cookie.Value != initialToken {
+					t.Fatal("CSRF refresh should reuse the existing signed token")
+				}
 			case "chatto_session":
 				t.Fatal("CSRF refresh should not rewrite the signed session cookie")
 			}

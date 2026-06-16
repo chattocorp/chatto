@@ -48,6 +48,10 @@ func (s *HTTPServer) ensureCSRFToken(c *gin.Context) error {
 	if !ok {
 		return nil
 	}
+	if existingToken, err := c.Cookie(csrfCookieName); err == nil && s.validSignedCSRFToken(existingToken, binding) {
+		s.setCSRFCookie(c, existingToken)
+		return nil
+	}
 	token, err := s.generateCSRFToken(binding)
 	if err != nil {
 		return err

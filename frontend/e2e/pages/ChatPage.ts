@@ -187,13 +187,14 @@ export class ChatPage {
    * state.
    */
   async openCreateRoomModal(): Promise<void> {
+    // Unload the currently mounted app before switching identities; otherwise
+    // the old authenticated app can react to logout and race this helper's
+    // follow-up navigations with its own redirect.
+    await this.page.goto('about:blank');
     const logoutResponse = await this.page.request.post('/auth/logout', {
       headers: await csrfHeaders(this.page)
     });
     expect(logoutResponse.ok()).toBeTruthy();
-    // Unload the currently mounted app before re-authenticating as admin; the
-    // previous session can otherwise issue a late redirect during navigation.
-    await this.page.goto('about:blank');
     await loginAsAdmin(this.page);
     await this.page.goto(routes.serverAdminRooms);
     await expect(this.page).toHaveURL(/\/server-admin\/rooms/);
