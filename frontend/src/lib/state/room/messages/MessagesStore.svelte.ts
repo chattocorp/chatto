@@ -151,6 +151,8 @@ export class MessagesStore {
   }
 
   setRoom(roomId: string): void {
+    if (this.scope === 'room' && this.roomId === roomId) return;
+
     this.scope = 'room';
     this.roomId = roomId;
     this.threadRootEventId = '';
@@ -158,6 +160,14 @@ export class MessagesStore {
   }
 
   setThread(roomId: string, threadRootEventId: string): void {
+    if (
+      this.scope === 'thread' &&
+      this.roomId === roomId &&
+      this.threadRootEventId === threadRootEventId
+    ) {
+      return;
+    }
+
     this.scope = 'thread';
     this.roomId = roomId;
     this.threadRootEventId = threadRootEventId;

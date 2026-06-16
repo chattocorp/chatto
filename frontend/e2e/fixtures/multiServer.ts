@@ -198,6 +198,41 @@ export async function postMessageOnRemote(
 }
 
 /**
+ * Posts a thread reply in a room on a remote server. Returns the new event ID.
+ */
+export async function postThreadReplyOnRemote(
+	remoteBaseURL: string,
+	token: string,
+	roomId: string,
+	body: string,
+	threadRootEventId: string
+): Promise<string> {
+	const response = await fetch(`${remoteBaseURL}/api/graphql`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			'X-REQUEST-TYPE': 'GraphQL',
+			Authorization: `Bearer ${token}`
+		},
+		body: JSON.stringify({
+			query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
+			variables: { input: { roomId, body, threadRootEventId } }
+		})
+	});
+
+	if (!response.ok) {
+		throw new Error(`Failed to post thread reply on remote: ${await response.text()}`);
+	}
+
+	const data = await response.json();
+	const id = data.data?.postMessage?.id;
+	if (!id) {
+		throw new Error(`No event ID returned from remote thread reply: ${JSON.stringify(data)}`);
+	}
+	return id;
+}
+
+/**
  * Starts a DM conversation on a remote server and posts an initial message.
  * Returns the conversation (room) ID.
  */
@@ -223,7 +258,7 @@ export async function startDMOnRemote(
 	const roomId = startData.data?.startDM?.id;
 	if (!roomId) throw new Error(`Failed to start DM on remote: ${JSON.stringify(startData)}`);
 
-	await postMessageOnRemote(remoteBaseURL, senderToken, 'DM', roomId, message);
+	await postMessageOnRemote(remoteBaseURL, senderToken, roomId, message);
 	return roomId;
 }
 
