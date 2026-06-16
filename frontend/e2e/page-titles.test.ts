@@ -30,7 +30,7 @@ test.describe('Page titles', () => {
     // Wait for room header to be visible (indicates room data is loaded)
     await expect(chatPage.getRoomHeader('general')).toBeVisible();
 
-    // Title: "#room - <space> | <instance>". Post-PR(a) instance name falls
+    // Title: "#room - <server> | <instance>". Post-PR(a) instance name falls
     // back to the server name when no runtime override is configured.
     await expect(page).toHaveTitle(`#general - ${serverName} | ${serverName}`);
   });
@@ -44,7 +44,7 @@ test.describe('Page titles', () => {
     await adminPage.fillServerSettings({ serverName: 'Test Server' });
     await adminPage.saveServerSettings();
 
-    // Create space and enter room
+    // Create account and enter room
     await chatPage.goto();
     const serverName = await chatPage.getServerName();
     await chatPage.enterRoom('general');

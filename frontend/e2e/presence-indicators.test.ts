@@ -7,13 +7,13 @@ import { ChatPage, SettingsPage } from './pages';
 import * as routes from './routes';
 
 test.describe('Presence indicators', () => {
-  test('shows online indicator when another user joins the space', async ({
+  test('shows online indicator when another user opens the server', async ({
     page,
     chatPage,
     browser,
     serverURL
   }) => {
-    // User A: Create account, space, and navigate to general room
+    // User A: Create account and navigate to general room
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
 
@@ -35,7 +35,7 @@ test.describe('Presence indicators', () => {
       timeout: TIMEOUTS.REALTIME_EVENT
     });
 
-    // User B: Create account and join the space
+    // User B: Create account and open the server
     const context2 = await browser!.newContext({ baseURL: serverURL });
     const page2 = await context2.newPage();
 
@@ -45,10 +45,10 @@ test.describe('Presence indicators', () => {
       const userB = await createAndLoginTestUser(page2);
       userBLogin = userB.login;
 
-      // User B joins the space via API helper
+      // User B opens the server
       await openServer(page2);
 
-      // Navigate to the space. After openServer, the user lands on the
+      // Navigate to the server. After openServer, the user lands on the
       // server overview (`/chat/-`) — the auto-redirect to a default
       // room was removed when default-room auto-join became permission-
       // derived. Accepting either shape keeps this resilient.
@@ -85,7 +85,7 @@ test.describe('Presence indicators', () => {
   });
 
   test('user sees their own presence as online immediately', async ({ page, chatPage }) => {
-    // Create user and space
+    // Create user and load the primary server
     const user = await createAndLoginTestUser(page);
     await chatPage.goto();
 
@@ -104,7 +104,7 @@ test.describe('Presence indicators', () => {
 
 test.describe('Message avatar presence', () => {
   test('does not show presence dot on message avatars', async ({ page, chatPage }) => {
-    // Create user and space
+    // Create user and load the primary server
     await createAndLoginTestUser(page);
     await chatPage.goto();
 
@@ -149,7 +149,7 @@ test.describe('Member list display format', () => {
     await settingsPage.goto();
     await settingsPage.updateDisplayName('Custom Name');
 
-    // Create a space and navigate to room
+    // Create account and navigate to room
     await chatPage.goto();
     const roomPage = await chatPage.enterRoom('general');
 
@@ -169,7 +169,7 @@ test.describe('Member list display format', () => {
     browser,
     serverURL
   }) => {
-    // User A: Create account and space
+    // User A: Create account
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
 
@@ -196,7 +196,7 @@ test.describe('Member list display format', () => {
       await page2.getByRole('button', { name: 'Save Changes' }).click();
       await expect(page2.getByText('Profile updated')).toBeVisible();
 
-      // User B joins the space
+      // User B opens the server
       await openServer(page2);
       await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.chatRootOrRoom);
@@ -217,7 +217,7 @@ test.describe('Member list display format', () => {
 
 test.describe('Member list grouping', () => {
   test('shows Online section header with member count', async ({ page, chatPage }) => {
-    // Create user and space
+    // Create user and load the primary server
     const user = await createAndLoginTestUser(page);
     await chatPage.goto();
 
@@ -241,7 +241,7 @@ test.describe('Member list grouping', () => {
     browser,
     serverURL
   }) => {
-    // User A: Create account, space, and navigate to general room
+    // User A: Create account and navigate to general room
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
 
@@ -253,7 +253,7 @@ test.describe('Member list grouping', () => {
       timeout: TIMEOUTS.REALTIME_EVENT
     });
 
-    // User B: Create account and join the space
+    // User B: Create account and open the server
     const context2 = await browser!.newContext({ baseURL: serverURL });
     const page2 = await context2.newPage();
 
@@ -263,7 +263,7 @@ test.describe('Member list grouping', () => {
       const userB = await createAndLoginTestUser(page2);
       userBLogin = userB.login;
 
-      // User B joins the space
+      // User B opens the server
       await openServer(page2);
       await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.chatRootOrRoom);
@@ -310,7 +310,7 @@ test.describe('Member list grouping', () => {
     browser,
     serverURL
   }) => {
-    // User A: Create account, space, and navigate to general room
+    // User A: Create account and navigate to general room
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
 
@@ -325,7 +325,7 @@ test.describe('Member list grouping', () => {
       timeout: TIMEOUTS.REALTIME_EVENT
     });
 
-    // User B: Create account and join the space
+    // User B: Create account and open the server
     const context2 = await browser!.newContext({ baseURL: serverURL });
     const page2 = await context2.newPage();
 
@@ -339,7 +339,7 @@ test.describe('Member list grouping', () => {
     await waitForRoomReady(page2, 'general');
 
     // Both should be online - count should update
-    // Issue #330: e2eadmin counts as an offline member of the bootstrap space,
+    // Issue #330: e2eadmin counts as an offline member of the bootstrap server,
     // so we no longer assert offline section is invisible.
     await expect(roomPage.onlineSectionHeader).toHaveText('Online (2)', {
       timeout: TIMEOUTS.REALTIME_EVENT

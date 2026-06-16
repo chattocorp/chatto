@@ -14,7 +14,7 @@ test.describe('Composer drafts', () => {
     browser,
     serverURL
   }) => {
-    // Create user and space
+    // Create user and load the primary server
     const user = await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
@@ -73,7 +73,7 @@ test.describe('Composer drafts', () => {
     chatPage,
     roomPage
   }) => {
-    // Create user and space
+    // Create user and load the primary server
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
@@ -203,10 +203,7 @@ async function navigateViaSidebar(
   await waitForRoomReady(page, targetRoom);
 }
 
-async function navigateViaQuickSwitcher(
-  page: import('@playwright/test').Page,
-  targetRoom: string
-) {
+async function navigateViaQuickSwitcher(page: import('@playwright/test').Page, targetRoom: string) {
   const isMac = process.platform === 'darwin';
   await page.keyboard.press(isMac ? 'Meta+k' : 'Control+k');
   const dialog = page.locator('dialog.quick-switcher');
@@ -215,9 +212,7 @@ async function navigateViaQuickSwitcher(
   // Filter to the target room and pick it via Enter. The <dialog>'s close()
   // wants to return focus to its invoker — the composer must win that race
   // on desktop, and stay out of the way on touch devices.
-  await dialog
-    .getByPlaceholder('Go to server, room, or conversation...')
-    .fill(`#${targetRoom}`);
+  await dialog.getByPlaceholder('Go to server, room, or conversation...').fill(`#${targetRoom}`);
   await expect(
     dialog.locator('button.sidebar-item').filter({ hasText: `#${targetRoom}` })
   ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });

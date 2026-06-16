@@ -36,7 +36,7 @@ test.describe('audio player', () => {
       await createAndLoginTestUser(page2);
       await chatPage2.goto();
 
-      // User 2 joins the space via Explore, then enters the room
+      // User 2 opens the server, then enters the room
       await chatPage2.goto();
       await chatPage2.enterRoom('general');
 

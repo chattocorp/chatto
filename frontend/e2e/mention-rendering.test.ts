@@ -21,7 +21,7 @@ test.describe('Mention highlighting', () => {
     browser,
     serverURL
   }) => {
-    // User 1 creates space
+    // User 1 loads the server
     const user1 = await createAndLoginTestUser(page);
     await chatPage.goto();
     const serverName = await chatPage.getServerName();

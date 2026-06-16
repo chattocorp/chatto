@@ -43,7 +43,7 @@ test.describe('Emoji reactions', () => {
     browser,
     serverURL
   }) => {
-    // User 1: Create space and post a message
+    // User 1: Create account and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
     const serverName = await chatPage.getServerName();
@@ -55,7 +55,7 @@ test.describe('Emoji reactions', () => {
     // Verify no reactions yet (use expectNoReaction to check for reaction count buttons, not toolbar buttons)
     await message1.expectNoReaction('😂');
 
-    // User 2: Create user and join space
+    // User 2: Create user and open the server
     const context2 = await browser!.newContext({
       baseURL: serverURL,
       viewport: { width: 1280, height: 720 }
@@ -116,7 +116,7 @@ test.describe('Emoji reactions', () => {
     browser,
     serverURL
   }) => {
-    // User 1: Create space and post a message
+    // User 1: Create account and post a message
     const user1 = await createAndLoginTestUser(page);
     await chatPage.goto();
     const serverName = await chatPage.getServerName();
@@ -129,7 +129,7 @@ test.describe('Emoji reactions', () => {
     await message1.react('❤️');
     await message1.expectReaction('❤️', 1);
 
-    // User 2: Create user and join space
+    // User 2: Create user and open the server
     const context2 = await browser!.newContext({
       baseURL: serverURL,
       viewport: { width: 1280, height: 720 }

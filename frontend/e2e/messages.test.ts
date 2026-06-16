@@ -120,9 +120,12 @@ test('image attachment refreshes URL after an expired lazy-load request', async 
     await route.continue();
   });
 
-  const failNextAssetResponse = await page.request.post('/auth/test/fail-next-asset-proxy-request', {
-    data: { count: 1 }
-  });
+  const failNextAssetResponse = await page.request.post(
+    '/auth/test/fail-next-asset-proxy-request',
+    {
+      data: { count: 1 }
+    }
+  );
   expect(failNextAssetResponse.ok()).toBe(true);
 
   await roomPage.sendAttachment('e2e/fixtures/brighton.jpg', 'Expired lazy image');
@@ -131,9 +134,7 @@ test('image attachment refreshes URL after an expired lazy-load request', async 
   await expect
     .poll(
       async () =>
-        roomPage.attachmentImage
-          .first()
-          .evaluate((img) => img.complete && img.naturalWidth > 0),
+        roomPage.attachmentImage.first().evaluate((img) => img.complete && img.naturalWidth > 0),
       { timeout: TIMEOUTS.COMPLEX_OPERATION }
     )
     .toBe(true);
@@ -244,7 +245,9 @@ test('cannot post message with neither text nor attachments', async ({
   await expect(roomPage.messageInput).toBeFocused();
 
   // No message should appear in the room (check over time to be sure)
-  await expect.poll(async () => await roomPage.messages.count(), { timeout: TIMEOUTS.UI_FAST }).toBe(0);
+  await expect
+    .poll(async () => await roomPage.messages.count(), { timeout: TIMEOUTS.UI_FAST })
+    .toBe(0);
 });
 
 test('send button is visible', async ({ page, chatPage, roomPage }) => {
@@ -335,7 +338,7 @@ test('deleted message disappears for other connected clients in real-time', asyn
   browser,
   serverURL
 }) => {
-  // User 1: Create space and post a message
+  // User 1: Create account and post a message
   await createAndLoginTestUser(page);
   await chatPage.goto();
   const serverName = await chatPage.getServerName();
@@ -345,7 +348,7 @@ test('deleted message disappears for other connected clients in real-time', asyn
   const message1 = await roomPage.sendMessage(testMessage);
   const eventId = await message1.getEventId();
 
-  // User 2: Create user and join space
+  // User 2: Create user and open the server
   const context2 = await browser!.newContext({
     baseURL: serverURL,
     viewport: { width: 1280, height: 720 }
@@ -355,7 +358,7 @@ test('deleted message disappears for other connected clients in real-time', asyn
   try {
     await createAndLoginTestUser(page2);
 
-    // Post-#330 PR(a): signup auto-joins the server space; the Browse Spaces
+    // Post-#330 PR(a): signup auto-joins the server; the Browse Spaces
     // UI is gone, so user 2 just navigates to the chat root and clicks into
     // the room.
     void serverName;
@@ -384,9 +387,9 @@ test('deleted message disappears for other connected clients in real-time', asyn
     // User 2: should also see the tombstone arrive via LiveEvent
     if (eventId) {
       const message2AfterDelete = page2.locator(`[data-event-id="${eventId}"]`);
-      await expect(
-        message2AfterDelete.getByText('This message has been deleted')
-      ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+      await expect(message2AfterDelete.getByText('This message has been deleted')).toBeVisible({
+        timeout: TIMEOUTS.UI_STANDARD
+      });
       await expect(page2.getByText(testMessage)).not.toBeVisible({
         timeout: TIMEOUTS.UI_STANDARD
       });

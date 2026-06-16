@@ -7,7 +7,7 @@ import * as routes from '../routes';
  * Handles admin navigation, general settings, members, system, runtime, and permissions pages.
  *
  * The legacy /chat/-/admin route tree was folded into server-admin once the
- * "instance" vs "space" distinction collapsed; the back-compat aliases in
+ * old instance-vs-server admin split collapsed; the back-compat aliases in
  * routes.ts make older test names continue to point at the new URLs.
  */
 export class AdminPage {

@@ -83,7 +83,7 @@ test.describe('Account Deletion', () => {
       browser,
       serverURL
     }) => {
-      // User A creates a space and posts a message
+      // User A loads the server and posts a message
       const userA = await createAndLoginTestUser(page);
       await chatPage.goto();
       await chatPage.enterRoom('general');
@@ -92,14 +92,14 @@ test.describe('Account Deletion', () => {
       const messageText = `Hello from ${userA.login} at ${Date.now()}`;
       await roomPage.sendMessage(messageText);
 
-      // User B joins the space
+      // User B opens the server
       const context2 = await browser!.newContext({ baseURL: serverURL });
       const page2 = await context2.newPage();
 
       try {
         await createAndLoginTestUser(page2);
 
-        // User B joins the space
+        // User B opens the server
         await openServer(page2);
         await page2.goto(routes.space());
 
@@ -131,10 +131,12 @@ test.describe('Account Deletion', () => {
         await waitForRoomReady(page2, 'general');
 
         // Body was crypto-shredded; the message is now rendered as a tombstone.
-        await expect(page2.getByText(messageText)).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-        await expect(
-          page2.getByText('This message has been deleted').first()
-        ).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+        await expect(page2.getByText(messageText)).not.toBeVisible({
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
+        await expect(page2.getByText('This message has been deleted').first()).toBeVisible({
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
 
         // User A's clickable display-name button is gone (the actor is gone).
         await expect(
@@ -152,7 +154,7 @@ test.describe('Account Deletion', () => {
       browser,
       serverURL
     }) => {
-      // User A creates a space and posts a message
+      // User A loads the server and posts a message
       const userA = await createAndLoginTestUser(page);
       await chatPage.goto();
       await chatPage.enterRoom('general');
@@ -161,14 +163,14 @@ test.describe('Account Deletion', () => {
       const messageText = `Real-time test from ${userA.login} at ${Date.now()}`;
       await roomPage.sendMessage(messageText);
 
-      // User B joins the space
+      // User B opens the server
       const context2 = await browser!.newContext({ baseURL: serverURL });
       const page2 = await context2.newPage();
 
       try {
         await createAndLoginTestUser(page2);
 
-        // User B joins the space
+        // User B opens the server
         await openServer(page2);
         await page2.goto(routes.space());
 
@@ -193,7 +195,9 @@ test.describe('Account Deletion', () => {
         // WITHOUT REFRESHING: User B should see the body replaced by the tombstone
         // in real-time — ServerMemberDeletedEvent triggers a refetch and the body
         // has been crypto-shredded.
-        await expect(page2.getByText(messageText)).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+        await expect(page2.getByText(messageText)).not.toBeVisible({
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
 
         // User A's clickable display-name button is gone (the actor is gone).
         await expect(
@@ -201,9 +205,9 @@ test.describe('Account Deletion', () => {
         ).not.toBeVisible();
 
         // The message renders as a tombstone now that bodies are always replaced rather than hidden.
-        await expect(
-          page2.getByText('This message has been deleted').first()
-        ).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+        await expect(page2.getByText('This message has been deleted').first()).toBeVisible({
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
       } finally {
         await context2.close();
       }
@@ -215,14 +219,14 @@ test.describe('Account Deletion', () => {
       browser,
       serverURL
     }) => {
-      // User A creates a space
+      // User A loads the server
       await createAndLoginTestUser(page);
       await chatPage.goto();
       await chatPage.enterRoom('general');
 
       const spaceId = await chatPage.getServerScopeId();
 
-      // User B joins the space (this creates a join event)
+      // User B opens the server (this creates a join event)
       const context2 = await browser!.newContext({ baseURL: serverURL });
       const page2 = await context2.newPage();
 
@@ -273,14 +277,14 @@ test.describe('Account Deletion', () => {
       browser,
       serverURL
     }) => {
-      // User A creates a space
+      // User A loads the server
       const userA = await createAndLoginTestUser(page);
       await chatPage.goto();
       await chatPage.enterRoom('general');
 
       const spaceId = await chatPage.getServerScopeId();
 
-      // User B joins the space and room
+      // User B opens the server and enters the room
       const context2 = await browser!.newContext({ baseURL: serverURL });
       const page2 = await context2.newPage();
 
@@ -297,8 +301,8 @@ test.describe('Account Deletion', () => {
         await waitForRoomReady(page2, 'general');
 
         // Both users should see member list with 3 members initially: e2eadmin
-        // (bootstrap space owner) + userA + userB. Issue #330 / ADR-027:
-        // bootstrap creates the primary space owned by e2eadmin, so they
+        // (bootstrap server owner) + userA + userB. Issue #330 / ADR-027:
+        // bootstrap creates the primary server owned by e2eadmin, so they
         // count among general's members.
         await page.reload();
         await waitForRoomReady(page, 'general');

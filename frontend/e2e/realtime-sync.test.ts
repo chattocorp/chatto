@@ -7,14 +7,13 @@ import { ChatPage, SettingsPage } from './pages';
 import * as routes from './routes';
 
 test.describe('Real-time synchronization', () => {
-
   test('room list updates when user joins a room from another session', async ({
     page,
     chatPage,
     browser,
     serverURL
   }) => {
-    // Session 1: Create user, space
+    // Session 1: Create user and open the server
     const user1 = await createAndLoginTestUser(page);
     await chatPage.goto();
 
@@ -38,7 +37,7 @@ test.describe('Real-time synchronization', () => {
       });
       expect(loginResponse.ok()).toBeTruthy();
 
-      // Navigate to the space. Session 2 should already have the room
+      // Navigate to the server. Session 2 should already have the room
       // since it's the same user and the room was created with auto-join
       // for the creator. Allow a generous timeout because the new
       // context boots its own WebSocket subscription and rooms store
@@ -47,9 +46,9 @@ test.describe('Real-time synchronization', () => {
       await page2.waitForURL(routes.patterns.anySpace);
 
       const chatPage2 = new ChatPage(page2);
-      await expect(
-        chatPage2.roomList.getByRole('link', { name: `# ${testRoomName}` })
-      ).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(chatPage2.roomList.getByRole('link', { name: `# ${testRoomName}` })).toBeVisible(
+        { timeout: TIMEOUTS.REALTIME_EVENT }
+      );
     } finally {
       await context2.close();
     }
@@ -67,7 +66,7 @@ test.describe('Real-time synchronization', () => {
     await chatPage.createRoom('leave-test');
     await chatPage.expectRoomHeaderVisible('leave-test');
 
-    // User 2: Join the same space and room
+    // User 2: Join the same server and room
     const context2 = await browser!.newContext({ baseURL: serverURL });
     const page2 = await context2.newPage();
 
@@ -139,7 +138,9 @@ test.describe('Real-time synchronization', () => {
     const testRoomItem = page.locator('li', { hasText: `# ${testRoomName}` });
     await testRoomItem.getByRole('button', { name: 'Join' }).click();
     // Hover-stable: the button swaps visible text to "Leave" on hover.
-    await expect(testRoomItem.locator('button[title^="Joined "]')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(testRoomItem.locator('button[title^="Joined "]')).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
 
     // The room should now appear in the room list (real-time update)
     await expect(chatPage.roomList.getByText(`# ${testRoomName}`)).toBeVisible();
@@ -158,7 +159,7 @@ test.describe('Real-time synchronization', () => {
     await chatPage.createRoom('test-room');
     await chatPage.expectRoomHeaderVisible('test-room');
 
-    // User 2: Join the space and room first (so they can see messages)
+    // User 2: Open the server and room first (so they can see messages)
     const context2 = await browser!.newContext({ baseURL: serverURL });
     const page2 = await context2.newPage();
 
@@ -171,7 +172,9 @@ test.describe('Real-time synchronization', () => {
       await page2.getByRole('link', { name: 'Overview' }).click();
       const testRoomItem2 = page2.locator('li', { hasText: '# test-room' });
       await testRoomItem2.getByRole('button', { name: 'Join' }).click();
-      await expect(testRoomItem2.locator('button[title^="Joined "]')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+      await expect(testRoomItem2.locator('button[title^="Joined "]')).toBeVisible({
+        timeout: TIMEOUTS.UI_STANDARD
+      });
 
       await chatPage2.enterRoom('test-room');
 
@@ -179,7 +182,9 @@ test.describe('Real-time synchronization', () => {
       await roomPage.sendMessage('Hello from User 1');
 
       // User 2 should see the message appear (wait for real-time delivery)
-      await expect(page2.getByText('Hello from User 1')).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(page2.getByText('Hello from User 1')).toBeVisible({
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
 
       // Locate the message author element on User 2's view
       // The message article contains a <button> with the author name (clickable for profile popover)
@@ -225,7 +230,7 @@ test.describe('Real-time synchronization', () => {
     await chatPage.createRoom('error-test');
     await chatPage.expectRoomHeaderVisible('error-test');
 
-    // User 2: Join the space and room, capture console errors
+    // User 2: Open the server and room, capture console errors
     const context2 = await browser!.newContext({ baseURL: serverURL });
     const page2 = await context2.newPage();
 
@@ -251,12 +256,16 @@ test.describe('Real-time synchronization', () => {
       await page2.getByRole('link', { name: 'Overview' }).click();
       const errorTestItem = page2.locator('li', { hasText: '# error-test' });
       await errorTestItem.getByRole('button', { name: 'Join' }).click();
-      await expect(errorTestItem.locator('button[title^="Joined "]')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+      await expect(errorTestItem.locator('button[title^="Joined "]')).toBeVisible({
+        timeout: TIMEOUTS.UI_STANDARD
+      });
 
       await chatPage2.enterRoom('error-test');
 
       // Wait for room to be ready (connection established)
-      await expect(page2.getByText('Real-time updates paused')).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(page2.getByText('Real-time updates paused')).not.toBeVisible({
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
 
       // User 1: Change display name
       const settingsPage = new SettingsPage(page);
@@ -294,7 +303,7 @@ test.describe('Real-time synchronization', () => {
     browser,
     serverURL
   }) => {
-    // User A: Create account, space, and navigate to general room
+    // User A: Create account and navigate to general room
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
 
@@ -307,17 +316,17 @@ test.describe('Real-time synchronization', () => {
     await expect(roomPage.memberList).toBeVisible();
     await roomPage.expectMemberVisible(userA.login);
 
-    // User B: Create account and join the space
+    // User B: Create account and open the server
     const context2 = await browser!.newContext({ baseURL: serverURL });
     const page2 = await context2.newPage();
 
     try {
       const userB = await createAndLoginTestUser(page2);
 
-      // User B joins the space via API helper
+      // User B opens the server
       await openServer(page2);
 
-      // Navigate to the space
+      // Navigate to the server
       await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 

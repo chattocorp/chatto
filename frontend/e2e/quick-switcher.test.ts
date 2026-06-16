@@ -88,7 +88,7 @@ test.describe('Quick Switcher (Cmd-K)', () => {
 
   test('surfaces users without an existing DM', async ({ page, chatPage, browser, serverURL }) => {
     // Two users on the same deployment. createAndLoginTestUser auto-joins
-    // the bootstrap primary space, so A and B share a space — pre-fix,
+    // the bootstrap primary server, so A and B share a server — pre-fix,
     // this is exactly what made B show up in QuickSwitcherSpaceMembersSearch.
     await createAndLoginTestUser(page);
     await chatPage.goto();
@@ -106,7 +106,7 @@ test.describe('Quick Switcher (Cmd-K)', () => {
         timeout: TIMEOUTS.UI_STANDARD
       });
 
-      // userB.login is unique enough not to fuzzy-match any space, room, or
+      // userB.login is unique enough not to fuzzy-match any server, room, or
       // destination label. With no DM open with userB, this proves Cmd-K is
       // searching the server member directory rather than just existing DMs.
       await input.fill(userB.login);

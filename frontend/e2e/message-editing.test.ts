@@ -62,7 +62,7 @@ test.describe('Up arrow to edit last message', () => {
     browser,
     serverURL
   }) => {
-    // User 1: Create space and post a message
+    // User 1: Create account and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
     const serverName = await chatPage.getServerName();
@@ -275,7 +275,7 @@ test.describe('Message editing', () => {
     browser,
     serverURL
   }) => {
-    // User 1: Create space and post a message
+    // User 1: Create account and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
     const serverName = await chatPage.getServerName();
@@ -286,7 +286,7 @@ test.describe('Message editing', () => {
     const message1 = await roomPage.sendMessage(originalMessage);
     const eventId = await message1.getEventId();
 
-    // User 2: Create user and join space
+    // User 2: Create user and open the server
     const context2 = await browser!.newContext({
       baseURL: serverURL,
       viewport: { width: 1280, height: 720 }
@@ -319,7 +319,9 @@ test.describe('Message editing', () => {
       // User 2 should also see the edited message via LiveEvent
       if (eventId) {
         const message2 = roomPage2.getMessageByEventId(eventId);
-        await expect(message2.locator.getByText(editedMessage)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+        await expect(message2.locator.getByText(editedMessage)).toBeVisible({
+          timeout: TIMEOUTS.UI_STANDARD
+        });
         await message2.expectEdited();
       }
 
@@ -344,7 +346,7 @@ test.describe('Message editing', () => {
     // added to the room cache, which could corrupt the event list and break
     // the subscription for subsequent events.
 
-    // User 1: Create space and post a message
+    // User 1: Create account and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
     const serverName = await chatPage.getServerName();
@@ -354,7 +356,7 @@ test.describe('Message editing', () => {
     const originalMessage = `Message to edit ${Date.now()}`;
     const message = await roomPage.sendMessage(originalMessage);
 
-    // User 2: Create user and join space
+    // User 2: Create user and open the server
     const context2 = await browser!.newContext({
       baseURL: serverURL,
       viewport: { width: 1280, height: 720 }

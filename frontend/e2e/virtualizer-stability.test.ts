@@ -167,7 +167,7 @@ test.describe('Virtualizer stability', () => {
     browser,
     serverURL
   }) => {
-    // User 1: Create space with two rooms
+    // User 1: Create account with two rooms
     await createAndLoginTestUser(page);
     await chatPage.goto();
     const spaceId = await chatPage.getServerScopeId();
@@ -183,14 +183,14 @@ test.describe('Virtualizer stability', () => {
     // Create a second room
     const secondRoomName = await chatPage.createRoom(`other-room-${Date.now()}`);
 
-    // User 2: Join the space
+    // User 2: Open the server
     const context2 = await browser!.newContext({ baseURL: serverURL });
     const page2 = await context2.newPage();
 
     try {
       await createAndLoginTestUser(page2);
       await openServer(page2);
-      // Navigate to the space so the room list is visible
+      // Navigate to the server so the room list is visible
       await page2.goto(routes.space());
       const chatPage2 = new ChatPage(page2);
       await chatPage2.enterRoom('general');

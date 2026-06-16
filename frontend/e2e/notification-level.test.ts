@@ -1,9 +1,6 @@
 import { expect } from '@playwright/test';
 import { createAndLoginTestUser } from './fixtures/testUser';
-import {
-  graphqlQuery,
-  getRoomIdByName
-} from './fixtures/graphqlHelpers';
+import { graphqlQuery, getRoomIdByName } from './fixtures/graphqlHelpers';
 import { test } from './setup';
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
@@ -82,7 +79,7 @@ test.describe('Notification Level - Notifications Settings', () => {
     await expect(page.getByTestId('room-notification-general')).toBeVisible();
   });
 
-  test('can set space notification level via UI', async ({ page, chatPage }) => {
+  test('can set server notification level via UI', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
 
@@ -164,38 +161,37 @@ test.describe('Notification Level - Notifications Settings', () => {
   });
 });
 
-
 test.describe('Notification Level - Server-Side Enforcement', () => {
   test('setting notification level persists via GraphQL roundtrip', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     const spaceId = await chatPage.getServerScopeId();
 
-    // Set space level to MUTED via API
+    // Set server level to MUTED via API
     await setServerNotificationLevel(page, 'MUTED');
 
     // Query it back
     const data = await graphqlQuery<{
       server: { viewerNotificationPreference: { level: string; effectiveLevel: string } };
-    }>(
-      page,
-      `query { server { viewerNotificationPreference { level effectiveLevel } } }`
-    );
+    }>(page, `query { server { viewerNotificationPreference { level effectiveLevel } } }`);
 
     expect(data.server.viewerNotificationPreference.level).toBe('MUTED');
     expect(data.server.viewerNotificationPreference.effectiveLevel).toBe('MUTED');
   });
 
-  test('room inherits space notification level when set to DEFAULT', async ({ page, chatPage }) => {
+  test('room inherits server notification level when set to DEFAULT', async ({
+    page,
+    chatPage
+  }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     const spaceId = await chatPage.getServerScopeId();
     const roomId = await getRoomIdByName(page, 'general');
 
-    // Set space level to MUTED
+    // Set server level to MUTED
     await setServerNotificationLevel(page, 'MUTED');
 
-    // Room (with DEFAULT) should inherit MUTED from space
+    // Room (with DEFAULT) should inherit MUTED from server
     const data = await graphqlQuery<{
       room: { viewerNotificationPreference: { level: string; effectiveLevel: string } };
     }>(
@@ -211,16 +207,16 @@ test.describe('Notification Level - Server-Side Enforcement', () => {
     expect(data.room.viewerNotificationPreference.effectiveLevel).toBe('MUTED');
   });
 
-  test('room level overrides space level', async ({ page, chatPage }) => {
+  test('room level overrides server level', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     const spaceId = await chatPage.getServerScopeId();
     const roomId = await getRoomIdByName(page, 'general');
 
-    // Set space level to MUTED
+    // Set server level to MUTED
     await setServerNotificationLevel(page, 'MUTED');
 
-    // Set room level to ALL_MESSAGES (overrides space MUTED)
+    // Set room level to ALL_MESSAGES (overrides server MUTED)
     await setRoomNotificationLevel(page, roomId, 'ALL_MESSAGES');
 
     // Room should show ALL_MESSAGES as effective level

@@ -152,7 +152,7 @@ test.describe('Thread Following', () => {
     const rootText = `Root ${Date.now()}`;
     const rootMsg = await roomPage.sendMessage(rootText);
 
-    // User B (Bob) joins the space and replies to Alice's message in a thread
+    // User B (Bob) opens the server and replies to Alice's message in a thread
     const context2 = await browser!.newContext({ baseURL: serverURL });
     const page2 = await context2.newPage();
 
@@ -203,7 +203,7 @@ test.describe('Thread Following', () => {
     const rootText = `Root ${Date.now()}`;
     await roomPage.sendMessage(rootText);
 
-    // User B (Bob) joins the space
+    // User B (Bob) opens the server
     const context2 = await browser!.newContext({ baseURL: serverURL });
     const page2 = await context2.newPage();
 
@@ -316,7 +316,7 @@ test.describe('Thread Following', () => {
     const replyText = `Reply-attributed ${Date.now()}`;
     await roomPage.sendMessage(replyText);
 
-    // User B joins the space and starts a thread on User A's reply-attributed message
+    // User B opens the server and starts a thread on User A's reply-attributed message
     const context2 = await browser!.newContext({ baseURL: serverURL });
     const page2 = await context2.newPage();
 

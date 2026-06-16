@@ -312,7 +312,7 @@ export class AuthPage {
    */
   async submitLogin(): Promise<void> {
     await this.signInButton.click();
-    // Users may be redirected to /chat/spaces, their last space, or /chat depending on history
+    // Users may be redirected to /chat/spaces, their last chat route, or /chat depending on history.
     await this.page.waitForURL(routes.patterns.chatRedirect);
   }
 
@@ -382,7 +382,6 @@ export class AuthPage {
   }
 
   // --- Email Verification Methods ---
-
 
   /**
    * Get the last verification email from the test endpoint.
@@ -589,7 +588,6 @@ export class AuthPage {
     // Use a generous timeout — auth failure → redirect → re-render can take time.
     await expect(this.signInHeading).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
   }
-
 
   /**
    * Assert that an error message is visible.

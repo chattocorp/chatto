@@ -5,26 +5,26 @@ import * as routes from './routes';
 import { TIMEOUTS } from './constants';
 
 test.describe('Room auto-join', () => {
-  test('user is auto-joined to default rooms when joining a space', async ({
+  test('user is auto-joined to default rooms when opening the server', async ({
     page,
     chatPage,
     browser,
     serverURL
   }) => {
-    // User A: Create account and space
+    // User A: Create account
     await createAndLoginTestUser(page);
     await chatPage.goto();
 
     const spaceId = await chatPage.getServerScopeId();
 
-    // User B: Create account and join the space
+    // User B: Create account and open the server
     const context2 = await browser!.newContext({ baseURL: serverURL });
     const page2 = await context2.newPage();
 
     try {
       await createAndLoginTestUser(page2);
 
-      // User B joins the space
+      // User B opens the server
       await openServer(page2);
       await page2.goto(routes.space());
 
@@ -60,7 +60,7 @@ test.describe('Room auto-join', () => {
     browser,
     serverURL
   }) => {
-    // User A: Create account, space, and post a message
+    // User A: Create account and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
 
@@ -72,7 +72,7 @@ test.describe('Room auto-join', () => {
     const testMessage = `Message before join ${Date.now()}`;
     await roomPage.sendMessage(testMessage);
 
-    // User B: Create account and join the space
+    // User B: Create account and open the server
     const context2 = await browser!.newContext({ baseURL: serverURL });
     const page2 = await context2.newPage();
 

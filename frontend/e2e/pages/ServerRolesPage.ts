@@ -14,7 +14,7 @@ export class ServerRolesPage {
    */
   private currentRoleName: string | null = null;
   /**
-   * The space currently in scope, set by `gotoEditRole`. Used by the
+   * The server scope currently in scope, set by `gotoEditRole`. Used by the
    * permission-interaction helpers to navigate back to the matrix when
    * needed (the role detail page no longer carries the editor).
    */
@@ -491,7 +491,7 @@ export class ServerRolesPage {
 
   /**
    * Navigate to role permission editing — permissions are configured at
-   * space scope via the matrix on the roles list. Records the role so
+   * server scope via the matrix on the roles list. Records the role so
    * subsequent permission helpers target the right matrix column.
    */
   async gotoRoleDetail(spaceId: string, roleName: string): Promise<void> {
@@ -514,7 +514,7 @@ export class ServerRolesPage {
   }
 
   /**
-   * Clicking a role's column header at space scope routes to the role
+   * Clicking a role's column header at server scope routes to the role
    * detail page (`/server-admin/permissions/[name]`), which carries "Edit Role" + the
    * role slug as a `<code>` value.
    */

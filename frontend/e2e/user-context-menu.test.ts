@@ -15,7 +15,7 @@ test.describe('User context menu', () => {
       browser,
       serverURL
     }) => {
-      // User A: Create space and send a message
+      // User A: Create account and send a message
       await createAndLoginTestUser(page);
       await chatPage.goto();
       const spaceId = await chatPage.getServerScopeId();
@@ -66,7 +66,7 @@ test.describe('User context menu', () => {
       chatPage,
       roomPage
     }) => {
-      // Create space and send a message
+      // Create account and send a message
       await createAndLoginTestUser(page);
       await chatPage.goto();
       await chatPage.enterRoom('general');

@@ -194,7 +194,7 @@ test.describe('Mention Notifications', () => {
 });
 
 test.describe('Thread Reply Notifications (Cascading Indicators)', () => {
-  test('thread reply shows indicators on thread, room, and space', async ({
+  test('thread reply shows indicators on thread, room, and server', async ({
     page,
     chatPage,
     roomPage,
@@ -213,7 +213,7 @@ test.describe('Thread Reply Notifications (Cascading Indicators)', () => {
     // User A: Navigate to announcements (different room)
     await chatPage.enterRoom('announcements');
 
-    // User B: Create account, join space, and reply to User A's thread
+    // User B: Create account, open the server, and reply to User A's thread
     const context2 = await browser!.newContext({ baseURL: serverURL });
     const page2 = await context2.newPage();
 
@@ -269,7 +269,7 @@ test.describe('Thread Reply Notifications (Cascading Indicators)', () => {
       // Room notification badge should also be gone (no more notifications for this room).
       await expect(roomNotificationBadge).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
-      // Space notification badge should also be gone (no more notifications in this space).
+      // Server notification badge should also be gone (no more notifications on this server).
       await expect(spaceNotificationBadge).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
     } finally {
       await context2.close();
@@ -278,7 +278,7 @@ test.describe('Thread Reply Notifications (Cascading Indicators)', () => {
 });
 
 // DM-icon notification tests have been removed alongside the cross-instance
-// DM icon (#330 phase 3). DMs now appear in the primary-space sidebar
+// DM icon (#330 phase 3). DMs now appear in the primary-server sidebar
 // directly; notification surfacing for them happens via the room unread/badge
 // machinery shared with channels and is covered by other tests in this file.
 // Cross-server consolidated DM notifications will be re-tested when that view
@@ -400,7 +400,7 @@ test.describe('Notification Page Display', () => {
     browser,
     serverURL
   }) => {
-    // User A: Create space and post a message
+    // User A: Create account and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
     const serverName = await chatPage.getServerName();
@@ -450,7 +450,7 @@ test.describe('Notification Page Display', () => {
     browser,
     serverURL
   }) => {
-    // User A: Create space, post a message in general, and create an additional room
+    // User A: Create account, post a message in general, and create an additional room
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
     const spaceId = await chatPage.getServerScopeId();
@@ -556,7 +556,7 @@ test.describe('Notification Dismissal', () => {
     browser,
     serverURL
   }) => {
-    // User A: Create space, post message in general, and create an additional room
+    // User A: Create account, post message in general, and create an additional room
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
     const spaceId = await chatPage.getServerScopeId();
@@ -707,7 +707,7 @@ test.describe('Navigation from Notifications', () => {
     browser,
     serverURL
   }) => {
-    // User A: Create space and post message
+    // User A: Create account and post message
     await createAndLoginTestUser(page);
     await chatPage.goto();
     const spaceId = await chatPage.getServerScopeId();
@@ -896,7 +896,7 @@ test.describe('Cross-Tab Sync', () => {
       await notificationsPage.expectEmptyState();
 
       // Second tab: Bell indicator should also be gone
-      // Navigate to a space page first to ensure the bell is visible
+      // Navigate to a server page first to ensure the bell is visible
       await page1b.goto(routes.space());
       await notificationsPage1b.expectBellIndicatorNotVisible();
 
@@ -968,7 +968,7 @@ test.describe('Cross-Tab Sync', () => {
     browser,
     serverURL
   }) => {
-    // User A: Create space and post message
+    // User A: Create account and post message
     await createAndLoginTestUser(page);
     await chatPage.goto();
     const spaceId = await chatPage.getServerScopeId();
@@ -1157,7 +1157,7 @@ test.describe('Real-time Notification Updates', () => {
     browser,
     serverURL
   }) => {
-    // User A: Create space, post message, go to notifications
+    // User A: Create account, post message, go to notifications
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
     const spaceId = await chatPage.getServerScopeId();
@@ -1243,7 +1243,7 @@ test.describe('Page Title Notification Count', () => {
     browser,
     serverURL
   }) => {
-    // User A: Create space, post message in general, and create an additional room
+    // User A: Create account, post message in general, and create an additional room
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
     const spaceId = await chatPage.getServerScopeId();
@@ -1351,7 +1351,7 @@ test.describe('Page Title Notification Count', () => {
     browser,
     serverURL
   }) => {
-    // User A: Create space, post message in general, and create an additional room
+    // User A: Create account, post message in general, and create an additional room
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
     const spaceId = await chatPage.getServerScopeId();
@@ -1483,7 +1483,7 @@ test.describe('Clickable Notification Badges', () => {
     browser,
     serverURL
   }) => {
-    // User A: Create space and post a message
+    // User A: Create account and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
     const spaceId = await chatPage.getServerScopeId();
@@ -1538,7 +1538,7 @@ test.describe('Clickable Notification Badges', () => {
 
   // The DM-icon click-to-navigate test was removed alongside the
   // cross-instance DM icon (#330 phase 3). DM rows now live in the primary-
-  // space sidebar; their click-to-navigate behaviour is the same as channel
+  // server sidebar; their click-to-navigate behaviour is the same as channel
   // rooms and is exercised by sidebar/notification tests above.
 });
 
@@ -1551,7 +1551,7 @@ test.describe('Room Reply Notifications', () => {
     browser,
     serverURL
   }) => {
-    // User A: Create space and post a message
+    // User A: Create account and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
     const serverName = await chatPage.getServerName();
@@ -1619,7 +1619,7 @@ test.describe('Room Reply Notifications', () => {
     browser,
     serverURL
   }) => {
-    // User A: Create space and post a message
+    // User A: Create account and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
     const spaceId = await chatPage.getServerScopeId();
@@ -1670,7 +1670,7 @@ test.describe('Room Reply Notifications', () => {
     browser,
     serverURL
   }) => {
-    // User A: Create space and post a message
+    // User A: Create account and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
     const spaceId = await chatPage.getServerScopeId();

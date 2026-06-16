@@ -6,16 +6,16 @@ import { ChatPage, RoomPage } from './pages';
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
 
-test.describe('Message Cache - Cross-Room and Cross-Space Scenarios', () => {
+test.describe('Message Cache - Cross-Room and Cross-Server Scenarios', () => {
   test.describe('Thread replies from users in different rooms', () => {
-    test('thread reply count updates when user is in different room of same space', async ({
+    test('thread reply count updates when user is in different room of same server', async ({
       page,
       chatPage,
       roomPage,
       browser,
       serverURL
     }) => {
-      // User A creates space, posts root message, stays in general room
+      // User A loads the server, posts root message, stays in general room
       await createAndLoginTestUser(page);
       await chatPage.goto();
       await chatPage.enterRoom('general');
@@ -29,7 +29,7 @@ test.describe('Message Cache - Cross-Room and Cross-Space Scenarios', () => {
       // User A creates and enters a second room
       const _secondRoomName = await chatPage.createRoom(`room-b-${Date.now()}`);
 
-      // User B joins the space and enters the general room
+      // User B opens the server and enters the general room
       const context2 = await browser!.newContext({ baseURL: serverURL });
       const page2 = await context2.newPage();
 
@@ -84,7 +84,7 @@ test.describe('Message Cache - Cross-Room and Cross-Space Scenarios', () => {
       browser,
       serverURL
     }) => {
-      // User A creates space and root message
+      // User A loads the server and posts a root message
       await createAndLoginTestUser(page);
       await chatPage.goto();
       await chatPage.enterRoom('general');
@@ -146,7 +146,6 @@ test.describe('Message Cache - Cross-Room and Cross-Space Scenarios', () => {
     });
   });
 
-
   test.describe('Thread reply count updates', () => {
     test('reply count increments correctly when multiple replies are posted', async ({
       page,
@@ -155,7 +154,7 @@ test.describe('Message Cache - Cross-Room and Cross-Space Scenarios', () => {
       browser,
       serverURL
     }) => {
-      // User A creates space and root message
+      // User A loads the server and posts a root message
       await createAndLoginTestUser(page);
       await chatPage.goto();
       await chatPage.enterRoom('general');

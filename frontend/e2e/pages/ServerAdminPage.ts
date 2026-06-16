@@ -56,7 +56,7 @@ export class ServerAdminPage {
     return this.page.locator('h1', { hasText: 'General' });
   }
 
-  /** Legacy back-to-space locator from the retired admin-only sidebar. */
+  /** Legacy "Back to Space" locator from the retired admin-only sidebar. */
   get backToSpaceLink(): Locator {
     return this.page.getByRole('link', { name: 'Back to Space' });
   }
@@ -143,7 +143,7 @@ export class ServerAdminPage {
   // --- Navigation ---
 
   /**
-   * Navigate to a space and then to its admin page via the sidebar link.
+   * Navigate to chat and then to its admin page via the sidebar link.
    */
   async goto(_spaceId: string): Promise<void> {
     await this.page.goto(routes.space());
@@ -161,7 +161,7 @@ export class ServerAdminPage {
   }
 
   /**
-   * Click the Admin link in the sidebar (from a space page).
+   * Click the Admin link in the sidebar from a chat page.
    */
   async clickAdminLink(_spaceId: string): Promise<void> {
     await this.adminLink.click();
