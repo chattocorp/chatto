@@ -2271,6 +2271,70 @@ func TestAuthRoutes_LoginStaleBearerTokenIssuanceIsInvalidCredentials(t *testing
 	}
 }
 
+func TestAuthRoutes_LoginBearerTokenFailureRevokesCookieSession(t *testing.T) {
+	var capture struct {
+		sync.Mutex
+		userID    string
+		sessionID string
+	}
+
+	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
+		s.passwordLoginSessionCreatedHook = func(c *gin.Context, userID string, _ uint64) {
+			sessionUserID, sessionID, ok := cookieSessionIDs(sessions.Default(c))
+
+			capture.Lock()
+			defer capture.Unlock()
+
+			if ok {
+				capture.userID = sessionUserID
+				capture.sessionID = sessionID
+			}
+			s.core.EventPublisher = nil
+		}
+	})
+	ctx := testContext(t)
+
+	if _, err := chattoCore.CreateUser(ctx, "", "tokenfailure", "Token Failure", "password123"); err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	loginBody := map[string]string{"login": "tokenfailure", "password": "password123"}
+	body, _ := json.Marshal(loginBody)
+	resp, err := client.Post(ts.URL+"/auth/login", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("Login request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	capture.Lock()
+	capturedUserID := capture.userID
+	capturedSessionID := capture.sessionID
+	capture.Unlock()
+
+	if capturedUserID == "" || capturedSessionID == "" {
+		t.Fatal("password-login hook did not capture a cookie session")
+	}
+
+	if resp.StatusCode != http.StatusInternalServerError {
+		t.Fatalf("Login status = %d, want 500", resp.StatusCode)
+	}
+
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("Decode login response: %v", err)
+	}
+	if result["error"] != "Failed to create session" {
+		t.Fatalf("Login error = %v, want Failed to create session", result["error"])
+	}
+	if _, ok := result["token"]; ok {
+		t.Fatal("Failed login response should not include a bearer token")
+	}
+
+	if _, err := chattoCore.ValidateCookieSession(ctx, capturedUserID, capturedSessionID); !errors.Is(err, core.ErrCookieSessionNotFound) {
+		t.Fatalf("ValidateCookieSession err = %v, want ErrCookieSessionNotFound", err)
+	}
+}
+
 func TestAuthRoutes_RevokeToken(t *testing.T) {
 	ts, client, chattoCore := setupTestHTTPServer(t)
 	ctx := testContext(t)

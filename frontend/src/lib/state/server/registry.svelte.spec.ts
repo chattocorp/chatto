@@ -196,6 +196,49 @@ describe('ServerRegistry', () => {
 		});
 	});
 
+	describe('handleAuthenticationRequired', () => {
+		it('removes remote instances instead of persisting unusable null-token auth', async () => {
+			const registry = await createRegistry();
+			registry.servers = [];
+
+			registry.addServer(
+				makeServer({
+					id: 'remote',
+					url: 'https://remote.example.com',
+					token: 'remote-token',
+					userId: 'U1',
+					userLogin: 'alice',
+					userDisplayName: 'Alice'
+				})
+			);
+
+			registry.handleAuthenticationRequired('remote');
+
+			expect(registry.getServer('remote')).toBeUndefined();
+			expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!)).toHaveLength(0);
+		});
+
+		it('keeps origin instances registered when clearing origin auth', async () => {
+			const registry = await createRegistry();
+			registry.servers = [];
+
+			registry.addServer(
+				makeServer({
+					id: 'origin',
+					url: window.location.origin,
+					token: 'origin-token',
+					userId: 'U1',
+					userLogin: 'alice'
+				})
+			);
+
+			registry.clearOriginAuthentication();
+
+			expect(registry.getServer('origin')?.token).toBeNull();
+			expect(registry.getServer('origin')?.userId).toBeNull();
+		});
+	});
+
 	describe('updateServer', () => {
 		it('updates fields on an existing instance', async () => {
 			const registry = await createRegistry();

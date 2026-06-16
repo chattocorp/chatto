@@ -268,7 +268,11 @@ class ServerRegistry {
 		const server = this.getServer(id);
 		if (!server) return;
 		const isOrigin = this.isOriginServer(id);
-		this.clearServerAuthentication(id);
+		if (isOrigin) {
+			this.clearServerAuthentication(id);
+		} else {
+			this.removeServer(id);
+		}
 		if (isOrigin && typeof window !== 'undefined') {
 			sessionStorage.setItem('returnUrl', window.location.pathname + window.location.search);
 			window.location.href = '/';
