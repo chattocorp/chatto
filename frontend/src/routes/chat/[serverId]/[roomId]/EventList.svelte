@@ -13,6 +13,7 @@
   import TypingIndicator from './TypingIndicator.svelte';
   import { computeEventMetadata } from './messageGrouping';
   import { buildVirtualItems, type VirtualItem } from './virtualItems';
+  import { findLastEditableMessage } from './lastEditableMessage';
   import ScrollFader from '$lib/ui/ScrollFader.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -142,50 +143,27 @@
 
   // Build flat array for the virtualizer (events + interleaved separators)
   let virtualItems = $derived(
-    buildVirtualItems(
-      eventsWithMeta,
-      unreadAfterEventId ?? null,
-      hasReachedStart,
-      showStartMarker
-    )
+    buildVirtualItems(eventsWithMeta, unreadAfterEventId ?? null, hasReachedStart, showStartMarker)
   );
 
   // Register finder for up-arrow-to-edit (computed on-demand, not reactively)
   const lastEditableMessageCtx = composerContext.lastEditableMessage;
-  const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
+  const stores = serverRegistry.getStore(getActiveServer());
+  const currentUser = $derived(stores.currentUser);
+  const serverInfo = stores.serverInfo;
   const roomPermissions = $derived(getRoomPermissions());
 
   $effect(() => {
     if (!enableLastEditableFinder) return;
 
     lastEditableMessageCtx?.setFinder(() => {
-      const userId = currentUser.user?.id;
-      if (!userId) return null;
-
-      for (let i = filteredEvents.length - 1; i >= 0; i--) {
-        const e = filteredEvents[i];
-        if (e.actorId !== userId) continue;
-        if (e.event?.__typename !== 'MessagePostedEvent') continue;
-        if (e.event?.body == null) continue;
-        const isEcho = !!e.event.echoOfEventId;
-        const eventId = isEcho ? e.event.echoOfEventId! : e.id;
-        const threadRootEventId = isEcho
-          ? (e.event.echoFromThreadRootEventId ?? null)
-          : (e.event.threadRootEventId ?? null);
-        const channelEchoEventId = isEcho ? e.id : (e.event.channelEchoEventId ?? null);
-        const canAddChannelEcho =
-          !!threadRootEventId &&
-          (!!channelEchoEventId ||
-            (roomPermissions.canEchoMessage && roomPermissions.canPostMessage));
-        return {
-          eventId,
-          body: e.event.body,
-          threadRootEventId,
-          channelEchoEventId,
-          canAddChannelEcho
-        };
-      }
-      return null;
+      return findLastEditableMessage({
+        events: filteredEvents,
+        currentUserId: currentUser.user?.id,
+        roomPermissions,
+        messageEditWindowSeconds: serverInfo.messageEditWindowSeconds,
+        nowMs: Date.now()
+      });
     });
   });
 
