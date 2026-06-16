@@ -129,36 +129,4 @@ describe('useMayHaveMissedMessagesCallback', () => {
     expect(onSignal).toHaveBeenNthCalledWith(2, 'event-bus-heartbeat-stalled');
     rendered.unmount();
   });
-
-  it('retries event-bus catch-up after the projection grace period', async () => {
-    const fake = new FakeGqlClient();
-    eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
-    const onSignal = vi.fn().mockResolvedValue(undefined);
-
-    const rendered = render(Harness, { props: { onSignal } });
-    flushSync();
-
-    const bus = eventBusManager.getBus(TEST_SERVER);
-    if (!bus) throw new Error('event bus did not start');
-    await vi.waitFor(() => expect(bus.catchUpHandlers.size).toBe(1));
-
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-06-16T12:00:00Z'));
-
-    for (const handler of bus.catchUpHandlers) {
-      handler('subscription-ended');
-    }
-    await Promise.resolve();
-    expect(onSignal).toHaveBeenCalledTimes(1);
-    expect(onSignal).toHaveBeenNthCalledWith(1, 'event-bus-subscription-ended');
-
-    await vi.advanceTimersByTimeAsync(2_499);
-    expect(onSignal).toHaveBeenCalledTimes(1);
-
-    await vi.advanceTimersByTimeAsync(1);
-    await Promise.resolve();
-    expect(onSignal).toHaveBeenCalledTimes(2);
-    expect(onSignal).toHaveBeenNthCalledWith(2, 'event-bus-subscription-ended');
-    rendered.unmount();
-  });
 });

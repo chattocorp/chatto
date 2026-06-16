@@ -17,6 +17,7 @@ import type { GraphQLClient } from './graphqlClient.svelte';
 
 const HEARTBEAT_STALL_MS = 75_000;
 const HEARTBEAT_WATCHDOG_MS = 15_000;
+const CATCH_UP_RETRY_MS = 2_500;
 
 function errorDebug(error: unknown) {
 	const graphQLErrors = (error as { graphQLErrors?: Array<{ message?: string; extensions?: { code?: unknown } }> })
@@ -69,6 +70,7 @@ class EventBusManager {
 		let dispatchedEventCount = 0;
 		let resubscribeCount = 0;
 		let subscriptionGeneration = 0;
+		let catchUpRetryTimer: ReturnType<typeof setTimeout> | null = null;
 		// Set while we're tearing down a subscription (either to replace it
 		// or because the bus is stopping). Prevents `onEnd` from firing a
 		// reentrant resubscribe in response to our own unsubscribe.
@@ -151,9 +153,13 @@ class EventBusManager {
 			);
 		};
 
-		const notifyCatchUpHandlers = (reason: EventBusCatchUpReason) => {
+		const notifyCatchUpHandlers = (
+			reason: EventBusCatchUpReason,
+			phase: 'immediate' | 'projection-grace' = 'immediate'
+		) => {
 			console.debug(`[eventBus:${serverId}] notifying catch-up handlers`, {
 				reason,
+				phase,
 				catchUpHandlers: catchUpHandlers.size,
 				...debugState()
 			});
@@ -164,6 +170,19 @@ class EventBusManager {
 					console.error(`[eventBus:${serverId}] catch-up handler threw`, err);
 				}
 			}
+		};
+
+		const scheduleCatchUpRetry = (reason: EventBusCatchUpReason) => {
+			if (catchUpRetryTimer) clearTimeout(catchUpRetryTimer);
+			catchUpRetryTimer = setTimeout(() => {
+				catchUpRetryTimer = null;
+				if (stopped) return;
+				console.debug(`[eventBus:${serverId}] retrying catch-up after projection grace period`, {
+					reason,
+					...debugState()
+				});
+				notifyCatchUpHandlers(reason, 'projection-grace');
+			}, CATCH_UP_RETRY_MS);
 		};
 
 		const resubscribe = (reason: string, catchUpReason: EventBusCatchUpReason) => {
@@ -182,6 +201,7 @@ class EventBusManager {
 			lastEventAt = Date.now();
 			this.#subscriptions.set(serverId, subscribeOnce(reason));
 			notifyCatchUpHandlers(catchUpReason);
+			scheduleCatchUpRetry(catchUpReason);
 		};
 
 		console.debug(`[eventBus:${serverId}] bus started`, debugState());
@@ -227,6 +247,7 @@ class EventBusManager {
 			// doesn't fire a reentrant resubscribe through onEnd.
 			stopped = true;
 			console.debug(`[eventBus:${serverId}] bus stopping`, debugState());
+			if (catchUpRetryTimer) clearTimeout(catchUpRetryTimer);
 			clearInterval(heartbeatWatchdog);
 			stopReconnectEffect();
 		});

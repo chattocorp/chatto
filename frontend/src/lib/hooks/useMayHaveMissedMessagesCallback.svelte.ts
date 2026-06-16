@@ -15,61 +15,41 @@ export type MayHaveMissedMessagesReason =
   | 'manual-shortcut';
 
 const DEDUPE_MS = 1_000;
-const EVENT_BUS_RETRY_MS = 2_500;
-
-type RunOptions = {
-  scheduleEventBusRetry?: boolean;
-};
 
 function isEventBusReason(reason: MayHaveMissedMessagesReason): boolean {
   return reason.startsWith('event-bus-');
 }
 
-/**
- * Run a callback when the tab/client has a credible chance of having missed
- * live room events. Bursty browser wake signals are collapsed so one phone
- * unlock does not fan out several identical room refreshes.
- */
-export function useMayHaveMissedMessagesCallback(
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tagName = target.tagName.toLowerCase();
+  return (
+    tagName === 'input' ||
+    tagName === 'textarea' ||
+    tagName === 'select' ||
+    target.isContentEditable
+  );
+}
+
+function reasonForEventBusCatchUp(reason: EventBusCatchUpReason): MayHaveMissedMessagesReason {
+  switch (reason) {
+    case 'subscription-ended':
+      return 'event-bus-subscription-ended';
+    case 'ws-reconnected':
+      return 'event-bus-ws-reconnected';
+    case 'heartbeat-stalled':
+      return 'event-bus-heartbeat-stalled';
+  }
+}
+
+function createRefreshRunner(
   callback: (reason: MayHaveMissedMessagesReason) => boolean | void | Promise<boolean | void>
-): void {
+) {
   let lastSucceededAt = 0;
   let inFlight = false;
   let queuedReason: MayHaveMissedMessagesReason | null = null;
-  let eventBusRetryTimer: ReturnType<typeof setTimeout> | null = null;
 
-  function isEditableTarget(target: EventTarget | null): boolean {
-    if (!(target instanceof HTMLElement)) return false;
-    const tagName = target.tagName.toLowerCase();
-    return (
-      tagName === 'input' ||
-      tagName === 'textarea' ||
-      tagName === 'select' ||
-      target.isContentEditable
-    );
-  }
-
-  function reasonForEventBusCatchUp(reason: EventBusCatchUpReason): MayHaveMissedMessagesReason {
-    switch (reason) {
-      case 'subscription-ended':
-        return 'event-bus-subscription-ended';
-      case 'ws-reconnected':
-        return 'event-bus-ws-reconnected';
-      case 'heartbeat-stalled':
-        return 'event-bus-heartbeat-stalled';
-    }
-  }
-
-  function scheduleEventBusRetry(reason: MayHaveMissedMessagesReason): void {
-    if (eventBusRetryTimer) clearTimeout(eventBusRetryTimer);
-    eventBusRetryTimer = setTimeout(() => {
-      eventBusRetryTimer = null;
-      console.debug('[room-refresh] retrying after event-bus projection grace period', { reason });
-      void run(reason);
-    }, EVENT_BUS_RETRY_MS);
-  }
-
-  async function run(reason: MayHaveMissedMessagesReason, options: RunOptions = {}): Promise<void> {
+  async function run(reason: MayHaveMissedMessagesReason): Promise<void> {
     inFlight = true;
     let succeeded = false;
     let nextReason: MayHaveMissedMessagesReason | null = null;
@@ -88,14 +68,10 @@ export function useMayHaveMissedMessagesCallback(
       queuedReason = null;
     }
 
-    if (options.scheduleEventBusRetry && isEventBusReason(reason)) {
-      scheduleEventBusRetry(reason);
-    }
-
     if (nextReason) {
       if (!succeeded || isEventBusReason(nextReason)) {
         console.debug('[room-refresh] running queued maybe-missed signal', { reason: nextReason });
-        void run(nextReason, { scheduleEventBusRetry: isEventBusReason(nextReason) });
+        void run(nextReason);
       } else {
         console.debug('[room-refresh] skipped queued duplicate after successful refresh', {
           reason: nextReason
@@ -104,19 +80,35 @@ export function useMayHaveMissedMessagesCallback(
     }
   }
 
-  function trigger(reason: MayHaveMissedMessagesReason): void {
-    const now = Date.now();
-    if (inFlight) {
-      queuedReason = reason;
-      console.debug('[room-refresh] queued maybe-missed signal while refresh is running', { reason });
-      return;
+  return {
+    trigger(reason: MayHaveMissedMessagesReason): void {
+      const now = Date.now();
+      if (inFlight) {
+        queuedReason = reason;
+        console.debug('[room-refresh] queued maybe-missed signal while refresh is running', {
+          reason
+        });
+        return;
+      }
+      if (now - lastSucceededAt < DEDUPE_MS) {
+        console.debug('[room-refresh] skipped duplicate maybe-missed signal', { reason });
+        return;
+      }
+      void run(reason);
     }
-    if (now - lastSucceededAt < DEDUPE_MS) {
-      console.debug('[room-refresh] skipped duplicate maybe-missed signal', { reason });
-      return;
-    }
-    void run(reason, { scheduleEventBusRetry: isEventBusReason(reason) });
-  }
+  };
+}
+
+/**
+ * Run a callback when the tab/client has a credible chance of having missed
+ * live room events. Bursty browser wake signals are collapsed so one phone
+ * unlock does not fan out several identical room refreshes.
+ */
+export function useMayHaveMissedMessagesCallback(
+  callback: (reason: MayHaveMissedMessagesReason) => boolean | void | Promise<boolean | void>
+): void {
+  const runner = createRefreshRunner(callback);
+  const trigger = (reason: MayHaveMissedMessagesReason) => runner.trigger(reason);
 
   useReconnectCallback(() => trigger('reconnect'));
 
@@ -132,10 +124,6 @@ export function useMayHaveMissedMessagesCallback(
     };
     bus.catchUpHandlers.add(catchUpHandler);
     return () => {
-      if (eventBusRetryTimer) {
-        clearTimeout(eventBusRetryTimer);
-        eventBusRetryTimer = null;
-      }
       bus.catchUpHandlers.delete(catchUpHandler);
     };
   });
@@ -162,10 +150,6 @@ export function useMayHaveMissedMessagesCallback(
     window.addEventListener('keydown', onKeyDown);
 
     return () => {
-      if (eventBusRetryTimer) {
-        clearTimeout(eventBusRetryTimer);
-        eventBusRetryTimer = null;
-      }
       document.removeEventListener('visibilitychange', onVisibilityChange);
       window.removeEventListener('pageshow', onPageShow);
       window.removeEventListener('online', onOnline);

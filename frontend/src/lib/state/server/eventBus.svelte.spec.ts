@@ -150,6 +150,26 @@ describe('eventBusManager subscription robustness', () => {
 		expect(handler).toHaveBeenCalledTimes(1);
 	});
 
+	it('re-notifies catch-up handlers after the projection grace period', async () => {
+		vi.useFakeTimers();
+		const fake = new FakeGqlClient();
+		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
+		const catchUp = vi.fn();
+		eventBusManager.getBus(TEST_SERVER)!.catchUpHandlers.add(catchUp);
+
+		fake.current.complete();
+
+		expect(catchUp).toHaveBeenCalledTimes(1);
+		expect(catchUp).toHaveBeenNthCalledWith(1, 'subscription-ended');
+
+		await vi.advanceTimersByTimeAsync(2_499);
+		expect(catchUp).toHaveBeenCalledTimes(1);
+
+		await vi.advanceTimersByTimeAsync(1);
+		expect(catchUp).toHaveBeenCalledTimes(2);
+		expect(catchUp).toHaveBeenNthCalledWith(2, 'subscription-ended');
+	});
+
 	it('re-subscribes when the WebSocket reconnects (reconnectCount increments)', () => {
 		const fake = new FakeGqlClient();
 		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
