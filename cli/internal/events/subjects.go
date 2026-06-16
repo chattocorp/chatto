@@ -97,12 +97,16 @@ const (
 	EventCallEnded             = "call_ended"
 
 	// Group aggregate
-	EventRoomGroupCreated      = "group_created"
-	EventRoomGroupUpdated      = "group_updated"
-	EventRoomGroupDeleted      = "group_deleted"
-	EventRoomAddedToGroup      = "room_added"
-	EventRoomRemovedFromGroup  = "room_removed"
-	EventRoomsInGroupReordered = "rooms_reordered"
+	EventRoomGroupCreated        = "group_created"
+	EventRoomGroupUpdated        = "group_updated"
+	EventRoomGroupDeleted        = "group_deleted"
+	EventRoomAddedToGroup        = "room_added"
+	EventRoomRemovedFromGroup    = "room_removed"
+	EventRoomsInGroupReordered   = "rooms_reordered"
+	EventSidebarLinkAdded        = "sidebar_link_added"
+	EventSidebarLinkUpdated      = "sidebar_link_updated"
+	EventSidebarLinkRemoved      = "sidebar_link_removed"
+	EventSidebarEntriesReordered = "sidebar_entries_reordered"
 
 	// Layout aggregate (singleton)
 	EventRoomGroupsReordered = "groups_reordered"
@@ -250,6 +254,14 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventRoomRemovedFromGroup
 	case *corev1.Event_RoomsInGroupReordered:
 		return EventRoomsInGroupReordered
+	case *corev1.Event_SidebarLinkAddedToGroup:
+		return EventSidebarLinkAdded
+	case *corev1.Event_SidebarLinkUpdated:
+		return EventSidebarLinkUpdated
+	case *corev1.Event_SidebarLinkRemovedFromGroup:
+		return EventSidebarLinkRemoved
+	case *corev1.Event_SidebarGroupEntriesReordered:
+		return EventSidebarEntriesReordered
 
 	case *corev1.Event_RoomGroupsReordered:
 		return EventRoomGroupsReordered

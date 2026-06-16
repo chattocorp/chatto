@@ -39,6 +39,12 @@ type QueryResponse = {
       id: string;
       name: string;
       rooms: Array<{ id: string }>;
+      items?: Array<{
+        type: 'ROOM' | 'SIDEBAR_LINK';
+        id: string;
+        room?: { id: string } | null;
+        link?: { id: string; label: string; url: string } | null;
+      }>;
     }>;
   };
 };
@@ -134,7 +140,14 @@ describe('RoomsStore - refresh', () => {
     await settle();
 
     expect(store.rooms.map((room) => room.id)).toEqual(['newer']);
-    expect(store.roomGroups).toEqual([{ id: 'g1', name: 'Lobby', roomIds: ['newer'] }]);
+    expect(store.roomGroups).toEqual([
+      {
+        id: 'g1',
+        name: 'Lobby',
+        roomIds: ['newer'],
+        items: [{ id: 'room:newer', type: 'room', roomId: 'newer' }]
+      }
+    ]);
 
     resolveFirst({
       data: makeResponse(
@@ -146,7 +159,14 @@ describe('RoomsStore - refresh', () => {
     await settle();
 
     expect(store.rooms.map((room) => room.id)).toEqual(['newer']);
-    expect(store.roomGroups).toEqual([{ id: 'g1', name: 'Lobby', roomIds: ['newer'] }]);
+    expect(store.roomGroups).toEqual([
+      {
+        id: 'g1',
+        name: 'Lobby',
+        roomIds: ['newer'],
+        items: [{ id: 'room:newer', type: 'room', roomId: 'newer' }]
+      }
+    ]);
   });
 });
 

@@ -26,6 +26,14 @@ func groupIDOfTestGroupEvent(t *testing.T, event *corev1.Event) string {
 		return e.RoomRemovedFromGroup.GetGroupId()
 	case *corev1.Event_RoomsInGroupReordered:
 		return e.RoomsInGroupReordered.GetGroupId()
+	case *corev1.Event_SidebarLinkAddedToGroup:
+		return e.SidebarLinkAddedToGroup.GetGroupId()
+	case *corev1.Event_SidebarLinkUpdated:
+		return e.SidebarLinkUpdated.GetGroupId()
+	case *corev1.Event_SidebarLinkRemovedFromGroup:
+		return e.SidebarLinkRemovedFromGroup.GetGroupId()
+	case *corev1.Event_SidebarGroupEntriesReordered:
+		return e.SidebarGroupEntriesReordered.GetGroupId()
 	default:
 		t.Fatalf("unsupported test group event %T", event.GetEvent())
 		return ""
@@ -451,6 +459,92 @@ func TestMoveRoomToSet_ConcurrentMovesLeaveSingleAssignment(t *testing.T) {
 		if assignments != 1 {
 			t.Fatalf("iteration %d: room has %d group assignments, want exactly 1", i, assignments)
 		}
+	}
+}
+
+func TestSidebarLinkLifecycleAndOrdering(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	group, _ := core.CreateRoomGroup(ctx, "actor", "Links", "")
+	room, _ := core.CreateRoom(ctx, "actor", KindChannel, group.Id, "general", "")
+	link, err := core.CreateSidebarLink(ctx, "actor", group.Id, "Docs", "https://example.com/docs")
+	if err != nil {
+		t.Fatalf("CreateSidebarLink: %v", err)
+	}
+
+	got, err := core.GetRoomGroup(ctx, group.Id)
+	if err != nil {
+		t.Fatalf("GetRoomGroup: %v", err)
+	}
+	if len(got.GetSidebarLinks()) != 1 || got.GetSidebarLinks()[0].GetId() != link.Id {
+		t.Fatalf("sidebar links = %+v, want created link", got.GetSidebarLinks())
+	}
+	if got.GetEntries()[0].GetKind() != corev1.SidebarGroupEntry_ROOM || got.GetEntries()[0].GetId() != room.Id {
+		t.Fatalf("first entry = %+v, want room %s", got.GetEntries()[0], room.Id)
+	}
+	if got.GetEntries()[1].GetKind() != corev1.SidebarGroupEntry_SIDEBAR_LINK || got.GetEntries()[1].GetId() != link.Id {
+		t.Fatalf("second entry = %+v, want link %s", got.GetEntries()[1], link.Id)
+	}
+
+	updated, err := core.UpdateSidebarLink(ctx, "actor", link.Id, "Documentation", "https://example.com/reference")
+	if err != nil {
+		t.Fatalf("UpdateSidebarLink: %v", err)
+	}
+	if updated.Label != "Documentation" || updated.Url != "https://example.com/reference" {
+		t.Fatalf("updated link = %+v", updated)
+	}
+
+	if err := core.ReorderSidebarItemsInGroup(ctx, "actor", group.Id, []*corev1.SidebarGroupEntry{
+		{Kind: corev1.SidebarGroupEntry_SIDEBAR_LINK, Id: link.Id},
+		{Kind: corev1.SidebarGroupEntry_ROOM, Id: room.Id},
+	}); err != nil {
+		t.Fatalf("ReorderSidebarItemsInGroup: %v", err)
+	}
+	got, _ = core.GetRoomGroup(ctx, group.Id)
+	if got.GetEntries()[0].GetKind() != corev1.SidebarGroupEntry_SIDEBAR_LINK {
+		t.Fatalf("entries after reorder = %+v", got.GetEntries())
+	}
+	if len(got.GetRoomIds()) != 1 || got.GetRoomIds()[0] != room.Id {
+		t.Fatalf("room_ids after mixed reorder = %v, want [%s]", got.GetRoomIds(), room.Id)
+	}
+
+	if err := core.DeleteSidebarLink(ctx, "actor", link.Id); err != nil {
+		t.Fatalf("DeleteSidebarLink: %v", err)
+	}
+	got, _ = core.GetRoomGroup(ctx, group.Id)
+	if len(got.GetSidebarLinks()) != 0 {
+		t.Fatalf("links after delete = %+v, want empty", got.GetSidebarLinks())
+	}
+	for _, entry := range got.GetEntries() {
+		if entry.GetKind() == corev1.SidebarGroupEntry_SIDEBAR_LINK {
+			t.Fatalf("link entry survived delete: %+v", got.GetEntries())
+		}
+	}
+}
+
+func TestMoveSidebarLinkToGroup(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	source, _ := core.CreateRoomGroup(ctx, "actor", "Source", "")
+	target, _ := core.CreateRoomGroup(ctx, "actor", "Target", "")
+	link, err := core.CreateSidebarLink(ctx, "actor", source.Id, "Status", "https://status.example.com")
+	if err != nil {
+		t.Fatalf("CreateSidebarLink: %v", err)
+	}
+
+	if err := core.MoveSidebarLinkToGroup(ctx, "actor", link.Id, target.Id); err != nil {
+		t.Fatalf("MoveSidebarLinkToGroup: %v", err)
+	}
+
+	sourceGroup, _ := core.GetRoomGroup(ctx, source.Id)
+	targetGroup, _ := core.GetRoomGroup(ctx, target.Id)
+	if len(sourceGroup.GetSidebarLinks()) != 0 {
+		t.Fatalf("source links = %+v, want empty", sourceGroup.GetSidebarLinks())
+	}
+	if len(targetGroup.GetSidebarLinks()) != 1 || targetGroup.GetSidebarLinks()[0].GetId() != link.Id {
+		t.Fatalf("target links = %+v, want moved link", targetGroup.GetSidebarLinks())
 	}
 }
 

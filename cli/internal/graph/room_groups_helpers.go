@@ -32,10 +32,42 @@ func roomGroupToModel(set *corev1.RoomGroup, viewerRooms map[string]*corev1.Room
 		return nil
 	}
 	return &model.RoomGroupModel{
-		ID:          set.Id,
-		Name:        set.Name,
-		Description: set.Description,
-		RoomIds:     set.RoomIds,
-		ViewerRooms: viewerRooms,
+		ID:           set.Id,
+		Name:         set.Name,
+		Description:  set.Description,
+		RoomIds:      set.RoomIds,
+		Entries:      set.Entries,
+		SidebarLinks: set.SidebarLinks,
+		ViewerRooms:  viewerRooms,
 	}
+}
+
+func sidebarEntryInputsToProto(inputs []*model.SidebarGroupEntryInput) []*corev1.SidebarGroupEntry {
+	entries := make([]*corev1.SidebarGroupEntry, 0, len(inputs))
+	for _, input := range inputs {
+		if input == nil {
+			continue
+		}
+		kind := corev1.SidebarGroupEntry_KIND_UNSPECIFIED
+		switch input.Type {
+		case model.RoomGroupItemTypeRoom:
+			kind = corev1.SidebarGroupEntry_ROOM
+		case model.RoomGroupItemTypeSidebarLink:
+			kind = corev1.SidebarGroupEntry_SIDEBAR_LINK
+		}
+		entries = append(entries, &corev1.SidebarGroupEntry{
+			Kind: kind,
+			Id:   input.ID,
+		})
+	}
+	return entries
+}
+
+func findSidebarLink(group *corev1.RoomGroup, linkID string) (*corev1.SidebarLink, error) {
+	for _, link := range group.GetSidebarLinks() {
+		if link.GetId() == linkID {
+			return link, nil
+		}
+	}
+	return nil, core.ErrSidebarLinkNotFound
 }

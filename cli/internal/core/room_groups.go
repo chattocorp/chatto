@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"slices"
 	"strings"
 	"time"
@@ -42,6 +43,9 @@ var (
 	ErrRoomGroupHasRooms      = errors.New("room group has rooms; move them out before deleting")
 	ErrRoomGroupNameEmpty     = errors.New("room group name must not be empty")
 	ErrRoomGroupOrderMismatch = errors.New("room group order must be a permutation of existing groups")
+	ErrSidebarLinkNotFound    = errors.New("sidebar link not found")
+	ErrSidebarLinkLabelEmpty  = errors.New("sidebar link label must not be empty")
+	ErrSidebarLinkURLInvalid  = errors.New("sidebar link URL must be an absolute http(s) URL")
 )
 
 // CreateRoomGroup publishes a RoomGroupCreatedEvent and appends the
@@ -130,6 +134,25 @@ func validateRoomGroupMetadata(name, description string) error {
 	return nil
 }
 
+func validateSidebarLink(label, rawURL string) (string, string, error) {
+	label = strings.TrimSpace(label)
+	rawURL = strings.TrimSpace(rawURL)
+	if label == "" {
+		return "", "", ErrSidebarLinkLabelEmpty
+	}
+	if err := validateStringMaxLength("sidebar link label", label, MaxSidebarLinkLabelLength); err != nil {
+		return "", "", err
+	}
+	if err := validateStringMaxLength("sidebar link URL", rawURL, MaxSidebarLinkURLLength); err != nil {
+		return "", "", err
+	}
+	parsed, err := url.Parse(rawURL)
+	if err != nil || !parsed.IsAbs() || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+		return "", "", ErrSidebarLinkURLInvalid
+	}
+	return label, rawURL, nil
+}
+
 // GetRoomGroup reads a single group from the RoomGroups projection.
 // Returns ErrRoomGroupNotFound if no RoomGroupCreatedEvent for the
 // ID has been observed.
@@ -141,16 +164,44 @@ func (c *ChattoCore) GetRoomGroup(_ context.Context, groupID string) (*corev1.Ro
 	return g, nil
 }
 
+func (c *ChattoCore) sidebarLinkGroup(ctx context.Context, linkID string) (string, error) {
+	groupID := c.RoomGroups.GroupForSidebarLink(linkID)
+	if groupID != "" {
+		return groupID, nil
+	}
+	if err := c.rooms().waitForGroupLayoutCurrent(ctx, c.EventPublisher); err != nil {
+		return "", fmt.Errorf("wait for room group layout projection before sidebar-link lookup: %w", err)
+	}
+	groupID = c.RoomGroups.GroupForSidebarLink(linkID)
+	if groupID == "" {
+		return "", ErrSidebarLinkNotFound
+	}
+	return groupID, nil
+}
+
+func (c *ChattoCore) sidebarLinkInGroup(groupID, linkID string) (*corev1.SidebarLink, error) {
+	group, ok := c.RoomGroups.Get(groupID)
+	if !ok {
+		return nil, ErrRoomGroupNotFound
+	}
+	for _, link := range group.GetSidebarLinks() {
+		if link.GetId() == linkID {
+			return link, nil
+		}
+	}
+	return nil, ErrSidebarLinkNotFound
+}
+
 // DeleteRoomGroup removes a group via RoomGroupDeletedEvent. Fails
-// with ErrRoomGroupHasRooms if the group still contains any rooms —
-// operators must move them out first. The layout ordering is updated
-// via a follow-up RoomGroupsReorderedEvent.
+// with ErrRoomGroupHasRooms if the group still contains any rooms or
+// sidebar links. The layout ordering is updated via a follow-up
+// RoomGroupsReorderedEvent.
 func (c *ChattoCore) DeleteRoomGroup(ctx context.Context, actorID, groupID string) error {
 	g, ok := c.RoomGroups.Get(groupID)
 	if !ok {
 		return ErrRoomGroupNotFound
 	}
-	if len(g.RoomIds) > 0 {
+	if len(g.RoomIds) > 0 || len(g.SidebarLinks) > 0 {
 		return ErrRoomGroupHasRooms
 	}
 
@@ -371,6 +422,236 @@ func (c *ChattoCore) ReorderRoomsInGroup(ctx context.Context, actorID, groupID s
 	c.logger.Info("Reordered rooms in group", "group_id", groupID, "actor_id", actorID)
 	c.notifyRoomLayoutChanged(ctx, actorID, "reorder_rooms_in_group")
 	return nil
+}
+
+func (c *ChattoCore) CreateSidebarLink(ctx context.Context, actorID, groupID, label, rawURL string) (*corev1.SidebarLink, error) {
+	label, rawURL, err := validateSidebarLink(label, rawURL)
+	if err != nil {
+		return nil, err
+	}
+	if !c.RoomGroups.Exists(groupID) {
+		return nil, ErrRoomGroupNotFound
+	}
+
+	link := &corev1.SidebarLink{
+		Id:    NewSidebarLinkID(),
+		Label: label,
+		Url:   rawURL,
+	}
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_SidebarLinkAddedToGroup{
+			SidebarLinkAddedToGroup: &corev1.SidebarLinkAddedToGroupEvent{
+				GroupId: groupID,
+				LinkId:  link.Id,
+				Label:   link.Label,
+				Url:     link.Url,
+			},
+		},
+	})
+	if _, err := c.rooms().appendGroupLayout(ctx, c.EventPublisher, events.GroupAggregate(groupID), event); err != nil {
+		return nil, fmt.Errorf("publish SidebarLinkAddedToGroupEvent: %w", err)
+	}
+
+	c.logger.Info("Created sidebar link", "group_id", groupID, "link_id", link.Id, "actor_id", actorID)
+	c.notifyRoomLayoutChanged(ctx, actorID, "create_sidebar_link")
+	return link, nil
+}
+
+func (c *ChattoCore) UpdateSidebarLink(ctx context.Context, actorID, linkID, label, rawURL string) (*corev1.SidebarLink, error) {
+	label, rawURL, err := validateSidebarLink(label, rawURL)
+	if err != nil {
+		return nil, err
+	}
+	groupID, err := c.sidebarLinkGroup(ctx, linkID)
+	if err != nil {
+		return nil, err
+	}
+
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_SidebarLinkUpdated{
+			SidebarLinkUpdated: &corev1.SidebarLinkUpdatedEvent{
+				GroupId: groupID,
+				LinkId:  linkID,
+				Label:   label,
+				Url:     rawURL,
+			},
+		},
+	})
+	if _, err := c.rooms().appendGroupLayout(ctx, c.EventPublisher, events.GroupAggregate(groupID), event); err != nil {
+		return nil, fmt.Errorf("publish SidebarLinkUpdatedEvent: %w", err)
+	}
+
+	c.logger.Info("Updated sidebar link", "group_id", groupID, "link_id", linkID, "actor_id", actorID)
+	c.notifyRoomLayoutChanged(ctx, actorID, "update_sidebar_link")
+	return &corev1.SidebarLink{Id: linkID, Label: label, Url: rawURL}, nil
+}
+
+func (c *ChattoCore) DeleteSidebarLink(ctx context.Context, actorID, linkID string) error {
+	groupID, err := c.sidebarLinkGroup(ctx, linkID)
+	if err != nil {
+		return err
+	}
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_SidebarLinkRemovedFromGroup{
+			SidebarLinkRemovedFromGroup: &corev1.SidebarLinkRemovedFromGroupEvent{
+				GroupId: groupID,
+				LinkId:  linkID,
+			},
+		},
+	})
+	if _, err := c.rooms().appendGroupLayout(ctx, c.EventPublisher, events.GroupAggregate(groupID), event); err != nil {
+		return fmt.Errorf("publish SidebarLinkRemovedFromGroupEvent: %w", err)
+	}
+
+	c.logger.Info("Deleted sidebar link", "group_id", groupID, "link_id", linkID, "actor_id", actorID)
+	c.notifyRoomLayoutChanged(ctx, actorID, "delete_sidebar_link")
+	return nil
+}
+
+func (c *ChattoCore) MoveSidebarLinkToGroup(ctx context.Context, actorID, linkID, targetGroupID string) error {
+	for attempt := 0; attempt < maxMoveRoomToGroupRetries; attempt++ {
+		if err := c.rooms().waitForGroupLayoutCurrent(ctx, c.EventPublisher); err != nil {
+			return fmt.Errorf("wait for room group layout projection before sidebar-link move: %w", err)
+		}
+		if !c.RoomGroups.Exists(targetGroupID) {
+			return ErrRoomGroupNotFound
+		}
+		sourceGroupID := c.RoomGroups.GroupForSidebarLink(linkID)
+		if sourceGroupID == "" {
+			return ErrSidebarLinkNotFound
+		}
+		if sourceGroupID == targetGroupID {
+			return nil
+		}
+		link, err := c.sidebarLinkInGroup(sourceGroupID, linkID)
+		if err != nil {
+			return err
+		}
+		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, events.GroupSubjectFilter())
+		if err != nil {
+			return err
+		}
+
+		removed := newEvent(actorID, &corev1.Event{
+			Event: &corev1.Event_SidebarLinkRemovedFromGroup{
+				SidebarLinkRemovedFromGroup: &corev1.SidebarLinkRemovedFromGroupEvent{
+					GroupId: sourceGroupID,
+					LinkId:  linkID,
+				},
+			},
+		})
+		added := newEvent(actorID, &corev1.Event{
+			Event: &corev1.Event_SidebarLinkAddedToGroup{
+				SidebarLinkAddedToGroup: &corev1.SidebarLinkAddedToGroupEvent{
+					GroupId: targetGroupID,
+					LinkId:  linkID,
+					Label:   link.Label,
+					Url:     link.Url,
+				},
+			},
+		})
+		entries := []events.BatchEntry{
+			{
+				Subject:       events.GroupAggregate(sourceGroupID).SubjectFor(removed),
+				Event:         removed,
+				HasOCC:        true,
+				ExpectedSeq:   expectedSeq,
+				FilterSubject: events.GroupSubjectFilter(),
+			},
+			{
+				Subject: events.GroupAggregate(targetGroupID).SubjectFor(added),
+				Event:   added,
+			},
+		}
+		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
+		if err == nil {
+			lastSubject := entries[len(entries)-1].Subject
+			if err := c.rooms().waitForGroupLayout(ctx, events.SubjectPosition(lastSubject, seqs[len(seqs)-1])); err != nil {
+				return fmt.Errorf("wait for room group layout projection: %w", err)
+			}
+			c.logger.Info("Moved sidebar link", "link_id", linkID, "source_group_id", sourceGroupID, "target_group_id", targetGroupID, "actor_id", actorID)
+			c.notifyRoomLayoutChanged(ctx, actorID, "move_sidebar_link")
+			return nil
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return fmt.Errorf("publish sidebar-link move batch: %w", err)
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+		}
+	}
+	return fmt.Errorf("move-sidebar-link OCC retry exhausted after %d attempts: %w", maxMoveRoomToGroupRetries, events.ErrConflict)
+}
+
+func (c *ChattoCore) ReorderSidebarItemsInGroup(ctx context.Context, actorID, groupID string, orderedEntries []*corev1.SidebarGroupEntry) error {
+	g, ok := c.RoomGroups.Get(groupID)
+	if !ok {
+		return ErrRoomGroupNotFound
+	}
+	if !sameSidebarEntrySet(g.GetEntries(), orderedEntries) {
+		return ErrRoomGroupOrderMismatch
+	}
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_SidebarGroupEntriesReordered{
+			SidebarGroupEntriesReordered: &corev1.SidebarGroupEntriesReorderedEvent{
+				GroupId: groupID,
+				Entries: cloneSidebarEntries(orderedEntries),
+			},
+		},
+	})
+	if _, err := c.rooms().appendGroupLayout(ctx, c.EventPublisher, events.GroupAggregate(groupID), event); err != nil {
+		return fmt.Errorf("publish SidebarGroupEntriesReorderedEvent: %w", err)
+	}
+
+	c.logger.Info("Reordered sidebar items in group", "group_id", groupID, "actor_id", actorID)
+	c.notifyRoomLayoutChanged(ctx, actorID, "reorder_sidebar_items_in_group")
+	return nil
+}
+
+func sameSidebarEntrySet(current, next []*corev1.SidebarGroupEntry) bool {
+	if len(current) != len(next) {
+		return false
+	}
+	counts := make(map[string]int, len(current))
+	for _, entry := range current {
+		key := sidebarEntryKey(entry)
+		if key == "" {
+			return false
+		}
+		counts[key]++
+	}
+	for _, entry := range next {
+		key := sidebarEntryKey(entry)
+		if key == "" {
+			return false
+		}
+		counts[key]--
+		if counts[key] < 0 {
+			return false
+		}
+	}
+	for _, count := range counts {
+		if count != 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func sidebarEntryKey(entry *corev1.SidebarGroupEntry) string {
+	if entry == nil || entry.GetId() == "" {
+		return ""
+	}
+	switch entry.GetKind() {
+	case corev1.SidebarGroupEntry_ROOM:
+		return "room:" + entry.GetId()
+	case corev1.SidebarGroupEntry_SIDEBAR_LINK:
+		return "link:" + entry.GetId()
+	default:
+		return ""
+	}
 }
 
 // ListRoomGroupsOrdered returns the layout-ordered list of channel

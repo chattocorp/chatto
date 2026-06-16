@@ -1,7 +1,12 @@
 import { untrack } from 'svelte';
 import type { Client } from '@urql/svelte';
 import { graphql, useFragment } from '$lib/gql';
-import { RoomType, UserAvatarUserFragmentDoc, type UserAvatarUserFragment } from '$lib/gql/graphql';
+import {
+  RoomGroupItemType,
+  RoomType,
+  UserAvatarUserFragmentDoc,
+  type UserAvatarUserFragment
+} from '$lib/gql/graphql';
 import type { NotificationLevelStore } from '$lib/state/server/notificationLevel.svelte';
 import type { RoomUnreadStore } from '$lib/state/server/roomUnread.svelte';
 
@@ -18,7 +23,26 @@ export type RoomsListGroup = {
   id: string;
   name: string;
   roomIds: string[];
+  items?: RoomsListGroupItem[];
 };
+
+export type SidebarLinkListItem = {
+  id: string;
+  label: string;
+  url: string;
+};
+
+export type RoomsListGroupItem =
+  | {
+      id: string;
+      type: 'room';
+      roomId: string;
+    }
+  | {
+      id: string;
+      type: 'link';
+      link: SidebarLinkListItem;
+    };
 
 const MyRoomsQuery = graphql(`
   query GetMyServerRooms {
@@ -50,6 +74,18 @@ const MyRoomsQuery = graphql(`
         rooms {
           id
         }
+        items {
+          type
+          id
+          room {
+            id
+          }
+          link {
+            id
+            label
+            url
+          }
+        }
       }
     }
   }
@@ -62,6 +98,47 @@ function uniqueById<T extends { id: string }>(items: T[]): T[] {
     seen[item.id] = true;
     return true;
   });
+}
+
+function sidebarItemsFromQuery(group: {
+  rooms: Array<{ id: string }>;
+  items?: Array<{
+    type: RoomGroupItemType;
+    id: string;
+    room?: { id: string } | null;
+    link?: { id: string; label: string; url: string } | null;
+  }> | null;
+}): RoomsListGroupItem[] {
+  if (!group.items || group.items.length === 0) {
+    return uniqueById(group.rooms).map((room) => ({
+      id: `room:${room.id}`,
+      type: 'room',
+      roomId: room.id
+    }));
+  }
+  return group.items
+    .map((item): RoomsListGroupItem | null => {
+      if (item.type === RoomGroupItemType.Room && item.room) {
+        return {
+          id: `room:${item.room.id}`,
+          type: 'room',
+          roomId: item.room.id
+        };
+      }
+      if (item.type === RoomGroupItemType.SidebarLink && item.link) {
+        return {
+          id: `link:${item.link.id}`,
+          type: 'link',
+          link: {
+            id: item.link.id,
+            label: item.link.label,
+            url: item.link.url
+          }
+        };
+      }
+      return null;
+    })
+    .filter((item): item is RoomsListGroupItem => item != null);
 }
 
 const roomStateRefreshEvents = new Set([
@@ -152,7 +229,8 @@ export class RoomsStore {
       this.roomGroups = result.data.server.roomGroups.map((s: SetT) => ({
         id: s.id,
         name: s.name,
-        roomIds: uniqueById(s.rooms).map((r: SetT['rooms'][number]) => r.id)
+        roomIds: uniqueById(s.rooms).map((r: SetT['rooms'][number]) => r.id),
+        items: sidebarItemsFromQuery(s)
       }));
     } else {
       this.roomGroups = null;

@@ -114,7 +114,7 @@ Projections are in-memory read models rebuilt from `EVT`. `NewChattoCore` regist
 | Runtime area       | Registered projector | Consumes                                                   | Read models / primary readers                                                             |
 | ------------------ | -------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | Room directory     | Room Directory       | `evt.room.>`                                               | `RoomCatalogProjection`, `RoomMembershipProjection`, `RoomBanProjection`; room/member queries and room authorization |
-| Room organization  | Room Group Layout    | `evt.group.>`, `evt.layout.>`                              | `RoomGroupProjection`, `RoomLayoutProjection`; sidebar groups and room ordering            |
+| Room organization  | Room Group Layout    | `evt.group.>`, `evt.layout.>`                              | `RoomGroupProjection`, `RoomLayoutProjection`; sidebar groups, sidebar links, and mixed sidebar item ordering |
 | Room timeline      | Room Timeline        | `evt.room.>`                                               | Raw room log, visible timeline index, latest message bodies, hidden echoes, and message asset references |
 | Assets             | Assets               | `evt.asset.>`, legacy `evt.room.*.asset_*`                 | Asset creation metadata, room scope, processing manifests, derivative graph, deletion state, and legacy room-asset compatibility |
 | Threads            | Threads              | `evt.room.>`, `evt.user.*.user_key_shredded`               | Per-thread reply logs, summaries, participants, reply counts                               |
@@ -260,6 +260,11 @@ Admin queries are nested under a single `admin: AdminQueries` field that returns
 | `reorderRoomGroups`               | Reorder all room groups (full list, exactly once each).                                      |
 | `reorderRoomsInGroup`             | Reorder rooms within a single group.                                                         |
 | `moveRoomToGroup`                 | Move a room into a different group (`room.manage` in both source and target — see ADR-031). |
+| `createSidebarLink`               | Add an external link to a room group (`room.manage`).                                        |
+| `updateSidebarLink`               | Rename or retarget a sidebar link (`room.manage`).                                           |
+| `deleteSidebarLink`               | Remove a sidebar link from its group (`room.manage`).                                        |
+| `moveSidebarLinkToGroup`          | Move a sidebar link into a different group (`room.manage` in both source and target).        |
+| `reorderSidebarItemsInGroup`      | Reorder rooms and sidebar links within a single group.                                       |
 | `grantGroupPermission`            | Grant a permission to a role at group scope.                                                 |
 | `denyGroupPermission`             | Deny a permission to a role at group scope.                                                  |
 | `clearGroupPermissionState`       | Remove both grant and denial at group scope.                                                 |
@@ -449,7 +454,7 @@ The republished `live.evt.{aggregateType}.{aggregateId}.{eventType}` subject is 
 | `evt.asset.*.{eventType}`                        | One asset event type across all assets                                          |
 | `evt.config.>`                                   | Dynamic server/user configuration and preferences                               |
 | `evt.config.{subject}.{eventType}`               | Config fact for `server`, a user ID, or another configurable subject            |
-| `evt.group.{groupId}.{eventType}`                | Room group metadata and group-owned room ordering/membership facts              |
+| `evt.group.{groupId}.{eventType}`                | Room group metadata and group-owned sidebar item ordering/membership facts      |
 | `evt.layout.default.{eventType}`                 | Singleton sidebar group ordering facts                                          |
 | `evt.user.{userId}.{eventType}`                  | User/account/profile/auth lookup facts and user-scoped auth audit facts         |
 | `evt.user.*.{eventType}`                         | One user event type across all users                                            |
@@ -511,6 +516,10 @@ The aggregate ID is intentionally part of the subject; actor/user and detailed c
 | `evt.group.{groupId}.room_added`                            | `RoomAddedToGroupEvent`                             |
 | `evt.group.{groupId}.room_removed`                          | `RoomRemovedFromGroupEvent`                         |
 | `evt.group.{groupId}.rooms_reordered`                       | `RoomsInGroupReorderedEvent`                        |
+| `evt.group.{groupId}.sidebar_link_added`                    | `SidebarLinkAddedToGroupEvent`                      |
+| `evt.group.{groupId}.sidebar_link_updated`                  | `SidebarLinkUpdatedEvent`                           |
+| `evt.group.{groupId}.sidebar_link_removed`                  | `SidebarLinkRemovedFromGroupEvent`                  |
+| `evt.group.{groupId}.sidebar_entries_reordered`             | `SidebarGroupEntriesReorderedEvent`                 |
 | `evt.layout.default.groups_reordered`                        | `RoomGroupsReorderedEvent`                          |
 | `evt.user.{userId}.account_created`                         | `UserAccountCreatedEvent`                           |
 | `evt.user.{userId}.login_changed`                           | `UserLoginChangedEvent`                             |
