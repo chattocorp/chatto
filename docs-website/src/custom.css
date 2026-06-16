@@ -1,25 +1,30 @@
 @import "@fontsource-variable/ibm-plex-sans";
 
 :root {
-	--sl-font: "IBM Plex Sans Variable", sans-serif;
+  --sl-font: "IBM Plex Sans Variable", sans-serif;
+  --sl-text-body: 1.1rem;
 
-	/* Sky blue accent — matches Chatto frontend (sky-600 light / sky-400 dark) */
-	--sl-color-accent-low: hsl(200, 80%, 92%);
-	--sl-color-accent: hsl(200, 98%, 39%);
-	--sl-color-accent-high: hsl(200, 95%, 24%);
+  /* Sky blue accent — matches Chatto frontend (sky-600 light / sky-400 dark) */
+  --sl-color-accent-low: hsl(200, 80%, 92%);
+  --sl-color-accent: hsl(200, 98%, 39%);
+  --sl-color-accent-high: hsl(200, 95%, 24%);
+}
+
+body {
+  font-size: var(--sl-text-body);
 }
 
 :root[data-theme="dark"] {
-	--sl-color-accent-low: hsl(198, 50%, 16%);
-	--sl-color-accent: hsl(198, 93%, 60%);
-	--sl-color-accent-high: hsl(198, 80%, 82%);
+  --sl-color-accent-low: hsl(198, 50%, 16%);
+  --sl-color-accent: hsl(198, 93%, 60%);
+  --sl-color-accent-high: hsl(198, 80%, 82%);
 
-	/* Neutral grays — matches Chatto dark mode (neutral-800/900) */
-	--sl-color-gray-1: hsl(0, 0%, 90%);
-	--sl-color-gray-2: hsl(0, 0%, 72%);
-	--sl-color-gray-3: hsl(0, 0%, 55%);
-	--sl-color-gray-4: hsl(0, 0%, 38%);
-	--sl-color-gray-5: hsl(0, 0%, 23%);
-	--sl-color-gray-6: hsl(0, 0%, 15%);
-	--sl-color-gray-7: hsl(0, 0%, 10%);
+  /* Neutral grays — matches Chatto dark mode (neutral-800/900) */
+  --sl-color-gray-1: hsl(0, 0%, 90%);
+  --sl-color-gray-2: hsl(0, 0%, 72%);
+  --sl-color-gray-3: hsl(0, 0%, 55%);
+  --sl-color-gray-4: hsl(0, 0%, 38%);
+  --sl-color-gray-5: hsl(0, 0%, 23%);
+  --sl-color-gray-6: hsl(0, 0%, 15%);
+  --sl-color-gray-7: hsl(0, 0%, 10%);
 }

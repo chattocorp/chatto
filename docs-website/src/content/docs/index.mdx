@@ -1,5 +1,5 @@
 ---
-title: Chatto
+title: Chatto Self-Hosting Documentation
 description: A real-time chat application built for simplicity and scalability.
 template: splash
 hero:
@@ -24,17 +24,10 @@ Chatto is a fully-featured real-time chat application built for simplicity and s
 ## Key Features
 
 - Reliable real-time messaging with a familiar UI — rooms, threads, direct messages, reactions, typing indicators, presence, and more
-- Voice and video calls with LiveKit
+- Voice and video calls powered by LiveKit
 - Highly flexible configuration and permission systems
 - Privacy-focused design with per-user encryption keys for straightforward GDPR-compliant data deletion
 - Scales from a single server to a planet-spanning supercluster (yes, really)
-
-## The Stack
-
-- **Single binary** compiled from a **Go** codebase
-- **NATS** and **JetStream** handle both real-time delivery and data persistence — no separate database required
-- An **embedded NATS server** gets you started quickly, or connect to a dedicated NATS cluster for horizontal scaling and high availability
-- The **Svelte** web UI is served directly from the binary — no separate frontend build step needed
 
 ## Optional Dependencies
 
@@ -47,8 +40,24 @@ Chatto provides a full chat experience with no external dependencies. For advanc
 ## Get Started
 
 <CardGrid>
-  <LinkCard title="Quick Start" href="/getting-started/quick-start/" description="Get Chatto running in a few minutes." />
-  <LinkCard title="Docker Compose" href="/guides/dockercompose/" description="Deploy with Docker Compose for production." />
-  <LinkCard title="Standalone Binary" href="/guides/binary/" description="Run Chatto as a single executable." />
-  <LinkCard title="Kubernetes" href="/guides/kubernetes/" description="Current status and requirements for Kubernetes deployments." />
+  <LinkCard
+    title="Quick Start"
+    href="/getting-started/quick-start/"
+    description="Get Chatto running in a few minutes."
+  />
+  <LinkCard
+    title="Docker Compose"
+    href="/guides/dockercompose/"
+    description="Deploy with Docker Compose for production."
+  />
+  <LinkCard
+    title="Standalone Binary"
+    href="/guides/binary/"
+    description="Run Chatto as a single executable."
+  />
+  <LinkCard
+    title="Kubernetes"
+    href="/guides/kubernetes/"
+    description="Current status and requirements for Kubernetes deployments."
+  />
 </CardGrid>

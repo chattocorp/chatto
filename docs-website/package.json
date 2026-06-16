@@ -3,6 +3,9 @@
   "type": "module",
   "version": "0.0.1",
   "packageManager": "pnpm@10.26.0",
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
@@ -11,9 +14,9 @@
     "astro": "astro"
   },
   "dependencies": {
-    "@astrojs/starlight": "^0.37.7",
+    "@astrojs/starlight": "^0.40.0",
     "@fontsource-variable/ibm-plex-sans": "^5.2.8",
-    "astro": "^5.18.2",
+    "astro": "^6.4.7",
     "sharp": "^0.34.5"
   }
 }
