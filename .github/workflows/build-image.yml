@@ -59,8 +59,9 @@ jobs:
 
           context="/tmp/chatto-docker/linux-amd64"
           mkdir -p "$context"
-          cp Dockerfile.goreleaser "$context/Dockerfile"
-          cp docker-entrypoint.sh "$context/docker-entrypoint.sh"
+          cp docker/Dockerfile.goreleaser "$context/Dockerfile"
+          mkdir -p "$context/docker"
+          cp docker/docker-entrypoint.sh "$context/docker/docker-entrypoint.sh"
 
           (
             cd cli
