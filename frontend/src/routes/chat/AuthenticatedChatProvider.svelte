@@ -86,11 +86,11 @@
     // Handle session terminated events from server (logout from another tab/device, admin boot)
     useSessionTerminated((reason) => {
       console.log('Session terminated by server:', reason);
-      currentUserState.handleAuthFailure();
+      serverRegistry.handleAuthenticationRequired(originServerId);
     });
 
     // Handle logout from another tab in the same browser (instant, no server round-trip)
-    $effect(() => initSessionChannel(() => currentUserState.handleAuthFailure()));
+    $effect(() => initSessionChannel(() => serverRegistry.handleAuthenticationRequired(originServerId)));
 
   }
 

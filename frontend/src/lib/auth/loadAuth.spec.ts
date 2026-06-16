@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { queryMock } = vi.hoisted(() => ({
-  queryMock: vi.fn()
+const { queryMock, clearOriginAuthenticationMock } = vi.hoisted(() => ({
+  queryMock: vi.fn(),
+  clearOriginAuthenticationMock: vi.fn()
 }));
 
 vi.mock('$app/environment', () => ({
@@ -23,6 +24,12 @@ vi.mock('$lib/state/server/graphqlClient.svelte', () => ({
         query: queryMock
       }
     }
+  }
+}));
+
+vi.mock('$lib/state/server/registry.svelte', () => ({
+  serverRegistry: {
+    clearOriginAuthentication: clearOriginAuthenticationMock
   }
 }));
 
@@ -85,5 +92,19 @@ describe('loadCurrentUser', () => {
     queryMock.mockResolvedValue({ data: undefined, error: { message: 'unreachable' } });
 
     expect(await loadCurrentUser()).toBeNull();
+  });
+
+  it('clears origin auth on authentication-required errors', async () => {
+    const { loadCurrentUser } = await loadModule();
+    queryMock
+      .mockResolvedValueOnce({ data: { viewer: { user } }, error: null })
+      .mockResolvedValueOnce({
+        data: undefined,
+        error: { graphQLErrors: [{ message: 'authentication required' }] }
+      });
+
+    expect(await loadCurrentUser()).toEqual(user);
+    expect(await loadCurrentUser()).toBeNull();
+    expect(clearOriginAuthenticationMock).toHaveBeenCalledOnce();
   });
 });
