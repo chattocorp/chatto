@@ -209,16 +209,14 @@
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  .prose {
-    --composer-code-text: #d0d7de;
-    --composer-code-comment: #8b949e;
-    --composer-code-keyword: #ff7b72;
-    --composer-code-string: #a5d6ff;
-    --composer-code-title: #d2a8ff;
-    --composer-code-literal: #79c0ff;
-    --composer-code-attribute: #ffa657;
-  }
+:root[data-theme='dark'] .prose {
+  --composer-code-text: #d0d7de;
+  --composer-code-comment: #8b949e;
+  --composer-code-keyword: #ff7b72;
+  --composer-code-string: #a5d6ff;
+  --composer-code-title: #d2a8ff;
+  --composer-code-literal: #79c0ff;
+  --composer-code-attribute: #ffa657;
 }
 
 /* Compact prose - for inline contexts like MOTD */

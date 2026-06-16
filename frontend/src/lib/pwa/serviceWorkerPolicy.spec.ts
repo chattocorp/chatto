@@ -1,12 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
   classifyServiceWorkerRequest,
+  extractSameOriginShellAssetPaths,
   normalizeSameOriginUrl,
   shouldUseOfflineShellFallback
 } from './serviceWorkerPolicy';
 
 const ORIGIN = 'https://chatto.example';
-const SHELL_ASSETS = new Set(['/manifest.webmanifest', '/icons/icon-192.png', '/_app/immutable/app.js']);
+const SHELL_ASSETS = new Set([
+  '/manifest.webmanifest',
+  '/icons/icon-192.png',
+  '/_app/immutable/app.js'
+]);
 
 function request(method: string, mode: RequestMode = 'same-origin') {
   return {
@@ -80,5 +85,43 @@ describe('normalizeSameOriginUrl', () => {
   it('rejects cross-origin and malformed notification URLs', () => {
     expect(normalizeSameOriginUrl('https://other.example/chat', ORIGIN)).toBeNull();
     expect(normalizeSameOriginUrl('http://[', ORIGIN)).toBeNull();
+  });
+});
+
+describe('extractSameOriginShellAssetPaths', () => {
+  it('extracts same-origin shell assets referenced by generated HTML', () => {
+    const html = `
+      <link href="/_app/immutable/entry/start.abc.js" rel="modulepreload">
+      <link href="/_app/immutable/assets/app.def.css" rel="stylesheet">
+      <script type="module">
+        import("/_app/immutable/entry/app.ghi.js");
+      </script>
+    `;
+    const shellAssets = new Set([
+      '/_app/immutable/entry/start.abc.js',
+      '/_app/immutable/entry/app.ghi.js',
+      '/_app/immutable/assets/app.def.css'
+    ]);
+
+    expect(extractSameOriginShellAssetPaths(html, shellAssets, ORIGIN)).toEqual([
+      '/_app/immutable/entry/start.abc.js',
+      '/_app/immutable/assets/app.def.css',
+      '/_app/immutable/entry/app.ghi.js'
+    ]);
+  });
+
+  it('ignores cross-origin and non-shell asset references', () => {
+    const html = `
+      <link href="https://cdn.example/app.js" rel="modulepreload">
+      <script src="/not-in-shell.js"></script>
+      <script type="module">
+        import("/_app/immutable/entry/app.ghi.js");
+      </script>
+    `;
+    const shellAssets = new Set(['/_app/immutable/entry/app.ghi.js']);
+
+    expect(extractSameOriginShellAssetPaths(html, shellAssets, ORIGIN)).toEqual([
+      '/_app/immutable/entry/app.ghi.js'
+    ]);
   });
 });
