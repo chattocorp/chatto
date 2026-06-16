@@ -181,14 +181,17 @@ func (c *ChattoCore) GetThreadReplyEventsAround(ctx context.Context, kind RoomKi
 		}
 	} else {
 		beforeCount := (limit - 1) / 2
-		afterCount := limit - beforeCount - 1
 		start = targetIndex - beforeCount
 		if start < 0 {
 			start = 0
 		}
-		end = targetIndex + afterCount + 1
+		end = start + limit
 		if end > len(replies) {
 			end = len(replies)
+			start = end - limit
+			if start < 0 {
+				start = 0
+			}
 		}
 	}
 

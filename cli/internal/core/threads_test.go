@@ -267,6 +267,28 @@ func TestChattoCore_PostMessage_Threading(t *testing.T) {
 			t.Fatalf("around page hasOlder/hasNewer = %v/%v, want true/true", page.HasOlder, page.HasNewer)
 		}
 
+		nearStartPage, err := core.GetThreadReplyEventsAround(ctx, KindChannel, room.Id, rootEvent.Id, replies[0].Id, 3)
+		if err != nil {
+			t.Fatalf("GetThreadReplyEventsAround near start: %v", err)
+		}
+		if got := eventIDsForTest(nearStartPage.Events); len(got) != 3 || got[0] != replies[0].Id || got[1] != replies[1].Id || got[2] != replies[2].Id {
+			t.Fatalf("near-start around page = %v, want [%s, %s, %s]", got, replies[0].Id, replies[1].Id, replies[2].Id)
+		}
+		if nearStartPage.HasOlder || !nearStartPage.HasNewer {
+			t.Fatalf("near-start around page hasOlder/hasNewer = %v/%v, want false/true", nearStartPage.HasOlder, nearStartPage.HasNewer)
+		}
+
+		nearEndPage, err := core.GetThreadReplyEventsAround(ctx, KindChannel, room.Id, rootEvent.Id, replies[4].Id, 3)
+		if err != nil {
+			t.Fatalf("GetThreadReplyEventsAround near end: %v", err)
+		}
+		if got := eventIDsForTest(nearEndPage.Events); len(got) != 3 || got[0] != replies[2].Id || got[1] != replies[3].Id || got[2] != replies[4].Id {
+			t.Fatalf("near-end around page = %v, want [%s, %s, %s]", got, replies[2].Id, replies[3].Id, replies[4].Id)
+		}
+		if !nearEndPage.HasOlder || nearEndPage.HasNewer {
+			t.Fatalf("near-end around page hasOlder/hasNewer = %v/%v, want true/false", nearEndPage.HasOlder, nearEndPage.HasNewer)
+		}
+
 		rootPage, err := core.GetThreadReplyEventsAround(ctx, KindChannel, room.Id, rootEvent.Id, rootEvent.Id, 3)
 		if err != nil {
 			t.Fatalf("GetThreadReplyEventsAround root anchor: %v", err)
