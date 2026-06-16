@@ -112,6 +112,8 @@ type Server {
   viewerCanManageRooms: Boolean! @goField(forceResolver: true)
   "Whether the current user has any unread messages in rooms they've joined."
   viewerHasUnreadRooms: Boolean! @goField(forceResolver: true)
+  "Number of pending notifications for the current user on this server."
+  viewerUnreadNotificationCount: Int! @goField(forceResolver: true)
 }
 
 extend type Query {

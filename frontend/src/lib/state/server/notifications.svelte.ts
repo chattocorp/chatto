@@ -10,6 +10,7 @@ const NotificationsQueryDoc = graphql(`
   query Notifications {
     viewer {
       notifications(limit: 50) {
+        totalCount
         items {
           __typename
           ... on DMMessageNotificationItem {
@@ -186,6 +187,7 @@ export class NotificationStore {
    * fragment — it's the instance name.
    */
   serverName = $state<string | null>(null);
+  unreadNotificationCount = $state(0);
   loading = $state(false);
   error = $state<string | null>(null);
 
@@ -200,6 +202,10 @@ export class NotificationStore {
 
   get count() {
     return this.notifications.length;
+  }
+
+  setUnreadNotificationCount(count: number): void {
+    this.unreadNotificationCount = Math.max(0, count);
   }
 
   /**
@@ -397,6 +403,7 @@ export class NotificationStore {
 
       if (result.data?.viewer) {
         this.notifications = result.data.viewer.notifications.items;
+        this.unreadNotificationCount = result.data.viewer.notifications.totalCount;
       }
       // Capture the instance display name lazily — used by getLocationString
       // for non-DM notifications. Failure here is non-fatal; the UI just
@@ -432,13 +439,14 @@ export class NotificationStore {
 
   /**
    * Dismiss a single notification. Optimistic: removes locally first, rolls
-   * back on failure. The orange dot disappears the moment the user clicks.
+   * back on failure. The notification indicator disappears the moment the user clicks.
    */
   async dismiss(notificationId: string): Promise<boolean> {
     const removed = this.notifications.find((n) => n.id === notificationId);
     if (!removed) return false;
 
     this.notifications = this.notifications.filter((n) => n.id !== notificationId);
+    this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - 1);
 
     try {
       const result = await this.#client
@@ -447,12 +455,14 @@ export class NotificationStore {
 
       if (result.error || !result.data?.dismissNotification) {
         this.#restoreNotification(removed);
+        this.unreadNotificationCount += 1;
         return false;
       }
       return true;
     } catch (e) {
       console.error('Failed to dismiss notification:', e);
       this.#restoreNotification(removed);
+      this.unreadNotificationCount += 1;
       return false;
     }
   }
@@ -463,9 +473,11 @@ export class NotificationStore {
    */
   async dismissAll(): Promise<number> {
     const original = this.notifications;
+    const originalCount = this.unreadNotificationCount;
     if (original.length === 0) return 0;
 
     this.notifications = [];
+    this.unreadNotificationCount = 0;
 
     try {
       const result = await this.#client
@@ -474,12 +486,14 @@ export class NotificationStore {
 
       if (result.error || result.data?.dismissAllNotifications == null) {
         this.notifications = original;
+        this.unreadNotificationCount = originalCount;
         return 0;
       }
       return result.data.dismissAllNotifications;
     } catch (e) {
       console.error('Failed to dismiss all notifications:', e);
       this.notifications = original;
+      this.unreadNotificationCount = originalCount;
       return 0;
     }
   }
@@ -507,7 +521,12 @@ export class NotificationStore {
    * Remove a notification by ID (for cross-device sync).
    */
   removeNotification(notificationId: string) {
+    const removed = this.notifications.find((n) => n.id === notificationId);
     this.notifications = this.notifications.filter((n) => n.id !== notificationId);
+    if (removed) {
+      this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - 1);
+    }
+    return removed ? notificationTarget(removed).roomId : null;
   }
 
   /**

@@ -75,6 +75,7 @@
           logoUrl
         }
         viewerHasUnreadRooms
+        viewerUnreadNotificationCount
         viewerNotificationPreference {
           level
           effectiveLevel
@@ -142,6 +143,7 @@
         }
         roomUnreadStore.clear();
         roomUnreadStore.setServerHasUnread(server.viewerHasUnreadRooms);
+        notificationStore.setUnreadNotificationCount(server.viewerUnreadNotificationCount);
 
         // Populate DM unread status and notification preferences. Channel
         // and DM rooms now share the same per-room unread map.
@@ -271,13 +273,16 @@
     };
   });
 
-  // Handle click on icon notification dot. The icon's notification can come
+  // Handle click on icon notification badge. The icon's notification can come
   // from either a channel mention/reply or a DM message. Prefer channel
   // notifications when both are present.
   async function handleServerNotificationClick() {
     const notification =
       notificationStore.getSpaceNotification() ?? notificationStore.getDMNotification();
-    if (!notification) return;
+    if (!notification) {
+      await goto(resolve('/chat/notifications'));
+      return;
+    }
 
     const target = notificationTarget(notification);
     if (target.eventId && target.roomId) {
@@ -334,6 +339,7 @@
   href={resolve('/chat/[serverId]', { serverId: serverSegment })}
   selected={isActiveServer}
   indicator={stores.serverIndicator()}
+  notificationCount={notificationStore.unreadNotificationCount}
   onIndicatorClick={handleServerIndicatorClick}
   title={iconTitle}
   dimmed={iconDimmed}

@@ -209,6 +209,129 @@ func TestViewerResolver_HasNotifications(t *testing.T) {
 	})
 }
 
+func TestNotificationCountResolvers(t *testing.T) {
+	env := setupTestResolver(t)
+
+	other, err := env.core.CreateUser(env.ctx, "system", "notif-count-peer", "Notification Count Peer", "password123")
+	if err != nil {
+		t.Fatalf("failed to create peer: %v", err)
+	}
+	if err := env.core.AddVerifiedEmailDirect(env.ctx, other.Id, "notif-count-peer@example.com"); err != nil {
+		t.Fatalf("failed to verify peer: %v", err)
+	}
+	dmRoom, _, err := env.core.FindOrCreateDM(env.ctx, env.testUser.Id, []string{other.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+
+	outsider, err := env.core.CreateUser(env.ctx, "system", "notif-count-outsider", "Notification Count Outsider", "password123")
+	if err != nil {
+		t.Fatalf("failed to create outsider: %v", err)
+	}
+	if err := env.core.AddVerifiedEmailDirect(env.ctx, outsider.Id, "notif-count-outsider@example.com"); err != nil {
+		t.Fatalf("failed to verify outsider: %v", err)
+	}
+	privateRoom, err := env.core.CreateRoom(env.ctx, env.testUser.Id, core.KindChannel, "", "private-count", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+
+	notifications := []*corev1.Notification{
+		{
+			Notification: &corev1.Notification_Mention{
+				Mention: &corev1.MentionNotification{RoomId: env.testRoom.Id, EventId: "count-mention"},
+			},
+		},
+		{
+			Notification: &corev1.Notification_Reply{
+				Reply: &corev1.ReplyNotification{
+					RoomId:      env.testRoom.Id,
+					EventId:     "count-reply",
+					InReplyToId: "count-root",
+				},
+			},
+		},
+		{
+			Notification: &corev1.Notification_DmMessage{
+				DmMessage: &corev1.DMMessageNotification{RoomId: dmRoom.Id, EventId: "count-dm"},
+			},
+		},
+		{
+			Notification: &corev1.Notification_RoomMessage{
+				RoomMessage: &corev1.RoomMessageNotification{
+					RoomId:  privateRoom.Id,
+					EventId: "count-private",
+				},
+			},
+		},
+	}
+	for _, notification := range notifications {
+		if _, err := env.core.CreateNotification(env.ctx, env.testUser.Id, other.Id, notification); err != nil {
+			t.Fatalf("CreateNotification: %v", err)
+		}
+	}
+
+	t.Run("server count returns all pending notifications for viewer", func(t *testing.T) {
+		got, err := env.resolver.Server().ViewerUnreadNotificationCount(env.authContext(), &model.Server{})
+		if err != nil {
+			t.Fatalf("ViewerUnreadNotificationCount server error: %v", err)
+		}
+		if got != 4 {
+			t.Errorf("expected server count 4, got %d", got)
+		}
+	})
+
+	t.Run("server count returns zero unauthenticated", func(t *testing.T) {
+		got, err := env.resolver.Server().ViewerUnreadNotificationCount(env.unauthContext(), &model.Server{})
+		if err != nil {
+			t.Fatalf("ViewerUnreadNotificationCount server unauth error: %v", err)
+		}
+		if got != 0 {
+			t.Errorf("expected unauth server count 0, got %d", got)
+		}
+	})
+
+	t.Run("room count returns room-scoped pending notifications", func(t *testing.T) {
+		got, err := env.resolver.Room().ViewerUnreadNotificationCount(env.authContext(), env.testRoom)
+		if err != nil {
+			t.Fatalf("ViewerUnreadNotificationCount room error: %v", err)
+		}
+		if got != 2 {
+			t.Errorf("expected room count 2, got %d", got)
+		}
+	})
+
+	t.Run("room count works for DM membership", func(t *testing.T) {
+		got, err := env.resolver.Room().ViewerUnreadNotificationCount(env.authContext(), dmRoom)
+		if err != nil {
+			t.Fatalf("ViewerUnreadNotificationCount DM error: %v", err)
+		}
+		if got != 1 {
+			t.Errorf("expected DM count 1, got %d", got)
+		}
+	})
+
+	t.Run("room count returns zero for non-members", func(t *testing.T) {
+		got, err := env.resolver.Room().ViewerUnreadNotificationCount(env.authContextForUser(outsider), env.testRoom)
+		if err != nil {
+			t.Fatalf("ViewerUnreadNotificationCount non-member error: %v", err)
+		}
+		if got != 0 {
+			t.Errorf("expected non-member room count 0, got %d", got)
+		}
+	})
+
+	t.Run("room count returns zero unauthenticated", func(t *testing.T) {
+		got, err := env.resolver.Room().ViewerUnreadNotificationCount(env.unauthContext(), env.testRoom)
+		if err != nil {
+			t.Fatalf("ViewerUnreadNotificationCount room unauth error: %v", err)
+		}
+		if got != 0 {
+			t.Errorf("expected unauth room count 0, got %d", got)
+		}
+	})
+}
+
 // ============================================================================
 // DismissNotification Mutation Tests
 // ============================================================================

@@ -21,6 +21,9 @@ type Loaders struct {
 	// This prevents redundant KV lookups when Body, Attachments, and UpdatedAt
 	// resolvers all need the same MessageBody.
 	messageBodyCache sync.Map
+	// notificationCountsCache caches notification counts within a request so
+	// Server.viewerUnreadNotificationCount and every Room field share one scan.
+	notificationCountsCache sync.Map
 }
 
 // NewLoaders creates fresh loaders for a new request.
@@ -75,4 +78,22 @@ func (l *Loaders) GetMessageBody(ctx context.Context, kind core.RoomKind, messag
 	l.messageBodyCache.Store(cacheKey, messageBodyCacheEntry{body: body, err: err})
 
 	return body, err
+}
+
+type notificationCountsCacheEntry struct {
+	counts core.NotificationCounts
+	err    error
+}
+
+// GetNotificationCounts retrieves the user's notification counts, caching the
+// grouped result within a single GraphQL request.
+func (l *Loaders) GetNotificationCounts(ctx context.Context, userID string) (core.NotificationCounts, error) {
+	if cached, ok := l.notificationCountsCache.Load(userID); ok {
+		entry := cached.(notificationCountsCacheEntry)
+		return entry.counts, entry.err
+	}
+
+	counts, err := l.core.GetNotificationCounts(ctx, userID)
+	l.notificationCountsCache.Store(userID, notificationCountsCacheEntry{counts: counts, err: err})
+	return counts, err
 }

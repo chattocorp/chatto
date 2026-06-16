@@ -24,7 +24,10 @@ const { mocks } = vi.hoisted(() => {
 				addedAt: 0
 			},
 			store: {
-				notifications: { fetch: vi.fn().mockResolvedValue(undefined) },
+				notifications: {
+					fetch: vi.fn().mockResolvedValue(undefined),
+					setUnreadNotificationCount: vi.fn()
+				},
 				roomUnread: {
 					clear: vi.fn(),
 					setServerHasUnread: vi.fn(),
@@ -109,6 +112,7 @@ describe('ServerSidebarEntry', () => {
 		mocks.showConnectionLostIcon = false;
 		mocks.client.query.mockReset();
 		mocks.store.notifications.fetch.mockClear();
+		mocks.store.notifications.setUnreadNotificationCount.mockClear();
 		mocks.store.serverIndicator.mockReturnValue(null);
 		mocks.store.serverInfo.name = 'Chatto';
 		mocks.store.serverInfo.iconUrl = null;
@@ -158,6 +162,7 @@ describe('ServerSidebarEntry', () => {
 						},
 						viewerNotificationPreference: null,
 						viewerHasUnreadRooms: false,
+						viewerUnreadNotificationCount: 0,
 						rooms: []
 					},
 					viewer: null

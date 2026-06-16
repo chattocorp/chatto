@@ -1,6 +1,7 @@
 <script lang="ts">
   /* eslint-disable svelte/no-navigation-without-resolve -- href is a prop; callers pass already-resolved paths */
   import ServerLogo from './components/ServerLogo.svelte';
+  import NotificationBadge from './ui/NotificationBadge.svelte';
   import UnreadDot from './ui/UnreadDot.svelte';
   import type { ServerIndicator } from './state/server/store.svelte';
 
@@ -10,6 +11,7 @@
     href,
     selected = false,
     indicator = null,
+    notificationCount = 0,
     onIndicatorClick,
     title,
     dimmed = false
@@ -22,6 +24,8 @@
     selected?: boolean;
     /** What indicator dot (if any) to render in the corner. */
     indicator?: ServerIndicator;
+    /** Number to render for notification indicators. */
+    notificationCount?: number;
     /** Click handler for the indicator dot. Receives the indicator kind. */
     onIndicatorClick?: (kind: 'notification' | 'unread', event: MouseEvent) => void;
     title?: string;
@@ -57,22 +61,45 @@
           e.stopPropagation();
           onIndicatorClick(indicator, e);
         }}
-        class="absolute -top-1.5 -right-1.5 z-10 flex h-6 w-6 cursor-pointer items-center justify-center notification-dot"
-        aria-label={indicator === 'notification' ? 'Go to notification' : 'Go to first unread room'}
+        class="absolute -top-1.5 -right-1.5 z-10 flex h-6 min-w-6 cursor-pointer items-center justify-center notification-dot"
+        aria-label={indicator === 'notification' && notificationCount > 0
+          ? `Go to ${notificationCount} notifications`
+          : indicator === 'notification'
+            ? 'Go to notification'
+            : 'Go to first unread room'}
       >
+        {#if indicator === 'notification' && notificationCount > 0}
+          <NotificationBadge
+            count={notificationCount}
+            overlay
+            testid="server-notification-badge"
+          />
+          <span class="sr-only">{notificationCount} notifications</span>
+        {:else}
+          <UnreadDot
+            color={indicator === 'notification' ? 'warning' : 'muted'}
+            overlay
+            testid={indicator === 'unread' ? 'server-unread-dot' : undefined}
+          />
+        {/if}
+      </button>
+    {:else}
+      {#if indicator === 'notification' && notificationCount > 0}
+        <NotificationBadge
+          count={notificationCount}
+          overlay
+          class="absolute top-0 right-0 z-10"
+          testid="server-notification-badge"
+        />
+        <span class="sr-only">{notificationCount} notifications</span>
+      {:else}
         <UnreadDot
           color={indicator === 'notification' ? 'warning' : 'muted'}
           overlay
+          class="absolute top-0 right-0 z-10"
           testid={indicator === 'unread' ? 'server-unread-dot' : undefined}
         />
-      </button>
-    {:else}
-      <UnreadDot
-        color={indicator === 'notification' ? 'warning' : 'muted'}
-        overlay
-        class="absolute top-0 right-0 z-10"
-        testid={indicator === 'unread' ? 'server-unread-dot' : undefined}
-      />
+      {/if}
     {/if}
   {/if}
 </div>

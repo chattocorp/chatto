@@ -14,6 +14,7 @@ export type RoomsListItem = {
   name: string;
   type: RoomType;
   hasUnread: boolean;
+  viewerUnreadNotificationCount: number;
   // Populated for DM rooms only — used to derive the display name in the sidebar.
   members: UserAvatarUserFragment[];
 };
@@ -34,6 +35,7 @@ const MyRoomsQuery = graphql(`
           name
           type
           hasUnread
+          viewerUnreadNotificationCount
           archived
           viewerNotificationPreference {
             level
@@ -129,6 +131,7 @@ export class RoomsStore {
         name: r.name,
         type: r.type,
         hasUnread: r.hasUnread,
+        viewerUnreadNotificationCount: r.viewerUnreadNotificationCount,
         members: r.members.users.map((m: typeof r.members.users[number]) => useFragment(UserAvatarUserFragmentDoc, m))
       }));
       this.roomUnread.initRooms(visible);
@@ -158,6 +161,20 @@ export class RoomsStore {
 
   setUnread(roomId: string): void {
     this.patchRoom(roomId, { hasUnread: true });
+  }
+
+  incrementUnreadNotification(roomId: string): void {
+    const room = this.rooms.find((r) => r.id === roomId);
+    if (!room) return;
+    this.patchRoom(roomId, { viewerUnreadNotificationCount: room.viewerUnreadNotificationCount + 1 });
+  }
+
+  decrementUnreadNotification(roomId: string): void {
+    const room = this.rooms.find((r) => r.id === roomId);
+    if (!room) return;
+    this.patchRoom(roomId, {
+      viewerUnreadNotificationCount: Math.max(0, room.viewerUnreadNotificationCount - 1)
+    });
   }
 
   /**

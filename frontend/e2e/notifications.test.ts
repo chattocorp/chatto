@@ -11,7 +11,7 @@ import * as routes from './routes';
 import { POLLING_INTERVALS, TIMEOUTS } from './constants';
 
 test.describe('Mention Notifications', () => {
-  // Note: Toast notifications for mentions were removed - the bell icon with orange dot indicator
+  // Note: Toast notifications for mentions were removed - the bell icon with notification badge
   // and room-level mention indicators are now the primary notification feedback.
 
   test('shows mention indicator in room list when mentioned', async ({
@@ -33,9 +33,9 @@ test.describe('Mention Notifications', () => {
     // Verify general has no mention indicator initially
     const generalLink = chatPage.roomList.locator('a', { hasText: '# general' });
     await expect(generalLink).toBeVisible();
-    // The warning-colored dot indicates a mention
-    const mentionDot = generalLink.locator('.bg-warning');
-    await expect(mentionDot).not.toBeVisible();
+    // The warning-colored badge indicates a mention notification.
+    const mentionBadge = generalLink.getByTestId('room-notification-badge');
+    await expect(mentionBadge).not.toBeVisible();
 
     // User B: Create account and join the space
     const context2 = await browser!.newContext({ baseURL: serverURL });
@@ -57,19 +57,21 @@ test.describe('Mention Notifications', () => {
       await roomPage2.sendMessage(`Hey @${userA.login} you have a mention!`);
 
       // User A: Verify mention indicator appears on general room
-      await expect(mentionDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(mentionBadge).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(mentionBadge).toHaveText('1');
 
       // User A: Verify mention cascades to space icon
       const serverGutter = page.locator('.server-gutter');
       const spaceButton = serverGutter.locator('[data-testid="server-icon"]').first();
-      const spaceNotificationDot = spaceButton.locator('..').locator('.bg-warning');
-      await expect(spaceNotificationDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      const spaceNotificationBadge = spaceButton.locator('..').getByTestId('server-notification-badge');
+      await expect(spaceNotificationBadge).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(spaceNotificationBadge).toHaveText('1');
     } finally {
       await context2.close();
     }
   });
 
-  test('notification dot appears on space icon with logo image', async ({
+  test('notification badge appears on space icon with logo image', async ({
     page,
     chatPage,
     spaceAdminPage,
@@ -129,10 +131,11 @@ test.describe('Mention Notifications', () => {
       await chatPage2.enterRoom('general');
       await roomPage2.sendMessage(`Hey @${userA.login} notification on space with logo!`);
 
-      // User A: Verify notification dot appears on space icon with logo
-      // The notification dot should be visible even when the space has an image logo
-      const spaceNotificationDot = spaceButton.locator('..').locator('.bg-warning');
-      await expect(spaceNotificationDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      // User A: Verify notification badge appears on space icon with logo.
+      // The badge should be visible even when the space has an image logo.
+      const spaceNotificationBadge = spaceButton.locator('..').getByTestId('server-notification-badge');
+      await expect(spaceNotificationBadge).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(spaceNotificationBadge).toHaveText('1');
 
       // Also verify the logo is still visible (not replaced by anything)
       await expect(spaceLogoImage).toBeVisible();
@@ -156,7 +159,7 @@ test.describe('Mention Notifications', () => {
     await chatPage.enterRoom('announcements');
 
     const generalLink = chatPage.roomList.locator('a', { hasText: '# general' });
-    const mentionDot = generalLink.locator('.bg-warning');
+    const mentionBadge = generalLink.getByTestId('room-notification-badge');
 
     // User B: Mention User A in general
     const context2 = await browser!.newContext({ baseURL: serverURL });
@@ -171,8 +174,9 @@ test.describe('Mention Notifications', () => {
       await chatPage2.enterRoom('general');
       await roomPage2.sendMessage(`@${userA.login} clearing mention test`);
 
-      // Wait for mention indicator to appear
-      await expect(mentionDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      // Wait for mention indicator to appear.
+      await expect(mentionBadge).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(mentionBadge).toHaveText('1');
 
       // User A: Navigate to general room
       await generalLink.click();
@@ -180,7 +184,7 @@ test.describe('Mention Notifications', () => {
 
       // Verify mention indicator is cleared (poll to allow server read event to propagate)
       await expect(async () => {
-        await expect(mentionDot).not.toBeVisible();
+        await expect(mentionBadge).not.toBeVisible();
       }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
     } finally {
       await context2.close();
@@ -188,8 +192,8 @@ test.describe('Mention Notifications', () => {
   });
 });
 
-test.describe('Thread Reply Notifications (Cascading Orange Dot)', () => {
-  test('thread reply shows orange dot on thread, room, and space', async ({
+test.describe('Thread Reply Notifications (Cascading Indicators)', () => {
+  test('thread reply shows indicators on thread, room, and space', async ({
     page,
     chatPage,
     roomPage,
@@ -229,20 +233,20 @@ test.describe('Thread Reply Notifications (Cascading Orange Dot)', () => {
       const replyMessage = `Reply from User B ${Date.now()}`;
       await roomPage2.postThreadReply(replyMessage);
 
-      // User A: Verify cascading orange dots appear
+      // User A: Verify cascading notification indicators appear.
 
-      // 1. Orange dot on the "general" room in room list
+      // 1. Notification badge on the "general" room in room list.
       const generalRoomLink = chatPage.roomList.locator('a', { hasText: '# general' });
-      const roomNotificationDot = generalRoomLink.locator('.bg-warning');
-      await expect(roomNotificationDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      const roomNotificationBadge = generalRoomLink.getByTestId('room-notification-badge');
+      await expect(roomNotificationBadge).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(roomNotificationBadge).toHaveText('1');
 
-      // 2. Orange dot on the space icon
-      // The space icon is a button with aria-label matching the space name
-      // We need to find the button inside the server gutter and check its parent for .bg-warning
+      // 2. Notification badge on the space icon.
       const serverGutter = page.locator('.server-gutter');
       const spaceButton = serverGutter.locator('[data-testid="server-icon"]').first();
-      const spaceNotificationDot = spaceButton.locator('..').locator('.bg-warning');
-      await expect(spaceNotificationDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      const spaceNotificationBadge = spaceButton.locator('..').getByTestId('server-notification-badge');
+      await expect(spaceNotificationBadge).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(spaceNotificationBadge).toHaveText('1');
 
       // 3. Navigate to general room and verify thread has orange dot
       await chatPage.enterRoom('general');
@@ -260,11 +264,11 @@ test.describe('Thread Reply Notifications (Cascading Orange Dot)', () => {
       // Thread orange dot should be gone
       await expect(threadNotificationDot).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
-      // Room orange dot should also be gone (no more notifications for this room)
-      await expect(roomNotificationDot).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+      // Room notification badge should also be gone (no more notifications for this room).
+      await expect(roomNotificationBadge).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
-      // Space orange dot should also be gone (no more notifications in this space)
-      await expect(spaceNotificationDot).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+      // Space notification badge should also be gone (no more notifications in this space).
+      await expect(spaceNotificationBadge).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
     } finally {
       await context2.close();
     }
@@ -273,7 +277,7 @@ test.describe('Thread Reply Notifications (Cascading Orange Dot)', () => {
 
 // DM-icon notification tests have been removed alongside the cross-instance
 // DM icon (#330 phase 3). DMs now appear in the primary-space sidebar
-// directly; notification surfacing for them happens via the room unread/dot
+// directly; notification surfacing for them happens via the room unread/badge
 // machinery shared with channels and is covered by other tests in this file.
 // Cross-server consolidated DM notifications will be re-tested when that view
 // is reintroduced.
@@ -1023,7 +1027,7 @@ test.describe('Cross-Tab Sync', () => {
     }
   });
 
-  test('dismissing a mention notification clears the room orange dot on other tabs and survives reload', async ({
+  test('dismissing a mention notification clears the room badge on other tabs and survives reload', async ({
     page,
     chatPage,
     notificationsPage,
@@ -1032,9 +1036,9 @@ test.describe('Cross-Tab Sync', () => {
   }) => {
     // Verifies the cross-device fix: dismissing a mention notification on
     // Tab 1 not only removes the notification on Tab 2, but also clears the
-    // room-level mention indicator (orange dot in the room list). The reload
-    // step proves the server-side KV mention flag was cleared — not just the
-    // local frontend state — by hitting the GraphQL Room.hasMention resolver
+    // room-level mention indicator (notification badge in the room list). The reload
+    // step proves the server-side pending notification was cleared — not just the
+    // local frontend state — by hitting the GraphQL room notification count resolver
     // on a fresh load.
 
     const userA = await createAndLoginTestUser(page);
@@ -1042,10 +1046,10 @@ test.describe('Cross-Tab Sync', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('announcements');
 
-    // The room-level orange dot on #general (warning-colored). Scoped to
-    // #general's room link so we don't catch the bell or other rooms.
+    // The room-level notification badge on #general. Scoped to #general's room
+    // link so we don't catch the bell or other rooms.
     const generalLink = chatPage.roomList.locator('a', { hasText: '# general' });
-    const generalMentionDot = generalLink.locator('.bg-warning');
+    const generalMentionBadge = generalLink.getByTestId('room-notification-badge');
 
     const context1b = await browser!.newContext({ baseURL: serverURL });
     const page1b = await context1b.newPage();
@@ -1054,13 +1058,13 @@ test.describe('Cross-Tab Sync', () => {
 
     try {
       // User A: second tab, also navigated to announcements so #general's
-      // mention dot is visible in the sidebar.
+      // mention badge is visible in the sidebar.
       await loginTestUser(page1b, userA);
       await page1b.goto(routes.space());
       const chatPage1b = new ChatPage(page1b);
       await chatPage1b.enterRoom('announcements');
       const generalLink1b = chatPage1b.roomList.locator('a', { hasText: '# general' });
-      const generalMentionDot1b = generalLink1b.locator('.bg-warning');
+      const generalMentionBadge1b = generalLink1b.getByTestId('room-notification-badge');
 
       // User B: mention User A in #general.
       await createAndLoginTestUser(page2);
@@ -1071,36 +1075,37 @@ test.describe('Cross-Tab Sync', () => {
       await chatPage2.enterRoom('general');
       await roomPage2.sendMessage(`@${userA.login} cross-device mention sync test`);
 
-      // Both tabs show the orange room-level mention dot and the bell.
-      await expect(generalMentionDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-      await expect(generalMentionDot1b).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      // Both tabs show the room-level mention badge and the bell.
+      await expect(generalMentionBadge).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(generalMentionBadge).toHaveText('1');
+      await expect(generalMentionBadge1b).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(generalMentionBadge1b).toHaveText('1');
       await notificationsPage.expectBellIndicatorVisible();
 
       // Tab 1: dismiss the mention via the bell panel — does NOT enter the
       // room. Pre-fix this would only sync the bell across tabs; the
-      // room-level dot would linger on Tab 2 and re-appear after reload.
+      // room-level badge would linger on Tab 2 and re-appear after reload.
       await notificationsPage.goto();
       const notification = notificationsPage.getNotificationBySummary('mentioned you');
       await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
       await notificationsPage.dismissNotification(notification);
       await notificationsPage.expectEmptyState();
 
-      // Tab 2: the orange dot disappears via the new MentionStatusClearedEvent.
-      await expect(generalMentionDot1b).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      // Tab 2: the badge disappears via live notification dismissal sync.
+      await expect(generalMentionBadge1b).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
-      // Tab 2: hard reload. If the dot reappears, the KV mention flag wasn't
+      // Tab 2: hard reload. If the badge reappears, the pending notification wasn't
       // cleared server-side — local state covered for it transiently. The
-      // dot staying gone proves Room.hasMention now returns false from the
-      // resolver, which is the Option A guarantee.
+      // badge staying gone proves Room.viewerUnreadNotificationCount returns 0.
       await page1b.reload();
       await page1b.waitForURL(routes.patterns.anySpace);
       const chatPage1bAfter = new ChatPage(page1b);
       await chatPage1bAfter.enterRoom('announcements');
       const generalLink1bAfter = chatPage1bAfter.roomList.locator('a', { hasText: '# general' });
       // Use toPass so we tolerate the brief window during reload where the
-      // sidebar is still hydrating and the dot might briefly flash.
+      // sidebar is still hydrating and the badge might briefly flash.
       await expect(async () => {
-        await expect(generalLink1bAfter.locator('.bg-warning')).not.toBeVisible();
+        await expect(generalLink1bAfter.getByTestId('room-notification-badge')).not.toBeVisible();
       }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });
     } finally {
       await context1b.close();
@@ -1427,8 +1432,8 @@ test.describe('Page Title Notification Count', () => {
   });
 });
 
-test.describe('Clickable Notification Dots', () => {
-  test('clicking notification dot on room name navigates to message and dismisses', async ({
+test.describe('Clickable Notification Badges', () => {
+  test('clicking notification badge on room name navigates to message and dismisses', async ({
     page,
     chatPage,
     browser,
@@ -1459,29 +1464,30 @@ test.describe('Clickable Notification Dots', () => {
       await page.goto(routes.space());
       await chatPage.enterRoom('announcements');
 
-      // Verify notification dot appears on general room
-      const roomNotificationDot = page
+      // Verify notification badge appears on general room.
+      const roomNotificationBadge = page
         .locator('.room-list a', { hasText: 'general' })
-        .locator('.bg-warning');
-      await expect(roomNotificationDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+        .getByTestId('room-notification-badge');
+      await expect(roomNotificationBadge).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(roomNotificationBadge).toHaveText('1');
 
-      // Click the notification dot (not the room link itself)
-      await roomNotificationDot.click();
+      // Click the notification badge (not the room link itself).
+      await roomNotificationBadge.click();
 
       // Verify navigated to general room. Highlight intent is delivered via
       // PendingHighlightStore now (not ?highlight= URL param), so the URL is clean.
       await page.waitForURL(routes.patterns.anyRoom);
       await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
 
-      // Verify notification dot is gone (notification was dismissed)
-      await expect(roomNotificationDot).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+      // Verify notification badge is gone (notification was dismissed).
+      await expect(roomNotificationBadge).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
     } finally {
       await context2.close();
     }
   });
 
 
-  test('clicking notification dot for room reply navigates to room with highlight', async ({
+  test('clicking notification badge for room reply navigates to room with highlight', async ({
     page,
     chatPage,
     roomPage,
@@ -1518,22 +1524,23 @@ test.describe('Clickable Notification Dots', () => {
       await expect(page2.getByTestId('reply-indicator')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
       await roomPage2.sendMessage(`Room reply ${Date.now()}`);
 
-      // User A: Verify orange dot on general room
-      const roomNotificationDot = page
+      // User A: Verify notification badge on general room.
+      const roomNotificationBadge = page
         .locator('.room-list a', { hasText: 'general' })
-        .locator('.bg-warning');
-      await expect(roomNotificationDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+        .getByTestId('room-notification-badge');
+      await expect(roomNotificationBadge).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(roomNotificationBadge).toHaveText('1');
 
-      // Click the notification dot
-      await roomNotificationDot.click();
+      // Click the notification badge.
+      await roomNotificationBadge.click();
 
       // Verify navigated to general room (not a thread URL). Highlight intent
       // is delivered via PendingHighlightStore now, so the URL is clean.
       await page.waitForURL(routes.patterns.anyRoom);
       await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
 
-      // Verify notification dot is gone
-      await expect(roomNotificationDot).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+      // Verify notification badge is gone.
+      await expect(roomNotificationBadge).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
     } finally {
       await context2.close();
     }
@@ -1587,16 +1594,18 @@ test.describe('Room Reply Notifications', () => {
       // User A: Bell indicator should appear
       await notificationsPage.expectBellIndicatorVisible();
 
-      // Verify orange dot on general room in room list
+      // Verify notification badge on general room in room list.
       const generalLink = chatPage.roomList.locator('a', { hasText: '# general' });
-      const roomNotificationDot = generalLink.locator('.bg-warning');
-      await expect(roomNotificationDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      const roomNotificationBadge = generalLink.getByTestId('room-notification-badge');
+      await expect(roomNotificationBadge).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(roomNotificationBadge).toHaveText('1');
 
-      // Verify orange dot on space icon
+      // Verify notification badge on space icon.
       const serverGutter = page.locator('.server-gutter');
       const spaceButton = serverGutter.locator('[data-testid="server-icon"]').first();
-      const spaceNotificationDot = spaceButton.locator('..').locator('.bg-warning');
-      await expect(spaceNotificationDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      const spaceNotificationBadge = spaceButton.locator('..').getByTestId('server-notification-badge');
+      await expect(spaceNotificationBadge).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(spaceNotificationBadge).toHaveText('1');
 
       // Verify notification page shows reply notification with correct content
       await notificationsPage.goto();

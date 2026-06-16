@@ -613,31 +613,32 @@ type ComplexityRoot struct {
 	}
 
 	Room struct {
-		Archived                     func(childComplexity int) int
-		AvailableRoomPermissions     func(childComplexity int) int
-		CallParticipants             func(childComplexity int) int
-		Description                  func(childComplexity int) int
-		Event                        func(childComplexity int, eventID string) int
-		Events                       func(childComplexity int, limit *int32, before *string, after *string) int
-		EventsAround                 func(childComplexity int, eventID string, limit *int32) int
-		GroupID                      func(childComplexity int) int
-		HasUnread                    func(childComplexity int) int
-		Id                           func(childComplexity int) int
-		Members                      func(childComplexity int, limit *int32, offset *int32) int
-		Name                         func(childComplexity int) int
-		RoomPermissionOverrides      func(childComplexity int) int
-		Type                         func(childComplexity int) int
-		ViewerCanBanRoomMembers      func(childComplexity int) int
-		ViewerCanEchoMessage         func(childComplexity int) int
-		ViewerCanJoinRoom            func(childComplexity int) int
-		ViewerCanListRoom            func(childComplexity int) int
-		ViewerCanManageOthersMessage func(childComplexity int) int
-		ViewerCanManageRoom          func(childComplexity int) int
-		ViewerCanPostInThread        func(childComplexity int) int
-		ViewerCanPostMessage         func(childComplexity int) int
-		ViewerCanReact               func(childComplexity int) int
-		ViewerNotificationPreference func(childComplexity int) int
-		VoiceCallToken               func(childComplexity int) int
+		Archived                      func(childComplexity int) int
+		AvailableRoomPermissions      func(childComplexity int) int
+		CallParticipants              func(childComplexity int) int
+		Description                   func(childComplexity int) int
+		Event                         func(childComplexity int, eventID string) int
+		Events                        func(childComplexity int, limit *int32, before *string, after *string) int
+		EventsAround                  func(childComplexity int, eventID string, limit *int32) int
+		GroupID                       func(childComplexity int) int
+		HasUnread                     func(childComplexity int) int
+		Id                            func(childComplexity int) int
+		Members                       func(childComplexity int, limit *int32, offset *int32) int
+		Name                          func(childComplexity int) int
+		RoomPermissionOverrides       func(childComplexity int) int
+		Type                          func(childComplexity int) int
+		ViewerCanBanRoomMembers       func(childComplexity int) int
+		ViewerCanEchoMessage          func(childComplexity int) int
+		ViewerCanJoinRoom             func(childComplexity int) int
+		ViewerCanListRoom             func(childComplexity int) int
+		ViewerCanManageOthersMessage  func(childComplexity int) int
+		ViewerCanManageRoom           func(childComplexity int) int
+		ViewerCanPostInThread         func(childComplexity int) int
+		ViewerCanPostMessage          func(childComplexity int) int
+		ViewerCanReact                func(childComplexity int) int
+		ViewerNotificationPreference  func(childComplexity int) int
+		ViewerUnreadNotificationCount func(childComplexity int) int
+		VoiceCallToken                func(childComplexity int) int
 	}
 
 	RoomArchivedEvent struct {
@@ -755,40 +756,41 @@ type ComplexityRoot struct {
 	}
 
 	Server struct {
-		AssetCount                   func(childComplexity int) int
-		AuthProviders                func(childComplexity int) int
-		AvailablePermissions         func(childComplexity int) int
-		DirectRegistrationEnabled    func(childComplexity int) int
-		LivekitURL                   func(childComplexity int) int
-		MaxUploadSize                func(childComplexity int) int
-		MaxVideoUploadSize           func(childComplexity int) int
-		Member                       func(childComplexity int, userID string) int
-		MemberCount                  func(childComplexity int) int
-		Members                      func(childComplexity int, search *string, limit *int32, offset *int32) int
-		MessageEditWindowSeconds     func(childComplexity int) int
-		Profile                      func(childComplexity int) int
-		PushNotificationsEnabled     func(childComplexity int) int
-		Role                         func(childComplexity int, name string) int
-		RoleUsers                    func(childComplexity int, roleName string) int
-		Roles                        func(childComplexity int) int
-		RoomCount                    func(childComplexity int) int
-		RoomGroups                   func(childComplexity int) int
-		Rooms                        func(childComplexity int, typeArg *model.RoomType) int
-		UserEffectiveDenials         func(childComplexity int, userID string) int
-		UserEffectivePermissions     func(childComplexity int, userID string) int
-		VapidPublicKey               func(childComplexity int) int
-		Version                      func(childComplexity int) int
-		VideoProcessingEnabled       func(childComplexity int) int
-		ViewerCanAssignRoles         func(childComplexity int) int
-		ViewerCanCreateRoom          func(childComplexity int) int
-		ViewerCanManageRoles         func(childComplexity int) int
-		ViewerCanManageRooms         func(childComplexity int) int
-		ViewerCanManageServer        func(childComplexity int) int
-		ViewerCanManageUser          func(childComplexity int, userID string) int
-		ViewerHasAnyAdminPermission  func(childComplexity int) int
-		ViewerHasUnreadRooms         func(childComplexity int) int
-		ViewerNotificationPreference func(childComplexity int) int
-		ViewerPermissions            func(childComplexity int) int
+		AssetCount                    func(childComplexity int) int
+		AuthProviders                 func(childComplexity int) int
+		AvailablePermissions          func(childComplexity int) int
+		DirectRegistrationEnabled     func(childComplexity int) int
+		LivekitURL                    func(childComplexity int) int
+		MaxUploadSize                 func(childComplexity int) int
+		MaxVideoUploadSize            func(childComplexity int) int
+		Member                        func(childComplexity int, userID string) int
+		MemberCount                   func(childComplexity int) int
+		Members                       func(childComplexity int, search *string, limit *int32, offset *int32) int
+		MessageEditWindowSeconds      func(childComplexity int) int
+		Profile                       func(childComplexity int) int
+		PushNotificationsEnabled      func(childComplexity int) int
+		Role                          func(childComplexity int, name string) int
+		RoleUsers                     func(childComplexity int, roleName string) int
+		Roles                         func(childComplexity int) int
+		RoomCount                     func(childComplexity int) int
+		RoomGroups                    func(childComplexity int) int
+		Rooms                         func(childComplexity int, typeArg *model.RoomType) int
+		UserEffectiveDenials          func(childComplexity int, userID string) int
+		UserEffectivePermissions      func(childComplexity int, userID string) int
+		VapidPublicKey                func(childComplexity int) int
+		Version                       func(childComplexity int) int
+		VideoProcessingEnabled        func(childComplexity int) int
+		ViewerCanAssignRoles          func(childComplexity int) int
+		ViewerCanCreateRoom           func(childComplexity int) int
+		ViewerCanManageRoles          func(childComplexity int) int
+		ViewerCanManageRooms          func(childComplexity int) int
+		ViewerCanManageServer         func(childComplexity int) int
+		ViewerCanManageUser           func(childComplexity int, userID string) int
+		ViewerHasAnyAdminPermission   func(childComplexity int) int
+		ViewerHasUnreadRooms          func(childComplexity int) int
+		ViewerNotificationPreference  func(childComplexity int) int
+		ViewerPermissions             func(childComplexity int) int
+		ViewerUnreadNotificationCount func(childComplexity int) int
 	}
 
 	ServerMemberDeletedEvent struct {
@@ -1210,6 +1212,7 @@ type RoomResolver interface {
 
 	Members(ctx context.Context, obj *corev1.Room, limit *int32, offset *int32) (*model.RoomMembersConnection, error)
 	HasUnread(ctx context.Context, obj *corev1.Room) (bool, error)
+	ViewerUnreadNotificationCount(ctx context.Context, obj *corev1.Room) (int32, error)
 	ViewerCanPostMessage(ctx context.Context, obj *corev1.Room) (bool, error)
 	ViewerCanPostInThread(ctx context.Context, obj *corev1.Room) (bool, error)
 	ViewerCanReact(ctx context.Context, obj *corev1.Room) (bool, error)
@@ -1274,6 +1277,7 @@ type ServerResolver interface {
 	ViewerCanCreateRoom(ctx context.Context, obj *model.Server) (bool, error)
 	ViewerCanManageRooms(ctx context.Context, obj *model.Server) (bool, error)
 	ViewerHasUnreadRooms(ctx context.Context, obj *model.Server) (bool, error)
+	ViewerUnreadNotificationCount(ctx context.Context, obj *model.Server) (int32, error)
 	ViewerNotificationPreference(ctx context.Context, obj *model.Server) (*model.ViewerNotificationPreference, error)
 	Member(ctx context.Context, obj *model.Server, userID string) (*corev1.User, error)
 	Members(ctx context.Context, obj *model.Server, search *string, limit *int32, offset *int32) (*model.ServerMembersConnection, error)
@@ -4148,6 +4152,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Room.ViewerNotificationPreference(childComplexity), true
+	case "Room.viewerUnreadNotificationCount":
+		if e.ComplexityRoot.Room.ViewerUnreadNotificationCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Room.ViewerUnreadNotificationCount(childComplexity), true
 	case "Room.voiceCallToken":
 		if e.ComplexityRoot.Room.VoiceCallToken == nil {
 			break
@@ -4777,6 +4787,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Server.ViewerPermissions(childComplexity), true
+	case "Server.viewerUnreadNotificationCount":
+		if e.ComplexityRoot.Server.ViewerUnreadNotificationCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Server.ViewerUnreadNotificationCount(childComplexity), true
 
 	case "ServerMemberDeletedEvent.userId":
 		if e.ComplexityRoot.ServerMemberDeletedEvent.UserId == nil {
@@ -6269,6 +6285,8 @@ func (ec *executionContext) childFields_Room(ctx context.Context, field graphql.
 		return ec.fieldContext_Room_members(ctx, field)
 	case "hasUnread":
 		return ec.fieldContext_Room_hasUnread(ctx, field)
+	case "viewerUnreadNotificationCount":
+		return ec.fieldContext_Room_viewerUnreadNotificationCount(ctx, field)
 	case "viewerCanPostMessage":
 		return ec.fieldContext_Room_viewerCanPostMessage(ctx, field)
 	case "viewerCanPostInThread":
@@ -6481,6 +6499,8 @@ func (ec *executionContext) childFields_Server(ctx context.Context, field graphq
 		return ec.fieldContext_Server_viewerCanManageRooms(ctx, field)
 	case "viewerHasUnreadRooms":
 		return ec.fieldContext_Server_viewerHasUnreadRooms(ctx, field)
+	case "viewerUnreadNotificationCount":
+		return ec.fieldContext_Server_viewerUnreadNotificationCount(ctx, field)
 	case "viewerNotificationPreference":
 		return ec.fieldContext_Server_viewerNotificationPreference(ctx, field)
 	case "member":
@@ -19334,6 +19354,29 @@ func (ec *executionContext) fieldContext_Room_hasUnread(_ context.Context, field
 	return graphql.NewScalarFieldContext("Room", field, true, true, errors.New("field of type Boolean does not have child fields"))
 }
 
+func (ec *executionContext) _Room_viewerUnreadNotificationCount(ctx context.Context, field graphql.CollectedField, obj *corev1.Room) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Room_viewerUnreadNotificationCount(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Room().ViewerUnreadNotificationCount(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
+			return ec.marshalNInt2int32(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Room_viewerUnreadNotificationCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Room", field, true, true, errors.New("field of type Int does not have child fields"))
+}
+
 func (ec *executionContext) _Room_viewerCanPostMessage(ctx context.Context, field graphql.CollectedField, obj *corev1.Room) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -21912,6 +21955,29 @@ func (ec *executionContext) _Server_viewerHasUnreadRooms(ctx context.Context, fi
 }
 func (ec *executionContext) fieldContext_Server_viewerHasUnreadRooms(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Server", field, true, true, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _Server_viewerUnreadNotificationCount(ctx context.Context, field graphql.CollectedField, obj *model.Server) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Server_viewerUnreadNotificationCount(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Server().ViewerUnreadNotificationCount(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
+			return ec.marshalNInt2int32(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Server_viewerUnreadNotificationCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Server", field, true, true, errors.New("field of type Int does not have child fields"))
 }
 
 func (ec *executionContext) _Server_viewerNotificationPreference(ctx context.Context, field graphql.CollectedField, obj *model.Server) (ret graphql.Marshaler) {
@@ -36243,6 +36309,42 @@ func (ec *executionContext) _Room(ctx context.Context, sel ast.SelectionSet, obj
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "viewerUnreadNotificationCount":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Room_viewerUnreadNotificationCount(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "viewerCanPostMessage":
 			field := field
 
@@ -38769,6 +38871,42 @@ func (ec *executionContext) _Server(ctx context.Context, sel ast.SelectionSet, o
 					}
 				}()
 				res = ec._Server_viewerHasUnreadRooms(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "viewerUnreadNotificationCount":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Server_viewerUnreadNotificationCount(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}

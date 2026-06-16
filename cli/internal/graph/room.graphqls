@@ -33,6 +33,11 @@ type Room {
   Returns false if user is not a member or room has no new messages.
   """
   hasUnread: Boolean! @goField(forceResolver: true)
+  """
+  Number of pending notifications for the current user in this room.
+  Returns 0 if the user is not a member or has no pending notifications.
+  """
+  viewerUnreadNotificationCount: Int! @goField(forceResolver: true)
   "Whether the current user can post new root messages in this room."
   viewerCanPostMessage: Boolean! @goField(forceResolver: true)
   "Whether the current user can post messages in threads in this room."

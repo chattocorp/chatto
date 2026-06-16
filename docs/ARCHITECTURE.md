@@ -142,10 +142,10 @@ The schema is modular: each feature area lives in its own `.graphqls` file and e
 
 | Query                                | Description                                                                    |
 | ------------------------------------ | ------------------------------------------------------------------------------ |
-| `server`                             | Information about this Chatto server (name, branding, member counts). Public. |
+| `server`                             | Information about this Chatto server (name, branding, member counts, viewer unread notification count). Public. |
 | `viewer`                             | Current authenticated user's identity, permissions, follows, notifications.    |
 
-Note: there is no top-level `me` query — viewer-scoped state hangs off the `viewer` field (which is extended by several feature files, e.g. `threads.graphqls` adds `viewer.followedThreads`, `notifications.graphqls` adds `viewer.notifications` / `viewer.hasNotifications`).
+Note: there is no top-level `me` query — viewer-scoped state hangs off the `viewer` field (which is extended by several feature files, e.g. `threads.graphqls` adds `viewer.followedThreads`, `notifications.graphqls` adds `viewer.notifications` / `viewer.hasNotifications`). Count-only notification badges use `Server.viewerUnreadNotificationCount` and `Room.viewerUnreadNotificationCount`.
 
 **Users** ([`query.graphqls`](../cli/internal/graph/query.graphqls))
 
@@ -159,7 +159,7 @@ Note: there is no top-level `me` query — viewer-scoped state hangs off the `vi
 
 | Query                              | Description                                                                            |
 | ---------------------------------- | -------------------------------------------------------------------------------------- |
-| `room(roomId)`                     | Get a room by ID. Room-scoped reads (`members`, `events`, `event(eventId)`, `eventsAround`, `voiceCallToken`, `viewerCan*` flags) live as fields on the returned `Room`; `members` is offset-paginated. `events` is the visible room timeline. Folded durable facts such as reactions are recovered on reconnect through `Subscription.myEvents(after:)`, not through room timeline pagination. |
+| `room(roomId)`                     | Get a room by ID. Room-scoped reads (`members`, `events`, `event(eventId)`, `eventsAround`, `voiceCallToken`, `viewerCan*` flags, `viewerUnreadNotificationCount`) live as fields on the returned `Room`; `members` is offset-paginated. `events` is the visible room timeline. Folded durable facts such as reactions are recovered on reconnect through `Subscription.myEvents(after:)`, not through room timeline pagination. |
 
 **RBAC tooling** ([`rbac.graphqls`](../cli/internal/graph/rbac.graphqls), [`role_permissions.graphqls`](../cli/internal/graph/role_permissions.graphqls), [`role_permission_matrix.graphqls`](../cli/internal/graph/role_permission_matrix.graphqls), [`user_permissions.graphqls`](../cli/internal/graph/user_permissions.graphqls), [`permission_inspector.graphqls`](../cli/internal/graph/permission_inspector.graphqls))
 
@@ -822,7 +822,7 @@ Messages are persisted as durable `EVT` facts. Public timeline facts (`MessagePo
 - Mention handles are resolved in the posting room; direct user handles only notify current room members, and invalid/non-member handles are silently ignored.
 - `MessagePostedEvent.mentioned_user_ids` contains resolved user IDs
 - Mention resolution is post-time only; later `MessageEditedEvent` facts update body content but do not add, remove, dismiss, or re-send mention notifications
-- Pending mention state is a notification record in `RUNTIME_STATE` (`notification.{userId}.{notificationId}`); sidebar orange dots derive from pending notifications, not a separate mention flag.
+- Pending mention state is a notification record in `RUNTIME_STATE` (`notification.{userId}.{notificationId}`); sidebar notification count badges derive from pending notifications, not a separate mention flag.
 - Live notification published to `live.sync.user.{userId}.mentioned` for toast display
 - Mention notifications are dismissed when the user views the relevant room or thread, or explicitly dismisses them from the notification center.
 - Self-mentions are filtered out (no notification to message author)

@@ -79,8 +79,8 @@ test.describe('Cross-instance dots', () => {
 		const remoteSpaceWrapper = page
 			.locator('.server-gutter .server-icon-wrapper')
 			.filter({ has: page.locator(`a[data-testid="server-icon"][href*="/chat/${remoteHostSegment}"]`) });
-		const remoteSpaceDot = remoteSpaceWrapper.locator('.bg-warning');
-		await expect(remoteSpaceDot).not.toBeVisible();
+		const remoteSpaceBadge = remoteSpaceWrapper.getByTestId('server-notification-badge');
+		await expect(remoteSpaceBadge).not.toBeVisible();
 
 		// Mentioner posts an @mention of the viewer in the remote space. No reload.
 		await postMessageOnRemote(
@@ -91,14 +91,15 @@ test.describe('Cross-instance dots', () => {
 		);
 
 		// The remote space icon should light up in real time, no reload.
-		await expect(remoteSpaceDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+		await expect(remoteSpaceBadge).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+		await expect(remoteSpaceBadge).toHaveText('1');
 	});
 
 	// "DM on a remote instance lights up the DM icon" was removed with the
 	// cross-instance DM icon (#330 phase 3). Cross-server DM aggregation will
 	// be re-tested when that view is reintroduced.
 
-	test('mention on a thread message: clicking the space dot opens the thread', async ({
+	test('mention on a thread message: clicking the space badge opens the thread', async ({
 		page,
 		chatPage,
 		roomPage,
@@ -116,7 +117,7 @@ test.describe('Cross-instance dots', () => {
 		const rootBody = `Thread root ${Date.now()}`;
 		const rootEventId = await postMessageViaAPI(page, generalRoomId, rootBody);
 
-		// Move A away from the room so the notification dot can show on the space.
+		// Move A away from the room so the notification badge can show on the space.
 		await chatPage.enterRoom('announcements');
 
 		// User B joins, then posts a thread reply that @-mentions User A.
@@ -132,14 +133,17 @@ test.describe('Cross-instance dots', () => {
 				rootEventId
 			);
 
-			// User A: orange dot appears on the space icon.
+			// User A: notification badge appears on the space icon.
 			const spaceIcon = page.locator('.server-gutter [data-testid="server-icon"]').first();
-			const spaceDot = spaceIcon.locator('..').locator('.bg-warning');
-			await expect(spaceDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+			const spaceBadge = spaceIcon.locator('..').getByTestId('server-notification-badge');
+			await expect(spaceBadge).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+			// The reply both mentions User A and replies to their message, so the
+			// count badge reflects both pending notification records.
+			await expect(spaceBadge).toHaveText('2');
 
-			// Click the dot. The mention is on a thread message, so clicking should
+			// Click the badge. The mention is on a thread message, so clicking should
 			// land in #general with the thread pane open and the reply highlighted.
-			await spaceDot.click();
+			await spaceBadge.click();
 
 			// Should land on the thread URL (/chat/-/{spaceId}/{roomId}/{threadId}).
 			await page.waitForURL(routes.patterns.anyThread);

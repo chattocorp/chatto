@@ -84,6 +84,13 @@ func (r *Resolver) getReactions(ctx context.Context, eventID string) ([]core.Rea
 	return r.core.GetReactions(ctx, eventID)
 }
 
+func (r *Resolver) getNotificationCounts(ctx context.Context, userID string) (core.NotificationCounts, error) {
+	if loaders := dataloader.ForContext(ctx); loaders != nil {
+		return loaders.GetNotificationCounts(ctx, userID)
+	}
+	return r.core.GetNotificationCounts(ctx, userID)
+}
+
 // resolveReactions returns Core reaction summaries for the GraphQL ReactionSummary type.
 // Derived fields such as count, users(first:), and hasReacted are resolved on
 // ReactionSummary itself so the API shape can stay preview-oriented without a wrapper model.
