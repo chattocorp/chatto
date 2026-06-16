@@ -126,11 +126,7 @@ async function joinRoomViaAPI(page: Page, roomId: string): Promise<void> {
   expect((await resp.json()).data?.joinRoom?.id).toBe(roomId);
 }
 
-async function denyPermission(
-  page: Page,
-  role: string,
-  permission: string
-): Promise<void> {
+async function denyPermission(page: Page, role: string, permission: string): Promise<void> {
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
@@ -142,11 +138,7 @@ async function denyPermission(
   expect((await resp.json()).data?.denyPermission).toBe(true);
 }
 
-async function revokePermission(
-  page: Page,
-  role: string,
-  permission: string
-): Promise<void> {
+async function revokePermission(page: Page, role: string, permission: string): Promise<void> {
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
@@ -322,13 +314,10 @@ test.describe('Room-Level Permission Overrides', () => {
       await expect(chatInput).toHaveAttribute('contenteditable', 'true');
     });
 
-    test('room grant overrides server denial for the same role', async ({
+    test('server denial beats room grant for the same role', async ({
       page,
       roomPage: _roomPage
     }) => {
-      // Under the unified hierarchy-wins resolver, a room-level decision
-      // takes precedence over a server-level decision for the same role.
-      // This is the documented "room overrides server" semantic.
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
       const roomId = await createRoomViaAPI(page);
@@ -337,8 +326,8 @@ test.describe('Room-Level Permission Overrides', () => {
       // Deny message.post at server level for everyone
       await denyPermission(page, 'everyone', 'message.post');
 
-      // Grant at room level for everyone — should override the server deny
-      // because the room-level decision wins for the same role.
+      // Grant at room level for everyone. Deny-wins means the server deny
+      // still blocks the permission for non-owner users.
       await grantRoomPermission(page, roomId, 'everyone', 'message.post');
 
       // Create second user, join space and room
@@ -351,8 +340,7 @@ test.describe('Room-Level Permission Overrides', () => {
       // Navigate to the room
       await page.goto(routes.room(roomId));
 
-      // Chat input should be enabled — room grant beats server deny.
-      await expect(page.getByTestId('message-input')).toHaveAttribute('contenteditable', 'true');
+      await expect(page.getByTestId('message-input')).toHaveAttribute('contenteditable', 'false');
     });
   });
 
@@ -518,12 +506,9 @@ test.describe('Room-Level Permission Overrides', () => {
       expect(result).toBeNull();
     });
 
-    test('room grant overrides server denial for the same role (backend enforcement)', async ({
+    test('server denial beats room grant for the same role (backend enforcement)', async ({
       page
     }) => {
-      // Backend-side proof of the unified hierarchy-wins semantic: even
-      // when the resolver receives a server-level deny on `everyone`, a
-      // room-level grant on the same role takes precedence.
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
       const roomId = await createRoomViaAPI(page);
@@ -535,7 +520,8 @@ test.describe('Room-Level Permission Overrides', () => {
       // Deny message.react at server level for everyone
       await denyPermission(page, 'everyone', 'message.react');
 
-      // Grant message.react at room level — overrides the server deny.
+      // Grant message.react at room level. Deny-wins means the server deny
+      // still blocks the permission for non-owner users.
       await grantRoomPermission(page, roomId, 'everyone', 'message.react');
 
       // Create second user, join space and room
@@ -545,15 +531,14 @@ test.describe('Room-Level Permission Overrides', () => {
       await joinSpaceViaAPI(page);
       await joinRoomViaAPI(page, roomId);
 
-      // Reaction should succeed — room grant wins.
       const success = await addReactionViaAPI(page, roomId, adminMsg!.id, 'thumbsup');
-      expect(success).toBe(true);
+      expect(success).toBe(false);
     });
   });
 });
 
 // ============================================================================
-// Role Hierarchy Tests
+// Permission resolution tests
 // ============================================================================
 
 async function createSpaceRole(
@@ -580,11 +565,7 @@ async function createSpaceRole(
   }
 }
 
-async function assignSpaceRole(
-  page: Page,
-  userId: string,
-  roleName: string
-): Promise<void> {
+async function assignSpaceRole(page: Page, userId: string, roleName: string): Promise<void> {
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
@@ -611,7 +592,7 @@ async function reorderSpaceRoles(page: Page, roleNames: string[]): Promise<void>
   expect(resp.ok()).toBeTruthy();
 }
 
-test.describe('Role Hierarchy Permission Resolution', () => {
+test.describe('Permission-only Resolution', () => {
   test.describe('#general room - default posting', () => {
     test('all space members can post to #general by default', async ({ page, roomPage }) => {
       // Owner creates space (auto-creates #general and #announcements rooms)
@@ -636,7 +617,7 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       await expect(page.getByText('Hello from a regular member!')).toBeVisible();
     });
 
-    test('muted members cannot post to #general (higher-ranked role denial wins)', async ({
+    test('muted members cannot post to #general (role denial wins)', async ({
       page,
       roomPage: _roomPage
     }) => {
@@ -650,8 +631,8 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       // Create "muted" role
       await createSpaceRole(page, 'muted', 'Muted', 'Cannot post messages');
 
-      // Reorder to put "muted" first (position 1), giving it higher rank than "everyone"
-      // This is important: role hierarchy means lower position = higher rank = checked first
+      // Reorder remains display metadata; the permission denial itself is what
+      // blocks posting under the deny-wins resolver.
       await reorderSpaceRoles(page, ['muted']);
 
       // Deny message.post for the muted role at room level
@@ -705,7 +686,7 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       await expect(page.getByText('Important announcement from owner!')).toBeVisible();
     });
 
-    test('admin can post in announcements room', async ({ page, roomPage }) => {
+    test('admin cannot post root messages in announcements room', async ({ page }) => {
       // Owner creates space - this auto-creates #announcements with restricted permissions
       const _owner = await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page, `Admin Ann Test ${Date.now()}`);
@@ -721,15 +702,12 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       await joinSpaceViaAPI(page);
       await joinRoomViaAPI(page, announcementsRoomId);
 
-      // Admin should be able to post
       await page.goto(routes.room(announcementsRoomId));
       const chatInput = page.getByTestId('message-input');
-      await expect(chatInput).toHaveAttribute('contenteditable', 'true');
-      await roomPage.sendMessage('Announcement from admin!');
-      await expect(page.getByText('Announcement from admin!')).toBeVisible();
+      await expect(chatInput).toHaveAttribute('contenteditable', 'false');
     });
 
-    test('moderator can post in announcements room', async ({ page, roomPage }) => {
+    test('moderator cannot post root messages in announcements room', async ({ page }) => {
       // Owner creates space - this auto-creates #announcements with restricted permissions
       const _owner = await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page, `Mod Ann Test ${Date.now()}`);
@@ -745,12 +723,9 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       await joinSpaceViaAPI(page);
       await joinRoomViaAPI(page, announcementsRoomId);
 
-      // Moderator should be able to post
       await page.goto(routes.room(announcementsRoomId));
       const chatInput = page.getByTestId('message-input');
-      await expect(chatInput).toHaveAttribute('contenteditable', 'true');
-      await roomPage.sendMessage('Announcement from moderator!');
-      await expect(page.getByText('Announcement from moderator!')).toBeVisible();
+      await expect(chatInput).toHaveAttribute('contenteditable', 'false');
     });
   });
 
@@ -761,11 +736,7 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       const space = await createSpaceViaAPI(page);
       const roomId = await createRoomViaAPI(page);
       await joinRoomViaAPI(page, roomId);
-      const rootMsg = await postMessageViaAPI(
-        page,
-                roomId,
-        'Root for post-in-thread test'
-      );
+      const rootMsg = await postMessageViaAPI(page, roomId, 'Root for post-in-thread test');
       expect(rootMsg).not.toBeNull();
 
       // Deny message.post-in-thread at room level for everyone
@@ -795,11 +766,7 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       const space = await createSpaceViaAPI(page);
       const roomId = await createRoomViaAPI(page);
       await joinRoomViaAPI(page, roomId);
-      const rootMsg = await postMessageViaAPI(
-        page,
-                roomId,
-        'Root for post-in-thread API test'
-      );
+      const rootMsg = await postMessageViaAPI(page, roomId, 'Root for post-in-thread API test');
       expect(rootMsg).not.toBeNull();
 
       // Deny message.post-in-thread at room level for everyone
@@ -813,12 +780,7 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       await joinRoomViaAPI(page, roomId);
 
       // Posting in thread should be denied (no start_thread/post_in_thread split — all blocked)
-      const replied = await replyToMessageViaAPI(
-        page,
-        roomId,
-        rootMsg!.id,
-        'This should fail'
-      );
+      const replied = await replyToMessageViaAPI(page, roomId, rootMsg!.id, 'This should fail');
       expect(replied).toBeNull();
     });
 

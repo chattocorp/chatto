@@ -211,9 +211,7 @@ export class SpaceRolesPage {
    * decorates each cell `<td>` with `data-role` and `data-permission`.
    */
   matrixCellFor(roleName: string, permission: string): Locator {
-    return this.page.locator(
-      `td[data-role="${roleName}"][data-permission="${permission}"] button`
-    );
+    return this.page.locator(`td[data-role="${roleName}"][data-permission="${permission}"] button`);
   }
 
   /** Internal helper — uses the role tracked by `gotoEditRole`. */
@@ -246,6 +244,11 @@ export class SpaceRolesPage {
   async expectPermissionEditable(permission: string): Promise<void> {
     await this.ensureOnMatrix();
     await expect(this.currentCell(permission)).toBeEnabled();
+  }
+
+  async expectPermissionReadOnly(permission: string): Promise<void> {
+    await this.ensureOnMatrix();
+    await expect(this.currentCell(permission)).toBeDisabled();
   }
 
   /**
@@ -388,9 +391,14 @@ export class SpaceRolesPage {
   /** Assert the matrix cell for the current role × permission is set to allow. */
   async expectPermissionGranted(permission: string): Promise<void> {
     await this.ensureOnMatrix();
+    await expect(this.currentCell(permission)).toHaveAttribute('aria-label', /Override allow/);
+  }
+
+  async expectOwnerPermissionVirtuallyGranted(permission: string): Promise<void> {
+    await this.ensureOnMatrix();
     await expect(this.currentCell(permission)).toHaveAttribute(
       'aria-label',
-      /Override allow/
+      /Owner is always granted/
     );
   }
 
@@ -518,10 +526,7 @@ export class SpaceRolesPage {
   /** Assert the matrix cell for the current role × permission is set to deny. */
   async expectPermissionDenied(permission: string): Promise<void> {
     await this.ensureOnMatrix();
-    await expect(this.currentCell(permission)).toHaveAttribute(
-      'aria-label',
-      /Override deny/
-    );
+    await expect(this.currentCell(permission)).toHaveAttribute('aria-label', /Override deny/);
   }
 
   /**
