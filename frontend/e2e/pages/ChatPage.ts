@@ -1,8 +1,7 @@
 import { expect, request, type APIRequestContext, type Locator, type Page } from '@playwright/test';
 import * as routes from '../routes';
 import { graphqlQuery } from '../fixtures/graphqlHelpers';
-import { csrfHeaders } from '../fixtures/csrf';
-import { loginAsAdmin } from '../fixtures/testUser';
+import { loginAsAdmin, logoutCurrentUser } from '../fixtures/testUser';
 import { RoomPage } from './RoomPage';
 
 const E2E_ADMIN_LOGIN = 'e2eadmin';
@@ -187,13 +186,7 @@ export class ChatPage {
    * state.
    */
   async openCreateRoomModal(): Promise<void> {
-    const logoutResponse = await this.page.request.post('/auth/logout', {
-      headers: await csrfHeaders(this.page)
-    });
-    expect(logoutResponse.ok()).toBeTruthy();
-    // Unload the currently mounted app before re-authenticating as admin; the
-    // previous session can otherwise issue a late redirect during navigation.
-    await this.page.goto('about:blank');
+    await logoutCurrentUser(this.page);
     await loginAsAdmin(this.page);
     await this.page.goto(routes.serverAdminRooms);
     await expect(this.page).toHaveURL(/\/server-admin\/rooms/);
