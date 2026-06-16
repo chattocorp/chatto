@@ -1,4 +1,7 @@
 import { onMount } from 'svelte';
+import type { EventBusCatchUpReason } from '$lib/eventBus.svelte';
+import { getActiveServer } from '$lib/state/activeServer.svelte';
+import { eventBusManager } from '$lib/state/server/eventBus.svelte';
 import { useReconnectCallback } from './useReconnectCallback.svelte';
 
 export type MayHaveMissedMessagesReason =
@@ -6,6 +9,9 @@ export type MayHaveMissedMessagesReason =
   | 'pageshow'
   | 'online'
   | 'reconnect'
+  | 'event-bus-subscription-ended'
+  | 'event-bus-ws-reconnected'
+  | 'event-bus-heartbeat-stalled'
   | 'manual-shortcut';
 
 const DEDUPE_MS = 1_000;
@@ -31,6 +37,17 @@ export function useMayHaveMissedMessagesCallback(
       tagName === 'select' ||
       target.isContentEditable
     );
+  }
+
+  function reasonForEventBusCatchUp(reason: EventBusCatchUpReason): MayHaveMissedMessagesReason {
+    switch (reason) {
+      case 'subscription-ended':
+        return 'event-bus-subscription-ended';
+      case 'ws-reconnected':
+        return 'event-bus-ws-reconnected';
+      case 'heartbeat-stalled':
+        return 'event-bus-heartbeat-stalled';
+    }
   }
 
   async function run(reason: MayHaveMissedMessagesReason): Promise<void> {
@@ -68,6 +85,22 @@ export function useMayHaveMissedMessagesCallback(
   }
 
   useReconnectCallback(() => trigger('reconnect'));
+
+  $effect(() => {
+    const serverId = getActiveServer();
+    if (!serverId) return;
+
+    const bus = eventBusManager.getBus(serverId);
+    if (!bus) return;
+
+    const catchUpHandler = (reason: EventBusCatchUpReason) => {
+      trigger(reasonForEventBusCatchUp(reason));
+    };
+    bus.catchUpHandlers.add(catchUpHandler);
+    return () => {
+      bus.catchUpHandlers.delete(catchUpHandler);
+    };
+  });
 
   onMount(() => {
     const onVisibilityChange = () => {
