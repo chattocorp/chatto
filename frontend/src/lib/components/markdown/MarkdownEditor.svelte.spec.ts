@@ -4,7 +4,9 @@ import { tick } from 'svelte';
 import MarkdownEditor, { type MarkdownEditorApi } from './MarkdownEditor.svelte';
 
 async function findEditor(container: Element): Promise<HTMLElement> {
-  await vi.waitFor(() => expect(container.querySelector('[data-testid="markdown-editor"]')).toBeTruthy());
+  await vi.waitFor(() =>
+    expect(container.querySelector('[data-testid="markdown-editor"]')).toBeTruthy()
+  );
   return container.querySelector('[data-testid="markdown-editor"]') as HTMLElement;
 }
 
@@ -60,6 +62,29 @@ describe('MarkdownEditor', () => {
     await vi.waitFor(() => expect(updates.at(-1)).toBe('!First paragraph\n\nSecond paragraph'));
   });
 
+  it('preserves visual empty paragraphs when editing restored markdown', async () => {
+    const updates: string[] = [];
+    let api: MarkdownEditorApi | null = null;
+    const { container } = render(MarkdownEditor, {
+      props: {
+        testid: 'markdown-editor',
+        onUpdate: (markdown) => updates.push(markdown),
+        onReady: (editorApi) => {
+          api = editorApi;
+          editorApi.setContent('Stuff\n\n\n\nNo Stuff');
+        }
+      }
+    });
+    const editor = await findEditor(container);
+
+    await vi.waitFor(() => expect(api).toBeTruthy());
+    await vi.waitFor(() => expect(editor.querySelectorAll('p')).toHaveLength(3));
+    editor.focus();
+    await insertText(editor, '!');
+
+    await vi.waitFor(() => expect(updates.at(-1)).toBe('!Stuff\n\n\n\nNo Stuff'));
+  });
+
   it('serializes a blank line before a list after hard breaks', async () => {
     const updates: string[] = [];
     const { container } = render(MarkdownEditor, {
@@ -75,6 +100,6 @@ describe('MarkdownEditor', () => {
     await pressKey(editor, 'Enter');
     await insertText(editor, '- lists');
 
-    await vi.waitFor(() => expect(updates.at(-1)).toBe('Things I hate:\n\n- lists'));
+    await vi.waitFor(() => expect(updates.at(-1)).toBe('Things I hate:\n\n\n\n- lists'));
   });
 });
