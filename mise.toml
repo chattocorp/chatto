@@ -1,7 +1,9 @@
 [tools]
+actionlint = "latest"
 buf = "latest"
 go = "1.26.2"
 "go:google.golang.org/protobuf/cmd/protoc-gen-go" = "v1.36.11"
+goreleaser = "latest"
 node = "22"
 tilt = "latest"
 
@@ -276,6 +278,30 @@ run = """
 echo "Starting pkgsite documentation server..."
 echo "Browse to: http://localhost:6060/hmans.de/chatto"
 pkgsite -http=localhost:6060 .
+"""
+
+[tasks.verify-docker]
+description = "Validate Docker, GoReleaser, and image workflow wiring"
+run = """
+set -euo pipefail
+
+goreleaser check
+
+actionlint .github/workflows/*.yml
+
+docker buildx build --check --build-arg TARGETARCH=amd64 -f docker/Dockerfile.dev .
+docker buildx build --check -f docker/Dockerfile.frontend.dev frontend
+docker buildx build --check -f docker/Dockerfile.frontend.prebuilt .
+
+tmp="$(mktemp -d /tmp/chatto-docker-verify.XXXXXX)"
+trap 'rm -rf "$tmp"' EXIT
+context="$tmp/linux-amd64"
+mkdir -p "$context/docker"
+cp docker/Dockerfile.goreleaser "$context/Dockerfile"
+cp docker/docker-entrypoint.sh "$context/docker/docker-entrypoint.sh"
+printf '#!/bin/sh\necho chatto dummy\n' > "$context/chatto"
+chmod +x "$context/chatto"
+docker buildx build --build-arg TARGETARCH=amd64 -f "$context/Dockerfile" "$context"
 """
 
 # =============================================================================
