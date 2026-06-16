@@ -142,10 +142,6 @@ export class ServerStateStore {
               });
             }
           }
-          if (event.event?.__typename === 'RoomGroupsUpdatedEvent') {
-            void this.rooms.refresh();
-            this.roomDirectory.ingestRoomLayoutUpdated();
-          }
         };
         const catchUpHandler = (reason: EventBusCatchUpReason) => {
           void this.refreshProjectedStateAfterMissedEvents(reason);
@@ -168,9 +164,12 @@ export class ServerStateStore {
 
     if (this.#catchUpRefreshInFlight) {
       this.#queuedCatchUpRefreshReason = reason;
-      console.debug(`[server:${this.#registered.url}] queued catch-up refresh while one is running`, {
-        reason
-      });
+      console.debug(
+        `[server:${this.#registered.url}] queued catch-up refresh while one is running`,
+        {
+          reason
+        }
+      );
       return;
     }
 
@@ -186,9 +185,12 @@ export class ServerStateStore {
     let failed = false;
 
     try {
-      console.debug(`[server:${this.#registered.url}] refreshing projected state after event bus gap`, {
-        reason
-      });
+      console.debug(
+        `[server:${this.#registered.url}] refreshing projected state after event bus gap`,
+        {
+          reason
+        }
+      );
 
       const run = async (label: string, task: () => Promise<unknown>) => {
         try {
@@ -214,9 +216,12 @@ export class ServerStateStore {
 
       if (!failed) {
         this.#lastSuccessfulCatchUpRefreshAt = Date.now();
-        console.debug(`[server:${this.#registered.url}] projected state catch-up refresh completed`, {
-          reason
-        });
+        console.debug(
+          `[server:${this.#registered.url}] projected state catch-up refresh completed`,
+          {
+            reason
+          }
+        );
       }
     } finally {
       this.#catchUpRefreshInFlight = false;
