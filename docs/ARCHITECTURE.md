@@ -165,7 +165,7 @@ Note: there is no top-level `me` query — viewer-scoped state hangs off the `vi
 | ------------------------------------------------- | ------------------------------------------------------------------------ |
 | `admin.rbac.rolePermissionTierMatrix(roomId?, groupId?)` | Full role-permission matrix at server / group / room scope.       |
 | `admin.rbac.rolePermissionMatrix(roleName)`       | Per-role permission matrix (`role.manage` gated).                        |
-| `admin.rbac.userPermissionMatrix(userId)`         | Effective allow/deny matrix for a user (`role.manage` + outrank gate).   |
+| `admin.rbac.userPermissionMatrix(userId)`         | Effective allow/deny matrix for a user (`user.manage-permissions`).       |
 | `admin.rbac.permissionExplanation(userId, …)`     | Admin/tooling-only per-permission resolver explainer; no self-inspection. |
 
 **Voice & link previews** ([`voice.graphqls`](../cli/internal/graph/voice.graphqls), [`linkpreview.graphqls`](../cli/internal/graph/linkpreview.graphqls))
@@ -268,13 +268,13 @@ Admin queries are nested under a single `admin: AdminQueries` field that returns
 | --------------------------------- | -------------------------------------------------------------------------------------------- |
 | `createRole` / `updateRole` / `deleteRole` | CRUD for custom server roles (system roles are fixed).                              |
 | `reorderRoles`                    | Reorder custom roles. System roles maintain fixed positions and are excluded.                |
-| `assignRole` / `revokeRole`       | Add / remove a role assignment on a user (`role.assign` + outrank target).                   |
+| `assignRole` / `revokeRole`       | Add / remove a role assignment on a user (`role.assign`).                                    |
 | `grantPermission` / `revokePermission` | Grant or revoke a permission on a role at server scope.                                 |
 | `denyPermission`                  | Deny a permission on a role at server scope (clears any existing grant).                     |
 | `clearPermissionState`            | Restore neutral state for a permission on a role at server scope.                            |
 | `grantRoomPermission` / `denyRoomPermission` / `clearRoomPermission` | Same trio at room scope.                              |
-| `grantUserPermission`             | Grant a permission directly to a user (beats role decisions; no self-action).                |
-| `denyUserPermission`              | Deny a permission directly to a user (beats role grants; no self-action).                    |
+| `grantUserPermission`             | Grant a permission directly to a user (`user.manage-permissions`).                           |
+| `denyUserPermission`              | Deny a permission directly to a user (`user.manage-permissions`; any applicable deny wins).  |
 | `clearUserPermissionState`        | Clear both grant and denial of a permission on a user.                                       |
 
 **Admin** ([`admin.graphqls`](../cli/internal/graph/admin.graphqls))

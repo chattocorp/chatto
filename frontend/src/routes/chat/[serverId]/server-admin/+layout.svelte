@@ -33,12 +33,12 @@
       return () => chromePermissions.current.canManage;
     }
 
-    // Members pages: viewable by anyone with role assignment or
-    // admin.view-users — covers both "server moderator managing members"
-    // and "server admin browsing the user directory."
+    // Members pages: viewable by anyone who can browse users, assign roles,
+    // or edit direct per-user permission overrides.
     if (pathname.startsWith(membersBase)) {
       return () =>
         chromePermissions.current.canAssignRoles ||
+        chromePermissions.current.canManageUserPermissions ||
         serverPerms.current.canAdminViewUsers;
     }
 

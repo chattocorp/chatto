@@ -10,7 +10,7 @@ The post-#330 RBAC model resolves room-scope permissions through a single hierar
 
 - **No natural permission boundary for groups of rooms.** A planned **room groups** feature (which replaces the current collapsible UI groups, themselves an evolution of `RoomLayoutSection`) requires per-group access control — e.g., "Engineering" rooms accessible only to the `engineers` role. There is no container in the current model where such permissions could live. Layering room groups onto the existing model would mean stacking a second per-group tier on top of the existing server-→room overlay; better to make the group the primary container instead.
 
-- **Implicit `everyone` constrains deny semantics.** Every authenticated user implicitly carries `everyone`, so any deny attached to `everyone` catches moderators and admins too. The hierarchy-wins rule is what makes the current model work — higher-rank grants override lower-rank denies — but this also rules out "deny-always-wins" semantics that would be useful for temporary-restriction roles (timeouts, mutes). This is unchanged by the new model; moderation actions are addressed below via user-level denies.
+- **Implicit `everyone` constrains deny semantics.** Every authenticated user implicitly carries `everyone`, so any deny attached to `everyone` catches moderators and admins too. ADR-040 intentionally adopts deny-wins semantics; announcement-style rooms are modeled by omitting the room-level `everyone` allow instead of denying it.
 
 Chatto is at alpha. The three known production-shaped servers can absorb a `chatto reset rbac` on upgrade. This is a one-time opportunity to reshape the model before the room-groups feature lands rather than to layer over it.
 
@@ -44,7 +44,7 @@ This work evolves the existing `RoomLayout` / `RoomLayoutSection` storage (`prot
 
 ### Resolution
 
-For **server-scope** permissions: unchanged from current model. Standard hierarchy-wins RBAC walker over server-scope role grants, with user-level overrides outranking roles (Phase 1 of the current resolver).
+For **server-scope** permissions: server decisions remain global defaults/overrides. ADR-040's deny-wins resolver considers user and role decisions without using role position as an authorization rank.
 
 For **DM rooms**: room groups do not apply. Reading is membership-based, starting/sending DMs uses message permissions, and the `dmBoundaryDeniedPermissions` deny-list still applies inside DM rooms.
 
@@ -67,7 +67,7 @@ Within the role walk, room-scope decisions override group-scope decisions *withi
 
 ### Moderation actions
 
-Temporary user-targeted restrictions ("mute", "timeout", "suspend") build on the existing **user-level deny** primitive, which outranks role grants. The UI exposes verbs (Mute, Timeout, Suspend with duration), not raw permission editors. Underneath, each action writes a small fixed bundle of user-level denies (server-scope, group-scope, or room-scope) with a scheduled cleanup for expiry. No new resolver concept ("restrictive role" flag etc.) is required.
+Temporary user-targeted restrictions ("mute", "timeout", "suspend") build on the existing **user-level deny** primitive. The UI exposes verbs (Mute, Timeout, Suspend with duration), not raw permission editors. Underneath, each action writes a small fixed bundle of user-level denies (server-scope, group-scope, or room-scope) with a scheduled cleanup for expiry. No new resolver concept ("restrictive role" flag etc.) is required.
 
 ### Migration
 

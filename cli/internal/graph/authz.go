@@ -156,20 +156,11 @@ func (r *Resolver) requireRoomManageAuth(ctx context.Context, userID, roomID str
 }
 
 // requireUserAdminTarget verifies the caller can administer the given
-// target user via a "permission AND rank" two-step gate.
+// target user.
 //
-// Self-actions always pass. For caller != target, the caller must:
-//   - hold the role.assign permission (canManageServerUsers), AND
-//   - strictly outrank the target.
-//
-// Peer ranks deny — including peer owners. If two owners need to
-// administer each other's identity, one of them must demote the other
-// first. This matches RevokeServerRole's symmetric peer-deny.
-//
-// This is the canonical gate for targeted user mutations like
-// updateProfile / uploadAvatar / deleteAvatar / updateSettings /
-// AdminMutations.updateUser / ClearUsernameCooldown. Rank-only gating
-// is a bug — see .claude/rules/authorization.md and issue #435.
+// Self-actions always pass. For caller != target, the caller must hold
+// role.assign. Owners are protected from lockout by the effective-owner
+// permission override, not by target-rank gates.
 func (r *Resolver) requireUserAdminTarget(ctx context.Context, callerID, targetID string) error {
 	if callerID == targetID {
 		return nil
@@ -179,13 +170,6 @@ func (r *Resolver) requireUserAdminTarget(ctx context.Context, callerID, targetI
 		return fmt.Errorf("failed to check admin permission: %w", err)
 	}
 	if !canManage {
-		return core.ErrPermissionDenied
-	}
-	outranks, err := r.core.OutranksUser(ctx, callerID, targetID)
-	if err != nil {
-		return fmt.Errorf("failed to check role hierarchy: %w", err)
-	}
-	if !outranks {
 		return core.ErrPermissionDenied
 	}
 	return nil
@@ -209,34 +193,15 @@ func (r *Resolver) requireSelfOrUserAdminTarget(ctx context.Context, targetUserI
 // authorization state — `grantUserPermission`, `denyUserPermission`,
 // `clearUserPermissionState`.
 //
-// Unlike requireUserAdminTarget, this helper has NO self-bypass. Editing
-// your own display name is privilege-neutral; granting yourself a
-// permission is a security-boundary change. The two operation categories
-// must not share a gate. Self-action falls through the same two checks
-// as any other caller: the strict-outrank step (`OutranksUser`) always
-// returns false for self, so self-action is impossible by construction
-// without a special branch.
-//
-// The permission gate is `role.manage`, not `role.assign`. Granting a
-// permission directly to a user is strictly more powerful than assigning
-// a role: it can attach any permission, including ones operators chose
-// not to put on any role. That matches the trust level of `role.manage`
-// (which is what lets you put a permission on a role in the first
-// place) rather than `role.assign` (which only shuffles existing role
-// memberships).
+// The permission gate is `user.manage-permissions`, not `role.assign`.
+// Granting a permission directly to a user is separate from assigning an
+// existing role and can target any user, including self.
 func (r *Resolver) requireUserPermissionTarget(ctx context.Context, callerID, targetID string) error {
-	canManage, err := r.core.CanManageRoles(ctx, callerID)
+	canManage, err := r.core.CanManageUserPermissions(ctx, callerID)
 	if err != nil {
-		return fmt.Errorf("failed to check role.manage permission: %w", err)
+		return fmt.Errorf("failed to check user.manage-permissions permission: %w", err)
 	}
 	if !canManage {
-		return core.ErrPermissionDenied
-	}
-	outranks, err := r.core.OutranksUser(ctx, callerID, targetID)
-	if err != nil {
-		return fmt.Errorf("failed to check role hierarchy: %w", err)
-	}
-	if !outranks {
 		return core.ErrPermissionDenied
 	}
 	return nil
@@ -252,35 +217,6 @@ func (r *Resolver) isServerAdmin(ctx context.Context, userID string) (bool, erro
 		return true, nil
 	}
 	return r.core.IsServerAdmin(ctx, userID)
-}
-
-// requireOutranksAuthor enforces the message-moderation rank check: when
-// the actor is moderating someone else's message (edit-any / delete-any),
-// they must strictly outrank the author. Self-action callers should skip
-// this — they don't need the rank check.
-//
-// Combine with the permission check: permission says "is this role allowed
-// to moderate at all?", rank says "are you allowed to moderate THIS
-// specific user?". This is the same "permission AND OutranksUser" shape as
-// requireUserAdminTarget, applied to message-content moderation. It
-// prevents a moderator from editing or deleting messages from higher-rank
-// users (admins, owners), and prevents peer-rank message moderation
-// generally.
-//
-// Returns nil for self — authors can always edit/delete their own messages
-// without needing message.manage or any rank check.
-func (r *Resolver) requireOutranksAuthor(ctx context.Context, actorID, authorID string) error {
-	if actorID == authorID {
-		return nil
-	}
-	outranks, err := r.core.OutranksUser(ctx, actorID, authorID)
-	if err != nil {
-		return fmt.Errorf("failed to check author rank: %w", err)
-	}
-	if !outranks {
-		return core.ErrPermissionDenied
-	}
-	return nil
 }
 
 // requireRoleRosterAccess gates the role-roster and per-user-permission

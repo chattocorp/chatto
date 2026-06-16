@@ -430,11 +430,12 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 		}
 	})
 
-	// Revoke rooms.join from the everyone role
-	t.Run("revoke rooms.join from everyone role", func(t *testing.T) {
-		err := core.RevokeServerPermission(ctx, SystemActorID, RoleEveryone, PermRoomJoin)
+	// Deny room.join from the everyone role. Joining is default-available
+	// unless an applicable deny blocks it.
+	t.Run("deny rooms.join from everyone role", func(t *testing.T) {
+		err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermRoomJoin)
 		if err != nil {
-			t.Fatalf("failed to revoke permission: %v", err)
+			t.Fatalf("failed to deny permission: %v", err)
 		}
 
 		// Member should no longer have CanJoinRoom
@@ -443,7 +444,7 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if can {
-			t.Error("member should NOT have CanJoinRoom after revocation")
+			t.Error("member should NOT have CanJoinRoom after denial")
 		}
 
 		// Admin should still have it

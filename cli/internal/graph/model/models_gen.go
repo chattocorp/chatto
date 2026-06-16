@@ -767,8 +767,7 @@ type RbacQueries struct {
 	// `role.manage` at server scope.
 	RolePermissionMatrix *RolePermissionMatrix `json:"rolePermissionMatrix,omitempty"`
 	// Permission matrix for a specific user. Authorization mirrors user-level
-	// permission mutations: viewer must hold `role.manage` and strictly outrank
-	// the target. Self-introspection is not allowed.
+	// permission mutations: viewer must hold `user.manage-permissions`.
 	UserPermissionMatrix *UserPermissionMatrix `json:"userPermissionMatrix,omitempty"`
 	// Explain every applicable permission for a user at the given scope.
 	// Authorization: admin/tooling-only, with no self-inspection path.
@@ -859,7 +858,7 @@ type RoleRoomPermissions struct {
 	DisplayName string `json:"displayName"`
 	// Whether this is a system-defined role
 	IsSystem bool `json:"isSystem"`
-	// Hierarchy position (higher = higher rank; see Role.position).
+	// Display/order position (higher sorts before lower; not an authorization rank).
 	Position int32 `json:"position"`
 	// Permissions granted at room level
 	Permissions []string `json:"permissions"`
@@ -1054,12 +1053,9 @@ type Server struct {
 	ViewerCanManageRoles bool `json:"viewerCanManageRoles"`
 	// Whether the current user can assign roles to users (has role.assign permission).
 	ViewerCanAssignRoles bool `json:"viewerCanAssignRoles"`
-	// UI hint reporting whether the viewer outranks the target user by role
-	// hierarchy. **This is a rank check only**, not an authorization gate —
-	// capabilities like "edit this user's profile" additionally require a
-	// permission (e.g. `role.assign`). Use this for showing/hiding admin UI
-	// affordances; never as the sole basis for permitting a mutation. See
-	// `.claude/rules/authorization.md` (`permission AND OutranksUser`).
+	// Whether the current user can edit direct per-user permission overrides (has user.manage-permissions permission).
+	ViewerCanManageUserPermissions bool `json:"viewerCanManageUserPermissions"`
+	// Whether the current user can administer the target user's profile. Self is allowed; other users require role.assign.
 	ViewerCanManageUser bool `json:"viewerCanManageUser"`
 	// Get users assigned to a specific role.
 	RoleUsers []*corev1.User `json:"roleUsers"`
@@ -1169,7 +1165,7 @@ type TierRole struct {
 	Description string `json:"description"`
 	// Whether this is a system role and cannot be deleted.
 	IsSystem bool `json:"isSystem"`
-	// Hierarchy position: higher = higher rank. Owner=1000, admin=900, moderator=100, custom roles in 1..99, everyone=0.
+	// Display/order position. Owner=1000, admin=900, moderator=100, custom roles in 1..99, everyone=0. Not an authorization rank.
 	Position int32 `json:"position"`
 	// Explicit allow/deny at the requested tier. Allow and deny lists may
 	// both be empty for a role with no override at this tier.
@@ -1188,7 +1184,7 @@ type TierRoles struct {
 	// Permissions configurable at this tier. The matrix renders one row per
 	// entry in this list.
 	ApplicablePermissions []string `json:"applicablePermissions"`
-	// All roles ordered by position (lowest = highest rank first).
+	// All roles ordered by display position.
 	Roles []*TierRole `json:"roles"`
 }
 

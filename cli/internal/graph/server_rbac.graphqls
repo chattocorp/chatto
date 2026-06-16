@@ -13,7 +13,7 @@ type Role {
   permissionDenials: [String!]! @goField(forceResolver: true)
   "Whether this is a system-defined role (cannot be deleted)."
   isSystem: Boolean!
-  "Hierarchy position: higher = higher rank. Owner=1000, admin=900, moderator=100, custom roles in 1..99, everyone=0."
+  "Display/order position. Owner=1000, admin=900, moderator=100, custom roles in 1..99, everyone=0. Not an authorization rank."
   position: Int!
   "Whether @role pings notify users assigned to this role."
   pingable: Boolean!
@@ -141,7 +141,7 @@ extend type Mutation {
   Assign an server role to a user. Idempotent - assigning an already-assigned
   role succeeds silently. Returns true on success.
   Note: The 'everyone' role is implicit for all users and cannot be assigned.
-  Requires: role.assign permission and outranking the target user.
+  Requires: role.assign permission.
   Errors: If role doesn't exist or is 'everyone'.
   """
   assignRole(input: AssignRoleInput!): Boolean!
@@ -151,7 +151,7 @@ extend type Mutation {
   role succeeds silently. Returns true on success.
   Note: Users cannot revoke their own admin role (prevents self-lockout).
   Note: The 'everyone' role is implicit and cannot be revoked.
-  Requires: role.assign permission and outranking the target user.
+  Requires: role.assign permission.
   Errors: If role doesn't exist, is 'everyone', or user tries to revoke own admin role.
   """
   revokeRole(input: RevokeRoleInput!): Boolean!
@@ -166,15 +166,12 @@ extend type Mutation {
   reorderRoles(input: ReorderRolesInput!): [Role!]!
 
   """
-  Grant a permission directly to a user. Beats any role-level decision —
-  user-level grants are checked before roles in the resolver. Useful for
+  Grant a permission directly to a user. Explicit denies still win over
+  grants, but user-level grants can add targeted privileges. Useful for
   ad-hoc privileges like "let this one user moderate room X" without
   inventing a custom role.
 
-  Authorization: caller needs role.manage AND must strictly outrank the
-  target user. Self-action is NOT permitted — granting yourself a
-  permission is a privilege boundary change, not an identity edit, so
-  the strict-outrank step (which always fails on self) closes that path.
+  Authorization: caller needs user.manage-permissions.
 
   Pass roomId to scope the grant to a specific room (room-scope perms
   only). Omit roomId for a server-wide grant.
@@ -182,13 +179,11 @@ extend type Mutation {
   grantUserPermission(input: GrantUserPermissionInput!): Boolean!
 
   """
-  Deny a permission directly to a user. Beats any role grant —
-  user-level decisions are checked before the role-hierarchy walk.
+  Deny a permission directly to a user. Any applicable deny wins over grants.
   Useful for one-off moderation like suspending a user from posting
   without revoking their roles.
 
-  Authorization and roomId semantics mirror grantUserPermission. In
-  particular, self-deny is not permitted (no self-bypass).
+  Authorization and roomId semantics mirror grantUserPermission.
   """
   denyUserPermission(input: DenyUserPermissionInput!): Boolean!
 
@@ -196,8 +191,7 @@ extend type Mutation {
   Clear both grant and denial of a permission on a user, restoring
   normal role-based resolution. Idempotent.
 
-  Authorization and roomId semantics mirror grantUserPermission. In
-  particular, self-clear is not permitted (no self-bypass).
+  Authorization and roomId semantics mirror grantUserPermission.
   """
   clearUserPermissionState(input: ClearUserPermissionStateInput!): Boolean!
 }

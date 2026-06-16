@@ -35,9 +35,9 @@ func TestCanSeeRoom_VisibilityFollowsListPermission(t *testing.T) {
 		if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomList); err != nil {
 			t.Fatalf("DenyRoomPermission: %v", err)
 		}
-		t.Cleanup(func() {
-			_ = core.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomList)
-		})
+		defer func() {
+			_ = core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomList)
+		}()
 
 		stranger, _ := core.CreateUser(ctx, SystemActorID, "vis-stranger-denied", "Stranger", "password123")
 		got, err := core.CanSeeRoom(ctx, stranger.Id, KindChannel, room.Id)
@@ -53,9 +53,9 @@ func TestCanSeeRoom_VisibilityFollowsListPermission(t *testing.T) {
 		if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomJoin); err != nil {
 			t.Fatalf("DenyRoomPermission: %v", err)
 		}
-		t.Cleanup(func() {
-			_ = core.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomJoin)
-		})
+		defer func() {
+			_ = core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomJoin)
+		}()
 
 		stranger, _ := core.CreateUser(ctx, SystemActorID, "vis-stranger-no-join", "Stranger", "password123")
 		got, err := core.CanSeeRoom(ctx, stranger.Id, KindChannel, room.Id)
@@ -75,9 +75,9 @@ func TestCanSeeRoom_VisibilityFollowsListPermission(t *testing.T) {
 		if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomList); err != nil {
 			t.Fatalf("DenyRoomPermission: %v", err)
 		}
-		t.Cleanup(func() {
+		defer func() {
 			_ = core.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomList)
-		})
+		}()
 
 		got, err := core.CanSeeRoom(ctx, member.Id, KindChannel, room.Id)
 		if err != nil {

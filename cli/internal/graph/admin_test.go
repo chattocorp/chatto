@@ -320,9 +320,7 @@ func TestAdminUpdateUser_Authorization(t *testing.T) {
 		}
 	})
 
-	t.Run("rbac admin cannot edit owner (hierarchy enforcement)", func(t *testing.T) {
-		// testUser was created first → auto-promoted to server owner.
-		// admin2 has the instance-admin role (rank 1) — outranked by owner (rank 0).
+	t.Run("rbac admin can edit owner", func(t *testing.T) {
 		env := setupTestResolver(t)
 		admin2 := env.createVerifiedUser(t, "rbac-admin", "RBAC Admin", "password123")
 		if err := env.core.AssignAdminRole(env.ctx, admin2.Id); err != nil {
@@ -335,17 +333,17 @@ func TestAdminUpdateUser_Authorization(t *testing.T) {
 			UserID: env.testUser.Id, // the owner
 			Login:  &newName,
 		})
-		if !errors.Is(err, core.ErrPermissionDenied) {
-			t.Errorf("expected ErrPermissionDenied (admin cannot edit owner), got: %v", err)
+		if err != nil {
+			t.Errorf("expected success, got: %v", err)
 		}
 
 		_, err = amr.ClearUsernameCooldown(env.authContextForUser(admin2), &model.AdminMutations{}, model.ClearUsernameCooldownInput{UserID: env.testUser.Id})
-		if !errors.Is(err, core.ErrPermissionDenied) {
-			t.Errorf("ClearUsernameCooldown: expected ErrPermissionDenied (admin cannot manage owner), got: %v", err)
+		if err != nil {
+			t.Errorf("ClearUsernameCooldown: expected success, got: %v", err)
 		}
 	})
 
-	t.Run("rbac admin can edit lower-ranked user", func(t *testing.T) {
+	t.Run("rbac admin can edit another user", func(t *testing.T) {
 		env := setupTestResolver(t)
 		admin2 := env.createVerifiedUser(t, "rbac-admin-ok", "RBAC Admin", "password123")
 		if err := env.core.AssignAdminRole(env.ctx, admin2.Id); err != nil {
@@ -367,12 +365,7 @@ func TestAdminUpdateUser_Authorization(t *testing.T) {
 		}
 	})
 
-	t.Run("peer owner cannot edit other owner (strict rank)", func(t *testing.T) {
-		// requireUserAdminTarget requires the caller to *strictly* outrank
-		// the target. Two owners are peers (both position 0), so neither
-		// can administer the other's identity. To do so, one must be
-		// demoted first. This matches RevokeServerRole's symmetric
-		// peer-deny.
+	t.Run("peer owner can edit other owner", func(t *testing.T) {
 		env := setupTestResolverWithAdmin(t, []string{"cfg-admin@example.com"})
 		cfgAdmin, err := env.core.CreateUser(env.ctx, "system", "cfg-admin", "Config Admin", "password123")
 		if err != nil {
@@ -388,13 +381,13 @@ func TestAdminUpdateUser_Authorization(t *testing.T) {
 			UserID: env.testUser.Id, // the owner
 			Login:  &newName,
 		})
-		if !errors.Is(err, core.ErrPermissionDenied) {
-			t.Fatalf("expected peer-owner edit to be denied, got: %v", err)
+		if err != nil {
+			t.Fatalf("expected peer-owner edit to succeed, got: %v", err)
 		}
 
 		_, err = amr.ClearUsernameCooldown(env.authContextForUser(cfgAdmin), &model.AdminMutations{}, model.ClearUsernameCooldownInput{UserID: env.testUser.Id})
-		if !errors.Is(err, core.ErrPermissionDenied) {
-			t.Fatalf("expected peer-owner cooldown clear to be denied, got: %v", err)
+		if err != nil {
+			t.Fatalf("expected peer-owner cooldown clear to succeed, got: %v", err)
 		}
 	})
 

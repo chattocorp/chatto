@@ -61,22 +61,22 @@ const (
 	// PermRoomManage allows updating or deleting channel rooms.
 	PermRoomManage Permission = "room.manage"
 
-	// PermRoomMemberBan allows banning lower-ranked users from channel rooms.
+	// PermRoomMemberBan allows banning members from channel rooms.
 	PermRoomMemberBan Permission = "room.ban-member"
 
 	// ===== Message Permissions =====
 
-	// PermMessagePost allows posting new root messages in rooms and starting DMs.
+	// PermMessagePost allows posting new root messages in rooms. Server-scope
+	// decisions act as global overrides; default room posting grants are seeded
+	// at room scope.
 	PermMessagePost Permission = "message.post"
 
 	// PermMessagePostInThread allows posting messages in a thread (first or subsequent reply).
 	PermMessagePostInThread Permission = "message.post-in-thread"
 
 	// PermMessageManage allows moderating other users' messages in a room
-	// (editing or deleting). The actor must also strictly outrank the
-	// message author — enforced at the API boundary. Authors editing or
-	// deleting their own messages do NOT need this permission; it is
-	// always allowed.
+	// (editing or deleting). Authors editing or deleting their own messages do
+	// NOT need this permission; it is always allowed.
 	PermMessageManage Permission = "message.manage"
 
 	// PermMessageReact allows adding/removing reactions to messages.
@@ -118,13 +118,14 @@ const (
 	// administration namespace and `member.*` doesn't exist.
 
 	// PermUserDeleteAny allows admins to delete any user's account.
-	// Mirrors message.delete-any: the actor needs the permission AND
-	// must strictly outrank the target user (rank check enforced at the
-	// API boundary when the cross-user delete mutation is implemented).
 	PermUserDeleteAny Permission = "user.delete-any"
 
 	// PermUserDeleteSelf allows users to delete their own account.
 	PermUserDeleteSelf Permission = "user.delete-self"
+
+	// PermUserManagePermissions allows editing direct per-user permission
+	// overrides.
+	PermUserManagePermissions Permission = "user.manage-permissions"
 )
 
 // PermissionMetadata provides display information and scope constraints for a permission.
@@ -146,12 +147,12 @@ var allPermissions = []PermissionMetadata{
 	{PermRoomJoin, "Join Rooms", "Join existing rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermRoomList, "Discover Rooms", "See rooms in the directory and group 'Join all' affordances", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermRoomManage, "Manage Rooms", "Edit, configure permissions on, and delete rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
-	{PermRoomMemberBan, "Ban Room Members", "Ban lower-ranked members from rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{PermRoomMemberBan, "Ban Room Members", "Ban members from rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 
 	// Message
 	{PermMessagePost, "Post Messages", "Post new messages in rooms and start DMs", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermMessagePostInThread, "Post in Threads", "Post messages in threads", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
-	{PermMessageManage, "Manage Messages", "Edit and delete other users' messages (subject to outranking the author)", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{PermMessageManage, "Manage Messages", "Edit and delete other users' messages", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermMessageReact, "React to Messages", "Add and remove reactions", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermMessageEcho, "Echo to Channel", "Echo thread replies to the main channel for visibility", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 
@@ -165,8 +166,9 @@ var allPermissions = []PermissionMetadata{
 	{PermAdminAuditView, "View Audit Log", "View the audit log in admin", CategoryAdmin, []PermissionScope{ScopeServer}},
 
 	// User management
-	{PermUserDeleteAny, "Delete Any User", "Delete any user's account. Subject to the rank check — actors can only delete users they outrank.", CategoryUser, []PermissionScope{ScopeServer}},
+	{PermUserDeleteAny, "Delete Any User", "Delete any user's account", CategoryUser, []PermissionScope{ScopeServer}},
 	{PermUserDeleteSelf, "Delete Own Account", "Delete your own account", CategoryUser, []PermissionScope{ScopeServer}},
+	{PermUserManagePermissions, "Manage User Permissions", "Grant, deny, and clear direct per-user permission overrides", CategoryUser, []PermissionScope{ScopeServer}},
 }
 
 // permissionIndex provides fast lookup of permission metadata by permission value.
@@ -239,11 +241,59 @@ func PermissionsForCategory(category PermissionCategory) []PermissionMetadata {
 // Default Role Permissions
 // ============================================================================
 
-// DefaultEveryonePermissions returns the permissions granted to every
-// authenticated user (the implicit everyone role).
+// DefaultEveryonePermissions returns server-scope permissions granted to every
+// authenticated user (the implicit everyone role). Room/message permissions
+// are seeded per room so each room can be customized without relying on a
+// global server-scope allow.
 func DefaultEveryonePermissions() []Permission {
 	return []Permission{
 		PermUserDeleteSelf,
+	}
+}
+
+// DefaultModeratorPermissions returns the permissions granted to moderators
+// by default. Moderators inherit the implicit everyone role at runtime; this
+// list contains only moderator-specific server-scope capabilities.
+func DefaultModeratorPermissions() []Permission {
+	return []Permission{
+		PermAdminUsersView,
+	}
+}
+
+// DefaultAdminPermissions returns the permissions granted to admins by
+// default. Admins receive every server-scope permission plus every
+// channel-room permission (configured at group/room tier). They are
+// distinguished from owners by ownership status, not by any seeded
+// permission they lack: owners are non-lockoutable and are granted every known
+// permission by the resolver regardless of RBAC state.
+func DefaultAdminPermissions() []Permission {
+	seen := map[Permission]bool{}
+	var result []Permission
+	for _, scope := range []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom} {
+		for _, meta := range PermissionsForScope(scope) {
+			if meta.Category == CategoryMessage || seen[meta.Permission] {
+				continue
+			}
+			seen[meta.Permission] = true
+			result = append(result, meta.Permission)
+		}
+	}
+	return result
+}
+
+// DefaultOwnerPermissions returns the permissions granted to owners by
+// default. Functionally identical to DefaultAdminPermissions — owners
+// and admins share the same enumerated capability set for persisted default
+// grants. Owners additionally receive an effective resolver override so they
+// cannot be locked out by stale or edited RBAC state.
+func DefaultOwnerPermissions() []Permission {
+	return DefaultAdminPermissions()
+}
+
+// DefaultRoomEveryonePermissions returns the default room-scope permissions
+// for normal channel rooms.
+func DefaultRoomEveryonePermissions() []Permission {
+	return []Permission{
 		PermRoomList,
 		PermRoomJoin,
 		PermMessagePost,
@@ -253,53 +303,41 @@ func DefaultEveryonePermissions() []Permission {
 	}
 }
 
-// DefaultModeratorPermissions returns the permissions granted to moderators
-// by default. Moderators inherit everyone permissions plus moderation powers
-// and admin-panel view access.
-func DefaultModeratorPermissions() []Permission {
-	return append(DefaultEveryonePermissions(),
-		PermAdminUsersView,
-		// Moderation powers
+// DefaultAnnouncementsEveryonePermissions returns the default room-scope
+// permissions for the built-in announcements room. New root posts are omitted
+// instead of denied, so moderator/admin/owner grants can allow posting without
+// introducing a deny that affects all users through the everyone role.
+func DefaultAnnouncementsEveryonePermissions() []Permission {
+	return []Permission{
+		PermRoomList,
+		PermRoomJoin,
+		PermMessagePostInThread,
+		PermMessageReact,
+		PermMessageEcho,
+	}
+}
+
+// DefaultAnnouncementsPosterPermissions returns the room-scope permissions
+// seeded for built-in roles that may post root messages in announcements.
+func DefaultAnnouncementsPosterPermissions() []Permission {
+	return []Permission{PermMessagePost}
+}
+
+// DefaultRoomModeratorPermissions returns room-scope moderation permissions
+// seeded for moderator/admin/owner on every channel room.
+func DefaultRoomModeratorPermissions() []Permission {
+	return []Permission{
 		PermMessageManage,
 		PermRoomMemberBan,
-	)
-}
-
-// DefaultAdminPermissions returns the permissions granted to admins by
-// default. Admins receive every server-scope permission plus every
-// channel-room permission (configured at group/room tier). They are
-// distinguished from owners by rank, not by any permission they lack:
-// admins cannot manage owners (rank check) and cannot revoke their own
-// admin role (self-lockout prevention), but the permission set is the
-// same.
-func DefaultAdminPermissions() []Permission {
-	seen := map[Permission]bool{}
-	var result []Permission
-	for _, scope := range []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom} {
-		for _, p := range PermissionsForScope(scope) {
-			if seen[p.Permission] {
-				continue
-			}
-			seen[p.Permission] = true
-			result = append(result, p.Permission)
-		}
 	}
-	return result
 }
 
-// DefaultOwnerPermissions returns the permissions granted to owners by
-// default. Functionally identical to DefaultAdminPermissions — owners
-// and admins share the same enumerated capability set. The distinction
-// is purely hierarchical (rank): owners outrank admins and can manage
-// admin-rank users; they cannot be revoked except by another owner via
-// CLI / system actor.
-//
-// This deliberately replaces the previous `admin.bypass` super-permission.
-// "Skip the entire permission system" as a primitive made every operator-
-// configured deny silently ineffective for owners; auditing the security
-// boundary now means enumerating role grants like any other role.
-func DefaultOwnerPermissions() []Permission {
-	return DefaultAdminPermissions()
+// DefaultRoomAdminPermissions returns room-scope room-management permissions
+// seeded for admin/owner on every channel room.
+func DefaultRoomAdminPermissions() []Permission {
+	return []Permission{
+		PermRoomManage,
+	}
 }
 
 // ============================================================================

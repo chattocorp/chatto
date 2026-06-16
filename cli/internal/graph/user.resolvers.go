@@ -113,29 +113,14 @@ func (r *userResolver) Roles(ctx context.Context, obj *corev1.User) ([]string, e
 
 // ViewerCanDeleteAccount is the resolver for the viewerCanDeleteAccount field.
 //
-// For cross-user delete this combines the permission check (`user.delete-any`)
-// with the rank invariant (actor must strictly outrank target) — the same
-// two-step shape applied to identity edits and message moderation. Without
-// the rank check the field would tell the frontend that a peer-or-higher
-// admin can be deleted by another admin, which the mutation path itself
-// must (and would) reject. Keeping the hint accurate avoids dead UI
-// affordances and avoids implying the rank check is optional.
-//
-// Self-delete is privilege-neutral and goes through `user.delete-self`
-// alone; no rank check.
+// Self-delete goes through `user.delete-self`; cross-user deletion goes
+// through `user.delete-any`.
 func (r *userResolver) ViewerCanDeleteAccount(ctx context.Context, obj *corev1.User) (bool, error) {
 	caller := auth.ForContext(ctx)
 	if caller == nil {
 		return false, nil
 	}
-	can, err := r.core.CanDeleteUser(ctx, caller.Id, obj.Id)
-	if err != nil || !can {
-		return false, err
-	}
-	if caller.Id == obj.Id {
-		return true, nil
-	}
-	return r.core.OutranksUser(ctx, caller.Id, obj.Id)
+	return r.core.CanDeleteUser(ctx, caller.Id, obj.Id)
 }
 
 // LastLoginChange is the resolver for the lastLoginChange field.

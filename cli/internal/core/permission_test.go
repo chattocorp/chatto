@@ -252,9 +252,6 @@ func TestDefaultEveryonePermissions(t *testing.T) {
 
 	mustInclude := []Permission{
 		PermUserDeleteSelf,
-		PermRoomJoin,
-		PermMessagePost,
-		PermMessagePostInThread,
 	}
 	for _, want := range mustInclude {
 		if !slices.Contains(perms, want) {
@@ -274,7 +271,6 @@ func TestDefaultModeratorPermissions(t *testing.T) {
 	perms := DefaultModeratorPermissions()
 
 	mustInclude := []Permission{
-		PermMessageManage,
 		PermAdminUsersView,
 	}
 	for _, want := range mustInclude {
@@ -287,6 +283,21 @@ func TestDefaultModeratorPermissions(t *testing.T) {
 	for _, mustNotInclude := range []Permission{PermRoomCreate, PermRoomManage, PermServerManage, PermRoleManage} {
 		if slices.Contains(perms, mustNotInclude) {
 			t.Errorf("moderator defaults must not include %v", mustNotInclude)
+		}
+	}
+}
+
+func TestDefaultRoomEveryonePermissions(t *testing.T) {
+	perms := DefaultRoomEveryonePermissions()
+
+	mustInclude := []Permission{
+		PermRoomJoin,
+		PermMessagePost,
+		PermMessagePostInThread,
+	}
+	for _, want := range mustInclude {
+		if !slices.Contains(perms, want) {
+			t.Errorf("Expected %v in room everyone defaults", want)
 		}
 	}
 }

@@ -33,8 +33,8 @@ attached an authenticated server session.
 Do not add `@public` to fields that expose user, room, message, admin,
 mutation, viewer-scoped, permission, or capability data, even if the resolver
 would return `null`, `false`, or an empty collection for anonymous callers. Keep
-permission checks, room membership checks, self-vs-target rules, and outranking
-rules in resolver helpers where the resolver has the needed context; `@public`
+permission checks, room membership checks, and self-vs-target rules in resolver
+helpers where the resolver has the needed context; `@public`
 only controls the anonymous/authenticated boundary.
 
 ```graphql

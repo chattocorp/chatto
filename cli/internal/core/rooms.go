@@ -187,9 +187,9 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 		}
 	}
 
-	if strings.EqualFold(name, AnnouncementsRoomName) {
-		if err := c.SetupAnnouncementsRoomPermissions(ctx, room_id); err != nil {
-			c.logger.Warn("Failed to set up announcements room permissions", "error", err, "room_id", room_id)
+	if kind == KindChannel {
+		if err := c.SeedDefaultChannelRoomPermissions(ctx, room_id, name); err != nil {
+			c.logger.Warn("Failed to seed channel room permissions", "error", err, "room_id", room_id)
 		}
 	}
 

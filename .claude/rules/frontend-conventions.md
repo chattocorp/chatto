@@ -176,7 +176,7 @@ Pages rendered in the main content area must wrap all content in a single flex c
 
 ## Permission-Based UI Gating
 
-Query `viewerCan*` fields on the Space type and conditionally render or disable UI. For checks that depend on locally available data (like role hierarchy), compute them in the frontend rather than adding backend fields.
+Query `viewerCan*` fields on the Server type and conditionally render or disable UI. Do not reimplement authorization rules from local role data; use backend capability hints or let the mutation return permission errors.
 
 ## Shared Component Libraries
 

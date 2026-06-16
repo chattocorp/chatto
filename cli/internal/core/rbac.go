@@ -107,9 +107,19 @@ func (c *ChattoCore) IsServerAdmin(ctx context.Context, userID string) (bool, er
 	return c.RBAC.HasRole(userID, RoleAdmin), nil
 }
 
-// IsServerOwner checks if a user has the owner role via RBAC.
+// IsServerOwner checks whether a user is an effective server owner. Durable
+// owner-role assignments and configured owners.emails both count so a
+// configured owner cannot be locked out by edited RBAC state.
 func (c *ChattoCore) IsServerOwner(ctx context.Context, userID string) (bool, error) {
-	return c.RBAC.HasRole(userID, RoleOwner), nil
+	if c.RBAC.HasRole(userID, RoleOwner) {
+		return true, nil
+	}
+	for _, ve := range c.Users.VerifiedEmails(userID) {
+		if c.config.Owners.IsServerOwnerEmail(ve.Email) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // ResolveUserPermission returns the walker's decision (allow / deny / none)
@@ -138,7 +148,7 @@ func (c *ChattoCore) HasUserPermissionDeniedViaRoles(ctx context.Context, userID
 }
 
 // hasServerPermission checks a server-wide permission via the unified
-// hierarchy-wins resolver. Internal building block — use the Can* helpers
+// permission resolver. Internal building block — use the Can* helpers
 // in can.go for authorization checks.
 func (c *ChattoCore) hasServerPermission(ctx context.Context, userID string, perm Permission) (bool, error) {
 	return c.permissionResolver.HasSpacePermission(ctx, userID, KindChannel, perm)
@@ -197,13 +207,8 @@ func (c *ChattoCore) ListAdmins(ctx context.Context) ([]string, error) {
 
 // AssignServerRole assigns any role to a user.
 // The role must exist (system or custom). The everyone role cannot be assigned (it's implicit).
-// Pass SystemActorID as actorID to bypass hierarchy checks (for internal/bootstrap use).
-//
-// Hierarchy checks (mirroring RevokeServerRole for symmetry):
-//   - Actor must outrank the role being assigned (role-position hierarchy).
-//   - Actor must outrank the target user (user-position hierarchy) — peers
-//     cannot decorate each other with new roles, only system bootstrap or
-//     a strictly-higher-ranked admin can.
+// Authorization is enforced by the API boundary (`role.assign`); this service
+// method validates role existence and writes the assignment fact.
 func (c *ChattoCore) AssignServerRole(ctx context.Context, actorID, userID, roleName string) error {
 	if roleName == RoleEveryone {
 		return ErrImplicitRole
@@ -214,20 +219,8 @@ func (c *ChattoCore) AssignServerRole(ctx context.Context, actorID, userID, role
 	}})
 
 	if _, err := c.appendRBACEvent(ctx, event, func() error {
-		role, ok := c.RBAC.GetRole(roleName)
-		if !ok {
+		if _, ok := c.RBAC.GetRole(roleName); !ok {
 			return ErrRoleNotFound
-		}
-		if actorID != SystemActorID {
-			canManage := c.RBAC.GetUserHighestPosition(actorID) == PositionOwner || c.RBAC.GetUserHighestPosition(actorID) > role.GetPosition()
-			if !canManage {
-				return ErrCannotAssignHigherRole
-			}
-			if actorID != userID {
-				if c.RBAC.GetUserHighestPosition(actorID) <= c.RBAC.GetUserHighestPosition(userID) {
-					return ErrCannotManageHigherUser
-				}
-			}
 		}
 		if c.RBAC.HasRole(userID, roleName) {
 			return errRBACNoop
@@ -246,12 +239,8 @@ func (c *ChattoCore) AssignServerRole(ctx context.Context, actorID, userID, role
 
 // RevokeServerRole removes an role from a user.
 // The role must exist (system or custom). The everyone role cannot be revoked (it's implicit).
-// Pass SystemActorID as actorID to bypass hierarchy and self-demote checks (for internal/bootstrap use).
-//
-// Checks (in order):
-//   - Owners cannot revoke their own owner role (lockout prevention).
-//   - Actor must outrank the role being revoked (role-position hierarchy).
-//   - Actor must outrank the target user (user-position hierarchy) — peers cannot demote each other.
+// Authorization is enforced by the API boundary (`role.assign`). The only
+// service-level guard is self-owner lockout prevention.
 func (c *ChattoCore) RevokeServerRole(ctx context.Context, actorID, userID, roleName string) error {
 	if roleName == RoleEveryone {
 		return ErrImplicitRole
@@ -265,20 +254,8 @@ func (c *ChattoCore) RevokeServerRole(ctx context.Context, actorID, userID, role
 		if roleName == RoleOwner && actorID == userID {
 			return ErrCannotRevokeSelfAdmin
 		}
-		role, ok := c.RBAC.GetRole(roleName)
-		if !ok {
+		if _, ok := c.RBAC.GetRole(roleName); !ok {
 			return ErrRoleNotFound
-		}
-		if actorID != SystemActorID {
-			canManage := c.RBAC.GetUserHighestPosition(actorID) == PositionOwner || c.RBAC.GetUserHighestPosition(actorID) > role.GetPosition()
-			if !canManage {
-				return ErrCannotRevokeHigherRole
-			}
-			if actorID != userID {
-				if c.RBAC.GetUserHighestPosition(actorID) <= c.RBAC.GetUserHighestPosition(userID) {
-					return ErrCannotManageHigherUser
-				}
-			}
 		}
 		return nil
 	}); err != nil {
@@ -762,21 +739,16 @@ func (c *ChattoCore) ClearGroupPermissionState(ctx context.Context, actorID, gro
 	return err
 }
 
-// OutranksUser reports whether actor outranks target by role-hierarchy
-// position (higher position = higher rank). Users with no explicit roles
-// fall back to PositionEveryone.
-//
-// This is a HIERARCHY CHECK, not an authorization check. To gate an
-// action against another user, callers MUST also check the relevant
-// permission. See .claude/rules/authorization.md (`permission AND
-// OutranksUser`).
+// OutranksUser reports whether actor has a higher role position than target.
+// Kept for legacy diagnostics/tests; role position is not an authorization
+// rank in the current model.
 func (c *ChattoCore) OutranksUser(ctx context.Context, actorID, targetID string) (bool, error) {
 	return c.RBAC.GetUserHighestPosition(actorID) > c.RBAC.GetUserHighestPosition(targetID), nil
 }
 
 // GetUserEffectiveSpacePermissions returns all permissions the user effectively has for a
 // room kind. Delegates to PermissionResolver.HasSpacePermission for each space-scoped
-// permission, ensuring consistent resolution logic (unified hierarchy-wins; DM rooms
+// permission, ensuring consistent resolution logic (DM rooms
 // additionally have their boundary deny-list applied).
 func (c *ChattoCore) GetUserEffectiveSpacePermissions(ctx context.Context, kind RoomKind, userID string) ([]Permission, error) {
 	if kind == KindDM {

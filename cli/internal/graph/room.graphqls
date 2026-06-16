@@ -41,8 +41,8 @@ type Room {
   viewerCanReact: Boolean! @goField(forceResolver: true)
   """
   Whether the current user can edit or delete other users' messages in
-  this room (subject to also strictly outranking the author). Authors
-  editing or deleting their own messages do not need this permission.
+  this room. Authors editing or deleting their own messages do not need
+  this permission.
   """
   viewerCanManageOthersMessage: Boolean! @goField(forceResolver: true)
   """
@@ -59,7 +59,7 @@ type Room {
   viewerCanEchoMessage: Boolean! @goField(forceResolver: true)
   "Whether the current user can edit/configure this room (room.manage)."
   viewerCanManageRoom: Boolean! @goField(forceResolver: true)
-  "Whether the current user can ban lower-ranked members from this room."
+  "Whether the current user can ban members from this room."
   viewerCanBanRoomMembers: Boolean! @goField(forceResolver: true)
   "Whether this room is archived. Archived rooms are hidden from sidebar and Browse Rooms."
   archived: Boolean!
