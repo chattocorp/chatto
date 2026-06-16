@@ -202,7 +202,7 @@ func TestServerResolver_Rooms_RoomScopeVisibility(t *testing.T) {
 		}
 	})
 
-	t.Run("explicit role grant restores visibility", func(t *testing.T) {
+	t.Run("explicit role grant does not bypass everyone deny", func(t *testing.T) {
 		// Create an "engineering" role, grant it room.list on the private
 		// room. A user with this role should see it in the directory.
 		_, err := env.core.CreateServerRole(env.ctx, core.SystemActorID, "engineering", "Engineering", "Eng team")
@@ -227,8 +227,8 @@ func TestServerResolver_Rooms_RoomScopeVisibility(t *testing.T) {
 				break
 			}
 		}
-		if !sawPrivate {
-			t.Error("expected user with role-level grant to see the private room")
+		if sawPrivate {
+			t.Error("expected role-level grant to stay blocked while everyone deny exists")
 		}
 	})
 }

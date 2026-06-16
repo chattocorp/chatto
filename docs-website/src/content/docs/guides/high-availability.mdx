@@ -129,9 +129,12 @@ All critical data is durably stored and replicated:
 Some data is kept in memory for speed and has short TTLs:
 
 - **Presence** — online/offline status (60-second TTL, auto-expires)
-- **LiveKit E2EE call keys** — stored behind the KMS boundary and shredded when calls end; if key storage is lost, active calls must reconnect into a fresh call
 
-These are still replicated across the cluster for consistency, but they're reconstructed automatically if lost.
+This state is replicated across the NATS cluster for consistency, but it is reconstructed automatically if lost.
+
+### Security-sensitive key storage
+
+LiveKit E2EE call keys are stored behind Chatto's KMS boundary in the `ENCRYPTION_KEYS` bucket. They are replicated with the rest of file-backed NATS state, excluded from normal backups, and shredded when calls end. If key storage is lost during an active call, clients must reconnect into a fresh call.
 
 ## Connecting Chatto to the Cluster
 

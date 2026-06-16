@@ -1,11 +1,11 @@
 # FDR-004: Message Editing & Deletion
 
 **Status:** Active
-**Last reviewed:** 2026-06-06
+**Last reviewed:** 2026-06-15
 
 ## Overview
 
-Authors can edit and delete their own messages; moderators with the right permission can edit and delete others' messages, subject to outranking the author. Edits replace the message body; deletes remove the body and attachments and leave a "[Message deleted]" placeholder.
+Authors can edit and delete their own messages; users with `message.manage` can edit and delete others' messages. Edits replace the message body; deletes remove the body and attachments and leave a "[Message deleted]" placeholder.
 
 ## Behavior
 
@@ -59,7 +59,7 @@ Authors can edit and delete their own messages; moderators with the right permis
 
 ## Permissions
 
-- `message.manage` — edit and delete *other* users' messages. Subject to outranking the author.
+- `message.manage` — edit and delete *other* users' messages.
 - (No separate permission for editing/deleting one's own messages — that's gated by authorship and the edit window only.)
 
 ## Related

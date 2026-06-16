@@ -15,7 +15,7 @@ Users can mention users, roles, and room-scoped virtual groups with `@handle` sy
 - `@username` mentions notify that user if they are a current room member.
 - Pingable `@role` mentions notify current room members who are explicitly assigned that server role.
 - `@owner` and `@admin` are ordinary role handles but are not pingable by default, so they do not appear in autocomplete and do not notify unless an operator explicitly enables them.
-- Fresh servers seed the `moderator` role as pingable. It remains an explicit role ping: it reaches users assigned to `moderator`, not higher-ranked admins or owners unless those users also have the `moderator` role.
+- Fresh servers seed the `moderator` role as pingable. It remains an explicit role ping: it reaches users assigned to `moderator`, not admins or owners unless those users also have the `moderator` role.
 - `@all` mentions every current room member, regardless of presence.
 - `@here` mentions current room members whose presence is not offline.
 - `@everyone` is not a message mention handle. Use `@all` for room-wide delivery; `everyone` remains the implicit RBAC role.

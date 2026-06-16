@@ -34,32 +34,23 @@ export const LoadCurrentUserDocument = graphql(`
 // Re-export the CurrentUser type for use in load function return types
 export type CurrentUser = NonNullable<LoadCurrentUserQuery['viewer']>['user'];
 
-// Module-level cache for the current user.
-// Since we're in an SPA, this persists across navigations and prevents
-// redundant network requests on every route change.
+// Module-level cache for the current user. Root load re-checks the server on
+// navigation, but keeps this value as a fallback when the check itself fails.
 let cachedUser: CurrentUser | null = null;
 
 /**
  * Load the current user from the GraphQL API.
  * Returns null if not authenticated.
  *
- * Uses a module-level cache to avoid redundant requests during navigation.
- * The cache is cleared when the user logs out (via clearCachedUser).
- *
  * On transient network errors (e.g., slow CI, server still warming up after reload),
- * retries once before giving up. Without this, a single GraphQL hiccup makes the SPA
- * render as unauthenticated and redirect away from authenticated routes.
+ * retries once. If the query still fails and we previously had a user, keep the
+ * cached user rather than rendering the app as unauthenticated.
  */
 export async function loadCurrentUser(): Promise<CurrentUser | null> {
   if (!browser) {
     // In SPA mode, load functions only run in the browser.
     // If somehow called on server, return null (will trigger redirect).
     return null;
-  }
-
-  // Return cached user if available - avoids network request on every navigation
-  if (cachedUser) {
-    return cachedUser;
   }
 
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -74,11 +65,15 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
       continue;
     }
 
+    if (resp.error) {
+      return cachedUser;
+    }
+
     cachedUser = resp.data?.viewer?.user ?? null;
     return cachedUser;
   }
 
-  return null;
+  return cachedUser;
 }
 
 /**

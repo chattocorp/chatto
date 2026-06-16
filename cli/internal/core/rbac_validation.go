@@ -5,11 +5,10 @@ import (
 	"regexp"
 )
 
-// RBAC-engine-specific validation errors. Errors common with the rest of
-// core (ErrInvalidRoleName, ErrRoleNotFound, ErrRoleAlreadyExists,
-// ErrPermissionDenied, ErrCannotDeleteSystemRole, ErrInvalidPermission,
-// ErrCannotAssignHigherRole, ErrCannotRevokeHigherRole,
-// ErrCannotManageHigherUser) live in core/errors.go and core/rbac.go.
+// RBAC-engine-specific validation errors. Errors common with the rest of core
+// (ErrInvalidRoleName, ErrRoleNotFound, ErrRoleAlreadyExists,
+// ErrPermissionDenied, ErrCannotDeleteSystemRole, ErrInvalidPermission) live in
+// core/errors.go and core/rbac.go.
 var (
 	// ErrCannotReorderSystemRole is returned when attempting to reorder a system role.
 	ErrCannotReorderSystemRole = errors.New("cannot reorder system roles")

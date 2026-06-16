@@ -943,7 +943,7 @@ type Role struct {
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`                                  // Unique identifier, lowercase + dashes only, e.g., "owner", "moderator", "content-reviewer"
 	DisplayName   string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"` // Human-readable name, e.g., "Owner", "Moderator", "Content Reviewer"
 	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	Position      int32                  `protobuf:"varint,4,opt,name=position,proto3" json:"position,omitempty"` // Hierarchy position: lower = higher rank. Owner=0, Everyone=MAX_INT32
+	Position      int32                  `protobuf:"varint,4,opt,name=position,proto3" json:"position,omitempty"` // Display/order position; not an authorization rank.
 	Pingable      bool                   `protobuf:"varint,5,opt,name=pingable,proto3" json:"pingable,omitempty"` // Whether messages can ping users assigned to this role.
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

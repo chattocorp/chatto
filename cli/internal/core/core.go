@@ -285,6 +285,9 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 		if err := c.ensureChannelRoomsAreInAGroup(gctx); err != nil {
 			return fmt.Errorf("ensure channel rooms in a group: %w", err)
 		}
+		if err := c.EnsureDefaultChannelRoomPermissions(gctx); err != nil {
+			return fmt.Errorf("ensure default channel room permissions: %w", err)
+		}
 		close(c.bootDone)
 		return nil
 	})

@@ -22,9 +22,9 @@ type DefaultGlobalRoom struct {
 }
 
 // DefaultGlobalRooms is the list of channel rooms seeded on a fresh
-// deployment. Each lands in the seed "Lobby" group. The "announcements"
-// room has `message.post` denied for `everyone` via
-// `SetupAnnouncementsRoomPermissions` (auto-applied by `CreateRoom`).
+// deployment. Each lands in the seed "Lobby" group. Normal rooms inherit the
+// server-tier everyone defaults; the "announcements" room adds a room-tier
+// everyone/message.post denial.
 var DefaultGlobalRooms = []DefaultGlobalRoom{
 	{Name: AnnouncementsRoomName, Description: "Announcements and news"},
 	{Name: "general", Description: "General discussion"},
@@ -66,7 +66,7 @@ func (c *ChattoCore) SeedDefaultRooms(ctx context.Context) error {
 
 // CleanupUserState removes a user's per-kind artifacts: room memberships,
 // notification levels, and (during account deletion) emits a live
-	// ServerMemberDeletedEvent so clients can re-render messages as "Deleted User".
+// ServerMemberDeletedEvent so clients can re-render messages as "Deleted User".
 // Idempotent; safe to call for kinds the user never interacted with.
 //
 // Post-#330 there's no separate "space membership" record to delete — every

@@ -30,7 +30,6 @@ class FakeGqlClient {
     } as unknown as Client;
   }
 
-  setAuthHandlers = vi.fn();
 }
 
 const registered: RegisteredServer = {

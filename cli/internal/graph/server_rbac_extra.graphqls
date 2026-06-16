@@ -17,14 +17,10 @@ extend type Server {
   "Whether the current user can assign roles to users (has role.assign permission)."
   viewerCanAssignRoles: Boolean! @goField(forceResolver: true)
 
-  """
-  UI hint reporting whether the viewer outranks the target user by role
-  hierarchy. **This is a rank check only**, not an authorization gate —
-  capabilities like "edit this user's profile" additionally require a
-  permission (e.g. `role.assign`). Use this for showing/hiding admin UI
-  affordances; never as the sole basis for permitting a mutation. See
-  `.claude/rules/authorization.md` (`permission AND OutranksUser`).
-  """
+  "Whether the current user can edit direct per-user permission overrides (has user.manage-permissions permission)."
+  viewerCanManageUserPermissions: Boolean! @goField(forceResolver: true)
+
+  "Whether the current user can administer the target user's profile. Self is allowed; other users require role.assign."
   viewerCanManageUser(userId: ID!): Boolean! @goField(forceResolver: true)
 
   "Get users assigned to a specific role."
@@ -64,7 +60,7 @@ type RoleRoomPermissions {
   displayName: String!
   "Whether this is a system-defined role"
   isSystem: Boolean!
-  "Hierarchy position (higher = higher rank; see Role.position)."
+  "Display/order position (higher sorts before lower; not an authorization rank)."
   position: Int!
   "Permissions granted at room level"
   permissions: [String!]!

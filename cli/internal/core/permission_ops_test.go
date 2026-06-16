@@ -362,27 +362,40 @@ func TestInitServerDefaults(t *testing.T) {
 
 	// InitServerDefaults is called during setupTestCore, so we can verify its effects
 
-	t.Run("admin has every server permission", func(t *testing.T) {
-		// Admin gets every server-scope permission enumerated. The
-		// distinction from owner is rank, not capabilities — admins
-		// cannot manage owners (rank check) and cannot revoke their own
-		// role (self-lockout prevention), but the permission grid is
-		// identical to owner.
+	t.Run("admin has expected server permissions", func(t *testing.T) {
+		// Admin-specific defaults include administration, room administration,
+		// and message management. Ordinary posting defaults come from everyone.
 		for _, perm := range PermissionsForScope(ScopeServer) {
+			if perm.Category == CategoryMessage && perm.Permission != PermMessageManage {
+				continue
+			}
 			if got := core.RBAC.GetDecision(ScopeServer, "", RoleAdmin, perm.Permission); got != DecisionAllow {
 				t.Errorf("admin decision for %s = %s, want %s", perm.Permission, got, DecisionAllow)
 			}
 		}
+		for _, perm := range []Permission{PermMessagePost, PermMessagePostInThread, PermMessageReact, PermMessageEcho} {
+			if got := core.RBAC.GetDecision(ScopeServer, "", RoleAdmin, perm); got != DecisionNone {
+				t.Errorf("admin server decision for %s = %s, want %s", perm, got, DecisionNone)
+			}
+		}
 	})
 
-	t.Run("everyone has message.post permission", func(t *testing.T) {
+	t.Run("everyone has default server message.post permission", func(t *testing.T) {
 		if got := core.RBAC.GetDecision(ScopeServer, "", RoleEveryone, PermMessagePost); got != DecisionAllow {
 			t.Errorf("everyone decision for %s = %s, want %s", PermMessagePost, got, DecisionAllow)
 		}
 	})
 
 	t.Run("everyone has expected permissions", func(t *testing.T) {
-		expectedPerms := []Permission{PermMessagePost, PermUserDeleteSelf}
+		expectedPerms := []Permission{
+			PermUserDeleteSelf,
+			PermRoomList,
+			PermRoomJoin,
+			PermMessagePost,
+			PermMessagePostInThread,
+			PermMessageReact,
+			PermMessageEcho,
+		}
 		for _, perm := range expectedPerms {
 			if got := core.RBAC.GetDecision(ScopeServer, "", RoleEveryone, perm); got != DecisionAllow {
 				t.Errorf("everyone decision for %s = %s, want %s", perm, got, DecisionAllow)
@@ -399,23 +412,18 @@ func TestInitDefaultPermissions(t *testing.T) {
 
 	// InitDefaultPermissions is called at boot, so we can verify its effects here.
 
-	t.Run("owner has every server permission enumerated", func(t *testing.T) {
-		// Owner gets the full server-scope permission set explicitly —
-		// the same set as admin. No "bypass" super-permission exists.
-		// Operator-configured denies apply uniformly, including to owners,
-		// because the resolver walks roles for owners just like everyone
-		// else.
+	t.Run("owner role stores no default server permissions", func(t *testing.T) {
 		for _, perm := range PermissionsForScope(ScopeServer) {
-			if got := core.RBAC.GetDecision(ScopeServer, "", RoleOwner, perm.Permission); got != DecisionAllow {
-				t.Errorf("owner decision for %s = %s, want %s", perm.Permission, got, DecisionAllow)
+			if got := core.RBAC.GetDecision(ScopeServer, "", RoleOwner, perm.Permission); got != DecisionNone {
+				t.Errorf("owner decision for %s = %s, want %s", perm.Permission, got, DecisionNone)
 			}
 		}
 	})
 
-	t.Run("owner resolves to allow for every permission via enumerated grants", func(t *testing.T) {
-		// The behavioural contract: a freshly-assigned owner passes
-		// every defined server-scope permission check. The mechanism is
-		// the enumerated grant set on the owner role, not a short-circuit.
+	t.Run("owner resolves to allow for every permission via effective-owner override", func(t *testing.T) {
+		// The behavioural contract: a freshly-assigned owner passes every
+		// defined server-scope permission check, including message permissions
+		// that no longer have default server-scope grants.
 		owner, err := core.CreateUser(ctx, SystemActorID, "enum-owner", "Owner", "password123")
 		if err != nil {
 			t.Fatalf("CreateUser: %v", err)
@@ -442,8 +450,8 @@ func TestInitDefaultPermissions(t *testing.T) {
 		}
 	})
 
-	t.Run("moderator has moderation permissions", func(t *testing.T) {
-		moderatorPerms := []Permission{PermMessageManage, PermRoomMemberBan}
+	t.Run("moderator has server-scope admin user visibility and moderation permissions", func(t *testing.T) {
+		moderatorPerms := []Permission{PermAdminUsersView, PermMessageManage, PermRoomMemberBan}
 		for _, perm := range moderatorPerms {
 			if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, perm); got != DecisionAllow {
 				t.Errorf("moderator decision for %s = %s, want %s", perm, got, DecisionAllow)
@@ -452,26 +460,26 @@ func TestInitDefaultPermissions(t *testing.T) {
 	})
 
 	t.Run("ensure default permissions backfills missing grants without overriding denies", func(t *testing.T) {
-		if err := core.ClearServerPermissionState(ctx, SystemActorID, RoleModerator, PermRoomMemberBan); err != nil {
+		if err := core.ClearServerPermissionState(ctx, SystemActorID, RoleModerator, PermAdminUsersView); err != nil {
 			t.Fatalf("ClearServerPermissionState: %v", err)
 		}
-		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermRoomMemberBan); got != DecisionNone {
+		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermAdminUsersView); got != DecisionNone {
 			t.Fatalf("decision after clear = %s, want %s", got, DecisionNone)
 		}
 		if err := core.EnsureDefaultRolePermissions(ctx); err != nil {
 			t.Fatalf("EnsureDefaultRolePermissions backfill: %v", err)
 		}
-		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermRoomMemberBan); got != DecisionAllow {
+		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermAdminUsersView); got != DecisionAllow {
 			t.Fatalf("decision after ensure = %s, want %s", got, DecisionAllow)
 		}
 
-		if err := core.DenyServerPermission(ctx, SystemActorID, RoleModerator, PermRoomMemberBan); err != nil {
+		if err := core.DenyServerPermission(ctx, SystemActorID, RoleModerator, PermAdminUsersView); err != nil {
 			t.Fatalf("DenyServerPermission: %v", err)
 		}
 		if err := core.EnsureDefaultRolePermissions(ctx); err != nil {
 			t.Fatalf("EnsureDefaultRolePermissions preserve deny: %v", err)
 		}
-		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermRoomMemberBan); got != DecisionDeny {
+		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermAdminUsersView); got != DecisionDeny {
 			t.Fatalf("decision after denied ensure = %s, want %s", got, DecisionDeny)
 		}
 	})
@@ -524,26 +532,39 @@ func TestSetupAnnouncementsRoomPermissions(t *testing.T) {
 		t.Fatalf("CreateRoom (announcements) failed: %v", err)
 	}
 
-	t.Run("announcements room denies message.post to everyone", func(t *testing.T) {
+	t.Run("announcements room denies message.post for everyone", func(t *testing.T) {
 		if got := core.RBAC.GetDecision(ScopeRoom, annRoom.Id, RoleEveryone, PermMessagePost); got != DecisionDeny {
 			t.Errorf("decision = %s, want %s", got, DecisionDeny)
 		}
 	})
 
-	t.Run("announcements room does not need explicit grants for higher-ranked roles", func(t *testing.T) {
-		// Higher-ranked roles (owner/admin/moderator) inherit message.post
-		// from their server-scope defaults; the resolver hits those grants
-		// before descending to the everyone-role deny.
-		for _, roleName := range []string{RoleOwner, RoleAdmin, RoleModerator} {
+	t.Run("announcements room does not store staff message.post overrides", func(t *testing.T) {
+		for _, roleName := range []string{RoleAdmin, RoleModerator} {
 			if got := core.RBAC.GetDecision(ScopeRoom, annRoom.Id, roleName, PermMessagePost); got != DecisionNone {
 				t.Errorf("room decision for %s = %s, want %s", roleName, got, DecisionNone)
 			}
+		}
+		if got := core.RBAC.GetDecision(ScopeRoom, annRoom.Id, RoleOwner, PermMessagePost); got != DecisionNone {
+			t.Errorf("owner room decision = %s, want %s", got, DecisionNone)
 		}
 	})
 
 	t.Run("regular room does not have announcements permissions", func(t *testing.T) {
 		if got := core.RBAC.GetDecision(ScopeRoom, regularRoom.Id, RoleEveryone, PermMessagePost); got == DecisionDeny {
 			t.Errorf("Regular room should not have %s denial for everyone", PermMessagePost)
+		}
+	})
+
+	t.Run("regular room stores no admin or moderator staff defaults", func(t *testing.T) {
+		for _, perm := range []Permission{PermMessageManage, PermRoomManage, PermRoomMemberBan} {
+			if got := core.RBAC.GetDecision(ScopeRoom, regularRoom.Id, RoleAdmin, perm); got != DecisionNone {
+				t.Errorf("admin room decision for %s = %s, want %s", perm, got, DecisionNone)
+			}
+		}
+		for _, perm := range []Permission{PermMessageManage, PermRoomMemberBan} {
+			if got := core.RBAC.GetDecision(ScopeRoom, regularRoom.Id, RoleModerator, perm); got != DecisionNone {
+				t.Errorf("moderator room decision for %s = %s, want %s", perm, got, DecisionNone)
+			}
 		}
 	})
 

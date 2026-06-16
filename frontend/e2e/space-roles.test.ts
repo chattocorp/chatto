@@ -454,7 +454,7 @@ test.describe('Space Roles Management', () => {
       await spaceRolesPage.expectPermissionNotGranted('room.list');
     });
 
-    test('system role owner has enumerated admin permissions granted and editable', async ({
+    test('system role owner has virtual admin permissions granted read-only', async ({
       spaceRolesPage
     }) => {
       const { page } = spaceRolesPage;
@@ -464,13 +464,9 @@ test.describe('Space Roles Management', () => {
 
       await spaceRolesPage.gotoEditRole(space.id, 'owner');
 
-      // Owner role holds the full enumerated permission set — same as
-      // admin. There's no super-permission short-circuit anymore;
-      // owners pass every check because their role explicitly grants
-      // every server-scope permission. Pick a representative admin
-      // permission to assert against the matrix.
-      await spaceRolesPage.expectPermissionEditable('user.delete-any');
-      await spaceRolesPage.expectPermissionGranted('user.delete-any');
+      // Owner permissions are virtual, not persisted editable grants.
+      await spaceRolesPage.expectOwnerPermissionVirtuallyGranted('user.delete-any');
+      await spaceRolesPage.expectPermissionReadOnly('user.delete-any');
     });
 
     test('system roles cannot be deleted', async ({ spaceRolesPage }) => {

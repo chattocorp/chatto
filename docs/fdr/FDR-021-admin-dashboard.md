@@ -1,7 +1,7 @@
 # FDR-021: Admin Dashboard & System Monitoring
 
 **Status:** Active
-**Last reviewed:** 2026-06-06
+**Last reviewed:** 2026-06-15
 
 ## Overview
 
@@ -11,7 +11,7 @@ The admin section gives owners and admins visibility into the server's operation
 
 - The admin UI lives under `/chat/[serverId]/server-admin/`. Non-admins see an "access denied" panel; the server-header gear entry point is hidden from them.
 - Admin-capable users enter through the gear icon in the server name pane header. Once inside server-admin, the server sidebar switches from room navigation to the admin section navigation with a Back to Server affordance.
-- **Users page** — paginated list of all server members with login, email, roles, verification status. Admins can edit profiles, assign roles, suspend, or delete users (subject to outranking the target — see FDR-001).
+- **Users page** — paginated list of all server members with login, email, roles, verification status. Admins can edit profiles, assign roles, suspend, or delete users when they hold the relevant permission.
 - **System Info page** — owner-only page showing backing message-broker connection status, storage account limits and current usage, stream/consumer health, projection health (lag, entry counts, and rough memory estimates), and `admin.systemInfo.stats` (user count, channel room count, DM room count).
 - **Audit log page** — chronological diagnostic event-log view for forensic review. The list view uses `admin.eventLog`; the detail view uses `admin.eventLogEntry` to show the raw payload JSON for human inspection.
 - The audit/event-log GraphQL connection returns `totalCount` as `Int64` because it reflects retained stream message counts, which can exceed GraphQL's 32-bit `Int` range on long-running servers.
@@ -59,7 +59,7 @@ The admin section gives owners and admins visibility into the server's operation
 - `admin.view-users` — gates user-management views, admin-only affordances, and user-sensitive fields such as other users' verified email addresses and login cooldowns. The underlying `server.members` directory query remains authenticated-user visible; see FDR-025.
 - `admin.view-system` — gates `admin.projections`; `admin.systemInfo` is owner-only for now.
 - `admin.view-audit` — gates `admin.eventLog` and `admin.eventLogEntry`.
-- `role.assign` — gates user edits and role changes via the `requireUserAdminTarget` helper (permission + outrank-target check).
+- `role.assign` — gates user edits and role changes via the `requireUserAdminTarget` helper.
 
 ## Related
 

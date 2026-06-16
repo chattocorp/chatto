@@ -46,10 +46,14 @@
   }
 </script>
 
-<PageTitle title="Permissions | Space Admin" />
+<PageTitle title="Permissions | Server Admin" />
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-  <PaneHeader title="Permissions" subtitle="Manage space roles and permissions" showMobileNav />
+  <PaneHeader
+    title="Permissions"
+    subtitle="Manage server-wide role defaults"
+    showMobileNav
+  />
 
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
     {#if error}
@@ -74,12 +78,25 @@
         </Panel>
       {/if}
       <Hint>
-        The settings on this page act as <strong>server-wide defaults</strong>. You can override individual permissions for each room
-        or room group via the
-        <a
-          href={resolve('/chat/[serverId]/server-admin/rooms', { serverId: serverSegment })}
-          class="link">Rooms</a
-        > page.
+        <div class="space-y-2">
+          <p>
+            This page is for <strong>server-tier</strong> role permissions: broad defaults that
+            apply across the server.
+          </p>
+          <p>
+            Normal room permissions such as posting, joining, discovery, reactions, and thread
+            replies are granted here by default so new rooms work immediately. Use the
+            <a
+              href={resolve('/chat/[serverId]/server-admin/rooms', { serverId: serverSegment })}
+              class="link">Rooms</a
+            > page to add room or room-group exceptions when one room should behave differently.
+          </p>
+          <p>
+            For non-owners, any applicable deny anywhere cancels out grants from every role and
+            tier. Use denies deliberately: denying <code>everyone</code> in a room blocks all
+            non-owner users there. Owners are always granted all permissions.
+          </p>
+        </div>
       </Hint>
       <PermissionMatrix
         onRoleClick={openRoleDetail}

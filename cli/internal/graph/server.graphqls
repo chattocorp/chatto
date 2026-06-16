@@ -73,7 +73,7 @@ type Server {
   "Maximum upload size for video attachments in bytes. Same as maxUploadSize when video processing is disabled."
   maxVideoUploadSize: Int64! @goField(forceResolver: true, type: "int64")
 
-  "Duration in seconds after posting during which a user can edit their own message. Moderators with `message.edit-any` are not bound by this window."
+  "Duration in seconds after posting during which a user can edit their own message. Moderators with `message.manage` are not bound by this window."
   messageEditWindowSeconds: Int! @goField(forceResolver: true)
 
   """

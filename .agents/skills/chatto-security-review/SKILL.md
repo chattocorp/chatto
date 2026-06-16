@@ -33,7 +33,7 @@ Key files: `cli/internal/encryption/`, `cli/internal/core/users.go`, `cli/cmd/ke
 ### Agent 4: Infrastructure & Configuration
 Focus: CORS, rate limiting, WebSocket security, cookie flags, HTTP security headers (CSP, HSTS), Docker/K8s security, file upload limits, DoS vectors (missing timeouts, unbounded operations), error message leakage.
 
-Key files: `cli/internal/http_server/server.go`, `cli/internal/http_server/cors.go`, `cli/internal/http_server/frontend.go`, `cli/internal/http_server/health.go`, `Dockerfile.goreleaser`, `examples/k8s/`
+Key files: `cli/internal/http_server/server.go`, `cli/internal/http_server/cors.go`, `cli/internal/http_server/frontend.go`, `cli/internal/http_server/health.go`, `docker/Dockerfile.goreleaser`, `examples/k8s/`
 
 ### Agent 5: Frontend Security
 Focus: XSS via `{@html}`, auth token storage, CSRF protection, sensitive data in client bundle, open redirects, CSP compatibility, WebSocket message validation, file upload client-side validation, service worker security.

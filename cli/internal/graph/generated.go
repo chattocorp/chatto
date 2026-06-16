@@ -756,41 +756,42 @@ type ComplexityRoot struct {
 	}
 
 	Server struct {
-		AssetCount                    func(childComplexity int) int
-		AuthProviders                 func(childComplexity int) int
-		AvailablePermissions          func(childComplexity int) int
-		DirectRegistrationEnabled     func(childComplexity int) int
-		LivekitURL                    func(childComplexity int) int
-		MaxUploadSize                 func(childComplexity int) int
-		MaxVideoUploadSize            func(childComplexity int) int
-		Member                        func(childComplexity int, userID string) int
-		MemberCount                   func(childComplexity int) int
-		Members                       func(childComplexity int, search *string, limit *int32, offset *int32) int
-		MessageEditWindowSeconds      func(childComplexity int) int
-		Profile                       func(childComplexity int) int
-		PushNotificationsEnabled      func(childComplexity int) int
-		Role                          func(childComplexity int, name string) int
-		RoleUsers                     func(childComplexity int, roleName string) int
-		Roles                         func(childComplexity int) int
-		RoomCount                     func(childComplexity int) int
-		RoomGroups                    func(childComplexity int) int
-		Rooms                         func(childComplexity int, typeArg *model.RoomType) int
-		UserEffectiveDenials          func(childComplexity int, userID string) int
-		UserEffectivePermissions      func(childComplexity int, userID string) int
-		VapidPublicKey                func(childComplexity int) int
-		Version                       func(childComplexity int) int
-		VideoProcessingEnabled        func(childComplexity int) int
-		ViewerCanAssignRoles          func(childComplexity int) int
-		ViewerCanCreateRoom           func(childComplexity int) int
-		ViewerCanManageRoles          func(childComplexity int) int
-		ViewerCanManageRooms          func(childComplexity int) int
-		ViewerCanManageServer         func(childComplexity int) int
-		ViewerCanManageUser           func(childComplexity int, userID string) int
-		ViewerHasAnyAdminPermission   func(childComplexity int) int
-		ViewerHasUnreadRooms          func(childComplexity int) int
-		ViewerNotificationPreference  func(childComplexity int) int
-		ViewerPermissions             func(childComplexity int) int
-		ViewerUnreadNotificationCount func(childComplexity int) int
+		AssetCount                     func(childComplexity int) int
+		AuthProviders                  func(childComplexity int) int
+		AvailablePermissions           func(childComplexity int) int
+		DirectRegistrationEnabled      func(childComplexity int) int
+		LivekitURL                     func(childComplexity int) int
+		MaxUploadSize                  func(childComplexity int) int
+		MaxVideoUploadSize             func(childComplexity int) int
+		Member                         func(childComplexity int, userID string) int
+		MemberCount                    func(childComplexity int) int
+		Members                        func(childComplexity int, search *string, limit *int32, offset *int32) int
+		MessageEditWindowSeconds       func(childComplexity int) int
+		Profile                        func(childComplexity int) int
+		PushNotificationsEnabled       func(childComplexity int) int
+		Role                           func(childComplexity int, name string) int
+		RoleUsers                      func(childComplexity int, roleName string) int
+		Roles                          func(childComplexity int) int
+		RoomCount                      func(childComplexity int) int
+		RoomGroups                     func(childComplexity int) int
+		Rooms                          func(childComplexity int, typeArg *model.RoomType) int
+		UserEffectiveDenials           func(childComplexity int, userID string) int
+		UserEffectivePermissions       func(childComplexity int, userID string) int
+		VapidPublicKey                 func(childComplexity int) int
+		Version                        func(childComplexity int) int
+		VideoProcessingEnabled         func(childComplexity int) int
+		ViewerCanAssignRoles           func(childComplexity int) int
+		ViewerCanCreateRoom            func(childComplexity int) int
+		ViewerCanManageRoles           func(childComplexity int) int
+		ViewerCanManageRooms           func(childComplexity int) int
+		ViewerCanManageServer          func(childComplexity int) int
+		ViewerCanManageUser            func(childComplexity int, userID string) int
+		ViewerCanManageUserPermissions func(childComplexity int) int
+		ViewerHasAnyAdminPermission    func(childComplexity int) int
+		ViewerHasUnreadRooms           func(childComplexity int) int
+		ViewerNotificationPreference   func(childComplexity int) int
+		ViewerPermissions              func(childComplexity int) int
+		ViewerUnreadNotificationCount  func(childComplexity int) int
 	}
 
 	ServerMemberDeletedEvent struct {
@@ -1287,6 +1288,7 @@ type ServerResolver interface {
 	ViewerPermissions(ctx context.Context, obj *model.Server) ([]string, error)
 	ViewerCanManageRoles(ctx context.Context, obj *model.Server) (bool, error)
 	ViewerCanAssignRoles(ctx context.Context, obj *model.Server) (bool, error)
+	ViewerCanManageUserPermissions(ctx context.Context, obj *model.Server) (bool, error)
 	ViewerCanManageUser(ctx context.Context, obj *model.Server, userID string) (bool, error)
 	RoleUsers(ctx context.Context, obj *model.Server, roleName string) ([]*corev1.User, error)
 	UserEffectivePermissions(ctx context.Context, obj *model.Server, userID string) ([]string, error)
@@ -4763,6 +4765,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Server.ViewerCanManageUser(childComplexity, args["userId"].(string)), true
+	case "Server.viewerCanManageUserPermissions":
+		if e.ComplexityRoot.Server.ViewerCanManageUserPermissions == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Server.ViewerCanManageUserPermissions(childComplexity), true
 	case "Server.viewerHasAnyAdminPermission":
 		if e.ComplexityRoot.Server.ViewerHasAnyAdminPermission == nil {
 			break
@@ -6519,6 +6527,8 @@ func (ec *executionContext) childFields_Server(ctx context.Context, field graphq
 		return ec.fieldContext_Server_viewerCanManageRoles(ctx, field)
 	case "viewerCanAssignRoles":
 		return ec.fieldContext_Server_viewerCanAssignRoles(ctx, field)
+	case "viewerCanManageUserPermissions":
+		return ec.fieldContext_Server_viewerCanManageUserPermissions(ctx, field)
 	case "viewerCanManageUser":
 		return ec.fieldContext_Server_viewerCanManageUser(ctx, field)
 	case "roleUsers":
@@ -18014,7 +18024,20 @@ func (ec *executionContext) _Query_viewer(ctx context.Context, field graphql.Col
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Query().Viewer(ctx)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Public == nil {
+					var zeroVal *model.Viewer
+					return zeroVal, errors.New("directive public is not implemented")
+				}
+				return ec.Directives.Public(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Viewer) graphql.Marshaler {
 			return ec.marshalOViewer2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐViewer(ctx, selections, v)
 		},
@@ -22265,6 +22288,29 @@ func (ec *executionContext) _Server_viewerCanAssignRoles(ctx context.Context, fi
 	)
 }
 func (ec *executionContext) fieldContext_Server_viewerCanAssignRoles(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Server", field, true, true, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _Server_viewerCanManageUserPermissions(ctx context.Context, field graphql.CollectedField, obj *model.Server) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Server_viewerCanManageUserPermissions(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Server().ViewerCanManageUserPermissions(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Server_viewerCanManageUserPermissions(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Server", field, true, true, errors.New("field of type Boolean does not have child fields"))
 }
 
@@ -39222,6 +39268,42 @@ func (ec *executionContext) _Server(ctx context.Context, sel ast.SelectionSet, o
 					}
 				}()
 				res = ec._Server_viewerCanAssignRoles(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "viewerCanManageUserPermissions":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Server_viewerCanManageUserPermissions(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}

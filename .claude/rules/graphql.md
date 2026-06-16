@@ -33,8 +33,8 @@ attached an authenticated server session.
 Do not add `@public` to fields that expose user, room, message, admin,
 mutation, viewer-scoped, permission, or capability data, even if the resolver
 would return `null`, `false`, or an empty collection for anonymous callers. Keep
-permission checks, room membership checks, self-vs-target rules, and outranking
-rules in resolver helpers where the resolver has the needed context; `@public`
+permission checks, room membership checks, and self-vs-target rules in resolver
+helpers where the resolver has the needed context; `@public`
 only controls the anonymous/authenticated boundary.
 
 ```graphql
@@ -169,14 +169,14 @@ When autobind can't match protobuf types to GraphQL types, you'll see warnings l
 
 For permission-based UI gating (e.g., "can viewer manage this user?"):
 
-- **Frontend handles optimistic checks** using locally available data (role positions, membership status)
+- **Frontend handles optimistic checks** using locally available data (permissions, roles, membership status)
 - **Backend enforces authorization** on mutations - the actual security boundary
 
 Don't add `viewer*` boolean fields that require backend round-trips when the frontend already has the data to compute them. Instead:
 
 | ❌ Avoid                                 | ✅ Prefer                              |
 | ---------------------------------------- | -------------------------------------- |
-| `SpaceMember.viewerCanManage: Boolean!`  | Frontend computes using role positions |
+| `SpaceMember.viewerCanManage: Boolean!`  | Frontend computes from already-loaded permissions/roles |
 | Fetching permissions for every list item | Query permissions once, apply locally  |
 
 Backend `viewer*` fields are still useful for:

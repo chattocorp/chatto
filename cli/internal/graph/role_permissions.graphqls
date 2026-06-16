@@ -25,7 +25,7 @@ type TierRole {
   description: String!
   "Whether this is a system role and cannot be deleted."
   isSystem: Boolean!
-  "Hierarchy position: higher = higher rank. Owner=1000, admin=900, moderator=100, custom roles in 1..99, everyone=0."
+  "Display/order position. Owner=1000, admin=900, moderator=100, custom roles in 1..99, everyone=0. Not an authorization rank."
   position: Int!
   """
   Explicit allow/deny at the requested tier. Allow and deny lists may
@@ -52,6 +52,6 @@ type TierRoles {
   entry in this list.
   """
   applicablePermissions: [String!]!
-  "All roles ordered by position (lowest = highest rank first)."
+  "All roles ordered by display position."
   roles: [TierRole!]!
 }

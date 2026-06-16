@@ -28,6 +28,9 @@ func (r *mutationResolver) GrantPermission(ctx context.Context, input model.Gran
 	if !can {
 		return false, core.ErrPermissionDenied
 	}
+	if err := rejectOwnerRolePermissionEdit(input.RoleName); err != nil {
+		return false, err
+	}
 	if err := r.core.GrantServerPermission(ctx, user.Id, input.RoleName, core.Permission(input.Permission)); err != nil {
 		return false, err
 	}
@@ -46,6 +49,9 @@ func (r *mutationResolver) RevokePermission(ctx context.Context, input model.Rev
 	}
 	if !can {
 		return false, core.ErrPermissionDenied
+	}
+	if err := rejectOwnerRolePermissionEdit(input.RoleName); err != nil {
+		return false, err
 	}
 	if err := r.core.RevokeServerPermission(ctx, user.Id, input.RoleName, core.Permission(input.Permission)); err != nil {
 		return false, err
@@ -66,6 +72,9 @@ func (r *mutationResolver) DenyPermission(ctx context.Context, input model.DenyP
 	if !can {
 		return false, core.ErrPermissionDenied
 	}
+	if err := rejectOwnerRolePermissionEdit(input.RoleName); err != nil {
+		return false, err
+	}
 	if err := r.core.DenyServerPermission(ctx, user.Id, input.RoleName, core.Permission(input.Permission)); err != nil {
 		return false, err
 	}
@@ -84,6 +93,9 @@ func (r *mutationResolver) ClearPermissionState(ctx context.Context, input model
 	}
 	if !can {
 		return false, core.ErrPermissionDenied
+	}
+	if err := rejectOwnerRolePermissionEdit(input.RoleName); err != nil {
+		return false, err
 	}
 	if err := r.core.ClearServerPermissionState(ctx, user.Id, input.RoleName, core.Permission(input.Permission)); err != nil {
 		return false, err
@@ -207,9 +219,7 @@ func (r *mutationResolver) RevokeRole(ctx context.Context, input model.RevokeRol
 	}
 
 	// Self-lockout prevention: users cannot revoke their own owner or admin role.
-	// Note: This check uses hardcoded role names. If new privileged roles are added,
-	// they should be added here to prevent self-lockout. Consider using role hierarchy/position
-	// for a more robust solution in the future.
+	// If new non-lockoutable roles are added, name them here explicitly.
 	if caller.Id == input.UserID {
 		if input.RoleName == core.RoleOwner {
 			return false, fmt.Errorf("cannot revoke your own owner role")

@@ -140,10 +140,10 @@ The schema is modular: each feature area lives in its own `.graphqls` file and e
 
 **Server & identity** ([`server.graphqls`](../cli/internal/graph/server.graphqls), [`server_rbac.graphqls`](../cli/internal/graph/server_rbac.graphqls))
 
-| Query                                | Description                                                                    |
-| ------------------------------------ | ------------------------------------------------------------------------------ |
+| Query                                | Description                                                                                                     |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
 | `server`                             | Information about this Chatto server (name, branding, member counts, viewer unread notification count). Public. |
-| `viewer`                             | Current authenticated user's identity, permissions, follows, notifications.    |
+| `viewer`                             | Nullable current-user scope: authenticated identity, permissions, follows, notifications; `null` for unauthenticated callers. |
 
 Note: there is no top-level `me` query — viewer-scoped state hangs off the `viewer` field (which is extended by several feature files, e.g. `threads.graphqls` adds `viewer.followedThreads`, `notifications.graphqls` adds `viewer.notifications` / `viewer.hasNotifications`). Count-only notification badges use `Server.viewerUnreadNotificationCount` and `Room.viewerUnreadNotificationCount`.
 
@@ -167,7 +167,7 @@ Note: there is no top-level `me` query — viewer-scoped state hangs off the `vi
 | ------------------------------------------------- | ------------------------------------------------------------------------ |
 | `admin.rbac.rolePermissionTierMatrix(roomId?, groupId?)` | Full role-permission matrix at server / group / room scope.       |
 | `admin.rbac.rolePermissionMatrix(roleName)`       | Per-role permission matrix (`role.manage` gated).                        |
-| `admin.rbac.userPermissionMatrix(userId)`         | Effective allow/deny matrix for a user (`role.manage` + outrank gate).   |
+| `admin.rbac.userPermissionMatrix(userId)`         | Effective allow/deny matrix for a user (`user.manage-permissions`).       |
 | `admin.rbac.permissionExplanation(userId, …)`     | Admin/tooling-only per-permission resolver explainer; no self-inspection. |
 
 **Voice & link previews** ([`voice.graphqls`](../cli/internal/graph/voice.graphqls), [`linkpreview.graphqls`](../cli/internal/graph/linkpreview.graphqls))
@@ -260,7 +260,7 @@ Admin queries are nested under a single `admin: AdminQueries` field that returns
 | `reorderRoomGroups`               | Reorder all room groups (full list, exactly once each).                                      |
 | `reorderRoomsInGroup`             | Reorder rooms within a single group.                                                         |
 | `moveRoomToGroup`                 | Move a room into a different group (`room.manage` in both source and target — see ADR-031). |
-| `grantGroupPermission`            | Grant a permission to a role at group scope (overrides server defaults).                     |
+| `grantGroupPermission`            | Grant a permission to a role at group scope.                                                 |
 | `denyGroupPermission`             | Deny a permission to a role at group scope.                                                  |
 | `clearGroupPermissionState`       | Remove both grant and denial at group scope.                                                 |
 
@@ -270,13 +270,13 @@ Admin queries are nested under a single `admin: AdminQueries` field that returns
 | --------------------------------- | -------------------------------------------------------------------------------------------- |
 | `createRole` / `updateRole` / `deleteRole` | CRUD for custom server roles (system roles are fixed).                              |
 | `reorderRoles`                    | Reorder custom roles. System roles maintain fixed positions and are excluded.                |
-| `assignRole` / `revokeRole`       | Add / remove a role assignment on a user (`role.assign` + outrank target).                   |
+| `assignRole` / `revokeRole`       | Add / remove a role assignment on a user (`role.assign`).                                    |
 | `grantPermission` / `revokePermission` | Grant or revoke a permission on a role at server scope.                                 |
 | `denyPermission`                  | Deny a permission on a role at server scope (clears any existing grant).                     |
 | `clearPermissionState`            | Restore neutral state for a permission on a role at server scope.                            |
 | `grantRoomPermission` / `denyRoomPermission` / `clearRoomPermission` | Same trio at room scope.                              |
-| `grantUserPermission`             | Grant a permission directly to a user (beats role decisions; no self-action).                |
-| `denyUserPermission`              | Deny a permission directly to a user (beats role grants; no self-action).                    |
+| `grantUserPermission`             | Grant a permission directly to a user (`user.manage-permissions`).                           |
+| `denyUserPermission`              | Deny a permission directly to a user (`user.manage-permissions`; any applicable deny wins).  |
 | `clearUserPermissionState`        | Clear both grant and denial of a permission on a user.                                       |
 
 **Admin** ([`admin.graphqls`](../cli/internal/graph/admin.graphqls))
