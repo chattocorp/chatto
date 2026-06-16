@@ -119,6 +119,16 @@ export type NotificationTarget = {
   threadRootId: string | null;
 };
 
+export type NotificationDismissalCounts = {
+  total: number;
+  byRoom: Record<string, number>;
+};
+
+const emptyDismissalCounts = (): NotificationDismissalCounts => ({
+  total: 0,
+  byRoom: {}
+});
+
 /**
  * Extract the target a notification points to. Adding a new notification type
  * means updating this single function instead of every read site.
@@ -179,6 +189,7 @@ export function notificationTarget(n: NotificationItem): NotificationTarget {
  */
 export class NotificationStore {
   #client: Client;
+  #locallyDismissedNotificationIds = new SvelteSet<string>();
   notifications = $state<NotificationItem[]>([]);
   /**
    * Server display name, captured alongside the notification list and used
@@ -308,15 +319,14 @@ export class NotificationStore {
    * Dismiss all thread-scoped notifications (replies + mentions) for a thread.
    * Called when a user opens a thread to clear the notification indicator.
    */
-  async dismissThreadNotifications(threadRootId: string): Promise<void> {
+  async dismissThreadNotifications(threadRootId: string): Promise<NotificationDismissalCounts> {
     const threadNotifications = this.notifications.filter(
       (n) =>
         (n.__typename === 'ReplyNotificationItem' && n.replyInThread === threadRootId) ||
         (n.__typename === 'MentionNotificationItem' && n.mentionInThread === threadRootId)
     );
 
-    // Dismiss each one (in parallel)
-    await Promise.all(threadNotifications.map((n) => this.dismiss(n.id)));
+    return this.#dismissNotifications(threadNotifications);
   }
 
   /**
@@ -325,7 +335,7 @@ export class NotificationStore {
    * here — they're dismissed when the user opens the specific thread (via
    * dismissThreadNotifications), matching the symmetry with reply notifications.
    */
-  async dismissMentionNotifications(roomId: string): Promise<void> {
+  async dismissMentionNotifications(roomId: string): Promise<NotificationDismissalCounts> {
     const mentionNotifications = this.notifications.filter(
       (n) =>
         n.__typename === 'MentionNotificationItem' &&
@@ -333,8 +343,7 @@ export class NotificationStore {
         n.mentionRoom?.id === roomId
     );
 
-    // Dismiss each one (in parallel)
-    await Promise.all(mentionNotifications.map((n) => this.dismiss(n.id)));
+    return this.#dismissNotifications(mentionNotifications);
   }
 
   /**
@@ -343,38 +352,37 @@ export class NotificationStore {
    * Only dismisses room-level replies (not thread replies, which are dismissed
    * separately when opening the specific thread via dismissThreadNotifications).
    */
-  async dismissRoomReplyNotifications(roomId: string): Promise<void> {
+  async dismissRoomReplyNotifications(roomId: string): Promise<NotificationDismissalCounts> {
     const roomReplyNotifications = this.notifications.filter(
       (n) =>
         n.__typename === 'ReplyNotificationItem' && !n.replyInThread && n.replyRoom?.id === roomId
     );
 
-    await Promise.all(roomReplyNotifications.map((n) => this.dismiss(n.id)));
+    return this.#dismissNotifications(roomReplyNotifications);
   }
 
   /**
    * Dismiss all room message notifications for a specific room.
    * Called when a user enters a room to clear "all messages" notification indicators.
    */
-  async dismissRoomMessageNotifications(roomId: string): Promise<void> {
+  async dismissRoomMessageNotifications(roomId: string): Promise<NotificationDismissalCounts> {
     const roomMsgNotifications = this.notifications.filter(
       (n) => n.__typename === 'RoomMessageNotificationItem' && n.roomMsgRoom?.id === roomId
     );
 
-    await Promise.all(roomMsgNotifications.map((n) => this.dismiss(n.id)));
+    return this.#dismissNotifications(roomMsgNotifications);
   }
 
   /**
    * Dismiss all DM notifications for a specific conversation.
    * Called when a user enters a DM conversation to clear notification indicators.
    */
-  async dismissDMNotifications(roomId: string): Promise<void> {
+  async dismissDMNotifications(roomId: string): Promise<NotificationDismissalCounts> {
     const dmNotifications = this.notifications.filter(
       (n) => n.__typename === 'DMMessageNotificationItem' && n.room.id === roomId
     );
 
-    // Dismiss each one (in parallel)
-    await Promise.all(dmNotifications.map((n) => this.dismiss(n.id)));
+    return this.#dismissNotifications(dmNotifications);
   }
 
   /**
@@ -447,6 +455,7 @@ export class NotificationStore {
 
     this.notifications = this.notifications.filter((n) => n.id !== notificationId);
     this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - 1);
+    this.#markLocalDismissal(notificationId);
 
     try {
       const result = await this.#client
@@ -454,6 +463,7 @@ export class NotificationStore {
         .toPromise();
 
       if (result.error || !result.data?.dismissNotification) {
+        this.#locallyDismissedNotificationIds.delete(notificationId);
         this.#restoreNotification(removed);
         this.unreadNotificationCount += 1;
         return false;
@@ -461,6 +471,7 @@ export class NotificationStore {
       return true;
     } catch (e) {
       console.error('Failed to dismiss notification:', e);
+      this.#locallyDismissedNotificationIds.delete(notificationId);
       this.#restoreNotification(removed);
       this.unreadNotificationCount += 1;
       return false;
@@ -478,6 +489,9 @@ export class NotificationStore {
 
     this.notifications = [];
     this.unreadNotificationCount = 0;
+    for (const notification of original) {
+      this.#markLocalDismissal(notification.id);
+    }
 
     try {
       const result = await this.#client
@@ -485,6 +499,9 @@ export class NotificationStore {
         .toPromise();
 
       if (result.error || result.data?.dismissAllNotifications == null) {
+        for (const notification of original) {
+          this.#locallyDismissedNotificationIds.delete(notification.id);
+        }
         this.notifications = original;
         this.unreadNotificationCount = originalCount;
         return 0;
@@ -492,6 +509,9 @@ export class NotificationStore {
       return result.data.dismissAllNotifications;
     } catch (e) {
       console.error('Failed to dismiss all notifications:', e);
+      for (const notification of original) {
+        this.#locallyDismissedNotificationIds.delete(notification.id);
+      }
       this.notifications = original;
       this.unreadNotificationCount = originalCount;
       return 0;
@@ -506,6 +526,39 @@ export class NotificationStore {
     this.notifications = [...this.notifications, notification].sort((a, b) =>
       b.createdAt.localeCompare(a.createdAt)
     );
+  }
+
+  #markLocalDismissal(notificationId: string): void {
+    this.#locallyDismissedNotificationIds.add(notificationId);
+    const timeout = setTimeout(
+      () => this.#locallyDismissedNotificationIds.delete(notificationId),
+      30_000
+    );
+    if (typeof timeout === 'object' && timeout !== null && 'unref' in timeout) {
+      (timeout as { unref: () => void }).unref();
+    }
+  }
+
+  async #dismissNotifications(
+    notifications: NotificationItem[]
+  ): Promise<NotificationDismissalCounts> {
+    if (notifications.length === 0) return emptyDismissalCounts();
+
+    const results = await Promise.all(
+      notifications.map(async (notification) => ({
+        target: notificationTarget(notification),
+        dismissed: await this.dismiss(notification.id)
+      }))
+    );
+
+    const counts = emptyDismissalCounts();
+    for (const result of results) {
+      if (!result.dismissed) continue;
+      counts.total += 1;
+      const roomId = result.target.roomId;
+      if (roomId) counts.byRoom[roomId] = (counts.byRoom[roomId] ?? 0) + 1;
+    }
+    return counts;
   }
 
   /**
@@ -527,6 +580,12 @@ export class NotificationStore {
       this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - 1);
     }
     return removed ? notificationTarget(removed).roomId : null;
+  }
+
+  consumeLocalDismissal(notificationId: string): boolean {
+    const local = this.#locallyDismissedNotificationIds.has(notificationId);
+    this.#locallyDismissedNotificationIds.delete(notificationId);
+    return local;
   }
 
   /**

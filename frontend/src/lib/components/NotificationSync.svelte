@@ -44,7 +44,11 @@ Include this component once in the chat layout (unconditionally).
 
         if (event.event.__typename === 'NotificationDismissedEvent') {
           const roomId = notificationStore.removeNotification(event.event.notificationId);
-          if (roomId) stores.rooms.decrementUnreadNotification(roomId);
+          if (roomId) {
+            stores.rooms.decrementUnreadNotification(roomId);
+          } else if (!notificationStore.consumeLocalDismissal(event.event.notificationId)) {
+            void Promise.allSettled([notificationStore.fetch(), stores.rooms.refresh()]);
+          }
         }
       };
 

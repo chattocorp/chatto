@@ -179,13 +179,23 @@
     if (!appState.isFocused) return;
 
     const currentRoomId = roomId;
-    if (room.isDM) {
-      notificationStore.dismissDMNotifications(currentRoomId);
-    } else {
-      notificationStore.dismissMentionNotifications(currentRoomId);
-      notificationStore.dismissRoomReplyNotifications(currentRoomId);
-      notificationStore.dismissRoomMessageNotifications(currentRoomId);
-    }
+    void (async () => {
+      const results = room.isDM
+        ? [await notificationStore.dismissDMNotifications(currentRoomId)]
+        : await Promise.all([
+            notificationStore.dismissMentionNotifications(currentRoomId),
+            notificationStore.dismissRoomReplyNotifications(currentRoomId),
+            notificationStore.dismissRoomMessageNotifications(currentRoomId)
+          ]);
+
+      const dismissedForRoom = results.reduce(
+        (sum, counts) => sum + (counts.byRoom[currentRoomId] ?? 0),
+        0
+      );
+      if (dismissedForRoom > 0) {
+        stores.rooms.decrementUnreadNotification(currentRoomId, dismissedForRoom);
+      }
+    })();
   });
 
   // Remember this room as the last visited (for the chat-root → last-room

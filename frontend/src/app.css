@@ -291,23 +291,8 @@
   }
 }
 
-/* Notification dot pulse animation on hover */
 @utility notification-dot {
-  @apply transition-transform;
-}
-
-.notification-dot:hover {
-  animation: notification-pulse 0.6s ease-in-out infinite;
-}
-
-@keyframes notification-pulse {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.3);
-  }
+  @apply transition-colors;
 }
 
 /* Shimmer hover effect */

@@ -169,11 +169,24 @@ export class RoomsStore {
     this.patchRoom(roomId, { viewerUnreadNotificationCount: room.viewerUnreadNotificationCount + 1 });
   }
 
-  decrementUnreadNotification(roomId: string): void {
+  decrementUnreadNotification(roomId: string, amount = 1): void {
     const room = this.rooms.find((r) => r.id === roomId);
     if (!room) return;
     this.patchRoom(roomId, {
-      viewerUnreadNotificationCount: Math.max(0, room.viewerUnreadNotificationCount - 1)
+      viewerUnreadNotificationCount: Math.max(0, room.viewerUnreadNotificationCount - amount)
+    });
+  }
+
+  clearUnreadNotifications(roomId: string): void {
+    this.patchRoom(roomId, { viewerUnreadNotificationCount: 0 });
+  }
+
+  clearAllUnreadNotifications(): void {
+    untrack(() => {
+      this.rooms = this.rooms.map((room) => ({
+        ...room,
+        viewerUnreadNotificationCount: 0
+      }));
     });
   }
 
