@@ -5,8 +5,6 @@
  * are not scoped to an instance or room, and don't use Svelte context.
  */
 
-import { getMainSidebarOpen, setMainSidebarOpen } from '$lib/storage/mainSidebarOpen';
-
 // ---------------------------------------------------------------------------
 // AppState — browser focus tracking
 // ---------------------------------------------------------------------------
@@ -82,10 +80,11 @@ export const SIDEBAR_PANEL_WIDTH_PX = 68 + 256;
 
 /**
  * Controls the visibility of the left sidebars (Server Gutter and RoomList).
- * Tracks the user's desktop preference separately from viewport-driven changes,
- * so manual toggles on desktop "stick" across viewport transitions.
+ * Tracks the user's desktop preference separately from viewport-driven changes
+ * within the current app session, so manual toggles on desktop "stick" across
+ * viewport transitions without making fresh sessions start hidden.
  *
- * - Desktop: sidebar follows user preference (open by default)
+ * - Desktop: sidebar follows the current session's preference (open by default)
  * - Mobile: sidebar is always closed unless explicitly opened (overlay)
  * - Resizing back to desktop restores the user's last desktop preference
  *
@@ -105,7 +104,7 @@ export class SidebarNavState {
   private _isMobile = $state(false);
   private dragBaselineOpen = false;
 
-  constructor(initialDesktopOpen = getMainSidebarOpen()) {
+  constructor(initialDesktopOpen = true) {
     this.isOpen = initialDesktopOpen;
     this.desktopOpen = initialDesktopOpen;
   }
@@ -199,7 +198,6 @@ export class SidebarNavState {
   private setDesktopOpen(open: boolean) {
     this.desktopOpen = open;
     this.isOpen = open;
-    setMainSidebarOpen(open);
   }
 }
 

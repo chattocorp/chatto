@@ -178,7 +178,9 @@ func TestTierRoles_RoomOverridesMatchCoreState(t *testing.T) {
 	if adminRole == nil {
 		t.Fatal("expected admin role in room-scope matrix")
 	}
-	assertSameStringSet(t, "admin room permissions", adminRole.permissions, []string{string(core.PermRoomManage)})
+	assertSameStringSet(t, "admin room permissions", adminRole.permissions, []string{
+		string(core.PermRoomManage),
+	})
 	assertSameStringSet(t, "admin room denials", adminRole.permissionDenials, []string{string(core.PermMessagePost)})
 }
 
@@ -283,7 +285,7 @@ func TestTierRoles_GroupScopeShowsServerInheritance(t *testing.T) {
 		t.Fatal("expected everyone role in group-scope matrix")
 	}
 	if !slices.Contains(everyone.allows, string(core.PermMessagePost)) {
-		t.Errorf("expected message.post (default everyone allow at server) in inheritedAllows at group scope; got %v", everyone.allows)
+		t.Errorf("expected default server-scope message.post in inheritedAllows at group scope; got %v", everyone.allows)
 	}
 }
 

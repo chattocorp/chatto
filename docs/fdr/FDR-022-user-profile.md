@@ -1,7 +1,7 @@
 # FDR-022: User Profile
 
 **Status:** Active
-**Last reviewed:** 2026-06-05
+**Last reviewed:** 2026-06-15
 
 ## Overview
 
@@ -54,16 +54,16 @@ A user's profile carries the public identity they present to the rest of the ser
 **Why:** Forcing every new user to pick a timezone at signup is friction. The browser usually knows.
 **Tradeoff:** Travelers see times rendered in their travel timezone if they haven't explicitly set one. Most users either don't notice or prefer this.
 
-### 7. Cross-user edits gated by `role.assign` + outranking
+### 7. Cross-user edits gated by `role.assign`
 
-**Decision:** Admin updates to other users' profiles use the `requireUserAdminTarget` helper, which requires `role.assign` permission *and* that the actor outranks the target. Self-edits bypass both — they're an identity edit, not an authorization edit (see FDR-001).
-**Why:** Without the outrank check, a moderator with `role.assign` could rename the server owner. The combination prevents that without inventing new permissions.
-**Tradeoff:** Two-step authorization for one operation. The helper centralizes it.
+**Decision:** Admin updates to other users' profiles use the `requireUserAdminTarget` helper, which requires `role.assign` for cross-user edits. Self-edits bypass that permission because they're privilege-neutral identity edits.
+**Why:** Chatto's simplified RBAC model is permission-based for everyone except effective owners, who are protected by the owner override rather than target-rank gates.
+**Tradeoff:** A user with `role.assign` can edit any target user's profile.
 
 ## Permissions
 
 - Self-edit (display name, avatar, settings, own login subject to cooldown) — no explicit permission; just authentication.
-- Cross-user edit — `role.assign` + outrank target (via `requireUserAdminTarget`).
+- Cross-user edit — `role.assign` (via `requireUserAdminTarget`).
 - Clear another user's login cooldown — same gate.
 
 ## Related

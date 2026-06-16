@@ -70,8 +70,7 @@ func (r *rbacQueriesResolver) RolePermissionMatrix(ctx context.Context, obj *mod
 
 // UserPermissionMatrix is the resolver for the userPermissionMatrix field.
 // Authorization mirrors the user-level mutation gate: callers need
-// role.manage AND must strictly outrank the target user. Self-introspection
-// is intentionally not allowed — the matrix is an operator surface.
+// user.manage-permissions.
 func (r *rbacQueriesResolver) UserPermissionMatrix(ctx context.Context, obj *model.RbacQueries, userID string) (*model.UserPermissionMatrix, error) {
 	caller, err := requireAuth(ctx)
 	if err != nil {

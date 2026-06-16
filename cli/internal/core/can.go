@@ -55,21 +55,28 @@ func (c *ChattoCore) CanAdminAuditView(ctx context.Context, userID string) (bool
 	return c.HasServerPermission(ctx, userID, PermAdminAuditView)
 }
 
-// CanStartDM checks if a user can start DM conversations.
-// DMs piggyback on the server-level message.post grant: if a user can post
-// messages by default, they can start a DM and post root messages inside it.
+// CanManageUserPermissions checks if a user can edit direct per-user
+// permission overrides.
+func (c *ChattoCore) CanManageUserPermissions(ctx context.Context, userID string) (bool, error) {
+	return c.HasServerPermission(ctx, userID, PermUserManagePermissions)
+}
+
+// CanStartDM checks if a user can start DM conversations. DMs are allowed by
+// default for authenticated users, but an applicable server-scope
+// message.post deny still blocks the action. This keeps global suspension
+// roles effective without requiring a default server-scope message.post allow.
 func (c *ChattoCore) CanStartDM(ctx context.Context, userID string) (bool, error) {
-	return c.HasServerPermission(ctx, userID, PermMessagePost)
+	decision, err := c.ResolveUserPermission(ctx, userID, KindDM, "", PermMessagePost)
+	if err != nil {
+		return false, err
+	}
+	return decision != DecisionDeny, nil
 }
 
 // CanDeleteUser checks if an actor can delete a specific user account.
 // Returns true if:
 //   - The actor is deleting their own account and has user.delete-self, OR
 //   - The actor has user.delete-any (the admin power).
-//
-// NOTE: For cross-user deletion, callers must additionally check that the
-// actor strictly outranks the target — same shape as message moderation
-// and identity edits. Enforce that at the API boundary, not here.
 func (c *ChattoCore) CanDeleteUser(ctx context.Context, actorID, targetUserID string) (bool, error) {
 	if actorID == targetUserID {
 		return c.HasServerPermission(ctx, actorID, PermUserDeleteSelf)
@@ -91,6 +98,7 @@ var adminPermissions = []Permission{
 	PermRoomManage,
 	PermRoomMemberBan,
 	PermUserDeleteAny,
+	PermUserManagePermissions,
 	PermAdminUsersView,
 	PermAdminSystemView,
 	PermAdminAuditView,
@@ -170,11 +178,15 @@ func (c *ChattoCore) CanCreateRoom(ctx context.Context, userID string, kind Room
 // (no specific room context). Used as a top-level "is the join action
 // available at all" check. For per-room decisions — including "is this
 // user implicitly a member of this global room" — use CanJoinRoomAt,
-// which walks the room → group → server hierarchy.
+// which evaluates room, group, and server decisions.
 //
 // DM-sensitive: DMs grant join implicitly to participants.
 func (c *ChattoCore) CanJoinRoom(ctx context.Context, userID string, kind RoomKind) (bool, error) {
-	return c.hasKindPermission(ctx, kind, userID, PermRoomJoin)
+	decision, err := c.ResolveUserPermission(ctx, userID, kind, "", PermRoomJoin)
+	if err != nil {
+		return false, err
+	}
+	return decision != DecisionDeny, nil
 }
 
 // CanJoinRoomAt checks if a user can join a specific room. Uses room-scope
@@ -218,9 +230,7 @@ func (c *ChattoCore) CanEchoMessage(ctx context.Context, userID string, kind Roo
 // CanManageOthersMessage checks if a user can edit/delete other users'
 // messages in a specific room. Authors editing/deleting their own messages
 // don't need this permission — that's always allowed and gated only by
-// authorship + the edit window in core. Callers that operate on someone
-// else's message must ALSO check that the actor strictly outranks the
-// author via requireOutranksAuthor.
+// authorship + the edit window in core.
 func (c *ChattoCore) CanManageOthersMessage(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
 	return c.hasRoomPermission(ctx, kind, roomID, userID, PermMessageManage)
 }

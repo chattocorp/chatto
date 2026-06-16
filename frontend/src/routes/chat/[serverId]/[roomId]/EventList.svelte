@@ -3,11 +3,10 @@
   import { fade } from 'svelte/transition';
   import { Virtualizer, type VirtualizerHandle } from 'virtua/svelte';
   import type { RoomEventViewFragment } from '$lib/gql/graphql';
-  import type { MessagesStore, RoomMember } from '$lib/state/room';
+  import type { MessagesStore, RefreshCurrentWindowResult, RoomMember } from '$lib/state/room';
   import { getComposerContext, getRoomPermissions } from '$lib/state/room';
   import RoomEvent from './RoomEvent.svelte';
   import SystemEventGroup from './SystemEventGroup.svelte';
-  import MessageEventSkeleton from './MessageEventSkeleton.svelte';
   import DaySeparator from './DaySeparator.svelte';
   import UnreadSeparator from './UnreadSeparator.svelte';
   import TypingIndicator from './TypingIndicator.svelte';
@@ -20,6 +19,10 @@
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { formatDayLabel } from '$lib/utils/formatTime';
   import { useTabResumeCallback } from '$lib/hooks/useTabResumeCallback.svelte';
+  import {
+    useMayHaveMissedMessagesCallback,
+    type MayHaveMissedMessagesReason
+  } from '$lib/hooks/useMayHaveMissedMessagesCallback.svelte';
 
   let {
     roomId,
@@ -58,6 +61,8 @@
     hasReachedEnd = false,
     onLoadNewer,
     onJumpToPresent,
+    onReachedPresent,
+    onSoftRefresh,
     pendingHighlightId = null
   }: {
     roomId: string;
@@ -96,12 +101,17 @@
     hasReachedEnd?: boolean;
     onLoadNewer?: () => Promise<void>;
     onJumpToPresent?: () => void;
+    onReachedPresent?: () => void;
+    onSoftRefresh?: (result: RefreshCurrentWindowResult, anchored: boolean) => void;
     // Suppress auto-scroll while a highlight is pending (used by ThreadPane)
     pendingHighlightId?: string | null;
   } = $props();
 
-  // Hide content until the first scroll-to-bottom completes, preventing
-  // the flash where content renders at the top before jumping to the bottom.
+  type RefreshAnchor = {
+    eventId: string;
+    top: number;
+  };
+
   let initialScrollDone = $state(false);
 
   // State for smart scroll behavior (when not alwaysScrollToBottom)
@@ -249,7 +259,7 @@
 
     // Disable auto-scroll so it doesn't race with the jump scroll.
     shouldScrollToBottom = false;
-    // Mark initial scroll as done so the skeleton overlay is removed.
+    // Mark initial scroll as done so pending initial loading state cannot obscure the jump.
     initialScrollDone = true;
 
     // Wait for render, then scroll and highlight.
@@ -359,8 +369,7 @@
           scrollFader?.refresh();
           if (!untrack(() => initialScrollDone)) {
             // Give virtua time to measure actual item heights and settle the
-            // scroll position. The skeleton overlay hides the content during
-            // this window, so there's no visual cost to waiting.
+            // scroll position.
             setTimeout(() => {
               safeScrollToIndex(virtualItems.length - 1, { align: 'end' });
               scrollFader?.refresh();
@@ -419,6 +428,126 @@
     userScrollIntentAt = Date.now();
   }
 
+  function distanceFromBottom(): number | null {
+    if (!virtualizerHandle) return null;
+    return (
+      virtualizerHandle.getScrollSize() -
+      virtualizerHandle.getScrollOffset() -
+      virtualizerHandle.getViewportSize()
+    );
+  }
+
+  function eventIdForVirtualItem(item: VirtualItem): string | null {
+    if (item.type === 'event') return item.event.id;
+    if (item.type === 'system-group') return item.events[0]?.id ?? null;
+    return null;
+  }
+
+  function eventSelector(eventId: string): string {
+    return `[data-event-id="${CSS.escape(eventId)}"]`;
+  }
+
+  function captureRefreshAnchor(): RefreshAnchor | null {
+    if (!scrollContainer || !virtualizerHandle || virtualItems.length === 0) return null;
+
+    const startIdx = Math.max(0, virtualizerHandle.findItemIndex(virtualizerHandle.getScrollOffset()));
+    for (let i = startIdx; i < virtualItems.length; i++) {
+      const eventId = eventIdForVirtualItem(virtualItems[i]);
+      if (!eventId) continue;
+
+      const el = scrollContainer.querySelector<HTMLElement>(eventSelector(eventId));
+      if (!el) continue;
+      return {
+        eventId,
+        top: el.getBoundingClientRect().top
+      };
+    }
+
+    console.debug('[room-refresh] no visible anchor found', { roomId });
+    return null;
+  }
+
+  let softRefreshInFlight = false;
+
+  async function refreshAfterPossibleMiss(reason: MayHaveMissedMessagesReason): Promise<boolean> {
+    if (softRefreshInFlight) return false;
+    if (isLoading && virtualItems.length === 0) return false;
+
+    const bottomDistance = distanceFromBottom();
+    const wasAtBottom =
+      alwaysScrollToBottom || (bottomDistance === null ? shouldScrollToBottom : bottomDistance < 50);
+    const anchor = wasAtBottom ? null : captureRefreshAnchor();
+
+    softRefreshInFlight = true;
+    try {
+      console.debug('[room-refresh] event list refresh started', {
+        roomId,
+        reason,
+        mode: wasAtBottom ? 'latest' : 'anchored',
+        bottomDistance,
+        anchorEventId: anchor?.eventId ?? null,
+        itemCount: virtualItems.length
+      });
+      const result = await messageStore.refreshCurrentWindow(anchor?.eventId ?? null);
+      if (!result.refreshed) {
+        console.debug('[room-refresh] event list refresh skipped after store refresh failed', {
+          roomId,
+          reason,
+          result
+        });
+        return false;
+      }
+      onSoftRefresh?.(result, anchor !== null);
+      await tick();
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+
+      if (wasAtBottom) {
+        shouldScrollToBottom = true;
+        initialScrollDone = true;
+        startScrollCorrection();
+        scrollContainer?.scrollTo({ top: scrollContainer.scrollHeight });
+        if (virtualItems.length > 0) {
+          safeScrollToIndex(virtualItems.length - 1, { align: 'end' });
+        }
+        scrollFader?.refresh();
+        console.debug('[room-refresh] event list refresh completed at bottom', {
+          roomId,
+          result,
+          itemCount: virtualItems.length
+        });
+        return true;
+      }
+
+      if (anchor && scrollContainer) {
+        const target = scrollContainer.querySelector<HTMLElement>(eventSelector(anchor.eventId));
+        if (target) {
+          const nextTop = target.getBoundingClientRect().top;
+          scrollContainer.scrollTop += nextTop - anchor.top;
+          scrollFader?.refresh();
+          console.debug('[room-refresh] anchor restored', {
+            roomId,
+            anchorEventId: anchor.eventId,
+            deltaPx: nextTop - anchor.top,
+            result,
+            itemCount: virtualItems.length
+          });
+        } else {
+          console.debug('[room-refresh] anchor disappeared after refresh', {
+            roomId,
+            anchorEventId: anchor.eventId,
+            result,
+            itemCount: virtualItems.length
+          });
+        }
+      }
+      return true;
+    } finally {
+      softRefreshInFlight = false;
+    }
+  }
+
+  useMayHaveMissedMessagesCallback((reason) => refreshAfterPossibleMiss(reason));
+
   // Re-evaluate "are we at the bottom?" when the tab regains visibility — the
   // browser may have throttled virtua's measurements or our auto-scroll effect
   // while hidden, leaving shouldScrollToBottom=true even though the scroll has
@@ -432,6 +561,40 @@
       virtualizerHandle.getViewportSize();
     if (dist > 50) shouldScrollToBottom = false;
   });
+
+  let forwardLoadInFlight = false;
+
+  function exitJumpedModeAtPresent(bottomDistance: number): boolean {
+    if (!isJumpedMode || !hasReachedEnd || bottomDistance >= 50 || !onReachedPresent) return false;
+
+    shouldScrollToBottom = true;
+    hasNewMessages = false;
+    console.debug('[room-refresh] reached present after forward pagination', {
+      roomId,
+      bottomDistance,
+      itemCount: virtualItems.length
+    });
+    onReachedPresent();
+    return true;
+  }
+
+  async function loadNewerAndMaybeExitAtPresent(): Promise<void> {
+    if (!onLoadNewer || forwardLoadInFlight) return;
+
+    forwardLoadInFlight = true;
+    try {
+      await onLoadNewer();
+      await tick();
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+
+      const nextBottomDistance = distanceFromBottom();
+      if (nextBottomDistance !== null) {
+        exitJumpedModeAtPresent(nextBottomDistance);
+      }
+    } finally {
+      forwardLoadInFlight = false;
+    }
+  }
 
   // Handle scroll events from virtua to detect user intent and trigger pagination.
   // virtua's shift=true handles scroll restoration during pagination automatically,
@@ -528,14 +691,15 @@
       onLoadNewer &&
       distanceFromBottom < viewportSize * 3 &&
       !isLoadingNewer &&
+      !forwardLoadInFlight &&
       !hasReachedEnd
     ) {
-      onLoadNewer();
+      void loadNewerAndMaybeExitAtPresent();
     }
 
     // Exit jumped mode when user has scrolled to bottom and all content is loaded
-    if (isJumpedMode && hasReachedEnd && distanceFromBottom < 50 && onJumpToPresent) {
-      onJumpToPresent();
+    if (hasReachedEnd && exitJumpedModeAtPresent(distanceFromBottom)) {
+      return;
     }
   }
 
@@ -568,20 +732,6 @@
     class="pointer-events-none absolute inset-x-0 top-0 z-10 h-8 bg-linear-to-b from-background/60 to-transparent"
   ></div>
 
-  <!-- Skeleton overlay: stays visible during loading AND while the virtualizer
-       settles its initial scroll position, preventing the flash where content
-       renders at the wrong position before jumping to the bottom. -->
-  {#if isLoading || (!initialScrollDone && virtualItems.length > 0)}
-    <div
-      class="pointer-events-none absolute inset-0 z-[5] flex flex-col justify-end gap-2 overflow-hidden bg-background"
-    >
-      <MessageEventSkeleton />
-      {#each Array(15) as _, i (i)}
-        <MessageEventSkeleton compact={i % 5 > 0} lines={(i % 3) + 1} />
-      {/each}
-    </div>
-  {/if}
-
   <ScrollFader
     top
     bottom
@@ -598,13 +748,6 @@
           <div class="py-4 text-sm text-muted/40">{emptyMessage}</div>
         </div>
       {:else if !isLoading}
-        {#if isLoadingMore}
-          <div class="px-4 py-2">
-            <MessageEventSkeleton />
-            <MessageEventSkeleton compact />
-            <MessageEventSkeleton compact />
-          </div>
-        {/if}
         <Virtualizer
           bind:this={virtualizerHandle}
           data={virtualItems}

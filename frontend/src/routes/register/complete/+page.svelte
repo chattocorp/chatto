@@ -3,6 +3,7 @@
   import { resolve } from '$app/paths';
   import { clearCachedUser } from '$lib/auth/loadAuth';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { Divider } from '$lib/ui';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { TextInput, FormError, Button, z, validate } from '$lib/ui/form';
@@ -66,6 +67,13 @@
         error = data.error || 'Registration failed';
         return;
       }
+
+      if (typeof data.token !== 'string' || !data.token) {
+        error = 'Registration response did not include an auth token';
+        return;
+      }
+
+      serverRegistry.authenticateOrigin(data.token, data.user ?? null);
 
       // Clear auth cache and invalidate to force load functions to refetch
       clearCachedUser();

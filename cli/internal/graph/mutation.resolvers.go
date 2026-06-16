@@ -550,13 +550,6 @@ func (r *mutationResolver) BanRoomMember(ctx context.Context, input model.BanRoo
 	if !can {
 		return false, core.ErrPermissionDenied
 	}
-	outranks, err := r.core.OutranksUser(ctx, user.Id, input.UserID)
-	if err != nil {
-		return false, fmt.Errorf("failed to check role hierarchy: %w", err)
-	}
-	if !outranks {
-		return false, core.ErrPermissionDenied
-	}
 
 	var expiresAt *time.Time
 	if input.ExpiresAt != nil {
@@ -590,13 +583,6 @@ func (r *mutationResolver) UnbanRoomMember(ctx context.Context, input model.Unba
 		return false, err
 	}
 	if !can {
-		return false, core.ErrPermissionDenied
-	}
-	outranks, err := r.core.OutranksUser(ctx, user.Id, input.UserID)
-	if err != nil {
-		return false, fmt.Errorf("failed to check role hierarchy: %w", err)
-	}
-	if !outranks {
 		return false, core.ErrPermissionDenied
 	}
 
@@ -935,19 +921,13 @@ func (r *mutationResolver) DeleteMessage(ctx context.Context, input model.Delete
 	}
 
 	if user.Id != authorID {
-		// Non-author deleting: check message.manage permission AND
-		// strict-outrank on the author. The rank check prevents a
-		// moderator from deleting messages of higher-ranked users
-		// (admins, owners) — see requireOutranksAuthor.
+		// Non-author deleting requires message.manage in the room.
 		can, err := r.core.CanManageOthersMessage(ctx, user.Id, kind, input.RoomID)
 		if err != nil {
 			return false, err
 		}
 		if !can {
 			return false, core.ErrPermissionDenied
-		}
-		if err := r.requireOutranksAuthor(ctx, user.Id, authorID); err != nil {
-			return false, err
 		}
 	}
 	// Authors deleting their own messages: always allowed (subject to
@@ -997,9 +977,7 @@ func (r *mutationResolver) UpdateMessage(ctx context.Context, input model.Update
 
 	// Authorization: authors editing their own messages are always allowed
 	// (the edit window is enforced in Core.EditMessage). Non-author edits
-	// require message.manage AND strict-outrank on the author — the rank
-	// check prevents a moderator from editing messages of higher-ranked
-	// users (admins, owners).
+	// require message.manage in the room.
 	if messageBody.AuthorId != user.Id {
 		can, err := r.core.CanManageOthersMessage(ctx, user.Id, kind, input.RoomID)
 		if err != nil {
@@ -1007,9 +985,6 @@ func (r *mutationResolver) UpdateMessage(ctx context.Context, input model.Update
 		}
 		if !can {
 			return false, core.ErrPermissionDenied
-		}
-		if err := r.requireOutranksAuthor(ctx, user.Id, messageBody.AuthorId); err != nil {
-			return false, err
 		}
 	}
 

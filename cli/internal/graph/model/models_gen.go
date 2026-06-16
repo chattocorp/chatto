@@ -696,7 +696,7 @@ type PostMessageInput struct {
 	Body *string `json:"body,omitempty"`
 	// Optional file attachments (images, videos, etc.).
 	Attachments []*graphql.Upload `json:"attachments,omitempty"`
-	// Event ID of the thread root message. Determines thread membership and controls permission check (message.start_thread vs message.post_in_thread vs message.post).
+	// Event ID of the thread root message. Determines thread membership and controls permission check (`message.post-in-thread` vs `message.post`).
 	ThreadRootEventID *string `json:"threadRootEventId,omitempty"`
 	// Event ID of the message this responds to (attribution only, does not affect routing or permissions).
 	InReplyTo *string `json:"inReplyTo,omitempty"`
@@ -783,8 +783,7 @@ type RbacQueries struct {
 	// `role.manage` at server scope.
 	RolePermissionMatrix *RolePermissionMatrix `json:"rolePermissionMatrix,omitempty"`
 	// Permission matrix for a specific user. Authorization mirrors user-level
-	// permission mutations: viewer must hold `role.manage` and strictly outrank
-	// the target. Self-introspection is not allowed.
+	// permission mutations: viewer must hold `user.manage-permissions`.
 	UserPermissionMatrix *UserPermissionMatrix `json:"userPermissionMatrix,omitempty"`
 	// Explain every applicable permission for a user at the given scope.
 	// Authorization: admin/tooling-only, with no self-inspection path.
@@ -875,7 +874,7 @@ type RoleRoomPermissions struct {
 	DisplayName string `json:"displayName"`
 	// Whether this is a system-defined role
 	IsSystem bool `json:"isSystem"`
-	// Hierarchy position (higher = higher rank; see Role.position).
+	// Display/order position (higher sorts before lower; not an authorization rank).
 	Position int32 `json:"position"`
 	// Permissions granted at room level
 	Permissions []string `json:"permissions"`
@@ -1021,7 +1020,7 @@ type Server struct {
 	MaxUploadSize int64 `json:"maxUploadSize"`
 	// Maximum upload size for video attachments in bytes. Same as maxUploadSize when video processing is disabled.
 	MaxVideoUploadSize int64 `json:"maxVideoUploadSize"`
-	// Duration in seconds after posting during which a user can edit their own message. Moderators with `message.edit-any` are not bound by this window.
+	// Duration in seconds after posting during which a user can edit their own message. Moderators with `message.manage` are not bound by this window.
 	MessageEditWindowSeconds int32 `json:"messageEditWindowSeconds"`
 	// List of rooms on this server.
 	//
@@ -1070,12 +1069,9 @@ type Server struct {
 	ViewerCanManageRoles bool `json:"viewerCanManageRoles"`
 	// Whether the current user can assign roles to users (has role.assign permission).
 	ViewerCanAssignRoles bool `json:"viewerCanAssignRoles"`
-	// UI hint reporting whether the viewer outranks the target user by role
-	// hierarchy. **This is a rank check only**, not an authorization gate —
-	// capabilities like "edit this user's profile" additionally require a
-	// permission (e.g. `role.assign`). Use this for showing/hiding admin UI
-	// affordances; never as the sole basis for permitting a mutation. See
-	// `.claude/rules/authorization.md` (`permission AND OutranksUser`).
+	// Whether the current user can edit direct per-user permission overrides (has user.manage-permissions permission).
+	ViewerCanManageUserPermissions bool `json:"viewerCanManageUserPermissions"`
+	// Whether the current user can administer the target user's profile. Self is allowed; other users require role.assign.
 	ViewerCanManageUser bool `json:"viewerCanManageUser"`
 	// Get users assigned to a specific role.
 	RoleUsers []*corev1.User `json:"roleUsers"`
@@ -1185,7 +1181,7 @@ type TierRole struct {
 	Description string `json:"description"`
 	// Whether this is a system role and cannot be deleted.
 	IsSystem bool `json:"isSystem"`
-	// Hierarchy position: higher = higher rank. Owner=1000, admin=900, moderator=100, custom roles in 1..99, everyone=0.
+	// Display/order position. Owner=1000, admin=900, moderator=100, custom roles in 1..99, everyone=0. Not an authorization rank.
 	Position int32 `json:"position"`
 	// Explicit allow/deny at the requested tier. Allow and deny lists may
 	// both be empty for a role with no override at this tier.
@@ -1204,7 +1200,7 @@ type TierRoles struct {
 	// Permissions configurable at this tier. The matrix renders one row per
 	// entry in this list.
 	ApplicablePermissions []string `json:"applicablePermissions"`
-	// All roles ordered by position (lowest = highest rank first).
+	// All roles ordered by display position.
 	Roles []*TierRole `json:"roles"`
 }
 
@@ -1623,7 +1619,7 @@ func (e PermissionMatrixDecision) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// Where a PermissionMatrixScope sits in the resolution hierarchy.
+// Where a PermissionMatrixScope sits in the resolution scope tree.
 type PermissionMatrixScopeKind string
 
 const (

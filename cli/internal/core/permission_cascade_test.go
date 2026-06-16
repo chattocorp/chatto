@@ -176,6 +176,9 @@ func TestServerTierCascadeIntoChannelRooms(t *testing.T) {
 	if err := core.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, perm); err != nil {
 		t.Fatalf("ClearServerPermissionState: %v", err)
 	}
+	if err := core.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, perm); err != nil {
+		t.Fatalf("ClearRoomPermissionState: %v", err)
+	}
 
 	// Baseline: no grants anywhere → no decision → denied.
 	has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, KindChannel, room.Id, perm)

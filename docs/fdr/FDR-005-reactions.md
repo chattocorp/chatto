@@ -47,11 +47,11 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
 **Why:** Server-side recents would mean a "your recents" query on every message hover (frequent and small) and a new write per reaction. Local storage is free and fast. The downside — losing recents between devices — is small relative to the cost.
 **Tradeoff:** Recents don't sync across devices.
 
-### 6. Reconnect catch-up uses resumable myEvents, not visible timeline rows
+### 6. Web reconnect catch-up refreshes the current room window
 
-**Decision:** Missed reaction add/remove events are recovered through `Subscription.myEvents(after:)`. Durable EVT-backed subscription events carry a server-signed, user-bound opaque `deliveryCursor`; the web client remembers the latest cursor and passes it when the singleton event bus resubscribes after reconnect or wake.
-**Why:** Reactions mutate existing message rows. If a client reconnects after missing only a reaction, visible timeline pagination has no new row to return. Replaying the raw durable reaction event through `myEvents` keeps the API model simple: queries fetch current projected state, and the subscription delivers the durable facts the client missed.
-**Tradeoff:** Replay is limited to durable room EVT facts for rooms the user is currently a member of. Invalid, expired, or over-budget cursors force a full refresh from projected query state instead of replaying. Transient sync signals and presence changes remain live-only, and clients still refetch the affected message row when a replayed reaction arrives.
+**Decision:** On browser wake/reconnect, the web client refreshes the currently viewed room window from projected GraphQL reads instead of replaying missed reaction events through its event bus. If the user is at the bottom it fetches the latest room page; if scrolled up it refetches around the visible anchor event and preserves scroll by event ID.
+**Why:** Reactions mutate existing message rows. Refetching projected message rows updates reactions, edits, retractions, attachment processing state, and newly posted messages through one path, while avoiding fragile reconnect replay state in the browser.
+**Tradeoff:** Message-row catch-up is scoped to the room/thread the user is actually viewing. Other rooms catch up through normal queries when opened, while server-scoped projected state such as notifications, unread/sidebar state, room layout, server profile/settings, and active-call indicators is refetched after event-bus gaps. The `myEvents` subscription is intentionally live-only and no longer exposes a replay cursor.
 
 ## Permissions
 

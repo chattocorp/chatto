@@ -1,9 +1,17 @@
-import { expect, type Locator, type Page } from '@playwright/test';
+import { expect, request, type APIRequestContext, type Locator, type Page } from '@playwright/test';
 import * as routes from '../routes';
 import { graphqlQuery } from '../fixtures/graphqlHelpers';
 import { csrfHeaders } from '../fixtures/csrf';
 import { loginAsAdmin } from '../fixtures/testUser';
 import { RoomPage } from './RoomPage';
+
+const E2E_ADMIN_LOGIN = 'e2eadmin';
+const E2E_ADMIN_PASSWORD = 'adminpassword123';
+
+interface GraphQLResponse<T> {
+  data?: T;
+  errors?: unknown[];
+}
 
 /**
  * Page object for the main chat interface.
@@ -11,6 +19,35 @@ import { RoomPage } from './RoomPage';
  */
 export class ChatPage {
   constructor(readonly page: Page) {}
+
+  private async createAdminRequestContext(): Promise<APIRequestContext> {
+    const baseURL = new URL(this.page.url()).origin;
+    const adminContext = await request.newContext({ baseURL });
+    const loginResponse = await adminContext.post('/auth/login', {
+      data: {
+        login: E2E_ADMIN_LOGIN,
+        password: E2E_ADMIN_PASSWORD
+      }
+    });
+    expect(loginResponse.ok()).toBeTruthy();
+    return adminContext;
+  }
+
+  private async adminGraphql<T>(
+    adminContext: APIRequestContext,
+    query: string,
+    variables?: Record<string, unknown>
+  ): Promise<T> {
+    const response = await adminContext.post('/api/graphql', {
+      headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
+      data: { query, variables }
+    });
+    expect(response.ok()).toBeTruthy();
+    const json = (await response.json()) as GraphQLResponse<T>;
+    if (json.errors) throw new Error(JSON.stringify(json.errors));
+    if (!json.data) throw new Error('GraphQL response contained no data');
+    return json.data;
+  }
 
   /** The explore spaces link in the sidebar */
   get exploreSpacesLink(): Locator {
@@ -32,15 +69,14 @@ export class ChatPage {
     await this.page.goto('/chat');
     // Wait for any /chat path - redirects happen based on user state
     await this.page.waitForURL((url) => url.pathname.startsWith('/chat'));
-
   }
 
-	/**
-	 * Return the kind-discriminator constant used as a spaceID by core methods.
-	 * Post-ADR-030 every channel-scoped call uses this single deployment-wide
-	 * value (`core.LegacyServerSpaceID = "server"` on the backend).
-	 */
-	async getSpaceId(): Promise<string> {
+  /**
+   * Return the kind-discriminator constant used as a spaceID by core methods.
+   * Post-ADR-030 every channel-scoped call uses this single deployment-wide
+   * value (`core.LegacyServerSpaceID = "server"` on the backend).
+   */
+  async getSpaceId(): Promise<string> {
     return 'server';
   }
 
@@ -54,10 +90,7 @@ export class ChatPage {
   async createSpace(_name?: string, _description?: string): Promise<string> {
     const data = await graphqlQuery<{
       server: { profile: { name: string } } | null;
-    }>(
-      this.page,
-      `query { server { profile { name } } }`
-    );
+    }>(this.page, `query { server { profile { name } } }`);
     if (!data.server) {
       throw new Error('Server query returned no data — bootstrap profile likely broken');
     }
@@ -175,51 +208,38 @@ export class ChatPage {
    */
   async createRoom(name?: string, description?: string): Promise<string> {
     const roomName = name ?? `test-room-${Date.now()}`;
-    const groupData = await graphqlQuery<{ server: { roomGroups: { id: string }[] } }>(
-      this.page,
-      `query { server { roomGroups { id } } }`
-    );
-    const groupId = groupData.server.roomGroups[0]?.id;
-    if (!groupId) {
-      throw new Error('No room group available for e2e room creation');
+    const adminContext = await this.createAdminRequestContext();
+    let roomId: string;
+    try {
+      const groupData = await this.adminGraphql<{ server: { roomGroups: { id: string }[] } }>(
+        adminContext,
+        `query { server { roomGroups { id } } }`
+      );
+      const groupId = groupData.server.roomGroups[0]?.id;
+      if (!groupId) {
+        throw new Error('No room group available for e2e room creation');
+      }
+
+      const createData = await this.adminGraphql<{ createRoom: { id: string; name: string } }>(
+        adminContext,
+        `mutation($input: CreateRoomInput!) { createRoom(input: $input) { id name } }`,
+        { input: { name: roomName, description: description || undefined, groupId } }
+      );
+      roomId = createData.createRoom.id;
+    } finally {
+      await adminContext.dispose();
     }
 
-    // Create and join room via API
-    const result = await this.page.evaluate(
-      async ({ roomName, description, groupId }) => {
-        const createRes = await fetch('/api/graphql', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-          credentials: 'include',
-          body: JSON.stringify({
-            query: `mutation($input: CreateRoomInput!) { createRoom(input: $input) { id name } }`,
-            variables: { input: { name: roomName, description: description || undefined, groupId } }
-          })
-        });
-        const createData = await createRes.json();
-        if (createData.errors) throw new Error(JSON.stringify(createData.errors));
-        const roomId = createData.data.createRoom.id;
-
-        // Join the room
-        const joinRes = await fetch('/api/graphql', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-          credentials: 'include',
-          body: JSON.stringify({
-            query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) { id } }`,
-            variables: { input: { roomId } }
-          })
-        });
-        const joinData = await joinRes.json();
-        if (joinData.errors) throw new Error(JSON.stringify(joinData.errors));
-
-        return { roomId };
-      },
-      { roomName, description, groupId }
+    // Join as the currently tested user. Room creation itself uses the admin
+    // context because ordinary E2E users no longer have room.create by default.
+    await graphqlQuery<{ joinRoom: { id: string } }>(
+      this.page,
+      `mutation($input: JoinRoomInput!) { joinRoom(input: $input) { id } }`,
+      { input: { roomId } }
     );
 
     // Navigate to the new room
-    await this.page.goto(routes.room(result.roomId));
+    await this.page.goto(routes.room(roomId));
 
     // Wait for room UI to be fully loaded (header and message input)
     await expect(this.getRoomHeader(roomName)).toBeVisible({ timeout: 5000 });

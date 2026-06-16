@@ -1,7 +1,7 @@
 # FDR-017: Room Groups & Sidebar Layout
 
 **Status:** Active
-**Last reviewed:** 2026-06-06
+**Last reviewed:** 2026-06-15
 
 ## Overview
 
@@ -64,5 +64,5 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 
 ## Related
 
-- **ADRs:** ADR-005 (hierarchy-wins RBAC), ADR-031 (room-group-centric ACL), ADR-037 (DM access via membership)
+- **ADRs:** ADR-031 (room-group-centric ACL), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-007 (Direct Messages), FDR-019 (Room Lifecycle)

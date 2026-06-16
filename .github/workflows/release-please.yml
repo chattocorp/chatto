@@ -12,11 +12,9 @@ name: release-please
 # its own latest version, so a backport on `release-0.0.x` bumps from the
 # tag reachable on that branch without jumping to main's version.
 #
-# The `main` branch is the stable release line. Its current config forces the
-# first stable release after the beta stream to `0.1.0`; after that Release PR
-# lands, switch main back to the default stable config/manifest so subsequent
-# releases go back to conventional-commit version bumps. Maintenance branches
-# use the default stable config/manifest so backports continue to cut patches.
+# The `main` branch is the active stable release line and uses the shared
+# stable config with its own manifest. Maintenance branches use the shared
+# stable config/manifest so backports continue to cut patches.
 #
 # Replaces the old `mise bump` flow (goversion + manual tag + push).
 #
@@ -52,7 +50,7 @@ jobs:
       # Captured into env per workflow-injection best practice, even
       # though it's only used as an action input here (never in `run:`).
       TARGET_BRANCH: ${{ github.ref_name }}
-      CONFIG_FILE: ${{ github.ref_name == 'main' && '.release-please-config-main.json' || '.release-please-config.json' }}
+      CONFIG_FILE: .release-please-config.json
       MANIFEST_FILE: ${{ github.ref_name == 'main' && '.release-please-manifest-main.json' || '.release-please-manifest.json' }}
     steps:
       - uses: googleapis/release-please-action@v5

@@ -206,16 +206,15 @@ func TestRequireServerPermission(t *testing.T) {
 			t.Fatalf("Failed to create user: %v", err)
 		}
 
-		// Everyone should have message.post by default
-		_, err = requireServerPermission(env.authContextForUser(user), env.core, core.PermMessagePost)
+		// Everyone should have user.delete-self by default.
+		_, err = requireServerPermission(env.authContextForUser(user), env.core, core.PermUserDeleteSelf)
 		if err != nil {
-			t.Errorf("Expected user to have message.post, got error: %v", err)
+			t.Errorf("Expected user to have user.delete-self, got error: %v", err)
 		}
 
-		// Everyone should have message.post by default
-		_, err = requireServerPermission(env.authContextForUser(user), env.core, core.PermMessagePost)
+		_, err = requireServerPermission(env.authContextForUser(user), env.core, core.PermUserDeleteSelf)
 		if err != nil {
-			t.Errorf("Expected user to have message.post, got error: %v", err)
+			t.Errorf("Expected user to have user.delete-self, got error: %v", err)
 		}
 	})
 
@@ -269,17 +268,14 @@ func TestRequireServerPermission(t *testing.T) {
 	})
 }
 
-// TestGrantUserPermission_Authorization covers the gating on the new
-// per-user grant/deny mutations. They use requireUserPermissionTarget:
-// caller needs role.manage AND must strictly outrank the target. No
-// self-bypass — self-grant would be a privilege boundary change, and
-// the strict-outrank step fails on self by definition.
+// TestGrantUserPermission_Authorization covers the gating on per-user
+// grant/deny mutations. They require user.manage-permissions.
 func TestGrantUserPermission_Authorization(t *testing.T) {
 	env := setupTestResolver(t)
 	mutation := env.resolver.Mutation()
 
 	// testUser starts as owner (created first in setupTestResolver).
-	// Create three other users at different ranks for the matrix.
+	// Create three other users with different roles for the matrix.
 	regular := env.createVerifiedUser(t, "ugrant-regular", "Regular", "password123")
 	moderator := env.createVerifiedUser(t, "ugrant-moderator", "Moderator", "password123")
 	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, moderator.Id, core.RoleModerator); err != nil {
@@ -293,25 +289,25 @@ func TestGrantUserPermission_Authorization(t *testing.T) {
 	t.Run("regular user cannot grant permissions to anyone", func(t *testing.T) {
 		_, err := mutation.GrantUserPermission(env.authContextForUser(regular), model.GrantUserPermissionInput{
 			UserID:     moderator.Id,
-			Permission: string(core.PermMessagePost),
+			Permission: string(core.PermUserDeleteSelf),
 		})
 		if !errors.Is(err, core.ErrPermissionDenied) {
 			t.Errorf("expected ErrPermissionDenied, got %v", err)
 		}
 	})
 
-	t.Run("moderator without role.manage cannot grant", func(t *testing.T) {
-		// Moderator's default permissions don't include role.manage.
+	t.Run("moderator without user.manage-permissions cannot grant", func(t *testing.T) {
+		// Moderator's default permissions don't include user.manage-permissions.
 		_, err := mutation.GrantUserPermission(env.authContextForUser(moderator), model.GrantUserPermissionInput{
 			UserID:     regular.Id,
 			Permission: string(core.PermMessagePost),
 		})
 		if !errors.Is(err, core.ErrPermissionDenied) {
-			t.Errorf("expected ErrPermissionDenied (moderator lacks role.manage), got %v", err)
+			t.Errorf("expected ErrPermissionDenied (moderator lacks user.manage-permissions), got %v", err)
 		}
 	})
 
-	t.Run("admin can grant to a lower-ranked user", func(t *testing.T) {
+	t.Run("admin can grant to a user", func(t *testing.T) {
 		_, err := mutation.GrantUserPermission(env.authContextForUser(admin), model.GrantUserPermissionInput{
 			UserID:     regular.Id,
 			Permission: string(core.PermMessageManage),
@@ -326,7 +322,7 @@ func TestGrantUserPermission_Authorization(t *testing.T) {
 		}
 	})
 
-	t.Run("admin cannot grant to a peer admin (peer-deny)", func(t *testing.T) {
+	t.Run("admin can grant to a peer admin", func(t *testing.T) {
 		peerAdmin := env.createVerifiedUser(t, "ugrant-peer-admin", "Peer", "password123")
 		if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, peerAdmin.Id, core.RoleAdmin); err != nil {
 			t.Fatalf("AssignServerRole: %v", err)
@@ -335,43 +331,41 @@ func TestGrantUserPermission_Authorization(t *testing.T) {
 			UserID:     peerAdmin.Id,
 			Permission: string(core.PermMessagePost),
 		})
-		if !errors.Is(err, core.ErrPermissionDenied) {
-			t.Errorf("expected peer-admin grant to be denied, got %v", err)
+		if err != nil {
+			t.Errorf("expected peer-admin grant to succeed, got %v", err)
 		}
 	})
 
-	t.Run("admin cannot grant to owner (admin doesn't outrank owner)", func(t *testing.T) {
+	t.Run("admin can grant to owner", func(t *testing.T) {
 		_, err := mutation.GrantUserPermission(env.authContextForUser(admin), model.GrantUserPermissionInput{
 			UserID:     env.testUser.Id,
 			Permission: string(core.PermMessagePost),
 		})
-		if !errors.Is(err, core.ErrPermissionDenied) {
-			t.Errorf("expected admin→owner grant to be denied, got %v", err)
+		if err != nil {
+			t.Errorf("expected admin to owner grant to succeed, got %v", err)
 		}
 	})
 
-	t.Run("self-grant is denied for every rank (privilege boundary change, no self-bypass)", func(t *testing.T) {
-		// Self-grant is the original C-1 escalation vector: every authenticated
-		// caller, regardless of rank, was able to attach arbitrary permissions
-		// to themselves and bypass the security model. The new helper has no
-		// self-bypass; the strict-outrank step (OutranksUser(self, self) =
-		// false) denies on the rank side regardless of which permission the
-		// caller holds.
+	t.Run("self-grant requires user.manage-permissions", func(t *testing.T) {
 		callers := []struct {
-			name string
-			user *corev1.User
+			name    string
+			user    *corev1.User
+			allowed bool
 		}{
-			{"regular", regular},
-			{"moderator", moderator},
-			{"admin", admin},
-			{"owner", env.testUser},
+			{"regular", regular, false},
+			{"moderator", moderator, false},
+			{"admin", admin, true},
+			{"owner", env.testUser, true},
 		}
 		for _, c := range callers {
 			_, err := mutation.GrantUserPermission(env.authContextForUser(c.user), model.GrantUserPermissionInput{
 				UserID:     c.user.Id,
 				Permission: string(core.PermMessagePost),
 			})
-			if !errors.Is(err, core.ErrPermissionDenied) {
+			if c.allowed && err != nil {
+				t.Errorf("%s self-grant: expected success, got %v", c.name, err)
+			}
+			if !c.allowed && !errors.Is(err, core.ErrPermissionDenied) {
 				t.Errorf("%s self-grant: expected ErrPermissionDenied, got %v", c.name, err)
 			}
 		}
@@ -395,28 +389,28 @@ func TestGrantUserPermission_Authorization(t *testing.T) {
 		}
 	})
 
-	t.Run("admin can deny then clear a permission on a lower-ranked user", func(t *testing.T) {
+	t.Run("admin can deny then clear a permission on a user", func(t *testing.T) {
 		// End-to-end roundtrip via GraphQL.
 		_, err := mutation.DenyUserPermission(env.authContextForUser(admin), model.DenyUserPermissionInput{
 			UserID:     regular.Id,
-			Permission: string(core.PermMessagePost),
+			Permission: string(core.PermUserDeleteSelf),
 		})
 		if err != nil {
 			t.Fatalf("DenyUserPermission: %v", err)
 		}
-		decision, _ := env.core.ResolveUserPermission(env.ctx, regular.Id, core.KindChannel, "", core.PermMessagePost)
+		decision, _ := env.core.ResolveUserPermission(env.ctx, regular.Id, core.KindChannel, "", core.PermUserDeleteSelf)
 		if decision != core.DecisionDeny {
 			t.Fatalf("expected DecisionDeny after admin deny, got %s", decision)
 		}
 
 		_, err = mutation.ClearUserPermissionState(env.authContextForUser(admin), model.ClearUserPermissionStateInput{
 			UserID:     regular.Id,
-			Permission: string(core.PermMessagePost),
+			Permission: string(core.PermUserDeleteSelf),
 		})
 		if err != nil {
 			t.Fatalf("ClearUserPermissionState: %v", err)
 		}
-		decision, _ = env.core.ResolveUserPermission(env.ctx, regular.Id, core.KindChannel, "", core.PermMessagePost)
+		decision, _ = env.core.ResolveUserPermission(env.ctx, regular.Id, core.KindChannel, "", core.PermUserDeleteSelf)
 		if decision != core.DecisionAllow {
 			t.Errorf("expected DecisionAllow after clear (everyone default), got %s", decision)
 		}
@@ -452,11 +446,9 @@ func TestGrantUserPermission_Authorization(t *testing.T) {
 	})
 }
 
-// TestRequireUserAdminTarget covers the two-step "permission AND rank" gate
-// for targeted user mutations (issue #435). The critical regression case is
-// the rank-only bug: a moderator outranks regular members but does NOT have
-// role.assign, so a moderator must be denied — even though hierarchy alone
-// would allow it.
+// TestRequireUserAdminTarget covers the role.assign gate for targeted user
+// mutations. Self-targeting remains allowed for profile actions, but all
+// cross-user administration requires explicit permission.
 func TestRequireUserAdminTarget(t *testing.T) {
 	env := setupTestResolver(t)
 
@@ -476,29 +468,27 @@ func TestRequireUserAdminTarget(t *testing.T) {
 		}
 	})
 
-	t.Run("moderator without role.assign cannot target lower-ranked user", func(t *testing.T) {
-		// This is the #435 regression: rank-only gating would allow this.
-		// The new "permission AND rank" gate must deny it.
+	t.Run("moderator without role.assign cannot target another user", func(t *testing.T) {
 		err := env.resolver.requireUserAdminTarget(env.ctx, moderator.Id, regular.Id)
 		if !errors.Is(err, core.ErrPermissionDenied) {
 			t.Errorf("moderator without role.assign should be denied, got %v", err)
 		}
 	})
 
-	t.Run("admin with role.assign can target lower-ranked user", func(t *testing.T) {
+	t.Run("admin with role.assign can target another user", func(t *testing.T) {
 		if err := env.resolver.requireUserAdminTarget(env.ctx, admin.Id, regular.Id); err != nil {
 			t.Errorf("admin should be allowed, got %v", err)
 		}
 	})
 
-	t.Run("admin cannot target peer admin (rank check)", func(t *testing.T) {
+	t.Run("admin can target peer admin", func(t *testing.T) {
 		admin2 := env.createVerifiedUser(t, "adminuser2", "Admin Two", "password123")
 		if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, admin2.Id, core.RoleAdmin); err != nil {
 			t.Fatalf("AssignServerRole admin2: %v", err)
 		}
 		err := env.resolver.requireUserAdminTarget(env.ctx, admin.Id, admin2.Id)
-		if !errors.Is(err, core.ErrPermissionDenied) {
-			t.Errorf("peer admins should not be able to target each other, got %v", err)
+		if err != nil {
+			t.Errorf("peer admins with role.assign should be allowed, got %v", err)
 		}
 	})
 

@@ -1,7 +1,7 @@
 # FDR-018: Account Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-06-03
+**Last reviewed:** 2026-06-15
 
 ## Overview
 
@@ -95,7 +95,7 @@ This FDR covers the user account from registration through deletion: signup, ema
 ## Permissions
 
 - Self: anyone authenticated can update their own profile (FDR-022), add or remove their own emails, and delete their own account.
-- `user.delete-any` — admin permission to delete other users' accounts. Subject to outranking the target via `requireUserAdminTarget`.
+- `user.delete-any` — admin permission to delete other users' accounts.
 - `user.delete-self` — gates own-account deletion. Granted to `everyone` by default; operators can revoke to lock down self-deletion.
 
 ## Related

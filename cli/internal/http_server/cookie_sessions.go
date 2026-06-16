@@ -70,10 +70,11 @@ func (s *HTTPServer) validateCookieSession(c *gin.Context) (string, string, *cor
 
 	record, err := s.core.ValidateCookieSession(c.Request.Context(), userID, sessionID)
 	if err != nil {
-		if err != core.ErrCookieSessionNotFound {
+		if errors.Is(err, core.ErrCookieSessionNotFound) {
+			clearCookieSessionAuth(session)
+		} else {
 			log.Warn("Failed to validate cookie session", "userId", userID, "error", err)
 		}
-		clearCookieSessionAuth(session)
 		return "", "", nil, false
 	}
 

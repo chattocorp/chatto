@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -248,20 +249,81 @@ func (c *ChattoCore) GetUserExplicitRoomOverride(ctx context.Context, roomID, us
 const AnnouncementsRoomName = "announcements"
 
 // SetupAnnouncementsRoomPermissions configures an announcements room so that
-// only owner, admin, and moderator roles can post new root messages. Everyone
-// else can read and post in threads, but cannot start new conversations. This
-// is idempotent and safe to call multiple times.
-//
-// Implementation: a single room-scope deny of `message.post` on the
-// `everyone` role. The resolver walks roles in descending rank, so
-// higher-ranked roles' server-scope grants of `message.post` resolve
-// before the walker descends to `everyone` — no explicit per-role
-// grants needed.
+// owners can post new root messages via the effective-owner override. Everyone
+// else can read, join, post in threads, react, and echo, but cannot start new
+// conversations. This is idempotent and safe to call multiple times.
 func (c *ChattoCore) SetupAnnouncementsRoomPermissions(ctx context.Context, roomID string) error {
-	if err := c.DenyRoomPermission(ctx, SystemActorID, roomID, RoleEveryone, PermMessagePost); err != nil {
-		return fmt.Errorf("failed to deny %s for everyone: %w", PermMessagePost, err)
+	if err := c.SeedDefaultChannelRoomPermissions(ctx, roomID, AnnouncementsRoomName); err != nil {
+		return err
 	}
 	c.logger.Debug("Set up announcements room permissions", "room", roomID)
+	return nil
+}
+
+// SeedDefaultChannelRoomPermissions materializes default room-tier exceptions
+// for a channel room. Normal rooms inherit broad server-tier member defaults;
+// announcements add a local everyone/message.post denial.
+func (c *ChattoCore) SeedDefaultChannelRoomPermissions(ctx context.Context, roomID, roomName string) error {
+	if roomID == "" {
+		return fmt.Errorf("roomID is required")
+	}
+
+	if strings.EqualFold(roomName, AnnouncementsRoomName) {
+		for _, perm := range DefaultAnnouncementsEveryonePermissions() {
+			if err := c.grantRoomPermissionIfMissing(ctx, roomID, RoleEveryone, perm); err != nil {
+				return fmt.Errorf("seed announcements everyone %s: %w", perm, err)
+			}
+		}
+		for _, perm := range DefaultAnnouncementsEveryoneDenials() {
+			if err := c.denyRoomPermissionIfMissing(ctx, roomID, RoleEveryone, perm); err != nil {
+				return fmt.Errorf("seed announcements everyone denial %s: %w", perm, err)
+			}
+		}
+		return c.seedDefaultRoomStaffPermissions(ctx, roomID)
+	}
+
+	for _, perm := range DefaultRoomEveryonePermissions() {
+		if err := c.grantRoomPermissionIfMissing(ctx, roomID, RoleEveryone, perm); err != nil {
+			return fmt.Errorf("seed room everyone %s: %w", perm, err)
+		}
+	}
+	return c.seedDefaultRoomStaffPermissions(ctx, roomID)
+}
+
+// EnsureDefaultChannelRoomPermissions backfills default room-tier grants for
+// existing rooms. It preserves operator edits by only writing when no
+// decision exists.
+func (c *ChattoCore) EnsureDefaultChannelRoomPermissions(ctx context.Context) error {
+	rooms, err := c.ListRooms(ctx, KindChannel)
+	if err != nil {
+		return fmt.Errorf("list channel rooms: %w", err)
+	}
+	for _, room := range rooms {
+		if err := c.SeedDefaultChannelRoomPermissions(ctx, room.Id, room.Name); err != nil {
+			return fmt.Errorf("ensure room permissions for %s: %w", room.Id, err)
+		}
+	}
+	return nil
+}
+
+func (c *ChattoCore) seedDefaultRoomStaffPermissions(ctx context.Context, roomID string) error {
+	for _, perm := range DefaultRoomModeratorPermissions() {
+		if err := c.grantRoomPermissionIfMissing(ctx, roomID, RoleModerator, perm); err != nil {
+			return fmt.Errorf("seed room moderator permission %s %s: %w", RoleModerator, perm, err)
+		}
+	}
+	for _, perm := range DefaultRoomAdminPermissions() {
+		if err := c.grantRoomPermissionIfMissing(ctx, roomID, RoleAdmin, perm); err != nil {
+			return fmt.Errorf("seed room admin permission %s %s: %w", RoleAdmin, perm, err)
+		}
+	}
+	for _, roleName := range []string{RoleModerator, RoleAdmin} {
+		for _, perm := range DefaultAnnouncementsPosterPermissions() {
+			if err := c.grantRoomPermissionIfMissing(ctx, roomID, roleName, perm); err != nil {
+				return fmt.Errorf("seed room poster permission %s %s: %w", roleName, perm, err)
+			}
+		}
+	}
 	return nil
 }
 
@@ -272,21 +334,19 @@ func (c *ChattoCore) SetupAnnouncementsRoomPermissions(ctx context.Context, room
 // InitDefaultPermissions seeds the system roles with their default permission
 // grants through RBAC events. Idempotent at the projection level.
 //
-// Owner and Admin receive the same enumerated permission set
-// (`DefaultOwnerPermissions` / `DefaultAdminPermissions`). They are
-// distinguished by rank, not capabilities. Moderator gets
-// `DefaultModeratorPermissions`, Everyone gets `DefaultEveryonePermissions`.
+// Owners receive no persisted permission grants here; effective owners are
+// granted every known permission by the resolver. Admin gets
+// `DefaultAdminPermissions`, Moderator gets `DefaultModeratorPermissions`,
+// Everyone gets `DefaultEveryonePermissions`.
 //
-// Permissions are written at server scope. Channel-room permissions
-// (those also marked ScopeGroup / ScopeRoom) cascade into groups and
-// rooms via the resolver, so they are configured once here and apply
-// everywhere unless an operator adds a per-group or per-room override.
+// Permissions are written at server scope. Room and message defaults on
+// everyone act as the broad baseline; room/group decisions are local
+// exceptions.
 func (c *ChattoCore) InitDefaultPermissions(ctx context.Context) error {
 	roleDefaults := []struct {
 		role  string
 		perms []Permission
 	}{
-		{RoleOwner, DefaultOwnerPermissions()},
 		{RoleAdmin, DefaultAdminPermissions()},
 		{RoleModerator, DefaultModeratorPermissions()},
 		{RoleEveryone, DefaultEveryonePermissions()},
@@ -315,7 +375,6 @@ func (c *ChattoCore) EnsureDefaultRolePermissions(ctx context.Context) error {
 		role  string
 		perms []Permission
 	}{
-		{RoleOwner, DefaultOwnerPermissions()},
 		{RoleAdmin, DefaultAdminPermissions()},
 		{RoleModerator, DefaultModeratorPermissions()},
 		{RoleEveryone, DefaultEveryonePermissions()},
@@ -354,7 +413,6 @@ func (c *ChattoCore) SeedDefaultRoomGroupPermissions(ctx context.Context, groupI
 		role  string
 		perms []Permission
 	}{
-		{RoleOwner, DefaultOwnerPermissions()},
 		{RoleAdmin, DefaultAdminPermissions()},
 		{RoleModerator, DefaultModeratorPermissions()},
 		{RoleEveryone, DefaultEveryonePermissions()},
@@ -387,6 +445,28 @@ func (c *ChattoCore) grantSetPermissionIfMissing(ctx context.Context, groupID, r
 		return nil
 	}
 	return c.GrantGroupPermission(ctx, SystemActorID, groupID, roleName, perm)
+}
+
+func (c *ChattoCore) grantRoomPermissionIfMissing(ctx context.Context, roomID, roleName string, perm Permission) error {
+	parts := perm.KeyParts()
+	if parts.Verb == "" || parts.ObjectType == "" {
+		return fmt.Errorf("invalid permission: %s", perm)
+	}
+	if c.RBAC.GetDecision(ScopeRoom, roomID, roleName, perm) != DecisionNone {
+		return nil
+	}
+	return c.GrantRoomPermission(ctx, SystemActorID, roomID, roleName, perm)
+}
+
+func (c *ChattoCore) denyRoomPermissionIfMissing(ctx context.Context, roomID, roleName string, perm Permission) error {
+	parts := perm.KeyParts()
+	if parts.Verb == "" || parts.ObjectType == "" {
+		return fmt.Errorf("invalid permission: %s", perm)
+	}
+	if c.RBAC.GetDecision(ScopeRoom, roomID, roleName, perm) != DecisionNone {
+		return nil
+	}
+	return c.DenyRoomPermission(ctx, SystemActorID, roomID, roleName, perm)
 }
 
 func (c *ChattoCore) grantServerPermissionIfMissing(ctx context.Context, roleName string, perm Permission) error {

@@ -252,9 +252,12 @@ func TestDefaultEveryonePermissions(t *testing.T) {
 
 	mustInclude := []Permission{
 		PermUserDeleteSelf,
+		PermRoomList,
 		PermRoomJoin,
 		PermMessagePost,
 		PermMessagePostInThread,
+		PermMessageReact,
+		PermMessageEcho,
 	}
 	for _, want := range mustInclude {
 		if !slices.Contains(perms, want) {
@@ -274,8 +277,9 @@ func TestDefaultModeratorPermissions(t *testing.T) {
 	perms := DefaultModeratorPermissions()
 
 	mustInclude := []Permission{
-		PermMessageManage,
 		PermAdminUsersView,
+		PermMessageManage,
+		PermRoomMemberBan,
 	}
 	for _, want := range mustInclude {
 		if !slices.Contains(perms, want) {
@@ -288,6 +292,14 @@ func TestDefaultModeratorPermissions(t *testing.T) {
 		if slices.Contains(perms, mustNotInclude) {
 			t.Errorf("moderator defaults must not include %v", mustNotInclude)
 		}
+	}
+}
+
+func TestDefaultRoomEveryonePermissions(t *testing.T) {
+	perms := DefaultRoomEveryonePermissions()
+
+	if len(perms) != 0 {
+		t.Errorf("Expected room everyone defaults to be empty, got %v", perms)
 	}
 }
 
@@ -346,6 +358,31 @@ func TestPermissionConsistency(t *testing.T) {
 		for _, perm := range DefaultAdminPermissions() {
 			if err := ValidatePermission(perm); err != nil {
 				t.Errorf("Invalid permission in admin defaults: %v", perm)
+			}
+		}
+	})
+
+	t.Run("admin defaults grant room administration and message management", func(t *testing.T) {
+		for _, want := range []Permission{
+			PermRoomCreate,
+			PermRoomJoin,
+			PermRoomList,
+			PermRoomManage,
+			PermRoomMemberBan,
+			PermMessageManage,
+		} {
+			if !slices.Contains(DefaultAdminPermissions(), want) {
+				t.Errorf("admin server defaults should include %v", want)
+			}
+		}
+		for _, mustNotInclude := range []Permission{
+			PermMessagePost,
+			PermMessagePostInThread,
+			PermMessageReact,
+			PermMessageEcho,
+		} {
+			if slices.Contains(DefaultAdminPermissions(), mustNotInclude) {
+				t.Errorf("admin-specific defaults should rely on everyone for %v", mustNotInclude)
 			}
 		}
 	})

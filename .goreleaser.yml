@@ -36,9 +36,9 @@ changelog:
 dockers:
   - image_templates:
       - "ghcr.io/chattocorp/chatto:{{ .Version }}-amd64"
-    dockerfile: Dockerfile.goreleaser
+    dockerfile: docker/Dockerfile.goreleaser
     extra_files:
-      - docker-entrypoint.sh
+      - docker/docker-entrypoint.sh
     build_flag_templates:
       - "--pull"
       - "--platform=linux/amd64"
@@ -52,9 +52,9 @@ dockers:
     goos: linux
   - image_templates:
       - "ghcr.io/chattocorp/chatto:{{ .Version }}-arm64"
-    dockerfile: Dockerfile.goreleaser
+    dockerfile: docker/Dockerfile.goreleaser
     extra_files:
-      - docker-entrypoint.sh
+      - docker/docker-entrypoint.sh
     build_flag_templates:
       - "--pull"
       - "--platform=linux/arm64"

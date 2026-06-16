@@ -76,21 +76,19 @@ User-facing concepts. If a user might say the word, it goes here.
 
 Chatto's RBAC model. Read top-to-bottom — terms build on each other.
 
-**RBAC (Role-Based Access Control)** — The model: roles bundle permissions, users hold roles. See [ADR-005](adr/ADR-005-hierarchy-wins-rbac.md).
+**RBAC (Role-Based Access Control)** — The model: roles bundle permissions, users hold roles, and direct user overrides can grant or deny exceptions. See [ADR-040](adr/ADR-040-permission-only-rbac-with-owner-override.md).
 
 **Role** — Named bundle of permissions, assignable to users. System roles are seeded; custom roles can be created. Role names share the message-mention namespace with user logins, and each role can be marked pingable to allow `@role` pings.
 
 **Permission** — Named capability gate, e.g. `message.post`, `role.assign`. Strings use hyphens, never underscores. The full list lives in `cli/internal/core/permissions.go`.
 
-**Position** — Numeric rank of a role. Higher = more power. `everyone` = 0, `moderator` = 100, `admin` = 900, `owner` = 1000. Custom roles slot in the gaps.
+**Position** — Numeric display/order value for a role. `everyone` = 0, `moderator` = 100, `admin` = 900, `owner` = 1000. Custom roles slot in the gaps. Position is not an authorization rank.
 
-**Rank** — Comparison between two users' highest role positions. Answers a hierarchy question ("does A outrank B?"), not a capability question.
+**Effective owner** — A user who either has the durable `owner` role or has a verified email listed in `owners.emails`. Effective owners receive every known RBAC permission except where the DM privacy boundary applies.
 
-**Outranking** — Hierarchy check: actor's highest role position must be strictly greater than the target's. Required *alongside* the relevant permission for any mutation targeting another user. See `.claude/rules/authorization.md`.
+**Owner** — Top system role (position 1000). Conferred through role assignment or through verified `owners.emails` configuration.
 
-**Owner** — Top system role (position 1000). Conferred via `owners.emails` in `chatto.toml` or by another owner.
-
-**Admin** — System role (position 900). Full administrative reach except over `owner`-rank users.
+**Admin** — System role (position 900). Broad administrative defaults, still subject to explicit RBAC decisions unless the user is also an effective owner.
 
 **Moderator** — System role (position 100). Moderation permissions, no administrative reach.
 

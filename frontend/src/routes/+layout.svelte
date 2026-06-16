@@ -20,10 +20,7 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useServerRegistry } from '$lib/state/server/useServerRegistry.svelte';
   import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
-  import {
-    FULL_REFRESH_REQUIRED_EVENT,
-    eventBusManager
-  } from '$lib/state/server/eventBus.svelte';
+  import { eventBusManager } from '$lib/state/server/eventBus.svelte';
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
   import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
   import { UserSettingsState, setUserSettings } from '$lib/state/userSettings.svelte';
@@ -39,16 +36,6 @@
   useServerRegistry(() => data.user);
   useVisualViewport();
   usePinchZoomPrevention();
-
-  // Mark the origin store's currentUser as not-loading at app init.
-  // SvelteKit's load function already resolved auth state by the time this
-  // script runs — any further changes flow through `currentUser.user`. The
-  // registry is the single source of truth for `CurrentUserState`;
-  // consumers read it via `serverRegistry.getStore(serverId).currentUser`.
-  const originId = serverRegistry.originServer?.id;
-  if (originId) {
-    serverRegistry.getStore(originId).currentUser.loading = false;
-  }
 
   const userSettings = new UserSettingsState();
   setUserSettings(userSettings);
@@ -126,17 +113,6 @@
     if (sidebarNav.isMobile) sidebarNav.close();
   });
 
-  function handleFullRefreshRequired(event: Event) {
-    const detail = (event as CustomEvent<{ serverId?: string }>).detail;
-    console.warn('[eventBus:%s] full refresh required', detail?.serverId ?? 'unknown');
-    window.location.reload();
-  }
-
-  $effect(() => {
-    window.addEventListener(FULL_REFRESH_REQUIRED_EVENT, handleFullRefreshRequired);
-    return () => window.removeEventListener(FULL_REFRESH_REQUIRED_EVENT, handleFullRefreshRequired);
-  });
-
   // Page title
   const getFullTitle = usePageTitle();
   const fullTitle = $derived(getFullTitle());
@@ -185,14 +161,16 @@
 {:else}
   <ConnectionProvider>
     {#if data.user && serverRegistry.originServer}
-      <AuthenticatedChatProvider
-        user={data.user}
-        {userSettings}
-        {profileCache}
-        {presenceCache}
-      >
-        {@render frame()}
-      </AuthenticatedChatProvider>
+      {#key data.user.id}
+        <AuthenticatedChatProvider
+          user={data.user}
+          {userSettings}
+          {profileCache}
+          {presenceCache}
+        >
+          {@render frame()}
+        </AuthenticatedChatProvider>
+      {/key}
     {:else}
       {@render frame()}
     {/if}

@@ -36,6 +36,7 @@ and the deny/clear variants) via `setRolePermission`.
   let loading = $state(true);
   let error = $state<string | null>(null);
   let updatingKey = $state<string | null>(null);
+  const isOwnerRole = $derived(roleName === 'owner');
 
   $effect(() => {
     void load(roleName);
@@ -146,5 +147,7 @@ and the deny/clear variants) via `setRolePermission`.
     {updatingKey}
     onCycle={handleCycle}
     subjectKind="role"
+    forceAllow={isOwnerRole}
+    readOnly={isOwnerRole}
   />
 {/if}

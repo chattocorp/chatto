@@ -3,6 +3,7 @@ import { flushSync } from 'svelte';
 import type { Client } from '@urql/svelte';
 import type { GraphQLClient } from '$lib/state/server/graphqlClient.svelte';
 import { MessagesStore } from './messages.svelte';
+import { JumpToMessageState } from './composerContext.svelte';
 
 class FakeGqlClient {
 	reconnectCount = 0;
@@ -73,6 +74,25 @@ function threadMessageEvent(id: string, threadRootEventId: string | null = null)
 
 function messageWithReaction(id: string, emoji: string) {
 	const event = threadMessageEvent(id);
+	return {
+		...event,
+		event: {
+			...event.event,
+			reactions: [
+				{
+					__typename: 'ReactionSummary',
+					emoji,
+					count: 1,
+					hasReacted: false,
+					users: []
+				}
+			]
+		}
+	};
+}
+
+function threadMessageWithReaction(id: string, threadRootEventId: string, emoji: string) {
+	const event = threadMessageEvent(id, threadRootEventId);
 	return {
 		...event,
 		event: {
@@ -424,7 +444,6 @@ describe('MessagesStore — room lifecycle ownership', () => {
 			createdAt: '2026-05-27T00:00:01Z',
 			actorId: 'u2',
 			actor: null,
-			deliveryCursor: 'seq:2',
 			event: {
 				__typename: 'ReactionAddedEvent',
 				roomId: 'room-1',
@@ -592,6 +611,255 @@ describe('MessagesStore — room lifecycle ownership', () => {
 		await settle();
 
 		expect(fake.queryMock).toHaveBeenCalledTimes(1);
+		store.dispose();
+	});
+
+	it('soft-refreshes the latest room window without entering initial loading', async () => {
+		const fake = new FakeGqlClient([
+			roomEventsResult({
+				events: [threadMessageEvent('m1')],
+				startCursor: 'seq:1',
+				endCursor: 'seq:1',
+				hasOlder: false,
+				hasNewer: false
+			}),
+			roomEventsResult({
+				events: [messageWithReaction('m1', 'heart'), threadMessageEvent('m2')],
+				startCursor: 'seq:1',
+				endCursor: 'seq:2',
+				hasOlder: false,
+				hasNewer: false
+			})
+		]);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+
+		store.setRoom('room-1');
+		await settle();
+		fake.queryMock.mockClear();
+
+		await store.refreshCurrentWindow();
+		await settle();
+
+		expect(store.isInitialLoading).toBe(false);
+		expect(store.rootEvents.map((event) => event.id)).toEqual(['m1', 'm2']);
+		expect(store.rootEvents[0].event).toMatchObject({
+			__typename: 'MessagePostedEvent',
+			reactions: [{ emoji: 'heart', count: 1 }]
+		});
+		expect(fake.queryMock).toHaveBeenCalledOnce();
+		expect(fake.queryMock.mock.calls[0][1]).toEqual({ roomId: 'room-1', limit: 50 });
+		expect(fake.queryMock.mock.calls[0][2]).toEqual({ requestPolicy: 'network-only' });
+		store.dispose();
+	});
+
+	it('soft-refreshes around an anchor event when one is provided', async () => {
+		const fake = new FakeGqlClient([
+			roomEventsResult({
+				events: [threadMessageEvent('m1'), threadMessageEvent('m2'), threadMessageEvent('m3')],
+				startCursor: 'seq:1',
+				endCursor: 'seq:3',
+				hasOlder: false,
+				hasNewer: false
+			}),
+			{
+				room: {
+					eventsAround: {
+						events: [messageWithReaction('m2', 'thumbsup')],
+						targetIndex: 0,
+						startCursor: 'seq:2',
+						endCursor: 'seq:2',
+						hasOlder: true,
+						hasNewer: true
+					}
+				}
+			}
+		]);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+
+		store.setRoom('room-1');
+		await settle();
+		fake.queryMock.mockClear();
+
+		await store.refreshCurrentWindow('m2');
+		await settle();
+
+		expect(store.rootEvents.map((event) => event.id)).toEqual(['m2']);
+		expect(store.hasReachedStart).toBe(false);
+		expect(store.rootEvents[0].event).toMatchObject({
+			__typename: 'MessagePostedEvent',
+			reactions: [{ emoji: 'thumbsup', count: 1 }]
+		});
+		expect(fake.queryMock.mock.calls[0][1]).toEqual({
+			roomId: 'room-1',
+			eventId: 'm2',
+			limit: 50
+		});
+		expect(fake.queryMock.mock.calls[0][2]).toEqual({ requestPolicy: 'network-only' });
+		store.dispose();
+	});
+
+	it('keeps live events ordered when anchored refresh races forward pagination', async () => {
+		let resolveAnchoredRefresh!: (value: unknown) => void;
+		const anchoredRefresh = new Promise((resolve) => {
+			resolveAnchoredRefresh = resolve;
+		});
+		const fake = new FakeGqlClient([
+			roomEventsResult({
+				events: [
+					threadMessageEvent('m1'),
+					threadMessageEvent('m2'),
+					threadMessageEvent('m3'),
+					threadMessageEvent('m4'),
+					threadMessageEvent('m5')
+				],
+				startCursor: 'seq:1',
+				endCursor: 'seq:5',
+				hasOlder: false,
+				hasNewer: true
+			}),
+			anchoredRefresh,
+			roomEventsResult({
+				events: [threadMessageEvent('m6'), threadMessageEvent('m7')],
+				startCursor: 'seq:6',
+				endCursor: 'seq:7',
+				hasOlder: true,
+				hasNewer: true
+			})
+		]);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+
+		store.setRoom('room-1');
+		await settle();
+		fake.queryMock.mockClear();
+
+		const refresh = store.refreshCurrentWindow('m3');
+		store.ingestServerEvent(threadMessageEvent('m8') as never);
+		resolveAnchoredRefresh({
+			room: {
+				eventsAround: {
+					events: [threadMessageEvent('m3'), threadMessageEvent('m4'), threadMessageEvent('m5')],
+					targetIndex: 0,
+					startCursor: 'seq:3',
+					endCursor: 'seq:5',
+					hasOlder: true,
+					hasNewer: true
+				}
+			}
+		});
+
+		await refresh;
+		await settle();
+		expect(store.rootEvents.map((event) => event.id)).toEqual(['m3', 'm4', 'm5', 'm8']);
+
+		const jumpState = new JumpToMessageState();
+		jumpState.isJumpedMode = true;
+		await store.loadNewer(jumpState);
+		await settle();
+
+		expect(store.rootEvents.map((event) => event.id)).toEqual([
+			'm3',
+			'm4',
+			'm5',
+			'm6',
+			'm7',
+			'm8'
+		]);
+		store.dispose();
+	});
+
+	it('soft-refreshes a thread around an anchored reply', async () => {
+		const fake = new FakeGqlClient([
+			threadQueryResult({
+				replies: [
+					threadMessageEvent('r18', 't1'),
+					threadMessageEvent('r19', 't1'),
+					threadMessageEvent('r20', 't1')
+				],
+				startCursor: 'seq:18',
+				endCursor: 'seq:20',
+				hasOlder: true,
+				hasNewer: true
+			}),
+			threadQueryResult({
+				replies: [
+					threadMessageEvent('r19', 't1'),
+					threadMessageWithReaction('r20', 't1', 'thumbsup'),
+					threadMessageEvent('r21', 't1')
+				],
+				startCursor: 'seq:19',
+				endCursor: 'seq:21',
+				hasOlder: true,
+				hasNewer: true
+			})
+		]);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+
+		store.setThread('room-1', 't1');
+		await settle();
+		fake.queryMock.mockClear();
+
+		await store.refreshCurrentWindow('r20');
+		await settle();
+
+		expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r19', 'r20', 'r21']);
+		expect(store.hasReachedStart).toBe(false);
+		expect(store.threadEvents.find((event) => event.id === 'r20')?.event).toMatchObject({
+			__typename: 'MessagePostedEvent',
+			reactions: [{ emoji: 'thumbsup', count: 1 }]
+		});
+		expect(fake.queryMock.mock.calls[0][1]).toEqual({
+			roomId: 'room-1',
+			threadRootEventId: 't1',
+			anchorEventId: 'r20',
+			limit: 50
+		});
+		expect(fake.queryMock.mock.calls[0][2]).toEqual({ requestPolicy: 'network-only' });
+		store.dispose();
+	});
+
+	it('soft-refreshes a thread around the root anchor without jumping to latest replies', async () => {
+		const fake = new FakeGqlClient([
+			threadQueryResult({
+				replies: [
+					threadMessageEvent('r18', 't1'),
+					threadMessageEvent('r19', 't1'),
+					threadMessageEvent('r20', 't1')
+				],
+				startCursor: 'seq:18',
+				endCursor: 'seq:20',
+				hasOlder: true,
+				hasNewer: false
+			}),
+			threadQueryResult({
+				replies: [
+					threadMessageEvent('r1', 't1'),
+					threadMessageEvent('r2', 't1'),
+					threadMessageEvent('r3', 't1')
+				],
+				startCursor: 'seq:1',
+				endCursor: 'seq:3',
+				hasOlder: false,
+				hasNewer: true
+			})
+		]);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+
+		store.setThread('room-1', 't1');
+		await settle();
+		fake.queryMock.mockClear();
+
+		await store.refreshCurrentWindow('t1');
+		await settle();
+
+		expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r1', 'r2', 'r3']);
+		expect(store.hasReachedStart).toBe(true);
+		expect(fake.queryMock.mock.calls[0][1]).toEqual({
+			roomId: 'room-1',
+			threadRootEventId: 't1',
+			anchorEventId: 't1',
+			limit: 50
+		});
+		expect(fake.queryMock.mock.calls[0][2]).toEqual({ requestPolicy: 'network-only' });
 		store.dispose();
 	});
 

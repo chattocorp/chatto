@@ -2,7 +2,12 @@
   import { onDestroy } from 'svelte';
   import { useEvent } from '$lib/hooks';
   import { useConnection } from '$lib/state/server/connection.svelte';
-  import { getComposerContext, MessagesStore, type RoomMember } from '$lib/state/room';
+  import {
+    getComposerContext,
+    MessagesStore,
+    type RefreshCurrentWindowResult,
+    type RoomMember
+  } from '$lib/state/room';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import EventList from './EventList.svelte';
@@ -52,12 +57,9 @@
     return null;
   });
 
-  let refetchTrigger = $state(0);
-
   // Wire jumpState handlers to the store
   if (jumpState) {
     jumpState.setJumpHandler((eventId: string) => store.jumpToMessage(eventId, jumpState));
-    jumpState.setJumpToPresentHandler(() => store.jumpToPresent(jumpState));
     jumpState.setLoadNewerHandler(() => store.loadNewer(jumpState));
   }
 
@@ -67,10 +69,9 @@
     if (jumpState) jumpState.reset();
   });
 
-  // Drive store loads from roomId / manual-refetch prop changes. Silent
-  // reconnect + tab-resume catch-ups are owned by the server event bus.
+  // Drive store loads from roomId changes. Silent reconnect + tab-resume
+  // catch-ups refresh the current message window without resetting the store.
   $effect(() => {
-    void refetchTrigger;
     store.setRoom(roomId);
   });
 
@@ -90,6 +91,32 @@
 
     store.ingestServerEvent(serverEvent);
   });
+
+  function handleSoftRefresh(result: RefreshCurrentWindowResult, anchored: boolean): void {
+    console.debug('[room-refresh] room pane refresh result', {
+      roomId,
+      anchored,
+      hasOlder: result.hasOlder,
+      hasNewer: result.hasNewer
+    });
+    if (!anchored || !jumpState) return;
+    jumpState.isJumpedMode = result.hasNewer;
+    jumpState.hasReachedEnd = !result.hasNewer;
+    jumpState.hasOlderMessages = result.hasOlder;
+    console.debug('[room-refresh] forward pagination state updated', {
+      roomId,
+      isJumpedMode: jumpState.isJumpedMode,
+      hasReachedEnd: jumpState.hasReachedEnd,
+      hasOlderMessages: jumpState.hasOlderMessages
+    });
+  }
+
+  function handleReachedPresent(): void {
+    if (!jumpState) return;
+
+    console.debug('[room-refresh] exiting jumped mode at present', { roomId });
+    jumpState.reset();
+  }
 </script>
 
 <EventList
@@ -118,4 +145,6 @@
   hasReachedEnd={jumpState?.hasReachedEnd ?? false}
   onLoadNewer={() => store.loadNewer(jumpState)}
   onJumpToPresent={() => store.jumpToPresent(jumpState)}
+  onReachedPresent={handleReachedPresent}
+  onSoftRefresh={handleSoftRefresh}
 />

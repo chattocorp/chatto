@@ -12,7 +12,7 @@ Chatto is not accepting outside contributions at this time, but feedback, bug re
 | `+1`              | Embedded NATS                      |
 | `+2`              | Prometheus metrics                 |
 
-The repository-level Conductor settings are shared in `.conductor/settings.toml`. The run command delegates to `mise run dev-conductor`, which builds the frontend and development CLI, wires the per-workspace ports, and starts `bin/chatto run` without live reloads. Put machine-specific overrides in `.conductor/settings.local.toml`; that file is gitignored and wins over shared settings on your machine. Conductor also reads `.worktreeinclude` to copy gitignored local environment files, such as `.env` and `.env.*`, into new workspaces.
+The repository-level Conductor settings are shared in `.conductor/settings.toml`. The run command delegates to `mise run chatto`, which builds the frontend and development CLI, wires the per-workspace ports, and starts `bin/chatto run` without live reloads. Put machine-specific overrides in `.conductor/settings.local.toml`; that file is gitignored and wins over shared settings on your machine. Conductor also reads `.worktreeinclude` to copy gitignored local environment files, such as `.env` and `.env.*`, into new workspaces.
 
 ## Developing Outside of Conductor
 
@@ -26,10 +26,10 @@ mise run setup
 To run the bundled executable without live reloads using the same port wiring as Conductor:
 
 ```sh
-mise run dev-conductor
+mise run chatto
 ```
 
-When `CONDUCTOR_PORT` is unset, `mise run dev-conductor` uses `4000` for Chatto, `4001` for embedded NATS, and `4002` for Prometheus metrics.
+When `CONDUCTOR_PORT` is unset, `mise run chatto` uses `4000` for Chatto, `4001` for embedded NATS, and `4002` for Prometheus metrics. Pass explicit CLI arguments after the task name, for example `mise chatto version`.
 
 For the live-reload development stack, use Tilt:
 

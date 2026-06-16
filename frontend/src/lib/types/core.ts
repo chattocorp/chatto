@@ -56,11 +56,13 @@ export const PermRoomList: Permission = "room.list";
  */
 export const PermRoomManage: Permission = "room.manage";
 /**
- * PermRoomMemberBan allows banning lower-ranked users from channel rooms.
+ * PermRoomMemberBan allows banning members from channel rooms.
  */
 export const PermRoomMemberBan: Permission = "room.ban-member";
 /**
- * PermMessagePost allows posting new root messages in rooms and starting DMs.
+ * PermMessagePost allows posting new root messages in rooms. Server-scope
+ * decisions act as global defaults/overrides; room or group denies can narrow
+ * that default where a room should be more restrictive.
  */
 export const PermMessagePost: Permission = "message.post";
 /**
@@ -69,10 +71,8 @@ export const PermMessagePost: Permission = "message.post";
 export const PermMessagePostInThread: Permission = "message.post-in-thread";
 /**
  * PermMessageManage allows moderating other users' messages in a room
- * (editing or deleting). The actor must also strictly outrank the
- * message author — enforced at the API boundary. Authors editing or
- * deleting their own messages do NOT need this permission; it is
- * always allowed.
+ * (editing or deleting). Authors editing or deleting their own messages do
+ * NOT need this permission; it is always allowed.
  */
 export const PermMessageManage: Permission = "message.manage";
 /**
@@ -110,15 +110,17 @@ export const PermAdminSystemView: Permission = "admin.view-system";
 export const PermAdminAuditView: Permission = "admin.view-audit";
 /**
  * PermUserDeleteAny allows admins to delete any user's account.
- * Mirrors message.delete-any: the actor needs the permission AND
- * must strictly outrank the target user (rank check enforced at the
- * API boundary when the cross-user delete mutation is implemented).
  */
 export const PermUserDeleteAny: Permission = "user.delete-any";
 /**
  * PermUserDeleteSelf allows users to delete their own account.
  */
 export const PermUserDeleteSelf: Permission = "user.delete-self";
+/**
+ * PermUserManagePermissions allows editing direct per-user permission
+ * overrides.
+ */
+export const PermUserManagePermissions: Permission = "user.manage-permissions";
 /**
  * PermissionMetadata provides display information and scope constraints for a permission.
  */
@@ -132,10 +134,10 @@ export interface PermissionMetadata {
 /**
  * PermissionKeyParts holds the verb and objectType components for KV key generation.
  * Permission strings follow the format "{objectType}.{verb}" (e.g., "room.create",
- * "message.delete-own", "admin.view-users"), so key parts are derived directly from
+ * "message.post-in-thread", "admin.view-users"), so key parts are derived directly from
  * the permission string — no separate mapping needed.
  */
 export interface PermissionKeyParts {
-  Verb: string; // The action: "create", "join", "delete-own", "view-users", etc.
+  Verb: string; // The action: "create", "join", "post-in-thread", "view-users", etc.
   ObjectType: string; // The target type: "server", "room", "message", "admin", etc.
 }

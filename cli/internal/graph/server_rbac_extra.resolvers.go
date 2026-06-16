@@ -24,6 +24,9 @@ func (r *mutationResolver) GrantRoomPermission(ctx context.Context, input model.
 	if err := r.requireRoomManageAuth(ctx, user.Id, input.RoomID); err != nil {
 		return false, err
 	}
+	if err := rejectOwnerRolePermissionEdit(input.RoleName); err != nil {
+		return false, err
+	}
 
 	if err := r.core.GrantRoomPermission(ctx, user.Id, input.RoomID, input.RoleName, core.Permission(input.Permission)); err != nil {
 		return false, err
@@ -40,6 +43,9 @@ func (r *mutationResolver) DenyRoomPermission(ctx context.Context, input model.D
 	if err := r.requireRoomManageAuth(ctx, user.Id, input.RoomID); err != nil {
 		return false, err
 	}
+	if err := rejectOwnerRolePermissionEdit(input.RoleName); err != nil {
+		return false, err
+	}
 
 	if err := r.core.DenyRoomPermission(ctx, user.Id, input.RoomID, input.RoleName, core.Permission(input.Permission)); err != nil {
 		return false, err
@@ -54,6 +60,9 @@ func (r *mutationResolver) ClearRoomPermission(ctx context.Context, input model.
 		return false, err
 	}
 	if err := r.requireRoomManageAuth(ctx, user.Id, input.RoomID); err != nil {
+		return false, err
+	}
+	if err := rejectOwnerRolePermissionEdit(input.RoleName); err != nil {
 		return false, err
 	}
 
@@ -210,22 +219,25 @@ func (r *serverResolver) ViewerCanAssignRoles(ctx context.Context, obj *model.Se
 	return r.core.CanAssignRoles(ctx, user.Id)
 }
 
+// ViewerCanManageUserPermissions is the resolver for the viewerCanManageUserPermissions field.
+func (r *serverResolver) ViewerCanManageUserPermissions(ctx context.Context, obj *model.Server) (bool, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return false, nil
+	}
+	return r.core.CanManageUserPermissions(ctx, user.Id)
+}
+
 // ViewerCanManageUser is the resolver for the viewerCanManageUser field.
-//
-// IMPORTANT: this is a UI hint, not an authorization gate. It answers
-// "does the viewer outrank the target by role hierarchy?" — nothing
-// more. Callers (frontend) must understand that hiding a control
-// based on this field is fine; granting a capability based on it is
-// not. See the schema doc and authorization.md.
 func (r *serverResolver) ViewerCanManageUser(ctx context.Context, obj *model.Server, userID string) (bool, error) {
 	user := auth.ForContext(ctx)
 	if user == nil {
 		return false, nil
 	}
 	if user.Id == userID {
-		return false, nil
+		return true, nil
 	}
-	return r.core.OutranksUser(ctx, user.Id, userID)
+	return r.core.CanAssignRoles(ctx, user.Id)
 }
 
 // RoleUsers is the resolver for the roleUsers field.

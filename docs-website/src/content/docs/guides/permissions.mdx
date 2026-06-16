@@ -1,188 +1,158 @@
 ---
 title: Permissions & Roles
-description: How Chatto decides who can do what — the role hierarchy, the permission system, and the patterns that make day-to-day moderation easy.
+description: How Chatto decides who can do what through roles, permissions, room overrides, and owner recovery.
 ---
 
-import { Aside, LinkCard, CardGrid } from "@astrojs/starlight/components";
+import { Aside, LinkCard } from "@astrojs/starlight/components";
 
-Chatto's permissions system is built around two ideas: **roles** (which group people) and **permissions** (which describe capabilities). Every authenticated user holds at least one role; every action the user attempts is checked against the permissions their roles grant. You configure both per server.
+Chatto's permissions system is built around two ideas: **roles** group people, and **permissions** describe capabilities. Every authenticated user has the implicit `everyone` role and may have additional roles such as `moderator`, `admin`, custom roles, or `owner`.
 
-This page explains the model from the operator's perspective. It does not assume you've used a permissions system before.
+The current model is intentionally simple:
 
-## The four built-in roles
+- **Owners are always allowed.** A user is an owner if they have the durable `owner` role or a verified email listed in `owners.emails`.
+- **Everyone else is permission-based.** A non-owner action is allowed only when at least one applicable grant exists and no applicable deny exists.
+- **Any deny wins.** A deny attached to the user or to any of their roles blocks the action, regardless of other grants.
+- **Room settings are local exceptions.** Configure room-specific behavior in the room's permissions first; use server-scope permissions for global defaults or global restrictions.
 
-Every Chatto server starts with four roles. You can't delete them and you can't change their relative rank.
+## Built-in roles
 
-| Role         | Rank | Default capabilities                                           |
-| ------------ | ---- | -------------------------------------------------------------- |
-| **everyone** | 0    | Posting, reading, reacting, joining rooms, sending DMs.        |
-| **moderator** | 100 | Everyone's permissions plus member removal and message moderation (edit/delete any message). |
-| **admin**    | 900  | Every administrative permission individually granted: managing rooms, roles, members, server settings, viewing admin pages. |
-| **owner**    | 1000 | Same enumerated permission set as admin. The distinction is purely rank — owners can manage admin-rank users, admins cannot manage owners. |
+Every Chatto server starts with four system roles. You cannot delete them.
 
-**Higher rank number means more power.** A moderator (100) outranks everyone (0); admin (900) outranks moderator; owner (1000) sits at the top. The wide gaps between system roles leave room for custom roles to slot in at any rank.
+| Role          | Default behavior |
+| ------------- | ---------------- |
+| **everyone**  | Every authenticated user has this role. Fresh servers grant normal member defaults here: room discovery/joining, posting, thread posting, reactions, echoing thread replies, and deleting your own account. |
+| **moderator** | Adds server-wide moderation defaults: viewing users, managing messages, and banning room members. |
+| **admin**     | Adds broad server administration defaults, including room administration, role management, user administration, audit/system views, and `message.manage`. |
+| **owner**     | Always has every permission virtually. Owner permissions are not stored as editable grants. |
 
-`everyone` is implicit. Every authenticated user automatically has it — you don't assign it manually. The other three are assigned with `chatto reset rbac` (for the initial owner via `owners.emails`) or through the admin UI.
+Roles still have a numeric position for display order and legacy event compatibility, but position is not an authorization rank.
 
 ## How a permission check works
 
-When a user tries to do something — post a message, delete a channel, kick a member — Chatto runs a short decision procedure:
+When a user tries to do something, Chatto resolves the decision like this:
 
-1. **DM privacy boundary.** If the action is happening in a DM and falls under the privacy floor (moderating someone else's DM message, browsing the DM list, inviting people), the answer is always **no**, regardless of any role grant.
-2. **User-level overrides.** If you've granted or denied this specific permission to this specific user (server-wide or in a specific room), that decision wins. User-level overrides beat every role.
-3. **Role hierarchy walk.** Otherwise, Chatto checks the user's roles in rank order, highest first. For each role it looks at the room-specific decision (if any) before the server-wide decision. The first explicit allow or deny it finds is the answer.
-4. **Default deny.** If no role has an opinion, the action is denied.
-
-There is no "skip the rules" shortcut. Owners pass permission checks because the owner role is seeded with every server-scope permission explicitly granted — the same way admin gets its permissions. Any deny you configure applies uniformly.
+1. **DM privacy boundary.** Some moderation-style permissions are always denied inside DMs. Owners do not get to browse or moderate other people's private conversations.
+2. **Owner override.** Effective owners are allowed for every normal RBAC permission.
+3. **Deny-wins resolution.** For non-owners, Chatto collects applicable user and role decisions at server, group, and room scope. If any applicable decision is a deny, the action is denied.
+4. **Allow if granted.** If there is no deny and at least one applicable allow, the action is allowed.
+5. **Default deny.** If nothing grants the permission, the action is denied.
 
 <Aside type="tip">
-**Two rules to remember.** Across roles, **higher rank wins**. Within a role, **room-specific decisions win over server-wide ones**. Everything else is detail.
+  Prefer room permissions for local policy. Use server-scope grants for defaults that should apply broadly, and server-scope denies only when you really mean "block this everywhere for this role or user."
 </Aside>
 
-## Permissions
+## Scopes
 
-Permissions are named capabilities like `message.post`, `room.manage`, `admin.view-users`. They are grouped into categories (room, message, role, admin, user). Each one is either granted or denied to a role (or a specific user) at server scope, or — for room-relevant permissions — at a specific room.
+Permissions can be configured at different scopes:
 
-A few worth knowing:
+| Scope | Meaning |
+| ----- | ------- |
+| **Server** | Global defaults or restrictions across the whole server. |
+| **Group** | Defaults or restrictions for a room group. |
+| **Room** | Local exceptions for one room. |
 
-| Permission         | Meaning                                                       |
-| ------------------ | ------------------------------------------------------------- |
-| `message.post`     | Post root messages and start DMs                              |
-| `room.list`        | See a room in the room list (per-room → hide channels)        |
-| `room.join`        | Join a channel                                                |
-| `room.manage`      | Rename, archive, or delete any room                           |
-| `message.manage`   | Moderate other users' messages (rank-aware)                   |
-| `role.manage`      | Create, edit, or delete roles                                 |
-| `role.assign`      | Assign roles to users (administer them)                       |
-| `user.delete-any`  | Delete any user's account (rank-aware; admin power)           |
-| `user.delete-self` | Delete your own account                                       |
+Room-relevant permissions such as `message.post`, `message.react`, `message.manage`, `room.join`, and `room.ban-member` can be configured at room/group/server scope. Server-only permissions such as `server.manage`, `role.manage`, and `admin.view-audit` are configured only at server scope.
 
-The full list is visible in the admin UI under **Roles → Permissions**, with descriptions for each.
+## Important permissions
+
+| Permission | Meaning |
+| ---------- | ------- |
+| `message.post` | Post root messages and start DMs. |
+| `message.post-in-thread` | Post messages inside threads. |
+| `message.manage` | Edit or delete other users' messages. Authors can edit/delete their own messages without this permission. |
+| `message.react` | Add or remove reactions. |
+| `message.echo` | Echo thread replies to the main channel. |
+| `room.list` | See rooms in the directory and room lists. |
+| `room.join` | Join channel rooms. |
+| `room.create` | Create channel rooms. |
+| `room.manage` | Configure, rename, archive, or delete rooms. |
+| `room.ban-member` | Ban members from channel rooms. |
+| `role.manage` | Create, edit, delete, reorder roles, and edit role permissions. |
+| `role.assign` | Assign or revoke roles for users. |
+| `user.manage-permissions` | Edit direct per-user permission overrides. |
+| `user.delete-any` | Delete any user's account. |
+| `user.delete-self` | Delete your own account. |
+
+The full list is visible in the admin UI.
 
 ## Common patterns
 
-### Read-only announcements channel
+### Owner-only announcements
 
-Goal: everyone can read `#announcements`, but only admins and moderators can post.
+Fresh development/bootstrap servers create announcements as a read-only room by denying `message.post` for `everyone` at room scope.
 
-1. Open the room's **Permissions** tab in the admin UI.
-2. Deny `message.post` for the **everyone** role at this room.
-3. Leave `message.post` granted on **moderator** and **admin** (they have it by default).
+Because every authenticated user has `everyone` and any deny wins, this blocks root posting for all non-owner users, including admins and moderators. Owners can still post because owner permissions are virtual and cannot be denied through RBAC.
 
-Why this works: when a regular user tries to post, the walker checks `everyone` and sees the room-level deny → blocked. When a moderator tries to post, the walker checks `moderator` first (higher rank) and sees its server-wide grant → allowed. The `everyone` deny is never reached for higher-ranked roles.
+If you also want to prevent thread replies in announcements, deny `message.post-in-thread` for `everyone` in that room.
 
-### Private team channels
+### One-room lockdown
 
-Goal: a `#engineering` channel that only people on the engineering team can see and join.
+To temporarily freeze a room for all non-owner users:
 
-1. Create a custom **Engineering** role.
-2. On the `#engineering` room, deny `room.list` and `room.join` for **everyone**.
-3. On the same room, grant `room.list` and `room.join` for **Engineering**.
-4. Assign the **Engineering** role to your team members.
+1. Open the room's permissions.
+2. Deny `message.post` for `everyone`.
+3. Optionally deny `message.post-in-thread` and `message.react` as well.
 
-Non-engineering users won't see the room in their sidebar (it's filtered out of the room list) and couldn't join even if they got the URL. Engineering users see it and join normally.
+Clear the room-level denials to restore the normal server defaults.
 
-You can do the same with messaging permissions (`message.post`, `message.react`) for read-only or write-only access patterns.
+### Suspending a non-owner user
 
-### Suspending a single user
+To stop one non-owner user from posting without changing their roles:
 
-Goal: one user keeps posting things they shouldn't. You want to stop them from posting without removing them from the server.
+1. Open the user's member details in the admin UI.
+2. Under permission overrides, deny `message.post` at server scope.
+3. Optionally deny `message.post-in-thread`, `message.react`, and `message.echo`.
 
-1. Open the user's profile in the admin UI.
-2. Under **Permission overrides**, deny `message.post` for that user (server scope).
+User-level denies beat role grants for non-owners. They do not restrict effective owners.
 
-User-level denies are stronger than role grants, so this works regardless of which roles the user has — even if the user is an owner. To restore, remove the override.
+### Giving one user a room-specific moderation grant
 
-This is also how you build limited "timeouts": deny posting, reacting, and DM-sending temporarily, then clear the overrides.
+To let one non-owner user moderate one room:
 
-### Giving one user admin powers in one room
+1. Open the user's member details.
+2. Grant `message.manage` scoped to that room.
 
-Goal: someone on your team needs to moderate `#community-help` without becoming a server moderator everywhere else.
-
-1. Open the user's profile.
-2. Under **Permission overrides**, grant `message.delete-any` and `message.edit-any` for that user, scoped to `#community-help`.
-
-User-level grants apply only in the room you scoped them to. No new role required.
+This works as long as no applicable deny blocks `message.manage` for that user. If a deny exists on the user or one of their roles, clear that deny instead of adding more grants.
 
 ### Custom roles
 
-For anything that's a recurring pattern across multiple users, make a custom role:
+Use custom roles for repeated patterns across multiple users:
 
-1. **Roles → New role** in the admin UI.
-2. Give it a name and pick its rank by dragging it in the role list (between `everyone` and `moderator` is the typical slot).
-3. Grant the permissions it should have.
-4. Assign the role to users.
+1. Create a role in the admin UI.
+2. Assign permissions to that role.
+3. Assign the role to users.
 
-Use custom roles when the pattern is "this group of people can do X". Use user-level overrides when it's "this specific person needs an exception".
+Custom roles are permission bundles. They do not take precedence over other roles, and they cannot override a deny from another role the user also has.
 
 ## Owner vs admin
 
-Owner and admin hold the **same enumerated permission set**. Anything an admin can do, an owner can do — and vice versa, capability-wise. There's no "skip every check" super-permission attached to owner.
+Owners and admins are deliberately different:
 
-What does separate them is rank, and rank applies to two things:
+- **Owners** always receive all permissions and cannot be locked out through RBAC state. Owner permission rows are shown as read-only green checks in the UI.
+- **Admins** receive broad default grants, but they are still ordinary non-owner users for permission resolution. A deny can restrict an admin.
 
-- **Targeted user actions.** When one user administers another (rename them, change their roles, suspend them with a user-level deny), Chatto requires the actor to *strictly outrank* the target. Owners outrank admins, so admins can't administer owners; admins outrank moderators and regular members, so they can. Two owners are peers — neither can administer the other without one being demoted first via the CLI.
-- **Self-lockout prevention.** Owners cannot revoke their own owner role through the API; if you need to remove an owner, another owner has to do it, or the operator does it via `chatto reset rbac`.
-
-If you set a user-level deny on a permission for a specific user, that deny applies to **everyone**, including owners. There's no permission grant that sidesteps user-level overrides. (This is by design — it gives you an off-switch for compromised accounts at any rank.)
+Use `owners.emails` in `chatto.toml` as the recovery path. The email must be verified before it makes the user an effective owner.
 
 ## DM privacy
 
-DMs run through the same permission system as channels, but with one hard rule: a fixed set of permissions are **always denied** in DM rooms, regardless of any grant.
+DMs use the same permission names where they make sense, but Chatto keeps a hard privacy boundary around private conversations. Moderation and room-administration permissions such as `message.manage`, `message.echo`, `room.manage`, `room.list`, and `room.create` are denied in DMs regardless of role grants.
 
-| Denied in DMs              | Why                                       |
-| -------------------------- | ----------------------------------------- |
-| `message.edit-any`         | Privacy — operators can't edit DM content |
-| `message.delete-any`       | Privacy — operators can't delete DM content |
-| `message.echo`             | DMs can't be echoed to channels           |
-| `room.manage`              | DM rooms don't have admin controls        |
-| `room.list`, `room.create` | DMs have their own listing and creation API |
-| `member.invite`, `member.remove` | DMs have their own participation model |
+Access to a DM comes from being a participant in that conversation. Owners cannot read into DMs or moderate DM contents unless they are a participant and the action is a normal participant action.
 
-What this means in practice: even an owner can't read into DMs, edit someone's DM messages, or delete them. Access to DMs is gated by participation (you're either in the conversation or you're not), and the actions you can perform inside a DM are limited to what makes sense between participants — posting, replying, editing your own messages, reacting.
+## Where to configure permissions
 
-If you need any kind of DM moderation, it has to be designed as a separate auditable feature with explicit user consent. "Log in as admin and look" is not supported.
-
-## Rank vs permission
-
-Some actions target another user — renaming them, kicking them, editing their settings, deleting their messages. For these, having the right permission isn't enough. You also have to *outrank* the target by role hierarchy.
-
-Concretely, to act on another user you need both:
-
-1. The relevant permission (e.g. `role.assign` for identity edits, `message.delete-any` for message moderation).
-2. To strictly outrank them. Two admins are peers; one admin can't act on another admin even though they have the permission.
-
-This is what stops a rogue moderator from sabotaging admins or owners. The moderator role has `message.edit-any` and `message.delete-any` by default — but the rank check means they can only use those capabilities against users they outrank. They can moderate regular members; they can't touch admins or owners. The owner outranks the moderator structurally; permissions don't change that.
-
-The same rule applies across the board:
-
-| Action                         | Permission           | Rank-checked? |
-| ------------------------------ | -------------------- | ------------- |
-| Edit own profile / settings    | (self-action)        | n/a           |
-| Edit/delete own message        | `message.edit-own` / `message.delete-own` | n/a |
-| Edit/delete another user's message | `message.edit-any` / `message.delete-any` | **yes** |
-| Rename another user            | `role.assign`        | **yes**       |
-| Assign/revoke roles            | `role.assign`        | **yes**       |
-| Suspend a user (user-level deny) | `role.assign`      | **yes**       |
-
-If you ever find yourself needing to "fix" another peer's account, the answer is to demote them first, do the work, then re-promote them — not to grant yourself a permission to override the rank check.
-
-## Where this is configured
-
-| What you want to do                          | Where                              |
-| -------------------------------------------- | ---------------------------------- |
-| Set the initial owner                        | `owners.emails` in `chatto.toml`   |
-| Create or edit roles                         | Admin UI → **Roles**               |
-| Assign roles to users                        | Admin UI → **Members**             |
-| Edit role permissions                        | Admin UI → **Roles → [role name]** |
-| Set room-specific overrides                  | Room admin → **Permissions**       |
-| Set per-user overrides                       | Admin UI → **Members → [user]**    |
-| Reset everything to defaults                 | `chatto reset rbac` (CLI)          |
-
-`owners.emails` is matched against **verified** emails only — claiming an address you can't receive mail at won't grant you ownership. On a fresh server, the first user whose verified email matches that list is auto-promoted to owner; no restart required.
+| What you want to do | Where |
+| ------------------- | ----- |
+| Set recovery owners | `owners.emails` in `chatto.toml` |
+| Create or edit roles | Admin UI -> **Roles** |
+| Assign roles to users | Admin UI -> **Members** |
+| Edit role permissions | Admin UI -> **Roles -> [role name]** |
+| Configure room-specific behavior | Room settings -> **Permissions** |
+| Set per-user overrides | Admin UI -> **Members -> [user]** |
+| Reset everything to defaults | `chatto reset rbac` |
 
 <Aside type="caution">
-  `chatto reset rbac` wipes all roles and permission grants and reseeds the defaults. The seeded owner and admin roles get the full enumerated server-scope permission set (they differ only in rank); moderator gets its moderation set; everyone gets the default member permissions. Custom roles, role assignments, and overrides are deleted.
+  `chatto reset rbac` wipes custom roles, assignments, and permission decisions, then reseeds the defaults. Use it as an operator recovery tool, not as a routine configuration workflow.
 </Aside>
 
 <LinkCard

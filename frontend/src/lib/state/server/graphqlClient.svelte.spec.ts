@@ -1,19 +1,23 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Declare mock values via vi.hoisted so they're available in vi.mock factories
-const { mockWsDispose, mockWsTerminate, mockWsSubscribe, mockServers, clientConfigs, wsConfigs } =
-	vi.hoisted(() => ({
-		mockWsDispose: vi.fn(),
-		mockWsTerminate: vi.fn(),
-		mockWsSubscribe: vi.fn(() => vi.fn()),
-		mockServers: new Map<
-			string,
-			{ id: string; url: string; token: string | null }
-		>(),
-		clientConfigs: [] as Record<string, unknown>[],
-		wsConfigs: [] as Record<string, unknown>[]
-	}));
-
+const {
+	mockWsDispose,
+	mockWsTerminate,
+	mockWsSubscribe,
+	mockHandleAuthenticationRequired,
+	mockServers,
+	clientConfigs,
+	wsConfigs
+} = vi.hoisted(() => ({
+	mockWsDispose: vi.fn(),
+	mockWsTerminate: vi.fn(),
+	mockWsSubscribe: vi.fn(() => vi.fn()),
+	mockHandleAuthenticationRequired: vi.fn(),
+	mockServers: new Map<string, { id: string; url: string; token: string | null }>(),
+	clientConfigs: [] as Record<string, unknown>[],
+	wsConfigs: [] as Record<string, unknown>[]
+}));
 
 vi.mock('graphql-ws', () => ({
 	createClient: vi.fn((config: Record<string, unknown>) => {
@@ -43,35 +47,16 @@ vi.mock('@urql/svelte', () => ({
 vi.mock('./registry.svelte', () => ({
 	serverRegistry: {
 		getServer: (id: string) => mockServers.get(id),
-		isOriginServer: (id: string) => mockServers.get(id)?.token === null
+		isOriginServer: (id: string) => mockServers.get(id)?.url === window.location.origin,
+		get originServer() {
+			return [...mockServers.values()].find((s) => s.url === window.location.origin);
+		},
+		handleAuthenticationRequired: mockHandleAuthenticationRequired
 	}
 }));
 
 import { httpToWsUrl, GraphQLClient, type GraphQLClientConfig } from './graphqlClient.svelte';
 import { createClient as createWSClient } from 'graphql-ws';
-import { mapExchange } from '@urql/svelte';
-
-type MockResult = {
-	operation?: { kind?: string };
-	error?: { graphQLErrors?: { message?: string }[] };
-};
-
-/** Pull the most recent mapExchange `onResult` callback so tests can fire it. */
-function lastMapExchangeOnResult(): (result: MockResult) => unknown {
-	const calls = vi.mocked(mapExchange).mock.calls;
-	const lastConfig = calls[calls.length - 1][0] as {
-		onResult: (r: MockResult) => unknown;
-	};
-	return lastConfig.onResult;
-}
-
-/** Build a mock result with the fields the auth-failure path reads. */
-function makeAuthErrorResult(message: string): MockResult {
-	return {
-		operation: { kind: 'query' },
-		error: { graphQLErrors: [{ message }] }
-	};
-}
 
 function makeConfig(overrides: Partial<GraphQLClientConfig> = {}): GraphQLClientConfig {
 	return {
@@ -116,6 +101,7 @@ describe('GraphQLClient', () => {
 		vi.clearAllMocks();
 		clientConfigs.length = 0;
 		wsConfigs.length = 0;
+		mockServers.clear();
 		document.cookie = 'chatto_csrf=; Max-Age=0; path=/';
 	});
 
@@ -131,13 +117,13 @@ describe('GraphQLClient', () => {
 		);
 	});
 
-	it('sets CSRF header for cookie auth when the CSRF cookie exists', () => {
+	it('sets only the GraphQL request type header for cookie auth when the CSRF cookie exists', () => {
 		document.cookie = 'chatto_csrf=csrf-token; path=/';
 		new GraphQLClient(makeConfig({ token: null }));
 		expect(lastClientConfig()?.fetchOptions).toBeDefined();
 		const opts = (lastClientConfig()!.fetchOptions as () => Record<string, unknown>)();
 		expect(opts).toEqual({
-			headers: { 'X-REQUEST-TYPE': 'GraphQL', 'X-CSRF-Token': 'csrf-token' }
+			headers: { 'X-REQUEST-TYPE': 'GraphQL' }
 		});
 	});
 
@@ -158,6 +144,22 @@ describe('GraphQLClient', () => {
 		expect(opts).toEqual({
 			headers: { 'X-REQUEST-TYPE': 'GraphQL', Authorization: 'Bearer my-token' }
 		});
+	});
+
+	it('clears registered server auth on authentication-required results', () => {
+		new GraphQLClient(makeConfig({ token: 'my-token', serverId: 'remote-1' }));
+		const exchange = (
+			lastClientConfig()!.exchanges as Array<{
+				name: string;
+				onResult?: (result: unknown) => unknown;
+			}>
+		).find((e) => e.name === 'mapExchange');
+
+		exchange?.onResult?.({
+			error: { graphQLErrors: [{ message: 'authentication required' }] }
+		});
+
+		expect(mockHandleAuthenticationRequired).toHaveBeenCalledWith('remote-1');
 	});
 
 	it('sets connectionParams when token is provided', () => {
@@ -211,64 +213,6 @@ describe('GraphQLClient', () => {
 		client.forceReconnect('second');
 		expect(mockWsTerminate).not.toHaveBeenCalled();
 	});
-
-	describe('setAuthHandlers', () => {
-		it('does not call onAuthFailure before handlers are wired', () => {
-			const client = new GraphQLClient(makeConfig());
-			const onResult = lastMapExchangeOnResult();
-			// No setAuthHandlers call — pre-wiring window. This guards the
-			// synchronous gap between client construction and ServerStateStore
-			// wiring its handlers.
-			onResult(makeAuthErrorResult('not authenticated'));
-			expect(client).toBeDefined();
-		});
-
-		it('fires onAuthFailure when the result contains a "not authenticated" error', () => {
-			const client = new GraphQLClient(makeConfig());
-			const handler = vi.fn();
-			client.setAuthHandlers({ onAuthFailure: handler });
-
-			lastMapExchangeOnResult()(makeAuthErrorResult('user not authenticated'));
-
-			expect(handler).toHaveBeenCalledTimes(1);
-		});
-
-		it('does not fire onAuthFailure for unrelated errors', () => {
-			const client = new GraphQLClient(makeConfig());
-			const handler = vi.fn();
-			client.setAuthHandlers({ onAuthFailure: handler });
-
-			lastMapExchangeOnResult()(makeAuthErrorResult('something else broke'));
-
-			expect(handler).not.toHaveBeenCalled();
-		});
-
-		it('replacing handlers swaps which callback fires next', () => {
-			const client = new GraphQLClient(makeConfig());
-			const first = vi.fn();
-			const second = vi.fn();
-
-			client.setAuthHandlers({ onAuthFailure: first });
-			client.setAuthHandlers({ onAuthFailure: second });
-
-			lastMapExchangeOnResult()(makeAuthErrorResult('not authenticated'));
-
-			expect(first).not.toHaveBeenCalled();
-			expect(second).toHaveBeenCalledTimes(1);
-		});
-
-		it('clearing handlers (passing {}) makes onAuthFailure a no-op again', () => {
-			const client = new GraphQLClient(makeConfig());
-			const handler = vi.fn();
-
-			client.setAuthHandlers({ onAuthFailure: handler });
-			client.setAuthHandlers({}); // unwired
-
-			lastMapExchangeOnResult()(makeAuthErrorResult('not authenticated'));
-
-			expect(handler).not.toHaveBeenCalled();
-		});
-	});
 });
 
 describe('GraphQLClientManager', () => {
@@ -297,12 +241,28 @@ describe('GraphQLClientManager', () => {
 		const mod = await import('./graphqlClient.svelte');
 		mockServers.set('my-home', {
 			id: 'my-home',
-			url: 'http://localhost:4000',
-			token: null
+			url: window.location.origin,
+			token: 'origin-token'
 		});
 
 		const client = mod.graphqlClientManager.getClient('my-home');
 		expect(client).toBe(mod.graphqlClientManager.originClient);
+	});
+
+	it('originClient uses the registered origin token when present', async () => {
+		const mod = await import('./graphqlClient.svelte');
+		mockServers.set('my-home', {
+			id: 'my-home',
+			url: window.location.origin,
+			token: 'origin-token'
+		});
+
+		mod.graphqlClientManager.destroyClient('my-home');
+		expect(mod.graphqlClientManager.originClient).toBeDefined();
+		const opts = (lastClientConfig()!.fetchOptions as () => Record<string, unknown>)();
+		expect(opts).toEqual({
+			headers: { 'X-REQUEST-TYPE': 'GraphQL', Authorization: 'Bearer origin-token' }
+		});
 	});
 
 	it('getClient throws for unknown instance IDs', async () => {
@@ -350,5 +310,4 @@ describe('GraphQLClientManager', () => {
 		const mod = await import('./graphqlClient.svelte');
 		expect(mod.graphqlClientManager.destroyClient('nope')).toBe(false);
 	});
-
 });

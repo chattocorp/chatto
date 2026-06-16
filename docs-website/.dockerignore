@@ -1,0 +1,7 @@
+node_modules
+dist
+.astro
+.cache
+.vscode
+.DS_Store
+

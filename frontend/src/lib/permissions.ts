@@ -35,7 +35,7 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
     description: "Edit a room's settings and permissions, and delete rooms"
   },
   'room.ban-member': {
-    description: 'Ban lower-ranked members from rooms'
+    description: 'Ban members from rooms'
   },
 
   // Message permissions
@@ -49,8 +49,7 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
     description: 'When posting in a thread, also surface the message in the main channel'
   },
   'message.manage': {
-    description:
-      "Edit and delete other users' messages. The actor must outrank the message's author."
+    description: "Edit and delete other users' messages"
   },
   'message.react': {
     description: 'Add and remove reactions on messages'
@@ -77,10 +76,13 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
 
   // User management
   'user.delete-any': {
-    description: "Delete another user's account. The actor must outrank the target user."
+    description: "Delete another user's account"
   },
   'user.delete-self': {
     description: 'Delete your own account'
+  },
+  'user.manage-permissions': {
+    description: 'Edit direct per-user permission overrides'
   }
 };
 

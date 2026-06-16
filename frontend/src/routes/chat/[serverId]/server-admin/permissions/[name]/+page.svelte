@@ -312,8 +312,13 @@
       <!-- Permissions matrix: full per-role allow/deny across server, groups, and rooms. -->
       {#if canManageRoles && role}
         <Hint>
-          This role's grants and denials across every scope. Combined with the user's other roles at
-          resolution time — use the per-user matrix to see what an individual user ends up with.
+          {#if role.name === 'owner'}
+            Owners are always granted all permissions. The matrix is read-only because owner
+            permissions are not stored as editable grants or denials.
+          {:else}
+            This role's grants and denials across every scope. Combined with the user's other roles
+            at resolution time — use the per-user matrix to see what an individual user ends up with.
+          {/if}
         </Hint>
         <RolePermissionsMatrix roleName={role.name} />
       {/if}

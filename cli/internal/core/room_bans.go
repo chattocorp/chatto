@@ -15,8 +15,8 @@ import (
 const MaxRoomBanReasonLength = 1000
 
 // BanRoomMember records a durable room ban and emits an ordinary leave event
-// for public room history. The caller is responsible for permission and rank
-// checks. The target must currently be a room member.
+// for public room history. The caller is responsible for permission checks.
+// The target must currently be a room member.
 func (c *ChattoCore) BanRoomMember(ctx context.Context, actorID string, kind RoomKind, roomID, targetUserID, reason string, expiresAt *time.Time) (*RoomBan, error) {
 	if kind == KindDM {
 		return nil, ErrCannotBanDMRoomMember

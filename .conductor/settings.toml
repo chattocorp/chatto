@@ -2,7 +2,7 @@
 
 [scripts]
 setup = "mise trust"
-run = "mise run dev-conductor"
+run = "mise run chatto"
 run_mode = "concurrent"
 
 [git]

@@ -188,7 +188,12 @@ func (s *HTTPServer) setupAuthRoutes() {
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 				return
 			}
-			log.Warn("Failed to create auth token on login", "userId", user.Id, "error", err)
+			log.Error("Failed to create auth token on login", "userId", user.Id, "error", err)
+			_ = s.core.RevokeCookieSession(ctx, cookieUserID, cookieSessionID)
+			clearCookieSessionAuth(session)
+			_ = session.Save()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
+			return
 		} else {
 			bearerToken = token
 		}
@@ -481,11 +486,18 @@ func (s *HTTPServer) setupAuthRoutes() {
 			"user":    gin.H{"id": user.Id, "login": user.Login},
 		}
 
-		if token, err := s.core.CreateAuthTokenWithSource(ctx, user.Id, "registration"); err == nil {
-			response["token"] = token
-		} else {
-			log.Warn("Failed to create auth token on register", "userId", user.Id, "error", err)
+		token, err := s.core.CreateAuthTokenWithSource(ctx, user.Id, "registration")
+		if err != nil {
+			log.Error("Failed to create auth token on register", "userId", user.Id, "error", err)
+			cookieUserID, cookieSessionID, _ := cookieSessionIDs(session)
+			_ = s.core.RevokeCookieSession(ctx, cookieUserID, cookieSessionID)
+			session.Clear()
+			_ = session.Save()
+			clearCSRFCookie(c)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
+			return
 		}
+		response["token"] = token
 
 		c.JSON(http.StatusOK, response)
 	})
