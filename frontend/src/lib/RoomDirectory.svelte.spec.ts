@@ -22,7 +22,7 @@ const joined = (id: string): RoomsListItem => ({
 	name: id,
 	type: RoomType.Channel,
 	hasUnread: false,
-	viewerUnreadNotificationCount: 0,
+	viewerNotificationCount: 0,
 	members: []
 });
 

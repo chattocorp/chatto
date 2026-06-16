@@ -209,7 +209,7 @@ func TestViewerResolver_HasNotifications(t *testing.T) {
 	})
 }
 
-func TestNotificationCountResolvers(t *testing.T) {
+func TestScopedNotificationResolvers(t *testing.T) {
 	env := setupTestResolver(t)
 
 	other, err := env.core.CreateUser(env.ctx, "system", "notif-count-peer", "Notification Count Peer", "password123")
@@ -271,63 +271,98 @@ func TestNotificationCountResolvers(t *testing.T) {
 		}
 	}
 
-	t.Run("server count returns all pending notifications for viewer", func(t *testing.T) {
-		got, err := env.resolver.Server().ViewerUnreadNotificationCount(env.authContext(), &model.Server{})
+	t.Run("server notifications return all pending notifications for viewer", func(t *testing.T) {
+		got, err := env.resolver.Server().ViewerNotifications(env.authContext(), &model.Server{}, nil, nil)
 		if err != nil {
-			t.Fatalf("ViewerUnreadNotificationCount server error: %v", err)
+			t.Fatalf("ViewerNotifications server error: %v", err)
 		}
-		if got != 4 {
-			t.Errorf("expected server count 4, got %d", got)
+		if got.TotalCount != 4 {
+			t.Errorf("expected server total count 4, got %d", got.TotalCount)
+		}
+		if len(got.Items) != 4 {
+			t.Errorf("expected 4 server notifications, got %d", len(got.Items))
 		}
 	})
 
-	t.Run("server count returns zero unauthenticated", func(t *testing.T) {
-		got, err := env.resolver.Server().ViewerUnreadNotificationCount(env.unauthContext(), &model.Server{})
+	t.Run("server notifications paginate independently of total count", func(t *testing.T) {
+		limit := int32(1)
+		got, err := env.resolver.Server().ViewerNotifications(env.authContext(), &model.Server{}, &limit, nil)
 		if err != nil {
-			t.Fatalf("ViewerUnreadNotificationCount server unauth error: %v", err)
+			t.Fatalf("ViewerNotifications server pagination error: %v", err)
 		}
-		if got != 0 {
-			t.Errorf("expected unauth server count 0, got %d", got)
+		if got.TotalCount != 4 {
+			t.Errorf("expected server total count 4, got %d", got.TotalCount)
+		}
+		if len(got.Items) != 1 {
+			t.Errorf("expected one paginated server notification, got %d", len(got.Items))
+		}
+		if !got.HasMore {
+			t.Error("expected more server notifications after first page")
 		}
 	})
 
-	t.Run("room count returns room-scoped pending notifications", func(t *testing.T) {
-		got, err := env.resolver.Room().ViewerUnreadNotificationCount(env.authContext(), env.testRoom)
+	t.Run("server notifications return empty connection unauthenticated", func(t *testing.T) {
+		got, err := env.resolver.Server().ViewerNotifications(env.unauthContext(), &model.Server{}, nil, nil)
 		if err != nil {
-			t.Fatalf("ViewerUnreadNotificationCount room error: %v", err)
+			t.Fatalf("ViewerNotifications server unauth error: %v", err)
 		}
-		if got != 2 {
-			t.Errorf("expected room count 2, got %d", got)
+		if got.TotalCount != 0 {
+			t.Errorf("expected unauth server total count 0, got %d", got.TotalCount)
+		}
+		if len(got.Items) != 0 {
+			t.Errorf("expected no unauth server notifications, got %d", len(got.Items))
 		}
 	})
 
-	t.Run("room count works for DM membership", func(t *testing.T) {
-		got, err := env.resolver.Room().ViewerUnreadNotificationCount(env.authContext(), dmRoom)
+	t.Run("room notifications return room-scoped pending notifications", func(t *testing.T) {
+		got, err := env.resolver.Room().ViewerNotifications(env.authContext(), env.testRoom, nil, nil)
 		if err != nil {
-			t.Fatalf("ViewerUnreadNotificationCount DM error: %v", err)
+			t.Fatalf("ViewerNotifications room error: %v", err)
 		}
-		if got != 1 {
-			t.Errorf("expected DM count 1, got %d", got)
+		if got.TotalCount != 2 {
+			t.Errorf("expected room total count 2, got %d", got.TotalCount)
+		}
+		if len(got.Items) != 2 {
+			t.Errorf("expected 2 room notifications, got %d", len(got.Items))
 		}
 	})
 
-	t.Run("room count returns zero for non-members", func(t *testing.T) {
-		got, err := env.resolver.Room().ViewerUnreadNotificationCount(env.authContextForUser(outsider), env.testRoom)
+	t.Run("room notifications work for DM membership", func(t *testing.T) {
+		got, err := env.resolver.Room().ViewerNotifications(env.authContext(), dmRoom, nil, nil)
 		if err != nil {
-			t.Fatalf("ViewerUnreadNotificationCount non-member error: %v", err)
+			t.Fatalf("ViewerNotifications DM error: %v", err)
 		}
-		if got != 0 {
-			t.Errorf("expected non-member room count 0, got %d", got)
+		if got.TotalCount != 1 {
+			t.Errorf("expected DM total count 1, got %d", got.TotalCount)
+		}
+		if len(got.Items) != 1 {
+			t.Errorf("expected 1 DM notification, got %d", len(got.Items))
 		}
 	})
 
-	t.Run("room count returns zero unauthenticated", func(t *testing.T) {
-		got, err := env.resolver.Room().ViewerUnreadNotificationCount(env.unauthContext(), env.testRoom)
+	t.Run("room notifications return empty connection for non-members", func(t *testing.T) {
+		got, err := env.resolver.Room().ViewerNotifications(env.authContextForUser(outsider), env.testRoom, nil, nil)
 		if err != nil {
-			t.Fatalf("ViewerUnreadNotificationCount room unauth error: %v", err)
+			t.Fatalf("ViewerNotifications non-member error: %v", err)
 		}
-		if got != 0 {
-			t.Errorf("expected unauth room count 0, got %d", got)
+		if got.TotalCount != 0 {
+			t.Errorf("expected non-member room total count 0, got %d", got.TotalCount)
+		}
+		if len(got.Items) != 0 {
+			t.Errorf("expected no non-member room notifications, got %d", len(got.Items))
+		}
+	})
+
+	t.Run("room notifications return empty connection unauthenticated", func(t *testing.T) {
+		got, err := env.resolver.Room().ViewerNotifications(env.unauthContext(), env.testRoom, nil, nil)
+		if err != nil {
+			t.Fatalf("ViewerNotifications room unauth error: %v", err)
+		}
+		if got.TotalCount != 0 {
+			t.Errorf("expected unauth room total count 0, got %d", got.TotalCount)
+		}
+		if len(got.Items) != 0 {
+			t.Errorf("expected no unauth room notifications, got %d", len(got.Items))
 		}
 	})
 }

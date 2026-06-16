@@ -75,7 +75,9 @@
           logoUrl
         }
         viewerHasUnreadRooms
-        viewerUnreadNotificationCount
+        viewerNotifications(limit: 1) {
+          totalCount
+        }
         viewerNotificationPreference {
           level
           effectiveLevel
@@ -143,7 +145,7 @@
         }
         roomUnreadStore.clear();
         roomUnreadStore.setServerHasUnread(server.viewerHasUnreadRooms);
-        notificationStore.setUnreadNotificationCount(server.viewerUnreadNotificationCount);
+        notificationStore.setUnreadNotificationCount(server.viewerNotifications.totalCount);
 
         // Populate DM unread status and notification preferences. Channel
         // and DM rooms now share the same per-room unread map.

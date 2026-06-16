@@ -34,10 +34,15 @@ type Room {
   """
   hasUnread: Boolean! @goField(forceResolver: true)
   """
-  Number of pending notifications for the current user in this room.
-  Returns 0 if the user is not a member or has no pending notifications.
+  Pending notifications for the current user in this room, newest first.
+  Returns an empty connection if the user is unauthenticated or not a member.
   """
-  viewerUnreadNotificationCount: Int! @goField(forceResolver: true)
+  viewerNotifications(
+    "Maximum number of results to return (default 50, max 100)."
+    limit: Int
+    "Offset for pagination."
+    offset: Int
+  ): NotificationsConnection! @goField(forceResolver: true)
   "Whether the current user can post new root messages in this room."
   viewerCanPostMessage: Boolean! @goField(forceResolver: true)
   "Whether the current user can post messages in threads in this room."

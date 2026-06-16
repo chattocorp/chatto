@@ -120,9 +120,9 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     if (room.id === activeRoomId) return true;
     if (room.hasUnread) return true;
     if (room.type === RoomType.Dm) {
-      return room.viewerUnreadNotificationCount > 0;
+      return room.viewerNotificationCount > 0;
     }
-    return room.viewerUnreadNotificationCount > 0;
+    return room.viewerNotificationCount > 0;
   }
 
   // --- Real-time event handlers ---
@@ -294,19 +294,19 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     <span class="flex-1 truncate">{room.name}</span>
 
     <!-- Notification Indicator (warning color for mentions and thread replies) -->
-    {#if room.viewerUnreadNotificationCount > 0}
+    {#if room.viewerNotificationCount > 0}
       <button
         type="button"
         onclick={(e) => handleRoomNotificationClick(e, room.id)}
         class="-mr-2 flex h-6 min-w-6 cursor-pointer items-center justify-center notification-dot"
-        aria-label={`Go to ${room.viewerUnreadNotificationCount} notifications`}
+        aria-label={`Go to ${room.viewerNotificationCount} notifications`}
       >
         <NotificationBadge
-          count={room.viewerUnreadNotificationCount}
+          count={room.viewerNotificationCount}
           testid="room-notification-badge"
         />
       </button>
-      <span class="sr-only">{room.viewerUnreadNotificationCount} notifications</span>
+      <span class="sr-only">{room.viewerNotificationCount} notifications</span>
       <!-- Unread Indicator (subtle) -->
     {:else if room.hasUnread && !notificationLevelStore.isRoomMuted(room.id)}
       <UnreadDot color="primary" testid="room-unread-dot" />
@@ -353,19 +353,19 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     </div>
     <span class="flex-1 truncate">{dmDisplayName(room)}</span>
 
-    {#if room.viewerUnreadNotificationCount > 0}
+    {#if room.viewerNotificationCount > 0}
       <button
         type="button"
         onclick={(e) => handleDMNotificationClick(e, room.id)}
         class="-mr-2 flex h-6 min-w-6 cursor-pointer items-center justify-center notification-dot"
-        aria-label={`Go to ${room.viewerUnreadNotificationCount} direct message notifications`}
+        aria-label={`Go to ${room.viewerNotificationCount} direct message notifications`}
       >
         <NotificationBadge
-          count={room.viewerUnreadNotificationCount}
+          count={room.viewerNotificationCount}
           testid="dm-notification-badge"
         />
       </button>
-      <span class="sr-only">{room.viewerUnreadNotificationCount} new direct messages</span>
+      <span class="sr-only">{room.viewerNotificationCount} new direct messages</span>
     {:else if room.hasUnread}
       <UnreadDot color="primary" testid="dm-unread-dot" />
       <span class="sr-only">unread messages</span>

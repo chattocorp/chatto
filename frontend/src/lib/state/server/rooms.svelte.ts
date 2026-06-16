@@ -14,7 +14,7 @@ export type RoomsListItem = {
   name: string;
   type: RoomType;
   hasUnread: boolean;
-  viewerUnreadNotificationCount: number;
+  viewerNotificationCount: number;
   // Populated for DM rooms only — used to derive the display name in the sidebar.
   members: UserAvatarUserFragment[];
 };
@@ -35,7 +35,9 @@ const MyRoomsQuery = graphql(`
           name
           type
           hasUnread
-          viewerUnreadNotificationCount
+          viewerNotifications(limit: 1) {
+            totalCount
+          }
           archived
           viewerNotificationPreference {
             level
@@ -131,7 +133,7 @@ export class RoomsStore {
         name: r.name,
         type: r.type,
         hasUnread: r.hasUnread,
-        viewerUnreadNotificationCount: r.viewerUnreadNotificationCount,
+        viewerNotificationCount: r.viewerNotifications.totalCount,
         members: r.members.users.map((m: typeof r.members.users[number]) => useFragment(UserAvatarUserFragmentDoc, m))
       }));
       this.roomUnread.initRooms(visible);
@@ -166,26 +168,26 @@ export class RoomsStore {
   incrementUnreadNotification(roomId: string): void {
     const room = this.rooms.find((r) => r.id === roomId);
     if (!room) return;
-    this.patchRoom(roomId, { viewerUnreadNotificationCount: room.viewerUnreadNotificationCount + 1 });
+    this.patchRoom(roomId, { viewerNotificationCount: room.viewerNotificationCount + 1 });
   }
 
   decrementUnreadNotification(roomId: string, amount = 1): void {
     const room = this.rooms.find((r) => r.id === roomId);
     if (!room) return;
     this.patchRoom(roomId, {
-      viewerUnreadNotificationCount: Math.max(0, room.viewerUnreadNotificationCount - amount)
+      viewerNotificationCount: Math.max(0, room.viewerNotificationCount - amount)
     });
   }
 
   clearUnreadNotifications(roomId: string): void {
-    this.patchRoom(roomId, { viewerUnreadNotificationCount: 0 });
+    this.patchRoom(roomId, { viewerNotificationCount: 0 });
   }
 
   clearAllUnreadNotifications(): void {
     untrack(() => {
       this.rooms = this.rooms.map((room) => ({
         ...room,
-        viewerUnreadNotificationCount: 0
+        viewerNotificationCount: 0
       }));
     });
   }

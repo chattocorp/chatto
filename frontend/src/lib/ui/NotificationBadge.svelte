@@ -26,8 +26,8 @@
 
 <span
   class={[
-    'inline-flex shrink-0 items-center justify-center rounded px-1.5 text-[10px] leading-none font-semibold tabular-nums',
-    overlay ? 'min-h-4 min-w-4 shadow-sm ring-2 ring-background' : 'min-h-5 min-w-5',
+    'inline-flex shrink-0 items-center justify-center px-1.5 text-[10px] leading-none font-semibold tabular-nums',
+    overlay ? 'h-5 min-w-5 rounded-sm px-1 shadow-sm ring-2 ring-background' : 'min-h-5 min-w-5 rounded',
     colorClasses[color],
     className
   ]}

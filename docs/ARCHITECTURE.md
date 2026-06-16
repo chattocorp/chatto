@@ -145,7 +145,7 @@ The schema is modular: each feature area lives in its own `.graphqls` file and e
 | `server`                             | Information about this Chatto server (name, branding, member counts, viewer unread notification count). Public. |
 | `viewer`                             | Nullable current-user scope: authenticated identity, permissions, follows, notifications; `null` for unauthenticated callers. |
 
-Note: there is no top-level `me` query — viewer-scoped state hangs off the `viewer` field (which is extended by several feature files, e.g. `threads.graphqls` adds `viewer.followedThreads`, `notifications.graphqls` adds `viewer.notifications` / `viewer.hasNotifications`). Count-only notification badges use `Server.viewerUnreadNotificationCount` and `Room.viewerUnreadNotificationCount`.
+Note: there is no top-level `me` query — viewer-scoped state hangs off the `viewer` field (which is extended by several feature files, e.g. `threads.graphqls` adds `viewer.followedThreads`, `notifications.graphqls` adds `viewer.notifications` / `viewer.hasNotifications`). Notification badges use scoped `Server.viewerNotifications` and `Room.viewerNotifications` connections and read their `totalCount`.
 
 **Users** ([`query.graphqls`](../cli/internal/graph/query.graphqls))
 
@@ -159,7 +159,7 @@ Note: there is no top-level `me` query — viewer-scoped state hangs off the `vi
 
 | Query                              | Description                                                                            |
 | ---------------------------------- | -------------------------------------------------------------------------------------- |
-| `room(roomId)`                     | Get a room by ID. Room-scoped reads (`members`, `events`, `event(eventId)`, `eventsAround`, `voiceCallToken`, `viewerCan*` flags, `viewerUnreadNotificationCount`) live as fields on the returned `Room`; `members` is offset-paginated. `events` is the visible room timeline. Folded durable facts such as reactions are recovered on reconnect through `Subscription.myEvents(after:)`, not through room timeline pagination. |
+| `room(roomId)`                     | Get a room by ID. Room-scoped reads (`members`, `events`, `event(eventId)`, `eventsAround`, `voiceCallToken`, `viewerCan*` flags, `viewerNotifications`) live as fields on the returned `Room`; `members` and `viewerNotifications` are offset-paginated. `events` is the visible room timeline. Folded durable facts such as reactions are recovered on reconnect through `Subscription.myEvents(after:)`, not through room timeline pagination. |
 
 **RBAC tooling** ([`rbac.graphqls`](../cli/internal/graph/rbac.graphqls), [`role_permissions.graphqls`](../cli/internal/graph/role_permissions.graphqls), [`role_permission_matrix.graphqls`](../cli/internal/graph/role_permission_matrix.graphqls), [`user_permissions.graphqls`](../cli/internal/graph/user_permissions.graphqls), [`permission_inspector.graphqls`](../cli/internal/graph/permission_inspector.graphqls))
 

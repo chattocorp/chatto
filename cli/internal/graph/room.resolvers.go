@@ -105,26 +105,24 @@ func (r *roomResolver) HasUnread(ctx context.Context, obj *corev1.Room) (bool, e
 	return r.core.HasUnread(ctx, core.KindOfRoom(obj), user.Id, obj.Id)
 }
 
-// ViewerUnreadNotificationCount is the resolver for the viewerUnreadNotificationCount field.
-func (r *roomResolver) ViewerUnreadNotificationCount(ctx context.Context, obj *corev1.Room) (int32, error) {
+// ViewerNotifications is the resolver for the viewerNotifications field.
+func (r *roomResolver) ViewerNotifications(ctx context.Context, obj *corev1.Room, limit *int32, offset *int32) (*model.NotificationsConnection, error) {
 	user := auth.ForContext(ctx)
 	if user == nil {
-		return 0, nil
+		return emptyNotificationsConnection(), nil
 	}
 
 	isMember, err := r.core.RoomMembershipExists(ctx, core.KindOfRoom(obj), user.Id, obj.Id)
 	if err != nil {
-		return 0, nil
+		return emptyNotificationsConnection(), nil
 	}
 	if !isMember {
-		return 0, nil
+		return emptyNotificationsConnection(), nil
 	}
 
-	counts, err := r.getNotificationCounts(ctx, user.Id)
-	if err != nil {
-		return 0, err
-	}
-	return int32(counts.ByRoom[obj.Id]), nil
+	return r.resolveNotificationsConnection(ctx, user.Id, limit, offset, func(notif *corev1.Notification) bool {
+		return notificationTargetRoomID(notif) == obj.Id
+	})
 }
 
 // ViewerCanPostMessage is the resolver for the viewerCanPostMessage field.

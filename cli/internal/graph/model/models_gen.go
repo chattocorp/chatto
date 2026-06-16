@@ -1049,8 +1049,8 @@ type Server struct {
 	ViewerCanManageRooms bool `json:"viewerCanManageRooms"`
 	// Whether the current user has any unread messages in rooms they've joined.
 	ViewerHasUnreadRooms bool `json:"viewerHasUnreadRooms"`
-	// Number of pending notifications for the current user on this server.
-	ViewerUnreadNotificationCount int32 `json:"viewerUnreadNotificationCount"`
+	// Pending notifications for the current user on this server, newest first.
+	ViewerNotifications *NotificationsConnection `json:"viewerNotifications"`
 	// The current user's server-level notification preference.
 	ViewerNotificationPreference *ViewerNotificationPreference `json:"viewerNotificationPreference,omitempty"`
 	// Get a single member of this server by user ID.

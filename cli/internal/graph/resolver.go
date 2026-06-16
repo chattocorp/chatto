@@ -84,11 +84,11 @@ func (r *Resolver) getReactions(ctx context.Context, eventID string) ([]core.Rea
 	return r.core.GetReactions(ctx, eventID)
 }
 
-func (r *Resolver) getNotificationCounts(ctx context.Context, userID string) (core.NotificationCounts, error) {
+func (r *Resolver) getNotifications(ctx context.Context, userID string) ([]*corev1.Notification, error) {
 	if loaders := dataloader.ForContext(ctx); loaders != nil {
-		return loaders.GetNotificationCounts(ctx, userID)
+		return loaders.GetNotifications(ctx, userID)
 	}
-	return r.core.GetNotificationCounts(ctx, userID)
+	return r.core.GetNotifications(ctx, userID)
 }
 
 // resolveReactions returns Core reaction summaries for the GraphQL ReactionSummary type.

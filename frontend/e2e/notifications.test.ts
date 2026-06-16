@@ -1096,7 +1096,7 @@ test.describe('Cross-Tab Sync', () => {
 
       // Tab 2: hard reload. If the badge reappears, the pending notification wasn't
       // cleared server-side — local state covered for it transiently. The
-      // badge staying gone proves Room.viewerUnreadNotificationCount returns 0.
+      // badge staying gone proves Room.viewerNotifications.totalCount returns 0.
       await page1b.reload();
       await page1b.waitForURL(routes.patterns.anySpace);
       const chatPage1bAfter = new ChatPage(page1b);

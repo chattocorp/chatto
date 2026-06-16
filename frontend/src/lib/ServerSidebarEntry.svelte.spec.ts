@@ -162,7 +162,7 @@ describe('ServerSidebarEntry', () => {
 						},
 						viewerNotificationPreference: null,
 						viewerHasUnreadRooms: false,
-						viewerUnreadNotificationCount: 0,
+						viewerNotifications: { totalCount: 0 },
 						rooms: []
 					},
 					viewer: null

@@ -21,9 +21,9 @@ type Loaders struct {
 	// This prevents redundant KV lookups when Body, Attachments, and UpdatedAt
 	// resolvers all need the same MessageBody.
 	messageBodyCache sync.Map
-	// notificationCountsCache caches notification counts within a request so
-	// Server.viewerUnreadNotificationCount and every Room field share one scan.
-	notificationCountsCache sync.Map
+	// notificationCache caches pending notifications within a request so
+	// Server.viewerNotifications and every Room field share one scan.
+	notificationCache sync.Map
 }
 
 // NewLoaders creates fresh loaders for a new request.
@@ -80,20 +80,20 @@ func (l *Loaders) GetMessageBody(ctx context.Context, kind core.RoomKind, messag
 	return body, err
 }
 
-type notificationCountsCacheEntry struct {
-	counts core.NotificationCounts
-	err    error
+type notificationCacheEntry struct {
+	notifications []*corev1.Notification
+	err           error
 }
 
-// GetNotificationCounts retrieves the user's notification counts, caching the
-// grouped result within a single GraphQL request.
-func (l *Loaders) GetNotificationCounts(ctx context.Context, userID string) (core.NotificationCounts, error) {
-	if cached, ok := l.notificationCountsCache.Load(userID); ok {
-		entry := cached.(notificationCountsCacheEntry)
-		return entry.counts, entry.err
+// GetNotifications retrieves the user's pending notifications, caching the
+// ordered list within a single GraphQL request.
+func (l *Loaders) GetNotifications(ctx context.Context, userID string) ([]*corev1.Notification, error) {
+	if cached, ok := l.notificationCache.Load(userID); ok {
+		entry := cached.(notificationCacheEntry)
+		return entry.notifications, entry.err
 	}
 
-	counts, err := l.core.GetNotificationCounts(ctx, userID)
-	l.notificationCountsCache.Store(userID, notificationCountsCacheEntry{counts: counts, err: err})
-	return counts, err
+	notifications, err := l.core.GetNotifications(ctx, userID)
+	l.notificationCache.Store(userID, notificationCacheEntry{notifications: notifications, err: err})
+	return notifications, err
 }

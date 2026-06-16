@@ -272,66 +272,6 @@ func (c *ChattoCore) GetNotificationCount(ctx context.Context, userID string) (i
 	return count, nil
 }
 
-// NotificationCounts is a grouped view of a user's pending notifications.
-type NotificationCounts struct {
-	Total  int
-	ByRoom map[string]int
-}
-
-// GetNotificationCounts returns the total number of pending notifications for
-// a user, grouped by the room each notification targets.
-//
-// Authorization: Caller must verify userID matches authenticated user.
-func (c *ChattoCore) GetNotificationCounts(ctx context.Context, userID string) (NotificationCounts, error) {
-	prefix := notificationKeyFilter(userID)
-	lister, err := c.storage.runtimeStateKV.ListKeysFiltered(ctx, prefix)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrNoKeysFound) {
-			return NotificationCounts{ByRoom: map[string]int{}}, nil
-		}
-		return NotificationCounts{}, fmt.Errorf("failed to count notifications: %w", err)
-	}
-
-	counts := NotificationCounts{ByRoom: make(map[string]int)}
-	for key := range lister.Keys() {
-		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
-		if err != nil {
-			c.logger.Warn("Failed to get notification for count", "key", key, "error", err)
-			continue
-		}
-
-		var notif corev1.Notification
-		if err := proto.Unmarshal(entry.Value(), &notif); err != nil {
-			c.logger.Warn("Failed to unmarshal notification for count", "key", key, "error", err)
-			continue
-		}
-
-		counts.Total++
-		if roomID := notificationRoomID(&notif); roomID != "" {
-			counts.ByRoom[roomID]++
-		}
-	}
-	return counts, nil
-}
-
-func notificationRoomID(notif *corev1.Notification) string {
-	if notif == nil {
-		return ""
-	}
-	switch n := notif.Notification.(type) {
-	case *corev1.Notification_DmMessage:
-		return n.DmMessage.GetRoomId()
-	case *corev1.Notification_Mention:
-		return n.Mention.GetRoomId()
-	case *corev1.Notification_Reply:
-		return n.Reply.GetRoomId()
-	case *corev1.Notification_RoomMessage:
-		return n.RoomMessage.GetRoomId()
-	default:
-		return ""
-	}
-}
-
 // ============================================================================
 // Real-time Sync Events
 // ============================================================================
