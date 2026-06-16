@@ -201,9 +201,11 @@ function renderCodeFence(code: string, rawLanguage: string): string {
   const lines =
     resolvedLanguage && codeHighlighting?.lowlight.registered(displayLanguage)
       ? renderLowlightLines(
-          (codeHighlighting.lowlight.highlight(displayLanguage, displayCode) as {
-            children: LowlightNode[];
-          }).children
+          (
+            codeHighlighting.lowlight.highlight(displayLanguage, displayCode) as {
+              children: LowlightNode[];
+            }
+          ).children
         )
       : resolvedLanguage && codeHighlighting?.lowlight.registered(resolvedLanguage)
         ? renderLowlightLines(
@@ -214,15 +216,16 @@ function renderCodeFence(code: string, rawLanguage: string): string {
             ).children
           )
         : renderPlainCodeLines(displayCode);
-  const lineHtml = lines
-    .map((line) => `<span class="line">${line}</span>`)
-    .join('\n');
+  const lineHtml = lines.map((line) => `<span class="line">${line}</span>`).join('');
 
   return `<pre class="hljs" data-language="${escapeAttribute(displayLanguage)}"><code class="language-${escapeAttribute(displayLanguage)}">${lineHtml}</code></pre>`;
 }
 
 function normalizeCodeLanguage(language: string | null | undefined): string {
-  const token = language?.trim().toLowerCase().match(/[a-z0-9+#_.-]+/)?.[0];
+  const token = language
+    ?.trim()
+    .toLowerCase()
+    .match(/[a-z0-9+#_.-]+/)?.[0];
   return token || 'text';
 }
 

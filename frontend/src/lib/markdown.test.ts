@@ -151,6 +151,11 @@ describe('renderMarkdown', () => {
       expect(html.match(/class="line"/g)).toHaveLength(1);
     });
 
+    it('does not add whitespace rows between rendered code lines', async () => {
+      const html = await renderMarkdown('```js\nconst x = 1;\nconst y = 2;\n```');
+      expect(html).not.toContain('</span>\n<span class="line">');
+    });
+
     it('loads alias languages on demand while preserving the original label', async () => {
       const html = await renderMarkdown('```toml\nname = "chatto"\n```');
       expect(html).toContain('data-language="toml"');
