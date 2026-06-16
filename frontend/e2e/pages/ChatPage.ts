@@ -187,12 +187,13 @@ export class ChatPage {
    * state.
    */
   async openCreateRoomModal(): Promise<void> {
-    // Unload the currently mounted app before switching identities; otherwise
-    // the old authenticated app can react to logout and race this helper's
-    // follow-up navigations with its own redirect.
+    const headers = await csrfHeaders(this.page);
+    // Unload the currently mounted app before logging out. If the SPA stays
+    // mounted during API logout, it can observe the session change and race the
+    // following admin navigation with its own redirect.
     await this.page.goto('about:blank');
     const logoutResponse = await this.page.request.post('/auth/logout', {
-      headers: await csrfHeaders(this.page)
+      headers
     });
     expect(logoutResponse.ok()).toBeTruthy();
     await loginAsAdmin(this.page);
