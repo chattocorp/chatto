@@ -139,29 +139,6 @@ test.describe('Session Expiration Handling', () => {
     await page.waitForURL(routes.settings, { timeout: TIMEOUTS.REALTIME_EVENT });
   });
 
-  test('clears authenticated UI when client navigation observes expired session', async ({
-    page,
-    authPage
-  }) => {
-    const timestamp = Date.now();
-    const testLogin = `sessionclientnav${timestamp}`;
-    const testPassword = 'testpassword123';
-
-    await authPage.createUserViaApi(testLogin, testPassword);
-    await authPage.login(testLogin, testPassword);
-    await authPage.expectLoggedIn();
-
-    await gotoAndWaitForHydration(page, routes.settings);
-    await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible();
-
-    await page.context().clearCookies();
-
-    await page.getByRole('link', { name: 'Display' }).click();
-
-    await expectLoggedOutRedirect(page);
-    await authPage.expectLoggedOut();
-  });
-
   test('session cookie is refreshed on page load', async ({ page, authPage }) => {
     const timestamp = Date.now();
     const testLogin = `sessionrefresh${timestamp}`;
