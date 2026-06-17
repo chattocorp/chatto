@@ -185,7 +185,7 @@ func (r *mutationResolver) CreateSidebarLink(ctx context.Context, input model.Cr
 	if err != nil {
 		return nil, err
 	}
-	if err := r.requireGroupManageAuth(ctx, user.Id); err != nil {
+	if err := r.requireRoomGroupRoomManageAuth(ctx, user.Id, input.GroupID); err != nil {
 		return nil, err
 	}
 	return r.core.CreateSidebarLink(ctx, user.Id, input.GroupID, input.Label, input.URL)
@@ -197,10 +197,14 @@ func (r *mutationResolver) UpdateSidebarLink(ctx context.Context, input model.Up
 	if err != nil {
 		return nil, err
 	}
-	if err := r.requireGroupManageAuth(ctx, user.Id); err != nil {
+	groupID, err := r.core.GetSidebarLinkGroup(ctx, input.LinkID)
+	if err != nil {
 		return nil, err
 	}
-	return r.core.UpdateSidebarLink(ctx, user.Id, input.LinkID, input.Label, input.URL)
+	if err := r.requireRoomGroupRoomManageAuth(ctx, user.Id, groupID); err != nil {
+		return nil, err
+	}
+	return r.core.UpdateSidebarLinkInGroup(ctx, user.Id, groupID, input.LinkID, input.Label, input.URL)
 }
 
 // DeleteSidebarLink is the resolver for the deleteSidebarLink field.
@@ -209,10 +213,14 @@ func (r *mutationResolver) DeleteSidebarLink(ctx context.Context, input model.De
 	if err != nil {
 		return false, err
 	}
-	if err := r.requireGroupManageAuth(ctx, user.Id); err != nil {
+	groupID, err := r.core.GetSidebarLinkGroup(ctx, input.LinkID)
+	if err != nil {
 		return false, err
 	}
-	if err := r.core.DeleteSidebarLink(ctx, user.Id, input.LinkID); err != nil {
+	if err := r.requireRoomGroupRoomManageAuth(ctx, user.Id, groupID); err != nil {
+		return false, err
+	}
+	if err := r.core.DeleteSidebarLinkInGroup(ctx, user.Id, groupID, input.LinkID); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -224,10 +232,17 @@ func (r *mutationResolver) MoveSidebarLinkToGroup(ctx context.Context, input mod
 	if err != nil {
 		return nil, err
 	}
-	if err := r.requireGroupManageAuth(ctx, user.Id); err != nil {
+	sourceGroupID, err := r.core.GetSidebarLinkGroup(ctx, input.LinkID)
+	if err != nil {
 		return nil, err
 	}
-	if err := r.core.MoveSidebarLinkToGroup(ctx, user.Id, input.LinkID, input.GroupID); err != nil {
+	if err := r.requireRoomGroupRoomManageAuth(ctx, user.Id, sourceGroupID); err != nil {
+		return nil, err
+	}
+	if err := r.requireRoomGroupRoomManageAuth(ctx, user.Id, input.GroupID); err != nil {
+		return nil, err
+	}
+	if err := r.core.MoveSidebarLinkBetweenGroups(ctx, user.Id, input.LinkID, sourceGroupID, input.GroupID); err != nil {
 		return nil, err
 	}
 	group, err := r.core.GetRoomGroup(ctx, input.GroupID)
@@ -243,7 +258,7 @@ func (r *mutationResolver) ReorderSidebarItemsInGroup(ctx context.Context, input
 	if err != nil {
 		return nil, err
 	}
-	if err := r.requireGroupManageAuth(ctx, user.Id); err != nil {
+	if err := r.requireRoomGroupRoomManageAuth(ctx, user.Id, input.GroupID); err != nil {
 		return nil, err
 	}
 	if err := r.core.ReorderSidebarItemsInGroup(ctx, user.Id, input.GroupID, sidebarEntryInputsToProto(input.Items)); err != nil {

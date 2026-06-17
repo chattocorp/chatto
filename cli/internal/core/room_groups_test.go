@@ -548,6 +548,90 @@ func TestMoveSidebarLinkToGroup(t *testing.T) {
 	}
 }
 
+func TestSidebarLinkCreateAndGroupDeleteDoNotBothWin(t *testing.T) {
+	for i := 0; i < 30; i++ {
+		core, _ := setupTestCore(t)
+		ctx := testContext(t)
+		group, _ := core.CreateRoomGroup(ctx, "actor", "Race", "")
+
+		start := make(chan struct{})
+		createDone := make(chan error, 1)
+		deleteDone := make(chan error, 1)
+		go func() {
+			<-start
+			_, err := core.CreateSidebarLink(ctx, "actor", group.Id, "Docs", "https://example.com/docs")
+			createDone <- err
+		}()
+		go func() {
+			<-start
+			deleteDone <- core.DeleteRoomGroup(ctx, "actor", group.Id)
+		}()
+		close(start)
+
+		createErr := <-createDone
+		deleteErr := <-deleteDone
+		if createErr == nil && deleteErr == nil {
+			t.Fatalf("iteration %d: create link and delete group both succeeded", i)
+		}
+		if createErr == nil {
+			got, err := core.GetRoomGroup(ctx, group.Id)
+			if err != nil {
+				t.Fatalf("iteration %d: created link but group missing: %v", i, err)
+			}
+			if len(got.GetSidebarLinks()) != 1 {
+				t.Fatalf("iteration %d: created link but group links = %+v", i, got.GetSidebarLinks())
+			}
+		}
+	}
+}
+
+func TestMoveSidebarLinkToGroupPreservesConcurrentUpdate(t *testing.T) {
+	for i := 0; i < 30; i++ {
+		core, _ := setupTestCore(t)
+		ctx := testContext(t)
+
+		source, _ := core.CreateRoomGroup(ctx, "actor", "Source", "")
+		target, _ := core.CreateRoomGroup(ctx, "actor", "Target", "")
+		link, err := core.CreateSidebarLink(ctx, "actor", source.Id, "Old", "https://old.example.com")
+		if err != nil {
+			t.Fatalf("CreateSidebarLink: %v", err)
+		}
+
+		start := make(chan struct{})
+		updateDone := make(chan error, 1)
+		moveDone := make(chan error, 1)
+		go func() {
+			<-start
+			_, err := core.UpdateSidebarLink(ctx, "actor", link.Id, "New", "https://new.example.com")
+			updateDone <- err
+		}()
+		go func() {
+			<-start
+			moveDone <- core.MoveSidebarLinkToGroup(ctx, "actor", link.Id, target.Id)
+		}()
+		close(start)
+
+		if err := <-updateDone; err != nil {
+			t.Fatalf("iteration %d: UpdateSidebarLink: %v", i, err)
+		}
+		if err := <-moveDone; err != nil {
+			t.Fatalf("iteration %d: MoveSidebarLinkToGroup: %v", i, err)
+		}
+
+		targetGroup, err := core.GetRoomGroup(ctx, target.Id)
+		if err != nil {
+			t.Fatalf("iteration %d: GetRoomGroup(target): %v", i, err)
+		}
+		if len(targetGroup.GetSidebarLinks()) != 1 {
+			t.Fatalf("iteration %d: target links = %+v, want one", i, targetGroup.GetSidebarLinks())
+		}
+		got := targetGroup.GetSidebarLinks()[0]
+		if got.GetLabel() != "New" || got.GetUrl() != "https://new.example.com" {
+			t.Fatalf("iteration %d: moved link = %+v, want updated label/url", i, got)
+		}
+	}
+}
+
 func TestReorderRoomGroups(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

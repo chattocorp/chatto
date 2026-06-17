@@ -36,6 +36,19 @@ type RoomGroupMoveSnapshot struct {
 	Seq           uint64
 }
 
+type RoomGroupSnapshot struct {
+	Group  *corev1.RoomGroup
+	Exists bool
+	Seq    uint64
+}
+
+type SidebarLinkMoveSnapshot struct {
+	TargetExists  bool
+	SourceGroupID string
+	Link          *corev1.SidebarLink
+	Seq           uint64
+}
+
 // NewRoomGroupProjection returns an empty projection.
 func NewRoomGroupProjection() *RoomGroupProjection {
 	return &RoomGroupProjection{
@@ -181,6 +194,17 @@ func (p *RoomGroupProjection) Get(groupID string) (*corev1.RoomGroup, bool) {
 	return entryToGroup(groupID, entry), true
 }
 
+func (p *RoomGroupProjection) Snapshot(groupID string) RoomGroupSnapshot {
+	p.RLock()
+	defer p.RUnlock()
+	snapshot := RoomGroupSnapshot{Seq: p.seq}
+	if entry, ok := p.groups[groupID]; ok {
+		snapshot.Exists = true
+		snapshot.Group = entryToGroup(groupID, entry)
+	}
+	return snapshot
+}
+
 // Exists reports whether the group is in the projection.
 func (p *RoomGroupProjection) Exists(groupID string) bool {
 	p.RLock()
@@ -218,6 +242,26 @@ func (p *RoomGroupProjection) GroupForSidebarLink(linkID string) string {
 		}
 	}
 	return ""
+}
+
+func (p *RoomGroupProjection) SidebarLinkMoveSnapshot(linkID, targetGroupID string) SidebarLinkMoveSnapshot {
+	p.RLock()
+	defer p.RUnlock()
+	snapshot := SidebarLinkMoveSnapshot{
+		TargetExists: targetGroupID == "",
+		Seq:          p.seq,
+	}
+	if targetGroupID != "" {
+		_, snapshot.TargetExists = p.groups[targetGroupID]
+	}
+	for groupID, entry := range p.groups {
+		if link := entry.link(linkID); link != nil {
+			snapshot.SourceGroupID = groupID
+			snapshot.Link = cloneSidebarLink(link)
+			return snapshot
+		}
+	}
+	return snapshot
 }
 
 func (p *RoomGroupProjection) MoveSnapshot(roomID, targetGroupID string) RoomGroupMoveSnapshot {
@@ -321,6 +365,13 @@ func (e *roomGroupEntry) hasLink(linkID string) bool {
 	return slices.ContainsFunc(e.entries, func(entry *corev1.SidebarGroupEntry) bool {
 		return entry.GetKind() == corev1.SidebarGroupEntry_SIDEBAR_LINK && entry.GetId() == linkID
 	})
+}
+
+func (e *roomGroupEntry) link(linkID string) *corev1.SidebarLink {
+	if e.links == nil {
+		return nil
+	}
+	return e.links[linkID]
 }
 
 func (e *roomGroupEntry) clonedEntries() []*corev1.SidebarGroupEntry {

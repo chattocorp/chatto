@@ -24,6 +24,17 @@ func (r *Resolver) requireGroupManageAuth(ctx context.Context, userID string) er
 	return nil
 }
 
+func (r *Resolver) requireRoomGroupRoomManageAuth(ctx context.Context, userID, groupID string) error {
+	can, err := r.core.CanManageRoomGroup(ctx, userID, groupID)
+	if err != nil {
+		return fmt.Errorf("check group room.manage: %w", err)
+	}
+	if !can {
+		return core.ErrPermissionDenied
+	}
+	return nil
+}
+
 // roomGroupToModel converts a proto RoomGroup to its GraphQL model, optionally
 // wiring a viewerRooms map for the rooms-sub-resolver. For mutation responses
 // we typically don't need to resolve member rooms, so pass nil.
