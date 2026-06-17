@@ -5,11 +5,12 @@ import MentionAutocomplete from './MentionAutocomplete.svelte';
 import type { RoomMember } from '$lib/state/room';
 import { PresenceStatus } from '$lib/gql/graphql';
 
-function member(login: string, displayName?: string): RoomMember {
+function member(login: string, displayName?: string, deleted = false): RoomMember {
   return {
     id: `u_${login}`,
     login,
     displayName: displayName ?? login,
+    deleted,
     avatarUrl: null,
     presenceStatus: PresenceStatus.Offline
   };
@@ -75,6 +76,14 @@ describe('MentionAutocomplete', () => {
         members: [member('alice', 'Alice Wonderland'), member('bob', 'Bob Smith')]
       });
       expect(visibleLogins(container)).toEqual(['alice']);
+    });
+
+    it('does not render deleted members as mention targets', () => {
+      const { container } = renderAutocomplete({
+        query: 'deleted',
+        members: [member('', 'Deleted User', true), member('deleted-alice', 'Deleted Alice', true)]
+      });
+      expect(container.querySelector('[data-testid="mention-autocomplete"]')).toBeNull();
     });
 
     it('limits results to the top 10', () => {

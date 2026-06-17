@@ -13,6 +13,7 @@ export type RoomMember = {
   id: string;
   login: string;
   displayName: string;
+  deleted?: boolean;
   avatarUrl?: string | null;
   presenceStatus: PresenceStatus;
 };

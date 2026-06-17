@@ -21,25 +21,19 @@ test.describe('Mention highlighting', () => {
     browser,
     serverURL
   }) => {
-    // User 1 loads the server
     const user1 = await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    // User 2 joins and mentions user 1
     await withServerUser(
       browser!,
       serverURL,
       async ({ user: user2, chatPage: chatPage2, roomPage: roomPage2 }) => {
         await chatPage2.enterRoom('general');
-
-        // Wait for both users to be visible
         await roomPage.expectMemberVisible(user2.login, { timeout: TIMEOUTS.UI_STANDARD });
 
-        // User 2 sends a message mentioning user 1
         await roomPage2.sendMessage(`Hey @${user1.login}, check this out!`);
 
-        // User 1 should see the message with highlight (bg-warning/10 class)
         const messageArticle = page
           .locator('[role="article"]')
           .filter({ hasText: `@${user1.login}` });
@@ -59,10 +53,8 @@ test.describe('Mention highlighting', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    // Send a message mentioning yourself
     await roomPage.sendMessage(`Note to myself @${user.login}`);
 
-    // The message should NOT have the highlight background
     const messageArticle = page.locator('[role="article"]').filter({ hasText: `@${user.login}` });
     await expect(messageArticle).toBeVisible();
     await expect(messageArticle).not.toHaveClass(/bg-warning\/10/);

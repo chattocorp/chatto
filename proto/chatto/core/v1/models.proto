@@ -51,6 +51,7 @@ message User {
   string display_name = 3;
   // Avatar state is projected from AssetCreatedEvent/UserAvatarClearedEvent.
   google.protobuf.Timestamp created_at = 4; // When the user was created (null for users created before this field was added)
+  bool deleted = 5; // True for public tombstones representing deleted/unresolvable users.
 }
 
 // VerifiedEmail represents a single email address that has been verified

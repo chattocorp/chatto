@@ -108,6 +108,26 @@ function presenceBadge(container: Element, label: string): Element | null {
   return container.querySelector(`[aria-label="${label}"]`);
 }
 
+function roomFileGroupHeadings(container: Element): string[] {
+  return Array.from(container.querySelectorAll('[data-testid="room-file-group-heading"]')).map(
+    (element) => element.textContent?.trim() ?? ''
+  );
+}
+
+function roomFileRowLabels(container: Element): string[] {
+  return Array.from(container.querySelectorAll('[data-testid="room-file-row"]')).map(
+    (element) => element.textContent?.trim() ?? ''
+  );
+}
+
+async function flushRoomFilesPanel(): Promise<void> {
+  await tick();
+  await Promise.resolve();
+  await tick();
+  await Promise.resolve();
+  await tick();
+}
+
 function roomData(members: RoomMember[], totalCount: number, hasMore: boolean): RoomData {
   return {
     room: { id: 'room-1', name: 'general', type: 'CHANNEL' },
@@ -125,11 +145,16 @@ function roomData(members: RoomMember[], totalCount: number, hasMore: boolean): 
   };
 }
 
-function roomFile(messageEventId: string, threadRootEventId: string | null, filename: string) {
+function roomFile(
+  messageEventId: string,
+  threadRootEventId: string | null,
+  filename: string,
+  createdAt = '2026-06-15T12:00:00Z'
+) {
   return {
     messageEventId,
     threadRootEventId,
-    createdAt: '2026-06-15T12:00:00Z',
+    createdAt,
     attachment: {
       id: `att-${filename}`,
       filename,
@@ -514,6 +539,74 @@ describe('RoomSidebar', () => {
     buttonByText(container, 'thread.txt')!.click();
     await tick();
     expect(onOpenFile).toHaveBeenCalledWith('thread-message', 'thread-root');
+  });
+
+  it('groups room files by date and appends loaded pages into the matching groups', async () => {
+    const fileGroupingNow = new Date('2026-06-17T12:00:00Z');
+
+    queryMock
+      .mockResolvedValueOnce({
+        data: {
+          room: {
+            attachments: {
+              items: [
+                roomFile('today-message', null, 'today.txt', '2026-06-17T08:00:00Z'),
+                roomFile('yesterday-message', null, 'yesterday.txt', '2026-06-16T08:00:00Z')
+              ],
+              totalCount: 5,
+              hasMore: true
+            }
+          }
+        },
+        error: null
+      })
+      .mockResolvedValueOnce({
+        data: {
+          room: {
+            attachments: {
+              items: [
+                roomFile('week-message', null, 'week.txt', '2026-06-15T08:00:00Z'),
+                roomFile('month-message', null, 'month.txt', '2026-06-10T08:00:00Z'),
+                roomFile('older-month-message', null, 'older-month.txt', '2026-05-21T08:00:00Z')
+              ],
+              totalCount: 5,
+              hasMore: false
+            }
+          }
+        },
+        error: null
+      });
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'files',
+        roomData: roomData([member(1)], 1, false),
+        fileGroupingNow
+      }
+    });
+
+    await flushRoomFilesPanel();
+    expect(roomFileGroupHeadings(container)).toEqual(['Today', 'Yesterday']);
+    expect(roomFileRowLabels(container)).toHaveLength(2);
+    expect(roomFileRowLabels(container)[0]).toContain('today.txt');
+    expect(roomFileRowLabels(container)[1]).toContain('yesterday.txt');
+
+    MockIntersectionObserver.instances[0].trigger();
+    await flushRoomFilesPanel();
+
+    expect(roomFileGroupHeadings(container)).toEqual([
+      'Today',
+      'Yesterday',
+      'This week',
+      'This month',
+      'May 2026'
+    ]);
+    const labels = roomFileRowLabels(container);
+    expect(labels).toHaveLength(5);
+    expect(labels.filter((label) => label.includes('today.txt'))).toHaveLength(1);
+    expect(labels[2]).toContain('week.txt');
+    expect(labels[3]).toContain('month.txt');
+    expect(labels[4]).toContain('older-month.txt');
   });
 
   it('falls back to a file icon when a video thumbnail fails to load', async () => {
