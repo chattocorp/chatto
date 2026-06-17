@@ -19,7 +19,6 @@ test.describe('Mention autocomplete', () => {
   }) => {
     const user = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     await roomPage.messageInput.click();

@@ -18,13 +18,16 @@ Generate or update user-facing release notes for a Chatto release.
 
 - Keep any generated changelog that is already present in the release body intact. Add the human-facing release description above it.
 - Start with a short one-paragraph summary of the release.
-- Group noteworthy changes under concise `##` / `###` headings that make sense for the release, such as "Highlights", "Sign-in and Setup", "Permissions and Administration", "Calls and Realtime Reliability", "Chat Polish", or "Upgrade Notes".
-- Every human-written bullet should start with a short bold title followed by a colon, for example: `- **Permissions Update**: The permissions model is simpler and more predictable.`
-- Bug fixes should always be written in the format `Fixed an issue [description of issue]`.
+- Keep phrasing tight. Avoid explaining why an obvious user-facing improvement is useful when the title and direct description already make it clear.
+- Group noteworthy human-written changes under concise `###` headings that make sense for the release, such as "Highlights", "Sign-in and Setup", "Permissions and Administration", "Calls and Realtime Reliability", or "Chat Polish".
+- Group API changes under a dedicated `## API Changes` section, using plain bullets without bold summaries.
+- Use `## Upgrade Notes ⚠️` when breaking changes or upgrade work affect server operators, admins, or client developers.
+- Use `- **Bold Summary**: explanatory text` only for notable new features and changes.
+- Bug fixes should always be written in the format `- Fixed an issue [description of issue]`, with no bold summary.
 - Keep wording end-user focused. Describe what people can do now, what behaves better, or what operators need to know.
 - Mention breaking changes and upgrade work in a dedicated upgrade section when they affect server operators, admins, or client developers.
 - Do not summarize internal refactoring unless it has direct user, operator, or client-developer impact.
-- Keep it concise and focused. No emojis.
+- Keep it concise and focused. Avoid emojis except the warning marker in `## Upgrade Notes ⚠️`.
 
 ## Fallback
 

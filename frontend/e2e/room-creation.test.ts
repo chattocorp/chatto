@@ -6,7 +6,6 @@ import { TIMEOUTS } from './constants';
 test('create room with valid name succeeds', async ({ page, chatPage }) => {
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
 
   // Create room using API-based method
   const roomName = await chatPage.createRoom();
@@ -18,7 +17,6 @@ test('create room with valid name succeeds', async ({ page, chatPage }) => {
 test('create room with empty name has disabled submit button', async ({ page, chatPage }) => {
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
 
   // Open the room creation modal
   await chatPage.openCreateRoomModal();
@@ -30,7 +28,6 @@ test('create room with empty name has disabled submit button', async ({ page, ch
 test('create room with name exceeding max length shows error', async ({ page, chatPage }) => {
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
 
   // Open the room creation modal
   await chatPage.openCreateRoomModal();
@@ -52,7 +49,6 @@ test('create room with description exceeding max length shows error', async ({
 }) => {
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
 
   // Open the room creation modal
   await chatPage.openCreateRoomModal();
@@ -74,7 +70,6 @@ test('create room with description exceeding max length shows error', async ({
 test('can leave room immediately after creating it', async ({ page, chatPage }) => {
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
 
   // Create a new room
   const roomName = await chatPage.createRoom();
@@ -106,7 +101,6 @@ test('can leave room immediately after creating it', async ({ page, chatPage }) 
 test('can cancel leaving a room', async ({ page, chatPage }) => {
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
 
   // Create a new room
   const roomName = await chatPage.createRoom();
@@ -135,7 +129,6 @@ test('can cancel leaving a room', async ({ page, chatPage }) => {
 test('create room form resets after creating a room', async ({ page, chatPage }) => {
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
 
   // Open the room creation modal and create a room via UI
   await chatPage.openCreateRoomModal();
@@ -157,7 +150,6 @@ test('freshly created room shows join event and Today header', async ({
 }) => {
   const testUser = await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
 
   // Create a new room (automatically navigates to it)
   await chatPage.createRoom();

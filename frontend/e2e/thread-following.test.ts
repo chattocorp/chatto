@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test';
-import { createAndLoginTestUser, joinSpace } from './fixtures/testUser';
+import { createAndLoginTestUser, openServer } from './fixtures/testUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { test } from './setup';
 import { ChatPage, RoomPage } from './pages';
@@ -14,7 +14,6 @@ test.describe('Thread Following', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post root message and open thread
@@ -33,7 +32,6 @@ test.describe('Thread Following', () => {
   test('clicking follow bell toggles follow state', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Create a thread
@@ -62,7 +60,6 @@ test.describe('Thread Following', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post root message and open thread
@@ -80,7 +77,6 @@ test.describe('Thread Following', () => {
   test('thread pane follow button toggles follow state', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Create a thread and stay in the pane
@@ -108,7 +104,6 @@ test.describe('Thread Following', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Create a second room to navigate to
@@ -150,21 +145,20 @@ test.describe('Thread Following', () => {
     // User A (Alice) posts a root message
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     const rootText = `Root ${Date.now()}`;
     const rootMsg = await roomPage.sendMessage(rootText);
 
-    // User B (Bob) joins the space and replies to Alice's message in a thread
+    // User B (Bob) opens the server and replies to Alice's message in a thread
     const context2 = await browser!.newContext({ baseURL: serverURL });
     const page2 = await context2.newPage();
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
 
       const chatPage2 = new ChatPage(page2);
@@ -202,21 +196,20 @@ test.describe('Thread Following', () => {
     // User A (Alice) posts a root message
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     const rootText = `Root ${Date.now()}`;
     await roomPage.sendMessage(rootText);
 
-    // User B (Bob) joins the space
+    // User B (Bob) opens the server
     const context2 = await browser!.newContext({ baseURL: serverURL });
     const page2 = await context2.newPage();
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
 
       const chatPage2 = new ChatPage(page2);
@@ -251,10 +244,9 @@ test.describe('Thread Following', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     // User A posts root message and creates a thread
     const rootText = `Root ${Date.now()}`;
@@ -274,7 +266,7 @@ test.describe('Thread Following', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
 
       const chatPage2 = new ChatPage(page2);
@@ -312,10 +304,9 @@ test.describe('Thread Following', () => {
     // User A posts two messages: a root and a reply-attributed reply (inReplyTo set)
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     const firstMsg = await roomPage.sendMessage(`First ${Date.now()}`);
 
@@ -325,13 +316,13 @@ test.describe('Thread Following', () => {
     const replyText = `Reply-attributed ${Date.now()}`;
     await roomPage.sendMessage(replyText);
 
-    // User B joins the space and starts a thread on User A's reply-attributed message
+    // User B opens the server and starts a thread on User A's reply-attributed message
     const context2 = await browser!.newContext({ baseURL: serverURL });
     const page2 = await context2.newPage();
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
 
       const chatPage2 = new ChatPage(page2);

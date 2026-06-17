@@ -12,7 +12,7 @@ export default defineConfig({
         {
           icon: "github",
           label: "GitHub",
-          href: "https://github.com/hmans/chatto",
+          href: "https://github.com/chattocorp/chatto",
         },
       ],
       sidebar: [

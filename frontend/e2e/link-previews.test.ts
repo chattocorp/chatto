@@ -22,7 +22,6 @@ test.describe('Bare-domain auto-linking', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const messageText = 'Visit www.example.com for details';
@@ -40,7 +39,6 @@ test.describe('Bare-domain auto-linking', () => {
   test('bare domain with .dev TLD is auto-linked', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     await roomPage.sendMessage('Check www.hmans.dev');
@@ -56,7 +54,6 @@ test.describe('Link previews', () => {
   test('link preview card appears on posted message', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const testUrl = `${ogServer.baseURL}/og-basic`;
@@ -87,7 +84,6 @@ test.describe('Link previews', () => {
   test('composer shows live link preview while typing', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const testUrl = `${ogServer.baseURL}/og-basic`;
@@ -110,7 +106,6 @@ test.describe('Link previews', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const testUrl = `${ogServer.baseURL}/og-basic`;
@@ -156,7 +151,6 @@ test.describe('Link previews', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const firstUrl = `${ogServer.baseURL}/og-basic`;
@@ -188,7 +182,6 @@ test.describe('Link previews', () => {
   test('YouTube URL shows embed in composer', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     await roomPage.waitForInputEditable();

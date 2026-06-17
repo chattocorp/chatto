@@ -6,7 +6,6 @@ test.describe('drag and drop image upload', () => {
   test('can send message after dropping image', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     await roomPage.dropFile('e2e/fixtures/brighton.jpg');

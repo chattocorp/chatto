@@ -77,27 +77,23 @@ export async function createUserOnRemote(
 		throw new Error(`No token returned from remote login: ${JSON.stringify(loginData)}`);
 	}
 
-	// Auto-join the bootstrap default rooms (announcements + general) on the
-	// remote — the auto-join feature was retired alongside `joinSpace`, so a
-	// freshly-created remote user starts out with an empty sidebar. Most
-	// cross-server tests assume `# general` is in scope (e.g. typing
-	// indicators, editing own messages), so do that join here once.
-	await joinSpaceOnRemote(remoteBaseURL, loginData.token);
+	// Join the bootstrap default rooms (announcements + general) on the remote.
+	// Most cross-server tests assume `# general` is in scope, so grant those
+	// room memberships once as part of creating the remote user.
+	await joinDefaultRoomsOnRemote(remoteBaseURL, loginData.token);
 
 	return { token: loginData.token, userId };
 }
 
 /**
- * Returns the remote server's primary space ID — the bootstrap space every
- * remote server seeds at startup. Issue #330 / ADR-027: createSpace is gone,
- * so multi-instance tests just reuse the bootstrap primary instead of minting
- * a fresh space per test. The `_spaceName` arg is ignored for backwards
- * compatibility with existing call sites.
+ * Returns the remote server's legacy scope ID. Multi-instance tests reuse the
+ * bootstrap server instead of minting a per-test container. The `_serverName`
+ * arg is ignored for backwards compatibility with existing call sites.
  */
-export async function createSpaceOnRemote(
+export async function getPrimaryServerScopeOnRemote(
 	remoteBaseURL: string,
 	token: string,
-	_spaceName: string
+	_serverName: string
 ): Promise<string> {
 	// Sanity-check that the remote is reachable; the actual ID is the
 	// kind discriminator constant (post-ADR-030).
@@ -120,14 +116,11 @@ export async function createSpaceOnRemote(
 }
 
 /**
- * Vestigial fixture kept for source-compat: post-#330 PR(a) `joinSpace` is
- * gone from the API — every authenticated user is implicitly a member of the
- * deployment's server space. We now also auto-join the bootstrap default
- * rooms (announcements + general) on this user so cross-server tests that
- * land directly in `# general` find a real membership instead of an
- * empty-sidebar guest view (auto-join was retired alongside `joinSpace`).
+ * Join the bootstrap default rooms (announcements + general) for a remote user
+ * so cross-server tests that land directly in `# general` find a real room
+ * membership instead of an empty-sidebar guest view.
  */
-export async function joinSpaceOnRemote(
+export async function joinDefaultRoomsOnRemote(
 	remoteBaseURL: string,
 	token: string,
 	_spaceId?: string

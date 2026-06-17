@@ -14,10 +14,9 @@ test.describe('Composer drafts', () => {
     browser,
     serverURL
   }) => {
-    // Create user and space
+    // Create user and load the primary server
     const user = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Get the room URL for the second tab
@@ -74,10 +73,9 @@ test.describe('Composer drafts', () => {
     chatPage,
     roomPage
   }) => {
-    // Create user and space
+    // Create user and load the primary server
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Type a draft message
@@ -104,7 +102,6 @@ test.describe('Composer drafts', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Attach an image in general
@@ -129,7 +126,6 @@ test.describe('Composer focus', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
     await waitForRoomReady(page, 'general');
 
@@ -159,7 +155,6 @@ test.describe('Composer focus', () => {
   test('clicking attach button opens file dialog, not just focus', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
     await waitForRoomReady(page, 'general');
 
@@ -189,7 +184,6 @@ async function setupTwoRooms(
 ): Promise<string> {
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
   const targetRoom = await chatPage.createRoom();
   await chatPage.enterRoom('general');
   await waitForRoomReady(page, 'general');
@@ -209,10 +203,7 @@ async function navigateViaSidebar(
   await waitForRoomReady(page, targetRoom);
 }
 
-async function navigateViaQuickSwitcher(
-  page: import('@playwright/test').Page,
-  targetRoom: string
-) {
+async function navigateViaQuickSwitcher(page: import('@playwright/test').Page, targetRoom: string) {
   const isMac = process.platform === 'darwin';
   await page.keyboard.press(isMac ? 'Meta+k' : 'Control+k');
   const dialog = page.locator('dialog.quick-switcher');
@@ -221,9 +212,7 @@ async function navigateViaQuickSwitcher(
   // Filter to the target room and pick it via Enter. The <dialog>'s close()
   // wants to return focus to its invoker — the composer must win that race
   // on desktop, and stay out of the way on touch devices.
-  await dialog
-    .getByPlaceholder('Go to server, room, or conversation...')
-    .fill(`#${targetRoom}`);
+  await dialog.getByPlaceholder('Go to server, room, or conversation...').fill(`#${targetRoom}`);
   await expect(
     dialog.locator('button.sidebar-item').filter({ hasText: `#${targetRoom}` })
   ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });

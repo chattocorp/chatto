@@ -2,10 +2,10 @@ import { expect, type Locator, type Page } from '@playwright/test';
 import * as routes from '../routes';
 
 /**
- * Page object for the Space Roles management pages.
- * Handles viewing, creating, editing, and deleting space roles.
+ * Page object for the Server Roles management pages.
+ * Handles viewing, creating, editing, and deleting server roles.
  */
-export class SpaceRolesPage {
+export class ServerRolesPage {
   constructor(readonly page: Page) {}
 
   /**
@@ -14,7 +14,7 @@ export class SpaceRolesPage {
    */
   private currentRoleName: string | null = null;
   /**
-   * The space currently in scope, set by `gotoEditRole`. Used by the
+   * The server scope currently in scope, set by `gotoEditRole`. Used by the
    * permission-interaction helpers to navigate back to the matrix when
    * needed (the role detail page no longer carries the editor).
    */
@@ -99,7 +99,7 @@ export class SpaceRolesPage {
   // --- Navigation ---
 
   /**
-   * Navigate to the space roles list page.
+   * Navigate to the server roles list page.
    */
   async gotoRolesList(spaceId: string): Promise<void> {
     await this.page.goto(routes.serverAdminRoles);
@@ -218,7 +218,7 @@ export class SpaceRolesPage {
   private currentCell(permission: string): Locator {
     if (!this.currentRoleName) {
       throw new Error(
-        'SpaceRolesPage permission helpers require a current role — call gotoEditRole(...) first.'
+        'ServerRolesPage permission helpers require a current role — call gotoEditRole(...) first.'
       );
     }
     return this.matrixCellFor(this.currentRoleName, permission);
@@ -258,7 +258,7 @@ export class SpaceRolesPage {
   private async ensureOnMatrix(): Promise<void> {
     if (!this.currentSpaceId) {
       throw new Error(
-        'SpaceRolesPage permission helpers require a current space — call gotoEditRole(...) first.'
+        'ServerRolesPage permission helpers require a current space — call gotoEditRole(...) first.'
       );
     }
     if (!this.page.url().endsWith(`/server-admin/permissions`)) {
@@ -491,7 +491,7 @@ export class SpaceRolesPage {
 
   /**
    * Navigate to role permission editing — permissions are configured at
-   * space scope via the matrix on the roles list. Records the role so
+   * server scope via the matrix on the roles list. Records the role so
    * subsequent permission helpers target the right matrix column.
    */
   async gotoRoleDetail(spaceId: string, roleName: string): Promise<void> {
@@ -514,7 +514,7 @@ export class SpaceRolesPage {
   }
 
   /**
-   * Clicking a role's column header at space scope routes to the role
+   * Clicking a role's column header at server scope routes to the role
    * detail page (`/server-admin/permissions/[name]`), which carries "Edit Role" + the
    * role slug as a `<code>` value.
    */

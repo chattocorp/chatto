@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
-import { ChatPage, RoomPage, ExplorePage } from './pages';
+import { ChatPage, RoomPage } from './pages';
 import { TIMEOUTS } from './constants';
 
 test.describe('Up arrow to edit last message', () => {
@@ -12,7 +12,6 @@ test.describe('Up arrow to edit last message', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a message
@@ -38,7 +37,6 @@ test.describe('Up arrow to edit last message', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a message
@@ -64,10 +62,10 @@ test.describe('Up arrow to edit last message', () => {
     browser,
     serverURL
   }) => {
-    // User 1: Create space and post a message
+    // User 1: Create account and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.createSpace();
+    const serverName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     const user1Message = `User1 message ${Date.now()}`;
@@ -85,11 +83,8 @@ test.describe('Up arrow to edit last message', () => {
 
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
-      const explorePage2 = new ExplorePage(page2);
 
       await chatPage2.goto();
-      await chatPage2.goToExploreSpaces();
-      await explorePage2.joinSpace(spaceName);
       await chatPage2.enterRoom('general');
 
       // User 2 posts a message
@@ -119,7 +114,6 @@ test.describe('Up arrow to edit last message', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a root message and open its thread
@@ -156,7 +150,6 @@ test.describe('Message editing', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a multi-line message that will require the editor to expand
@@ -187,7 +180,6 @@ test.describe('Message editing', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a multi-line message
@@ -211,7 +203,6 @@ test.describe('Message editing', () => {
   test('user can edit their own message', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a message
@@ -241,7 +232,6 @@ test.describe('Message editing', () => {
   test('user can cancel editing with Escape', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a message
@@ -263,7 +253,6 @@ test.describe('Message editing', () => {
   test('user can cancel editing with Cancel button', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a message
@@ -286,10 +275,10 @@ test.describe('Message editing', () => {
     browser,
     serverURL
   }) => {
-    // User 1: Create space and post a message
+    // User 1: Create account and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.createSpace();
+    const serverName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     // Post a message
@@ -297,7 +286,7 @@ test.describe('Message editing', () => {
     const message1 = await roomPage.sendMessage(originalMessage);
     const eventId = await message1.getEventId();
 
-    // User 2: Create user and join space
+    // User 2: Create user and open the server
     const context2 = await browser!.newContext({
       baseURL: serverURL,
       viewport: { width: 1280, height: 720 }
@@ -309,11 +298,8 @@ test.describe('Message editing', () => {
 
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
-      const explorePage2 = new ExplorePage(page2);
 
       await chatPage2.goto();
-      await chatPage2.goToExploreSpaces();
-      await explorePage2.joinSpace(spaceName);
       await chatPage2.enterRoom('general');
 
       // User 2 should see the original message
@@ -333,7 +319,9 @@ test.describe('Message editing', () => {
       // User 2 should also see the edited message via LiveEvent
       if (eventId) {
         const message2 = roomPage2.getMessageByEventId(eventId);
-        await expect(message2.locator.getByText(editedMessage)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+        await expect(message2.locator.getByText(editedMessage)).toBeVisible({
+          timeout: TIMEOUTS.UI_STANDARD
+        });
         await message2.expectEdited();
       }
 
@@ -358,17 +346,17 @@ test.describe('Message editing', () => {
     // added to the room cache, which could corrupt the event list and break
     // the subscription for subsequent events.
 
-    // User 1: Create space and post a message
+    // User 1: Create account and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.createSpace();
+    const serverName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     // Post a message
     const originalMessage = `Message to edit ${Date.now()}`;
     const message = await roomPage.sendMessage(originalMessage);
 
-    // User 2: Create user and join space
+    // User 2: Create user and open the server
     const context2 = await browser!.newContext({
       baseURL: serverURL,
       viewport: { width: 1280, height: 720 }
@@ -380,11 +368,8 @@ test.describe('Message editing', () => {
 
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
-      const explorePage2 = new ExplorePage(page2);
 
       await chatPage2.goto();
-      await chatPage2.goToExploreSpaces();
-      await explorePage2.joinSpace(spaceName);
       await chatPage2.enterRoom('general');
 
       // User 2 should see the original message
@@ -421,7 +406,6 @@ test.describe('Message editing', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a message
@@ -448,7 +432,6 @@ test.describe('Message editing', () => {
   test('attachment button is hidden during edit mode', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Attach button should be visible in normal mode
@@ -481,7 +464,6 @@ test.describe('Message editing', () => {
 
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Compose "line1" + blank line + "line2". Shift+Enter inserts a hard
@@ -550,7 +532,6 @@ test.describe('Message editing', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Post a message first

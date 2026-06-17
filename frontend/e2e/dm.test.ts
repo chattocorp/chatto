@@ -14,7 +14,7 @@ import { TIMEOUTS } from './constants';
 
 /**
  * Direct Messages — post-#330 phase 3 shape. DMs are rooms on the Server,
- * appear in the primary-space sidebar alongside channels, and use the same
+ * appear in the primary-server sidebar alongside channels, and use the same
  * `/chat/{instanceSegment}/{roomId}` URL shape. The dedicated /chat/dm
  * inbox is gone for the time being.
  *
@@ -72,7 +72,7 @@ test.describe('Direct Messages (room-shaped)', () => {
     }
   });
 
-  test('a DM with messages renders in the primary-space sidebar and links to /chat/{seg}/{id}', async ({
+  test('a DM with messages renders in the primary-server sidebar and links to /chat/{seg}/{id}', async ({
     page,
     browser,
     serverURL
@@ -96,9 +96,9 @@ test.describe('Direct Messages (room-shaped)', () => {
 
       // The "Direct Messages" group header should be present, and User B's
       // displayName should be a sidebar item underneath it.
-      await expect(
-        page.getByRole('button', { name: /direct messages/i })
-      ).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(page.getByRole('button', { name: /direct messages/i })).toBeVisible({
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
 
       const dmLink = page
         .locator('nav a.sidebar-item')
@@ -141,9 +141,9 @@ test.describe('Direct Messages (room-shaped)', () => {
 
       await page.goto(routes.browseRooms);
       await page.waitForURL(routes.browseRooms);
-      await expect(
-        page.getByRole('button', { name: /direct messages/i })
-      ).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(page.getByRole('button', { name: /direct messages/i })).toBeVisible({
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
 
       // Snapshot the order before C posts. dmRows() returns the visible DM
       // sidebar items; the order reflects the rooms-store array order.
@@ -177,9 +177,9 @@ test.describe('Direct Messages (room-shaped)', () => {
       const cRow = page
         .locator('nav a.sidebar-item')
         .filter({ has: page.getByText(userC.displayName, { exact: true }) });
-      await expect(
-        cRow.getByText(/new direct message|unread messages/)
-      ).toBeAttached({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(cRow.getByText(/new direct message|unread messages/)).toBeAttached({
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
     } finally {
       await ctxB.close();
       await ctxC.close();
@@ -397,17 +397,17 @@ test.describe('Direct Messages (room-shaped)', () => {
 
         // Wait for the sidebar's room list to render so the assertion below
         // is comparing against a settled DOM — Overview is always there for a
-        // primary-space member (post f7b1a9df the Browse Rooms link was
+        // primary-server member (post f7b1a9df the Browse Rooms link was
         // renamed to Overview).
-        await expect(
-          regularPage.getByRole('link', { name: /overview/i })
-        ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+        await expect(regularPage.getByRole('link', { name: /overview/i })).toBeVisible({
+          timeout: TIMEOUTS.UI_STANDARD
+        });
 
         // DM read access is membership-based, so the seeded conversation still
         // appears even while message.post is denied.
-        await expect(
-          regularPage.getByRole('button', { name: /direct messages/i })
-        ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+        await expect(regularPage.getByRole('button', { name: /direct messages/i })).toBeVisible({
+          timeout: TIMEOUTS.UI_STANDARD
+        });
 
         await regularPage.goto(routes.room(dmRoomId));
         await regularPage.waitForURL(routes.patterns.anyRoom);
@@ -428,12 +428,7 @@ test.describe('Direct Messages (room-shaped)', () => {
         await expect(profileDialog).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
         await expect(profileDialog.getByRole('button', { name: 'Send Message' })).toBeHidden();
       } finally {
-        await clearUserPermissionOverride(
-          page,
-          regularUser.id!,
-          'message.post',
-          denyRole
-        );
+        await clearUserPermissionOverride(page, regularUser.id!, 'message.post', denyRole);
       }
     } finally {
       await regularContext.close();

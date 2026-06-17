@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { test } from './setup';
-import { ChatPage, RoomPage, ExplorePage } from './pages';
+import { ChatPage, RoomPage } from './pages';
 import { TIMEOUTS } from './constants';
 
 test.describe('Typing indicators', () => {
@@ -18,13 +18,13 @@ test.describe('Typing indicators', () => {
     browser,
     serverURL
   }) => {
-    // User 1: Create space and enter room
+    // User 1: Create account and enter room
     const user1 = await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.createSpace();
+    const serverName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
-    // User 2: Join the same space and room
+    // User 2: Join the same server and room
     const context2 = await browser!.newContext({
       baseURL: serverURL,
       viewport: { width: 1280, height: 720 }
@@ -35,11 +35,8 @@ test.describe('Typing indicators', () => {
       const user2 = await createAndLoginTestUser(page2);
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
-      const explorePage2 = new ExplorePage(page2);
 
       await chatPage2.goto();
-      await chatPage2.goToExploreSpaces();
-      await explorePage2.joinSpace(spaceName);
       await chatPage2.enterRoom('general');
 
       // Wait for both users to be in the room
@@ -60,7 +57,9 @@ test.describe('Typing indicators', () => {
       await roomPage2.messageInput.fill('');
 
       // User 1: Typing indicator should disappear after timeout (~6 seconds)
-      await expect(page.locator('.typing-dots')).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(page.locator('.typing-dots')).not.toBeVisible({
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
     } finally {
       await context2.close();
     }
@@ -73,13 +72,13 @@ test.describe('Typing indicators', () => {
     browser,
     serverURL
   }) => {
-    // User 1: Create space and enter room
+    // User 1: Create account and enter room
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.createSpace();
+    const serverName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
-    // User 2: Join the same space and room
+    // User 2: Join the same server and room
     const context2 = await browser!.newContext({
       baseURL: serverURL,
       viewport: { width: 1280, height: 720 }
@@ -90,11 +89,8 @@ test.describe('Typing indicators', () => {
       await createAndLoginTestUser(page2);
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
-      const explorePage2 = new ExplorePage(page2);
 
       await chatPage2.goto();
-      await chatPage2.goToExploreSpaces();
-      await explorePage2.joinSpace(spaceName);
       await chatPage2.enterRoom('general');
 
       // User 2: Start typing
@@ -105,7 +101,9 @@ test.describe('Typing indicators', () => {
 
       // Wait for the typing indicator to disappear (timeout is 6 seconds)
       // We don't send any more typing events, so it should auto-clear
-      await expect(page.locator('.typing-dots')).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(page.locator('.typing-dots')).not.toBeVisible({
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
     } finally {
       await context2.close();
     }
@@ -118,16 +116,16 @@ test.describe('Typing indicators', () => {
     browser,
     serverURL
   }) => {
-    // User 1: Create space, post a message to start a thread
+    // User 1: Create account, post a message to start a thread
     const _user1 = await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.createSpace();
+    const serverName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     const rootMessage = `Thread root ${Date.now()}`;
     await roomPage.sendMessage(rootMessage);
 
-    // User 2: Join the same space and room
+    // User 2: Join the same server and room
     const context2 = await browser!.newContext({
       baseURL: serverURL,
       viewport: { width: 1280, height: 720 }
@@ -138,11 +136,8 @@ test.describe('Typing indicators', () => {
       await createAndLoginTestUser(page2);
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
-      const explorePage2 = new ExplorePage(page2);
 
       await chatPage2.goto();
-      await chatPage2.goToExploreSpaces();
-      await explorePage2.joinSpace(spaceName);
       await chatPage2.enterRoom('general');
 
       // Wait for both users to be in the room and message to be visible
@@ -184,16 +179,16 @@ test.describe('Typing indicators', () => {
     // Use wide viewport so both room and thread panes are visible (needed for @3xl container query)
     await page.setViewportSize({ width: 1400, height: 900 });
 
-    // User 1: Create space, post a message to start a thread
+    // User 1: Create account, post a message to start a thread
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.createSpace();
+    const serverName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     const rootMessage = `Thread root ${Date.now()}`;
     await roomPage.sendMessage(rootMessage);
 
-    // User 2: Join the same space and room
+    // User 2: Join the same server and room
     const context2 = await browser!.newContext({
       baseURL: serverURL,
       viewport: { width: 1280, height: 720 }
@@ -204,11 +199,8 @@ test.describe('Typing indicators', () => {
       await createAndLoginTestUser(page2);
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
-      const explorePage2 = new ExplorePage(page2);
 
       await chatPage2.goto();
-      await chatPage2.goToExploreSpaces();
-      await explorePage2.joinSpace(spaceName);
       await chatPage2.enterRoom('general');
 
       // Wait for message to be visible
@@ -243,13 +235,13 @@ test.describe('Typing indicators', () => {
     browser,
     serverURL
   }) => {
-    // User 1: Create space and enter room
+    // User 1: Create account and enter room
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.createSpace();
+    const serverName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
-    // User 2 and User 3: Join the same space and room
+    // User 2 and User 3: Join the same server and room
     const context2 = await browser!.newContext({
       baseURL: serverURL,
       viewport: { width: 1280, height: 720 }
@@ -265,23 +257,17 @@ test.describe('Typing indicators', () => {
       const user2 = await createAndLoginTestUser(page2);
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
-      const explorePage2 = new ExplorePage(page2);
 
       const user3 = await createAndLoginTestUser(page3);
       const chatPage3 = new ChatPage(page3);
       const roomPage3 = new RoomPage(page3);
-      const explorePage3 = new ExplorePage(page3);
 
       // User 2 joins
       await chatPage2.goto();
-      await chatPage2.goToExploreSpaces();
-      await explorePage2.joinSpace(spaceName);
       await chatPage2.enterRoom('general');
 
       // User 3 joins
       await chatPage3.goto();
-      await chatPage3.goToExploreSpaces();
-      await explorePage3.joinSpace(spaceName);
       await chatPage3.enterRoom('general');
 
       // Wait for all users to be visible
@@ -312,10 +298,10 @@ test.describe('Typing indicators', () => {
     browser,
     serverURL
   }) => {
-    // User 1: Create space and enter room
+    // User 1: Create account and enter room
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.createSpace();
+    const serverName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     // User 2: Join and set up error capture
@@ -341,11 +327,8 @@ test.describe('Typing indicators', () => {
       await createAndLoginTestUser(page2);
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
-      const explorePage2 = new ExplorePage(page2);
 
       await chatPage2.goto();
-      await chatPage2.goToExploreSpaces();
-      await explorePage2.joinSpace(spaceName);
       await chatPage2.enterRoom('general');
 
       // User 2: Type multiple times to trigger typing events.
@@ -359,7 +342,9 @@ test.describe('Typing indicators', () => {
       await expect(page.locator('.typing-dots')).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
       // Wait for it to disappear (6 second timeout + buffer)
-      await expect(page.locator('.typing-dots')).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(page.locator('.typing-dots')).not.toBeVisible({
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
 
       // Check for critical errors
       const criticalErrors = [

@@ -10,7 +10,6 @@ test.describe('Recent reactions', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Send two messages so we can check the toolbar on the second one
@@ -40,7 +39,6 @@ test.describe('Recent reactions', () => {
   test('recent reactions persist across page reload', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const message1 = await roomPage.sendMessage('Persist test');
@@ -64,7 +62,6 @@ test.describe('Recent reactions', () => {
   test('quick reaction buttons do not change order', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     await roomPage.sendMessage('First message');

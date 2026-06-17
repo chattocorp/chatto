@@ -1,24 +1,20 @@
 import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
 import { TIMEOUTS } from './constants';
-import { loginAsAdminAndUsePrimarySpace } from './fixtures/testUser';
+import { loginAsAdminAndUsePrimaryServer } from './fixtures/testUser';
 import * as routes from './routes';
 
-interface TestSpace {
+interface TestServer {
   id: string;
   name: string;
 }
 
-/**
- * Creates a space via GraphQL API.
- */
-async function createSpaceViaAPI(page: Page, name: string): Promise<TestSpace> {
-  return loginAsAdminAndUsePrimarySpace(page);
+/** Log in as the bootstrap admin and return the primary server metadata. */
+async function usePrimaryServerViaAPI(page: Page, _name: string): Promise<TestServer> {
+  return loginAsAdminAndUsePrimaryServer(page);
 }
 
-/**
- * Creates a room in a space via GraphQL API and joins it.
- */
+/** Creates a room via GraphQL API and joins it. */
 async function createRoomViaAPI(page: Page, _spaceId: string, name: string): Promise<string> {
   const groupResponse = await page.request.post('/api/graphql', {
     headers: {
@@ -81,9 +77,7 @@ async function createRoomViaAPI(page: Page, _spaceId: string, name: string): Pro
   return roomId;
 }
 
-/**
- * Uploads a banner to a space via UI (General settings page).
- */
+/** Uploads a server banner via UI (General settings page). */
 async function uploadBannerViaUI(page: Page, _spaceId: string): Promise<void> {
   // Navigate to General settings page (where banner upload is)
   await page.goto(routes.serverAdminGeneral);
@@ -111,13 +105,13 @@ async function uploadBannerViaUI(page: Page, _spaceId: string): Promise<void> {
   });
 }
 
-test.describe('Space navigation race condition fix', () => {
-  test('rapid navigation between spaces and admin does not break room loading', async ({
+test.describe('Server navigation race condition fix', () => {
+  test('rapid navigation between room and admin does not break room loading', async ({
     page,
     adminPage
   }) => {
-    // Create a space with banner
-    const space = await createSpaceViaAPI(page, 'Rapid Nav Test');
+    // Prepare the server with a banner and room.
+    const space = await usePrimaryServerViaAPI(page, 'Rapid Nav Test');
     const roomId = await createRoomViaAPI(page, space.id, 'test-room');
     await uploadBannerViaUI(page, space.id);
 

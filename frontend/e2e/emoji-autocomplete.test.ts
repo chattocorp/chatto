@@ -24,7 +24,6 @@ test.describe('Emoji autocomplete (composer integration)', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     await roomPage.messageInput.click();
