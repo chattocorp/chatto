@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { tick, type ComponentProps } from 'svelte';
@@ -178,6 +178,17 @@ async function insertEditorLiteralText(editor: HTMLElement, text: string) {
   }
 }
 
+async function placeCaretAtEditorEnd(editor: HTMLElement) {
+  editor.focus();
+  const selection = window.getSelection();
+  const range = document.createRange();
+  range.selectNodeContents(editor);
+  range.collapse(false);
+  selection?.removeAllRanges();
+  selection?.addRange(range);
+  await tick();
+}
+
 async function pressEditorKey(
   editor: HTMLElement,
   key: string,
@@ -211,6 +222,7 @@ describe('MessageComposer', () => {
   let mockClient: ReturnType<typeof createMockGraphqlClient>;
 
   beforeEach(() => {
+    window.getSelection()?.removeAllRanges();
     mockClient = createMockGraphqlClient({ mutationData });
     mockInstanceStores.serverInfo.videoProcessingEnabled = false;
     mockInstanceStores.serverInfo.maxUploadSize = 25 * 1024 * 1024;
@@ -247,6 +259,10 @@ describe('MessageComposer', () => {
     queryMock.mockResolvedValue({ data: null, error: null });
     sessionStorage.clear();
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    window.getSelection()?.removeAllRanges();
   });
 
   describe('form rendering', () => {
@@ -368,7 +384,11 @@ describe('MessageComposer', () => {
         new File([new Uint8Array([1, 2])], 'too-large.png', { type: 'image/png' })
       ]);
 
-      expect(getToasts().map((t) => t.message).join('\n')).toContain('too-large.png is too large');
+      expect(
+        getToasts()
+          .map((t) => t.message)
+          .join('\n')
+      ).toContain('too-large.png is too large');
       expect(q(container, 'img')).toBeNull();
       expect(prepareFilesMock).not.toHaveBeenCalled();
     });
@@ -933,6 +953,7 @@ describe('MessageComposer', () => {
       const editor = await findEditor(container);
 
       await vi.waitFor(() => expect(editor.querySelectorAll('pre code')).toHaveLength(1));
+      await placeCaretAtEditorEnd(editor);
       await insertEditorLiteralText(editor, '```js');
       await pressEditorKey(editor, 'Enter', { shiftKey: true });
 
@@ -1173,6 +1194,7 @@ describe('MessageComposer', () => {
       const editor = await findEditor(container);
 
       await vi.waitFor(() => expect(editor.querySelectorAll('pre code')).toHaveLength(1));
+      await placeCaretAtEditorEnd(editor);
       await insertEditorLiteralText(editor, 'or this:');
       await pressEditorKey(editor, 'Enter', { shiftKey: true });
       await insertEditorLiteralText(editor, '```go');
