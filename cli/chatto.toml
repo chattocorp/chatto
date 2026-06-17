@@ -45,6 +45,12 @@ port = 1025
 tls = 'opportunistic'
 from = 'Chatto Local Development <chatto@chatto.run>'
 
+[push]
+enabled = true
+vapid_public_key = 'BKBVYBi1oSQ0rOjiS86KCNa2VfxnH03kON54RUqm3X7Q2JQMBkspTHlgBo27OV3wfcX36cxVyJ2h2I_Zd4Yz_DI'
+vapid_private_key = 'rOYtIsUZwE3_91odhvbJX7W6sEFjxCAPeC1FO3CtPEc'
+vapid_subject = 'mailto:dev@chatto.run'
+
 [video]
 enabled = true
 

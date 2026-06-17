@@ -10,10 +10,10 @@
     type SoundCategory
   } from '$lib/audio/notificationSounds';
   import {
+    ensureRegistered,
+    getPermission,
     isSupported as isPushSupported,
-    isSubscribed as checkPushSubscription,
-    subscribe as subscribeToPush,
-    unsubscribe as unsubscribeFromPush
+    isSubscribed as checkPushSubscription
   } from '$lib/notifications/pushNotifications';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -34,6 +34,7 @@
   // Push notifications state
   let pushEnabled = $derived(serverInfo.pushNotificationsEnabled);
   let pushSupported = isPushSupported();
+  let pushPermission = $state<NotificationPermission | null>(getPermission());
   let pushSubscribed = $state(false);
   let pushLoading = $state(false);
   let pushError = $state<string | null>(null);
@@ -41,6 +42,7 @@
   // Check push subscription status on mount
   $effect(() => {
     if (pushEnabled && pushSupported) {
+      pushPermission = getPermission();
       checkPushSubscription().then((subscribed) => {
         pushSubscribed = subscribed;
       });
@@ -58,32 +60,18 @@
     pushError = null;
 
     try {
-      const success = await subscribeToPush(vapidKey);
+      const success = await ensureRegistered(vapidKey, { prompt: true });
+      pushPermission = getPermission();
       if (success) {
         pushSubscribed = true;
       } else {
-        pushError = 'Failed to enable push notifications. Please try again.';
+        pushError =
+          pushPermission === 'denied'
+            ? 'Push notifications are blocked in your browser or OS settings.'
+            : 'Failed to enable push notifications. Please try again.';
       }
     } catch {
       pushError = 'An error occurred while enabling push notifications';
-    } finally {
-      pushLoading = false;
-    }
-  }
-
-  async function handleDisablePush() {
-    pushLoading = true;
-    pushError = null;
-
-    try {
-      const success = await unsubscribeFromPush();
-      if (success) {
-        pushSubscribed = false;
-      } else {
-        pushError = 'Failed to disable push notifications';
-      }
-    } catch {
-      pushError = 'An error occurred while disabling push notifications';
     } finally {
       pushLoading = false;
     }
@@ -115,24 +103,23 @@
       {/if}
 
       {#if pushSupported}
-        {#if pushSubscribed}
+        {#if pushPermission === 'denied'}
+          <div class="rounded-lg border border-warning/60 bg-warning/10 px-4 py-3">
+            <p class="font-medium text-warning">Push notifications blocked</p>
+            <p class="mt-1 text-sm text-muted">
+              Enable notifications in your browser or OS settings, then open Chatto again.
+            </p>
+          </div>
+        {:else if pushSubscribed}
           <div
-            class="flex items-center justify-between rounded-lg border border-accent bg-accent/10 px-4 py-3"
+            class="rounded-lg border border-accent bg-accent/10 px-4 py-3"
           >
             <div>
               <p class="font-medium text-accent">Push notifications enabled</p>
               <p class="mt-1 text-sm text-muted">
-                You'll receive notifications even when the browser is closed.
+                Chatto will keep this browser registered whenever you open the app.
               </p>
             </div>
-            <button
-              type="button"
-              class="cursor-pointer rounded-lg border border-border bg-surface-100 px-3 py-1.5 text-sm transition-colors hover:bg-surface-200 disabled:cursor-not-allowed disabled:opacity-50"
-              onclick={handleDisablePush}
-              disabled={pushLoading}
-            >
-              {pushLoading ? 'Disabling...' : 'Disable'}
-            </button>
           </div>
         {:else}
           <div

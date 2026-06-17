@@ -1,7 +1,7 @@
 # FDR-013: Web Push Notifications
 
 **Status:** Active
-**Last reviewed:** 2026-06-06
+**Last reviewed:** 2026-06-17
 
 ## Overview
 
@@ -10,7 +10,9 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 ## Behavior
 
 - The browser prompts the user for notification permission when they enable push.
+- If push is configured and supported, signed-in users who have not made a browser permission choice see a small top-overlay prompt offering to enable push or opt out of future prompts on that device.
 - On granting permission, the browser creates a subscription using the server's VAPID public key. The subscription details (endpoint URL, keys) are sent to the server and stored.
+- When a signed-in user opens Chatto and browser notification permission is already granted, Chatto refreshes the server's copy of the current browser subscription without prompting again.
 - Stored subscription fields are bounded: endpoint 4,096 bytes, public key 256 bytes, auth secret 128 bytes, and user agent 512 bytes.
 - A user can have multiple devices subscribed simultaneously — every device receives every push.
 - Push payloads include a title, a truncated message preview (max 100 chars, broken at word boundaries), and a navigation URL.
@@ -52,15 +54,21 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 **Why:** Otherwise a notification dismissed on the laptop would linger on the phone until the user manually swiped it away. Cross-device dismiss is what users expect from modern chat apps.
 **Tradeoff:** Slightly more push traffic. Bounded by user actions, so it's small.
 
-### 6. Browser subscription change detection
+### 6. Startup subscription reconciliation
 
-**Decision:** When the browser reports a subscription change (e.g., the push service rotated keys), the foreground tab is notified and re-subscribes.
-**Why:** Without this, a user whose subscription expires while offline would silently stop receiving pushes. Detecting the change and re-subscribing keeps the channel alive.
-**Tradeoff:** Extra plumbing. Worth it to keep the opt-in promise honest.
+**Decision:** Browser/OS notification permission is the user-facing source of truth. When a signed-in client starts and permission is already granted, it idempotently saves the current browser subscription to the server.
+**Why:** Browsers, especially installed PWAs, can rotate or invalidate push subscriptions around updates. Refreshing the server-side delivery cache at startup is simpler and more reliable than depending on foreground delivery of subscription-change events.
+**Tradeoff:** A user who grants permission but never reopens Chatto after a browser-side subscription change will not be repaired until the next app launch. That is acceptable because opening the app is the point where Chatto can reliably observe and refresh the current browser state.
+
+### 7. Local opt-out for the push prompt
+
+**Decision:** The enable-push prompt is device-local and can be dismissed without changing server-side notification settings.
+**Why:** Whether push is useful depends on the device. Dismissing the prompt on a desktop browser should not suppress the prompt on an iOS PWA where push may be more valuable.
+**Tradeoff:** The same user may see the prompt again on another browser or device. That is intentional; each device has its own push subscription and OS permission.
 
 ## Permissions
 
-No Chatto-side permission gates push. The OS and browser permissions are the only gates.
+No Chatto-side permission gates push. The OS and browser permissions are the only user-facing gates; Chatto's stored subscriptions are a refreshed delivery cache.
 
 ## Related
 

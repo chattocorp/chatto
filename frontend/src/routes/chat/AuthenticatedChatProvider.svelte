@@ -16,6 +16,7 @@
   import { initSessionChannel } from '$lib/auth/sessionChannel';
   import { initPresenceTracking } from '$lib/presenceTracking';
   import ReturnUrlHandler from '$lib/components/ReturnUrlHandler.svelte';
+  import PushNotificationPrompt from '$lib/components/PushNotificationPrompt.svelte';
   import PushNotificationSetup from '$lib/components/PushNotificationSetup.svelte';
   import WelcomeBanner from '$lib/components/WelcomeBanner.svelte';
 
@@ -111,6 +112,7 @@
 
 <ReturnUrlHandler />
 <PushNotificationSetup />
+<PushNotificationPrompt userId={user.id} />
 <WelcomeBanner />
 
 {@render children()}

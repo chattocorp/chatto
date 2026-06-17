@@ -13,6 +13,16 @@ const mocks = vi.hoisted(() => ({
   notificationLevels: {
     setServerPreference: vi.fn(),
     setRoomPreference: vi.fn()
+  },
+  serverInfo: {
+    pushNotificationsEnabled: false,
+    vapidPublicKey: null as string | null
+  },
+  pushNotifications: {
+    ensureRegistered: vi.fn(),
+    getPermission: vi.fn(),
+    isSupported: vi.fn(),
+    isSubscribed: vi.fn()
   }
 }));
 
@@ -25,10 +35,10 @@ vi.mock('$lib/audio/notificationSounds', async (importOriginal) => {
 });
 
 vi.mock('$lib/notifications/pushNotifications', () => ({
-  isSupported: () => true,
-  isSubscribed: vi.fn().mockResolvedValue(false),
-  subscribe: vi.fn().mockResolvedValue(true),
-  unsubscribe: vi.fn().mockResolvedValue(true)
+  ensureRegistered: mocks.pushNotifications.ensureRegistered,
+  getPermission: mocks.pushNotifications.getPermission,
+  isSupported: mocks.pushNotifications.isSupported,
+  isSubscribed: mocks.pushNotifications.isSubscribed
 }));
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
@@ -38,10 +48,7 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
     getStore: () => ({
-      serverInfo: {
-        pushNotificationsEnabled: false,
-        vapidPublicKey: null
-      },
+      serverInfo: mocks.serverInfo,
       notificationLevels: mocks.notificationLevels
     })
   }
@@ -108,6 +115,16 @@ describe('Notification settings page', () => {
     mocks.playNotificationSound.mockClear();
     mocks.notificationLevels.setServerPreference.mockClear();
     mocks.notificationLevels.setRoomPreference.mockClear();
+    mocks.serverInfo.pushNotificationsEnabled = false;
+    mocks.serverInfo.vapidPublicKey = null;
+    mocks.pushNotifications.ensureRegistered.mockReset();
+    mocks.pushNotifications.ensureRegistered.mockResolvedValue(true);
+    mocks.pushNotifications.getPermission.mockReset();
+    mocks.pushNotifications.getPermission.mockReturnValue('default');
+    mocks.pushNotifications.isSupported.mockReset();
+    mocks.pushNotifications.isSupported.mockReturnValue(true);
+    mocks.pushNotifications.isSubscribed.mockReset();
+    mocks.pushNotifications.isSubscribed.mockResolvedValue(false);
     mocks.query.mockReset();
     mocks.query.mockReturnValue({
       toPromise: vi.fn().mockResolvedValue({
@@ -159,5 +176,40 @@ describe('Notification settings page', () => {
     expect(userPreferences.notificationSound).toBe('silent');
     expect(mocks.playNotificationSound).not.toHaveBeenCalled();
     await expect.element(silentButton).toHaveClass(/border-accent/);
+  });
+
+  it('shows the push enable path when configured and not subscribed', async () => {
+    mocks.serverInfo.pushNotificationsEnabled = true;
+    mocks.serverInfo.vapidPublicKey = 'vapid-key';
+    mocks.pushNotifications.isSubscribed.mockResolvedValue(false);
+
+    const { container } = render(NotificationsPage);
+    await settle();
+
+    expect(container.textContent).toContain('Push Notifications');
+    await expect.element(buttonWithText(container, 'Enable')).toBeVisible();
+    expect(container.textContent).not.toContain('Disable');
+  });
+
+  it('enables push notifications through the registration helper', async () => {
+    mocks.serverInfo.pushNotificationsEnabled = true;
+    mocks.serverInfo.vapidPublicKey = 'vapid-key';
+    mocks.pushNotifications.isSubscribed.mockResolvedValue(false);
+    mocks.pushNotifications.ensureRegistered.mockImplementation(async () => {
+      mocks.pushNotifications.getPermission.mockReturnValue('granted');
+      return true;
+    });
+
+    const { container } = render(NotificationsPage);
+    await settle();
+
+    buttonWithText(container, 'Enable').click();
+    await settle();
+
+    expect(mocks.pushNotifications.ensureRegistered).toHaveBeenCalledWith('vapid-key', {
+      prompt: true
+    });
+    expect(container.textContent).toContain('Push notifications enabled');
+    expect(container.textContent).not.toContain('Disable');
   });
 });

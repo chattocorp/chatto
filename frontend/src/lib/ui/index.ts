@@ -16,3 +16,4 @@ export { default as ImageModal } from './ImageModal.svelte';
 export { default as PaneHeader } from './PaneHeader.svelte';
 export { default as Pill } from './Pill.svelte';
 export { default as ToggleChip } from './ToggleChip.svelte';
+export { default as TopOverlayNotice } from './TopOverlayNotice.svelte';

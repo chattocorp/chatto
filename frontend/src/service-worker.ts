@@ -273,21 +273,5 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-/**
- * Handle push subscription changes.
- * This can happen when the browser's push subscription expires or is revoked.
- * We re-subscribe and update the server.
- */
-self.addEventListener('pushsubscriptionchange', (event) => {
-  // Send a message to any open clients to trigger re-subscription
-  event.waitUntil(
-    self.clients.matchAll({ type: 'window' }).then((clients) => {
-      clients.forEach((client) => {
-        client.postMessage({ type: 'push-subscription-changed' });
-      });
-    })
-  );
-});
-
 // Export empty object for SvelteKit to recognize this as a module
 export {};
