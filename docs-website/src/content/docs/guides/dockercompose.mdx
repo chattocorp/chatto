@@ -12,7 +12,9 @@ This guide walks through deploying Chatto with Docker Compose, including NATS fo
 
 <ArchDiagram />
 
-Caddy terminates TLS and proxies traffic to both Chatto and LiveKit's WebSocket signaling endpoint. LiveKit's WebRTC media traffic (UDP) is exposed directly — it can't be proxied.
+Caddy terminates TLS and proxies traffic to both Chatto and LiveKit's WebSocket signaling endpoint. The `ghcr.io/chattocorp/chatto` image serves the Chatto API and the embedded web UI, so this Compose stack does not need a separate frontend container. LiveKit's WebRTC media traffic (UDP) is exposed directly — it can't be proxied.
+
+Chatto also publishes `ghcr.io/chattocorp/chatto-client` for deployments that host the static web UI separately. Use that image only when you intentionally want a separate frontend origin or infrastructure; the Compose setup below uses the simpler single-image path.
 
 ## Prerequisites
 
@@ -86,6 +88,11 @@ By the end of this section, your project directory will look like this:
            condition: service_healthy
        expose:
          - "4000"
+       healthcheck:
+         test: ["CMD", "wget", "-q", "--spider", "http://localhost:4000/readyz"]
+         interval: 5s
+         timeout: 3s
+         retries: 6
 
      caddy:
        image: caddy:latest
@@ -211,6 +218,8 @@ By the end of this section, your project directory will look like this:
    Caddy will automatically obtain TLS certificates for both domains. Visit `https://chat.example.com` to create your first account with the email address from `CHATTO_OWNERS_EMAILS`.
 
 </Steps>
+
+The Chatto container is configured entirely through `.env` in this guide. The image's default config path is `/config/chatto.toml`, but the server can start without that file when the required settings are provided through environment variables.
 
 ## Operations
 
