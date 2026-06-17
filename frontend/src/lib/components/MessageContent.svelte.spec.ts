@@ -293,6 +293,19 @@ describe('MessageContent component', () => {
     expect(container.textContent).not.toContain('```javascript');
   });
 
+  it('renders long fenced code blocks as highlighted code content', async () => {
+    const longLine = `const result = ${'veryLongVariableName + '.repeat(20)}"end"`;
+    const { container } = renderMessage(`\`\`\`javascript\n${longLine}\n\`\`\``);
+
+    await expect.poll(() => q(container, 'pre.hljs code.language-javascript')).toBeTruthy();
+
+    const pre = q(container, 'pre.hljs')!;
+    const code = q(container, 'pre.hljs code.language-javascript')!;
+    expect(pre.getAttribute('data-language')).toBe('javascript');
+    expect(code.textContent).toContain(longLine);
+    expect(container.textContent).not.toContain('```javascript');
+  });
+
   it('renders a highlighted code block after leading text', async () => {
     const { container } = renderMessage(
       'Check this out:\n```javascript\nconsole.log("hello");\n```'
