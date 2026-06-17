@@ -1,4 +1,5 @@
 import type { Client } from '@urql/svelte';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { graphql } from '$lib/gql';
 import { isUnsupportedGraphQLFieldError } from '$lib/gql/compatibility';
 import { FitMode, RoomFilesDocument, type RoomFilesQuery } from '$lib/gql/graphql';
@@ -91,7 +92,7 @@ export class RoomFilesStore {
   isInitialLoading = $state(true);
   isLoadingMore = $state(false);
   isUnsupported = $state(false);
-  refreshedAttachmentUrls = $state.raw(new Map<string, RefreshedAttachmentUrls>());
+  refreshedAttachmentUrls = new SvelteMap<string, RefreshedAttachmentUrls>();
 
   private readonly client: Client;
   private roomId = '';
@@ -108,7 +109,7 @@ export class RoomFilesStore {
     this.totalCount = 0;
     this.hasMore = false;
     this.isUnsupported = false;
-    this.refreshedAttachmentUrls = new Map();
+    this.refreshedAttachmentUrls = new SvelteMap();
     void this.loadInitial();
   }
 
@@ -205,7 +206,7 @@ export class RoomFilesStore {
 
   private async refreshUrlsForItems(items: RoomFileItem[]): Promise<void> {
     if (!this.roomId || this.isUnsupported || items.length === 0) return;
-    const eventIds = Array.from(new Set(items.map((item) => item.messageEventId)));
+    const eventIds = Array.from(new SvelteSet(items.map((item) => item.messageEventId)));
     const freshMaps = await Promise.all(
       eventIds.map((eventId) =>
         refreshAttachmentUrlsForMessage(this.client, this.roomId, eventId, {
@@ -215,15 +216,14 @@ export class RoomFilesStore {
         })
       )
     );
-    const fresh = new Map<string, RefreshedAttachmentUrls>();
+    const fresh = new SvelteMap<string, RefreshedAttachmentUrls>();
     for (const freshMap of freshMaps) {
       for (const [attachmentId, urls] of freshMap) {
         fresh.set(attachmentId, urls);
       }
     }
-    this.refreshedAttachmentUrls = mergeRefreshedAttachmentUrls(
-      this.refreshedAttachmentUrls,
-      fresh
+    this.refreshedAttachmentUrls = new SvelteMap(
+      mergeRefreshedAttachmentUrls(this.refreshedAttachmentUrls, fresh)
     );
   }
 
@@ -271,7 +271,7 @@ export class RoomFilesStore {
     if (replace) {
       this.items = connection.items;
     } else {
-      const seen = new Set(this.items.map(itemKey));
+      const seen = new SvelteSet(this.items.map(itemKey));
       this.items = [...this.items, ...connection.items.filter((item) => !seen.has(itemKey(item)))];
     }
     this.totalCount = connection.totalCount;

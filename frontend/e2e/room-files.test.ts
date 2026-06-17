@@ -30,7 +30,6 @@ test('room Files sidebar jumps to root files and opens thread reply files', asyn
   await page.setViewportSize({ width: 1280, height: 820 });
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  await chatPage.createSpace();
   await chatPage.enterRoom('general');
 
   const roomId = roomIdFromUrl(page);
