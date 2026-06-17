@@ -8,7 +8,39 @@ import { getToasts, toast } from '$lib/ui/toast';
 import type { RoomMember } from '$lib/state/room';
 import { PresenceStatus } from '$lib/gql/graphql';
 
-const mutationData = { postMessage: { id: 'msg_123' } };
+function postedMessageEvent(
+  id = 'msg_123',
+  roomId = 'room_456',
+  threadRootEventId: string | null = null
+) {
+  return {
+    __typename: 'Event',
+    id,
+    createdAt: '2026-06-17T10:47:00Z',
+    actorId: 'test-user',
+    actor: null,
+    event: {
+      __typename: 'MessagePostedEvent',
+      roomId,
+      body: 'hello world',
+      attachments: [],
+      linkPreview: null,
+      reactions: [],
+      updatedAt: null,
+      inReplyTo: null,
+      threadRootEventId,
+      echoOfEventId: null,
+      echoFromThreadRootEventId: null,
+      channelEchoEventId: null,
+      replyCount: 0,
+      lastReplyAt: null,
+      threadParticipants: [],
+      viewerIsFollowingThread: true
+    }
+  };
+}
+
+const mutationData = { postMessage: postedMessageEvent() };
 const updateMutationData = { updateMessage: true };
 const prepareFilesMock = vi.hoisted(() => vi.fn());
 const mutationMock = vi.hoisted(() => vi.fn());
@@ -1559,7 +1591,12 @@ describe('MessageComposer', () => {
         alsoSendToChannel: true
       });
       expect(onCancelReply).toHaveBeenCalledOnce();
-      expect(onMessageSent).toHaveBeenCalledOnce();
+      expect(onMessageSent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'msg_123',
+          event: expect.objectContaining({ __typename: 'MessagePostedEvent' })
+        })
+      );
       expect(mockInstanceStores.roomUnread.setRoomUnread).toHaveBeenCalledWith(roomId, false);
       expect(roomStateMock.scrollState.requestScrollToBottom).toHaveBeenCalledOnce();
     });

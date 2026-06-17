@@ -36,7 +36,7 @@ type Documents = {
     "\n    mutation QuickSwitcherStartDM($input: StartDMInput!) {\n      startDM(input: $input) {\n        id\n      }\n    }\n  ": typeof types.QuickSwitcherStartDmDocument,
     "\n    fragment UserAvatarUser on User {\n      id\n      login\n      displayName\n      avatarUrl(width: 96, height: 96)\n      presenceStatus\n    }\n  ": typeof types.UserAvatarUserFragmentDoc,
     "\n          query ValidateSpaceAccess {\n            server {\n              profile {\n                name\n                bannerUrl\n              }\n              viewerHasAnyAdminPermission\n              viewerCanManageServer\n              viewerCanManageRooms\n              viewerCanManageRoles\n              viewerCanAssignRoles\n              viewerCanManageUserPermissions\n            }\n          }\n        ": typeof types.ValidateSpaceAccessDocument,
-    "\n    mutation PostMessage($input: PostMessageInput!) {\n      postMessage(input: $input) {\n        id\n      }\n    }\n  ": typeof types.PostMessageDocument,
+    "\n    mutation PostMessage($input: PostMessageInput!) {\n      postMessage(input: $input) {\n        ...RoomEventView\n      }\n    }\n  ": typeof types.PostMessageDocument,
     "\n    query ComposerMentionRoles {\n      server {\n        roles {\n          name\n          isSystem\n          position\n          pingable\n        }\n      }\n    }\n  ": typeof types.ComposerMentionRolesDocument,
     "\n    mutation UpdateMessageFromInput($input: UpdateMessageInput!) {\n      updateMessage(input: $input)\n    }\n  ": typeof types.UpdateMessageFromInputDocument,
     "\n  query LinkPreviewForComposer($url: String!) {\n    linkPreview(url: $url) {\n      ...LinkPreviewView\n      imageAssetId\n    }\n  }\n": typeof types.LinkPreviewForComposerDocument,
@@ -179,7 +179,7 @@ const documents: Documents = {
     "\n    mutation QuickSwitcherStartDM($input: StartDMInput!) {\n      startDM(input: $input) {\n        id\n      }\n    }\n  ": types.QuickSwitcherStartDmDocument,
     "\n    fragment UserAvatarUser on User {\n      id\n      login\n      displayName\n      avatarUrl(width: 96, height: 96)\n      presenceStatus\n    }\n  ": types.UserAvatarUserFragmentDoc,
     "\n          query ValidateSpaceAccess {\n            server {\n              profile {\n                name\n                bannerUrl\n              }\n              viewerHasAnyAdminPermission\n              viewerCanManageServer\n              viewerCanManageRooms\n              viewerCanManageRoles\n              viewerCanAssignRoles\n              viewerCanManageUserPermissions\n            }\n          }\n        ": types.ValidateSpaceAccessDocument,
-    "\n    mutation PostMessage($input: PostMessageInput!) {\n      postMessage(input: $input) {\n        id\n      }\n    }\n  ": types.PostMessageDocument,
+    "\n    mutation PostMessage($input: PostMessageInput!) {\n      postMessage(input: $input) {\n        ...RoomEventView\n      }\n    }\n  ": types.PostMessageDocument,
     "\n    query ComposerMentionRoles {\n      server {\n        roles {\n          name\n          isSystem\n          position\n          pingable\n        }\n      }\n    }\n  ": types.ComposerMentionRolesDocument,
     "\n    mutation UpdateMessageFromInput($input: UpdateMessageInput!) {\n      updateMessage(input: $input)\n    }\n  ": types.UpdateMessageFromInputDocument,
     "\n  query LinkPreviewForComposer($url: String!) {\n    linkPreview(url: $url) {\n      ...LinkPreviewView\n      imageAssetId\n    }\n  }\n": types.LinkPreviewForComposerDocument,
@@ -405,7 +405,7 @@ export function graphql(source: "\n          query ValidateSpaceAccess {\n      
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n    mutation PostMessage($input: PostMessageInput!) {\n      postMessage(input: $input) {\n        id\n      }\n    }\n  "): (typeof documents)["\n    mutation PostMessage($input: PostMessageInput!) {\n      postMessage(input: $input) {\n        id\n      }\n    }\n  "];
+export function graphql(source: "\n    mutation PostMessage($input: PostMessageInput!) {\n      postMessage(input: $input) {\n        ...RoomEventView\n      }\n    }\n  "): (typeof documents)["\n    mutation PostMessage($input: PostMessageInput!) {\n      postMessage(input: $input) {\n        ...RoomEventView\n      }\n    }\n  "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

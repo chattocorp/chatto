@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick, untrack } from 'svelte';
-  import { graphql } from '$lib/gql';
+  import { graphql, useFragment } from '$lib/gql';
+  import { RoomEventViewFragmentDoc, type RoomEventViewFragment } from '$lib/gql/graphql';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { parseMessageLink } from '$lib/messageLinks';
@@ -58,7 +59,7 @@
     autoFocus?: boolean;
     onReady?: (api: MessageComposerApi) => void;
     onTyping?: () => void;
-    onMessageSent?: () => void;
+    onMessageSent?: (event: RoomEventViewFragment | null) => void;
     onCancelReply?: () => void;
     onEscape?: () => void;
     showAlsoSendToChannel?: boolean;
@@ -179,7 +180,7 @@
   const PostMessageMutation = graphql(`
     mutation PostMessage($input: PostMessageInput!) {
       postMessage(input: $input) {
-        id
+        ...RoomEventView
       }
     }
   `);
@@ -449,6 +450,14 @@
           attachments.restore(attachments.filesToPreviewItems(filesToSend));
         }
       } else {
+        const postedEvent = response.data?.postMessage
+          ? useFragment(RoomEventViewFragmentDoc, response.data.postMessage)
+          : null;
+
+        // Notify parent before scrolling so it can synchronously ingest the
+        // returned event and make the target row available.
+        onMessageSent?.(postedEvent);
+
         // Scroll the enclosing pane to the user's new message. The composer
         // reads `scrollState` from its surrounding ComposerContext, so this
         // targets the main room's EventList in a room composer and the
@@ -463,9 +472,6 @@
 
         // Reset "also send to channel" checkbox after successful send
         alsoSendToChannel = false;
-
-        // Notify parent that message was sent (for resetting typing indicator debounce)
-        onMessageSent?.();
       }
     } finally {
       loading = false;
