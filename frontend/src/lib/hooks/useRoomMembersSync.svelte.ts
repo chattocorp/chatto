@@ -102,6 +102,7 @@ export function useRoomMembersSync(
           id: p.id,
           login: p.login,
           displayName: p.displayName,
+          deleted: p.deleted,
           avatarUrl: p.avatarUrl,
           presenceStatus: p.presenceStatus
         }))

@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
-import { ChatPage, RoomPage } from './pages';
+import { withServerUser } from './fixtures/serverUser';
 import { TIMEOUTS } from './constants';
 
 test.describe('Up arrow to edit last message', () => {
@@ -65,46 +65,37 @@ test.describe('Up arrow to edit last message', () => {
     // User 1: Create account and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const serverName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     const user1Message = `User1 message ${Date.now()}`;
     await roomPage.sendMessage(user1Message);
 
     // User 2: Join and post their own message
-    const context2 = await browser!.newContext({
-      baseURL: serverURL,
-      viewport: { width: 1280, height: 720 }
-    });
-    const page2 = await context2.newPage();
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ chatPage: chatPage2, roomPage: roomPage2 }) => {
+        await chatPage2.goto();
+        await chatPage2.enterRoom('general');
 
-    try {
-      await createAndLoginTestUser(page2);
+        // User 2 posts a message
+        const user2Message = `User2 message ${Date.now()}`;
+        await roomPage2.sendMessage(user2Message);
 
-      const chatPage2 = new ChatPage(page2);
-      const roomPage2 = new RoomPage(page2);
+        // User 1 should see both messages
+        await roomPage.expectMessageVisible(user2Message);
 
-      await chatPage2.goto();
-      await chatPage2.enterRoom('general');
+        // User 1 presses up arrow - should edit THEIR message, not User 2's
+        await roomPage.messageInput.clear();
+        await roomPage.messageInput.focus();
+        await roomPage.pressUpArrow();
 
-      // User 2 posts a message
-      const user2Message = `User2 message ${Date.now()}`;
-      await roomPage2.sendMessage(user2Message);
-
-      // User 1 should see both messages
-      await roomPage.expectMessageVisible(user2Message);
-
-      // User 1 presses up arrow - should edit THEIR message, not User 2's
-      await roomPage.messageInput.clear();
-      await roomPage.messageInput.focus();
-      await roomPage.pressUpArrow();
-
-      await roomPage.expectEditModeActive();
-      // Should have User 1's message, not User 2's
-      await expect(roomPage.composer).toHaveText(user1Message);
-    } finally {
-      await context2.close();
-    }
+        await roomPage.expectEditModeActive();
+        // Should have User 1's message, not User 2's
+        await expect(roomPage.composer).toHaveText(user1Message);
+      },
+      { viewport: { width: 1280, height: 720 } }
+    );
   });
 
   test('pressing up arrow in thread input edits last thread reply', async ({
@@ -278,7 +269,6 @@ test.describe('Message editing', () => {
     // User 1: Create account and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const serverName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     // Post a message
@@ -287,52 +277,44 @@ test.describe('Message editing', () => {
     const eventId = await message1.getEventId();
 
     // User 2: Create user and open the server
-    const context2 = await browser!.newContext({
-      baseURL: serverURL,
-      viewport: { width: 1280, height: 720 }
-    });
-    const page2 = await context2.newPage();
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ chatPage: chatPage2, roomPage: roomPage2 }) => {
+        await chatPage2.goto();
+        await chatPage2.enterRoom('general');
 
-    try {
-      await createAndLoginTestUser(page2);
+        // User 2 should see the original message
+        await roomPage2.expectMessageVisible(originalMessage);
 
-      const chatPage2 = new ChatPage(page2);
-      const roomPage2 = new RoomPage(page2);
+        // User 1: Edit the message
+        await message1.startEdit();
+        await roomPage.expectEditModeActive();
 
-      await chatPage2.goto();
-      await chatPage2.enterRoom('general');
+        const editedMessage = `Edited by user1 ${Date.now()}`;
+        await roomPage.completeEdit(editedMessage);
 
-      // User 2 should see the original message
-      await roomPage2.expectMessageVisible(originalMessage);
+        // User 1 should see the edited message
+        await roomPage.expectMessageVisible(editedMessage);
+        await roomPage.expectMessageNotVisible(originalMessage);
 
-      // User 1: Edit the message
-      await message1.startEdit();
-      await roomPage.expectEditModeActive();
+        // User 2 should also see the edited message via LiveEvent
+        if (eventId) {
+          const message2 = roomPage2.getMessageByEventId(eventId);
+          await expect(message2.locator.getByText(editedMessage)).toBeVisible({
+            timeout: TIMEOUTS.UI_STANDARD
+          });
+          await message2.expectEdited();
+        }
 
-      const editedMessage = `Edited by user1 ${Date.now()}`;
-      await roomPage.completeEdit(editedMessage);
-
-      // User 1 should see the edited message
-      await roomPage.expectMessageVisible(editedMessage);
-      await roomPage.expectMessageNotVisible(originalMessage);
-
-      // User 2 should also see the edited message via LiveEvent
-      if (eventId) {
-        const message2 = roomPage2.getMessageByEventId(eventId);
-        await expect(message2.locator.getByText(editedMessage)).toBeVisible({
-          timeout: TIMEOUTS.UI_STANDARD
-        });
-        await message2.expectEdited();
-      }
-
-      // User 1's message should also show edited indicator
-      if (eventId) {
-        const message1BySeq = roomPage.getMessageByEventId(eventId);
-        await message1BySeq.expectEdited();
-      }
-    } finally {
-      await context2.close();
-    }
+        // User 1's message should also show edited indicator
+        if (eventId) {
+          const message1BySeq = roomPage.getMessageByEventId(eventId);
+          await message1BySeq.expectEdited();
+        }
+      },
+      { viewport: { width: 1280, height: 720 } }
+    );
   });
 
   test('new messages continue to appear after editing a message', async ({
@@ -349,7 +331,6 @@ test.describe('Message editing', () => {
     // User 1: Create account and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const serverName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     // Post a message
@@ -357,46 +338,38 @@ test.describe('Message editing', () => {
     const message = await roomPage.sendMessage(originalMessage);
 
     // User 2: Create user and open the server
-    const context2 = await browser!.newContext({
-      baseURL: serverURL,
-      viewport: { width: 1280, height: 720 }
-    });
-    const page2 = await context2.newPage();
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ chatPage: chatPage2, roomPage: roomPage2 }) => {
+        await chatPage2.goto();
+        await chatPage2.enterRoom('general');
 
-    try {
-      await createAndLoginTestUser(page2);
+        // User 2 should see the original message
+        await roomPage2.expectMessageVisible(originalMessage);
 
-      const chatPage2 = new ChatPage(page2);
-      const roomPage2 = new RoomPage(page2);
+        // User 1: Edit the message
+        await message.startEdit();
+        await roomPage.expectEditModeActive();
 
-      await chatPage2.goto();
-      await chatPage2.enterRoom('general');
+        const editedMessage = `Edited message ${Date.now()}`;
+        await roomPage.completeEdit(editedMessage);
 
-      // User 2 should see the original message
-      await roomPage2.expectMessageVisible(originalMessage);
+        // Both users should see the edited message
+        await roomPage.expectMessageVisible(editedMessage);
+        await roomPage2.expectMessageVisible(editedMessage);
 
-      // User 1: Edit the message
-      await message.startEdit();
-      await roomPage.expectEditModeActive();
+        // KEY TEST: User 2 sends a new message AFTER the edit
+        const newMessage = `New message after edit ${Date.now()}`;
+        await roomPage2.sendMessage(newMessage);
 
-      const editedMessage = `Edited message ${Date.now()}`;
-      await roomPage.completeEdit(editedMessage);
-
-      // Both users should see the edited message
-      await roomPage.expectMessageVisible(editedMessage);
-      await roomPage2.expectMessageVisible(editedMessage);
-
-      // KEY TEST: User 2 sends a new message AFTER the edit
-      const newMessage = `New message after edit ${Date.now()}`;
-      await roomPage2.sendMessage(newMessage);
-
-      // User 1 should see the new message in real-time (without page reload)
-      // This is the bug we're testing for - previously the subscription would
-      // stop working after receiving a MessageUpdatedEvent
-      await roomPage.expectMessageVisible(newMessage);
-    } finally {
-      await context2.close();
-    }
+        // User 1 should see the new message in real-time (without page reload)
+        // This is the bug we're testing for - previously the subscription would
+        // stop working after receiving a MessageUpdatedEvent
+        await roomPage.expectMessageVisible(newMessage);
+      },
+      { viewport: { width: 1280, height: 720 } }
+    );
   });
 
   test('edit mode clears when deleting the message being edited', async ({

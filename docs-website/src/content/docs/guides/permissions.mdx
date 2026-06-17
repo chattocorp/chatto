@@ -149,10 +149,9 @@ Access to a DM comes from being a participant in that conversation. Owners canno
 | Edit role permissions | Admin UI -> **Roles -> [role name]** |
 | Configure room-specific behavior | Room settings -> **Permissions** |
 | Set per-user overrides | Admin UI -> **Members -> [user]** |
-| Reset everything to defaults | `chatto reset rbac` |
 
 <Aside type="caution">
-  `chatto reset rbac` wipes custom roles, assignments, and permission decisions, then reseeds the defaults. Use it as an operator recovery tool, not as a routine configuration workflow.
+  Treat `owners.emails` as the lockout recovery path. Chatto does not expose an operator command to wipe and reseed RBAC state in normal deployments.
 </Aside>
 
 <LinkCard

@@ -1,5 +1,6 @@
 import { expect } from '@playwright/test';
-import { createAndLoginTestUser, openServer } from './fixtures/testUser';
+import { createAndLoginTestUser } from './fixtures/testUser';
+import { withServerUser } from './fixtures/serverUser';
 import { test } from './setup';
 import * as routes from './routes';
 import { TIMEOUTS } from './constants';
@@ -15,19 +16,8 @@ test.describe('Room auto-join', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
 
-    const spaceId = await chatPage.getServerScopeId();
-
     // User B: Create account and open the server
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
-
-    try {
-      await createAndLoginTestUser(page2);
-
-      // User B opens the server
-      await openServer(page2);
-      await page2.goto(routes.space());
-
+    await withServerUser(browser!, serverURL, async ({ page: page2 }) => {
       // Verify User B sees both default auto-join rooms in the sidebar
       const roomList = page2.locator('.room-list');
 
@@ -48,9 +38,7 @@ test.describe('Room auto-join', () => {
 
       // Message input should be available (confirming room access)
       await expect(page2.getByTestId('message-input')).toBeVisible();
-    } finally {
-      await context2.close();
-    }
+    });
   });
 
   test('user can see messages posted before they joined', async ({
@@ -64,8 +52,6 @@ test.describe('Room auto-join', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
 
-    const spaceId = await chatPage.getServerScopeId();
-
     // User A enters general room and posts a message
     await chatPage.enterRoom('general');
 
@@ -73,16 +59,7 @@ test.describe('Room auto-join', () => {
     await roomPage.sendMessage(testMessage);
 
     // User B: Create account and open the server
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
-
-    try {
-      await createAndLoginTestUser(page2);
-
-      // User B joins via the join page
-      await openServer(page2);
-      await page2.goto(routes.space());
-
+    await withServerUser(browser!, serverURL, async ({ page: page2 }) => {
       // User B clicks on general room (auto-joined)
       const generalRoom = page2.locator('.room-list').getByRole('link', { name: '# general' });
       await expect(generalRoom).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
@@ -91,8 +68,6 @@ test.describe('Room auto-join', () => {
 
       // User B should see the message posted by User A before they joined
       await expect(page2.getByText(testMessage)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-    } finally {
-      await context2.close();
-    }
+    });
   });
 });

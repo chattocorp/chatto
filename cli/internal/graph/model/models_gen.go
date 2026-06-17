@@ -882,6 +882,28 @@ type RoleRoomPermissions struct {
 	PermissionDenials []string `json:"permissionDenials"`
 }
 
+// A file attachment and the message where it was posted.
+type RoomAttachmentItem struct {
+	// The file attachment.
+	Attachment *corev1.Attachment `json:"attachment"`
+	// The message event that owns the attachment.
+	MessageEventID string `json:"messageEventId"`
+	// The thread root when the attachment was posted in a thread reply.
+	ThreadRootEventID *string `json:"threadRootEventId,omitempty"`
+	// When the owning message was posted.
+	CreatedAt *timestamppb.Timestamp `json:"createdAt"`
+}
+
+// Paginated list of current room attachments.
+type RoomAttachmentsConnection struct {
+	// The attachment rows for this page.
+	Items []*RoomAttachmentItem `json:"items"`
+	// Total count of attachments before pagination.
+	TotalCount int32 `json:"totalCount"`
+	// Whether there are more attachments beyond this page.
+	HasMore bool `json:"hasMore"`
+}
+
 // An active room ban shown in server-admin moderation tools.
 type RoomBan struct {
 	// The event ID that created the active ban.

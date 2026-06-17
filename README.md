@@ -1,24 +1,9 @@
 # chatto
 
-A really good chat application for teams and communities, free and easy to self-host, with [cloud hosting available](https://chatto.run/cloud).
+A really good chat application for teams and communities, free and easy to self-host, with [cloud hosting available soon](https://chatto.run/cloud).
 
 - [Website](https://www.chatto.run)
 - [Documentation](https://docs.chatto.run)
-
-## Warning: Alpha Software 🚧
-
-While Chatto is moving forward at a rapid pace, we can't yet give any guarantees about stability, security, or performance; we also at this point can't support data migrations.
-
-We are providing the source code here for transparency and to allow early adopters to experiment and provide feedback. If you choose to actually run it, **be prepared to lose some or all of your data at any time**.
-
-A lot of projects say this and people often ignore it, so let me spell things out a bit more:
-
-- You **will** lose runtime and permission configuration and will be required to manually fix things.
-- You **will** lose data for experimental features that we decide to remove or significantly change.
-- You **will** experience breaking changes in the GraphQL API.
-- You **will** lose user and message data to bugs, or if we need to make breaking changes to the data model.
-
-It should be no surprise that we are working hard to move towards a release that can give better guarantees, but we're not there yet.
 
 ## License
 

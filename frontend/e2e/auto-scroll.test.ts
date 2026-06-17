@@ -1,7 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
-import { ChatPage, RoomPage } from './pages';
+import { withServerUser } from './fixtures/serverUser';
 import { TIMEOUTS, POLLING_INTERVALS } from './constants';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 
@@ -51,8 +51,6 @@ test.describe('Message pane auto-scroll', () => {
     // User 1: Create account and post enough messages to make container scrollable
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const testServerName = await chatPage.getServerName();
-    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     // Extract roomId from URL for API-based message posting
@@ -126,35 +124,24 @@ test.describe('Message pane auto-scroll', () => {
     }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
 
     // User 2: Create user, open the server, and post a message
-    const context2 = await browser!.newContext({
-      baseURL: serverURL,
-      viewport: { width: 1280, height: 720 }
-    });
-    const page2 = await context2.newPage();
-    const chatPage2 = new ChatPage(page2);
-    const roomPage2 = new RoomPage(page2);
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: page2, chatPage: chatPage2, roomPage: roomPage2 }) => {
+        // User 2 is auto-joined to "general" room - enter it
+        await chatPage2.enterRoom('general');
+        await waitForRoomReady(page2, 'general');
 
-    try {
-      await createAndLoginTestUser(page2);
-      await chatPage2.goto();
+        // User 2 posts a new message
+        const newMessage = `New message from User 2 - ${Date.now()}`;
+        await roomPage2.sendMessage(newMessage);
 
-      // Ensure the server root is loaded.
-      await chatPage2.goto();
-
-      // User 2 is auto-joined to "general" room - enter it
-      await chatPage2.enterRoom('general');
-      await waitForRoomReady(page2, 'general');
-
-      // User 2 posts a new message
-      const newMessage = `New message from User 2 - ${Date.now()}`;
-      await roomPage2.sendMessage(newMessage);
-
-      // User 1 should see the new message (auto-scrolled into view)
-      // The key assertion: if auto-scroll is working, the message will be visible
-      await expect(page.getByText(newMessage)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-    } finally {
-      await context2.close();
-    }
+        // User 1 should see the new message (auto-scrolled into view)
+        // The key assertion: if auto-scroll is working, the message will be visible
+        await expect(page.getByText(newMessage)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      },
+      { viewport: { width: 1280, height: 720 } }
+    );
   });
 
   test('does not auto-scroll when user is scrolled up viewing history', async ({
@@ -170,8 +157,6 @@ test.describe('Message pane auto-scroll', () => {
     // User 1: Create account and post enough messages to make container scrollable
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const testServerName = await chatPage.getServerName();
-    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     // Extract roomId from URL for API-based message posting
@@ -218,53 +203,42 @@ test.describe('Message pane auto-scroll', () => {
     }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
 
     // User 2: Create user, open the server, and post a message
-    const context2 = await browser!.newContext({
-      baseURL: serverURL,
-      viewport: { width: 1280, height: 720 }
-    });
-    const page2 = await context2.newPage();
-    const chatPage2 = new ChatPage(page2);
-    const roomPage2 = new RoomPage(page2);
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: page2, chatPage: chatPage2, roomPage: roomPage2 }) => {
+        // User 2 is auto-joined to "general" room - enter it
+        await chatPage2.enterRoom('general');
+        await waitForRoomReady(page2, 'general');
 
-    try {
-      await createAndLoginTestUser(page2);
-      await chatPage2.goto();
+        // User 2 posts a new message
+        const newMessage = `New message while scrolled up - ${Date.now()}`;
+        await roomPage2.sendMessage(newMessage);
 
-      // Ensure the server root is loaded.
-      await chatPage2.goto();
+        // Wait for the "New messages" indicator button which confirms:
+        // (a) WebSocket event arrived, (b) component decided NOT to auto-scroll,
+        // (c) the indicator appeared.
+        await expect(page.getByRole('button', { name: /new messages/i })).toBeVisible({
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
 
-      // User 2 is auto-joined to "general" room - enter it
-      await chatPage2.enterRoom('general');
-      await waitForRoomReady(page2, 'general');
-
-      // User 2 posts a new message
-      const newMessage = `New message while scrolled up - ${Date.now()}`;
-      await roomPage2.sendMessage(newMessage);
-
-      // Wait for the "New messages" indicator button which confirms:
-      // (a) WebSocket event arrived, (b) component decided NOT to auto-scroll,
-      // (c) the indicator appeared.
-      await expect(page.getByRole('button', { name: /new messages/i })).toBeVisible({
-        timeout: TIMEOUTS.REALTIME_EVENT
-      });
-
-      // User 1 should NOT have been auto-scrolled to the bottom
-      // The key behavior is: user stays scrolled up (viewing history), not at bottom
-      // Use toPass() to wait for UI to stabilize after message render
-      await expect(async () => {
-        const scrollInfo = await messagesContainer.evaluate((el) => ({
-          scrollTop: el.scrollTop,
-          scrollHeight: el.scrollHeight,
-          clientHeight: el.clientHeight
-        }));
-        const distanceFromBottom =
-          scrollInfo.scrollHeight - scrollInfo.scrollTop - scrollInfo.clientHeight;
-        // Should NOT be at the bottom - at least 100px away indicates no auto-scroll happened
-        expect(distanceFromBottom).toBeGreaterThan(100);
-      }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
-    } finally {
-      await context2.close();
-    }
+        // User 1 should NOT have been auto-scrolled to the bottom
+        // The key behavior is: user stays scrolled up (viewing history), not at bottom
+        // Use toPass() to wait for UI to stabilize after message render
+        await expect(async () => {
+          const scrollInfo = await messagesContainer.evaluate((el) => ({
+            scrollTop: el.scrollTop,
+            scrollHeight: el.scrollHeight,
+            clientHeight: el.clientHeight
+          }));
+          const distanceFromBottom =
+            scrollInfo.scrollHeight - scrollInfo.scrollTop - scrollInfo.clientHeight;
+          // Should NOT be at the bottom - at least 100px away indicates no auto-scroll happened
+          expect(distanceFromBottom).toBeGreaterThan(100);
+        }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
+      },
+      { viewport: { width: 1280, height: 720 } }
+    );
   });
 
   test('scrolls to bottom when entering a room with existing messages', async ({
@@ -277,8 +251,6 @@ test.describe('Message pane auto-scroll', () => {
     // User 1: Create account and post enough messages to fill the screen
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const testServerName = await chatPage.getServerName();
-    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     // Extract roomId from URL for API-based message posting
@@ -301,42 +273,32 @@ test.describe('Message pane auto-scroll', () => {
     const lastMessage = `Message 20 - ${timestamp}`;
 
     // User 2: Open the server and enter the room - should auto-scroll to bottom
-    const context2 = await browser!.newContext({
-      baseURL: serverURL,
-      viewport: { width: 1280, height: 720 }
-    });
-    const page2 = await context2.newPage();
-    const chatPage2 = new ChatPage(page2);
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: page2, chatPage: chatPage2 }) => {
+        // Enter the general room
+        await chatPage2.enterRoom('general');
 
-    try {
-      await createAndLoginTestUser(page2);
-      await chatPage2.goto();
+        // The last message should be visible (auto-scrolled to bottom)
+        await expect(page2.getByText(lastMessage)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
-      // Ensure the server root is loaded.
-      await chatPage2.goto();
-
-      // Enter the general room
-      await chatPage2.enterRoom('general');
-
-      // The last message should be visible (auto-scrolled to bottom)
-      await expect(page2.getByText(lastMessage)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
-
-      // Verify we're actually at the bottom by checking scroll position
-      const messagesContainer = page2.getByTestId('messages-container');
-      await expect(async () => {
-        const scrollInfo = await messagesContainer.evaluate((el) => ({
-          scrollTop: el.scrollTop,
-          scrollHeight: el.scrollHeight,
-          clientHeight: el.clientHeight
-        }));
-        const distanceFromBottom =
-          scrollInfo.scrollHeight - scrollInfo.scrollTop - scrollInfo.clientHeight;
-        // Should be at or very near the bottom (within 50px tolerance)
-        expect(distanceFromBottom).toBeLessThan(50);
-      }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
-    } finally {
-      await context2.close();
-    }
+        // Verify we're actually at the bottom by checking scroll position
+        const messagesContainer = page2.getByTestId('messages-container');
+        await expect(async () => {
+          const scrollInfo = await messagesContainer.evaluate((el) => ({
+            scrollTop: el.scrollTop,
+            scrollHeight: el.scrollHeight,
+            clientHeight: el.clientHeight
+          }));
+          const distanceFromBottom =
+            scrollInfo.scrollHeight - scrollInfo.scrollTop - scrollInfo.clientHeight;
+          // Should be at or very near the bottom (within 50px tolerance)
+          expect(distanceFromBottom).toBeLessThan(50);
+        }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
+      },
+      { viewport: { width: 1280, height: 720 } }
+    );
   });
 
   test('does not show new messages indicator when reaction is added while scrolled up', async ({
@@ -352,8 +314,6 @@ test.describe('Message pane auto-scroll', () => {
     // User 1: Create account and post enough messages to make container scrollable
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const testServerName = await chatPage.getServerName();
-    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     // Extract roomId from URL for API-based message posting
@@ -379,66 +339,55 @@ test.describe('Message pane auto-scroll', () => {
 
     // User 2: Open the server and room BEFORE user 1 scrolls up
     // This ensures the "user joined" event doesn't trigger the indicator later
-    const context2 = await browser!.newContext({
-      baseURL: serverURL,
-      viewport: { width: 1280, height: 500 }
-    });
-    const page2 = await context2.newPage();
-    const chatPage2 = new ChatPage(page2);
-    const roomPage2 = new RoomPage(page2);
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: page2, user: user2, chatPage: chatPage2, roomPage: roomPage2 }) => {
+        await chatPage2.enterRoom('general');
 
-    try {
-      const user2 = await createAndLoginTestUser(page2);
-      await chatPage2.goto();
+        // Wait for messages to load on user 2's side - use partial match for longer message
+        await expect(page2.getByText(`Message 20 - ${timestamp}`)).toBeVisible({
+          timeout: TIMEOUTS.UI_STANDARD
+        });
 
-      // Open the server
-      await chatPage2.goto();
+        // Wait for user 1 to see user 2's join event (auto-scroll should still be enabled)
+        await expect(page.getByText(`${user2.displayName} joined the room`)).toBeVisible({
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
 
-      await chatPage2.enterRoom('general');
+        // NOW user 1 scrolls up (after user 2 has already joined)
+        const messagesContainer = page.getByTestId('messages-container');
 
-      // Wait for messages to load on user 2's side - use partial match for longer message
-      await expect(page2.getByText(`Message 20 - ${timestamp}`)).toBeVisible({
-        timeout: TIMEOUTS.UI_STANDARD
-      });
+        // Scroll to top using native mouse wheel events
+        await scrollContainerToTop(page, messagesContainer);
 
-      // Wait for user 1 to see user 2's join event (auto-scroll should still be enabled)
-      await expect(page.getByText(`${user2.displayName} joined the room`)).toBeVisible({
-        timeout: TIMEOUTS.REALTIME_EVENT
-      });
+        // Wait for scroll position to stabilize away from the bottom
+        await expect(async () => {
+          const info = await messagesContainer.evaluate((el) => ({
+            scrollTop: el.scrollTop,
+            scrollHeight: el.scrollHeight,
+            clientHeight: el.clientHeight
+          }));
+          const distanceFromBottom = info.scrollHeight - info.scrollTop - info.clientHeight;
+          expect(distanceFromBottom).toBeGreaterThan(100);
+        }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
 
-      // NOW user 1 scrolls up (after user 2 has already joined)
-      const messagesContainer = page.getByTestId('messages-container');
-
-      // Scroll to top using native mouse wheel events
-      await scrollContainerToTop(page, messagesContainer);
-
-      // Wait for scroll position to stabilize away from the bottom
-      await expect(async () => {
-        const info = await messagesContainer.evaluate((el) => ({
-          scrollTop: el.scrollTop,
-          scrollHeight: el.scrollHeight,
-          clientHeight: el.clientHeight
-        }));
-        const distanceFromBottom = info.scrollHeight - info.scrollTop - info.clientHeight;
-        expect(distanceFromBottom).toBeGreaterThan(100);
-      }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
-
-      // Verify the new messages indicator is NOT visible initially
-      await expect(page.getByRole('button', { name: /new messages/i })).not.toBeVisible();
-
-      // User 2 adds a reaction to message 20
-      const message2 = roomPage2.getMessage(`Message 20 - ${timestamp}`);
-      await message2.react('👍');
-      await message2.expectReaction('👍', 1);
-
-      // The new messages indicator should NOT appear for reactions.
-      // Use toPass() to give the WebSocket event time to propagate, then verify absence.
-      await expect(async () => {
+        // Verify the new messages indicator is NOT visible initially
         await expect(page.getByRole('button', { name: /new messages/i })).not.toBeVisible();
-      }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: POLLING_INTERVALS });
-    } finally {
-      await context2.close();
-    }
+
+        // User 2 adds a reaction to message 20
+        const message2 = roomPage2.getMessage(`Message 20 - ${timestamp}`);
+        await message2.react('👍');
+        await message2.expectReaction('👍', 1);
+
+        // The new messages indicator should NOT appear for reactions.
+        // Use toPass() to give the WebSocket event time to propagate, then verify absence.
+        await expect(async () => {
+          await expect(page.getByRole('button', { name: /new messages/i })).not.toBeVisible();
+        }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: POLLING_INTERVALS });
+      },
+      { viewport: { width: 1280, height: 500 } }
+    );
   });
 
   test('does not show new messages indicator when loading older messages via pagination', async ({
@@ -453,13 +402,10 @@ test.describe('Message pane auto-scroll', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
-
-    // Extract roomId from URL; resolve spaceId via GraphQL (post-ADR-027 the
-    // URL no longer carries spaceId).
+    // Extract roomId from URL.
     const url = page.url();
     const match = url.match(/\/chat\/-\/([^/]+)/);
     const roomId = match![1];
-    const spaceId = await chatPage.getServerScopeId();
 
     const timestamp = Date.now();
 
@@ -526,7 +472,6 @@ test.describe('Message pane auto-scroll', () => {
     // Setup: Create user and navigate to room
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     // Extract roomId from URL for API-based message posting
@@ -594,7 +539,6 @@ test.describe('Message pane auto-scroll', () => {
     // Create user and enter room
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     // Extract roomId from URL for API-based message posting
@@ -672,7 +616,6 @@ test.describe('Message pane auto-scroll', () => {
 
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     const url = page.url();
@@ -752,7 +695,6 @@ test.describe('Message pane auto-scroll', () => {
     // Setup: Create user and navigate to room
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     // Extract roomId from URL for API-based message posting
@@ -817,7 +759,6 @@ test.describe('Message pane auto-scroll', () => {
     // Setup: Create user and navigate to room
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     // Extract roomId from URL for API-based message posting
@@ -880,7 +821,6 @@ Line 8: This is the last line of this long message.`;
     // Create user and enter room
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     // Extract roomId from URL for API-based message posting
@@ -942,7 +882,6 @@ Line 8: This is the last line of this long message.`;
     // Create account and enter general room
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     // Extract roomId from URL for API-based message posting

@@ -199,6 +199,10 @@ func (m *RoomService) latestBody(eventID string) (*corev1.MessageBody, bool, boo
 	return m.timeline.LatestBody(eventID)
 }
 
+func (m *RoomService) currentRoomAttachmentMessages(roomID string) []projectedRoomAttachmentMessage {
+	return m.timeline.CurrentRoomAttachmentMessages(roomID)
+}
+
 func (m *RoomService) isEcho(eventID string) bool {
 	return m.timeline.IsEcho(eventID)
 }
@@ -233,6 +237,10 @@ func (m *RoomService) lastVisibleRoomEntry(roomID string, visible func(*corev1.E
 
 func (m *RoomService) visibleRoomTimeline(roomID string, limit int, beforeStreamSeq uint64, visible func(*corev1.Event) bool) []*TimelineEntry {
 	return m.timeline.VisibleRoomTimeline(roomID, limit, beforeStreamSeq, visible)
+}
+
+func (m *RoomService) roomEventCount(roomID string) int {
+	return m.timeline.RoomEventCount(roomID)
 }
 
 func (m *RoomService) visibleRoomTimelineAfter(roomID string, limit int, afterStreamSeq uint64, visible func(*corev1.Event) bool) []*TimelineEntry {
