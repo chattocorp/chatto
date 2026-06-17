@@ -108,6 +108,40 @@ function presenceBadge(container: Element, label: string): Element | null {
   return container.querySelector(`[aria-label="${label}"]`);
 }
 
+function roomFileGroupHeadings(container: Element): string[] {
+  return Array.from(container.querySelectorAll('[data-testid="room-file-group-heading"]')).map(
+    (element) => element.textContent?.trim() ?? ''
+  );
+}
+
+function roomFileRowLabels(container: Element): string[] {
+  return Array.from(container.querySelectorAll('[data-testid="room-file-row"]')).map(
+    (element) => element.textContent?.trim() ?? ''
+  );
+}
+
+async function flushRoomFilesPanel(): Promise<void> {
+  await tick();
+  await Promise.resolve();
+  await tick();
+  await Promise.resolve();
+  await tick();
+}
+
+function localNoonIso(daysFromToday: number): string {
+  const date = new Date();
+  date.setHours(12, 0, 0, 0);
+  date.setDate(date.getDate() + daysFromToday);
+  return date.toISOString();
+}
+
+function previousMonthLocalNoonIso(dayOfMonth: number): string {
+  const date = new Date();
+  date.setHours(12, 0, 0, 0);
+  date.setMonth(date.getMonth() - 1, dayOfMonth);
+  return date.toISOString();
+}
+
 function roomData(members: RoomMember[], totalCount: number, hasMore: boolean): RoomData {
   return {
     room: { id: 'room-1', name: 'general', type: 'CHANNEL' },
@@ -125,11 +159,16 @@ function roomData(members: RoomMember[], totalCount: number, hasMore: boolean): 
   };
 }
 
-function roomFile(messageEventId: string, threadRootEventId: string | null, filename: string) {
+function roomFile(
+  messageEventId: string,
+  threadRootEventId: string | null,
+  filename: string,
+  createdAt = '2026-06-15T12:00:00Z'
+) {
   return {
     messageEventId,
     threadRootEventId,
-    createdAt: '2026-06-15T12:00:00Z',
+    createdAt,
     attachment: {
       id: `att-${filename}`,
       filename,
@@ -514,6 +553,77 @@ describe('RoomSidebar', () => {
     buttonByText(container, 'thread.txt')!.click();
     await tick();
     expect(onOpenFile).toHaveBeenCalledWith('thread-message', 'thread-root');
+  });
+
+  it('groups room files by date and appends loaded pages into the matching groups', async () => {
+    const olderMonthDate = previousMonthLocalNoonIso(21);
+    const olderMonthLabel = new Intl.DateTimeFormat(undefined, {
+      month: 'long',
+      year: 'numeric'
+    }).format(new Date(olderMonthDate));
+
+    queryMock
+      .mockResolvedValueOnce({
+        data: {
+          room: {
+            attachments: {
+              items: [
+                roomFile('today-message', null, 'today.txt', localNoonIso(0)),
+                roomFile('yesterday-message', null, 'yesterday.txt', localNoonIso(-1))
+              ],
+              totalCount: 5,
+              hasMore: true
+            }
+          }
+        },
+        error: null
+      })
+      .mockResolvedValueOnce({
+        data: {
+          room: {
+            attachments: {
+              items: [
+                roomFile('week-message', null, 'week.txt', localNoonIso(-2)),
+                roomFile('month-message', null, 'month.txt', localNoonIso(-7)),
+                roomFile('older-month-message', null, 'older-month.txt', olderMonthDate)
+              ],
+              totalCount: 5,
+              hasMore: false
+            }
+          }
+        },
+        error: null
+      });
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'files',
+        roomData: roomData([member(1)], 1, false)
+      }
+    });
+
+    await flushRoomFilesPanel();
+    expect(roomFileGroupHeadings(container)).toEqual(['Today', 'Yesterday']);
+    expect(roomFileRowLabels(container)).toHaveLength(2);
+    expect(roomFileRowLabels(container)[0]).toContain('today.txt');
+    expect(roomFileRowLabels(container)[1]).toContain('yesterday.txt');
+
+    MockIntersectionObserver.instances[0].trigger();
+    await flushRoomFilesPanel();
+
+    expect(roomFileGroupHeadings(container)).toEqual([
+      'Today',
+      'Yesterday',
+      'This week',
+      'This month',
+      olderMonthLabel
+    ]);
+    const labels = roomFileRowLabels(container);
+    expect(labels).toHaveLength(5);
+    expect(labels.filter((label) => label.includes('today.txt'))).toHaveLength(1);
+    expect(labels[2]).toContain('week.txt');
+    expect(labels[3]).toContain('month.txt');
+    expect(labels[4]).toContain('older-month.txt');
   });
 
   it('falls back to a file icon when a video thumbnail fails to load', async () => {

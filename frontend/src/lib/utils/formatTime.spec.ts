@@ -1,8 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
+  fileDateGroup,
+  firstDayOfWeekForLocale,
   formatMessageTime,
   formatDate,
   formatDateTime,
+  formatMonthYear,
   formatDayLabel,
   isSameDay
 } from './formatTime';
@@ -61,6 +64,13 @@ describe('formatDateTime', () => {
   });
 });
 
+describe('formatMonthYear', () => {
+  it('formats the month and year in the user timezone', () => {
+    const la = settings('America/Los_Angeles', false);
+    expect(formatMonthYear('2026-06-01T01:00:00Z', la)).toMatch(/May\s*2026/);
+  });
+});
+
 describe('isSameDay', () => {
   it('returns true for same UTC day', () => {
     expect(
@@ -114,6 +124,108 @@ describe('formatDayLabel', () => {
     const out = formatDayLabel('2024-03-10T12:00:00Z', utc12);
     expect(out).toMatch(/March/);
     expect(out).toMatch(/2024/);
+  });
+});
+
+describe('firstDayOfWeekForLocale', () => {
+  it('uses locale week information when available', () => {
+    expect(firstDayOfWeekForLocale('en-US')).toBe(0);
+    expect(firstDayOfWeekForLocale('de-DE')).toBe(1);
+  });
+
+  it('falls back to Monday for invalid locale input', () => {
+    expect(firstDayOfWeekForLocale('invalid_locale')).toBe(1);
+  });
+
+  it('uses the browser locale when no explicit locale is passed', () => {
+    vi.stubGlobal('navigator', { languages: ['en-US'], language: 'en-US' });
+
+    try {
+      expect(firstDayOfWeekForLocale()).toBe(0);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+describe('fileDateGroup', () => {
+  const now = new Date('2026-06-17T12:00:00Z');
+
+  it('groups files from today', () => {
+    expect(fileDateGroup('2026-06-17T08:00:00Z', utc12, now, 'de-DE')).toEqual({
+      key: 'today',
+      label: 'Today'
+    });
+  });
+
+  it('groups files from yesterday', () => {
+    expect(fileDateGroup('2026-06-16T08:00:00Z', utc12, now, 'de-DE')).toEqual({
+      key: 'yesterday',
+      label: 'Yesterday'
+    });
+  });
+
+  it('groups earlier files in the current locale week', () => {
+    expect(fileDateGroup('2026-06-15T08:00:00Z', utc12, now, 'de-DE')).toEqual({
+      key: 'this-week',
+      label: 'This week'
+    });
+  });
+
+  it('uses the locale week start for this-week grouping', () => {
+    expect(fileDateGroup('2026-06-14T08:00:00Z', utc12, now, 'en-US')).toEqual({
+      key: 'this-week',
+      label: 'This week'
+    });
+
+    expect(fileDateGroup('2026-06-14T08:00:00Z', utc12, now, 'de-DE')).toEqual({
+      key: 'this-month',
+      label: 'This month'
+    });
+  });
+
+  it('groups files from earlier in the current month', () => {
+    expect(fileDateGroup('2026-06-10T08:00:00Z', utc12, now, 'de-DE')).toEqual({
+      key: 'this-month',
+      label: 'This month'
+    });
+  });
+
+  it('lets this week take precedence across a month boundary', () => {
+    expect(
+      fileDateGroup(
+        '2026-05-31T08:00:00Z',
+        utc12,
+        new Date('2026-06-03T12:00:00Z'),
+        'en-US'
+      )
+    ).toEqual({
+      key: 'this-week',
+      label: 'This week'
+    });
+  });
+
+  it('groups older files by calendar month and year', () => {
+    expect(fileDateGroup('2026-05-21T08:00:00Z', utc12, now, 'de-DE')).toEqual({
+      key: 'month:2026-05',
+      label: 'May 2026'
+    });
+  });
+
+  it('uses the user timezone for calendar-day boundaries', () => {
+    const berlin = settings('Europe/Berlin', false);
+
+    expect(
+      fileDateGroup(
+        '2026-06-16T23:30:00Z',
+        berlin,
+        new Date('2026-06-17T00:30:00Z'),
+        'de-DE'
+      )
+    ).toEqual({
+      key: 'today',
+      label: 'Today'
+    });
   });
 });
 

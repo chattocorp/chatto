@@ -1,7 +1,7 @@
 # FDR-008: File Attachments & Video Processing
 
 **Status:** Active
-**Last reviewed:** 2026-06-11
+**Last reviewed:** 2026-06-17
 
 ## Overview
 
@@ -20,7 +20,7 @@ Users can attach files to messages — images, videos, documents — via drag-an
 - Resized images can be cached as WebP with an auto-expiring cache.
 - In Service Worker-controlled browser sessions, stable asset URLs are rendered as same-origin virtual URLs and proxied to the owning server with the user's registered server credentials. Successful full responses are cached privately in the browser; media `Range` requests bypass that cache.
 - Active document attachment types such as HTML, XHTML, SVG, and XML can still be uploaded and viewed inline, but original-file responses are delivered in a browser sandbox so uploaded scripts do not run as trusted Chatto application code.
-- The room sidebar Files panel lists current accessible attachments from both root messages and thread replies. Rows show a thumbnail or file-type icon, filename, and upload time; selecting a root-message attachment jumps the room timeline to that message, while selecting a thread-reply attachment opens the thread pane and highlights the reply.
+- The room sidebar Files panel lists current accessible attachments from both root messages and thread replies, grouped by date as Today, Yesterday, This week, This month, then older calendar months. Rows show a thumbnail or file-type icon, filename, and upload time; selecting a root-message attachment jumps the room timeline to that message, while selecting a thread-reply attachment opens the thread pane and highlights the reply.
 
 ## Design Decisions
 
