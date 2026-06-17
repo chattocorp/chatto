@@ -92,9 +92,9 @@ func requireRoomMember(ctx context.Context, c *core.ChattoCore, kind core.RoomKi
 
 // requireServerAdmin verifies that the authenticated user has owner or admin
 // role in the unified server RBAC. Owner-by-config (owners.emails) is
-// materialised as a real role assignment by `chatto reset rbac` and by
-// `addVerifiedEmail` at email-verification time, so the dual-path check the
-// pre-Phase-5 helper used to do collapses to a single role lookup.
+// materialised as a real role assignment by boot-time owner synchronization
+// and by `addVerifiedEmail` at email-verification time, so the dual-path
+// check the pre-Phase-5 helper used to do collapses to a single role lookup.
 func requireServerAdmin(ctx context.Context, c *core.ChattoCore) (*corev1.User, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
