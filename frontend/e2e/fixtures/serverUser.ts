@@ -1,7 +1,14 @@
 import { expect, type Browser, type BrowserContextOptions, type Page } from '@playwright/test';
 import { ChatPage, RoomPage } from '../pages';
 import { TIMEOUTS } from '../constants';
-import { createAndLoginTestUser, loginTestUser, openServer, type TestUser } from './testUser';
+import { withBootstrapAdminRequest } from './adminRequest';
+import {
+  createAndLoginTestUser,
+  loginTestUser,
+  openServer,
+  type CreateTestUserOptions,
+  type TestUser
+} from './testUser';
 
 export interface ServerUserSession {
   page: Page;
@@ -10,17 +17,37 @@ export interface ServerUserSession {
   roomPage: RoomPage;
 }
 
+export interface ServerUserOptions extends BrowserContextOptions {
+  userOptions?: CreateTestUserOptions;
+}
+
+export async function loginAndEnterRoom(
+  page: Page,
+  roomName = 'general',
+  userOptions?: CreateTestUserOptions
+): Promise<ServerUserSession> {
+  const user = await createAndLoginTestUser(page, userOptions);
+  const chatPage = new ChatPage(page);
+  const roomPage = new RoomPage(page);
+
+  await chatPage.goto();
+  await chatPage.enterRoom(roomName);
+
+  return { page, user, chatPage, roomPage };
+}
+
 export async function withServerUser<T>(
   browser: Browser,
   serverURL: string,
   run: (session: ServerUserSession) => Promise<T>,
-  contextOptions: BrowserContextOptions = {}
+  options: ServerUserOptions = {}
 ): Promise<T> {
+  const { userOptions, ...contextOptions } = options;
   const context = await browser.newContext({ ...contextOptions, baseURL: serverURL });
   const page = await context.newPage();
 
   try {
-    const user = await createAndLoginTestUser(page);
+    const user = await createAndLoginTestUser(page, userOptions);
     await openServer(page);
 
     return await run({
@@ -58,6 +85,8 @@ export async function withLoggedInServerWindow<T>(
     await context.close();
   }
 }
+
+export { withBootstrapAdminRequest } from './adminRequest';
 
 export async function postMentionFromServerUser(
   browser: Browser,

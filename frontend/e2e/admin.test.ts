@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Browser, type Page } from '@playwright/test';
 import { test } from './setup';
 import { AdminPage, ChatPage } from './pages';
 import * as routes from './routes';
@@ -12,7 +12,27 @@ import {
   revokePermission,
   type TestUser
 } from './fixtures/testUser';
-import { withServerUser } from './fixtures/serverUser';
+import {
+  withServerUser,
+  type ServerUserOptions,
+  type ServerUserSession
+} from './fixtures/serverUser';
+
+type RegularAdminSession = ServerUserSession & { adminPage: AdminPage };
+
+async function withRegularAdminPage<T>(
+  browser: Browser,
+  serverURL: string,
+  run: (session: RegularAdminSession) => Promise<T>,
+  options?: ServerUserOptions
+): Promise<T> {
+  return withServerUser(
+    browser,
+    serverURL,
+    async (session) => run({ ...session, adminPage: new AdminPage(session.page) }),
+    options
+  );
+}
 
 async function createRoleViaAPI(page: Page, name: string, displayName: string): Promise<void> {
   const resp = await page.request.post('/api/graphql', {
@@ -244,154 +264,132 @@ test.describe('Admin Granular Permissions', () => {
 
   test('user with a concrete admin capability can access their admin section', async ({
     page,
-    browser
+    browser,
+    serverURL
   }) => {
     // First, as admin, grant an admin-view capability to everyone role.
     await createAndLoginAdminUser(page);
     await grantPermission(page, 'everyone', 'admin.view-users');
 
-    // Now create a regular user and try to access admin
-    const regularContext = await browser.newContext();
-    const regularPage = await regularContext.newPage();
-    const regularAdminPage = new AdminPage(regularPage);
-    await createAndLoginTestUser(regularPage);
+    await withRegularAdminPage(browser, serverURL, async ({ adminPage: regularAdminPage }) => {
+      await regularAdminPage.gotoUsers();
 
-    await regularAdminPage.gotoUsers();
-
-    // Should see the permitted section (not access denied) and the dedicated
-    // admin sidebar should only expose their allowed links.
-    await regularAdminPage.expectUsersPageVisible();
-    await regularAdminPage.expectSidebarLinkVisible('Users');
-    await regularAdminPage.expectSidebarLinkActive('Users');
+      // Should see the permitted section (not access denied) and the dedicated
+      // admin sidebar should only expose their allowed links.
+      await regularAdminPage.expectUsersPageVisible();
+      await regularAdminPage.expectSidebarLinkVisible('Users');
+      await regularAdminPage.expectSidebarLinkActive('Users');
+    });
 
     // Clean up: revoke the permission
     await revokePermission(page, 'everyone', 'admin.view-users');
-    await regularContext.close();
   });
 
   test('user with room.manage but without admin.view-users sees limited nav items', async ({
     page,
-    browser
+    browser,
+    serverURL
   }) => {
     // Grant only a non-user admin capability to everyone role.
     await createAndLoginAdminUser(page);
     await grantPermission(page, 'everyone', 'room.manage');
 
-    // Create regular user and access admin
-    const regularContext = await browser.newContext();
-    const regularPage = await regularContext.newPage();
-    const regularAdminPage = new AdminPage(regularPage);
-    await createAndLoginTestUser(regularPage);
+    await withRegularAdminPage(browser, serverURL, async ({ page: regularPage, adminPage }) => {
+      await regularPage.goto(routes.serverAdminRooms);
 
-    await regularPage.goto(routes.serverAdminRooms);
+      // Should see their concrete admin section in nav
+      await adminPage.expectSidebarLinkVisible('Rooms');
 
-    // Should see their concrete admin section in nav
-    await regularAdminPage.expectSidebarLinkVisible('Rooms');
-
-    // Should NOT see Users, System (no permissions for those)
-    await regularAdminPage.expectSidebarLinkNotVisible('Users');
-    await regularAdminPage.expectSidebarLinkNotVisible('System');
+      // Should NOT see Users, System (no permissions for those)
+      await adminPage.expectSidebarLinkNotVisible('Users');
+      await adminPage.expectSidebarLinkNotVisible('System');
+    });
 
     // Clean up
     await revokePermission(page, 'everyone', 'room.manage');
-    await regularContext.close();
   });
 
-  test('user with admin.view-users permission can see users list', async ({ page, browser }) => {
+  test('user with admin.view-users permission can see users list', async ({
+    page,
+    browser,
+    serverURL
+  }) => {
     await createAndLoginAdminUser(page);
     await grantPermission(page, 'everyone', 'admin.view-users');
 
-    // Create regular user
-    const regularContext = await browser.newContext();
-    const regularPage = await regularContext.newPage();
-    const regularAdminPage = new AdminPage(regularPage);
-    await createAndLoginTestUser(regularPage);
+    await withRegularAdminPage(browser, serverURL, async ({ adminPage: regularAdminPage }) => {
+      await regularAdminPage.gotoUsers();
 
-    await regularAdminPage.gotoUsers();
-
-    // Should see the users page with data
-    await regularAdminPage.expectUsersPageVisible();
-    await regularAdminPage.expectUsersTableHeadersVisible();
-    // Should see at least one user in the list (the user count)
-    await regularAdminPage.expectUserCountVisible();
+      // Should see the users page with data
+      await regularAdminPage.expectUsersPageVisible();
+      await regularAdminPage.expectUsersTableHeadersVisible();
+      // Should see at least one user in the list (the user count)
+      await regularAdminPage.expectUserCountVisible();
+    });
 
     // Clean up
     await revokePermission(page, 'everyone', 'admin.view-users');
-    await regularContext.close();
   });
 
   test('user without admin.view-users sees access denied on /chat/-/admin/users', async ({
     page,
-    browser
+    browser,
+    serverURL
   }) => {
     await createAndLoginAdminUser(page);
 
-    // Create regular user
-    const regularContext = await browser.newContext();
-    const regularPage = await regularContext.newPage();
-    const regularAdminPage = new AdminPage(regularPage);
-    await createAndLoginTestUser(regularPage);
+    await withRegularAdminPage(browser, serverURL, async ({ adminPage: regularAdminPage }) => {
+      await regularAdminPage.gotoUsers();
 
-    await regularAdminPage.gotoUsers();
-
-    // Should see access denied with the specific permission mentioned
-    await regularAdminPage.expectAccessDeniedForPermission('admin.view-users');
-
-    await regularContext.close();
+      // Should see access denied with the specific permission mentioned
+      await regularAdminPage.expectAccessDeniedForPermission('admin.view-users');
+    });
   });
 
-  test('non-owner sees access denied on /chat/-/admin/system', async ({ page, browser }) => {
+  test('non-owner sees access denied on /chat/-/admin/system', async ({
+    page,
+    browser,
+    serverURL
+  }) => {
     await createAndLoginAdminUser(page);
 
-    const regularContext = await browser.newContext();
-    const regularPage = await regularContext.newPage();
-    const regularAdminPage = new AdminPage(regularPage);
-    await createAndLoginTestUser(regularPage);
+    await withRegularAdminPage(browser, serverURL, async ({ adminPage: regularAdminPage }) => {
+      await regularAdminPage.gotoSystem();
 
-    await regularAdminPage.gotoSystem();
-
-    await regularAdminPage.expectAccessDeniedForPermission('admin.view-system');
-
-    await regularContext.close();
+      await regularAdminPage.expectAccessDeniedForPermission('admin.view-system');
+    });
   });
 
   test('user without admin.view-roles sees access denied on permissions', async ({
     page,
-    browser
+    browser,
+    serverURL
   }) => {
     await createAndLoginAdminUser(page);
 
-    const regularContext = await browser.newContext();
-    const regularPage = await regularContext.newPage();
-    const regularAdminPage = new AdminPage(regularPage);
-    await createAndLoginTestUser(regularPage);
+    await withRegularAdminPage(browser, serverURL, async ({ adminPage: regularAdminPage }) => {
+      await regularAdminPage.gotoRoles();
 
-    await regularAdminPage.gotoRoles();
-
-    await regularAdminPage.expectAccessDeniedForPermission('admin.view-roles');
-
-    await regularContext.close();
+      await regularAdminPage.expectAccessDeniedForPermission('admin.view-roles');
+    });
   });
 
   test('user with admin.view-system permission still cannot see owner-only system page', async ({
     page,
-    browser
+    browser,
+    serverURL
   }) => {
     await createAndLoginAdminUser(page);
     await grantPermission(page, 'everyone', 'admin.view-system');
 
-    const regularContext = await browser.newContext();
-    const regularPage = await regularContext.newPage();
-    const regularAdminPage = new AdminPage(regularPage);
-    await createAndLoginTestUser(regularPage);
+    await withRegularAdminPage(browser, serverURL, async ({ adminPage: regularAdminPage }) => {
+      await regularAdminPage.gotoSystem();
 
-    await regularAdminPage.gotoSystem();
-
-    await regularAdminPage.expectAccessDeniedForPermission('owner');
+      await regularAdminPage.expectAccessDeniedForPermission('owner');
+    });
 
     // Clean up
     await revokePermission(page, 'everyone', 'admin.view-system');
-    await regularContext.close();
   });
 
   // Note: a read-only view of the roles page (admin.view-roles without
@@ -401,40 +399,40 @@ test.describe('Admin Granular Permissions', () => {
   // sufficient to render the page. Re-add the test once the matrix grows
   // a read-only mode.
 
-  test('nav items dynamically update based on granted permissions', async ({ page, browser }) => {
+  test('nav items dynamically update based on granted permissions', async ({
+    page,
+    browser,
+    serverURL
+  }) => {
     // Start with one concrete admin capability.
     await createAndLoginAdminUser(page);
     await grantPermission(page, 'everyone', 'room.manage');
 
-    const regularContext = await browser.newContext();
-    const regularPage = await regularContext.newPage();
-    const regularAdminPage = new AdminPage(regularPage);
-    await createAndLoginTestUser(regularPage);
+    await withRegularAdminPage(browser, serverURL, async ({ page: regularPage, adminPage }) => {
+      await regularPage.goto(routes.serverAdminRooms);
 
-    await regularPage.goto(routes.serverAdminRooms);
+      // Initially should only see the room management section
+      await adminPage.expectSidebarLinkVisible('Rooms');
+      await adminPage.expectSidebarLinkNotVisible('Users');
 
-    // Initially should only see the room management section
-    await regularAdminPage.expectSidebarLinkVisible('Rooms');
-    await regularAdminPage.expectSidebarLinkNotVisible('Users');
+      // Now grant admin.view-users permission as admin
+      await grantPermission(page, 'everyone', 'admin.view-users');
 
-    // Now grant admin.view-users permission as admin
-    await grantPermission(page, 'everyone', 'admin.view-users');
+      // Reload and check nav updated
+      await regularPage.reload();
+      await adminPage.expectSidebarLinkVisible('Users');
 
-    // Reload and check nav updated
-    await regularPage.reload();
-    await regularAdminPage.expectSidebarLinkVisible('Users');
-
-    // Grant admin.view-system. System diagnostics remain owner-only for now,
-    // so this permission alone must not reveal the route.
-    await grantPermission(page, 'everyone', 'admin.view-system');
-    await regularPage.reload();
-    await regularAdminPage.expectSidebarLinkNotVisible('System');
+      // Grant admin.view-system. System diagnostics remain owner-only for now,
+      // so this permission alone must not reveal the route.
+      await grantPermission(page, 'everyone', 'admin.view-system');
+      await regularPage.reload();
+      await adminPage.expectSidebarLinkNotVisible('System');
+    });
 
     // Clean up
     await revokePermission(page, 'everyone', 'room.manage');
     await revokePermission(page, 'everyone', 'admin.view-users');
     await revokePermission(page, 'everyone', 'admin.view-system');
-    await regularContext.close();
   });
 });
 
@@ -458,33 +456,33 @@ test.describe('User Permission Management', () => {
 
   test('granting a role with admin.view-users gives user admin access', async ({
     page,
-    browser
+    browser,
+    serverURL
   }) => {
     await createAndLoginAdminUser(page);
 
-    // Create a regular user
-    const regularContext = await browser.newContext();
-    const regularPage = await regularContext.newPage();
-    const regularAdminPage = new AdminPage(regularPage);
-    const regularUser = await createAndLoginTestUser(regularPage);
+    await withRegularAdminPage(
+      browser,
+      serverURL,
+      async ({ page: regularPage, user: regularUser, adminPage: regularAdminPage }) => {
+        // Regular user should NOT have admin access initially
+        await regularAdminPage.gotoUsers();
+        await expect(regularPage.getByText('Access Denied', { exact: true })).toBeVisible();
 
-    // Regular user should NOT have admin access initially
-    await regularAdminPage.gotoUsers();
-    await expect(regularPage.getByText('Access Denied', { exact: true })).toBeVisible();
+        // Create a role with an admin-view capability and assign it to the user.
+        const roleName = generateRoleName('grant');
+        await createRoleViaAPI(page, roleName, 'Grant Admin');
+        await grantPermission(page, roleName, 'admin.view-users');
+        await assignRoleViaAPI(page, regularUser.id!, roleName);
 
-    // Create a role with an admin-view capability and assign it to the user.
-    const roleName = generateRoleName('grant');
-    await createRoleViaAPI(page, roleName, 'Grant Admin');
-    await grantPermission(page, roleName, 'admin.view-users');
-    await assignRoleViaAPI(page, regularUser.id!, roleName);
+        // Regular user should now have admin access
+        await regularPage.reload();
+        await regularAdminPage.expectUsersPageVisible();
 
-    // Regular user should now have admin access
-    await regularPage.reload();
-    await regularAdminPage.expectUsersPageVisible();
-
-    // Clean up
-    await revokeRoleViaAPI(page, regularUser.id!, roleName);
-    await regularContext.close();
+        // Clean up
+        await revokeRoleViaAPI(page, regularUser.id!, roleName);
+      }
+    );
   });
 
   // The "deny `space.list` blocks the Browse Spaces page" pair was retired
@@ -840,95 +838,101 @@ test.describe('Instance Role Permission Denials', () => {
 });
 
 test.describe('Identity Editing', () => {
-  test('admin can rename a user and reset their cooldown', async ({ page, adminPage, browser }) => {
+  test('admin can rename a user and reset their cooldown', async ({
+    page,
+    adminPage,
+    browser,
+    serverURL
+  }) => {
     await createAndLoginAdminUser(page);
 
-    const regularContext = await browser.newContext();
-    const regularPage = await regularContext.newPage();
-    const regularUser = await createAndLoginTestUser(regularPage, { loginPrefix: 'edituser' });
+    await withServerUser(
+      browser,
+      serverURL,
+      async ({ page: regularPage, user: regularUser }) => {
+        // The regular user changes their own login first to set a cooldown
+        // timestamp. We need this to verify Reset cooldown actually clears it.
+        const userChosenLogin = `userpicked${Date.now()}`;
+        const userRenameResp = await regularPage.request.post('/api/graphql', {
+          headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
+          data: {
+            query: `mutation($input: UpdateProfileInput!) { updateProfile(input: $input) { id login } }`,
+            variables: { input: { userId: regularUser.id, login: userChosenLogin } }
+          }
+        });
+        expect(userRenameResp.ok()).toBeTruthy();
 
-    // The regular user changes their own login first to set a cooldown
-    // timestamp. We need this to verify Reset cooldown actually clears it.
-    const userChosenLogin = `userpicked${Date.now()}`;
-    const userRenameResp = await regularPage.request.post('/api/graphql', {
-      headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-      data: {
-        query: `mutation($input: UpdateProfileInput!) { updateProfile(input: $input) { id login } }`,
-        variables: { input: { userId: regularUser.id, login: userChosenLogin } }
-      }
-    });
-    expect(userRenameResp.ok()).toBeTruthy();
+        // Admin navigates to the user management page
+        await adminPage.gotoUserManagement(regularUser.id!);
+        await adminPage.expectUserManagementVisible();
 
-    // Admin navigates to the user management page
-    await adminPage.gotoUserManagement(regularUser.id!);
-    await adminPage.expectUserManagementVisible();
+        // Identity panel should be visible
+        await expect(page.getByRole('heading', { name: 'Identity' })).toBeVisible();
 
-    // Identity panel should be visible
-    await expect(page.getByRole('heading', { name: 'Identity' })).toBeVisible();
+        // The username field should reflect the user's last self-chosen login
+        const usernameInput = page.getByTestId('admin-identity-login');
+        const displayNameInput = page.getByTestId('admin-identity-display-name');
+        await expect(usernameInput).toHaveValue(userChosenLogin);
 
-    // The username field should reflect the user's last self-chosen login
-    const usernameInput = page.getByTestId('admin-identity-login');
-    const displayNameInput = page.getByTestId('admin-identity-display-name');
-    await expect(usernameInput).toHaveValue(userChosenLogin);
+        // Save is disabled while pristine
+        const saveButton = page.getByRole('button', { name: 'Save' });
+        await expect(saveButton).toBeDisabled();
 
-    // Save is disabled while pristine
-    const saveButton = page.getByRole('button', { name: 'Save' });
-    await expect(saveButton).toBeDisabled();
+        // Admin renames the user via the panel
+        const adminChosenLogin = `adminpicked${Date.now()}`;
+        const adminChosenDisplay = 'Renamed By Admin';
+        await usernameInput.fill(adminChosenLogin);
+        await displayNameInput.fill(adminChosenDisplay);
 
-    // Admin renames the user via the panel
-    const adminChosenLogin = `adminpicked${Date.now()}`;
-    const adminChosenDisplay = 'Renamed By Admin';
-    await usernameInput.fill(adminChosenLogin);
-    await displayNameInput.fill(adminChosenDisplay);
+        // Submitting via Enter inside the form should work (the panel uses a real <form>)
+        await usernameInput.press('Enter');
 
-    // Submitting via Enter inside the form should work (the panel uses a real <form>)
-    await usernameInput.press('Enter');
+        // Toast confirmation
+        await expect(page.getByText('User updated')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
-    // Toast confirmation
-    await expect(page.getByText('User updated')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+        // The User Details panel reflects the new identity (without a page reload —
+        // the mutation refetches the query).
+        const userDetailsPanel = page
+          .locator('section, div')
+          .filter({ hasText: 'User Details' })
+          .first();
+        await expect(userDetailsPanel.getByText(adminChosenLogin).first()).toBeVisible();
+        await expect(userDetailsPanel.getByText(adminChosenDisplay).first()).toBeVisible();
 
-    // The User Details panel reflects the new identity (without a page reload —
-    // the mutation refetches the query).
-    const userDetailsPanel = page
-      .locator('section, div')
-      .filter({ hasText: 'User Details' })
-      .first();
-    await expect(userDetailsPanel.getByText(adminChosenLogin).first()).toBeVisible();
-    await expect(userDetailsPanel.getByText(adminChosenDisplay).first()).toBeVisible();
+        // The cooldown is unchanged because admin edits don't advance the user's
+        // clock. The "Reset cooldown" button should still be enabled.
+        const resetCooldownButton = page.getByRole('button', { name: 'Reset cooldown' });
+        await expect(resetCooldownButton).toBeEnabled();
+        await resetCooldownButton.click();
 
-    // The cooldown is unchanged because admin edits don't advance the user's
-    // clock. The "Reset cooldown" button should still be enabled.
-    const resetCooldownButton = page.getByRole('button', { name: 'Reset cooldown' });
-    await expect(resetCooldownButton).toBeEnabled();
-    await resetCooldownButton.click();
+        await expect(page.getByText('Username change cooldown cleared')).toBeVisible({
+          timeout: TIMEOUTS.UI_STANDARD
+        });
 
-    await expect(page.getByText('Username change cooldown cleared')).toBeVisible({
-      timeout: TIMEOUTS.UI_STANDARD
-    });
+        // After clearing, the panel should show the "never changed" state and the
+        // button should be disabled (no cooldown to reset).
+        await expect(page.getByText('User has never changed their username.')).toBeVisible();
+        await expect(resetCooldownButton).toBeDisabled();
 
-    // After clearing, the panel should show the "never changed" state and the
-    // button should be disabled (no cooldown to reset).
-    await expect(page.getByText('User has never changed their username.')).toBeVisible();
-    await expect(resetCooldownButton).toBeDisabled();
-
-    // Sanity check: the user can now successfully rename themselves immediately,
-    // proving the cooldown was actually cleared on the backend.
-    const userSecondRename = `userrenamed${Date.now()}`;
-    const secondRenameResp = await regularPage.request.post('/api/graphql', {
-      headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-      data: {
-        query: `mutation($input: UpdateProfileInput!) { updateProfile(input: $input) { id login } }`,
-        variables: { input: { userId: regularUser.id, login: userSecondRename } }
-      }
-    });
-    expect(secondRenameResp.ok()).toBeTruthy();
-    const secondRenameData = (await secondRenameResp.json()) as {
-      data?: { updateProfile?: { login?: string } };
-      errors?: unknown;
-    };
-    expect(secondRenameData.errors).toBeUndefined();
-    expect(secondRenameData.data?.updateProfile?.login).toBe(userSecondRename);
-
-    await regularContext.close();
+        // Sanity check: the user can now successfully rename themselves immediately,
+        // proving the cooldown was actually cleared on the backend.
+        const userSecondRename = `userrenamed${Date.now()}`;
+        const secondRenameResp = await regularPage.request.post('/api/graphql', {
+          headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
+          data: {
+            query: `mutation($input: UpdateProfileInput!) { updateProfile(input: $input) { id login } }`,
+            variables: { input: { userId: regularUser.id, login: userSecondRename } }
+          }
+        });
+        expect(secondRenameResp.ok()).toBeTruthy();
+        const secondRenameData = (await secondRenameResp.json()) as {
+          data?: { updateProfile?: { login?: string } };
+          errors?: unknown;
+        };
+        expect(secondRenameData.errors).toBeUndefined();
+        expect(secondRenameData.data?.updateProfile?.login).toBe(userSecondRename);
+      },
+      { userOptions: { loginPrefix: 'edituser' } }
+    );
   });
 });

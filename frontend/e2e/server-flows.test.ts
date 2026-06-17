@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { Browser, BrowserContext, BrowserContextOptions, Page } from '@playwright/test';
 import { test, expect } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
@@ -8,30 +8,43 @@ import { DMPage } from './pages/DMPage';
 import * as routes from './routes';
 import { TIMEOUTS } from './constants';
 
+interface FreshPageSession {
+  context: BrowserContext;
+  page: Page;
+}
+
+async function withFreshPage<T>(
+  browser: Browser,
+  run: (session: FreshPageSession) => Promise<T>,
+  contextOptions: BrowserContextOptions = {}
+): Promise<T> {
+  const context = await browser.newContext(contextOptions);
+  const page = await context.newPage();
+
+  try {
+    return await run({ context, page });
+  } finally {
+    await context.close();
+  }
+}
+
 test.describe('Landing Page', () => {
   test('unauthenticated user is redirected to /login', async ({ browser }) => {
-    // Fresh context — no localStorage, no cookies
-    const context = await browser.newContext();
-    const page = await context.newPage();
-
-    await page.goto('/');
-    await page.waitForURL(routes.login);
-
-    await context.close();
+    await withFreshPage(browser, async ({ page }) => {
+      await page.goto('/');
+      await page.waitForURL(routes.login);
+    });
   });
 
   test('unauthenticated user does not see sidebar nav icons', async ({ browser }) => {
-    const context = await browser.newContext();
-    const page = await context.newPage();
+    await withFreshPage(browser, async ({ page }) => {
+      await page.goto(routes.login);
 
-    await page.goto(routes.login);
-
-    // Sidebar nav icons for DMs, Browse Spaces, and Create Space should not be present
-    await expect(page.getByTestId('dm-icon')).not.toBeVisible();
-    await expect(page.getByRole('link', { name: 'Explore Spaces' })).not.toBeVisible();
-    await expect(page.getByRole('link', { name: 'Create Space' })).not.toBeVisible();
-
-    await context.close();
+      // Sidebar nav icons for DMs, Browse Spaces, and Create Space should not be present
+      await expect(page.getByTestId('dm-icon')).not.toBeVisible();
+      await expect(page.getByRole('link', { name: 'Explore Spaces' })).not.toBeVisible();
+      await expect(page.getByRole('link', { name: 'Create Space' })).not.toBeVisible();
+    });
   });
 
   test('fresh browser context accepts a valid session cookie without a CSRF cookie', async ({
@@ -45,35 +58,35 @@ test.describe('Landing Page', () => {
     );
     expect(sessionCookie).toBeDefined();
 
-    const context = await browser.newContext({ baseURL: serverURL });
-    await context.addCookies([sessionCookie!]);
-    const freshPage = await context.newPage();
+    await withFreshPage(
+      browser,
+      async ({ context, page: freshPage }) => {
+        await context.addCookies([sessionCookie!]);
 
-    try {
-      const rejectedResponse = await freshPage.request.post('/api/graphql', {
-        headers: { 'Content-Type': 'application/json' },
-        data: {
-          query: `query { viewer { user { id } } }`
-        }
-      });
-      expect(rejectedResponse.status()).toBe(403);
+        const rejectedResponse = await freshPage.request.post('/api/graphql', {
+          headers: { 'Content-Type': 'application/json' },
+          data: {
+            query: `query { viewer { user { id } } }`
+          }
+        });
+        expect(rejectedResponse.status()).toBe(403);
 
-      const acceptedResponse = await freshPage.request.post('/api/graphql', {
-        headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-        data: {
-          query: `query { viewer { user { id } } }`
-        }
-      });
-      expect(acceptedResponse.ok()).toBe(true);
-      const acceptedBody = await acceptedResponse.json();
-      expect(acceptedBody.data.viewer.user.id).toBeTruthy();
+        const acceptedResponse = await freshPage.request.post('/api/graphql', {
+          headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
+          data: {
+            query: `query { viewer { user { id } } }`
+          }
+        });
+        expect(acceptedResponse.ok()).toBe(true);
+        const acceptedBody = await acceptedResponse.json();
+        expect(acceptedBody.data.viewer.user.id).toBeTruthy();
 
-      await freshPage.goto(routes.settings);
-      await expect(freshPage.getByRole('heading', { name: 'Profile' })).toBeVisible();
-      await expect(freshPage).not.toHaveURL(routes.login);
-    } finally {
-      await context.close();
-    }
+        await freshPage.goto(routes.settings);
+        await expect(freshPage.getByRole('heading', { name: 'Profile' })).toBeVisible();
+        await expect(freshPage).not.toHaveURL(routes.login);
+      },
+      { baseURL: serverURL }
+    );
   });
 
   test('authenticated user with instances is redirected into the server', async ({ page }) => {
@@ -383,13 +396,10 @@ test.describe('Sign Out', () => {
 
 test.describe('/chat backward compatibility', () => {
   test('/chat redirects to / for unauthenticated users', async ({ browser }) => {
-    const context = await browser.newContext();
-    const page = await context.newPage();
-
-    await page.goto('/chat');
-    await page.waitForURL('/');
-
-    await context.close();
+    await withFreshPage(browser, async ({ page }) => {
+      await page.goto('/chat');
+      await page.waitForURL('/');
+    });
   });
 
   test('/chat redirects authenticated users to /', async ({ page }) => {

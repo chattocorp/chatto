@@ -1,6 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { createAndLoginTestUser } from './fixtures/testUser';
-import { withServerUser } from './fixtures/serverUser';
+import { withBootstrapAdminRequest, withServerUser } from './fixtures/serverUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { waitForSpaceUnread, getRoomIdByName, waitForRoomRead } from './fixtures/graphqlHelpers';
 import { test } from './setup';
@@ -885,15 +885,9 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       // ADR-031: message.echo is a channel-room permission, so the deny must
       // be scoped to the room's set (server-scope grants don't cascade into
       // channel rooms anymore). "general" lives in the seed "Lobby" group.
-      const adminContext = await page.context().browser()!.newContext();
-      const adminPage = await adminContext.newPage();
-      try {
-        await adminPage.request.post('/auth/login', {
-          data: { login: 'e2eadmin', password: 'adminpassword123' }
-        });
-
+      await withBootstrapAdminRequest(serverURL, async (adminRequest) => {
         // Find the seed set's ID.
-        const layoutResp = await adminPage.request.post('/api/graphql', {
+        const layoutResp = await adminRequest.post('/api/graphql', {
           headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
           data: { query: `query { server { roomGroups { id } } }` }
         });
@@ -901,7 +895,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
         const layoutJson = await layoutResp.json();
         const seedSetId = layoutJson.data.server.roomGroups[0].id as string;
 
-        const resp = await adminPage.request.post('/api/graphql', {
+        const resp = await adminRequest.post('/api/graphql', {
           headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
           data: {
             query: `mutation($input: GroupPermissionInput!) { denyGroupPermission(input: $input) }`,
@@ -913,9 +907,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
         expect(resp.ok()).toBeTruthy();
         const respJson = await resp.json();
         expect(respJson.errors).toBeFalsy();
-      } finally {
-        await adminContext.close();
-      }
+      });
     });
 
     await withServerUser(

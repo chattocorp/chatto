@@ -1,10 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
-import {
-  createAndLoginTestUser,
-  openServer,
-  loginAsAdminAndUsePrimaryServer
-} from './fixtures/testUser';
+import { createAndLoginTestUser, loginAsAdminAndUsePrimaryServer } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
 import { ServerAdminPage } from './pages';
 import { TIMEOUTS } from './constants';
@@ -974,55 +970,52 @@ test.describe('Room Layout', () => {
 
       // User B shows up empty-handed — no auto-join, no rooms in their
       // sidebar yet.
-      const context2 = await browser!.newContext({ baseURL: serverURL });
-      const page2 = await context2.newPage();
-
-      try {
-        await createAndLoginTestUser(page2, { skipDefaultRooms: true });
-        await openServer(page2);
-
-        // Go to the server Overview (which hosts the room directory).
-        await page2.goto(routes.browseRooms);
-        await expect(page2.getByRole('heading', { name: 'Overview' })).toBeVisible({
-          timeout: TIMEOUTS.UI_STANDARD
-        });
-
-        // Click the group's "Join all" button.
-        const joinAll = page2.getByRole('button', { name: 'Join all' }).first();
-        await expect(joinAll).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
-        await joinAll.click();
-        // Move the cursor off the group card so no row stays in :hover
-        // (which would swap a freshly-joined row's button label from
-        // "Joined" to "Leave" and break the regex below).
-        await page2.mouse.move(0, 0);
-
-        // After the bulk join finishes, the rows for all three rooms
-        // should render the "Joined" pill in the directory. The
-        // button's accessible name resolves to its visible text
-        // ("Joined" when off-hover, "Leave" on hover); we matched the
-        // hover away above so the off-hover label is stable.
-        for (const name of ['alpha', 'bravo', 'charlie']) {
-          const row = page2.locator('li', { hasText: `# ${name}` });
-          await expect(row.getByRole('button', { name: 'Joined' })).toBeVisible({
-            timeout: TIMEOUTS.REALTIME_EVENT
+      await withServerUser(
+        browser!,
+        serverURL,
+        async ({ page: page2 }) => {
+          // Go to the server Overview (which hosts the room directory).
+          await page2.goto(routes.browseRooms);
+          await expect(page2.getByRole('heading', { name: 'Overview' })).toBeVisible({
+            timeout: TIMEOUTS.UI_STANDARD
           });
-        }
 
-        // And the rooms now appear in the sidebar (alongside the
-        // bootstrap rooms, which "Join all" also joined since they
-        // share the group). The seed "Lobby" group has 5 rooms total:
-        // announcements, general, alpha, bravo, charlie.
-        await navigateToSpace(page2);
-        await expect(async () => {
-          const roomNames = await waitForSidebarRooms(page2, 5);
-          expect(roomNames).toEqual(expect.arrayContaining(['alpha', 'bravo', 'charlie']));
-        }).toPass({
-          timeout: TIMEOUTS.REALTIME_EVENT,
-          intervals: [500, 1000, 2000]
-        });
-      } finally {
-        await context2.close();
-      }
+          // Click the group's "Join all" button.
+          const joinAll = page2.getByRole('button', { name: 'Join all' }).first();
+          await expect(joinAll).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+          await joinAll.click();
+          // Move the cursor off the group card so no row stays in :hover
+          // (which would swap a freshly-joined row's button label from
+          // "Joined" to "Leave" and break the regex below).
+          await page2.mouse.move(0, 0);
+
+          // After the bulk join finishes, the rows for all three rooms
+          // should render the "Joined" pill in the directory. The
+          // button's accessible name resolves to its visible text
+          // ("Joined" when off-hover, "Leave" on hover); we matched the
+          // hover away above so the off-hover label is stable.
+          for (const name of ['alpha', 'bravo', 'charlie']) {
+            const row = page2.locator('li', { hasText: `# ${name}` });
+            await expect(row.getByRole('button', { name: 'Joined' })).toBeVisible({
+              timeout: TIMEOUTS.REALTIME_EVENT
+            });
+          }
+
+          // And the rooms now appear in the sidebar (alongside the
+          // bootstrap rooms, which "Join all" also joined since they
+          // share the group). The seed "Lobby" group has 5 rooms total:
+          // announcements, general, alpha, bravo, charlie.
+          await navigateToSpace(page2);
+          await expect(async () => {
+            const roomNames = await waitForSidebarRooms(page2, 5);
+            expect(roomNames).toEqual(expect.arrayContaining(['alpha', 'bravo', 'charlie']));
+          }).toPass({
+            timeout: TIMEOUTS.REALTIME_EVENT,
+            intervals: [500, 1000, 2000]
+          });
+        },
+        { userOptions: { skipDefaultRooms: true } }
+      );
     });
   });
 });

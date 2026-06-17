@@ -1,7 +1,8 @@
 import { expect, type Page } from '@playwright/test';
 import { TIMEOUTS } from './constants';
 import { test } from './setup';
-import { createAndLoginTestUser } from './fixtures/testUser';
+import { postMessageViaAPI } from './fixtures/graphqlHelpers';
+import { loginAndEnterRoom } from './fixtures/serverUser';
 
 function roomIdFromUrl(page: Page): string {
   const match = page.url().match(/\/chat\/-\/([^/]+)/);
@@ -11,26 +12,13 @@ function roomIdFromUrl(page: Page): string {
 
 async function postFillerMessages(page: Page, roomId: string, prefix: string, count: number) {
   for (let index = 0; index < count; index++) {
-    const response = await page.request.post('/api/graphql', {
-      headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-      data: {
-        query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
-        variables: { input: { roomId, body: `${prefix} ${index}` } }
-      }
-    });
-    expect(response.ok()).toBe(true);
+    await postMessageViaAPI(page, roomId, `${prefix} ${index}`);
   }
 }
 
-test('room Files sidebar jumps to root files and opens thread reply files', async ({
-  page,
-  chatPage,
-  roomPage
-}) => {
+test('room Files sidebar jumps to root files and opens thread reply files', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 820 });
-  await createAndLoginTestUser(page);
-  await chatPage.goto();
-  await chatPage.enterRoom('general');
+  const { roomPage } = await loginAndEnterRoom(page);
 
   const roomId = roomIdFromUrl(page);
   const stamp = Date.now();
