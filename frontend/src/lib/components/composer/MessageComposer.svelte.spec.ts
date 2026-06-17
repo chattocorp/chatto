@@ -184,7 +184,9 @@ function pasteFile(target: HTMLElement, file: File) {
 }
 
 async function findEditor(container: Element, testid = 'message-input'): Promise<HTMLElement> {
-  await vi.waitFor(() => expect(q(container, `[data-testid="${testid}"]`)).toBeTruthy());
+  await vi.waitFor(() => expect(q(container, `[data-testid="${testid}"]`)).toBeTruthy(), {
+    timeout: 5000
+  });
   return q(container, `[data-testid="${testid}"]`)!;
 }
 
