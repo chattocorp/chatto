@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import '../../app.css';
 import MessageContent, { renderMarkdown, rendererReady } from './MessageContent.svelte';
 import { q } from '$lib/test-utils';
 import type { RoomMember } from '$lib/mentions';
@@ -293,7 +294,7 @@ describe('MessageContent component', () => {
     expect(container.textContent).not.toContain('```javascript');
   });
 
-  it('renders long fenced code blocks as highlighted code content', async () => {
+  it('keeps long fenced code blocks scrollable inside the code element', async () => {
     const longLine = `const result = ${'veryLongVariableName + '.repeat(20)}"end"`;
     const { container } = renderMessage(`\`\`\`javascript\n${longLine}\n\`\`\``);
 
@@ -304,6 +305,8 @@ describe('MessageContent component', () => {
     expect(pre.getAttribute('data-language')).toBe('javascript');
     expect(code.textContent).toContain(longLine);
     expect(container.textContent).not.toContain('```javascript');
+    expect(window.getComputedStyle(pre).overflowX).toBe('hidden');
+    expect(window.getComputedStyle(code).overflowX).toBe('auto');
   });
 
   it('renders a highlighted code block after leading text', async () => {
