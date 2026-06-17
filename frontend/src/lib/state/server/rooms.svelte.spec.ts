@@ -39,7 +39,15 @@ type QueryResponse = {
       id: string;
       name: string;
       rooms: Array<{ id: string }>;
-      items?: Array<{
+    }>;
+  };
+};
+
+type RoomGroupItemsResponse = {
+  server: {
+    roomGroups: Array<{
+      id: string;
+      items: Array<{
         type: 'ROOM' | 'SIDEBAR_LINK';
         id: string;
         room?: { id: string } | null;
@@ -132,7 +140,19 @@ function makeCountsResponse(counts: Record<string, number>): NotificationCountsR
   };
 }
 
-function makeClient(responses: Array<QueryResponse | NotificationCountsResponse | null>) {
+function makeGroupItemsResponse(
+  groups: RoomGroupItemsResponse['server']['roomGroups']
+): RoomGroupItemsResponse {
+  return {
+    server: {
+      roomGroups: groups
+    }
+  };
+}
+
+function makeClient(
+  responses: Array<QueryResponse | NotificationCountsResponse | RoomGroupItemsResponse | null>
+) {
   const queue = [...responses];
   const queryMock = vi.fn(() => ({
     toPromise: () => Promise.resolve({ data: queue.shift() ?? null, error: null })
@@ -155,6 +175,20 @@ describe('RoomsStore - refresh', () => {
       if (operationName(document) === 'GetMyServerRoomNotificationCounts') {
         return {
           toPromise: () => Promise.resolve({ data: makeCountsResponse({ newer: 4 }), error: null })
+        };
+      }
+      if (operationName(document) === 'GetMyServerRoomGroupItems') {
+        return {
+          toPromise: () =>
+            Promise.resolve({
+              data: makeGroupItemsResponse([
+                {
+                  id: 'g1',
+                  items: [{ id: 'room:newer', type: 'ROOM', room: { id: 'newer' } }]
+                }
+              ]),
+              error: null
+            })
         };
       }
       if (queryMock.mock.calls.length === 1) {
@@ -260,6 +294,115 @@ describe('RoomsStore - refresh', () => {
     await settle();
 
     expect(store.rooms).toMatchObject([{ id: 'general', viewerNotificationCount: 0 }]);
+  });
+
+  it('patches mixed sidebar group items from the optional compatibility query', async () => {
+    let resolveItems!: (value: { data: RoomGroupItemsResponse; error: null }) => void;
+    const queryMock = vi.fn((document: unknown) => {
+      if (operationName(document) === 'GetMyServerRoomNotificationCounts') {
+        return {
+          toPromise: () => Promise.resolve({ data: makeCountsResponse({ general: 0 }), error: null })
+        };
+      }
+      if (operationName(document) === 'GetMyServerRoomGroupItems') {
+        return {
+          toPromise: () => new Promise((resolve) => (resolveItems = resolve))
+        };
+      }
+      return {
+        toPromise: () =>
+          Promise.resolve({
+            data: makeResponse([makeRoom('general')], [
+              { id: 'g1', name: 'Lobby', rooms: [{ id: 'general' }] }
+            ]),
+            error: null
+          })
+      };
+    });
+    const store = makeStore({ query: queryMock } as unknown as Client);
+
+    await store.refresh();
+
+    expect(store.roomGroups).toEqual([
+      {
+        id: 'g1',
+        name: 'Lobby',
+        roomIds: ['general'],
+        items: [{ id: 'room:general', type: 'room', roomId: 'general' }]
+      }
+    ]);
+
+    resolveItems({
+      data: makeGroupItemsResponse([
+        {
+          id: 'g1',
+          items: [
+            {
+              id: 'link:docs',
+              type: 'SIDEBAR_LINK',
+              link: { id: 'docs', label: 'Docs', url: 'https://example.com/docs' }
+            },
+            { id: 'room:general', type: 'ROOM', room: { id: 'general' } }
+          ]
+        }
+      ]),
+      error: null
+    });
+
+    await vi.waitFor(() => {
+      expect(store.roomGroups?.[0]?.items).toEqual([
+        {
+          id: 'link:docs',
+          type: 'link',
+          link: { id: 'docs', label: 'Docs', url: 'https://example.com/docs' }
+        },
+        { id: 'room:general', type: 'room', roomId: 'general' }
+      ]);
+    });
+  });
+
+  it('keeps room-only groups when the optional mixed item field is unsupported', async () => {
+    const queryMock = vi.fn((document: unknown) => {
+      if (operationName(document) === 'GetMyServerRoomNotificationCounts') {
+        return {
+          toPromise: () => Promise.resolve({ data: makeCountsResponse({ general: 0 }), error: null })
+        };
+      }
+      if (operationName(document) === 'GetMyServerRoomGroupItems') {
+        return {
+          toPromise: () =>
+            Promise.resolve({
+              data: null,
+              error: {
+                message: 'Cannot query field "items" on type "RoomGroup".'
+              }
+            })
+        };
+      }
+      return {
+        toPromise: () =>
+          Promise.resolve({
+            data: makeResponse([makeRoom('general')], [
+              { id: 'g1', name: 'Lobby', rooms: [{ id: 'general' }] }
+            ]),
+            error: null
+          })
+      };
+    });
+    const store = makeStore({ query: queryMock } as unknown as Client);
+
+    await store.refresh();
+    await settle();
+
+    expect(store.rooms.map((room) => room.id)).toEqual(['general']);
+    expect(store.roomGroups).toEqual([
+      {
+        id: 'g1',
+        name: 'Lobby',
+        roomIds: ['general'],
+        items: [{ id: 'room:general', type: 'room', roomId: 'general' }]
+      }
+    ]);
   });
 });
 
