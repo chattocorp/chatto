@@ -76,16 +76,6 @@ const MyRoomsQuery = graphql(`
         rooms {
           id
         }
-      }
-    }
-  }
-`);
-
-const MyRoomGroupItemsQuery = graphql(`
-  query GetMyServerRoomGroupItems {
-    server {
-      roomGroups {
-        id
         items {
           type
           id
@@ -128,7 +118,7 @@ function uniqueById<T extends { id: string }>(items: T[]): T[] {
 }
 
 function sidebarItemsFromQuery(group: {
-  rooms?: Array<{ id: string }>;
+  rooms: Array<{ id: string }>;
   items?: Array<{
     type: RoomGroupItemType;
     id: string;
@@ -137,7 +127,11 @@ function sidebarItemsFromQuery(group: {
   }> | null;
 }): RoomsListGroupItem[] {
   if (!group.items || group.items.length === 0) {
-    return sidebarItemsFromRooms(group.rooms ?? []);
+    return uniqueById(group.rooms).map((room) => ({
+      id: `room:${room.id}`,
+      type: 'room',
+      roomId: room.id
+    }));
   }
   return group.items
     .map((item): RoomsListGroupItem | null => {
@@ -162,14 +156,6 @@ function sidebarItemsFromQuery(group: {
       return null;
     })
     .filter((item): item is RoomsListGroupItem => item != null);
-}
-
-function sidebarItemsFromRooms(rooms: Array<{ id: string }>): RoomsListGroupItem[] {
-  return uniqueById(rooms).map((room) => ({
-    id: `room:${room.id}`,
-    type: 'room',
-    roomId: room.id
-  }));
 }
 
 const roomStateRefreshEvents = new Set([
@@ -263,44 +249,13 @@ export class RoomsStore {
         id: s.id,
         name: s.name,
         roomIds: uniqueById(s.rooms).map((r: SetT['rooms'][number]) => r.id),
-        items: sidebarItemsFromRooms(s.rooms)
+        items: sidebarItemsFromQuery(s)
       }));
-      if (this.roomGroups.length > 0) {
-        void this.refreshSidebarGroupItems(thisLoad);
-      }
     } else {
       this.roomGroups = null;
     }
 
     this.isInitialLoading = false;
-  }
-
-  private async refreshSidebarGroupItems(loadId: number): Promise<void> {
-    try {
-      const result = await this.client.query(MyRoomGroupItemsQuery, {}).toPromise();
-      if (this.loadId !== loadId) return;
-
-      if (result.error) {
-        if (!isUnsupportedGraphQLFieldError(result.error, 'items')) {
-          console.warn('failed to load mixed room group sidebar items', result.error);
-        }
-        return;
-      }
-
-      const groups = result.data?.server?.roomGroups ?? [];
-      if (groups.length === 0) return;
-
-      const itemsByGroupId = new Map(groups.map((group) => [group.id, sidebarItemsFromQuery(group)]));
-      untrack(() => {
-        this.roomGroups =
-          this.roomGroups?.map((group) => ({
-            ...group,
-            items: itemsByGroupId.get(group.id) ?? group.items
-          })) ?? null;
-      });
-    } catch (err) {
-      console.warn('failed to load mixed room group sidebar items', err);
-    }
   }
 
   private async refreshNotificationCounts(loadId: number): Promise<void> {
