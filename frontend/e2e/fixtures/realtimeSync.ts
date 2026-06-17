@@ -57,24 +57,30 @@ export async function verifyRealtimeSync(
  * // Now User 2's subscription should be connected
  * ```
  */
-export async function waitForRoomReady(page: Page, roomName?: string): Promise<void> {
+export async function waitForRoomReady(
+  page: Page,
+  roomName?: string,
+  options: { timeout?: number } = {}
+): Promise<void> {
+  const { timeout = TIMEOUTS.REALTIME_EVENT } = options;
+
   // Wait for room header (proves navigation completed)
   if (roomName) {
     await expect(page.getByRole('heading', { name: `# ${roomName}` })).toBeVisible({
-      timeout: 5000
+      timeout
     });
   }
 
   // Wait for message input to be ready (proves room component loaded).
   // Note: don't check contenteditable="true" here - the editor may be read-only
   // if the user doesn't have posting permission (e.g., announcements room).
-  await expect(page.getByTestId('message-input')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+  await expect(page.getByTestId('message-input')).toBeVisible({ timeout });
 
   // Wait for ServerEventProvider to have mounted and initiated the subscription.
   // The hidden marker element proves the component rendered, and since
   // the `myEvents` subscription is started in the first $effect cycle after
   // render, the subscription request has been sent by the time this resolves.
   await expect(page.getByTestId('server-subscription-active')).toBeAttached({
-    timeout: TIMEOUTS.UI_STANDARD
+    timeout
   });
 }
