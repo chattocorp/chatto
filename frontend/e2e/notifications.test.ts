@@ -1,107 +1,18 @@
-import { expect, type Browser, type Page } from '@playwright/test';
+import { expect } from '@playwright/test';
 import { test } from './setup';
-import { ChatPage, RoomPage, NotificationsPage } from './pages';
+import { ChatPage, NotificationsPage } from './pages';
+import { createAndLoginTestUser, loginAsAdmin, loginTestUser } from './fixtures/testUser';
 import {
-  createAndLoginTestUser,
-  loginAsAdmin,
-  loginTestUser,
-  openServer
-} from './fixtures/testUser';
+  joinRoomFromOverview,
+  postMentionFromServerUser,
+  postRoomReplyFromServerUser,
+  postThreadReplyFromServerUser,
+  serverNotificationBadge,
+  withLoggedInServerWindow,
+  withServerUser
+} from './fixtures/serverUser';
 import * as routes from './routes';
 import { POLLING_INTERVALS, TIMEOUTS } from './constants';
-
-interface ServerUserSession {
-  page: Page;
-  chatPage: ChatPage;
-  roomPage: RoomPage;
-}
-
-async function withServerUser<T>(
-  browser: Browser,
-  serverURL: string,
-  run: (session: ServerUserSession) => Promise<T>
-): Promise<T> {
-  const context = await browser.newContext({ baseURL: serverURL });
-  const page = await context.newPage();
-
-  try {
-    await createAndLoginTestUser(page);
-    await openServer(page);
-
-    return await run({
-      page,
-      chatPage: new ChatPage(page),
-      roomPage: new RoomPage(page)
-    });
-  } finally {
-    await context.close();
-  }
-}
-
-async function postMentionFromServerUser(
-  browser: Browser,
-  serverURL: string,
-  mentionedLogin: string,
-  message: string,
-  roomName = 'general'
-): Promise<void> {
-  await withServerUser(browser, serverURL, async ({ chatPage, roomPage }) => {
-    await chatPage.enterRoom(roomName);
-    await roomPage.sendMessage(`@${mentionedLogin} ${message}`);
-  });
-}
-
-async function postThreadReplyFromServerUser(
-  browser: Browser,
-  serverURL: string,
-  rootMessage: string,
-  replyText: string
-): Promise<void> {
-  await withServerUser(browser, serverURL, async ({ chatPage, roomPage }) => {
-    await chatPage.enterRoom('general');
-    const message = roomPage.getMessage(rootMessage);
-    await message.openThread();
-    await roomPage.expectThreadPaneVisible();
-    await roomPage.postThreadReply(replyText);
-  });
-}
-
-async function postRoomReplyFromServerUser(
-  browser: Browser,
-  serverURL: string,
-  rootMessage: string,
-  replyText: string
-): Promise<void> {
-  await withServerUser(browser, serverURL, async ({ page, chatPage, roomPage }) => {
-    await chatPage.enterRoom('general');
-    const targetMsg = roomPage.getMessage(rootMessage);
-    await targetMsg.replyInRoom();
-    await expect(page.getByTestId('reply-indicator')).toBeVisible({
-      timeout: TIMEOUTS.UI_STANDARD
-    });
-    await roomPage.sendMessage(replyText);
-  });
-}
-
-function serverNotificationBadge(page: Page) {
-  return page
-    .locator('.server-gutter [data-testid="server-icon"]')
-    .first()
-    .locator('..')
-    .getByTestId('server-notification-badge');
-}
-
-async function joinRoomFromOverview(page: Page, roomName: string): Promise<void> {
-  await page.getByRole('link', { name: 'Overview' }).click();
-  const roomItem = page.locator('li', { hasText: `# ${roomName}` });
-  await roomItem.getByRole('button', { name: 'Join' }).click();
-  // The Joined button swaps visible text to "Leave" on hover, and Playwright
-  // leaves the cursor on the button it just clicked. Asserting on `title` is
-  // stable across hover state.
-  await expect(roomItem.locator('button[title^="Joined "]')).toBeVisible({
-    timeout: TIMEOUTS.UI_STANDARD
-  });
-}
 
 test.describe('Mention Notifications', () => {
   // Note: Toast notifications for mentions were removed - the bell icon with notification badge
@@ -667,13 +578,7 @@ test.describe('Cross-Tab Sync', () => {
     await chatPage.goto();
     await chatPage.enterRoom('announcements');
 
-    // User A: Open second tab (same user, same session)
-    const context1b = await browser!.newContext({ baseURL: serverURL });
-    const page1b = await context1b.newPage();
-
-    try {
-      // Log User A into second tab
-      await loginTestUser(page1b, userA);
+    await withLoggedInServerWindow(browser!, serverURL, userA, async ({ page: page1b }) => {
       await page1b.goto(routes.space());
       await page1b.waitForURL(routes.patterns.anySpace);
       const notificationsPage1b = new NotificationsPage(page1b);
@@ -692,9 +597,7 @@ test.describe('Cross-Tab Sync', () => {
       // Navigate to notifications page in second tab - should see the notification
       await notificationsPage1b.goto();
       await notificationsPage1b.expectNotificationWithSummary('mentioned you');
-    } finally {
-      await context1b.close();
-    }
+    });
   });
 
   test('dismissed notification disappears from second tab', async ({
@@ -709,13 +612,7 @@ test.describe('Cross-Tab Sync', () => {
     await chatPage.goto();
     await chatPage.enterRoom('announcements');
 
-    // User A: Open second tab
-    const context1b = await browser!.newContext({ baseURL: serverURL });
-    const page1b = await context1b.newPage();
-
-    try {
-      // Log User A into second tab
-      await loginTestUser(page1b, userA);
+    await withLoggedInServerWindow(browser!, serverURL, userA, async ({ page: page1b }) => {
       await page1b.goto(routes.space());
       const notificationsPage1b = new NotificationsPage(page1b);
 
@@ -741,9 +638,7 @@ test.describe('Cross-Tab Sync', () => {
       // Second tab: Notifications page should also be empty
       await notificationsPage1b.goto();
       await notificationsPage1b.expectEmptyState();
-    } finally {
-      await context1b.close();
-    }
+    });
   });
 
   test('notification dismissed by entering room syncs to other tabs', async ({
@@ -757,13 +652,7 @@ test.describe('Cross-Tab Sync', () => {
     await chatPage.goto();
     await chatPage.enterRoom('announcements');
 
-    // User A: Open second tab on notifications page
-    const context1b = await browser!.newContext({ baseURL: serverURL });
-    const page1b = await context1b.newPage();
-
-    try {
-      // Log User A into second tab
-      await loginTestUser(page1b, userA);
+    await withLoggedInServerWindow(browser!, serverURL, userA, async ({ page: page1b }) => {
       const notificationsPage1b = new NotificationsPage(page1b);
 
       // User B: Mention User A in general (User B can't post in announcements due to RBAC)
@@ -785,9 +674,7 @@ test.describe('Cross-Tab Sync', () => {
       // User A (tab 2): Notification should disappear from the list
       await expect(notification1b).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
       await notificationsPage1b.expectEmptyState();
-    } finally {
-      await context1b.close();
-    }
+    });
   });
 
   test('reply notification is dismissed by opening the thread', async ({
@@ -848,13 +735,9 @@ test.describe('Cross-Tab Sync', () => {
     const generalLink = chatPage.roomList.locator('a', { hasText: '# general' });
     const generalMentionBadge = generalLink.getByTestId('room-notification-badge');
 
-    const context1b = await browser!.newContext({ baseURL: serverURL });
-    const page1b = await context1b.newPage();
-
-    try {
+    await withLoggedInServerWindow(browser!, serverURL, userA, async ({ page: page1b }) => {
       // User A: second tab, also navigated to announcements so #general's
       // mention badge is visible in the sidebar.
-      await loginTestUser(page1b, userA);
       await page1b.goto(routes.space());
       const chatPage1b = new ChatPage(page1b);
       await chatPage1b.enterRoom('announcements');
@@ -901,9 +784,7 @@ test.describe('Cross-Tab Sync', () => {
       await expect(async () => {
         await expect(generalLink1bAfter.getByTestId('room-notification-badge')).not.toBeVisible();
       }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });
-    } finally {
-      await context1b.close();
-    }
+    });
   });
 });
 

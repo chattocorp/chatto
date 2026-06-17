@@ -8,7 +8,39 @@ import { getToasts, toast } from '$lib/ui/toast';
 import type { RoomMember } from '$lib/state/room';
 import { PresenceStatus } from '$lib/gql/graphql';
 
-const mutationData = { postMessage: { id: 'msg_123' } };
+function postedMessageEvent(
+  id = 'msg_123',
+  roomId = 'room_456',
+  threadRootEventId: string | null = null
+) {
+  return {
+    __typename: 'Event',
+    id,
+    createdAt: '2026-06-17T10:47:00Z',
+    actorId: 'test-user',
+    actor: null,
+    event: {
+      __typename: 'MessagePostedEvent',
+      roomId,
+      body: 'hello world',
+      attachments: [],
+      linkPreview: null,
+      reactions: [],
+      updatedAt: null,
+      inReplyTo: null,
+      threadRootEventId,
+      echoOfEventId: null,
+      echoFromThreadRootEventId: null,
+      channelEchoEventId: null,
+      replyCount: 0,
+      lastReplyAt: null,
+      threadParticipants: [],
+      viewerIsFollowingThread: true
+    }
+  };
+}
+
+const mutationData = { postMessage: postedMessageEvent() };
 const updateMutationData = { updateMessage: true };
 const prepareFilesMock = vi.hoisted(() => vi.fn());
 const mutationMock = vi.hoisted(() => vi.fn());
@@ -1559,13 +1591,17 @@ describe('MessageComposer', () => {
         alsoSendToChannel: true
       });
       expect(onCancelReply).toHaveBeenCalledOnce();
-      expect(onMessageSent).toHaveBeenCalledOnce();
+      expect(onMessageSent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'msg_123',
+          event: expect.objectContaining({ __typename: 'MessagePostedEvent' })
+        })
+      );
       expect(mockInstanceStores.roomUnread.setRoomUnread).toHaveBeenCalledWith(roomId, false);
       expect(roomStateMock.scrollState.requestScrollToBottom).toHaveBeenCalledOnce();
     });
 
     it('retries large mention sends with the confirmation token', async () => {
-      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
       mutationMock
         .mockResolvedValueOnce({
           data: null,
@@ -1583,7 +1619,7 @@ describe('MessageComposer', () => {
         })
         .mockResolvedValueOnce({ data: mutationData, error: null });
 
-      const { container } = renderMessageComposer(
+      const { container, getByRole, getByText } = renderMessageComposer(
         { roomId: 'room_456' },
         new Map([['$$_urql', mockClient]])
       );
@@ -1592,14 +1628,99 @@ describe('MessageComposer', () => {
       await typeInEditor(editor, '@all hello');
       (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
 
+      await expect.element(getByRole('dialog', { name: 'Notify 12 people?' })).toBeInTheDocument();
+      await expect
+        .element(getByText('This message will notify 12 people. Send it anyway?'))
+        .toBeInTheDocument();
+      expect(mutationMock).toHaveBeenCalledOnce();
+
+      await userEvent.click(getByRole('button', { name: 'Send Anyway' }));
+
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledTimes(2));
-      expect(confirmSpy).toHaveBeenCalledWith(
-        'This message will notify 12 people. Send it anyway?'
-      );
       expect(mutationMock.mock.calls[0][1].input.mentionConfirmationToken).toBeNull();
       expect(mutationMock.mock.calls[1][1].input.mentionConfirmationToken).toBe(
         'jwt.confirmation.token'
       );
+    });
+
+    it('restores text and attachments when cancelling a large mention send', async () => {
+      mutationMock.mockResolvedValueOnce({
+        data: null,
+        error: {
+          graphQLErrors: [
+            {
+              extensions: {
+                code: 'MENTION_CONFIRMATION_REQUIRED',
+                recipientCount: 12,
+                mentionConfirmationToken: 'jwt.confirmation.token'
+              }
+            }
+          ]
+        }
+      });
+
+      const { container, getByRole } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+      const file = selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
+
+      await expect.poll(() => q(container, 'img')).toBeTruthy();
+      await typeInEditor(editor, '@all with attachment');
+      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+
+      await expect.element(getByRole('dialog', { name: 'Notify 12 people?' })).toBeInTheDocument();
+      expect(mutationMock).toHaveBeenCalledOnce();
+
+      await userEvent.click(getByRole('button', { name: 'Cancel' }));
+
+      await expect.element(editor).toHaveTextContent('@all with attachment');
+      await expect.poll(() => q(container, 'img')).toBeTruthy();
+      expect(mutationMock).toHaveBeenCalledOnce();
+      expect(mutationMock.mock.calls[0][1].input.attachments).toEqual([file]);
+    });
+
+    it('restores text and attachments after a failed large mention confirmation retry', async () => {
+      mutationMock
+        .mockResolvedValueOnce({
+          data: null,
+          error: {
+            graphQLErrors: [
+              {
+                extensions: {
+                  code: 'MENTION_CONFIRMATION_REQUIRED',
+                  recipientCount: 12,
+                  mentionConfirmationToken: 'jwt.confirmation.token'
+                }
+              }
+            ]
+          }
+        })
+        .mockResolvedValueOnce({ data: null, error: new Error('still nope') });
+
+      const { container, getByRole } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+      const file = selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
+
+      await expect.poll(() => q(container, 'img')).toBeTruthy();
+      await typeInEditor(editor, '@all will retry');
+      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+
+      await expect.element(getByRole('dialog', { name: 'Notify 12 people?' })).toBeInTheDocument();
+      await userEvent.click(getByRole('button', { name: 'Send Anyway' }));
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledTimes(2));
+      await expect.element(editor).toHaveTextContent('@all will retry');
+      await expect.poll(() => q(container, 'img')).toBeTruthy();
+      expect(mutationMock.mock.calls[1][1].input.mentionConfirmationToken).toBe(
+        'jwt.confirmation.token'
+      );
+      expect(mutationMock.mock.calls[1][1].input.attachments).toEqual([file]);
+      expect(getToasts().map((t) => t.message)).toContain('Failed to send message');
     });
 
     it('restores text and attachments after a failed post', async () => {

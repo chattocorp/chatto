@@ -171,6 +171,8 @@ export class AutocompleteState {
     const scored: { handle: string; score: number; priority: number }[] = [];
 
     for (const m of this.getMembers()) {
+      if (m.deleted || !m.login) continue;
+
       const loginScore = fuzzyMatch(partial, m.login);
       const displayScore = fuzzyMatch(partial, m.displayName);
       const bestScore = Math.max(loginScore ?? -1, displayScore ?? -1);

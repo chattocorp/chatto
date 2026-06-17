@@ -1,9 +1,8 @@
 import { expect } from '@playwright/test';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
-import { ChatPage, RoomPage } from './pages';
+import { withServerUser } from './fixtures/serverUser';
 import { TIMEOUTS } from './constants';
-import * as routes from './routes';
 
 /**
  * Player rendering for audio/image/video/generic attachments is unit-tested
@@ -23,34 +22,25 @@ test.describe('audio player', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const testServerName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     // Set up a second user
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
-    const chatPage2 = new ChatPage(page2);
-    const roomPage2 = new RoomPage(page2);
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ chatPage: chatPage2, roomPage: roomPage2 }) => {
+        await chatPage2.enterRoom('general');
 
-    try {
-      await createAndLoginTestUser(page2);
-      await chatPage2.goto();
+        // User 1 uploads and sends an audio file
+        await roomPage.fileInput.setInputFiles('e2e/fixtures/test-audio.mp3');
+        await roomPage.messageInput.press('Enter');
 
-      // User 2 opens the server, then enters the room
-      await chatPage2.goto();
-      await chatPage2.enterRoom('general');
+        // User 1 sees the audio player
+        await expect(roomPage.audioPlayer).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
 
-      // User 1 uploads and sends an audio file
-      await roomPage.fileInput.setInputFiles('e2e/fixtures/test-audio.mp3');
-      await roomPage.messageInput.press('Enter');
-
-      // User 1 sees the audio player
-      await expect(roomPage.audioPlayer).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
-
-      // User 2 also sees the audio player via real-time subscription
-      await expect(roomPage2.audioPlayer).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-    } finally {
-      await context2.close();
-    }
+        // User 2 also sees the audio player via real-time subscription
+        await expect(roomPage2.audioPlayer).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      }
+    );
   });
 });

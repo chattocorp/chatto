@@ -29,7 +29,6 @@
   const notificationStore = stores.notifications;
   const serverInfo = stores.serverInfo;
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
-  import { isUserMentioned } from '$lib/mentions';
   import MessageActionSheet from './MessageActionSheet.svelte';
   import MessageContextMenu from '$lib/components/menus/MessageContextMenu.svelte';
   import MessageHoverBar from './MessageHoverBar.svelte';
@@ -47,6 +46,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { extractURLs } from '$lib/linkPreview';
   import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
+  import { shouldHighlightCurrentUserMention } from './messageMentionHighlight';
 
   // Long-press thresholds in milliseconds
   const HIGHLIGHT_DELAY_MS = 150; // Delay before showing visual feedback (avoids flicker on scroll)
@@ -380,10 +380,13 @@
 
   // Check if current user is mentioned (but not by themselves)
   const isCurrentUserMentioned = $derived(
-    currentUser.user?.login &&
-      msg?.body &&
-      event?.actorId !== currentUser.user.id &&
-      isUserMentioned(msg.body, currentUser.user.login, members)
+    shouldHighlightCurrentUserMention({
+      actorId: event?.actorId,
+      body: msg?.body,
+      currentUserId: currentUser.user?.id,
+      currentUserLogin: currentUser.user?.login,
+      members
+    })
   );
 
   // User profile popover state
@@ -404,6 +407,7 @@
   const canBanPopoverUser = $derived.by(() => {
     if (
       !popoverUser ||
+      popoverUser.deleted ||
       !roomPermissions.canBanRoomMembers ||
       popoverUser.id === currentUser.user?.id
     ) {
@@ -414,6 +418,8 @@
   });
 
   function openBanDialog(member: RoomMember) {
+    if (member.deleted) return;
+
     banDialogUser = member;
     banError = null;
     closePopover();
@@ -775,7 +781,7 @@
     <UserContextMenu
       user={popoverUser}
       anchorRect={popoverAnchorRect}
-      canSendMessage={canStartDMs}
+      canSendMessage={canStartDMs && !popoverUser.deleted}
       canBanFromRoom={canBanPopoverUser}
       banningFromRoom={banningMemberId === popoverUser.id}
       onSendMessage={() => startDMWith(getActiveServer(), popoverUser!.id)}

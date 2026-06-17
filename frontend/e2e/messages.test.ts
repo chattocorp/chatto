@@ -2,8 +2,7 @@ import { expect } from '@playwright/test';
 import { TIMEOUTS } from './constants';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
-import { ChatPage, RoomPage } from './pages';
-import * as routes from './routes';
+import { withServerUser } from './fixtures/serverUser';
 
 test('consecutive messages from same user are grouped', async ({ page, chatPage, roomPage }) => {
   const testUser = await createAndLoginTestUser(page);
@@ -341,7 +340,6 @@ test('deleted message disappears for other connected clients in real-time', asyn
   // User 1: Create account and post a message
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  const serverName = await chatPage.getServerName();
   await chatPage.enterRoom('general');
 
   const testMessage = `Real-time delete test ${Date.now()}`;
@@ -349,54 +347,38 @@ test('deleted message disappears for other connected clients in real-time', asyn
   const eventId = await message1.getEventId();
 
   // User 2: Create user and open the server
-  const context2 = await browser!.newContext({
-    baseURL: serverURL,
-    viewport: { width: 1280, height: 720 }
-  });
-  const page2 = await context2.newPage();
+  await withServerUser(
+    browser!,
+    serverURL,
+    async ({ page: page2, chatPage: chatPage2 }) => {
+      await chatPage2.enterRoom('general');
 
-  try {
-    await createAndLoginTestUser(page2);
+      // User 2 should see the message
+      await expect(page2.getByText(testMessage)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
-    // Post-#330 PR(a): signup auto-joins the server; the Browse Spaces
-    // UI is gone, so user 2 just navigates to the chat root and clicks into
-    // the room.
-    void serverName;
-    await page2.goto(routes.chat);
-    await page2.waitForURL(routes.patterns.spaceOrRoom);
+      // User 1: Delete the message
+      await message1.delete();
 
-    // User 2 enters the general room (may already be there due to redirect)
-    const generalRoomLink = page2.locator('.room-list').getByRole('link', { name: '# general' });
-    await expect(generalRoomLink).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
-    await generalRoomLink.click();
-    await page2.waitForURL(routes.patterns.anyRoom);
+      // User 1: deleted message should show the tombstone
+      await roomPage.expectMessageNotVisible(testMessage);
+      if (eventId) {
+        const message1AfterDelete = roomPage.getMessageByEventId(eventId);
+        await message1AfterDelete.expectDeleted();
+      }
 
-    // User 2 should see the message
-    await expect(page2.getByText(testMessage)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
-
-    // User 1: Delete the message
-    await message1.delete();
-
-    // User 1: deleted message should show the tombstone
-    await roomPage.expectMessageNotVisible(testMessage);
-    if (eventId) {
-      const message1AfterDelete = roomPage.getMessageByEventId(eventId);
-      await message1AfterDelete.expectDeleted();
-    }
-
-    // User 2: should also see the tombstone arrive via LiveEvent
-    if (eventId) {
-      const message2AfterDelete = page2.locator(`[data-event-id="${eventId}"]`);
-      await expect(message2AfterDelete.getByText('This message has been deleted')).toBeVisible({
-        timeout: TIMEOUTS.UI_STANDARD
-      });
-      await expect(page2.getByText(testMessage)).not.toBeVisible({
-        timeout: TIMEOUTS.UI_STANDARD
-      });
-    }
-  } finally {
-    await context2.close();
-  }
+      // User 2: should also see the tombstone arrive via LiveEvent
+      if (eventId) {
+        const message2AfterDelete = page2.locator(`[data-event-id="${eventId}"]`);
+        await expect(message2AfterDelete.getByText('This message has been deleted')).toBeVisible({
+          timeout: TIMEOUTS.UI_STANDARD
+        });
+        await expect(page2.getByText(testMessage)).not.toBeVisible({
+          timeout: TIMEOUTS.UI_STANDARD
+        });
+      }
+    },
+    { viewport: { width: 1280, height: 720 } }
+  );
 });
 
 test('deleted attachment-only message shows placeholder', async ({ page, chatPage, roomPage }) => {
@@ -518,7 +500,6 @@ test('deletion of a reacted message shows placeholder for other connected client
   // doesn't cover and that the previous refetch-only path failed silently on.
   await createAndLoginTestUser(page);
   await chatPage.goto();
-  const serverName = await chatPage.getServerName();
   await chatPage.enterRoom('general');
 
   const testMessage = `Real-time delete with reaction ${Date.now()}`;
@@ -526,39 +507,30 @@ test('deletion of a reacted message shows placeholder for other connected client
   const eventId = await message1.getEventId();
   if (!eventId) throw new Error('expected eventId from sent message');
 
-  const context2 = await browser!.newContext({
-    baseURL: serverURL,
-    viewport: { width: 1280, height: 720 }
-  });
-  const page2 = await context2.newPage();
+  await withServerUser(
+    browser!,
+    serverURL,
+    async ({ roomPage: roomPage2, chatPage: chatPage2 }) => {
+      await chatPage2.enterRoom('general');
+      await roomPage2.expectMessageVisible(testMessage);
 
-  try {
-    await createAndLoginTestUser(page2);
+      // User 2 reacts so the deletion can't take the "fully hidden" path.
+      const message2 = roomPage2.getMessageByEventId(eventId);
+      await message2.react('👍');
+      await message2.expectReaction('👍', 1);
 
-    const chatPage2 = new ChatPage(page2);
-    const roomPage2 = new RoomPage(page2);
+      // User 1 deletes their own message.
+      await message1.delete();
 
-    await chatPage2.goto();
-    await chatPage2.enterRoom('general');
-    await roomPage2.expectMessageVisible(testMessage);
-
-    // User 2 reacts so the deletion can't take the "fully hidden" path.
-    const message2 = roomPage2.getMessageByEventId(eventId);
-    await message2.react('👍');
-    await message2.expectReaction('👍', 1);
-
-    // User 1 deletes their own message.
-    await message1.delete();
-
-    // User 2 must see the placeholder + reaction without a refresh.
-    await message2.expectDeleted();
-    await message2.expectReaction('👍', 1);
-    await expect(message2.locator.getByText(testMessage)).not.toBeVisible({
-      timeout: TIMEOUTS.UI_STANDARD
-    });
-  } finally {
-    await context2.close();
-  }
+      // User 2 must see the placeholder + reaction without a refresh.
+      await message2.expectDeleted();
+      await message2.expectReaction('👍', 1);
+      await expect(message2.locator.getByText(testMessage)).not.toBeVisible({
+        timeout: TIMEOUTS.UI_STANDARD
+      });
+    },
+    { viewport: { width: 1280, height: 720 } }
+  );
 });
 
 test('deleted message with thread replies remains visible', async ({

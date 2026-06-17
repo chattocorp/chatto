@@ -1,10 +1,14 @@
 import { expect } from '@playwright/test';
 import { TIMEOUTS, POLLING_INTERVALS } from './constants';
-import { createAndLoginTestUser, openServer } from './fixtures/testUser';
+import { createAndLoginTestUser } from './fixtures/testUser';
+import {
+  joinRoomFromOverview,
+  withLoggedInServerWindow,
+  withServerUser
+} from './fixtures/serverUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { test } from './setup';
-import { ChatPage, SettingsPage } from './pages';
-import * as routes from './routes';
+import { SettingsPage } from './pages';
 
 test.describe('Real-time synchronization', () => {
   test('room list updates when user joins a room from another session', async ({
@@ -24,34 +28,16 @@ test.describe('Real-time synchronization', () => {
     await expect(chatPage.roomList.getByText(`# ${testRoomName}`)).toBeVisible();
 
     // Session 2: Same user in a different browser context (simulating second tab/device)
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
-
-    try {
-      // Login as same user in session 2
-      const loginResponse = await page2.request.post('/auth/login', {
-        data: {
-          login: user1.login,
-          password: user1.password
-        }
-      });
-      expect(loginResponse.ok()).toBeTruthy();
-
+    await withLoggedInServerWindow(browser!, serverURL, user1, async ({ chatPage: chatPage2 }) => {
       // Navigate to the server. Session 2 should already have the room
       // since it's the same user and the room was created with auto-join
       // for the creator. Allow a generous timeout because the new
       // context boots its own WebSocket subscription and rooms store
       // refresh, which races the initial sidebar render.
-      await page2.goto(routes.space());
-      await page2.waitForURL(routes.patterns.anySpace);
-
-      const chatPage2 = new ChatPage(page2);
       await expect(chatPage2.roomList.getByRole('link', { name: `# ${testRoomName}` })).toBeVisible(
         { timeout: TIMEOUTS.REALTIME_EVENT }
       );
-    } finally {
-      await context2.close();
-    }
+    });
   });
 
   test('user sees leave event when another user leaves the room', async ({
@@ -67,45 +53,40 @@ test.describe('Real-time synchronization', () => {
     await chatPage.expectRoomHeaderVisible('leave-test');
 
     // User 2: Join the same server and room
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: page2, user: user2, chatPage: chatPage2 }) => {
+        // Join the room (via the Overview directory). Playwright leaves the
+        // cursor over the Join button after click, which keeps the row in
+        // :hover and swaps the button label to "Leave" — move the mouse
+        // away first so the visible state is the stable "Joined" pill.
+        await page2.getByRole('link', { name: 'Overview' }).click();
+        const leaveTestItem = page2.locator('li', { hasText: '# leave-test' });
+        await leaveTestItem.getByRole('button', { name: 'Join' }).click();
+        await page2.mouse.move(0, 0);
+        await expect(
+          leaveTestItem.getByRole('button', { name: /^Joined$|Joined #leave-test/i })
+        ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
-    try {
-      const user2 = await createAndLoginTestUser(page2);
-      const chatPage2 = new ChatPage(page2);
-      await chatPage2.goto();
+        // Navigate to the room via sidebar
+        await chatPage2.enterRoom('leave-test');
 
-      // Join the room (via the Overview directory). Playwright leaves the
-      // cursor over the Join button after click, which keeps the row in
-      // :hover and swaps the button label to "Leave" — move the mouse
-      // away first so the visible state is the stable "Joined" pill.
-      await page2.getByRole('link', { name: 'Overview' }).click();
-      const leaveTestItem = page2.locator('li', { hasText: '# leave-test' });
-      await leaveTestItem.getByRole('button', { name: 'Join' }).click();
-      await page2.mouse.move(0, 0);
-      await expect(
-        leaveTestItem.getByRole('button', { name: /^Joined$|Joined #leave-test/i })
-      ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+        // User 1 should see User 2's join event
+        await expect(page.getByText(`${user2.displayName} joined the room`)).toBeVisible({
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
 
-      // Navigate to the room via sidebar
-      await chatPage2.enterRoom('leave-test');
+        // User 2: Leave the room
+        await page2.getByTitle('Leave room').click();
+        await page2.getByRole('dialog').getByRole('button', { name: 'Leave Room' }).click();
 
-      // User 1 should see User 2's join event
-      await expect(page.getByText(`${user2.displayName} joined the room`)).toBeVisible({
-        timeout: TIMEOUTS.REALTIME_EVENT
-      });
-
-      // User 2: Leave the room
-      await page2.getByTitle('Leave room').click();
-      await page2.getByRole('dialog').getByRole('button', { name: 'Leave Room' }).click();
-
-      // User 1 should see User 2's leave event in the room
-      await expect(page.getByText(`${user2.displayName} left the room`)).toBeVisible({
-        timeout: TIMEOUTS.REALTIME_EVENT
-      });
-    } finally {
-      await context2.close();
-    }
+        // User 1 should see User 2's leave event in the room
+        await expect(page.getByText(`${user2.displayName} left the room`)).toBeVisible({
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
+      }
+    );
   });
 
   test('room membership events update room list in real-time', async ({ page, chatPage }) => {
@@ -160,22 +141,9 @@ test.describe('Real-time synchronization', () => {
     await chatPage.expectRoomHeaderVisible('test-room');
 
     // User 2: Open the server and room first (so they can see messages)
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
-
-    try {
-      const _user2 = await createAndLoginTestUser(page2);
-      const chatPage2 = new ChatPage(page2);
-      await chatPage2.goto();
-
+    await withServerUser(browser!, serverURL, async ({ page: page2, chatPage: chatPage2 }) => {
       // Join the room via Browse Rooms, then navigate to it
-      await page2.getByRole('link', { name: 'Overview' }).click();
-      const testRoomItem2 = page2.locator('li', { hasText: '# test-room' });
-      await testRoomItem2.getByRole('button', { name: 'Join' }).click();
-      await expect(testRoomItem2.locator('button[title^="Joined "]')).toBeVisible({
-        timeout: TIMEOUTS.UI_STANDARD
-      });
-
+      await joinRoomFromOverview(page2, 'test-room');
       await chatPage2.enterRoom('test-room');
 
       // User 1: Send a message now that both users are in the room
@@ -210,9 +178,7 @@ test.describe('Real-time synchronization', () => {
       await expect(messageArticle.getByRole('button', { name: newDisplayName })).toBeVisible({
         timeout: TIMEOUTS.REALTIME_EVENT
       });
-    } finally {
-      await context2.close();
-    }
+    });
   });
 
   test('display name update does not cause JavaScript errors on receiving clients', async ({
@@ -230,36 +196,24 @@ test.describe('Real-time synchronization', () => {
     await chatPage.createRoom('error-test');
     await chatPage.expectRoomHeaderVisible('error-test');
 
-    // User 2: Open the server and room, capture console errors
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
-
     const consoleErrors: string[] = [];
-    page2.on('console', (msg) => {
-      if (msg.type() === 'error') {
-        consoleErrors.push(msg.text());
-      }
-    });
-
-    // Also capture page errors (uncaught exceptions)
     const pageErrors: string[] = [];
-    page2.on('pageerror', (err) => {
-      pageErrors.push(err.message);
-    });
 
-    try {
-      await createAndLoginTestUser(page2);
-      const chatPage2 = new ChatPage(page2);
-      await chatPage2.goto();
-
-      // Join the room via Browse Rooms, then navigate to it
-      await page2.getByRole('link', { name: 'Overview' }).click();
-      const errorTestItem = page2.locator('li', { hasText: '# error-test' });
-      await errorTestItem.getByRole('button', { name: 'Join' }).click();
-      await expect(errorTestItem.locator('button[title^="Joined "]')).toBeVisible({
-        timeout: TIMEOUTS.UI_STANDARD
+    // User 2: Open the server and room, capture console errors
+    await withServerUser(browser!, serverURL, async ({ page: page2, chatPage: chatPage2 }) => {
+      page2.on('console', (msg) => {
+        if (msg.type() === 'error') {
+          consoleErrors.push(msg.text());
+        }
       });
 
+      // Also capture page errors (uncaught exceptions)
+      page2.on('pageerror', (err) => {
+        pageErrors.push(err.message);
+      });
+
+      // Join the room via Browse Rooms, then navigate to it
+      await joinRoomFromOverview(page2, 'error-test');
       await chatPage2.enterRoom('error-test');
 
       // Wait for room to be ready (connection established)
@@ -292,9 +246,7 @@ test.describe('Real-time synchronization', () => {
       ];
 
       expect(criticalErrors).toEqual([]);
-    } finally {
-      await context2.close();
-    }
+    });
   });
 
   test('avatar updates are visible to other users in real-time', async ({
@@ -307,8 +259,6 @@ test.describe('Real-time synchronization', () => {
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
 
-    const spaceId = await chatPage.getServerScopeId();
-
     // Navigate to "general" room to see member list
     const roomPage = await chatPage.enterRoom('general');
 
@@ -317,46 +267,34 @@ test.describe('Real-time synchronization', () => {
     await roomPage.expectMemberVisible(userA.login);
 
     // User B: Create account and open the server
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: page2, user: userB, chatPage: chatPage2 }) => {
+        await chatPage2.enterRoom('general');
+        await waitForRoomReady(page2, 'general');
 
-    try {
-      const userB = await createAndLoginTestUser(page2);
+        // Wait for User B to be visible in User A's member list
+        await roomPage.expectMemberVisible(userB.login, { timeout: TIMEOUTS.REALTIME_EVENT });
 
-      // User B opens the server
-      await openServer(page2);
+        // User A: Verify User B's avatar shows initials (no avatar yet)
+        await roomPage.expectMemberHasInitials(userB.login);
 
-      // Navigate to the server
-      await page2.goto(routes.space());
-      await page2.waitForURL(routes.patterns.anySpace);
+        // User B: Navigate to settings and upload an avatar
+        const settingsPage2 = new SettingsPage(page2);
+        await settingsPage2.goto();
+        await settingsPage2.uploadAvatar('e2e/fixtures/brighton.jpg');
 
-      // User B clicks on general room
-      const chatPage2 = new ChatPage(page2);
-      await chatPage2.enterRoom('general');
-      await waitForRoomReady(page2, 'general');
+        // User A: Verify User B's avatar now shows an image instead of initials
+        // The avatar should update in real-time via the UserProfileUpdatedEvent
+        await roomPage.expectMemberHasAvatar(userB.login, { timeout: TIMEOUTS.REALTIME_EVENT });
 
-      // Wait for User B to be visible in User A's member list
-      await roomPage.expectMemberVisible(userB.login, { timeout: TIMEOUTS.REALTIME_EVENT });
+        // User B: Remove the avatar
+        await settingsPage2.removeAvatar();
 
-      // User A: Verify User B's avatar shows initials (no avatar yet)
-      await roomPage.expectMemberHasInitials(userB.login);
-
-      // User B: Navigate to settings and upload an avatar
-      const settingsPage2 = new SettingsPage(page2);
-      await settingsPage2.goto();
-      await settingsPage2.uploadAvatar('e2e/fixtures/brighton.jpg');
-
-      // User A: Verify User B's avatar now shows an image instead of initials
-      // The avatar should update in real-time via the UserProfileUpdatedEvent
-      await roomPage.expectMemberHasAvatar(userB.login, { timeout: TIMEOUTS.REALTIME_EVENT });
-
-      // User B: Remove the avatar
-      await settingsPage2.removeAvatar();
-
-      // User A: Verify User B's avatar goes back to initials
-      await roomPage.expectMemberHasInitials(userB.login, { timeout: TIMEOUTS.REALTIME_EVENT });
-    } finally {
-      await context2.close();
-    }
+        // User A: Verify User B's avatar goes back to initials
+        await roomPage.expectMemberHasInitials(userB.login, { timeout: TIMEOUTS.REALTIME_EVENT });
+      }
+    );
   });
 });

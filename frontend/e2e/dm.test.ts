@@ -6,6 +6,7 @@ import {
   denyUserPermission,
   clearUserPermissionOverride
 } from './fixtures/testUser';
+import { withServerUser } from './fixtures/serverUser';
 import { DMPage } from './pages/DMPage';
 import { RoomPage } from './pages/RoomPage';
 import { postMessageViaAPI } from './fixtures/graphqlHelpers';
@@ -31,11 +32,7 @@ test.describe('Direct Messages (room-shaped)', () => {
     // Two users on the same server.
     const userA = await createAndLoginTestUser(page);
 
-    const context2 = await browser.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
-    try {
-      await createAndLoginTestUser(page2);
-
+    await withServerUser(browser, serverURL, async ({ page: page2 }) => {
       // User B starts a DM with User A and seeds a message so the DM is in
       // User A's merged sidebar (the active DM-room list filters empty rooms).
       // The conversation ID is deterministic across the two users — pull it
@@ -67,9 +64,7 @@ test.describe('Direct Messages (room-shaped)', () => {
       await expect(page.getByText(postedBody)).toBeVisible({
         timeout: TIMEOUTS.REALTIME_EVENT
       });
-    } finally {
-      await context2.close();
-    }
+    });
   });
 
   test('a DM with messages renders in the primary-server sidebar and links to /chat/{seg}/{id}', async ({
@@ -79,11 +74,7 @@ test.describe('Direct Messages (room-shaped)', () => {
   }) => {
     const userA = await createAndLoginTestUser(page);
 
-    const context2 = await browser.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
-    try {
-      const userB = await createAndLoginTestUser(page2);
-
+    await withServerUser(browser, serverURL, async ({ page: page2, user: userB }) => {
       // User B → User A: start DM and post so the DM survives the active
       // DM-room empty-room filter.
       const dmPageB = new DMPage(page2);
@@ -110,9 +101,7 @@ test.describe('Direct Messages (room-shaped)', () => {
       await dmLink.click();
       await page.waitForURL(routes.patterns.anyRoom);
       expect(page.url()).not.toContain('/chat/dm/');
-    } finally {
-      await context2.close();
-    }
+    });
   });
 
   test('an incoming DM bumps the conversation to the top and shows an unread dot', async ({
@@ -122,68 +111,60 @@ test.describe('Direct Messages (room-shaped)', () => {
   }) => {
     const userA = await createAndLoginTestUser(page);
 
-    const ctxB = await browser.newContext({ baseURL: serverURL });
-    const ctxC = await browser.newContext({ baseURL: serverURL });
-    const pageB = await ctxB.newPage();
-    const pageC = await ctxC.newPage();
-    try {
-      const userB = await createAndLoginTestUser(pageB);
-      const userC = await createAndLoginTestUser(pageC);
+    await withServerUser(browser, serverURL, async ({ user: userB }) => {
+      await withServerUser(browser, serverURL, async ({ page: pageC, user: userC }) => {
+        // Seed two existing DMs from User A's side, B last so it sorts above C
+        // by last-activity (newest first). User A then leaves the Overview open
+        // — *not* in either DM — so subsequent activity must bump via subscription.
+        const dmA = new DMPage(page);
+        const aToC = await dmA.startConversation(userC.login);
+        await aToC.sendMessage('seed C');
+        const aToB = await dmA.startConversation(userB.login);
+        await aToB.sendMessage('seed B');
 
-      // Seed two existing DMs from User A's side, B last so it sorts above C
-      // by last-activity (newest first). User A then leaves the Overview open
-      // — *not* in either DM — so subsequent activity must bump via subscription.
-      const dmA = new DMPage(page);
-      const aToC = await dmA.startConversation(userC.login);
-      await aToC.sendMessage('seed C');
-      const aToB = await dmA.startConversation(userB.login);
-      await aToB.sendMessage('seed B');
-
-      await page.goto(routes.browseRooms);
-      await page.waitForURL(routes.browseRooms);
-      await expect(page.getByRole('button', { name: /direct messages/i })).toBeVisible({
-        timeout: TIMEOUTS.REALTIME_EVENT
-      });
-
-      // Snapshot the order before C posts. dmRows() returns the visible DM
-      // sidebar items; the order reflects the rooms-store array order.
-      const dmRows = () =>
-        page.locator('nav a.sidebar-item').filter({
-          has: page.getByText(new RegExp(`^(${userB.displayName}|${userC.displayName})$`))
-        });
-      const initial = await dmRows().allTextContents();
-      expect(initial[0]).toContain(userB.displayName);
-
-      // User C posts into their existing DM with A. A's sidebar should bump
-      // C's row to the top and mark it unread — both arrive over the
-      // unified myEvents subscription (which carries channel and DM
-      // events together), with RoomList listening for root
-      // MessagePostedEvents on the server-wide stream for the unread
-      // bookkeeping.
-      const cToA = await new DMPage(pageC).startConversation(userA.login);
-      await cToA.sendMessage(`bump ${Date.now()}`);
-
-      // Bumped to top:
-      await expect
-        .poll(async () => (await dmRows().allTextContents())[0], {
+        await page.goto(routes.browseRooms);
+        await page.waitForURL(routes.browseRooms);
+        await expect(page.getByRole('button', { name: /direct messages/i })).toBeVisible({
           timeout: TIMEOUTS.REALTIME_EVENT
-        })
-        .toContain(userC.displayName);
+        });
 
-      // Some indicator is present on C's row. An incoming DM creates a
-      // persistent DMMessageNotification, so the row renders the
-      // higher-priority notification badge — "new direct message" — rather
-      // than the plain unread dot. Assert on whichever applies.
-      const cRow = page
-        .locator('nav a.sidebar-item')
-        .filter({ has: page.getByText(userC.displayName, { exact: true }) });
-      await expect(cRow.getByText(/new direct message|unread messages/)).toBeAttached({
-        timeout: TIMEOUTS.REALTIME_EVENT
+        // Snapshot the order before C posts. dmRows() returns the visible DM
+        // sidebar items; the order reflects the rooms-store array order.
+        const dmRows = () =>
+          page.locator('nav a.sidebar-item').filter({
+            has: page.getByText(new RegExp(`^(${userB.displayName}|${userC.displayName})$`))
+          });
+        const initial = await dmRows().allTextContents();
+        expect(initial[0]).toContain(userB.displayName);
+
+        // User C posts into their existing DM with A. A's sidebar should bump
+        // C's row to the top and mark it unread — both arrive over the
+        // unified myEvents subscription (which carries channel and DM
+        // events together), with RoomList listening for root
+        // MessagePostedEvents on the server-wide stream for the unread
+        // bookkeeping.
+        const cToA = await new DMPage(pageC).startConversation(userA.login);
+        await cToA.sendMessage(`bump ${Date.now()}`);
+
+        // Bumped to top:
+        await expect
+          .poll(async () => (await dmRows().allTextContents())[0], {
+            timeout: TIMEOUTS.REALTIME_EVENT
+          })
+          .toContain(userC.displayName);
+
+        // Some indicator is present on C's row. An incoming DM creates a
+        // persistent DMMessageNotification, so the row renders the
+        // higher-priority notification badge — "new direct message" — rather
+        // than the plain unread dot. Assert on whichever applies.
+        const cRow = page
+          .locator('nav a.sidebar-item')
+          .filter({ has: page.getByText(userC.displayName, { exact: true }) });
+        await expect(cRow.getByText(/new direct message|unread messages/)).toBeAttached({
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
       });
-    } finally {
-      await ctxB.close();
-      await ctxC.close();
-    }
+    });
   });
 
   test('posting in a not-at-the-top DM bumps it to the top without reload', async ({
@@ -193,53 +174,45 @@ test.describe('Direct Messages (room-shaped)', () => {
   }) => {
     const userA = await createAndLoginTestUser(page);
 
-    const ctxB = await browser.newContext({ baseURL: serverURL });
-    const ctxC = await browser.newContext({ baseURL: serverURL });
-    const pageB = await ctxB.newPage();
-    const pageC = await ctxC.newPage();
-    try {
-      const userB = await createAndLoginTestUser(pageB);
-      const userC = await createAndLoginTestUser(pageC);
+    await withServerUser(browser, serverURL, async ({ user: userB }) => {
+      await withServerUser(browser, serverURL, async ({ user: userC }) => {
+        // Seed two DMs from User A. C goes second so it ends up at the top by
+        // last-activity. We then post into B's DM (not at the top) and assert
+        // the row jumps without a reload.
+        const dmA = new DMPage(page);
+        const aToB = await dmA.startConversation(userB.login);
+        await aToB.sendMessage('seed B');
+        const aToC = await dmA.startConversation(userC.login);
+        await aToC.sendMessage('seed C');
+        // C is now most-recent.
 
-      // Seed two DMs from User A. C goes second so it ends up at the top by
-      // last-activity. We then post into B's DM (not at the top) and assert
-      // the row jumps without a reload.
-      const dmA = new DMPage(page);
-      const aToB = await dmA.startConversation(userB.login);
-      await aToB.sendMessage('seed B');
-      const aToC = await dmA.startConversation(userC.login);
-      await aToC.sendMessage('seed C');
-      // C is now most-recent.
+        await page.goto(routes.browseRooms);
+        await page.waitForURL(routes.browseRooms);
+        const dmRows = () =>
+          page.locator('nav a.sidebar-item').filter({
+            has: page.getByText(new RegExp(`^(${userB.displayName}|${userC.displayName})$`))
+          });
+        await expect
+          .poll(async () => (await dmRows().allTextContents())[0], {
+            timeout: TIMEOUTS.REALTIME_EVENT
+          })
+          .toContain(userC.displayName);
 
-      await page.goto(routes.browseRooms);
-      await page.waitForURL(routes.browseRooms);
-      const dmRows = () =>
-        page.locator('nav a.sidebar-item').filter({
-          has: page.getByText(new RegExp(`^(${userB.displayName}|${userC.displayName})$`))
-        });
-      await expect
-        .poll(async () => (await dmRows().allTextContents())[0], {
-          timeout: TIMEOUTS.REALTIME_EVENT
-        })
-        .toContain(userC.displayName);
+        // Open the not-at-the-top DM (B) and post a message in it.
+        await dmA.openConversation(userB.displayName);
+        const bRoom = new RoomPage(page);
+        await bRoom.sendMessage(`A bumps B ${Date.now()}`);
 
-      // Open the not-at-the-top DM (B) and post a message in it.
-      await dmA.openConversation(userB.displayName);
-      const bRoom = new RoomPage(page);
-      await bRoom.sendMessage(`A bumps B ${Date.now()}`);
-
-      // The DM list (still in the sidebar of the same chrome) should re-sort
-      // with B at the top. No reload — relies on the viewer's own
-      // MessagePostedEvent flowing back to them via the unified live stream.
-      await expect
-        .poll(async () => (await dmRows().allTextContents())[0], {
-          timeout: TIMEOUTS.REALTIME_EVENT
-        })
-        .toContain(userB.displayName);
-    } finally {
-      await ctxB.close();
-      await ctxC.close();
-    }
+        // The DM list (still in the sidebar of the same chrome) should re-sort
+        // with B at the top. No reload — relies on the viewer's own
+        // MessagePostedEvent flowing back to them via the unified live stream.
+        await expect
+          .poll(async () => (await dmRows().allTextContents())[0], {
+            timeout: TIMEOUTS.REALTIME_EVENT
+          })
+          .toContain(userB.displayName);
+      });
+    });
   });
 
   test('server icon picks up DM activity and clicking it opens the DM', async ({
@@ -249,11 +222,7 @@ test.describe('Direct Messages (room-shaped)', () => {
   }) => {
     const userA = await createAndLoginTestUser(page);
 
-    const ctxB = await browser.newContext({ baseURL: serverURL });
-    const pageB = await ctxB.newPage();
-    try {
-      await createAndLoginTestUser(pageB);
-
+    await withServerUser(browser, serverURL, async ({ page: pageB }) => {
       // User A on Overview with no DMs yet — server icon has no indicator.
       await page.goto(routes.browseRooms);
       await page.waitForURL(routes.browseRooms);
@@ -282,9 +251,7 @@ test.describe('Direct Messages (room-shaped)', () => {
       // The DM has a deterministic ID; we don't recompute it here, but the
       // post-click URL must be a /chat/-/{id} room URL.
       expect(page.url()).not.toMatch(/\/chat\/-\/?$/);
-    } finally {
-      await ctxB.close();
-    }
+    });
   });
 
   test('collapsed Direct Messages section reveals freshly-unread DMs', async ({
@@ -294,58 +261,50 @@ test.describe('Direct Messages (room-shaped)', () => {
   }) => {
     const userA = await createAndLoginTestUser(page);
 
-    const ctxB = await browser.newContext({ baseURL: serverURL });
-    const ctxC = await browser.newContext({ baseURL: serverURL });
-    const pageB = await ctxB.newPage();
-    const pageC = await ctxC.newPage();
-    try {
-      const userB = await createAndLoginTestUser(pageB);
-      const userC = await createAndLoginTestUser(pageC);
+    await withServerUser(browser, serverURL, async ({ user: userB }) => {
+      await withServerUser(browser, serverURL, async ({ page: pageC, user: userC }) => {
+        // Seed two existing DMs from User A. Both have content, so both end
+        // up in the merged sidebar.
+        const dmA = new DMPage(page);
+        const aToB = await dmA.startConversation(userB.login);
+        await aToB.sendMessage('seed B');
+        const aToC = await dmA.startConversation(userC.login);
+        await aToC.sendMessage('seed C');
 
-      // Seed two existing DMs from User A. Both have content, so both end
-      // up in the merged sidebar.
-      const dmA = new DMPage(page);
-      const aToB = await dmA.startConversation(userB.login);
-      await aToB.sendMessage('seed B');
-      const aToC = await dmA.startConversation(userC.login);
-      await aToC.sendMessage('seed C');
+        await page.goto(routes.browseRooms);
+        await page.waitForURL(routes.browseRooms);
 
-      await page.goto(routes.browseRooms);
-      await page.waitForURL(routes.browseRooms);
+        const groupHeader = page.getByRole('button', { name: /direct messages/i });
+        const dmRow = (displayName: string) =>
+          page.locator('nav a.sidebar-item').filter({
+            has: page.getByText(displayName, { exact: true })
+          });
 
-      const groupHeader = page.getByRole('button', { name: /direct messages/i });
-      const dmRow = (displayName: string) =>
-        page.locator('nav a.sidebar-item').filter({
-          has: page.getByText(displayName, { exact: true })
+        // Both DMs are visible in the expanded section.
+        await expect(dmRow(userB.displayName)).toBeVisible();
+        await expect(dmRow(userC.displayName)).toBeVisible();
+
+        // Collapse the group. Both rows hide because neither is highlighted
+        // (no unread, not active, no notification). The group header stays.
+        await groupHeader.click();
+        await expect(dmRow(userB.displayName)).toBeHidden({ timeout: TIMEOUTS.UI_STANDARD });
+        await expect(dmRow(userC.displayName)).toBeHidden({ timeout: TIMEOUTS.UI_STANDARD });
+
+        // User C posts into their existing DM with A. The fresh DM-message
+        // notification flips the row's `isHighlighted` predicate, so the
+        // collapsed group reveals the C row even though it's still
+        // collapsed. The user can never miss a message because the section
+        // is collapsed.
+        const cToA = await new DMPage(pageC).startConversation(userA.login);
+        await cToA.sendMessage(`reveal-on-collapse ${Date.now()}`);
+
+        await expect(dmRow(userC.displayName)).toBeVisible({
+          timeout: TIMEOUTS.REALTIME_EVENT
         });
-
-      // Both DMs are visible in the expanded section.
-      await expect(dmRow(userB.displayName)).toBeVisible();
-      await expect(dmRow(userC.displayName)).toBeVisible();
-
-      // Collapse the group. Both rows hide because neither is highlighted
-      // (no unread, not active, no notification). The group header stays.
-      await groupHeader.click();
-      await expect(dmRow(userB.displayName)).toBeHidden({ timeout: TIMEOUTS.UI_STANDARD });
-      await expect(dmRow(userC.displayName)).toBeHidden({ timeout: TIMEOUTS.UI_STANDARD });
-
-      // User C posts into their existing DM with A. The fresh DM-message
-      // notification flips the row's `isHighlighted` predicate, so the
-      // collapsed group reveals the C row even though it's still
-      // collapsed. The user can never miss a message because the section
-      // is collapsed.
-      const cToA = await new DMPage(pageC).startConversation(userA.login);
-      await cToA.sendMessage(`reveal-on-collapse ${Date.now()}`);
-
-      await expect(dmRow(userC.displayName)).toBeVisible({
-        timeout: TIMEOUTS.REALTIME_EVENT
+        // The other DM row stays hidden because nothing has happened in it.
+        await expect(dmRow(userB.displayName)).toBeHidden();
       });
-      // The other DM row stays hidden because nothing has happened in it.
-      await expect(dmRow(userB.displayName)).toBeHidden();
-    } finally {
-      await ctxB.close();
-      await ctxC.close();
-    }
+    });
   });
 
   test('user with denied message.post still sees existing DM conversations', async ({
@@ -360,11 +319,7 @@ test.describe('Direct Messages (room-shaped)', () => {
     // API to avoid the slow UI-driven path.
     const adminUser = await loginAsAdmin(page);
 
-    const regularContext = await browser.newContext({ baseURL: serverURL });
-    const regularPage = await regularContext.newPage();
-    try {
-      const regularUser = await createAndLoginTestUser(regularPage);
-
+    await withServerUser(browser, serverURL, async ({ page: regularPage, user: regularUser }) => {
       // Admin starts a DM with the regular user (via API) and seeds it so
       // the conversation isn't filtered by the active DM-room list.
       const startResp = await page.request.post('/api/graphql', {
@@ -430,8 +385,6 @@ test.describe('Direct Messages (room-shaped)', () => {
       } finally {
         await clearUserPermissionOverride(page, regularUser.id!, 'message.post', denyRole);
       }
-    } finally {
-      await regularContext.close();
-    }
+    });
   });
 });

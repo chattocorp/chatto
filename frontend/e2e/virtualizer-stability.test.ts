@@ -1,10 +1,9 @@
 import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
-import { createAndLoginTestUser, openServer } from './fixtures/testUser';
-import { ChatPage } from './pages';
+import { createAndLoginTestUser } from './fixtures/testUser';
+import { withServerUser } from './fixtures/serverUser';
 import { TIMEOUTS } from './constants';
 import { waitForRoomReady } from './fixtures/realtimeSync';
-import * as routes from './routes';
 
 /**
  * Post messages via GraphQL API (much faster than UI-based posting).
@@ -99,8 +98,6 @@ test.describe('Virtualizer stability', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
 
-    const spaceId = await chatPage.getServerScopeId();
-
     // Enter the default "general" room and post many messages
     await chatPage.enterRoom('general');
     const generalRoomId = getRoomIdFromUrl(page);
@@ -170,7 +167,6 @@ test.describe('Virtualizer stability', () => {
     // User 1: Create account with two rooms
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getServerScopeId();
 
     await chatPage.enterRoom('general');
     const generalRoomId = getRoomIdFromUrl(page);
@@ -184,15 +180,7 @@ test.describe('Virtualizer stability', () => {
     const secondRoomName = await chatPage.createRoom(`other-room-${Date.now()}`);
 
     // User 2: Open the server
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
-
-    try {
-      await createAndLoginTestUser(page2);
-      await openServer(page2);
-      // Navigate to the server so the room list is visible
-      await page2.goto(routes.space());
-      const chatPage2 = new ChatPage(page2);
+    await withServerUser(browser!, serverURL, async ({ page: page2, chatPage: chatPage2 }) => {
       await chatPage2.enterRoom('general');
       await waitForRoomReady(page2, 'general');
 
@@ -251,8 +239,6 @@ test.describe('Virtualizer stability', () => {
       await expect(page.getByText('Seed message 15')).toBeVisible({
         timeout: TIMEOUTS.UI_STANDARD
       });
-    } finally {
-      await context2.close();
-    }
+    });
   });
 });

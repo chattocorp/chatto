@@ -137,10 +137,12 @@ calls, and similar room-specific panels can plug into the same shell. See the
   );
 
   const canRemovePopoverMember = $derived(
-    !!popoverMember && canBanRoomMembers && popoverMember.id !== currentUserId
+    !!popoverMember && !popoverMember.deleted && canBanRoomMembers && popoverMember.id !== currentUserId
   );
 
   function openBanDialog(member: RoomMember) {
+    if (member.deleted) return;
+
     banDialogMember = member;
     banError = null;
     closePopover();
@@ -294,13 +296,22 @@ calls, and similar room-specific panels can plug into the same shell. See the
   {@const isOnline = isOnlineStatus(getPresence(member))}
   <button
     type="button"
-    class={['sidebar-item w-full cursor-pointer text-left', !isOnline && 'opacity-50']}
-    onclick={(e: MouseEvent) => togglePopover(member.id, e)}
+    class={[
+      'sidebar-item w-full text-left',
+      member.deleted ? 'cursor-default' : 'cursor-pointer',
+      !isOnline && 'opacity-50'
+    ]}
+    disabled={member.deleted}
+    onclick={(e: MouseEvent) => {
+      if (!member.deleted) togglePopover(member.id, e);
+    }}
     oncontextmenu={(e: MouseEvent) => {
       e.preventDefault();
-      togglePopover(member.id, e);
+      if (!member.deleted) togglePopover(member.id, e);
     }}
-    title={`View profile of ${getLiveDisplayName(member.id, member.displayName)}`}
+    title={member.deleted
+      ? 'Deleted User'
+      : `View profile of ${getLiveDisplayName(member.id, member.displayName)}`}
   >
     <UserAvatar user={member} size="sm" />
     <div class="min-w-0 flex-1">

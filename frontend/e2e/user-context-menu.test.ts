@@ -1,10 +1,9 @@
 import { expect } from '@playwright/test';
-import { createAndLoginTestUser, openServer } from './fixtures/testUser';
+import { createAndLoginTestUser } from './fixtures/testUser';
+import { withServerUser } from './fixtures/serverUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { test } from './setup';
-import { ChatPage, RoomPage } from './pages';
 import { TIMEOUTS } from './constants';
-import * as routes from './routes';
 
 test.describe('User context menu', () => {
   test.describe('from message avatar', () => {
@@ -18,47 +17,38 @@ test.describe('User context menu', () => {
       // User A: Create account and send a message
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      const spaceId = await chatPage.getServerScopeId();
       await chatPage.enterRoom('general');
       await roomPage.sendMessage('Hello from User A');
 
       // User B: Join and send a message
-      const context2 = await browser!.newContext({ baseURL: serverURL });
-      const page2 = await context2.newPage();
+      await withServerUser(
+        browser!,
+        serverURL,
+        async ({ page: page2, user: userB, chatPage: chatPage2, roomPage: roomPage2 }) => {
+          await chatPage2.enterRoom('general');
+          await waitForRoomReady(page2, 'general');
 
-      try {
-        const userB = await createAndLoginTestUser(page2);
-        await openServer(page2);
-        await page2.goto(routes.space());
-        await page2.waitForURL(routes.patterns.anySpace);
+          await roomPage2.sendMessage('Hello from User B');
 
-        const chatPage2 = new ChatPage(page2);
-        await chatPage2.enterRoom('general');
-        await waitForRoomReady(page2, 'general');
+          // Wait for User A to see User B's message
+          await roomPage.expectMessageVisible('Hello from User B', {
+            timeout: TIMEOUTS.REALTIME_EVENT
+          });
 
-        const roomPage2 = new RoomPage(page2);
-        await roomPage2.sendMessage('Hello from User B');
+          // Right-click on User B's avatar in User A's view
+          const messageArticle = page.locator('[role="article"]', {
+            hasText: 'Hello from User B'
+          });
+          const avatarButton = messageArticle.locator('button').first();
+          await avatarButton.click({ button: 'right' });
 
-        // Wait for User A to see User B's message
-        await roomPage.expectMessageVisible('Hello from User B', {
-          timeout: TIMEOUTS.REALTIME_EVENT
-        });
-
-        // Right-click on User B's avatar in User A's view
-        const messageArticle = page.locator('[role="article"]', {
-          hasText: 'Hello from User B'
-        });
-        const avatarButton = messageArticle.locator('button').first();
-        await avatarButton.click({ button: 'right' });
-
-        // Verify user profile dialog appears with correct content
-        const profileDialog = page.getByRole('dialog', { name: 'User profile' });
-        await expect(profileDialog).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
-        await expect(profileDialog.getByText(userB.displayName)).toBeVisible();
-        await expect(profileDialog.getByText(`@${userB.login}`)).toBeVisible();
-      } finally {
-        await context2.close();
-      }
+          // Verify user profile dialog appears with correct content
+          const profileDialog = page.getByRole('dialog', { name: 'User profile' });
+          await expect(profileDialog).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+          await expect(profileDialog.getByText(userB.displayName)).toBeVisible();
+          await expect(profileDialog.getByText(`@${userB.login}`)).toBeVisible();
+        }
+      );
     });
 
     test('right-clicking avatar does not open message context menu', async ({

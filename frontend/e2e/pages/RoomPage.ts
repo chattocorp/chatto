@@ -156,8 +156,18 @@ export class RoomPage {
     await this.waitForInputEditable();
     await this.messageInput.fill(text);
     await this.messageInput.press('Enter');
-    await expect(this.page.getByText(text)).toBeVisible();
-    return this.getMessage(text);
+    const message = this.getMessage(text);
+    try {
+      await expect(message.locator).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+    } catch {
+      // Enter may first confirm an active autocomplete item when the message
+      // ends at a mention/emoji trigger. In that case, send with a second Enter.
+      if ((await this.messageInput.textContent())?.trim()) {
+        await this.messageInput.press('Enter');
+      }
+      await expect(message.locator).toBeVisible();
+    }
+    return message;
   }
 
   /**
@@ -168,8 +178,9 @@ export class RoomPage {
     await this.waitForInputEditable();
     await this.messageInput.fill(text);
     await this.sendButton.click();
-    await expect(this.page.getByText(text)).toBeVisible();
-    return this.getMessage(text);
+    const message = this.getMessage(text);
+    await expect(message.locator).toBeVisible();
+    return message;
   }
 
   /**

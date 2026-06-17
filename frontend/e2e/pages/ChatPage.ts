@@ -1,16 +1,9 @@
-import { expect, request, type APIRequestContext, type Locator, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import * as routes from '../routes';
+import { adminGraphql, createBootstrapAdminRequest } from '../fixtures/adminRequest';
 import { graphqlQuery } from '../fixtures/graphqlHelpers';
 import { loginAsAdmin, logoutCurrentUser } from '../fixtures/testUser';
 import { RoomPage } from './RoomPage';
-
-const E2E_ADMIN_LOGIN = 'e2eadmin';
-const E2E_ADMIN_PASSWORD = 'adminpassword123';
-
-interface GraphQLResponse<T> {
-  data?: T;
-  errors?: unknown[];
-}
 
 /**
  * Page object for the main chat interface.
@@ -18,35 +11,6 @@ interface GraphQLResponse<T> {
  */
 export class ChatPage {
   constructor(readonly page: Page) {}
-
-  private async createAdminRequestContext(): Promise<APIRequestContext> {
-    const baseURL = new URL(this.page.url()).origin;
-    const adminContext = await request.newContext({ baseURL });
-    const loginResponse = await adminContext.post('/auth/login', {
-      data: {
-        login: E2E_ADMIN_LOGIN,
-        password: E2E_ADMIN_PASSWORD
-      }
-    });
-    expect(loginResponse.ok()).toBeTruthy();
-    return adminContext;
-  }
-
-  private async adminGraphql<T>(
-    adminContext: APIRequestContext,
-    query: string,
-    variables?: Record<string, unknown>
-  ): Promise<T> {
-    const response = await adminContext.post('/api/graphql', {
-      headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-      data: { query, variables }
-    });
-    expect(response.ok()).toBeTruthy();
-    const json = (await response.json()) as GraphQLResponse<T>;
-    if (json.errors) throw new Error(JSON.stringify(json.errors));
-    if (!json.data) throw new Error('GraphQL response contained no data');
-    return json.data;
-  }
 
   /** The room list container in the sidebar */
   get roomList(): Locator {
@@ -188,10 +152,10 @@ export class ChatPage {
    */
   async createRoom(name?: string, description?: string): Promise<string> {
     const roomName = name ?? `test-room-${Date.now()}`;
-    const adminContext = await this.createAdminRequestContext();
+    const adminContext = await createBootstrapAdminRequest(new URL(this.page.url()).origin);
     let roomId: string;
     try {
-      const groupData = await this.adminGraphql<{ server: { roomGroups: { id: string }[] } }>(
+      const groupData = await adminGraphql<{ server: { roomGroups: { id: string }[] } }>(
         adminContext,
         `query { server { roomGroups { id } } }`
       );
@@ -200,7 +164,7 @@ export class ChatPage {
         throw new Error('No room group available for e2e room creation');
       }
 
-      const createData = await this.adminGraphql<{ createRoom: { id: string; name: string } }>(
+      const createData = await adminGraphql<{ createRoom: { id: string; name: string } }>(
         adminContext,
         `mutation($input: CreateRoomInput!) { createRoom(input: $input) { id name } }`,
         { input: { name: roomName, description: description || undefined, groupId } }

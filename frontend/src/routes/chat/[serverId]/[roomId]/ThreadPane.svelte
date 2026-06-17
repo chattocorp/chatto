@@ -337,6 +337,13 @@
     onEscape={onClose}
     onReady={(api: MessageComposerApi) => api.focus()}
     onTyping={() => typingIndicator?.sendTypingIndicator()}
-    onMessageSent={() => typingIndicator?.resetDebounce()}
+    onMessageSent={(event) => {
+      typingIndicator?.resetDebounce();
+      if (event) {
+        store.ingestEvent(event);
+      } else {
+        void store.refreshCurrentWindow(null);
+      }
+    }}
   />
 </div>
