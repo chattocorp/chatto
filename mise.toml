@@ -176,12 +176,9 @@ exec tilt up --stream
 """
 
 [tasks.chatto]
-description = "Build and run the bundled Chatto CLI"
+description = "Build and run the bundled Chatto CLI command"
 depends = ["build-dev-cli"]
 dir = "cli"
-usage = '''
-arg "[args]" var=#true
-'''
 env = {
   CHATTO_WEBSERVER_PORT = "{{env.CONDUCTOR_PORT | default(value='4000')}}",
   CHATTO_WEBSERVER_URL = "http://localhost:{{env.CONDUCTOR_PORT | default(value='4000')}}",
@@ -192,17 +189,7 @@ env = {
   CHATTO_METRICS_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 2}}",
   CHATTO_METRICS_PATH = "/metrics",
 }
-run = """
-#!/usr/bin/env bash
-set -euo pipefail
-
-if [ -z "${usage_args:-}" ]; then
-  exec bin/chatto run
-fi
-
-eval "chatto_args=($usage_args)"
-exec bin/chatto "${chatto_args[@]}"
-"""
+run = "exec bin/chatto"
 
 # =============================================================================
 # Testing
