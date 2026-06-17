@@ -7,7 +7,7 @@ import * as routes from '../routes';
  * Handles admin navigation, general settings, members, system, runtime, and permissions pages.
  *
  * The legacy /chat/-/admin route tree was folded into server-admin once the
- * "instance" vs "space" distinction collapsed; the back-compat aliases in
+ * old instance-vs-server admin split collapsed; the back-compat aliases in
  * routes.ts make older test names continue to point at the new URLs.
  */
 export class AdminPage {
@@ -43,11 +43,6 @@ export class AdminPage {
 
   /** Members link inside the dedicated admin sidebar. */
   get usersLink(): Locator {
-    return this.sidebar.getByRole('link', { name: 'Members' });
-  }
-
-  /** Back-compat alias for tests that pre-date the rename. */
-  get spacesLink(): Locator {
     return this.sidebar.getByRole('link', { name: 'Members' });
   }
 
@@ -98,13 +93,6 @@ export class AdminPage {
    */
   async gotoUsers(): Promise<void> {
     await this.page.goto(routes.adminUsers);
-  }
-
-  /**
-   * Navigate to the admin spaces page.
-   */
-  async gotoSpaces(): Promise<void> {
-    await this.page.goto(routes.adminSpaces);
   }
 
   /**
@@ -164,11 +152,6 @@ export class AdminPage {
     await this.page.waitForURL(routes.adminUsers);
   }
 
-  async navigateToSpaces(): Promise<void> {
-    await this.spacesLink.click();
-    await this.page.waitForURL(routes.adminSpaces);
-  }
-
   async navigateToSystem(): Promise<void> {
     await this.systemLink.click();
     await this.page.waitForURL(routes.adminSystem);
@@ -181,8 +164,8 @@ export class AdminPage {
 
   async navigateBackToChat(): Promise<void> {
     await this.backToChatLink.click();
-    // The /chat page may redirect to /chat/spaces for users with no joined spaces,
-    // or to their last visited space. Accept any non-admin chat route.
+    // The /chat page may redirect to the overview, the last visited room,
+    // or another chat page. Accept any non-admin chat route.
     await this.page.waitForURL(routes.patterns.nonAdmin);
   }
 
@@ -328,14 +311,6 @@ export class AdminPage {
   }
 
   /**
-   * Assert that the spaces page is visible. Spaces no longer exist
-   * post-#330; the Members page is the closest equivalent.
-   */
-  async expectSpacesPageVisible(): Promise<void> {
-    await expect(this.page.getByRole('heading', { name: 'Members' })).toBeVisible();
-  }
-
-  /**
    * Assert that the system page is visible.
    */
   async expectSystemPageVisible(): Promise<void> {
@@ -395,12 +370,11 @@ export class AdminPage {
    * Assert that a sidebar link is NOT visible (limited permissions).
    */
   async expectSidebarLinkNotVisible(
-    linkName: 'General' | 'Users' | 'Spaces' | 'Rooms' | 'System' | 'Roles' | 'Permissions'
+    linkName: 'General' | 'Users' | 'Rooms' | 'System' | 'Roles' | 'Permissions'
   ): Promise<void> {
     const linkMap = {
       General: this.generalLink,
       Users: this.usersLink,
-      Spaces: this.spacesLink,
       Rooms: this.roomsLink,
       System: this.systemLink,
       Roles: this.rolesLink,
@@ -413,12 +387,11 @@ export class AdminPage {
    * Assert that a sidebar link IS visible.
    */
   async expectSidebarLinkVisible(
-    linkName: 'General' | 'Users' | 'Spaces' | 'Rooms' | 'System' | 'Roles' | 'Permissions'
+    linkName: 'General' | 'Users' | 'Rooms' | 'System' | 'Roles' | 'Permissions'
   ): Promise<void> {
     const linkMap = {
       General: this.generalLink,
       Users: this.usersLink,
-      Spaces: this.spacesLink,
       Rooms: this.roomsLink,
       System: this.systemLink,
       Roles: this.rolesLink,
@@ -428,12 +401,11 @@ export class AdminPage {
   }
 
   async expectSidebarLinkActive(
-    linkName: 'General' | 'Users' | 'Spaces' | 'Rooms' | 'System' | 'Roles' | 'Permissions'
+    linkName: 'General' | 'Users' | 'Rooms' | 'System' | 'Roles' | 'Permissions'
   ): Promise<void> {
     const linkMap = {
       General: this.generalLink,
       Users: this.usersLink,
-      Spaces: this.spacesLink,
       Rooms: this.roomsLink,
       System: this.systemLink,
       Roles: this.rolesLink,
@@ -472,24 +444,6 @@ export class AdminPage {
    */
   async expectUserCountVisible(): Promise<void> {
     await expect(this.page.locator('tbody tr').first()).toBeVisible();
-  }
-
-  /**
-   * Assert that spaces table headers are visible.
-   */
-  async expectSpacesTableHeadersVisible(): Promise<void> {
-    await expect(this.page.getByRole('columnheader', { name: 'Name' })).toBeVisible();
-    await expect(this.page.getByRole('columnheader', { name: 'Description' })).toBeVisible();
-    await expect(this.page.getByRole('columnheader', { name: 'Members' })).toBeVisible();
-    await expect(this.page.getByRole('columnheader', { name: 'Rooms' })).toBeVisible();
-    await expect(this.page.getByRole('columnheader', { name: 'Assets' })).toBeVisible();
-  }
-
-  /**
-   * Assert that the space count is visible.
-   */
-  async expectSpaceCountVisible(): Promise<void> {
-    await expect(this.page.getByText(/\d+ space\(s\) total/)).toBeVisible();
   }
 
   /**
@@ -699,5 +653,4 @@ export class AdminPage {
     await this.ensureOn(routes.serverAdminGeneral);
     await expect(this.welcomeMessageInput).toHaveValue(value);
   }
-
 }

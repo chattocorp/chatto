@@ -2,10 +2,10 @@ import { expect, type Locator, type Page } from '@playwright/test';
 import * as routes from '../routes';
 
 /**
- * Page object for the Space Admin pages.
+ * Page object for the Server Admin pages.
  * Covers General (name, branding) and Permissions pages.
  */
-export class SpaceAdminPage {
+export class ServerAdminPage {
   constructor(readonly page: Page) {}
 
   // --- Locators ---
@@ -50,18 +50,18 @@ export class SpaceAdminPage {
     return this.page.getByText('Access Denied', { exact: true });
   }
 
-  /** General settings heading (shown when user has space.manage permission) */
+  /** General settings heading (shown when user has server.manage permission) */
   get generalSettingsHeading(): Locator {
     // Use h1 specifically to avoid matching section h2 headings
     return this.page.locator('h1', { hasText: 'General' });
   }
 
-  /** Legacy back-to-space locator from the retired admin-only sidebar. */
+  /** Legacy "Back to Space" locator from the retired admin-only sidebar. */
   get backToSpaceLink(): Locator {
     return this.page.getByRole('link', { name: 'Back to Space' });
   }
 
-  /** The space name input field */
+  /** The server name input field */
   get nameInput(): Locator {
     return this.page.getByRole('textbox', { name: 'Name' });
   }
@@ -143,7 +143,7 @@ export class SpaceAdminPage {
   // --- Navigation ---
 
   /**
-   * Navigate to a space and then to its admin page via the sidebar link.
+   * Navigate to chat and then to its admin page via the sidebar link.
    */
   async goto(_spaceId: string): Promise<void> {
     await this.page.goto(routes.space());
@@ -161,7 +161,7 @@ export class SpaceAdminPage {
   }
 
   /**
-   * Click the Admin link in the sidebar (from a space page).
+   * Click the Admin link in the sidebar from a chat page.
    */
   async clickAdminLink(_spaceId: string): Promise<void> {
     await this.adminLink.click();
@@ -172,7 +172,7 @@ export class SpaceAdminPage {
   // --- Form Interactions ---
 
   /**
-   * Update the space name.
+   * Update the server name.
    */
   async setName(name: string): Promise<void> {
     await this.nameInput.fill(name);
@@ -186,7 +186,7 @@ export class SpaceAdminPage {
   }
 
   /**
-   * Update the space name and save changes.
+   * Update the server name and save changes.
    */
   async updateName(name: string): Promise<void> {
     await this.setName(name);

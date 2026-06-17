@@ -16,6 +16,6 @@
   }
 </script>
 
-<PageTitle title="Rooms | Space Admin" />
+<PageTitle title="Rooms | Server Admin" />
 
 <AdminRoomLayoutEditor {layout} {serverSegment} onroomcreated={refreshServerRoomState} />

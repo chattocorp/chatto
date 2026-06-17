@@ -100,7 +100,11 @@
     if (target.eventId && target.roomId) {
       stores.pendingHighlights.set(target.roomId, target.threadRootId, target.eventId);
     }
-    void store.dismiss(item.notification.id);
+    void store.dismiss(item.notification.id).then((dismissed) => {
+      if (dismissed && target.roomId) {
+        stores.rooms.decrementUnreadNotification(target.roomId);
+      }
+    });
 
     const path = store.getCleanPath(item.serverId, item.notification);
     // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
@@ -109,16 +113,27 @@
 
   async function handleDismiss(e: Event, item: ServerNotification) {
     e.stopPropagation();
-    const store = serverRegistry.getStore(item.serverId).notifications;
-    await store.dismiss(item.notification.id);
+    const stores = serverRegistry.getStore(item.serverId);
+    const target = notificationTarget(item.notification);
+    const dismissed = await stores.notifications.dismiss(item.notification.id);
+    if (dismissed && target.roomId) {
+      stores.rooms.decrementUnreadNotification(target.roomId);
+    }
   }
 
   async function handleClearAll() {
-    const clears: Promise<number>[] = [];
+    const clears: Promise<void>[] = [];
     for (const instance of serverRegistry.servers) {
       const stores = serverRegistry.getStore(instance.id);
       if (!stores.isAuthenticated) continue;
-      clears.push(stores.notifications.dismissAll());
+      const hadNotifications = stores.notifications.unreadNotificationCount > 0;
+      clears.push(
+        stores.notifications.dismissAll().then((dismissed) => {
+          if (hadNotifications || dismissed > 0) {
+            stores.rooms.clearAllUnreadNotifications();
+          }
+        })
+      );
     }
     await Promise.allSettled(clears);
   }

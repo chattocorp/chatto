@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
-import { ChatPage, RoomPage, ExplorePage } from './pages';
+import { ChatPage, RoomPage } from './pages';
 import { TIMEOUTS } from './constants';
 
 /**
@@ -21,10 +21,10 @@ test.describe('Mention highlighting', () => {
     browser,
     serverURL
   }) => {
-    // User 1 creates space
+    // User 1 loads the server
     const user1 = await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.createSpace();
+    const serverName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     // User 2 joins and mentions user 1
@@ -38,11 +38,8 @@ test.describe('Mention highlighting', () => {
       const user2 = await createAndLoginTestUser(page2);
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
-      const explorePage2 = new ExplorePage(page2);
 
       await chatPage2.goto();
-      await chatPage2.goToExploreSpaces();
-      await explorePage2.joinSpace(spaceName);
       await chatPage2.enterRoom('general');
 
       // Wait for both users to be visible
@@ -69,7 +66,6 @@ test.describe('Mention highlighting', () => {
   }) => {
     const user = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Send a message mentioning yourself

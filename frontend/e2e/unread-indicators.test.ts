@@ -1,10 +1,6 @@
 import { expect } from '@playwright/test';
-import { createAndLoginTestUser, joinSpace } from './fixtures/testUser';
-import {
-  waitForRoomUnread,
-  waitForRoomRead,
-  getRoomIdByName
-} from './fixtures/graphqlHelpers';
+import { createAndLoginTestUser, openServer } from './fixtures/testUser';
+import { waitForRoomUnread, waitForRoomRead, getRoomIdByName } from './fixtures/graphqlHelpers';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { test } from './setup';
 import { ChatPage, RoomPage } from './pages';
@@ -20,11 +16,10 @@ test.describe('Multi-Tab Unread Sync', () => {
   }) => {
     test.setTimeout(60000);
 
-    // User A: Create space (auto-enters a room due to redirect behavior)
+    // User A: Create account (auto-enters a room due to redirect behavior)
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     // Navigate User A to announcements room (not general) so general stays unread
     await chatPage.enterRoom('announcements');
@@ -32,13 +27,13 @@ test.describe('Multi-Tab Unread Sync', () => {
     // Get room ID for general (the room that will have unread messages)
     const roomId = await getRoomIdByName(page, 'general');
 
-    // User B: Join space and send a message that creates unread state for User A
+    // User B: Open the server and send a message that creates unread state for User A
     const context2 = await browser!.newContext({ baseURL: serverURL });
     const page2 = await context2.newPage();
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
 
       const chatPage2 = new ChatPage(page2);
@@ -63,7 +58,7 @@ test.describe('Multi-Tab Unread Sync', () => {
           data: { login: userA.login, password: userA.password }
         });
 
-        // Tab 2 navigates to space and enters announcements room (not general)
+        // Tab 2 navigates to the server and enters announcements room (not general)
         // This way Tab 2 can see general's unread indicator in the room list
         await page3.goto(routes.space());
         await page3.waitForURL(routes.patterns.anySpace);
@@ -99,9 +94,6 @@ test.describe('Multi-Tab Unread Sync', () => {
   });
 });
 
-
-
-
 test.describe('Multi-window unread sync', () => {
   test('unread indicator appears in second window when message posted by another user', async ({
     page,
@@ -112,11 +104,10 @@ test.describe('Multi-window unread sync', () => {
   }) => {
     test.setTimeout(60000); // Multi-user test with real-time events needs more time
 
-    // User A: Create account and space
+    // User A: Create account
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace('Shared Space');
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     // User A visits general room then leaves to announcements
     await chatPage.enterRoom('general');
@@ -153,13 +144,13 @@ test.describe('Multi-window unread sync', () => {
       await chatPage2.enterRoom('announcements');
       await waitForRoomReady(page2, 'announcements');
 
-      // User B: Create account, join space, post in general
+      // User B: Create account, open the server, post in general
       const context3 = await browser!.newContext({ baseURL: serverURL });
       const page3 = await context3.newPage();
 
       try {
         await createAndLoginTestUser(page3);
-        await joinSpace(page3);
+        await openServer(page3);
         await page3.goto(routes.space());
         await page3.waitForURL(routes.patterns.anySpace);
 
@@ -200,13 +191,12 @@ test.describe('Unread indicators', () => {
   }) => {
     test.setTimeout(60000); // Multi-user test with real-time events needs more time
 
-    // User A: Create account, space, and navigate to announcements room
+    // User A: Create account and navigate to announcements room
     // (User A stays in announcements while User B posts in general)
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
 
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     // Navigate to "announcements" room (User A will observe from here)
     await chatPage.enterRoom('announcements');
@@ -220,17 +210,17 @@ test.describe('Unread indicators', () => {
     await expect(generalLink).toBeVisible();
     await expect(generalLink).not.toHaveClass(/font-semibold/);
 
-    // User B: Create account and join the space
+    // User B: Create account and open the server
     const context2 = await browser!.newContext({ baseURL: serverURL });
     const page2 = await context2.newPage();
 
     try {
       await createAndLoginTestUser(page2);
 
-      // User B joins the space via API helper
-      await joinSpace(page2);
+      // User B opens the server
+      await openServer(page2);
 
-      // Navigate to the space
+      // Navigate to the server
       await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
@@ -279,7 +269,6 @@ test.describe('Unread indicators', () => {
   test('unread indicator clears when navigating to room', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
 
     // Navigate to general room first
     await chatPage.enterRoom('general');
@@ -311,11 +300,10 @@ test.describe('Room unread separator', () => {
   }) => {
     test.setTimeout(60000); // Multi-user test with real-time events needs more time
 
-    // User A: Create account and space
+    // User A: Create account
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace('Separator Test Space');
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     // User A enters general room and posts initial messages
     await chatPage.enterRoom('general');
@@ -326,13 +314,13 @@ test.describe('Room unread separator', () => {
     // Get the general room ID for polling
     const generalRoomId = await getRoomIdByName(page, 'general');
 
-    // User B: Create account, join space
+    // User B: Create account, open the server
     const context2 = await browser!.newContext({ baseURL: serverURL });
     const page2 = await context2.newPage();
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
@@ -382,24 +370,23 @@ test.describe('Room unread separator', () => {
   }) => {
     test.setTimeout(60000); // Multi-user test needs more time
 
-    // User A: Create account and space
+    // User A: Create account
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace('First Visit Test');
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     // User A enters general room and posts a message
     await chatPage.enterRoom('general');
     await waitForRoomReady(page, 'general');
     await roomPage.sendMessage('Welcome message from creator');
 
-    // User B: Create account, join space
+    // User B: Create account, open the server
     const context2 = await browser!.newContext({ baseURL: serverURL });
     const page2 = await context2.newPage();
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
@@ -427,11 +414,10 @@ test.describe('Room unread separator', () => {
   }) => {
     test.setTimeout(60000); // Multi-user test with real-time events needs more time
 
-    // User A: Create account and space
+    // User A: Create account
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace('Fixed Separator Test');
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     // User A enters general room and posts initial message
     await chatPage.enterRoom('general');
@@ -441,13 +427,13 @@ test.describe('Room unread separator', () => {
     // Get the general room ID for polling
     const generalRoomId = await getRoomIdByName(page, 'general');
 
-    // User B: Create account, join space
+    // User B: Create account, open the server
     const context2 = await browser!.newContext({ baseURL: serverURL });
     const page2 = await context2.newPage();
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
@@ -501,11 +487,10 @@ test.describe('Room unread separator', () => {
   }) => {
     test.setTimeout(60000); // Multi-user test with real-time events needs more time
 
-    // User A: Create account and space, post an initial message in general.
+    // User A: Create account, post an initial message in general.
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace('Hidden Tab Separator Test');
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     await chatPage.enterRoom('general');
     await waitForRoomReady(page, 'general');
@@ -513,14 +498,14 @@ test.describe('Room unread separator', () => {
 
     const generalRoomId = await getRoomIdByName(page, 'general');
 
-    // User B: Create account, join space, and sit in general — present and
+    // User B: Create account, open the server, and sit in general — present and
     // caught up, never navigating away.
     const context2 = await browser!.newContext({ baseURL: serverURL });
     const page2 = await context2.newPage();
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
@@ -596,11 +581,10 @@ test.describe('Room unread separator', () => {
     // The fix in useRoomUnread no longer overwrites bounds on a same-room
     // refocus; this test exercises the exact path that used to break.
 
-    // User A: Create account, space, enter general, post the initial message
+    // User A: Create account, enter general, post the initial message
     // so User B has a real read cursor anchored on a root message.
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace('Non-Message Hidden Tab Test');
 
     await chatPage.enterRoom('general');
     await waitForRoomReady(page, 'general');
@@ -608,14 +592,14 @@ test.describe('Room unread separator', () => {
 
     const generalRoomId = await getRoomIdByName(page, 'general');
 
-    // User B: Join space, enter general, read the anchor message — caught
+    // User B: Open the server, enter general, read the anchor message — caught
     // up, no separator yet.
     const context2 = await browser!.newContext({ baseURL: serverURL });
     const page2 = await context2.newPage();
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
@@ -647,9 +631,9 @@ test.describe('Room unread separator', () => {
 
       // User B (still hidden) receives the leave event over the live
       // subscription. The separator anchors above it.
-      await expect(
-        page2.getByText(`${userA.displayName} left the room`)
-      ).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(page2.getByText(`${userA.displayName} left the room`)).toBeVisible({
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
       await roomPage2.expectUnreadSeparator();
 
       // User B's tab returns to the foreground. With the bug, this refocus
@@ -710,11 +694,10 @@ test.describe('Room unread separator', () => {
   }) => {
     test.setTimeout(60000); // Multi-user test needs more time
 
-    // User A: Create account and space, post an existing message in general.
+    // User A: Create account, post an existing message in general.
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace('Own Message Hidden Tab Test');
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     await chatPage.enterRoom('general');
     await waitForRoomReady(page, 'general');
@@ -722,7 +705,7 @@ test.describe('Room unread separator', () => {
 
     const generalRoomId = await getRoomIdByName(page, 'general');
 
-    // User B: Create account, join space, enter the (non-empty) room — this
+    // User B: Create account, open the server, enter the (non-empty) room — this
     // gives User B a real read cursor — then post their own message and
     // background the tab.
     const context2 = await browser!.newContext({ baseURL: serverURL });
@@ -730,7 +713,7 @@ test.describe('Room unread separator', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
@@ -775,11 +758,10 @@ test.describe('Room unread separator', () => {
     chatPage,
     roomPage
   }) => {
-    // User creates account and space
+    // User creates account
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace('Own Message Test');
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     // Enter room
     await chatPage.enterRoom('general');
@@ -835,7 +817,6 @@ test.describe('Room unread separator', () => {
     // separator even though the user obviously saw their first message.
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace('Background Refocus Post Test');
 
     await chatPage.enterRoom('general');
     await waitForRoomReady(page, 'general');
@@ -886,7 +867,6 @@ test.describe('Room unread separator', () => {
   });
 });
 
-
 test.describe('Unread dot stability after loadRooms refresh', () => {
   test('room unread dot does not reappear after clearing when loadRooms is triggered', async ({
     page,
@@ -897,11 +877,10 @@ test.describe('Unread dot stability after loadRooms refresh', () => {
   }) => {
     test.setTimeout(60000);
 
-    // User A: Create account and space
+    // User A: Create account
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace('Sticky Dot Test');
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     // User A enters general room and posts a message
     await chatPage.enterRoom('general');
@@ -910,13 +889,13 @@ test.describe('Unread dot stability after loadRooms refresh', () => {
 
     const generalRoomId = await getRoomIdByName(page, 'general');
 
-    // User B: Create account, join space
+    // User B: Create account, open the server
     const context2 = await browser!.newContext({ baseURL: serverURL });
     const page2 = await context2.newPage();
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
@@ -967,7 +946,7 @@ test.describe('Unread dot stability after loadRooms refresh', () => {
 
       // Rename the general room → triggers RoomUpdatedEvent → loadRooms() in
       // User B. Issue #330: regular members can't manage rooms on the
-      // bootstrap space, so do the rename as e2eadmin in a side context (so
+      // bootstrap server, so do the rename as e2eadmin in a side context (so
       // user A's page session stays intact).
       const adminCtx = await browser!.newContext({ baseURL: serverURL });
       try {
@@ -1002,7 +981,7 @@ test.describe('Unread dot stability after loadRooms refresh', () => {
 });
 
 test.describe('Thread reply unread behavior', () => {
-  test('thread reply does not cause unread dot on room or space', async ({
+  test('thread reply does not cause unread dot on room or server', async ({
     page,
     chatPage,
     roomPage,
@@ -1011,11 +990,10 @@ test.describe('Thread reply unread behavior', () => {
   }) => {
     test.setTimeout(60000);
 
-    // User A: Create account and space
+    // User A: Create account
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace('Thread Unread Test');
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     // User A enters general room and posts a root message
     await chatPage.enterRoom('general');
@@ -1025,13 +1003,13 @@ test.describe('Thread reply unread behavior', () => {
 
     const generalRoomId = await getRoomIdByName(page, 'general');
 
-    // User B: Create account, join space
+    // User B: Create account, open the server
     const context2 = await browser!.newContext({ baseURL: serverURL });
     const page2 = await context2.newPage();
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2);
+      await openServer(page2);
       await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 

@@ -544,7 +544,7 @@ type RoomMarkedAsReadEvent {
 
 """
 Legacy event: the mention indicator for a room was cleared for the current user.
-Retained for wire compatibility; new builds derive orange dots from pending
+Retained for wire compatibility; new builds derive notification indicators from pending
 notifications and do not publish this event.
 """
 type MentionStatusClearedEvent {

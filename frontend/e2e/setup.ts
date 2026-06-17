@@ -6,13 +6,12 @@ import {
   AuthPage,
   ChatPage,
   RoomPage,
-  ExplorePage,
   DMPage,
   NotificationsPage,
   NotificationSettingsPage,
-  SpaceAdminPage,
-  SpaceAdminRoomsPage,
-  SpaceRolesPage
+  ServerAdminPage,
+  ServerAdminRoomsPage,
+  ServerRolesPage
 } from './pages';
 
 // Extend the base test with our fixtures
@@ -22,13 +21,12 @@ export const test = base.extend<{
   authPage: AuthPage;
   chatPage: ChatPage;
   roomPage: RoomPage;
-  explorePage: ExplorePage;
   dmPage: DMPage;
   notificationsPage: NotificationsPage;
   notificationSettingsPage: NotificationSettingsPage;
-  spaceAdminPage: SpaceAdminPage;
-  spaceAdminRoomsPage: SpaceAdminRoomsPage;
-  spaceRolesPage: SpaceRolesPage;
+  serverAdminPage: ServerAdminPage;
+  serverAdminRoomsPage: ServerAdminRoomsPage;
+  serverRolesPage: ServerRolesPage;
   serverURL: string; // Expose server URL to tests for creating new contexts
   server: ServerInfo; // Test-scoped: one server per test
   serverOptions: StartServerOptions; // Override to pass custom options (e.g. env vars) to the server
@@ -74,10 +72,6 @@ export const test = base.extend<{
     await use(new RoomPage(page));
   },
 
-  explorePage: async ({ page }, use) => {
-    await use(new ExplorePage(page));
-  },
-
   dmPage: async ({ page }, use) => {
     await use(new DMPage(page));
   },
@@ -90,16 +84,16 @@ export const test = base.extend<{
     await use(new NotificationSettingsPage(page));
   },
 
-  spaceAdminPage: async ({ page }, use) => {
-    await use(new SpaceAdminPage(page));
+  serverAdminPage: async ({ page }, use) => {
+    await use(new ServerAdminPage(page));
   },
 
-  spaceAdminRoomsPage: async ({ page }, use) => {
-    await use(new SpaceAdminRoomsPage(page));
+  serverAdminRoomsPage: async ({ page }, use) => {
+    await use(new ServerAdminRoomsPage(page));
   },
 
-  spaceRolesPage: async ({ page }, use) => {
-    await use(new SpaceRolesPage(page));
+  serverRolesPage: async ({ page }, use) => {
+    await use(new ServerRolesPage(page));
   }
 });
 

@@ -14,7 +14,7 @@ interface GraphQLResponse<T> {
 
 /**
  * Page object for the main chat interface.
- * Handles sidebar navigation, space creation, and room entry.
+ * Handles sidebar navigation, server metadata, and room entry.
  */
 export class ChatPage {
   constructor(readonly page: Page) {}
@@ -48,11 +48,6 @@ export class ChatPage {
     return json.data;
   }
 
-  /** The explore spaces link in the sidebar */
-  get exploreSpacesLink(): Locator {
-    return this.page.getByRole('link', { name: 'Explore Spaces' });
-  }
-
   /** The room list container in the sidebar */
   get roomList(): Locator {
     return this.page.locator('.room-list');
@@ -60,9 +55,8 @@ export class ChatPage {
 
   /**
    * Navigate to the chat page.
-   * Note: Users may be redirected based on their state:
-   * - New users (no spaces): redirected to /chat/spaces
-   * - Users with last space: redirected to /chat/-/[spaceId]/[roomId]
+   * Note: users may be redirected to the server root, their last room, or
+   * another chat-scoped page based on their local navigation state.
    */
   async goto(): Promise<void> {
     await this.page.goto('/chat');
@@ -71,22 +65,15 @@ export class ChatPage {
   }
 
   /**
-   * Return the kind-discriminator constant used as a spaceID by core methods.
-   * Post-ADR-030 every channel-scoped call uses this single deployment-wide
-   * value (`core.LegacyServerSpaceID = "server"` on the backend).
+   * Return the legacy server-scope discriminator used by GraphQL operations
+   * that still expose a `spaceId` input.
    */
-  async getSpaceId(): Promise<string> {
+  async getServerScopeId(): Promise<string> {
     return 'server';
   }
 
-  /**
-   * Wait until the user is in the deployment's bootstrap server and return
-   * the server name. Post-ADR-030 there is no per-deployment Space record;
-   * signup auto-joins the default rooms and this just confirms the server
-   * profile is reachable. `name` and `description` args are ignored,
-   * retained only so existing call sites compile.
-   */
-  async createSpace(_name?: string, _description?: string): Promise<string> {
+  /** Return the bootstrap server display name. */
+  async getServerName(): Promise<string> {
     const data = await graphqlQuery<{
       server: { profile: { name: string } } | null;
     }>(this.page, `query { server { profile { name } } }`);
@@ -99,8 +86,8 @@ export class ChatPage {
   /**
    * Enter a room by clicking it in the sidebar.
    * Returns a RoomPage for interacting with messages.
-   * If already in the room (e.g., after createSpace redirect), skips navigation
-   * to avoid disrupting WebSocket subscriptions.
+   * If already in the room, skips navigation to avoid disrupting WebSocket
+   * subscriptions.
    * Always waits for room UI to be ready before returning.
    */
   async enterRoom(roomName: string): Promise<RoomPage> {
@@ -121,36 +108,36 @@ export class ChatPage {
     return new RoomPage(this.page);
   }
 
-  // --- Space Icon Indicators ---
+  // --- Server Icon Indicators ---
 
   /**
-   * Get the container div for a space icon by space name.
-   * Scopes to the specific space in the sidebar (the parent div wrapping the button and any dots).
+   * Get the container div for a server icon by server name.
+   * Scopes to the sidebar entry wrapping the button and any unread dots.
    */
-  getSpaceIconContainer(spaceName: string): Locator {
+  getServerIconContainer(serverName: string): Locator {
     return this.page
       .locator('.server-gutter')
-      .locator('div', { has: this.page.getByRole('link', { name: spaceName, exact: true }) });
+      .locator('div', { has: this.page.getByRole('link', { name: serverName, exact: true }) });
   }
 
-  /** Get the unread dot locator for a specific space */
-  getSpaceUnreadDot(spaceName: string): Locator {
-    return this.getSpaceIconContainer(spaceName).getByTestId('server-unread-dot');
+  /** Get the unread dot locator for a specific server. */
+  getServerUnreadDot(serverName: string): Locator {
+    return this.getServerIconContainer(serverName).getByTestId('server-unread-dot');
   }
 
-  /** Click the unread dot on a specific space icon */
-  async clickSpaceUnreadDot(spaceName: string): Promise<void> {
-    await this.getSpaceUnreadDot(spaceName).click();
+  /** Click the unread dot on a specific server icon. */
+  async clickServerUnreadDot(serverName: string): Promise<void> {
+    await this.getServerUnreadDot(serverName).click();
   }
 
-  /** Assert that a specific space icon shows an unread dot */
-  async expectSpaceHasUnread(spaceName: string, options?: { timeout?: number }): Promise<void> {
-    await expect(this.getSpaceUnreadDot(spaceName)).toBeVisible(options);
+  /** Assert that a specific server icon shows an unread dot. */
+  async expectServerHasUnread(serverName: string, options?: { timeout?: number }): Promise<void> {
+    await expect(this.getServerUnreadDot(serverName)).toBeVisible(options);
   }
 
-  /** Assert that a specific space icon does NOT show an unread dot */
-  async expectSpaceHasNoUnread(spaceName: string, options?: { timeout?: number }): Promise<void> {
-    await expect(this.getSpaceUnreadDot(spaceName)).not.toBeVisible(options);
+  /** Assert that a specific server icon does NOT show an unread dot. */
+  async expectServerHasNoUnread(serverName: string, options?: { timeout?: number }): Promise<void> {
+    await expect(this.getServerUnreadDot(serverName)).not.toBeVisible(options);
   }
 
   // --- Room Creation ---
@@ -180,7 +167,7 @@ export class ChatPage {
    * Navigates to the admin rooms page and clicks "New Room".
    *
    * Issue #330 / ADR-027: with auto-join, the test user lands as a regular
-   * member of the bootstrap space and the admin route 403s. Logout then
+   * member of the bootstrap server and the admin route 403s. Logout then
    * re-authenticate as e2eadmin (the bootstrap owner) before navigating so
    * the previous session's permissions don't leak into the page's reactive
    * state.
@@ -262,23 +249,5 @@ export class ChatPage {
    */
   async expectRoomHeaderVisible(roomName: string): Promise<void> {
     await expect(this.getRoomHeader(roomName)).toBeVisible();
-  }
-
-  /**
-   * Navigate to the Explore Spaces page.
-   */
-  async goToExploreSpaces(): Promise<void> {
-    // Post-#330 PR(a) the Browse Spaces UI is gone. Kept as a no-op so
-    // existing tests compile; ExplorePage.joinSpace navigates to the chat
-    // root directly.
-  }
-
-  // --- Assertions ---
-
-  /**
-   * Assert that the explore spaces button is visible.
-   */
-  async expectExploreSpacesVisible(): Promise<void> {
-    await expect(this.page.locator('[title="Explore Spaces"]')).toBeVisible();
   }
 }

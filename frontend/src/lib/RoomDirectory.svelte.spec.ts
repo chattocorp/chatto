@@ -19,10 +19,11 @@ const room = (id: string, overrides: Partial<DirectoryRoom> = {}): DirectoryRoom
 
 const joined = (id: string): RoomsListItem => ({
   id,
-  name: id,
-  type: RoomType.Channel,
-  hasUnread: false,
-  members: []
+	name: id,
+	type: RoomType.Channel,
+	hasUnread: false,
+	viewerNotificationCount: 0,
+	members: []
 });
 
 function findButton(container: Element, label: string): HTMLButtonElement | undefined {

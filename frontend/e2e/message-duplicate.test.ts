@@ -15,7 +15,6 @@ test.describe('Message duplication bug', () => {
 
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const timestamp = Date.now();
@@ -85,7 +84,6 @@ test.describe('Message duplication bug', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const timestamp = Date.now();

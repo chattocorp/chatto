@@ -155,7 +155,7 @@ kubectl -n chatto rollout status deployment/chatto
 
 ```bash
 # Update to a new image
-kubectl -n chatto set image deployment/chatto chatto=ghcr.io/hmans/chatto:v1.2.3
+kubectl -n chatto set image deployment/chatto chatto=ghcr.io/chattocorp/chatto:v1.2.3
 
 # Or update the manifest and apply
 kubectl apply -f chatto.yaml

@@ -1,7 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
-import { ChatPage, RoomPage, ExplorePage } from './pages';
+import { ChatPage, RoomPage } from './pages';
 import { TIMEOUTS, POLLING_INTERVALS } from './constants';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 
@@ -9,11 +9,7 @@ import { waitForRoomReady } from './fixtures/realtimeSync';
  * Post messages via GraphQL API (much faster than UI-based posting).
  * Use this for test setup when you need many messages quickly.
  */
-async function postMessagesViaAPI(
-  page: Page,
-  roomId: string,
-  messages: string[]
-): Promise<void> {
+async function postMessagesViaAPI(page: Page, roomId: string, messages: string[]): Promise<void> {
   for (const body of messages) {
     await page.request.post('/api/graphql', {
       headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
@@ -52,11 +48,11 @@ test.describe('Message pane auto-scroll', () => {
     // Use smaller viewport to ensure content is scrollable
     await page.setViewportSize({ width: 1280, height: 500 });
 
-    // User 1: Create space and post enough messages to make container scrollable
+    // User 1: Create account and post enough messages to make container scrollable
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const testSpaceName = await chatPage.createSpace();
-    const spaceId = await chatPage.getSpaceId();
+    const testServerName = await chatPage.getServerName();
+    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     // Extract roomId from URL for API-based message posting
@@ -75,7 +71,9 @@ test.describe('Message pane auto-scroll', () => {
     await postMessagesViaAPI(page, roomId, messages);
 
     // Wait for messages to appear in UI and scroll position to stabilize at bottom
-    await expect(page.getByText(`Message 20 - ${timestamp}`)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(page.getByText(`Message 20 - ${timestamp}`)).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
 
     // Get the messages container
     const messagesContainer = page.getByTestId('messages-container');
@@ -127,7 +125,7 @@ test.describe('Message pane auto-scroll', () => {
       expect(distanceFromBottom).toBeLessThan(50);
     }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
 
-    // User 2: Create user, join space, and post a message
+    // User 2: Create user, open the server, and post a message
     const context2 = await browser!.newContext({
       baseURL: serverURL,
       viewport: { width: 1280, height: 720 }
@@ -135,15 +133,13 @@ test.describe('Message pane auto-scroll', () => {
     const page2 = await context2.newPage();
     const chatPage2 = new ChatPage(page2);
     const roomPage2 = new RoomPage(page2);
-    const explorePage2 = new ExplorePage(page2);
 
     try {
       await createAndLoginTestUser(page2);
       await chatPage2.goto();
 
-      // Join the space via Explore Spaces
-      await chatPage2.goToExploreSpaces();
-      await explorePage2.joinSpace(testSpaceName);
+      // Ensure the server root is loaded.
+      await chatPage2.goto();
 
       // User 2 is auto-joined to "general" room - enter it
       await chatPage2.enterRoom('general');
@@ -171,11 +167,11 @@ test.describe('Message pane auto-scroll', () => {
     // Use smaller viewport to ensure content is scrollable
     await page.setViewportSize({ width: 1280, height: 500 });
 
-    // User 1: Create space and post enough messages to make container scrollable
+    // User 1: Create account and post enough messages to make container scrollable
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const testSpaceName = await chatPage.createSpace();
-    const spaceId = await chatPage.getSpaceId();
+    const testServerName = await chatPage.getServerName();
+    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     // Extract roomId from URL for API-based message posting
@@ -195,7 +191,9 @@ test.describe('Message pane auto-scroll', () => {
     await postMessagesViaAPI(page, roomId, messages);
 
     // Wait for messages to appear in UI
-    await expect(page.getByText(`Message 20 - ${timestamp}`)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(page.getByText(`Message 20 - ${timestamp}`)).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
 
     // Get the messages container
     const messagesContainer = page.getByTestId('messages-container');
@@ -219,7 +217,7 @@ test.describe('Message pane auto-scroll', () => {
       expect(distanceFromBottom).toBeGreaterThan(100);
     }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
 
-    // User 2: Create user, join space, and post a message
+    // User 2: Create user, open the server, and post a message
     const context2 = await browser!.newContext({
       baseURL: serverURL,
       viewport: { width: 1280, height: 720 }
@@ -227,15 +225,13 @@ test.describe('Message pane auto-scroll', () => {
     const page2 = await context2.newPage();
     const chatPage2 = new ChatPage(page2);
     const roomPage2 = new RoomPage(page2);
-    const explorePage2 = new ExplorePage(page2);
 
     try {
       await createAndLoginTestUser(page2);
       await chatPage2.goto();
 
-      // Join the space via Explore Spaces
-      await chatPage2.goToExploreSpaces();
-      await explorePage2.joinSpace(testSpaceName);
+      // Ensure the server root is loaded.
+      await chatPage2.goto();
 
       // User 2 is auto-joined to "general" room - enter it
       await chatPage2.enterRoom('general');
@@ -278,11 +274,11 @@ test.describe('Message pane auto-scroll', () => {
     browser,
     serverURL
   }) => {
-    // User 1: Create space and post enough messages to fill the screen
+    // User 1: Create account and post enough messages to fill the screen
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const testSpaceName = await chatPage.createSpace();
-    const spaceId = await chatPage.getSpaceId();
+    const testServerName = await chatPage.getServerName();
+    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     // Extract roomId from URL for API-based message posting
@@ -297,27 +293,27 @@ test.describe('Message pane auto-scroll', () => {
     await postMessagesViaAPI(page, roomId, messages);
 
     // Wait for messages to appear in UI
-    await expect(page.getByText(`Message 20 - ${timestamp}`)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(page.getByText(`Message 20 - ${timestamp}`)).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
 
     // Remember the last message text
     const lastMessage = `Message 20 - ${timestamp}`;
 
-    // User 2: Join the space and enter the room - should auto-scroll to bottom
+    // User 2: Open the server and enter the room - should auto-scroll to bottom
     const context2 = await browser!.newContext({
       baseURL: serverURL,
       viewport: { width: 1280, height: 720 }
     });
     const page2 = await context2.newPage();
     const chatPage2 = new ChatPage(page2);
-    const explorePage2 = new ExplorePage(page2);
 
     try {
       await createAndLoginTestUser(page2);
       await chatPage2.goto();
 
-      // Join the space via Explore Spaces
-      await chatPage2.goToExploreSpaces();
-      await explorePage2.joinSpace(testSpaceName);
+      // Ensure the server root is loaded.
+      await chatPage2.goto();
 
       // Enter the general room
       await chatPage2.enterRoom('general');
@@ -343,7 +339,6 @@ test.describe('Message pane auto-scroll', () => {
     }
   });
 
-
   test('does not show new messages indicator when reaction is added while scrolled up', async ({
     page,
     chatPage,
@@ -354,11 +349,11 @@ test.describe('Message pane auto-scroll', () => {
     // Use smaller viewport to ensure content is scrollable
     await page.setViewportSize({ width: 1280, height: 500 });
 
-    // User 1: Create space and post enough messages to make container scrollable
+    // User 1: Create account and post enough messages to make container scrollable
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const testSpaceName = await chatPage.createSpace();
-    const spaceId = await chatPage.getSpaceId();
+    const testServerName = await chatPage.getServerName();
+    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     // Extract roomId from URL for API-based message posting
@@ -378,9 +373,11 @@ test.describe('Message pane auto-scroll', () => {
     await postMessagesViaAPI(page, roomId, messages);
 
     // Wait for messages to appear in UI
-    await expect(page.getByText(`Message 20 - ${timestamp}`)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(page.getByText(`Message 20 - ${timestamp}`)).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
 
-    // User 2: Join the space and room BEFORE user 1 scrolls up
+    // User 2: Open the server and room BEFORE user 1 scrolls up
     // This ensures the "user joined" event doesn't trigger the indicator later
     const context2 = await browser!.newContext({
       baseURL: serverURL,
@@ -389,20 +386,20 @@ test.describe('Message pane auto-scroll', () => {
     const page2 = await context2.newPage();
     const chatPage2 = new ChatPage(page2);
     const roomPage2 = new RoomPage(page2);
-    const explorePage2 = new ExplorePage(page2);
 
     try {
       const user2 = await createAndLoginTestUser(page2);
       await chatPage2.goto();
 
-      // Join the space
-      await chatPage2.goToExploreSpaces();
-      await explorePage2.joinSpace(testSpaceName);
+      // Open the server
+      await chatPage2.goto();
 
       await chatPage2.enterRoom('general');
 
       // Wait for messages to load on user 2's side - use partial match for longer message
-      await expect(page2.getByText(`Message 20 - ${timestamp}`)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+      await expect(page2.getByText(`Message 20 - ${timestamp}`)).toBeVisible({
+        timeout: TIMEOUTS.UI_STANDARD
+      });
 
       // Wait for user 1 to see user 2's join event (auto-scroll should still be enabled)
       await expect(page.getByText(`${user2.displayName} joined the room`)).toBeVisible({
@@ -452,10 +449,9 @@ test.describe('Message pane auto-scroll', () => {
     // Use smaller viewport to ensure content is scrollable
     await page.setViewportSize({ width: 1280, height: 500 });
 
-    // Create user and space
+    // Create user and load the primary server
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     // Extract roomId from URL; resolve spaceId via GraphQL (post-ADR-027 the
@@ -463,7 +459,7 @@ test.describe('Message pane auto-scroll', () => {
     const url = page.url();
     const match = url.match(/\/chat\/-\/([^/]+)/);
     const roomId = match![1];
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
 
     const timestamp = Date.now();
 
@@ -477,7 +473,9 @@ test.describe('Message pane auto-scroll', () => {
     await page.reload();
 
     // Wait for the last message to appear (it's in the initial load of 50 newest messages)
-    await expect(page.getByText(`Message 60 - ${timestamp}`)).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
+    await expect(page.getByText(`Message 60 - ${timestamp}`)).toBeVisible({
+      timeout: TIMEOUTS.COMPLEX_OPERATION
+    });
 
     // Get the messages container
     const messagesContainer = page.getByTestId('messages-container');
@@ -515,7 +513,9 @@ test.describe('Message pane auto-scroll', () => {
 
     // Verify pagination actually loaded older messages by scrolling to the top
     await scrollContainerToTop(page, messagesContainer);
-    await expect(page.getByText(`Message 1 - ${timestamp}`)).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
+    await expect(page.getByText(`Message 1 - ${timestamp}`)).toBeVisible({
+      timeout: TIMEOUTS.COMPLEX_OPERATION
+    });
   });
 
   test('stays at bottom when window is resized narrower', async ({
@@ -523,11 +523,10 @@ test.describe('Message pane auto-scroll', () => {
     chatPage,
     roomPage: _roomPage
   }) => {
-    // Setup: Create user, space, and navigate to room
+    // Setup: Create user and navigate to room
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     // Extract roomId from URL for API-based message posting
@@ -546,7 +545,9 @@ test.describe('Message pane auto-scroll', () => {
     await postMessagesViaAPI(page, roomId, messages);
 
     // Wait for messages to appear in UI
-    await expect(page.getByText(`Message 10 - ${timestamp}`)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(page.getByText(`Message 10 - ${timestamp}`)).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
 
     // Verify we're at the bottom
     const messagesContainer = page.getByTestId('messages-container');
@@ -590,11 +591,10 @@ test.describe('Message pane auto-scroll', () => {
     // Use smaller viewport to ensure content is scrollable
     await page.setViewportSize({ width: 1280, height: 500 });
 
-    // Create user, space, and enter room
+    // Create user and enter room
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     // Extract roomId from URL for API-based message posting
@@ -618,7 +618,9 @@ test.describe('Message pane auto-scroll', () => {
     await page.reload();
 
     // Wait for the last message to be visible
-    await expect(page.getByText(`Message 20 - ${timestamp}`)).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
+    await expect(page.getByText(`Message 20 - ${timestamp}`)).toBeVisible({
+      timeout: TIMEOUTS.COMPLEX_OPERATION
+    });
 
     // Get the messages container
     const messagesContainer = page.getByTestId('messages-container');
@@ -670,8 +672,7 @@ test.describe('Message pane auto-scroll', () => {
 
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     const url = page.url();
@@ -707,9 +708,9 @@ test.describe('Message pane auto-scroll', () => {
     // Reload so the thread pane loads via initial query (URL-driven).
     await page.reload();
     await expect(roomPage.threadPane).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
-    await expect(
-      roomPage.threadPane.getByText(`Reply 20 - ${timestamp}`)
-    ).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
+    await expect(roomPage.threadPane.getByText(`Reply 20 - ${timestamp}`)).toBeVisible({
+      timeout: TIMEOUTS.COMPLEX_OPERATION
+    });
 
     // The thread pane has its own messages-container; scope to it.
     const threadContainer = roomPage.threadPane.getByTestId('messages-container');
@@ -748,11 +749,10 @@ test.describe('Message pane auto-scroll', () => {
     chatPage,
     roomPage: _roomPage
   }) => {
-    // Setup: Create user, space, and navigate to room
+    // Setup: Create user and navigate to room
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     // Extract roomId from URL for API-based message posting
@@ -767,7 +767,9 @@ test.describe('Message pane auto-scroll', () => {
     await postMessagesViaAPI(page, roomId, messages);
 
     // Wait for messages to appear in UI
-    await expect(page.getByText(`Message 15 - ${timestamp}`)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(page.getByText(`Message 15 - ${timestamp}`)).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
 
     // Verify we're at the bottom
     const messagesContainer = page.getByTestId('messages-container');
@@ -812,11 +814,10 @@ test.describe('Message pane auto-scroll', () => {
     chatPage,
     roomPage
   }) => {
-    // Setup: Create user, space, and navigate to room
+    // Setup: Create user and navigate to room
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     // Extract roomId from URL for API-based message posting
@@ -831,7 +832,9 @@ test.describe('Message pane auto-scroll', () => {
     await postMessagesViaAPI(page, roomId, messages);
 
     // Wait for messages to appear in UI
-    await expect(page.getByText(`Message 10 - ${timestamp}`)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(page.getByText(`Message 10 - ${timestamp}`)).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
 
     // Now post a long multi-line message (via UI since this tests the user posting behavior)
     const longMessage = `This is a very long message that spans multiple lines - ${timestamp}
@@ -874,11 +877,10 @@ Line 8: This is the last line of this long message.`;
     chatPage,
     roomPage: _roomPage
   }) => {
-    // Create user, space, and enter room
+    // Create user and enter room
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     // Extract roomId from URL for API-based message posting
@@ -895,7 +897,9 @@ Line 8: This is the last line of this long message.`;
     ]);
 
     // Wait for messages to appear
-    await expect(page.getByText(`Second message - ${timestamp}`)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(page.getByText(`Second message - ${timestamp}`)).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
 
     const messagesContainer = page.getByTestId('messages-container');
 
@@ -935,11 +939,10 @@ Line 8: This is the last line of this long message.`;
     // Use smaller viewport to ensure content is scrollable
     await page.setViewportSize({ width: 1280, height: 500 });
 
-    // Create space and enter general room
+    // Create account and enter general room
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
-    const spaceId = await chatPage.getSpaceId();
+    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
 
     // Extract roomId from URL for API-based message posting
@@ -959,7 +962,9 @@ Line 8: This is the last line of this long message.`;
     await postMessagesViaAPI(page, roomId, messages);
 
     // Wait for the last message to be visible
-    await expect(page.getByText(`Message 20 - ${timestamp}`)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(page.getByText(`Message 20 - ${timestamp}`)).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
 
     // Get the messages container
     const messagesContainer = page.getByTestId('messages-container');
@@ -996,7 +1001,9 @@ Line 8: This is the last line of this long message.`;
     await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
 
     // Wait for messages to load
-    await expect(page.getByText(`Message 20 - ${timestamp}`)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(page.getByText(`Message 20 - ${timestamp}`)).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
 
     // The "New Messages" indicator should NOT appear (no new messages arrived).
     // Verify scrolled to bottom and indicator stays hidden using polling for reliability.

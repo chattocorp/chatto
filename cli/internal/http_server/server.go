@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"sync/atomic"
@@ -235,7 +236,7 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 	// Start HTTP servers
 	for _, srv := range servers {
 		if srv == metricsServer {
-			s.logger.Info("Starting metrics server", "addr", srv.Addr, "path", s.config.Metrics.PathOrDefault())
+			s.logger.Info("Starting metrics server", "url", metricsServerURL(srv.Addr, s.config.Metrics.PathOrDefault()))
 		} else {
 			s.logger.Info("Starting HTTP server", "addr", srv.Addr, "url", s.config.Webserver.URL)
 		}
@@ -276,13 +277,15 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 	}
 }
 
+func metricsServerURL(addr, path string) string {
+	return (&url.URL{Scheme: "http", Host: addr, Path: path}).String()
+}
+
 func (s *HTTPServer) shutdownServer(server *http.Server) error {
 	return s.shutdownServerWithTimeout(server, httpServerShutdownTimeout)
 }
 
 func (s *HTTPServer) shutdownServerWithTimeout(server *http.Server, timeout time.Duration) error {
-	s.logger.Info("Shutting down server", "addr", server.Addr)
-
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
@@ -294,7 +297,6 @@ func (s *HTTPServer) shutdownServerWithTimeout(server *http.Server, timeout time
 		return err
 	}
 
-	s.logger.Info("Server shutdown complete", "addr", server.Addr)
 	return nil
 }
 

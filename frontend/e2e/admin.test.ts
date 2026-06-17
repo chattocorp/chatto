@@ -13,11 +13,7 @@ import {
   type TestUser
 } from './fixtures/testUser';
 
-async function createRoleViaAPI(
-  page: Page,
-  name: string,
-  displayName: string
-): Promise<void> {
+async function createRoleViaAPI(page: Page, name: string, displayName: string): Promise<void> {
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
@@ -28,11 +24,7 @@ async function createRoleViaAPI(
   expect(resp.ok()).toBeTruthy();
 }
 
-async function assignRoleViaAPI(
-  page: Page,
-  userId: string,
-  roleName: string
-): Promise<void> {
+async function assignRoleViaAPI(page: Page, userId: string, roleName: string): Promise<void> {
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
@@ -43,11 +35,7 @@ async function assignRoleViaAPI(
   expect(resp.ok()).toBeTruthy();
 }
 
-async function revokeRoleViaAPI(
-  page: Page,
-  userId: string,
-  roleName: string
-): Promise<void> {
+async function revokeRoleViaAPI(page: Page, userId: string, roleName: string): Promise<void> {
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
@@ -69,7 +57,10 @@ async function createAndLoginAdminUser(page: Page): Promise<TestUser> {
 }
 
 test.describe('Admin Access Control', () => {
-  test('non-admin users see access denied message on /chat/-/admin', async ({ page, adminPage }) => {
+  test('non-admin users see access denied message on /chat/-/admin', async ({
+    page,
+    adminPage
+  }) => {
     // First, ensure there's already an admin user (the first user gets auto-promoted)
     // by creating a throwaway user that claims the first-user admin spot
     await createAndLoginAdminUser(page);
@@ -83,9 +74,7 @@ test.describe('Admin Access Control', () => {
     // Should see access denied message
     await adminPage.expectAccessDenied();
     await adminPage.expectAdminGearNotVisible();
-    await expect(
-      page.getByText('You do not have permission to access this page.')
-    ).toBeVisible();
+    await expect(page.getByText('You do not have permission to access this page.')).toBeVisible();
 
     // Should have a link to return to chat
     await adminPage.expectReturnToChatVisible();
@@ -145,7 +134,9 @@ test.describe('Admin Users Page', () => {
 
     // Should see the admin user's login in the list (Members page formats
     // login with the leading @).
-    await expect(page.getByRole('cell', { name: `@${adminUser.login}`, exact: true })).toBeVisible();
+    await expect(
+      page.getByRole('cell', { name: `@${adminUser.login}`, exact: true })
+    ).toBeVisible();
 
     // Should see the total count
     await adminPage.expectUserCountVisible();
@@ -234,12 +225,7 @@ test.describe('Admin Granular Permissions', () => {
   test.afterEach(async ({ page }) => {
     // Reset all potentially modified everyone role permissions.
     // Uses page.request which maintains the admin session cookies.
-    const permissions = [
-      'admin.view-users',
-      'admin.view-system',
-      'role.manage',
-      'room.manage'
-    ];
+    const permissions = ['admin.view-users', 'admin.view-system', 'role.manage', 'room.manage'];
 
     for (const permission of permissions) {
       try {
@@ -353,10 +339,7 @@ test.describe('Admin Granular Permissions', () => {
     await regularContext.close();
   });
 
-  test('non-owner sees access denied on /chat/-/admin/system', async ({
-    page,
-    browser
-  }) => {
+  test('non-owner sees access denied on /chat/-/admin/system', async ({ page, browser }) => {
     await createAndLoginAdminUser(page);
 
     const regularContext = await browser.newContext();
@@ -534,7 +517,7 @@ test.describe('Role Assignment', () => {
   // The "clicking user in role page navigates to user management" test
   // depended on the instance-admin role surfacing on the role detail page
   // — same story as the suite header note above. Restore once PR(c) merges
-  // the instance and space RBAC engines.
+  // the remaining RBAC concepts.
 });
 
 // "Browse Spaces Permission" describe block was retired with the Browse
@@ -667,7 +650,7 @@ test.describe('Instance Settings', () => {
     await page2.goto(routes.spaces);
 
     // Verify initial page title contains *some* instance name (post-PR(a)
-    // this is the bootstrap space's name when no override is configured —
+    // this is the bootstrap server's name when no override is configured —
     // see `InstanceConfig.serverName` resolver fallback chain). The
     // assertion below for the *changed* name is the meaningful signal.
     await expect(page2).not.toHaveTitle('');
@@ -706,7 +689,6 @@ test.describe('Instance Settings', () => {
     await page.goto(routes.adminUsers);
     await expect(page).toHaveTitle(/My Chat Server$/);
   });
-
 });
 
 test.describe('Instance Role Permission Denials', () => {
@@ -827,9 +809,7 @@ test.describe('Instance Role Permission Denials', () => {
     await adminPage.gotoRoles();
     await expect(page.getByRole('heading', { name: 'Permissions', level: 1 })).toBeVisible();
 
-    const cell = page.locator(
-      `td[data-role="${roleName}"][data-permission="message.post"] button`
-    );
+    const cell = page.locator(`td[data-role="${roleName}"][data-permission="message.post"] button`);
     await expect(cell).toHaveAttribute('aria-pressed', 'false');
 
     await cell.click();
@@ -860,15 +840,10 @@ test.describe('Instance Role Permission Denials', () => {
       }
     });
   });
-
 });
 
 test.describe('Identity Editing', () => {
-  test('admin can rename a user and reset their cooldown', async ({
-    page,
-    adminPage,
-    browser
-  }) => {
+  test('admin can rename a user and reset their cooldown', async ({ page, adminPage, browser }) => {
     await createAndLoginAdminUser(page);
 
     const regularContext = await browser.newContext();

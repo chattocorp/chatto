@@ -340,4 +340,48 @@ describe('RoomSidebar', () => {
     expect(container.textContent).toContain('Files coming soon.');
     expect(container.querySelector('[aria-label="Members"]')).toBeFalsy();
   });
+
+  it('shows the room-ban action for other members when allowed', async () => {
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        currentUserId: 'viewer',
+        canBanRoomMembers: true,
+        roomData: roomData(
+          [
+            { ...member(0), id: 'viewer', displayName: 'Viewer' },
+            { ...member(1), id: 'other', displayName: 'Other Member' }
+          ],
+          2,
+          false
+        )
+      }
+    });
+
+    buttonByText(container, 'Other Member')!.click();
+    await tick();
+
+    expect(container.textContent).toContain('Ban from room');
+  });
+
+  it('hides the room-ban action when member moderation is disabled', async () => {
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        currentUserId: 'viewer',
+        canBanRoomMembers: false,
+        roomData: roomData(
+          [
+            { ...member(0), id: 'viewer', displayName: 'Viewer' },
+            { ...member(1), id: 'other', displayName: 'Other Member' }
+          ],
+          2,
+          false
+        )
+      }
+    });
+
+    buttonByText(container, 'Other Member')!.click();
+    await tick();
+
+    expect(container.textContent).not.toContain('Ban from room');
+  });
 });

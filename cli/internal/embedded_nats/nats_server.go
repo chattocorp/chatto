@@ -48,10 +48,9 @@ func ShutdownServer(ns *server.Server) {
 		return
 	}
 	logger := log.WithPrefix("server.NATS")
-	logger.Info("Shutting down embedded NATS server")
 	ns.Shutdown()
 	ns.WaitForShutdown()
-	logger.Info("Embedded NATS server shutdown complete")
+	logger.Info("Embedded NATS server shut down")
 }
 
 // createServer creates an embedded NATS server configured from chatto.toml.

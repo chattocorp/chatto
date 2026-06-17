@@ -11,7 +11,6 @@ test.describe('Code block rendering', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
     const longLine = 'const result = ' + 'veryLongVariableName + '.repeat(20) + '"end"';

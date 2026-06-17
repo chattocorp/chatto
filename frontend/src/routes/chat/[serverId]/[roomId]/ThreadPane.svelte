@@ -7,7 +7,8 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
 
-  const notificationStore = serverRegistry.getStore(getActiveServer()).notifications;
+  const stores = serverRegistry.getStore(getActiveServer());
+  const notificationStore = stores.notifications;
   import { appState } from '$lib/state/globals.svelte';
   import { getRoomMembers, createComposerContext, MessagesStore } from '$lib/state/room';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
@@ -206,7 +207,13 @@
   $effect(() => {
     if (!appState.isFocused) return;
     const threadId = threadRootEventId;
-    notificationStore.dismissThreadNotifications(threadId);
+    const currentRoomId = roomId;
+    void notificationStore.dismissThreadNotifications(threadId).then((counts) => {
+      const dismissedForRoom = counts.byRoom[currentRoomId] ?? 0;
+      if (dismissedForRoom > 0) {
+        stores.rooms.decrementUnreadNotification(currentRoomId, dismissedForRoom);
+      }
+    });
   });
 
   async function markThreadAsRead(currentThreadId: string, upToEventId?: string) {

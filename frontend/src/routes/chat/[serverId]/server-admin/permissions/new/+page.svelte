@@ -91,12 +91,12 @@
   }
 </script>
 
-<PageTitle title="Create Role | Space Admin" />
+<PageTitle title="Create Role | Server Admin" />
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
   <PaneHeader
     title="Create Role"
-    subtitle="Create a new role for this space"
+    subtitle="Create a new role for this server"
     backHref={resolve('/chat/[serverId]/server-admin/permissions', {
       serverId: serverIdToSegment(getActiveServer())
     })}

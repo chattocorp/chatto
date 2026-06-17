@@ -25,11 +25,9 @@ spec:
       labels:
         app: chatto-client
     spec:
-      imagePullSecrets:
-        - name: ghcr-pull-secret
       containers:
         - name: chatto-client
-          image: ghcr.io/hmans/chatto-client:latest
+          image: ghcr.io/chattocorp/chatto-client:latest
           ports:
             - containerPort: 80
           lifecycle:

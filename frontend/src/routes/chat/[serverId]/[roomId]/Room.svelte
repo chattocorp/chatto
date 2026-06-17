@@ -38,6 +38,11 @@
   import RoomEventsPane from './RoomEventsPane.svelte';
   import RoomSidebar from './RoomSidebar.svelte';
   import RoomSidebarToggle from './RoomSidebarToggle.svelte';
+  import {
+    canBanMembersFromRoomSidebar,
+    DM_ROOM_SIDEBAR_PANELS,
+    roomSidebarPanelForRoom
+  } from './roomSidebarBehavior';
   import { RoomSidebarPanelsState } from './roomSidebarPanels.svelte';
   import ThreadPane from './ThreadPane.svelte';
 
@@ -179,13 +184,23 @@
     if (!appState.isFocused) return;
 
     const currentRoomId = roomId;
-    if (room.isDM) {
-      notificationStore.dismissDMNotifications(currentRoomId);
-    } else {
-      notificationStore.dismissMentionNotifications(currentRoomId);
-      notificationStore.dismissRoomReplyNotifications(currentRoomId);
-      notificationStore.dismissRoomMessageNotifications(currentRoomId);
-    }
+    void (async () => {
+      const results = room.isDM
+        ? [await notificationStore.dismissDMNotifications(currentRoomId)]
+        : await Promise.all([
+            notificationStore.dismissMentionNotifications(currentRoomId),
+            notificationStore.dismissRoomReplyNotifications(currentRoomId),
+            notificationStore.dismissRoomMessageNotifications(currentRoomId)
+          ]);
+
+      const dismissedForRoom = results.reduce(
+        (sum, counts) => sum + (counts.byRoom[currentRoomId] ?? 0),
+        0
+      );
+      if (dismissedForRoom > 0) {
+        stores.rooms.decrementUnreadNotification(currentRoomId, dismissedForRoom);
+      }
+    })();
   });
 
   // Remember this room as the last visited (for the chat-root → last-room
@@ -281,8 +296,13 @@
     () => getActiveServer(),
     () => roomId
   );
-  const activeRoomSidebarPanel = $derived(roomSidebarPanels.activeDesktopPanel);
-  const mobileRoomSidebarPanel = $derived(roomSidebarPanels.mobilePanel);
+  const activeRoomSidebarPanel = $derived(
+    roomSidebarPanelForRoom(room.isDM, roomSidebarPanels.activeDesktopPanel)
+  );
+  const mobileRoomSidebarPanel = $derived(
+    roomSidebarPanelForRoom(room.isDM, roomSidebarPanels.mobilePanel)
+  );
+  const roomSidebarTogglePanels = $derived(room.isDM ? DM_ROOM_SIDEBAR_PANELS : undefined);
 
   let leavingRoom = $state(false);
 
@@ -377,18 +397,18 @@
             {/if}
           {/snippet}
           {#snippet actions()}
-            {#if !room.isDM}
-              <RoomSidebarToggle
-                mode="mobile"
-                activePanel={mobileRoomSidebarPanel}
-                onToggle={(panel) => roomSidebarPanels.toggleMobilePanel(panel)}
-              />
-              <RoomSidebarToggle
-                mode="desktop"
-                activePanel={activeRoomSidebarPanel}
-                onToggle={(panel) => roomSidebarPanels.toggleDesktopPanel(panel)}
-              />
-            {/if}
+            <RoomSidebarToggle
+              mode="mobile"
+              activePanel={mobileRoomSidebarPanel}
+              panels={roomSidebarTogglePanels}
+              onToggle={(panel) => roomSidebarPanels.toggleMobilePanel(panel)}
+            />
+            <RoomSidebarToggle
+              mode="desktop"
+              activePanel={activeRoomSidebarPanel}
+              panels={roomSidebarTogglePanels}
+              onToggle={(panel) => roomSidebarPanels.toggleDesktopPanel(panel)}
+            />
             {#if showVoiceCall}
               <VoiceCallButton {roomId} livekitUrl={serverInfo.livekitUrl!} />
             {/if}
@@ -454,7 +474,7 @@
         />
       {/if}
 
-      {#if !room.isDM && mobileRoomSidebarPanel}
+      {#if mobileRoomSidebarPanel}
         <button
           type="button"
           class="absolute inset-0 z-10 bg-transparent lg:hidden"
@@ -471,7 +491,10 @@
             activePanel={mobileRoomSidebarPanel}
             presentation="overlay"
             loading={room.isRoomLoading}
-            canBanRoomMembers={room.roomData?.canBanRoomMembers ?? false}
+            canBanRoomMembers={canBanMembersFromRoomSidebar(
+              room.isDM,
+              room.roomData?.canBanRoomMembers
+            )}
             currentUserId={currentUser.user?.id ?? null}
             onLoadMoreMembers={roomMembers.loadMoreMembers}
             onClose={() => roomSidebarPanels.closeMobile()}
@@ -480,13 +503,16 @@
       {/if}
     </div>
 
-    {#if !room.isDM && activeRoomSidebarPanel}
+    {#if activeRoomSidebarPanel}
       <div class="hidden lg:flex">
         <RoomSidebar
           {roomId}
           activePanel={activeRoomSidebarPanel}
           loading={room.isRoomLoading}
-          canBanRoomMembers={room.roomData?.canBanRoomMembers ?? false}
+          canBanRoomMembers={canBanMembersFromRoomSidebar(
+            room.isDM,
+            room.roomData?.canBanRoomMembers
+          )}
           currentUserId={currentUser.user?.id ?? null}
           onLoadMoreMembers={roomMembers.loadMoreMembers}
           onClose={() => roomSidebarPanels.closeDesktop()}

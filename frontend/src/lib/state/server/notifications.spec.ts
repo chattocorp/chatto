@@ -43,6 +43,7 @@ function notificationsResult(items: NotificationItem[]) {
   return {
     viewer: {
       notifications: {
+        totalCount: items.length,
         items
       }
     }
@@ -170,6 +171,46 @@ describe('NotificationStore', () => {
     expect(store.notifications.map((n) => n.id)).toEqual(['thread-mention']);
   });
 
+  it('dismissMentionNotifications reports dismissed counts by room', async () => {
+    const roomMentionA = {
+      __typename: 'MentionNotificationItem',
+      id: 'room-mention-a',
+      createdAt: new Date().toISOString(),
+      actor: {
+        id: 'a',
+        login: 't',
+        displayName: 't',
+        avatarUrl: null,
+        presenceStatus: 'OFFLINE'
+      },
+      summary: 'mentioned you',
+      mentionRoom: { id: 'r1', name: 'r' },
+      mentionEventId: 'e1',
+      mentionInThread: null
+    } as unknown as NotificationItem;
+    const roomMentionB = {
+      ...roomMentionA,
+      id: 'room-mention-b',
+      mentionEventId: 'e2'
+    } as unknown as NotificationItem;
+
+    const client = {
+      query: vi.fn(),
+      mutation: vi.fn().mockReturnValue({
+        toPromise: vi.fn().mockResolvedValue({ data: { dismissNotification: true }, error: null })
+      }),
+      subscription: vi.fn()
+    } as unknown as Client;
+    const store = new NotificationStore(client);
+    store.notifications = [roomMentionA, roomMentionB];
+    store.setUnreadNotificationCount(2);
+
+    const counts = await store.dismissMentionNotifications('r1');
+
+    expect(counts).toEqual({ total: 2, byRoom: { r1: 2 } });
+    expect(store.unreadNotificationCount).toBe(0);
+  });
+
   // Opening the thread clears both thread-replies AND thread-mentions in one
   // pass (the code path called from ThreadPane).
   it('dismissThreadNotifications clears thread-scoped mentions too', async () => {
@@ -209,6 +250,23 @@ describe('NotificationStore', () => {
 
     expect(dismissedIds).toEqual(['thread-mention']);
     expect(store.notifications).toHaveLength(0);
+  });
+
+  it('suppresses live echo refreshes for locally dismissed notifications', async () => {
+    const client = {
+      query: vi.fn(),
+      mutation: vi.fn().mockReturnValue({
+        toPromise: vi.fn().mockResolvedValue({ data: { dismissNotification: true }, error: null })
+      }),
+      subscription: vi.fn()
+    } as unknown as Client;
+    const store = new NotificationStore(client);
+    store.notifications = [mention('local')];
+
+    await store.dismiss('local');
+
+    expect(store.consumeLocalDismissal('local')).toBe(true);
+    expect(store.consumeLocalDismissal('local')).toBe(false);
   });
 
   // The DM list dot uses hasDMRoomNotification per conversation. It must

@@ -49,6 +49,19 @@ type QueryResponse = {
   };
 };
 
+type NotificationCountsResponse = {
+  viewer: {
+    user: {
+      rooms: Array<{
+        id: string;
+        viewerNotifications: {
+          totalCount: number;
+        };
+      }>;
+    };
+  };
+};
+
 function makeRoom(id: string, overrides: Partial<QueryRoom> = {}): QueryRoom {
   return {
     id,
@@ -98,7 +111,28 @@ function makeStore(client: Client) {
   return new RoomsStore(client, new NotificationLevelStore(), new RoomUnreadStore());
 }
 
-function makeClient(responses: Array<QueryResponse | null>) {
+function operationName(document: unknown): string | undefined {
+  return (
+    document as {
+      definitions?: Array<{ name?: { value?: string } }>;
+    }
+  ).definitions?.[0]?.name?.value;
+}
+
+function makeCountsResponse(counts: Record<string, number>): NotificationCountsResponse {
+  return {
+    viewer: {
+      user: {
+        rooms: Object.entries(counts).map(([id, totalCount]) => ({
+          id,
+          viewerNotifications: { totalCount }
+        }))
+      }
+    }
+  };
+}
+
+function makeClient(responses: Array<QueryResponse | NotificationCountsResponse | null>) {
   const queue = [...responses];
   const queryMock = vi.fn(() => ({
     toPromise: () => Promise.resolve({ data: queue.shift() ?? null, error: null })
@@ -117,14 +151,21 @@ describe('RoomsStore - refresh', () => {
   it('discards out-of-order responses', async () => {
     let resolveFirst!: (value: { data: QueryResponse; error: null }) => void;
     let resolveSecond!: (value: { data: QueryResponse; error: null }) => void;
-    const queryMock = vi
-      .fn()
-      .mockImplementationOnce(() => ({
-        toPromise: () => new Promise((resolve) => (resolveFirst = resolve))
-      }))
-      .mockImplementationOnce(() => ({
+    const queryMock = vi.fn().mockImplementation((document: unknown) => {
+      if (operationName(document) === 'GetMyServerRoomNotificationCounts') {
+        return {
+          toPromise: () => Promise.resolve({ data: makeCountsResponse({ newer: 4 }), error: null })
+        };
+      }
+      if (queryMock.mock.calls.length === 1) {
+        return {
+          toPromise: () => new Promise((resolve) => (resolveFirst = resolve))
+        };
+      }
+      return {
         toPromise: () => new Promise((resolve) => (resolveSecond = resolve))
-      }));
+      };
+    });
     const store = makeStore({ query: queryMock } as unknown as Client);
 
     void store.refresh();
@@ -148,6 +189,9 @@ describe('RoomsStore - refresh', () => {
         items: [{ id: 'room:newer', type: 'room', roomId: 'newer' }]
       }
     ]);
+    await vi.waitFor(() => {
+      expect(store.rooms.find((room) => room.id === 'newer')?.viewerNotificationCount).toBe(4);
+    });
 
     resolveFirst({
       data: makeResponse(
@@ -167,6 +211,55 @@ describe('RoomsStore - refresh', () => {
         items: [{ id: 'room:newer', type: 'room', roomId: 'newer' }]
       }
     ]);
+  });
+
+  it('patches notification counts from the optional compatibility query', async () => {
+    let resolveCounts!: (value: { data: NotificationCountsResponse; error: null }) => void;
+    const queryMock = vi.fn((document: unknown) => {
+      if (operationName(document) === 'GetMyServerRoomNotificationCounts') {
+        return {
+          toPromise: () => new Promise((resolve) => (resolveCounts = resolve))
+        };
+      }
+      return {
+        toPromise: () => Promise.resolve({ data: makeResponse([makeRoom('general')]), error: null })
+      };
+    });
+    const store = makeStore({ query: queryMock } as unknown as Client);
+
+    await store.refresh();
+
+    expect(store.rooms).toMatchObject([{ id: 'general', viewerNotificationCount: 0 }]);
+    resolveCounts({ data: makeCountsResponse({ general: 7 }), error: null });
+
+    await vi.waitFor(() => {
+      expect(store.rooms).toMatchObject([{ id: 'general', viewerNotificationCount: 7 }]);
+    });
+  });
+
+  it('keeps rooms visible when the optional notification count field is unsupported', async () => {
+    const queryMock = vi.fn((document: unknown) => {
+      if (operationName(document) === 'GetMyServerRoomNotificationCounts') {
+        return {
+          toPromise: () =>
+            Promise.resolve({
+              data: null,
+              error: {
+                message: 'Cannot query field "viewerNotifications" on type "Room".'
+              }
+            })
+        };
+      }
+      return {
+        toPromise: () => Promise.resolve({ data: makeResponse([makeRoom('general')]), error: null })
+      };
+    });
+    const store = makeStore({ query: queryMock } as unknown as Client);
+
+    await store.refresh();
+    await settle();
+
+    expect(store.rooms).toMatchObject([{ id: 'general', viewerNotificationCount: 0 }]);
   });
 });
 

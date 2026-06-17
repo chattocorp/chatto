@@ -6,7 +6,7 @@ import { RoomPage } from './RoomPage';
  * Page object for Direct Messages interactions.
  *
  * Per #330 phase 3, DMs are rooms on the Server: they appear in the
- * primary-space sidebar alongside channels and use the channel URL shape
+ * primary-server sidebar alongside channels and use the channel URL shape
  * (/chat/{instanceSegment}/{roomId}). This helper still reaches the DM
  * room directly via the GraphQL API for setup convenience, and offers
  * sidebar-scoped assertions for tests that care about list rendering.
@@ -17,7 +17,7 @@ export class DMPage {
   // --- Navigation ---
 
   /**
-   * Navigate to the chat root so that the primary-space sidebar (which
+   * Navigate to the chat root so that the primary-server sidebar (which
    * contains DMs) is visible.
    */
   async goto(): Promise<void> {
@@ -69,7 +69,7 @@ export class DMPage {
     return roomPage;
   }
 
-  // --- Conversation List (in primary-space sidebar) ---
+  // --- Conversation List (in primary-server sidebar) ---
 
   /**
    * Get a DM sidebar item by the other user's display name.

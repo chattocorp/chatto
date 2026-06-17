@@ -72,13 +72,11 @@ export async function logoutCurrentUser(page: Page): Promise<void> {
 
 /**
  * Logs in as the bootstrap admin user (idempotent re-auth on the same page)
- * and returns the deployment's primary space — the bootstrap "E2E Test Server"
- * created by fixtures/chatto.toml. Issue #330 / ADR-027: tests that used to
- * call `createSpaceViaAPI` to mint a fresh space and become its owner now
- * lean on the bootstrap primary instead, with admin auth so admin-style
- * mutations (room create, archive, layout, role grant, ...) keep working.
+ * and returns the deployment's primary server — the bootstrap "E2E Test Server"
+ * created by fixtures/chatto.toml. Admin-style tests use this to run room,
+ * layout, and role operations with sufficient permissions.
  */
-export async function loginAsAdminAndUsePrimarySpace(
+export async function loginAsAdminAndUsePrimaryServer(
   page: Page
 ): Promise<{ id: string; name: string }> {
   await loginAsAdmin(page);
@@ -94,8 +92,7 @@ export async function loginAsAdminAndUsePrimarySpace(
   if (!instance) {
     throw new Error('Server query returned no data — bootstrap profile likely broken');
   }
-  // Post-ADR-030 the kind discriminator stands in for what used to be a
-  // per-deployment space ID.
+  // Post-ADR-030 the kind discriminator stands in for legacy spaceId parameters.
   return {
     id: 'server',
     name: instance.profile.name
@@ -326,14 +323,10 @@ export async function loginTestUser(page: Page, user: TestUser): Promise<void> {
   expect(loginData.success).toBe(true);
 }
 
-/**
- * Vestigial fixture kept for source-compat: post-#330 PR(a) the `joinSpace`
- * mutation is gone — every authenticated user is implicitly a member of the
- * deployment's server space, so callers don't need to do anything to "join."
- * Function signature preserved so existing tests compile; no-op body.
- */
-export async function joinSpace(_page: Page, _spaceId: string): Promise<void> {
-  // no-op
+/** Navigate an authenticated user to the local server's chat surface. */
+export async function openServer(page: Page, _legacySpaceId?: string): Promise<void> {
+  await page.goto('/chat');
+  await page.waitForURL((url) => url.pathname.startsWith('/chat'));
 }
 
 export interface CreateTestUserOptions {

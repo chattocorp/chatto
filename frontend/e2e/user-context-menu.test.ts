@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test';
-import { createAndLoginTestUser, joinSpace } from './fixtures/testUser';
+import { createAndLoginTestUser, openServer } from './fixtures/testUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { test } from './setup';
 import { ChatPage, RoomPage } from './pages';
@@ -15,11 +15,10 @@ test.describe('User context menu', () => {
       browser,
       serverURL
     }) => {
-      // User A: Create space and send a message
+      // User A: Create account and send a message
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
-      const spaceId = await chatPage.getSpaceId();
+      const spaceId = await chatPage.getServerScopeId();
       await chatPage.enterRoom('general');
       await roomPage.sendMessage('Hello from User A');
 
@@ -29,7 +28,7 @@ test.describe('User context menu', () => {
 
       try {
         const userB = await createAndLoginTestUser(page2);
-        await joinSpace(page2);
+        await openServer(page2);
         await page2.goto(routes.space());
         await page2.waitForURL(routes.patterns.anySpace);
 
@@ -67,10 +66,9 @@ test.describe('User context menu', () => {
       chatPage,
       roomPage
     }) => {
-      // Create space and send a message
+      // Create account and send a message
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
       await roomPage.sendMessage('Test message');
 
@@ -96,7 +94,6 @@ test.describe('User context menu', () => {
     }) => {
       const user = await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
       await roomPage.sendMessage('Test message');
 
@@ -123,7 +120,6 @@ test.describe('User context menu', () => {
     }) => {
       const user = await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
 
       // Wait for the member to be visible in the member list
@@ -149,7 +145,6 @@ test.describe('User context menu', () => {
     }) => {
       const user = await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
 
       await roomPage.expectMemberVisible(user.login, { timeout: TIMEOUTS.UI_STANDARD });
@@ -171,7 +166,6 @@ test.describe('User context menu', () => {
     test('pressing Escape closes the user profile dialog', async ({ page, chatPage, roomPage }) => {
       const user = await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
       await roomPage.sendMessage('Test message');
 
@@ -197,7 +191,6 @@ test.describe('User context menu', () => {
     }) => {
       const user = await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
       await roomPage.sendMessage('Test message');
 
@@ -221,7 +214,6 @@ test.describe('User context menu', () => {
     test('user profile dialog shows Send Message button', async ({ page, chatPage, roomPage }) => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
-      await chatPage.createSpace();
       await chatPage.enterRoom('general');
 
       // Send a message so we have an avatar to click

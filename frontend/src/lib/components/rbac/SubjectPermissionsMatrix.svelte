@@ -55,20 +55,22 @@ apply at that scope's tier).
 
   const CATEGORY_META: Record<string, { title: string; description: string }> = {
     space: {
-      title: 'Space Permissions',
-      description: 'Legacy space-level capabilities kept for compatibility during the server model transition'
+      title: 'Server Permissions',
+      description: 'Server-level capabilities kept under the legacy category key for compatibility'
     },
     room: {
       title: 'Room Permissions',
-      description: 'Server defaults for room discovery and joining, plus room creation. Add room/group denies for local restrictions'
+      description:
+        'Server defaults for room discovery and joining, plus room creation. Add room/group denies for local restrictions'
     },
     message: {
       title: 'Message Permissions',
-      description: 'Server defaults for posting, threads, reactions, echoing, and message moderation. Room/group denies create local exceptions'
+      description:
+        'Server defaults for posting, threads, reactions, echoing, and message moderation. Room/group denies create local exceptions'
     },
     member: {
       title: 'Member Permissions',
-      description: 'Control who can invite and remove space members'
+      description: 'Control who can invite and remove server members'
     },
     role: {
       title: 'Role Permissions',
@@ -81,7 +83,8 @@ apply at that scope's tier).
     dm: { title: 'DM Permissions', description: 'Control access to direct messaging entry points' },
     user: {
       title: 'User Permissions',
-      description: 'Control user account and per-user permission operations. Any non-owner deny cancels grants'
+      description:
+        'Control user account and per-user permission operations. Any non-owner deny cancels grants'
     }
   };
 

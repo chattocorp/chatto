@@ -86,7 +86,23 @@ func runServer(configPath string) {
 	// Conductor stops foreground run scripts with SIGHUP before escalating.
 	// Chatto has no reload-on-HUP behavior, so treat it as graceful shutdown
 	// alongside the usual terminal and supervisor stop signals.
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
+	shutdownSignals := []os.Signal{syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM}
+	signalLog := make(chan os.Signal, 1)
+	stopSignalLog := make(chan struct{})
+	signal.Notify(signalLog, shutdownSignals...)
+	defer func() {
+		signal.Stop(signalLog)
+		close(stopSignalLog)
+	}()
+	go func() {
+		select {
+		case sig := <-signalLog:
+			log.Info("Received shutdown signal", "signal", sig.String())
+		case <-stopSignalLog:
+		}
+	}()
+
+	ctx, stop := signal.NotifyContext(context.Background(), shutdownSignals...)
 	defer stop()
 
 	// Use errgroup to coordinate services
@@ -306,15 +322,10 @@ func connectToNATS(ctx context.Context, cfg config.ChattoConfig, embeddedNATS *s
 		nats.DisconnectErrHandler(func(_ *nats.Conn, err error) {
 			if err != nil {
 				logger.Warn("NATS disconnected", "error", err)
-			} else {
-				logger.Info("NATS disconnected (graceful)")
 			}
 		}),
 		nats.ReconnectHandler(func(nc *nats.Conn) {
 			logger.Info("NATS reconnected", "url", nc.ConnectedUrl())
-		}),
-		nats.ClosedHandler(func(_ *nats.Conn) {
-			logger.Info("NATS connection closed")
 		}),
 	)
 
