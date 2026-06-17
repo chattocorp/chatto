@@ -24,7 +24,7 @@ export class MyThreadsPage {
   }
 
   /** Navigate to My Threads and wait for the page to load */
-  async goto(spaceId: string): Promise<void> {
+  async goto(): Promise<void> {
     await this.myThreadsLink.click();
     await this.page.waitForURL(routes.threads);
   }

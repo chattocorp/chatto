@@ -12,6 +12,7 @@ import {
   revokePermission,
   type TestUser
 } from './fixtures/testUser';
+import { withServerUser } from './fixtures/serverUser';
 
 async function createRoleViaAPI(page: Page, name: string, displayName: string): Promise<void> {
   const resp = await page.request.post('/api/graphql', {
@@ -608,63 +609,59 @@ test.describe('Instance Settings', () => {
   test('instance config changes update other connected clients in real-time', async ({
     page,
     adminPage,
-    browser
+    browser,
+    serverURL
   }) => {
     // First admin user logs in and goes to settings
     await createAndLoginAdminUser(page);
 
-    // Second context - a regular user viewing the chat
-    const context2 = await browser.newContext();
-    const page2 = await context2.newPage();
-    await createAndLoginTestUser(page2);
-    await page2.goto('/chat');
+    await withServerUser(browser, serverURL, async ({ page: page2 }) => {
+      // Second context - a regular user viewing the chat
+      await page2.goto('/chat');
 
-    // Verify no MOTD initially on second page
-    await expect(page2.getByTestId('motd-content')).not.toBeVisible();
+      // Verify no MOTD initially on second page
+      await expect(page2.getByTestId('motd-content')).not.toBeVisible();
 
-    // First page (admin): go to settings and set MOTD
-    await adminPage.gotoServerSettings();
-    await adminPage.fillServerSettings({ motd: 'Live update test!' });
-    await adminPage.saveServerSettings();
+      // First page (admin): go to settings and set MOTD
+      await adminPage.gotoServerSettings();
+      await adminPage.fillServerSettings({ motd: 'Live update test!' });
+      await adminPage.saveServerSettings();
 
-    // Second page (regular user) should now show the MOTD (via live events)
-    await expect(page2.getByTestId('motd-content')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
-    await expect(page2.getByTestId('motd-content')).toContainText('Live update test!');
-
-    // Clean up
-    await context2.close();
+      // Second page (regular user) should now show the MOTD (via live events)
+      await expect(page2.getByTestId('motd-content')).toBeVisible({
+        timeout: TIMEOUTS.UI_STANDARD
+      });
+      await expect(page2.getByTestId('motd-content')).toContainText('Live update test!');
+    });
   });
 
   test('instance name changes update page title in real-time for connected clients', async ({
     page,
     adminPage,
-    browser
+    browser,
+    serverURL
   }) => {
     // First admin user logs in
     await createAndLoginAdminUser(page);
 
-    // Second context - a regular user viewing the chat
-    const context2 = await browser.newContext();
-    const page2 = await context2.newPage();
-    await createAndLoginTestUser(page2);
-    await page2.goto(routes.spaces);
+    await withServerUser(browser, serverURL, async ({ page: page2 }) => {
+      // Second context - a regular user viewing the chat
+      await page2.goto(routes.spaces);
 
-    // Verify initial page title contains *some* instance name (post-PR(a)
-    // this is the bootstrap server's name when no override is configured —
-    // see `InstanceConfig.serverName` resolver fallback chain). The
-    // assertion below for the *changed* name is the meaningful signal.
-    await expect(page2).not.toHaveTitle('');
+      // Verify initial page title contains *some* instance name (post-PR(a)
+      // this is the bootstrap server's name when no override is configured —
+      // see `InstanceConfig.serverName` resolver fallback chain). The
+      // assertion below for the *changed* name is the meaningful signal.
+      await expect(page2).not.toHaveTitle('');
 
-    // First page (admin): go to settings and change instance name
-    await adminPage.gotoServerSettings();
-    await adminPage.fillServerSettings({ serverName: 'Live Title Test' });
-    await adminPage.saveServerSettings();
+      // First page (admin): go to settings and change instance name
+      await adminPage.gotoServerSettings();
+      await adminPage.fillServerSettings({ serverName: 'Live Title Test' });
+      await adminPage.saveServerSettings();
 
-    // Second page (regular user) should now show updated instance name in title (via live events)
-    await expect(page2).toHaveTitle(/Live Title Test/, { timeout: TIMEOUTS.UI_STANDARD });
-
-    // Clean up
-    await context2.close();
+      // Second page (regular user) should now show updated instance name in title (via live events)
+      await expect(page2).toHaveTitle(/Live Title Test/, { timeout: TIMEOUTS.UI_STANDARD });
+    });
   });
 
   test('instance name appears in page title', async ({ page, adminPage }) => {

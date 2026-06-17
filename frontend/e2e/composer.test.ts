@@ -1,8 +1,8 @@
 import { expect } from '@playwright/test';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
+import { withLoggedInServerWindow } from './fixtures/serverUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
-import { RoomPage } from './pages';
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
 
@@ -30,42 +30,30 @@ test.describe('Composer drafts', () => {
     await expect(roomPage.messageInput).toHaveText(draftText);
 
     // Open a second tab with the same user in the same room
-    const context2 = await browser!.newContext({
-      baseURL: serverURL,
-      viewport: { width: 1280, height: 720 }
-    });
-    const page2 = await context2.newPage();
+    await withLoggedInServerWindow(
+      browser!,
+      serverURL,
+      user,
+      async ({ page: page2, roomPage: roomPage2 }) => {
+        // Navigate to the same room
+        await page2.goto(roomUrl);
+        await page2.waitForURL(routes.patterns.anyRoom);
 
-    try {
-      // Login as the same user in tab 2
-      const loginResponse = await page2.request.post('/auth/login', {
-        data: {
-          login: user.login,
-          password: user.password
-        }
-      });
-      expect(loginResponse.ok()).toBeTruthy();
+        // The message input in tab 2 should be empty (not showing tab 1's draft)
+        await expect(roomPage2.messageInput).toHaveText('');
 
-      // Navigate to the same room
-      await page2.goto(roomUrl);
-      await page2.waitForURL(routes.patterns.anyRoom);
+        // Type a different draft in tab 2
+        const draftText2 = `Different draft ${Date.now()}`;
+        await roomPage2.messageInput.fill(draftText2);
 
-      // The message input in tab 2 should be empty (not showing tab 1's draft)
-      const roomPage2 = new RoomPage(page2);
-      await expect(roomPage2.messageInput).toHaveText('');
+        // Verify tab 2 has its own draft
+        await expect(roomPage2.messageInput).toHaveText(draftText2);
 
-      // Type a different draft in tab 2
-      const draftText2 = `Different draft ${Date.now()}`;
-      await roomPage2.messageInput.fill(draftText2);
-
-      // Verify tab 2 has its own draft
-      await expect(roomPage2.messageInput).toHaveText(draftText2);
-
-      // Go back to tab 1 and verify its draft is unchanged
-      await expect(roomPage.messageInput).toHaveText(draftText);
-    } finally {
-      await context2.close();
-    }
+        // Go back to tab 1 and verify its draft is unchanged
+        await expect(roomPage.messageInput).toHaveText(draftText);
+      },
+      { viewport: { width: 1280, height: 720 } }
+    );
   });
 
   test('draft persists when navigating away and back to room', async ({

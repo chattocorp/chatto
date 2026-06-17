@@ -1,11 +1,11 @@
 import { expect } from '@playwright/test';
-import { createAndLoginTestUser, openServer } from './fixtures/testUser';
+import { createAndLoginTestUser } from './fixtures/testUser';
 import { waitForRoomUnread, waitForRoomRead, getRoomIdByName } from './fixtures/graphqlHelpers';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { test } from './setup';
-import { ChatPage, RoomPage } from './pages';
 import { TIMEOUTS, POLLING_INTERVALS } from './constants';
 import * as routes from './routes';
+import { withLoggedInServerWindow, withServerUser } from './fixtures/serverUser';
 
 test.describe('Multi-Tab Unread Sync', () => {
   test('entering room clears unread in other tabs via RoomMarkedAsReadEvent', async ({
@@ -19,7 +19,6 @@ test.describe('Multi-Tab Unread Sync', () => {
     // User A: Create account (auto-enters a room due to redirect behavior)
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getServerScopeId();
 
     // Navigate User A to announcements room (not general) so general stays unread
     await chatPage.enterRoom('announcements');
@@ -28,69 +27,53 @@ test.describe('Multi-Tab Unread Sync', () => {
     const roomId = await getRoomIdByName(page, 'general');
 
     // User B: Open the server and send a message that creates unread state for User A
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: page2, chatPage: chatPage2, roomPage: roomPage2 }) => {
+        await chatPage2.enterRoom('general');
+        await waitForRoomReady(page2, 'general');
 
-    try {
-      await createAndLoginTestUser(page2);
-      await openServer(page2);
-      await page2.goto(routes.space());
+        // User B sends message - creates unread state for User A
+        const testMessage = `Test message ${Date.now()}`;
+        await roomPage2.sendMessage(testMessage);
 
-      const chatPage2 = new ChatPage(page2);
-      const roomPage2 = new RoomPage(page2);
-      await chatPage2.enterRoom('general');
-      await waitForRoomReady(page2, 'general');
+        // Wait for server to register unread state for User A
+        await waitForRoomUnread(page, roomId, true);
 
-      // User B sends message - creates unread state for User A
-      const testMessage = `Test message ${Date.now()}`;
-      await roomPage2.sendMessage(testMessage);
+        await withLoggedInServerWindow(
+          browser!,
+          serverURL,
+          userA,
+          async ({ page: page3, chatPage: chatPage3 }) => {
+            // Tab 2 navigates to the server and enters announcements room (not general)
+            // This way Tab 2 can see general's unread indicator in the room list
+            await chatPage3.enterRoom('announcements');
 
-      // Wait for server to register unread state for User A
-      await waitForRoomUnread(page, roomId, true);
+            // Wait for Tab 2 to show room-level unread indicator for general
+            await expect(async () => {
+              const roomUnreadDot = page3.locator('[data-testid="room-unread-dot"]');
+              await expect(roomUnreadDot).toBeVisible();
+            }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });
 
-      // User A: Open second tab (same account) - this tab will verify sync
-      const context3 = await browser!.newContext({ baseURL: serverURL });
-      const page3 = await context3.newPage();
+            // Wait for WebSocket subscription to be established
+            // networkidle waits until no network requests for 500ms, ensuring the
+            // GraphQL subscription connection is established before we trigger events
+            await page3.waitForLoadState('networkidle');
 
-      try {
-        // Login as same user in Tab 2
-        await page3.request.post('/auth/login', {
-          data: { login: userA.login, password: userA.password }
-        });
+            // Tab 1: User A enters general room (this auto-marks room as read and emits RoomMarkedAsReadEvent)
+            await chatPage.enterRoom('general');
+            await waitForRoomReady(page, 'general');
 
-        // Tab 2 navigates to the server and enters announcements room (not general)
-        // This way Tab 2 can see general's unread indicator in the room list
-        await page3.goto(routes.space());
-        await page3.waitForURL(routes.patterns.anySpace);
-        const chatPage3 = new ChatPage(page3);
-        await chatPage3.enterRoom('announcements');
-
-        // Wait for Tab 2 to show room-level unread indicator for general
-        await expect(async () => {
-          const roomUnreadDot = page3.locator('[data-testid="room-unread-dot"]');
-          await expect(roomUnreadDot).toBeVisible();
-        }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });
-
-        // Wait for WebSocket subscription to be established
-        // networkidle waits until no network requests for 500ms, ensuring the
-        // GraphQL subscription connection is established before we trigger events
-        await page3.waitForLoadState('networkidle');
-
-        // Tab 1: User A enters general room (this auto-marks room as read and emits RoomMarkedAsReadEvent)
-        await chatPage.enterRoom('general');
-        await waitForRoomReady(page, 'general');
-
-        // Tab 2: Should receive RoomMarkedAsReadEvent and clear room-level unread indicator
-        await expect(async () => {
-          const roomUnreadDot = page3.locator('[data-testid="room-unread-dot"]');
-          await expect(roomUnreadDot).not.toBeVisible();
-        }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });
-      } finally {
-        await context3.close();
+            // Tab 2: Should receive RoomMarkedAsReadEvent and clear room-level unread indicator
+            await expect(async () => {
+              const roomUnreadDot = page3.locator('[data-testid="room-unread-dot"]');
+              await expect(roomUnreadDot).not.toBeVisible();
+            }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });
+          }
+        );
       }
-    } finally {
-      await context2.close();
-    }
+    );
   });
 });
 
@@ -107,7 +90,6 @@ test.describe('Multi-window unread sync', () => {
     // User A: Create account
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getServerScopeId();
 
     // User A visits general room then leaves to announcements
     await chatPage.enterRoom('general');
@@ -125,60 +107,40 @@ test.describe('Multi-window unread sync', () => {
     await waitForRoomReady(page, 'announcements');
 
     // User A opens second window (same account) - also in announcements
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
+    await withLoggedInServerWindow(
+      browser!,
+      serverURL,
+      userA,
+      async ({ page: page2, chatPage: chatPage2 }) => {
+        // Navigate to announcements in second window (not general)
+        await chatPage2.enterRoom('announcements');
+        await waitForRoomReady(page2, 'announcements');
 
-    try {
-      // Login as same user in second window
-      const loginResponse = await page2.request.post('/auth/login', {
-        data: { login: userA.login, password: userA.password }
-      });
-      expect(loginResponse.ok()).toBeTruthy();
+        // User B: Create account, open the server, post in general
+        await withServerUser(
+          browser!,
+          serverURL,
+          async ({ page: page3, chatPage: chatPage3, roomPage: roomPage3 }) => {
+            // User B posts in general room
+            await chatPage3.enterRoom('general');
+            await waitForRoomReady(page3, 'general');
+            await roomPage3.sendMessage(`Message from User B at ${Date.now()}`);
 
-      await page2.goto(routes.space());
-      await page2.waitForURL(routes.patterns.anySpace);
+            // Wait for server to register the unread state for User A
+            await waitForRoomUnread(page2, generalRoomId, true);
 
-      const chatPage2 = new ChatPage(page2);
+            // Both windows should see unread indicator on general room
+            const generalLink1 = page.locator('nav').locator('a', { hasText: '# general' });
+            const generalLink2 = page2.locator('nav').locator('a', { hasText: '# general' });
 
-      // Navigate to announcements in second window (not general)
-      await chatPage2.enterRoom('announcements');
-      await waitForRoomReady(page2, 'announcements');
-
-      // User B: Create account, open the server, post in general
-      const context3 = await browser!.newContext({ baseURL: serverURL });
-      const page3 = await context3.newPage();
-
-      try {
-        await createAndLoginTestUser(page3);
-        await openServer(page3);
-        await page3.goto(routes.space());
-        await page3.waitForURL(routes.patterns.anySpace);
-
-        const chatPage3 = new ChatPage(page3);
-        const roomPage3 = new RoomPage(page3);
-
-        // User B posts in general room
-        await chatPage3.enterRoom('general');
-        await waitForRoomReady(page3, 'general');
-        await roomPage3.sendMessage(`Message from User B at ${Date.now()}`);
-
-        // Wait for server to register the unread state for User A
-        await waitForRoomUnread(page2, generalRoomId, true);
-
-        // Both windows should see unread indicator on general room
-        const generalLink1 = page.locator('nav').locator('a', { hasText: '# general' });
-        const generalLink2 = page2.locator('nav').locator('a', { hasText: '# general' });
-
-        await expect(async () => {
-          await expect(generalLink1).toHaveClass(/font-semibold/);
-          await expect(generalLink2).toHaveClass(/font-semibold/);
-        }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });
-      } finally {
-        await context3.close();
+            await expect(async () => {
+              await expect(generalLink1).toHaveClass(/font-semibold/);
+              await expect(generalLink2).toHaveClass(/font-semibold/);
+            }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });
+          }
+        );
       }
-    } finally {
-      await context2.close();
-    }
+    );
   });
 });
 
@@ -196,8 +158,6 @@ test.describe('Unread indicators', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
 
-    const spaceId = await chatPage.getServerScopeId();
-
     // Navigate to "announcements" room (User A will observe from here)
     await chatPage.enterRoom('announcements');
     await waitForRoomReady(page, 'announcements');
@@ -211,59 +171,46 @@ test.describe('Unread indicators', () => {
     await expect(generalLink).not.toHaveClass(/font-semibold/);
 
     // User B: Create account and open the server
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: page2, chatPage: chatPage2, roomPage: roomPage2 }) => {
+        // User B enters general room
+        await chatPage2.enterRoom('general');
+        await waitForRoomReady(page2, 'general');
 
-    try {
-      await createAndLoginTestUser(page2);
+        // User B sends a message
+        const testMessage = `Hello from User B at ${Date.now()}`;
+        await roomPage2.sendMessage(testMessage);
 
-      // User B opens the server
-      await openServer(page2);
+        // Wait for server to register the unread state
+        await waitForRoomUnread(page, generalRoomId, true);
 
-      // Navigate to the server
-      await page2.goto(routes.space());
-      await page2.waitForURL(routes.patterns.anySpace);
+        // User A: Verify unread indicator appears on "general"
+        await expect(async () => {
+          await expect(generalLink).toHaveClass(/font-semibold/);
+          const unreadDot = generalLink.locator('[data-testid="room-unread-dot"]');
+          await expect(unreadDot).toBeVisible();
+        }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });
 
-      const chatPage2 = new ChatPage(page2);
-      const roomPage2 = new RoomPage(page2);
+        // User A: Navigate to general room
+        await generalLink.click();
+        await page.waitForURL(routes.patterns.anyRoom);
 
-      // User B enters general room
-      await chatPage2.enterRoom('general');
-      await waitForRoomReady(page2, 'general');
+        // Verify the message is visible
+        await expect(page.getByText(testMessage)).toBeVisible();
 
-      // User B sends a message
-      const testMessage = `Hello from User B at ${Date.now()}`;
-      await roomPage2.sendMessage(testMessage);
+        // Wait for server to confirm room is read
+        await waitForRoomRead(page, generalRoomId);
 
-      // Wait for server to register the unread state
-      await waitForRoomUnread(page, generalRoomId, true);
-
-      // User A: Verify unread indicator appears on "general"
-      await expect(async () => {
-        await expect(generalLink).toHaveClass(/font-semibold/);
-        const unreadDot = generalLink.locator('[data-testid="room-unread-dot"]');
-        await expect(unreadDot).toBeVisible();
-      }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });
-
-      // User A: Navigate to general room
-      await generalLink.click();
-      await page.waitForURL(routes.patterns.anyRoom);
-
-      // Verify the message is visible
-      await expect(page.getByText(testMessage)).toBeVisible();
-
-      // Wait for server to confirm room is read
-      await waitForRoomRead(page, generalRoomId);
-
-      // Verify the unread indicator is now gone
-      await expect(async () => {
-        await expect(generalLink).not.toHaveClass(/font-semibold/);
-        const unreadDot = generalLink.locator('[data-testid="room-unread-dot"]');
-        await expect(unreadDot).not.toBeVisible();
-      }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });
-    } finally {
-      await context2.close();
-    }
+        // Verify the unread indicator is now gone
+        await expect(async () => {
+          await expect(generalLink).not.toHaveClass(/font-semibold/);
+          const unreadDot = generalLink.locator('[data-testid="room-unread-dot"]');
+          await expect(unreadDot).not.toBeVisible();
+        }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });
+      }
+    );
   });
 
   test('unread indicator clears when navigating to room', async ({ page, chatPage, roomPage }) => {
@@ -303,7 +250,6 @@ test.describe('Room unread separator', () => {
     // User A: Create account
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getServerScopeId();
 
     // User A enters general room and posts initial messages
     await chatPage.enterRoom('general');
@@ -315,50 +261,41 @@ test.describe('Room unread separator', () => {
     const generalRoomId = await getRoomIdByName(page, 'general');
 
     // User B: Create account, open the server
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: page2, chatPage: chatPage2, roomPage: roomPage2 }) => {
+        // User B enters general room (this records their last-read position)
+        await chatPage2.enterRoom('general');
+        await waitForRoomReady(page2, 'general');
+        await roomPage2.expectMessageVisible('Message 2 from User A');
 
-    try {
-      await createAndLoginTestUser(page2);
-      await openServer(page2);
-      await page2.goto(routes.space());
-      await page2.waitForURL(routes.patterns.anySpace);
+        // Wait for room to be fully loaded
+        await expect(roomPage2.messageInput).toBeEnabled();
 
-      const chatPage2 = new ChatPage(page2);
-      const roomPage2 = new RoomPage(page2);
+        // Wait for server to confirm room is read (replaces arbitrary timeout)
+        await waitForRoomRead(page2, generalRoomId);
 
-      // User B enters general room (this records their last-read position)
-      await chatPage2.enterRoom('general');
-      await waitForRoomReady(page2, 'general');
-      await roomPage2.expectMessageVisible('Message 2 from User A');
+        // User B leaves room by navigating to announcements
+        await chatPage2.enterRoom('announcements');
+        await waitForRoomReady(page2, 'announcements');
 
-      // Wait for room to be fully loaded
-      await expect(roomPage2.messageInput).toBeEnabled();
+        // User A posts a new message while User B is away
+        const newMessage = `New message ${Date.now()}`;
+        await roomPage.sendMessage(newMessage);
 
-      // Wait for server to confirm room is read (replaces arbitrary timeout)
-      await waitForRoomRead(page2, generalRoomId);
+        // Wait for server to register the unread state for User B
+        await waitForRoomUnread(page2, generalRoomId, true);
 
-      // User B leaves room by navigating to announcements
-      await chatPage2.enterRoom('announcements');
-      await waitForRoomReady(page2, 'announcements');
+        // User B re-enters general room
+        await chatPage2.enterRoom('general');
+        await waitForRoomReady(page2, 'general');
 
-      // User A posts a new message while User B is away
-      const newMessage = `New message ${Date.now()}`;
-      await roomPage.sendMessage(newMessage);
-
-      // Wait for server to register the unread state for User B
-      await waitForRoomUnread(page2, generalRoomId, true);
-
-      // User B re-enters general room
-      await chatPage2.enterRoom('general');
-      await waitForRoomReady(page2, 'general');
-
-      // Wait for the message to arrive, then check separator
-      await roomPage2.expectMessageVisible(newMessage);
-      await roomPage2.expectUnreadSeparator();
-    } finally {
-      await context2.close();
-    }
+        // Wait for the message to arrive, then check separator
+        await roomPage2.expectMessageVisible(newMessage);
+        await roomPage2.expectUnreadSeparator();
+      }
+    );
   });
 
   test('does not show unread separator when entering room for the first time', async ({
@@ -373,7 +310,6 @@ test.describe('Room unread separator', () => {
     // User A: Create account
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getServerScopeId();
 
     // User A enters general room and posts a message
     await chatPage.enterRoom('general');
@@ -381,28 +317,19 @@ test.describe('Room unread separator', () => {
     await roomPage.sendMessage('Welcome message from creator');
 
     // User B: Create account, open the server
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: page2, chatPage: chatPage2, roomPage: roomPage2 }) => {
+        // User B enters general room for the first time
+        await chatPage2.enterRoom('general');
+        await waitForRoomReady(page2, 'general');
+        await roomPage2.expectMessageVisible('Welcome message from creator');
 
-    try {
-      await createAndLoginTestUser(page2);
-      await openServer(page2);
-      await page2.goto(routes.space());
-      await page2.waitForURL(routes.patterns.anySpace);
-
-      const chatPage2 = new ChatPage(page2);
-      const roomPage2 = new RoomPage(page2);
-
-      // User B enters general room for the first time
-      await chatPage2.enterRoom('general');
-      await waitForRoomReady(page2, 'general');
-      await roomPage2.expectMessageVisible('Welcome message from creator');
-
-      // No unread separator should be shown - this is the first visit
-      await roomPage2.expectNoUnreadSeparator();
-    } finally {
-      await context2.close();
-    }
+        // No unread separator should be shown - this is the first visit
+        await roomPage2.expectNoUnreadSeparator();
+      }
+    );
   });
 
   test('unread separator position stays fixed when new messages arrive', async ({
@@ -417,7 +344,6 @@ test.describe('Room unread separator', () => {
     // User A: Create account
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getServerScopeId();
 
     // User A enters general room and posts initial message
     await chatPage.enterRoom('general');
@@ -428,54 +354,45 @@ test.describe('Room unread separator', () => {
     const generalRoomId = await getRoomIdByName(page, 'general');
 
     // User B: Create account, open the server
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: page2, chatPage: chatPage2, roomPage: roomPage2 }) => {
+        // User B enters general, then leaves
+        await chatPage2.enterRoom('general');
+        await waitForRoomReady(page2, 'general');
+        await roomPage2.expectMessageVisible('Initial message');
 
-    try {
-      await createAndLoginTestUser(page2);
-      await openServer(page2);
-      await page2.goto(routes.space());
-      await page2.waitForURL(routes.patterns.anySpace);
+        // Wait for server to confirm room is read
+        await waitForRoomRead(page2, generalRoomId);
 
-      const chatPage2 = new ChatPage(page2);
-      const roomPage2 = new RoomPage(page2);
+        await chatPage2.enterRoom('announcements');
+        await waitForRoomReady(page2, 'announcements');
 
-      // User B enters general, then leaves
-      await chatPage2.enterRoom('general');
-      await waitForRoomReady(page2, 'general');
-      await roomPage2.expectMessageVisible('Initial message');
+        // User A posts first unread message
+        const unreadMsg1 = `Unread 1 ${Date.now()}`;
+        await roomPage.sendMessage(unreadMsg1);
 
-      // Wait for server to confirm room is read
-      await waitForRoomRead(page2, generalRoomId);
+        // Wait for server to register unread state
+        await waitForRoomUnread(page2, generalRoomId, true);
 
-      await chatPage2.enterRoom('announcements');
-      await waitForRoomReady(page2, 'announcements');
+        // User B re-enters - should see separator before unreadMsg1
+        await chatPage2.enterRoom('general');
+        await waitForRoomReady(page2, 'general');
+        await roomPage2.expectMessageVisible(unreadMsg1);
+        await roomPage2.expectUnreadSeparator();
 
-      // User A posts first unread message
-      const unreadMsg1 = `Unread 1 ${Date.now()}`;
-      await roomPage.sendMessage(unreadMsg1);
+        // User A posts another message while User B is viewing
+        const unreadMsg2 = `Unread 2 ${Date.now()}`;
+        await roomPage.sendMessage(unreadMsg2);
 
-      // Wait for server to register unread state
-      await waitForRoomUnread(page2, generalRoomId, true);
+        // Wait for message to arrive
+        await roomPage2.expectMessageVisible(unreadMsg2);
 
-      // User B re-enters - should see separator before unreadMsg1
-      await chatPage2.enterRoom('general');
-      await waitForRoomReady(page2, 'general');
-      await roomPage2.expectMessageVisible(unreadMsg1);
-      await roomPage2.expectUnreadSeparator();
-
-      // User A posts another message while User B is viewing
-      const unreadMsg2 = `Unread 2 ${Date.now()}`;
-      await roomPage.sendMessage(unreadMsg2);
-
-      // Wait for message to arrive
-      await roomPage2.expectMessageVisible(unreadMsg2);
-
-      // Separator should still be visible (position doesn't change)
-      await roomPage2.expectUnreadSeparator();
-    } finally {
-      await context2.close();
-    }
+        // Separator should still be visible (position doesn't change)
+        await roomPage2.expectUnreadSeparator();
+      }
+    );
   });
 
   test('unread separator appears in real time while the tab is hidden', async ({
@@ -490,7 +407,6 @@ test.describe('Room unread separator', () => {
     // User A: Create account, post an initial message in general.
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getServerScopeId();
 
     await chatPage.enterRoom('general');
     await waitForRoomReady(page, 'general');
@@ -500,65 +416,56 @@ test.describe('Room unread separator', () => {
 
     // User B: Create account, open the server, and sit in general — present and
     // caught up, never navigating away.
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: page2, chatPage: chatPage2, roomPage: roomPage2 }) => {
+        await chatPage2.enterRoom('general');
+        await waitForRoomReady(page2, 'general');
+        await roomPage2.expectMessageVisible('Initial message');
+        await waitForRoomRead(page2, generalRoomId);
 
-    try {
-      await createAndLoginTestUser(page2);
-      await openServer(page2);
-      await page2.goto(routes.space());
-      await page2.waitForURL(routes.patterns.anySpace);
+        // No separator yet — User B has read everything.
+        await roomPage2.expectNoUnreadSeparator();
 
-      const chatPage2 = new ChatPage(page2);
-      const roomPage2 = new RoomPage(page2);
-
-      await chatPage2.enterRoom('general');
-      await waitForRoomReady(page2, 'general');
-      await roomPage2.expectMessageVisible('Initial message');
-      await waitForRoomRead(page2, generalRoomId);
-
-      // No separator yet — User B has read everything.
-      await roomPage2.expectNoUnreadSeparator();
-
-      // User B's tab goes to the background. They stay in the room; presence
-      // just drops, which anchors the unread separator at the read cursor.
-      await page2.evaluate(() => {
-        Object.defineProperty(document, 'visibilityState', {
-          value: 'hidden',
-          writable: true,
-          configurable: true
+        // User B's tab goes to the background. They stay in the room; presence
+        // just drops, which anchors the unread separator at the read cursor.
+        await page2.evaluate(() => {
+          Object.defineProperty(document, 'visibilityState', {
+            value: 'hidden',
+            writable: true,
+            configurable: true
+          });
+          document.dispatchEvent(new Event('visibilitychange'));
         });
-        document.dispatchEvent(new Event('visibilitychange'));
-      });
 
-      // User A posts while User B's tab is still hidden.
-      const awayMessage = `Posted while hidden ${Date.now()}`;
-      await roomPage.sendMessage(awayMessage);
+        // User A posts while User B's tab is still hidden.
+        const awayMessage = `Posted while hidden ${Date.now()}`;
+        await roomPage.sendMessage(awayMessage);
 
-      // The message streams in over the live subscription, and because the
-      // separator was anchored the moment presence dropped, it shows up
-      // immediately — without User B having to navigate away and back.
-      await roomPage2.expectMessageVisible(awayMessage);
-      await roomPage2.expectUnreadSeparator();
-
-      // Re-focusing the tab refines the separator (clamps its upper bound)
-      // but must not blink it out — the anchor already matches the server's
-      // previousLastReadAt, so the marker stays put across the transition.
-      await page2.evaluate(() => {
-        Object.defineProperty(document, 'visibilityState', {
-          value: 'visible',
-          writable: true,
-          configurable: true
-        });
-        document.dispatchEvent(new Event('visibilitychange'));
-      });
-
-      await expect(async () => {
+        // The message streams in over the live subscription, and because the
+        // separator was anchored the moment presence dropped, it shows up
+        // immediately — without User B having to navigate away and back.
+        await roomPage2.expectMessageVisible(awayMessage);
         await roomPage2.expectUnreadSeparator();
-      }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
-    } finally {
-      await context2.close();
-    }
+
+        // Re-focusing the tab refines the separator (clamps its upper bound)
+        // but must not blink it out — the anchor already matches the server's
+        // previousLastReadAt, so the marker stays put across the transition.
+        await page2.evaluate(() => {
+          Object.defineProperty(document, 'visibilityState', {
+            value: 'visible',
+            writable: true,
+            configurable: true
+          });
+          document.dispatchEvent(new Event('visibilitychange'));
+        });
+
+        await expect(async () => {
+          await roomPage2.expectUnreadSeparator();
+        }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
+      }
+    );
   });
 
   test('refocus keeps the separator stable when only non-message events arrived while hidden', async ({
@@ -594,95 +501,86 @@ test.describe('Room unread separator', () => {
 
     // User B: Open the server, enter general, read the anchor message — caught
     // up, no separator yet.
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: page2, chatPage: chatPage2, roomPage: roomPage2 }) => {
+        await chatPage2.enterRoom('general');
+        await waitForRoomReady(page2, 'general');
+        await roomPage2.expectMessageVisible('Anchor message from User A');
+        await waitForRoomRead(page2, generalRoomId);
+        await roomPage2.expectNoUnreadSeparator();
 
-    try {
-      await createAndLoginTestUser(page2);
-      await openServer(page2);
-      await page2.goto(routes.space());
-      await page2.waitForURL(routes.patterns.anySpace);
-
-      const chatPage2 = new ChatPage(page2);
-      const roomPage2 = new RoomPage(page2);
-
-      await chatPage2.enterRoom('general');
-      await waitForRoomReady(page2, 'general');
-      await roomPage2.expectMessageVisible('Anchor message from User A');
-      await waitForRoomRead(page2, generalRoomId);
-      await roomPage2.expectNoUnreadSeparator();
-
-      // User B's tab goes hidden — presence drops, anchoring the unread
-      // separator at the server read cursor with an open upper bound.
-      await page2.evaluate(() => {
-        Object.defineProperty(document, 'visibilityState', {
-          value: 'hidden',
-          writable: true,
-          configurable: true
+        // User B's tab goes hidden — presence drops, anchoring the unread
+        // separator at the server read cursor with an open upper bound.
+        await page2.evaluate(() => {
+          Object.defineProperty(document, 'visibilityState', {
+            value: 'hidden',
+            writable: true,
+            configurable: true
+          });
+          document.dispatchEvent(new Event('visibilitychange'));
         });
-        document.dispatchEvent(new Event('visibilitychange'));
-      });
 
-      // User A leaves general. The "User A left the room" event is a non-
-      // message room event — it does NOT advance the server's root-message
-      // read cursor.
-      await page.getByTitle('Leave room').click();
-      await page.getByRole('dialog').getByRole('button', { name: 'Leave Room' }).click();
+        // User A leaves general. The "User A left the room" event is a non-
+        // message room event — it does NOT advance the server's root-message
+        // read cursor.
+        await page.getByTitle('Leave room').click();
+        await page.getByRole('dialog').getByRole('button', { name: 'Leave Room' }).click();
 
-      // User B (still hidden) receives the leave event over the live
-      // subscription. The separator anchors above it.
-      await expect(page2.getByText(`${userA.displayName} left the room`)).toBeVisible({
-        timeout: TIMEOUTS.REALTIME_EVENT
-      });
-      await roomPage2.expectUnreadSeparator();
-
-      // User B's tab returns to the foreground. With the bug, this refocus
-      // would fire markRoomAsRead which returns previousLastReadAt ===
-      // lastReadAt (server cursor never moved), the .then() would overwrite
-      // the bounds with that empty window, and the separator would blink out.
-      // The fix preserves the unfocus-edge anchor on a same-room refocus.
-      await page2.evaluate(() => {
-        Object.defineProperty(document, 'visibilityState', {
-          value: 'visible',
-          writable: true,
-          configurable: true
+        // User B (still hidden) receives the leave event over the live
+        // subscription. The separator anchors above it.
+        await expect(page2.getByText(`${userA.displayName} left the room`)).toBeVisible({
+          timeout: TIMEOUTS.REALTIME_EVENT
         });
-        document.dispatchEvent(new Event('visibilitychange'));
-      });
-
-      // Separator must remain visible across the focus transition — it
-      // shouldn't toggle just because the user came back to the tab.
-      await expect(async () => {
         await roomPage2.expectUnreadSeparator();
-      }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
 
-      // A second hide/show cycle to be sure: with the old code the marker
-      // would reappear on blur and vanish again on focus, so a second
-      // refocus must also leave it in place.
-      await page2.evaluate(() => {
-        Object.defineProperty(document, 'visibilityState', {
-          value: 'hidden',
-          writable: true,
-          configurable: true
+        // User B's tab returns to the foreground. With the bug, this refocus
+        // would fire markRoomAsRead which returns previousLastReadAt ===
+        // lastReadAt (server cursor never moved), the .then() would overwrite
+        // the bounds with that empty window, and the separator would blink out.
+        // The fix preserves the unfocus-edge anchor on a same-room refocus.
+        await page2.evaluate(() => {
+          Object.defineProperty(document, 'visibilityState', {
+            value: 'visible',
+            writable: true,
+            configurable: true
+          });
+          document.dispatchEvent(new Event('visibilitychange'));
         });
-        document.dispatchEvent(new Event('visibilitychange'));
-      });
-      await roomPage2.expectUnreadSeparator();
 
-      await page2.evaluate(() => {
-        Object.defineProperty(document, 'visibilityState', {
-          value: 'visible',
-          writable: true,
-          configurable: true
+        // Separator must remain visible across the focus transition — it
+        // shouldn't toggle just because the user came back to the tab.
+        await expect(async () => {
+          await roomPage2.expectUnreadSeparator();
+        }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
+
+        // A second hide/show cycle to be sure: with the old code the marker
+        // would reappear on blur and vanish again on focus, so a second
+        // refocus must also leave it in place.
+        await page2.evaluate(() => {
+          Object.defineProperty(document, 'visibilityState', {
+            value: 'hidden',
+            writable: true,
+            configurable: true
+          });
+          document.dispatchEvent(new Event('visibilitychange'));
         });
-        document.dispatchEvent(new Event('visibilitychange'));
-      });
-      await expect(async () => {
         await roomPage2.expectUnreadSeparator();
-      }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
-    } finally {
-      await context2.close();
-    }
+
+        await page2.evaluate(() => {
+          Object.defineProperty(document, 'visibilityState', {
+            value: 'visible',
+            writable: true,
+            configurable: true
+          });
+          document.dispatchEvent(new Event('visibilitychange'));
+        });
+        await expect(async () => {
+          await roomPage2.expectUnreadSeparator();
+        }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
+      }
+    );
   });
 
   test('backgrounding the tab does not strand the user own latest message below the separator', async ({
@@ -697,7 +595,6 @@ test.describe('Room unread separator', () => {
     // User A: Create account, post an existing message in general.
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getServerScopeId();
 
     await chatPage.enterRoom('general');
     await waitForRoomReady(page, 'general');
@@ -708,49 +605,40 @@ test.describe('Room unread separator', () => {
     // User B: Create account, open the server, enter the (non-empty) room — this
     // gives User B a real read cursor — then post their own message and
     // background the tab.
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: page2, chatPage: chatPage2, roomPage: roomPage2 }) => {
+        await chatPage2.enterRoom('general');
+        await waitForRoomReady(page2, 'general');
+        await roomPage2.expectMessageVisible('Existing message from User A');
+        await waitForRoomRead(page2, generalRoomId);
 
-    try {
-      await createAndLoginTestUser(page2);
-      await openServer(page2);
-      await page2.goto(routes.space());
-      await page2.waitForURL(routes.patterns.anySpace);
-
-      const chatPage2 = new ChatPage(page2);
-      const roomPage2 = new RoomPage(page2);
-
-      await chatPage2.enterRoom('general');
-      await waitForRoomReady(page2, 'general');
-      await roomPage2.expectMessageVisible('Existing message from User A');
-      await waitForRoomRead(page2, generalRoomId);
-
-      // User B posts their own message. Posting auto-advances the read cursor
-      // server-side, so the client cursor must follow.
-      const ownMessage = `User B own message ${Date.now()}`;
-      await roomPage2.sendMessage(ownMessage);
-      await roomPage2.expectMessageVisible(ownMessage);
-      await waitForRoomRead(page2, generalRoomId);
-      await roomPage2.expectNoUnreadSeparator();
-
-      // User B's tab goes to the background — still in the room.
-      await page2.evaluate(() => {
-        Object.defineProperty(document, 'visibilityState', {
-          value: 'hidden',
-          writable: true,
-          configurable: true
-        });
-        document.dispatchEvent(new Event('visibilitychange'));
-      });
-
-      // The separator must not appear above User B's own latest message.
-      // Negative assertion — give events time to settle before asserting absence.
-      await expect(async () => {
+        // User B posts their own message. Posting auto-advances the read cursor
+        // server-side, so the client cursor must follow.
+        const ownMessage = `User B own message ${Date.now()}`;
+        await roomPage2.sendMessage(ownMessage);
+        await roomPage2.expectMessageVisible(ownMessage);
+        await waitForRoomRead(page2, generalRoomId);
         await roomPage2.expectNoUnreadSeparator();
-      }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
-    } finally {
-      await context2.close();
-    }
+
+        // User B's tab goes to the background — still in the room.
+        await page2.evaluate(() => {
+          Object.defineProperty(document, 'visibilityState', {
+            value: 'hidden',
+            writable: true,
+            configurable: true
+          });
+          document.dispatchEvent(new Event('visibilitychange'));
+        });
+
+        // The separator must not appear above User B's own latest message.
+        // Negative assertion — give events time to settle before asserting absence.
+        await expect(async () => {
+          await roomPage2.expectNoUnreadSeparator();
+        }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
+      }
+    );
   });
 
   test('no unread separator for own messages after posting and reloading', async ({
@@ -761,7 +649,6 @@ test.describe('Room unread separator', () => {
     // User creates account
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getServerScopeId();
 
     // Enter room
     await chatPage.enterRoom('general');
@@ -880,7 +767,6 @@ test.describe('Unread dot stability after loadRooms refresh', () => {
     // User A: Create account
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getServerScopeId();
 
     // User A enters general room and posts a message
     await chatPage.enterRoom('general');
@@ -890,93 +776,84 @@ test.describe('Unread dot stability after loadRooms refresh', () => {
     const generalRoomId = await getRoomIdByName(page, 'general');
 
     // User B: Create account, open the server
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: page2, chatPage: chatPage2, roomPage: roomPage2 }) => {
+        // User B enters general room (marks as read)
+        await chatPage2.enterRoom('general');
+        await waitForRoomReady(page2, 'general');
+        await roomPage2.expectMessageVisible('Initial message from User A');
+        await waitForRoomRead(page2, generalRoomId);
 
-    try {
-      await createAndLoginTestUser(page2);
-      await openServer(page2);
-      await page2.goto(routes.space());
-      await page2.waitForURL(routes.patterns.anySpace);
+        // User B navigates to announcements
+        await chatPage2.enterRoom('announcements');
+        await waitForRoomReady(page2, 'announcements');
 
-      const chatPage2 = new ChatPage(page2);
-      const roomPage2 = new RoomPage(page2);
+        // User A posts a new message → User B should see unread dot on general
+        const testMessage = `Trigger unread ${Date.now()}`;
+        await roomPage.sendMessage(testMessage);
 
-      // User B enters general room (marks as read)
-      await chatPage2.enterRoom('general');
-      await waitForRoomReady(page2, 'general');
-      await roomPage2.expectMessageVisible('Initial message from User A');
-      await waitForRoomRead(page2, generalRoomId);
+        // Wait for server to register unread state
+        await waitForRoomUnread(page2, generalRoomId, true);
 
-      // User B navigates to announcements
-      await chatPage2.enterRoom('announcements');
-      await waitForRoomReady(page2, 'announcements');
+        // User B should see unread dot
+        const generalLink = chatPage2.roomList.locator('a', { hasText: '# general' });
+        await expect(async () => {
+          await expect(generalLink).toHaveClass(/font-semibold/);
+        }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });
 
-      // User A posts a new message → User B should see unread dot on general
-      const testMessage = `Trigger unread ${Date.now()}`;
-      await roomPage.sendMessage(testMessage);
+        // User B enters general room → dot should clear
+        await chatPage2.enterRoom('general');
+        await waitForRoomReady(page2, 'general');
+        await roomPage2.expectMessageVisible(testMessage);
 
-      // Wait for server to register unread state
-      await waitForRoomUnread(page2, generalRoomId, true);
+        // Wait for server to confirm room is read
+        await waitForRoomRead(page2, generalRoomId);
 
-      // User B should see unread dot
-      const generalLink = chatPage2.roomList.locator('a', { hasText: '# general' });
-      await expect(async () => {
-        await expect(generalLink).toHaveClass(/font-semibold/);
-      }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });
+        // Verify the unread dot is gone
+        await expect(async () => {
+          await expect(generalLink).not.toHaveClass(/font-semibold/);
+          const unreadDot = generalLink.locator('[data-testid="room-unread-dot"]');
+          await expect(unreadDot).not.toBeVisible();
+        }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });
 
-      // User B enters general room → dot should clear
-      await chatPage2.enterRoom('general');
-      await waitForRoomReady(page2, 'general');
-      await roomPage2.expectMessageVisible(testMessage);
+        // User B navigates to announcements (so general is not active)
+        await chatPage2.enterRoom('announcements');
+        await waitForRoomReady(page2, 'announcements');
 
-      // Wait for server to confirm room is read
-      await waitForRoomRead(page2, generalRoomId);
+        // Rename the general room → triggers RoomUpdatedEvent → loadRooms() in
+        // User B. Issue #330: regular members can't manage rooms on the
+        // bootstrap server, so do the rename as e2eadmin in a side context (so
+        // user A's page session stays intact).
+        const adminCtx = await browser!.newContext({ baseURL: serverURL });
+        try {
+          const adminPage = await adminCtx.newPage();
+          await adminPage.request.post('/auth/login', {
+            data: { login: 'e2eadmin', password: 'adminpassword123' }
+          });
+          await adminPage.request.post('/api/graphql', {
+            headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
+            data: {
+              query: `mutation($input: UpdateRoomInput!) { updateRoom(input: $input) { id name } }`,
+              variables: { input: { roomId: generalRoomId, name: 'general-renamed' } }
+            }
+          });
+        } finally {
+          await adminCtx.close();
+        }
 
-      // Verify the unread dot is gone
-      await expect(async () => {
-        await expect(generalLink).not.toHaveClass(/font-semibold/);
-        const unreadDot = generalLink.locator('[data-testid="room-unread-dot"]');
+        // Wait for the rename to be visible in User B's room list
+        const renamedLink = chatPage2.roomList.locator('a', { hasText: '# general-renamed' });
+        await expect(renamedLink).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+
+        // The renamed room should NOT show an unread dot (the loadRooms refresh
+        // should not have restored the stale unread state)
+        await expect(renamedLink).not.toHaveClass(/font-semibold/);
+        const unreadDot = renamedLink.locator('[data-testid="room-unread-dot"]');
         await expect(unreadDot).not.toBeVisible();
-      }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });
-
-      // User B navigates to announcements (so general is not active)
-      await chatPage2.enterRoom('announcements');
-      await waitForRoomReady(page2, 'announcements');
-
-      // Rename the general room → triggers RoomUpdatedEvent → loadRooms() in
-      // User B. Issue #330: regular members can't manage rooms on the
-      // bootstrap server, so do the rename as e2eadmin in a side context (so
-      // user A's page session stays intact).
-      const adminCtx = await browser!.newContext({ baseURL: serverURL });
-      try {
-        const adminPage = await adminCtx.newPage();
-        await adminPage.request.post('/auth/login', {
-          data: { login: 'e2eadmin', password: 'adminpassword123' }
-        });
-        await adminPage.request.post('/api/graphql', {
-          headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-          data: {
-            query: `mutation($input: UpdateRoomInput!) { updateRoom(input: $input) { id name } }`,
-            variables: { input: { roomId: generalRoomId, name: 'general-renamed' } }
-          }
-        });
-      } finally {
-        await adminCtx.close();
       }
-
-      // Wait for the rename to be visible in User B's room list
-      const renamedLink = chatPage2.roomList.locator('a', { hasText: '# general-renamed' });
-      await expect(renamedLink).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-
-      // The renamed room should NOT show an unread dot (the loadRooms refresh
-      // should not have restored the stale unread state)
-      await expect(renamedLink).not.toHaveClass(/font-semibold/);
-      const unreadDot = renamedLink.locator('[data-testid="room-unread-dot"]');
-      await expect(unreadDot).not.toBeVisible();
-    } finally {
-      await context2.close();
-    }
+    );
   });
 });
 
@@ -993,7 +870,6 @@ test.describe('Thread reply unread behavior', () => {
     // User A: Create account
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getServerScopeId();
 
     // User A enters general room and posts a root message
     await chatPage.enterRoom('general');
@@ -1004,63 +880,54 @@ test.describe('Thread reply unread behavior', () => {
     const generalRoomId = await getRoomIdByName(page, 'general');
 
     // User B: Create account, open the server
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: page2, chatPage: chatPage2, roomPage: roomPage2 }) => {
+        // User B enters general room (marks as read)
+        await chatPage2.enterRoom('general');
+        await waitForRoomReady(page2, 'general');
+        await roomPage2.expectMessageVisible(rootMessage);
 
-    try {
-      await createAndLoginTestUser(page2);
-      await openServer(page2);
-      await page2.goto(routes.space());
-      await page2.waitForURL(routes.patterns.anySpace);
+        // Wait for server to confirm room is read for User B
+        await waitForRoomRead(page2, generalRoomId);
 
-      const chatPage2 = new ChatPage(page2);
-      const roomPage2 = new RoomPage(page2);
+        // User B navigates to announcements (so general is not active)
+        await chatPage2.enterRoom('announcements');
+        await waitForRoomReady(page2, 'announcements');
 
-      // User B enters general room (marks as read)
-      await chatPage2.enterRoom('general');
-      await waitForRoomReady(page2, 'general');
-      await roomPage2.expectMessageVisible(rootMessage);
+        // User A posts a thread reply to the root message
+        await rootMsg.openThread();
+        await roomPage.expectThreadPaneVisible();
+        const threadReply = `Thread reply ${Date.now()}`;
+        await roomPage.postThreadReply(threadReply);
 
-      // Wait for server to confirm room is read for User B
-      await waitForRoomRead(page2, generalRoomId);
+        // Verify server-side: room should still be read for User B
+        // (waitForRoomRead polls the server, giving events time to propagate)
+        await waitForRoomRead(page2, generalRoomId);
 
-      // User B navigates to announcements (so general is not active)
-      await chatPage2.enterRoom('announcements');
-      await waitForRoomReady(page2, 'announcements');
+        // Verify UI: no unread dot on room — use toPass() to allow events to settle
+        // before asserting absence (negative assertions need extra care)
+        const generalLink = chatPage2.roomList.locator('a', { hasText: '# general' });
+        const roomUnreadDot = generalLink.locator('[data-testid="room-unread-dot"]');
+        await expect(async () => {
+          await expect(generalLink).not.toHaveClass(/font-semibold/);
+          await expect(roomUnreadDot).not.toBeVisible();
+        }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
 
-      // User A posts a thread reply to the root message
-      await rootMsg.openThread();
-      await roomPage.expectThreadPaneVisible();
-      const threadReply = `Thread reply ${Date.now()}`;
-      await roomPage.postThreadReply(threadReply);
+        // Now User A posts a new ROOT message — this SHOULD cause unread
+        await roomPage.closeThread();
+        const newRootMessage = `New root message ${Date.now()}`;
+        await roomPage.sendMessage(newRootMessage);
 
-      // Verify server-side: room should still be read for User B
-      // (waitForRoomRead polls the server, giving events time to propagate)
-      await waitForRoomRead(page2, generalRoomId);
+        // Wait for server to register unread state
+        await waitForRoomUnread(page2, generalRoomId, true);
 
-      // Verify UI: no unread dot on room — use toPass() to allow events to settle
-      // before asserting absence (negative assertions need extra care)
-      const generalLink = chatPage2.roomList.locator('a', { hasText: '# general' });
-      const roomUnreadDot = generalLink.locator('[data-testid="room-unread-dot"]');
-      await expect(async () => {
-        await expect(generalLink).not.toHaveClass(/font-semibold/);
-        await expect(roomUnreadDot).not.toBeVisible();
-      }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
-
-      // Now User A posts a new ROOT message — this SHOULD cause unread
-      await roomPage.closeThread();
-      const newRootMessage = `New root message ${Date.now()}`;
-      await roomPage.sendMessage(newRootMessage);
-
-      // Wait for server to register unread state
-      await waitForRoomUnread(page2, generalRoomId, true);
-
-      // User B should see unread dot on general room
-      await expect(async () => {
-        await expect(generalLink).toHaveClass(/font-semibold/);
-      }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });
-    } finally {
-      await context2.close();
-    }
+        // User B should see unread dot on general room
+        await expect(async () => {
+          await expect(generalLink).toHaveClass(/font-semibold/);
+        }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });
+      }
+    );
   });
 });

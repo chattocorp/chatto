@@ -1,6 +1,7 @@
 import { expect } from '@playwright/test';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
+import { withServerUser } from './fixtures/serverUser';
 import { TIMEOUTS } from './constants';
 
 /**
@@ -93,11 +94,7 @@ test.describe('Quick Switcher (Cmd-K)', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
 
-    const context2 = await browser.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
-    try {
-      const userB = await createAndLoginTestUser(page2);
-
+    await withServerUser(browser, serverURL, async ({ user: userB }) => {
       const dialog = await openSwitcher(page);
       const input = switcherInput(dialog);
 
@@ -114,8 +111,6 @@ test.describe('Quick Switcher (Cmd-K)', () => {
       await expect(switcherResults(dialog).filter({ hasText: userB.login })).toBeVisible({
         timeout: TIMEOUTS.UI_STANDARD
       });
-    } finally {
-      await context2.close();
-    }
+    });
   });
 });

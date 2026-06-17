@@ -1,9 +1,9 @@
 import { expect, type Page } from '@playwright/test';
-import { createAndLoginTestUser, openServer } from './fixtures/testUser';
+import { createAndLoginTestUser } from './fixtures/testUser';
+import { withServerUser } from './fixtures/serverUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { waitForSpaceUnread, getRoomIdByName, waitForRoomRead } from './fixtures/graphqlHelpers';
 import { test } from './setup';
-import { ChatPage, RoomPage } from './pages';
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
 
@@ -185,13 +185,10 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     browser,
     serverURL
   }) => {
-    let spaceId: string;
-
     await test.step('User A loads the server and posts root message', async () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
       await chatPage.enterRoom('general');
-      spaceId = await chatPage.getServerScopeId();
     });
 
     const rootMessage = `Root for realtime echo ${Date.now()}`;
@@ -199,51 +196,41 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
 
     const rootMessageComponent = await roomPage.sendMessage(rootMessage);
 
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: page2, chatPage: chatPage2, roomPage: roomPage2 }) => {
+        await test.step('User B enters general room and sees root message', async () => {
+          await chatPage2.enterRoom('general');
+          await waitForRoomReady(page2, 'general');
+          await roomPage2.expectMessageVisible(rootMessage);
+        });
 
-    try {
-      await test.step('User B opens the server', async () => {
-        await createAndLoginTestUser(page2);
-        await openServer(page2);
-        await page2.goto(routes.space());
-      });
+        await test.step('User A posts reply with echo', async () => {
+          await rootMessageComponent.openThread();
+          await roomPage.expectThreadPaneVisible();
 
-      const chatPage2 = new ChatPage(page2);
-      const roomPage2 = new RoomPage(page2);
+          // Check the checkbox and post
+          const checkbox = page.getByLabel('Also send to channel');
+          await checkbox.check();
+          await roomPage.postThreadReply(replyMessage);
+        });
 
-      await test.step('User B enters general room and sees root message', async () => {
-        await chatPage2.enterRoom('general');
-        await waitForRoomReady(page2, 'general');
-        await roomPage2.expectMessageVisible(rootMessage);
-      });
+        await test.step('User B receives echo in real-time', async () => {
+          // Close thread on User A's side
+          await roomPage.closeThread();
 
-      await test.step('User A posts reply with echo', async () => {
-        await rootMessageComponent.openThread();
-        await roomPage.expectThreadPaneVisible();
+          // User B should see the echo appear in their main room
+          const replies = page2.locator('[role="article"]', { hasText: replyMessage });
+          await expect(replies.first()).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
-        // Check the checkbox and post
-        const checkbox = page.getByLabel('Also send to channel');
-        await checkbox.check();
-        await roomPage.postThreadReply(replyMessage);
-      });
-
-      await test.step('User B receives echo in real-time', async () => {
-        // Close thread on User A's side
-        await roomPage.closeThread();
-
-        // User B should see the echo appear in their main room
-        const replies = page2.locator('[role="article"]', { hasText: replyMessage });
-        await expect(replies.first()).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
-
-        // Verify it has the thread badge
-        const echoArticle = page2.locator('[role="article"]', { hasText: replyMessage });
-        const badge = echoArticle.getByText('Thread');
-        await expect(badge).toBeVisible();
-      });
-    } finally {
-      await context2.close();
-    }
+          // Verify it has the thread badge
+          const echoArticle = page2.locator('[role="article"]', { hasText: replyMessage });
+          const badge = echoArticle.getByText('Thread');
+          await expect(badge).toBeVisible();
+        });
+      }
+    );
   });
 
   test('clicking "Thread" on echo opens original thread', async ({ page, chatPage, roomPage }) => {
@@ -931,33 +918,26 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       }
     });
 
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: page2, chatPage: chatPage2, roomPage: roomPage2 }) => {
+        await test.step('User B opens the server and enters room', async () => {
+          await chatPage2.enterRoom('general');
+          await waitForRoomReady(page2, 'general');
+        });
 
-    try {
-      await test.step('User B opens the server and enters room', async () => {
-        await createAndLoginTestUser(page2);
-        await openServer(page2);
-        await page2.goto(routes.space());
+        await test.step('User B opens thread and checkbox is NOT visible', async () => {
+          await roomPage2.expectMessageVisible(rootMessage);
+          const rootMsg = roomPage2.getMessage(rootMessage);
+          await rootMsg.openThread();
+          await roomPage2.expectThreadPaneVisible();
 
-        const chatPage2 = new ChatPage(page2);
-        await chatPage2.enterRoom('general');
-        await waitForRoomReady(page2, 'general');
-      });
-
-      await test.step('User B opens thread and checkbox is NOT visible', async () => {
-        const roomPage2 = new RoomPage(page2);
-        await roomPage2.expectMessageVisible(rootMessage);
-        const rootMsg = roomPage2.getMessage(rootMessage);
-        await rootMsg.openThread();
-        await roomPage2.expectThreadPaneVisible();
-
-        const checkbox = page2.getByLabel('Also send to channel');
-        await expect(checkbox).not.toBeVisible();
-      });
-    } finally {
-      await context2.close();
-    }
+          const checkbox = page2.getByLabel('Also send to channel');
+          await expect(checkbox).not.toBeVisible();
+        });
+      }
+    );
   });
 
   test('echo triggers unread indicator for other users', async ({
@@ -967,13 +947,10 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     browser,
     serverURL
   }) => {
-    let spaceId: string;
-
     await test.step('User A loads the server and posts root message', async () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
       await chatPage.enterRoom('general');
-      spaceId = await chatPage.getServerScopeId();
     });
 
     const rootMessage = `Root for unread test ${Date.now()}`;
@@ -981,16 +958,8 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
 
     const rootMessageComponent = await roomPage.sendMessage(rootMessage);
 
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
-
-    try {
+    await withServerUser(browser!, serverURL, async ({ page: page2, chatPage: chatPage2 }) => {
       await test.step('User B opens the server and marks room as read', async () => {
-        await createAndLoginTestUser(page2);
-        await openServer(page2);
-        await page2.goto(routes.space());
-
-        const chatPage2 = new ChatPage(page2);
         await chatPage2.enterRoom('general');
         await waitForRoomReady(page2, 'general');
 
@@ -1026,9 +995,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
           intervals: [100, 250, 500, 1000]
         });
       });
-    } finally {
-      await context2.close();
-    }
+    });
   });
 
   test('echo reply attribution highlight works for non-root target after thread was already opened', async ({

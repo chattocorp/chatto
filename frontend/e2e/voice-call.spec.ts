@@ -12,8 +12,10 @@
  * menu camera section can only be tested manually with `mise dev`.
  */
 
+import type { Page } from '@playwright/test';
 import { test, expect } from './setup';
-import { createAndLoginTestUser, openServer } from './fixtures/testUser';
+import { createAndLoginTestUser } from './fixtures/testUser';
+import { withServerUser } from './fixtures/serverUser';
 import { graphqlQuery, getRoomIdByName } from './fixtures/graphqlHelpers';
 import { DMPage } from './pages/DMPage';
 import { TIMEOUTS } from './constants';
@@ -48,6 +50,16 @@ const CallParticipantsQuery = `query($roomId: ID!) {
 	}
 }`;
 
+async function joinRoomViaAPI(page: Page, roomId: string) {
+  await page.request.post('/api/graphql', {
+    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
+    data: {
+      query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) { id } }`,
+      variables: { input: { roomId } }
+    }
+  });
+}
+
 test.describe('Voice calls', () => {
   test('call button appears in room header', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
@@ -62,12 +74,7 @@ test.describe('Voice calls', () => {
     // Create two users
     await createAndLoginTestUser(page);
 
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
-
-    try {
-      const userB = await createAndLoginTestUser(page2);
-
+    await withServerUser(browser!, serverURL, async ({ user: userB }) => {
       // User A starts a DM with User B
       const dmPage = new DMPage(page);
       await dmPage.startConversation(userB.login);
@@ -75,9 +82,7 @@ test.describe('Voice calls', () => {
       // Call button should be visible in the DM room header
       const callButton = page.getByTitle('Join voice call');
       await expect(callButton).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
-    } finally {
-      await context2.close();
-    }
+    });
   });
 
   test('voiceCallToken query returns a valid JWT', async ({ page, chatPage }) => {
@@ -125,22 +130,12 @@ test.describe('Voice calls', () => {
     // User A loads the server and room
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
     const roomId = await getRoomIdByName(page, 'general');
 
     // User B — auto-opens the bootstrap server at signup (issue #330), so we
     // must explicitly leave the room to verify non-member rejection.
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
-
-    try {
-      await createAndLoginTestUser(page2);
-
-      // Navigate page2 so relative URL works in page.evaluate
-      await page2.goto('/chat');
-      await page2.waitForURL((url) => url.pathname.startsWith('/chat'));
-
+    await withServerUser(browser!, serverURL, async ({ page: page2 }) => {
       // Leave the room so user B is genuinely not a member when the test
       // fires the voiceCallToken query below.
       await page2.request.post('/api/graphql', {
@@ -175,15 +170,12 @@ test.describe('Voice calls', () => {
       // Should have errors (not a room member)
       expect(result.errors).toBeTruthy();
       expect(result.errors.length).toBeGreaterThan(0);
-    } finally {
-      await context2.close();
-    }
+    });
   });
 
   test('activeCallRoomIds returns empty when no calls active', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getServerScopeId();
 
     const data = await graphqlQuery<{ activeCallRoomIds: string[] }>(
       page,
@@ -212,21 +204,8 @@ test.describe('Voice calls', () => {
     await expect(callIcon).not.toBeVisible();
 
     // User B joins the same server and room
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
-
-    try {
-      const userB = await createAndLoginTestUser(page2);
-      await openServer(page2, spaceId);
-
-      // User B joins the room via API (use page2.request to avoid page navigation requirement)
-      await page2.request.post('/api/graphql', {
-        headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-        data: {
-          query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) { id } }`,
-          variables: { input: { roomId } }
-        }
-      });
+    await withServerUser(browser!, serverURL, async ({ page: page2, user: userB }) => {
+      await joinRoomViaAPI(page2, roomId);
 
       // Simulate User B joining a voice call via test webhook endpoint
       // (bypasses LiveKit HMAC — calls core.HandleCallParticipantJoined directly)
@@ -255,9 +234,7 @@ test.describe('Voice calls', () => {
       // User A should see the call icon disappear
       // (handleLeave re-queries activeCallRoomIds, which returns [] since KV is now empty)
       await expect(callIcon).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-    } finally {
-      await context2.close();
-    }
+    });
   });
 
   test('callParticipants returns participants after webhook join', async ({
@@ -279,19 +256,8 @@ test.describe('Voice calls', () => {
     expect(before.room?.callParticipants).toEqual([]);
 
     // Create User B and have them join
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
-
-    try {
-      const userB = await createAndLoginTestUser(page2);
-      await openServer(page2, spaceId);
-      await page2.request.post('/api/graphql', {
-        headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-        data: {
-          query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) { id } }`,
-          variables: { input: { roomId } }
-        }
-      });
+    await withServerUser(browser!, serverURL, async ({ page: page2, user: userB }) => {
+      await joinRoomViaAPI(page2, roomId);
 
       // Simulate join via webhook test endpoint
       await page.request.post('/webhooks/test/call-join', {
@@ -323,9 +289,7 @@ test.describe('Voice calls', () => {
         roomId
       });
       expect(afterLeave.room?.callParticipants).toEqual([]);
-    } finally {
-      await context2.close();
-    }
+    });
   });
 
   test('observer panel appears when another user joins a call', async ({
@@ -345,19 +309,8 @@ test.describe('Voice calls', () => {
     await expect(page.getByTestId('call-observer-panel')).not.toBeVisible();
 
     // User B joins the same server and room
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
-
-    try {
-      const userB = await createAndLoginTestUser(page2);
-      await openServer(page2, spaceId);
-      await page2.request.post('/api/graphql', {
-        headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-        data: {
-          query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) { id } }`,
-          variables: { input: { roomId } }
-        }
-      });
+    await withServerUser(browser!, serverURL, async ({ page: page2, user: userB }) => {
+      await joinRoomViaAPI(page2, roomId);
 
       // Simulate User B joining a voice call via test webhook endpoint
       await page.request.post('/webhooks/test/call-join', {
@@ -385,9 +338,7 @@ test.describe('Voice calls', () => {
 
       await expect(observerPanel).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
       await expect(page.getByTestId('call-join-button')).not.toBeVisible();
-    } finally {
-      await context2.close();
-    }
+    });
   });
 
   test('observer panel updates when participants join and leave', async ({
@@ -403,87 +354,64 @@ test.describe('Voice calls', () => {
     await chatPage.enterRoom('general');
     const roomId = await getRoomIdByName(page, 'general');
 
-    // Create User B and User C, both open the server and room
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
-    const context3 = await browser!.newContext({ baseURL: serverURL });
-    const page3 = await context3.newPage();
+    await withServerUser(browser!, serverURL, async ({ page: page2, user: userB }) => {
+      await joinRoomViaAPI(page2, roomId);
 
-    try {
-      const userB = await createAndLoginTestUser(page2);
-      await openServer(page2, spaceId);
-      await page2.request.post('/api/graphql', {
-        headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-        data: {
-          query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) { id } }`,
-          variables: { input: { roomId } }
-        }
+      await withServerUser(browser!, serverURL, async ({ page: page3, user: userC }) => {
+        await joinRoomViaAPI(page3, roomId);
+
+        const observerPanel = page.getByTestId('call-observer-panel');
+
+        // User B joins the call
+        await page.request.post('/webhooks/test/call-join', {
+          data: {
+            spaceId,
+            roomId,
+            userId: userB.id,
+            displayName: userB.displayName,
+            login: userB.login
+          }
+        });
+
+        await expect(observerPanel).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+        await expect(observerPanel.getByTitle(userB.displayName)).toBeVisible();
+
+        // User C joins the call
+        await page.request.post('/webhooks/test/call-join', {
+          data: {
+            spaceId,
+            roomId,
+            userId: userC.id,
+            displayName: userC.displayName,
+            login: userC.login
+          }
+        });
+
+        // Both participants should be visible
+        await expect(observerPanel.getByTitle(userC.displayName)).toBeVisible({
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
+        await expect(observerPanel.getByTitle(userB.displayName)).toBeVisible();
+
+        // User B leaves — User C should still be visible, panel still showing
+        await page.request.post('/webhooks/test/call-leave', {
+          data: { spaceId, roomId, userId: userB.id }
+        });
+
+        await expect(observerPanel.getByTitle(userB.displayName)).not.toBeVisible({
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
+        await expect(observerPanel.getByTitle(userC.displayName)).toBeVisible();
+        await expect(observerPanel).toBeVisible();
+
+        // User C leaves — panel should disappear
+        await page.request.post('/webhooks/test/call-leave', {
+          data: { spaceId, roomId, userId: userC.id }
+        });
+
+        await expect(observerPanel).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
       });
-
-      const userC = await createAndLoginTestUser(page3);
-      await openServer(page3, spaceId);
-      await page3.request.post('/api/graphql', {
-        headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-        data: {
-          query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) { id } }`,
-          variables: { input: { roomId } }
-        }
-      });
-
-      const observerPanel = page.getByTestId('call-observer-panel');
-
-      // User B joins the call
-      await page.request.post('/webhooks/test/call-join', {
-        data: {
-          spaceId,
-          roomId,
-          userId: userB.id,
-          displayName: userB.displayName,
-          login: userB.login
-        }
-      });
-
-      await expect(observerPanel).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-      await expect(observerPanel.getByTitle(userB.displayName)).toBeVisible();
-
-      // User C joins the call
-      await page.request.post('/webhooks/test/call-join', {
-        data: {
-          spaceId,
-          roomId,
-          userId: userC.id,
-          displayName: userC.displayName,
-          login: userC.login
-        }
-      });
-
-      // Both participants should be visible
-      await expect(observerPanel.getByTitle(userC.displayName)).toBeVisible({
-        timeout: TIMEOUTS.REALTIME_EVENT
-      });
-      await expect(observerPanel.getByTitle(userB.displayName)).toBeVisible();
-
-      // User B leaves — User C should still be visible, panel still showing
-      await page.request.post('/webhooks/test/call-leave', {
-        data: { spaceId, roomId, userId: userB.id }
-      });
-
-      await expect(observerPanel.getByTitle(userB.displayName)).not.toBeVisible({
-        timeout: TIMEOUTS.REALTIME_EVENT
-      });
-      await expect(observerPanel.getByTitle(userC.displayName)).toBeVisible();
-      await expect(observerPanel).toBeVisible();
-
-      // User C leaves — panel should disappear
-      await page.request.post('/webhooks/test/call-leave', {
-        data: { spaceId, roomId, userId: userC.id }
-      });
-
-      await expect(observerPanel).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-    } finally {
-      await context2.close();
-      await context3.close();
-    }
+    });
   });
 
   test('participant avatars appear in room list sidebar during active call', async ({
@@ -503,20 +431,8 @@ test.describe('Voice calls', () => {
     const roomList = chatPage.roomList;
     await expect(roomList.locator('.meta-badge')).not.toBeVisible();
 
-    // User B joins the same server and room
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
-
-    try {
-      const userB = await createAndLoginTestUser(page2);
-      await openServer(page2, spaceId);
-      await page2.request.post('/api/graphql', {
-        headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-        data: {
-          query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) { id } }`,
-          variables: { input: { roomId } }
-        }
-      });
+    await withServerUser(browser!, serverURL, async ({ page: page2, user: userB }) => {
+      await joinRoomViaAPI(page2, roomId);
 
       // Simulate User B joining a voice call
       await page.request.post('/webhooks/test/call-join', {
@@ -540,9 +456,7 @@ test.describe('Voice calls', () => {
       });
 
       await expect(callBadge).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-    } finally {
-      await context2.close();
-    }
+    });
   });
 
   test('livekitUrl is exposed in instance info', async ({ page, chatPage }) => {
