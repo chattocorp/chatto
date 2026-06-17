@@ -448,6 +448,19 @@ func (p *UserProjection) Get(userID string) (*corev1.User, bool) {
 	return proto.Clone(u.user).(*corev1.User), true
 }
 
+func (p *UserProjection) GetReference(userID string) (*corev1.User, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	u := p.users[userID]
+	if u == nil {
+		return nil, false
+	}
+	if u.deleted || u.user == nil || u.user.GetLogin() == "" || u.user.GetDisplayName() == "" {
+		return DeletedUserReference(userID), true
+	}
+	return proto.Clone(u.user).(*corev1.User), true
+}
+
 func (p *UserProjection) GetByLogin(login string) (*corev1.User, bool) {
 	p.RLock()
 	userID := p.loginIndex[strings.ToLower(strings.TrimSpace(login))]

@@ -407,6 +407,7 @@
   const canBanPopoverUser = $derived.by(() => {
     if (
       !popoverUser ||
+      popoverUser.deleted ||
       !roomPermissions.canBanRoomMembers ||
       popoverUser.id === currentUser.user?.id
     ) {
@@ -417,6 +418,8 @@
   });
 
   function openBanDialog(member: RoomMember) {
+    if (member.deleted) return;
+
     banDialogUser = member;
     banError = null;
     closePopover();
@@ -778,7 +781,7 @@
     <UserContextMenu
       user={popoverUser}
       anchorRect={popoverAnchorRect}
-      canSendMessage={canStartDMs}
+      canSendMessage={canStartDMs && !popoverUser.deleted}
       canBanFromRoom={canBanPopoverUser}
       banningFromRoom={banningMemberId === popoverUser.id}
       onSendMessage={() => startDMWith(getActiveServer(), popoverUser!.id)}

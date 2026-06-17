@@ -9,7 +9,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-func TestRoomMembersSkipsMissingUsers(t *testing.T) {
+func TestRoomMembersReturnsTombstonesForMissingUsers(t *testing.T) {
 	env := setupTestResolver(t)
 
 	missingUserID := "UmissingMember"
@@ -36,10 +36,29 @@ func TestRoomMembersSkipsMissingUsers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Room.members returned error for stale member: %v", err)
 	}
-	if members.TotalCount != 1 {
-		t.Fatalf("members.TotalCount = %d, want 1", members.TotalCount)
+	if members.TotalCount != 2 {
+		t.Fatalf("members.TotalCount = %d, want 2", members.TotalCount)
 	}
-	if len(members.Users) != 1 || members.Users[0].Id != env.testUser.Id {
-		t.Fatalf("members.Users = %#v, want only %s", members.Users, env.testUser.Id)
+	if len(members.Users) != 2 {
+		t.Fatalf("len(members.Users) = %d, want 2: %#v", len(members.Users), members.Users)
+	}
+
+	var tombstone *corev1.User
+	for _, user := range members.Users {
+		if user.Id == missingUserID {
+			tombstone = user
+		}
+	}
+	if tombstone == nil {
+		t.Fatalf("members.Users = %#v, want tombstone for %s", members.Users, missingUserID)
+	}
+	if !tombstone.Deleted {
+		t.Fatalf("tombstone.Deleted = false, want true")
+	}
+	if tombstone.DisplayName != core.DeletedUserDisplayName {
+		t.Fatalf("tombstone.DisplayName = %q, want %q", tombstone.DisplayName, core.DeletedUserDisplayName)
+	}
+	if tombstone.Login != "" {
+		t.Fatalf("tombstone.Login = %q, want empty", tombstone.Login)
 	}
 }

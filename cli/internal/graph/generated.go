@@ -895,6 +895,7 @@ type ComplexityRoot struct {
 	User struct {
 		AvatarURL                   func(childComplexity int, width *int32, height *int32, fit *model.FitMode) int
 		CreatedAt                   func(childComplexity int) int
+		Deleted                     func(childComplexity int) int
 		DisplayName                 func(childComplexity int) int
 		HasVerifiedEmail            func(childComplexity int) int
 		Id                          func(childComplexity int) int
@@ -5170,6 +5171,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.User.CreatedAt(childComplexity), true
+	case "User.deleted":
+		if e.ComplexityRoot.User.Deleted == nil {
+			break
+		}
+
+		return e.ComplexityRoot.User.Deleted(childComplexity), true
 	case "User.displayName":
 		if e.ComplexityRoot.User.DisplayName == nil {
 			break
@@ -6755,6 +6762,8 @@ func (ec *executionContext) childFields_User(ctx context.Context, field graphql.
 		return ec.fieldContext_User_displayName(ctx, field)
 	case "createdAt":
 		return ec.fieldContext_User_createdAt(ctx, field)
+	case "deleted":
+		return ec.fieldContext_User_deleted(ctx, field)
 	case "avatarUrl":
 		return ec.fieldContext_User_avatarUrl(ctx, field)
 	case "hasVerifiedEmail":
@@ -24151,6 +24160,29 @@ func (ec *executionContext) fieldContext_User_createdAt(_ context.Context, field
 	return graphql.NewScalarFieldContext("User", field, false, false, errors.New("field of type Time does not have child fields"))
 }
 
+func (ec *executionContext) _User_deleted(ctx context.Context, field graphql.CollectedField, obj *corev1.User) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_User_deleted(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Deleted, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_User_deleted(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("User", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
 func (ec *executionContext) _User_avatarUrl(ctx context.Context, field graphql.CollectedField, obj *corev1.User) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -41099,6 +41131,11 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 			}
 		case "createdAt":
 			out.Values[i] = ec._User_createdAt(ctx, field, obj)
+		case "deleted":
+			out.Values[i] = ec._User_deleted(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "avatarUrl":
 			field := field
 

@@ -59,9 +59,10 @@ func (r *roomResolver) Members(ctx context.Context, obj *corev1.Room, limit *int
 	}
 	users := make([]*corev1.User, 0, len(memberships))
 	for _, m := range memberships {
-		u, err := r.core.GetUser(ctx, m.UserId)
+		u, err := r.core.GetUserReference(ctx, m.UserId)
 		if err != nil {
 			if errors.Is(err, core.ErrNotFound) {
+				users = append(users, core.DeletedUserReference(m.UserId))
 				continue
 			}
 			return nil, err
