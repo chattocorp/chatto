@@ -26,6 +26,7 @@ union EventType =
   # Room lifecycle
   | RoomCreatedEvent
   | RoomUpdatedEvent
+  | RoomInformationChangedEvent
   | RoomDeletedEvent
   | RoomArchivedEvent
   | RoomUnarchivedEvent
@@ -202,6 +203,14 @@ type RoomUpdatedEvent {
   name: String!
   "The room's updated description, or null if not set."
   description: String @goField(forceResolver: true)
+}
+
+"""
+Event: A room's Markdown-formatted in-room information was changed.
+"""
+type RoomInformationChangedEvent {
+  "The ID of the updated room."
+  roomId: ID!
 }
 
 """

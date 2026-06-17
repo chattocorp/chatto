@@ -187,6 +187,49 @@ func TestPostMessage_LargeMentionConfirmationUsesScopedToken(t *testing.T) {
 	}
 }
 
+func TestUpdateRoomInformation_Authorization(t *testing.T) {
+	env := setupTestResolver(t)
+	mutation := env.resolver.Mutation()
+	input := model.UpdateRoomInformationInput{
+		RoomID:      env.testRoom.Id,
+		Information: ptr("Pinned notes"),
+	}
+
+	t.Run("unauthenticated user is rejected", func(t *testing.T) {
+		_, err := mutation.UpdateRoomInformation(env.unauthContext(), input)
+		if !errors.Is(err, ErrNotAuthenticated) {
+			t.Fatalf("expected ErrNotAuthenticated, got %v", err)
+		}
+	})
+
+	t.Run("member without room.manage is rejected", func(t *testing.T) {
+		member := env.createVerifiedUser(t, "room-info-edit-member", "Member", "password123")
+		if _, err := env.core.JoinRoom(env.ctx, member.Id, core.KindChannel, member.Id, env.testRoom.Id); err != nil {
+			t.Fatalf("JoinRoom: %v", err)
+		}
+
+		_, err := mutation.UpdateRoomInformation(env.authContextForUser(member), input)
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Fatalf("expected ErrPermissionDenied, got %v", err)
+		}
+	})
+
+	t.Run("room manager can edit without membership", func(t *testing.T) {
+		manager := env.createVerifiedUser(t, "room-info-edit-manager", "Manager", "password123")
+		if err := env.core.GrantUserRoomPermission(env.ctx, core.SystemActorID, env.testRoom.Id, manager.Id, core.PermRoomManage); err != nil {
+			t.Fatalf("GrantUserRoomPermission: %v", err)
+		}
+
+		room, err := mutation.UpdateRoomInformation(env.authContextForUser(manager), input)
+		if err != nil {
+			t.Fatalf("UpdateRoomInformation: %v", err)
+		}
+		if room.GetInformation() != "Pinned notes" {
+			t.Fatalf("information = %q, want Pinned notes", room.GetInformation())
+		}
+	})
+}
+
 // ============================================================================
 // PostMessage Authorization Tests
 // ============================================================================

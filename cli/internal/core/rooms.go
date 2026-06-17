@@ -61,6 +61,7 @@ const (
 	RoomNameMinLength        = 1
 	RoomNameMaxLength        = 30
 	RoomDescriptionMaxLength = 500
+	RoomInformationMaxLength = 10000
 )
 
 // ErrRoomNameExists is returned when a room with the same name (case-insensitive) already exists.
@@ -100,6 +101,14 @@ func isURLSafeChar(ch rune) bool {
 func ValidateRoomDescription(description string) error {
 	if len(description) > RoomDescriptionMaxLength {
 		return fmt.Errorf("room description must be %d characters or less", RoomDescriptionMaxLength)
+	}
+	return nil
+}
+
+// ValidateRoomInformation validates the Markdown-formatted in-room information text.
+func ValidateRoomInformation(information string) error {
+	if len(information) > RoomInformationMaxLength {
+		return fmt.Errorf("room information must be %d characters or less", RoomInformationMaxLength)
 	}
 	return nil
 }
@@ -328,6 +337,44 @@ func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, kind RoomKi
 	if err := c.rooms().waitForDirectoryAndTimeline(ctx, events.SubjectPosition(updatedSubject, updatedSeq)); err != nil {
 		return nil, err
 	}
+	return room, nil
+}
+
+// UpdateRoomInformation updates a channel room's Markdown-formatted in-room
+// information. Authorization: Caller must verify room.manage before calling.
+func (c *ChattoCore) UpdateRoomInformation(ctx context.Context, actorID string, kind RoomKind, roomID, information string) (*corev1.Room, error) {
+	information = strings.TrimSpace(information)
+	if err := ValidateRoomInformation(information); err != nil {
+		return nil, err
+	}
+
+	room, err := c.GetRoom(ctx, kind, roomID)
+	if err != nil {
+		return nil, err
+	}
+	if kind != KindChannel {
+		return nil, fmt.Errorf("room information is only supported for channel rooms")
+	}
+	room.Information = information
+
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_RoomInformationChanged{
+			RoomInformationChanged: &corev1.RoomInformationChangedEvent{
+				RoomId:      roomID,
+				Information: information,
+			},
+		},
+	})
+	subject := events.RoomAggregate(roomID).SubjectFor(event)
+	seq, err := c.EventPublisher.Append(ctx, subject, event)
+	if err != nil {
+		return nil, fmt.Errorf("publish RoomInformationChangedEvent: %w", err)
+	}
+	if err := c.rooms().waitForDirectoryAndTimeline(ctx, events.SubjectPosition(subject, seq)); err != nil {
+		return nil, err
+	}
+
+	c.logger.Info("Room information updated", "kind", kind, "room_id", roomID)
 	return room, nil
 }
 

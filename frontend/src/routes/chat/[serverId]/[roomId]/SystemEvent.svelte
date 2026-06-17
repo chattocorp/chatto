@@ -4,7 +4,13 @@
   import { useFragment } from '$lib/gql/fragment-masking';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
 
-  let { event }: { event: RoomEventViewFragment } = $props();
+  let {
+    event,
+    onOpenRoomInformation
+  }: {
+    event: RoomEventViewFragment;
+    onOpenRoomInformation?: () => void;
+  } = $props();
 
   type Subject = {
     id: string;
@@ -43,7 +49,14 @@
     }
   });
 
+  const isRoomInformationUpdate = $derived(
+    event?.event?.__typename === 'RoomInformationChangedEvent'
+  );
+
   const message = $derived.by(() => {
+    if (isRoomInformationUpdate) {
+      return 'The room information has been updated';
+    }
     if (event?.event?.__typename === 'CallEndedEvent') {
       return 'The active call has ended';
     }
@@ -56,7 +69,13 @@
   <div class="mt-4 flex items-center gap-4 px-2 md:px-4" data-event-id={event.id}>
     <!-- Avatar column (w-11 matches MessageEvent avatar width) -->
     <div class="flex w-11 shrink-0 items-center justify-center">
-      {#if event.event.__typename === 'CallEndedEvent'}
+      {#if isRoomInformationUpdate}
+        <div
+          class="flex h-5 w-5 items-center justify-center rounded-full bg-surface-200 text-muted"
+        >
+          <span class="iconify text-xs uil--info-circle" aria-hidden="true"></span>
+        </div>
+      {:else if event.event.__typename === 'CallEndedEvent'}
         <div
           class="flex h-5 w-5 items-center justify-center rounded-full bg-surface-200 text-muted"
         >
@@ -74,6 +93,19 @@
       {/if}
     </div>
 
-    <span class="text-sm text-muted">{message}</span>
+    <span class="text-sm text-muted">
+      {#if isRoomInformationUpdate && onOpenRoomInformation}
+        <span>{message}, </span>
+        <button
+          type="button"
+          class="cursor-pointer underline decoration-dotted underline-offset-2 hover:text-text"
+          onclick={onOpenRoomInformation}
+        >
+          take a look
+        </button><span>!</span>
+      {:else}
+        {message}
+      {/if}
+    </span>
   </div>
 {/if}

@@ -50,7 +50,12 @@ function makeMessageEvent(
 }
 
 function makeSystemEvent(
-  typename: 'UserJoinedRoomEvent' | 'UserLeftRoomEvent' | 'CallStartedEvent' | 'CallEndedEvent',
+  typename:
+    | 'UserJoinedRoomEvent'
+    | 'UserLeftRoomEvent'
+    | 'CallStartedEvent'
+    | 'CallEndedEvent'
+    | 'RoomInformationChangedEvent',
   overrides: Partial<{
     id: string;
     actorId: string;
@@ -382,6 +387,72 @@ describe('buildVirtualItems', () => {
       // pagination prepends older events that merge into the group.
       expect(keys).toContain('system-group-j2');
       expect(keys).toContain('system-group-l2');
+    });
+
+    it('coalesces consecutive room information updates into a single system-group', () => {
+      const events = [
+        makeSystemEvent('RoomInformationChangedEvent', {
+          id: 'info-1',
+          createdAt: '2025-04-27T12:00:00Z'
+        }),
+        makeSystemEvent('RoomInformationChangedEvent', {
+          id: 'info-2',
+          createdAt: '2025-04-27T12:00:10Z'
+        }),
+        makeSystemEvent('RoomInformationChangedEvent', {
+          id: 'info-3',
+          createdAt: '2025-04-27T12:00:20Z'
+        })
+      ];
+
+      const items = buildVirtualItems(meta(events), null, false);
+      const groups = items.filter(
+        (i): i is Extract<VirtualItem, { type: 'system-group' }> => i.type === 'system-group'
+      );
+      expect(groups).toHaveLength(1);
+      expect(groups[0].kind).toBe('information');
+      expect(groups[0].events.map((event) => event.id)).toEqual(['info-1', 'info-2', 'info-3']);
+    });
+
+    it('breaks room information update groups at a day boundary', () => {
+      const events = [
+        makeSystemEvent('RoomInformationChangedEvent', {
+          id: 'info-1',
+          createdAt: '2025-04-26T23:00:00Z'
+        }),
+        makeSystemEvent('RoomInformationChangedEvent', {
+          id: 'info-2',
+          createdAt: '2025-04-27T00:30:00Z'
+        })
+      ];
+
+      const items = buildVirtualItems(meta(events), null, false);
+      const groups = items.filter(
+        (i): i is Extract<VirtualItem, { type: 'system-group' }> => i.type === 'system-group'
+      );
+      expect(groups).toHaveLength(2);
+      expect(groups.map((group) => group.events.map((event) => event.id))).toEqual([
+        ['info-1'],
+        ['info-2']
+      ]);
+    });
+
+    it('breaks room information update groups when interrupted by another event', () => {
+      const events = [
+        makeSystemEvent('RoomInformationChangedEvent', { id: 'info-1' }),
+        makeMessageEvent({ id: 'message-1' }),
+        makeSystemEvent('RoomInformationChangedEvent', { id: 'info-2' })
+      ];
+
+      const items = buildVirtualItems(meta(events), null, false);
+      const groups = items.filter(
+        (i): i is Extract<VirtualItem, { type: 'system-group' }> => i.type === 'system-group'
+      );
+      expect(groups).toHaveLength(2);
+      expect(groups.map((group) => group.events.map((event) => event.id))).toEqual([
+        ['info-1'],
+        ['info-2']
+      ]);
     });
   });
 });

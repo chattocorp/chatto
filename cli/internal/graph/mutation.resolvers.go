@@ -77,6 +77,35 @@ func (r *mutationResolver) UpdateRoom(ctx context.Context, input model.UpdateRoo
 	return r.core.UpdateRoom(ctx, user.Id, kind, input.RoomID, input.Name, desc)
 }
 
+// UpdateRoomInformation is the resolver for the updateRoomInformation field.
+func (r *mutationResolver) UpdateRoomInformation(ctx context.Context, input model.UpdateRoomInformationInput) (*corev1.Room, error) {
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	kind, err := r.resolveRoomKind(ctx, input.RoomID)
+	if err != nil {
+		return nil, err
+	}
+	if kind != core.KindChannel {
+		return nil, fmt.Errorf("room information is only supported for channel rooms")
+	}
+
+	can, err := r.core.PermResolver().HasRoomPermission(ctx, user.Id, kind, input.RoomID, core.PermRoomManage)
+	if err != nil {
+		return nil, err
+	}
+	if !can {
+		return nil, core.ErrPermissionDenied
+	}
+
+	information := ""
+	if input.Information != nil {
+		information = *input.Information
+	}
+	return r.core.UpdateRoomInformation(ctx, user.Id, kind, input.RoomID, information)
+}
+
 // ArchiveRoom is the resolver for the archiveRoom field.
 func (r *mutationResolver) ArchiveRoom(ctx context.Context, input model.ArchiveRoomInput) (*corev1.Room, error) {
 	user, err := requireAuth(ctx)

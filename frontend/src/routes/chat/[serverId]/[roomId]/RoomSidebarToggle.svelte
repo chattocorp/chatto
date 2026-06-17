@@ -37,6 +37,12 @@ Room header affordance for opening or hiding room extras panels.
       hideLabel: 'Hide members'
     },
     {
+      id: 'information',
+      icon: 'uil--info-circle',
+      showLabel: 'Show room information',
+      hideLabel: 'Hide room information'
+    },
+    {
       id: 'files',
       icon: 'uil--paperclip',
       showLabel: 'Show files',

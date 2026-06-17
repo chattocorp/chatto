@@ -2,6 +2,8 @@
 type AdminQueries {
   "Get point-in-time operator diagnostics for connection, storage, and deployment counts. Requires the owner role."
   systemInfo: SystemInfo! @goField(forceResolver: true)
+  "Get a room for Server Admin editing. Requires `room.manage` for the room."
+  room(roomId: ID!): Room @goField(forceResolver: true)
 }
 
 extend type Query {

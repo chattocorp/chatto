@@ -17,6 +17,7 @@
     unreadAfterTime = null,
     unreadBeforeTime = null,
     onOpenThread,
+    onOpenRoomInformation,
     typingUserIds = [],
     typingMembers = []
   }: {
@@ -24,6 +25,7 @@
     unreadAfterTime?: string | null;
     unreadBeforeTime?: string | null;
     onOpenThread?: (threadRootEventId: string, highlightEventId?: string) => void;
+    onOpenRoomInformation?: () => void;
     typingUserIds?: string[];
     typingMembers?: RoomMember[];
   } = $props();
@@ -131,6 +133,7 @@
   onLoadMore={() => store.loadMore()}
   {updateCounter}
   {onOpenThread}
+  {onOpenRoomInformation}
   enableLastEditableFinder={true}
   isLoading={store.isInitialLoading}
   {unreadAfterEventId}

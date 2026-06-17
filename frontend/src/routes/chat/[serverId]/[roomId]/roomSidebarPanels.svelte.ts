@@ -40,6 +40,10 @@ export class RoomSidebarPanelsState {
     this.#setDesktopState(panel);
   }
 
+  openDesktopPanel(panel: RoomSidebarPanel): void {
+    this.#setDesktopState(panel);
+  }
+
   closeDesktop(): void {
     this.#setDesktopState(null);
   }
@@ -50,6 +54,11 @@ export class RoomSidebarPanelsState {
       return;
     }
 
+    this.#mobileScope = this.#currentScope;
+    this.#mobilePanel = panel;
+  }
+
+  openMobilePanel(panel: RoomSidebarPanel): void {
     this.#mobileScope = this.#currentScope;
     this.#mobilePanel = panel;
   }

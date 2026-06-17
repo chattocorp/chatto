@@ -68,6 +68,17 @@ func threadCreatedEvent(envID, roomID, rootEventID, actorID string, at int) *cor
 	}
 }
 
+func roomInformationTimelineEvent(envID, roomID, actorID string, at int) *corev1.Event {
+	return &corev1.Event{
+		Id:        envID,
+		ActorId:   actorID,
+		CreatedAt: timestamppb.New(fixedTime(at)),
+		Event: &corev1.Event_RoomInformationChanged{
+			RoomInformationChanged: &corev1.RoomInformationChangedEvent{RoomId: roomID},
+		},
+	}
+}
+
 func editedEvent(envID, targetID, roomID, actorID, newBody string, at int) *corev1.Event {
 	return &corev1.Event{
 		Id:        envID,
@@ -490,17 +501,18 @@ func TestRoomTimeline_DerivedVisibleTimelineSkipsFoldedEntries(t *testing.T) {
 		editedEvent("ENV-EDIT-ROOT", "ENV-ROOT", "R1", "U1", "root edited", 4),
 		retractedEvent("ENV-RETRACT-ECHO", "ENV-ECHO", "R1", "U1", "", 5),
 		joinedEvent("ENV-JOIN-U2", "R1", "U2", 6),
+		roomInformationTimelineEvent("ENV-INFO", "R1", "U1", 7),
 	})
 
-	if got := p.RoomEventCount("R1"); got != 6 {
-		t.Fatalf("raw RoomEventCount = %d, want 6", got)
+	if got := p.RoomEventCount("R1"); got != 7 {
+		t.Fatalf("raw RoomEventCount = %d, want 7", got)
 	}
-	if got := p.VisibleRoomEventCount("R1"); got != 2 {
-		t.Fatalf("VisibleRoomEventCount = %d, want 2", got)
+	if got := p.VisibleRoomEventCount("R1"); got != 3 {
+		t.Fatalf("VisibleRoomEventCount = %d, want 3", got)
 	}
 	visible := p.VisibleRoomTimeline("R1", 10, 0, nil)
-	if got := timelineEventIDs(visible); !slices.Equal(got, []string{"ENV-JOIN-U2", "ENV-ROOT"}) {
-		t.Fatalf("derived visible timeline = %v, want join and root only", got)
+	if got := timelineEventIDs(visible); !slices.Equal(got, []string{"ENV-INFO", "ENV-JOIN-U2", "ENV-ROOT"}) {
+		t.Fatalf("derived visible timeline = %v, want info, join, and root only", got)
 	}
 }
 

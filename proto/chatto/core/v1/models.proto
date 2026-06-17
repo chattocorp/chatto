@@ -42,6 +42,8 @@ message Room {
   string group_id = 7;
   // Canonical kind discriminator.
   RoomKind kind = 8;
+  // Markdown-formatted information shown to room members inside the room.
+  string information = 9;
 }
 
 // User represents a user account

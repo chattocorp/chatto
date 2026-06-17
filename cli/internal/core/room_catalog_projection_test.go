@@ -33,6 +33,17 @@ func roomUpdatedEvent(roomID, name, description string) *corev1.Event {
 	}
 }
 
+func roomInformationChangedEvent(roomID, information string) *corev1.Event {
+	return &corev1.Event{
+		Event: &corev1.Event_RoomInformationChanged{
+			RoomInformationChanged: &corev1.RoomInformationChangedEvent{
+				RoomId:      roomID,
+				Information: information,
+			},
+		},
+	}
+}
+
 func roomArchivedEvent(roomID string) *corev1.Event {
 	return &corev1.Event{
 		Event: &corev1.Event_RoomArchived{
@@ -76,6 +87,7 @@ func TestRoomCatalogProjection_CreateUpdateArchiveDelete(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, "general", got.Name)
 	require.Equal(t, "default", got.Description)
+	require.Empty(t, got.Information)
 	require.Equal(t, corev1.RoomKind_ROOM_KIND_CHANNEL, got.Kind)
 	require.False(t, got.Archived)
 
@@ -85,18 +97,26 @@ func TestRoomCatalogProjection_CreateUpdateArchiveDelete(t *testing.T) {
 	got, _ = p.Get("R1")
 	require.Equal(t, "announcements", got.Name)
 	require.Equal(t, "updates only", got.Description)
+	require.Empty(t, got.Information)
 	require.False(t, got.Archived) // archive state untouched
 
-	require.NoError(t, p.Apply(roomArchivedEvent("R1"), 3))
+	require.NoError(t, p.Apply(roomInformationChangedEvent("R1", "**Rules**\n\nBe kind."), 3))
+	got, _ = p.Get("R1")
+	require.Equal(t, "**Rules**\n\nBe kind.", got.Information)
+	require.Equal(t, "announcements", got.Name)
+	require.Equal(t, "updates only", got.Description)
+
+	require.NoError(t, p.Apply(roomArchivedEvent("R1"), 4))
 	got, _ = p.Get("R1")
 	require.True(t, got.Archived)
 	require.Equal(t, "announcements", got.Name) // metadata preserved
+	require.Equal(t, "**Rules**\n\nBe kind.", got.Information)
 
-	require.NoError(t, p.Apply(roomUnarchivedEvent("R1"), 4))
+	require.NoError(t, p.Apply(roomUnarchivedEvent("R1"), 5))
 	got, _ = p.Get("R1")
 	require.False(t, got.Archived)
 
-	require.NoError(t, p.Apply(roomDeletedEvent("R1"), 5))
+	require.NoError(t, p.Apply(roomDeletedEvent("R1"), 6))
 	_, ok = p.Get("R1")
 	require.False(t, ok)
 	require.Equal(t, 0, p.Count())
@@ -132,12 +152,16 @@ func TestRoomCatalogProjection_Idempotency(t *testing.T) {
 	require.NoError(t, p.Apply(roomUpdatedEvent("Rmissing", "nope", "nope"), 3))
 	require.False(t, p.Exists("Rmissing"))
 
+	// Information update on a non-existent room — no-op.
+	require.NoError(t, p.Apply(roomInformationChangedEvent("Rmissing", "nope"), 4))
+	require.False(t, p.Exists("Rmissing"))
+
 	// Archive on a non-existent room — no-op.
-	require.NoError(t, p.Apply(roomArchivedEvent("Rmissing"), 4))
+	require.NoError(t, p.Apply(roomArchivedEvent("Rmissing"), 5))
 	require.False(t, p.Exists("Rmissing"))
 
 	// Delete on a non-existent room — no-op (no error).
-	require.NoError(t, p.Apply(roomDeletedEvent("Rmissing"), 5))
+	require.NoError(t, p.Apply(roomDeletedEvent("Rmissing"), 6))
 }
 
 func TestRoomCatalogProjection_GetReturnsClone(t *testing.T) {

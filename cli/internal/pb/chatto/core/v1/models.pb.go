@@ -196,7 +196,9 @@ type Room struct {
 	// rooms, empty for DM rooms. See ADR-031.
 	GroupId string `protobuf:"bytes,7,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
 	// Canonical kind discriminator.
-	Kind          RoomKind `protobuf:"varint,8,opt,name=kind,proto3,enum=chatto.core.v1.RoomKind" json:"kind,omitempty"`
+	Kind RoomKind `protobuf:"varint,8,opt,name=kind,proto3,enum=chatto.core.v1.RoomKind" json:"kind,omitempty"`
+	// Markdown-formatted information shown to room members inside the room.
+	Information   string `protobuf:"bytes,9,opt,name=information,proto3" json:"information,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -271,6 +273,13 @@ func (x *Room) GetKind() RoomKind {
 		return x.Kind
 	}
 	return RoomKind_ROOM_KIND_UNSPECIFIED
+}
+
+func (x *Room) GetInformation() string {
+	if x != nil {
+		return x.Information
+	}
+	return ""
 }
 
 // User represents a user account
@@ -2036,14 +2045,15 @@ var File_chatto_core_v1_models_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\n" +
-	"\x1bchatto/core/v1/models.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd2\x01\n" +
+	"\x1bchatto/core/v1/models.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf4\x01\n" +
 	"\x04Room\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x1a\n" +
 	"\barchived\x18\x05 \x01(\bR\barchived\x12\x19\n" +
 	"\bgroup_id\x18\a \x01(\tR\agroupId\x12,\n" +
-	"\x04kind\x18\b \x01(\x0e2\x18.chatto.core.v1.RoomKindR\x04kindJ\x04\b\x02\x10\x03J\x04\b\x06\x10\aR\bspace_idR\tauto_join\"\xa4\x01\n" +
+	"\x04kind\x18\b \x01(\x0e2\x18.chatto.core.v1.RoomKindR\x04kind\x12 \n" +
+	"\vinformation\x18\t \x01(\tR\vinformationJ\x04\b\x02\x10\x03J\x04\b\x06\x10\aR\bspace_idR\tauto_join\"\xa4\x01\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +

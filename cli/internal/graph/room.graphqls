@@ -21,6 +21,11 @@ type Room {
   name: String!
   "Optional description of the room's purpose."
   description: String
+  """
+  Markdown-formatted in-room information. Returned only to room members and
+  viewers who can manage this room.
+  """
+  information: String @goField(forceResolver: true)
   "List members in this room."
   members(
     "Maximum number of results to return (default 20, max 100)."

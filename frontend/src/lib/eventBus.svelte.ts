@@ -94,6 +94,9 @@ export const MyServerEventsSubscriptionDoc = graphql(`
         ... on RoomUpdatedEvent {
           roomId
         }
+        ... on RoomInformationChangedEvent {
+          roomId
+        }
         ... on RoomDeletedEvent {
           roomId
         }

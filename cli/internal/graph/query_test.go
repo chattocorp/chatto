@@ -84,6 +84,70 @@ func TestQueryResolver_Room(t *testing.T) {
 	})
 }
 
+func TestRoomInformation_AccessControl(t *testing.T) {
+	env := setupTestResolver(t)
+	const body = "**Welcome**\n\nRead this before posting."
+
+	_, err := env.core.UpdateRoomInformation(env.ctx, env.testUser.Id, core.KindChannel, env.testRoom.Id, body)
+	if err != nil {
+		t.Fatalf("UpdateRoomInformation: %v", err)
+	}
+
+	t.Run("room member can read information through Query.room", func(t *testing.T) {
+		room, err := env.resolver.Query().Room(env.authContext(), env.testRoom.Id)
+		if err != nil {
+			t.Fatalf("Query.Room: %v", err)
+		}
+
+		info, err := env.resolver.Room().Information(env.authContext(), room)
+		if err != nil {
+			t.Fatalf("Room.Information: %v", err)
+		}
+		if info == nil || *info != body {
+			t.Fatalf("information = %v, want %q", info, body)
+		}
+	})
+
+	t.Run("non-member cannot read information", func(t *testing.T) {
+		outsider := env.createVerifiedUser(t, "room-info-outsider", "Outsider", "password123")
+		room, err := env.core.GetRoom(env.ctx, core.KindChannel, env.testRoom.Id)
+		if err != nil {
+			t.Fatalf("GetRoom: %v", err)
+		}
+
+		info, err := env.resolver.Room().Information(env.authContextForUser(outsider), room)
+		if err != nil {
+			t.Fatalf("Room.Information: %v", err)
+		}
+		if info != nil {
+			t.Fatalf("information = %q, want nil for non-member", *info)
+		}
+	})
+
+	t.Run("room manager can read through admin query without membership", func(t *testing.T) {
+		manager := env.createVerifiedUser(t, "room-info-manager", "Manager", "password123")
+		if err := env.core.GrantUserRoomPermission(env.ctx, core.SystemActorID, env.testRoom.Id, manager.Id, core.PermRoomManage); err != nil {
+			t.Fatalf("GrantUserRoomPermission: %v", err)
+		}
+
+		room, err := env.resolver.AdminQueries().Room(env.authContextForUser(manager), nil, env.testRoom.Id)
+		if err != nil {
+			t.Fatalf("AdminQueries.Room: %v", err)
+		}
+		if room == nil {
+			t.Fatal("AdminQueries.Room returned nil")
+		}
+
+		info, err := env.resolver.Room().Information(env.authContextForUser(manager), room)
+		if err != nil {
+			t.Fatalf("Room.Information: %v", err)
+		}
+		if info == nil || *info != body {
+			t.Fatalf("information = %v, want %q", info, body)
+		}
+	})
+}
+
 // Space Query/discovery resolvers were retired in PR(a); the type is gone from
 // the GraphQL surface. Public discovery now happens via the unauthenticated
 // `instance` query, which exposes the server name, logo, banner, etc.

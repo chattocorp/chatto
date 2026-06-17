@@ -108,9 +108,14 @@ function presenceBadge(container: Element, label: string): Element | null {
   return container.querySelector(`[aria-label="${label}"]`);
 }
 
-function roomData(members: RoomMember[], totalCount: number, hasMore: boolean): RoomData {
+function roomData(
+  members: RoomMember[],
+  totalCount: number,
+  hasMore: boolean,
+  information: string | null = null
+): RoomData {
   return {
-    room: { id: 'room-1', name: 'general', type: 'CHANNEL' },
+    room: { id: 'room-1', name: 'general', type: 'CHANNEL', information },
     spaceName: 'Test Server',
     canPostMessage: true,
     canPostInThread: true,
@@ -417,6 +422,63 @@ describe('RoomSidebar', () => {
       expect(container.textContent).toContain('No files in this room yet.');
     });
     expect(container.querySelector('[aria-label="Members"]')).toBeFalsy();
+  });
+
+  it('renders Markdown room information', async () => {
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'information',
+        roomData: roomData([member(1)], 1, false, '**Welcome**\n\n- Be kind')
+      }
+    });
+
+    await expect.element(q(container, 'h1')).toHaveTextContent('Room Information');
+    await vi.waitFor(() => {
+      expect(container.querySelector('.prose strong')?.textContent).toBe('Welcome');
+      expect(container.querySelector('.prose li')?.textContent).toBe('Be kind');
+    });
+    expect(container.querySelector('[aria-label="Members"]')).toBeFalsy();
+  });
+
+  it('links room managers to the room information editor', async () => {
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'information',
+        informationEditHref: '/chat/-/server-admin/rooms/room/room-1#information',
+        roomData: roomData([member(1)], 1, false, '**Welcome**')
+      }
+    });
+
+    const editLink = container.querySelector(
+      '[aria-label="Edit room information"]'
+    ) as HTMLAnchorElement | null;
+    expect(editLink).toBeTruthy();
+    expect(editLink!.getAttribute('href')).toBe(
+      '/chat/-/server-admin/rooms/room/room-1#information'
+    );
+  });
+
+  it('hides the room information editor link when unavailable', async () => {
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'information',
+        roomData: roomData([member(1)], 1, false, '**Welcome**')
+      }
+    });
+
+    expect(container.querySelector('[aria-label="Edit room information"]')).toBeFalsy();
+  });
+
+  it('renders an empty state when room information is blank', async () => {
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'information',
+        roomData: roomData([member(1)], 1, false, '   ')
+      }
+    });
+
+    await expect.element(q(container, 'h1')).toHaveTextContent('Room Information');
+    expect(container.textContent).toContain('No room information has been added yet.');
   });
 
   it('keeps the files panel usable when the optional attachments field is unsupported', async () => {

@@ -63,6 +63,7 @@
     onJumpToPresent,
     onReachedPresent,
     onSoftRefresh,
+    onOpenRoomInformation,
     pendingHighlightId = null
   }: {
     roomId: string;
@@ -103,6 +104,7 @@
     onJumpToPresent?: () => void;
     onReachedPresent?: () => void;
     onSoftRefresh?: (result: RefreshCurrentWindowResult, anchored: boolean) => void;
+    onOpenRoomInformation?: () => void;
     // Suppress auto-scroll while a highlight is pending (used by ThreadPane)
     pendingHighlightId?: string | null;
   } = $props();
@@ -775,7 +777,11 @@
               {@const groupEvents = item?.events}
               {@const groupKind = item?.kind}
               {#if groupEvents && groupKind && groupEvents.length > 0}
-                <SystemEventGroup events={groupEvents} kind={groupKind} />
+                <SystemEventGroup
+                  events={groupEvents}
+                  kind={groupKind}
+                  {onOpenRoomInformation}
+                />
               {/if}
             {:else}
               <!--
@@ -792,6 +798,7 @@
                   {roomId}
                   {messageStore}
                   onOpenThread={getOpenThreadHandler(eventData)}
+                  {onOpenRoomInformation}
                 />
               {/if}
             {/if}

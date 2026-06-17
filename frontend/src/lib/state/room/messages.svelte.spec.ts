@@ -132,6 +132,19 @@ function callEvent(
 	};
 }
 
+function roomInformationChangedEvent(id: string, roomId = 'room-1') {
+	return {
+		id,
+		createdAt: '2026-05-27T00:00:01Z',
+		actorId: 'u1',
+		actor: null,
+		event: {
+			__typename: 'RoomInformationChangedEvent',
+			roomId
+		}
+	};
+}
+
 function threadQueryResult({
 	replies,
 	startCursor,
@@ -444,6 +457,29 @@ describe('MessagesStore — room lifecycle ownership', () => {
 		store.ingestServerEvent(callEvent('CallEndedEvent', 'call-ended') as never);
 
 		expect(store.rootEvents.map((event) => event.id)).toEqual(['call-started', 'call-ended']);
+		expect(fake.queryMock).not.toHaveBeenCalled();
+		store.dispose();
+	});
+
+	it('treats room information updates as root timeline system events', async () => {
+		const fake = new FakeGqlClient(
+			roomEventsResult({
+				events: [],
+				startCursor: null,
+				endCursor: null,
+				hasOlder: false,
+				hasNewer: false
+			})
+		);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+
+		store.setRoom('room-1');
+		await settle();
+		fake.queryMock.mockClear();
+
+		store.ingestServerEvent(roomInformationChangedEvent('info-updated') as never);
+
+		expect(store.rootEvents.map((event) => event.id)).toEqual(['info-updated']);
 		expect(fake.queryMock).not.toHaveBeenCalled();
 		store.dispose();
 	});

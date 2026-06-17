@@ -4,7 +4,6 @@
 </script>
 
 <script lang="ts">
-  /* eslint-disable svelte/no-navigation-without-resolve -- goto target is built via buildMessageLinkPath which already calls resolve() */
   import { goto } from '$app/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -94,6 +93,7 @@
       // Internal message link → navigate in-app via SvelteKit
       const messageLink = parseMessageLink(anchor.href);
       if (messageLink?.serverId) {
+        // eslint-disable-next-line svelte/no-navigation-without-resolve -- buildMessageLinkPath resolves the SvelteKit route.
         goto(buildMessageLinkPath(messageLink.serverId, messageLink.roomId, messageLink.messageId));
         return;
       }

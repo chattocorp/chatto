@@ -39,6 +39,8 @@ func unwrapEVTEvent(event *corev1.Event) any {
 		return e.RoomCreated
 	case *corev1.Event_RoomUpdated:
 		return e.RoomUpdated
+	case *corev1.Event_RoomInformationChanged:
+		return e.RoomInformationChanged
 	case *corev1.Event_RoomDeleted:
 		return e.RoomDeleted
 	case *corev1.Event_RoomArchived:

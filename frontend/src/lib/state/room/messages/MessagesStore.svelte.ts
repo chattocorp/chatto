@@ -256,6 +256,7 @@ export class MessagesStore {
       eventData.__typename === 'UserJoinedRoomEvent' ||
       eventData.__typename === 'UserLeftRoomEvent' ||
       eventData.__typename === 'RoomUpdatedEvent' ||
+      eventData.__typename === 'RoomInformationChangedEvent' ||
       eventData.__typename === 'RoomArchivedEvent' ||
       eventData.__typename === 'RoomUnarchivedEvent' ||
       eventData.__typename === 'CallStartedEvent' ||

@@ -50,7 +50,7 @@ describe('RoomSidebarPanelsState', () => {
     );
 
     sidebar.closeDesktop();
-    sidebar.toggleMobilePanel('files');
+    sidebar.toggleMobilePanel('information');
 
     expect(sidebar.activeDesktopPanel).toBeNull();
     expect(getRoomSidebarPanelState('server-a', 'room-1')).toBe('members');

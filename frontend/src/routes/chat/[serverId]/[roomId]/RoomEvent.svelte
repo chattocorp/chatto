@@ -72,6 +72,9 @@
         ... on RoomUpdatedEvent {
           roomId
         }
+        ... on RoomInformationChangedEvent {
+          roomId
+        }
         ... on RoomDeletedEvent {
           roomId
         }
@@ -149,13 +152,15 @@
     compact = false,
     roomId,
     messageStore = null,
-    onOpenThread
+    onOpenThread,
+    onOpenRoomInformation
   }: {
     event: RoomEventViewFragment;
     compact?: boolean;
     roomId: string;
     messageStore?: MessagesStore | null;
     onOpenThread?: (threadRootEventId: string, highlightEventId?: string) => void;
+    onOpenRoomInformation?: () => void;
   } = $props();
 
   // Join/leave events are confusing in DM 1:1 conversations. Post-PR(b) we
@@ -171,5 +176,5 @@
 {:else if event.event.__typename === 'MessagePostedEvent'}
   <MessageEvent {event} {compact} {roomId} {messageStore} {onOpenThread} />
 {:else}
-  <SystemEvent {event} />
+  <SystemEvent {event} {onOpenRoomInformation} />
 {/if}

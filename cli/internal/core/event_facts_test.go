@@ -77,6 +77,14 @@ func TestEventFactsRoomIDAndVisibility(t *testing.T) {
 			roomID:  "R1",
 			visible: false,
 		},
+		{
+			name: "room information changed",
+			event: &corev1.Event{Event: &corev1.Event_RoomInformationChanged{
+				RoomInformationChanged: &corev1.RoomInformationChangedEvent{RoomId: "R1"},
+			}},
+			roomID:  "R1",
+			visible: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -156,6 +164,18 @@ func TestEventFactsAssetLifecycle(t *testing.T) {
 			name: "room member joined",
 			event: &corev1.Event{Event: &corev1.Event_UserJoinedRoom{
 				UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: "R1"},
+			}},
+			lifecycle:   false,
+			liveAsset:   false,
+			liveRoomEVT: true,
+			reactions:   false,
+			directory:   true,
+			callState:   false,
+		},
+		{
+			name: "room information changed",
+			event: &corev1.Event{Event: &corev1.Event_RoomInformationChanged{
+				RoomInformationChanged: &corev1.RoomInformationChangedEvent{RoomId: "R1"},
 			}},
 			lifecycle:   false,
 			liveAsset:   false,

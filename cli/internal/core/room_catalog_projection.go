@@ -36,6 +36,7 @@ type RoomNameClaimSnapshot struct {
 type roomCatalogEntry struct {
 	name        string
 	description string
+	information string
 	kind        corev1.RoomKind
 	archived    bool
 }
@@ -57,8 +58,8 @@ func (p *RoomCatalogProjection) Subjects() []string {
 // Apply implements events.Projection.
 //
 // Recognised events: RoomCreated, RoomUpdated (rename + description),
-// RoomArchived, RoomUnarchived, RoomDeleted. Membership events
-// (UserJoinedRoom, UserLeftRoom) and any other variants under
+// RoomInformationChanged, RoomArchived, RoomUnarchived, RoomDeleted.
+// Membership events (UserJoinedRoom, UserLeftRoom) and any other variants under
 // evt.room.> are silently ignored.
 func (p *RoomCatalogProjection) Apply(event *corev1.Event, seq uint64) error {
 	if event == nil {
@@ -82,6 +83,11 @@ func (p *RoomCatalogProjection) Apply(event *corev1.Event, seq uint64) error {
 		if entry := p.rooms[u.GetRoomId()]; entry != nil {
 			entry.name = u.GetName()
 			entry.description = u.GetDescription()
+		}
+	case *corev1.Event_RoomInformationChanged:
+		u := e.RoomInformationChanged
+		if entry := p.rooms[u.GetRoomId()]; entry != nil {
+			entry.information = u.GetInformation()
 		}
 	case *corev1.Event_RoomArchived:
 		if entry := p.rooms[e.RoomArchived.GetRoomId()]; entry != nil {
@@ -182,6 +188,7 @@ func entryToRoom(id string, entry *roomCatalogEntry) *corev1.Room {
 		Id:          id,
 		Name:        entry.name,
 		Description: entry.description,
+		Information: entry.information,
 		Archived:    entry.archived,
 		Kind:        entry.kind,
 	}

@@ -8,6 +8,9 @@ type Mutation {
   "Update an existing room's name and description. Requires room.manage permission."
   updateRoom(input: UpdateRoomInput!): Room!
 
+  "Update a room's Markdown-formatted in-room information. Requires room.manage permission."
+  updateRoomInformation(input: UpdateRoomInformationInput!): Room!
+
   "Archive a room. Hides it from sidebar and Browse Rooms. Requires room.manage permission."
   archiveRoom(input: ArchiveRoomInput!): Room!
 
@@ -214,6 +217,16 @@ input UpdateRoomInput {
   name: String!
   "The new description for the room."
   description: String
+}
+
+"""
+Input for updating a room's Markdown-formatted in-room information.
+"""
+input UpdateRoomInformationInput {
+  "The ID of the room to update."
+  roomId: ID!
+  "Markdown-formatted information shown to room members inside the room."
+  information: String @length(max: 10000)
 }
 
 """

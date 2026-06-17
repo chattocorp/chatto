@@ -12,7 +12,8 @@
     required = false,
     disabled = false,
     rows = 3,
-    maxlength
+    maxlength,
+    onkeydown
   }: {
     label: string;
     id: string;
@@ -25,6 +26,7 @@
     disabled?: boolean;
     rows?: number;
     maxlength?: number;
+    onkeydown?: (e: KeyboardEvent) => void;
   } = $props();
 </script>
 
@@ -38,6 +40,7 @@
     {disabled}
     {rows}
     {maxlength}
+    {onkeydown}
     class="input resize-none"
     aria-invalid={error ? 'true' : undefined}
     aria-describedby={error ? `${id}-error` : description ? `${id}-description` : undefined}

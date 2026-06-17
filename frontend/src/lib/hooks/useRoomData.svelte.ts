@@ -1,13 +1,13 @@
 import { graphql, useFragment } from '$lib/gql';
 import { RoomType, UserAvatarUserFragmentDoc, type PresenceStatus } from '$lib/gql/graphql';
-import { useActiveRoomLayoutUpdated } from '$lib/hooks/useEvent.svelte';
+import { useActiveEvent, useActiveRoomLayoutUpdated } from '$lib/hooks/useEvent.svelte';
 import { useReconnectTrigger } from '$lib/hooks/useReconnectCallback.svelte';
 import { useConnection } from '$lib/state/server/connection.svelte';
 import type { RoomMember } from '$lib/state/room';
 import { untrack } from 'svelte';
 
 export type RoomData = {
-  room: { id: string; name: string; type: string };
+  room: { id: string; name: string; type: string; information?: string | null };
   spaceName: string | null;
   canPostMessage: boolean;
   canPostInThread: boolean;
@@ -57,6 +57,18 @@ export function useRoomData(getProps: () => { roomId: string }) {
     layoutTrigger++;
   });
 
+  useActiveEvent((event) => {
+    const payload = event.event;
+    if (!payload) return;
+    if (
+      (payload.__typename === 'RoomInformationChangedEvent' ||
+        payload.__typename === 'RoomUpdatedEvent') &&
+      payload.roomId === getProps().roomId
+    ) {
+      layoutTrigger++;
+    }
+  });
+
   // undefined = loading, null = not found / no access, object = loaded
   let roomData = $state<RoomData | null | undefined>(undefined);
   let dmData = $state<DMData | null>(null);
@@ -94,6 +106,7 @@ export function useRoomData(getProps: () => { roomId: string }) {
               id
               name
               type
+              information
               viewerCanPostMessage
               viewerCanPostInThread
               viewerCanReact

@@ -70,9 +70,7 @@ message Event {
     RoomDeletedEvent room_deleted = 302;
     RoomArchivedEvent room_archived = 303;
     RoomUnarchivedEvent room_unarchived = 304;
-    // Fields 305 / 306 were RoomBecameAutoJoinEvent / RoomBecameRegularEvent.
-    // Removed alongside the auto-join feature; oneof tags don't reserve,
-    // so don't reuse those numbers.
+    RoomInformationChangedEvent room_information_changed = 305;
 
     // ----- Room membership (310-329) -----
     UserJoinedRoomEvent user_joined_room = 310;

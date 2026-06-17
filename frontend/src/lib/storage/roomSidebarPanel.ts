@@ -1,6 +1,6 @@
 import { serverSlot, type Codec } from './slot';
 
-export const ROOM_SIDEBAR_PANELS = ['members', 'files'] as const;
+export const ROOM_SIDEBAR_PANELS = ['members', 'information', 'files'] as const;
 
 export type RoomSidebarPanel = (typeof ROOM_SIDEBAR_PANELS)[number];
 export type RoomSidebarPanelState = RoomSidebarPanel | null;

@@ -113,7 +113,7 @@ Projections are in-memory read models rebuilt from `EVT`. `NewChattoCore` regist
 
 | Runtime area       | Registered projector | Consumes                                                   | Read models / primary readers                                                             |
 | ------------------ | -------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Room directory     | Room Directory       | `evt.room.>`                                               | `RoomCatalogProjection`, `RoomMembershipProjection`, `RoomBanProjection`; room/member queries and room authorization |
+| Room directory     | Room Directory       | `evt.room.>`                                               | `RoomCatalogProjection`, `RoomMembershipProjection`, `RoomBanProjection`; room details including Room Information, member queries, and room authorization |
 | Room organization  | Room Group Layout    | `evt.group.>`, `evt.layout.>`                              | `RoomGroupProjection`, `RoomLayoutProjection`; sidebar groups and room ordering            |
 | Room timeline      | Room Timeline        | `evt.room.>`                                               | Raw room log, visible timeline index, latest message bodies, hidden echoes, current attachment-bearing message index, and message asset references |
 | Assets             | Assets               | `evt.asset.>`, legacy `evt.room.*.asset_*`                 | Asset creation metadata, room scope, processing manifests, derivative graph, deletion state, and legacy room-asset compatibility |
@@ -159,7 +159,7 @@ Note: there is no top-level `me` query — viewer-scoped state hangs off the `vi
 
 | Query                              | Description                                                                            |
 | ---------------------------------- | -------------------------------------------------------------------------------------- |
-| `room(roomId)`                     | Get a room by ID. Room-scoped reads (`members`, `events`, `event(eventId)`, `eventsAround`, `voiceCallToken`, `viewerCan*` flags, `viewerNotifications`) live as fields on the returned `Room`; `members` and `viewerNotifications` are offset-paginated. `events` is the visible room timeline. Folded durable facts such as reactions are reflected in projected room reads; the web client refreshes the current room window after wake/reconnect to catch up without a full document reload. |
+| `room(roomId)`                     | Get a room by ID for room members. Room-scoped reads (`information`, `members`, `events`, `event(eventId)`, `eventsAround`, `voiceCallToken`, `viewerCan*` flags, `viewerNotifications`) live as fields on the returned `Room`; `members` and `viewerNotifications` are offset-paginated. `information` returns Markdown source only to room members or callers with `room.manage` for that room. `events` is the visible room timeline. Folded durable facts such as reactions are reflected in projected room reads; the web client refreshes the current room window after wake/reconnect to catch up without a full document reload. |
 
 **RBAC tooling** ([`rbac.graphqls`](../cli/internal/graph/rbac.graphqls), [`role_permissions.graphqls`](../cli/internal/graph/role_permissions.graphqls), [`role_permission_matrix.graphqls`](../cli/internal/graph/role_permission_matrix.graphqls), [`user_permissions.graphqls`](../cli/internal/graph/user_permissions.graphqls), [`permission_inspector.graphqls`](../cli/internal/graph/permission_inspector.graphqls))
 
@@ -181,6 +181,10 @@ Note: there is no top-level `me` query — viewer-scoped state hangs off the `vi
 
 Admin queries are nested under a single `admin: AdminQueries` field that returns `null` for unauthenticated callers. Child fields enforce concrete capability gates such as `server.manage`, `admin.view-users`, `admin.view-audit`, `role.manage`, and owner-only diagnostics. See [Admin sub-API](#admin-sub-api) below for the contents.
 
+| Query                 | Description                                                              |
+| --------------------- | ------------------------------------------------------------------------ |
+| `admin.room(roomId)`  | Server-admin room detail lookup for callers with `room.manage` on the room; supports editing details, Room Information, and per-room permission overrides without requiring room membership. |
+
 ### Mutations
 
 **Server settings** ([`mutation.graphqls`](../cli/internal/graph/mutation.graphqls))
@@ -199,6 +203,7 @@ Admin queries are nested under a single `admin: AdminQueries` field that returns
 | ------------------------------ | -------------------------------------------------------------------------------- |
 | `createRoom`                   | Create a new channel room.                                                       |
 | `updateRoom`                   | Update a room's name / description (`room.manage`).                              |
+| `updateRoomInformation`        | Update a channel room's Markdown Room Information (`room.manage`); trims whitespace, stores empty as `""`, and appends a visible room timeline notice. |
 | `archiveRoom` / `unarchiveRoom`| Archive or restore a room (`room.manage`).                                       |
 | `joinRoom` / `leaveRoom`       | Join / leave a room.                                                             |
 | `banRoomMember` / `unbanRoomMember` | Create or remove a room ban (`room.ban-member`; DMs rejected; reasons required for moderation audit). Bans emit a normal leave event, maintain active ban state, and deny rejoin through ordinary join authorization. |
@@ -469,6 +474,7 @@ The aggregate ID is intentionally part of the subject; actor/user and detailed c
 | ------------------------------------------------------------ | --------------------------------------------------- |
 | `evt.room.{roomId}.room_created`                             | `RoomCreatedEvent`                                  |
 | `evt.room.{roomId}.room_updated`                             | `RoomUpdatedEvent`                                  |
+| `evt.room.{roomId}.room_information_changed`                 | `RoomInformationChangedEvent`                       |
 | `evt.room.{roomId}.room_archived`                            | `RoomArchivedEvent`                                 |
 | `evt.room.{roomId}.room_unarchived`                          | `RoomUnarchivedEvent`                               |
 | `evt.room.{roomId}.room_deleted`                             | `RoomDeletedEvent`                                  |

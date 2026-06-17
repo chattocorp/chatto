@@ -12,6 +12,7 @@ export function isRootRoomEvent(event: RoomEventViewFragment): boolean {
     case 'UserJoinedRoomEvent':
     case 'UserLeftRoomEvent':
     case 'RoomUpdatedEvent':
+    case 'RoomInformationChangedEvent':
     case 'RoomDeletedEvent':
     case 'RoomArchivedEvent':
     case 'RoomUnarchivedEvent':

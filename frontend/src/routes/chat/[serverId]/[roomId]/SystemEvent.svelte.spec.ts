@@ -15,7 +15,7 @@ vi.mock('$lib/state/presenceCache.svelte', () => ({
 }));
 
 function systemEvent(
-  typename: 'CallStartedEvent' | 'CallEndedEvent',
+  typename: 'CallStartedEvent' | 'CallEndedEvent' | 'RoomInformationChangedEvent',
   actorName = 'Alice'
 ): RoomEventViewFragment {
   return {
@@ -53,5 +53,24 @@ describe('SystemEvent', () => {
 
     expect(container.textContent).toContain('The active call has ended');
     expect(container.textContent).not.toContain('Alice');
+  });
+
+  it('renders room information update copy with a link action', () => {
+    const onOpenRoomInformation = vi.fn();
+    const { container } = render(SystemEvent, {
+      props: {
+        event: systemEvent('RoomInformationChangedEvent', 'Alice'),
+        onOpenRoomInformation
+      }
+    });
+
+    expect(container.textContent?.replace(/\s+/g, ' ').trim()).toContain(
+      'The room information has been updated, take a look!'
+    );
+
+    const button = container.querySelector('button');
+    expect(button?.textContent?.trim()).toBe('take a look');
+    button?.click();
+    expect(onOpenRoomInformation).toHaveBeenCalledOnce();
   });
 });

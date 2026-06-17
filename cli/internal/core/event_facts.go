@@ -18,6 +18,8 @@ func roomIDOfEvent(event *corev1.Event) string {
 		return e.RoomCreated.GetRoomId()
 	case *corev1.Event_RoomUpdated:
 		return e.RoomUpdated.GetRoomId()
+	case *corev1.Event_RoomInformationChanged:
+		return e.RoomInformationChanged.GetRoomId()
 	case *corev1.Event_RoomDeleted:
 		return e.RoomDeleted.GetRoomId()
 	case *corev1.Event_RoomArchived:
@@ -125,8 +127,8 @@ func isAssetLifecycleEvent(event *corev1.Event) bool {
 //     delivered live, but not displayed as chat timeline items.
 //
 // Visible: root messages, room lifecycle (created/updated/archived/
-// unarchived/deleted), memberships (user_joined / user_left), and voice call
-// lifecycle start/end notices.
+// unarchived/deleted), room information updates, memberships (user_joined /
+// user_left), and voice call lifecycle start/end notices.
 func isVisibleRoomTimelineEntry(event *corev1.Event) bool {
 	if event == nil {
 		return false
@@ -151,6 +153,7 @@ func isDeliverableLiveEVTRoomEvent(event *corev1.Event) bool {
 	switch event.GetEvent().(type) {
 	case *corev1.Event_RoomCreated,
 		*corev1.Event_RoomUpdated,
+		*corev1.Event_RoomInformationChanged,
 		*corev1.Event_RoomDeleted,
 		*corev1.Event_RoomArchived,
 		*corev1.Event_RoomUnarchived,
@@ -205,6 +208,7 @@ func eventNeedsRoomDirectoryProjection(event *corev1.Event) bool {
 		*corev1.Event_RoomMemberUnbanned,
 		*corev1.Event_RoomCreated,
 		*corev1.Event_RoomUpdated,
+		*corev1.Event_RoomInformationChanged,
 		*corev1.Event_RoomArchived,
 		*corev1.Event_RoomUnarchived,
 		*corev1.Event_RoomDeleted:

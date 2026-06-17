@@ -2,6 +2,7 @@ package core
 
 import (
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 
@@ -514,6 +515,76 @@ func TestChattoCore_UpdateRoom_PreservesArchived(t *testing.T) {
 	}
 	if !retrieved.Archived {
 		t.Error("Expected archived to persist as true")
+	}
+}
+
+func TestChattoCore_UpdateRoomInformation(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "room-information", "Description")
+	if err != nil {
+		t.Fatalf("Failed to create room: %v", err)
+	}
+	if room.Information != "" {
+		t.Fatalf("new room information = %q, want empty", room.Information)
+	}
+
+	updated, err := core.UpdateRoomInformation(ctx, "test-user", KindChannel, room.Id, "  **Welcome**\n\nBe kind.  ")
+	if err != nil {
+		t.Fatalf("Failed to update room information: %v", err)
+	}
+	if updated.Information != "**Welcome**\n\nBe kind." {
+		t.Fatalf("updated information = %q", updated.Information)
+	}
+	if updated.Name != room.Name {
+		t.Fatalf("room name changed unexpectedly: %q", updated.Name)
+	}
+
+	retrieved, err := core.GetRoom(ctx, KindChannel, room.Id)
+	if err != nil {
+		t.Fatalf("Failed to get room: %v", err)
+	}
+	if retrieved.Information != "**Welcome**\n\nBe kind." {
+		t.Fatalf("persisted information = %q", retrieved.Information)
+	}
+
+	events, err := core.GetRoomEvents(ctx, KindChannel, room.Id, 50, nil)
+	if err != nil {
+		t.Fatalf("Failed to get room events: %v", err)
+	}
+	foundInformationEvent := false
+	for _, entry := range events.Events {
+		if entry.Event.GetRoomInformationChanged() != nil {
+			foundInformationEvent = true
+			break
+		}
+	}
+	if !foundInformationEvent {
+		t.Fatal("RoomInformationChangedEvent should appear in visible room timeline")
+	}
+}
+
+func TestChattoCore_UpdateRoomInformation_Validation(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "room-information-validation", "")
+	if err != nil {
+		t.Fatalf("Failed to create room: %v", err)
+	}
+
+	tooLong := strings.Repeat("x", RoomInformationMaxLength+1)
+	if _, err := core.UpdateRoomInformation(ctx, "test-user", KindChannel, room.Id, tooLong); err == nil {
+		t.Fatal("expected max-length error")
+	}
+
+	updated, err := core.UpdateRoomInformation(ctx, "test-user", KindChannel, room.Id, "   ")
+	if err != nil {
+		t.Fatalf("clearing room information failed: %v", err)
+	}
+	if updated.Information != "" {
+		t.Fatalf("cleared information = %q, want empty", updated.Information)
 	}
 }
 

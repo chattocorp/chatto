@@ -17,13 +17,13 @@
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import EmojiAutocomplete from '$lib/components/composer/EmojiAutocomplete.svelte';
   import MentionAutocomplete from '$lib/components/composer/MentionAutocomplete.svelte';
-  import type { TipTapEditorApi } from './TipTapEditor.svelte';
+  import type { MarkdownEditorApi } from '$lib/components/markdown/MarkdownEditor.svelte';
   import { DraftState, draftKey } from './draft.svelte';
   import { AttachmentsState } from './attachments.svelte';
   import { LinkPreviewState } from './linkPreviews.svelte';
   import { AutocompleteState, type MentionRole } from './autocomplete.svelte';
 
-  const tipTapEditorModule = import('./TipTapEditor.svelte');
+  const markdownEditorModule = import('$lib/components/markdown/MarkdownEditor.svelte');
 
   const stores = serverRegistry.getStore(getActiveServer());
   const serverInfo = stores.serverInfo;
@@ -104,7 +104,7 @@
   let message = $state('');
 
   // TipTap editor API (received via onReady callback)
-  let editorApi = $state<TipTapEditorApi | null>(null);
+  let editorApi = $state<MarkdownEditorApi | null>(null);
   const draftState = new DraftState();
   const attachments = new AttachmentsState(() => serverInfo);
   const linkPreviews = new LinkPreviewState(() => connection().client);
@@ -679,7 +679,7 @@
   }
 
   // Called when TipTap editor is ready - sync any pending state
-  function handleEditorReady(api: TipTapEditorApi) {
+  function handleEditorReady(api: MarkdownEditorApi) {
     editorApi = api;
     // Sync current message state (may have draft loaded before editor was ready)
     if (message) {
@@ -809,10 +809,10 @@
     {/if}
 
     <!-- Text input (TipTap editor) -->
-    {#await tipTapEditorModule}
+    {#await markdownEditorModule}
       <div class="min-h-8 min-w-0 flex-1 py-1" aria-hidden="true"></div>
-    {:then { default: TipTapEditor }}
-      <TipTapEditor
+    {:then { default: MarkdownEditor }}
+      <MarkdownEditor
         placeholder={currentPlaceholder}
         editable={!inputDisabled}
         autofocus={autoFocus && shouldAutoFocus()}

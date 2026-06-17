@@ -310,8 +310,25 @@
     roomSidebarPanelForRoom(room.isDM, roomSidebarPanels.mobilePanel)
   );
   const roomSidebarTogglePanels = $derived(room.isDM ? DM_ROOM_SIDEBAR_PANELS : undefined);
+  const roomInformationEditHref = $derived(
+    !room.isDM && room.roomData?.canManageRoom
+      ? `${resolve('/chat/[serverId]/server-admin/rooms/room/[roomId]', {
+          serverId: serverSegment,
+          roomId
+        })}#information`
+      : null
+  );
 
   let leavingRoom = $state(false);
+
+  function openRoomInformationPanel(): void {
+    if (room.isDM) return;
+    if (typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches) {
+      roomSidebarPanels.openDesktopPanel('information');
+    } else {
+      roomSidebarPanels.openMobilePanel('information');
+    }
+  }
 
   function openFileMessage(
     messageEventId: string,
@@ -463,6 +480,7 @@
           unreadAfterTime={unread.unreadAfterTime}
           unreadBeforeTime={unread.unreadBeforeTime}
           onOpenThread={openThread}
+          onOpenRoomInformation={openRoomInformationPanel}
           typingUserIds={typingIndicator.userIds}
           typingMembers={getRoomMembers()}
         />
@@ -510,6 +528,8 @@
         >
           <RoomSidebar
             {roomId}
+            information={room.roomData?.room.information ?? null}
+            informationEditHref={roomInformationEditHref}
             activePanel={mobileRoomSidebarPanel}
             presentation="overlay"
             loading={room.isRoomLoading}
@@ -532,6 +552,8 @@
       <div class="hidden lg:flex">
         <RoomSidebar
           {roomId}
+          information={room.roomData?.room.information ?? null}
+          informationEditHref={roomInformationEditHref}
           activePanel={activeRoomSidebarPanel}
           loading={room.isRoomLoading}
           filesStore={roomFilesStore}

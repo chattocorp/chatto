@@ -34,11 +34,11 @@ describe('room sidebar panel storage', () => {
 
   it('persists the selected panel per server and room', () => {
     setRoomSidebarPanel('server-a', 'room-1', 'files');
-    setRoomSidebarPanel('server-a', 'room-2', 'members');
+    setRoomSidebarPanel('server-a', 'room-2', 'information');
     setRoomSidebarPanel('server-b', 'room-1', 'members');
 
     expect(getRoomSidebarPanel('server-a', 'room-1')).toBe('files');
-    expect(getRoomSidebarPanel('server-a', 'room-2')).toBe('members');
+    expect(getRoomSidebarPanel('server-a', 'room-2')).toBe('information');
     expect(getRoomSidebarPanel('server-b', 'room-1')).toBe('members');
   });
 

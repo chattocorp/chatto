@@ -1,7 +1,7 @@
 import type { RoomEventViewFragment } from '$lib/gql/graphql';
 import type { EventWithMeta } from './messageGrouping';
 
-export type SystemGroupKind = 'join' | 'leave';
+export type SystemGroupKind = 'join' | 'leave' | 'information';
 
 /**
  * A discriminated union representing items in the virtual list.
@@ -27,6 +27,8 @@ function getSystemGroupKind(event: RoomEventViewFragment): SystemGroupKind | nul
       return 'join';
     case 'UserLeftRoomEvent':
       return 'leave';
+    case 'RoomInformationChangedEvent':
+      return 'information';
     default:
       return null;
   }
@@ -37,8 +39,8 @@ function getSystemGroupKind(event: RoomEventViewFragment): SystemGroupKind | nul
  * Inserts the start-of-conversation marker, day separators, and the unread
  * separator as their own items.
  *
- * Consecutive `UserJoinedRoomEvent` (or consecutive `UserLeftRoomEvent`)
- * are coalesced into a single `system-group` item. The grouping breaks
+ * Consecutive groupable system events of the same kind are coalesced into a
+ * single `system-group` item. The grouping breaks
  * on: a different event kind, a day separator (timezone-aware via
  * `showDaySeparator`), or the unread separator.
  */

@@ -7,11 +7,12 @@ calls, and similar room-specific panels can plug into the same shell. See the
 "UI" section of `docs/GLOSSARY.md`.
 -->
 <script module lang="ts">
-  export type RoomSidebarPanel = 'members' | 'files';
+  export type RoomSidebarPanel = 'information' | 'members' | 'files';
 </script>
 
 <script lang="ts">
   import { graphql } from '$lib/gql';
+  import MessageContent from '$lib/components/MessageContent.svelte';
   import { startDMWith } from '$lib/dm/startDM';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
@@ -42,6 +43,8 @@ calls, and similar room-specific panels can plug into the same shell. See the
   let {
     loading = false,
     roomId,
+    information = null,
+    informationEditHref = null,
     activePanel = 'members',
     presentation = 'desktop',
     canBanRoomMembers = false,
@@ -53,6 +56,8 @@ calls, and similar room-specific panels can plug into the same shell. See the
   }: {
     loading?: boolean;
     roomId: string;
+    information?: string | null;
+    informationEditHref?: string | null;
     activePanel?: RoomSidebarPanel;
     presentation?: 'desktop' | 'overlay';
     canBanRoomMembers?: boolean;
@@ -70,7 +75,11 @@ calls, and similar room-specific panels can plug into the same shell. See the
   const membersState = $derived(getRoomMembersState());
   const members = $derived(membersState.members);
   const memberCount = $derived(membersState.totalCount);
-  const title = $derived(activePanel === 'members' ? `Members (${memberCount})` : 'Files');
+  const title = $derived.by(() => {
+    if (activePanel === 'members') return `Members (${memberCount})`;
+    if (activePanel === 'information') return 'Room Information';
+    return 'Files';
+  });
 
   // Check if user can start DMs (from centralized server permissions)
   const serverPerms = getServerPermissions();
@@ -208,11 +217,34 @@ calls, and similar room-specific panels can plug into the same shell. See the
   {/if}
   <PaneHeader {title} {loading} skeletonButtons={0}>
     {#snippet actions()}
+      {#if activePanel === 'information' && informationEditHref}
+        <HeaderIconButton
+          icon="uil--pen"
+          label="Edit room information"
+          href={informationEditHref}
+        />
+      {/if}
       <HeaderIconButton icon="uil--times" label="Hide room extras" onclick={() => onClose?.()} />
     {/snippet}
   </PaneHeader>
 
-  {#if activePanel === 'members'}
+  {#if activePanel === 'information'}
+    <div class="flex min-h-0 flex-1 flex-col overflow-y-auto p-4" aria-label="Room Information">
+      {#if loading}
+        <div class="space-y-2">
+          <div class="skeleton h-4 w-40 rounded"></div>
+          <div class="skeleton h-4 w-full rounded"></div>
+          <div class="skeleton h-4 w-5/6 rounded"></div>
+        </div>
+      {:else if information?.trim()}
+        <MessageContent body={information} />
+      {:else}
+        <div class="flex min-h-0 flex-1 items-center justify-center text-center text-sm text-muted">
+          No room information has been added yet.
+        </div>
+      {/if}
+    </div>
+  {:else if activePanel === 'members'}
     <nav class="flex flex-1 flex-col overflow-y-auto p-2" aria-label="Members">
       {#if loading}
         <ul role="list">

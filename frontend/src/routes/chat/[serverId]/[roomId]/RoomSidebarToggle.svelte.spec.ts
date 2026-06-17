@@ -53,6 +53,37 @@ describe('RoomSidebarToggle', () => {
     expect(onToggle).toHaveBeenCalledWith('files');
   });
 
+  it('switches to the room information panel', async () => {
+    const onToggle = vi.fn();
+    const { container } = render(RoomSidebarToggle, {
+      props: {
+        activePanel: 'members',
+        onToggle
+      }
+    });
+
+    const button = container.querySelector(
+      '[aria-label="Show room information"]'
+    ) as HTMLButtonElement | null;
+    expect(button).toBeTruthy();
+
+    button!.click();
+    await tick();
+
+    expect(onToggle).toHaveBeenCalledWith('information');
+  });
+
+  it('uses the hide label while the room information panel is active', async () => {
+    const { container } = render(RoomSidebarToggle, {
+      props: {
+        activePanel: 'information',
+        onToggle: vi.fn()
+      }
+    });
+
+    expect(container.querySelector('[aria-label="Hide room information"]')).toBeTruthy();
+  });
+
   it('can render only the files panel', async () => {
     const { container } = render(RoomSidebarToggle, {
       props: {
@@ -63,6 +94,7 @@ describe('RoomSidebarToggle', () => {
     });
 
     expect(container.querySelector('[aria-label="Show members"]')).toBeFalsy();
+    expect(container.querySelector('[aria-label="Show room information"]')).toBeFalsy();
     expect(container.querySelector('[aria-label="Show files"]')).toBeTruthy();
   });
 

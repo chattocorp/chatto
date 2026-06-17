@@ -13,7 +13,7 @@
   import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
   import Dialog from '$lib/ui/Dialog.svelte';
   import FormDialog from '$lib/ui/FormDialog.svelte';
-  import { Button, TextArea, TextInput } from '$lib/ui/form';
+  import { Button, TextInput } from '$lib/ui/form';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import { toast } from '$lib/ui/toast';
   import { flip } from 'svelte/animate';
@@ -151,52 +151,6 @@
     editGroupDialogVisible = false;
   }
 
-  // --- Room editing ---
-
-  let editRoomDialogVisible = $state(false);
-  let editRoomId = $state('');
-  let editRoomName = $state('');
-  let editRoomDescription = $state('');
-
-  let editRoomNameError = $derived.by(() => {
-    if (!editRoomName) return undefined;
-    if (editRoomName.trim() === '') return 'Room name cannot be empty';
-    if (editRoomName !== editRoomName.trim())
-      return 'Room name cannot have leading or trailing whitespace';
-    if (!/^[a-zA-Z0-9_-]+$/.test(editRoomName.trim())) {
-      return 'Room name can only contain letters, numbers, hyphens, and underscores';
-    }
-    if (editRoomName.length > 30) {
-      return 'Room name cannot exceed 30 characters';
-    }
-    return undefined;
-  });
-
-  function openEditRoom(room: { id: string; name: string; description?: string | null }) {
-    editRoomId = room.id;
-    editRoomName = room.name;
-    editRoomDescription = room.description ?? '';
-    editRoomDialogVisible = true;
-  }
-
-  async function handleEditRoomSubmit(e: Event) {
-    e.preventDefault();
-    if (editRoomNameError || !editRoomName.trim()) return;
-
-    const result = await layout.updateRoom(
-      editRoomId,
-      editRoomName.trim(),
-      editRoomDescription.trim() || null
-    );
-
-    if (!result.ok) {
-      toast.error(`Failed to update room: ${result.error}`);
-    } else {
-      toast.success('Room updated');
-      editRoomDialogVisible = false;
-    }
-  }
-
   // --- Room archiving ---
 
   let archiveConfirmDialogVisible = $state(false);
@@ -254,7 +208,7 @@
     unarchiveConfirmRoom = null;
   }
 
-  // --- Permissions navigation ---
+  // --- Room detail navigation ---
 
   function openGroupPermissions(group: GroupState) {
     goto(
@@ -265,7 +219,20 @@
     );
   }
 
-  function openRoomPermissions(room: RoomInfo) {
+  function openRoomDetail(room: RoomInfo, section?: 'permissions') {
+    if (section === 'permissions') {
+      void goto(
+        resolve('/chat/[serverId]/server-admin/rooms/room/[roomId]', {
+          serverId: serverSegment,
+          roomId: room.id
+        })
+      ).then(() => {
+        document.getElementById('permissions')?.scrollIntoView();
+        history.replaceState(history.state, '', `${location.pathname}#permissions`);
+      });
+      return;
+    }
+
     goto(
       resolve('/chat/[serverId]/server-admin/rooms/room/[roomId]', {
         serverId: serverSegment,
@@ -318,12 +285,12 @@
   {@render iconButton({
     icon: 'uil--pen',
     title: 'Edit room',
-    onclick: () => openEditRoom(room)
+    onclick: () => openRoomDetail(room)
   })}
   {@render iconButton({
     icon: 'uil--shield',
     title: 'Per-room permission overrides',
-    onclick: () => openRoomPermissions(room)
+    onclick: () => openRoomDetail(room, 'permissions')
   })}
   {#if room.archived}
     {@render iconButton({
@@ -489,36 +456,6 @@
     <CreateRoom groupId={createRoomGroupId} onroomcreated={handleRoomCreated} />
   {/if}
 </Dialog>
-
-<FormDialog
-  bind:visible={editRoomDialogVisible}
-  title="Edit Room"
-  size="sm"
-  submitLabel="Save Changes"
-  submitLoadingText="Saving..."
-  loading={layout.updatingRoom}
-  disabled={!editRoomName.trim() || !!editRoomNameError}
-  onsubmit={handleEditRoomSubmit}
-  onclose={() => (editRoomDialogVisible = false)}
->
-  <TextInput
-    id="edit-room-name"
-    label="Name"
-    bind:value={editRoomName}
-    required
-    disabled={layout.updatingRoom}
-    error={editRoomNameError}
-  />
-
-  <TextArea
-    id="edit-room-description"
-    label="Description"
-    bind:value={editRoomDescription}
-    rows={3}
-    disabled={layout.updatingRoom}
-    placeholder="Optional description for this room"
-  />
-</FormDialog>
 
 <FormDialog
   bind:visible={createGroupDialogVisible}

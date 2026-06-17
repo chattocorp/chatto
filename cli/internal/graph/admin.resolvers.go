@@ -168,6 +168,29 @@ func (r *adminQueriesResolver) SystemInfo(ctx context.Context, obj *model.AdminQ
 	}, nil
 }
 
+// Room is the resolver for the room field.
+func (r *adminQueriesResolver) Room(ctx context.Context, obj *model.AdminQueries, roomID string) (*corev1.Room, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return nil, core.ErrNotAuthenticated
+	}
+	kind, err := r.resolveRoomKind(ctx, roomID)
+	if err != nil {
+		return nil, err
+	}
+	if kind != core.KindChannel {
+		return nil, nil
+	}
+	canManage, err := r.core.PermResolver().HasRoomPermission(ctx, user.Id, kind, roomID, core.PermRoomManage)
+	if err != nil {
+		return nil, err
+	}
+	if !canManage {
+		return nil, core.ErrPermissionDenied
+	}
+	return r.core.GetRoom(ctx, kind, roomID)
+}
+
 // ServerConfig is the resolver for the serverConfig field.
 func (r *adminQueriesResolver) ServerConfig(ctx context.Context, obj *model.AdminQueries) (*model.AdminServerConfig, error) {
 	user := auth.ForContext(ctx)

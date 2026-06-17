@@ -32,6 +32,35 @@ func (r *roomResolver) Type(ctx context.Context, obj *corev1.Room) (model.RoomTy
 	return model.RoomTypeChannel, nil
 }
 
+// Information is the resolver for the information field.
+func (r *roomResolver) Information(ctx context.Context, obj *corev1.Room) (*string, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return nil, nil
+	}
+	kind := core.KindOfRoom(obj)
+	if kind != core.KindChannel {
+		return nil, nil
+	}
+
+	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, obj.Id)
+	if err != nil {
+		return nil, err
+	}
+	if isMember {
+		return nilIfEmpty(obj.GetInformation()), nil
+	}
+
+	canManage, err := r.core.PermResolver().HasRoomPermission(ctx, user.Id, kind, obj.Id, core.PermRoomManage)
+	if err != nil {
+		return nil, err
+	}
+	if !canManage {
+		return nil, nil
+	}
+	return nilIfEmpty(obj.GetInformation()), nil
+}
+
 // Members is the resolver for the members field.
 func (r *roomResolver) Members(ctx context.Context, obj *corev1.Room, limit *int32, offset *int32) (*model.RoomMembersConnection, error) {
 	user, err := requireAuth(ctx)

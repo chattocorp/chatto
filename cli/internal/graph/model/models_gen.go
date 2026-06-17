@@ -69,6 +69,8 @@ type AdminMutations struct {
 type AdminQueries struct {
 	// Get point-in-time operator diagnostics for connection, storage, and deployment counts. Requires the owner role.
 	SystemInfo *SystemInfo `json:"systemInfo"`
+	// Get a room for Server Admin editing. Requires `room.manage` for the room.
+	Room *corev1.Room `json:"room,omitempty"`
 	// Get server configuration. Requires `server.manage`.
 	ServerConfig *AdminServerConfig `json:"serverConfig"`
 	// Browse the durable event log newest-first for operator diagnostics. `limit` defaults to 50, max 200. `before` is a sequence string; entries returned will have sequence < before.
@@ -1312,6 +1314,14 @@ type UpdateRoomGroupInput struct {
 	Name string `json:"name"`
 	// Optional description.
 	Description *string `json:"description,omitempty"`
+}
+
+// Input for updating a room's Markdown-formatted in-room information.
+type UpdateRoomInformationInput struct {
+	// The ID of the room to update.
+	RoomID string `json:"roomId"`
+	// Markdown-formatted information shown to room members inside the room.
+	Information *string `json:"information,omitempty"`
 }
 
 // Input for updating an existing room.

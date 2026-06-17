@@ -12,6 +12,7 @@ package corev1
 
 func (*RoomCreatedEvent) IsEventType()              {}
 func (*RoomUpdatedEvent) IsEventType()              {}
+func (*RoomInformationChangedEvent) IsEventType()   {}
 func (*RoomDeletedEvent) IsEventType()              {}
 func (*RoomArchivedEvent) IsEventType()             {}
 func (*RoomUnarchivedEvent) IsEventType()           {}
