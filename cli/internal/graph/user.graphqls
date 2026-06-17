@@ -10,6 +10,8 @@ type User {
   displayName: String!
   "When the user account was created. Null for users created before this field was added."
   createdAt: Time
+  "Whether this user is a public tombstone for a deleted or unresolvable account."
+  deleted: Boolean!
   "URL to the user's avatar image. Pass width, height, and fit for a resized thumbnail."
   avatarUrl(width: Int, height: Int, fit: FitMode): String @goField(forceResolver: true)
   "Whether this user has at least one verified email address."

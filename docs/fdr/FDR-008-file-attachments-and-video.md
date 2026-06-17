@@ -20,6 +20,7 @@ Users can attach files to messages — images, videos, documents — via drag-an
 - Resized images can be cached as WebP with an auto-expiring cache.
 - In Service Worker-controlled browser sessions, stable asset URLs are rendered as same-origin virtual URLs and proxied to the owning server with the user's registered server credentials. Successful full responses are cached privately in the browser; media `Range` requests bypass that cache.
 - Active document attachment types such as HTML, XHTML, SVG, and XML can still be uploaded and viewed inline, but original-file responses are delivered in a browser sandbox so uploaded scripts do not run as trusted Chatto application code.
+- The room sidebar Files panel lists current accessible attachments from both root messages and thread replies. Rows show a thumbnail or file-type icon, filename, and upload time; selecting a root-message attachment jumps the room timeline to that message, while selecting a thread-reply attachment opens the thread pane and highlights the reply.
 
 ## Design Decisions
 
@@ -64,6 +65,12 @@ Users can attach files to messages — images, videos, documents — via drag-an
 **Decision:** Original attachment responses for active document formats (HTML, XHTML, SVG, XML, and XML-derived media types) include a CSP sandbox and `nosniff`. S3-backed attachments of those types stream through Chatto instead of redirecting directly to a presigned object URL, so the same response policy applies.
 **Why:** Some teams need to share these file types inline, but uploaded active content must not become trusted Chatto application code. A sandbox without same-origin privileges preserves the viewing use case while preventing the easiest same-origin stored-XSS path.
 **Tradeoff:** Scripts, forms, top-level navigation, and same-origin APIs are restricted inside uploaded active documents. S3 deployments also lose the zero-copy redirect fast path for those active document types, while ordinary media files keep it.
+
+### 8. Room Files panel is a read projection, not durable attachment state
+
+**Decision:** `Room.attachments` exposes a paginated list of current message attachments for a room. The read walks the visible room timeline projection, folds current message bodies, includes thread replies, preserves attachment order within each message, and sorts by newest message first.
+**Why:** Files should disappear from the sidebar when their message body is retracted or the attachment is removed. Deriving the list from the existing room/message projections keeps the panel consistent with the timeline without adding duplicate durable state.
+**Tradeoff:** There is no search or media filtering in this iteration. Clients page through the current list and refresh it after attachment-affecting live events.
 
 ## Permissions
 

@@ -1,6 +1,6 @@
 import { test, expect } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
-import { ChatPage, RoomPage } from './pages';
+import { withServerUser } from './fixtures/serverUser';
 import { TIMEOUTS } from './constants';
 
 test.describe('Emoji reactions', () => {
@@ -46,7 +46,6 @@ test.describe('Emoji reactions', () => {
     // User 1: Create account and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const serverName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     const testMessage = `LiveEvent sync test ${Date.now()}`;
@@ -56,37 +55,28 @@ test.describe('Emoji reactions', () => {
     await message1.expectNoReaction('😂');
 
     // User 2: Create user and open the server
-    const context2 = await browser!.newContext({
-      baseURL: serverURL,
-      viewport: { width: 1280, height: 720 }
-    });
-    const page2 = await context2.newPage();
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ chatPage: chatPage2, roomPage: roomPage2 }) => {
+        await chatPage2.goto();
 
-    try {
-      await createAndLoginTestUser(page2);
+        // Enter the general room
+        await chatPage2.enterRoom('general');
 
-      // User 2's page objects
-      const chatPage2 = new ChatPage(page2);
-      const roomPage2 = new RoomPage(page2);
+        // Wait for messages to load
+        await roomPage2.expectMessageVisible(testMessage);
 
-      await chatPage2.goto();
+        // User 2 adds a reaction
+        const message2 = roomPage2.getMessage(testMessage);
+        await message2.react('😂');
+        await message2.expectReaction('😂', 1);
 
-      // Enter the general room
-      await chatPage2.enterRoom('general');
-
-      // Wait for messages to load
-      await roomPage2.expectMessageVisible(testMessage);
-
-      // User 2 adds a reaction
-      const message2 = roomPage2.getMessage(testMessage);
-      await message2.react('😂');
-      await message2.expectReaction('😂', 1);
-
-      // User 1 should see the reaction appear via LiveEvent subscription
-      await message1.expectReaction('😂', 1);
-    } finally {
-      await context2.close();
-    }
+        // User 1 should see the reaction appear via LiveEvent subscription
+        await message1.expectReaction('😂', 1);
+      },
+      { viewport: { width: 1280, height: 720 } }
+    );
   });
 
   test('hovering over a reaction shows tooltip with user name', async ({
@@ -119,7 +109,6 @@ test.describe('Emoji reactions', () => {
     // User 1: Create account and post a message
     const user1 = await createAndLoginTestUser(page);
     await chatPage.goto();
-    const serverName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
 
     const testMessage = `Multi-user tooltip test ${Date.now()}`;
@@ -130,37 +119,29 @@ test.describe('Emoji reactions', () => {
     await message1.expectReaction('❤️', 1);
 
     // User 2: Create user and open the server
-    const context2 = await browser!.newContext({
-      baseURL: serverURL,
-      viewport: { width: 1280, height: 720 }
-    });
-    const page2 = await context2.newPage();
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ user: user2, chatPage: chatPage2, roomPage: roomPage2 }) => {
+        await chatPage2.goto();
+        await chatPage2.enterRoom('general');
 
-    try {
-      const user2 = await createAndLoginTestUser(page2);
+        await roomPage2.expectMessageVisible(testMessage);
 
-      const chatPage2 = new ChatPage(page2);
-      const roomPage2 = new RoomPage(page2);
+        // User 2 adds the same reaction
+        const message2 = roomPage2.getMessage(testMessage);
+        await message2.react('❤️');
+        await message2.expectReaction('❤️', 2);
 
-      await chatPage2.goto();
-      await chatPage2.enterRoom('general');
+        // User 1 should see the updated count
+        await message1.expectReaction('❤️', 2);
 
-      await roomPage2.expectMessageVisible(testMessage);
-
-      // User 2 adds the same reaction
-      const message2 = roomPage2.getMessage(testMessage);
-      await message2.react('❤️');
-      await message2.expectReaction('❤️', 2);
-
-      // User 1 should see the updated count
-      await message1.expectReaction('❤️', 2);
-
-      // Verify tooltip shows both user names (separated by comma)
-      await message1.expectReactionTooltipContains('❤️', user1.displayName);
-      await message1.expectReactionTooltipContains('❤️', user2.displayName);
-    } finally {
-      await context2.close();
-    }
+        // Verify tooltip shows both user names (separated by comma)
+        await message1.expectReactionTooltipContains('❤️', user1.displayName);
+        await message1.expectReactionTooltipContains('❤️', user2.displayName);
+      },
+      { viewport: { width: 1280, height: 720 } }
+    );
   });
 
   test('add a reaction via emoji picker search', async ({ page, chatPage, roomPage }) => {

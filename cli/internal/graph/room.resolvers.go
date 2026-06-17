@@ -59,8 +59,12 @@ func (r *roomResolver) Members(ctx context.Context, obj *corev1.Room, limit *int
 	}
 	users := make([]*corev1.User, 0, len(memberships))
 	for _, m := range memberships {
-		u, err := r.core.GetUser(ctx, m.UserId)
+		u, err := r.core.GetUserReference(ctx, m.UserId)
 		if err != nil {
+			if errors.Is(err, core.ErrNotFound) {
+				users = append(users, core.DeletedUserReference(m.UserId))
+				continue
+			}
 			return nil, err
 		}
 		if u != nil {
@@ -83,6 +87,52 @@ func (r *roomResolver) Members(ctx context.Context, obj *corev1.Room, limit *int
 		Users:      page,
 		TotalCount: int32(totalCount),
 		HasMore:    hasMore,
+	}, nil
+}
+
+// Attachments is the resolver for the attachments field.
+func (r *roomResolver) Attachments(ctx context.Context, obj *corev1.Room, limit *int32, offset *int32) (*model.RoomAttachmentsConnection, error) {
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	kind := core.KindOfRoom(obj)
+	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, obj.Id)
+	if err != nil {
+		return nil, err
+	}
+	if !isMember {
+		return nil, core.ErrNotRoomMember
+	}
+
+	limitVal, offsetVal := paginationArgs(limit, offset, 50, 100)
+	result, err := r.core.GetRoomAttachments(ctx, kind, obj.Id, limitVal, offsetVal)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]*model.RoomAttachmentItem, 0, len(result.Items))
+	for _, item := range result.Items {
+		if item == nil {
+			continue
+		}
+		var threadRootEventID *string
+		if item.ThreadRootEventID != "" {
+			threadRootEventID = &item.ThreadRootEventID
+		}
+		items = append(items, &model.RoomAttachmentItem{
+			Attachment:        item.Attachment,
+			MessageEventID:    item.MessageEventID,
+			ThreadRootEventID: threadRootEventID,
+			CreatedAt:         item.CreatedAt,
+		})
+	}
+
+	return &model.RoomAttachmentsConnection{
+		Items:      items,
+		TotalCount: int32(result.TotalCount),
+		HasMore:    result.HasMore,
 	}, nil
 }
 

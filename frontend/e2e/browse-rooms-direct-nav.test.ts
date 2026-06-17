@@ -21,9 +21,6 @@ test.describe('Browse Rooms direct navigation', () => {
 
     // Create account (user gets default admin role with browse permission)
 
-    // Get the current server scope ID from the URL.
-    const spaceId = await chatPage.getServerScopeId();
-
     // Navigate directly to the Browse Rooms page by URL
     // This is the key test - direct navigation should work
     await page.goto(routes.browseRooms);

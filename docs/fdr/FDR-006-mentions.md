@@ -11,7 +11,7 @@ Users can mention users, roles, and room-scoped virtual groups with `@handle` sy
 
 - Typing `@` followed by at least one character opens the autocomplete popup in the composer.
 - Matching is fuzzy against room-member logins, room-member display names, the virtual handles `all` and `here`, and pingable server role names. Prefix matches rank higher than substring matches.
-- Pressing Tab completes the first match and appends a space. Pressing Tab again cycles to the next candidate.
+- Pressing Enter confirms the highlighted autocomplete result and appends a space. Pressing Tab completes the first match, appends a space, and pressing Tab again cycles to the next candidate.
 - `@username` mentions notify that user if they are a current room member.
 - Pingable `@role` mentions notify current room members who are explicitly assigned that server role.
 - `@owner` and `@admin` are ordinary role handles but are not pingable by default, so they do not appear in autocomplete and do not notify unless an operator explicitly enables them.

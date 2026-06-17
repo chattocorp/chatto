@@ -7,6 +7,7 @@
       id
       login
       displayName
+      deleted
       avatarUrl(width: 96, height: 96)
       presenceStatus
     }
@@ -20,6 +21,7 @@
   import { getAvatarInitials } from '$lib/utils/initials';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
 
+  type AvatarUser = Omit<UserAvatarUserFragment, 'deleted'> & { deleted?: boolean };
   type Size = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 
   const sizeClasses: Record<Size, string> = {
@@ -52,7 +54,7 @@
     showPresence = true,
     class: className = ''
   }: {
-    user: UserAvatarUserFragment;
+    user: AvatarUser;
     size?: Size;
     showPresence?: boolean;
     class?: string;
@@ -65,12 +67,16 @@
   // reactive graph and deadlocks the entire UI.
   const initials = $derived(user ? getAvatarInitials(user.displayName, user.login) : '');
 
-  const avatarUrl = $derived(user ? getLiveAvatarUrl(user.id, user.avatarUrl ?? null) : null);
+  const avatarUrl = $derived(
+    user && !user.deleted ? getLiveAvatarUrl(user.id, user.avatarUrl ?? null) : null
+  );
 
   // Use live presence from global cache if available, otherwise fall back to initial GraphQL value.
   // The global cache is populated by ServerEventProvider, so all UserAvatar instances — including
   // newly-mounted ones like popovers — see the latest presence immediately.
-  const presence = $derived(user ? presenceCache.get(user.id, user.presenceStatus) : undefined);
+  const presence = $derived(
+    user && !user.deleted ? presenceCache.get(user.id, user.presenceStatus) : undefined
+  );
 
   const badgeColor = $derived(
     presence === 'ONLINE'
@@ -112,7 +118,7 @@
         {initials}
       </div>
     {/if}
-    {#if showPresence}
+    {#if showPresence && !user.deleted}
       <span
         class="{badgeSizeClasses[
           size

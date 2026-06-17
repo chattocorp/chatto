@@ -115,11 +115,7 @@ export async function verifyAdminEmail(page: Page, userId: string): Promise<void
  * Grants a permission to a role (admin-only operation).
  * Must be called while logged in as an admin user.
  */
-export async function grantPermission(
-  page: Page,
-  role: string,
-  permission: string
-): Promise<void> {
+export async function grantPermission(page: Page, role: string, permission: string): Promise<void> {
   const response = await page.request.post('/api/graphql', {
     headers: {
       'Content-Type': 'application/json',
@@ -172,11 +168,7 @@ export async function revokePermission(
  * This adds the permission to the role's permissionDenials list.
  * Must be called while logged in as an admin user.
  */
-export async function denyPermission(
-  page: Page,
-  role: string,
-  permission: string
-): Promise<void> {
+export async function denyPermission(page: Page, role: string, permission: string): Promise<void> {
   const response = await page.request.post('/api/graphql', {
     headers: {
       'Content-Type': 'application/json',
@@ -324,7 +316,7 @@ export async function loginTestUser(page: Page, user: TestUser): Promise<void> {
 }
 
 /** Navigate an authenticated user to the local server's chat surface. */
-export async function openServer(page: Page, _legacySpaceId?: string): Promise<void> {
+export async function openServer(page: Page): Promise<void> {
   await page.goto('/chat');
   await page.waitForURL((url) => url.pathname.startsWith('/chat'));
 }

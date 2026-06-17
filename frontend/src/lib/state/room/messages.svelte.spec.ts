@@ -923,6 +923,63 @@ describe('MessagesStore — thread lifecycle ownership', () => {
 		store.dispose();
 	});
 
+	it('ingests a returned thread reply immediately and dedupes later subscription delivery', async () => {
+		const fake = new FakeGqlClient(
+			threadQueryResult({
+				replies: [],
+				startCursor: null,
+				endCursor: null,
+				hasOlder: false,
+				hasNewer: false
+			})
+		);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+		const returnedReply = threadMessageEvent('r1', 't1');
+
+		store.setThread('room-1', 't1');
+		await settle();
+		fake.queryMock.mockClear();
+
+		store.ingestEvent(returnedReply as never);
+		expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r1']);
+
+		store.ingestServerEvent(returnedReply as never);
+		expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r1']);
+		expect(fake.queryMock).not.toHaveBeenCalled();
+		store.dispose();
+	});
+
+	it('ignores returned thread replies outside the active thread scope', async () => {
+		const fake = new FakeGqlClient(
+			threadQueryResult({
+				replies: [],
+				startCursor: null,
+				endCursor: null,
+				hasOlder: false,
+				hasNewer: false
+			})
+		);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+		const otherThreadReply = threadMessageEvent('r-other-thread', 'other-thread');
+		const otherRoomReplyBase = threadMessageEvent('r-other-room', 't1');
+		const otherRoomReply = {
+			...otherRoomReplyBase,
+			event: {
+				...otherRoomReplyBase.event,
+				roomId: 'room-2'
+			}
+		};
+
+		store.setThread('room-1', 't1');
+		await settle();
+
+		store.ingestEvent(otherThreadReply as never);
+		store.ingestEvent(otherRoomReply as never);
+
+		expect(store.threadEvents.map((event) => event.id)).toEqual(['t1']);
+		store.dispose();
+	});
+
 	it('links and unlinks visible echoes for thread replies from live events', async () => {
 		const fake = new FakeGqlClient(
 			threadQueryResult({
