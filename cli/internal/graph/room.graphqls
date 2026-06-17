@@ -28,6 +28,13 @@ type Room {
     "Offset for pagination."
     offset: Int
   ): RoomMembersConnection! @goField(forceResolver: true)
+  "List current file attachments posted in this room, including files on thread replies."
+  attachments(
+    "Maximum number of results to return (default 50, max 100)."
+    limit: Int
+    "Offset for pagination."
+    offset: Int
+  ): RoomAttachmentsConnection! @goField(forceResolver: true)
   """
   Whether the room has unread messages for the current user.
   Returns false if user is not a member or room has no new messages.
@@ -121,4 +128,26 @@ type RoomMembersConnection {
   totalCount: Int!
   "Whether there are more members beyond this page."
   hasMore: Boolean!
+}
+
+"Paginated list of current room attachments."
+type RoomAttachmentsConnection {
+  "The attachment rows for this page."
+  items: [RoomAttachmentItem!]!
+  "Total count of attachments before pagination."
+  totalCount: Int!
+  "Whether there are more attachments beyond this page."
+  hasMore: Boolean!
+}
+
+"A file attachment and the message where it was posted."
+type RoomAttachmentItem {
+  "The file attachment."
+  attachment: Attachment!
+  "The message event that owns the attachment."
+  messageEventId: ID!
+  "The thread root when the attachment was posted in a thread reply."
+  threadRootEventId: ID
+  "When the owning message was posted."
+  createdAt: Time!
 }

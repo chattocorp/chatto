@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { tick, type ComponentProps } from 'svelte';
@@ -6,6 +6,7 @@ import MessageComposer from './MessageComposer.svelte';
 import { createMockGraphqlClient, q } from '$lib/test-utils';
 import { getToasts, toast } from '$lib/ui/toast';
 import type { RoomMember } from '$lib/state/room';
+import { PresenceStatus } from '$lib/gql/graphql';
 
 const mutationData = { postMessage: { id: 'msg_123' } };
 const updateMutationData = { updateMessage: true };
@@ -128,6 +129,16 @@ function imageFile(name = 'paste.png'): File {
   return new File([new Uint8Array([1, 2, 3])], name, { type: 'image/png' });
 }
 
+function roomMember(login: string, displayName = login): RoomMember {
+  return {
+    id: `user_${login}`,
+    login,
+    displayName,
+    avatarUrl: null,
+    presenceStatus: PresenceStatus.Offline
+  };
+}
+
 function pasteFile(target: HTMLElement, file: File) {
   const dataTransfer = new DataTransfer();
   dataTransfer.items.add(file);
@@ -178,6 +189,17 @@ async function insertEditorLiteralText(editor: HTMLElement, text: string) {
   }
 }
 
+async function placeCaretAtEditorEnd(editor: HTMLElement) {
+  editor.focus();
+  const selection = window.getSelection();
+  const range = document.createRange();
+  range.selectNodeContents(editor);
+  range.collapse(false);
+  selection?.removeAllRanges();
+  selection?.addRange(range);
+  await tick();
+}
+
 async function pressEditorKey(
   editor: HTMLElement,
   key: string,
@@ -211,6 +233,7 @@ describe('MessageComposer', () => {
   let mockClient: ReturnType<typeof createMockGraphqlClient>;
 
   beforeEach(() => {
+    window.getSelection()?.removeAllRanges();
     mockClient = createMockGraphqlClient({ mutationData });
     mockInstanceStores.serverInfo.videoProcessingEnabled = false;
     mockInstanceStores.serverInfo.maxUploadSize = 25 * 1024 * 1024;
@@ -247,6 +270,10 @@ describe('MessageComposer', () => {
     queryMock.mockResolvedValue({ data: null, error: null });
     sessionStorage.clear();
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    window.getSelection()?.removeAllRanges();
   });
 
   describe('form rendering', () => {
@@ -368,7 +395,11 @@ describe('MessageComposer', () => {
         new File([new Uint8Array([1, 2])], 'too-large.png', { type: 'image/png' })
       ]);
 
-      expect(getToasts().map((t) => t.message).join('\n')).toContain('too-large.png is too large');
+      expect(
+        getToasts()
+          .map((t) => t.message)
+          .join('\n')
+      ).toContain('too-large.png is too large');
       expect(q(container, 'img')).toBeNull();
       expect(prepareFilesMock).not.toHaveBeenCalled();
     });
@@ -933,6 +964,7 @@ describe('MessageComposer', () => {
       const editor = await findEditor(container);
 
       await vi.waitFor(() => expect(editor.querySelectorAll('pre code')).toHaveLength(1));
+      await placeCaretAtEditorEnd(editor);
       await insertEditorLiteralText(editor, '```js');
       await pressEditorKey(editor, 'Enter', { shiftKey: true });
 
@@ -954,6 +986,33 @@ describe('MessageComposer', () => {
   });
 
   describe('submit behavior', () => {
+    it('uses Enter to complete an active mention before Enter can send', async () => {
+      roomStateMock.members = [roomMember('alice')];
+      const { container, roomId } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+
+      await typeEditorLiteralText(editor, '@ali');
+      await vi.waitFor(() =>
+        expect(container.querySelector('[data-testid="mention-autocomplete"]')).toBeTruthy()
+      );
+
+      await pressEditorKey(editor, 'Enter');
+
+      await vi.waitFor(() => expect(editor.textContent).toBe('@alice '));
+      expect(mutationMock).not.toHaveBeenCalled();
+
+      await pressEditorKey(editor, 'Enter');
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: '@alice'
+      });
+    });
+
     it('posts markdown after TipTap formatting shortcuts are applied', async () => {
       const { container, roomId } = renderMessageComposer(
         { roomId: 'room_456' },
@@ -1173,6 +1232,7 @@ describe('MessageComposer', () => {
       const editor = await findEditor(container);
 
       await vi.waitFor(() => expect(editor.querySelectorAll('pre code')).toHaveLength(1));
+      await placeCaretAtEditorEnd(editor);
       await insertEditorLiteralText(editor, 'or this:');
       await pressEditorKey(editor, 'Enter', { shiftKey: true });
       await insertEditorLiteralText(editor, '```go');

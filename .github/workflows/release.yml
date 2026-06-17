@@ -18,20 +18,35 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Fetch main
-        run: git fetch origin +refs/heads/main:refs/remotes/origin/main
+      - name: Fetch release branches
+        run: git fetch origin '+refs/heads/main:refs/remotes/origin/main' '+refs/heads/release-*:refs/remotes/origin/release-*'
 
       - name: Verify release-please tag
+        id: release_meta
         shell: bash
         run: |
           set -euo pipefail
 
           tag_commit="$(git rev-parse "${GITHUB_REF_NAME}^{commit}")"
 
-          if ! git merge-base --is-ancestor "$tag_commit" origin/main; then
-            echo "::error::Refusing to release ${GITHUB_REF_NAME}: tagged commit is not reachable from origin/main."
+          source_branch=""
+          if git merge-base --is-ancestor "$tag_commit" origin/main; then
+            source_branch="main"
+          else
+            while IFS= read -r ref; do
+              if git merge-base --is-ancestor "$tag_commit" "$ref"; then
+                source_branch="${ref#refs/remotes/origin/}"
+                break
+              fi
+            done < <(git for-each-ref --format='%(refname)' refs/remotes/origin/release-)
+          fi
+
+          if [[ -z "$source_branch" ]]; then
+            echo "::error::Refusing to release ${GITHUB_REF_NAME}: tagged commit is not reachable from origin/main or an origin/release-* branch."
             exit 1
           fi
+
+          echo "source_branch=${source_branch}" >> "$GITHUB_OUTPUT"
 
           parent_count="$(git rev-list --parents -n 1 "$tag_commit" | awk '{ print NF - 1 }')"
           if [[ "$parent_count" -lt 1 ]]; then
@@ -61,6 +76,24 @@ jobs:
             printf 'Disallowed file: %s\n' "${disallowed[@]}"
             exit 1
           fi
+
+          version="${GITHUB_REF_NAME#v}"
+          push_latest=false
+          if [[ "$version" != *-* ]]; then
+            highest_stable="$(
+              git tag --list 'v[0-9]*.[0-9]*.[0-9]*' |
+                sed 's/^v//' |
+                grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' |
+                sort -V |
+                tail -n 1
+            )"
+
+            if [[ "$version" == "$highest_stable" ]]; then
+              push_latest=true
+            fi
+          fi
+
+          echo "push_latest=${push_latest}" >> "$GITHUB_OUTPUT"
 
       - name: Setup environment
         uses: ./.github/actions/setup
@@ -94,6 +127,7 @@ jobs:
           # than github-actions[bot]. Bot-authored releases don't get
           # GitHub's autolink rendering for commit SHAs and #NNN PR refs.
           GITHUB_TOKEN: ${{ secrets.GORELEASER_GITHUB_TOKEN }}
+          CHATTO_PUSH_LATEST: ${{ steps.release_meta.outputs.push_latest }}
 
       - name: Extract version from tag
         id: version
@@ -108,7 +142,7 @@ jobs:
             echo "ghcr.io/chattocorp/chatto-client:${{ steps.version.outputs.version }}"
             if [[ "${{ steps.version.outputs.version }}" == *-* ]]; then
               echo "ghcr.io/chattocorp/chatto-client:next"
-            else
+            elif [[ "${{ steps.release_meta.outputs.push_latest }}" == "true" ]]; then
               echo "ghcr.io/chattocorp/chatto-client:latest"
             fi
             echo "EOF"

@@ -21,6 +21,7 @@
     createComposerContext,
     createMentionRoles,
     getRoomMembers,
+    RoomFilesStore,
     createRoomPermissions,
     DEFAULT_ROOM_PERMISSIONS
   } from '$lib/state/room';
@@ -49,6 +50,7 @@
   let { roomId, threadId }: { roomId: string; threadId?: string } = $props();
 
   const connection = useConnection();
+  const roomFilesStore = new RoomFilesStore(connection());
   const serverSegment = $derived(serverIdToSegment(getActiveServer()));
   const stores = serverRegistry.getStore(getActiveServer());
   const serverInfo = stores.serverInfo;
@@ -132,6 +134,10 @@
   }));
 
   const unread = useRoomUnread(() => ({ roomId }));
+
+  $effect(() => {
+    roomFilesStore.setRoom(roomId);
+  });
 
   // Room permissions — derived reactively, no $effect needed
   let permissions = $derived(room.roomData ?? DEFAULT_ROOM_PERMISSIONS);
@@ -267,6 +273,7 @@
   //   the tab would strand the user's own latest message below the unread
   //   separator.
   useEvent((event) => {
+    roomFilesStore.ingestServerEvent(event);
     if (!event.event) return;
 
     if (event.event.__typename === 'MessagePostedEvent' && event.event.roomId === roomId) {
@@ -305,6 +312,21 @@
   const roomSidebarTogglePanels = $derived(room.isDM ? DM_ROOM_SIDEBAR_PANELS : undefined);
 
   let leavingRoom = $state(false);
+
+  function openFileMessage(
+    messageEventId: string,
+    threadRootEventId: string | null,
+    closeMobile = false
+  ): void {
+    if (threadRootEventId) {
+      openThread(threadRootEventId, messageEventId);
+    } else {
+      void jumpState.jumpToMessage(messageEventId);
+    }
+    if (closeMobile) {
+      roomSidebarPanels.closeMobile();
+    }
+  }
 
   // Drop zone state for drag-and-drop image uploads
   let isDraggingFiles = $state(false);
@@ -491,12 +513,15 @@
             activePanel={mobileRoomSidebarPanel}
             presentation="overlay"
             loading={room.isRoomLoading}
+            filesStore={roomFilesStore}
             canBanRoomMembers={canBanMembersFromRoomSidebar(
               room.isDM,
               room.roomData?.canBanRoomMembers
             )}
             currentUserId={currentUser.user?.id ?? null}
             onLoadMoreMembers={roomMembers.loadMoreMembers}
+            onOpenFile={(messageEventId, threadRootEventId) =>
+              openFileMessage(messageEventId, threadRootEventId, true)}
             onClose={() => roomSidebarPanels.closeMobile()}
           />
         </div>
@@ -509,12 +534,15 @@
           {roomId}
           activePanel={activeRoomSidebarPanel}
           loading={room.isRoomLoading}
+          filesStore={roomFilesStore}
           canBanRoomMembers={canBanMembersFromRoomSidebar(
             room.isDM,
             room.roomData?.canBanRoomMembers
           )}
           currentUserId={currentUser.user?.id ?? null}
           onLoadMoreMembers={roomMembers.loadMoreMembers}
+          onOpenFile={(messageEventId, threadRootEventId) =>
+            openFileMessage(messageEventId, threadRootEventId)}
           onClose={() => roomSidebarPanels.closeDesktop()}
         />
       </div>

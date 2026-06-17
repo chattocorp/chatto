@@ -74,17 +74,19 @@ docker_manifests:
       - "ghcr.io/chattocorp/chatto:{{ .Version }}-amd64"
       - "ghcr.io/chattocorp/chatto:{{ .Version }}-arm64"
 
-  # Stable only: the Major.Minor floater and :latest. skip_push gates
-  # these out for prerelease tags (anything with a hyphen suffix,
-  # e.g. v0.1.0-alpha.1) so the prerelease line never overwrites the
-  # rolling stable tags that cluster deployments may be tracking.
+  # Stable only: the Major.Minor floater. skip_push gates this out for
+  # prerelease tags (anything with a hyphen suffix, e.g. v0.1.0-alpha.1).
   - name_template: "ghcr.io/chattocorp/chatto:{{ .Major }}.{{ .Minor }}"
     skip_push: '{{ if .Prerelease }}true{{ end }}'
     image_templates:
       - "ghcr.io/chattocorp/chatto:{{ .Version }}-amd64"
       - "ghcr.io/chattocorp/chatto:{{ .Version }}-arm64"
+
+  # Stable only, and only when the workflow has determined this tag is the
+  # highest stable semver. That lets a late 0.2.x maintenance release publish
+  # 0.2 and 0.2.x tags without moving :latest back from a newer stable line.
   - name_template: "ghcr.io/chattocorp/chatto:latest"
-    skip_push: '{{ if .Prerelease }}true{{ end }}'
+    skip_push: '{{ if or .Prerelease (ne .Env.CHATTO_PUSH_LATEST "true") }}true{{ end }}'
     image_templates:
       - "ghcr.io/chattocorp/chatto:{{ .Version }}-amd64"
       - "ghcr.io/chattocorp/chatto:{{ .Version }}-arm64"
