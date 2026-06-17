@@ -1920,13 +1920,17 @@ func (x *SidebarGroupEntry) GetId() string {
 }
 
 type RoomGroup struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`                                         // NanoID for stable identity across renames
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`                                     // Display name (e.g., "General", "Projects")
-	RoomIds       []string               `protobuf:"bytes,3,rep,name=room_ids,json=roomIds,proto3" json:"room_ids,omitempty"`                // Ordered list of room IDs in this group
-	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`                       // Optional operator-facing description
-	Entries       []*SidebarGroupEntry   `protobuf:"bytes,5,rep,name=entries,proto3" json:"entries,omitempty"`                               // Ordered mixed room/link sidebar entries
-	SidebarLinks  []*SidebarLink         `protobuf:"bytes,6,rep,name=sidebar_links,json=sidebarLinks,proto3" json:"sidebar_links,omitempty"` // Links owned by this group
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Id          string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`                          // NanoID for stable identity across renames
+	Name        string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`                      // Display name (e.g., "General", "Projects")
+	RoomIds     []string               `protobuf:"bytes,3,rep,name=room_ids,json=roomIds,proto3" json:"room_ids,omitempty"` // Ordered list of room IDs in this group
+	Description string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`        // Optional operator-facing description
+	// Ordered mixed sidebar entries. ROOM entries reference Room records by ID;
+	// SIDEBAR_LINK entries reference payloads in sidebar_links by ID.
+	Entries []*SidebarGroupEntry `protobuf:"bytes,5,rep,name=entries,proto3" json:"entries,omitempty"`
+	// Link payloads owned by this group. Kept separate from entries so reorders
+	// can move stable IDs without duplicating mutable label/URL data.
+	SidebarLinks  []*SidebarLink `protobuf:"bytes,6,rep,name=sidebar_links,json=sidebarLinks,proto3" json:"sidebar_links,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
