@@ -41,12 +41,12 @@ func (r *roomGroupResolver) Items(ctx context.Context, obj *model.RoomGroupModel
 	for _, entry := range obj.Entries {
 		switch entry.GetKind() {
 		case corev1.SidebarGroupEntry_ROOM:
-			if obj.ViewerRooms == nil {
-				continue
-			}
-			room := obj.ViewerRooms[entry.GetId()]
-			if room == nil {
-				continue
+			var room *corev1.Room
+			if obj.ViewerRooms != nil {
+				room = obj.ViewerRooms[entry.GetId()]
+				if room == nil {
+					continue
+				}
 			}
 			items = append(items, &model.RoomGroupItem{
 				Type: model.RoomGroupItemTypeRoom,
