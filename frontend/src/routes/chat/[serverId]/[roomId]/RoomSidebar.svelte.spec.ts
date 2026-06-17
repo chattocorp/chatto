@@ -419,6 +419,38 @@ describe('RoomSidebar', () => {
     expect(container.querySelector('[aria-label="Members"]')).toBeFalsy();
   });
 
+  it('keeps the files panel usable when the optional attachments field is unsupported', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    queryMock.mockResolvedValue({
+      data: null,
+      error: {
+        graphQLErrors: [
+          {
+            message: 'Cannot query field "attachments" on type "Room".'
+          }
+        ]
+      }
+    });
+
+    try {
+      const { container } = render(RoomSidebarTestHarness, {
+        props: {
+          activePanel: 'files',
+          roomData: roomData([member(1)], 1, false)
+        }
+      });
+
+      await expect.element(q(container, 'h1')).toHaveTextContent('Files');
+      await vi.waitFor(() => {
+        expect(container.textContent).toContain('No files in this room yet.');
+      });
+      expect(container.querySelector('[data-testid="room-files-load-more-sentinel"]')).toBeFalsy();
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+
   it('renders room files, opens their message anchors, and automatically loads more', async () => {
     const onOpenFile = vi.fn();
     queryMock

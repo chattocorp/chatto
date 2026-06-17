@@ -1,5 +1,6 @@
 import type { Client } from '@urql/svelte';
 import { graphql } from '$lib/gql';
+import { isUnsupportedGraphQLFieldError } from '$lib/gql/compatibility';
 import { FitMode, RoomFilesDocument, type RoomFilesQuery } from '$lib/gql/graphql';
 import type { EventEnvelope } from '$lib/eventBus.svelte';
 import type { ExpiringAssetUrl, RefreshedAttachmentUrls } from '$lib/attachments/attachmentUrls';
@@ -89,6 +90,7 @@ export class RoomFilesStore {
   hasMore = $state(false);
   isInitialLoading = $state(true);
   isLoadingMore = $state(false);
+  isUnsupported = $state(false);
   refreshedAttachmentUrls = $state.raw(new Map<string, RefreshedAttachmentUrls>());
 
   private readonly client: Client;
@@ -105,18 +107,19 @@ export class RoomFilesStore {
     this.items = [];
     this.totalCount = 0;
     this.hasMore = false;
+    this.isUnsupported = false;
     this.refreshedAttachmentUrls = new Map();
     void this.loadInitial();
   }
 
   async loadInitial(): Promise<void> {
-    if (!this.roomId) return;
+    if (!this.roomId || this.isUnsupported) return;
     this.isInitialLoading = true;
     await this.loadPage(0, true);
   }
 
   async loadMore(): Promise<void> {
-    if (this.isLoadingMore || !this.hasMore || !this.roomId) return;
+    if (this.isLoadingMore || !this.hasMore || !this.roomId || this.isUnsupported) return;
     this.isLoadingMore = true;
     try {
       await this.loadPage(this.items.length, false);
@@ -126,7 +129,7 @@ export class RoomFilesStore {
   }
 
   async refresh(): Promise<void> {
-    if (!this.roomId) return;
+    if (!this.roomId || this.isUnsupported) return;
     await this.loadPage(0, true, Math.max(ROOM_FILES_PAGE_SIZE, this.items.length));
   }
 
@@ -201,7 +204,7 @@ export class RoomFilesStore {
   }
 
   private async refreshUrlsForItems(items: RoomFileItem[]): Promise<void> {
-    if (!this.roomId || items.length === 0) return;
+    if (!this.roomId || this.isUnsupported || items.length === 0) return;
     const eventIds = Array.from(new Set(items.map((item) => item.messageEventId)));
     const freshMaps = await Promise.all(
       eventIds.map((eventId) =>
@@ -241,6 +244,14 @@ export class RoomFilesStore {
 
     if (this.#loadId !== thisLoad || this.roomId !== roomId) return;
     if (result.error) {
+      if (isUnsupportedGraphQLFieldError(result.error, 'attachments')) {
+        this.isUnsupported = true;
+        this.items = [];
+        this.totalCount = 0;
+        this.hasMore = false;
+        if (replace) this.isInitialLoading = false;
+        return;
+      }
       console.error('RoomFilesStore: failed to load files:', result.error);
       if (replace) this.isInitialLoading = false;
       return;
