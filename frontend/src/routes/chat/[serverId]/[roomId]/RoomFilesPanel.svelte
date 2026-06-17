@@ -19,10 +19,12 @@ Room-scoped file list for the room sidebar.
   let {
     store,
     serverId,
+    fileGroupingNow,
     onOpenFile
   }: {
     store: RoomFilesStore;
     serverId: string;
+    fileGroupingNow?: Date;
     onOpenFile?: (messageEventId: string, threadRootEventId: string | null) => void;
   } = $props();
 
@@ -37,7 +39,9 @@ Room-scoped file list for the room sidebar.
     const groups: RoomFileGroup[] = [];
 
     for (const item of items) {
-      const group = fileDateGroup(item.createdAt, userSettings);
+      const group = fileGroupingNow
+        ? fileDateGroup(item.createdAt, userSettings, fileGroupingNow)
+        : fileDateGroup(item.createdAt, userSettings);
       let existing = groups.find((candidate) => candidate.key === group.key);
       if (!existing) {
         existing = { ...group, items: [] };

@@ -128,20 +128,6 @@ async function flushRoomFilesPanel(): Promise<void> {
   await tick();
 }
 
-function localNoonIso(daysFromToday: number): string {
-  const date = new Date();
-  date.setHours(12, 0, 0, 0);
-  date.setDate(date.getDate() + daysFromToday);
-  return date.toISOString();
-}
-
-function previousMonthLocalNoonIso(dayOfMonth: number): string {
-  const date = new Date();
-  date.setHours(12, 0, 0, 0);
-  date.setMonth(date.getMonth() - 1, dayOfMonth);
-  return date.toISOString();
-}
-
 function roomData(members: RoomMember[], totalCount: number, hasMore: boolean): RoomData {
   return {
     room: { id: 'room-1', name: 'general', type: 'CHANNEL' },
@@ -556,11 +542,7 @@ describe('RoomSidebar', () => {
   });
 
   it('groups room files by date and appends loaded pages into the matching groups', async () => {
-    const olderMonthDate = previousMonthLocalNoonIso(21);
-    const olderMonthLabel = new Intl.DateTimeFormat(undefined, {
-      month: 'long',
-      year: 'numeric'
-    }).format(new Date(olderMonthDate));
+    const fileGroupingNow = new Date('2026-06-17T12:00:00Z');
 
     queryMock
       .mockResolvedValueOnce({
@@ -568,8 +550,8 @@ describe('RoomSidebar', () => {
           room: {
             attachments: {
               items: [
-                roomFile('today-message', null, 'today.txt', localNoonIso(0)),
-                roomFile('yesterday-message', null, 'yesterday.txt', localNoonIso(-1))
+                roomFile('today-message', null, 'today.txt', '2026-06-17T08:00:00Z'),
+                roomFile('yesterday-message', null, 'yesterday.txt', '2026-06-16T08:00:00Z')
               ],
               totalCount: 5,
               hasMore: true
@@ -583,9 +565,9 @@ describe('RoomSidebar', () => {
           room: {
             attachments: {
               items: [
-                roomFile('week-message', null, 'week.txt', localNoonIso(-2)),
-                roomFile('month-message', null, 'month.txt', localNoonIso(-7)),
-                roomFile('older-month-message', null, 'older-month.txt', olderMonthDate)
+                roomFile('week-message', null, 'week.txt', '2026-06-15T08:00:00Z'),
+                roomFile('month-message', null, 'month.txt', '2026-06-10T08:00:00Z'),
+                roomFile('older-month-message', null, 'older-month.txt', '2026-05-21T08:00:00Z')
               ],
               totalCount: 5,
               hasMore: false
@@ -598,7 +580,8 @@ describe('RoomSidebar', () => {
     const { container } = render(RoomSidebarTestHarness, {
       props: {
         activePanel: 'files',
-        roomData: roomData([member(1)], 1, false)
+        roomData: roomData([member(1)], 1, false),
+        fileGroupingNow
       }
     });
 
@@ -616,7 +599,7 @@ describe('RoomSidebar', () => {
       'Yesterday',
       'This week',
       'This month',
-      olderMonthLabel
+      'May 2026'
     ]);
     const labels = roomFileRowLabels(container);
     expect(labels).toHaveLength(5);

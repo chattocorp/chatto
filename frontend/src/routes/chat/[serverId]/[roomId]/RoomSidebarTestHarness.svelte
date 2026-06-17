@@ -21,6 +21,7 @@ mounting the full chat room shell.
     presentation = 'desktop',
     currentUserId = 'viewer',
     canBanRoomMembers = false,
+    fileGroupingNow,
     onPresenceCacheReady,
     onOpenFile,
     onClose
@@ -31,6 +32,7 @@ mounting the full chat room shell.
     presentation?: 'desktop' | 'overlay';
     currentUserId?: string | null;
     canBanRoomMembers?: boolean;
+    fileGroupingNow?: Date;
     onPresenceCacheReady?: (cache: PresenceCache) => void;
     onOpenFile?: (messageEventId: string, threadRootEventId: string | null) => void;
     onClose?: () => void;
@@ -65,6 +67,7 @@ mounting the full chat room shell.
   {canBanRoomMembers}
   {currentUserId}
   filesStore={roomFilesStore}
+  {fileGroupingNow}
   onLoadMoreMembers={roomMembers.loadMoreMembers}
   {onOpenFile}
   {onClose}

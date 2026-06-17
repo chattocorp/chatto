@@ -47,6 +47,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     canBanRoomMembers = false,
     currentUserId = null,
     filesStore,
+    fileGroupingNow,
     onLoadMoreMembers,
     onOpenFile,
     onClose
@@ -58,6 +59,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     canBanRoomMembers?: boolean;
     currentUserId?: string | null;
     filesStore?: RoomFilesStore;
+    fileGroupingNow?: Date;
     onLoadMoreMembers?: () => void | Promise<void>;
     onOpenFile?: (messageEventId: string, threadRootEventId: string | null) => void;
     onClose?: () => void;
@@ -273,7 +275,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     </nav>
   {:else if activePanel === 'files'}
     {#if filesStore}
-      <RoomFilesPanel store={filesStore} serverId={getActiveServer()} {onOpenFile} />
+      <RoomFilesPanel store={filesStore} serverId={getActiveServer()} {fileGroupingNow} {onOpenFile} />
     {:else}
       <div class="flex min-h-0 flex-1 items-center justify-center p-4 text-sm text-muted">
         No files in this room yet.
