@@ -61,6 +61,9 @@ func (r *roomResolver) Members(ctx context.Context, obj *corev1.Room, limit *int
 	for _, m := range memberships {
 		u, err := r.core.GetUser(ctx, m.UserId)
 		if err != nil {
+			if errors.Is(err, core.ErrNotFound) {
+				continue
+			}
 			return nil, err
 		}
 		if u != nil {
