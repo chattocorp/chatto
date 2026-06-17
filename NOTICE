@@ -1,12 +1,28 @@
 Chatto
 Copyright 2026 ChattoCorp GmbH
 
-This product includes software developed at:
-- The NATS Authors (https://nats.io/) - Apache License 2.0
-- spf13/cobra (https://github.com/spf13/cobra) - Apache License 2.0
+This product includes third-party open source software. Major components
+include:
+
+- NATS Server and Go client libraries (https://nats.io/) - Apache License 2.0
+- Cobra CLI framework (https://github.com/spf13/cobra) - Apache License 2.0
+- Gin web framework (https://github.com/gin-gonic/gin) - MIT License
+- gqlgen GraphQL framework (https://github.com/99designs/gqlgen) - MIT License
 - CoreOS go-oidc (https://github.com/coreos/go-oidc) - Apache License 2.0
-- LiveKit Protocol (https://github.com/livekit/protocol) - Apache License 2.0
+- LiveKit Protocol and client libraries (https://livekit.io/) - Apache License 2.0
 - MinIO Go Client SDK (https://github.com/minio/minio-go) - Apache License 2.0
+- AWS SDK for Go v2 (https://github.com/aws/aws-sdk-go-v2) - Apache License 2.0
+- Svelte and SvelteKit (https://svelte.dev/) - MIT License
+- Vite (https://vite.dev/) - MIT License
+- Tailwind CSS (https://tailwindcss.com/) - MIT License
+- Tiptap and ProseMirror (https://tiptap.dev/, https://prosemirror.net/) - MIT License
+- urql GraphQL client (https://commerce.nearform.com/open-source/urql/) - MIT License
+- markdown-it (https://github.com/markdown-it/markdown-it) - MIT License
+- Astro and Starlight (https://astro.build/) - MIT License
+- Sharp image toolkit (https://sharp.pixelplumbing.com/) - Apache License 2.0
+
+Dependency manifests and lockfiles in this repository contain the authoritative
+set of third-party packages used to build each artifact.
 
 Trademark Notice:
 The AGPL-3.0 license applies to Chatto's source code. It does not grant

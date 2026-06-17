@@ -85,7 +85,7 @@ Shows matching room members when typing @username in chat input.
   bind:this={popupRef}
   items={results}
   getKey={(r) => `${r.type}:${r.handle}`}
-  selectKeys={['Tab']}
+  selectKeys={['Enter', 'Tab']}
   onSelect={handleSelect}
   {onClose}
   testid="mention-autocomplete"

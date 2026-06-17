@@ -16,7 +16,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
   import type { PresenceStatus } from '$lib/gql/graphql';
-  import { getRoomMembersState, type RoomMember } from '$lib/state/room';
+  import { getRoomMembersState, type RoomFilesStore, type RoomMember } from '$lib/state/room';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import { getLiveDisplayName, getLiveLogin } from '$lib/state/userProfiles.svelte';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
@@ -31,6 +31,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   import { toast } from '$lib/ui/toast';
   import HeaderIconButton from '$lib/ui/HeaderIconButton.svelte';
   import BanRoomMemberModal from '$lib/components/moderation/BanRoomMemberModal.svelte';
+  import RoomFilesPanel from './RoomFilesPanel.svelte';
 
   const BanRoomMemberMutation = graphql(`
     mutation BanRoomMemberFromSidebar($input: BanRoomMemberInput!) {
@@ -45,7 +46,9 @@ calls, and similar room-specific panels can plug into the same shell. See the
     presentation = 'desktop',
     canBanRoomMembers = false,
     currentUserId = null,
+    filesStore,
     onLoadMoreMembers,
+    onOpenFile,
     onClose
   }: {
     loading?: boolean;
@@ -54,7 +57,9 @@ calls, and similar room-specific panels can plug into the same shell. See the
     presentation?: 'desktop' | 'overlay';
     canBanRoomMembers?: boolean;
     currentUserId?: string | null;
+    filesStore?: RoomFilesStore;
     onLoadMoreMembers?: () => void | Promise<void>;
+    onOpenFile?: (messageEventId: string, threadRootEventId: string | null) => void;
     onClose?: () => void;
   } = $props();
 
@@ -265,9 +270,13 @@ calls, and similar room-specific panels can plug into the same shell. See the
       {/if}
     </nav>
   {:else if activePanel === 'files'}
-    <div class="flex min-h-0 flex-1 items-center justify-center p-4 text-sm text-muted">
-      Files coming soon.
-    </div>
+    {#if filesStore}
+      <RoomFilesPanel store={filesStore} serverId={getActiveServer()} {onOpenFile} />
+    {:else}
+      <div class="flex min-h-0 flex-1 items-center justify-center p-4 text-sm text-muted">
+        No files in this room yet.
+      </div>
+    {/if}
   {/if}
 
   {#if banDialogMember}

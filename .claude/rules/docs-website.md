@@ -19,7 +19,7 @@ If you notice documentation that is out of date or inconsistent with the code, a
 
 ## Assumptions
 
-- The code repository is public and all binaries and Docker images (including `ghcr.io/hmans/chatto`) are publicly available. Don't include setup steps for repository access or container registry authentication.
+- The code repository is public and all binaries and Docker images (including `ghcr.io/chattocorp/chatto`) are publicly available. Don't include setup steps for repository access or container registry authentication.
 - Refer to calls as **"voice and video calls"** or just **"calls"** — never "voice calls" alone. LiveKit handles both audio and video.
 
 ## Starlight Components

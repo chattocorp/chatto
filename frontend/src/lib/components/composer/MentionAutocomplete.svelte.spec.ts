@@ -160,7 +160,7 @@ describe('MentionAutocomplete', () => {
       expect(onSelect).toHaveBeenCalledWith('alice', true);
     });
 
-    it('Enter is not configured as a select key, so it is ignored', () => {
+    it('Enter selects the highlighted mention with viaTab=false', () => {
       const onSelect = vi.fn();
       const { component } = renderAutocomplete({
         query: 'al',
@@ -169,8 +169,9 @@ describe('MentionAutocomplete', () => {
       });
       const ev = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true });
       const handled = component.handleKeyDown(ev);
-      expect(handled).toBe(false);
-      expect(onSelect).not.toHaveBeenCalled();
+      expect(handled).toBe(true);
+      expect(ev.defaultPrevented).toBe(true);
+      expect(onSelect).toHaveBeenCalledWith('alice', false);
     });
 
     it('Escape calls onClose', () => {
