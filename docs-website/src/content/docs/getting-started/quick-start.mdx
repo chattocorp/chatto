@@ -12,11 +12,11 @@ there's also a Docker image available. For production-style examples, see the de
 
 ## Using Docker (Recommended)
 
-You're on the Quick Start page, so let's start quickly. The `ghcr.io/chattocorp/chatto` image contains the Chatto server and the embedded web UI. It keeps configuration in `/config/chatto.toml` and embedded NATS data in `/data`, so persist both paths across container restarts.
-
 <Aside type="caution">
   This Docker command-line setup is recommended only for quickly testing Chatto locally. If you want to deploy Chatto on a server, use the [Docker Compose guide](/guides/dockercompose/) instead.
 </Aside>
+
+You're on the Quick Start page, so let's start quickly. The `ghcr.io/chattocorp/chatto` image contains the Chatto server and the embedded web UI. It keeps configuration in `/config/chatto.toml` and embedded NATS data in `/data`, so persist both paths across container restarts.
 
 Create a local directory for the first run so the generated config and data are easy to inspect.
 
