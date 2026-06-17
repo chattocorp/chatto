@@ -2,6 +2,22 @@
 
 Chatto is not accepting outside contributions at this time, but feedback, bug reports, and ideas are welcome by [email](mailto:hendrik@mans.de).
 
+## Agentic Engineering
+
+Chatto is intentionally developed with coding agents, and the tracked agent
+workflow files in `.agents/`, `.claude/`, and `.conductor/` are part of how we
+document and operate the project. They are public on purpose: they show the
+coding conventions, review habits, maintenance workflows, and local workspace
+setup we expect agents to follow.
+
+If you explore the codebase, report an issue, or prepare a patch, we encourage
+you to work agentically: give your agent the repository instructions, ask it to
+read the relevant FDRs/ADRs/docs before changing behavior, and have it run the
+narrowest meaningful checks for its change. Keep personal credentials,
+machine-specific settings, and private prompts out of tracked files; use local
+settings such as `.conductor/settings.local.toml` or your tool's user-level
+configuration for those.
+
 ## Local Development with Conductor
 
 [Conductor](https://conductor.build) workspaces build and run the bundled Chatto executable. The `run` script in `.conductor/settings.toml` wires Conductor's assigned `$CONDUCTOR_PORT` and the next port into the env vars read by the executable:
