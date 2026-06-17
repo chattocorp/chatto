@@ -3,6 +3,20 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.2.2](https://github.com/chattocorp/chatto/compare/v0.2.1...v0.2.2) (2026-06-17)
+
+
+### Features
+
+* group room files by date ([#937](https://github.com/chattocorp/chatto/issues/937)) ([b13674b](https://github.com/chattocorp/chatto/commit/b13674b8a13492ae361c870b886e2fccb2456edf))
+* **sidebar:** add group sidebar links ([#915](https://github.com/chattocorp/chatto/issues/915)) ([aea26da](https://github.com/chattocorp/chatto/commit/aea26da20ef0ee7afc86021e3671eaafcd67be7f))
+
+
+### Bug Fixes
+
+* log graphql errors ([#955](https://github.com/chattocorp/chatto/issues/955)) ([692bfc9](https://github.com/chattocorp/chatto/commit/692bfc95c5179ddcc869d0f154094ef226c6718c))
+* represent deleted room members ([#934](https://github.com/chattocorp/chatto/issues/934)) ([91ad1dc](https://github.com/chattocorp/chatto/commit/91ad1dc2047b572df6097296ac533dc22e02b285))
+
 ## [0.2.1](https://github.com/chattocorp/chatto/compare/v0.2.0...v0.2.1) (2026-06-17)
 
 
