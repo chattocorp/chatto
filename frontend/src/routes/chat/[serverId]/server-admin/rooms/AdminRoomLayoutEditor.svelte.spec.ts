@@ -3,7 +3,11 @@ import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import type { Client } from '@urql/svelte';
 import { q } from '$lib/test-utils';
-import { AdminRoomLayoutStore, type AdminRoomInfo } from '$lib/state/server/adminRoomLayout.svelte';
+import {
+  AdminRoomLayoutStore,
+  type AdminRoomGroup,
+  type AdminRoomInfo
+} from '$lib/state/server/adminRoomLayout.svelte';
 import AdminRoomLayoutEditor from './AdminRoomLayoutEditor.svelte';
 
 vi.mock('$app/navigation', () => ({
@@ -43,6 +47,15 @@ function room(id: string, overrides: Partial<AdminRoomInfo> = {}): AdminRoomInfo
     name: overrides.name ?? id,
     description: overrides.description ?? null,
     archived: overrides.archived ?? false
+  };
+}
+
+function group(id: string, rooms: AdminRoomInfo[], name = id): AdminRoomGroup {
+  return {
+    id,
+    name,
+    rooms,
+    items: rooms.map((room) => ({ id: `room:${room.id}`, kind: 'room', room }))
   };
 }
 
@@ -96,13 +109,7 @@ describe('AdminRoomLayoutEditor', () => {
 
     const populated = makeLayout();
     populated.initialized = true;
-    populated.groups = [
-      {
-        id: 'g1',
-        name: 'Lobby',
-        rooms: [room('r1', { name: 'general', description: 'Public room' })]
-      }
-    ];
+    populated.groups = [group('g1', [room('r1', { name: 'general', description: 'Public room' })], 'Lobby')];
     const populatedRender = renderEditor(populated);
     expect(populatedRender.container.textContent).toContain('Lobby');
     expect(populatedRender.container.textContent).toContain('general');
@@ -112,10 +119,10 @@ describe('AdminRoomLayoutEditor', () => {
   it('opens the create-group dialog and delegates submission to the layout store', async () => {
     const layout = makeLayout();
     layout.initialized = true;
-    layout.groups = [{ id: 'g1', name: 'Lobby', rooms: [] }];
+    layout.groups = [group('g1', [], 'Lobby')];
     const createGroup = vi.spyOn(layout, 'createGroup').mockResolvedValue({
       ok: true,
-      group: { id: 'g2', name: 'Projects', rooms: [] }
+      group: group('g2', [], 'Projects')
     });
     const { container } = renderEditor(layout);
 
@@ -132,7 +139,7 @@ describe('AdminRoomLayoutEditor', () => {
   it('keeps Save disabled and shows validation when a room name has leading whitespace', async () => {
     const layout = makeLayout();
     layout.initialized = true;
-    layout.groups = [{ id: 'g1', name: 'Lobby', rooms: [room('r1', { name: 'general' })] }];
+    layout.groups = [group('g1', [room('r1', { name: 'general' })], 'Lobby')];
     const updateRoom = vi.spyOn(layout, 'updateRoom').mockResolvedValue({ ok: true });
     const { container } = renderEditor(layout);
 

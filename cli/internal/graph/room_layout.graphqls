@@ -12,4 +12,31 @@ type RoomGroup {
   description: String!
   "Ordered list of channel rooms in this room group."
   rooms: [Room!]! @goField(forceResolver: true)
+  "Ordered mixed list of rooms and external links in this room group."
+  items: [RoomGroupItem!]! @goField(forceResolver: true)
+}
+
+enum RoomGroupItemType {
+  ROOM
+  SIDEBAR_LINK
+}
+
+type SidebarLink {
+  "Unique ID for this sidebar link."
+  id: ID!
+  "Display label shown in the server sidebar."
+  label: String!
+  "Absolute http(s) URL opened outside Chatto."
+  url: String!
+}
+
+type RoomGroupItem {
+  "The item kind."
+  type: RoomGroupItemType!
+  "Room ID for ROOM, sidebar link ID for SIDEBAR_LINK."
+  id: ID!
+  "Room payload when type is ROOM."
+  room: Room
+  "Sidebar link payload when type is SIDEBAR_LINK."
+  link: SidebarLink
 }

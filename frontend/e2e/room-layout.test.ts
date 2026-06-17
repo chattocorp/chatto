@@ -945,10 +945,10 @@ test.describe('Room Layout', () => {
       await serverAdminRoomsPage.expectGroupVisible('Has Rooms');
 
       // With Unsorted gone, deletion of a non-empty set would orphan the
-      // rooms — so the Delete button is disabled until they're moved out.
+      // contents — so the Delete button is disabled until they're moved out.
       const deleteBtn = serverAdminRoomsPage
         .groupHeaderRow('Has Rooms')
-        .getByTitle('Move all rooms out of this group before deleting');
+        .getByTitle('Move all items out of this group before deleting');
       await expect(deleteBtn).toBeVisible();
       await expect(deleteBtn).toBeDisabled();
     });

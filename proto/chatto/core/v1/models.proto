@@ -369,11 +369,35 @@ message RoomLayout {
 // serves as a permission container (see ADR-031). Each room group has
 // its own ACL; individual rooms can override per (role, permission)
 // entries on top. Stored at `room_group.{id}`.
+message SidebarLink {
+  string id = 1;     // NanoID for stable identity across renames/moves
+  string label = 2;  // Display label shown in the server sidebar
+  string url = 3;    // Absolute http(s) URL opened outside Chatto
+}
+
+message SidebarGroupEntry {
+  enum Kind {
+    KIND_UNSPECIFIED = 0;
+    ROOM = 1;
+    SIDEBAR_LINK = 2;
+  }
+
+  Kind kind = 1;
+  string id = 2; // Room ID for ROOM, SidebarLink ID for SIDEBAR_LINK
+}
+
 message RoomGroup {
   string id = 1;                    // NanoID for stable identity across renames
   string name = 2;                  // Display name (e.g., "General", "Projects")
   repeated string room_ids = 3;     // Ordered list of room IDs in this group
   string description = 4;           // Optional operator-facing description
+  // Ordered mixed sidebar entries. ROOM entries reference Room records by ID;
+  // SIDEBAR_LINK entries reference payloads in sidebar_links by ID.
+  repeated SidebarGroupEntry entries = 5;
+
+  // Link payloads owned by this group. Kept separate from entries so reorders
+  // can move stable IDs without duplicating mutable label/URL data.
+  repeated SidebarLink sidebar_links = 6;
 }
 
 // ============================================================================

@@ -28,7 +28,11 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
   import { appState } from '$lib/state/globals.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
-  import { type RoomsListItem, type RoomsListGroup } from '$lib/state/server/rooms.svelte';
+  import {
+    type RoomsListItem,
+    type RoomsListGroup,
+    type RoomsListGroupItem
+  } from '$lib/state/server/rooms.svelte';
   import { roomPathForSegment, roomURLSegment } from '$lib/roomUrls';
 
   // No props — RoomList reads everything from the active server's stores.
@@ -73,16 +77,25 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
   let channelMap = $derived(new Map(channels.map((r) => [r.id, r])));
 
-  function getSetRooms(set: RoomsListGroup): RoomsListItem[] {
-    return set.roomIds.map((id) => channelMap.get(id)).filter((r): r is RoomsListItem => r != null);
+  function getSetItems(set: RoomsListGroup): RoomsListGroupItem[] {
+    const items =
+      set.items ??
+      set.roomIds.map((roomId) => ({
+        id: `room:${roomId}`,
+        type: 'room' as const,
+        roomId
+      }));
+    return items.filter((item) => item.type === 'link' || channelMap.has(item.roomId));
   }
 
   // Sets that have at least one channel the viewer is a member of
   let visibleSets = $derived.by(() => {
     const sets = roomsStore.roomGroups;
     if (!sets) return [];
-    return sets.filter((s) => getSetRooms(s).length > 0);
+    return sets.filter((s) => getSetItems(s).length > 0);
   });
+
+  const hasSidebarItems = $derived(visibleSets.some((set) => getSetItems(set).length > 0));
 
   // When no layout exists, display channels alphabetically
   let sortedRooms = $derived([...channels].sort((a, b) => a.name.localeCompare(b.name)));
@@ -127,6 +140,12 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       return room.viewerNotificationCount > 0;
     }
     return room.viewerNotificationCount > 0;
+  }
+
+  function isGroupItemHighlighted(item: RoomsListGroupItem): boolean {
+    if (item.type === 'link') return false;
+    const room = channelMap.get(item.roomId);
+    return room ? isHighlighted(room) : false;
   }
 
   // --- Real-time event handlers ---
@@ -402,7 +421,26 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   </a>
 {/snippet}
 
-{#if channels.length === 0 && dmRooms.length === 0 && !roomsStore.isInitialLoading}
+{#snippet sidebarLink(item: RoomsListGroupItem)}
+  {#if item.type === 'room'}
+    {@const room = channelMap.get(item.roomId)}
+    {#if room}
+      {@render roomLink(room)}
+    {/if}
+  {:else}
+    <a
+      href={item.link.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      class="sidebar-item"
+    >
+      <span class="sidebar-icon iconify text-muted uil--external-link-alt"></span>
+      <span class="flex-1 truncate">{item.link.label}</span>
+    </a>
+  {/if}
+{/snippet}
+
+{#if channels.length === 0 && dmRooms.length === 0 && !hasSidebarItems && !roomsStore.isInitialLoading}
   <EmptyState icon="uil--comments" title="No rooms yet">
     You haven't joined any rooms on this server. Head to the
     <a
@@ -418,10 +456,10 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       {#each visibleSets as set, i (set.id)}
         <CollapsibleGroup
           label={set.name}
-          items={getSetRooms(set)}
-          item={roomLink}
+          items={getSetItems(set)}
+          item={sidebarLink}
           persistKey={serverStorageKey(getActiveServer(), `collapsible:set:${set.id}`)}
-          keepVisibleWhenCollapsed={isHighlighted}
+          keepVisibleWhenCollapsed={isGroupItemHighlighted}
           class={i === 0 ? 'mt-4 first:mt-0' : 'mt-4'}
         />
       {/each}

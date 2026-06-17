@@ -48,6 +48,11 @@ func NewRoomGroupID() string {
 	return newID("G")
 }
 
+// NewSidebarLinkID generates a new sidebar-link ID with "L" prefix.
+func NewSidebarLinkID() string {
+	return newID("L")
+}
+
 // NewAssetID generates a new asset ID with "A" prefix.
 func NewAssetID() string {
 	return newID("A")

@@ -254,6 +254,15 @@ type CreateRoomInput struct {
 	GroupID string `json:"groupId"`
 }
 
+type CreateSidebarLinkInput struct {
+	// The group that should contain the new sidebar link.
+	GroupID string `json:"groupId"`
+	// Display label for the link.
+	Label string `json:"label"`
+	// Absolute http(s) URL.
+	URL string `json:"url"`
+}
+
 // Input for deleting an attachment from a message.
 type DeleteAttachmentInput struct {
 	// The ID of the room containing the message.
@@ -304,6 +313,11 @@ type DeleteRoleInput struct {
 type DeleteRoomGroupInput struct {
 	// The room group's ID.
 	ID string `json:"id"`
+}
+
+type DeleteSidebarLinkInput struct {
+	// The sidebar link to delete.
+	LinkID string `json:"linkId"`
 }
 
 // Input for denying a permission for a role.
@@ -519,6 +533,13 @@ type MarkThreadAsReadResult struct {
 type MoveRoomToGroupInput struct {
 	// The room to move.
 	RoomID string `json:"roomId"`
+	// The destination room group.
+	GroupID string `json:"groupId"`
+}
+
+type MoveSidebarLinkToGroupInput struct {
+	// The sidebar link to move.
+	LinkID string `json:"linkId"`
 	// The destination room group.
 	GroupID string `json:"groupId"`
 }
@@ -823,6 +844,13 @@ type ReorderRoomsInGroupInput struct {
 	OrderedRoomIds []string `json:"orderedRoomIds"`
 }
 
+type ReorderSidebarItemsInGroupInput struct {
+	// The group whose mixed sidebar item order is being rewritten.
+	GroupID string `json:"groupId"`
+	// Mixed room/link entries in the desired display order, first to last.
+	Items []*SidebarGroupEntryInput `json:"items"`
+}
+
 // Input for revoking a permission from a role.
 type RevokePermissionInput struct {
 	// The role to revoke the permission from.
@@ -960,6 +988,17 @@ type RoomEventsConnection struct {
 	HasOlder bool `json:"hasOlder"`
 	// Whether there are newer events after this page.
 	HasNewer bool `json:"hasNewer"`
+}
+
+type RoomGroupItem struct {
+	// The item kind.
+	Type RoomGroupItemType `json:"type"`
+	// Room ID for ROOM, sidebar link ID for SIDEBAR_LINK.
+	ID string `json:"id"`
+	// Room payload when type is ROOM.
+	Room *corev1.Room `json:"room,omitempty"`
+	// Sidebar link payload when type is SIDEBAR_LINK.
+	Link *corev1.SidebarLink `json:"link,omitempty"`
 }
 
 // Per-room-group role permission inspector. Returns the explicit grants and
@@ -1160,6 +1199,13 @@ type SetServerNotificationLevelInput struct {
 	Level NotificationLevel `json:"level"`
 }
 
+type SidebarGroupEntryInput struct {
+	// The item kind.
+	Type RoomGroupItemType `json:"type"`
+	// Room ID for ROOM, sidebar link ID for SIDEBAR_LINK.
+	ID string `json:"id"`
+}
+
 // Input for starting a DM conversation.
 type StartDMInput struct {
 	// The IDs of the users to start a conversation with. The current user is automatically included.
@@ -1345,6 +1391,15 @@ type UpdateSettingsInput struct {
 	Timezone *string `json:"timezone,omitempty"`
 	// Time display format. Set to AUTO to use browser locale default.
 	TimeFormat *TimeFormat `json:"timeFormat,omitempty"`
+}
+
+type UpdateSidebarLinkInput struct {
+	// The sidebar link to update.
+	LinkID string `json:"linkId"`
+	// Display label for the link.
+	Label string `json:"label"`
+	// Absolute http(s) URL.
+	URL string `json:"url"`
 }
 
 // Input for uploading a user avatar.
@@ -1825,6 +1880,61 @@ func (e *PresenceStatusInput) UnmarshalJSON(b []byte) error {
 }
 
 func (e PresenceStatusInput) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type RoomGroupItemType string
+
+const (
+	RoomGroupItemTypeRoom        RoomGroupItemType = "ROOM"
+	RoomGroupItemTypeSidebarLink RoomGroupItemType = "SIDEBAR_LINK"
+)
+
+var AllRoomGroupItemType = []RoomGroupItemType{
+	RoomGroupItemTypeRoom,
+	RoomGroupItemTypeSidebarLink,
+}
+
+func (e RoomGroupItemType) IsValid() bool {
+	switch e {
+	case RoomGroupItemTypeRoom, RoomGroupItemTypeSidebarLink:
+		return true
+	}
+	return false
+}
+
+func (e RoomGroupItemType) String() string {
+	return string(e)
+}
+
+func (e *RoomGroupItemType) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = RoomGroupItemType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid RoomGroupItemType", str)
+	}
+	return nil
+}
+
+func (e RoomGroupItemType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *RoomGroupItemType) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e RoomGroupItemType) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

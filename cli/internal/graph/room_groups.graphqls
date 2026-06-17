@@ -108,6 +108,50 @@ input ReorderRoomsInGroupInput {
   orderedRoomIds: [ID!]!
 }
 
+input CreateSidebarLinkInput {
+  "The group that should contain the new sidebar link."
+  groupId: ID!
+  "Display label for the link."
+  label: String! @length(max: 80)
+  "Absolute http(s) URL."
+  url: String! @length(max: 2048)
+}
+
+input UpdateSidebarLinkInput {
+  "The sidebar link to update."
+  linkId: ID!
+  "Display label for the link."
+  label: String! @length(max: 80)
+  "Absolute http(s) URL."
+  url: String! @length(max: 2048)
+}
+
+input DeleteSidebarLinkInput {
+  "The sidebar link to delete."
+  linkId: ID!
+}
+
+input MoveSidebarLinkToGroupInput {
+  "The sidebar link to move."
+  linkId: ID!
+  "The destination room group."
+  groupId: ID!
+}
+
+input SidebarGroupEntryInput {
+  "The item kind."
+  type: RoomGroupItemType!
+  "Room ID for ROOM, sidebar link ID for SIDEBAR_LINK."
+  id: ID!
+}
+
+input ReorderSidebarItemsInGroupInput {
+  "The group whose mixed sidebar item order is being rewritten."
+  groupId: ID!
+  "Mixed room/link entries in the desired display order, first to last."
+  items: [SidebarGroupEntryInput!]!
+}
+
 """
 Input for granting a permission on a room group. The subject is either a role
 (by name) or a user (by ID).
@@ -129,8 +173,9 @@ extend type Mutation {
   updateRoomGroup(input: UpdateRoomGroupInput!): RoomGroup!
 
   """
-  Delete a room group. Rejected if the room group still contains rooms —
-  operators must move all rooms out first. Requires `role.manage`.
+  Delete a room group. Rejected if the room group still contains rooms or
+  sidebar links — operators must move or delete all items first. Requires
+  `role.manage`.
   """
   deleteRoomGroup(input: DeleteRoomGroupInput!): Boolean!
 
@@ -153,6 +198,25 @@ extend type Mutation {
   every current room in that group exactly once. Requires `role.manage`.
   """
   reorderRoomsInGroup(input: ReorderRoomsInGroupInput!): RoomGroup!
+
+  "Create an external sidebar link inside a room group. Requires `room.manage` in that group."
+  createSidebarLink(input: CreateSidebarLinkInput!): SidebarLink!
+
+  "Update an external sidebar link. Requires `room.manage` in the link's group."
+  updateSidebarLink(input: UpdateSidebarLinkInput!): SidebarLink!
+
+  "Delete an external sidebar link. Requires `room.manage` in the link's group."
+  deleteSidebarLink(input: DeleteSidebarLinkInput!): Boolean!
+
+  "Move an external sidebar link into another room group. Requires `room.manage` in both source and target groups."
+  moveSidebarLinkToGroup(input: MoveSidebarLinkToGroupInput!): SidebarLink!
+
+  """
+  Reorder the mixed room/link sidebar items inside a group. The provided list
+  must contain every current room and sidebar link in that group exactly once.
+  Requires `room.manage` in that group.
+  """
+  reorderSidebarItemsInGroup(input: ReorderSidebarItemsInGroupInput!): RoomGroup!
 
   "Grant a permission on a room group (role or user subject). Requires `role.manage`."
   grantGroupPermission(input: GroupPermissionInput!): Boolean!
