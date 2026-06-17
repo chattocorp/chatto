@@ -8,6 +8,7 @@
   import LinkPreviewCard from '$lib/components/LinkPreviewCard.svelte';
   import LinkPreviewSkeleton from '$lib/components/LinkPreviewSkeleton.svelte';
   import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
+  import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
   import { toast } from '$lib/ui/toast';
   import { getRoomMembers, getComposerContext } from '$lib/state/room';
   import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
@@ -364,6 +365,21 @@
     token: string;
   };
 
+  type PreparedPost = {
+    roomId: string;
+    bodyToSend: string;
+    filesToSend: File[] | null;
+    threadRootEventId: string | null;
+    inReplyTo: string | null;
+    linkPreviewInput: ReturnType<typeof linkPreviews.buildInput>;
+    alsoSendToChannel: boolean;
+  };
+
+  type PendingMentionConfirmation = PreparedPost & MentionConfirmation;
+
+  let pendingMentionConfirmation = $state<PendingMentionConfirmation | null>(null);
+  let mentionConfirmationLoading = $state(false);
+
   function mentionConfirmation(error: unknown): MentionConfirmation | null {
     const graphQLErrors =
       error && typeof error === 'object' && 'graphQLErrors' in error
@@ -382,6 +398,97 @@
     return null;
   }
 
+  function buildPostVariables(post: PreparedPost, mentionConfirmationToken: string | null) {
+    return {
+      input: {
+        roomId: post.roomId,
+        body: post.bodyToSend || null,
+        attachments: post.filesToSend,
+        threadRootEventId: post.threadRootEventId,
+        inReplyTo: post.inReplyTo,
+        linkPreview: post.linkPreviewInput,
+        alsoSendToChannel: post.alsoSendToChannel || null,
+        mentionConfirmationToken
+      }
+    };
+  }
+
+  function sendPreparedPost(post: PreparedPost, mentionConfirmationToken: string | null) {
+    return connection().client.mutation(
+      PostMessageMutation,
+      buildPostVariables(post, mentionConfirmationToken)
+    );
+  }
+
+  function restorePreparedPost(post: PreparedPost) {
+    message = post.bodyToSend;
+    editorApi?.setContent(post.bodyToSend);
+    if (post.filesToSend) {
+      attachments.restore(attachments.filesToPreviewItems(post.filesToSend));
+    }
+  }
+
+  function handlePostFailure(error: unknown, post: PreparedPost) {
+    toast.error('Failed to send message');
+    console.error('Error posting message:', error);
+    restorePreparedPost(post);
+  }
+
+  function handlePostSuccess(
+    response: Awaited<ReturnType<typeof sendPreparedPost>>,
+    post: PreparedPost
+  ) {
+    const postedEvent = response.data?.postMessage
+      ? useFragment(RoomEventViewFragmentDoc, response.data.postMessage)
+      : null;
+
+    // Notify parent before scrolling so it can synchronously ingest the
+    // returned event and make the target row available.
+    onMessageSent?.(postedEvent);
+
+    // Scroll the enclosing pane to the user's new message. The composer
+    // reads `scrollState` from its surrounding ComposerContext, so this
+    // targets the main room's EventList in a room composer and the
+    // thread's EventList in a thread composer.
+    scrollState?.requestScrollToBottom();
+
+    // Clear reply-in-room state after sending
+    onCancelReply?.();
+
+    // Mark this room as read (we just posted, so we've seen all messages)
+    roomUnreadStore.setRoomUnread(post.roomId, false);
+
+    // Reset "also send to channel" checkbox after successful send
+    alsoSendToChannel = false;
+  }
+
+  function cancelMentionConfirmation() {
+    const pendingPost = pendingMentionConfirmation;
+    pendingMentionConfirmation = null;
+    if (pendingPost) {
+      restorePreparedPost(pendingPost);
+    }
+  }
+
+  async function confirmMentionSend() {
+    const pendingPost = pendingMentionConfirmation;
+    if (!pendingPost || mentionConfirmationLoading) return;
+
+    mentionConfirmationLoading = true;
+    try {
+      const response = await sendPreparedPost(pendingPost, pendingPost.token);
+      pendingMentionConfirmation = null;
+
+      if (response.error) {
+        handlePostFailure(response.error, pendingPost);
+      } else {
+        handlePostSuccess(response, pendingPost);
+      }
+    } finally {
+      mentionConfirmationLoading = false;
+    }
+  }
+
   async function postMessage() {
     // Require either non-empty message body or attachments.
     // hasVisibleContent rejects messages with only invisible Unicode characters.
@@ -391,7 +498,15 @@
       attachments.selectedFiles.length > 0 ? [...attachments.selectedFiles] : null;
     if (!hasBody && !filesToSend) return;
 
-    const linkPreviewInput = linkPreviews.buildInput();
+    const preparedPost: PreparedPost = {
+      roomId,
+      bodyToSend,
+      filesToSend,
+      threadRootEventId: inThread ?? null,
+      inReplyTo: inReplyTo ?? null,
+      linkPreviewInput: linkPreviews.buildInput(),
+      alsoSendToChannel
+    };
 
     // Optimistically clear the editor so the user can start typing the next
     // message immediately (matches Slack/Discord behavior).
@@ -403,75 +518,17 @@
     loading = true;
 
     try {
-      const buildInput = (mentionConfirmationToken: string | null) => ({
-        input: {
-          roomId,
-          body: bodyToSend || null,
-          attachments: filesToSend,
-          threadRootEventId: inThread ?? null,
-          inReplyTo: inReplyTo ?? null,
-          linkPreview: linkPreviewInput,
-          alsoSendToChannel: alsoSendToChannel || null,
-          mentionConfirmationToken
-        }
-      });
-
-      let response = await connection().client.mutation(PostMessageMutation, buildInput(null));
+      const response = await sendPreparedPost(preparedPost, null);
 
       if (response.error) {
         const confirmation = mentionConfirmation(response.error);
         if (confirmation !== null) {
-          const confirmed = window.confirm(
-            `This message will notify ${confirmation.recipientCount} people. Send it anyway?`
-          );
-          if (confirmed) {
-            response = await connection().client.mutation(
-              PostMessageMutation,
-              buildInput(confirmation.token)
-            );
-          } else {
-            message = bodyToSend;
-            editorApi?.setContent(bodyToSend);
-            if (filesToSend) {
-              attachments.restore(attachments.filesToPreviewItems(filesToSend));
-            }
-            return;
-          }
+          pendingMentionConfirmation = { ...preparedPost, ...confirmation };
+          return;
         }
-      }
-
-      if (response.error) {
-        toast.error('Failed to send message');
-        console.error('Error posting message:', response.error);
-        // Restore message so user can retry without retyping
-        message = bodyToSend;
-        editorApi?.setContent(bodyToSend);
-        if (filesToSend) {
-          attachments.restore(attachments.filesToPreviewItems(filesToSend));
-        }
+        handlePostFailure(response.error, preparedPost);
       } else {
-        const postedEvent = response.data?.postMessage
-          ? useFragment(RoomEventViewFragmentDoc, response.data.postMessage)
-          : null;
-
-        // Notify parent before scrolling so it can synchronously ingest the
-        // returned event and make the target row available.
-        onMessageSent?.(postedEvent);
-
-        // Scroll the enclosing pane to the user's new message. The composer
-        // reads `scrollState` from its surrounding ComposerContext, so this
-        // targets the main room's EventList in a room composer and the
-        // thread's EventList in a thread composer.
-        scrollState?.requestScrollToBottom();
-
-        // Clear reply-in-room state after sending
-        onCancelReply?.();
-
-        // Mark this room as read (we just posted, so we've seen all messages)
-        roomUnreadStore.setRoomUnread(roomId, false);
-
-        // Reset "also send to channel" checkbox after successful send
-        alsoSendToChannel = false;
+        handlePostSuccess(response, preparedPost);
       }
     } finally {
       loading = false;
@@ -847,6 +904,20 @@
     </div>
   {/if}
 </div>
+
+{#if pendingMentionConfirmation}
+  <ConfirmDialog
+    title={`Notify ${pendingMentionConfirmation.recipientCount} people?`}
+    tone="warning"
+    actionLabel="Send Anyway"
+    actionIcon="iconify uil--telegram-alt"
+    loading={mentionConfirmationLoading}
+    onconfirm={confirmMentionSend}
+    onclose={cancelMentionConfirmation}
+  >
+    This message will notify {pendingMentionConfirmation.recipientCount} people. Send it anyway?
+  </ConfirmDialog>
+{/if}
 
 <style>
   .sending {
