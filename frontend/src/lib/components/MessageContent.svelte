@@ -16,14 +16,12 @@
     members = [],
     roleHandles = [],
     edited = false,
-    variant = 'message',
     onMentionClick
   }: {
     body: string;
     members?: RoomMember[];
     roleHandles?: string[];
     edited?: boolean;
-    variant?: 'message' | 'document';
     onMentionClick?: (userId: string, anchorRect: DOMRect) => void;
   } = $props();
 
@@ -108,11 +106,7 @@
   }
 </script>
 
-<div
-  class={['prose max-w-none min-w-0', variant === 'document' && 'prose-document']}
-  role="presentation"
-  onclick={handleContentClick}
->
+<div class="prose max-w-none min-w-0" role="presentation" onclick={handleContentClick}>
   {#await render(body, members, roleHandles, edited, viewerLogin)}
     <!-- Show escaped body while loading -->
     <!-- eslint-disable-next-line svelte/no-at-html-tags -->

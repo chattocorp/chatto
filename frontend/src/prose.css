@@ -17,7 +17,7 @@
 
   /* Block element spacing */
   & > * + * {
-    margin-top: var(--prose-block-gap, 0.75em);
+    margin-top: 0.75em;
   }
 
   /* Headings: inherited font size, bold, underlined. */
@@ -209,52 +209,6 @@
   & th {
     font-weight: 600;
     background-color: var(--color-surface-100);
-  }
-}
-
-.prose.prose-document {
-  --prose-block-gap: 0.85em;
-
-  line-height: 1.6;
-
-  & h1,
-  & h2,
-  & h3,
-  & h4,
-  & h5,
-  & h6 {
-    line-height: 1.25;
-    text-decoration: none;
-  }
-
-  & h1 {
-    font-size: 1.25em;
-  }
-
-  & h2 {
-    font-size: 1.15em;
-  }
-
-  & h3 {
-    font-size: 1.05em;
-  }
-
-  & > * + h1,
-  & > * + h2,
-  & > * + h3,
-  & > * + h4,
-  & > * + h5,
-  & > * + h6 {
-    margin-top: 1.25em;
-  }
-
-  & > h1 + *,
-  & > h2 + *,
-  & > h3 + *,
-  & > h4 + *,
-  & > h5 + *,
-  & > h6 + * {
-    margin-top: 0.65em;
   }
 }
 

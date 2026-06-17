@@ -11,9 +11,6 @@
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import Hint from '$lib/ui/Hint.svelte';
   import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
-  import MarkdownEditor, {
-    type MarkdownEditorApi
-  } from '$lib/components/markdown/MarkdownEditor.svelte';
   import { Button, TextArea, TextInput } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
 
@@ -72,7 +69,6 @@
   let information = $state('');
   let savingDetails = $state(false);
   let savingInformation = $state(false);
-  let informationEditorApi = $state<MarkdownEditorApi | null>(null);
 
   function seedRoom(room: {
     id: string;
@@ -89,7 +85,6 @@
     name = original.name;
     description = original.description;
     information = original.information;
-    informationEditorApi?.setContent(information);
   }
 
   const roomQuery = useQuery(AdminRoomDetailQuery, () => ({ roomId }), {
@@ -182,7 +177,6 @@
         information: updated.information ?? ''
       };
       information = original.information;
-      informationEditorApi?.setContent(information);
       toast.success('Room information saved');
     } finally {
       savingInformation = false;
@@ -246,20 +240,17 @@
         <div>
           <h2 class="text-lg font-semibold">Room Information</h2>
         </div>
-        <div class="min-h-36 rounded-lg border border-border bg-surface p-3">
-          <MarkdownEditor
-            placeholder="Add Markdown-formatted room information..."
-            editable={!savingInformation}
-            variant="document"
-            testid="room-information-editor"
-            editorClass="max-h-120 min-h-72"
-            onUpdate={(value) => (information = value)}
-            onReady={(api) => {
-              informationEditorApi = api;
-              api.setContent(information);
-            }}
-          />
-        </div>
+        <TextArea
+          id="room-information"
+          label="Markdown"
+          bind:value={information}
+          rows={12}
+          maxlength={ROOM_INFORMATION_MAX_LENGTH}
+          disabled={savingInformation}
+          error={informationError}
+          placeholder="Add Markdown-formatted room information..."
+          testid="room-information-editor"
+        />
         <div class="flex items-center justify-between gap-3">
           <p class={['text-sm', informationError ? 'text-danger' : 'text-muted']}>
             {information.length}/{ROOM_INFORMATION_MAX_LENGTH}

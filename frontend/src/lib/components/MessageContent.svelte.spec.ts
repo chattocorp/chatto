@@ -87,26 +87,6 @@ describe('renderMarkdown', () => {
       expect(html).toContain('<br>');
     });
 
-    it('renders repeated blank markdown lines with normal Markdown block semantics', async () => {
-      const html = await renderMarkdown('Stuff\n\n\n\nNo Stuff\n\n\n\n- item');
-
-      expect(html).not.toContain('preserved-blank-line');
-      expect(html).toContain('<p>Stuff</p>');
-      expect(html).toContain('<p>No Stuff</p>');
-      expect(html).toContain('<ul>');
-      expect(html).toContain('item');
-    });
-
-    it('renders headings and paragraphs as semantic Markdown blocks', async () => {
-      const html = await renderMarkdown('## title\n\ntext\n\n## another title\n\nanother text');
-
-      expect(html).not.toContain('preserved-blank-line');
-      expect(html).toContain('<h2>title</h2>');
-      expect(html).toContain('<p>text</p>');
-      expect(html).toContain('<h2>another title</h2>');
-      expect(html).toContain('<p>another text</p>');
-    });
-
     it('auto-links plain https URLs', async () => {
       const html = await renderMarkdown('Check out https://example.com for more');
       expect(html).toContain('href="https://example.com"');

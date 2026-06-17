@@ -362,49 +362,6 @@ describe('RoomSidebar', () => {
     expect(container.querySelector('[aria-label="Members"]')).toBeFalsy();
   });
 
-  it('renders room information with document prose', async () => {
-    const { container } = render(RoomSidebarTestHarness, {
-      props: {
-        activePanel: 'information',
-        roomData: roomData(
-          [member(1)],
-          1,
-          false,
-          'Stuff\n\n\n\nhttps://docs.chatto.run\nhttps://chatto.run\nhttps://hmans.dev\n\n\n\nNo Stuff\n\n\n\n- Office Hours Fridays 11-13 CEST\n- I like pie'
-        )
-      }
-    });
-
-    await vi.waitFor(() => {
-      expect(container.querySelector('.prose-document')).toBeTruthy();
-      expect(container.querySelectorAll('.preserved-blank-line')).toHaveLength(0);
-      expect(container.querySelector('.prose li')?.textContent).toBe(
-        'Office Hours Fridays 11-13 CEST'
-      );
-    });
-  });
-
-  it('renders room information headings as semantic Markdown blocks', async () => {
-    const { container } = render(RoomSidebarTestHarness, {
-      props: {
-        activePanel: 'information',
-        roomData: roomData(
-          [member(1)],
-          1,
-          false,
-          '## title\n\ntext\n\n## another title\n\nanother text'
-        )
-      }
-    });
-
-    await vi.waitFor(() => {
-      expect(container.querySelectorAll('.prose h2')).toHaveLength(2);
-      expect(container.querySelector('.prose h2')?.textContent).toBe('title');
-      expect(container.querySelector('.prose p')?.textContent).toBe('text');
-    });
-    expect(container.querySelectorAll('.preserved-blank-line')).toHaveLength(0);
-  });
-
   it('links room managers to the room information editor', async () => {
     const { container } = render(RoomSidebarTestHarness, {
       props: {

@@ -18,9 +18,7 @@ caller, not here.
     placeholder,
     editable = true,
     autofocus = false,
-    variant = 'compact',
     testid,
-    editorClass,
     onUpdate,
     onKeyDown,
     onPaste,
@@ -29,9 +27,7 @@ caller, not here.
     placeholder?: string;
     editable?: boolean;
     autofocus?: boolean;
-    variant?: 'compact' | 'document';
     testid?: string;
-    editorClass?: string;
     onUpdate?: (markdown: string) => void;
     onKeyDown?: (event: KeyboardEvent) => boolean;
     onPaste?: (event: ClipboardEvent) => boolean;
@@ -43,9 +39,7 @@ caller, not here.
   {placeholder}
   {editable}
   {autofocus}
-  {variant}
   {testid}
-  {editorClass}
   {onUpdate}
   {onKeyDown}
   {onPaste}

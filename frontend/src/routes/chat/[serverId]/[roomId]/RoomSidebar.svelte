@@ -230,7 +230,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
           <div class="skeleton h-4 w-5/6 rounded"></div>
         </div>
       {:else if information?.trim()}
-        <MessageContent body={information} variant="document" />
+        <MessageContent body={information} />
       {:else}
         <div class="flex min-h-0 flex-1 items-center justify-center text-center text-sm text-muted">
           No room information has been added yet.
