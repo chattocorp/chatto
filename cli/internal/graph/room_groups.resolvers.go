@@ -7,6 +7,7 @@ package graph
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"hmans.de/chatto/internal/core"
@@ -147,17 +148,33 @@ func (r *mutationResolver) MoveRoomToGroup(ctx context.Context, input model.Move
 	if err != nil {
 		return nil, err
 	}
-	if err := r.requireGroupManageAuth(ctx, user.Id); err != nil {
-		return nil, err
+
+	for attempt := 0; attempt < 5; attempt++ {
+		room, err := r.core.GetRoom(ctx, core.KindChannel, input.RoomID)
+		if err != nil {
+			return nil, err
+		}
+		sourceGroupID := room.GroupId
+		if err := r.requireRoomGroupRoomManageAuth(ctx, user.Id, sourceGroupID); err != nil {
+			return nil, err
+		}
+		if err := r.requireRoomGroupRoomManageAuth(ctx, user.Id, input.GroupID); err != nil {
+			return nil, err
+		}
+		if err := r.core.MoveRoomToGroupFromSource(ctx, user.Id, input.RoomID, sourceGroupID, input.GroupID); err != nil {
+			if errors.Is(err, core.ErrRoomMoveSourceChanged) {
+				continue
+			}
+			return nil, err
+		}
+		room, err = r.core.GetRoom(ctx, core.KindChannel, input.RoomID)
+		if err != nil {
+			return nil, err
+		}
+		return room, nil
 	}
-	if err := r.core.MoveRoomToGroup(ctx, user.Id, input.RoomID, input.GroupID); err != nil {
-		return nil, err
-	}
-	room, err := r.core.GetRoom(ctx, core.KindChannel, input.RoomID)
-	if err != nil {
-		return nil, err
-	}
-	return room, nil
+
+	return nil, fmt.Errorf("move room source authorization retry exhausted: %w", core.ErrRoomMoveSourceChanged)
 }
 
 // ReorderRoomsInGroup is the resolver for the reorderRoomsInGroup field.

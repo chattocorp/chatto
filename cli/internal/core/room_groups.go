@@ -43,6 +43,7 @@ var (
 	ErrRoomGroupHasRooms        = errors.New("room group has rooms; move them out before deleting")
 	ErrRoomGroupNameEmpty       = errors.New("room group name must not be empty")
 	ErrRoomGroupOrderMismatch   = errors.New("room group order must be a permutation of existing groups")
+	ErrRoomMoveSourceChanged    = errors.New("room move source group changed")
 	ErrSidebarLinkNotFound      = errors.New("sidebar link not found")
 	ErrSidebarLinkSourceChanged = errors.New("sidebar link source group changed")
 	ErrSidebarLinkLabelEmpty    = errors.New("sidebar link label must not be empty")
@@ -293,6 +294,18 @@ func (c *ChattoCore) DeleteRoomGroup(ctx context.Context, actorID, groupID strin
 // Authorization for the source and target groups must be checked by
 // the caller — see ADR-031's two-group rule.
 func (c *ChattoCore) MoveRoomToGroup(ctx context.Context, actorID, roomID, targetGroupID string) error {
+	return c.moveRoomToGroup(ctx, actorID, roomID, "", targetGroupID, false)
+}
+
+// MoveRoomToGroupFromSource moves a room only if the room's current source
+// group still matches sourceGroupID. API callers that authorize the source
+// group before calling core should use this variant so a concurrent move
+// cannot swap the source group between authorization and append.
+func (c *ChattoCore) MoveRoomToGroupFromSource(ctx context.Context, actorID, roomID, sourceGroupID, targetGroupID string) error {
+	return c.moveRoomToGroup(ctx, actorID, roomID, sourceGroupID, targetGroupID, true)
+}
+
+func (c *ChattoCore) moveRoomToGroup(ctx context.Context, actorID, roomID, authorizedSourceGroupID, targetGroupID string, bindSource bool) error {
 	occFilter := events.GroupSubjectFilter()
 	for attempt := 0; attempt < maxMoveRoomToGroupRetries; attempt++ {
 		snapshot := c.RoomGroups.MoveSnapshot(roomID, targetGroupID)
@@ -307,6 +320,9 @@ func (c *ChattoCore) MoveRoomToGroup(ctx context.Context, actorID, roomID, targe
 		}
 
 		sourceGroupID := snapshot.SourceGroupID
+		if bindSource && sourceGroupID != authorizedSourceGroupID {
+			return ErrRoomMoveSourceChanged
+		}
 		if sourceGroupID == targetGroupID {
 			if err := c.rooms().waitForGroupLayoutCurrent(ctx, c.EventPublisher); err != nil {
 				return fmt.Errorf("wait for room group layout projection before no-op decision: %w", err)
@@ -315,6 +331,9 @@ func (c *ChattoCore) MoveRoomToGroup(ctx context.Context, actorID, roomID, targe
 			sourceGroupID = snapshot.SourceGroupID
 			if !snapshot.TargetExists {
 				return ErrRoomGroupNotFound
+			}
+			if bindSource && sourceGroupID != authorizedSourceGroupID {
+				return ErrRoomMoveSourceChanged
 			}
 			if sourceGroupID != targetGroupID {
 				continue
