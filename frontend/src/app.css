@@ -333,7 +333,7 @@
 }
 
 @utility sidebar-item {
-  @apply relative flex w-full shrink-0 cursor-pointer items-center gap-2 overflow-hidden rounded-md px-3 py-1.5 text-text;
+  @apply relative flex w-full shrink-0 cursor-pointer items-center gap-2 overflow-hidden rounded-md px-1 py-1 text-text;
   @apply hover:bg-surface-100 hover:text-text;
 }
 

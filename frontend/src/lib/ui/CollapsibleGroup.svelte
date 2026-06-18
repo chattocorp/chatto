@@ -70,7 +70,7 @@ offline member groups).
   <button
     type="button"
     onclick={toggle}
-    class="flex w-full cursor-pointer items-center gap-2 px-3 py-1 text-xs font-semibold tracking-wider text-muted uppercase transition-colors hover:text-text"
+    class="flex w-full cursor-pointer items-center gap-2 px-1 py-1 text-xs font-semibold tracking-wider text-muted uppercase transition-colors hover:text-text"
   >
     <span class="sidebar-icon">
       <span
