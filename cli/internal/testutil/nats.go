@@ -17,6 +17,7 @@ var (
 	sharedNATSMu     sync.Mutex
 	sharedNATSOnce   sync.Once
 	sharedNATSServer *server.Server
+	sharedNATSStore  string
 	sharedNATSErr    error
 )
 
@@ -75,6 +76,27 @@ func StartSharedNATS(t testing.TB) (*server.Server, *nats.Conn) {
 	ResetChattoJetStream(t, nc)
 
 	return ns, nc
+}
+
+// ShutdownSharedNATS stops the package-shared embedded server and removes its
+// JetStream store directory. Packages that use StartSharedNATS should call this
+// from TestMain after m.Run so the store survives for the whole package test
+// process but does not leak under the system temp directory.
+func ShutdownSharedNATS() {
+	sharedNATSMu.Lock()
+	defer sharedNATSMu.Unlock()
+
+	if sharedNATSServer != nil {
+		sharedNATSServer.Shutdown()
+		sharedNATSServer.WaitForShutdown()
+		sharedNATSServer = nil
+	}
+	if sharedNATSStore != "" {
+		_ = os.RemoveAll(sharedNATSStore)
+		sharedNATSStore = ""
+	}
+	sharedNATSErr = nil
+	sharedNATSOnce = sync.Once{}
 }
 
 // ResetChattoJetStream deletes the durable resources Chatto test cores create.
@@ -157,6 +179,7 @@ func sharedNATS(t testing.TB) *server.Server {
 			sharedNATSErr = err
 			return
 		}
+		sharedNATSStore = storeDir
 
 		sharedNATSServer, sharedNATSErr = server.NewServer(&server.Options{
 			JetStream:  true,
