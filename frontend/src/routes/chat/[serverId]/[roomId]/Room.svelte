@@ -141,6 +141,9 @@
 
   // Room permissions — derived reactively, no $effect needed
   let permissions = $derived(room.roomData ?? DEFAULT_ROOM_PERMISSIONS);
+  let composerCanAttach = $derived(
+    room.roomData === undefined ? true : permissions.canAttach
+  );
 
   createRoomPermissions(() => permissions);
 
@@ -470,7 +473,7 @@
         <MessageComposer
           {roomId}
           canPost={permissions.canPostMessage}
-          canAttach={permissions.canAttach}
+          canAttach={composerCanAttach}
           inReplyTo={replyState.messageEventId ?? undefined}
           replyDisplayName={replyState.actorDisplayName || undefined}
           replyExcerpt={replyState.excerpt || undefined}
