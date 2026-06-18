@@ -10,7 +10,12 @@
   const stores = serverRegistry.getStore(getActiveServer());
   const notificationStore = stores.notifications;
   import { appState } from '$lib/state/globals.svelte';
-  import { getRoomMembers, createComposerContext, MessagesStore } from '$lib/state/room';
+  import {
+    getRoomMembers,
+    createComposerContext,
+    MessagesStore,
+    type QuoteInsertionRequest
+  } from '$lib/state/room';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import HeaderIconButton from '$lib/ui/HeaderIconButton.svelte';
   import MessageComposer, {
@@ -28,7 +33,9 @@
     canAttach = true,
     canEchoMessage = false,
     highlightEventId = null,
-    onHighlightComplete
+    pendingQuote = null,
+    onHighlightComplete,
+    onQuoteConsumed
   }: {
     roomId: string;
     roomName: string;
@@ -38,7 +45,9 @@
     canAttach?: boolean;
     canEchoMessage?: boolean;
     highlightEventId?: string | null;
+    pendingQuote?: QuoteInsertionRequest | null;
     onHighlightComplete?: () => void;
+    onQuoteConsumed?: () => void;
   } = $props();
 
   const connection = useConnection();
@@ -86,6 +95,8 @@
   // not the main room's.
   const composerContext = createComposerContext({ scroll: true });
   const replyState = composerContext.replyState;
+  let consumedQuoteId = 0;
+  let composerApi = $state<MessageComposerApi | null>(null);
 
   // Thread-scoped jump state so "in reply to" clicks scroll within the thread.
   const jumpState = composerContext.jumpState;
@@ -105,6 +116,16 @@
   $effect(() => {
     if (!highlightEventId || store.isInitialLoading) return;
     jumpState.jumpToMessage(highlightEventId);
+  });
+
+  $effect(() => {
+    const quote = pendingQuote;
+    const api = composerApi;
+    if (!quote || !api || quote.id === consumedQuoteId) return;
+
+    consumedQuoteId = quote.id;
+    composerContext.quoteInsertionState.requestInsertQuote(quote.text);
+    onQuoteConsumed?.();
   });
 
   // Subscribe to server events: clear typing indicator on a thread reply,
@@ -338,7 +359,10 @@
     {canAttach}
     showAlsoSendToChannel={canEchoMessage}
     onEscape={onClose}
-    onReady={(api: MessageComposerApi) => api.focus()}
+    onReady={(api: MessageComposerApi) => {
+      composerApi = api;
+      api.focus();
+    }}
     onTyping={() => typingIndicator?.sendTypingIndicator()}
     onMessageSent={(event) => {
       typingIndicator?.resetDebounce();

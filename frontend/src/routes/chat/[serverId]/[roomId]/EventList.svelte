@@ -80,7 +80,11 @@
     // Event updates
     updateCounter?: number;
     // Threading
-    onOpenThread?: (threadRootEventId: string, highlightEventId?: string) => void;
+    onOpenThread?: (
+      threadRootEventId: string,
+      highlightEventId?: string,
+      quoteText?: string
+    ) => void;
     // Filtering
     filterThreadReplies?: boolean;
     // Up-arrow-to-edit
@@ -713,13 +717,14 @@
     if (eventData.__typename === 'MessagePostedEvent') {
       // Echoes open the original thread
       if (eventData.echoOfEventId != null) {
-        return (_threadRootEventId: string, highlightEventId?: string) =>
-          onOpenThread(eventData.echoFromThreadRootEventId!, highlightEventId);
+        return (_threadRootEventId: string, highlightEventId?: string, quoteText?: string) =>
+          onOpenThread(eventData.echoFromThreadRootEventId!, highlightEventId, quoteText);
       }
       // Thread replies don't open threads from the main channel
       if (eventData.threadRootEventId !== null) return undefined;
       // Root messages open their own thread
-      return () => onOpenThread(event.id);
+      return (_threadRootEventId?: string, _highlightEventId?: string, quoteText?: string) =>
+        onOpenThread(event.id, undefined, quoteText);
     }
 
     return undefined;

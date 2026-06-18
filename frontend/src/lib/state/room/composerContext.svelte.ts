@@ -51,6 +51,30 @@ export class ReplyState {
 }
 
 // ---------------------------------------------------------------------------
+// QuoteInsertionState — one-shot requests to insert selected reply quotes
+// ---------------------------------------------------------------------------
+
+export type QuoteInsertionRequest = {
+  id: number;
+  text: string;
+};
+
+export class QuoteInsertionState {
+  request = $state<QuoteInsertionRequest | null>(null);
+  private nextRequestId = 1;
+
+  requestInsertQuote(text: string) {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+
+    this.request = {
+      id: this.nextRequestId++,
+      text: trimmed
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
 // LastEditableMessageContext — finder for up-arrow-to-edit
 // ---------------------------------------------------------------------------
 
@@ -157,6 +181,7 @@ export interface ComposerContextOptions {
 export class ComposerContext {
   readonly editState = new EditState();
   readonly replyState = new ReplyState();
+  readonly quoteInsertionState = new QuoteInsertionState();
   readonly lastEditableMessage = new LastEditableMessageContext();
   readonly jumpState = new JumpToMessageState();
   readonly scrollState: ScrollState | null;

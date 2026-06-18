@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
@@ -39,6 +39,31 @@ async function postReplyViaAPI(
   });
   const json = await response.json();
   return json.data.postMessage.id;
+}
+
+async function selectTextInside(locator: Locator, selectedText: string): Promise<void> {
+  await locator.evaluate((root, text) => {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let node: Node | null = walker.nextNode();
+
+    while (node) {
+      const value = node.textContent ?? '';
+      const index = value.indexOf(text);
+      if (index !== -1) {
+        const range = document.createRange();
+        range.setStart(node, index);
+        range.setEnd(node, index + text.length);
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        return;
+      }
+
+      node = walker.nextNode();
+    }
+
+    throw new Error(`Could not find text to select: ${text}`);
+  }, selectedText);
 }
 
 async function getIdsFromUrl(page: Page): Promise<{ spaceId: string; roomId: string }> {
@@ -309,6 +334,71 @@ test.describe('Message Threading', () => {
     await waitForRoomReady(page);
     await expect(page.getByText(roomReplyText)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
     await expect(page.getByText('1 reply')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+  });
+
+  test('reply quotes selected message text in the room composer', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    const user = await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+
+    const timestamp = Date.now();
+    const selectedText = `selected room quote ${timestamp}`;
+    const rootBody = `Before ${selectedText} after`;
+    const rootMsg = await roomPage.sendMessage(rootBody);
+
+    await selectTextInside(rootMsg.locator, selectedText);
+    await rootMsg.replyInRoom();
+
+    await expect(page.getByText('Replying to')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(roomPage.messageInput.locator('blockquote')).toContainText(selectedText, {
+      timeout: TIMEOUTS.UI_STANDARD
+    });
+
+    const replyBody = `Room quote reply ${timestamp}`;
+    await page.keyboard.type(replyBody);
+    await roomPage.messageInput.press('Control+Enter');
+
+    const reply = roomPage.getMessage(replyBody);
+    await expect(reply.locator).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(reply.locator.locator('blockquote')).toContainText(selectedText);
+    await expect(reply.locator.getByTestId('reply-attribution-author')).toContainText(
+      user.displayName
+    );
+  });
+
+  test('reply in thread quotes selected message text in the thread composer', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+
+    const timestamp = Date.now();
+    const selectedText = `selected thread quote ${timestamp}`;
+    const rootBody = `Before ${selectedText} after`;
+    const rootMsg = await roomPage.sendMessage(rootBody);
+
+    await selectTextInside(rootMsg.locator, selectedText);
+    await rootMsg.openThread();
+    await roomPage.expectThreadPaneVisible();
+
+    await expect(roomPage.threadReplyInput.locator('blockquote')).toContainText(selectedText, {
+      timeout: TIMEOUTS.UI_STANDARD
+    });
+
+    const replyBody = `Thread quote reply ${timestamp}`;
+    await page.keyboard.type(replyBody);
+    await roomPage.threadReplyInput.press('Control+Enter');
+
+    const reply = roomPage.getThreadMessage(replyBody);
+    await expect(reply.locator).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(reply.locator.locator('blockquote')).toContainText(selectedText);
   });
 
   test('switching threads clears previous thread messages', async ({

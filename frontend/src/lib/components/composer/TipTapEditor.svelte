@@ -18,7 +18,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 -->
 <script lang="ts">
   import { tick, untrack } from 'svelte';
-  import { Editor, Extension, InputRule, mergeAttributes } from '@tiptap/core';
+  import { Editor, Extension, InputRule, mergeAttributes, type JSONContent } from '@tiptap/core';
   import type { Node as ProseMirrorNode, Schema } from '@tiptap/pm/model';
   import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state';
   import StarterKit from '@tiptap/starter-kit';
@@ -666,6 +666,8 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
      * length relative to the cursor.
      */
     replaceTextBeforeCursor: (charCount: number, replacement: string) => void;
+    /** Insert selected reply text as a blockquote at the current cursor. */
+    insertQuote: (text: string) => void;
     /** Insert the same block break the editor would create for a plain Enter key. */
     insertBlockBreak: () => void;
   };
@@ -978,6 +980,29 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           .focus()
           .deleteRange({ from: from - charCount, to: from })
           .insertContent(replacement)
+          .run();
+        tick().then(syncControls);
+      },
+
+      insertQuote: (text: string) => {
+        if (e.isDestroyed) return;
+        const normalized = text.replace(/\r\n?/g, '\n').trim();
+        if (!normalized) return;
+
+        const quoteParagraphs: JSONContent[] = normalized.split('\n').map((line) => ({
+          type: 'paragraph',
+          content: line ? [{ type: 'text', text: line }] : undefined
+        }));
+
+        e.chain()
+          .focus()
+          .insertContent([
+            {
+              type: 'blockquote',
+              content: quoteParagraphs
+            },
+            { type: 'paragraph' }
+          ])
           .run();
         tick().then(syncControls);
       },

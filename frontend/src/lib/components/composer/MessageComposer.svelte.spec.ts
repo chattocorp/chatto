@@ -53,6 +53,9 @@ const roomStateMock = vi.hoisted(() => ({
     startEdit: vi.fn(),
     cancelEdit: vi.fn()
   },
+  quoteInsertionState: {
+    request: null as { id: number; text: string } | null
+  },
   lastEditableMessage: {
     getLastEditableMessage: vi.fn(() => null as { eventId: string; body: string } | null),
     setFinder: vi.fn()
@@ -116,6 +119,7 @@ vi.mock('$lib/state/room', () => ({
   }),
   getComposerContext: () => ({
     editState: roomStateMock.editState,
+    quoteInsertionState: roomStateMock.quoteInsertionState,
     lastEditableMessage: roomStateMock.lastEditableMessage,
     scrollState: roomStateMock.scrollState
   })
@@ -293,6 +297,7 @@ describe('MessageComposer', () => {
     roomStateMock.editState.originalBody = '';
     roomStateMock.editState.startEdit.mockClear();
     roomStateMock.editState.cancelEdit.mockClear();
+    roomStateMock.quoteInsertionState.request = null;
     roomStateMock.lastEditableMessage.getLastEditableMessage.mockReset();
     roomStateMock.lastEditableMessage.getLastEditableMessage.mockReturnValue(null);
     roomStateMock.lastEditableMessage.setFinder.mockClear();
@@ -1199,6 +1204,76 @@ describe('MessageComposer', () => {
         roomId,
         body: 'hello from shortcut'
       });
+    });
+
+    it('inserts selected reply quotes without replacing draft text', async () => {
+      let composerApi: MessageComposerApi | null = null;
+      const { container } = renderMessageComposer(
+        {
+          roomId: 'room_456',
+          onReady: (api) => {
+            composerApi = api;
+          }
+        },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+
+      await typeInEditor(editor, 'draft');
+      await vi.waitFor(() => expect(composerApi).not.toBeNull());
+      composerApi!.insertQuote('quoted text');
+
+      await vi.waitFor(() => expect(editor.querySelector('blockquote')).toBeTruthy());
+      expect(editor.textContent).toContain('draft');
+      expect(editor.querySelector('blockquote')?.textContent).toBe('quoted text');
+    });
+
+    it('submits inserted selected reply quotes as blockquote markdown', async () => {
+      let composerApi: MessageComposerApi | null = null;
+      const { container, roomId } = renderMessageComposer(
+        {
+          roomId: 'room_456',
+          onReady: (api) => {
+            composerApi = api;
+          }
+        },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+
+      await typeInEditor(editor, 'draft');
+      await vi.waitFor(() => expect(composerApi).not.toBeNull());
+      composerApi!.insertQuote('quoted text');
+      await vi.waitFor(() => expect(editor.querySelector('blockquote')).toBeTruthy());
+
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: 'draft\n\n> quoted text'
+      });
+    });
+
+    it('preserves line breaks inside inserted reply quotes', async () => {
+      let composerApi: MessageComposerApi | null = null;
+      const { container } = renderMessageComposer(
+        {
+          roomId: 'room_456',
+          onReady: (api) => {
+            composerApi = api;
+          }
+        },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+
+      await vi.waitFor(() => expect(composerApi).not.toBeNull());
+      composerApi!.insertQuote('first line\nsecond line');
+
+      await vi.waitFor(() => expect(editor.querySelector('blockquote')).toBeTruthy());
+      expect(editor.querySelectorAll('blockquote p')).toHaveLength(2);
+      expect(editor.querySelector('blockquote')?.textContent).toBe('first linesecond line');
     });
 
     it('activates rich mode with Ctrl+Enter in simple mode', async () => {

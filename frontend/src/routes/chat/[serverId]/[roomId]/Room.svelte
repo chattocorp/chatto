@@ -61,9 +61,12 @@
 
   // Thread navigation functions (URL-driven state)
   let pendingThreadHighlight = $state<string | null>(null);
+  let pendingThreadQuote = $state<{ id: number; text: string } | null>(null);
+  let pendingThreadQuoteId = 0;
 
-  function openThread(threadRootEventId: string, highlightEventId?: string) {
+  function openThread(threadRootEventId: string, highlightEventId?: string, quoteText?: string) {
     pendingThreadHighlight = highlightEventId ?? null;
+    pendingThreadQuote = quoteText ? { id: ++pendingThreadQuoteId, text: quoteText } : null;
     goto(
       resolve('/chat/[serverId]/[roomId]/[threadId]', {
         serverId: serverSegment,
@@ -503,8 +506,12 @@
           canAttach={room.roomData.canAttach}
           canEchoMessage={room.roomData.canEchoMessage && room.roomData.canPostMessage}
           highlightEventId={pendingThreadHighlight}
+          pendingQuote={pendingThreadQuote}
           onHighlightComplete={() => {
             pendingThreadHighlight = null;
+          }}
+          onQuoteConsumed={() => {
+            pendingThreadQuote = null;
           }}
         />
       {/if}

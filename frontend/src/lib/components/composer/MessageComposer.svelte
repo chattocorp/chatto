@@ -56,6 +56,7 @@
   export type MessageComposerApi = {
     addFiles: (files: File[]) => void;
     focus: () => void;
+    insertQuote: (text: string) => void;
   };
 
   let {
@@ -112,6 +113,7 @@
 
   const composerContext = getComposerContext();
   const editState = composerContext.editState;
+  const quoteInsertionState = composerContext.quoteInsertionState;
   const lastEditableMessageCtx = composerContext.lastEditableMessage;
   const scrollState = composerContext.scrollState;
   const isEditing = $derived(editState.eventId !== null);
@@ -409,9 +411,23 @@
     tick().then(() => editorApi?.focus());
   }
 
+  function insertQuote(text: string) {
+    tick().then(() => editorApi?.insertQuote(text));
+  }
+
+  let insertedQuoteRequestId = 0;
+  $effect(() => {
+    const request = quoteInsertionState.request;
+    const api = editorApi;
+    if (!request || !api || request.id === insertedQuoteRequestId) return;
+
+    insertedQuoteRequestId = request.id;
+    api.insertQuote(request.text);
+  });
+
   // Expose API to parent via onReady callback
   $effect(() => {
-    onReady?.({ addFiles, focus });
+    onReady?.({ addFiles, focus, insertQuote });
   });
 
   // Handle paste events - intercept images before TipTap processes them

@@ -12,7 +12,8 @@ export {
 export type {
   ComposerContextOptions,
   EditableMessage,
-  FindLastEditableMessage
+  FindLastEditableMessage,
+  QuoteInsertionRequest
 } from './composerContext.svelte';
 export {
   createRoomMembers,

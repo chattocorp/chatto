@@ -51,6 +51,7 @@
   import { extractURLs } from '$lib/linkPreview';
   import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
   import { shouldHighlightCurrentUserMention } from './messageMentionHighlight';
+  import { selectedQuoteTextForMessageBody } from './selectedReplyQuote';
 
   // Long-press thresholds in milliseconds
   const HIGHLIGHT_DELAY_MS = 150; // Delay before showing visual feedback (avoids flicker on scroll)
@@ -67,7 +68,11 @@
     compact?: boolean;
     roomId: string;
     messageStore?: MessagesStore | null;
-    onOpenThread?: (threadRootEventId: string, highlightEventId?: string) => void;
+    onOpenThread?: (
+      threadRootEventId: string,
+      highlightEventId?: string,
+      quoteText?: string
+    ) => void;
   } = $props();
 
   const connection = useConnection();
@@ -120,6 +125,8 @@
     alignRight?: boolean;
     centerX?: boolean;
   } | null>(null);
+  let messageBodySelectionRoot = $state<HTMLElement>();
+  let selectedReplyQuoteSnapshot = $state<string | null>(null);
 
   // Emoji picker state (position doubles as visibility flag; on mobile ContextMenu ignores it)
   let emojiPickerPos = $state<{ x: number; y: number } | null>(null);
@@ -221,6 +228,7 @@
   // Open context menu from the toolbar's "more actions" button,
   // positioned to cover the toolbar exactly.
   function openMenuFromToolbar(e: MouseEvent) {
+    selectedReplyQuoteSnapshot = getSelectedReplyQuote();
     const button = e.currentTarget as HTMLElement;
     const toolbar = button.closest('[role="toolbar"]') as HTMLElement;
     const rect = toolbar?.getBoundingClientRect() ?? button.getBoundingClientRect();
@@ -532,16 +540,34 @@
     }
   }
 
+  function getSelectedReplyQuote(): string | null {
+    return selectedQuoteTextForMessageBody(
+      typeof window === 'undefined' ? null : window.getSelection(),
+      messageBodySelectionRoot
+    );
+  }
+
+  function takeSelectedReplyQuote(): string | null {
+    const quote = selectedReplyQuoteSnapshot ?? getSelectedReplyQuote();
+    selectedReplyQuoteSnapshot = null;
+    return quote;
+  }
+
   function handleReplyInRoom() {
+    const quote = takeSelectedReplyQuote();
     const excerpt = (msg?.body ?? '').slice(0, 80);
     replyState.startReply(event.id, displayName, excerpt);
+    if (quote) {
+      composerContext.quoteInsertionState.requestInsertQuote(quote);
+    }
   }
 
   function handleOpenThread() {
     if (onOpenThread) {
+      const quote = takeSelectedReplyQuote();
       // For echoes, use the original thread root event ID (not the echo's wrapper event ID)
       const threadRoot = (isEcho ? messageEvent?.echoFromThreadRootEventId : null) ?? event.id;
-      onOpenThread(threadRoot);
+      onOpenThread(threadRoot, undefined, quote ?? undefined);
       // Note: Thread notifications are dismissed by ThreadPane's $effect when it mounts,
       // which also handles direct URL navigation to threads.
     }
@@ -698,7 +724,7 @@
           <!-- Message deleted or encryption key removed -->
           <span class="text-muted/50 italic">This message has been deleted.</span>
         {:else if msg.body}
-          <div class="pointer-fine:select-text">
+          <div bind:this={messageBodySelectionRoot} class="pointer-fine:select-text">
             <MessageContent
               body={msg.body}
               {members}

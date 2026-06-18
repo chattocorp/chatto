@@ -23,7 +23,11 @@
     roomId: string;
     unreadAfterTime?: string | null;
     unreadBeforeTime?: string | null;
-    onOpenThread?: (threadRootEventId: string, highlightEventId?: string) => void;
+    onOpenThread?: (
+      threadRootEventId: string,
+      highlightEventId?: string,
+      quoteText?: string
+    ) => void;
     typingUserIds?: string[];
     typingMembers?: RoomMember[];
   } = $props();

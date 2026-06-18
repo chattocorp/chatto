@@ -40,7 +40,8 @@ function editor(
         text = text.slice(0, cursor - charCount) + replacement + text.slice(cursor);
         cursor = cursor - charCount + replacement.length;
       },
-      insertBlockBreak: () => {}
+      insertBlockBreak: () => {},
+      insertQuote: () => {}
     },
     getText: () => text,
     setText: (next) => {
