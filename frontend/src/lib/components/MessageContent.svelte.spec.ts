@@ -165,6 +165,11 @@ describe('renderMarkdown', () => {
       }
     });
 
+    it('renders encoded trailing hashes as literal heading text', async () => {
+      const html = await renderMarkdown('# test &#35;');
+      expect(html).toContain('<h1>test #</h1>');
+    });
+
     it('does not render setext (underline-style) headings', async () => {
       const html = await renderMarkdown('Heading\n===');
       expect(html).not.toContain('<h1');

@@ -1009,7 +1009,7 @@ describe('MessageComposer', () => {
       const editor = await findEditor(container);
 
       await expect.element(editor).toHaveTextContent(body);
-      editor.focus();
+      await placeCaretAtEditorEnd(editor);
       document.execCommand('insertText', false, '!');
       await vi.waitFor(() => expect(editor.textContent).toBe(editedBody));
 
@@ -1635,6 +1635,46 @@ describe('MessageComposer', () => {
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
         roomId,
         body: '# Heading\n\nbody'
+      });
+    });
+
+    it('preserves literal trailing hashes in heading text when sending', async () => {
+      const { container, roomId } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+
+      await typeEditorLiteralText(editor, '# test #');
+      await vi.waitFor(() => expect(editor.querySelector('h1')?.textContent).toBe('test #'));
+      expect(Array.from(editor.children).map((child) => child.tagName)).toEqual(['H1']);
+
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: '# test &#35;'
+      });
+    });
+
+    it('preserves multiple literal trailing hashes in heading text when sending', async () => {
+      const { container, roomId } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+
+      await typeEditorLiteralText(editor, '# test ##');
+      await vi.waitFor(() => expect(editor.querySelector('h1')?.textContent).toBe('test ##'));
+      expect(Array.from(editor.children).map((child) => child.tagName)).toEqual(['H1']);
+
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: '# test &#35;&#35;'
       });
     });
 

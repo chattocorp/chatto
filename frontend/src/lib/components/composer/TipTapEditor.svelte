@@ -437,10 +437,15 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     return result;
   }
 
+  type MarkdownTransformOptions = {
+    skipLinkDestinations?: boolean;
+    preserveInlineCode?: boolean;
+  };
+
   function transformMarkdownTextSegment(
     text: string,
     transformText: (text: string) => string,
-    { skipLinkDestinations = false }: { skipLinkDestinations?: boolean } = {}
+    { skipLinkDestinations = false }: MarkdownTransformOptions = {}
   ): string {
     return skipLinkDestinations
       ? transformOutsideMarkdownLinkDestinations(text, transformText)
@@ -450,7 +455,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   function transformOutsideInlineCode(
     line: string,
     transformText: (text: string) => string,
-    options: { skipLinkDestinations?: boolean } = {}
+    options: MarkdownTransformOptions = {}
   ): string {
     let result = '';
     let index = 0;
@@ -484,7 +489,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   function transformMarkdownOutsideCode(
     markdown: string,
     transformText: (text: string) => string,
-    options: { skipLinkDestinations?: boolean } = {}
+    options: MarkdownTransformOptions = {}
   ): string {
     const lines = markdown.match(/[^\n]*(?:\n|$)/g) ?? [];
     if (lines[lines.length - 1] === '') {
@@ -500,7 +505,10 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 
     const flushPendingText = () => {
       if (!pendingText) return;
-      result += transformOutsideInlineCode(pendingText, transformText, options);
+      result +=
+        options.preserveInlineCode === false
+          ? transformMarkdownTextSegment(pendingText, transformText, options)
+          : transformOutsideInlineCode(pendingText, transformText, options);
       pendingText = '';
     };
 
@@ -586,9 +594,24 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     return markdown.replace(/ {2,}(\n\s*\n\s*(?:[-+*]|\d{1,9}[.)])\s)/g, '$1');
   }
 
+  function encodeSerializedHeadingClosingHashes(markdown: string): string {
+    return transformMarkdownOutsideCode(
+      markdown,
+      (text) =>
+        text.replace(
+          /(^|\n)((?:[ \t]{0,3}>[ \t]?)*[ \t]{0,3}#{1,6}[ \t]+[^\n]*?)([ \t]+)(#{1,})([ \t]*)(?=\n|$)/g,
+          (_match, lineStart, headingStart, separator, hashes, trailingWhitespace) =>
+            `${lineStart}${headingStart}${separator}${hashes.replace(/#/g, '&#35;')}${trailingWhitespace}`
+        ),
+      { preserveInlineCode: false }
+    );
+  }
+
   function getSerializedMarkdown(e: Editor): string {
     return normalizeSerializedHardBreaksBeforeLists(
-      trimSerializedTrailingEmptyParagraph(decodeSerializedMarkdownText(e.getMarkdown()), e)
+      encodeSerializedHeadingClosingHashes(
+        trimSerializedTrailingEmptyParagraph(decodeSerializedMarkdownText(e.getMarkdown()), e)
+      )
     );
   }
 
