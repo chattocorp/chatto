@@ -844,7 +844,7 @@
   <!-- Unified input container -->
   <div
     class={[
-      'relative flex items-start gap-4 rounded-lg bg-surface py-2 pr-3',
+      'relative flex items-start gap-4 rounded-xl bg-surface py-2 pr-3',
       isEditing ? 'pl-3' : 'pl-2'
     ]}
     class:opacity-50={inputDisabled}
