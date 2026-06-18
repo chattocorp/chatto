@@ -20,6 +20,24 @@ function member(login: string): RoomMember {
   };
 }
 
+function computedColorFor(property: string): string {
+  const element = document.createElement('div');
+  element.style.color = `var(${property})`;
+  document.body.appendChild(element);
+  const color = window.getComputedStyle(element).color;
+  element.remove();
+  return color;
+}
+
+function computedBorderColorFor(property: string): string {
+  const element = document.createElement('div');
+  element.style.borderLeft = `1px solid var(${property})`;
+  document.body.appendChild(element);
+  const color = window.getComputedStyle(element).borderLeftColor;
+  element.remove();
+  return color;
+}
+
 describe('renderMarkdown', () => {
   // Wait for the markdown renderer to initialize before running tests
   beforeAll(async () => {
@@ -275,6 +293,18 @@ describe('MessageContent component', () => {
 
     const wrapper = q(container, '.prose');
     await expect.element(wrapper).toBeInTheDocument();
+  });
+
+  it('styles blockquotes as distinct quote blocks', async () => {
+    const { container } = renderMessage('> quoted text\n>\n> second line');
+
+    await expect.poll(() => q(container, 'blockquote')).toBeTruthy();
+
+    const blockquote = q(container, 'blockquote')!;
+    const styles = window.getComputedStyle(blockquote);
+    expect(styles.borderLeftColor).not.toBe(computedBorderColorFor('--color-border'));
+    expect(styles.backgroundImage).toBe('none');
+    expect(styles.color).not.toBe(computedColorFor('--color-muted'));
   });
 
   it('renders links with security attributes', async () => {

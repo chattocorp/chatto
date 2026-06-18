@@ -1207,10 +1207,21 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   }
 
   :global(.tiptap-editor .ProseMirror blockquote) {
-    border-left: 3px solid var(--color-border);
-    padding-left: 1em;
-    color: var(--color-muted);
+    --composer-quote-border: color-mix(in srgb, var(--color-muted), var(--color-accent) 42%);
+    --composer-quote-text: color-mix(in srgb, var(--color-text), var(--color-muted) 48%);
+
+    border-left: 3px solid var(--composer-quote-border);
+    padding: 0.35em 0 0.35em 0.9em;
+    color: var(--composer-quote-text);
     font-style: italic;
+  }
+
+  :global(.tiptap-editor .ProseMirror blockquote > *) {
+    margin-block: 0;
+  }
+
+  :global(.tiptap-editor .ProseMirror blockquote > * + *) {
+    margin-top: 0.45em;
   }
 
   :global(.tiptap-editor .ProseMirror code:not(pre code)) {

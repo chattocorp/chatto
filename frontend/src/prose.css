@@ -10,6 +10,8 @@
   --composer-code-title: #8250df;
   --composer-code-literal: #0550ae;
   --composer-code-attribute: #953800;
+  --prose-quote-border: color-mix(in srgb, var(--color-muted), var(--color-accent) 42%);
+  --prose-quote-text: color-mix(in srgb, var(--color-text), var(--color-muted) 48%);
 
   font-size: inherit;
   line-height: 1.5;
@@ -82,10 +84,18 @@
 
   /* Blockquotes */
   & blockquote {
-    border-left: 3px solid var(--color-border);
-    padding-left: 1em;
-    color: var(--color-muted);
+    border-left: 3px solid var(--prose-quote-border);
+    padding: 0.35em 0 0.35em 0.9em;
+    color: var(--prose-quote-text);
     font-style: italic;
+  }
+
+  & blockquote > * {
+    margin-block: 0;
+  }
+
+  & blockquote > * + * {
+    margin-top: 0.45em;
   }
 
   /* Inline code */
