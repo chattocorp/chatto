@@ -266,7 +266,7 @@
 
 /* Embed frame utility (attachments, link previews, embedded messages, video embeds) */
 @utility embed-frame {
-  @apply overflow-hidden rounded-md border border-border bg-surface-100 shadow-sm outline-[3px] outline-offset-0 outline-surface-300 transition-shadow hover:shadow-md focus-visible:shadow-md;
+  @apply my-1.5 overflow-hidden rounded-md border border-border bg-surface-100 shadow-sm outline-[3px] outline-offset-0 outline-surface-300 transition-shadow hover:shadow-md focus-visible:shadow-md;
 }
 
 @utility embed-control-button {
