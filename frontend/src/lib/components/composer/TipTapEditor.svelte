@@ -190,70 +190,6 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     }
   });
 
-  const MarkdownCodeFenceShortcut = Extension.create({
-    name: 'markdownCodeFenceShortcut',
-    priority: 1000,
-
-    addKeyboardShortcuts() {
-      return {
-        'Shift-Enter': () => {
-          const { editor } = this;
-          if (editor.isActive('codeBlock')) {
-            return editor.commands.exitCode();
-          }
-
-          const { selection } = editor.state;
-          const { empty } = selection;
-          const fromPos = selection.$from;
-          if (!empty || fromPos.parent.type.name !== 'paragraph') return false;
-          if (fromPos.depth !== 1) return false;
-
-          const textBeforeCursor = fromPos.parent.textBetween(0, fromPos.parentOffset, '\n', '\n');
-          const textAfterCursor = fromPos.parent.textBetween(
-            fromPos.parentOffset,
-            fromPos.parent.content.size,
-            '\n',
-            '\n'
-          );
-          const currentLine = textBeforeCursor.split('\n').at(-1) ?? '';
-          if (textAfterCursor && !textAfterCursor.startsWith('\n')) return false;
-
-          const match = currentLine.match(codeFenceLineRegex);
-          if (!match) return false;
-
-          const paragraphPos = fromPos.before(1);
-          const currentLineIndex = textBeforeCursor.split('\n').length - 1;
-          const appendTrailingParagraph =
-            paragraphPos + fromPos.parent.nodeSize === editor.state.doc.content.size;
-          const replacement = buildCodeFenceReplacement({
-            schema: editor.state.schema,
-            paragraph: fromPos.parent,
-            openLineIndex: currentLineIndex,
-            closeLineIndex: null,
-            appendTrailingParagraph
-          });
-          if (!replacement) return false;
-
-          const codePosition = paragraphPos + replacement.beforeNodeSize;
-          const tr = editor.state.tr.replaceWith(
-            paragraphPos,
-            paragraphPos + fromPos.parent.nodeSize,
-            replacement.nodes
-          );
-          tr.setSelection(TextSelection.create(tr.doc, codePosition + 1));
-          editor.view.dispatch(tr.scrollIntoView());
-          return true;
-        },
-
-        Enter: () => {
-          const { editor } = this;
-          if (!editor.isActive('codeBlock')) return false;
-          return editor.commands.newlineInCode();
-        }
-      };
-    }
-  });
-
   const CompletedMarkdownCodeFence = Extension.create({
     name: 'completedMarkdownCodeFence',
 
@@ -652,6 +588,12 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     );
   }
 
+  function hasDefaultEmptyDocument(e: Editor): boolean {
+    if (e.state.doc.childCount !== 1) return false;
+    const firstChild = e.state.doc.firstChild;
+    return firstChild?.type.name === 'paragraph' && firstChild.content.size === 0;
+  }
+
   export type TipTapEditorApi = {
     /** Get the editor's plain text content */
     getText: () => string;
@@ -663,8 +605,6 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     getTextBeforeCursor: () => string;
     /** Whether the current selection is inside a code block */
     isInCodeBlock: () => boolean;
-    /** Whether the current selection is inside a top-level plain paragraph */
-    isInPlainParagraph: () => boolean;
     /**
      * Replace N characters before the cursor with new text.
      * Used for mention/emoji completion where we know the pattern
@@ -950,11 +890,6 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
       },
 
       isInCodeBlock: () => !e.isDestroyed && e.isActive('codeBlock'),
-      isInPlainParagraph: () => {
-        if (e.isDestroyed) return false;
-        const selectionFrom = e.state.selection.$from;
-        return selectionFrom.depth === 1 && selectionFrom.parent.type.name === 'paragraph';
-      },
 
       replaceTextBeforeCursor: (charCount: number, replacement: string) => {
         if (e.isDestroyed) return;
@@ -987,6 +922,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
               strike: false,
               underline: false,
               horizontalRule: false,
+              trailingNode: false,
               link: {
                 openOnClick: false,
                 enableClickSelection: true
@@ -999,7 +935,6 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
             }),
             ComposerCodeBlockLowlight.configure({ lowlight }),
             MarkdownLinkInputRule,
-            MarkdownCodeFenceShortcut,
             CompletedMarkdownCodeFence,
             MarkdownListMarkerAfterHardBreak,
             TrailingParagraphAfterCodeBlock,
@@ -1021,7 +956,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           onUpdate: ({ editor: ed }) => {
             updateActiveControls(ed);
             ensureEditorCodeLanguages(ed);
-            onUpdate?.(ed.isEmpty ? '' : getSerializedMarkdown(ed));
+            onUpdate?.(hasDefaultEmptyDocument(ed) ? '' : getSerializedMarkdown(ed));
           },
           onSelectionUpdate: ({ editor: ed }) => {
             updateActiveControls(ed);
@@ -1162,10 +1097,6 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   :global(.tiptap-editor .ProseMirror h5),
   :global(.tiptap-editor .ProseMirror h6) {
     margin: 0;
-  }
-
-  :global(.tiptap-editor .ProseMirror > * + *) {
-    margin-top: 0.5em;
   }
 
   :global(.tiptap-editor .ProseMirror strong) {

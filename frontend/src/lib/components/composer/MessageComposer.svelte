@@ -25,6 +25,17 @@
 
   const tipTapEditorModule = import('./TipTapEditor.svelte');
 
+  function getSubmitShortcutHint(): string | null {
+    if (typeof navigator === 'undefined' || isTouchDevice()) return null;
+
+    const userAgentDataPlatform =
+      'userAgentData' in navigator
+        ? (navigator.userAgentData as { platform?: string } | undefined)?.platform
+        : undefined;
+    const platform = userAgentDataPlatform ?? navigator.platform ?? '';
+    return /Mac|iPhone|iPad|iPod/i.test(platform) ? 'Cmd+Return to Send' : 'Ctrl+Return to Send';
+  }
+
   const stores = serverRegistry.getStore(getActiveServer());
   const serverInfo = stores.serverInfo;
   const roomUnreadStore = stores.roomUnread;
@@ -122,6 +133,7 @@
 
   // Testid for E2E tests - distinguishes main input from thread reply input
   let testid = $derived(inThread ? 'thread-reply-input' : 'message-input');
+  const submitShortcutHint = getSubmitShortcutHint();
 
   // Track editing transitions by event identity so editor setContent() doesn't
   // run repeatedly while TipTap echoes updates back through onUpdate.
@@ -360,6 +372,16 @@
     return text.replace(/\n{3,}/g, '\n\n');
   }
 
+  function hasStructuralMarkdownBody(text: string): boolean {
+    return text.split('\n').some((line) => /^ {0,3}(?:#{1,6}|[-+*]|\d{1,9}[.)]|>)[ \t]$/.test(line));
+  }
+
+  function bodyForSend(text: string): string {
+    const normalized = normalizeMessageBody(text);
+    if (hasStructuralMarkdownBody(normalized)) return normalized;
+    return normalizeMessageBody(text.trim());
+  }
+
   type MentionConfirmation = {
     recipientCount: number;
     token: string;
@@ -492,7 +514,7 @@
   async function postMessage() {
     // Require either non-empty message body or attachments.
     // hasVisibleContent rejects messages with only invisible Unicode characters.
-    const bodyToSend = normalizeMessageBody(message.trim());
+    const bodyToSend = bodyForSend(message);
     const hasBody = hasVisibleContent(bodyToSend);
     const filesToSend =
       attachments.selectedFiles.length > 0 ? [...attachments.selectedFiles] : null;
@@ -536,7 +558,7 @@
   }
 
   async function editMessage() {
-    const trimmedBody = normalizeMessageBody(message.trim());
+    const trimmedBody = bodyForSend(message);
     if (!trimmedBody) {
       toast.error('Message cannot be empty');
       return;
@@ -592,6 +614,11 @@
   // Handle keyboard events from TipTap editor.
   // Return true to prevent TipTap's default handling.
   function handleEditorKeyDown(event: KeyboardEvent): boolean {
+    if (event.key === 'Enter' && !event.shiftKey && (event.metaKey || event.ctrlKey)) {
+      handleSubmit(); // Fire-and-forget (async, but keydown must return sync)
+      return true;
+    }
+
     // Handle emoji autocomplete keyboard events first
     if (autocomplete.emoji && autocomplete.emojiRef) {
       if (autocomplete.emojiRef.handleKeyDown(event)) {
@@ -645,21 +672,6 @@
         });
         return true;
       }
-    }
-
-    if (event.key === 'Enter' && !event.shiftKey && (event.metaKey || event.ctrlKey)) {
-      handleSubmit(); // Fire-and-forget (async, but keydown must return sync)
-      return true;
-    }
-
-    if (
-      event.key === 'Enter' &&
-      !event.shiftKey &&
-      !isTouchDevice() &&
-      editorApi?.isInPlainParagraph()
-    ) {
-      handleSubmit(); // Fire-and-forget (async, but keydown must return sync)
-      return true;
     }
 
     return false; // Let TipTap handle it (e.g., Shift+Enter for hard break)
@@ -824,17 +836,30 @@
       />
     {/await}
 
-    <!-- Send button -->
-    <button
-      type="button"
-      onpointerdown={(e) => e.preventDefault()}
-      onclick={handleSubmit}
-      disabled={!canSubmit}
-      class="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded text-muted transition-colors duration-100 enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
-      title="Send message"
-    >
-      <span class="iconify text-xl uil--telegram-alt"></span>
-    </button>
+    <div class="flex h-8 shrink-0 items-center gap-2">
+      {#if submitShortcutHint && canSubmit}
+        <span
+          aria-hidden="true"
+          title={submitShortcutHint}
+          class="whitespace-nowrap px-0.5 text-xs font-medium leading-none text-muted/75"
+        >
+          {submitShortcutHint}
+        </span>
+      {/if}
+
+      <!-- Send button -->
+      <button
+        type="button"
+        onpointerdown={(e) => e.preventDefault()}
+        onclick={handleSubmit}
+        disabled={!canSubmit}
+        class="flex h-8 w-8 cursor-pointer items-center justify-center rounded text-muted transition-colors duration-100 enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
+        aria-label="Send message"
+        title="Send message (Ctrl/Cmd+Enter)"
+      >
+        <span class="iconify text-xl uil--telegram-alt"></span>
+      </button>
+    </div>
   </div>
 
   <!-- Also send to channel checkbox (thread replies only, when permitted) -->

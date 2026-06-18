@@ -1012,7 +1012,7 @@ test.describe('Server Permission Enforcement', () => {
       await expect(page.getByTestId('message-input')).toHaveAttribute('contenteditable', 'false');
 
       // Send button should also be disabled
-      await expect(page.getByTitle('Send message')).toBeDisabled();
+      await expect(page.getByRole('button', { name: 'Send message' })).toBeDisabled();
     });
 
     test('reaction buttons hidden when user lacks message.react permission', async ({

@@ -588,7 +588,7 @@ test('image lightbox supports keyboard navigation with multiple images', async (
   await expect(roomPage.attachmentPreview).toHaveCount(2);
 
   // Send the message
-  await roomPage.messageInput.press('Enter');
+  await roomPage.messageInput.press('Control+Enter');
 
   // Wait for both attachment images to appear in the message
   await expect(roomPage.attachmentImage).toHaveCount(2, { timeout: TIMEOUTS.COMPLEX_OPERATION });

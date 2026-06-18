@@ -477,7 +477,7 @@ describe('MessageComposer', () => {
         new Map([['$$_urql', mockClient]])
       );
 
-      await expect.element(q(container, 'button[title="Send message"]')).toBeInTheDocument();
+      await expect.element(q(container, 'button[aria-label="Send message"]')).toBeInTheDocument();
     });
 
     it('send button is disabled when input is empty', async () => {
@@ -486,7 +486,7 @@ describe('MessageComposer', () => {
         new Map([['$$_urql', mockClient]])
       );
 
-      await expect.element(q(container, 'button[title="Send message"]')).toBeDisabled();
+      await expect.element(q(container, 'button[aria-label="Send message"]')).toBeDisabled();
     });
 
     it('send button has paper plane icon', async () => {
@@ -495,9 +495,51 @@ describe('MessageComposer', () => {
         new Map([['$$_urql', mockClient]])
       );
 
-      const sendButton = q(container, 'button[title="Send message"]');
+      const sendButton = q(container, 'button[aria-label="Send message"]');
       const icon = sendButton?.querySelector('.uil--telegram-alt');
       expect(icon).not.toBeNull();
+    });
+
+    it('shows a compact keyboard shortcut hint when the composer can submit', async () => {
+      const { container } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+
+      expect(q(container, '[title$="Return to Send"]')).toBeNull();
+      await typeEditorLiteralText(editor, 'hint me');
+
+      await vi.waitFor(() => {
+        const hint = q(container, '[title$="Return to Send"]');
+        expect(hint?.textContent).toMatch(/^(Cmd|Ctrl)\+Return to Send$/);
+      });
+    });
+
+    it('treats an empty block element as sendable composer content', async () => {
+      const { container, roomId } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+
+      await typeEditorLiteralText(editor, '- ');
+      await vi.waitFor(() => expect(editor.querySelector('ul li')).toBeTruthy());
+
+      await expect.element(q(container, 'button[aria-label="Send message"]')).not.toBeDisabled();
+
+      await vi.waitFor(() => {
+        const hint = q(container, '[title$="Return to Send"]');
+        expect(hint?.textContent).toMatch(/^(Cmd|Ctrl)\+Return to Send$/);
+      });
+
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: '- '
+      });
     });
   });
 
@@ -514,7 +556,7 @@ describe('MessageComposer', () => {
 
       pasteFile(editor, file);
       await typeInEditor(editor, 'message with image');
-      const sendButton = q(container, 'button[title="Send message"]')! as HTMLButtonElement;
+      const sendButton = q(container, 'button[aria-label="Send message"]')! as HTMLButtonElement;
       await expect.element(sendButton).toBeDisabled();
 
       editor.dispatchEvent(
@@ -544,7 +586,7 @@ describe('MessageComposer', () => {
         new Map([['$$_urql', mockClient]])
       );
       const editor = await findEditor(container);
-      const sendButton = q(container, 'button[title="Send message"]')! as HTMLButtonElement;
+      const sendButton = q(container, 'button[aria-label="Send message"]')! as HTMLButtonElement;
 
       pasteFile(editor, file);
       await expect.element(sendButton).toBeDisabled();
@@ -573,7 +615,7 @@ describe('MessageComposer', () => {
         new Map([['$$_urql', mockClient]])
       );
       const editor = await findEditor(container);
-      const sendButton = q(container, 'button[title="Send message"]')! as HTMLButtonElement;
+      const sendButton = q(container, 'button[aria-label="Send message"]')! as HTMLButtonElement;
 
       pasteFile(editor, imageFile());
       await expect.element(sendButton).toBeDisabled();
@@ -900,7 +942,7 @@ describe('MessageComposer', () => {
         expect(sessionStorage.getItem(`chatto:draft:${roomId}`)).toBe('send and clear draft')
       );
 
-      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       await vi.waitFor(() => expect(sessionStorage.getItem(`chatto:draft:${roomId}`)).toBeNull());
@@ -956,7 +998,7 @@ describe('MessageComposer', () => {
       document.execCommand('insertText', false, '!');
       await vi.waitFor(() => expect(editor.textContent).toBe(editedBody));
 
-      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -999,8 +1041,7 @@ describe('MessageComposer', () => {
 
       await vi.waitFor(() => expect(editor.querySelectorAll('pre code')).toHaveLength(1));
       await placeCaretAtEditorEnd(editor);
-      await insertEditorLiteralText(editor, '```js');
-      await pressEditorKey(editor, 'Enter', { shiftKey: true });
+      await insertEditorLiteralText(editor, '```js ');
 
       await vi.waitFor(() => expect(editor.querySelectorAll('pre code')).toHaveLength(2));
       document.execCommand('insertText', false, 'console.log("second");');
@@ -1009,7 +1050,7 @@ describe('MessageComposer', () => {
           'console.log("second");'
         )
       );
-      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -1020,7 +1061,7 @@ describe('MessageComposer', () => {
   });
 
   describe('submit behavior', () => {
-    it('uses Enter to complete an active mention before Enter can send', async () => {
+    it('uses Enter to complete an active mention before Ctrl+Enter can send', async () => {
       roomStateMock.members = [roomMember('alice')];
       const { container, roomId } = renderMessageComposer(
         { roomId: 'room_456' },
@@ -1038,12 +1079,29 @@ describe('MessageComposer', () => {
       await vi.waitFor(() => expect(editor.textContent).toBe('@alice '));
       expect(mutationMock).not.toHaveBeenCalled();
 
-      await pressEditorKey(editor, 'Enter');
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
         roomId,
         body: '@alice'
+      });
+    });
+
+    it('sends plain text with Ctrl+Enter', async () => {
+      const { container, roomId } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+
+      await typeEditorLiteralText(editor, 'hello from shortcut');
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: 'hello from shortcut'
       });
     });
 
@@ -1056,7 +1114,7 @@ describe('MessageComposer', () => {
 
       await typeEditorKeys(editor, '**bold**');
       await vi.waitFor(() => expect(editor.querySelector('strong')?.textContent).toBe('bold'));
-      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -1078,7 +1136,7 @@ describe('MessageComposer', () => {
         expect(link?.textContent).toBe('example');
         expect(link?.getAttribute('href')).toBe('https://example.com');
       });
-      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -1096,7 +1154,7 @@ describe('MessageComposer', () => {
       const editor = await findEditor(container);
 
       await typeInEditor(editor, body);
-      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -1114,7 +1172,7 @@ describe('MessageComposer', () => {
       const editor = await findEditor(container);
 
       await typeInEditor(editor, body);
-      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -1132,7 +1190,7 @@ describe('MessageComposer', () => {
       const editor = await findEditor(container);
 
       await typeInEditor(editor, body);
-      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -1149,7 +1207,7 @@ describe('MessageComposer', () => {
       const editor = await findEditor(container);
 
       await typeInEditor(editor, '> not a quote');
-      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -1175,7 +1233,7 @@ describe('MessageComposer', () => {
       await vi.waitFor(() =>
         expect(editor.querySelector('a')?.getAttribute('href')).toBe('https://chatto.test/docs')
       );
-      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -1196,7 +1254,7 @@ describe('MessageComposer', () => {
 
       (q(container, 'button[title="Remove link"]') as HTMLButtonElement).click();
       await vi.waitFor(() => expect(editor.querySelector('a')).toBeNull());
-      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -1212,15 +1270,14 @@ describe('MessageComposer', () => {
       );
       const editor = await findEditor(container);
 
-      await typeEditorLiteralText(editor, '```ts');
-      await pressEditorKey(editor, 'Enter', { shiftKey: true });
+      await typeEditorLiteralText(editor, '```ts ');
       await vi.waitFor(() => expect(editor.querySelector('pre code')).toBeTruthy());
 
       document.execCommand('insertText', false, 'const answer = 42;');
       await vi.waitFor(() =>
         expect(editor.querySelector('pre code')?.textContent).toContain('const answer = 42;')
       );
-      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -1237,9 +1294,8 @@ describe('MessageComposer', () => {
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, 'or this:');
-      await pressEditorKey(editor, 'Enter', { shiftKey: true });
-      await insertEditorLiteralText(editor, '```go');
-      await pressEditorKey(editor, 'Enter', { shiftKey: true });
+      await pressEditorKey(editor, 'Enter');
+      await insertEditorLiteralText(editor, '```go ');
 
       await vi.waitFor(() => expect(editor.querySelector('pre code')).toBeTruthy());
       document.execCommand('insertText', false, 'IO.puts("moo")');
@@ -1247,7 +1303,7 @@ describe('MessageComposer', () => {
         expect(editor.querySelector('pre code')?.textContent).toContain('IO.puts("moo")')
       );
 
-      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -1268,16 +1324,15 @@ describe('MessageComposer', () => {
       await vi.waitFor(() => expect(editor.querySelectorAll('pre code')).toHaveLength(1));
       await placeCaretAtEditorEnd(editor);
       await insertEditorLiteralText(editor, 'or this:');
-      await pressEditorKey(editor, 'Enter', { shiftKey: true });
-      await insertEditorLiteralText(editor, '```go');
-      await pressEditorKey(editor, 'Enter', { shiftKey: true });
+      await pressEditorKey(editor, 'Enter');
+      await insertEditorLiteralText(editor, '```go ');
       await vi.waitFor(() => expect(editor.querySelectorAll('pre code')).toHaveLength(2));
 
       document.execCommand('insertText', false, 'IO.puts("moo")');
       await vi.waitFor(() =>
         expect(editor.querySelectorAll('pre code')[1]?.textContent).toContain('IO.puts("moo")')
       );
-      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -1293,8 +1348,7 @@ describe('MessageComposer', () => {
       );
       const editor = await findEditor(container);
 
-      await typeEditorLiteralText(editor, '```ts');
-      await pressEditorKey(editor, 'Enter', { shiftKey: true });
+      await typeEditorLiteralText(editor, '```ts ');
       await vi.waitFor(() => expect(editor.querySelector('pre code')).toBeTruthy());
 
       document.execCommand('insertText', false, 'const first = 1;');
@@ -1311,7 +1365,7 @@ describe('MessageComposer', () => {
       );
       expect(editor.querySelectorAll('pre code')).toHaveLength(1);
 
-      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -1320,42 +1374,26 @@ describe('MessageComposer', () => {
       });
     });
 
-    it('uses Shift+Enter to escape an active code block without submitting', async () => {
+    it('lets Shift+Enter insert a hard break without submitting', async () => {
       const { container, roomId } = renderMessageComposer(
         { roomId: 'room_456' },
         new Map([['$$_urql', mockClient]])
       );
       const editor = await findEditor(container);
 
-      await typeEditorLiteralText(editor, '```ts');
-      await pressEditorKey(editor, 'Enter', { shiftKey: true });
-      await vi.waitFor(() => expect(editor.querySelector('pre code')).toBeTruthy());
-
-      document.execCommand('insertText', false, 'const first = 1;');
-      await vi.waitFor(() =>
-        expect(editor.querySelector('pre code')?.textContent).toContain('const first = 1;')
-      );
+      await typeEditorLiteralText(editor, 'first');
       await pressEditorKey(editor, 'Enter', { shiftKey: true });
       expect(mutationMock).not.toHaveBeenCalled();
+      document.execCommand('insertText', false, 'second');
+      await vi.waitFor(() => expect(editor.textContent).toContain('firstsecond'));
+      expect(editor.querySelector('br')).toBeTruthy();
 
-      document.execCommand('insertText', false, 'between blocks');
-      await vi.waitFor(() => expect(editor.textContent).toContain('between blocks'));
-      await pressEditorKey(editor, 'Enter', { shiftKey: true });
-      await insertEditorLiteralText(editor, '```ts');
-      await pressEditorKey(editor, 'Enter', { shiftKey: true });
-      document.execCommand('insertText', false, 'const second = 2;');
-
-      await vi.waitFor(() => expect(editor.querySelectorAll('pre code')).toHaveLength(2));
-      await vi.waitFor(() =>
-        expect(editor.querySelectorAll('pre code')[1]?.textContent).toContain('const second = 2;')
-      );
-
-      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
         roomId,
-        body: '```ts\nconst first = 1;\n```\n\nbetween blocks\n\n```ts\nconst second = 2;\n```'
+        body: 'first  \nsecond'
       });
     });
 
@@ -1366,8 +1404,7 @@ describe('MessageComposer', () => {
       );
       const editor = await findEditor(container);
 
-      await typeEditorLiteralText(editor, '```ts');
-      await pressEditorKey(editor, 'Enter', { shiftKey: true });
+      await typeEditorLiteralText(editor, '```ts ');
       await vi.waitFor(() => expect(editor.querySelector('pre code')).toBeTruthy());
       document.execCommand('insertText', false, 'const answer = 42;');
       await vi.waitFor(() =>
@@ -1401,7 +1438,7 @@ describe('MessageComposer', () => {
         expect(editor.querySelectorAll('ul li')[1]?.textContent).toBe('second')
       );
 
-      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -1410,7 +1447,7 @@ describe('MessageComposer', () => {
       });
     });
 
-    it('sends with Enter only after the cursor has left a bullet list', async () => {
+    it('does not send with Enter after the cursor has left a bullet list', async () => {
       const { container, roomId } = renderMessageComposer(
         { roomId: 'room_456' },
         new Map([['$$_urql', mockClient]])
@@ -1426,6 +1463,11 @@ describe('MessageComposer', () => {
       await vi.waitFor(() => expect(editor.querySelectorAll('ul li')).toHaveLength(1));
 
       await pressEditorKey(editor, 'Enter');
+
+      await vi.waitFor(() => expect(editor.querySelectorAll('p').length).toBeGreaterThan(1));
+      expect(mutationMock).not.toHaveBeenCalled();
+
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -1469,7 +1511,7 @@ describe('MessageComposer', () => {
       document.execCommand('insertText', false, 'lists');
       await vi.waitFor(() => expect(editor.querySelector('ul li')?.textContent).toBe('lists'));
 
-      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -1493,7 +1535,7 @@ describe('MessageComposer', () => {
       document.execCommand('insertText', false, 'lists');
       await vi.waitFor(() => expect(editor.querySelector('ol li')?.textContent).toBe('lists'));
 
-      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -1502,7 +1544,7 @@ describe('MessageComposer', () => {
       });
     });
 
-    it('lets Enter leave a heading before the next Enter can submit', async () => {
+    it('lets Enter leave a heading without submitting', async () => {
       const { container, roomId } = renderMessageComposer(
         { roomId: 'room_456' },
         new Map([['$$_urql', mockClient]])
@@ -1511,12 +1553,17 @@ describe('MessageComposer', () => {
 
       await typeEditorLiteralText(editor, '# Heading');
       await vi.waitFor(() => expect(editor.querySelector('h1')?.textContent).toBe('Heading'));
+      expect(Array.from(editor.children).map((child) => child.tagName)).toEqual(['H1']);
       await pressEditorKey(editor, 'Enter');
       expect(mutationMock).not.toHaveBeenCalled();
 
       document.execCommand('insertText', false, 'body');
       await vi.waitFor(() => expect(editor.querySelector('p')?.textContent).toBe('body'));
+      expect(getComputedStyle(editor.querySelector('p')!).marginTop).toBe('0px');
       await pressEditorKey(editor, 'Enter');
+      expect(mutationMock).not.toHaveBeenCalled();
+
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -1532,8 +1579,7 @@ describe('MessageComposer', () => {
       );
       const editor = await findEditor(container);
 
-      await typeEditorLiteralText(editor, '```ts');
-      await pressEditorKey(editor, 'Enter', { shiftKey: true });
+      await typeEditorLiteralText(editor, '```ts ');
       await vi.waitFor(() => expect(editor.querySelector('pre code')).toBeTruthy());
       await vi.waitFor(() =>
         expect(editor.querySelector('pre')).toHaveAttribute('data-language', 'ts')
@@ -1554,7 +1600,7 @@ describe('MessageComposer', () => {
         expect(editor.querySelector('pre')).toHaveAttribute('data-language', 'js')
       );
       expect(editor.querySelector('pre code span')).toBeTruthy();
-      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -1581,7 +1627,7 @@ describe('MessageComposer', () => {
 
       await typeInEditor(editor, 'hello world');
       (q(container, 'input[type="checkbox"]') as HTMLInputElement).click();
-      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -1628,7 +1674,7 @@ describe('MessageComposer', () => {
       const editor = await findEditor(container);
 
       await typeInEditor(editor, '@all hello');
-      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await expect.element(getByRole('dialog', { name: 'Notify 12 people?' })).toBeInTheDocument();
       await expect
@@ -1670,7 +1716,7 @@ describe('MessageComposer', () => {
 
       await expect.poll(() => q(container, 'img')).toBeTruthy();
       await typeInEditor(editor, '@all with attachment');
-      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await expect.element(getByRole('dialog', { name: 'Notify 12 people?' })).toBeInTheDocument();
       expect(mutationMock).toHaveBeenCalledOnce();
@@ -1710,7 +1756,7 @@ describe('MessageComposer', () => {
 
       await expect.poll(() => q(container, 'img')).toBeTruthy();
       await typeInEditor(editor, '@all will retry');
-      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await expect.element(getByRole('dialog', { name: 'Notify 12 people?' })).toBeInTheDocument();
       await userEvent.click(getByRole('button', { name: 'Send Anyway' }));
@@ -1736,7 +1782,7 @@ describe('MessageComposer', () => {
 
       await expect.poll(() => q(container, 'img')).toBeTruthy();
       await typeInEditor(editor, 'will retry');
-      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       await expect.element(editor).toHaveTextContent('will retry');
@@ -1781,7 +1827,7 @@ describe('MessageComposer', () => {
       await vi.waitFor(() => expect(queryMock).toHaveBeenCalledTimes(2), { timeout: 1000 });
       await expect.element(q(container, '[data-testid="link-preview-card"]')).toBeInTheDocument();
 
-      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input.linkPreview).toMatchObject({
@@ -1806,7 +1852,7 @@ describe('MessageComposer', () => {
       await vi.waitFor(() => expect(queryMock).toHaveBeenCalledTimes(2), { timeout: 1000 });
       (q(container, 'button[aria-label="Dismiss preview"]') as HTMLButtonElement).click();
 
-      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input.linkPreview).toBeNull();
@@ -1837,7 +1883,7 @@ describe('MessageComposer', () => {
       selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
       await typeInEditor(editor, 'with file');
 
-      (q(container, 'button[title="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test');
@@ -1864,8 +1910,8 @@ describe('MessageComposer', () => {
       );
 
       await expect
-        .element(q(container, 'button[title="Send message"]'))
-        .toHaveAttribute('title', 'Send message');
+        .element(q(container, 'button[aria-label="Send message"]'))
+        .toHaveAttribute('title', 'Send message (Ctrl/Cmd+Enter)');
     });
   });
 });
