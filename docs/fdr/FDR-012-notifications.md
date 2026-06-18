@@ -15,6 +15,7 @@ Chatto has a persistent notification system surfaced through a bell icon and not
 - Notifications auto-expire after 90 days.
 - Dismissing a notification removes it everywhere — across all the user's open tabs and devices.
 - A notification sound plays and the badge updates in real time as new notifications arrive.
+- Users can choose and locally shape the notification sound on each browser with volume, tone, and effect controls.
 - Sidebar orange dots for mentions, replies, DMs, and all-message subscriptions derive from pending notification records.
 
 ## Notification Levels
@@ -82,6 +83,12 @@ Per space and per room, the user picks one of four levels:
 **Decision:** @mention orange dots are derived from pending mention notifications. Chatto does not maintain a separate `room_mention_status.*` flag.
 **Why:** The separate flag duplicated notification state and had to be cleared in lockstep with notification dismissals and room reads. A single pending-notification model gives one source of truth for mention, reply, DM, and all-message attention indicators.
 **Tradeoff:** Pending mention dots now have the same retention and dismissal semantics as notifications. This is deliberate: a mention that is no longer a pending notification is no longer pending attention.
+
+### 9. Notification sound choice and shaping are local
+
+**Decision:** Notification sound selection and sound-shaping controls are stored in browser-local preferences.
+**Why:** They are playback-device preferences, not server behavior. Keeping them local matches the existing sound picker and avoids adding durable compatibility surface for an annoyance/subtlety control.
+**Tradeoff:** A user who signs in on a new browser reconfigures sound taste there. Server-synced display settings remain separate.
 
 ## Permissions
 
