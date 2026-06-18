@@ -66,6 +66,7 @@ Rendered inside a ContextMenu when right-clicking a message.
   const actions = useMessageActions();
 
   const params: MessageActionParams = $derived({
+    serverId,
     roomId,
     messageEventId,
     eventId,
@@ -105,6 +106,11 @@ Rendered inside a ContextMenu when right-clicking a message.
     onClose();
   }
 
+  async function handleCopyLink() {
+    await actions.copyMessageLink(params);
+    onClose();
+  }
+
   function handleDelete() {
     actions.openDeleteConfirmation(params);
     onClose();
@@ -141,40 +147,43 @@ Rendered inside a ContextMenu when right-clicking a message.
   </div>
 {/if}
 
-{#if onReplyInRoom || onReply || canEdit || canDelete}
-  <div class="menu-section">
-    <nav class="sidebar-nav">
-      {#if onReplyInRoom}
-        <button class="sidebar-item" onclick={handleReplyInRoom} role="menuitem">
-          <span class="sidebar-icon iconify uil--corner-up-left"></span>
-          Reply
-        </button>
-      {/if}
+<div class="menu-section">
+  <nav class="sidebar-nav">
+    {#if onReplyInRoom}
+      <button class="sidebar-item" onclick={handleReplyInRoom} role="menuitem">
+        <span class="sidebar-icon iconify uil--corner-up-left"></span>
+        Reply
+      </button>
+    {/if}
 
-      {#if onReply}
-        <button class="sidebar-item" onclick={handleReply} role="menuitem">
-          <span class="sidebar-icon iconify uil--comment-alt-lines"></span>
-          Reply in thread
-        </button>
-      {/if}
+    {#if onReply}
+      <button class="sidebar-item" onclick={handleReply} role="menuitem">
+        <span class="sidebar-icon iconify uil--comment-alt-lines"></span>
+        Reply in thread
+      </button>
+    {/if}
 
-      {#if canEdit}
-        <button class="sidebar-item" onclick={handleEdit} role="menuitem">
-          <span class="sidebar-icon iconify uil--pen"></span>
-          Edit
-        </button>
-      {/if}
+    {#if canEdit}
+      <button class="sidebar-item" onclick={handleEdit} role="menuitem">
+        <span class="sidebar-icon iconify uil--pen"></span>
+        Edit
+      </button>
+    {/if}
 
-      {#if canDelete}
-        <button
-          class="sidebar-item text-danger hover:text-danger"
-          onclick={handleDelete}
-          role="menuitem"
-        >
-          <span class="sidebar-icon iconify uil--trash-alt"></span>
-          Delete
-        </button>
-      {/if}
-    </nav>
-  </div>
-{/if}
+    <button class="sidebar-item" onclick={handleCopyLink} role="menuitem">
+      <span class="sidebar-icon iconify uil--copy"></span>
+      Copy link
+    </button>
+
+    {#if canDelete}
+      <button
+        class="sidebar-item text-danger hover:text-danger"
+        onclick={handleDelete}
+        role="menuitem"
+      >
+        <span class="sidebar-icon iconify uil--trash-alt"></span>
+        Delete
+      </button>
+    {/if}
+  </nav>
+</div>

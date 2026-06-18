@@ -42,7 +42,11 @@
   import { useMessageActions } from '$lib/hooks';
   import { emojiToName } from '$lib/emoji';
   import { toast } from '$lib/ui/toast';
-  import { buildMessageLinkURL, parseMessageLink, type MessageLink } from '$lib/messageLinks';
+  import {
+    copyMessageLinkToClipboard,
+    parseMessageLink,
+    type MessageLink
+  } from '$lib/messageLinks';
   import { serverIdToSegment } from '$lib/navigation';
   import { extractURLs } from '$lib/linkPreview';
   import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
@@ -143,6 +147,7 @@
     if (!msg) return;
 
     const params = {
+      serverId: getActiveServer(),
       roomId,
       messageEventId: event.id,
       eventId: isEcho ? messageEvent!.echoOfEventId! : event.id,
@@ -233,7 +238,9 @@
 
   const editEventId = $derived(isEcho ? messageEvent!.echoOfEventId! : event.id);
   const editThreadRootEventId = $derived(
-    isEcho ? (messageEvent?.echoFromThreadRootEventId ?? null) : (messageEvent?.threadRootEventId ?? null)
+    isEcho
+      ? (messageEvent?.echoFromThreadRootEventId ?? null)
+      : (messageEvent?.threadRootEventId ?? null)
   );
   const editChannelEchoEventId = $derived(
     isEcho ? event.id : (messageEvent?.channelEchoEventId ?? null)
@@ -262,12 +269,7 @@
     if (!event) return;
     e.preventDefault();
     e.stopPropagation();
-    try {
-      await navigator.clipboard.writeText(buildMessageLinkURL(getActiveServer(), roomId, event.id));
-      toast.success('Message link copied');
-    } catch {
-      toast.error('Failed to copy link');
-    }
+    await copyMessageLinkToClipboard(getActiveServer(), roomId, event.id);
   }
 
   // Check if message has been edited (updatedAt is non-null)

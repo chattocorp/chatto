@@ -7,7 +7,8 @@ const mocks = vi.hoisted(() => ({
   actions: {
     toggleReaction: vi.fn(),
     startEdit: vi.fn(),
-    openDeleteConfirmation: vi.fn()
+    openDeleteConfirmation: vi.fn(),
+    copyMessageLink: vi.fn()
   }
 }));
 
@@ -64,7 +65,23 @@ describe('MessageContextMenu', () => {
     expect(container.textContent).toContain('Reply');
     expect(container.textContent).toContain('Reply in thread');
     expect(container.textContent).toContain('Edit');
+    expect(container.textContent).toContain('Copy link');
     expect(container.textContent).toContain('Delete');
+  });
+
+  it('orders copy link between edit and delete', () => {
+    const { container } = renderMenu({
+      canEdit: true,
+      canDelete: true
+    });
+
+    const actionLabels = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')
+    )
+      .map((button) => button.textContent?.trim())
+      .filter(Boolean);
+
+    expect(actionLabels).toEqual(['Edit', 'Copy link', 'Delete']);
   });
 
   it('renders no empty actions section for a non-author thread reply', () => {
@@ -78,6 +95,18 @@ describe('MessageContextMenu', () => {
     expect(container.textContent).not.toContain('Edit');
     expect(container.textContent).not.toContain('Delete');
     expect(container.querySelectorAll('.menu-section')).toHaveLength(2);
+  });
+
+  it('renders copy link as the only action when no permissions are granted', () => {
+    const { container } = renderMenu();
+
+    const actionLabels = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')
+    )
+      .map((button) => button.textContent?.trim())
+      .filter(Boolean);
+
+    expect(actionLabels).toEqual(['Copy link']);
   });
 
   it('closes after invoking menu actions', async () => {
@@ -103,25 +132,40 @@ describe('MessageContextMenu', () => {
     expect(baseProps.onClose).toHaveBeenCalledOnce();
 
     baseProps.onClose.mockClear();
-    (Array.from(container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')).find(
-      (button) => button.textContent?.trim() === 'Reply in thread'
-    )!).click();
+    Array.from(container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))
+      .find((button) => button.textContent?.trim() === 'Reply in thread')!
+      .click();
     expect(onReply).toHaveBeenCalledOnce();
     expect(baseProps.onClose).toHaveBeenCalledOnce();
 
     baseProps.onClose.mockClear();
-    (Array.from(container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')).find(
-      (button) => button.textContent?.includes('Edit')
-    )!).click();
+    Array.from(container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))
+      .find((button) => button.textContent?.includes('Edit'))!
+      .click();
     expect(mocks.actions.startEdit).toHaveBeenCalledWith(
       expect.objectContaining({ eventId: 'event-1', messageBody: 'Hello' })
     );
     expect(baseProps.onClose).toHaveBeenCalledOnce();
 
     baseProps.onClose.mockClear();
-    (Array.from(container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')).find(
-      (button) => button.textContent?.includes('Delete')
-    )!).click();
+    Array.from(container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))
+      .find((button) => button.textContent?.includes('Copy link'))!
+      .click();
+    expect(mocks.actions.copyMessageLink).toHaveBeenCalledWith(
+      expect.objectContaining({
+        serverId: 'server-1',
+        roomId: 'room-1',
+        messageEventId: 'message-event-1'
+      })
+    );
+    await vi.waitFor(() => {
+      expect(baseProps.onClose).toHaveBeenCalledOnce();
+    });
+
+    baseProps.onClose.mockClear();
+    Array.from(container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))
+      .find((button) => button.textContent?.includes('Delete'))!
+      .click();
     expect(mocks.actions.openDeleteConfirmation).toHaveBeenCalledWith(
       expect.objectContaining({ eventId: 'event-1' })
     );

@@ -69,6 +69,7 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
   const actions = useMessageActions();
 
   const params: MessageActionParams = $derived({
+    serverId,
     roomId,
     messageEventId,
     eventId,

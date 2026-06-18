@@ -46,6 +46,7 @@
   const actions = useMessageActions();
 
   const params: MessageActionParams = $derived({
+    serverId,
     roomId,
     messageEventId,
     eventId,
@@ -82,6 +83,11 @@
 
   function handleEdit() {
     actions.startEdit(params);
+    onClose();
+  }
+
+  async function handleCopyLink() {
+    await actions.copyMessageLink(params);
     onClose();
   }
 
@@ -122,35 +128,38 @@
   {/if}
 
   <!-- Action list using sidebar-item styling with extra padding for mobile tap targets -->
-  {#if onReplyInRoom || onReply || canEdit || canDelete}
-    <nav class="sidebar-nav">
-      {#if onReplyInRoom}
-        <button class="sidebar-item py-3.5" onclick={handleReplyInRoom}>
-          <span class="sidebar-icon iconify uil--corner-up-left"></span>
-          Reply
-        </button>
-      {/if}
+  <nav class="sidebar-nav">
+    {#if onReplyInRoom}
+      <button class="sidebar-item py-3.5" onclick={handleReplyInRoom}>
+        <span class="sidebar-icon iconify uil--corner-up-left"></span>
+        Reply
+      </button>
+    {/if}
 
-      {#if onReply}
-        <button class="sidebar-item py-3.5" onclick={handleReply}>
-          <span class="sidebar-icon iconify uil--comment-alt-lines"></span>
-          Reply in thread
-        </button>
-      {/if}
+    {#if onReply}
+      <button class="sidebar-item py-3.5" onclick={handleReply}>
+        <span class="sidebar-icon iconify uil--comment-alt-lines"></span>
+        Reply in thread
+      </button>
+    {/if}
 
-      {#if canEdit}
-        <button class="sidebar-item py-3.5" onclick={handleEdit}>
-          <span class="sidebar-icon iconify uil--pen"></span>
-          Edit
-        </button>
-      {/if}
+    {#if canEdit}
+      <button class="sidebar-item py-3.5" onclick={handleEdit}>
+        <span class="sidebar-icon iconify uil--pen"></span>
+        Edit
+      </button>
+    {/if}
 
-      {#if canDelete}
-        <button class="sidebar-item py-3.5" onclick={handleDelete}>
-          <span class="sidebar-icon iconify uil--trash-alt"></span>
-          Delete
-        </button>
-      {/if}
-    </nav>
-  {/if}
+    <button class="sidebar-item py-3.5" onclick={handleCopyLink}>
+      <span class="sidebar-icon iconify uil--copy"></span>
+      Copy link
+    </button>
+
+    {#if canDelete}
+      <button class="sidebar-item py-3.5" onclick={handleDelete}>
+        <span class="sidebar-icon iconify uil--trash-alt"></span>
+        Delete
+      </button>
+    {/if}
+  </nav>
 </div>

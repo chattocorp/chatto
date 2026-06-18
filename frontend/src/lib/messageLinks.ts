@@ -7,6 +7,7 @@
 import { resolve } from '$app/paths';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 import { serverIdToSegment, segmentToServerId } from '$lib/navigation';
+import { toast } from '$lib/ui/toast';
 
 export interface MessageLink {
   /** URL segment for the server (`-` for origin, hostname for remote). */
@@ -17,11 +18,7 @@ export interface MessageLink {
   messageId: string;
 }
 
-export function buildMessageLinkPath(
-  serverId: string,
-  roomId: string,
-  messageId: string
-): string {
+export function buildMessageLinkPath(serverId: string, roomId: string, messageId: string): string {
   return resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
     serverId: serverIdToSegment(serverId),
     roomId,
@@ -30,11 +27,7 @@ export function buildMessageLinkPath(
 }
 
 /** Absolute URL for clipboard copy. */
-export function buildMessageLinkURL(
-  serverId: string,
-  roomId: string,
-  messageId: string
-): string {
+export function buildMessageLinkURL(serverId: string, roomId: string, messageId: string): string {
   const path = buildMessageLinkPath(serverId, roomId, messageId);
 
   const server = serverRegistry.getServer(serverId);
@@ -53,6 +46,19 @@ export function buildMessageLinkURL(
   return path;
 }
 
+export async function copyMessageLinkToClipboard(
+  serverId: string,
+  roomId: string,
+  messageId: string
+): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(buildMessageLinkURL(serverId, roomId, messageId));
+    toast.success('Message link copied');
+  } catch {
+    toast.error('Failed to copy link');
+  }
+}
+
 /**
  * Parse a URL (absolute or relative) and return message link details if it
  * matches the Chatto message link pattern. Returns null for any non-match.
@@ -65,7 +71,10 @@ export function parseMessageLink(input: string): MessageLink | null {
   let hostnameSegment: string | null = null;
 
   try {
-    const url = new URL(input, typeof window !== 'undefined' ? window.location.origin : 'https://_');
+    const url = new URL(
+      input,
+      typeof window !== 'undefined' ? window.location.origin : 'https://_'
+    );
     pathname = url.pathname;
     if (typeof window !== 'undefined' && url.host !== window.location.host) {
       hostnameSegment = url.hostname;
