@@ -1,7 +1,7 @@
 # FDR-019: Room Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-06-15
+**Last reviewed:** 2026-06-17
 
 ## Overview
 
@@ -15,6 +15,7 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 - **Unarchive** — same permission, flips the flag back. The room reappears in the sidebar and discovery surfaces.
 - **Ban member** — `room.ban-member` holders can ban a user from a channel room with a required reason and optional expiry. The banned user loses room read/write/live access immediately and cannot rejoin until the ban is removed or expires.
 - **Delete** — `room.manage` appends `RoomDeletedEvent` to `EVT`, releases the room from its group layout, and causes projections to remove the room, its name claim, and its memberships.
+- **Room URLs** — room loading is always keyed by room ID. Channel room pages canonicalize to `/chat/{server}/{roomId}-{currentName}` after the room loads; the name suffix is cosmetic and is never used to choose the room. Plain ID URLs keep working and redirect to the current canonical suffix. DM rooms keep plain ID URLs because their GraphQL `name` is intentionally empty.
 - Moving a room between groups requires `room.manage` in both groups (see FDR-017).
 
 ## Design Decisions
@@ -23,7 +24,7 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 
 **Decision:** Room names are unique server-wide (case-insensitive). Uniqueness is enforced by checking a room catalog projection snapshot and appending name-changing room events with wildcard OCC against the room aggregate event set.
 **Why:** Race-tolerant name claiming is the only way to safely handle two operators creating the same-named room at the same moment. EVT OCC lets the event log remain the source of truth without maintaining a legacy KV name mirror.
-**Tradeoff:** Renames must coordinate through the event log and projection readiness instead of a single KV claim. The snapshot carries the matching `evt.room.>` sequence so stale projections conflict and retry instead of committing a duplicate claim. The payoff is no dual-write divergence.
+**Tradeoff:** Renames must coordinate through the event log and projection readiness instead of a single KV claim. The snapshot carries the matching `evt.room.>` sequence so stale projections conflict and retry instead of committing a duplicate claim. Room IDs are not reserved as names because room names are cosmetic URL suffixes, not route keys.
 
 ### 2. Every channel room belongs to exactly one group
 
@@ -31,43 +32,49 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 **Why:** Optional grouping means an "unsorted" branch in the permission resolver and sidebar layout — extra cases that nobody actually wants. Requiring a group simplifies the resolver and gives operators a consistent unit of permission scope. See ADR-031 and FDR-017.
 **Tradeoff:** Bulk room creation tools need to know which group to drop rooms into. The API surfaces a clear error if `groupID` is missing.
 
-### 3. Archive is a flag, not a state machine
+### 3. Room names are canonical URL suffixes, not route keys
+
+**Decision:** Channel room URLs canonicalize to `/chat/{server}/{roomId}-{roomName}`, preserving the current stored room-name casing in the suffix. The room ID prefix is the only routing key; the suffix is ignored for loading and exists only to make the address readable. `/chat/{server}/{roomId}` and stale suffixes such as `/chat/{server}/{roomId}-{oldName}` resolve the same room by ID and then replace the URL with the current suffix. DM rooms remain ID-addressed.
+**Why:** This gives readable room URLs without letting room renames or name reuse retroactively change where existing links go. It also preserves the long-standing ID route shape for normal navigation and avoids introducing a name-alias resolver into GraphQL.
+**Tradeoff:** A copied URL can show a stale suffix until it is opened and canonicalized. Historical room names are not searchable through the router; users must have a URL containing the room ID or discover the room through normal room lists/search.
+
+### 4. Archive is a flag, not a state machine
 
 **Decision:** Archive is a single boolean on the room record. The room stays in the same KV bucket, keeps its event history, keeps its members; only the discovery affordances filter on `archived: false`.
 **Why:** Archive's purpose is "stop showing this room everywhere, but don't lose the history". A full archived-rooms-elsewhere migration would mean different code paths for archived rooms, divergent reads, and a hard road back to active state. A flag is enough.
 **Tradeoff:** Every "show me rooms" query needs to remember to filter on `archived`. Centralised in the resolver layer.
 
-### 4. Delete is a durable tombstone
+### 5. Delete is a durable tombstone
 
 **Decision:** Deleting a room appends a durable `RoomDeletedEvent` to `EVT`. Projections remove the room from user-visible catalogs and membership state; historical facts remain in the event log.
 **Why:** `EVT` is both source of truth and audit log. Purging the room's event history would destroy the forensic trail and make replay semantics dependent on destructive stream operations.
 **Tradeoff:** Deleted-room history still consumes storage. User-visible reads must consistently respect the tombstone.
 
-### 5. Membership survives archive
+### 6. Membership survives archive
 
 **Decision:** Archiving doesn't kick anyone out. Members can still see the room if they navigate to it directly; they just can't find it through normal browse paths.
 **Why:** Forcibly leaving members would mean re-joining them on unarchive, which the membership system doesn't model. Keeping membership intact lets archive be reversible without ambiguity.
 **Tradeoff:** A user with a deep-link to an archived room can still post in it. In practice, archived rooms are usually emptied or muted first.
 
-### 6. Live layout updates broadcast on archive / unarchive
+### 7. Live layout updates broadcast on archive / unarchive
 
 **Decision:** Archive and unarchive both publish a `RoomLayoutUpdatedEvent` so all connected clients refresh the sidebar.
 **Why:** Without this, archiving a room would still show it in everyone's sidebar until they refresh. Live update keeps the visual state consistent across sessions.
 **Tradeoff:** One more event class to maintain. Fits cleanly into the existing live-event pattern (FDR-012's mechanism).
 
-### 7. Channel member bans use dedicated moderation events
+### 8. Channel member bans use dedicated moderation events
 
 **Decision:** Banning someone from a channel room appends a normal `UserLeftRoomEvent` with the target user as actor, plus `RoomMemberBannedEvent` with the target user, required reason, optional expiry, and moderator actor. Unbanning appends `RoomMemberUnbannedEvent` with a required moderator reason. DMs are excluded; their participant set is fixed by DM creation policy in FDR-007.
 **Why:** Other room members should see an ordinary leave in room history, while the moderation/audit fact remains explicit and prevents the banned user from immediately rejoining. The public leave event does not reveal that the user was banned.
 **Tradeoff:** A ban is represented by two durable facts: one public membership transition and one moderation fact.
 
-### 8. Join and leave events remain actor-only
+### 9. Join and leave events remain actor-only
 
 **Decision:** `UserJoinedRoomEvent` and `UserLeftRoomEvent` do not carry a target user. The event actor is the user who joined or left. Moderator bans additionally use dedicated moderation events. To the target user, an active ban is evaluated as an ordinary join authorization denial rather than a distinct API/UI state.
 **Why:** Join and leave are ordinary membership facts. Keeping the user in the envelope avoids dual-subject ambiguity. A ban-generated leave intentionally uses the target user as actor so public room history remains indistinguishable from a normal leave.
 **Tradeoff:** Projections that need moderation state must listen to the moderation event family as well as join/leave.
 
-### 9. Server-admin exposes active room bans
+### 10. Server-admin exposes active room bans
 
 **Decision:** Server-admin includes a Moderation page listing active room bans with target, room, moderator, reason, creation time, and optional expiry. Unbanning from the list prompts for a moderator reason and appends `RoomMemberUnbannedEvent`.
 **Why:** Operators need a way to audit and reverse room-level bans without spelunking the event log or editing RBAC state by hand.

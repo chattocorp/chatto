@@ -4,6 +4,7 @@ import { createAndLoginTestUser } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
 import { TIMEOUTS } from './constants';
 import { waitForRoomReady } from './fixtures/realtimeSync';
+import { getRoomIdForUrlSegment, getRoomUrlSegmentFromUrl } from './fixtures/graphqlHelpers';
 
 /**
  * Post messages via GraphQL API (much faster than UI-based posting).
@@ -21,13 +22,13 @@ async function postMessagesViaAPI(page: Page, roomId: string, messages: string[]
 }
 
 /**
- * Get the room ID from the current page URL.
+ * Get the room ID for the current room URL.
  */
-function getRoomIdFromUrl(page: Page): string {
+async function getRoomIdFromUrl(page: Page): Promise<string> {
   const url = page.url();
-  const match = url.match(/\/chat\/-\/([^/?]+)/);
-  if (!match) throw new Error(`Could not extract room ID from URL: ${url}`);
-  return match[1];
+  const segment = getRoomUrlSegmentFromUrl(url);
+  if (!segment) throw new Error(`Could not extract room ID from URL: ${url}`);
+  return getRoomIdForUrlSegment(page, segment);
 }
 
 async function getScrollFadeOpacities(page: Page): Promise<{ top: number; bottom: number }> {
@@ -55,7 +56,7 @@ test.describe('Virtualizer stability', () => {
     await chatPage.goto();
 
     await chatPage.enterRoom('general');
-    const generalRoomId = getRoomIdFromUrl(page);
+    const generalRoomId = await getRoomIdFromUrl(page);
     const timestamp = Date.now();
     const longText = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.';
     const messages = Array.from(
@@ -100,7 +101,7 @@ test.describe('Virtualizer stability', () => {
 
     // Enter the default "general" room and post many messages
     await chatPage.enterRoom('general');
-    const generalRoomId = getRoomIdFromUrl(page);
+    const generalRoomId = await getRoomIdFromUrl(page);
 
     const messages = Array.from({ length: 20 }, (_, i) => `General message ${i + 1}`);
     await postMessagesViaAPI(page, generalRoomId, messages);
@@ -110,7 +111,7 @@ test.describe('Virtualizer stability', () => {
 
     // Create a second room with only a few messages
     const secondRoomName = await chatPage.createRoom(`sparse-room-${Date.now()}`);
-    const sparseRoomId = getRoomIdFromUrl(page);
+    const sparseRoomId = await getRoomIdFromUrl(page);
 
     const sparseMessages = Array.from({ length: 3 }, (_, i) => `Sparse message ${i + 1}`);
     await postMessagesViaAPI(page, sparseRoomId, sparseMessages);
@@ -169,7 +170,7 @@ test.describe('Virtualizer stability', () => {
     await chatPage.goto();
 
     await chatPage.enterRoom('general');
-    const generalRoomId = getRoomIdFromUrl(page);
+    const generalRoomId = await getRoomIdFromUrl(page);
 
     // Seed general room with messages so it has scroll content
     const seedMessages = Array.from({ length: 15 }, (_, i) => `Seed message ${i + 1}`);

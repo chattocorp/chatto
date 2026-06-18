@@ -6,6 +6,7 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { roomPathForSegment } from '$lib/roomUrls';
 
   const activeInstanceId = $derived(getActiveServer());
   const serverSegment = $derived(serverIdToSegment(activeInstanceId));
@@ -32,7 +33,7 @@
   }
 
   function handleRoomCreated(roomId: string) {
-    goto(resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId }));
+    goto(roomPathForSegment(serverSegment, roomId));
   }
 
   let leavingRoom = $state(false);

@@ -8,6 +8,7 @@ const { queryMock, queryResults } = vi.hoisted(() => ({
   queryMock: vi.fn(),
   queryResults: [] as unknown[]
 }));
+const ROOM_ID = 'Rroom1';
 
 vi.mock('$lib/state/server/graphqlClient.svelte', () => ({
   graphqlClientManager: {
@@ -33,16 +34,21 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   }
 }));
 
-function link(): MessageLink {
+function link(overrides: Partial<MessageLink> = {}): MessageLink {
   return {
     serverSegment: '-',
     serverId: 'server_1',
-    roomId: 'room_1',
-    messageId: 'event_1'
+    roomId: ROOM_ID,
+    messageId: 'event_1',
+    ...overrides
   };
 }
 
-function previewResult(thumbnailUrl: string) {
+function previewResult(
+  thumbnailUrl: string,
+  room: { id: string; name: string } = { id: ROOM_ID, name: 'general' },
+  body: string | null = null
+) {
   return {
     data: {
       server: {
@@ -51,12 +57,13 @@ function previewResult(thumbnailUrl: string) {
         }
       },
       room: {
-        name: 'general',
+        id: room.id,
+        name: room.name,
         event: {
           actor: null,
           event: {
             __typename: 'MessagePostedEvent',
-            body: null,
+            body,
             attachments: [
               {
                 id: 'att_1',
@@ -140,12 +147,30 @@ describe('MessagePreviewCard', () => {
     expect(refreshCalls.length).toBeGreaterThanOrEqual(1);
     for (const call of refreshCalls) {
       expect(call[1]).toMatchObject({
-        roomId: 'room_1',
+        roomId: ROOM_ID,
         eventId: 'event_1',
         thumbnailWidth: 120,
         thumbnailHeight: 120,
         thumbnailFit: FitMode.Cover
       });
     }
+  });
+
+  it('uses the room ID for DM preview links when the room name is empty', async () => {
+    queryResults.push(
+      previewResult('/assets/files/att_1/image/120x120/cover', { id: 'Rdm1', name: '' }, 'hello')
+    );
+
+    const { container } = render(MessagePreviewCard, {
+      props: { link: link({ roomId: 'Rdm1' }), showDismiss: false }
+    });
+
+    let card: HTMLAnchorElement | null = null;
+    await vi.waitFor(() => {
+      card = container.querySelector<HTMLAnchorElement>('[data-testid="message-preview-card"]');
+      expect(card).not.toBeNull();
+    });
+
+    expect(new URL(card!.href).pathname).toBe('/chat/-/Rdm1/m/event_1');
   });
 });

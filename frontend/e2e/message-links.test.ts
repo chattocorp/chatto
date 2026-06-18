@@ -191,16 +191,31 @@ test.describe('Message links', () => {
       timeout: TIMEOUTS.REALTIME_EVENT
     });
 
-    // "Jump to Present" SHOULD appear (we jumped to an old message)
-    await expect(page.getByTestId('jump-to-present')).toBeVisible({
-      timeout: TIMEOUTS.UI_STANDARD
-    });
+    const latestFiller = page.getByText(`Filler 60 - ${timestamp}`);
+    const activeJumpToPresent = page.locator('[data-testid="jump-to-present"]:not([inert])');
 
-    // Click "Jump to Present" to return to the latest messages
-    await page.getByTestId('jump-to-present').click();
+    const firstReturnSignal = await Promise.race([
+      latestFiller.waitFor({ state: 'visible', timeout: TIMEOUTS.UI_STANDARD }).then(() => 'present'),
+      activeJumpToPresent
+        .waitFor({ state: 'visible', timeout: TIMEOUTS.UI_STANDARD })
+        .then(() => 'button')
+    ]);
+
+    // Click "Jump to Present" to return to the latest messages. The list may
+    // have already reached present while forward pagination settles; in that
+    // case the outgoing transitioned button is inert and no click is needed.
+    if (firstReturnSignal === 'button') {
+      try {
+        await activeJumpToPresent.click({ timeout: TIMEOUTS.UI_STANDARD });
+      } catch (error) {
+        if (!(await latestFiller.isVisible())) {
+          throw error;
+        }
+      }
+    }
 
     // The latest filler should become visible
-    await expect(page.getByText(`Filler 60 - ${timestamp}`)).toBeVisible({
+    await expect(latestFiller).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
 

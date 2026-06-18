@@ -41,6 +41,7 @@ const { mocks } = vi.hoisted(() => ({
         roomGroups: null,
         isInitialLoading: false,
         currentUserId: 'me',
+        resolveLoadedURLSegment: vi.fn(),
         markRead: vi.fn(),
         bumpRoom: vi.fn(),
         setUnread: vi.fn()
@@ -154,6 +155,7 @@ beforeEach(() => {
   mocks.store.rooms.roomGroups = null;
   mocks.store.rooms.isInitialLoading = false;
   mocks.store.rooms.currentUserId = 'me';
+  mocks.store.rooms.resolveLoadedURLSegment = vi.fn().mockReturnValue(null);
   setRooms();
   vi.clearAllMocks();
 });

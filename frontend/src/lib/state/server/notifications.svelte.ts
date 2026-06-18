@@ -3,7 +3,9 @@ import { graphql } from '$lib/gql';
 import type { NotificationsQuery } from '$lib/gql/graphql';
 import type { Client } from '@urql/svelte';
 import { resolve } from '$app/paths';
+import type { ResolvedPathname } from '$app/types';
 import { serverIdToSegment } from '$lib/navigation';
+import { roomPathForSegment, roomThreadPathForSegment } from '$lib/roomUrls';
 
 // GraphQL queries and mutations
 const NotificationsQueryDoc = graphql(`
@@ -607,32 +609,23 @@ export class NotificationStore {
    * Use this with `PendingHighlightStore.set()` to deliver the highlight
    * intent without polluting the URL.
    */
-  getCleanPath(serverId: string, notification: NotificationItem): string {
+  getCleanPath(serverId: string, notification: NotificationItem): ResolvedPathname {
     const seg = serverIdToSegment(serverId);
     const t = notificationTarget(notification);
+    const roomSegment = t.roomId;
 
-    if (t.isDM && t.roomId) {
+    if (t.isDM && roomSegment) {
       // DMs are now rooms on the Server (#330 phase 3) — use the standard
       // room URL rather than the legacy /chat/dm/... path.
-      return resolve('/chat/[serverId]/[roomId]', {
-        serverId: seg,
-        roomId: t.roomId
-      });
+      return roomPathForSegment(seg, roomSegment);
     }
-    if (!t.roomId) {
+    if (!roomSegment) {
       return resolve('/chat/[serverId]', { serverId: seg });
     }
     if (t.threadRootId) {
-      return resolve('/chat/[serverId]/[roomId]/[threadId]', {
-        serverId: seg,
-        roomId: t.roomId,
-        threadId: t.threadRootId
-      });
+      return roomThreadPathForSegment(seg, roomSegment, t.threadRootId);
     }
-    return resolve('/chat/[serverId]/[roomId]', {
-      serverId: seg,
-      roomId: t.roomId
-    });
+    return roomPathForSegment(seg, roomSegment);
   }
 
   /**
@@ -645,39 +638,30 @@ export class NotificationStore {
    *   store delivers the intent one-shot. Kept for permalink-style call sites
    *   that genuinely want the URL to encode the highlight.
    */
-  getNavigationPath(serverId: string, notification: NotificationItem): string {
+  getNavigationPath(serverId: string, notification: NotificationItem): ResolvedPathname {
     const seg = serverIdToSegment(serverId);
     const t = notificationTarget(notification);
+    const roomSegment = t.roomId;
 
-    if (t.isDM && t.roomId) {
+    if (t.isDM && roomSegment) {
       // DMs are now rooms on the Server (#330 phase 3) — use the standard
       // room URL rather than the legacy /chat/dm/... path.
-      return resolve('/chat/[serverId]/[roomId]', {
-        serverId: seg,
-        roomId: t.roomId
-      });
+      return roomPathForSegment(seg, roomSegment);
     }
 
-    if (!t.roomId) {
+    if (!roomSegment) {
       return resolve('/chat/[serverId]', { serverId: seg });
     }
 
     if (t.threadRootId && t.eventId) {
       return (
-        resolve('/chat/[serverId]/[roomId]/[threadId]', {
-          serverId: seg,
-          roomId: t.roomId,
-          threadId: t.threadRootId
-        }) +
+        roomThreadPathForSegment(seg, roomSegment, t.threadRootId) +
         '?highlight=' +
         t.eventId
-      );
+      ) as ResolvedPathname;
     }
 
-    const roomPath = resolve('/chat/[serverId]/[roomId]', {
-      serverId: seg,
-      roomId: t.roomId
-    });
-    return t.eventId ? `${roomPath}?highlight=${t.eventId}` : roomPath;
+    const roomPath = roomPathForSegment(seg, roomSegment);
+    return t.eventId ? (`${roomPath}?highlight=${t.eventId}` as ResolvedPathname) : roomPath;
   }
 }

@@ -107,7 +107,6 @@
     });
 
     const path = store.getCleanPath(item.serverId, item.notification);
-    // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
     await goto(path);
   }
 

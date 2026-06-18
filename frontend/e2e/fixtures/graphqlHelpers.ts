@@ -206,18 +206,50 @@ export async function postThreadReplyViaAPI(
   return json.data.postMessage.id;
 }
 
+export function getRoomUrlSegmentFromUrl(rawUrl: string): string | null {
+  const { pathname } = new URL(rawUrl, 'http://localhost');
+  const parts = pathname.split('/').filter(Boolean);
+  if (parts[0] !== 'chat' || parts.length < 3) return null;
+  return parts[2] ?? null;
+}
+
 /**
- * Extract roomId from the current URL (`/chat/-/{roomId}`). Post-ADR-030
- * the spaceId is just the legacy kind discriminator constant —
- * `core.LegacyServerSpaceID` on the backend, `SERVER_SPACE_ID` on the
- * frontend.
+ * Resolve the room URL segment from the current URL. Post-ADR-030 the spaceId
+ * is just the legacy kind discriminator constant — `core.LegacyServerSpaceID`
+ * on the backend, `SERVER_SPACE_ID` on the frontend.
  */
+export async function getRoomIdForUrlSegment(page: Page, segment: string): Promise<string> {
+  const decodedSegment = decodeURIComponent(segment);
+  const separator = decodedSegment.indexOf('-');
+  const roomId = separator > 0 ? decodedSegment.slice(0, separator) : decodedSegment;
+  const data = await graphqlQuery<{
+    viewer: { user: { rooms: Array<{ id: string; name: string }> } };
+  }>(
+    page,
+    `query {
+      viewer {
+        user {
+          rooms {
+            id
+            name
+          }
+        }
+      }
+    }`
+  );
+
+  const room = data.viewer.user.rooms.find(
+    (candidate) => candidate.id === roomId || candidate.name === decodedSegment
+  );
+  return room?.id ?? roomId;
+}
+
 export async function getIdsFromUrl(
   page: Page
 ): Promise<{ spaceId: string; roomId: string }> {
-  const match = page.url().match(/\/chat\/-\/([^/]+)/);
-  if (!match) throw new Error(`Could not extract roomId from URL: ${page.url()}`);
-  const roomId = match[1];
+  const segment = getRoomUrlSegmentFromUrl(page.url());
+  if (!segment) throw new Error(`Could not extract roomId from URL: ${page.url()}`);
+  const roomId = await getRoomIdForUrlSegment(page, segment);
   return { spaceId: 'server', roomId };
 }
 

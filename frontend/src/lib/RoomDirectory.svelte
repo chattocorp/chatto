@@ -15,10 +15,10 @@ testable without context stubs and decoupled from the multi-server
 registry.
 -->
 <script lang="ts">
-  import { resolve } from '$app/paths';
   import { toast } from '$lib/ui/toast';
   import { Button } from '$lib/ui/form';
   import Dialog from '$lib/ui/Dialog.svelte';
+  import { roomPathForSegment } from '$lib/roomUrls';
   import type { RoomsStore } from '$lib/state/server/rooms.svelte';
   import type {
     RoomDirectoryStore,
@@ -195,10 +195,7 @@ registry.
   -->
   {@const joinedGhost = `btn border-border bg-background text-muted hover:!border-danger hover:!bg-danger hover:!text-white ${sizing}`}
   {@const restrictedSoft = `btn border-border bg-background text-muted/70 !cursor-default opacity-80 ${sizing}`}
-  {@const roomHref = resolve('/chat/[serverId]/[roomId]', {
-    serverId: serverSegment,
-    roomId: room.id
-  })}
+  {@const roomHref = roomPathForSegment(serverSegment, room.id)}
   <li
     class="flex items-center gap-3 rounded px-3 py-1.5 transition-colors {joined
       ? 'hover:bg-surface-200'

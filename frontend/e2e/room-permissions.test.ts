@@ -87,7 +87,7 @@ async function createRoomViaAPI(page: Page, name?: string): Promise<string> {
   return data.data.createRoom.id;
 }
 
-async function getRoomByName(page: Page, roomName: string): Promise<string> {
+async function getRoomIdByDisplayName(page: Page, roomName: string): Promise<string> {
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
@@ -582,7 +582,7 @@ test.describe('Permission-only Resolution', () => {
       // Owner loads the primary server (auto-creates #general and #announcements rooms)
       const _owner = await createAndLoginTestUser(page);
       await usePrimaryServerViaAPI(page, `Hierarchy Test ${Date.now()}`);
-      const generalRoomId = await getRoomByName(page, 'general');
+      const generalRoomId = await getRoomIdByDisplayName(page, 'general');
 
       // Create regular member
       const member = await createSecondTestUser(page);
@@ -609,7 +609,7 @@ test.describe('Permission-only Resolution', () => {
       // fresh "owner" account that the bootstrap server wouldn't recognise.
       await createAndLoginTestUser(page);
       await usePrimaryServerViaAPI(page, `Muted Test ${Date.now()}`);
-      const generalRoomId = await getRoomByName(page, 'general');
+      const generalRoomId = await getRoomIdByDisplayName(page, 'general');
 
       // Create "muted" role
       await createServerRole(page, 'muted', 'Muted', 'Cannot post messages');
@@ -644,7 +644,7 @@ test.describe('Permission-only Resolution', () => {
       // Owner loads the primary server - this auto-creates #announcements with restricted permissions
       const _owner = await createAndLoginTestUser(page);
       await usePrimaryServerViaAPI(page, `Announcements Test ${Date.now()}`);
-      const announcementsRoomId = await getRoomByName(page, 'announcements');
+      const announcementsRoomId = await getRoomIdByDisplayName(page, 'announcements');
 
       // Owner should be able to post
       await page.goto(routes.room(announcementsRoomId));
@@ -671,7 +671,7 @@ test.describe('Permission-only Resolution', () => {
       // Owner loads the primary server - this auto-creates #announcements with restricted permissions
       const _owner = await createAndLoginTestUser(page);
       await usePrimaryServerViaAPI(page, `Admin Ann Test ${Date.now()}`);
-      const announcementsRoomId = await getRoomByName(page, 'announcements');
+      const announcementsRoomId = await getRoomIdByDisplayName(page, 'announcements');
 
       // Create member and assign admin role
       const admin = await createSecondTestUser(page);
@@ -691,7 +691,7 @@ test.describe('Permission-only Resolution', () => {
       // Owner loads the primary server - this auto-creates #announcements with restricted permissions
       const _owner = await createAndLoginTestUser(page);
       await usePrimaryServerViaAPI(page, `Mod Ann Test ${Date.now()}`);
-      const announcementsRoomId = await getRoomByName(page, 'announcements');
+      const announcementsRoomId = await getRoomIdByDisplayName(page, 'announcements');
 
       // Create member and assign moderator role
       const mod = await createSecondTestUser(page);

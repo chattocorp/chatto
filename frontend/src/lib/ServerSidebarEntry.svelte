@@ -12,6 +12,7 @@
   import { appState } from '$lib/state/globals.svelte';
   import ServerIcon from './ServerIcon.svelte';
   import { useTabResumeCallback } from '$lib/hooks';
+  import { roomPathForSegment } from '$lib/roomUrls';
 
   let {
     serverId,
@@ -324,7 +325,6 @@
     void notificationStore.dismiss(notification.id);
 
     const path = notificationStore.getCleanPath(serverId, notification);
-    // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
     await goto(path);
   }
 
@@ -359,7 +359,7 @@
     }
 
     if (roomId) {
-      await goto(resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId }));
+      await goto(roomPathForSegment(serverSegment, roomId));
     } else {
       await goto(resolve('/chat/[serverId]', { serverId: serverSegment }));
     }

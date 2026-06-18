@@ -4,12 +4,12 @@
 </script>
 
 <script lang="ts">
-  /* eslint-disable svelte/no-navigation-without-resolve -- goto target is built via buildMessageLinkPath which already calls resolve() */
   import { goto } from '$app/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { renderMarkdown as renderMd } from '$lib/markdown';
-  import { parseMessageLink, buildMessageLinkPath } from '$lib/messageLinks';
+  import { parseMessageLink } from '$lib/messageLinks';
+  import { roomMessagePathForSegment } from '$lib/roomUrls';
   import { wrapValidMentions, type RoomMember } from '$lib/mentions';
 
   let {
@@ -94,7 +94,13 @@
       // Internal message link → navigate in-app via SvelteKit
       const messageLink = parseMessageLink(anchor.href);
       if (messageLink?.serverId) {
-        goto(buildMessageLinkPath(messageLink.serverId, messageLink.roomId, messageLink.messageId));
+        goto(
+          roomMessagePathForSegment(
+            messageLink.serverSegment,
+            messageLink.roomId,
+            messageLink.messageId
+          )
+        );
         return;
       }
 

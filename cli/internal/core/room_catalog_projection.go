@@ -141,36 +141,47 @@ func (p *RoomCatalogProjection) Count() int {
 	return len(p.rooms)
 }
 
-// FindByName returns the ID of the channel room currently holding
-// the given name (case-insensitive, ignoring leading/trailing
-// whitespace), or "" if no such room exists. Used by CreateRoom /
-// UpdateRoom for the pre-publish uniqueness check.
+// FindByName returns the ID of the channel room currently holding the
+// given name (case-insensitive, ignoring leading/trailing whitespace), or
+// "" if no such claim exists. Used by CreateRoom / UpdateRoom for the
+// pre-publish uniqueness check.
 //
-// Channel-room only: DM rooms have empty names by convention.
-// Includes archived rooms — operators must rename them before
-// reclaiming the slot, matching the previous KV-index semantics.
+// Name ownership is channel-room only: DM rooms have empty names by
+// convention. Archived channel rooms still hold their names — operators
+// must rename them before reclaiming the slot, matching the previous
+// KV-index semantics.
 func (p *RoomCatalogProjection) FindByName(name string) string {
 	return p.NameClaimSnapshot(name).OwnerRoomID
 }
 
 func (p *RoomCatalogProjection) NameClaimSnapshot(name string) RoomNameClaimSnapshot {
-	target := strings.ToLower(strings.TrimSpace(name))
+	target := normalizeRoomName(name)
 	if target == "" {
 		return RoomNameClaimSnapshot{}
 	}
 	p.RLock()
 	defer p.RUnlock()
 	snapshot := RoomNameClaimSnapshot{Seq: p.seq}
+	if roomID := p.currentRoomIDByNameLocked(target); roomID != "" {
+		snapshot.OwnerRoomID = roomID
+	}
+	return snapshot
+}
+
+func (p *RoomCatalogProjection) currentRoomIDByNameLocked(normalized string) string {
 	for id, entry := range p.rooms {
 		if entry.kind != corev1.RoomKind_ROOM_KIND_CHANNEL {
 			continue
 		}
-		if strings.ToLower(entry.name) == target {
-			snapshot.OwnerRoomID = id
-			return snapshot
+		if normalizeRoomName(entry.name) == normalized {
+			return id
 		}
 	}
-	return snapshot
+	return ""
+}
+
+func normalizeRoomName(name string) string {
+	return strings.ToLower(strings.TrimSpace(name))
 }
 
 // entryToRoom converts a private catalog entry into the public

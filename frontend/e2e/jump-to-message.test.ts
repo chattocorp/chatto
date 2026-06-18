@@ -1,6 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
+import { getRoomIdForUrlSegment, getRoomUrlSegmentFromUrl } from './fixtures/graphqlHelpers';
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
 
@@ -64,14 +65,10 @@ async function postMessageAndGetId(
   return json.data.postMessage.id;
 }
 
-/**
- * Extract roomId from the current URL. Post-ADR-030 the spaceId is just the
- * kind discriminator constant (`core.LegacyServerSpaceID`).
- */
 async function getIdsFromUrl(page: Page): Promise<{ spaceId: string; roomId: string }> {
-  const match = page.url().match(/\/chat\/-\/([^/]+)/);
-  if (!match) throw new Error(`Could not extract roomId from URL: ${page.url()}`);
-  return { spaceId: 'server', roomId: match[1] };
+  const segment = getRoomUrlSegmentFromUrl(page.url());
+  if (!segment) throw new Error(`Could not extract roomId from URL: ${page.url()}`);
+  return { spaceId: 'server', roomId: await getRoomIdForUrlSegment(page, segment) };
 }
 
 async function clickReplyAttributionJump(page: Page, replyBody: string): Promise<void> {
@@ -129,7 +126,7 @@ test.describe('jump to message', () => {
 
     // Reload so we get a clean state with only the latest ~50 messages
     await page.reload();
-    await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+$/);
+    await page.waitForURL(routes.patterns.anyRoom);
 
     // Wait for the reply message to be visible (it's in the latest batch)
     await expect(page.getByText(replyBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
@@ -184,7 +181,7 @@ test.describe('jump to message', () => {
 
     // Reload for clean state
     await page.reload();
-    await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+$/);
+    await page.waitForURL(routes.patterns.anyRoom);
     await expect(page.getByText(replyBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
     // Jump to the old message via the direct message route. The reply-link
@@ -241,7 +238,7 @@ test.describe('jump to message', () => {
 
     // Reload for clean state
     await page.reload();
-    await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+$/);
+    await page.waitForURL(routes.patterns.anyRoom);
     await expect(page.getByText(replyBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
     // Click the reply link — this should use the in-DOM scroll path
@@ -281,7 +278,7 @@ test.describe('jump to message', () => {
 
     // Reload and jump
     await page.reload();
-    await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+$/);
+    await page.waitForURL(routes.patterns.anyRoom);
     await expect(page.getByText(replyBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
     await clickReplyAttributionJump(page, replyBody);

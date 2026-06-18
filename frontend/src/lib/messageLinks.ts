@@ -1,12 +1,15 @@
 /**
- * Message link URL format: `/chat/<serverSegment>/<roomId>/m/<messageId>`.
+ * Message link URL formats:
+ * - `/chat/<serverSegment>/<roomId>/m/<messageId>`
+ * - `/chat/<serverSegment>/<roomId>-<roomName>/m/<messageId>`
  * The `m/` prefix distinguishes message URLs from the `[threadId]` route that sits
  * at the same level (thread IDs and message IDs share the same ID space).
  */
 
-import { resolve } from '$app/paths';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 import { serverIdToSegment, segmentToServerId } from '$lib/navigation';
+import { roomIDFromURLSegment, roomMessagePathForSegment } from '$lib/roomUrls';
+import type { ResolvedPathname } from '$app/types';
 
 export interface MessageLink {
   /** URL segment for the server (`-` for origin, hostname for remote). */
@@ -17,16 +20,13 @@ export interface MessageLink {
   messageId: string;
 }
 
+/** Stable message permalink path. Intentionally ID-based even when the room has a name route. */
 export function buildMessageLinkPath(
   serverId: string,
   roomId: string,
   messageId: string
-): string {
-  return resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
-    serverId: serverIdToSegment(serverId),
-    roomId,
-    messageId
-  });
+): ResolvedPathname {
+  return roomMessagePathForSegment(serverIdToSegment(serverId), roomId, messageId);
 }
 
 /** Absolute URL for clipboard copy. */
@@ -75,17 +75,24 @@ export function parseMessageLink(input: string): MessageLink | null {
   }
 
   const parts = pathname.split('/').filter(Boolean);
-  // Expected: ['chat', serverSegment, roomId, 'm', messageId]
-  if (parts.length !== 5) return null;
-  if (parts[0] !== 'chat' || parts[3] !== 'm') return null;
+  if (parts[0] !== 'chat') return null;
 
-  const [, serverSegment, roomId, , messageId] = parts;
+  let serverSegment: string;
+  let roomId: string;
+  let messageId: string;
+
+  if (parts.length === 5 && parts[3] === 'm') {
+    [, serverSegment, roomId, , messageId] = parts;
+  } else {
+    return null;
+  }
+
   const effectiveSegment = hostnameSegment ?? serverSegment;
 
   return {
     serverSegment: effectiveSegment,
     serverId: segmentToServerId(effectiveSegment),
-    roomId,
+    roomId: roomIDFromURLSegment(roomId),
     messageId
   };
 }

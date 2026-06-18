@@ -354,6 +354,24 @@ func TestChattoCore_CreateRoom_DuplicateName_CaseInsensitive(t *testing.T) {
 	}
 }
 
+func TestChattoCore_CreateRoom_NameCanUseCurrentRoomID(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	existing, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
+	if err != nil {
+		t.Fatalf("Failed to create first room: %v", err)
+	}
+
+	created, err := core.CreateRoom(ctx, "test-user", KindChannel, "", existing.Id, "ID-shaped room name")
+	if err != nil {
+		t.Fatalf("Expected room ID name to be allowed, got: %v", err)
+	}
+	if created.Name != existing.Id {
+		t.Errorf("Expected room name %q, got %q", existing.Id, created.Name)
+	}
+}
+
 func TestChattoCore_RoomNameExists(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -466,6 +484,28 @@ func TestChattoCore_UpdateRoom_DuplicateName(t *testing.T) {
 	}
 }
 
+func TestChattoCore_UpdateRoom_NameCanUseCurrentRoomID(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	roomA, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "Room-A", "First room")
+	if err != nil {
+		t.Fatalf("Failed to create first room: %v", err)
+	}
+	roomB, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "Room-B", "Second room")
+	if err != nil {
+		t.Fatalf("Failed to create second room: %v", err)
+	}
+
+	updated, err := core.UpdateRoom(ctx, "test-user", KindChannel, roomB.Id, roomA.Id, "Updated description")
+	if err != nil {
+		t.Fatalf("Expected rename to another room ID to be allowed, got: %v", err)
+	}
+	if updated.Name != roomA.Id {
+		t.Errorf("Expected room name %q, got %q", roomA.Id, updated.Name)
+	}
+}
+
 func TestChattoCore_UpdateRoom_SameName_DifferentCase(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -550,6 +590,14 @@ func TestChattoCore_RoomNameExistsExcluding(t *testing.T) {
 	}
 	if exists {
 		t.Error("Should not find 'room-a' when excluding roomA (case-insensitive)")
+	}
+
+	exists, err = core.RoomNameExistsExcluding(ctx, KindChannel, roomA.Id, roomA.Id)
+	if err != nil {
+		t.Fatalf("Failed to check room ID exclusion: %v", err)
+	}
+	if exists {
+		t.Error("Room IDs should not be reserved by name checks")
 	}
 }
 

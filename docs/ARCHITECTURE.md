@@ -113,7 +113,7 @@ Projections are in-memory read models rebuilt from `EVT`. `NewChattoCore` regist
 
 | Runtime area       | Registered projector | Consumes                                                   | Read models / primary readers                                                             |
 | ------------------ | -------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Room directory     | Room Directory       | `evt.room.>`                                               | `RoomCatalogProjection`, `RoomMembershipProjection`, `RoomBanProjection`; room/member queries and room authorization |
+| Room directory     | Room Directory       | `evt.room.>`                                               | `RoomCatalogProjection`, `RoomMembershipProjection`, `RoomBanProjection`; room/member queries, room name claims, and room authorization |
 | Room organization  | Room Group Layout    | `evt.group.>`, `evt.layout.>`                              | `RoomGroupProjection`, `RoomLayoutProjection`; sidebar groups, sidebar links, and mixed sidebar item ordering |
 | Room timeline      | Room Timeline        | `evt.room.>`                                               | Raw room log, visible timeline index, latest message bodies, hidden echoes, current attachment-bearing message index, and message asset references |
 | Assets             | Assets               | `evt.asset.>`, legacy `evt.room.*.asset_*`                 | Asset creation metadata, room scope, processing manifests, derivative graph, deletion state, and legacy room-asset compatibility |

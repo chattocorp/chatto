@@ -28,6 +28,11 @@ export type RoomsListGroup = {
   items?: RoomsListGroupItem[];
 };
 
+export type ResolvedLoadedRoomSegment = {
+  room: RoomsListItem;
+  roomId: string;
+};
+
 export type SidebarLinkListItem = {
   id: string;
   label: string;
@@ -324,6 +329,18 @@ export class RoomsStore {
         viewerNotificationCount: 0
       }));
     });
+  }
+
+  resolveLoadedURLSegment(segment: string): ResolvedLoadedRoomSegment | null {
+    const byId = this.rooms.find((room) => room.id === segment);
+    if (byId) {
+      return {
+        room: byId,
+        roomId: byId.id
+      };
+    }
+
+    return null;
   }
 
   /**

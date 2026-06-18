@@ -1,8 +1,8 @@
 <script lang="ts">
   import { goto, replaceState } from '$app/navigation';
-  import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { serverIdToSegment } from '$lib/navigation';
+  import { roomThreadPathForSegment } from '$lib/roomUrls';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
 
@@ -180,11 +180,11 @@
 
   function navigateToThread(thread: FollowedThreadItem) {
     goto(
-      resolve('/chat/[serverId]/[roomId]/[threadId]', {
-        serverId: serverIdToSegment(getActiveServer()),
-        roomId: thread.roomId,
-        threadId: thread.threadRootEventId
-      })
+      roomThreadPathForSegment(
+        serverIdToSegment(getActiveServer()),
+        thread.roomId,
+        thread.threadRootEventId
+      )
     );
   }
 

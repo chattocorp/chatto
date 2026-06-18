@@ -189,7 +189,7 @@ test.describe('Cross-instance dots', () => {
 
     await page.waitForURL(
       (url) =>
-        url.pathname === `/chat/${remoteHostSegment}/${remoteGeneralRoomId}/${remoteRootEventId}`
+        url.pathname === `/chat/${remoteHostSegment}/${remoteGeneralRoomId}-general/${remoteRootEventId}`
     );
     await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
     await roomPage.expectThreadPaneVisible();
@@ -254,7 +254,7 @@ test.describe('Cross-instance dots', () => {
     await expect(remoteGeneralLink).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
     await remoteGeneralLink.click();
     await page.waitForURL(
-      (url) => url.pathname === `/chat/${remoteHostSegment}/${remoteGeneralRoomId}`
+      (url) => url.pathname === `/chat/${remoteHostSegment}/${remoteGeneralRoomId}-general`
     );
     await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
 

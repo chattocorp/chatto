@@ -14,6 +14,11 @@
 
 /** URL segment for the home (local) instance. */
 const HOME = '-';
+const ROOM_SEGMENT_PATTERN = `[a-zA-Z0-9_-]+`;
+
+function roomRoute(serverSegment: string, roomSegment: string): string {
+  return `/chat/${serverSegment}/${roomSegment}`;
+}
 
 // --- Root routes ---
 
@@ -37,10 +42,10 @@ export const chat = `/chat/${HOME}`;
  * server landing page.
  */
 export const space = () => `/chat/${HOME}`;
-export const room = (roomId: string) => `/chat/${HOME}/${roomId}`;
-export const thread = (roomId: string, threadId: string) => `/chat/${HOME}/${roomId}/${threadId}`;
+export const room = (roomId: string) => roomRoute(HOME, roomId);
+export const thread = (roomId: string, threadId: string) => `${roomRoute(HOME, roomId)}/${threadId}`;
 export const messageLink = (roomId: string, messageId: string) =>
-  `/chat/${HOME}/${roomId}/m/${messageId}`;
+  `${roomRoute(HOME, roomId)}/m/${messageId}`;
 
 // --- Browse & explore (instance-agnostic) ---
 
@@ -117,20 +122,22 @@ export const notifications = '/chat/notifications';
 export const patterns = {
   /** Any chat route after login redirect (home instance routes or instance-agnostic pages) */
   chatRedirect: /\/chat\/(-|notifications)/,
-  /** Any room page: /chat/-/{roomId} (channels and DMs share this shape post-#330 phase 3). */
-  anyRoom: /\/chat\/-\/[a-zA-Z0-9]+$/,
-  /** Any thread page: /chat/-/{roomId}/{threadId} */
-  anyThread: /\/chat\/-\/[a-zA-Z0-9]+\/[a-zA-Z0-9]+$/,
+  /** Any room page: /chat/-/{roomId} or /chat/-/{roomId}-{roomName}. */
+  anyRoom: new RegExp(`/chat/-/${ROOM_SEGMENT_PATTERN}$`),
+  /** Any thread page: /chat/-/{roomId}/{threadId} or /chat/-/{roomId}-{roomName}/{threadId}. */
+  anyThread: new RegExp(`/chat/-/${ROOM_SEGMENT_PATTERN}/[a-zA-Z0-9]+$`),
   /** Any admin user page: /chat/-/server-admin/members/{id} */
   anyAdminUser: /\/chat\/-\/server-admin\/members\/[a-zA-Z0-9]+/,
   /** Any non-admin chat route (home instance or instance-agnostic) */
   nonAdmin: /\/chat\/(?:-(?:\/(?!server-admin)|$)|notifications)/,
   /** Chat root or any room (used after redirects) */
-  chatRootOrRoom: /\/chat\/-(?:\/[a-zA-Z0-9]+)?$/,
+  chatRootOrRoom: new RegExp(`/chat/-(?:/${ROOM_SEGMENT_PATTERN})?$`),
   /** Chat root or any room, allowing query params */
-  chatRootOrRoomWithQuery: /\/chat\/-(?:\/[a-zA-Z0-9]+)?(?:\?.*)?$/,
+  chatRootOrRoomWithQuery: new RegExp(
+    `/chat/-(?:/${ROOM_SEGMENT_PATTERN})?(?:\\?.*)?$`
+  ),
   /** Any room with query params (e.g. ?highlight=) */
-  anyRoomWithQuery: /\/chat\/-\/[a-zA-Z0-9]+/,
+  anyRoomWithQuery: new RegExp(`/chat/-/${ROOM_SEGMENT_PATTERN}`),
   /** Browse rooms — folded into the server overview at /chat/-/overview */
   browseRooms: /\/chat\/-\/overview$/,
   /** Email verified redirect */
@@ -166,5 +173,5 @@ export const patterns = {
  * Unlike the home instance routes above, these use a hostname segment instead of "-".
  */
 export const remote = {
-  room: (hostname: string, roomId: string) => `/chat/${hostname}/${roomId}`
+  room: (hostname: string, roomId: string) => roomRoute(hostname, roomId)
 };

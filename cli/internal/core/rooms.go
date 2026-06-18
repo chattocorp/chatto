@@ -220,9 +220,9 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 //     rejects with ErrConflict if any evt.room.> message landed in the
 //     read-publish window — backoff briefly and retry.
 //
-// excludeRoomID is the ID to exclude from the uniqueness check —
-// used by UpdateRoom so a room can keep a name it already holds
-// (e.g. case-only changes, or no-op renames).
+// excludeRoomID is the ID to exclude from name-owner checks — used by
+// UpdateRoom so a room can keep a name it already holds (e.g. case-only
+// changes, or no-op renames).
 func (c *ChattoCore) publishRoomEventWithNameOCC(ctx context.Context, name string, event *corev1.Event, excludeRoomID string) (uint64, error) {
 	// Determine publish subject from the event payload. Room events
 	// all target the per-room aggregate subject; this doesn't change
@@ -590,16 +590,14 @@ func (c *ChattoCore) ListMemberRooms(ctx context.Context, kind RoomKind, userID 
 }
 
 // RoomNameExists reports whether a channel room with the given name
-// (case-insensitive, whitespace-trimmed) currently exists. ADR-035
-// phase 6: served from RoomCatalog.FindByName.
+// (case-insensitive, whitespace-trimmed) currently exists.
 func (c *ChattoCore) RoomNameExists(_ context.Context, _ RoomKind, name string) (bool, error) {
-	return c.rooms().roomIDByName(name) != "", nil
+	return c.rooms().nameClaimSnapshot(name).OwnerRoomID != "", nil
 }
 
 // RoomNameExistsExcluding is like RoomNameExists but treats
-// excludeRoomID as "free." Used by callers checking whether a rename
-// would collide.
+// excludeRoomID as "free" for current name ownership.
 func (c *ChattoCore) RoomNameExistsExcluding(_ context.Context, _ RoomKind, name, excludeRoomID string) (bool, error) {
-	owner := c.rooms().roomIDByName(name)
-	return owner != "" && owner != excludeRoomID, nil
+	snapshot := c.rooms().nameClaimSnapshot(name)
+	return snapshot.OwnerRoomID != "" && snapshot.OwnerRoomID != excludeRoomID, nil
 }

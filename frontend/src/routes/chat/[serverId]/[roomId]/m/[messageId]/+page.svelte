@@ -7,13 +7,21 @@
 <script lang="ts" module>
   import { graphql } from '$lib/gql';
   import { goto } from '$app/navigation';
-  import { resolve } from '$app/paths';
+  import {
+    roomIDFromURLSegment,
+    roomPathForSegment,
+    roomThreadPathForSegment,
+    roomURLSegment
+  } from '$lib/roomUrls';
   import type { Client } from '@urql/svelte';
   import type { PendingHighlightStore } from '$lib/state/server/pendingHighlight.svelte';
 
   const ResolveMessageLinkQuery = graphql(`
     query ResolveMessageLink($roomId: ID!, $eventId: ID!) {
       room(roomId: $roomId) {
+        id
+        name
+        type
         event(eventId: $eventId) {
           id
           event {
@@ -39,17 +47,18 @@
     roomId: string,
     messageId: string
   ): Promise<void> {
-    const roomParams = { serverId: serverSegment, roomId };
-
     try {
       const result = await client
         .query(ResolveMessageLinkQuery, { roomId, eventId: messageId }, { requestPolicy: 'network-only' })
         .toPromise();
 
+      const canonicalRoomSegment = result.data?.room
+        ? roomURLSegment(result.data.room)
+        : roomId;
       const event = result.data?.room?.event;
       if (!event) {
         pendingHighlights.set(roomId, null, messageId);
-        goto(resolve('/chat/[serverId]/[roomId]', roomParams), { replaceState: true });
+        goto(roomPathForSegment(serverSegment, canonicalRoomSegment), { replaceState: true });
         return;
       }
 
@@ -60,19 +69,16 @@
       if (threadRoot) {
         pendingHighlights.set(roomId, threadRoot, messageId);
         goto(
-          resolve('/chat/[serverId]/[roomId]/[threadId]', {
-            ...roomParams,
-            threadId: threadRoot
-          }),
+          roomThreadPathForSegment(serverSegment, canonicalRoomSegment, threadRoot),
           { replaceState: true }
         );
         return;
       }
 
       pendingHighlights.set(roomId, null, messageId);
-      goto(resolve('/chat/[serverId]/[roomId]', roomParams), { replaceState: true });
+      goto(roomPathForSegment(serverSegment, canonicalRoomSegment), { replaceState: true });
     } catch {
-      goto(resolve('/chat/[serverId]/[roomId]', roomParams), { replaceState: true });
+      goto(roomPathForSegment(serverSegment, roomId), { replaceState: true });
     }
   }
 </script>
@@ -93,11 +99,12 @@
 
   $effect(() => {
     if (roomsStore.isInitialLoading) return;
-    resolveAndRedirect(
+    const roomId = roomIDFromURLSegment(page.params.roomId!);
+    void resolveAndRedirect(
       connection().client,
       stores.pendingHighlights,
       page.params.serverId!,
-      page.params.roomId!,
+      roomId,
       page.params.messageId!
     );
   });

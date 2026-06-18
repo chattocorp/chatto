@@ -50,15 +50,16 @@ unknown instance) the component renders nothing.
       }
     }
   `);
+
 </script>
 
 <script lang="ts">
   import type { MessageLink } from '$lib/messageLinks';
   import { FitMode, type UserAvatarUserFragment } from '$lib/gql/graphql';
   import { useFragment } from '$lib/gql';
-  import { resolve } from '$app/paths';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import { serverIdToSegment } from '$lib/navigation';
+  import { roomMessagePathForSegment } from '$lib/roomUrls';
   import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import {
@@ -141,10 +142,12 @@ unknown instance) the component renders nothing.
         const result = await client
           .query(MessagePreviewQuery, { roomId, eventId: messageId })
           .toPromise();
+        const resolvedRoom = result.data?.room;
+        const serverName = result.data?.server.profile.name ?? null;
 
         if (cancelled) return;
 
-        const ev = result.data?.room?.event;
+        const ev = resolvedRoom?.event;
         const inner = ev?.event;
         if (!ev || !inner || inner.__typename !== 'MessagePostedEvent') {
           return;
@@ -157,7 +160,7 @@ unknown instance) the component renders nothing.
 
         preview = {
           serverId,
-          roomId,
+          roomId: resolvedRoom?.id ?? roomId,
           eventId: messageId,
           body: inner.body ?? null,
           attachments: inner.attachments.map((a) => {
@@ -171,8 +174,8 @@ unknown instance) the component renders nothing.
             };
           }),
           actor: ev.actor ? useFragment(UserAvatarFragment, ev.actor) : null,
-          spaceName: result.data?.server?.profile.name ?? null,
-          roomName: result.data?.room?.name ?? null
+          spaceName: serverName,
+          roomName: resolvedRoom?.name ?? null
         };
       } catch {
         // Fail silently — no preview shown.
@@ -197,6 +200,7 @@ unknown instance) the component renders nothing.
         : preview.body
       : ''
   );
+  const previewRoomSegment = $derived(preview?.roomId ?? '');
 
   function attachmentLabel(contentType: string): string {
     if (contentType.startsWith('image/')) return 'Image';
@@ -315,11 +319,11 @@ unknown instance) the component renders nothing.
 
 {#if preview}
   <a
-    href={resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
-      serverId: serverIdToSegment(preview.serverId),
-      roomId: preview.roomId,
-      messageId: preview.eventId
-    })}
+    href={roomMessagePathForSegment(
+      serverIdToSegment(preview.serverId),
+      previewRoomSegment,
+      preview.eventId
+    )}
     data-testid="message-preview-card"
     class="group/preview relative flex w-full max-w-md cursor-pointer flex-col embed-frame bg-surface-100 group-hover/msg:bg-surface-200 hover:bg-surface-300"
   >

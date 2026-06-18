@@ -2,6 +2,7 @@ import { expect, type Page } from '@playwright/test';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
+import { getRoomIdForUrlSegment } from './fixtures/graphqlHelpers';
 import { test } from './setup';
 import { TIMEOUTS } from './constants';
 
@@ -106,10 +107,10 @@ test.describe('WebSocket reconnect recovery', () => {
     await roomPage.postThreadReply(baselineReply);
     await roomPage.expectTextInThreadPane(baselineReply);
 
-    // Extract room ID and thread root event ID from the URL
-    // URL format: /chat/-/{spaceId}/{roomId}/{threadId}
+    // Extract room ID and thread root event ID from the URL.
+    // Channel URLs carry the room name, so resolve the segment before using GraphQL.
     const urlParts = page.url().split('/');
-    const roomId = urlParts[urlParts.length - 2];
+    const roomId = await getRoomIdForUrlSegment(page, urlParts[urlParts.length - 2]);
     const threadRootEventId = urlParts[urlParts.length - 1];
 
     try {

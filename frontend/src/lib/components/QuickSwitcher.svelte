@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
+  import type { ResolvedPathname } from '$app/types';
   import { scoreItem } from './quickSwitcherSearch';
   import { serverIdToSegment } from '$lib/navigation';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -17,6 +18,7 @@
   import { recentQuickSwitcher } from '$lib/state/recentQuickSwitcher.svelte';
   import { quickSwitcher } from '$lib/state/globals.svelte';
   import { toast } from '$lib/ui/toast';
+  import { roomPathForSegment } from '$lib/roomUrls';
 
   type ServerLogo = { name: string; logoUrl?: string | null };
 
@@ -31,7 +33,7 @@
     participants?: UserAvatarUserFragment[];
     currentUserId?: string;
     targetUserId?: string;
-    href?: string;
+    href?: ResolvedPathname;
     icon?: string;
     score: number;
   };
@@ -202,7 +204,7 @@
       detail: '',
       serverId: '',
       serverName: '',
-      href: '/chat/notifications',
+      href: resolve('/chat/notifications'),
       icon: 'uil--bell',
       score: 0
     });
@@ -385,18 +387,12 @@
 
   // --- Navigation ---
 
-  function itemUrl(item: ResultItem): string | undefined {
+  function itemUrl(item: ResultItem): ResolvedPathname | undefined {
     if ((item.kind === 'destination' || item.kind === 'server') && item.href) return item.href;
     if (item.kind === 'dm')
-      return resolve('/chat/[serverId]/[roomId]', {
-        serverId: serverIdToSegment(item.serverId),
-        roomId: item.id
-      });
+      return roomPathForSegment(serverIdToSegment(item.serverId), item.id);
     if (item.kind === 'room')
-      return resolve('/chat/[serverId]/[roomId]', {
-        serverId: serverIdToSegment(item.serverId),
-        roomId: item.id
-      });
+      return roomPathForSegment(serverIdToSegment(item.serverId), item.id);
     return undefined;
   }
 
@@ -424,17 +420,9 @@
     if (item.kind === 'user') {
       try {
         const roomId = await startDMFromUser(item);
-        const url = resolve('/chat/[serverId]/[roomId]', {
-          serverId: serverIdToSegment(item.serverId),
-          roomId
-        });
+        const url: ResolvedPathname = roomPathForSegment(serverIdToSegment(item.serverId), roomId);
         recentQuickSwitcher.record(url);
-        goto(
-          resolve('/chat/[serverId]/[roomId]', {
-            serverId: serverIdToSegment(item.serverId),
-            roomId
-          })
-        );
+        goto(url);
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to start DM');
       }
@@ -444,8 +432,7 @@
     const url = itemUrl(item);
     if (url) {
       recentQuickSwitcher.record(url);
-      // eslint-disable-next-line svelte/no-navigation-without-resolve -- url from itemUrl() is already resolved
-      goto(url);
+      goto(url as ResolvedPathname);
     }
   }
 

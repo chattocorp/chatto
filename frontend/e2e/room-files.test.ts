@@ -1,13 +1,17 @@
 import { expect, type Page } from '@playwright/test';
 import { TIMEOUTS } from './constants';
 import { test } from './setup';
-import { postMessageViaAPI } from './fixtures/graphqlHelpers';
+import {
+  getRoomIdForUrlSegment,
+  getRoomUrlSegmentFromUrl,
+  postMessageViaAPI
+} from './fixtures/graphqlHelpers';
 import { loginAndEnterRoom } from './fixtures/serverUser';
 
-function roomIdFromUrl(page: Page): string {
-  const match = page.url().match(/\/chat\/-\/([^/]+)/);
-  if (!match) throw new Error(`Could not extract roomId from URL: ${page.url()}`);
-  return match[1];
+async function roomIdFromUrl(page: Page): Promise<string> {
+  const segment = getRoomUrlSegmentFromUrl(page.url());
+  if (!segment) throw new Error(`Could not extract roomId from URL: ${page.url()}`);
+  return getRoomIdForUrlSegment(page, segment);
 }
 
 async function postFillerMessages(page: Page, roomId: string, prefix: string, count: number) {
@@ -20,7 +24,7 @@ test('room Files sidebar jumps to root files and opens thread reply files', asyn
   await page.setViewportSize({ width: 1280, height: 820 });
   const { roomPage } = await loginAndEnterRoom(page);
 
-  const roomId = roomIdFromUrl(page);
+  const roomId = await roomIdFromUrl(page);
   const stamp = Date.now();
 
   const rootFileText = `Root file anchor ${stamp}`;

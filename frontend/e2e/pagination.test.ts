@@ -1,7 +1,9 @@
 import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
+import { getRoomIdForUrlSegment, getRoomUrlSegmentFromUrl } from './fixtures/graphqlHelpers';
 import { TIMEOUTS, POLLING_INTERVALS } from './constants';
+import * as routes from './routes';
 
 /**
  * Post messages via GraphQL API (much faster than UI-based posting).
@@ -23,14 +25,10 @@ async function postMessagesViaAPI(
   }
 }
 
-/**
- * Extract roomId from the current URL (`/chat/-/{roomId}`). Post-ADR-030
- * the spaceId is just the kind discriminator constant.
- */
 async function getIdsFromUrl(page: Page): Promise<{ spaceId: string; roomId: string }> {
-  const match = page.url().match(/\/chat\/-\/([^/]+)/);
-  if (!match) throw new Error(`Could not extract roomId from URL: ${page.url()}`);
-  return { spaceId: 'server', roomId: match[1] };
+  const segment = getRoomUrlSegmentFromUrl(page.url());
+  if (!segment) throw new Error(`Could not extract roomId from URL: ${page.url()}`);
+  return { spaceId: 'server', roomId: await getRoomIdForUrlSegment(page, segment) };
 }
 
 test.describe('message pagination', () => {
@@ -55,7 +53,7 @@ test.describe('message pagination', () => {
     // Reload so messages are loaded via the initial query (last 50) rather than
     // waiting for 60 subscription events to arrive and render through virtua.
     await page.reload();
-    await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+$/);
+    await page.waitForURL(routes.patterns.anyRoom);
 
     // The newest message should still be visible after reload
     await expect(page.getByText(lastMessage)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
@@ -101,7 +99,7 @@ test.describe('message pagination', () => {
 
     // Reload the page — the intercepted query returns only ~25 events
     await page.reload();
-    await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+$/);
+    await page.waitForURL(routes.patterns.anyRoom);
     await expect(page.getByText(`Scroll-test 70 - ${timestamp}`)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
     // Remove the intercept so pagination queries go through unmodified
@@ -208,7 +206,7 @@ test.describe('message pagination', () => {
 
     // Reload for clean state (loads last ~50)
     await page.reload();
-    await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+$/);
+    await page.waitForURL(routes.patterns.anyRoom);
     await expect(page.getByText(`Paginate 150 - ${timestamp}`)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
     // The first message should NOT be visible yet
@@ -289,7 +287,7 @@ test.describe('message pagination', () => {
     // Reload so room A messages are loaded via initial query (last 50) rather than
     // waiting for 60 subscription events to arrive and render through virtua.
     await page.reload();
-    await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+$/);
+    await page.waitForURL(routes.patterns.anyRoom);
 
     // Room A should show its newest message
     await expect(page.getByText(lastRoomAMessage)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });

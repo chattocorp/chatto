@@ -2,6 +2,7 @@ import { expect, type Page } from '@playwright/test';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
+import { getRoomIdForUrlSegment, getRoomUrlSegmentFromUrl } from './fixtures/graphqlHelpers';
 import { test } from './setup';
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
@@ -42,9 +43,9 @@ async function postReplyViaAPI(
 }
 
 async function getIdsFromUrl(page: Page): Promise<{ spaceId: string; roomId: string }> {
-  const match = page.url().match(/\/chat\/-\/([^/]+)/);
-  if (!match) throw new Error(`Could not extract roomId from URL: ${page.url()}`);
-  return { spaceId: 'server', roomId: match[1] };
+  const segment = getRoomUrlSegmentFromUrl(page.url());
+  if (!segment) throw new Error(`Could not extract roomId from URL: ${page.url()}`);
+  return { spaceId: 'server', roomId: await getRoomIdForUrlSegment(page, segment) };
 }
 
 /**
@@ -1131,10 +1132,7 @@ test.describe('Message Threading', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    // Extract roomId from URL
-    const url = page.url();
-    const match = url.match(/\/chat\/-\/([^/]+)/);
-    const roomId = match![1];
+    const { roomId } = await getIdsFromUrl(page);
 
     // Post enough messages to make the container scrollable
     const timestamp = Date.now();
@@ -1302,7 +1300,7 @@ test.describe('Message Threading', () => {
 
     // Reload so only the latest ~50 messages are loaded (target is outside this window)
     await page.reload();
-    await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+$/);
+    await page.waitForURL(routes.patterns.anyRoom);
     await expect(page.getByText(replyBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
     // Target should NOT be visible (outside the loaded message window)

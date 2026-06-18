@@ -4,6 +4,7 @@ import { createAndLoginTestUser } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
 import { TIMEOUTS, POLLING_INTERVALS } from './constants';
 import { waitForRoomReady } from './fixtures/realtimeSync';
+import { getIdsFromUrl } from './fixtures/graphqlHelpers';
 
 /**
  * Post messages via GraphQL API (much faster than UI-based posting).
@@ -53,10 +54,7 @@ test.describe('Message pane auto-scroll', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    // Extract roomId from URL for API-based message posting
-    const url = page.url();
-    const match = url.match(/\/chat\/-\/([^/]+)/);
-    const roomId = match![1];
+    const { roomId } = await getIdsFromUrl(page);
 
     const timestamp = Date.now();
 
@@ -159,10 +157,7 @@ test.describe('Message pane auto-scroll', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    // Extract roomId from URL for API-based message posting
-    const url = page.url();
-    const match = url.match(/\/chat\/-\/([^/]+)/);
-    const roomId = match![1];
+    const { roomId } = await getIdsFromUrl(page);
 
     const timestamp = Date.now();
 
@@ -253,10 +248,7 @@ test.describe('Message pane auto-scroll', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    // Extract roomId from URL for API-based message posting
-    const url = page.url();
-    const match = url.match(/\/chat\/-\/([^/]+)/);
-    const roomId = match![1];
+    const { roomId } = await getIdsFromUrl(page);
 
     const timestamp = Date.now();
 
@@ -316,10 +308,7 @@ test.describe('Message pane auto-scroll', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    // Extract roomId from URL for API-based message posting
-    const url = page.url();
-    const match = url.match(/\/chat\/-\/([^/]+)/);
-    const roomId = match![1];
+    const { roomId } = await getIdsFromUrl(page);
 
     const timestamp = Date.now();
 
@@ -402,10 +391,7 @@ test.describe('Message pane auto-scroll', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
-    // Extract roomId from URL.
-    const url = page.url();
-    const match = url.match(/\/chat\/-\/([^/]+)/);
-    const roomId = match![1];
+    const { roomId } = await getIdsFromUrl(page);
 
     const timestamp = Date.now();
 
@@ -474,10 +460,7 @@ test.describe('Message pane auto-scroll', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    // Extract roomId from URL for API-based message posting
-    const url = page.url();
-    const match = url.match(/\/chat\/-\/([^/]+)/);
-    const roomId = match![1];
+    const { roomId } = await getIdsFromUrl(page);
 
     const timestamp = Date.now();
 
@@ -541,10 +524,7 @@ test.describe('Message pane auto-scroll', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    // Extract roomId from URL for API-based message posting
-    const url = page.url();
-    const match = url.match(/\/chat\/-\/([^/]+)/);
-    const roomId = match![1];
+    const { roomId } = await getIdsFromUrl(page);
 
     const timestamp = Date.now();
 
@@ -618,9 +598,7 @@ test.describe('Message pane auto-scroll', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    const url = page.url();
-    const match = url.match(/\/chat\/-\/([^/]+)/);
-    const roomId = match![1];
+    const { roomId } = await getIdsFromUrl(page);
 
     const timestamp = Date.now();
 
@@ -697,10 +675,7 @@ test.describe('Message pane auto-scroll', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    // Extract roomId from URL for API-based message posting
-    const url = page.url();
-    const match = url.match(/\/chat\/-\/([^/]+)/);
-    const roomId = match![1];
+    const { roomId } = await getIdsFromUrl(page);
 
     const timestamp = Date.now();
 
@@ -761,10 +736,7 @@ test.describe('Message pane auto-scroll', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    // Extract roomId from URL for API-based message posting
-    const url = page.url();
-    const match = url.match(/\/chat\/-\/([^/]+)/);
-    const roomId = match![1];
+    const { roomId } = await getIdsFromUrl(page);
 
     const timestamp = Date.now();
 
@@ -823,10 +795,7 @@ Line 8: This is the last line of this long message.`;
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    // Extract roomId from URL for API-based message posting
-    const url = page.url();
-    const match = url.match(/\/chat\/-\/([^/]+)/);
-    const roomId = match![1];
+    const { roomId } = await getIdsFromUrl(page);
 
     const timestamp = Date.now();
 
@@ -884,10 +853,7 @@ Line 8: This is the last line of this long message.`;
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    // Extract roomId from URL for API-based message posting
-    const url = page.url();
-    const match = url.match(/\/chat\/-\/([^/]+)/);
-    const roomId = match![1];
+    const { roomId } = await getIdsFromUrl(page);
 
     const timestamp = Date.now();
 
