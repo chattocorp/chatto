@@ -184,7 +184,7 @@ test.describe('Composer keyboard submit hint', () => {
     await expect(roomPage.messageInput).toHaveText('');
   });
 
-  test('allows a blank paragraph after exiting a list before Enter sends', async ({
+  test('sends from the visible trailing paragraph after exiting a list', async ({
     page,
     chatPage,
     roomPage
@@ -205,11 +205,7 @@ test.describe('Composer keyboard submit hint', () => {
     await roomPage.messageInput.press('Enter');
     await expect(roomPage.messageInput.locator('ul li')).toHaveCount(1);
     await expect(roomPage.messageInput.locator(':scope > p')).toHaveCount(1);
-    await expect(page.getByText(/(?:Cmd|Ctrl)\+Return to Send/)).toBeVisible();
-
-    await roomPage.messageInput.press('Enter');
     await expect(page.getByText(/(?:Return|Enter) again to Send/)).toBeVisible();
-    await expect(roomPage.messageInput.locator(':scope > p')).toHaveCount(2);
 
     await roomPage.messageInput.press('Enter');
     await expect(roomPage.getMessage('first').locator).toBeVisible({ timeout: TIMEOUTS.UI_FAST });

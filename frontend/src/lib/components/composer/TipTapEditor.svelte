@@ -605,12 +605,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     if (selectionFrom.after(1) !== doc.content.size) return false;
 
     const previousNode = doc.child(doc.childCount - 2);
-    if (previousNode.type.name === 'paragraph' && previousNode.content.size > 0) return true;
-    if (previousNode.type.name !== 'paragraph') return false;
-    if (doc.childCount <= 2) return false;
-
-    const nodeBeforePrevious = doc.child(doc.childCount - 3);
-    return nodeBeforePrevious.type.name !== 'paragraph' || nodeBeforePrevious.content.size > 0;
+    return previousNode.type.name !== 'paragraph' || previousNode.content.size > 0;
   }
 
   export type TipTapEditorApi = {
