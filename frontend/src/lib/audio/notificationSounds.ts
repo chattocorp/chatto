@@ -52,6 +52,30 @@ export interface NotificationSound {
   category: SoundCategory;
 }
 
+export interface NotificationSoundFilters {
+  /** Master output gain. 1 is the original synthesized volume. */
+  volume: number;
+  /** High-pass cutoff in Hz. 20 is treated as effectively off. */
+  highPassHz: number;
+  /** Low-pass cutoff in Hz. 20000 is treated as effectively off. */
+  lowPassHz: number;
+  /** Delay/echo amount from 0 to 100. */
+  echo: number;
+  /** Synthetic room reverb amount from 0 to 100. */
+  reverb: number;
+  /** Wave-shaping distortion amount from 0 to 100. */
+  crunch: number;
+}
+
+export const defaultNotificationSoundFilters: NotificationSoundFilters = {
+  volume: 1,
+  highPassHz: 20,
+  lowPassHz: 20000,
+  echo: 0,
+  reverb: 0,
+  crunch: 0
+};
+
 export const notificationSounds: NotificationSound[] = [
   // Silent
   { id: 'silent', name: 'Silent', category: 'Silent' },
@@ -106,30 +130,226 @@ export const soundCategories: SoundCategory[] = [
 
 // Lazy-initialized AudioContext (created on first user interaction)
 let audioCtx: AudioContext | null = null;
+const reverbImpulseCache = new WeakMap<AudioContext, Map<number, AudioBuffer>>();
+const activeOutputCleanups = new Set<() => void>();
+const OUTPUT_CLEANUP_DELAY_MS = 5_000;
+const OUTPUT_FADE_OUT_SECONDS = 0.04;
 
 function getContext(): AudioContext {
-  if (!audioCtx) {
+  if (!audioCtx || audioCtx.state === 'closed') {
     audioCtx = new AudioContext();
   }
   // Resume if suspended (browsers suspend until user interaction)
   if (audioCtx.state === 'suspended') {
-    audioCtx.resume();
+    void audioCtx.resume();
   }
   return audioCtx;
+}
+
+function stopActiveNotificationSounds() {
+  for (const cleanup of Array.from(activeOutputCleanups)) {
+    cleanup();
+  }
+}
+
+function registerOutputCleanup(ctx: AudioContext, nodes: AudioNode[], output: GainNode) {
+  let cleaned = false;
+
+  const cleanup = () => {
+    if (cleaned) return;
+    cleaned = true;
+
+    const now = ctx.currentTime;
+    output.gain.cancelScheduledValues(now);
+    output.gain.setValueAtTime(output.gain.value, now);
+    output.gain.linearRampToValueAtTime(0, now + OUTPUT_FADE_OUT_SECONDS);
+
+    setTimeout(() => {
+      for (const node of nodes) {
+        try {
+          node.disconnect();
+        } catch {
+          // Some browsers throw if the node has already been disconnected.
+        }
+      }
+
+      activeOutputCleanups.delete(cleanup);
+    }, OUTPUT_FADE_OUT_SECONDS * 1_000);
+  };
+
+  activeOutputCleanups.add(cleanup);
+  setTimeout(cleanup, OUTPUT_CLEANUP_DELAY_MS);
+}
+
+function createNotificationOutput(
+  ctx: AudioContext,
+  filters: NotificationSoundFilters
+): BiquadFilterNode {
+  const highPass = ctx.createBiquadFilter();
+  const lowPass = ctx.createBiquadFilter();
+  const shaped = ctx.createGain();
+  const gain = ctx.createGain();
+  const output = ctx.createGain();
+  const nodes: AudioNode[] = [highPass, lowPass, shaped, gain, output];
+
+  highPass.type = 'highpass';
+  highPass.frequency.value = filters.highPassHz;
+
+  lowPass.type = 'lowpass';
+  lowPass.frequency.value = filters.lowPassHz;
+
+  applyCrunch(ctx, lowPass, shaped, filters.crunch / 100, nodes);
+
+  gain.gain.value = filters.volume;
+  output.gain.value = 1;
+
+  highPass.connect(lowPass);
+  shaped.connect(gain);
+  gain.connect(output);
+  output.connect(ctx.destination);
+  applyEcho(ctx, gain, output, filters.echo / 100, nodes);
+  applyReverb(ctx, gain, output, filters.reverb / 100, nodes);
+
+  registerOutputCleanup(ctx, nodes, output);
+
+  return highPass;
+}
+
+function applyCrunch(
+  ctx: AudioContext,
+  input: AudioNode,
+  output: AudioNode,
+  amount: number,
+  nodes: AudioNode[]
+) {
+  if (amount <= 0) {
+    input.connect(output);
+    return;
+  }
+
+  const dry = ctx.createGain();
+  const wet = ctx.createGain();
+  const shaper = ctx.createWaveShaper();
+  nodes.push(dry, wet, shaper);
+
+  dry.gain.value = 1 - amount * 0.25;
+  wet.gain.value = amount * 0.75;
+  shaper.curve = createCrunchCurve(amount);
+  shaper.oversample = '2x';
+
+  input.connect(dry);
+  dry.connect(output);
+  input.connect(shaper);
+  shaper.connect(wet);
+  wet.connect(output);
+}
+
+function applyEcho(
+  ctx: AudioContext,
+  input: AudioNode,
+  output: AudioNode,
+  amount: number,
+  nodes: AudioNode[]
+) {
+  if (amount <= 0) return;
+
+  const delay = ctx.createDelay(0.8);
+  const feedback = ctx.createGain();
+  const wet = ctx.createGain();
+  nodes.push(delay, feedback, wet);
+
+  delay.delayTime.value = 0.08 + amount * 0.22;
+  feedback.gain.value = 0.12 + amount * 0.48;
+  wet.gain.value = amount * 0.55;
+
+  input.connect(delay);
+  delay.connect(wet);
+  wet.connect(output);
+  delay.connect(feedback);
+  feedback.connect(delay);
+}
+
+function applyReverb(
+  ctx: AudioContext,
+  input: AudioNode,
+  output: AudioNode,
+  amount: number,
+  nodes: AudioNode[]
+) {
+  if (amount <= 0) return;
+
+  const convolver = ctx.createConvolver();
+  const wet = ctx.createGain();
+  nodes.push(convolver, wet);
+
+  convolver.buffer = getReverbImpulse(ctx, amount);
+  wet.gain.value = amount * 0.45;
+
+  input.connect(convolver);
+  convolver.connect(wet);
+  wet.connect(output);
+}
+
+function createCrunchCurve(amount: number): Float32Array<ArrayBuffer> {
+  const samples = 256;
+  const curve: Float32Array<ArrayBuffer> = new Float32Array(
+    new ArrayBuffer(samples * Float32Array.BYTES_PER_ELEMENT)
+  );
+  const drive = 1 + amount * 45;
+
+  for (let i = 0; i < samples; i += 1) {
+    const x = (i * 2) / samples - 1;
+    curve[i] = ((1 + drive) * x) / (1 + drive * Math.abs(x));
+  }
+
+  return curve;
+}
+
+function getReverbImpulse(ctx: AudioContext, amount: number): AudioBuffer {
+  const cacheKey = Math.round(amount * 100);
+  let cache = reverbImpulseCache.get(ctx);
+  if (!cache) {
+    cache = new Map();
+    reverbImpulseCache.set(ctx, cache);
+  }
+
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+
+  const sampleRate = ctx.sampleRate;
+  const duration = 0.18 + amount * 1.1;
+  const length = Math.max(1, Math.floor(sampleRate * duration));
+  const impulse = ctx.createBuffer(2, length, sampleRate);
+  const decay = 1.4 + amount * 2.2;
+
+  for (let channel = 0; channel < impulse.numberOfChannels; channel += 1) {
+    const data = impulse.getChannelData(channel);
+    for (let i = 0; i < length; i += 1) {
+      const t = i / length;
+      data[i] = (Math.random() * 2 - 1) * (1 - t) ** decay;
+    }
+  }
+
+  cache.set(cacheKey, impulse);
+  return impulse;
 }
 
 /**
  * Play a notification sound by ID.
  * Returns a promise that resolves when the sound finishes.
  */
-export function playNotificationSound(soundId: NotificationSoundId): Promise<void> {
+export function playNotificationSound(
+  soundId: NotificationSoundId,
+  filters: NotificationSoundFilters = defaultNotificationSoundFilters
+): Promise<void> {
   if (soundId === 'silent') {
     return Promise.resolve();
   }
 
   const player = soundPlayers[soundId];
   if (player) {
-    return player();
+    stopActiveNotificationSounds();
+    return player(filters);
   }
 
   console.warn(`Unknown notification sound: ${soundId}`);
@@ -137,20 +357,23 @@ export function playNotificationSound(soundId: NotificationSoundId): Promise<voi
 }
 
 // Sound player functions
-const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
+const soundPlayers: Record<
+  NotificationSoundId,
+  (filters: NotificationSoundFilters) => Promise<void>
+> = {
   silent: () => Promise.resolve(),
 
   // ============================================================================
   // SIMPLE - Clean, professional notification sounds
   // ============================================================================
 
-  ding: () => {
+  ding: (filters) => {
     const ctx = getContext();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(createNotificationOutput(ctx, filters));
 
     osc.frequency.value = 880;
     osc.type = 'sine';
@@ -164,7 +387,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
     return delay(400);
   },
 
-  'chime-up': () => {
+  'chime-up': (filters) => {
     const ctx = getContext();
 
     [659.25, 880].forEach((freq, i) => {
@@ -172,7 +395,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
       const gain = ctx.createGain();
 
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(createNotificationOutput(ctx, filters));
 
       osc.frequency.value = freq;
       osc.type = 'sine';
@@ -188,7 +411,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
     return delay(420);
   },
 
-  'chime-down': () => {
+  'chime-down': (filters) => {
     const ctx = getContext();
 
     [880, 659.25].forEach((freq, i) => {
@@ -196,7 +419,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
       const gain = ctx.createGain();
 
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(createNotificationOutput(ctx, filters));
 
       osc.frequency.value = freq;
       osc.type = 'sine';
@@ -212,13 +435,13 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
     return delay(420);
   },
 
-  pop: () => {
+  pop: (filters) => {
     const ctx = getContext();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(createNotificationOutput(ctx, filters));
 
     osc.frequency.setValueAtTime(600, ctx.currentTime);
     osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.1);
@@ -233,13 +456,13 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
     return delay(100);
   },
 
-  bubble: () => {
+  bubble: (filters) => {
     const ctx = getContext();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(createNotificationOutput(ctx, filters));
 
     osc.frequency.setValueAtTime(400, ctx.currentTime);
     osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.1);
@@ -259,13 +482,13 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
   // PLAYFUL - Retro gaming sounds
   // ============================================================================
 
-  retro: () => {
+  retro: (filters) => {
     const ctx = getContext();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(createNotificationOutput(ctx, filters));
 
     osc.type = 'square';
     osc.frequency.setValueAtTime(440, ctx.currentTime);
@@ -281,7 +504,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
     return delay(200);
   },
 
-  coin: () => {
+  coin: (filters) => {
     const ctx = getContext();
 
     // Classic coin sound: first note short, second note sustains longer
@@ -295,7 +518,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
       const gain = ctx.createGain();
 
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(createNotificationOutput(ctx, filters));
 
       osc.frequency.value = freq;
       osc.type = 'square';
@@ -311,7 +534,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
     return delay(280);
   },
 
-  powerup: () => {
+  powerup: (filters) => {
     const ctx = getContext();
 
     const notes = [262, 330, 392, 523, 659, 784];
@@ -320,7 +543,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
       const gain = ctx.createGain();
 
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(createNotificationOutput(ctx, filters));
 
       osc.type = 'square';
       osc.frequency.value = freq;
@@ -336,7 +559,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
     return delay(400);
   },
 
-  fanfare: () => {
+  fanfare: (filters) => {
     const ctx = getContext();
 
     const melody = [
@@ -351,7 +574,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
       const gain = ctx.createGain();
 
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(createNotificationOutput(ctx, filters));
 
       osc.type = 'square';
       osc.frequency.value = freq;
@@ -368,13 +591,13 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
     return delay(550);
   },
 
-  laser: () => {
+  laser: (filters) => {
     const ctx = getContext();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(createNotificationOutput(ctx, filters));
 
     osc.type = 'sawtooth';
     osc.frequency.setValueAtTime(1500, ctx.currentTime);
@@ -389,7 +612,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
     return delay(150);
   },
 
-  'la-cucaracha': () => {
+  'la-cucaracha': (filters) => {
     const ctx = getContext();
 
     // Classic "La Cucaracha" horn melody: C-C-C-F-A
@@ -407,7 +630,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
       const gain = ctx.createGain();
 
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(createNotificationOutput(ctx, filters));
 
       osc.type = 'square';
       osc.frequency.value = freq;
@@ -428,7 +651,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
   // ROBOTS - Bleeps, bloops, and digital voices
   // ============================================================================
 
-  robot: () => {
+  robot: (filters) => {
     const ctx = getContext();
 
     const notes = [200, 250, 200, 300];
@@ -439,7 +662,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
 
       osc.connect(gain);
       osc2.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(createNotificationOutput(ctx, filters));
 
       osc.type = 'square';
       osc2.type = 'square';
@@ -459,7 +682,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
     return delay(350);
   },
 
-  ufo: () => {
+  ufo: (filters) => {
     const ctx = getContext();
     const osc = ctx.createOscillator();
     const lfo = ctx.createOscillator();
@@ -470,7 +693,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
     lfoGain.connect(osc.frequency);
 
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(createNotificationOutput(ctx, filters));
 
     osc.type = 'sine';
     osc.frequency.value = 600;
@@ -490,7 +713,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
     return delay(400);
   },
 
-  beepboop: () => {
+  beepboop: (filters) => {
     const ctx = getContext();
 
     // Classic robot "beep boop" pattern
@@ -507,7 +730,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
       const gain = ctx.createGain();
 
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(createNotificationOutput(ctx, filters));
 
       osc.type = 'square';
       osc.frequency.value = freq;
@@ -524,7 +747,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
     return delay(500);
   },
 
-  dialup: () => {
+  dialup: (filters) => {
     const ctx = getContext();
 
     // Simulated dial-up modem handshake sounds
@@ -534,7 +757,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
 
     osc.connect(gain);
     osc2.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(createNotificationOutput(ctx, filters));
 
     osc.type = 'square';
     osc2.type = 'sawtooth';
@@ -561,7 +784,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
     return delay(400);
   },
 
-  r2d2: () => {
+  r2d2: (filters) => {
     const ctx = getContext();
 
     // R2-D2 style excited beeping
@@ -579,7 +802,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
       const gain = ctx.createGain();
 
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(createNotificationOutput(ctx, filters));
 
       osc.type = 'sine';
       // Add slight frequency wobble
@@ -602,7 +825,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
   // MUSICAL - Melodies and harmonies
   // ============================================================================
 
-  harp: () => {
+  harp: (filters) => {
     const ctx = getContext();
 
     const notes = [523, 659, 784, 1047, 1319, 1568, 1319, 1047];
@@ -613,7 +836,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
 
       osc.connect(gain);
       osc2.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(createNotificationOutput(ctx, filters));
 
       osc.type = 'triangle';
       osc2.type = 'sine';
@@ -636,7 +859,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
     return delay(620);
   },
 
-  'music-box': () => {
+  'music-box': (filters) => {
     const ctx = getContext();
 
     const melody = [
@@ -653,7 +876,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
       const gain = ctx.createGain();
 
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(createNotificationOutput(ctx, filters));
 
       osc.type = 'sine';
       osc.frequency.value = freq;
@@ -669,7 +892,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
       const harm = ctx.createOscillator();
       const harmGain = ctx.createGain();
       harm.connect(harmGain);
-      harmGain.connect(ctx.destination);
+      harmGain.connect(createNotificationOutput(ctx, filters));
 
       harm.type = 'sine';
       harm.frequency.value = freq * 2;
@@ -685,7 +908,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
     return delay(850);
   },
 
-  celesta: () => {
+  celesta: (filters) => {
     const ctx = getContext();
 
     const melody = [
@@ -702,7 +925,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
       const gain = ctx.createGain();
 
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(createNotificationOutput(ctx, filters));
 
       osc.type = 'sine';
       osc.frequency.value = freq;
@@ -720,7 +943,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
         const harmGain = ctx.createGain();
 
         harm.connect(harmGain);
-        harmGain.connect(ctx.destination);
+        harmGain.connect(createNotificationOutput(ctx, filters));
 
         harm.type = 'sine';
         harm.frequency.value = freq * mult;
@@ -738,7 +961,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
     return delay(1000);
   },
 
-  synth: () => {
+  synth: (filters) => {
     const ctx = getContext();
 
     const chord = [440, 523.25, 659.25, 783.99];
@@ -752,7 +975,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
       osc.connect(filter);
       osc2.connect(filter);
       filter.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(createNotificationOutput(ctx, filters));
 
       osc.type = 'sawtooth';
       osc2.type = 'sawtooth';
@@ -779,7 +1002,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
     return delay(400);
   },
 
-  orchestra: () => {
+  orchestra: (filters) => {
     const ctx = getContext();
 
     const notes: Array<{ freq: number; type: OscillatorType }> = [
@@ -798,7 +1021,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
 
       osc.connect(filter);
       filter.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(createNotificationOutput(ctx, filters));
 
       osc.type = type;
       osc.frequency.value = freq;
@@ -823,7 +1046,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
   // HERE BE DRAGONS - Absolute madness
   // ============================================================================
 
-  chaos: () => {
+  chaos: (filters) => {
     const ctx = getContext();
 
     // Random frequency chaos with multiple oscillators
@@ -832,7 +1055,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
       const gain = ctx.createGain();
 
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(createNotificationOutput(ctx, filters));
 
       osc.type = ['sine', 'square', 'sawtooth', 'triangle'][
         Math.floor(Math.random() * 4)
@@ -855,7 +1078,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
     return delay(500);
   },
 
-  glitch: () => {
+  glitch: (filters) => {
     const ctx = getContext();
 
     // Digital glitch - rapid frequency jumping with bit-crushed feel
@@ -863,7 +1086,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
     const gain = ctx.createGain();
 
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(createNotificationOutput(ctx, filters));
 
     osc.type = 'square';
 
@@ -895,7 +1118,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
 
       const noiseGain = ctx.createGain();
       noise.connect(noiseGain);
-      noiseGain.connect(ctx.destination);
+      noiseGain.connect(createNotificationOutput(ctx, filters));
 
       const startTime = ctx.currentTime + i * 0.1 + 0.05;
       noiseGain.gain.setValueAtTime(0.1, startTime);
@@ -908,7 +1131,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
     return delay(350);
   },
 
-  siren: () => {
+  siren: (filters) => {
     const ctx = getContext();
 
     // Crazy alert siren with multiple phases
@@ -918,7 +1141,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
 
     osc.connect(gain);
     osc2.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(createNotificationOutput(ctx, filters));
 
     osc.type = 'sawtooth';
     osc2.type = 'square';
@@ -948,7 +1171,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
     return delay(600);
   },
 
-  dubstep: () => {
+  dubstep: (filters) => {
     const ctx = getContext();
 
     // Wobble bass drop
@@ -963,7 +1186,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
 
     osc.connect(filter);
     filter.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(createNotificationOutput(ctx, filters));
 
     osc.type = 'sawtooth';
     osc.frequency.setValueAtTime(55, ctx.currentTime); // Low bass
@@ -993,7 +1216,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
     const sub = ctx.createOscillator();
     const subGain = ctx.createGain();
     sub.connect(subGain);
-    subGain.connect(ctx.destination);
+    subGain.connect(createNotificationOutput(ctx, filters));
 
     sub.type = 'sine';
     sub.frequency.setValueAtTime(60, ctx.currentTime);
@@ -1008,7 +1231,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
     return delay(700);
   },
 
-  circus: () => {
+  circus: (filters) => {
     const ctx = getContext();
 
     // Chaotic circus calliope melody
@@ -1032,7 +1255,7 @@ const soundPlayers: Record<NotificationSoundId, () => Promise<void>> = {
 
       osc.connect(gain);
       osc2.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(createNotificationOutput(ctx, filters));
 
       // Slightly detuned for that out-of-tune calliope feel
       osc.type = 'square';

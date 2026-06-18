@@ -1,9 +1,10 @@
 import { expect } from '@playwright/test';
 import { TIMEOUTS } from './constants';
-import { createAndLoginTestUser, openServer } from './fixtures/testUser';
+import { createAndLoginTestUser } from './fixtures/testUser';
+import { withServerUser } from './fixtures/serverUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { test } from './setup';
-import { ChatPage, SettingsPage } from './pages';
+import { SettingsPage } from './pages';
 import * as routes from './routes';
 
 test.describe('Presence indicators', () => {
@@ -16,8 +17,6 @@ test.describe('Presence indicators', () => {
     // User A: Create account and navigate to general room
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-
-    const spaceId = await chatPage.getServerScopeId();
 
     // Navigate to "general" room to see member list
     const roomPage = await chatPage.enterRoom('general');
@@ -36,39 +35,28 @@ test.describe('Presence indicators', () => {
     });
 
     // User B: Create account and open the server
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
-
     let userBLogin: string;
 
-    try {
-      const userB = await createAndLoginTestUser(page2);
-      userBLogin = userB.login;
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: page2, user: userB, chatPage: chatPage2 }) => {
+        userBLogin = userB.login;
 
-      // User B opens the server
-      await openServer(page2);
+        // User B is auto-joined to "general" room - click it in the sidebar
+        await chatPage2.enterRoom('general');
+        await waitForRoomReady(page2, 'general');
 
-      // Navigate to the server. After openServer, the user lands on the
-      // server overview (`/chat/-`) — the auto-redirect to a default
-      // room was removed when default-room auto-join became permission-
-      // derived. Accepting either shape keeps this resilient.
-      await page2.goto(routes.space());
-      await page2.waitForURL(routes.patterns.chatRootOrRoom);
+        // Wait for User B to be visible in User A's member list (presence broadcast)
+        await roomPage.expectMemberVisible(userB.login, { timeout: TIMEOUTS.REALTIME_EVENT });
 
-      // User B is auto-joined to "general" room - click it in the sidebar
-      const chatPage2 = new ChatPage(page2);
-      await chatPage2.enterRoom('general');
-      await waitForRoomReady(page2, 'general');
-
-      // Wait for User B to be visible in User A's member list (presence broadcast)
-      await roomPage.expectMemberVisible(userB.login, { timeout: TIMEOUTS.REALTIME_EVENT });
-
-      // User B's presence indicator should be green (online)
-      const userBPresenceDot = roomPage.getMember(userB.login).locator('span.rounded-full');
-      await expect(userBPresenceDot).toHaveClass(/bg-green-500/, { timeout: TIMEOUTS.UI_STANDARD });
-    } finally {
-      await context2.close();
-    }
+        // User B's presence indicator should be green (online)
+        const userBPresenceDot = roomPage.getMember(userB.login).locator('span.rounded-full');
+        await expect(userBPresenceDot).toHaveClass(/bg-green-500/, {
+          timeout: TIMEOUTS.UI_STANDARD
+        });
+      }
+    );
 
     // After User B's context closes, they remain online until TTL expires (60s).
     // We use TTL-based expiry instead of immediate deletion to support multi-device
@@ -173,7 +161,6 @@ test.describe('Member list display format', () => {
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
 
-    const spaceId = await chatPage.getServerScopeId();
     const roomPage = await chatPage.enterRoom('general');
 
     // Verify User A's display format (test users get "Test User {timestamp}")
@@ -182,36 +169,29 @@ test.describe('Member list display format', () => {
     await roomPage.expectMemberUsernameFormat(userA.login, userA.login);
 
     // User B: Create account with custom display name
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: page2, user: userB, chatPage: chatPage2 }) => {
+        // Set custom display name for User B
+        await page2.goto(routes.settings);
+        await page2.waitForURL(routes.settings);
+        const displayNameInput = page2.getByPlaceholder('Enter your display name');
+        await displayNameInput.fill('Bob Builder');
+        await page2.getByRole('button', { name: 'Save Changes' }).click();
+        await expect(page2.getByText('Profile updated')).toBeVisible();
 
-    try {
-      const userB = await createAndLoginTestUser(page2);
+        // User B opens the server
+        await chatPage2.goto();
+        await chatPage2.enterRoom('general');
+        await waitForRoomReady(page2, 'general');
 
-      // Set custom display name for User B
-      await page2.goto(routes.settings);
-      await page2.waitForURL(routes.settings);
-      const displayNameInput = page2.getByPlaceholder('Enter your display name');
-      await displayNameInput.fill('Bob Builder');
-      await page2.getByRole('button', { name: 'Save Changes' }).click();
-      await expect(page2.getByText('Profile updated')).toBeVisible();
-
-      // User B opens the server
-      await openServer(page2);
-      await page2.goto(routes.space());
-      await page2.waitForURL(routes.patterns.chatRootOrRoom);
-
-      const chatPage2 = new ChatPage(page2);
-      await chatPage2.enterRoom('general');
-      await waitForRoomReady(page2, 'general');
-
-      // User A should see User B with custom display name
-      await roomPage.expectMemberVisible(userB.login, { timeout: TIMEOUTS.REALTIME_EVENT });
-      await roomPage.expectMemberDisplayName(userB.login, 'Bob Builder');
-      await roomPage.expectMemberUsernameFormat(userB.login, userB.login);
-    } finally {
-      await context2.close();
-    }
+        // User A should see User B with custom display name
+        await roomPage.expectMemberVisible(userB.login, { timeout: TIMEOUTS.REALTIME_EVENT });
+        await roomPage.expectMemberDisplayName(userB.login, 'Bob Builder');
+        await roomPage.expectMemberUsernameFormat(userB.login, userB.login);
+      }
+    );
   });
 });
 
@@ -245,7 +225,6 @@ test.describe('Member list grouping', () => {
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
 
-    const spaceId = await chatPage.getServerScopeId();
     const roomPage = await chatPage.enterRoom('general');
 
     // Initially only online section with User A
@@ -254,36 +233,29 @@ test.describe('Member list grouping', () => {
     });
 
     // User B: Create account and open the server
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
-
     let userBLogin: string;
 
-    try {
-      const userB = await createAndLoginTestUser(page2);
-      userBLogin = userB.login;
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: page2, user: userB, chatPage: chatPage2 }) => {
+        userBLogin = userB.login;
 
-      // User B opens the server
-      await openServer(page2);
-      await page2.goto(routes.space());
-      await page2.waitForURL(routes.patterns.chatRootOrRoom);
+        // User B opens the server
+        await chatPage2.enterRoom('general');
+        await waitForRoomReady(page2, 'general');
 
-      const chatPage2 = new ChatPage(page2);
-      await chatPage2.enterRoom('general');
-      await waitForRoomReady(page2, 'general');
+        // User A should see both users in Online section
+        await expect(roomPage.onlineSectionHeader).toHaveText('Online (2)', {
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
 
-      // User A should see both users in Online section
-      await expect(roomPage.onlineSectionHeader).toHaveText('Online (2)', {
-        timeout: TIMEOUTS.REALTIME_EVENT
-      });
-
-      // User B should be visible and not dimmed
-      const userBItem = roomPage.getMember(userB.login);
-      await expect(userBItem).toBeVisible();
-      await expect(userBItem).not.toHaveClass(/opacity-50/);
-    } finally {
-      await context2.close();
-    }
+        // User B should be visible and not dimmed
+        const userBItem = roomPage.getMember(userB.login);
+        await expect(userBItem).toBeVisible();
+        await expect(userBItem).not.toHaveClass(/opacity-50/);
+      }
+    );
 
     // After User B disconnects, they remain online until TTL expires (60s).
     // We use TTL-based expiry instead of immediate deletion to support multi-device
@@ -314,7 +286,6 @@ test.describe('Member list grouping', () => {
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
 
-    const spaceId = await chatPage.getServerScopeId();
     const roomPage = await chatPage.enterRoom('general');
 
     // Wait for member list to load
@@ -326,27 +297,17 @@ test.describe('Member list grouping', () => {
     });
 
     // User B: Create account and open the server
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
+    await withServerUser(browser!, serverURL, async ({ page: page2, chatPage: chatPage2 }) => {
+      await chatPage2.enterRoom('general');
+      await waitForRoomReady(page2, 'general');
 
-    const _userB = await createAndLoginTestUser(page2);
-    await openServer(page2);
-    await page2.goto(routes.space());
-    await page2.waitForURL(routes.patterns.chatRootOrRoom);
-
-    const chatPage2 = new ChatPage(page2);
-    await chatPage2.enterRoom('general');
-    await waitForRoomReady(page2, 'general');
-
-    // Both should be online - count should update
-    // Issue #330: e2eadmin counts as an offline member of the bootstrap server,
-    // so we no longer assert offline section is invisible.
-    await expect(roomPage.onlineSectionHeader).toHaveText('Online (2)', {
-      timeout: TIMEOUTS.REALTIME_EVENT
+      // Both should be online - count should update
+      // Issue #330: e2eadmin counts as an offline member of the bootstrap server,
+      // so we no longer assert offline section is invisible.
+      await expect(roomPage.onlineSectionHeader).toHaveText('Online (2)', {
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
     });
-
-    // User B disconnects
-    await context2.close();
 
     // User B remains online until TTL expires (60s). We use TTL-based expiry
     // to support multi-device scenarios. The offline transition is tested in

@@ -68,7 +68,7 @@ test.describe('Link previews', () => {
     await expect(composerPreview).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
 
     // Now send — the preview data is included in the mutation
-    await roomPage.messageInput.press('Enter');
+    await roomPage.messageInput.press('Control+Enter');
     await expect(page.getByText(messageText)).toBeVisible();
 
     // The preview should be visible on the posted message (stored at post-time)
@@ -119,7 +119,7 @@ test.describe('Link previews', () => {
     });
 
     // Send the message (preview data included in mutation)
-    await roomPage.messageInput.press('Enter');
+    await roomPage.messageInput.press('Control+Enter');
     await expect(page.getByText(messageText)).toBeVisible();
 
     // Wait for the preview to appear on the posted message
@@ -165,7 +165,7 @@ test.describe('Link previews', () => {
     });
 
     // Send the message (preview data included in mutation)
-    await roomPage.messageInput.press('Enter');
+    await roomPage.messageInput.press('Control+Enter');
     await expect(page.getByText(messageText)).toBeVisible();
 
     // Wait for the first preview to appear

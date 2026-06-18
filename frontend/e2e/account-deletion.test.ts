@@ -1,9 +1,10 @@
 import { expect } from '@playwright/test';
-import { createAndLoginTestUser, openServer } from './fixtures/testUser';
+import { createAndLoginTestUser } from './fixtures/testUser';
+import { withServerUser } from './fixtures/serverUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { waitForUserDeleted } from './fixtures/graphqlHelpers';
 import { test } from './setup';
-import { AccountPage, ChatPage, RoomPage } from './pages';
+import { AccountPage } from './pages';
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
 
@@ -88,63 +89,52 @@ test.describe('Account Deletion', () => {
       await chatPage.goto();
       await chatPage.enterRoom('general');
 
-      const spaceId = await chatPage.getServerScopeId();
       const messageText = `Hello from ${userA.login} at ${Date.now()}`;
       await roomPage.sendMessage(messageText);
 
       // User B opens the server
-      const context2 = await browser!.newContext({ baseURL: serverURL });
-      const page2 = await context2.newPage();
+      await withServerUser(
+        browser!,
+        serverURL,
+        async ({ page: page2, chatPage: chatPage2, roomPage: roomPage2 }) => {
+          // User B enters the room and sees User A's message
+          await chatPage2.enterRoom('general');
+          await waitForRoomReady(page2, 'general');
+          await roomPage2.expectMessageVisible(messageText);
 
-      try {
-        await createAndLoginTestUser(page2);
+          // Verify User A's display name is shown (active users have a <button> for clickable name)
+          await expect(
+            page2.locator('[role="article"]').getByRole('button', { name: userA.displayName })
+          ).toBeVisible();
 
-        // User B opens the server
-        await openServer(page2);
-        await page2.goto(routes.space());
+          // User A deletes their account
+          const accountPage = new AccountPage(page);
+          await accountPage.goto();
+          await accountPage.deleteAccount();
 
-        const chatPage2 = new ChatPage(page2);
-        const roomPage2 = new RoomPage(page2);
+          // Wait for server to confirm user deletion (replaces arbitrary timeout)
+          await waitForUserDeleted(page2, userA.id!);
 
-        // User B enters the room and sees User A's message
-        await chatPage2.enterRoom('general');
-        await waitForRoomReady(page2, 'general');
-        await roomPage2.expectMessageVisible(messageText);
+          // User B refreshes the room to see updated state
+          await page2.reload();
+          // Wait for the page to load the chat (not redirect to login)
+          await page2.waitForURL(routes.patterns.chatRedirect, { timeout: TIMEOUTS.UI_STANDARD });
+          await waitForRoomReady(page2, 'general');
 
-        // Verify User A's display name is shown (active users have a <button> for clickable name)
-        await expect(
-          page2.locator('[role="article"]').getByRole('button', { name: userA.displayName })
-        ).toBeVisible();
+          // Body was crypto-shredded; the message is now rendered as a tombstone.
+          await expect(page2.getByText(messageText)).not.toBeVisible({
+            timeout: TIMEOUTS.REALTIME_EVENT
+          });
+          await expect(page2.getByText('This message has been deleted').first()).toBeVisible({
+            timeout: TIMEOUTS.REALTIME_EVENT
+          });
 
-        // User A deletes their account
-        const accountPage = new AccountPage(page);
-        await accountPage.goto();
-        await accountPage.deleteAccount();
-
-        // Wait for server to confirm user deletion (replaces arbitrary timeout)
-        await waitForUserDeleted(page2, userA.id!);
-
-        // User B refreshes the room to see updated state
-        await page2.reload();
-        // Wait for the page to load the chat (not redirect to login)
-        await page2.waitForURL(routes.patterns.chatRedirect, { timeout: TIMEOUTS.UI_STANDARD });
-        await waitForRoomReady(page2, 'general');
-
-        // Body was crypto-shredded; the message is now rendered as a tombstone.
-        await expect(page2.getByText(messageText)).not.toBeVisible({
-          timeout: TIMEOUTS.REALTIME_EVENT
-        });
-        await expect(page2.getByText('This message has been deleted').first()).toBeVisible({
-          timeout: TIMEOUTS.REALTIME_EVENT
-        });
-
-        // User A's clickable display-name button is gone (the actor is gone).
-        await expect(
-          page2.locator('[role="article"]').getByRole('button', { name: userA.displayName })
-        ).not.toBeVisible();
-      } finally {
-        await context2.close();
-      }
+          // User A's clickable display-name button is gone (the actor is gone).
+          await expect(
+            page2.locator('[role="article"]').getByRole('button', { name: userA.displayName })
+          ).not.toBeVisible();
+        }
+      );
     });
 
     test('messages update in real-time when user deletes account (no refresh needed)', async ({
@@ -159,58 +149,47 @@ test.describe('Account Deletion', () => {
       await chatPage.goto();
       await chatPage.enterRoom('general');
 
-      const spaceId = await chatPage.getServerScopeId();
       const messageText = `Real-time test from ${userA.login} at ${Date.now()}`;
       await roomPage.sendMessage(messageText);
 
       // User B opens the server
-      const context2 = await browser!.newContext({ baseURL: serverURL });
-      const page2 = await context2.newPage();
+      await withServerUser(
+        browser!,
+        serverURL,
+        async ({ page: page2, chatPage: chatPage2, roomPage: roomPage2 }) => {
+          // User B enters the room and sees User A's message
+          await chatPage2.enterRoom('general');
+          await waitForRoomReady(page2, 'general');
+          await roomPage2.expectMessageVisible(messageText);
 
-      try {
-        await createAndLoginTestUser(page2);
+          // Verify User A's display name is shown (active users have a <button> for clickable name)
+          await expect(
+            page2.locator('[role="article"]').getByRole('button', { name: userA.displayName })
+          ).toBeVisible();
 
-        // User B opens the server
-        await openServer(page2);
-        await page2.goto(routes.space());
+          // User A deletes their account
+          const accountPage = new AccountPage(page);
+          await accountPage.goto();
+          await accountPage.deleteAccount();
 
-        const chatPage2 = new ChatPage(page2);
-        const roomPage2 = new RoomPage(page2);
+          // WITHOUT REFRESHING: User B should see the body replaced by the tombstone
+          // in real-time — ServerMemberDeletedEvent triggers a refetch and the body
+          // has been crypto-shredded.
+          await expect(page2.getByText(messageText)).not.toBeVisible({
+            timeout: TIMEOUTS.REALTIME_EVENT
+          });
 
-        // User B enters the room and sees User A's message
-        await chatPage2.enterRoom('general');
-        await waitForRoomReady(page2, 'general');
-        await roomPage2.expectMessageVisible(messageText);
+          // User A's clickable display-name button is gone (the actor is gone).
+          await expect(
+            page2.locator('[role="article"]').getByRole('button', { name: userA.displayName })
+          ).not.toBeVisible();
 
-        // Verify User A's display name is shown (active users have a <button> for clickable name)
-        await expect(
-          page2.locator('[role="article"]').getByRole('button', { name: userA.displayName })
-        ).toBeVisible();
-
-        // User A deletes their account
-        const accountPage = new AccountPage(page);
-        await accountPage.goto();
-        await accountPage.deleteAccount();
-
-        // WITHOUT REFRESHING: User B should see the body replaced by the tombstone
-        // in real-time — ServerMemberDeletedEvent triggers a refetch and the body
-        // has been crypto-shredded.
-        await expect(page2.getByText(messageText)).not.toBeVisible({
-          timeout: TIMEOUTS.REALTIME_EVENT
-        });
-
-        // User A's clickable display-name button is gone (the actor is gone).
-        await expect(
-          page2.locator('[role="article"]').getByRole('button', { name: userA.displayName })
-        ).not.toBeVisible();
-
-        // The message renders as a tombstone now that bodies are always replaced rather than hidden.
-        await expect(page2.getByText('This message has been deleted').first()).toBeVisible({
-          timeout: TIMEOUTS.REALTIME_EVENT
-        });
-      } finally {
-        await context2.close();
-      }
+          // The message renders as a tombstone now that bodies are always replaced rather than hidden.
+          await expect(page2.getByText('This message has been deleted').first()).toBeVisible({
+            timeout: TIMEOUTS.REALTIME_EVENT
+          });
+        }
+      );
     });
 
     test('system events from deleted user show "Deleted User"', async ({
@@ -224,50 +203,40 @@ test.describe('Account Deletion', () => {
       await chatPage.goto();
       await chatPage.enterRoom('general');
 
-      const spaceId = await chatPage.getServerScopeId();
-
       // User B opens the server (this creates a join event)
-      const context2 = await browser!.newContext({ baseURL: serverURL });
-      const page2 = await context2.newPage();
+      await withServerUser(
+        browser!,
+        serverURL,
+        async ({ page: page2, user: userB, chatPage: chatPage2 }) => {
+          await chatPage2.enterRoom('general');
+          await waitForRoomReady(page2, 'general');
 
-      try {
-        const userB = await createAndLoginTestUser(page2);
+          // User A should see User B's join event
+          await expect(
+            page.getByText(new RegExp(`${userB.displayName} joined the room`))
+          ).toBeVisible();
 
-        await openServer(page2);
-        await page2.goto(routes.space());
+          // User B deletes their account
+          const accountPage2 = new AccountPage(page2);
+          await accountPage2.goto();
+          await accountPage2.deleteAccount();
 
-        const chatPage2 = new ChatPage(page2);
+          // Wait for server to confirm user deletion (replaces arbitrary timeout)
+          await waitForUserDeleted(page, userB.id!);
 
-        await chatPage2.enterRoom('general');
-        await waitForRoomReady(page2, 'general');
+          // User A refreshes to see updated state
+          await page.reload();
+          await waitForRoomReady(page, 'general');
 
-        // User A should see User B's join event
-        await expect(
-          page.getByText(new RegExp(`${userB.displayName} joined the room`))
-        ).toBeVisible();
+          // User A should now see "Deleted User joined the room"
+          await expect(page.getByText(/Deleted User joined the room/)).toBeVisible({
+            timeout: TIMEOUTS.REALTIME_EVENT
+          });
 
-        // User B deletes their account
-        const accountPage2 = new AccountPage(page2);
-        await accountPage2.goto();
-        await accountPage2.deleteAccount();
-
-        // Wait for server to confirm user deletion (replaces arbitrary timeout)
-        await waitForUserDeleted(page, userB.id!);
-
-        // User A refreshes to see updated state
-        await page.reload();
-        await waitForRoomReady(page, 'general');
-
-        // User A should now see "Deleted User joined the room"
-        await expect(page.getByText(/Deleted User joined the room/)).toBeVisible({
-          timeout: TIMEOUTS.REALTIME_EVENT
-        });
-
-        // User B's original display name should no longer be visible in system events
-        await expect(page.getByText(new RegExp(`${userB.displayName} joined`))).not.toBeVisible();
-      } finally {
-        await context2.close();
-      }
+          // User B's original display name should no longer be visible in system events
+          await expect(page.getByText(new RegExp(`${userB.displayName} joined`))).not.toBeVisible();
+        }
+      );
     });
 
     test('room member list shows correct members after user deletion', async ({
@@ -282,86 +251,66 @@ test.describe('Account Deletion', () => {
       await chatPage.goto();
       await chatPage.enterRoom('general');
 
-      const spaceId = await chatPage.getServerScopeId();
-
       // User B opens the server and enters the room
-      const context2 = await browser!.newContext({ baseURL: serverURL });
-      const page2 = await context2.newPage();
-
-      try {
-        const userB = await createAndLoginTestUser(page2);
-
-        await openServer(page2);
-        await page2.goto(routes.space());
-
-        const chatPage2 = new ChatPage(page2);
-        const roomPage2 = new RoomPage(page2);
-
-        await chatPage2.enterRoom('general');
-        await waitForRoomReady(page2, 'general');
-
-        // Both users should see member list with 3 members initially: e2eadmin
-        // (bootstrap server owner) + userA + userB. Issue #330 / ADR-027:
-        // bootstrap creates the primary server owned by e2eadmin, so they
-        // count among general's members.
-        await page.reload();
-        await waitForRoomReady(page, 'general');
-        await expect(roomPage.memberCount).toHaveText('Members (3)');
-        await expect(roomPage2.memberCount).toHaveText('Members (3)');
-
-        // User A deletes their account
-        const accountPage = new AccountPage(page);
-        await accountPage.goto();
-        await accountPage.deleteAccount();
-
-        // Wait for server to confirm user deletion (replaces arbitrary timeout)
-        await waitForUserDeleted(page2, userA.id!);
-
-        // User B refreshes to see updated state
-        await page2.reload();
-        await waitForRoomReady(page2, 'general');
-
-        // User B should see e2eadmin + themselves (not 0, not 3)
-        await expect(roomPage2.memberCount).toHaveText('Members (2)', {
-          timeout: TIMEOUTS.REALTIME_EVENT
-        });
-
-        // User B's name should still be visible in the member list
-        await expect(page2.getByLabel('Members').getByText(userB.login)).toBeVisible();
-
-        // User C joins to verify new members can still join and be listed
-        const context3 = await browser!.newContext({ baseURL: serverURL });
-        const page3 = await context3.newPage();
-
-        try {
-          const userC = await createAndLoginTestUser(page3);
-
-          await openServer(page3);
-          await page3.goto(routes.space());
-
-          const chatPage3 = new ChatPage(page3);
-          const roomPage3 = new RoomPage(page3);
-
-          await chatPage3.enterRoom('general');
-          await waitForRoomReady(page3, 'general');
-
-          // User C should see 3 members (e2eadmin + User B + themselves)
-          await expect(roomPage3.memberCount).toHaveText('Members (3)');
-
-          // User B refreshes and should also see 3 members
-          await page2.reload();
+      await withServerUser(
+        browser!,
+        serverURL,
+        async ({ page: page2, user: userB, chatPage: chatPage2, roomPage: roomPage2 }) => {
+          await chatPage2.enterRoom('general');
           await waitForRoomReady(page2, 'general');
+
+          // Both users should see member list with 3 members initially: e2eadmin
+          // (bootstrap server owner) + userA + userB. Issue #330 / ADR-027:
+          // bootstrap creates the primary server owned by e2eadmin, so they
+          // count among general's members.
+          await page.reload();
+          await waitForRoomReady(page, 'general');
+          await expect(roomPage.memberCount).toHaveText('Members (3)');
           await expect(roomPage2.memberCount).toHaveText('Members (3)');
 
-          // Both User B and User C should be visible in the member list
+          // User A deletes their account
+          const accountPage = new AccountPage(page);
+          await accountPage.goto();
+          await accountPage.deleteAccount();
+
+          // Wait for server to confirm user deletion (replaces arbitrary timeout)
+          await waitForUserDeleted(page2, userA.id!);
+
+          // User B refreshes to see updated state
+          await page2.reload();
+          await waitForRoomReady(page2, 'general');
+
+          // User B should see e2eadmin + themselves (not 0, not 3)
+          await expect(roomPage2.memberCount).toHaveText('Members (2)', {
+            timeout: TIMEOUTS.REALTIME_EVENT
+          });
+
+          // User B's name should still be visible in the member list
           await expect(page2.getByLabel('Members').getByText(userB.login)).toBeVisible();
-          await expect(page2.getByLabel('Members').getByText(userC.login)).toBeVisible();
-        } finally {
-          await context3.close();
+
+          // User C joins to verify new members can still join and be listed
+          await withServerUser(
+            browser!,
+            serverURL,
+            async ({ page: page3, user: userC, chatPage: chatPage3, roomPage: roomPage3 }) => {
+              await chatPage3.enterRoom('general');
+              await waitForRoomReady(page3, 'general');
+
+              // User C should see 3 members (e2eadmin + User B + themselves)
+              await expect(roomPage3.memberCount).toHaveText('Members (3)');
+
+              // User B refreshes and should also see 3 members
+              await page2.reload();
+              await waitForRoomReady(page2, 'general');
+              await expect(roomPage2.memberCount).toHaveText('Members (3)');
+
+              // Both User B and User C should be visible in the member list
+              await expect(page2.getByLabel('Members').getByText(userB.login)).toBeVisible();
+              await expect(page2.getByLabel('Members').getByText(userC.login)).toBeVisible();
+            }
+          );
         }
-      } finally {
-        await context2.close();
-      }
+      );
     });
   });
 });

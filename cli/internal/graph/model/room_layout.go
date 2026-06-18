@@ -6,10 +6,12 @@ import corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 // with a pre-resolved viewer-rooms map so the per-set rooms sub-resolver can
 // turn room IDs into Room objects without an extra round trip.
 type RoomGroupModel struct {
-	ID          string
-	Name        string
-	Description string
-	RoomIds     []string
+	ID           string
+	Name         string
+	Description  string
+	RoomIds      []string
+	Entries      []*corev1.SidebarGroupEntry
+	SidebarLinks []*corev1.SidebarLink
 
 	// ViewerRooms is shared across all sets in a single response and contains
 	// only the rooms the caller can see; entries the caller can't see are

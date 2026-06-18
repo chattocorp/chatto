@@ -1,10 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
-import {
-  createAndLoginTestUser,
-  openServer,
-  loginAsAdminAndUsePrimaryServer
-} from './fixtures/testUser';
+import { createAndLoginTestUser, loginAsAdminAndUsePrimaryServer } from './fixtures/testUser';
+import { withServerUser } from './fixtures/serverUser';
 import { ServerAdminPage } from './pages';
 import { TIMEOUTS } from './constants';
 import { postMessageViaAPI } from './fixtures/graphqlHelpers';
@@ -71,6 +68,20 @@ async function joinRoomViaAPI(page: Page, roomId: string): Promise<void> {
     { input: { roomId } }
   );
   expect(data.joinRoom?.id).toBe(roomId);
+}
+
+async function denyRoomPermissionViaAPI(
+  page: Page,
+  roomId: string,
+  roleName: string,
+  permission: string
+): Promise<void> {
+  const data = await gqlRequest<{ denyRoomPermission: boolean }>(
+    page,
+    `mutation($input: DenyRoomPermissionInput!) { denyRoomPermission(input: $input) }`,
+    { input: { roomId, roleName, permission } }
+  );
+  expect(data.denyRoomPermission).toBe(true);
 }
 
 // updateRoomLayoutViaAPI reshapes the room-group layout to match the
@@ -377,6 +388,7 @@ test.describe('Room Layout', () => {
 
       const { generalId, announcementsId } = await getDefaultRoomIds(page);
       const secretId = await createRoomViaAPI(page, 'secret');
+      await denyRoomPermissionViaAPI(page, secretId, 'everyone', 'room.list');
       const seedSetId = await getSeedSetId(page);
 
       // Reshape: "Public" set holds the default rooms, "Secret" holds secret.
@@ -387,24 +399,17 @@ test.describe('Room Layout', () => {
 
       // User B joins the server — implicit membership in the default global
       // rooms (announcements, general), but not in secret.
-      const context2 = await browser!.newContext({ baseURL: serverURL });
-      const page2 = await context2.newPage();
-
-      try {
-        await createAndLoginTestUser(page2);
-        await openServer(page2, '');
-
+      await withServerUser(browser!, serverURL, async ({ page: page2 }) => {
         await navigateToSpace(page2);
 
-        // User B should only see the "Public" set, not "Secret" (empty for them).
+        // User B should only see the "Public" set, not "Secret" (empty for them
+        // because room.list is denied on the only room inside it).
         const headers = await waitForSidebarSets(page2, 1);
         expect(headers).toEqual(['Public']);
 
         const roomNames = await waitForSidebarRooms(page2, 2);
         expect(roomNames).toEqual(['announcements', 'general']);
-      } finally {
-        await context2.close();
-      }
+      });
     });
 
     test('set collapse/expand persists across navigation', async ({ page }) => {
@@ -482,12 +487,7 @@ test.describe('Room Layout', () => {
       await joinRoomViaAPI(page, alphaId);
 
       // User B opens the server
-      const context2 = await browser!.newContext({ baseURL: serverURL });
-      const page2 = await context2.newPage();
-
-      try {
-        await createAndLoginTestUser(page2);
-        await openServer(page2, '');
+      await withServerUser(browser!, serverURL, async ({ page: page2 }) => {
         await joinRoomViaAPI(page2, alphaId);
 
         // User B navigates to the server — rooms render under the seed "Lobby" group.
@@ -507,9 +507,7 @@ test.describe('Room Layout', () => {
         await expect(
           page2.locator('.room-list button.uppercase', { hasText: 'Organized' })
         ).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-      } finally {
-        await context2.close();
-      }
+      });
     });
   });
 
@@ -563,13 +561,7 @@ test.describe('Room Layout', () => {
       const { generalId } = await getDefaultRoomIds(page);
 
       // User B joins as regular member
-      const context2 = await browser!.newContext({ baseURL: serverURL });
-      const page2 = await context2.newPage();
-
-      try {
-        await createAndLoginTestUser(page2);
-        await openServer(page2, '');
-
+      await withServerUser(browser!, serverURL, async ({ page: page2 }) => {
         // User B tries to mutate the room layout — should fail. Hits
         // createRoomGroup since it shares the role.manage gate with every
         // other layout mutator (the old bulk updateRoomGroups was retired
@@ -591,9 +583,7 @@ test.describe('Room Layout', () => {
         const data = await resp.json();
         expect(data.errors).toBeTruthy();
         expect(data.errors[0].message).toContain('permission denied');
-      } finally {
-        await context2.close();
-      }
+      });
     });
 
     test('regular member does not see Rooms nav item in server admin', async ({
@@ -606,13 +596,7 @@ test.describe('Room Layout', () => {
       const space = await usePrimaryServerViaAPI(page);
 
       // User B joins as regular member
-      const context2 = await browser!.newContext({ baseURL: serverURL });
-      const page2 = await context2.newPage();
-
-      try {
-        await createAndLoginTestUser(page2);
-        await openServer(page2, '');
-
+      await withServerUser(browser!, serverURL, async ({ page: page2 }) => {
         // Navigate to Rooms directly — User B should be denied.
         await page2.goto(routes.serverAdminRooms);
         await expect(page2.getByText('Access Denied', { exact: true })).toBeVisible();
@@ -620,9 +604,7 @@ test.describe('Room Layout', () => {
         // User B shouldn't see the Rooms nav item (requires room.manage)
         const serverAdminPage2 = new ServerAdminPage(page2);
         await expect(serverAdminPage2.roomsNavItem).not.toBeVisible();
-      } finally {
-        await context2.close();
-      }
+      });
     });
   });
 
@@ -695,7 +677,11 @@ test.describe('Room Layout', () => {
   });
 
   test.describe('Edge Cases', () => {
-    test('rooms user has not joined are hidden from sets', async ({ page, browser, serverURL }) => {
+    test('listable rooms user has not joined are shown faded in sets', async ({
+      page,
+      browser,
+      serverURL
+    }) => {
       // User A loads the server and creates extra rooms
       await createAndLoginTestUser(page);
       await usePrimaryServerViaAPI(page);
@@ -718,25 +704,20 @@ test.describe('Room Layout', () => {
       ]);
 
       // User B opens the server and joins only the public room (plus default announcements + general)
-      const context2 = await browser!.newContext({ baseURL: serverURL });
-      const page2 = await context2.newPage();
-
-      try {
-        await createAndLoginTestUser(page2);
-        await openServer(page2, '');
+      await withServerUser(browser!, serverURL, async ({ page: page2 }) => {
         await joinRoomViaAPI(page2, publicId);
 
         await navigateToSpace(page2);
 
-        // User B should see announcements, general, and public, but NOT private
-        const roomNames = await waitForSidebarRooms(page2, 3);
+        // User B should see announcements, general, joined public, and listable
+        // non-member private. Non-member channel rows use a leading + affordance.
+        const roomNames = await waitForSidebarRooms(page2, 4);
         expect(roomNames).toContain('announcements');
         expect(roomNames).toContain('general');
         expect(roomNames).toContain('public');
-        expect(roomNames).not.toContain('private');
-      } finally {
-        await context2.close();
-      }
+        expect(roomNames).toContain('private');
+        await expect(page2.getByRole('link', { name: '+ private' })).toHaveClass(/opacity-60/);
+      });
     });
   });
 
@@ -822,12 +803,7 @@ test.describe('Room Layout', () => {
       await joinRoomViaAPI(page, roomId);
 
       // User B opens the server and enters the room
-      const context2 = await browser!.newContext({ baseURL: serverURL });
-      const page2 = await context2.newPage();
-
-      try {
-        await createAndLoginTestUser(page2);
-        await openServer(page2, '');
+      await withServerUser(browser!, serverURL, async ({ page: page2 }) => {
         await joinRoomViaAPI(page2, roomId);
 
         // User B navigates to the server and sees the room
@@ -843,9 +819,7 @@ test.describe('Room Layout', () => {
           const roomNames = await waitForSidebarRooms(page2, 2);
           expect(roomNames).not.toContain('will-vanish');
         }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [500, 1000, 2000] });
-      } finally {
-        await context2.close();
-      }
+      });
     });
 
     test('archived room excluded from Browse Rooms', async ({ page, browser, serverURL }) => {
@@ -860,25 +834,19 @@ test.describe('Room Layout', () => {
       await archiveRoomViaAPI(page, hiddenId);
 
       // User B opens the server
-      const context2 = await browser!.newContext({ baseURL: serverURL });
-      const page2 = await context2.newPage();
-
-      try {
-        await createAndLoginTestUser(page2);
-        await openServer(page2, '');
-
+      await withServerUser(browser!, serverURL, async ({ page: page2 }) => {
         // Navigate to the Overview page (where the room directory now lives)
         await page2.goto(routes.browseRooms);
         await expect(page2.getByRole('heading', { name: 'Overview' })).toBeVisible();
 
-        // The non-archived room should be visible (not yet joined by User B)
-        await expect(page2.getByText('visible-room')).toBeVisible();
+        // The non-archived room should be visible in the directory (not yet
+        // joined by User B). Scope to the directory list because the sidebar
+        // also shows listable non-member rooms now.
+        await expect(page2.getByRole('list').getByText('visible-room')).toBeVisible();
 
         // The archived room should NOT be visible
         await expect(page2.getByText('hidden-room')).not.toBeVisible();
-      } finally {
-        await context2.close();
-      }
+      });
     });
 
     test('unarchived room reappears in member sidebar', async ({ page, browser, serverURL }) => {
@@ -888,12 +856,7 @@ test.describe('Room Layout', () => {
       await joinRoomViaAPI(page, roomId);
 
       // User B opens the server and enters the room, then room gets archived
-      const context2 = await browser!.newContext({ baseURL: serverURL });
-      const page2 = await context2.newPage();
-
-      try {
-        await createAndLoginTestUser(page2);
-        await openServer(page2, '');
+      await withServerUser(browser!, serverURL, async ({ page: page2 }) => {
         await joinRoomViaAPI(page2, roomId);
 
         // Archive the room
@@ -912,9 +875,7 @@ test.describe('Room Layout', () => {
           const roomNames = await waitForSidebarRooms(page2, 3);
           expect(roomNames).toContain('comeback');
         }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [500, 1000, 2000] });
-      } finally {
-        await context2.close();
-      }
+      });
     });
   });
 
@@ -1008,10 +969,10 @@ test.describe('Room Layout', () => {
       await serverAdminRoomsPage.expectGroupVisible('Has Rooms');
 
       // With Unsorted gone, deletion of a non-empty set would orphan the
-      // rooms — so the Delete button is disabled until they're moved out.
+      // contents — so the Delete button is disabled until they're moved out.
       const deleteBtn = serverAdminRoomsPage
         .groupHeaderRow('Has Rooms')
-        .getByTitle('Move all rooms out of this group before deleting');
+        .getByTitle('Move all items out of this group before deleting');
       await expect(deleteBtn).toBeVisible();
       await expect(deleteBtn).toBeDisabled();
     });
@@ -1033,55 +994,52 @@ test.describe('Room Layout', () => {
 
       // User B shows up empty-handed — no auto-join, no rooms in their
       // sidebar yet.
-      const context2 = await browser!.newContext({ baseURL: serverURL });
-      const page2 = await context2.newPage();
-
-      try {
-        await createAndLoginTestUser(page2, { skipDefaultRooms: true });
-        await openServer(page2, '');
-
-        // Go to the server Overview (which hosts the room directory).
-        await page2.goto(routes.browseRooms);
-        await expect(page2.getByRole('heading', { name: 'Overview' })).toBeVisible({
-          timeout: TIMEOUTS.UI_STANDARD
-        });
-
-        // Click the group's "Join all" button.
-        const joinAll = page2.getByRole('button', { name: 'Join all' }).first();
-        await expect(joinAll).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
-        await joinAll.click();
-        // Move the cursor off the group card so no row stays in :hover
-        // (which would swap a freshly-joined row's button label from
-        // "Joined" to "Leave" and break the regex below).
-        await page2.mouse.move(0, 0);
-
-        // After the bulk join finishes, the rows for all three rooms
-        // should render the "Joined" pill in the directory. The
-        // button's accessible name resolves to its visible text
-        // ("Joined" when off-hover, "Leave" on hover); we matched the
-        // hover away above so the off-hover label is stable.
-        for (const name of ['alpha', 'bravo', 'charlie']) {
-          const row = page2.locator('li', { hasText: `# ${name}` });
-          await expect(row.getByRole('button', { name: 'Joined' })).toBeVisible({
-            timeout: TIMEOUTS.REALTIME_EVENT
+      await withServerUser(
+        browser!,
+        serverURL,
+        async ({ page: page2 }) => {
+          // Go to the server Overview (which hosts the room directory).
+          await page2.goto(routes.browseRooms);
+          await expect(page2.getByRole('heading', { name: 'Overview' })).toBeVisible({
+            timeout: TIMEOUTS.UI_STANDARD
           });
-        }
 
-        // And the rooms now appear in the sidebar (alongside the
-        // bootstrap rooms, which "Join all" also joined since they
-        // share the group). The seed "Lobby" group has 5 rooms total:
-        // announcements, general, alpha, bravo, charlie.
-        await navigateToSpace(page2);
-        await expect(async () => {
-          const roomNames = await waitForSidebarRooms(page2, 5);
-          expect(roomNames).toEqual(expect.arrayContaining(['alpha', 'bravo', 'charlie']));
-        }).toPass({
-          timeout: TIMEOUTS.REALTIME_EVENT,
-          intervals: [500, 1000, 2000]
-        });
-      } finally {
-        await context2.close();
-      }
+          // Click the group's "Join all" button.
+          const joinAll = page2.getByRole('button', { name: 'Join all' }).first();
+          await expect(joinAll).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+          await joinAll.click();
+          // Move the cursor off the group card so no row stays in :hover
+          // (which would swap a freshly-joined row's button label from
+          // "Joined" to "Leave" and break the regex below).
+          await page2.mouse.move(0, 0);
+
+          // After the bulk join finishes, the rows for all three rooms
+          // should render the "Joined" pill in the directory. The
+          // button's accessible name resolves to its visible text
+          // ("Joined" when off-hover, "Leave" on hover); we matched the
+          // hover away above so the off-hover label is stable.
+          for (const name of ['alpha', 'bravo', 'charlie']) {
+            const row = page2.locator('li', { hasText: `# ${name}` });
+            await expect(row.getByRole('button', { name: 'Joined' })).toBeVisible({
+              timeout: TIMEOUTS.REALTIME_EVENT
+            });
+          }
+
+          // And the rooms now appear in the sidebar (alongside the
+          // bootstrap rooms, which "Join all" also joined since they
+          // share the group). The seed "Lobby" group has 5 rooms total:
+          // announcements, general, alpha, bravo, charlie.
+          await navigateToSpace(page2);
+          await expect(async () => {
+            const roomNames = await waitForSidebarRooms(page2, 5);
+            expect(roomNames).toEqual(expect.arrayContaining(['alpha', 'bravo', 'charlie']));
+          }).toPass({
+            timeout: TIMEOUTS.REALTIME_EVENT,
+            intervals: [500, 1000, 2000]
+          });
+        },
+        { userOptions: { skipDefaultRooms: true } }
+      );
     });
   });
 });

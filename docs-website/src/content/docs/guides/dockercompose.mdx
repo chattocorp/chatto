@@ -12,7 +12,9 @@ This guide walks through deploying Chatto with Docker Compose, including NATS fo
 
 <ArchDiagram />
 
-Caddy terminates TLS and proxies traffic to both Chatto and LiveKit's WebSocket signaling endpoint. LiveKit's WebRTC media traffic (UDP) is exposed directly — it can't be proxied.
+Caddy terminates TLS and proxies traffic to both Chatto and LiveKit's WebSocket signaling endpoint. The `ghcr.io/chattocorp/chatto` image serves the Chatto API and the embedded web UI, so this Compose stack does not need a separate frontend container. LiveKit's WebRTC media traffic (UDP) is exposed directly — it can't be proxied.
+
+Chatto also publishes `ghcr.io/chattocorp/chatto-client` for deployments that host the static web UI separately. Use that image only when you intentionally want a separate frontend origin or infrastructure; the Compose setup below uses the simpler single-image path.
 
 ## Prerequisites
 
@@ -79,6 +81,9 @@ By the end of this section, your project directory will look like this:
      chatto:
        image: ghcr.io/chattocorp/chatto:latest
        env_file: .env
+       environment:
+         PUID: "${PUID:-1000}"
+         PGID: "${PGID:-1000}"
        depends_on:
          nats:
            condition: service_healthy
@@ -86,6 +91,11 @@ By the end of this section, your project directory will look like this:
            condition: service_healthy
        expose:
          - "4000"
+       healthcheck:
+         test: ["CMD", "wget", "-q", "--spider", "http://localhost:4000/readyz"]
+         interval: 5s
+         timeout: 3s
+         retries: 6
 
      caddy:
        image: caddy:latest
@@ -159,6 +169,8 @@ By the end of this section, your project directory will look like this:
 
    PUBLIC_URL=chat.example.com
    CHATTO_OWNERS_EMAILS=admin@example.com
+   PUID=1000
+   PGID=1000
 
    # NATS
    NATS_TOKEN=<generate-me>
@@ -211,6 +223,10 @@ By the end of this section, your project directory will look like this:
    Caddy will automatically obtain TLS certificates for both domains. Visit `https://chat.example.com` to create your first account with the email address from `CHATTO_OWNERS_EMAILS`.
 
 </Steps>
+
+The Chatto container is configured entirely through `.env` in this guide. The image's default config path is `/config/chatto.toml`, but the server can start without that file when the required settings are provided through environment variables.
+
+The image runs Chatto as a non-root user. By default that user is `1000:1000`; set `PUID` and `PGID` in your shell or Compose environment if the files mounted into `/config` or `/data` are owned by a different host user or group. The entrypoint does not recursively change ownership of mounted directories, so make sure writable mounts are owned by the configured IDs.
 
 ## Operations
 

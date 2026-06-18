@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/charmbracelet/log"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
@@ -793,6 +794,16 @@ func TestGraphQL_Query_Viewer(t *testing.T) {
 // ============================================================================
 
 func TestGraphQL_ErrorFormat(t *testing.T) {
+	var logOutput bytes.Buffer
+	oldLogger := log.Default()
+	log.SetDefault(log.NewWithOptions(&logOutput, log.Options{
+		Level:     log.DebugLevel,
+		Formatter: log.JSONFormatter,
+	}))
+	t.Cleanup(func() {
+		log.SetDefault(oldLogger)
+	})
+
 	env := setupGraphQLTestServer(t)
 
 	// Invalid query syntax
@@ -806,6 +817,20 @@ func TestGraphQL_ErrorFormat(t *testing.T) {
 	err := resp.Errors[0]
 	if err.Message == "" {
 		t.Error("Expected error message")
+	}
+
+	logs := logOutput.String()
+	if !strings.Contains(logs, `"level":"error"`) {
+		t.Fatalf("Expected GraphQL error to be logged at error level, got logs: %s", logs)
+	}
+	if !strings.Contains(logs, `"prefix":"graphql"`) {
+		t.Fatalf("Expected GraphQL error log to use graphql prefix, got logs: %s", logs)
+	}
+	if !strings.Contains(logs, `"msg":"GraphQL operation failed"`) {
+		t.Fatalf("Expected GraphQL error log message, got logs: %s", logs)
+	}
+	if !strings.Contains(logs, "thisFieldDoesNotExist") {
+		t.Fatalf("Expected GraphQL error log to include validation error, got logs: %s", logs)
 	}
 }
 

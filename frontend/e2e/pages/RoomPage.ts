@@ -41,7 +41,7 @@ export class RoomPage {
 
   /** The send button */
   get sendButton(): Locator {
-    return this.page.getByTitle('Send message');
+    return this.page.getByRole('button', { name: 'Send message' });
   }
 
   /** Video attachment preview in the composer (shown when a video file is staged) */
@@ -155,21 +155,23 @@ export class RoomPage {
   async sendMessage(text: string): Promise<MessageComponent> {
     await this.waitForInputEditable();
     await this.messageInput.fill(text);
-    await this.messageInput.press('Enter');
-    await expect(this.page.getByText(text)).toBeVisible();
-    return this.getMessage(text);
+    await this.messageInput.press('Control+Enter');
+    const message = this.getMessage(text);
+    await expect(message.locator).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+    return message;
   }
 
   /**
-   * Send a text message using the send button (instead of Enter key).
+   * Send a text message using the send button (instead of the keyboard shortcut).
    * Returns a MessageComponent for the new message.
    */
   async sendMessageWithButton(text: string): Promise<MessageComponent> {
     await this.waitForInputEditable();
     await this.messageInput.fill(text);
     await this.sendButton.click();
-    await expect(this.page.getByText(text)).toBeVisible();
-    return this.getMessage(text);
+    const message = this.getMessage(text);
+    await expect(message.locator).toBeVisible();
+    return message;
   }
 
   /**
@@ -190,7 +192,7 @@ export class RoomPage {
     if (text) {
       await this.messageInput.fill(text);
     }
-    await this.messageInput.press('Enter');
+    await this.messageInput.press('Control+Enter');
 
     // Wait for attachment preview to clear (message sent)
     await expect(this.attachmentPreview).not.toBeVisible();
@@ -210,10 +212,10 @@ export class RoomPage {
   }
 
   /**
-   * Press Enter with empty input (for testing empty message prevention).
+   * Press the keyboard submit shortcut with empty input.
    */
   async submitEmpty(): Promise<void> {
-    await this.messageInput.press('Enter');
+    await this.messageInput.press('Control+Enter');
   }
 
   /**
@@ -430,12 +432,12 @@ export class RoomPage {
   // --- Message Editing ---
 
   /**
-   * Complete editing a message (fill new text and press Enter).
+   * Complete editing a message (fill new text and press the keyboard submit shortcut).
    * Assumes edit mode is already active.
    */
   async completeEdit(newText: string): Promise<void> {
     await this.composer.fill(newText);
-    await this.composer.press('Enter');
+    await this.composer.press('Control+Enter');
     await expect(this.editingIndicator).not.toBeVisible({ timeout: TIMEOUTS.UI_FAST });
   }
 
@@ -552,7 +554,7 @@ export class RoomPage {
       timeout: TIMEOUTS.UI_STANDARD
     });
     await this.threadReplyInput.fill(text);
-    await this.threadReplyInput.press('Enter');
+    await this.threadReplyInput.press('Control+Enter');
     await expect(this.threadPane.getByText(text)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
   }
 
@@ -573,7 +575,7 @@ export class RoomPage {
 
     // Post the reply
     await this.threadReplyInput.fill(text);
-    await this.threadReplyInput.press('Enter');
+    await this.threadReplyInput.press('Control+Enter');
     // Wait for message to appear in thread pane specifically
     await expect(this.threadPane.getByText(text)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
   }
@@ -670,12 +672,12 @@ export class RoomPage {
   }
 
   /**
-   * Complete editing a message in the thread pane (fill new text and press Enter).
+   * Complete editing a message in the thread pane (fill new text and press the keyboard submit shortcut).
    * Assumes edit mode is already active in the thread pane.
    */
   async completeThreadEdit(newText: string): Promise<void> {
     await this.threadReplyInput.fill(newText);
-    await this.threadReplyInput.press('Enter');
+    await this.threadReplyInput.press('Control+Enter');
     await expect(this.threadEditingIndicator).not.toBeVisible({ timeout: TIMEOUTS.UI_FAST });
   }
 

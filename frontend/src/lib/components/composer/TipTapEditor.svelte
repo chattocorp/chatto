@@ -12,6 +12,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 - `onUpdate` - Called with markdown content on each change
 - `onKeyDown` - Keyboard event handler; return true to prevent TipTap default
 - `onPaste` - Paste event handler; return true to prevent TipTap default
+- `onNextEnterWillSendChange` - Called when selection enters/leaves a trailing empty paragraph
 - `onReady` - Called with editor API when editor is initialized
 -->
 <script lang="ts">
@@ -20,6 +21,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   import type { Node as ProseMirrorNode, Schema } from '@tiptap/pm/model';
   import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state';
   import StarterKit from '@tiptap/starter-kit';
+  import Link from '@tiptap/extension-link';
   import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
   import { Markdown } from '@tiptap/markdown';
   import Placeholder from '@tiptap/extension-placeholder';
@@ -53,6 +55,8 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
       ];
     }
   });
+
+  const ComposerLink = Link.extend({ inclusive: false });
 
   function paragraphTextWithLineBreaks(node: ProseMirrorNode) {
     return node.textBetween(0, node.content.size, '\n', '\n');
@@ -187,70 +191,6 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           }
         })
       ];
-    }
-  });
-
-  const MarkdownCodeFenceShortcut = Extension.create({
-    name: 'markdownCodeFenceShortcut',
-    priority: 1000,
-
-    addKeyboardShortcuts() {
-      return {
-        'Shift-Enter': () => {
-          const { editor } = this;
-          if (editor.isActive('codeBlock')) {
-            return editor.commands.exitCode();
-          }
-
-          const { selection } = editor.state;
-          const { empty } = selection;
-          const fromPos = selection.$from;
-          if (!empty || fromPos.parent.type.name !== 'paragraph') return false;
-          if (fromPos.depth !== 1) return false;
-
-          const textBeforeCursor = fromPos.parent.textBetween(0, fromPos.parentOffset, '\n', '\n');
-          const textAfterCursor = fromPos.parent.textBetween(
-            fromPos.parentOffset,
-            fromPos.parent.content.size,
-            '\n',
-            '\n'
-          );
-          const currentLine = textBeforeCursor.split('\n').at(-1) ?? '';
-          if (textAfterCursor && !textAfterCursor.startsWith('\n')) return false;
-
-          const match = currentLine.match(codeFenceLineRegex);
-          if (!match) return false;
-
-          const paragraphPos = fromPos.before(1);
-          const currentLineIndex = textBeforeCursor.split('\n').length - 1;
-          const appendTrailingParagraph =
-            paragraphPos + fromPos.parent.nodeSize === editor.state.doc.content.size;
-          const replacement = buildCodeFenceReplacement({
-            schema: editor.state.schema,
-            paragraph: fromPos.parent,
-            openLineIndex: currentLineIndex,
-            closeLineIndex: null,
-            appendTrailingParagraph
-          });
-          if (!replacement) return false;
-
-          const codePosition = paragraphPos + replacement.beforeNodeSize;
-          const tr = editor.state.tr.replaceWith(
-            paragraphPos,
-            paragraphPos + fromPos.parent.nodeSize,
-            replacement.nodes
-          );
-          tr.setSelection(TextSelection.create(tr.doc, codePosition + 1));
-          editor.view.dispatch(tr.scrollIntoView());
-          return true;
-        },
-
-        Enter: () => {
-          const { editor } = this;
-          if (!editor.isActive('codeBlock')) return false;
-          return editor.commands.newlineInCode();
-        }
-      };
     }
   });
 
@@ -652,6 +592,25 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     );
   }
 
+  function hasDefaultEmptyDocument(e: Editor): boolean {
+    if (e.state.doc.childCount !== 1) return false;
+    const firstChild = e.state.doc.firstChild;
+    return firstChild?.type.name === 'paragraph' && firstChild.content.size === 0;
+  }
+
+  function isSelectionInTrailingEmptyParagraph(e: Editor): boolean {
+    const { doc, selection } = e.state;
+    if (!selection.empty || doc.childCount <= 1) return false;
+
+    const selectionFrom = selection.$from;
+    if (selectionFrom.depth !== 1 || selectionFrom.parent.type.name !== 'paragraph') return false;
+    if (selectionFrom.parent.content.size !== 0 || selectionFrom.parentOffset !== 0) return false;
+    if (selectionFrom.after(1) !== doc.content.size) return false;
+
+    const previousNode = doc.child(doc.childCount - 2);
+    return previousNode.type.name !== 'paragraph' || previousNode.content.size > 0;
+  }
+
   export type TipTapEditorApi = {
     /** Get the editor's plain text content */
     getText: () => string;
@@ -663,8 +622,6 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     getTextBeforeCursor: () => string;
     /** Whether the current selection is inside a code block */
     isInCodeBlock: () => boolean;
-    /** Whether the current selection is inside a top-level plain paragraph */
-    isInPlainParagraph: () => boolean;
     /**
      * Replace N characters before the cursor with new text.
      * Used for mention/emoji completion where we know the pattern
@@ -681,6 +638,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     onUpdate,
     onKeyDown,
     onPaste,
+    onNextEnterWillSendChange,
     onReady
   }: {
     placeholder?: string;
@@ -690,6 +648,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     onUpdate?: (text: string) => void;
     onKeyDown?: (event: KeyboardEvent) => boolean;
     onPaste?: (event: ClipboardEvent) => boolean;
+    onNextEnterWillSendChange?: (value: boolean) => void;
     onReady?: (api: TipTapEditorApi) => void;
   } = $props();
 
@@ -703,6 +662,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   let linkHrefDraft = $state('');
   let linkDraftInitializedFor = $state<string | null>(null);
   let codeLanguageLoadToken = 0;
+  let lastNextEnterWillSend = false;
 
   let hasLinkControls = $derived(activeLinkHref !== null);
   let activeCodeBlockLanguageLabel = $derived(
@@ -776,6 +736,13 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
       right: frameRect.right - preRect.right,
       bottom: frameRect.bottom - preRect.bottom
     };
+  }
+
+  function updateNextEnterWillSend(e: Editor) {
+    const value = !e.isDestroyed && isSelectionInTrailingEmptyParagraph(e);
+    if (value === lastNextEnterWillSend) return;
+    lastNextEnterWillSend = value;
+    onNextEnterWillSendChange?.(value);
   }
 
   function updateActiveControls(e: Editor) {
@@ -950,11 +917,6 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
       },
 
       isInCodeBlock: () => !e.isDestroyed && e.isActive('codeBlock'),
-      isInPlainParagraph: () => {
-        if (e.isDestroyed) return false;
-        const selectionFrom = e.state.selection.$from;
-        return selectionFrom.depth === 1 && selectionFrom.parent.type.name === 'paragraph';
-      },
 
       replaceTextBeforeCursor: (charCount: number, replacement: string) => {
         if (e.isDestroyed) return;
@@ -987,10 +949,14 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
               strike: false,
               underline: false,
               horizontalRule: false,
-              link: {
-                openOnClick: false,
-                enableClickSelection: true
-              }
+              trailingNode: false,
+              link: false
+            }),
+            ComposerLink.configure({
+              autolink: true,
+              linkOnPaste: true,
+              openOnClick: false,
+              enableClickSelection: true
             }),
             Markdown.configure({
               markedOptions: {
@@ -999,7 +965,6 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
             }),
             ComposerCodeBlockLowlight.configure({ lowlight }),
             MarkdownLinkInputRule,
-            MarkdownCodeFenceShortcut,
             CompletedMarkdownCodeFence,
             MarkdownListMarkerAfterHardBreak,
             TrailingParagraphAfterCodeBlock,
@@ -1020,11 +985,13 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           },
           onUpdate: ({ editor: ed }) => {
             updateActiveControls(ed);
+            updateNextEnterWillSend(ed);
             ensureEditorCodeLanguages(ed);
-            onUpdate?.(ed.isEmpty ? '' : getSerializedMarkdown(ed));
+            onUpdate?.(hasDefaultEmptyDocument(ed) ? '' : getSerializedMarkdown(ed));
           },
           onSelectionUpdate: ({ editor: ed }) => {
             updateActiveControls(ed);
+            updateNextEnterWillSend(ed);
           }
         })
     );
@@ -1034,10 +1001,13 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     // Notify parent that editor is ready with API
     tick().then(() => {
       if (e.isDestroyed || editor !== e) return;
+      updateNextEnterWillSend(e);
       onReady?.(buildApi(e));
     });
 
     return () => {
+      lastNextEnterWillSend = false;
+      onNextEnterWillSendChange?.(false);
       editor?.destroy();
       editor = null;
     };
@@ -1164,8 +1134,29 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     margin: 0;
   }
 
-  :global(.tiptap-editor .ProseMirror > * + *) {
-    margin-top: 0.5em;
+  :global(.tiptap-editor .ProseMirror > p),
+  :global(.tiptap-editor .ProseMirror > blockquote),
+  :global(.tiptap-editor .ProseMirror > ul),
+  :global(.tiptap-editor .ProseMirror > ol),
+  :global(.tiptap-editor .ProseMirror > h1),
+  :global(.tiptap-editor .ProseMirror > h2),
+  :global(.tiptap-editor .ProseMirror > h3),
+  :global(.tiptap-editor .ProseMirror > h4),
+  :global(.tiptap-editor .ProseMirror > h5),
+  :global(.tiptap-editor .ProseMirror > h6) {
+    margin-block: 0.5em;
+  }
+
+  :global(.tiptap-editor .ProseMirror > :first-child) {
+    margin-top: 0;
+  }
+
+  :global(.tiptap-editor .ProseMirror > :last-child) {
+    margin-bottom: 0;
+  }
+
+  :global(.tiptap-editor .ProseMirror li > p) {
+    margin: 0;
   }
 
   :global(.tiptap-editor .ProseMirror strong) {

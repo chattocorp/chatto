@@ -17,14 +17,18 @@ const room = (id: string, overrides: Partial<DirectoryRoom> = {}): DirectoryRoom
   viewerCanJoinRoom: overrides.viewerCanJoinRoom ?? true
 });
 
-const joined = (id: string): RoomsListItem => ({
+const listedRoom = (id: string, overrides: Partial<RoomsListItem> = {}): RoomsListItem => ({
   id,
-	name: id,
-	type: RoomType.Channel,
-	hasUnread: false,
-	viewerNotificationCount: 0,
-	members: []
+  name: overrides.name ?? id,
+  type: overrides.type ?? RoomType.Channel,
+  hasUnread: overrides.hasUnread ?? false,
+  viewerIsMember: overrides.viewerIsMember ?? true,
+  viewerCanJoinRoom: overrides.viewerCanJoinRoom ?? true,
+  viewerNotificationCount: overrides.viewerNotificationCount ?? 0,
+  members: overrides.members ?? []
 });
+
+const joined = (id: string): RoomsListItem => listedRoom(id, { viewerIsMember: true });
 
 function findButton(container: Element, label: string): HTMLButtonElement | undefined {
   return [...container.querySelectorAll('button')].find(
@@ -73,6 +77,20 @@ describe('RoomDirectory', () => {
     // so we look for either via textContent.
     expect(container.textContent).toContain('Joined');
     expect(container.textContent).toContain('Join');
+  });
+
+  it('does not treat listable non-member rooms as joined', () => {
+    const { container } = render(Harness, {
+      props: {
+        initialRooms: [room('moar-stuff')],
+        joinedRooms: [listedRoom('moar-stuff', { viewerIsMember: false })],
+        roomGroups: null
+      }
+    });
+    flushSync();
+
+    expect(container.textContent).not.toContain('Joined');
+    expect(findButton(container, 'Join')).toBeDefined();
   });
 
   it('links joined rooms to their room route and leaves non-joined rooms as non-links', () => {

@@ -1,12 +1,14 @@
 <script lang="ts">
   import { tick, untrack } from 'svelte';
-  import { graphql } from '$lib/gql';
+  import { graphql, useFragment } from '$lib/gql';
+  import { RoomEventViewFragmentDoc, type RoomEventViewFragment } from '$lib/gql/graphql';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { parseMessageLink } from '$lib/messageLinks';
   import LinkPreviewCard from '$lib/components/LinkPreviewCard.svelte';
   import LinkPreviewSkeleton from '$lib/components/LinkPreviewSkeleton.svelte';
   import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
+  import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
   import { toast } from '$lib/ui/toast';
   import { getRoomMembers, getComposerContext } from '$lib/state/room';
   import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
@@ -22,6 +24,25 @@
   import { AutocompleteState, type MentionRole } from './autocomplete.svelte';
 
   const tipTapEditorModule = import('./TipTapEditor.svelte');
+
+  type ShortcutHints = {
+    submit: string;
+    enterAgain: string;
+  };
+
+  function getShortcutHints(): ShortcutHints | null {
+    if (typeof navigator === 'undefined' || isTouchDevice()) return null;
+
+    const userAgentDataPlatform =
+      'userAgentData' in navigator
+        ? (navigator.userAgentData as { platform?: string } | undefined)?.platform
+        : undefined;
+    const platform = userAgentDataPlatform ?? navigator.platform ?? '';
+    const usesReturn = /Mac|iPhone|iPad|iPod/i.test(platform);
+    return usesReturn
+      ? { submit: 'Cmd+Return to Send', enterAgain: 'Return again to Send' }
+      : { submit: 'Ctrl+Return to Send', enterAgain: 'Enter again to Send' };
+  }
 
   const stores = serverRegistry.getStore(getActiveServer());
   const serverInfo = stores.serverInfo;
@@ -60,7 +81,7 @@
     autoFocus?: boolean;
     onReady?: (api: MessageComposerApi) => void;
     onTyping?: () => void;
-    onMessageSent?: () => void;
+    onMessageSent?: (event: RoomEventViewFragment | null) => void;
     onCancelReply?: () => void;
     onEscape?: () => void;
     showAlsoSendToChannel?: boolean;
@@ -122,6 +143,7 @@
 
   // Testid for E2E tests - distinguishes main input from thread reply input
   let testid = $derived(inThread ? 'thread-reply-input' : 'message-input');
+  const shortcutHints = getShortcutHints();
 
   // Track editing transitions by event identity so editor setContent() doesn't
   // run repeatedly while TipTap echoes updates back through onUpdate.
@@ -181,7 +203,7 @@
   const PostMessageMutation = graphql(`
     mutation PostMessage($input: PostMessageInput!) {
       postMessage(input: $input) {
-        id
+        ...RoomEventView
       }
     }
   `);
@@ -254,6 +276,11 @@
       !inputDisabled &&
       attachments.pendingCount === 0 &&
       (hasVisibleContent(message) || hasSendableAttachments || isEditing)
+  );
+  let editorNextEnterWillSend = $state(false);
+  let nextEnterWillSend = $derived(canSubmit && editorNextEnterWillSend);
+  let submitHint = $derived(
+    shortcutHints ? (nextEnterWillSend ? shortcutHints.enterAgain : shortcutHints.submit) : null
   );
 
   $effect(() => {
@@ -374,10 +401,37 @@
     return text.replace(/\n{3,}/g, '\n\n');
   }
 
+  function hasStructuralMarkdownBody(text: string): boolean {
+    return text
+      .split('\n')
+      .some((line) => /^ {0,3}(?:#{1,6}|[-+*]|\d{1,9}[.)]|>)[ \t]$/.test(line));
+  }
+
+  function bodyForSend(text: string): string {
+    const normalized = normalizeMessageBody(text);
+    if (hasStructuralMarkdownBody(normalized)) return normalized;
+    return normalizeMessageBody(text.trim());
+  }
+
   type MentionConfirmation = {
     recipientCount: number;
     token: string;
   };
+
+  type PreparedPost = {
+    roomId: string;
+    bodyToSend: string;
+    filesToSend: File[] | null;
+    threadRootEventId: string | null;
+    inReplyTo: string | null;
+    linkPreviewInput: ReturnType<typeof linkPreviews.buildInput>;
+    alsoSendToChannel: boolean;
+  };
+
+  type PendingMentionConfirmation = PreparedPost & MentionConfirmation;
+
+  let pendingMentionConfirmation = $state<PendingMentionConfirmation | null>(null);
+  let mentionConfirmationLoading = $state(false);
 
   function mentionConfirmation(error: unknown): MentionConfirmation | null {
     const graphQLErrors =
@@ -397,15 +451,114 @@
     return null;
   }
 
+  function buildPostVariables(post: PreparedPost, mentionConfirmationToken: string | null) {
+    return {
+      input: {
+        roomId: post.roomId,
+        body: post.bodyToSend || null,
+        attachments: post.filesToSend,
+        threadRootEventId: post.threadRootEventId,
+        inReplyTo: post.inReplyTo,
+        linkPreview: post.linkPreviewInput,
+        alsoSendToChannel: post.alsoSendToChannel || null,
+        mentionConfirmationToken
+      }
+    };
+  }
+
+  function sendPreparedPost(post: PreparedPost, mentionConfirmationToken: string | null) {
+    return connection().client.mutation(
+      PostMessageMutation,
+      buildPostVariables(post, mentionConfirmationToken)
+    );
+  }
+
+  function restorePreparedPost(post: PreparedPost) {
+    message = post.bodyToSend;
+    editorApi?.setContent(post.bodyToSend);
+    if (post.filesToSend) {
+      attachments.restore(attachments.filesToPreviewItems(post.filesToSend));
+    }
+  }
+
+  function handlePostFailure(error: unknown, post: PreparedPost) {
+    toast.error('Failed to send message');
+    console.error('Error posting message:', error);
+    restorePreparedPost(post);
+  }
+
+  function handlePostSuccess(
+    response: Awaited<ReturnType<typeof sendPreparedPost>>,
+    post: PreparedPost
+  ) {
+    const postedEvent = response.data?.postMessage
+      ? useFragment(RoomEventViewFragmentDoc, response.data.postMessage)
+      : null;
+
+    // Notify parent before scrolling so it can synchronously ingest the
+    // returned event and make the target row available.
+    onMessageSent?.(postedEvent);
+
+    // Scroll the enclosing pane to the user's new message. The composer
+    // reads `scrollState` from its surrounding ComposerContext, so this
+    // targets the main room's EventList in a room composer and the
+    // thread's EventList in a thread composer.
+    scrollState?.requestScrollToBottom();
+
+    // Clear reply-in-room state after sending
+    onCancelReply?.();
+
+    // Mark this room as read (we just posted, so we've seen all messages)
+    roomUnreadStore.setRoomUnread(post.roomId, false);
+
+    // Reset "also send to channel" checkbox after successful send
+    alsoSendToChannel = false;
+  }
+
+  function cancelMentionConfirmation() {
+    const pendingPost = pendingMentionConfirmation;
+    pendingMentionConfirmation = null;
+    if (pendingPost) {
+      restorePreparedPost(pendingPost);
+    }
+  }
+
+  async function confirmMentionSend() {
+    const pendingPost = pendingMentionConfirmation;
+    if (!pendingPost || mentionConfirmationLoading) return;
+
+    mentionConfirmationLoading = true;
+    try {
+      const response = await sendPreparedPost(pendingPost, pendingPost.token);
+      pendingMentionConfirmation = null;
+
+      if (response.error) {
+        handlePostFailure(response.error, pendingPost);
+      } else {
+        handlePostSuccess(response, pendingPost);
+      }
+    } finally {
+      mentionConfirmationLoading = false;
+    }
+  }
+
   async function postMessage() {
     // Require either non-empty message body or attachments.
     // hasVisibleContent rejects messages with only invisible Unicode characters.
-    const bodyToSend = normalizeMessageBody(message.trim());
+    const bodyToSend = bodyForSend(message);
     const hasBody = hasVisibleContent(bodyToSend);
     const filesToSend = hasSendableAttachments ? [...attachments.selectedFiles] : null;
     if (!hasBody && !filesToSend) return;
 
-    const linkPreviewInput = linkPreviews.buildInput();
+    const preparedPost: PreparedPost = {
+      roomId,
+      bodyToSend,
+      filesToSend,
+      threadRootEventId: inThread ?? null,
+      inReplyTo: inReplyTo ?? null,
+      linkPreviewInput: linkPreviews.buildInput(),
+      alsoSendToChannel
+    };
 
     // Optimistically clear the editor so the user can start typing the next
     // message immediately (matches Slack/Discord behavior).
@@ -417,70 +570,17 @@
     loading = true;
 
     try {
-      const buildInput = (mentionConfirmationToken: string | null) => ({
-        input: {
-          roomId,
-          body: bodyToSend || null,
-          attachments: filesToSend,
-          threadRootEventId: inThread ?? null,
-          inReplyTo: inReplyTo ?? null,
-          linkPreview: linkPreviewInput,
-          alsoSendToChannel: alsoSendToChannel || null,
-          mentionConfirmationToken
-        }
-      });
-
-      let response = await connection().client.mutation(PostMessageMutation, buildInput(null));
+      const response = await sendPreparedPost(preparedPost, null);
 
       if (response.error) {
         const confirmation = mentionConfirmation(response.error);
         if (confirmation !== null) {
-          const confirmed = window.confirm(
-            `This message will notify ${confirmation.recipientCount} people. Send it anyway?`
-          );
-          if (confirmed) {
-            response = await connection().client.mutation(
-              PostMessageMutation,
-              buildInput(confirmation.token)
-            );
-          } else {
-            message = bodyToSend;
-            editorApi?.setContent(bodyToSend);
-            if (filesToSend) {
-              attachments.restore(attachments.filesToPreviewItems(filesToSend));
-            }
-            return;
-          }
+          pendingMentionConfirmation = { ...preparedPost, ...confirmation };
+          return;
         }
-      }
-
-      if (response.error) {
-        toast.error('Failed to send message');
-        console.error('Error posting message:', response.error);
-        // Restore message so user can retry without retyping
-        message = bodyToSend;
-        editorApi?.setContent(bodyToSend);
-        if (filesToSend) {
-          attachments.restore(attachments.filesToPreviewItems(filesToSend));
-        }
+        handlePostFailure(response.error, preparedPost);
       } else {
-        // Scroll the enclosing pane to the user's new message. The composer
-        // reads `scrollState` from its surrounding ComposerContext, so this
-        // targets the main room's EventList in a room composer and the
-        // thread's EventList in a thread composer.
-        scrollState?.requestScrollToBottom();
-
-        // Clear reply-in-room state after sending
-        onCancelReply?.();
-
-        // Mark this room as read (we just posted, so we've seen all messages)
-        roomUnreadStore.setRoomUnread(roomId, false);
-
-        // Reset "also send to channel" checkbox after successful send
-        alsoSendToChannel = false;
-
-        // Notify parent that message was sent (for resetting typing indicator debounce)
-        onMessageSent?.();
+        handlePostSuccess(response, preparedPost);
       }
     } finally {
       loading = false;
@@ -488,7 +588,7 @@
   }
 
   async function editMessage() {
-    const trimmedBody = normalizeMessageBody(message.trim());
+    const trimmedBody = bodyForSend(message);
     if (!trimmedBody) {
       toast.error('Message cannot be empty');
       return;
@@ -544,6 +644,11 @@
   // Handle keyboard events from TipTap editor.
   // Return true to prevent TipTap's default handling.
   function handleEditorKeyDown(event: KeyboardEvent): boolean {
+    if (event.key === 'Enter' && !event.shiftKey && (event.metaKey || event.ctrlKey)) {
+      handleSubmit(); // Fire-and-forget (async, but keydown must return sync)
+      return true;
+    }
+
     // Handle emoji autocomplete keyboard events first
     if (autocomplete.emoji && autocomplete.emojiRef) {
       if (autocomplete.emojiRef.handleKeyDown(event)) {
@@ -556,6 +661,17 @@
       if (autocomplete.mentionRef.handleKeyDown(event)) {
         return true;
       }
+    }
+
+    if (
+      event.key === 'Enter' &&
+      !event.shiftKey &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      nextEnterWillSend
+    ) {
+      handleSubmit(); // Fire-and-forget (async, but keydown must return sync)
+      return true;
     }
 
     // Handle Tab for @mention autocomplete
@@ -597,21 +713,6 @@
         });
         return true;
       }
-    }
-
-    if (event.key === 'Enter' && !event.shiftKey && (event.metaKey || event.ctrlKey)) {
-      handleSubmit(); // Fire-and-forget (async, but keydown must return sync)
-      return true;
-    }
-
-    if (
-      event.key === 'Enter' &&
-      !event.shiftKey &&
-      !isTouchDevice() &&
-      editorApi?.isInPlainParagraph()
-    ) {
-      handleSubmit(); // Fire-and-forget (async, but keydown must return sync)
-      return true;
     }
 
     return false; // Let TipTap handle it (e.g., Shift+Enter for hard break)
@@ -774,21 +875,35 @@
         onUpdate={handleEditorUpdate}
         onKeyDown={handleEditorKeyDown}
         onPaste={handlePaste}
+        onNextEnterWillSendChange={(value) => (editorNextEnterWillSend = value)}
         onReady={handleEditorReady}
       />
     {/await}
 
-    <!-- Send button -->
-    <button
-      type="button"
-      onpointerdown={(e) => e.preventDefault()}
-      onclick={handleSubmit}
-      disabled={!canSubmit}
-      class="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded text-muted transition-colors duration-100 enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
-      title="Send message"
-    >
-      <span class="iconify text-xl uil--telegram-alt"></span>
-    </button>
+    <div class="flex h-8 shrink-0 items-center gap-2">
+      {#if submitHint && canSubmit}
+        <span
+          aria-hidden="true"
+          title={submitHint}
+          class="px-0.5 text-xs leading-none font-medium whitespace-nowrap text-muted/75"
+        >
+          {submitHint}
+        </span>
+      {/if}
+
+      <!-- Send button -->
+      <button
+        type="button"
+        onpointerdown={(e) => e.preventDefault()}
+        onclick={handleSubmit}
+        disabled={!canSubmit}
+        class="flex h-8 w-8 cursor-pointer items-center justify-center rounded text-muted transition-colors duration-100 enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
+        aria-label="Send message"
+        title="Send message (Ctrl/Cmd+Enter)"
+      >
+        <span class="iconify text-xl uil--telegram-alt"></span>
+      </button>
+    </div>
   </div>
 
   <!-- Also send to channel checkbox (thread replies only, when permitted) -->
@@ -858,6 +973,20 @@
     </div>
   {/if}
 </div>
+
+{#if pendingMentionConfirmation}
+  <ConfirmDialog
+    title={`Notify ${pendingMentionConfirmation.recipientCount} people?`}
+    tone="warning"
+    actionLabel="Send Anyway"
+    actionIcon="iconify uil--telegram-alt"
+    loading={mentionConfirmationLoading}
+    onconfirm={confirmMentionSend}
+    onclose={cancelMentionConfirmation}
+  >
+    This message will notify {pendingMentionConfirmation.recipientCount} people. Send it anyway?
+  </ConfirmDialog>
+{/if}
 
 <style>
   .sending {

@@ -12,6 +12,8 @@ type QueryRoom = {
   type: RoomType;
   hasUnread: boolean;
   archived: boolean;
+  viewerIsMember: boolean;
+  viewerCanJoinRoom: boolean;
   viewerNotificationPreference: {
     level: NotificationLevel;
     effectiveLevel: NotificationLevel;
@@ -31,28 +33,33 @@ type QueryResponse = {
   viewer: {
     user: {
       id: string;
-      rooms: QueryRoom[];
     };
   };
   server: {
+    channelRooms: QueryRoom[];
+    dmRooms: QueryRoom[];
     roomGroups: Array<{
       id: string;
       name: string;
       rooms: Array<{ id: string }>;
+      items?: Array<{
+        type: 'ROOM' | 'SIDEBAR_LINK';
+        id: string;
+        room?: { id: string } | null;
+        link?: { id: string; label: string; url: string } | null;
+      }>;
     }>;
   };
 };
 
 type NotificationCountsResponse = {
-  viewer: {
-    user: {
-      rooms: Array<{
-        id: string;
-        viewerNotifications: {
-          totalCount: number;
-        };
-      }>;
-    };
+  server: {
+    rooms: Array<{
+      id: string;
+      viewerNotifications: {
+        totalCount: number;
+      };
+    }>;
   };
 };
 
@@ -63,6 +70,8 @@ function makeRoom(id: string, overrides: Partial<QueryRoom> = {}): QueryRoom {
     type: overrides.type ?? RoomType.Channel,
     hasUnread: overrides.hasUnread ?? false,
     archived: overrides.archived ?? false,
+    viewerIsMember: overrides.viewerIsMember ?? true,
+    viewerCanJoinRoom: overrides.viewerCanJoinRoom ?? true,
     viewerNotificationPreference:
       overrides.viewerNotificationPreference === undefined
         ? {
@@ -85,17 +94,19 @@ function makeRoom(id: string, overrides: Partial<QueryRoom> = {}): QueryRoom {
 }
 
 function makeResponse(
-  rooms: QueryRoom[],
-  groups: QueryResponse['server']['roomGroups'] = []
+  channelRooms: QueryRoom[],
+  groups: QueryResponse['server']['roomGroups'] = [],
+  dmRooms: QueryRoom[] = []
 ): QueryResponse {
   return {
     viewer: {
       user: {
-        id: 'U1',
-        rooms
+        id: 'U1'
       }
     },
     server: {
+      channelRooms,
+      dmRooms,
       roomGroups: groups
     }
   };
@@ -115,13 +126,11 @@ function operationName(document: unknown): string | undefined {
 
 function makeCountsResponse(counts: Record<string, number>): NotificationCountsResponse {
   return {
-    viewer: {
-      user: {
-        rooms: Object.entries(counts).map(([id, totalCount]) => ({
-          id,
-          viewerNotifications: { totalCount }
-        }))
-      }
+    server: {
+      rooms: Object.entries(counts).map(([id, totalCount]) => ({
+        id,
+        viewerNotifications: { totalCount }
+      }))
     }
   };
 }
@@ -142,6 +151,41 @@ async function settle() {
 }
 
 describe('RoomsStore - refresh', () => {
+  it('loads listable non-member channels from server rooms and DMs with members', async () => {
+    const { client } = makeClient([
+      makeResponse(
+        [makeRoom('public', { viewerIsMember: false, viewerCanJoinRoom: true })],
+        [{ id: 'g1', name: 'Lobby', rooms: [{ id: 'public' }] }],
+        [makeRoom('dm-1', { type: RoomType.Dm, name: '' })]
+      )
+    ]);
+    const store = makeStore(client);
+
+    await store.refresh();
+
+    expect(store.rooms).toMatchObject([
+      {
+        id: 'public',
+        type: RoomType.Channel,
+        viewerIsMember: false,
+        viewerCanJoinRoom: true,
+        members: []
+      },
+      {
+        id: 'dm-1',
+        type: RoomType.Dm,
+        viewerIsMember: true,
+        members: [{ id: 'U1', displayName: 'Alice' }]
+      }
+    ]);
+    expect(store.roomGroups).toMatchObject([
+      {
+        id: 'g1',
+        items: [{ id: 'room:public', type: 'room', roomId: 'public' }]
+      }
+    ]);
+  });
+
   it('discards out-of-order responses', async () => {
     let resolveFirst!: (value: { data: QueryResponse; error: null }) => void;
     let resolveSecond!: (value: { data: QueryResponse; error: null }) => void;
@@ -175,7 +219,14 @@ describe('RoomsStore - refresh', () => {
     await settle();
 
     expect(store.rooms.map((room) => room.id)).toEqual(['newer']);
-    expect(store.roomGroups).toEqual([{ id: 'g1', name: 'Lobby', roomIds: ['newer'] }]);
+    expect(store.roomGroups).toEqual([
+      {
+        id: 'g1',
+        name: 'Lobby',
+        roomIds: ['newer'],
+        items: [{ id: 'room:newer', type: 'room', roomId: 'newer' }]
+      }
+    ]);
     await vi.waitFor(() => {
       expect(store.rooms.find((room) => room.id === 'newer')?.viewerNotificationCount).toBe(4);
     });
@@ -190,7 +241,14 @@ describe('RoomsStore - refresh', () => {
     await settle();
 
     expect(store.rooms.map((room) => room.id)).toEqual(['newer']);
-    expect(store.roomGroups).toEqual([{ id: 'g1', name: 'Lobby', roomIds: ['newer'] }]);
+    expect(store.roomGroups).toEqual([
+      {
+        id: 'g1',
+        name: 'Lobby',
+        roomIds: ['newer'],
+        items: [{ id: 'room:newer', type: 'room', roomId: 'newer' }]
+      }
+    ]);
   });
 
   it('patches notification counts from the optional compatibility query', async () => {
@@ -240,6 +298,45 @@ describe('RoomsStore - refresh', () => {
     await settle();
 
     expect(store.rooms).toMatchObject([{ id: 'general', viewerNotificationCount: 0 }]);
+  });
+
+  it('maps mixed sidebar group items from the bootstrap query', async () => {
+    const { client } = makeClient([
+      makeResponse([makeRoom('general')], [
+        {
+          id: 'g1',
+          name: 'Lobby',
+          rooms: [{ id: 'general' }],
+          items: [
+            {
+              id: 'link:docs',
+              type: 'SIDEBAR_LINK',
+              link: { id: 'docs', label: 'Docs', url: 'https://example.com/docs' }
+            },
+            { id: 'room:general', type: 'ROOM', room: { id: 'general' } }
+          ]
+        }
+      ])
+    ]);
+    const store = makeStore(client);
+
+    await store.refresh();
+
+    expect(store.roomGroups).toEqual([
+      {
+        id: 'g1',
+        name: 'Lobby',
+        roomIds: ['general'],
+        items: [
+          {
+            id: 'link:docs',
+            type: 'link',
+            link: { id: 'docs', label: 'Docs', url: 'https://example.com/docs' }
+          },
+          { id: 'room:general', type: 'room', roomId: 'general' }
+        ]
+      }
+    ]);
   });
 });
 

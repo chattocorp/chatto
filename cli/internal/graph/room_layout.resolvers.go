@@ -30,6 +30,44 @@ func (r *roomGroupResolver) Rooms(ctx context.Context, obj *model.RoomGroupModel
 	return rooms, nil
 }
 
+// Items is the resolver for the items field.
+func (r *roomGroupResolver) Items(ctx context.Context, obj *model.RoomGroupModel) ([]*model.RoomGroupItem, error) {
+	links := make(map[string]*corev1.SidebarLink, len(obj.SidebarLinks))
+	for _, link := range obj.SidebarLinks {
+		links[link.GetId()] = link
+	}
+
+	items := make([]*model.RoomGroupItem, 0, len(obj.Entries))
+	for _, entry := range obj.Entries {
+		switch entry.GetKind() {
+		case corev1.SidebarGroupEntry_ROOM:
+			var room *corev1.Room
+			if obj.ViewerRooms != nil {
+				room = obj.ViewerRooms[entry.GetId()]
+				if room == nil {
+					continue
+				}
+			}
+			items = append(items, &model.RoomGroupItem{
+				Type: model.RoomGroupItemTypeRoom,
+				ID:   entry.GetId(),
+				Room: room,
+			})
+		case corev1.SidebarGroupEntry_SIDEBAR_LINK:
+			link := links[entry.GetId()]
+			if link == nil {
+				continue
+			}
+			items = append(items, &model.RoomGroupItem{
+				Type: model.RoomGroupItemTypeSidebarLink,
+				ID:   entry.GetId(),
+				Link: link,
+			})
+		}
+	}
+	return items, nil
+}
+
 // RoomGroup returns RoomGroupResolver implementation.
 func (r *Resolver) RoomGroup() RoomGroupResolver { return &roomGroupResolver{r} }
 

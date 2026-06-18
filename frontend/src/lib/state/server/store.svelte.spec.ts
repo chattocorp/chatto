@@ -77,6 +77,30 @@ async function flushPromises(times = 5): Promise<void> {
   }
 }
 
+function sidebarRoomsResult(overrides: Record<string, unknown> = {}) {
+  return {
+    viewer: { user: { id: 'U1' } },
+    server: {
+      channelRooms: [],
+      dmRooms: [],
+      roomGroups: [],
+      ...overrides
+    }
+  };
+}
+
+function roomNotificationCountsResult() {
+  return { server: { rooms: [] } };
+}
+
+function roomDirectoryResult(rooms: unknown[] = []) {
+  return { server: { rooms } };
+}
+
+function adminRoomLayoutResult(rooms: unknown[] = [], roomGroups: unknown[] = []) {
+  return { server: { rooms, roomGroups } };
+}
+
 afterEach(() => {
   for (const store of stores.splice(0)) {
     store.dispose();
@@ -102,9 +126,10 @@ describe('ServerStateStore live server updates', () => {
           }
         }
       },
-      { server: { rooms: [] } },
-      { server: { rooms: [] } },
-      { server: { rooms: [], roomGroups: [] } },
+      sidebarRoomsResult(),
+      roomNotificationCountsResult(),
+      roomDirectoryResult(),
+      adminRoomLayoutResult(),
       {
         server: {
           directRegistrationEnabled: false,
@@ -180,17 +205,29 @@ describe('ServerStateStore live server updates', () => {
           profile: { motd: null }
         }
       },
-      { server: { rooms: [] } },
-      { server: { rooms: [] } },
-      { server: { rooms: [], roomGroups: [] } },
-      {
-        server: {
-          rooms: [{ id: 'r1', name: 'general', description: null, archived: false }],
-          roomGroups: [{ id: 'g1', name: 'Lobby', rooms: [{ id: 'r1' }] }]
-        }
-      },
-      { server: { rooms: [] } },
-      { server: { rooms: [] } }
+      sidebarRoomsResult({
+        channelRooms: [
+          {
+            id: 'r1',
+            name: 'general',
+            type: 'CHANNEL',
+            hasUnread: false,
+            archived: false,
+            viewerIsMember: true,
+            viewerCanJoinRoom: true,
+            viewerNotificationPreference: null
+          }
+        ],
+        roomGroups: [{ id: 'g1', name: 'Lobby', rooms: [{ id: 'r1' }], items: [] }]
+      }),
+      roomNotificationCountsResult(),
+      roomDirectoryResult([{ id: 'r1', name: 'general', description: null, archived: false }]),
+      adminRoomLayoutResult(
+        [{ id: 'r1', name: 'general', description: null, archived: false }],
+        [{ id: 'g1', name: 'Lobby', rooms: [{ id: 'r1' }], items: [] }]
+      ),
+      roomNotificationCountsResult(),
+      roomNotificationCountsResult()
     ]);
     const store = makeStore(fake);
     store.currentUser.user = { id: 'U1', login: 'alice', displayName: 'Alice' } as never;

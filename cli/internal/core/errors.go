@@ -199,6 +199,12 @@ const (
 	// MaxRoomGroupDescriptionLength is the maximum length of a room group description in bytes.
 	MaxRoomGroupDescriptionLength = 500
 
+	// MaxSidebarLinkLabelLength is the maximum length of a sidebar link label in bytes.
+	MaxSidebarLinkLabelLength = 80
+
+	// MaxSidebarLinkURLLength is the maximum length of a sidebar link URL in bytes.
+	MaxSidebarLinkURLLength = 2048
+
 	// MaxPushEndpointLength is the maximum length of a Push API endpoint URL in bytes.
 	MaxPushEndpointLength = 4096
 

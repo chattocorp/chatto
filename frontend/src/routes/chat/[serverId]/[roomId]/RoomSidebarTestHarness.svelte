@@ -9,6 +9,9 @@ mounting the full chat room shell.
   import { useRoomMembersSync } from '$lib/hooks/useRoomMembersSync.svelte';
   import type { RoomData } from '$lib/hooks/useRoomData.svelte';
   import { createPresenceCache, type PresenceCache } from '$lib/state/presenceCache.svelte';
+  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { RoomFilesStore } from '$lib/state/room';
+  import { setUserSettings, UserSettingsState } from '$lib/state/userSettings.svelte';
   import RoomSidebar, { type RoomSidebarPanel } from './RoomSidebar.svelte';
 
   let {
@@ -18,7 +21,9 @@ mounting the full chat room shell.
     presentation = 'desktop',
     currentUserId = 'viewer',
     canBanRoomMembers = false,
+    fileGroupingNow,
     onPresenceCacheReady,
+    onOpenFile,
     onClose
   }: {
     roomId?: string;
@@ -27,13 +32,23 @@ mounting the full chat room shell.
     presentation?: 'desktop' | 'overlay';
     currentUserId?: string | null;
     canBanRoomMembers?: boolean;
+    fileGroupingNow?: Date;
     onPresenceCacheReady?: (cache: PresenceCache) => void;
+    onOpenFile?: (messageEventId: string, threadRootEventId: string | null) => void;
     onClose?: () => void;
   } = $props();
 
+  const connection = useConnection();
+  setUserSettings(new UserSettingsState());
   const presenceCache = createPresenceCache();
   queueMicrotask(() => {
     onPresenceCacheReady?.(presenceCache);
+  });
+  const roomFilesStore = new RoomFilesStore(connection());
+
+  $effect(() => {
+    if (activePanel !== 'files') return;
+    roomFilesStore.setRoom(roomId);
   });
 
   const roomMembers = useRoomMembersSync(() => ({
@@ -51,6 +66,9 @@ mounting the full chat room shell.
   loading={false}
   {canBanRoomMembers}
   {currentUserId}
+  filesStore={roomFilesStore}
+  {fileGroupingNow}
   onLoadMoreMembers={roomMembers.loadMoreMembers}
+  {onOpenFile}
   {onClose}
 />

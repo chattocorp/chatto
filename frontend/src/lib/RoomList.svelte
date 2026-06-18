@@ -5,7 +5,7 @@ Renders the room list in the server sidebar. When a room layout is configured,
 rooms are organized into collapsible sections. Otherwise, rooms display alphabetically.
 -->
 <script lang="ts">
-  import { goto } from '$app/navigation';
+  import { goto, pushState } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { serverIdToSegment } from '$lib/navigation';
@@ -28,7 +28,11 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
   import { appState } from '$lib/state/globals.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
-  import { type RoomsListItem, type RoomsListGroup } from '$lib/state/server/rooms.svelte';
+  import {
+    type RoomsListItem,
+    type RoomsListGroup,
+    type RoomsListGroupItem
+  } from '$lib/state/server/rooms.svelte';
 
   // No props — RoomList reads everything from the active server's stores.
   // All store references go through `stores` ($derived), so when the active
@@ -70,16 +74,25 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
   let channelMap = $derived(new Map(channels.map((r) => [r.id, r])));
 
-  function getSetRooms(set: RoomsListGroup): RoomsListItem[] {
-    return set.roomIds.map((id) => channelMap.get(id)).filter((r): r is RoomsListItem => r != null);
+  function getSetItems(set: RoomsListGroup): RoomsListGroupItem[] {
+    const items =
+      set.items ??
+      set.roomIds.map((roomId) => ({
+        id: `room:${roomId}`,
+        type: 'room' as const,
+        roomId
+      }));
+    return items.filter((item) => item.type === 'link' || channelMap.has(item.roomId));
   }
 
   // Sets that have at least one channel the viewer is a member of
   let visibleSets = $derived.by(() => {
     const sets = roomsStore.roomGroups;
     if (!sets) return [];
-    return sets.filter((s) => getSetRooms(s).length > 0);
+    return sets.filter((s) => getSetItems(s).length > 0);
   });
+
+  const hasSidebarItems = $derived(visibleSets.some((set) => getSetItems(set).length > 0));
 
   // When no layout exists, display channels alphabetically
   let sortedRooms = $derived([...channels].sort((a, b) => a.name.localeCompare(b.name)));
@@ -124,6 +137,12 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       return room.viewerNotificationCount > 0;
     }
     return room.viewerNotificationCount > 0;
+  }
+
+  function isGroupItemHighlighted(item: RoomsListGroupItem): boolean {
+    if (item.type === 'link') return false;
+    const room = channelMap.get(item.roomId);
+    return room ? isHighlighted(room) : false;
   }
 
   // --- Real-time event handlers ---
@@ -226,6 +245,17 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     goto(resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId }));
   }
 
+  function openJoinRoomModal(room: RoomsListItem) {
+    pushState('', {
+      modal: {
+        type: 'joinRoom',
+        roomId: room.id,
+        roomName: room.name,
+        viewerCanJoinRoom: room.viewerCanJoinRoom
+      }
+    });
+  }
+
   // Handle click on room notification badge - navigate to notification source and dismiss
   async function handleRoomNotificationClick(event: MouseEvent, roomId: string) {
     event.preventDefault();
@@ -311,25 +341,38 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {#snippet roomLink(room: RoomsListItem)}
   {@const hasActiveCall = activeCallRooms.has(room.id)}
   {@const callParticipants = hasActiveCall ? activeCallRooms.getParticipants(room.id) : []}
+  {@const isJoined = room.viewerIsMember}
+  {@const rowClass = [
+    'sidebar-item group/badges',
+    hasActiveCall ? 'flex-wrap gap-y-1' : '',
+    room.id === activeRoomId ? 'bg-surface-100' : '',
+    room.hasUnread && room.id !== activeRoomId && !notificationLevelStore.isRoomMuted(room.id)
+      ? 'font-semibold'
+      : '',
+    !isJoined ? 'opacity-60 hover:opacity-85' : ''
+  ]}
   <a
     href={resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId: room.id })}
-    class={[
-      'sidebar-item group/badges',
-      hasActiveCall ? 'flex-wrap gap-y-1' : '',
-      room.id === activeRoomId ? 'bg-surface-100' : '',
-      room.hasUnread &&
-      room.id !== activeRoomId &&
-      !notificationLevelStore.isRoomMuted(room.id)
-        ? 'font-semibold'
-        : ''
-    ]}
+    class={rowClass}
     aria-current={room.id === activeRoomId ? 'page' : undefined}
+    onclick={(e) => {
+      if (!isJoined) {
+        e.preventDefault();
+        openJoinRoomModal(room);
+      }
+    }}
   >
-    <span class="sidebar-icon text-muted">#</span>
+    {#if isJoined}
+      <span class="sidebar-icon text-muted">#</span>
+    {:else if room.viewerCanJoinRoom}
+      <span class="sidebar-icon text-muted">+</span>
+    {:else}
+      <span class="sidebar-icon iconify text-muted uil--lock"></span>
+    {/if}
     <span class="flex-1 truncate">{room.name}</span>
 
     <!-- Notification Indicator (warning color for mentions and thread replies) -->
-    {#if room.viewerNotificationCount > 0}
+    {#if isJoined && room.viewerNotificationCount > 0}
       <button
         type="button"
         onclick={(e) => handleRoomNotificationClick(e, room.id)}
@@ -343,14 +386,14 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       </button>
       <span class="sr-only">{room.viewerNotificationCount} notifications</span>
       <!-- Unread Indicator (subtle) -->
-    {:else if room.hasUnread && !notificationLevelStore.isRoomMuted(room.id)}
+    {:else if isJoined && room.hasUnread && !notificationLevelStore.isRoomMuted(room.id)}
       <UnreadDot color="primary" testid="room-unread-dot" />
       <span class="sr-only">unread messages</span>
     {/if}
 
     <!-- Call participant avatars (badge row, wraps below room name).
          Clicking the badge navigates to the room AND joins the call. -->
-    {#if hasActiveCall}
+    {#if isJoined && hasActiveCall}
       {@render callBadge(room, callParticipants)}
     {/if}
   </a>
@@ -400,7 +443,25 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   </a>
 {/snippet}
 
-{#if channels.length === 0 && dmRooms.length === 0 && !roomsStore.isInitialLoading}
+{#snippet sidebarLink(item: RoomsListGroupItem)}
+  {#if item.type === 'room'}
+    {@const room = channelMap.get(item.roomId)}
+    {#if room}
+      {@render roomLink(room)}
+    {/if}
+  {:else}
+    <button
+      type="button"
+      class="sidebar-item w-full text-left"
+      onclick={() => window.open(item.link.url, '_blank', 'noopener,noreferrer')}
+    >
+      <span class="sidebar-icon iconify text-muted uil--external-link-alt"></span>
+      <span class="flex-1 truncate">{item.link.label}</span>
+    </button>
+  {/if}
+{/snippet}
+
+{#if channels.length === 0 && dmRooms.length === 0 && !hasSidebarItems && !roomsStore.isInitialLoading}
   <EmptyState icon="uil--comments" title="No rooms yet">
     You haven't joined any rooms on this server. Head to the
     <a
@@ -416,10 +477,10 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       {#each visibleSets as set, i (set.id)}
         <CollapsibleGroup
           label={set.name}
-          items={getSetRooms(set)}
-          item={roomLink}
+          items={getSetItems(set)}
+          item={sidebarLink}
           persistKey={serverStorageKey(getActiveServer(), `collapsible:set:${set.id}`)}
-          keepVisibleWhenCollapsed={isHighlighted}
+          keepVisibleWhenCollapsed={isGroupItemHighlighted}
           class={i === 0 ? 'mt-4 first:mt-0' : 'mt-4'}
         />
       {/each}

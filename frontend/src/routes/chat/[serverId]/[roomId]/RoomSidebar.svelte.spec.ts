@@ -52,7 +52,12 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
     isConnected: true,
     showConnectionLostBanner: false,
     client: {
-      query: queryMock,
+      query: (...args: unknown[]) => {
+        const result = queryMock(...args);
+        return Object.assign(result, {
+          toPromise: () => result
+        });
+      },
       mutation: vi.fn(),
       subscription: vi.fn()
     }
@@ -103,6 +108,26 @@ function presenceBadge(container: Element, label: string): Element | null {
   return container.querySelector(`[aria-label="${label}"]`);
 }
 
+function roomFileGroupHeadings(container: Element): string[] {
+  return Array.from(container.querySelectorAll('[data-testid="room-file-group-heading"]')).map(
+    (element) => element.textContent?.trim() ?? ''
+  );
+}
+
+function roomFileRowLabels(container: Element): string[] {
+  return Array.from(container.querySelectorAll('[data-testid="room-file-row"]')).map(
+    (element) => element.textContent?.trim() ?? ''
+  );
+}
+
+async function flushRoomFilesPanel(): Promise<void> {
+  await tick();
+  await Promise.resolve();
+  await tick();
+  await Promise.resolve();
+  await tick();
+}
+
 function roomData(members: RoomMember[], totalCount: number, hasMore: boolean): RoomData {
   return {
     room: { id: 'room-1', name: 'general', type: 'CHANNEL' },
@@ -118,6 +143,69 @@ function roomData(members: RoomMember[], totalCount: number, hasMore: boolean): 
     members,
     membersTotalCount: totalCount,
     membersHasMore: hasMore
+  };
+}
+
+function roomFile(
+  messageEventId: string,
+  threadRootEventId: string | null,
+  filename: string,
+  createdAt = '2026-06-15T12:00:00Z'
+) {
+  return {
+    messageEventId,
+    threadRootEventId,
+    createdAt,
+    attachment: {
+      id: `att-${filename}`,
+      filename,
+      contentType: 'text/plain',
+      width: 0,
+      height: 0,
+      assetUrl: {
+        url: `/assets/files/att-${filename}?access=ticket`,
+        expiresAt: '2099-01-01T00:00:00Z'
+      },
+      thumbnailAssetUrl: null,
+      videoProcessing: null
+    }
+  };
+}
+
+function roomVideoFile(filename: string) {
+  const base = roomFile('video-message', null, filename);
+  return {
+    ...base,
+    attachment: {
+      ...base.attachment,
+      contentType: 'video/mp4',
+      thumbnailAssetUrl: {
+        url: `/assets/files/att-${filename}/image/120x120/cover?access=broken`,
+        expiresAt: '2099-01-01T00:00:00Z'
+      },
+      videoProcessing: {
+        status: 'COMPLETED',
+        thumbnailAssetUrl: {
+          url: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==',
+          expiresAt: '2099-01-01T00:00:00Z'
+        }
+      }
+    }
+  };
+}
+
+function roomAudioFile(filename: string) {
+  const base = roomFile('audio-message', null, filename);
+  return {
+    ...base,
+    attachment: {
+      ...base.attachment,
+      contentType: 'audio/mpeg',
+      thumbnailAssetUrl: {
+        url: `/assets/files/att-${filename}/image/120x120/cover?access=broken`,
+        expiresAt: '2099-01-01T00:00:00Z'
+      }
+    }
   };
 }
 
@@ -329,7 +417,20 @@ describe('RoomSidebar', () => {
     expect(container.querySelector('[aria-label="Resize room extras pane"]')).toBeFalsy();
   });
 
-  it('renders the files coming soon panel', async () => {
+  it('renders an empty files panel', async () => {
+    queryMock.mockResolvedValue({
+      data: {
+        room: {
+          attachments: {
+            items: [],
+            totalCount: 0,
+            hasMore: false
+          }
+        }
+      },
+      error: null
+    });
+
     const { container } = render(RoomSidebarTestHarness, {
       props: {
         activePanel: 'files',
@@ -338,8 +439,250 @@ describe('RoomSidebar', () => {
     });
 
     await expect.element(q(container, 'h1')).toHaveTextContent('Files');
-    expect(container.textContent).toContain('Files coming soon.');
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain('No files in this room yet.');
+    });
     expect(container.querySelector('[aria-label="Members"]')).toBeFalsy();
+  });
+
+  it('keeps the files panel usable when the optional attachments field is unsupported', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    queryMock.mockResolvedValue({
+      data: null,
+      error: {
+        graphQLErrors: [
+          {
+            message: 'Cannot query field "attachments" on type "Room".'
+          }
+        ]
+      }
+    });
+
+    try {
+      const { container } = render(RoomSidebarTestHarness, {
+        props: {
+          activePanel: 'files',
+          roomData: roomData([member(1)], 1, false)
+        }
+      });
+
+      await expect.element(q(container, 'h1')).toHaveTextContent('Files');
+      await vi.waitFor(() => {
+        expect(container.textContent).toContain('No files in this room yet.');
+      });
+      expect(container.querySelector('[data-testid="room-files-load-more-sentinel"]')).toBeFalsy();
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+
+  it('renders room files, opens their message anchors, and automatically loads more', async () => {
+    const onOpenFile = vi.fn();
+    queryMock
+      .mockResolvedValueOnce({
+        data: {
+          room: {
+            attachments: {
+              items: [roomFile('root-message', null, 'root.txt')],
+              totalCount: 2,
+              hasMore: true
+            }
+          }
+        },
+        error: null
+      })
+      .mockResolvedValueOnce({
+        data: {
+          room: {
+            attachments: {
+              items: [roomFile('thread-message', 'thread-root', 'thread.txt')],
+              totalCount: 2,
+              hasMore: false
+            }
+          }
+        },
+        error: null
+      });
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'files',
+        roomData: roomData([member(1)], 1, false),
+        onOpenFile
+      }
+    });
+
+    await expect.element(q(container, 'h1')).toHaveTextContent('Files');
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain('root.txt');
+      expect(container.querySelector('[data-testid="room-files-load-more-sentinel"]')).toBeTruthy();
+      expect(MockIntersectionObserver.instances).toHaveLength(1);
+    });
+
+    buttonByText(container, 'root.txt')!.click();
+    await tick();
+    expect(onOpenFile).toHaveBeenCalledWith('root-message', null);
+
+    MockIntersectionObserver.instances[0].trigger();
+    await tick();
+
+    await vi.waitFor(() => {
+      expect(queryMock).toHaveBeenCalledWith(expect.anything(), {
+        roomId: 'room-1',
+        limit: 50,
+        offset: 1
+      });
+      expect(container.textContent).toContain('thread.txt');
+      expect(container.querySelector('[data-testid="room-files-load-more-sentinel"]')).toBeFalsy();
+    });
+
+    buttonByText(container, 'thread.txt')!.click();
+    await tick();
+    expect(onOpenFile).toHaveBeenCalledWith('thread-message', 'thread-root');
+  });
+
+  it('groups room files by date and appends loaded pages into the matching groups', async () => {
+    const fileGroupingNow = new Date('2026-06-17T12:00:00Z');
+
+    queryMock
+      .mockResolvedValueOnce({
+        data: {
+          room: {
+            attachments: {
+              items: [
+                roomFile('today-message', null, 'today.txt', '2026-06-17T08:00:00Z'),
+                roomFile('yesterday-message', null, 'yesterday.txt', '2026-06-16T08:00:00Z')
+              ],
+              totalCount: 5,
+              hasMore: true
+            }
+          }
+        },
+        error: null
+      })
+      .mockResolvedValueOnce({
+        data: {
+          room: {
+            attachments: {
+              items: [
+                roomFile('week-message', null, 'week.txt', '2026-06-15T08:00:00Z'),
+                roomFile('month-message', null, 'month.txt', '2026-06-10T08:00:00Z'),
+                roomFile('older-month-message', null, 'older-month.txt', '2026-05-21T08:00:00Z')
+              ],
+              totalCount: 5,
+              hasMore: false
+            }
+          }
+        },
+        error: null
+      });
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'files',
+        roomData: roomData([member(1)], 1, false),
+        fileGroupingNow
+      }
+    });
+
+    await flushRoomFilesPanel();
+    expect(roomFileGroupHeadings(container)).toEqual(['Today', 'Yesterday']);
+    expect(roomFileRowLabels(container)).toHaveLength(2);
+    expect(roomFileRowLabels(container)[0]).toContain('today.txt');
+    expect(roomFileRowLabels(container)[1]).toContain('yesterday.txt');
+
+    MockIntersectionObserver.instances[0].trigger();
+    await flushRoomFilesPanel();
+
+    expect(roomFileGroupHeadings(container)).toEqual([
+      'Today',
+      'Yesterday',
+      'This week',
+      'This month',
+      'May 2026'
+    ]);
+    const labels = roomFileRowLabels(container);
+    expect(labels).toHaveLength(5);
+    expect(labels.filter((label) => label.includes('today.txt'))).toHaveLength(1);
+    expect(labels[2]).toContain('week.txt');
+    expect(labels[3]).toContain('month.txt');
+    expect(labels[4]).toContain('older-month.txt');
+  });
+
+  it('falls back to a file icon when a video thumbnail fails to load', async () => {
+    queryMock
+      .mockResolvedValueOnce({
+        data: {
+          room: {
+            attachments: {
+              items: [roomVideoFile('clip.mp4')],
+              totalCount: 1,
+              hasMore: false
+            }
+          }
+        },
+        error: null
+      })
+      .mockResolvedValueOnce({
+        data: {
+          room: {
+            event: {
+              event: {
+                __typename: 'MessagePostedEvent',
+                attachments: []
+              }
+            }
+          }
+        },
+        error: null
+      });
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'files',
+        roomData: roomData([member(1)], 1, false)
+      }
+    });
+
+    await vi.waitFor(() => {
+      const image = container.querySelector('img[src^="data:image/gif"]');
+      expect(image).toBeTruthy();
+      image!.dispatchEvent(new Event('error'));
+    });
+
+    await vi.waitFor(() => {
+      expect(container.querySelector('img[src^="data:image/gif"]')).toBeFalsy();
+      expect(container.querySelector('.mdi--file-video-outline')).toBeTruthy();
+    });
+  });
+
+  it('renders an icon instead of a broken thumbnail for audio files', async () => {
+    queryMock.mockResolvedValueOnce({
+      data: {
+        room: {
+          attachments: {
+            items: [roomAudioFile('song.mp3')],
+            totalCount: 1,
+            hasMore: false
+          }
+        }
+      },
+      error: null
+    });
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'files',
+        roomData: roomData([member(1)], 1, false)
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain('song.mp3');
+      expect(container.querySelector('img')).toBeFalsy();
+      expect(container.querySelector('.mdi--file-music-outline')).toBeTruthy();
+    });
   });
 
   it('shows the room-ban action for other members when allowed', async () => {

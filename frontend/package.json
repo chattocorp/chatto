@@ -1,7 +1,7 @@
 {
   "name": "chatto-frontend",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.3",
   "type": "module",
   "packageManager": "pnpm@10.19.0",
   "scripts": {
@@ -45,6 +45,7 @@
     "@tailwindcss/vite": "^4.3.0",
     "@tiptap/core": "^3.23.2",
     "@tiptap/extension-code-block-lowlight": "3.23.2",
+    "@tiptap/extension-link": "3.23.2",
     "@tiptap/extension-placeholder": "^3.23.2",
     "@tiptap/markdown": "3.23.2",
     "@tiptap/pm": "^3.23.2",

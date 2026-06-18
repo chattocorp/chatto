@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import type { Client } from '@urql/svelte';
+import { RoomGroupItemType } from '$lib/gql/graphql';
 import {
   AdminRoomLayoutStore,
   buildGroupRoomOrder,
@@ -20,7 +21,12 @@ function room(id: string, overrides: Partial<AdminRoomInfo> = {}): AdminRoomInfo
 }
 
 function group(id: string, rooms: AdminRoomInfo[], name = id): AdminRoomGroup {
-  return { id, name, rooms };
+  return {
+    id,
+    name,
+    rooms,
+    items: rooms.map((room) => ({ id: `room:${room.id}`, kind: 'room', room }))
+  };
 }
 
 function queryData(groups: AdminRoomGroup[]) {
@@ -34,7 +40,22 @@ function queryData(groups: AdminRoomGroup[]) {
       roomGroups: groups.map((g) => ({
         id: g.id,
         name: g.name,
-        rooms: g.rooms.map((r) => ({ id: r.id }))
+        rooms: g.rooms.map((r) => ({ id: r.id })),
+        items: (g.items ?? []).map((item) =>
+          item.kind === 'room'
+            ? {
+                type: RoomGroupItemType.Room,
+                id: item.room.id,
+                room: { id: item.room.id },
+                link: null
+              }
+            : {
+                type: RoomGroupItemType.SidebarLink,
+                id: item.link.id,
+                room: null,
+                link: item.link
+              }
+        )
       }))
     }
   };
@@ -86,7 +107,11 @@ describe('admin room layout diff helpers', () => {
     const before = buildGroupRoomOrder([group('g1', [room('a'), room('b')])]);
     const after = buildGroupRoomOrder([group('g1', [room('a'), room('b')])]);
 
-    expect(planRoomMoveMutations(before, after)).toEqual({ moves: [], reorders: [] });
+    expect(planRoomMoveMutations(before, after)).toEqual({
+      moves: [],
+      linkMoves: [],
+      reorders: []
+    });
   });
 
   it('emits only reorderRoomsInGroup for an intra-group reorder', () => {
@@ -95,7 +120,16 @@ describe('admin room layout diff helpers', () => {
 
     expect(planRoomMoveMutations(before, after)).toEqual({
       moves: [],
-      reorders: [{ groupId: 'g1', orderedRoomIds: ['b', 'a'] }]
+      linkMoves: [],
+      reorders: [
+        {
+          groupId: 'g1',
+          items: [
+            { type: RoomGroupItemType.Room, id: 'b' },
+            { type: RoomGroupItemType.Room, id: 'a' }
+          ]
+        }
+      ]
     });
   });
 
@@ -111,9 +145,17 @@ describe('admin room layout diff helpers', () => {
 
     expect(planRoomMoveMutations(before, after)).toEqual({
       moves: [{ roomId: 'b', groupId: 'g2' }],
+      linkMoves: [],
       reorders: [
-        { groupId: 'g1', orderedRoomIds: ['a'] },
-        { groupId: 'g2', orderedRoomIds: ['c', 'b', 'd'] }
+        { groupId: 'g1', items: [{ type: RoomGroupItemType.Room, id: 'a' }] },
+        {
+          groupId: 'g2',
+          items: [
+            { type: RoomGroupItemType.Room, id: 'c' },
+            { type: RoomGroupItemType.Room, id: 'b' },
+            { type: RoomGroupItemType.Room, id: 'd' }
+          ]
+        }
       ]
     });
   });
@@ -145,7 +187,11 @@ describe('AdminRoomLayoutStore — loading', () => {
       {
         id: 'g1',
         name: 'Lobby',
-        rooms: [room('r1'), archived]
+        rooms: [room('r1'), archived],
+        items: [
+          { id: 'room:r1', kind: 'room', room: room('r1') },
+          { id: 'room:r2', kind: 'room', room: archived }
+        ]
       }
     ]);
     expect(store.initialized).toBe(true);
@@ -170,7 +216,7 @@ describe('AdminRoomLayoutStore — loading', () => {
     await store.refresh();
 
     expect(store.error).toBeNull();
-    expect(store.groups).toEqual([{ id: 'g1', name: 'Lobby', rooms: [] }]);
+    expect(store.groups).toEqual([{ id: 'g1', name: 'Lobby', rooms: [], items: [] }]);
   });
 
   it('keeps known good layout when the server is null or the query errors', async () => {
@@ -236,7 +282,7 @@ describe('AdminRoomLayoutStore — mutations', () => {
     const createResult = await store.createGroup('Projects');
     expect(createResult).toEqual({
       ok: true,
-      group: { id: 'g2', name: 'Projects', rooms: [] }
+      group: { id: 'g2', name: 'Projects', rooms: [], items: [] }
     });
     expect(store.groups.map((g) => g.name)).toEqual(['Projects']);
 
@@ -327,8 +373,17 @@ describe('AdminRoomLayoutStore — drag sequencing', () => {
     expect(result).toEqual({ ok: true, movedCount: 1, reorderedCount: 2 });
     expect(mutation.mock.calls.map((call: unknown[]) => call[1])).toEqual([
       { input: { roomId: 'b', groupId: 'g2' } },
-      { input: { groupId: 'g1', orderedRoomIds: ['a'] } },
-      { input: { groupId: 'g2', orderedRoomIds: ['c', 'b', 'd'] } }
+      { input: { groupId: 'g1', items: [{ type: RoomGroupItemType.Room, id: 'a' }] } },
+      {
+        input: {
+          groupId: 'g2',
+          items: [
+            { type: RoomGroupItemType.Room, id: 'c' },
+            { type: RoomGroupItemType.Room, id: 'b' },
+            { type: RoomGroupItemType.Room, id: 'd' }
+          ]
+        }
+      }
     ]);
   });
 

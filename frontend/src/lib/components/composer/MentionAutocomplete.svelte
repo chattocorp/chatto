@@ -37,6 +37,8 @@ Shows matching room members when typing @username in chat input.
     const scored: MentionResult[] = [];
 
     for (const m of members) {
+      if (m.deleted || !m.login) continue;
+
       const loginScore = fuzzyMatch(query, m.login);
       const displayScore = fuzzyMatch(query, m.displayName);
       const bestScore = Math.max(loginScore ?? -1, displayScore ?? -1);
@@ -85,7 +87,7 @@ Shows matching room members when typing @username in chat input.
   bind:this={popupRef}
   items={results}
   getKey={(r) => `${r.type}:${r.handle}`}
-  selectKeys={['Tab']}
+  selectKeys={['Enter', 'Tab']}
   onSelect={handleSelect}
   {onClose}
   testid="mention-autocomplete"

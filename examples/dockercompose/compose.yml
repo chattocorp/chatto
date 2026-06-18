@@ -30,6 +30,9 @@ services:
   chatto:
     image: ghcr.io/chattocorp/chatto:latest
     env_file: .env
+    environment:
+      PUID: "${PUID:-1000}"
+      PGID: "${PGID:-1000}"
     depends_on:
       nats:
         condition: service_healthy

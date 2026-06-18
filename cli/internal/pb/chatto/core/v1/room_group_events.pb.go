@@ -356,6 +356,248 @@ func (x *RoomsInGroupReorderedEvent) GetRoomIds() []string {
 	return nil
 }
 
+type SidebarLinkAddedToGroupEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GroupId       string                 `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	LinkId        string                 `protobuf:"bytes,2,opt,name=link_id,json=linkId,proto3" json:"link_id,omitempty"`
+	Label         string                 `protobuf:"bytes,3,opt,name=label,proto3" json:"label,omitempty"`
+	Url           string                 `protobuf:"bytes,4,opt,name=url,proto3" json:"url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SidebarLinkAddedToGroupEvent) Reset() {
+	*x = SidebarLinkAddedToGroupEvent{}
+	mi := &file_chatto_core_v1_room_group_events_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SidebarLinkAddedToGroupEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SidebarLinkAddedToGroupEvent) ProtoMessage() {}
+
+func (x *SidebarLinkAddedToGroupEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_room_group_events_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SidebarLinkAddedToGroupEvent.ProtoReflect.Descriptor instead.
+func (*SidebarLinkAddedToGroupEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_room_group_events_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *SidebarLinkAddedToGroupEvent) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+func (x *SidebarLinkAddedToGroupEvent) GetLinkId() string {
+	if x != nil {
+		return x.LinkId
+	}
+	return ""
+}
+
+func (x *SidebarLinkAddedToGroupEvent) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *SidebarLinkAddedToGroupEvent) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+type SidebarLinkUpdatedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GroupId       string                 `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	LinkId        string                 `protobuf:"bytes,2,opt,name=link_id,json=linkId,proto3" json:"link_id,omitempty"`
+	Label         string                 `protobuf:"bytes,3,opt,name=label,proto3" json:"label,omitempty"`
+	Url           string                 `protobuf:"bytes,4,opt,name=url,proto3" json:"url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SidebarLinkUpdatedEvent) Reset() {
+	*x = SidebarLinkUpdatedEvent{}
+	mi := &file_chatto_core_v1_room_group_events_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SidebarLinkUpdatedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SidebarLinkUpdatedEvent) ProtoMessage() {}
+
+func (x *SidebarLinkUpdatedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_room_group_events_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SidebarLinkUpdatedEvent.ProtoReflect.Descriptor instead.
+func (*SidebarLinkUpdatedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_room_group_events_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *SidebarLinkUpdatedEvent) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+func (x *SidebarLinkUpdatedEvent) GetLinkId() string {
+	if x != nil {
+		return x.LinkId
+	}
+	return ""
+}
+
+func (x *SidebarLinkUpdatedEvent) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *SidebarLinkUpdatedEvent) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+type SidebarLinkRemovedFromGroupEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GroupId       string                 `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	LinkId        string                 `protobuf:"bytes,2,opt,name=link_id,json=linkId,proto3" json:"link_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SidebarLinkRemovedFromGroupEvent) Reset() {
+	*x = SidebarLinkRemovedFromGroupEvent{}
+	mi := &file_chatto_core_v1_room_group_events_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SidebarLinkRemovedFromGroupEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SidebarLinkRemovedFromGroupEvent) ProtoMessage() {}
+
+func (x *SidebarLinkRemovedFromGroupEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_room_group_events_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SidebarLinkRemovedFromGroupEvent.ProtoReflect.Descriptor instead.
+func (*SidebarLinkRemovedFromGroupEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_room_group_events_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *SidebarLinkRemovedFromGroupEvent) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+func (x *SidebarLinkRemovedFromGroupEvent) GetLinkId() string {
+	if x != nil {
+		return x.LinkId
+	}
+	return ""
+}
+
+// Drag-reorder within a single group across both rooms and sidebar links.
+// Carries the full mixed ordering rather than a delta.
+type SidebarGroupEntriesReorderedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GroupId       string                 `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	Entries       []*SidebarGroupEntry   `protobuf:"bytes,2,rep,name=entries,proto3" json:"entries,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SidebarGroupEntriesReorderedEvent) Reset() {
+	*x = SidebarGroupEntriesReorderedEvent{}
+	mi := &file_chatto_core_v1_room_group_events_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SidebarGroupEntriesReorderedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SidebarGroupEntriesReorderedEvent) ProtoMessage() {}
+
+func (x *SidebarGroupEntriesReorderedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_room_group_events_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SidebarGroupEntriesReorderedEvent.ProtoReflect.Descriptor instead.
+func (*SidebarGroupEntriesReorderedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_room_group_events_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *SidebarGroupEntriesReorderedEvent) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+func (x *SidebarGroupEntriesReorderedEvent) GetEntries() []*SidebarGroupEntry {
+	if x != nil {
+		return x.Entries
+	}
+	return nil
+}
+
 // RoomGroupsReorderedEvent is the inter-group ordering update. The
 // layout aggregate is a singleton — there's only one sidebar layout
 // per server — so the event carries no aggregate ID; the publish
@@ -371,7 +613,7 @@ type RoomGroupsReorderedEvent struct {
 
 func (x *RoomGroupsReorderedEvent) Reset() {
 	*x = RoomGroupsReorderedEvent{}
-	mi := &file_chatto_core_v1_room_group_events_proto_msgTypes[6]
+	mi := &file_chatto_core_v1_room_group_events_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -383,7 +625,7 @@ func (x *RoomGroupsReorderedEvent) String() string {
 func (*RoomGroupsReorderedEvent) ProtoMessage() {}
 
 func (x *RoomGroupsReorderedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_room_group_events_proto_msgTypes[6]
+	mi := &file_chatto_core_v1_room_group_events_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -396,7 +638,7 @@ func (x *RoomGroupsReorderedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoomGroupsReorderedEvent.ProtoReflect.Descriptor instead.
 func (*RoomGroupsReorderedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_room_group_events_proto_rawDescGZIP(), []int{6}
+	return file_chatto_core_v1_room_group_events_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *RoomGroupsReorderedEvent) GetGroupIds() []string {
@@ -410,7 +652,7 @@ var File_chatto_core_v1_room_group_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_room_group_events_proto_rawDesc = "" +
 	"\n" +
-	"&chatto/core/v1/room_group_events.proto\x12\x0echatto.core.v1\"h\n" +
+	"&chatto/core/v1/room_group_events.proto\x12\x0echatto.core.v1\x1a\x1bchatto/core/v1/models.proto\"h\n" +
 	"\x15RoomGroupCreatedEvent\x12\x19\n" +
 	"\bgroup_id\x18\x01 \x01(\tR\agroupId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -429,7 +671,23 @@ const file_chatto_core_v1_room_group_events_proto_rawDesc = "" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"R\n" +
 	"\x1aRoomsInGroupReorderedEvent\x12\x19\n" +
 	"\bgroup_id\x18\x01 \x01(\tR\agroupId\x12\x19\n" +
-	"\broom_ids\x18\x02 \x03(\tR\aroomIds\"7\n" +
+	"\broom_ids\x18\x02 \x03(\tR\aroomIds\"z\n" +
+	"\x1cSidebarLinkAddedToGroupEvent\x12\x19\n" +
+	"\bgroup_id\x18\x01 \x01(\tR\agroupId\x12\x17\n" +
+	"\alink_id\x18\x02 \x01(\tR\x06linkId\x12\x14\n" +
+	"\x05label\x18\x03 \x01(\tR\x05label\x12\x10\n" +
+	"\x03url\x18\x04 \x01(\tR\x03url\"u\n" +
+	"\x17SidebarLinkUpdatedEvent\x12\x19\n" +
+	"\bgroup_id\x18\x01 \x01(\tR\agroupId\x12\x17\n" +
+	"\alink_id\x18\x02 \x01(\tR\x06linkId\x12\x14\n" +
+	"\x05label\x18\x03 \x01(\tR\x05label\x12\x10\n" +
+	"\x03url\x18\x04 \x01(\tR\x03url\"V\n" +
+	" SidebarLinkRemovedFromGroupEvent\x12\x19\n" +
+	"\bgroup_id\x18\x01 \x01(\tR\agroupId\x12\x17\n" +
+	"\alink_id\x18\x02 \x01(\tR\x06linkId\"{\n" +
+	"!SidebarGroupEntriesReorderedEvent\x12\x19\n" +
+	"\bgroup_id\x18\x01 \x01(\tR\agroupId\x12;\n" +
+	"\aentries\x18\x02 \x03(\v2!.chatto.core.v1.SidebarGroupEntryR\aentries\"7\n" +
 	"\x18RoomGroupsReorderedEvent\x12\x1b\n" +
 	"\tgroup_ids\x18\x01 \x03(\tR\bgroupIdsB\xb7\x01\n" +
 	"\x12com.chatto.core.v1B\x14RoomGroupEventsProtoP\x01Z1hmans.de/chatto/internal/pb/chatto/core/v1;corev1\xa2\x02\x03CCX\xaa\x02\x0eChatto.Core.V1\xca\x02\x0eChatto\\Core\\V1\xe2\x02\x1aChatto\\Core\\V1\\GPBMetadata\xea\x02\x10Chatto::Core::V1b\x06proto3"
@@ -446,22 +704,28 @@ func file_chatto_core_v1_room_group_events_proto_rawDescGZIP() []byte {
 	return file_chatto_core_v1_room_group_events_proto_rawDescData
 }
 
-var file_chatto_core_v1_room_group_events_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_chatto_core_v1_room_group_events_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_chatto_core_v1_room_group_events_proto_goTypes = []any{
-	(*RoomGroupCreatedEvent)(nil),      // 0: chatto.core.v1.RoomGroupCreatedEvent
-	(*RoomGroupUpdatedEvent)(nil),      // 1: chatto.core.v1.RoomGroupUpdatedEvent
-	(*RoomGroupDeletedEvent)(nil),      // 2: chatto.core.v1.RoomGroupDeletedEvent
-	(*RoomAddedToGroupEvent)(nil),      // 3: chatto.core.v1.RoomAddedToGroupEvent
-	(*RoomRemovedFromGroupEvent)(nil),  // 4: chatto.core.v1.RoomRemovedFromGroupEvent
-	(*RoomsInGroupReorderedEvent)(nil), // 5: chatto.core.v1.RoomsInGroupReorderedEvent
-	(*RoomGroupsReorderedEvent)(nil),   // 6: chatto.core.v1.RoomGroupsReorderedEvent
+	(*RoomGroupCreatedEvent)(nil),             // 0: chatto.core.v1.RoomGroupCreatedEvent
+	(*RoomGroupUpdatedEvent)(nil),             // 1: chatto.core.v1.RoomGroupUpdatedEvent
+	(*RoomGroupDeletedEvent)(nil),             // 2: chatto.core.v1.RoomGroupDeletedEvent
+	(*RoomAddedToGroupEvent)(nil),             // 3: chatto.core.v1.RoomAddedToGroupEvent
+	(*RoomRemovedFromGroupEvent)(nil),         // 4: chatto.core.v1.RoomRemovedFromGroupEvent
+	(*RoomsInGroupReorderedEvent)(nil),        // 5: chatto.core.v1.RoomsInGroupReorderedEvent
+	(*SidebarLinkAddedToGroupEvent)(nil),      // 6: chatto.core.v1.SidebarLinkAddedToGroupEvent
+	(*SidebarLinkUpdatedEvent)(nil),           // 7: chatto.core.v1.SidebarLinkUpdatedEvent
+	(*SidebarLinkRemovedFromGroupEvent)(nil),  // 8: chatto.core.v1.SidebarLinkRemovedFromGroupEvent
+	(*SidebarGroupEntriesReorderedEvent)(nil), // 9: chatto.core.v1.SidebarGroupEntriesReorderedEvent
+	(*RoomGroupsReorderedEvent)(nil),          // 10: chatto.core.v1.RoomGroupsReorderedEvent
+	(*SidebarGroupEntry)(nil),                 // 11: chatto.core.v1.SidebarGroupEntry
 }
 var file_chatto_core_v1_room_group_events_proto_depIdxs = []int32{
-	0, // [0:0] is the sub-list for method output_type
-	0, // [0:0] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	11, // 0: chatto.core.v1.SidebarGroupEntriesReorderedEvent.entries:type_name -> chatto.core.v1.SidebarGroupEntry
+	1,  // [1:1] is the sub-list for method output_type
+	1,  // [1:1] is the sub-list for method input_type
+	1,  // [1:1] is the sub-list for extension type_name
+	1,  // [1:1] is the sub-list for extension extendee
+	0,  // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_room_group_events_proto_init() }
@@ -469,13 +733,14 @@ func file_chatto_core_v1_room_group_events_proto_init() {
 	if File_chatto_core_v1_room_group_events_proto != nil {
 		return
 	}
+	file_chatto_core_v1_models_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_v1_room_group_events_proto_rawDesc), len(file_chatto_core_v1_room_group_events_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

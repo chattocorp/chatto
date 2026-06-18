@@ -37,6 +37,11 @@ type RoomTimelineProjection struct {
 	bodyEventSeqs  map[string][]uint64
 	currentBodySeq map[string]uint64
 	retractedFlags map[string]struct{}
+	// attachmentMessageIDsByRoom tracks messages whose current body contains
+	// attachment/asset references. It lets room file reads page over current
+	// file-bearing messages instead of decrypting every message body in a room.
+	attachmentMessageIDsByRoom map[string][]string
+	attachmentMessageRoom      map[string]string
 	// echoLinks maps an original message's event_id to the event_ids
 	// of any echoes pointing at it. Maintained as MessagePostedEvents
 	// with EchoOfEventId arrive. Used by EditMessage / DeleteMessage
@@ -66,21 +71,28 @@ type TimelineEntry struct {
 	Event     *corev1.Event
 }
 
+type projectedRoomAttachmentMessage struct {
+	Entry *TimelineEntry
+	Body  *corev1.MessageBody
+}
+
 // NewRoomTimelineProjection returns an empty projection.
 func NewRoomTimelineProjection() *RoomTimelineProjection {
 	return &RoomTimelineProjection{
-		byRoom:          make(map[string][]*TimelineEntry),
-		visibleByRoom:   make(map[string][]*TimelineEntry),
-		byEventID:       make(map[string]*TimelineEntry),
-		appliedEventIDs: newEventIDSet(),
-		latestBody:      make(map[string]*corev1.MessageBody),
-		bodyEventSeqs:   make(map[string][]uint64),
-		currentBodySeq:  make(map[string]uint64),
-		retractedFlags:  make(map[string]struct{}),
-		echoLinks:       make(map[string][]string),
-		hiddenEchoes:    make(map[string]struct{}),
-		assets:          newRoomTimelineAssetIndex(),
-		shreddedUsers:   make(map[string]struct{}),
+		byRoom:                     make(map[string][]*TimelineEntry),
+		visibleByRoom:              make(map[string][]*TimelineEntry),
+		byEventID:                  make(map[string]*TimelineEntry),
+		appliedEventIDs:            newEventIDSet(),
+		latestBody:                 make(map[string]*corev1.MessageBody),
+		bodyEventSeqs:              make(map[string][]uint64),
+		currentBodySeq:             make(map[string]uint64),
+		retractedFlags:             make(map[string]struct{}),
+		attachmentMessageIDsByRoom: make(map[string][]string),
+		attachmentMessageRoom:      make(map[string]string),
+		echoLinks:                  make(map[string][]string),
+		hiddenEchoes:               make(map[string]struct{}),
+		assets:                     newRoomTimelineAssetIndex(),
+		shreddedUsers:              make(map[string]struct{}),
 	}
 }
 
@@ -133,11 +145,13 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 				if _, shredded := p.shreddedUsers[authorID]; shredded {
 					delete(p.latestBody, targetID)
 					p.retractedFlags[targetID] = struct{}{}
+					p.removeAttachmentMessageLocked(targetID)
 				} else {
 					p.latestBody[targetID] = body
 					p.bodyEventSeqs[targetID] = append(p.bodyEventSeqs[targetID], seq)
 					p.currentBodySeq[targetID] = seq
 					delete(p.retractedFlags, targetID)
+					p.refreshAttachmentMessageLocked(roomID, targetID, body)
 				}
 			}
 			p.assets.rememberMessageBodyAssets(roomID, targetID, body)
@@ -164,7 +178,11 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 			if _, shredded := p.shreddedUsers[authorID]; shredded {
 				delete(p.latestBody, targetID)
 				p.retractedFlags[targetID] = struct{}{}
+				p.removeAttachmentMessageLocked(targetID)
 			}
+		}
+		if body := p.latestBody[targetID]; body != nil {
+			p.refreshAttachmentMessageLocked(roomID, targetID, body)
 		}
 		// Track echo links so edits on either side can fan out to the
 		// other, and so original retractions can be reflected when
@@ -179,11 +197,13 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 				if _, originalRetracted := p.retractedFlags[origID]; !originalRetracted {
 					delete(p.latestBody, targetID)
 					p.hiddenEchoes[targetID] = struct{}{}
+					p.removeAttachmentMessageLocked(targetID)
 					return nil
 				}
 			}
 			delete(p.latestBody, targetID)
 			p.retractedFlags[targetID] = struct{}{}
+			p.removeAttachmentMessageLocked(targetID)
 		}
 	}
 	p.assets.applyLifecycleEvent(event)
@@ -208,6 +228,7 @@ func (p *RoomTimelineProjection) applyUserKeyShreddedLocked(userID string) {
 		}
 		delete(p.latestBody, eventID)
 		p.retractedFlags[eventID] = struct{}{}
+		p.removeAttachmentMessageLocked(eventID)
 	}
 }
 
@@ -330,6 +351,111 @@ func (p *RoomTimelineProjection) LatestBody(eventID string) (body *corev1.Messag
 		return cloneMessageBody(b), false, true
 	}
 	return nil, false, true
+}
+
+// CurrentRoomAttachmentMessages returns current, visible messages whose latest
+// body references attachments. Results are newest message first.
+func (p *RoomTimelineProjection) CurrentRoomAttachmentMessages(roomID string) []projectedRoomAttachmentMessage {
+	p.RLock()
+	defer p.RUnlock()
+
+	ids := p.attachmentMessageIDsByRoom[roomID]
+	if len(ids) == 0 {
+		return nil
+	}
+
+	out := make([]projectedRoomAttachmentMessage, 0, len(ids))
+	for i := len(ids) - 1; i >= 0; i-- {
+		eventID := ids[i]
+		entry := p.byEventID[eventID]
+		if entry == nil || entry.Event == nil || p.isHiddenEchoEntryLocked(entry) {
+			continue
+		}
+		if _, retracted := p.retractedFlags[eventID]; retracted {
+			continue
+		}
+		if origID := p.echoOriginalIDLocked(eventID); origID != "" {
+			if _, originalRetracted := p.retractedFlags[origID]; originalRetracted {
+				continue
+			}
+		}
+		body := p.latestBody[eventID]
+		if !messageBodyReferencesAttachments(body) {
+			continue
+		}
+		out = append(out, projectedRoomAttachmentMessage{
+			Entry: entry,
+			Body:  cloneMessageBody(body),
+		})
+	}
+	return out
+}
+
+func (p *RoomTimelineProjection) refreshAttachmentMessageLocked(roomID, eventID string, body *corev1.MessageBody) {
+	if roomID == "" || eventID == "" {
+		return
+	}
+	if !messageBodyReferencesAttachments(body) {
+		p.removeAttachmentMessageLocked(eventID)
+		return
+	}
+	entry := p.byEventID[eventID]
+	if entry == nil || entry.Event == nil || p.isHiddenEchoEntryLocked(entry) {
+		return
+	}
+	p.addAttachmentMessageLocked(roomID, eventID, entry.StreamSeq)
+}
+
+func (p *RoomTimelineProjection) addAttachmentMessageLocked(roomID, eventID string, streamSeq uint64) {
+	if roomID == "" || eventID == "" {
+		return
+	}
+	if existingRoom := p.attachmentMessageRoom[eventID]; existingRoom != "" {
+		if existingRoom == roomID {
+			return
+		}
+		p.removeAttachmentMessageLocked(eventID)
+	}
+
+	ids := p.attachmentMessageIDsByRoom[roomID]
+	insertAt := len(ids)
+	for i, existingID := range ids {
+		existing := p.byEventID[existingID]
+		if existing == nil || existing.StreamSeq > streamSeq {
+			insertAt = i
+			break
+		}
+	}
+	ids = append(ids, "")
+	copy(ids[insertAt+1:], ids[insertAt:])
+	ids[insertAt] = eventID
+	p.attachmentMessageIDsByRoom[roomID] = ids
+	p.attachmentMessageRoom[eventID] = roomID
+}
+
+func (p *RoomTimelineProjection) removeAttachmentMessageLocked(eventID string) {
+	roomID := p.attachmentMessageRoom[eventID]
+	if roomID == "" {
+		return
+	}
+	ids := p.attachmentMessageIDsByRoom[roomID]
+	for i, existingID := range ids {
+		if existingID != eventID {
+			continue
+		}
+		ids = append(ids[:i], ids[i+1:]...)
+		break
+	}
+	if len(ids) == 0 {
+		delete(p.attachmentMessageIDsByRoom, roomID)
+	} else {
+		p.attachmentMessageIDsByRoom[roomID] = ids
+	}
+	delete(p.attachmentMessageRoom, eventID)
+}
+
+func messageBodyReferencesAttachments(body *corev1.MessageBody) bool {
+	return len(ownedAssetIDsFromBody(body)) > 0
 }
 
 // BodyEventSeqs returns all projected MessageBodyEvent stream sequences for

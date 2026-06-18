@@ -1,8 +1,8 @@
 import { expect } from '@playwright/test';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
+import { withLoggedInServerWindow } from './fixtures/serverUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
-import { RoomPage } from './pages';
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
 
@@ -30,42 +30,30 @@ test.describe('Composer drafts', () => {
     await expect(roomPage.messageInput).toHaveText(draftText);
 
     // Open a second tab with the same user in the same room
-    const context2 = await browser!.newContext({
-      baseURL: serverURL,
-      viewport: { width: 1280, height: 720 }
-    });
-    const page2 = await context2.newPage();
+    await withLoggedInServerWindow(
+      browser!,
+      serverURL,
+      user,
+      async ({ page: page2, roomPage: roomPage2 }) => {
+        // Navigate to the same room
+        await page2.goto(roomUrl);
+        await page2.waitForURL(routes.patterns.anyRoom);
 
-    try {
-      // Login as the same user in tab 2
-      const loginResponse = await page2.request.post('/auth/login', {
-        data: {
-          login: user.login,
-          password: user.password
-        }
-      });
-      expect(loginResponse.ok()).toBeTruthy();
+        // The message input in tab 2 should be empty (not showing tab 1's draft)
+        await expect(roomPage2.messageInput).toHaveText('');
 
-      // Navigate to the same room
-      await page2.goto(roomUrl);
-      await page2.waitForURL(routes.patterns.anyRoom);
+        // Type a different draft in tab 2
+        const draftText2 = `Different draft ${Date.now()}`;
+        await roomPage2.messageInput.fill(draftText2);
 
-      // The message input in tab 2 should be empty (not showing tab 1's draft)
-      const roomPage2 = new RoomPage(page2);
-      await expect(roomPage2.messageInput).toHaveText('');
+        // Verify tab 2 has its own draft
+        await expect(roomPage2.messageInput).toHaveText(draftText2);
 
-      // Type a different draft in tab 2
-      const draftText2 = `Different draft ${Date.now()}`;
-      await roomPage2.messageInput.fill(draftText2);
-
-      // Verify tab 2 has its own draft
-      await expect(roomPage2.messageInput).toHaveText(draftText2);
-
-      // Go back to tab 1 and verify its draft is unchanged
-      await expect(roomPage.messageInput).toHaveText(draftText);
-    } finally {
-      await context2.close();
-    }
+        // Go back to tab 1 and verify its draft is unchanged
+        await expect(roomPage.messageInput).toHaveText(draftText);
+      },
+      { viewport: { width: 1280, height: 720 } }
+    );
   });
 
   test('draft persists when navigating away and back to room', async ({
@@ -169,6 +157,96 @@ test.describe('Composer focus', () => {
     // The file dialog should open (proving the button handled the click, not the composer)
     const fileChooser = await fileChooserPromise;
     expect(fileChooser).toBeTruthy();
+  });
+});
+
+test.describe('Composer keyboard submit hint', () => {
+  test('sends when Enter is pressed from a trailing blank paragraph', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    await waitForRoomReady(page, 'general');
+
+    const message = `Return again send ${Date.now()}`;
+    await roomPage.waitForInputEditable();
+    await roomPage.messageInput.fill(message);
+    await expect(page.getByText(/(?:Cmd|Ctrl)\+Return to Send/)).toBeVisible();
+
+    await roomPage.messageInput.press('Enter');
+    await expect(page.getByText(/(?:Return|Enter) again to Send/)).toBeVisible();
+
+    await roomPage.messageInput.press('Enter');
+    await expect(roomPage.getMessage(message).locator).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+    await expect(roomPage.messageInput).toHaveText('');
+  });
+
+  test('sends from the visible trailing paragraph after exiting a list', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    await waitForRoomReady(page, 'general');
+
+    await roomPage.waitForInputEditable();
+    await roomPage.messageInput.fill('- first');
+    await expect(page.getByText(/(?:Cmd|Ctrl)\+Return to Send/)).toBeVisible();
+
+    await roomPage.messageInput.press('Enter');
+    await expect(roomPage.messageInput.locator('ul li')).toHaveCount(2);
+    await expect(page.getByText(/(?:Cmd|Ctrl)\+Return to Send/)).toBeVisible();
+
+    await roomPage.messageInput.press('Enter');
+    await expect(roomPage.messageInput.locator('ul li')).toHaveCount(1);
+    await expect(roomPage.messageInput.locator(':scope > p')).toHaveCount(1);
+    await expect(page.getByText(/(?:Return|Enter) again to Send/)).toBeVisible();
+
+    await roomPage.messageInput.press('Enter');
+    await expect(roomPage.getMessage('first').locator).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+    await expect(roomPage.messageInput).toHaveText('');
+  });
+});
+
+test.describe('Composer links', () => {
+  test('typing space after a pasted autolink leaves the link', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    await waitForRoomReady(page, 'general');
+
+    const url = 'https://www.spiegel.de/';
+    await roomPage.waitForInputEditable();
+    await roomPage.messageInput.click();
+    await roomPage.messageInput.evaluate((element, pastedUrl) => {
+      const dataTransfer = new DataTransfer();
+      dataTransfer.setData('text/plain', pastedUrl);
+      element.dispatchEvent(
+        new ClipboardEvent('paste', {
+          bubbles: true,
+          cancelable: true,
+          clipboardData: dataTransfer
+        })
+      );
+    }, url);
+
+    const link = roomPage.messageInput.locator('a');
+    await expect(link).toHaveText(url);
+    await expect(link).toHaveAttribute('href', url);
+
+    await roomPage.messageInput.pressSequentially(' after');
+
+    await expect(link).toHaveText(url);
+    await expect(roomPage.messageInput).toHaveText(`${url} after`);
   });
 });
 

@@ -16,7 +16,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
   import type { PresenceStatus } from '$lib/gql/graphql';
-  import { getRoomMembersState, type RoomMember } from '$lib/state/room';
+  import { getRoomMembersState, type RoomFilesStore, type RoomMember } from '$lib/state/room';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import { getLiveDisplayName, getLiveLogin } from '$lib/state/userProfiles.svelte';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
@@ -31,6 +31,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   import { toast } from '$lib/ui/toast';
   import HeaderIconButton from '$lib/ui/HeaderIconButton.svelte';
   import BanRoomMemberModal from '$lib/components/moderation/BanRoomMemberModal.svelte';
+  import RoomFilesPanel from './RoomFilesPanel.svelte';
 
   const BanRoomMemberMutation = graphql(`
     mutation BanRoomMemberFromSidebar($input: BanRoomMemberInput!) {
@@ -45,7 +46,10 @@ calls, and similar room-specific panels can plug into the same shell. See the
     presentation = 'desktop',
     canBanRoomMembers = false,
     currentUserId = null,
+    filesStore,
+    fileGroupingNow,
     onLoadMoreMembers,
+    onOpenFile,
     onClose
   }: {
     loading?: boolean;
@@ -54,7 +58,10 @@ calls, and similar room-specific panels can plug into the same shell. See the
     presentation?: 'desktop' | 'overlay';
     canBanRoomMembers?: boolean;
     currentUserId?: string | null;
+    filesStore?: RoomFilesStore;
+    fileGroupingNow?: Date;
     onLoadMoreMembers?: () => void | Promise<void>;
+    onOpenFile?: (messageEventId: string, threadRootEventId: string | null) => void;
     onClose?: () => void;
   } = $props();
 
@@ -132,10 +139,12 @@ calls, and similar room-specific panels can plug into the same shell. See the
   );
 
   const canRemovePopoverMember = $derived(
-    !!popoverMember && canBanRoomMembers && popoverMember.id !== currentUserId
+    !!popoverMember && !popoverMember.deleted && canBanRoomMembers && popoverMember.id !== currentUserId
   );
 
   function openBanDialog(member: RoomMember) {
+    if (member.deleted) return;
+
     banDialogMember = member;
     banError = null;
     closePopover();
@@ -265,9 +274,13 @@ calls, and similar room-specific panels can plug into the same shell. See the
       {/if}
     </nav>
   {:else if activePanel === 'files'}
-    <div class="flex min-h-0 flex-1 items-center justify-center p-4 text-sm text-muted">
-      Files coming soon.
-    </div>
+    {#if filesStore}
+      <RoomFilesPanel store={filesStore} serverId={getActiveServer()} {fileGroupingNow} {onOpenFile} />
+    {:else}
+      <div class="flex min-h-0 flex-1 items-center justify-center p-4 text-sm text-muted">
+        No files in this room yet.
+      </div>
+    {/if}
   {/if}
 
   {#if banDialogMember}
@@ -285,13 +298,22 @@ calls, and similar room-specific panels can plug into the same shell. See the
   {@const isOnline = isOnlineStatus(getPresence(member))}
   <button
     type="button"
-    class={['sidebar-item w-full cursor-pointer text-left', !isOnline && 'opacity-50']}
-    onclick={(e: MouseEvent) => togglePopover(member.id, e)}
+    class={[
+      'sidebar-item w-full text-left',
+      member.deleted ? 'cursor-default' : 'cursor-pointer',
+      !isOnline && 'opacity-50'
+    ]}
+    disabled={member.deleted}
+    onclick={(e: MouseEvent) => {
+      if (!member.deleted) togglePopover(member.id, e);
+    }}
     oncontextmenu={(e: MouseEvent) => {
       e.preventDefault();
-      togglePopover(member.id, e);
+      if (!member.deleted) togglePopover(member.id, e);
     }}
-    title={`View profile of ${getLiveDisplayName(member.id, member.displayName)}`}
+    title={member.deleted
+      ? 'Deleted User'
+      : `View profile of ${getLiveDisplayName(member.id, member.displayName)}`}
   >
     <UserAvatar user={member} size="sm" />
     <div class="min-w-0 flex-1">

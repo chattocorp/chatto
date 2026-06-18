@@ -141,6 +141,10 @@ message Event {
     RoomAddedToGroupEvent room_added_to_group = 603;
     RoomRemovedFromGroupEvent room_removed_from_group = 604;
     RoomsInGroupReorderedEvent rooms_in_group_reordered = 605;
+    SidebarLinkAddedToGroupEvent sidebar_link_added_to_group = 606;
+    SidebarLinkUpdatedEvent sidebar_link_updated = 607;
+    SidebarLinkRemovedFromGroupEvent sidebar_link_removed_from_group = 608;
+    SidebarGroupEntriesReorderedEvent sidebar_group_entries_reordered = 609;
 
     // ----- Room layout (650-659, durable, evt.layout.{singleton}) -----
     // The layout aggregate is a singleton; the singletonID is a stable

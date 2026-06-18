@@ -1,6 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { test } from './setup';
-import { createAndLoginTestUser, openServer } from './fixtures/testUser';
+import { createAndLoginTestUser } from './fixtures/testUser';
+import { withServerUser } from './fixtures/serverUser';
 import {
   startSecondServer,
   stopSecondServer,
@@ -21,6 +22,7 @@ import {
 import type { ServerInfo } from './fixtures/server';
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
+import { waitForRoomReady } from './fixtures/realtimeSync';
 
 /**
  * Returns the remote server's base URL using 127.0.0.1 instead of localhost so
@@ -106,11 +108,9 @@ test.describe('Cross-instance dots', () => {
     // disambiguate the remote icon by the host segment in its href —
     // home links use "/chat/-" while remote links use "/chat/<host>".
     const remoteHostSegment = new URL(baseURL).hostname;
-    const remoteSpaceWrapper = page
-      .locator('.server-gutter .server-icon-wrapper')
-      .filter({
-        has: page.locator(`a[data-testid="server-icon"][href*="/chat/${remoteHostSegment}"]`)
-      });
+    const remoteSpaceWrapper = page.locator('.server-gutter .server-icon-wrapper').filter({
+      has: page.locator(`a[data-testid="server-icon"][href*="/chat/${remoteHostSegment}"]`)
+    });
     const remoteSpaceBadge = remoteSpaceWrapper.getByTestId('server-notification-badge');
     await expect(remoteSpaceBadge).not.toBeVisible();
 
@@ -164,14 +164,13 @@ test.describe('Cross-instance dots', () => {
 
     await connectRemoteInstance(page, { ...remoteServer, baseURL }, viewer.userId);
     await page.goto(routes.room(homeGeneralRoomId));
-    await expect(page.getByText(homeBody)).toBeVisible();
+    await waitForRoomReady(page, 'general');
+    await expect(page.getByText(homeBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
     const remoteHostSegment = new URL(baseURL).hostname;
-    const remoteSpaceWrapper = page
-      .locator('.server-gutter .server-icon-wrapper')
-      .filter({
-        has: page.locator(`a[data-testid="server-icon"][href*="/chat/${remoteHostSegment}"]`)
-      });
+    const remoteSpaceWrapper = page.locator('.server-gutter .server-icon-wrapper').filter({
+      has: page.locator(`a[data-testid="server-icon"][href*="/chat/${remoteHostSegment}"]`)
+    });
     const remoteSpaceBadge = remoteSpaceWrapper.getByTestId('server-notification-badge');
     await expect(remoteSpaceBadge).not.toBeVisible();
 
@@ -235,7 +234,8 @@ test.describe('Cross-instance dots', () => {
 
     await connectRemoteInstance(page, { ...remoteServer, baseURL }, viewer.userId);
     await page.goto(routes.room(homeGeneralRoomId));
-    await expect(page.getByText(homeBody)).toBeVisible();
+    await waitForRoomReady(page, 'general');
+    await expect(page.getByText(homeBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
     const remoteHostSegment = new URL(baseURL).hostname;
     const dialog = await openSwitcher(page);
@@ -273,7 +273,6 @@ test.describe('Cross-instance dots', () => {
     // Home: User A loads the server, posts a root message, then leaves the room.
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceId = await chatPage.getServerScopeId();
 
     await chatPage.enterRoom('general');
     const generalRoomId = await getRoomIdByName(page, 'general');
@@ -284,11 +283,7 @@ test.describe('Cross-instance dots', () => {
     await chatPage.enterRoom('announcements');
 
     // User B joins, then posts a thread reply that @-mentions User A.
-    const ctxB = await browser!.newContext({ baseURL: serverURL });
-    const pageB = await ctxB.newPage();
-    try {
-      await createAndLoginTestUser(pageB);
-      await openServer(pageB);
+    await withServerUser(browser!, serverURL, async ({ page: pageB }) => {
       await postThreadReplyViaAPI(
         pageB,
         generalRoomId,
@@ -312,8 +307,6 @@ test.describe('Cross-instance dots', () => {
       await page.waitForURL(routes.patterns.anyThread);
       await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
       await roomPage.expectThreadPaneVisible();
-    } finally {
-      await ctxB.close();
-    }
+    });
   });
 });

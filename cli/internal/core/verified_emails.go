@@ -254,7 +254,7 @@ func (c *ChattoCore) addVerifiedEmail(ctx context.Context, userID, email string)
 	// Auto-promote on config-owner email match. This is what closes the
 	// chicken-and-egg gap on fresh deployments: as soon as the operator's
 	// account verifies their email, they pick up the `owner` role without
-	// requiring a server restart or `chatto reset rbac` run.
+	// waiting for the next boot-time owner sync.
 	if c.config.Owners.IsServerOwnerEmail(email) {
 		if err := c.AssignServerRole(ctx, SystemActorID, userID, RoleOwner); err != nil {
 			c.logger.Warn("Failed to auto-assign owner role on email verification",
