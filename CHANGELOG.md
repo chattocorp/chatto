@@ -3,6 +3,21 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.2.3](https://github.com/chattocorp/chatto/compare/v0.2.2...v0.2.3) (2026-06-18)
+
+
+### Features
+
+* add notification sound shaping controls ([#962](https://github.com/chattocorp/chatto/issues/962)) ([585fa4b](https://github.com/chattocorp/chatto/commit/585fa4b48b058e8b0c411306815ec567a4a421b9))
+* **composer:** submit with Ctrl/Cmd+Enter ([#960](https://github.com/chattocorp/chatto/issues/960)) ([461f911](https://github.com/chattocorp/chatto/commit/461f9114e33fca7bae13ac324925a928594a5d08))
+
+
+### Bug Fixes
+
+* **composer:** keep autolink boundaries editable ([#964](https://github.com/chattocorp/chatto/issues/964)) ([2170f5f](https://github.com/chattocorp/chatto/commit/2170f5f1781396a7a24defa83f667a112f6d4a52))
+* **frontend:** restore push notification routing ([#957](https://github.com/chattocorp/chatto/issues/957)) ([b000610](https://github.com/chattocorp/chatto/commit/b000610da536dc26cdb5861226c6f025c1ef9647))
+* support configurable Docker runtime user ([#959](https://github.com/chattocorp/chatto/issues/959)) ([edb4595](https://github.com/chattocorp/chatto/commit/edb459508b7458b08c295ac30016f000f74a3e7d))
+
 ## [0.2.2](https://github.com/chattocorp/chatto/compare/v0.2.1...v0.2.2) (2026-06-17)
 
 
