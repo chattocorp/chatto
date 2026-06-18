@@ -244,6 +244,60 @@ func TestPostMessage_Authorization(t *testing.T) {
 	})
 }
 
+func TestPostMessage_AttachPermission(t *testing.T) {
+	env := setupTestResolver(t)
+	mutation := env.resolver.Mutation()
+
+	member, err := env.core.CreateUser(env.ctx, "system", "no-attach-user", "No Attach", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, member.Id, core.KindChannel, member.Id, env.testRoom.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, env.testRoom.Id, core.RoleEveryone, core.PermMessageAttach); err != nil {
+		t.Fatalf("DenyRoomPermission(message.attach): %v", err)
+	}
+
+	before, err := env.core.GetAssetCount(env.ctx)
+	if err != nil {
+		t.Fatalf("GetAssetCount before post: %v", err)
+	}
+
+	_, err = mutation.PostMessage(env.authContextForUser(member), model.PostMessageInput{
+		RoomID: env.testRoom.Id,
+		Attachments: []*graphql.Upload{{
+			File:        bytes.NewReader([]byte("hello")),
+			Filename:    "notes.txt",
+			Size:        5,
+			ContentType: "text/plain",
+		}},
+	})
+	if !errors.Is(err, core.ErrPermissionDenied) {
+		t.Fatalf("PostMessage attachment without permission error = %v, want ErrPermissionDenied", err)
+	}
+
+	after, err := env.core.GetAssetCount(env.ctx)
+	if err != nil {
+		t.Fatalf("GetAssetCount after denied post: %v", err)
+	}
+	if after != before {
+		t.Fatalf("asset count after denied attachment = %d, want unchanged %d", after, before)
+	}
+
+	body := "text still allowed"
+	event, err := mutation.PostMessage(env.authContextForUser(member), model.PostMessageInput{
+		RoomID: env.testRoom.Id,
+		Body:   &body,
+	})
+	if err != nil {
+		t.Fatalf("PostMessage text-only with message.attach denied returned error: %v", err)
+	}
+	if event == nil {
+		t.Fatal("PostMessage text-only returned nil event")
+	}
+}
+
 func TestPostMessage_VideoUploadsDisabled(t *testing.T) {
 	env := setupTestResolver(t)
 	mutation := env.resolver.Mutation()

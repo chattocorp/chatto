@@ -3,7 +3,6 @@ import { RoomType, UserAvatarUserFragmentDoc, type PresenceStatus } from '$lib/g
 import { useActiveRoomLayoutUpdated } from '$lib/hooks/useEvent.svelte';
 import { useReconnectTrigger } from '$lib/hooks/useReconnectCallback.svelte';
 import { useConnection } from '$lib/state/server/connection.svelte';
-import type { RoomMember } from '$lib/state/room';
 import { untrack } from 'svelte';
 
 export type RoomData = {
@@ -11,14 +10,12 @@ export type RoomData = {
   spaceName: string | null;
   canPostMessage: boolean;
   canPostInThread: boolean;
+  canAttach: boolean;
   canReact: boolean;
   canManageOthersMessage: boolean;
   canEchoMessage: boolean;
   canManageRoom: boolean;
   canBanRoomMembers: boolean;
-  members: RoomMember[];
-  membersTotalCount: number;
-  membersHasMore: boolean;
 };
 
 export type DMData = {
@@ -96,18 +93,12 @@ export function useRoomData(getProps: () => { roomId: string }) {
               type
               viewerCanPostMessage
               viewerCanPostInThread
+              viewerCanAttach
               viewerCanReact
               viewerCanManageOthersMessage
               viewerCanEchoMessage
               viewerCanManageRoom
               viewerCanBanRoomMembers
-              members(limit: 100) {
-                users {
-                  ...UserAvatarUser
-                }
-                totalCount
-                hasMore
-              }
             }
             server {
               profile {
@@ -145,14 +136,12 @@ export function useRoomData(getProps: () => { roomId: string }) {
           spaceName: resp.data.server?.profile.name ?? null,
           canPostMessage: resp.data.room.viewerCanPostMessage,
           canPostInThread: resp.data.room.viewerCanPostInThread,
+          canAttach: resp.data.room.viewerCanAttach,
           canReact: resp.data.room.viewerCanReact,
           canManageOthersMessage: resp.data.room.viewerCanManageOthersMessage,
           canEchoMessage: resp.data.room.viewerCanEchoMessage,
           canManageRoom: resp.data.room.viewerCanManageRoom,
-          canBanRoomMembers: resp.data.room.viewerCanBanRoomMembers,
-          members: resp.data.room.members.users.map((m) => useFragment(UserAvatarUserFragmentDoc, m)),
-          membersTotalCount: resp.data.room.members.totalCount,
-          membersHasMore: resp.data.room.members.hasMore
+          canBanRoomMembers: resp.data.room.viewerCanBanRoomMembers
         };
       })
       .catch((err) => {

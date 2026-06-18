@@ -2,8 +2,8 @@
 
 A really good chat application for teams and communities, free and easy to self-host, with [cloud hosting available soon](https://chatto.run/cloud).
 
-- [Website](https://www.chatto.run)
-- [Documentation](https://docs.chatto.run)
+- [Website](https://chatto.run)
+- [Self-Hosting Documentation](https://docs.chatto.run)
 
 ## License
 
@@ -20,4 +20,4 @@ official branding for a fork or modified version; see [NOTICE](NOTICE).
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for local development notes. This project is **not accepting outside contributions** at this time, but feedback, bug reports, and ideas are welcome by [email](mailto:hendrik@mans.de).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for local development notes. This project is **not accepting outside contributions** at this time.

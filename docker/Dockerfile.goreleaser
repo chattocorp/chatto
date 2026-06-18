@@ -2,41 +2,65 @@ FROM alpine:3.22
 
 ARG NATS_CLI_VERSION=0.4.0
 ARG TARGETARCH
-
-RUN set -eux; \
- apk add --no-cache ca-certificates tzdata ffmpeg \
- && apk add --no-cache --virtual .build-deps curl unzip \
- && case "$TARGETARCH" in \
-      amd64) arch=amd64 ;; \
-      arm64) arch=arm64 ;; \
-      *) echo "unsupported arch: $TARGETARCH" >&2; exit 1 ;; \
-    esac \
- && archive="nats-${NATS_CLI_VERSION}-linux-${arch}.zip" \
- && curl -fsSL -o "/tmp/${archive}" \
-      "https://github.com/nats-io/natscli/releases/download/v${NATS_CLI_VERSION}/${archive}" \
- && curl -fsSL -o /tmp/nats-SHA256SUMS \
-      "https://github.com/nats-io/natscli/releases/download/v${NATS_CLI_VERSION}/SHA256SUMS" \
- && cd /tmp \
- && grep "  ${archive}$" nats-SHA256SUMS | sha256sum -c - \
- && unzip -j "/tmp/${archive}" "*/nats" -d /usr/local/bin/ \
- && chmod +x /usr/local/bin/nats \
- && rm "/tmp/${archive}" /tmp/nats-SHA256SUMS \
- && apk del .build-deps \
- && addgroup -g 10001 chatto \
- && adduser -D -u 10001 -G chatto -h /home/chatto -s /sbin/nologin chatto \
- && mkdir -p /config /data \
- && chown chatto:chatto /config /data
-
-COPY chatto /chatto
-COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /chatto /usr/local/bin/docker-entrypoint.sh
+ARG CHATTO_UID=1000
+ARG CHATTO_GID=1000
 
 # Tell the nats CLI which context to use by default. The file itself is
 # written at container start by docker-entrypoint.sh.
 ENV NATS_CONTEXT=chatto
+ENV HOME=/home/chatto
+
+# Runtime dependencies:
+# - ffmpeg is used for media processing.
+# - shadow provides usermod/groupmod for PUID/PGID remapping at startup.
+# - su-exec drops from the root entrypoint to the unprivileged chatto user.
+RUN set -eux; \
+ apk add --no-cache \
+      ca-certificates \
+      ffmpeg \
+      shadow \
+      su-exec \
+      tzdata
+
+# Bundle the nats CLI so operators can inspect the same NATS server Chatto uses
+# with `docker exec <container> nats ...`. The entrypoint writes its context.
+RUN set -eux; \
+ apk add --no-cache --virtual .build-deps curl unzip; \
+ case "$TARGETARCH" in \
+      amd64) arch=amd64 ;; \
+      arm64) arch=arm64 ;; \
+      *) echo "unsupported arch: $TARGETARCH" >&2; exit 1 ;; \
+    esac; \
+ archive="nats-${NATS_CLI_VERSION}-linux-${arch}.zip"; \
+ curl -fsSL -o "/tmp/${archive}" \
+      "https://github.com/nats-io/natscli/releases/download/v${NATS_CLI_VERSION}/${archive}"; \
+ curl -fsSL -o /tmp/nats-SHA256SUMS \
+      "https://github.com/nats-io/natscli/releases/download/v${NATS_CLI_VERSION}/SHA256SUMS"; \
+ cd /tmp; \
+ grep "  ${archive}$" nats-SHA256SUMS | sha256sum -c -; \
+ unzip -j "/tmp/${archive}" "*/nats" -d /usr/local/bin/; \
+ chmod +x /usr/local/bin/nats; \
+ rm "/tmp/${archive}" /tmp/nats-SHA256SUMS; \
+ apk del .build-deps
+
+# Create the default runtime user and writable paths. PUID/PGID can remap this
+# user at container startup; mounted directories are not recursively chowned.
+RUN set -eux; \
+ addgroup -g "$CHATTO_GID" chatto; \
+ adduser -D -u "$CHATTO_UID" -G chatto -h "$HOME" -s /sbin/nologin chatto; \
+ mkdir -p /config /data; \
+ chown chatto:chatto /config /data "$HOME"
+
+# GoReleaser places the compiled Linux binary in the Docker build context as
+# `chatto`; the release image only packages that binary and the entrypoint.
+COPY chatto /chatto
+COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /chatto /usr/local/bin/docker-entrypoint.sh
 
 WORKDIR /
-USER chatto:chatto
 EXPOSE 4000
+
+# The entrypoint handles optional PUID/PGID remapping, writes the nats CLI
+# context, then execs `/chatto start -c /config/chatto.toml` by default.
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["start", "-c", "/config/chatto.toml"]

@@ -984,6 +984,7 @@ func TestPermissionResolver_DMContract(t *testing.T) {
 		{PermRoomJoin, expected{true, true}, "auto-join on DM creation; perm resolves"},
 		{PermMessagePost, expected{true, true}, "core DM capability"},
 		{PermMessagePostInThread, expected{true, true}, "core DM capability"},
+		{PermMessageAttach, expected{true, true}, "core DM capability"},
 		{PermMessageReact, expected{true, true}, "core DM capability"},
 	}
 
@@ -1004,6 +1005,38 @@ func TestPermissionResolver_DMContract(t *testing.T) {
 				t.Errorf("moderator: HasRoomPermission(%s) = %v, want %v (%s)", tc.perm, gotMod, tc.want.moderator, tc.why)
 			}
 		})
+	}
+}
+
+func TestPermissionResolver_DMAttachDefaultAllowRespectsExplicitDeny(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	regular, _ := core.CreateUser(ctx, "system", "dmattachdeny", "DM Attach Deny", "password123")
+	dmRoomID := "R_dm_attach_deny_test"
+
+	if err := core.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, PermMessageAttach); err != nil {
+		t.Fatalf("ClearServerPermissionState: %v", err)
+	}
+
+	got, err := core.permissionResolver.HasRoomPermission(ctx, regular.Id, KindDM, dmRoomID, PermMessageAttach)
+	if err != nil {
+		t.Fatalf("HasRoomPermission before deny: %v", err)
+	}
+	if !got {
+		t.Fatal("message.attach should default-allow for DM participants without a persisted grant")
+	}
+
+	if err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessageAttach); err != nil {
+		t.Fatalf("DenyServerPermission: %v", err)
+	}
+
+	got, err = core.permissionResolver.HasRoomPermission(ctx, regular.Id, KindDM, dmRoomID, PermMessageAttach)
+	if err != nil {
+		t.Fatalf("HasRoomPermission after deny: %v", err)
+	}
+	if got {
+		t.Fatal("explicit server deny should override the DM message.attach default allow")
 	}
 }
 

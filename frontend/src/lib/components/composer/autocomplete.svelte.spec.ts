@@ -36,7 +36,6 @@ function editor(
       focus: () => {},
       getTextBeforeCursor: () => text.slice(0, cursor),
       isInCodeBlock: () => false,
-      isInPlainParagraph: () => true,
       replaceTextBeforeCursor: (charCount, replacement) => {
         text = text.slice(0, cursor - charCount) + replacement + text.slice(cursor);
         cursor = cursor - charCount + replacement.length;
@@ -58,11 +57,11 @@ function tabEvent(): KeyboardEvent {
 }
 
 describe('AutocompleteState', () => {
-  it('shows mention autocomplete only when an @ partial at the cursor has characters', () => {
+  it('shows mention autocomplete when an @ partial has characters, even before members load', () => {
     const fakeEditor = editor('@');
     const state = new AutocompleteState(
       () => fakeEditor.api,
-      () => [member('alice')]
+      () => []
     );
 
     state.update();

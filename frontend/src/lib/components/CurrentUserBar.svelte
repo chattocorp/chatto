@@ -38,7 +38,7 @@ to the user settings page for the active server.
 
 {#if activeServerUser}
   <div class="shrink-0 p-2">
-    <div class="flex items-center gap-3 rounded-lg bg-surface py-1 pr-3 pl-1">
+    <div class="flex items-center gap-3 rounded-xl bg-surface py-1 pr-3 pl-1">
       <UserAvatar user={activeServerUser} size="md" />
       <div class="flex min-w-0 flex-1 flex-col leading-tight">
         <span class="truncate text-sm font-semibold">{displayName}</span>

@@ -23,6 +23,8 @@ type Room {
   description: String
   "List members in this room."
   members(
+    "Search login or display name case-insensitively before pagination."
+    search: String
     "Maximum number of results to return (default 20, max 100)."
     limit: Int
     "Offset for pagination."
@@ -54,8 +56,12 @@ type Room {
   viewerCanPostMessage: Boolean! @goField(forceResolver: true)
   "Whether the current user can post messages in threads in this room."
   viewerCanPostInThread: Boolean! @goField(forceResolver: true)
+  "Whether the current user can attach files to messages in this room."
+  viewerCanAttach: Boolean! @goField(forceResolver: true)
   "Whether the current user can add/remove reactions in this room."
   viewerCanReact: Boolean! @goField(forceResolver: true)
+  "Whether the current user is an explicit member of this room."
+  viewerIsMember: Boolean! @goField(forceResolver: true)
   """
   Whether the current user can edit or delete other users' messages in
   this room. Authors editing or deleting their own messages do not need

@@ -440,14 +440,14 @@ test.describe('Message editing', () => {
     await chatPage.enterRoom('general');
 
     // Compose "line1" + blank line + "line2". Shift+Enter inserts a hard
-    // break in the composer (Enter alone submits the message).
+    // break in the composer; Ctrl+Enter submits the message.
     await roomPage.waitForInputEditable();
     await roomPage.messageInput.click();
     await page.keyboard.type('line1');
     await page.keyboard.press('Shift+Enter');
     await page.keyboard.press('Shift+Enter');
     await page.keyboard.type('line2');
-    await roomPage.messageInput.press('Enter');
+    await roomPage.messageInput.press('Control+Enter');
 
     const message = roomPage.getMessage('line1');
     await expect(message.locator).toBeVisible();
@@ -477,7 +477,7 @@ test.describe('Message editing', () => {
       await page.keyboard.press(docEnd);
       await page.keyboard.type('x');
       await page.keyboard.press('Backspace');
-      await roomPage.composer.press('Enter');
+      await roomPage.composer.press('Control+Enter');
       await roomPage.expectEditModeInactive();
       return snapshot;
     };

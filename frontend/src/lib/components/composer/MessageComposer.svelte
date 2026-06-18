@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick, untrack } from 'svelte';
+  import { onDestroy, tick, untrack } from 'svelte';
   import { graphql, useFragment } from '$lib/gql';
   import { RoomEventViewFragmentDoc, type RoomEventViewFragment } from '$lib/gql/graphql';
   import { useConnection } from '$lib/state/server/connection.svelte';
@@ -10,7 +10,12 @@
   import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
   import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
   import { toast } from '$lib/ui/toast';
-  import { getRoomMembers, getComposerContext } from '$lib/state/room';
+  import {
+    getRoomMembers,
+    getRoomMembersStore,
+    getComposerContext,
+    type RoomMember
+  } from '$lib/state/room';
   import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
   import { isTouchDevice } from '$lib/utils/isTouchDevice';
   import { hasVisibleContent } from '$lib/validation';
@@ -24,6 +29,25 @@
   import { AutocompleteState, type MentionRole } from './autocomplete.svelte';
 
   const tipTapEditorModule = import('./TipTapEditor.svelte');
+
+  type ShortcutHints = {
+    submit: string;
+    enterAgain: string;
+  };
+
+  function getShortcutHints(): ShortcutHints | null {
+    if (typeof navigator === 'undefined' || isTouchDevice()) return null;
+
+    const userAgentDataPlatform =
+      'userAgentData' in navigator
+        ? (navigator.userAgentData as { platform?: string } | undefined)?.platform
+        : undefined;
+    const platform = userAgentDataPlatform ?? navigator.platform ?? '';
+    const usesReturn = /Mac|iPhone|iPad|iPod/i.test(platform);
+    return usesReturn
+      ? { submit: 'Cmd+Return to Send', enterAgain: 'Return again to Send' }
+      : { submit: 'Ctrl+Return to Send', enterAgain: 'Enter again to Send' };
+  }
 
   const stores = serverRegistry.getStore(getActiveServer());
   const serverInfo = stores.serverInfo;
@@ -42,6 +66,7 @@
     replyExcerpt,
     placeholder: customPlaceholder,
     canPost = true,
+    canAttach = true,
     autoFocus = true,
     onReady,
     onTyping,
@@ -57,6 +82,7 @@
     replyExcerpt?: string;
     placeholder?: string;
     canPost?: boolean;
+    canAttach?: boolean;
     autoFocus?: boolean;
     onReady?: (api: MessageComposerApi) => void;
     onTyping?: () => void;
@@ -72,6 +98,17 @@
 
   // Get room members from context (provided by Room.svelte)
   const members = $derived(getRoomMembers());
+  const membersStore = getRoomMembersStore();
+  let mentionSearchMembers = $state.raw<RoomMember[]>([]);
+  let mentionSearchTimer: ReturnType<typeof setTimeout> | null = null;
+  let mentionSearchRequestId = 0;
+  const mentionCandidateMembers = $derived(
+    mentionSearchMembers.length > 0 ? mentionSearchMembers : members
+  );
+
+  onDestroy(() => {
+    if (mentionSearchTimer) clearTimeout(mentionSearchTimer);
+  });
 
   const composerContext = getComposerContext();
   const editState = composerContext.editState;
@@ -110,10 +147,32 @@
   const linkPreviews = new LinkPreviewState(() => connection().client);
   const autocomplete = new AutocompleteState(
     () => editorApi,
-    () => members,
+    () => mentionCandidateMembers,
     () => mentionRoles
   );
   let mentionRoles = $state<MentionRole[]>([]);
+
+  $effect(() => {
+    const query = autocomplete.mention?.query ?? null;
+    const requestId = ++mentionSearchRequestId;
+
+    if (mentionSearchTimer) {
+      clearTimeout(mentionSearchTimer);
+      mentionSearchTimer = null;
+    }
+
+    if (!query) {
+      mentionSearchMembers = [];
+      return;
+    }
+
+    mentionSearchTimer = setTimeout(() => {
+      void membersStore.searchMembers(query).then((results) => {
+        if (requestId !== mentionSearchRequestId) return;
+        mentionSearchMembers = results;
+      });
+    }, 150);
+  });
 
   // Dynamic placeholder changes between normal and edit mode
   let currentPlaceholder = $derived(
@@ -122,6 +181,7 @@
 
   // Testid for E2E tests - distinguishes main input from thread reply input
   let testid = $derived(inThread ? 'thread-reply-input' : 'message-input');
+  const shortcutHints = getShortcutHints();
 
   // Track editing transitions by event identity so editor setContent() doesn't
   // run repeatedly while TipTap echoes updates back through onUpdate.
@@ -245,14 +305,27 @@
   // so users can type the next message while the current one is in flight.
   let inputDisabled = $derived(!canPost || connection().showConnectionLostBanner);
 
+  let hasSendableAttachments = $derived(canAttach && attachments.selectedFiles.length > 0);
+
   // Can submit when there's content, not currently sending, and input is enabled.
   // hasVisibleContent rejects messages with only invisible Unicode characters.
   let canSubmit = $derived(
     !loading &&
       !inputDisabled &&
       attachments.pendingCount === 0 &&
-      (hasVisibleContent(message) || attachments.selectedFiles.length > 0 || isEditing)
+      (hasVisibleContent(message) || hasSendableAttachments || isEditing)
   );
+  let editorNextEnterWillSend = $state(false);
+  let nextEnterWillSend = $derived(canSubmit && editorNextEnterWillSend);
+  let submitHint = $derived(
+    shortcutHints ? (nextEnterWillSend ? shortcutHints.enterAgain : shortcutHints.submit) : null
+  );
+
+  $effect(() => {
+    if (!canAttach && attachments.filesWithUrls.length > 0) {
+      attachments.clear();
+    }
+  });
 
   // Auto-focus the input when the component mounts, room changes, a reply
   // starts, or the editor becomes editable (canPost loads async after a
@@ -297,6 +370,10 @@
 
   function handleFileSelect(event: Event) {
     const target = event.target as HTMLInputElement;
+    if (!canAttach) {
+      target.value = '';
+      return;
+    }
     if (target.files) {
       void attachments.stageFiles(Array.from(target.files));
     }
@@ -313,6 +390,7 @@
    * Creates object URLs for preview and adds to the attachment list.
    */
   async function addFiles(files: File[]) {
+    if (!canAttach) return;
     await attachments.stageFiles(files);
   }
 
@@ -347,6 +425,7 @@
     }
 
     if (pastedFiles.length > 0) {
+      if (!canAttach) return true;
       void attachments.stageFiles(pastedFiles);
       return true; // Prevent TipTap from processing the paste
     }
@@ -358,6 +437,18 @@
   // accumulate over time and pasted blank-line runs stay reasonable.
   function normalizeMessageBody(text: string): string {
     return text.replace(/\n{3,}/g, '\n\n');
+  }
+
+  function hasStructuralMarkdownBody(text: string): boolean {
+    return text
+      .split('\n')
+      .some((line) => /^ {0,3}(?:#{1,6}|[-+*]|\d{1,9}[.)]|>)[ \t]$/.test(line));
+  }
+
+  function bodyForSend(text: string): string {
+    const normalized = normalizeMessageBody(text);
+    if (hasStructuralMarkdownBody(normalized)) return normalized;
+    return normalizeMessageBody(text.trim());
   }
 
   type MentionConfirmation = {
@@ -492,10 +583,9 @@
   async function postMessage() {
     // Require either non-empty message body or attachments.
     // hasVisibleContent rejects messages with only invisible Unicode characters.
-    const bodyToSend = normalizeMessageBody(message.trim());
+    const bodyToSend = bodyForSend(message);
     const hasBody = hasVisibleContent(bodyToSend);
-    const filesToSend =
-      attachments.selectedFiles.length > 0 ? [...attachments.selectedFiles] : null;
+    const filesToSend = hasSendableAttachments ? [...attachments.selectedFiles] : null;
     if (!hasBody && !filesToSend) return;
 
     const preparedPost: PreparedPost = {
@@ -536,7 +626,7 @@
   }
 
   async function editMessage() {
-    const trimmedBody = normalizeMessageBody(message.trim());
+    const trimmedBody = bodyForSend(message);
     if (!trimmedBody) {
       toast.error('Message cannot be empty');
       return;
@@ -592,6 +682,11 @@
   // Handle keyboard events from TipTap editor.
   // Return true to prevent TipTap's default handling.
   function handleEditorKeyDown(event: KeyboardEvent): boolean {
+    if (event.key === 'Enter' && !event.shiftKey && (event.metaKey || event.ctrlKey)) {
+      handleSubmit(); // Fire-and-forget (async, but keydown must return sync)
+      return true;
+    }
+
     // Handle emoji autocomplete keyboard events first
     if (autocomplete.emoji && autocomplete.emojiRef) {
       if (autocomplete.emojiRef.handleKeyDown(event)) {
@@ -604,6 +699,17 @@
       if (autocomplete.mentionRef.handleKeyDown(event)) {
         return true;
       }
+    }
+
+    if (
+      event.key === 'Enter' &&
+      !event.shiftKey &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      nextEnterWillSend
+    ) {
+      handleSubmit(); // Fire-and-forget (async, but keydown must return sync)
+      return true;
     }
 
     // Handle Tab for @mention autocomplete
@@ -645,21 +751,6 @@
         });
         return true;
       }
-    }
-
-    if (event.key === 'Enter' && !event.shiftKey && (event.metaKey || event.ctrlKey)) {
-      handleSubmit(); // Fire-and-forget (async, but keydown must return sync)
-      return true;
-    }
-
-    if (
-      event.key === 'Enter' &&
-      !event.shiftKey &&
-      !isTouchDevice() &&
-      editorApi?.isInPlainParagraph()
-    ) {
-      handleSubmit(); // Fire-and-forget (async, but keydown must return sync)
-      return true;
     }
 
     return false; // Let TipTap handle it (e.g., Shift+Enter for hard break)
@@ -756,19 +847,21 @@
   {/if}
 
   <!-- Hidden file input -->
-  <input
-    bind:this={fileInputElement}
-    type="file"
-    accept={attachments.accept}
-    multiple
-    onchange={handleFileSelect}
-    class="hidden"
-  />
+  {#if canAttach && !isEditing}
+    <input
+      bind:this={fileInputElement}
+      type="file"
+      accept={attachments.accept}
+      multiple
+      onchange={handleFileSelect}
+      class="hidden"
+    />
+  {/if}
 
   <!-- Unified input container -->
   <div
     class={[
-      'relative flex items-start gap-4 rounded-lg bg-surface py-2 pr-3',
+      'relative flex items-start gap-4 rounded-xl bg-surface py-2 pr-3',
       isEditing ? 'pl-3' : 'pl-2'
     ]}
     class:opacity-50={inputDisabled}
@@ -789,14 +882,14 @@
       <MentionAutocomplete
         bind:this={autocomplete.mentionRef}
         query={autocomplete.mention.query}
-        {members}
+        members={mentionCandidateMembers}
         roles={mentionRoles}
         onSelect={handleMentionSelect}
         onClose={closeMentionAutocomplete}
       />
     {/if}
     <!-- Attachment button - hidden in edit mode (editMessage only supports text) -->
-    {#if !isEditing}
+    {#if !isEditing && canAttach}
       <button
         type="button"
         onclick={() => fileInputElement?.click()}
@@ -820,21 +913,35 @@
         onUpdate={handleEditorUpdate}
         onKeyDown={handleEditorKeyDown}
         onPaste={handlePaste}
+        onNextEnterWillSendChange={(value) => (editorNextEnterWillSend = value)}
         onReady={handleEditorReady}
       />
     {/await}
 
-    <!-- Send button -->
-    <button
-      type="button"
-      onpointerdown={(e) => e.preventDefault()}
-      onclick={handleSubmit}
-      disabled={!canSubmit}
-      class="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded text-muted transition-colors duration-100 enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
-      title="Send message"
-    >
-      <span class="iconify text-xl uil--telegram-alt"></span>
-    </button>
+    <div class="flex h-8 shrink-0 items-center gap-2">
+      {#if submitHint && canSubmit}
+        <span
+          aria-hidden="true"
+          title={submitHint}
+          class="px-0.5 text-xs leading-none font-medium whitespace-nowrap text-muted/75"
+        >
+          {submitHint}
+        </span>
+      {/if}
+
+      <!-- Send button -->
+      <button
+        type="button"
+        onpointerdown={(e) => e.preventDefault()}
+        onclick={handleSubmit}
+        disabled={!canSubmit}
+        class="flex h-8 w-8 cursor-pointer items-center justify-center rounded text-muted transition-colors duration-100 enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
+        aria-label="Send message"
+        title="Send message (Ctrl/Cmd+Enter)"
+      >
+        <span class="iconify text-xl uil--telegram-alt"></span>
+      </button>
+    </div>
   </div>
 
   <!-- Also send to channel checkbox (thread replies only, when permitted) -->

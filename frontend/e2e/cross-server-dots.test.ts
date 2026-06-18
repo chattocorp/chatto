@@ -22,6 +22,7 @@ import {
 import type { ServerInfo } from './fixtures/server';
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
+import { waitForRoomReady } from './fixtures/realtimeSync';
 
 /**
  * Returns the remote server's base URL using 127.0.0.1 instead of localhost so
@@ -163,7 +164,8 @@ test.describe('Cross-instance dots', () => {
 
     await connectRemoteInstance(page, { ...remoteServer, baseURL }, viewer.userId);
     await page.goto(routes.room(homeGeneralRoomId));
-    await expect(page.getByText(homeBody)).toBeVisible();
+    await waitForRoomReady(page, 'general');
+    await expect(page.getByText(homeBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
     const remoteHostSegment = new URL(baseURL).hostname;
     const remoteSpaceWrapper = page.locator('.server-gutter .server-icon-wrapper').filter({
@@ -232,7 +234,8 @@ test.describe('Cross-instance dots', () => {
 
     await connectRemoteInstance(page, { ...remoteServer, baseURL }, viewer.userId);
     await page.goto(routes.room(homeGeneralRoomId));
-    await expect(page.getByText(homeBody)).toBeVisible();
+    await waitForRoomReady(page, 'general');
+    await expect(page.getByText(homeBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
     const remoteHostSegment = new URL(baseURL).hostname;
     const dialog = await openSwitcher(page);

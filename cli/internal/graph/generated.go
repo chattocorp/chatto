@@ -351,6 +351,7 @@ type ComplexityRoot struct {
 		CreateRole                 func(childComplexity int, input model.CreateRoleInput) int
 		CreateRoom                 func(childComplexity int, input model.CreateRoomInput) int
 		CreateRoomGroup            func(childComplexity int, input model.CreateRoomGroupInput) int
+		CreateSidebarLink          func(childComplexity int, input model.CreateSidebarLinkInput) int
 		DeleteAttachment           func(childComplexity int, input model.DeleteAttachmentInput) int
 		DeleteAvatar               func(childComplexity int, input model.DeleteAvatarInput) int
 		DeleteLinkPreview          func(childComplexity int, input model.DeleteLinkPreviewInput) int
@@ -360,6 +361,7 @@ type ComplexityRoot struct {
 		DeleteRoomGroup            func(childComplexity int, input model.DeleteRoomGroupInput) int
 		DeleteServerBanner         func(childComplexity int) int
 		DeleteServerLogo           func(childComplexity int) int
+		DeleteSidebarLink          func(childComplexity int, input model.DeleteSidebarLinkInput) int
 		DenyGroupPermission        func(childComplexity int, input model.GroupPermissionInput) int
 		DenyPermission             func(childComplexity int, input model.DenyPermissionInput) int
 		DenyRoomPermission         func(childComplexity int, input model.DenyRoomPermissionInput) int
@@ -379,11 +381,13 @@ type ComplexityRoot struct {
 		MarkRoomAsRead             func(childComplexity int, input model.MarkRoomAsReadInput) int
 		MarkThreadAsRead           func(childComplexity int, input model.MarkThreadAsReadInput) int
 		MoveRoomToGroup            func(childComplexity int, input model.MoveRoomToGroupInput) int
+		MoveSidebarLinkToGroup     func(childComplexity int, input model.MoveSidebarLinkToGroupInput) int
 		PostMessage                func(childComplexity int, input model.PostMessageInput) int
 		RemoveReaction             func(childComplexity int, input model.RemoveReactionInput) int
 		ReorderRoles               func(childComplexity int, input model.ReorderRolesInput) int
 		ReorderRoomGroups          func(childComplexity int, input model.ReorderRoomGroupsInput) int
 		ReorderRoomsInGroup        func(childComplexity int, input model.ReorderRoomsInGroupInput) int
+		ReorderSidebarItemsInGroup func(childComplexity int, input model.ReorderSidebarItemsInGroupInput) int
 		RequestAccountDeletion     func(childComplexity int) int
 		RevokePermission           func(childComplexity int, input model.RevokePermissionInput) int
 		RevokeRole                 func(childComplexity int, input model.RevokeRoleInput) int
@@ -404,6 +408,7 @@ type ComplexityRoot struct {
 		UpdateRoomGroup            func(childComplexity int, input model.UpdateRoomGroupInput) int
 		UpdateServerConfig         func(childComplexity int, input model.UpdateServerConfigInput) int
 		UpdateSettings             func(childComplexity int, input model.UpdateSettingsInput) int
+		UpdateSidebarLink          func(childComplexity int, input model.UpdateSidebarLinkInput) int
 		UploadAvatar               func(childComplexity int, input model.UploadAvatarInput) int
 		UploadServerBanner         func(childComplexity int, input model.UploadServerBannerInput) int
 		UploadServerLogo           func(childComplexity int, input model.UploadServerLogoInput) int
@@ -624,10 +629,11 @@ type ComplexityRoot struct {
 		GroupID                      func(childComplexity int) int
 		HasUnread                    func(childComplexity int) int
 		Id                           func(childComplexity int) int
-		Members                      func(childComplexity int, limit *int32, offset *int32) int
+		Members                      func(childComplexity int, search *string, limit *int32, offset *int32) int
 		Name                         func(childComplexity int) int
 		RoomPermissionOverrides      func(childComplexity int) int
 		Type                         func(childComplexity int) int
+		ViewerCanAttach              func(childComplexity int) int
 		ViewerCanBanRoomMembers      func(childComplexity int) int
 		ViewerCanEchoMessage         func(childComplexity int) int
 		ViewerCanJoinRoom            func(childComplexity int) int
@@ -637,6 +643,7 @@ type ComplexityRoot struct {
 		ViewerCanPostInThread        func(childComplexity int) int
 		ViewerCanPostMessage         func(childComplexity int) int
 		ViewerCanReact               func(childComplexity int) int
+		ViewerIsMember               func(childComplexity int) int
 		ViewerNotificationPreference func(childComplexity int) int
 		ViewerNotifications          func(childComplexity int, limit *int32, offset *int32) int
 		VoiceCallToken               func(childComplexity int) int
@@ -702,8 +709,16 @@ type ComplexityRoot struct {
 	RoomGroup struct {
 		Description func(childComplexity int) int
 		ID          func(childComplexity int) int
+		Items       func(childComplexity int) int
 		Name        func(childComplexity int) int
 		Rooms       func(childComplexity int) int
+	}
+
+	RoomGroupItem struct {
+		ID   func(childComplexity int) int
+		Link func(childComplexity int) int
+		Room func(childComplexity int) int
+		Type func(childComplexity int) int
 	}
 
 	RoomGroupRolePermissions struct {
@@ -847,6 +862,12 @@ type ComplexityRoot struct {
 
 	SessionTerminatedEvent struct {
 		Reason func(childComplexity int) int
+	}
+
+	SidebarLink struct {
+		Id    func(childComplexity int) int
+		Label func(childComplexity int) int
+		Url   func(childComplexity int) int
 	}
 
 	Subscription struct {
@@ -1154,6 +1175,11 @@ type MutationResolver interface {
 	ReorderRoomGroups(ctx context.Context, input model.ReorderRoomGroupsInput) ([]*model.RoomGroupModel, error)
 	MoveRoomToGroup(ctx context.Context, input model.MoveRoomToGroupInput) (*corev1.Room, error)
 	ReorderRoomsInGroup(ctx context.Context, input model.ReorderRoomsInGroupInput) (*model.RoomGroupModel, error)
+	CreateSidebarLink(ctx context.Context, input model.CreateSidebarLinkInput) (*corev1.SidebarLink, error)
+	UpdateSidebarLink(ctx context.Context, input model.UpdateSidebarLinkInput) (*corev1.SidebarLink, error)
+	DeleteSidebarLink(ctx context.Context, input model.DeleteSidebarLinkInput) (bool, error)
+	MoveSidebarLinkToGroup(ctx context.Context, input model.MoveSidebarLinkToGroupInput) (*corev1.SidebarLink, error)
+	ReorderSidebarItemsInGroup(ctx context.Context, input model.ReorderSidebarItemsInGroupInput) (*model.RoomGroupModel, error)
 	GrantGroupPermission(ctx context.Context, input model.GroupPermissionInput) (bool, error)
 	DenyGroupPermission(ctx context.Context, input model.GroupPermissionInput) (bool, error)
 	ClearGroupPermissionState(ctx context.Context, input model.GroupPermissionInput) (bool, error)
@@ -1226,13 +1252,15 @@ type RoleResolver interface {
 type RoomResolver interface {
 	Type(ctx context.Context, obj *corev1.Room) (model.RoomType, error)
 
-	Members(ctx context.Context, obj *corev1.Room, limit *int32, offset *int32) (*model.RoomMembersConnection, error)
+	Members(ctx context.Context, obj *corev1.Room, search *string, limit *int32, offset *int32) (*model.RoomMembersConnection, error)
 	Attachments(ctx context.Context, obj *corev1.Room, limit *int32, offset *int32) (*model.RoomAttachmentsConnection, error)
 	HasUnread(ctx context.Context, obj *corev1.Room) (bool, error)
 	ViewerNotifications(ctx context.Context, obj *corev1.Room, limit *int32, offset *int32) (*model.NotificationsConnection, error)
 	ViewerCanPostMessage(ctx context.Context, obj *corev1.Room) (bool, error)
 	ViewerCanPostInThread(ctx context.Context, obj *corev1.Room) (bool, error)
+	ViewerCanAttach(ctx context.Context, obj *corev1.Room) (bool, error)
 	ViewerCanReact(ctx context.Context, obj *corev1.Room) (bool, error)
+	ViewerIsMember(ctx context.Context, obj *corev1.Room) (bool, error)
 	ViewerCanManageOthersMessage(ctx context.Context, obj *corev1.Room) (bool, error)
 	ViewerCanListRoom(ctx context.Context, obj *corev1.Room) (bool, error)
 	ViewerCanJoinRoom(ctx context.Context, obj *corev1.Room) (bool, error)
@@ -1262,6 +1290,7 @@ type RoomCreatedEventResolver interface {
 }
 type RoomGroupResolver interface {
 	Rooms(ctx context.Context, obj *model.RoomGroupModel) ([]*corev1.Room, error)
+	Items(ctx context.Context, obj *model.RoomGroupModel) ([]*model.RoomGroupItem, error)
 }
 type RoomGroupsUpdatedEventResolver interface {
 	Changed(ctx context.Context, obj *corev1.RoomGroupsUpdatedEvent) (bool, error)
@@ -2558,6 +2587,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CreateRoomGroup(childComplexity, args["input"].(model.CreateRoomGroupInput)), true
+	case "Mutation.createSidebarLink":
+		if e.ComplexityRoot.Mutation.CreateSidebarLink == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createSidebarLink_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.CreateSidebarLink(childComplexity, args["input"].(model.CreateSidebarLinkInput)), true
 	case "Mutation.deleteAttachment":
 		if e.ComplexityRoot.Mutation.DeleteAttachment == nil {
 			break
@@ -2647,6 +2687,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.DeleteServerLogo(childComplexity), true
+	case "Mutation.deleteSidebarLink":
+		if e.ComplexityRoot.Mutation.DeleteSidebarLink == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteSidebarLink_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.DeleteSidebarLink(childComplexity, args["input"].(model.DeleteSidebarLinkInput)), true
 	case "Mutation.denyGroupPermission":
 		if e.ComplexityRoot.Mutation.DenyGroupPermission == nil {
 			break
@@ -2851,6 +2902,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.MoveRoomToGroup(childComplexity, args["input"].(model.MoveRoomToGroupInput)), true
+	case "Mutation.moveSidebarLinkToGroup":
+		if e.ComplexityRoot.Mutation.MoveSidebarLinkToGroup == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_moveSidebarLinkToGroup_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.MoveSidebarLinkToGroup(childComplexity, args["input"].(model.MoveSidebarLinkToGroupInput)), true
 	case "Mutation.postMessage":
 		if e.ComplexityRoot.Mutation.PostMessage == nil {
 			break
@@ -2906,6 +2968,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.ReorderRoomsInGroup(childComplexity, args["input"].(model.ReorderRoomsInGroupInput)), true
+	case "Mutation.reorderSidebarItemsInGroup":
+		if e.ComplexityRoot.Mutation.ReorderSidebarItemsInGroup == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_reorderSidebarItemsInGroup_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.ReorderSidebarItemsInGroup(childComplexity, args["input"].(model.ReorderSidebarItemsInGroupInput)), true
 	case "Mutation.requestAccountDeletion":
 		if e.ComplexityRoot.Mutation.RequestAccountDeletion == nil {
 			break
@@ -3121,6 +3194,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.UpdateSettings(childComplexity, args["input"].(model.UpdateSettingsInput)), true
+	case "Mutation.updateSidebarLink":
+		if e.ComplexityRoot.Mutation.UpdateSidebarLink == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateSidebarLink_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.UpdateSidebarLink(childComplexity, args["input"].(model.UpdateSidebarLinkInput)), true
 	case "Mutation.uploadAvatar":
 		if e.ComplexityRoot.Mutation.UploadAvatar == nil {
 			break
@@ -4107,7 +4191,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Room.Members(childComplexity, args["limit"].(*int32), args["offset"].(*int32)), true
+		return e.ComplexityRoot.Room.Members(childComplexity, args["search"].(*string), args["limit"].(*int32), args["offset"].(*int32)), true
 	case "Room.name":
 		if e.ComplexityRoot.Room.Name == nil {
 			break
@@ -4126,6 +4210,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Room.Type(childComplexity), true
+	case "Room.viewerCanAttach":
+		if e.ComplexityRoot.Room.ViewerCanAttach == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Room.ViewerCanAttach(childComplexity), true
 	case "Room.viewerCanBanRoomMembers":
 		if e.ComplexityRoot.Room.ViewerCanBanRoomMembers == nil {
 			break
@@ -4180,6 +4270,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Room.ViewerCanReact(childComplexity), true
+	case "Room.viewerIsMember":
+		if e.ComplexityRoot.Room.ViewerIsMember == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Room.ViewerIsMember(childComplexity), true
 	case "Room.viewerNotificationPreference":
 		if e.ComplexityRoot.Room.ViewerNotificationPreference == nil {
 			break
@@ -4422,6 +4518,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.RoomGroup.ID(childComplexity), true
+	case "RoomGroup.items":
+		if e.ComplexityRoot.RoomGroup.Items == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RoomGroup.Items(childComplexity), true
 	case "RoomGroup.name":
 		if e.ComplexityRoot.RoomGroup.Name == nil {
 			break
@@ -4434,6 +4536,31 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.RoomGroup.Rooms(childComplexity), true
+
+	case "RoomGroupItem.id":
+		if e.ComplexityRoot.RoomGroupItem.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RoomGroupItem.ID(childComplexity), true
+	case "RoomGroupItem.link":
+		if e.ComplexityRoot.RoomGroupItem.Link == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RoomGroupItem.Link(childComplexity), true
+	case "RoomGroupItem.room":
+		if e.ComplexityRoot.RoomGroupItem.Room == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RoomGroupItem.Room(childComplexity), true
+	case "RoomGroupItem.type":
+		if e.ComplexityRoot.RoomGroupItem.Type == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RoomGroupItem.Type(childComplexity), true
 
 	case "RoomGroupRolePermissions.groupId":
 		if e.ComplexityRoot.RoomGroupRolePermissions.GroupID == nil {
@@ -5014,6 +5141,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.SessionTerminatedEvent.Reason(childComplexity), true
+
+	case "SidebarLink.id":
+		if e.ComplexityRoot.SidebarLink.Id == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SidebarLink.Id(childComplexity), true
+	case "SidebarLink.label":
+		if e.ComplexityRoot.SidebarLink.Label == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SidebarLink.Label(childComplexity), true
+	case "SidebarLink.url":
+		if e.ComplexityRoot.SidebarLink.Url == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SidebarLink.Url(childComplexity), true
 
 	case "Subscription.myEvents":
 		if e.ComplexityRoot.Subscription.MyEvents == nil {
@@ -5604,6 +5750,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputCreateRoleInput,
 		ec.unmarshalInputCreateRoomGroupInput,
 		ec.unmarshalInputCreateRoomInput,
+		ec.unmarshalInputCreateSidebarLinkInput,
 		ec.unmarshalInputDeleteAttachmentInput,
 		ec.unmarshalInputDeleteAvatarInput,
 		ec.unmarshalInputDeleteLinkPreviewInput,
@@ -5611,6 +5758,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputDeleteMyAccountInput,
 		ec.unmarshalInputDeleteRoleInput,
 		ec.unmarshalInputDeleteRoomGroupInput,
+		ec.unmarshalInputDeleteSidebarLinkInput,
 		ec.unmarshalInputDenyPermissionInput,
 		ec.unmarshalInputDenyRoomPermissionInput,
 		ec.unmarshalInputDenyUserPermissionInput,
@@ -5627,17 +5775,20 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputMarkRoomAsReadInput,
 		ec.unmarshalInputMarkThreadAsReadInput,
 		ec.unmarshalInputMoveRoomToGroupInput,
+		ec.unmarshalInputMoveSidebarLinkToGroupInput,
 		ec.unmarshalInputPostMessageInput,
 		ec.unmarshalInputPushSubscriptionInput,
 		ec.unmarshalInputRemoveReactionInput,
 		ec.unmarshalInputReorderRolesInput,
 		ec.unmarshalInputReorderRoomGroupsInput,
 		ec.unmarshalInputReorderRoomsInGroupInput,
+		ec.unmarshalInputReorderSidebarItemsInGroupInput,
 		ec.unmarshalInputRevokePermissionInput,
 		ec.unmarshalInputRevokeRoleInput,
 		ec.unmarshalInputSendTypingIndicatorInput,
 		ec.unmarshalInputSetRoomNotificationLevelInput,
 		ec.unmarshalInputSetServerNotificationLevelInput,
+		ec.unmarshalInputSidebarGroupEntryInput,
 		ec.unmarshalInputStartDMInput,
 		ec.unmarshalInputUnarchiveRoomInput,
 		ec.unmarshalInputUnbanRoomMemberInput,
@@ -5652,6 +5803,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputUpdateRoomInput,
 		ec.unmarshalInputUpdateServerConfigInput,
 		ec.unmarshalInputUpdateSettingsInput,
+		ec.unmarshalInputUpdateSidebarLinkInput,
 		ec.unmarshalInputUploadAvatarInput,
 		ec.unmarshalInputUploadServerBannerInput,
 		ec.unmarshalInputUploadServerLogoInput,
@@ -6386,8 +6538,12 @@ func (ec *executionContext) childFields_Room(ctx context.Context, field graphql.
 		return ec.fieldContext_Room_viewerCanPostMessage(ctx, field)
 	case "viewerCanPostInThread":
 		return ec.fieldContext_Room_viewerCanPostInThread(ctx, field)
+	case "viewerCanAttach":
+		return ec.fieldContext_Room_viewerCanAttach(ctx, field)
 	case "viewerCanReact":
 		return ec.fieldContext_Room_viewerCanReact(ctx, field)
+	case "viewerIsMember":
+		return ec.fieldContext_Room_viewerIsMember(ctx, field)
 	case "viewerCanManageOthersMessage":
 		return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
 	case "viewerCanListRoom":
@@ -6520,8 +6676,24 @@ func (ec *executionContext) childFields_RoomGroup(ctx context.Context, field gra
 		return ec.fieldContext_RoomGroup_description(ctx, field)
 	case "rooms":
 		return ec.fieldContext_RoomGroup_rooms(ctx, field)
+	case "items":
+		return ec.fieldContext_RoomGroup_items(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type RoomGroup", field.Name)
+}
+
+func (ec *executionContext) childFields_RoomGroupItem(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "type":
+		return ec.fieldContext_RoomGroupItem_type(ctx, field)
+	case "id":
+		return ec.fieldContext_RoomGroupItem_id(ctx, field)
+	case "room":
+		return ec.fieldContext_RoomGroupItem_room(ctx, field)
+	case "link":
+		return ec.fieldContext_RoomGroupItem_link(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type RoomGroupItem", field.Name)
 }
 
 func (ec *executionContext) childFields_RoomGroupRolePermissions(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -6694,6 +6866,18 @@ func (ec *executionContext) childFields_ServerStats(ctx context.Context, field g
 		return ec.fieldContext_ServerStats_dmRoomCount(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type ServerStats", field.Name)
+}
+
+func (ec *executionContext) childFields_SidebarLink(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_SidebarLink_id(ctx, field)
+	case "label":
+		return ec.fieldContext_SidebarLink_label(ctx, field)
+	case "url":
+		return ec.fieldContext_SidebarLink_url(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type SidebarLink", field.Name)
 }
 
 func (ec *executionContext) childFields_SystemInfo(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -7574,6 +7758,20 @@ func (ec *executionContext) field_Mutation_createRoom_args(ctx context.Context, 
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_createSidebarLink_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
+		func(ctx context.Context, v any) (model.CreateSidebarLinkInput, error) {
+			return ec.unmarshalNCreateSidebarLinkInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐCreateSidebarLinkInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_deleteAttachment_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -7664,6 +7862,20 @@ func (ec *executionContext) field_Mutation_deleteRoomGroup_args(ctx context.Cont
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
 		func(ctx context.Context, v any) (model.DeleteRoomGroupInput, error) {
 			return ec.unmarshalNDeleteRoomGroupInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDeleteRoomGroupInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteSidebarLink_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
+		func(ctx context.Context, v any) (model.DeleteSidebarLinkInput, error) {
+			return ec.unmarshalNDeleteSidebarLinkInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDeleteSidebarLinkInput(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -7924,6 +8136,20 @@ func (ec *executionContext) field_Mutation_moveRoomToGroup_args(ctx context.Cont
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_moveSidebarLinkToGroup_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
+		func(ctx context.Context, v any) (model.MoveSidebarLinkToGroupInput, error) {
+			return ec.unmarshalNMoveSidebarLinkToGroupInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐMoveSidebarLinkToGroupInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_postMessage_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -7986,6 +8212,20 @@ func (ec *executionContext) field_Mutation_reorderRoomsInGroup_args(ctx context.
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
 		func(ctx context.Context, v any) (model.ReorderRoomsInGroupInput, error) {
 			return ec.unmarshalNReorderRoomsInGroupInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐReorderRoomsInGroupInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_reorderSidebarItemsInGroup_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
+		func(ctx context.Context, v any) (model.ReorderSidebarItemsInGroupInput, error) {
+			return ec.unmarshalNReorderSidebarItemsInGroupInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐReorderSidebarItemsInGroupInput(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -8252,6 +8492,20 @@ func (ec *executionContext) field_Mutation_updateSettings_args(ctx context.Conte
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
 		func(ctx context.Context, v any) (model.UpdateSettingsInput, error) {
 			return ec.unmarshalNUpdateSettingsInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUpdateSettingsInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateSidebarLink_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
+		func(ctx context.Context, v any) (model.UpdateSidebarLinkInput, error) {
+			return ec.unmarshalNUpdateSidebarLinkInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUpdateSidebarLinkInput(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -8587,22 +8841,30 @@ func (ec *executionContext) field_Room_events_args(ctx context.Context, rawArgs 
 func (ec *executionContext) field_Room_members_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "limit",
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "search",
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOString2ᚖstring(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["search"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "limit",
 		func(ctx context.Context, v any) (*int32, error) {
 			return ec.unmarshalOInt2ᚖint32(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
-	args["limit"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "offset",
+	args["limit"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "offset",
 		func(ctx context.Context, v any) (*int32, error) {
 			return ec.unmarshalOInt2ᚖint32(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
-	args["offset"] = arg1
+	args["offset"] = arg2
 	return args, nil
 }
 
@@ -15048,6 +15310,226 @@ func (ec *executionContext) fieldContext_Mutation_reorderRoomsInGroup(ctx contex
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_createSidebarLink(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_createSidebarLink(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().CreateSidebarLink(ctx, fc.Args["input"].(model.CreateSidebarLinkInput))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *corev1.SidebarLink) graphql.Marshaler {
+			return ec.marshalNSidebarLink2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐSidebarLink(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_createSidebarLink(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_SidebarLink(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createSidebarLink_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateSidebarLink(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_updateSidebarLink(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().UpdateSidebarLink(ctx, fc.Args["input"].(model.UpdateSidebarLinkInput))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *corev1.SidebarLink) graphql.Marshaler {
+			return ec.marshalNSidebarLink2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐSidebarLink(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_updateSidebarLink(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_SidebarLink(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateSidebarLink_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteSidebarLink(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_deleteSidebarLink(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().DeleteSidebarLink(ctx, fc.Args["input"].(model.DeleteSidebarLinkInput))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_deleteSidebarLink(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteSidebarLink_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_moveSidebarLinkToGroup(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_moveSidebarLinkToGroup(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().MoveSidebarLinkToGroup(ctx, fc.Args["input"].(model.MoveSidebarLinkToGroupInput))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *corev1.SidebarLink) graphql.Marshaler {
+			return ec.marshalNSidebarLink2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐSidebarLink(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_moveSidebarLinkToGroup(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_SidebarLink(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_moveSidebarLinkToGroup_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_reorderSidebarItemsInGroup(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_reorderSidebarItemsInGroup(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().ReorderSidebarItemsInGroup(ctx, fc.Args["input"].(model.ReorderSidebarItemsInGroupInput))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.RoomGroupModel) graphql.Marshaler {
+			return ec.marshalNRoomGroup2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomGroupModel(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_reorderSidebarItemsInGroup(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_RoomGroup(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_reorderSidebarItemsInGroup_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_grantGroupPermission(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -19530,7 +20012,7 @@ func (ec *executionContext) _Room_members(ctx context.Context, field graphql.Col
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Room().Members(ctx, obj, fc.Args["limit"].(*int32), fc.Args["offset"].(*int32))
+			return ec.Resolvers.Room().Members(ctx, obj, fc.Args["search"].(*string), fc.Args["limit"].(*int32), fc.Args["offset"].(*int32))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.RoomMembersConnection) graphql.Marshaler {
@@ -19721,6 +20203,29 @@ func (ec *executionContext) fieldContext_Room_viewerCanPostInThread(_ context.Co
 	return graphql.NewScalarFieldContext("Room", field, true, true, errors.New("field of type Boolean does not have child fields"))
 }
 
+func (ec *executionContext) _Room_viewerCanAttach(ctx context.Context, field graphql.CollectedField, obj *corev1.Room) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Room_viewerCanAttach(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Room().ViewerCanAttach(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Room_viewerCanAttach(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Room", field, true, true, errors.New("field of type Boolean does not have child fields"))
+}
+
 func (ec *executionContext) _Room_viewerCanReact(ctx context.Context, field graphql.CollectedField, obj *corev1.Room) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -19741,6 +20246,29 @@ func (ec *executionContext) _Room_viewerCanReact(ctx context.Context, field grap
 	)
 }
 func (ec *executionContext) fieldContext_Room_viewerCanReact(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Room", field, true, true, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _Room_viewerIsMember(ctx context.Context, field graphql.CollectedField, obj *corev1.Room) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Room_viewerIsMember(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Room().ViewerIsMember(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Room_viewerIsMember(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Room", field, true, true, errors.New("field of type Boolean does not have child fields"))
 }
 
@@ -21129,6 +21657,148 @@ func (ec *executionContext) fieldContext_RoomGroup_rooms(_ context.Context, fiel
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_Room(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RoomGroup_items(ctx context.Context, field graphql.CollectedField, obj *model.RoomGroupModel) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RoomGroup_items(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.RoomGroup().Items(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.RoomGroupItem) graphql.Marshaler {
+			return ec.marshalNRoomGroupItem2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomGroupItemᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RoomGroup_items(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RoomGroup",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_RoomGroupItem(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RoomGroupItem_type(ctx context.Context, field graphql.CollectedField, obj *model.RoomGroupItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RoomGroupItem_type(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Type, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.RoomGroupItemType) graphql.Marshaler {
+			return ec.marshalNRoomGroupItemType2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomGroupItemType(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RoomGroupItem_type(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("RoomGroupItem", field, false, false, errors.New("field of type RoomGroupItemType does not have child fields"))
+}
+
+func (ec *executionContext) _RoomGroupItem_id(ctx context.Context, field graphql.CollectedField, obj *model.RoomGroupItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RoomGroupItem_id(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RoomGroupItem_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("RoomGroupItem", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _RoomGroupItem_room(ctx context.Context, field graphql.CollectedField, obj *model.RoomGroupItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RoomGroupItem_room(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Room, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *corev1.Room) graphql.Marshaler {
+			return ec.marshalORoom2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐRoom(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_RoomGroupItem_room(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RoomGroupItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Room(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RoomGroupItem_link(ctx context.Context, field graphql.CollectedField, obj *model.RoomGroupItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RoomGroupItem_link(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Link, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *corev1.SidebarLink) graphql.Marshaler {
+			return ec.marshalOSidebarLink2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐSidebarLink(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_RoomGroupItem_link(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RoomGroupItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_SidebarLink(ctx, field)
 		},
 	}
 	return fc, nil
@@ -23497,6 +24167,75 @@ func (ec *executionContext) _SessionTerminatedEvent_reason(ctx context.Context, 
 }
 func (ec *executionContext) fieldContext_SessionTerminatedEvent_reason(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("SessionTerminatedEvent", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _SidebarLink_id(ctx context.Context, field graphql.CollectedField, obj *corev1.SidebarLink) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_SidebarLink_id(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Id, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_SidebarLink_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("SidebarLink", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _SidebarLink_label(ctx context.Context, field graphql.CollectedField, obj *corev1.SidebarLink) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_SidebarLink_label(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Label, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_SidebarLink_label(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("SidebarLink", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _SidebarLink_url(ctx context.Context, field graphql.CollectedField, obj *corev1.SidebarLink) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_SidebarLink_url(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Url, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_SidebarLink_url(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("SidebarLink", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _Subscription_myEvents(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
@@ -27408,6 +28147,90 @@ func (ec *executionContext) unmarshalInputCreateRoomInput(ctx context.Context, o
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputCreateSidebarLinkInput(ctx context.Context, obj any) (model.CreateSidebarLinkInput, error) {
+	var it model.CreateSidebarLinkInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"groupId", "label", "url"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "groupId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.GroupID = data
+		case "label":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("label"))
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				max, err := ec.unmarshalNInt2int32(ctx, 80)
+				if err != nil {
+					var zeroVal string
+					return zeroVal, err
+				}
+				if ec.Directives.Length == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive length is not implemented")
+				}
+				return ec.Directives.Length(ctx, obj, directive0, nil, max, nil)
+			}
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(string); ok {
+				it.Label = data
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+		case "url":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("url"))
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				max, err := ec.unmarshalNInt2int32(ctx, 2048)
+				if err != nil {
+					var zeroVal string
+					return zeroVal, err
+				}
+				if ec.Directives.Length == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive length is not implemented")
+				}
+				return ec.Directives.Length(ctx, obj, directive0, nil, max, nil)
+			}
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(string); ok {
+				it.URL = data
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputDeleteAttachmentInput(ctx context.Context, obj any) (model.DeleteAttachmentInput, error) {
 	var it model.DeleteAttachmentInput
 	if obj == nil {
@@ -27648,6 +28471,36 @@ func (ec *executionContext) unmarshalInputDeleteRoomGroupInput(ctx context.Conte
 				return it, err
 			}
 			it.ID = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputDeleteSidebarLinkInput(ctx context.Context, obj any) (model.DeleteSidebarLinkInput, error) {
+	var it model.DeleteSidebarLinkInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"linkId"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "linkId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("linkId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.LinkID = data
 		}
 	}
 	return it, nil
@@ -28460,6 +29313,43 @@ func (ec *executionContext) unmarshalInputMoveRoomToGroupInput(ctx context.Conte
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputMoveSidebarLinkToGroupInput(ctx context.Context, obj any) (model.MoveSidebarLinkToGroupInput, error) {
+	var it model.MoveSidebarLinkToGroupInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"linkId", "groupId"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "linkId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("linkId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.LinkID = data
+		case "groupId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.GroupID = data
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputPostMessageInput(ctx context.Context, obj any) (model.PostMessageInput, error) {
 	var it model.PostMessageInput
 	if obj == nil {
@@ -28835,6 +29725,43 @@ func (ec *executionContext) unmarshalInputReorderRoomsInGroupInput(ctx context.C
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputReorderSidebarItemsInGroupInput(ctx context.Context, obj any) (model.ReorderSidebarItemsInGroupInput, error) {
+	var it model.ReorderSidebarItemsInGroupInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"groupId", "items"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "groupId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.GroupID = data
+		case "items":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("items"))
+			data, err := ec.unmarshalNSidebarGroupEntryInput2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐSidebarGroupEntryInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Items = data
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputRevokePermissionInput(ctx context.Context, obj any) (model.RevokePermissionInput, error) {
 	var it model.RevokePermissionInput
 	if obj == nil {
@@ -29008,6 +29935,43 @@ func (ec *executionContext) unmarshalInputSetServerNotificationLevelInput(ctx co
 				return it, err
 			}
 			it.Level = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputSidebarGroupEntryInput(ctx context.Context, obj any) (model.SidebarGroupEntryInput, error) {
+	var it model.SidebarGroupEntryInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"type", "id"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "type":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("type"))
+			data, err := ec.unmarshalNRoomGroupItemType2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomGroupItemType(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Type = data
+		case "id":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ID = data
 		}
 	}
 	return it, nil
@@ -29803,6 +30767,90 @@ func (ec *executionContext) unmarshalInputUpdateSettingsInput(ctx context.Contex
 				return it, err
 			}
 			it.TimeFormat = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputUpdateSidebarLinkInput(ctx context.Context, obj any) (model.UpdateSidebarLinkInput, error) {
+	var it model.UpdateSidebarLinkInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"linkId", "label", "url"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "linkId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("linkId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.LinkID = data
+		case "label":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("label"))
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				max, err := ec.unmarshalNInt2int32(ctx, 80)
+				if err != nil {
+					var zeroVal string
+					return zeroVal, err
+				}
+				if ec.Directives.Length == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive length is not implemented")
+				}
+				return ec.Directives.Length(ctx, obj, directive0, nil, max, nil)
+			}
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(string); ok {
+				it.Label = data
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+		case "url":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("url"))
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				max, err := ec.unmarshalNInt2int32(ctx, 2048)
+				if err != nil {
+					var zeroVal string
+					return zeroVal, err
+				}
+				if ec.Directives.Length == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive length is not implemented")
+				}
+				return ec.Directives.Length(ctx, obj, directive0, nil, max, nil)
+			}
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(string); ok {
+				it.URL = data
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
 		}
 	}
 	return it, nil
@@ -34344,6 +35392,41 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "createSidebarLink":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createSidebarLink(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateSidebarLink":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateSidebarLink(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteSidebarLink":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteSidebarLink(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "moveSidebarLinkToGroup":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_moveSidebarLinkToGroup(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "reorderSidebarItemsInGroup":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_reorderSidebarItemsInGroup(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "grantGroupPermission":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_grantGroupPermission(ctx, field)
@@ -36988,6 +38071,42 @@ func (ec *executionContext) _Room(ctx context.Context, sel ast.SelectionSet, obj
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "viewerCanAttach":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Room_viewerCanAttach(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "viewerCanReact":
 			field := field
 
@@ -36998,6 +38117,42 @@ func (ec *executionContext) _Room(ctx context.Context, sel ast.SelectionSet, obj
 					}
 				}()
 				res = ec._Room_viewerCanReact(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "viewerIsMember":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Room_viewerIsMember(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -38173,6 +39328,90 @@ func (ec *executionContext) _RoomGroup(ctx context.Context, sel ast.SelectionSet
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "items":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._RoomGroup_items(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var roomGroupItemImplementors = []string{"RoomGroupItem"}
+
+func (ec *executionContext) _RoomGroupItem(ctx context.Context, sel ast.SelectionSet, obj *model.RoomGroupItem) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, roomGroupItemImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("RoomGroupItem")
+		case "type":
+			out.Values[i] = ec._RoomGroupItem_type(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "id":
+			out.Values[i] = ec._RoomGroupItem_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "room":
+			out.Values[i] = ec._RoomGroupItem_room(ctx, field, obj)
+		case "link":
+			out.Values[i] = ec._RoomGroupItem_link(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -40774,6 +42013,55 @@ func (ec *executionContext) _SessionTerminatedEvent(ctx context.Context, sel ast
 	return out
 }
 
+var sidebarLinkImplementors = []string{"SidebarLink"}
+
+func (ec *executionContext) _SidebarLink(ctx context.Context, sel ast.SelectionSet, obj *corev1.SidebarLink) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, sidebarLinkImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("SidebarLink")
+		case "id":
+			out.Values[i] = ec._SidebarLink_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "label":
+			out.Values[i] = ec._SidebarLink_label(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "url":
+			out.Values[i] = ec._SidebarLink_url(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var subscriptionImplementors = []string{"Subscription"}
 
 func (ec *executionContext) _Subscription(ctx context.Context, sel ast.SelectionSet) func(ctx context.Context) graphql.Marshaler {
@@ -43275,6 +44563,11 @@ func (ec *executionContext) unmarshalNCreateRoomInput2hmansᚗdeᚋchattoᚋinte
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNCreateSidebarLinkInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐCreateSidebarLinkInput(ctx context.Context, v any) (model.CreateSidebarLinkInput, error) {
+	res, err := ec.unmarshalInputCreateSidebarLinkInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNDeleteAttachmentInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDeleteAttachmentInput(ctx context.Context, v any) (model.DeleteAttachmentInput, error) {
 	res, err := ec.unmarshalInputDeleteAttachmentInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -43307,6 +44600,11 @@ func (ec *executionContext) unmarshalNDeleteRoleInput2hmansᚗdeᚋchattoᚋinte
 
 func (ec *executionContext) unmarshalNDeleteRoomGroupInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDeleteRoomGroupInput(ctx context.Context, v any) (model.DeleteRoomGroupInput, error) {
 	res, err := ec.unmarshalInputDeleteRoomGroupInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNDeleteSidebarLinkInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDeleteSidebarLinkInput(ctx context.Context, v any) (model.DeleteSidebarLinkInput, error) {
+	res, err := ec.unmarshalInputDeleteSidebarLinkInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -43620,6 +44918,11 @@ func (ec *executionContext) marshalNMarkThreadAsReadResult2ᚖhmansᚗdeᚋchatt
 
 func (ec *executionContext) unmarshalNMoveRoomToGroupInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐMoveRoomToGroupInput(ctx context.Context, v any) (model.MoveRoomToGroupInput, error) {
 	res, err := ec.unmarshalInputMoveRoomToGroupInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNMoveSidebarLinkToGroupInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐMoveSidebarLinkToGroupInput(ctx context.Context, v any) (model.MoveSidebarLinkToGroupInput, error) {
+	res, err := ec.unmarshalInputMoveSidebarLinkToGroupInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -44021,6 +45324,11 @@ func (ec *executionContext) unmarshalNReorderRoomsInGroupInput2hmansᚗdeᚋchat
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNReorderSidebarItemsInGroupInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐReorderSidebarItemsInGroupInput(ctx context.Context, v any) (model.ReorderSidebarItemsInGroupInput, error) {
+	res, err := ec.unmarshalInputReorderSidebarItemsInGroupInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNRevokePermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRevokePermissionInput(ctx context.Context, v any) (model.RevokePermissionInput, error) {
 	res, err := ec.unmarshalInputRevokePermissionInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -44241,6 +45549,42 @@ func (ec *executionContext) marshalNRoomGroup2ᚖhmansᚗdeᚋchattoᚋinternal�
 	return ec._RoomGroup(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNRoomGroupItem2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomGroupItemᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.RoomGroupItem) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNRoomGroupItem2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomGroupItem(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNRoomGroupItem2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomGroupItem(ctx context.Context, sel ast.SelectionSet, v *model.RoomGroupItem) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._RoomGroupItem(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNRoomGroupItemType2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomGroupItemType(ctx context.Context, v any) (model.RoomGroupItemType, error) {
+	var res model.RoomGroupItemType
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNRoomGroupItemType2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomGroupItemType(ctx context.Context, sel ast.SelectionSet, v model.RoomGroupItemType) graphql.Marshaler {
+	return v
+}
+
 func (ec *executionContext) marshalNRoomGroupRolePermissions2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomGroupRolePermissions(ctx context.Context, sel ast.SelectionSet, v model.RoomGroupRolePermissions) graphql.Marshaler {
 	return ec._RoomGroupRolePermissions(ctx, sel, &v)
 }
@@ -44384,6 +45728,40 @@ func (ec *executionContext) unmarshalNSetRoomNotificationLevelInput2hmansᚗde�
 func (ec *executionContext) unmarshalNSetServerNotificationLevelInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐSetServerNotificationLevelInput(ctx context.Context, v any) (model.SetServerNotificationLevelInput, error) {
 	res, err := ec.unmarshalInputSetServerNotificationLevelInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNSidebarGroupEntryInput2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐSidebarGroupEntryInputᚄ(ctx context.Context, v any) ([]*model.SidebarGroupEntryInput, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*model.SidebarGroupEntryInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNSidebarGroupEntryInput2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐSidebarGroupEntryInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalNSidebarGroupEntryInput2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐSidebarGroupEntryInput(ctx context.Context, v any) (*model.SidebarGroupEntryInput, error) {
+	res, err := ec.unmarshalInputSidebarGroupEntryInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNSidebarLink2hmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐSidebarLink(ctx context.Context, sel ast.SelectionSet, v corev1.SidebarLink) graphql.Marshaler {
+	return ec._SidebarLink(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNSidebarLink2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐSidebarLink(ctx context.Context, sel ast.SelectionSet, v *corev1.SidebarLink) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._SidebarLink(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNStartDMInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐStartDMInput(ctx context.Context, v any) (model.StartDMInput, error) {
@@ -44581,6 +45959,11 @@ func (ec *executionContext) unmarshalNUpdateServerConfigInput2hmansᚗdeᚋchatt
 
 func (ec *executionContext) unmarshalNUpdateSettingsInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUpdateSettingsInput(ctx context.Context, v any) (model.UpdateSettingsInput, error) {
 	res, err := ec.unmarshalInputUpdateSettingsInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNUpdateSidebarLinkInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUpdateSidebarLinkInput(ctx context.Context, v any) (model.UpdateSidebarLinkInput, error) {
+	res, err := ec.unmarshalInputUpdateSidebarLinkInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -45078,6 +46461,13 @@ func (ec *executionContext) marshalORoomType2ᚖhmansᚗdeᚋchattoᚋinternal�
 		return graphql.Null
 	}
 	return v
+}
+
+func (ec *executionContext) marshalOSidebarLink2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐSidebarLink(ctx context.Context, sel ast.SelectionSet, v *corev1.SidebarLink) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._SidebarLink(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOString2string(ctx context.Context, v any) (string, error) {

@@ -45,6 +45,9 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   'message.post-in-thread': {
     description: 'Post replies inside a thread'
   },
+  'message.attach': {
+    description: 'Attach files to messages'
+  },
   'message.echo': {
     description: 'When posting in a thread, also surface the message in the main channel'
   },

@@ -70,6 +70,10 @@ export const PermMessagePost: Permission = "message.post";
  */
 export const PermMessagePostInThread: Permission = "message.post-in-thread";
 /**
+ * PermMessageAttach allows attaching files to new messages.
+ */
+export const PermMessageAttach: Permission = "message.attach";
+/**
  * PermMessageManage allows moderating other users' messages in a room
  * (editing or deleting). Authors editing or deleting their own messages do
  * NOT need this permission; it is always allowed.

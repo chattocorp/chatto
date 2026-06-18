@@ -9,6 +9,7 @@ const editWindowSeconds = 3 * 60 * 60;
 const canEchoRoomPermissions: RoomPermissions = {
   canPostMessage: true,
   canPostInThread: true,
+  canAttach: true,
   canReact: true,
   canManageOthersMessage: false,
   canEchoMessage: true,

@@ -340,7 +340,7 @@ func TestRoomResolver_Members(t *testing.T) {
 	env := setupTestResolver(t)
 
 	t.Run("room member can list members", func(t *testing.T) {
-		members, err := env.resolver.Room().Members(env.authContext(), env.testRoom, nil, nil)
+		members, err := env.resolver.Room().Members(env.authContext(), env.testRoom, nil, nil, nil)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -387,7 +387,7 @@ func TestRoomResolver_Members(t *testing.T) {
 
 		limit := int32(2)
 		offset := int32(1)
-		members, err := env.resolver.Room().Members(env.authContext(), env.testRoom, &limit, &offset)
+		members, err := env.resolver.Room().Members(env.authContext(), env.testRoom, nil, &limit, &offset)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -409,8 +409,63 @@ func TestRoomResolver_Members(t *testing.T) {
 		}
 	})
 
+	t.Run("room member search filters before pagination", func(t *testing.T) {
+		fixtures := []struct {
+			login       string
+			displayName string
+		}{
+			{login: "room-search-alpha", displayName: "Alpha Searchable"},
+			{login: "room-search-beta", displayName: "Beta Searchable"},
+			{login: "room-search-gamma", displayName: "Gamma Hidden"},
+		}
+		for _, fixture := range fixtures {
+			member, err := env.core.CreateUser(env.ctx, "system", fixture.login, fixture.displayName, "password123")
+			if err != nil {
+				t.Fatalf("Failed to create user %s: %v", fixture.login, err)
+			}
+			if _, err := env.core.JoinRoom(env.ctx, member.Id, core.KindChannel, member.Id, env.testRoom.Id); err != nil {
+				t.Fatalf("Failed to join user %s: %v", fixture.login, err)
+			}
+		}
+
+		deadline := time.Now().Add(2 * time.Second)
+		for {
+			memberships, err := env.core.GetRoomMembersList(env.ctx, core.KindChannel, env.testRoom.Id)
+			if err != nil {
+				t.Fatalf("Failed to get room members: %v", err)
+			}
+			if len(memberships) >= 7 {
+				break
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("Timed out waiting for room membership projection, got %d members", len(memberships))
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+
+		search := "searchable"
+		limit := int32(1)
+		offset := int32(1)
+		members, err := env.resolver.Room().Members(env.authContext(), env.testRoom, &search, &limit, &offset)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		if members.TotalCount != 2 {
+			t.Errorf("Expected search totalCount 2, got %d", members.TotalCount)
+		}
+		if members.HasMore {
+			t.Error("Expected no more members beyond second search result")
+		}
+		if len(members.Users) != 1 {
+			t.Fatalf("Expected 1 searched member page row, got %d", len(members.Users))
+		}
+		if members.Users[0].Login != "room-search-beta" {
+			t.Errorf("Expected second searched member to be beta, got %q", members.Users[0].Login)
+		}
+	})
+
 	t.Run("unauthenticated user is rejected", func(t *testing.T) {
-		members, err := env.resolver.Room().Members(env.unauthContext(), env.testRoom, nil, nil)
+		members, err := env.resolver.Room().Members(env.unauthContext(), env.testRoom, nil, nil, nil)
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Errorf("Expected ErrNotAuthenticated, got %v", err)
 		}
@@ -425,7 +480,7 @@ func TestRoomResolver_Members(t *testing.T) {
 			t.Fatalf("Failed to create user: %v", err)
 		}
 
-		members, err := env.resolver.Room().Members(env.authContextForUser(outsider), env.testRoom, nil, nil)
+		members, err := env.resolver.Room().Members(env.authContextForUser(outsider), env.testRoom, nil, nil, nil)
 		if !errors.Is(err, ErrNotRoomMember) {
 			t.Errorf("Expected ErrNotRoomMember, got %v", err)
 		}
@@ -440,7 +495,7 @@ func TestRoomResolver_Members(t *testing.T) {
 			t.Fatalf("Failed to create user: %v", err)
 		}
 
-		members, err := env.resolver.Room().Members(env.authContextForUser(spaceMember), env.testRoom, nil, nil)
+		members, err := env.resolver.Room().Members(env.authContextForUser(spaceMember), env.testRoom, nil, nil, nil)
 		if !errors.Is(err, ErrNotRoomMember) {
 			t.Errorf("Expected ErrNotRoomMember, got %v", err)
 		}

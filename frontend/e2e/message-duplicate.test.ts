@@ -22,7 +22,7 @@ test.describe('Message duplication bug', () => {
 
     // Post a message
     await roomPage.messageInput.fill(testMessage);
-    await roomPage.messageInput.press('Enter');
+    await roomPage.messageInput.press('Control+Enter');
 
     // Wait for message to appear (use first() to avoid strict mode with duplicates)
     await expect(page.getByText(testMessage).first()).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });

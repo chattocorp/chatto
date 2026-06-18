@@ -11,6 +11,8 @@
 
 import type { UserSettingsState } from '$lib/state/userSettings.svelte';
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 function toDate(date: Date | string): Date {
   return typeof date === 'string' ? new Date(date) : date;
 }
@@ -29,6 +31,79 @@ function getFormatter(
     formatterCache.set(key, fmt);
   }
   return fmt;
+}
+
+type DateParts = {
+  year: number;
+  month: number;
+  day: number;
+};
+
+type WeekInfo = {
+  firstDay?: number;
+};
+
+type LocaleWithWeekInfo = {
+  weekInfo?: WeekInfo;
+  getWeekInfo?: () => WeekInfo;
+};
+
+export type FileDateGroup = {
+  key: string;
+  label: string;
+};
+
+function dateParts(date: Date, settings: UserSettingsState): DateParts {
+  const fmt = getFormatter('en-US', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    timeZone: settings.effectiveTimezone
+  });
+  const parts = fmt.formatToParts(date);
+  const value = (type: string) => Number(parts.find((part) => part.type === type)?.value ?? 0);
+  return {
+    year: value('year'),
+    month: value('month'),
+    day: value('day')
+  };
+}
+
+function daySerial(parts: DateParts): number {
+  return Math.floor(Date.UTC(parts.year, parts.month - 1, parts.day) / DAY_MS);
+}
+
+function weekday(parts: DateParts): number {
+  return new Date(Date.UTC(parts.year, parts.month - 1, parts.day)).getUTCDay();
+}
+
+function normalizeFirstDay(firstDay: number | undefined): number | null {
+  if (typeof firstDay !== 'number' || !Number.isInteger(firstDay)) return null;
+  if (firstDay === 7) return 0;
+  if (firstDay >= 1 && firstDay <= 6) return firstDay;
+  if (firstDay === 0) return 0;
+  return null;
+}
+
+export function firstDayOfWeekForLocale(locale?: string): number {
+  const fallback = 1;
+  const localeName =
+    locale ?? globalThis.navigator?.languages?.[0] ?? globalThis.navigator?.language;
+  if (!localeName || typeof Intl.Locale !== 'function') return fallback;
+
+  try {
+    const intlLocale = new Intl.Locale(localeName) as LocaleWithWeekInfo;
+    const info = intlLocale.weekInfo ?? intlLocale.getWeekInfo?.();
+    return normalizeFirstDay(info?.firstDay) ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function startOfWeekSerial(parts: DateParts, firstDay: number): number {
+  const currentWeekday = weekday(parts);
+  const offset = (currentWeekday - firstDay + 7) % 7;
+  return daySerial(parts) - offset;
 }
 
 /**
@@ -115,4 +190,42 @@ export function formatDayLabel(date: Date | string, settings: UserSettingsState)
     timeZone: tz
   });
   return labelFmt.format(d);
+}
+
+export function formatMonthYear(date: Date | string, settings: UserSettingsState): string {
+  const fmt = getFormatter(undefined, {
+    month: 'long',
+    year: 'numeric',
+    timeZone: settings.effectiveTimezone
+  });
+  return fmt.format(toDate(date));
+}
+
+export function fileDateGroup(
+  date: Date | string,
+  settings: UserSettingsState,
+  now: Date = new Date(),
+  locale?: string
+): FileDateGroup {
+  const d = toDate(date);
+  const itemParts = dateParts(d, settings);
+  const nowParts = dateParts(now, settings);
+  const daysAgo = daySerial(nowParts) - daySerial(itemParts);
+
+  if (daysAgo === 0) return { key: 'today', label: 'Today' };
+  if (daysAgo === 1) return { key: 'yesterday', label: 'Yesterday' };
+
+  const firstDay = firstDayOfWeekForLocale(locale);
+  if (startOfWeekSerial(itemParts, firstDay) === startOfWeekSerial(nowParts, firstDay)) {
+    return { key: 'this-week', label: 'This week' };
+  }
+
+  if (itemParts.year === nowParts.year && itemParts.month === nowParts.month) {
+    return { key: 'this-month', label: 'This month' };
+  }
+
+  return {
+    key: `month:${itemParts.year}-${String(itemParts.month).padStart(2, '0')}`,
+    label: formatMonthYear(d, settings)
+  };
 }

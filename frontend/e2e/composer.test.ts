@@ -160,6 +160,96 @@ test.describe('Composer focus', () => {
   });
 });
 
+test.describe('Composer keyboard submit hint', () => {
+  test('sends when Enter is pressed from a trailing blank paragraph', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    await waitForRoomReady(page, 'general');
+
+    const message = `Return again send ${Date.now()}`;
+    await roomPage.waitForInputEditable();
+    await roomPage.messageInput.fill(message);
+    await expect(page.getByText(/(?:Cmd|Ctrl)\+Return to Send/)).toBeVisible();
+
+    await roomPage.messageInput.press('Enter');
+    await expect(page.getByText(/(?:Return|Enter) again to Send/)).toBeVisible();
+
+    await roomPage.messageInput.press('Enter');
+    await expect(roomPage.getMessage(message).locator).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+    await expect(roomPage.messageInput).toHaveText('');
+  });
+
+  test('sends from the visible trailing paragraph after exiting a list', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    await waitForRoomReady(page, 'general');
+
+    await roomPage.waitForInputEditable();
+    await roomPage.messageInput.fill('- first');
+    await expect(page.getByText(/(?:Cmd|Ctrl)\+Return to Send/)).toBeVisible();
+
+    await roomPage.messageInput.press('Enter');
+    await expect(roomPage.messageInput.locator('ul li')).toHaveCount(2);
+    await expect(page.getByText(/(?:Cmd|Ctrl)\+Return to Send/)).toBeVisible();
+
+    await roomPage.messageInput.press('Enter');
+    await expect(roomPage.messageInput.locator('ul li')).toHaveCount(1);
+    await expect(roomPage.messageInput.locator(':scope > p')).toHaveCount(1);
+    await expect(page.getByText(/(?:Return|Enter) again to Send/)).toBeVisible();
+
+    await roomPage.messageInput.press('Enter');
+    await expect(roomPage.getMessage('first').locator).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+    await expect(roomPage.messageInput).toHaveText('');
+  });
+});
+
+test.describe('Composer links', () => {
+  test('typing space after a pasted autolink leaves the link', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    await waitForRoomReady(page, 'general');
+
+    const url = 'https://www.spiegel.de/';
+    await roomPage.waitForInputEditable();
+    await roomPage.messageInput.click();
+    await roomPage.messageInput.evaluate((element, pastedUrl) => {
+      const dataTransfer = new DataTransfer();
+      dataTransfer.setData('text/plain', pastedUrl);
+      element.dispatchEvent(
+        new ClipboardEvent('paste', {
+          bubbles: true,
+          cancelable: true,
+          clipboardData: dataTransfer
+        })
+      );
+    }, url);
+
+    const link = roomPage.messageInput.locator('a');
+    await expect(link).toHaveText(url);
+    await expect(link).toHaveAttribute('href', url);
+
+    await roomPage.messageInput.pressSequentially(' after');
+
+    await expect(link).toHaveText(url);
+    await expect(roomPage.messageInput).toHaveText(`${url} after`);
+  });
+});
+
 // Use #general (postable) as the starting room and a freshly-created custom
 // room (also postable) as the navigation target. We can't use #announcements
 // — its special permissions deny message.post for regular members, which

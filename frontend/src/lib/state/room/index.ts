@@ -16,11 +16,14 @@ export type {
 } from './composerContext.svelte';
 export {
   createRoomMembers,
+  setRoomMembersStore,
   getRoomMembers,
-  getRoomMembersState,
-  getMemberPresence
+  getRoomMembersStore,
+  getMemberPresence,
+  RoomMembersStore,
+  ROOM_MEMBERS_PAGE_SIZE
 } from './members.svelte';
-export type { RoomMember, RoomMembersState } from './members.svelte';
+export type { RoomMember, RoomMembersPage } from './members.svelte';
 export { createMentionRoles, getMentionRoles } from './mentionRoles.svelte';
 export type { MentionRole, MentionRolesState } from './mentionRoles.svelte';
 export {

@@ -114,7 +114,7 @@ Projections are in-memory read models rebuilt from `EVT`. `NewChattoCore` regist
 | Runtime area       | Registered projector | Consumes                                                   | Read models / primary readers                                                             |
 | ------------------ | -------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | Room directory     | Room Directory       | `evt.room.>`                                               | `RoomCatalogProjection`, `RoomMembershipProjection`, `RoomBanProjection`; room/member queries and room authorization |
-| Room organization  | Room Group Layout    | `evt.group.>`, `evt.layout.>`                              | `RoomGroupProjection`, `RoomLayoutProjection`; sidebar groups and room ordering            |
+| Room organization  | Room Group Layout    | `evt.group.>`, `evt.layout.>`                              | `RoomGroupProjection`, `RoomLayoutProjection`; sidebar groups, sidebar links, and mixed sidebar item ordering |
 | Room timeline      | Room Timeline        | `evt.room.>`                                               | Raw room log, visible timeline index, latest message bodies, hidden echoes, current attachment-bearing message index, and message asset references |
 | Assets             | Assets               | `evt.asset.>`, legacy `evt.room.*.asset_*`                 | Asset creation metadata, room scope, processing manifests, derivative graph, deletion state, and legacy room-asset compatibility |
 | Threads            | Threads              | `evt.room.>`, `evt.user.*.user_key_shredded`               | Per-thread reply logs, summaries, participants, reply counts                               |
@@ -149,17 +149,19 @@ Note: there is no top-level `me` query — viewer-scoped state hangs off the `vi
 
 **Users** ([`query.graphqls`](../cli/internal/graph/query.graphqls))
 
-| Query                              | Description                                                                            |
-| ---------------------------------- | -------------------------------------------------------------------------------------- |
-| `user(userId)`                     | Authenticated lookup of a user by ID.                                                  |
-| `userByLogin(login)`               | Authenticated lookup of a user by login (returns null if not found).                   |
-| `server.members(search, limit, offset)` | Canonical paginated member directory (authenticated users).                       |
+| Query                                   | Description                                                            |
+| --------------------------------------- | ---------------------------------------------------------------------- |
+| `user(userId)`                          | Authenticated lookup of a user by ID.                                  |
+| `userByLogin(login)`                    | Authenticated lookup of a user by login (returns null if not found).   |
+| `server.members(search, limit, offset)` | Canonical paginated member directory (authenticated users).             |
 
 **Rooms** ([`query.graphqls`](../cli/internal/graph/query.graphqls), [`room.graphqls`](../cli/internal/graph/room.graphqls))
 
 | Query                              | Description                                                                            |
 | ---------------------------------- | -------------------------------------------------------------------------------------- |
-| `room(roomId)`                     | Get a room by ID. Room-scoped reads (`members`, `events`, `event(eventId)`, `eventsAround`, `voiceCallToken`, `viewerCan*` flags, `viewerNotifications`) live as fields on the returned `Room`; `members` and `viewerNotifications` are offset-paginated. `events` is the visible room timeline. Folded durable facts such as reactions are reflected in projected room reads; the web client refreshes the current room window after wake/reconnect to catch up without a full document reload. |
+| `server.rooms(type?)`              | List rooms visible to the caller. Channel rooms are gated by membership or `room.list`; DM rooms are membership-only. Sidebar clients use `viewerIsMember` and `viewerCanJoinRoom` on `Room` to distinguish joined, joinable, and visible-but-not-joinable channel rows. |
+| `server.roomGroups`                | Ordered channel-room groups and mixed sidebar items used to render the server sidebar. Group room entries are filtered to rooms visible to the caller. |
+| `room(roomId)`                     | Get a room by ID. Room-scoped reads (`members`, `events`, `event(eventId)`, `eventsAround`, `voiceCallToken`, `viewerCan*` flags, `viewerIsMember`, `viewerNotifications`) live as fields on the returned `Room`; `members(search, limit, offset)` and `viewerNotifications` are offset-paginated. `events` is the visible room timeline. Folded durable facts such as reactions are reflected in projected room reads; the web client refreshes the current room window after wake/reconnect to catch up without a full document reload. |
 
 **RBAC tooling** ([`rbac.graphqls`](../cli/internal/graph/rbac.graphqls), [`role_permissions.graphqls`](../cli/internal/graph/role_permissions.graphqls), [`role_permission_matrix.graphqls`](../cli/internal/graph/role_permission_matrix.graphqls), [`user_permissions.graphqls`](../cli/internal/graph/user_permissions.graphqls), [`permission_inspector.graphqls`](../cli/internal/graph/permission_inspector.graphqls))
 
@@ -210,7 +212,7 @@ Admin queries are nested under a single `admin: AdminQueries` field that returns
 
 | Mutation                  | Description                                                                                  |
 | ------------------------- | -------------------------------------------------------------------------------------------- |
-| `postMessage`             | Post a message (root or thread reply; optional attachments / link previews / echo-to-channel).|
+| `postMessage`             | Post a message (root or thread reply; attachments additionally require `message.attach`; optional link previews / echo-to-channel).|
 | `updateMessage`           | Update own message body (3-hour window); optional thread-reply echo reconciliation.           |
 | `deleteMessage`           | Delete message body (GDPR crypto-shred); event stays in stream as audit trail.               |
 | `deleteAttachment`        | Delete an attachment from own message.                                                       |
@@ -264,6 +266,11 @@ Admin queries are nested under a single `admin: AdminQueries` field that returns
 | `reorderRoomGroups`               | Reorder all room groups (full list, exactly once each).                                      |
 | `reorderRoomsInGroup`             | Reorder rooms within a single group.                                                         |
 | `moveRoomToGroup`                 | Move a room into a different group (`room.manage` in both source and target — see ADR-031). |
+| `createSidebarLink`               | Add an external link to a room group (`room.manage`).                                        |
+| `updateSidebarLink`               | Rename or retarget a sidebar link (`room.manage`).                                           |
+| `deleteSidebarLink`               | Remove a sidebar link from its group (`room.manage`).                                        |
+| `moveSidebarLinkToGroup`          | Move a sidebar link into a different group (`room.manage` in both source and target).        |
+| `reorderSidebarItemsInGroup`      | Reorder rooms and sidebar links within a single group.                                       |
 | `grantGroupPermission`            | Grant a permission to a role at group scope.                                                 |
 | `denyGroupPermission`             | Deny a permission to a role at group scope.                                                  |
 | `clearGroupPermissionState`       | Remove both grant and denial at group scope.                                                 |
@@ -348,7 +355,7 @@ auth workflow audit facts.
 **Event-sourced aggregates:**
 
 - `EVT` is the source of truth.
-- Fresh deployments seed current invariants such as default RBAC roles and the default room group.
+- Fresh deployments seed current invariants such as default RBAC roles and the default room group. Fresh RBAC seeds include `message.attach` for `everyone`; existing RBAC state is not silently backfilled on boot.
 - Reads come from in-memory projections rebuilt from `EVT`.
 - Room timeline reads use `RoomTimelineProjection`'s derived visible-room index for initial loads, forward/backward pagination, and around-message windows; `Room.attachments` uses the projection's current attachment-bearing message index so it does not decrypt unrelated message bodies. The raw room log still preserves folded room facts such as edits, retractions, reactions, and thread replies; visible readers skip or fold those facts before serving the room timeline. Asset lifecycle facts live in `AssetProjection`, which also consumes legacy beta `evt.room.{roomId}.asset_*` facts. Live `Subscription.myEvents` delivery reads the committed EVT feed, waits for projection readiness, and emits authorized events without exposing folded facts as standalone timeline rows in `Room.events`.
 - Writes append to `EVT` only for durable domain facts; legacy KV/stream data is not maintained as a mirror.
@@ -453,7 +460,7 @@ The republished `live.evt.{aggregateType}.{aggregateId}.{eventType}` subject is 
 | `evt.asset.*.{eventType}`                        | One asset event type across all assets                                          |
 | `evt.config.>`                                   | Dynamic server/user configuration and preferences                               |
 | `evt.config.{subject}.{eventType}`               | Config fact for `server`, a user ID, or another configurable subject            |
-| `evt.group.{groupId}.{eventType}`                | Room group metadata and group-owned room ordering/membership facts              |
+| `evt.group.{groupId}.{eventType}`                | Room group metadata and group-owned sidebar item ordering/membership facts      |
 | `evt.layout.default.{eventType}`                 | Singleton sidebar group ordering facts                                          |
 | `evt.user.{userId}.{eventType}`                  | User/account/profile/auth lookup facts and user-scoped auth audit facts         |
 | `evt.user.*.{eventType}`                         | One user event type across all users                                            |
@@ -515,6 +522,10 @@ The aggregate ID is intentionally part of the subject; actor/user and detailed c
 | `evt.group.{groupId}.room_added`                            | `RoomAddedToGroupEvent`                             |
 | `evt.group.{groupId}.room_removed`                          | `RoomRemovedFromGroupEvent`                         |
 | `evt.group.{groupId}.rooms_reordered`                       | `RoomsInGroupReorderedEvent`                        |
+| `evt.group.{groupId}.sidebar_link_added`                    | `SidebarLinkAddedToGroupEvent`                      |
+| `evt.group.{groupId}.sidebar_link_updated`                  | `SidebarLinkUpdatedEvent`                           |
+| `evt.group.{groupId}.sidebar_link_removed`                  | `SidebarLinkRemovedFromGroupEvent`                  |
+| `evt.group.{groupId}.sidebar_entries_reordered`             | `SidebarGroupEntriesReorderedEvent`                 |
 | `evt.layout.default.groups_reordered`                        | `RoomGroupsReorderedEvent`                          |
 | `evt.user.{userId}.account_created`                         | `UserAccountCreatedEvent`                           |
 | `evt.user.{userId}.login_changed`                           | `UserLoginChangedEvent`                             |

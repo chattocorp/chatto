@@ -36,7 +36,7 @@ test.describe('Emoji autocomplete (composer integration)', () => {
     await expect(popup).not.toBeVisible();
     await expect(roomPage.messageInput).toHaveText(/👋/);
 
-    await roomPage.messageInput.press('Enter');
+    await roomPage.messageInput.press('Control+Enter');
     await expect(page.locator('[role="article"]', { hasText: '👋' })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });

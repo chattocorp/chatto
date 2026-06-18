@@ -6,6 +6,8 @@
     AdminRoomGroup as GroupState,
     AdminRoomInfo as RoomInfo,
     AdminRoomLayoutStore,
+    AdminSidebarItem,
+    AdminSidebarLinkInfo,
     GroupReorderResult,
     RoomMoveFlushResult
   } from '$lib/state/server/adminRoomLayout.svelte';
@@ -29,13 +31,14 @@
     onroomcreated?: () => void;
   } = $props();
 
-  type DndRoomItem = RoomInfo & { id: string };
+  type DndRoomItem = AdminSidebarItem & { id: string };
   type DndGroupItem = GroupState & { id: string };
 
   let renderGroups = $derived(
     layout.groups.map((group) => ({
       ...group,
-      rooms: group.rooms ?? []
+      rooms: group.rooms ?? [],
+      items: group.items ?? []
     }))
   );
 
@@ -103,7 +106,7 @@
       return;
     }
     if (result.movedCount > 0) {
-      toast.success(result.movedCount === 1 ? 'Room moved' : `${result.movedCount} rooms moved`);
+      toast.success(result.movedCount === 1 ? 'Item moved' : `${result.movedCount} items moved`);
     }
   }
 
@@ -291,6 +294,71 @@
     layout.handleRoomCreated();
     onroomcreated?.();
   }
+
+  // --- Sidebar link editing ---
+
+  let linkDialogVisible = $state(false);
+  let editingLinkId = $state<string | null>(null);
+  let linkGroupId = $state<string | null>(null);
+  let linkLabel = $state('');
+  let linkUrl = $state('');
+
+  function openCreateLink(group: GroupState) {
+    editingLinkId = null;
+    linkGroupId = group.id;
+    linkLabel = '';
+    linkUrl = '';
+    linkDialogVisible = true;
+  }
+
+  function openEditLink(link: AdminSidebarLinkInfo) {
+    editingLinkId = link.id;
+    linkGroupId = null;
+    linkLabel = link.label;
+    linkUrl = link.url;
+    linkDialogVisible = true;
+  }
+
+  async function handleLinkSubmit(e: Event) {
+    e.preventDefault();
+    const label = linkLabel.trim();
+    const url = linkUrl.trim();
+    if (!label || !url) return;
+
+    const result = editingLinkId
+      ? await layout.updateSidebarLink(editingLinkId, label, url)
+      : linkGroupId
+        ? await layout.createSidebarLink(linkGroupId, label, url)
+        : { ok: false as const, error: 'No group selected' };
+
+    if (!result.ok) {
+      toast.error(`Failed to save link: ${result.error}`);
+      return;
+    }
+
+    toast.success(editingLinkId ? 'Link updated' : 'Link created');
+    linkDialogVisible = false;
+  }
+
+  let deleteLinkConfirmDialogVisible = $state(false);
+  let deleteLinkConfirm = $state<AdminSidebarLinkInfo | null>(null);
+
+  function confirmDeleteLink(link: AdminSidebarLinkInfo) {
+    deleteLinkConfirm = link;
+    deleteLinkConfirmDialogVisible = true;
+  }
+
+  async function deleteLink() {
+    if (!deleteLinkConfirm) return;
+    const result = await layout.deleteSidebarLink(deleteLinkConfirm.id);
+    deleteLinkConfirmDialogVisible = false;
+    deleteLinkConfirm = null;
+    if (!result.ok) {
+      toast.error(`Failed to delete link: ${result.error}`);
+      return;
+    }
+    toast.success('Link deleted');
+  }
 </script>
 
 {#snippet iconButton(opts: {
@@ -315,30 +383,45 @@
 {/snippet}
 
 {#snippet roomActions(room: DndRoomItem)}
-  {@render iconButton({
-    icon: 'uil--pen',
-    title: 'Edit room',
-    onclick: () => openEditRoom(room)
-  })}
-  {@render iconButton({
-    icon: 'uil--shield',
-    title: 'Per-room permission overrides',
-    onclick: () => openRoomPermissions(room)
-  })}
-  {#if room.archived}
+  {#if room.kind === 'room'}
+    {@const roomInfo = room.room}
     {@render iconButton({
-      icon: 'uil--redo',
-      title: 'Unarchive room',
-      disabled: layout.archivingRoomId === room.id,
-      onclick: () => confirmUnarchiveRoom(room)
+      icon: 'uil--pen',
+      title: 'Edit room',
+      onclick: () => openEditRoom(roomInfo)
     })}
+    {@render iconButton({
+      icon: 'uil--shield',
+      title: 'Per-room permission overrides',
+      onclick: () => openRoomPermissions(roomInfo)
+    })}
+    {#if roomInfo.archived}
+      {@render iconButton({
+        icon: 'uil--redo',
+        title: 'Unarchive room',
+        disabled: layout.archivingRoomId === roomInfo.id,
+        onclick: () => confirmUnarchiveRoom(roomInfo)
+      })}
+    {:else}
+      {@render iconButton({
+        icon: 'uil--archive',
+        title: 'Archive room',
+        tone: 'warning',
+        disabled: layout.archivingRoomId === roomInfo.id,
+        onclick: () => confirmArchiveRoom(roomInfo)
+      })}
+    {/if}
   {:else}
     {@render iconButton({
-      icon: 'uil--archive',
-      title: 'Archive room',
-      tone: 'warning',
-      disabled: layout.archivingRoomId === room.id,
-      onclick: () => confirmArchiveRoom(room)
+      icon: 'uil--pen',
+      title: 'Edit link',
+      onclick: () => openEditLink(room.link)
+    })}
+    {@render iconButton({
+      icon: 'uil--trash-alt',
+      title: 'Delete link',
+      tone: 'danger',
+      onclick: () => confirmDeleteLink(room.link)
     })}
   {/if}
 {/snippet}
@@ -393,13 +476,17 @@
 
               <div class="flex min-w-0 flex-1 items-center gap-2">
                 <h2 class="truncate text-lg font-semibold">{group.name}</h2>
-                <Pill tone="muted">{group.rooms.length}</Pill>
+                <Pill tone="muted">{group.items.length}</Pill>
               </div>
 
               <div class="flex items-center gap-2">
                 <Button variant="secondary" size="sm" onclick={() => openCreateRoom(group)}>
                   <span class="iconify uil--plus"></span>
                   New Room
+                </Button>
+                <Button variant="secondary" size="sm" onclick={() => openCreateLink(group)}>
+                  <span class="iconify uil--external-link-alt"></span>
+                  New Link
                 </Button>
                 <div class="flex items-center gap-1.5">
                   {@render iconButton({
@@ -415,11 +502,11 @@
                   {@render iconButton({
                     icon: 'uil--trash-alt',
                     title:
-                      group.rooms.length === 0
+                      group.items.length === 0
                         ? 'Delete group'
-                        : 'Move all rooms out of this group before deleting',
+                        : 'Move all items out of this group before deleting',
                     tone: 'danger',
-                    disabled: group.rooms.length > 0,
+                    disabled: group.items.length > 0,
                     onclick: () => confirmDeleteGroup(group)
                   })}
                 </div>
@@ -429,7 +516,7 @@
             <div
               class="min-h-12 p-2"
               use:dndzone={{
-                items: group.rooms,
+                items: group.items,
                 flipDurationMs: 200,
                 dropTargetStyle: {
                   outline: '2px dashed var(--color-accent)',
@@ -442,24 +529,32 @@
               onconsider={(e) => handleGroupConsider(group.id, e)}
               onfinalize={(e) => handleGroupFinalize(group.id, e)}
             >
-              {#each group.rooms as room (room.id)}
+              {#each group.items as room (room.id)}
                 <div
                   animate:flip={{ duration: 200 }}
                   class={[
                     'group flex cursor-grab items-center gap-3 rounded-lg py-2 pr-2 pl-3 hover:bg-surface-100',
-                    room.archived && 'opacity-60'
+                    room.kind === 'room' && room.room.archived && 'opacity-60'
                   ]}
                 >
                   <div class="min-w-0 flex-1">
-                    <div class="flex min-w-0 items-baseline gap-1">
-                      <span class="text-muted">#</span>
-                      <span class="truncate font-medium">{room.name}</span>
-                      {#if room.archived}
-                        <Pill tone="muted">Archived</Pill>
+                    {#if room.kind === 'room'}
+                      <div class="flex min-w-0 items-baseline gap-1">
+                        <span class="text-muted">#</span>
+                        <span class="truncate font-medium">{room.room.name}</span>
+                        {#if room.room.archived}
+                          <Pill tone="muted">Archived</Pill>
+                        {/if}
+                      </div>
+                      {#if room.room.description}
+                        <p class="truncate text-sm text-muted">{room.room.description}</p>
                       {/if}
-                    </div>
-                    {#if room.description}
-                      <p class="truncate text-sm text-muted">{room.description}</p>
+                    {:else}
+                      <div class="flex min-w-0 items-baseline gap-1.5">
+                        <span class="iconify text-muted uil--external-link-alt"></span>
+                        <span class="truncate font-medium">{room.link.label}</span>
+                      </div>
+                      <p class="truncate text-sm text-muted">{room.link.url}</p>
                     {/if}
                   </div>
                   <div class="flex items-center gap-1.5">
@@ -550,6 +645,20 @@
   <TextInput id="edit-group-name" label="Group name" bind:value={editGroupName} />
 </FormDialog>
 
+<FormDialog
+  bind:visible={linkDialogVisible}
+  title={editingLinkId ? 'Edit Link' : 'Create Link'}
+  size="sm"
+  submitLabel={editingLinkId ? 'Save' : 'Create Link'}
+  submitIcon={editingLinkId ? undefined : 'iconify uil--plus'}
+  disabled={!linkLabel.trim() || !linkUrl.trim()}
+  onsubmit={handleLinkSubmit}
+  onclose={() => (linkDialogVisible = false)}
+>
+  <TextInput id="sidebar-link-label" label="Label" bind:value={linkLabel} />
+  <TextInput id="sidebar-link-url" label="URL" bind:value={linkUrl} />
+</FormDialog>
+
 {#if deleteGroupConfirmDialogVisible && deleteGroupConfirm}
   <ConfirmDialog
     title="Delete Group"
@@ -562,6 +671,22 @@
     }}
   >
     Are you sure you want to delete the set <strong>{deleteGroupConfirm.name}</strong>?
+  </ConfirmDialog>
+{/if}
+
+{#if deleteLinkConfirmDialogVisible && deleteLinkConfirm}
+  <ConfirmDialog
+    title="Delete Link"
+    actionLabel="Delete Link"
+    actionIcon="iconify uil--trash-alt"
+    tone="danger"
+    onconfirm={deleteLink}
+    onclose={() => {
+      deleteLinkConfirmDialogVisible = false;
+      deleteLinkConfirm = null;
+    }}
+  >
+    Are you sure you want to delete <strong>{deleteLinkConfirm.label}</strong>?
   </ConfirmDialog>
 {/if}
 

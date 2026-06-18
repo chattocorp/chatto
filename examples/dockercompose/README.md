@@ -31,6 +31,7 @@ This example deploys a clustered Chatto setup with:
    Key settings:
    - `PUBLIC_URL` - Your domain (e.g., `chat.example.com`)
    - `CHATTO_OWNERS_EMAILS` - Comma-separated verified email addresses that should become Chatto owners. Include the email address you will use for the first account.
+   - `PUID` and `PGID` - Host user and group IDs Chatto should use for files it writes to mounted volumes. Defaults to `1000:1000`.
    - `NATS_TOKEN` and `CHATTO_NATS_CLIENT_TOKEN` - Must match (shared auth token)
    - `CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET` - Session cookie signing
    - `CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET` - Session cookie encryption

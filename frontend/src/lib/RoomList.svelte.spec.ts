@@ -7,6 +7,7 @@ const { mocks } = vi.hoisted(() => ({
   mocks: {
     activeCallRoomIds: new Set<string>(),
     callParticipants: new Map<string, unknown[]>(),
+    pushState: vi.fn(),
     store: {
       currentUser: { user: { id: 'me' } },
       notifications: {
@@ -63,7 +64,8 @@ vi.mock('$app/state', () => ({
 }));
 
 vi.mock('$app/navigation', () => ({
-  goto: vi.fn()
+  goto: vi.fn(),
+  pushState: mocks.pushState
 }));
 
 vi.mock('$app/paths', () => ({
@@ -128,6 +130,29 @@ function setRooms() {
       name: 'general',
       type: RoomType.Channel,
       hasUnread: false,
+      viewerIsMember: true,
+      viewerCanJoinRoom: true,
+      viewerNotificationCount: 0,
+      members: []
+    },
+    {
+      id: 'joinable-channel',
+      name: 'joinable',
+      type: RoomType.Channel,
+      hasUnread: false,
+      viewerIsMember: false,
+      viewerCanJoinRoom: true,
+      viewerNotificationCount: 0,
+      members: []
+    },
+    {
+      id: 'restricted-channel',
+      name: 'restricted',
+      type: RoomType.Channel,
+      hasUnread: false,
+      viewerIsMember: false,
+      viewerCanJoinRoom: false,
+      viewerNotificationCount: 0,
       members: []
     },
     {
@@ -135,6 +160,9 @@ function setRooms() {
       name: '',
       type: RoomType.Dm,
       hasUnread: false,
+      viewerIsMember: true,
+      viewerCanJoinRoom: true,
+      viewerNotificationCount: 0,
       members: [user('me', 'me', 'Me'), user('teal', 'teal', 'Teal')]
     },
     {
@@ -142,6 +170,9 @@ function setRooms() {
       name: '',
       type: RoomType.Dm,
       hasUnread: false,
+      viewerIsMember: true,
+      viewerCanJoinRoom: true,
+      viewerNotificationCount: 0,
       members: [user('me', 'me', 'Me'), user('river', 'river', 'River')]
     }
   ] as never;
@@ -210,5 +241,46 @@ describe('RoomList', () => {
     const channelRow = q(container, '[href="/chat/-/channel-1"]');
     expect(channelRow?.querySelector('[data-testid="room-call-badge"]')).not.toBeNull();
     expect(channelRow?.querySelector('.uil--phone')).not.toBeNull();
+  });
+
+  it('opens a join modal for a faded joinable non-member channel row', async () => {
+    const { container } = render(RoomList);
+
+    const row = q(container, '[href="/chat/-/joinable-channel"]') as HTMLAnchorElement;
+    await expect.element(row).toBeInTheDocument();
+    expect(row.className).toContain('opacity-60');
+
+    row.click();
+
+    expect(mocks.pushState).toHaveBeenCalledWith('', {
+      modal: {
+        type: 'joinRoom',
+        roomId: 'joinable-channel',
+        roomName: 'joinable',
+        viewerCanJoinRoom: true
+      }
+    });
+  });
+
+  it('opens an access-info modal for a faded non-joinable channel row', async () => {
+    const { container } = render(RoomList);
+
+    const row = q(container, '[href="/chat/-/restricted-channel"]') as HTMLAnchorElement;
+    await expect.element(row).toBeInTheDocument();
+    expect(row.className).toContain('opacity-60');
+    const icon = row.querySelector('.sidebar-icon');
+    expect(icon?.classList.contains('uil--lock')).toBe(true);
+    expect(row.querySelectorAll('.uil--lock')).toHaveLength(1);
+
+    row.click();
+
+    expect(mocks.pushState).toHaveBeenCalledWith('', {
+      modal: {
+        type: 'joinRoom',
+        roomId: 'restricted-channel',
+        roomName: 'restricted',
+        viewerCanJoinRoom: false
+      }
+    });
   });
 });

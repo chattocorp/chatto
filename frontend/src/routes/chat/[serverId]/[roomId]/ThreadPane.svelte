@@ -25,6 +25,7 @@
     threadRootEventId,
     onClose,
     canPostInThread = true,
+    canAttach = true,
     canEchoMessage = false,
     highlightEventId = null,
     onHighlightComplete
@@ -34,6 +35,7 @@
     threadRootEventId: string;
     onClose: () => void;
     canPostInThread?: boolean;
+    canAttach?: boolean;
     canEchoMessage?: boolean;
     highlightEventId?: string | null;
     onHighlightComplete?: () => void;
@@ -333,6 +335,7 @@
     onCancelReply={() => replyState.cancelReply()}
     placeholder="Reply in thread..."
     {canPost}
+    {canAttach}
     showAlsoSendToChannel={canEchoMessage}
     onEscape={onClose}
     onReady={(api: MessageComposerApi) => api.focus()}

@@ -22,6 +22,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/vektah/gqlparser/v2/ast"
+	"github.com/vektah/gqlparser/v2/gqlerror"
 	"hmans.de/chatto/internal/assets"
 	"hmans.de/chatto/internal/graph"
 	"hmans.de/chatto/internal/graph/auth"
@@ -47,6 +48,13 @@ func (s *HTTPServer) setupGraphQLAPI(allowedOrigins []string) {
 	h := handler.New(graph.NewExecutableSchema(config))
 	h.AroundFields(graph.DefaultAuthFieldMiddleware)
 
+	graphqlLogger := s.logger.WithPrefix("graphql")
+	h.SetErrorPresenter(func(ctx context.Context, err error) *gqlerror.Error {
+		gqlErr := graphql.DefaultErrorPresenter(ctx, err)
+		logGraphQLError(ctx, graphqlLogger, gqlErr, err)
+		return gqlErr
+	})
+
 	// Add request timing middleware
 	h.AroundOperations(func(ctx context.Context, next graphql.OperationHandler) graphql.ResponseHandler {
 		oc := graphql.GetOperationContext(ctx)
@@ -57,11 +65,9 @@ func (s *HTTPServer) setupGraphQLAPI(allowedOrigins []string) {
 			userID = user.Id
 		}
 
-		logger := log.WithPrefix("graphql")
-
 		// For subscriptions, just log the start
 		if oc.Operation.Operation == ast.Subscription {
-			logger.Debug("GraphQL subscription started",
+			graphqlLogger.Debug("GraphQL subscription started",
 				"operation", oc.OperationName,
 				"type", "subscription",
 				"userId", userID)
@@ -74,7 +80,7 @@ func (s *HTTPServer) setupGraphQLAPI(allowedOrigins []string) {
 		resp := next(ctx)
 		duration := time.Since(start)
 
-		logger.Debug("GraphQL operation completed",
+		graphqlLogger.Debug("GraphQL operation completed",
 			"duration", duration.String(),
 			"operation", oc.OperationName,
 			"type", string(oc.Operation.Operation),
@@ -236,6 +242,63 @@ func (s *HTTPServer) setupGraphQLAPI(allowedOrigins []string) {
 	s.router.GET("/api/playground", func(c *gin.Context) {
 		p.ServeHTTP(c.Writer, c.Request)
 	})
+}
+
+func logGraphQLError(ctx context.Context, logger *log.Logger, gqlErr *gqlerror.Error, err error) {
+	if gqlErr == nil {
+		return
+	}
+	if err == nil {
+		err = gqlErr
+	}
+
+	operationName, operationType := graphQLOperationDetails(ctx)
+
+	userID := ""
+	if user := auth.ForContext(ctx); user != nil {
+		userID = user.Id
+	}
+
+	keyvals := []any{
+		"error", err,
+		"message", gqlErr.Message,
+		"path", gqlErr.Path.String(),
+		"operation", operationName,
+		"type", operationType,
+		"userId", userID,
+	}
+	if len(gqlErr.Locations) > 0 {
+		keyvals = append(keyvals, "locations", gqlErr.Locations)
+	}
+	if gqlErr.Rule != "" {
+		keyvals = append(keyvals, "rule", gqlErr.Rule)
+	}
+
+	logger.Error("GraphQL operation failed", keyvals...)
+}
+
+func graphQLOperationDetails(ctx context.Context) (operationName, operationType string) {
+	defer func() {
+		if recover() != nil {
+			operationName = ""
+			operationType = ""
+		}
+	}()
+
+	oc := graphql.GetOperationContext(ctx)
+	if oc == nil {
+		return "", ""
+	}
+
+	operationName = oc.OperationName
+	if oc.Operation != nil {
+		operationType = string(oc.Operation.Operation)
+		if operationName == "" {
+			operationName = oc.Operation.Name
+		}
+	}
+
+	return operationName, operationType
 }
 
 func limitGraphQLJSONRequestBody(c *gin.Context) bool {

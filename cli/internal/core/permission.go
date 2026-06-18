@@ -74,6 +74,9 @@ const (
 	// PermMessagePostInThread allows posting messages in a thread (first or subsequent reply).
 	PermMessagePostInThread Permission = "message.post-in-thread"
 
+	// PermMessageAttach allows attaching files to new messages.
+	PermMessageAttach Permission = "message.attach"
+
 	// PermMessageManage allows moderating other users' messages in a room
 	// (editing or deleting). Authors editing or deleting their own messages do
 	// NOT need this permission; it is always allowed.
@@ -152,6 +155,7 @@ var allPermissions = []PermissionMetadata{
 	// Message
 	{PermMessagePost, "Post Messages", "Post new messages in rooms and start DMs", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermMessagePostInThread, "Post in Threads", "Post messages in threads", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{PermMessageAttach, "Attach Files", "Attach files to messages", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermMessageManage, "Manage Messages", "Edit and delete other users' messages", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermMessageReact, "React to Messages", "Add and remove reactions", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermMessageEcho, "Echo to Channel", "Echo thread replies to the main channel for visibility", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
@@ -255,6 +259,14 @@ func DefaultEveryonePermissions() []Permission {
 		PermMessageReact,
 		PermMessageEcho,
 	}
+}
+
+// DefaultSeedEveryonePermissions returns permissions granted to everyone when
+// RBAC is freshly seeded or explicitly reset. Keep permissions here out of
+// EnsureDefaultRolePermissions when adding them would silently change existing
+// deployments on boot.
+func DefaultSeedEveryonePermissions() []Permission {
+	return append(DefaultEveryonePermissions(), PermMessageAttach)
 }
 
 // DefaultModeratorPermissions returns the permissions granted to moderators

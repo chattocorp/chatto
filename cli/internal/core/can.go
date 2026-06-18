@@ -131,6 +131,14 @@ func (c *ChattoCore) CanManageAnyRoom(ctx context.Context, userID string) (bool,
 	return c.hasServerPermission(ctx, userID, PermRoomManage)
 }
 
+// CanManageRoomGroup checks whether a user can manage room/sidebar layout
+// facts owned by a specific room group. Server-scope room.manage still applies
+// through the group permission resolver; role.manage is intentionally not a
+// substitute for this group-scoped capability.
+func (c *ChattoCore) CanManageRoomGroup(ctx context.Context, userID, groupID string) (bool, error) {
+	return c.hasGroupPermission(ctx, KindChannel, groupID, userID, PermRoomManage)
+}
+
 // ============================================================================
 // Server-tier Member Permissions
 // ============================================================================
@@ -215,6 +223,11 @@ func (c *ChattoCore) CanPostMessage(ctx context.Context, userID string, kind Roo
 // Uses room-level permission resolution (checks room overrides, then server defaults).
 func (c *ChattoCore) CanPostInThread(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
 	return c.hasRoomPermission(ctx, kind, roomID, userID, PermMessagePostInThread)
+}
+
+// CanAttachFiles checks if a user can attach files to messages in a specific room.
+func (c *ChattoCore) CanAttachFiles(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
+	return c.hasRoomPermission(ctx, kind, roomID, userID, PermMessageAttach)
 }
 
 // CanReactToMessage checks if a user can add/remove reactions in a specific room.

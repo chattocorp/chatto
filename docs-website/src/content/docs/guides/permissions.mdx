@@ -20,7 +20,7 @@ Every Chatto server starts with four system roles. You cannot delete them.
 
 | Role          | Default behavior |
 | ------------- | ---------------- |
-| **everyone**  | Every authenticated user has this role. Fresh servers grant normal member defaults here: room discovery/joining, posting, thread posting, reactions, echoing thread replies, and deleting your own account. |
+| **everyone**  | Every authenticated user has this role. Fresh servers grant normal member defaults here: room discovery/joining, posting, thread posting, attaching files, reactions, echoing thread replies, and deleting your own account. |
 | **moderator** | Adds server-wide moderation defaults: viewing users, managing messages, and banning room members. |
 | **admin**     | Adds broad server administration defaults, including room administration, role management, user administration, audit/system views, and `message.manage`. |
 | **owner**     | Always has every permission virtually. Owner permissions are not stored as editable grants. |
@@ -51,7 +51,7 @@ Permissions can be configured at different scopes:
 | **Group** | Defaults or restrictions for a room group. |
 | **Room** | Local exceptions for one room. |
 
-Room-relevant permissions such as `message.post`, `message.react`, `message.manage`, `room.join`, and `room.ban-member` can be configured at room/group/server scope. Server-only permissions such as `server.manage`, `role.manage`, and `admin.view-audit` are configured only at server scope.
+Room-relevant permissions such as `message.post`, `message.attach`, `message.react`, `message.manage`, `room.join`, and `room.ban-member` can be configured at room/group/server scope. Server-only permissions such as `server.manage`, `role.manage`, and `admin.view-audit` are configured only at server scope.
 
 ## Important permissions
 
@@ -59,6 +59,7 @@ Room-relevant permissions such as `message.post`, `message.react`, `message.mana
 | ---------- | ------- |
 | `message.post` | Post root messages and start DMs. |
 | `message.post-in-thread` | Post messages inside threads. |
+| `message.attach` | Attach files to new messages. Fresh servers allow this for `everyone`; existing servers upgraded from older versions may need an operator grant if uploads should stay enabled. |
 | `message.manage` | Edit or delete other users' messages. Authors can edit/delete their own messages without this permission. |
 | `message.react` | Add or remove reactions. |
 | `message.echo` | Echo thread replies to the main channel. |
@@ -83,7 +84,7 @@ Fresh development/bootstrap servers create announcements as a read-only room by 
 
 Because every authenticated user has `everyone` and any deny wins, this blocks root posting for all non-owner users, including admins and moderators. Owners can still post because owner permissions are virtual and cannot be denied through RBAC.
 
-If you also want to prevent thread replies in announcements, deny `message.post-in-thread` for `everyone` in that room.
+If you also want to prevent thread replies or file uploads in announcements, deny `message.post-in-thread` or `message.attach` for `everyone` in that room.
 
 ### One-room lockdown
 
@@ -91,7 +92,7 @@ To temporarily freeze a room for all non-owner users:
 
 1. Open the room's permissions.
 2. Deny `message.post` for `everyone`.
-3. Optionally deny `message.post-in-thread` and `message.react` as well.
+3. Optionally deny `message.post-in-thread`, `message.attach`, and `message.react` as well.
 
 Clear the room-level denials to restore the normal server defaults.
 
@@ -101,7 +102,7 @@ To stop one non-owner user from posting without changing their roles:
 
 1. Open the user's member details in the admin UI.
 2. Under permission overrides, deny `message.post` at server scope.
-3. Optionally deny `message.post-in-thread`, `message.react`, and `message.echo`.
+3. Optionally deny `message.post-in-thread`, `message.attach`, `message.react`, and `message.echo`.
 
 User-level denies beat role grants for non-owners. They do not restrict effective owners.
 

@@ -179,6 +179,98 @@ func (r *mutationResolver) ReorderRoomsInGroup(ctx context.Context, input model.
 	return roomGroupToModel(group, nil), nil
 }
 
+// CreateSidebarLink is the resolver for the createSidebarLink field.
+func (r *mutationResolver) CreateSidebarLink(ctx context.Context, input model.CreateSidebarLinkInput) (*corev1.SidebarLink, error) {
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := r.requireRoomGroupRoomManageAuth(ctx, user.Id, input.GroupID); err != nil {
+		return nil, err
+	}
+	return r.core.CreateSidebarLink(ctx, user.Id, input.GroupID, input.Label, input.URL)
+}
+
+// UpdateSidebarLink is the resolver for the updateSidebarLink field.
+func (r *mutationResolver) UpdateSidebarLink(ctx context.Context, input model.UpdateSidebarLinkInput) (*corev1.SidebarLink, error) {
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	groupID, err := r.core.GetSidebarLinkGroup(ctx, input.LinkID)
+	if err != nil {
+		return nil, err
+	}
+	if err := r.requireRoomGroupRoomManageAuth(ctx, user.Id, groupID); err != nil {
+		return nil, err
+	}
+	return r.core.UpdateSidebarLinkInGroup(ctx, user.Id, groupID, input.LinkID, input.Label, input.URL)
+}
+
+// DeleteSidebarLink is the resolver for the deleteSidebarLink field.
+func (r *mutationResolver) DeleteSidebarLink(ctx context.Context, input model.DeleteSidebarLinkInput) (bool, error) {
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return false, err
+	}
+	groupID, err := r.core.GetSidebarLinkGroup(ctx, input.LinkID)
+	if err != nil {
+		return false, err
+	}
+	if err := r.requireRoomGroupRoomManageAuth(ctx, user.Id, groupID); err != nil {
+		return false, err
+	}
+	if err := r.core.DeleteSidebarLinkInGroup(ctx, user.Id, groupID, input.LinkID); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// MoveSidebarLinkToGroup is the resolver for the moveSidebarLinkToGroup field.
+func (r *mutationResolver) MoveSidebarLinkToGroup(ctx context.Context, input model.MoveSidebarLinkToGroupInput) (*corev1.SidebarLink, error) {
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	sourceGroupID, err := r.core.GetSidebarLinkGroup(ctx, input.LinkID)
+	if err != nil {
+		return nil, err
+	}
+	if err := r.requireRoomGroupRoomManageAuth(ctx, user.Id, sourceGroupID); err != nil {
+		return nil, err
+	}
+	if err := r.requireRoomGroupRoomManageAuth(ctx, user.Id, input.GroupID); err != nil {
+		return nil, err
+	}
+	if err := r.core.MoveSidebarLinkBetweenGroups(ctx, user.Id, input.LinkID, sourceGroupID, input.GroupID); err != nil {
+		return nil, err
+	}
+	group, err := r.core.GetRoomGroup(ctx, input.GroupID)
+	if err != nil {
+		return nil, err
+	}
+	return findSidebarLink(group, input.LinkID)
+}
+
+// ReorderSidebarItemsInGroup is the resolver for the reorderSidebarItemsInGroup field.
+func (r *mutationResolver) ReorderSidebarItemsInGroup(ctx context.Context, input model.ReorderSidebarItemsInGroupInput) (*model.RoomGroupModel, error) {
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := r.requireRoomGroupRoomManageAuth(ctx, user.Id, input.GroupID); err != nil {
+		return nil, err
+	}
+	if err := r.core.ReorderSidebarItemsInGroup(ctx, user.Id, input.GroupID, sidebarEntryInputsToProto(input.Items)); err != nil {
+		return nil, err
+	}
+	group, err := r.core.GetRoomGroup(ctx, input.GroupID)
+	if err != nil {
+		return nil, err
+	}
+	return roomGroupToModel(group, nil), nil
+}
+
 // GrantGroupPermission is the resolver for the grantGroupPermission field.
 func (r *mutationResolver) GrantGroupPermission(ctx context.Context, input model.GroupPermissionInput) (bool, error) {
 	user, err := requireAuth(ctx)

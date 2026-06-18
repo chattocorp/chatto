@@ -4,11 +4,13 @@ package chatto.core.v1;
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 
+import "chatto/core/v1/models.proto";
+
 // ============================================================================
 // ROOM GROUP EVENTS (group aggregate, evt.group.{groupId})
 //
 // Top-level Event oneof tags owned by this file:
-//   - 600-605: durable group aggregate events on evt.group.{groupId}.*
+//   - 600-609: durable group aggregate events on evt.group.{groupId}.*
 //   - 650: durable singleton room-layout event on evt.layout.default
 //
 // Keep these tags coordinated with event.proto. Message-internal field numbers
@@ -63,6 +65,32 @@ message RoomRemovedFromGroupEvent {
 message RoomsInGroupReorderedEvent {
   string group_id = 1;
   repeated string room_ids = 2;
+}
+
+message SidebarLinkAddedToGroupEvent {
+  string group_id = 1;
+  string link_id = 2;
+  string label = 3;
+  string url = 4;
+}
+
+message SidebarLinkUpdatedEvent {
+  string group_id = 1;
+  string link_id = 2;
+  string label = 3;
+  string url = 4;
+}
+
+message SidebarLinkRemovedFromGroupEvent {
+  string group_id = 1;
+  string link_id = 2;
+}
+
+// Drag-reorder within a single group across both rooms and sidebar links.
+// Carries the full mixed ordering rather than a delta.
+message SidebarGroupEntriesReorderedEvent {
+  string group_id = 1;
+  repeated SidebarGroupEntry entries = 2;
 }
 
 // RoomGroupsReorderedEvent is the inter-group ordering update. The

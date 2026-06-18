@@ -1,7 +1,7 @@
 # FDR-001: Roles & Permissions (RBAC)
 
 **Status:** Active
-**Last reviewed:** 2026-06-16
+**Last reviewed:** 2026-06-17
 
 ## Overview
 
@@ -38,7 +38,7 @@ Chatto controls who can do what through role-based access control. Every authent
 
 ### 3. Three permission scopes (server / group / room)
 
-**Decision:** Room checks consider room, group, and server-scope decisions. Server-scope message and room permissions act as broad defaults; room/group decisions are local exceptions. Fresh dev/bootstrap servers grant ordinary member capabilities such as `room.list`, `room.join`, `message.post`, `message.post-in-thread`, `message.react`, and `message.echo` to `everyone` at server scope. They do not grant `room.create` to `everyone`. Admins get server-tier `room.*` defaults plus `message.manage`; moderators get server-tier `message.manage` and `room.ban-member`.
+**Decision:** Room checks consider room, group, and server-scope decisions. Server-scope message and room permissions act as broad defaults; room/group decisions are local exceptions. Fresh dev/bootstrap servers grant ordinary member capabilities such as `room.list`, `room.join`, `message.post`, `message.post-in-thread`, `message.attach`, `message.react`, and `message.echo` to `everyone` at server scope. They do not grant `room.create` to `everyone`. Admins get server-tier `room.*` defaults plus `message.manage`; moderators get server-tier `message.manage` and `room.ban-member`.
 **Why:** Operators want both "system-wide policy" and "this one channel works differently" without modelling separate role systems. See ADR-031 and ADR-040.
 **Tradeoff:** A broad server-scope deny blocks the permission everywhere for affected non-owner users. That is intentional, but operators should prefer room/group denies for local restrictions.
 
@@ -83,6 +83,7 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
 - `user.manage-permissions` — edit direct per-user permission overrides.
 - `admin.view-users`, `admin.view-system`, `admin.view-audit` — gate specific admin UI sub-views; admin UI entry is derived from concrete capabilities rather than a standalone `admin.access` permission.
 - `message.post` — post root messages in rooms and start DMs. Fresh servers grant this to `everyone` at server scope; announcement rooms add a room-level `everyone` deny.
+- `message.attach` — attach files to new messages. Fresh servers grant this to `everyone` at server scope; existing servers are not automatically backfilled after upgrade, so operators may need to grant it manually if uploads should remain enabled.
 - `room.manage` — edit/configure/delete channel rooms.
 - `room.ban-member` — ban members from channel rooms. DM membership is not managed through this permission.
 
