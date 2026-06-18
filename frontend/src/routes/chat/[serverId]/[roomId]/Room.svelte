@@ -16,7 +16,7 @@
     usePresenceChange,
     createTypingIndicator
   } from '$lib/hooks';
-  import { appState, sidebarNav } from '$lib/state/globals.svelte';
+  import { appState } from '$lib/state/globals.svelte';
   import {
     createComposerContext,
     createMentionRoles,
@@ -424,11 +424,6 @@
         <DropZoneOverlay visible={isDraggingFiles} />
 
         <PaneHeader {title} loading={!room.roomData}>
-          {#snippet afterTitle()}
-            {#if !sidebarNav.isOpen && !room.isDM && room.roomData?.spaceName}
-              <span class="text-sm text-muted">{room.roomData.spaceName}</span>
-            {/if}
-          {/snippet}
           {#snippet actions()}
             <RoomSidebarToggle
               mode="mobile"

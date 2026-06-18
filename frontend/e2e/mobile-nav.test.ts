@@ -163,6 +163,24 @@ test.describe('Mobile Navigation', () => {
     await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible();
   });
 
+  test('room header omits redundant server name on mobile', async ({ page, chatPage }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+
+    const serverName = await chatPage.getServerName();
+
+    await page.setViewportSize({ width: 375, height: 667 });
+
+    const roomHeading = chatPage.getRoomHeader('general');
+    await expect(roomHeading).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+
+    const roomHeader = roomHeading.locator(
+      'xpath=ancestor::div[contains(concat(" ", normalize-space(@class), " "), " border-b ")][1]'
+    );
+    await expect(roomHeader).not.toContainText(serverName);
+  });
+
   test('hamburger menu works on admin pages', async ({ page }) => {
     // Login as admin (the bootstrap admin user)
     const adminUser = await loginAsAdmin(page);
