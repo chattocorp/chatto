@@ -1,7 +1,7 @@
 # FDR-017: Room Groups & Sidebar Layout
 
 **Status:** Active
-**Last reviewed:** 2026-06-15
+**Last reviewed:** 2026-06-18
 
 ## Overview
 
@@ -9,7 +9,8 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 
 ## Behavior
 
-- The sidebar shows rooms and sidebar links grouped under their group's name in operator-defined order. Groups can be collapsed/expanded.
+- The sidebar shows `room.list`-visible channel rooms and sidebar links grouped under their group's name in operator-defined order. Groups can be collapsed/expanded.
+- Joined channel rooms behave as normal navigation entries. Listable channel rooms the viewer has not joined yet are shown slightly faded; selecting a joinable room asks for confirmation before joining, while selecting a non-joinable room explains that access is not currently available.
 - Server admins can create, rename, reorder, and delete groups via the admin UI.
 - Group names are limited to 80 bytes; group descriptions are limited to 500 bytes.
 - Every channel room belongs to exactly one group. There's no "uncategorized" branch — room creation requires a group.
@@ -64,10 +65,18 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 **Why:** DMs don't fit a "category of rooms" model — every DM is its own conversation. Trying to retrofit groups onto DMs would either need a synthetic "DMs" group (privilege concentration risk) or per-DM groups (meaningless). See ADR-031 and ADR-037.
 **Tradeoff:** DMs keep a small policy branch outside the room-group model. That branch is about DM privacy and creation, not about read visibility.
 
+### 8. Sidebar visibility follows room.list, not membership
+
+**Decision:** Channel-room sidebar entries are based on `room.list` visibility and room-group layout, while membership only changes the row's presentation and action.
+**Why:** Operators configure the sidebar through room groups. Showing all listable rooms makes that layout the user's map of the server, and lets users discover rooms before joining them.
+**Tradeoff:** The sidebar can show rooms the viewer cannot enter yet. Those rows need clear affordances so discovery does not look like broken navigation.
+
 ## Permissions
 
 - `room.create` — configured per group (or at server scope as a default).
 - `room.manage` — required in both source and target groups when moving a room.
+- `room.list` — controls whether a channel room appears in the sidebar and room directory for non-members.
+- `room.join` — controls whether a non-member can join a visible channel room directly.
 - All channel-room-scope permissions (`message.post`, `room.join`, etc.) are configurable per group with per-room overrides.
 
 ## Related

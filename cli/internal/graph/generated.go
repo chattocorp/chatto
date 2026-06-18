@@ -642,6 +642,7 @@ type ComplexityRoot struct {
 		ViewerCanPostInThread        func(childComplexity int) int
 		ViewerCanPostMessage         func(childComplexity int) int
 		ViewerCanReact               func(childComplexity int) int
+		ViewerIsMember               func(childComplexity int) int
 		ViewerNotificationPreference func(childComplexity int) int
 		ViewerNotifications          func(childComplexity int, limit *int32, offset *int32) int
 		VoiceCallToken               func(childComplexity int) int
@@ -1257,6 +1258,7 @@ type RoomResolver interface {
 	ViewerCanPostMessage(ctx context.Context, obj *corev1.Room) (bool, error)
 	ViewerCanPostInThread(ctx context.Context, obj *corev1.Room) (bool, error)
 	ViewerCanReact(ctx context.Context, obj *corev1.Room) (bool, error)
+	ViewerIsMember(ctx context.Context, obj *corev1.Room) (bool, error)
 	ViewerCanManageOthersMessage(ctx context.Context, obj *corev1.Room) (bool, error)
 	ViewerCanListRoom(ctx context.Context, obj *corev1.Room) (bool, error)
 	ViewerCanJoinRoom(ctx context.Context, obj *corev1.Room) (bool, error)
@@ -4260,6 +4262,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Room.ViewerCanReact(childComplexity), true
+	case "Room.viewerIsMember":
+		if e.ComplexityRoot.Room.ViewerIsMember == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Room.ViewerIsMember(childComplexity), true
 	case "Room.viewerNotificationPreference":
 		if e.ComplexityRoot.Room.ViewerNotificationPreference == nil {
 			break
@@ -6524,6 +6532,8 @@ func (ec *executionContext) childFields_Room(ctx context.Context, field graphql.
 		return ec.fieldContext_Room_viewerCanPostInThread(ctx, field)
 	case "viewerCanReact":
 		return ec.fieldContext_Room_viewerCanReact(ctx, field)
+	case "viewerIsMember":
+		return ec.fieldContext_Room_viewerIsMember(ctx, field)
 	case "viewerCanManageOthersMessage":
 		return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
 	case "viewerCanListRoom":
@@ -20195,6 +20205,29 @@ func (ec *executionContext) _Room_viewerCanReact(ctx context.Context, field grap
 	)
 }
 func (ec *executionContext) fieldContext_Room_viewerCanReact(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Room", field, true, true, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _Room_viewerIsMember(ctx context.Context, field graphql.CollectedField, obj *corev1.Room) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Room_viewerIsMember(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Room().ViewerIsMember(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Room_viewerIsMember(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Room", field, true, true, errors.New("field of type Boolean does not have child fields"))
 }
 
@@ -38007,6 +38040,42 @@ func (ec *executionContext) _Room(ctx context.Context, sel ast.SelectionSet, obj
 					}
 				}()
 				res = ec._Room_viewerCanReact(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "viewerIsMember":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Room_viewerIsMember(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}

@@ -56,6 +56,8 @@ type Room {
   viewerCanPostInThread: Boolean! @goField(forceResolver: true)
   "Whether the current user can add/remove reactions in this room."
   viewerCanReact: Boolean! @goField(forceResolver: true)
+  "Whether the current user is an explicit member of this room."
+  viewerIsMember: Boolean! @goField(forceResolver: true)
   """
   Whether the current user can edit or delete other users' messages in
   this room. Authors editing or deleting their own messages do not need

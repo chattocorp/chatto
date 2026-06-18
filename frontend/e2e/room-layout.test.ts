@@ -70,6 +70,20 @@ async function joinRoomViaAPI(page: Page, roomId: string): Promise<void> {
   expect(data.joinRoom?.id).toBe(roomId);
 }
 
+async function denyRoomPermissionViaAPI(
+  page: Page,
+  roomId: string,
+  roleName: string,
+  permission: string
+): Promise<void> {
+  const data = await gqlRequest<{ denyRoomPermission: boolean }>(
+    page,
+    `mutation($input: DenyRoomPermissionInput!) { denyRoomPermission(input: $input) }`,
+    { input: { roomId, roleName, permission } }
+  );
+  expect(data.denyRoomPermission).toBe(true);
+}
+
 // updateRoomLayoutViaAPI reshapes the room-group layout to match the
 // `groups` argument using the per-key delta mutations (the bulk
 // `updateRoomGroups` mutation was removed when storage was split — see
@@ -374,6 +388,7 @@ test.describe('Room Layout', () => {
 
       const { generalId, announcementsId } = await getDefaultRoomIds(page);
       const secretId = await createRoomViaAPI(page, 'secret');
+      await denyRoomPermissionViaAPI(page, secretId, 'everyone', 'room.list');
       const seedSetId = await getSeedSetId(page);
 
       // Reshape: "Public" set holds the default rooms, "Secret" holds secret.
@@ -387,7 +402,8 @@ test.describe('Room Layout', () => {
       await withServerUser(browser!, serverURL, async ({ page: page2 }) => {
         await navigateToSpace(page2);
 
-        // User B should only see the "Public" set, not "Secret" (empty for them).
+        // User B should only see the "Public" set, not "Secret" (empty for them
+        // because room.list is denied on the only room inside it).
         const headers = await waitForSidebarSets(page2, 1);
         expect(headers).toEqual(['Public']);
 
@@ -661,7 +677,11 @@ test.describe('Room Layout', () => {
   });
 
   test.describe('Edge Cases', () => {
-    test('rooms user has not joined are hidden from sets', async ({ page, browser, serverURL }) => {
+    test('listable rooms user has not joined are shown faded in sets', async ({
+      page,
+      browser,
+      serverURL
+    }) => {
       // User A loads the server and creates extra rooms
       await createAndLoginTestUser(page);
       await usePrimaryServerViaAPI(page);
@@ -689,12 +709,14 @@ test.describe('Room Layout', () => {
 
         await navigateToSpace(page2);
 
-        // User B should see announcements, general, and public, but NOT private
-        const roomNames = await waitForSidebarRooms(page2, 3);
+        // User B should see announcements, general, joined public, and listable
+        // non-member private. Non-member channel rows use a leading + affordance.
+        const roomNames = await waitForSidebarRooms(page2, 4);
         expect(roomNames).toContain('announcements');
         expect(roomNames).toContain('general');
         expect(roomNames).toContain('public');
-        expect(roomNames).not.toContain('private');
+        expect(roomNames).toContain('private');
+        await expect(page2.getByRole('link', { name: '+ private' })).toHaveClass(/opacity-60/);
       });
     });
   });
@@ -817,8 +839,10 @@ test.describe('Room Layout', () => {
         await page2.goto(routes.browseRooms);
         await expect(page2.getByRole('heading', { name: 'Overview' })).toBeVisible();
 
-        // The non-archived room should be visible (not yet joined by User B)
-        await expect(page2.getByText('visible-room')).toBeVisible();
+        // The non-archived room should be visible in the directory (not yet
+        // joined by User B). Scope to the directory list because the sidebar
+        // also shows listable non-member rooms now.
+        await expect(page2.getByRole('list').getByText('visible-room')).toBeVisible();
 
         // The archived room should NOT be visible
         await expect(page2.getByText('hidden-room')).not.toBeVisible();

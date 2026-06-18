@@ -202,6 +202,15 @@ func (r *roomResolver) ViewerCanReact(ctx context.Context, obj *corev1.Room) (bo
 	return r.core.CanReactToMessage(ctx, user.Id, core.KindOfRoom(obj), obj.Id)
 }
 
+// ViewerIsMember is the resolver for the viewerIsMember field.
+func (r *roomResolver) ViewerIsMember(ctx context.Context, obj *corev1.Room) (bool, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return false, nil
+	}
+	return r.core.RoomMembershipExists(ctx, core.KindOfRoom(obj), user.Id, obj.Id)
+}
+
 // ViewerCanManageOthersMessage is the resolver for the viewerCanManageOthersMessage field.
 func (r *roomResolver) ViewerCanManageOthersMessage(ctx context.Context, obj *corev1.Room) (bool, error) {
 	user := auth.ForContext(ctx)
