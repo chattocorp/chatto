@@ -12,6 +12,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 - `onUpdate` - Called with markdown content on each change
 - `onKeyDown` - Keyboard event handler; return true to prevent TipTap default
 - `onPaste` - Paste event handler; return true to prevent TipTap default
+- `onNextEnterWillSendChange` - Called when selection enters/leaves a trailing empty paragraph
 - `onReady` - Called with editor API when editor is initialized
 -->
 <script lang="ts">
@@ -594,6 +595,19 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     return firstChild?.type.name === 'paragraph' && firstChild.content.size === 0;
   }
 
+  function isSelectionInTrailingEmptyParagraph(e: Editor): boolean {
+    const { doc, selection } = e.state;
+    if (!selection.empty || doc.childCount <= 1) return false;
+
+    const selectionFrom = selection.$from;
+    if (selectionFrom.depth !== 1 || selectionFrom.parent.type.name !== 'paragraph') return false;
+    if (selectionFrom.parent.content.size !== 0 || selectionFrom.parentOffset !== 0) return false;
+    if (selectionFrom.after(1) !== doc.content.size) return false;
+
+    const previousNode = doc.child(doc.childCount - 2);
+    return previousNode.type.name !== 'paragraph' || previousNode.content.size > 0;
+  }
+
   export type TipTapEditorApi = {
     /** Get the editor's plain text content */
     getText: () => string;
@@ -621,6 +635,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     onUpdate,
     onKeyDown,
     onPaste,
+    onNextEnterWillSendChange,
     onReady
   }: {
     placeholder?: string;
@@ -630,6 +645,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     onUpdate?: (text: string) => void;
     onKeyDown?: (event: KeyboardEvent) => boolean;
     onPaste?: (event: ClipboardEvent) => boolean;
+    onNextEnterWillSendChange?: (value: boolean) => void;
     onReady?: (api: TipTapEditorApi) => void;
   } = $props();
 
@@ -643,6 +659,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   let linkHrefDraft = $state('');
   let linkDraftInitializedFor = $state<string | null>(null);
   let codeLanguageLoadToken = 0;
+  let lastNextEnterWillSend = false;
 
   let hasLinkControls = $derived(activeLinkHref !== null);
   let activeCodeBlockLanguageLabel = $derived(
@@ -716,6 +733,13 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
       right: frameRect.right - preRect.right,
       bottom: frameRect.bottom - preRect.bottom
     };
+  }
+
+  function updateNextEnterWillSend(e: Editor) {
+    const value = !e.isDestroyed && isSelectionInTrailingEmptyParagraph(e);
+    if (value === lastNextEnterWillSend) return;
+    lastNextEnterWillSend = value;
+    onNextEnterWillSendChange?.(value);
   }
 
   function updateActiveControls(e: Editor) {
@@ -955,11 +979,13 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           },
           onUpdate: ({ editor: ed }) => {
             updateActiveControls(ed);
+            updateNextEnterWillSend(ed);
             ensureEditorCodeLanguages(ed);
             onUpdate?.(hasDefaultEmptyDocument(ed) ? '' : getSerializedMarkdown(ed));
           },
           onSelectionUpdate: ({ editor: ed }) => {
             updateActiveControls(ed);
+            updateNextEnterWillSend(ed);
           }
         })
     );
@@ -969,10 +995,13 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     // Notify parent that editor is ready with API
     tick().then(() => {
       if (e.isDestroyed || editor !== e) return;
+      updateNextEnterWillSend(e);
       onReady?.(buildApi(e));
     });
 
     return () => {
+      lastNextEnterWillSend = false;
+      onNextEnterWillSendChange?.(false);
       editor?.destroy();
       editor = null;
     };

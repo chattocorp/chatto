@@ -160,6 +160,31 @@ test.describe('Composer focus', () => {
   });
 });
 
+test.describe('Composer keyboard submit hint', () => {
+  test('sends when Enter is pressed from a trailing blank paragraph', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    await waitForRoomReady(page, 'general');
+
+    const message = `Return again send ${Date.now()}`;
+    await roomPage.waitForInputEditable();
+    await roomPage.messageInput.fill(message);
+    await expect(page.getByText(/(?:Cmd|Ctrl)\+Return to Send/)).toBeVisible();
+
+    await roomPage.messageInput.press('Enter');
+    await expect(page.getByText(/(?:Return|Enter) again to Send/)).toBeVisible();
+
+    await roomPage.messageInput.press('Enter');
+    await expect(roomPage.getMessage(message).locator).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+    await expect(roomPage.messageInput).toHaveText('');
+  });
+});
+
 // Use #general (postable) as the starting room and a freshly-created custom
 // room (also postable) as the navigation target. We can't use #announcements
 // — its special permissions deny message.post for regular members, which

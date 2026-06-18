@@ -1105,6 +1105,30 @@ describe('MessageComposer', () => {
       });
     });
 
+    it('sends with plain Enter from a trailing blank paragraph', async () => {
+      const { container, roomId } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+
+      await typeEditorLiteralText(editor, 'hello from return');
+      await vi.waitFor(() => expect(container.textContent).toMatch(/(?:Cmd|Ctrl)\+Return to Send/));
+      await pressEditorKey(editor, 'Enter');
+      expect(mutationMock).not.toHaveBeenCalled();
+      await vi.waitFor(() =>
+        expect(container.textContent).toMatch(/(?:Return|Enter) again to Send/)
+      );
+
+      await pressEditorKey(editor, 'Enter');
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: 'hello from return'
+      });
+    });
+
     it('posts markdown after TipTap formatting shortcuts are applied', async () => {
       const { container, roomId } = renderMessageComposer(
         { roomId: 'room_456' },
@@ -1447,7 +1471,7 @@ describe('MessageComposer', () => {
       });
     });
 
-    it('does not send with Enter after the cursor has left a bullet list', async () => {
+    it('sends with Enter from a trailing blank paragraph after leaving a bullet list', async () => {
       const { container, roomId } = renderMessageComposer(
         { roomId: 'room_456' },
         new Map([['$$_urql', mockClient]])
@@ -1461,13 +1485,11 @@ describe('MessageComposer', () => {
       await pressEditorKey(editor, 'Enter');
       expect(mutationMock).not.toHaveBeenCalled();
       await vi.waitFor(() => expect(editor.querySelectorAll('ul li')).toHaveLength(1));
+      await vi.waitFor(() =>
+        expect(container.textContent).toMatch(/(?:Return|Enter) again to Send/)
+      );
 
       await pressEditorKey(editor, 'Enter');
-
-      await vi.waitFor(() => expect(editor.querySelectorAll('p').length).toBeGreaterThan(1));
-      expect(mutationMock).not.toHaveBeenCalled();
-
-      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -1562,8 +1584,11 @@ describe('MessageComposer', () => {
       expect(getComputedStyle(editor.querySelector('p')!).marginTop).toBe('0px');
       await pressEditorKey(editor, 'Enter');
       expect(mutationMock).not.toHaveBeenCalled();
+      await vi.waitFor(() =>
+        expect(container.textContent).toMatch(/(?:Return|Enter) again to Send/)
+      );
 
-      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
+      await pressEditorKey(editor, 'Enter');
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({

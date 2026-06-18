@@ -25,7 +25,12 @@
 
   const tipTapEditorModule = import('./TipTapEditor.svelte');
 
-  function getSubmitShortcutHint(): string | null {
+  type ShortcutHints = {
+    submit: string;
+    enterAgain: string;
+  };
+
+  function getShortcutHints(): ShortcutHints | null {
     if (typeof navigator === 'undefined' || isTouchDevice()) return null;
 
     const userAgentDataPlatform =
@@ -33,7 +38,10 @@
         ? (navigator.userAgentData as { platform?: string } | undefined)?.platform
         : undefined;
     const platform = userAgentDataPlatform ?? navigator.platform ?? '';
-    return /Mac|iPhone|iPad|iPod/i.test(platform) ? 'Cmd+Return to Send' : 'Ctrl+Return to Send';
+    const usesReturn = /Mac|iPhone|iPad|iPod/i.test(platform);
+    return usesReturn
+      ? { submit: 'Cmd+Return to Send', enterAgain: 'Return again to Send' }
+      : { submit: 'Ctrl+Return to Send', enterAgain: 'Enter again to Send' };
   }
 
   const stores = serverRegistry.getStore(getActiveServer());
@@ -133,7 +141,7 @@
 
   // Testid for E2E tests - distinguishes main input from thread reply input
   let testid = $derived(inThread ? 'thread-reply-input' : 'message-input');
-  const submitShortcutHint = getSubmitShortcutHint();
+  const shortcutHints = getShortcutHints();
 
   // Track editing transitions by event identity so editor setContent() doesn't
   // run repeatedly while TipTap echoes updates back through onUpdate.
@@ -265,6 +273,11 @@
       attachments.pendingCount === 0 &&
       (hasVisibleContent(message) || attachments.selectedFiles.length > 0 || isEditing)
   );
+  let editorNextEnterWillSend = $state(false);
+  let nextEnterWillSend = $derived(canSubmit && editorNextEnterWillSend);
+  let submitHint = $derived(
+    shortcutHints ? (nextEnterWillSend ? shortcutHints.enterAgain : shortcutHints.submit) : null
+  );
 
   // Auto-focus the input when the component mounts, room changes, a reply
   // starts, or the editor becomes editable (canPost loads async after a
@@ -373,7 +386,9 @@
   }
 
   function hasStructuralMarkdownBody(text: string): boolean {
-    return text.split('\n').some((line) => /^ {0,3}(?:#{1,6}|[-+*]|\d{1,9}[.)]|>)[ \t]$/.test(line));
+    return text
+      .split('\n')
+      .some((line) => /^ {0,3}(?:#{1,6}|[-+*]|\d{1,9}[.)]|>)[ \t]$/.test(line));
   }
 
   function bodyForSend(text: string): string {
@@ -633,6 +648,17 @@
       }
     }
 
+    if (
+      event.key === 'Enter' &&
+      !event.shiftKey &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      nextEnterWillSend
+    ) {
+      handleSubmit(); // Fire-and-forget (async, but keydown must return sync)
+      return true;
+    }
+
     // Handle Tab for @mention autocomplete
     if (event.key === 'Tab') {
       if (autocomplete.handleTabCompletion(event)) {
@@ -832,18 +858,19 @@
         onUpdate={handleEditorUpdate}
         onKeyDown={handleEditorKeyDown}
         onPaste={handlePaste}
+        onNextEnterWillSendChange={(value) => (editorNextEnterWillSend = value)}
         onReady={handleEditorReady}
       />
     {/await}
 
     <div class="flex h-8 shrink-0 items-center gap-2">
-      {#if submitShortcutHint && canSubmit}
+      {#if submitHint && canSubmit}
         <span
           aria-hidden="true"
-          title={submitShortcutHint}
-          class="whitespace-nowrap px-0.5 text-xs font-medium leading-none text-muted/75"
+          title={submitHint}
+          class="px-0.5 text-xs leading-none font-medium whitespace-nowrap text-muted/75"
         >
-          {submitShortcutHint}
+          {submitHint}
         </span>
       {/if}
 
