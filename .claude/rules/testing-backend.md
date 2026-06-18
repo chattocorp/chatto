@@ -12,7 +12,7 @@ Always run Go tests through `mise` so the repo toolchain is active. For full-sui
 
 ## Iterate with targeted runs; reserve `mise test-cli` for checkpoints
 
-The full suite takes 90–180s (tracked in #625). While iterating on a change, **don't run the whole suite as your feedback loop** — it wastes wall-clock time and buries real signal in noise. Instead:
+The full suite is still broad enough to be a checkpoint, not an edit-refresh loop. While iterating on a change, **don't run the whole suite as your feedback loop** — it wastes wall-clock time and buries real signal in noise. Instead:
 
 - Drill into the specific package and test you care about:
   ```

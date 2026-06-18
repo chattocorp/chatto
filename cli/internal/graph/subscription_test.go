@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/testutil"
 )
 
 // ============================================================================
@@ -42,24 +43,9 @@ func TestSubscriptionResolver_MyEvents(t *testing.T) {
 			}
 		}()
 
-		// Wait for MessagePosted event (skip non-message events like presence)
-		deadline := time.After(3 * time.Second)
-		found := false
-		for !found {
-			select {
-			case event := <-eventChan:
-				if event == nil {
-					t.Error("Received nil event")
-					return
-				}
-				if core.EventMessagePosted(event) != nil {
-					found = true
-				}
-			case <-deadline:
-				t.Error("Timeout waiting for MessagePosted event")
-				return
-			}
-		}
+		testutil.WaitForValue(t, eventChan, 2*time.Second, "MessagePosted event", func(event core.EventEnvelope) bool {
+			return event != nil && core.EventMessagePosted(event) != nil
+		})
 	})
 
 	t.Run("subscribe without authentication", func(t *testing.T) {
@@ -200,21 +186,11 @@ func TestSubscriptionResolver_MyEvents(t *testing.T) {
 		// Drain the channel, ignoring any non-MessagePosted events that the
 		// merged subscription now interleaves (presence, etc.).
 		receivedIDs := make([]string, 0, len(messages))
-		deadline := time.After(5 * time.Second)
 		for len(receivedIDs) < len(messages) {
-			select {
-			case event := <-eventChan:
-				if event == nil {
-					t.Error("Received nil event")
-					continue
-				}
-				if core.EventMessagePosted(event) == nil {
-					continue // not a message event — skip
-				}
-				receivedIDs = append(receivedIDs, event.ID())
-			case <-deadline:
-				t.Fatalf("Timeout waiting for message events: got %d of %d (ids so far: %v)", len(receivedIDs), len(messages), receivedIDs)
-			}
+			event := testutil.WaitForValue(t, eventChan, 2*time.Second, "ordered MessagePosted event", func(event core.EventEnvelope) bool {
+				return event != nil && core.EventMessagePosted(event) != nil
+			})
+			receivedIDs = append(receivedIDs, event.ID())
 		}
 
 		for i, want := range expectedIDs {
@@ -267,26 +243,18 @@ func TestSubscriptionResolver_MyEvents(t *testing.T) {
 			}
 		}()
 
-		// User A should receive the thread reply as a MessagePosted event with inThread set
-		// Loop to skip other events (joins, etc.) until we find the thread reply
-		timeout := time.After(10 * time.Second)
-		for {
-			select {
-			case event := <-eventChan:
-				if event == nil {
-					continue
-				}
-				if msg := core.EventMessagePosted(event); msg != nil && msg.InThread != "" {
-					if msg.InThread != rootEventID {
-						t.Errorf("Expected InThread=%q, got %q", rootEventID, msg.InThread)
-					}
-					t.Logf("Received MessagePosted for thread reply in thread=%s", msg.InThread)
-					return // Success - thread reply received
-				}
-			case <-timeout:
-				t.Fatal("Timeout waiting for thread reply event")
+		event := testutil.WaitForValue(t, eventChan, 2*time.Second, "thread reply MessagePosted event", func(event core.EventEnvelope) bool {
+			if event == nil {
+				return false
 			}
+			msg := core.EventMessagePosted(event)
+			return msg != nil && msg.InThread != ""
+		})
+		msg := core.EventMessagePosted(event)
+		if msg.InThread != rootEventID {
+			t.Errorf("Expected InThread=%q, got %q", rootEventID, msg.InThread)
 		}
+		t.Logf("Received MessagePosted for thread reply in thread=%s", msg.InThread)
 	})
 }
 
@@ -350,38 +318,24 @@ func TestSubscriptionResolver_MyEvents_DeploymentEvents(t *testing.T) {
 			}
 		}()
 
-		// Wait for mention notification event (for room indicator) or notification created event (for bell icon)
-		// Accept whichever of MentionNotificationEvent or
-		// NotificationCreatedEvent arrives first. Skip presence and other
-		// chatter the merged subscription now delivers.
-		deadline := time.After(5 * time.Second)
-		for {
-			select {
-			case event := <-eventChan:
-				if event == nil {
-					t.Fatal("Received nil event")
-				}
-				if mentioned := core.EventMentionNotification(event); mentioned != nil {
-					if mentioned.RoomId != env.testRoom.Id {
-						t.Errorf("Expected room ID %s, got %s", env.testRoom.Id, mentioned.RoomId)
-					}
-					if mentioned.MentionedByUserId != userB.Id {
-						t.Errorf("Expected mentioner ID %s, got %s", userB.Id, mentioned.MentionedByUserId)
-					}
-					t.Logf("Successfully received mention notification in room %s", mentioned.RoomId)
-					return
-				}
-				if notifCreated := core.EventNotificationCreated(event); notifCreated != nil {
-					if notifCreated.RoomId != env.testRoom.Id {
-						t.Errorf("Expected room ID %s, got %s", env.testRoom.Id, notifCreated.RoomId)
-					}
-					t.Logf("Successfully received notification created event for mention in room %s", notifCreated.RoomId)
-					return
-				}
-				t.Logf("Ignoring non-mention event: %T", event.Payload())
-			case <-deadline:
-				t.Fatal("Timeout waiting for mention event")
+		event := testutil.WaitForValue(t, eventChan, 2*time.Second, "mention notification event", func(event core.EventEnvelope) bool {
+			return event != nil && (core.EventMentionNotification(event) != nil || core.EventNotificationCreated(event) != nil)
+		})
+		if mentioned := core.EventMentionNotification(event); mentioned != nil {
+			if mentioned.RoomId != env.testRoom.Id {
+				t.Errorf("Expected room ID %s, got %s", env.testRoom.Id, mentioned.RoomId)
 			}
+			if mentioned.MentionedByUserId != userB.Id {
+				t.Errorf("Expected mentioner ID %s, got %s", userB.Id, mentioned.MentionedByUserId)
+			}
+			t.Logf("Successfully received mention notification in room %s", mentioned.RoomId)
+			return
+		}
+		if notifCreated := core.EventNotificationCreated(event); notifCreated != nil {
+			if notifCreated.RoomId != env.testRoom.Id {
+				t.Errorf("Expected room ID %s, got %s", env.testRoom.Id, notifCreated.RoomId)
+			}
+			t.Logf("Successfully received notification created event for mention in room %s", notifCreated.RoomId)
 		}
 	})
 }
@@ -425,33 +379,14 @@ func TestSubscriptionResolver_Presence(t *testing.T) {
 			t.Fatalf("Unexpected error subscribing User B to server events: %v", err)
 		}
 
-		// User A should receive a PresenceChangedEvent for User B via space events
-		deadline := time.After(5 * time.Second)
-		found := false
-		for !found {
-			select {
-			case event := <-eventChanA:
-				if event == nil {
-					t.Fatal("Received nil event")
-				}
-				presenceEvent := core.EventPresenceChanged(event)
-				if presenceEvent == nil {
-					t.Logf("Received non-presence event: %T, skipping", event.Payload())
-					continue
-				}
-				if event.ActorID() != userB.Id {
-					t.Logf("Received presence event for %s (not User B), skipping", event.ActorID())
-					continue
-				}
-				if presenceEvent.Status != "ONLINE" {
-					t.Errorf("Expected status ONLINE, got %s", presenceEvent.Status)
-				}
-				t.Logf("Successfully received presence event: user %s is now %s", event.ActorID(), presenceEvent.Status)
-				found = true
-			case <-deadline:
-				t.Fatal("Timeout waiting for User B's presence event")
-			}
+		event := testutil.WaitForValue(t, eventChanA, 2*time.Second, "User B presence event", func(event core.EventEnvelope) bool {
+			return event != nil && event.ActorID() == userB.Id && core.EventPresenceChanged(event) != nil
+		})
+		presenceEvent := core.EventPresenceChanged(event)
+		if presenceEvent.Status != "ONLINE" {
+			t.Errorf("Expected status ONLINE, got %s", presenceEvent.Status)
 		}
+		t.Logf("Successfully received presence event: user %s is now %s", event.ActorID(), presenceEvent.Status)
 	})
 
 	t.Run("presence set by server-events subscription, remains after subscription ends (TTL-based expiry)", func(t *testing.T) {

@@ -199,7 +199,7 @@ run = "exec bin/chatto"
 description = "Run CLI tests"
 depends = ["deps-cli", "build-frontend"]
 dir = "cli"
-run = "go test -tags test_endpoints ./..."
+run = "go test -p ${CHATTO_GO_TEST_P:-4} -tags test_endpoints ./..."
 sources = ["**/*.go"]
 
 [tasks.test-cli-shutdown]

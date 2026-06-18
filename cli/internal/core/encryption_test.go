@@ -22,7 +22,7 @@ import (
 func setupTestCoreWithEncryption(t *testing.T) *ChattoCore {
 	t.Helper()
 
-	_, nc := testutil.StartNATS(t)
+	_, nc := testutil.StartSharedNATS(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)

@@ -188,7 +188,7 @@ func setupTestHTTPServerWithHook(t *testing.T, configure func(*HTTPServer)) (*ht
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 
-	_, nc := testutil.StartNATS(t)
+	_, nc := testutil.StartSharedNATS(t)
 
 	ctx := testContext(t)
 
@@ -260,7 +260,7 @@ func setupTestHTTPServerWithMailerConfig(t *testing.T, emailOTP config.EmailOTPC
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 
-	_, nc := testutil.StartNATS(t)
+	_, nc := testutil.StartSharedNATS(t)
 
 	ctx := testContext(t)
 
@@ -1169,7 +1169,7 @@ func setupTestHTTPServerWithRegistrationDisabled(t *testing.T) (*httptest.Server
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 
-	_, nc := testutil.StartNATS(t)
+	_, nc := testutil.StartSharedNATS(t)
 
 	ctx := testContext(t)
 

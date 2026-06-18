@@ -4,6 +4,9 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/testutil"
 )
 
 func TestChattoCore_StreamRoomEventsLive(t *testing.T) {
@@ -38,22 +41,16 @@ func TestChattoCore_StreamRoomEventsLive(t *testing.T) {
 		t.Fatalf("Failed to post message: %v", err)
 	}
 
-	// Use select with timeout to prevent indefinite blocking
-	select {
-	case event := <-eventChan:
-		if event.GetMessagePosted() == nil {
-			t.Error("Expected MessagePosted event")
-		}
+	event := testutil.WaitForValue(t, eventChan, 2*time.Second, "live room MessagePosted event", func(event *corev1.Event) bool {
+		return event.GetMessagePosted() != nil
+	})
 
-		// Body lookup is keyed by the durable event envelope id.
-		fetchedBody, err := core.GetMessageBody(ctx, KindChannel, event.Id)
-		if err != nil {
-			t.Fatalf("Failed to fetch message body: %v", err)
-		}
-		if fetchedBody != "Live message" {
-			t.Errorf("Expected message 'Live message', got '%s'", fetchedBody)
-		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("Timeout waiting for live event")
+	// Body lookup is keyed by the durable event envelope id.
+	fetchedBody, err := core.GetMessageBody(ctx, KindChannel, event.Id)
+	if err != nil {
+		t.Fatalf("Failed to fetch message body: %v", err)
+	}
+	if fetchedBody != "Live message" {
+		t.Errorf("Expected message 'Live message', got '%s'", fetchedBody)
 	}
 }

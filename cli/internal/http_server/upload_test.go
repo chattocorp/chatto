@@ -43,7 +43,7 @@ func setupUploadTestServer(t *testing.T) *uploadTestEnv {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 
-	_, nc := testutil.StartNATS(t)
+	_, nc := testutil.StartSharedNATS(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	t.Cleanup(cancel)

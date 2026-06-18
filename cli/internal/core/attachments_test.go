@@ -988,7 +988,7 @@ func setupTestCoreWithS3PathPrefix(t *testing.T, pathPrefix string) (*ChattoCore
 
 	endpointHost := s3Server.URL[7:] // Remove "http://"
 
-	_, nc := testutil.StartNATS(t)
+	_, nc := testutil.StartSharedNATS(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
@@ -1039,7 +1039,7 @@ func setupTestCoreWithS3PathPrefix(t *testing.T, pathPrefix string) (*ChattoCore
 func setupTestCoreWithCache(t *testing.T) (*ChattoCore, *nats.Conn) {
 	t.Helper()
 
-	_, nc := testutil.StartNATS(t)
+	_, nc := testutil.StartSharedNATS(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)

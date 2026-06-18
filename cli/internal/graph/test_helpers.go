@@ -28,7 +28,7 @@ type testEnv struct {
 func setupTestResolver(t *testing.T) *testEnv {
 	t.Helper()
 
-	_, nc := testutil.StartNATS(t)
+	_, nc := testutil.StartSharedNATS(t)
 
 	// Use a context with timeout for setup
 	setupCtx, setupCancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -158,7 +158,7 @@ func (e *testEnv) createVerifiedUser(t *testing.T, login, displayName, password 
 func setupTestResolverWithAdmin(t *testing.T, ownerEmails []string) *testEnv {
 	t.Helper()
 
-	_, nc := testutil.StartNATS(t)
+	_, nc := testutil.StartSharedNATS(t)
 
 	// Use a context with timeout for setup
 	setupCtx, setupCancel := context.WithTimeout(context.Background(), 10*time.Second)

@@ -32,7 +32,7 @@ func testContext(t *testing.T) context.Context {
 func setupTestCore(t *testing.T) (*ChattoCore, *nats.Conn) {
 	t.Helper()
 
-	_, nc := testutil.StartNATS(t)
+	_, nc := testutil.StartSharedNATS(t)
 
 	ctx := testContext(t)
 
