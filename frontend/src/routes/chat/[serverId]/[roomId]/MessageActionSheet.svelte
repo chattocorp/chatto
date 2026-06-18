@@ -97,13 +97,13 @@
   }
 </script>
 
-<div class="flex flex-col rounded-xl bg-background">
+<div class="flex flex-col gap-2">
   <!-- Quick reactions row -->
   {#if canReact}
-    <div class="flex justify-around py-2">
+    <div class="flex justify-between menu-section px-2 py-1.5">
       {#each quickReactions as emoji (emoji)}
         <button
-          class="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full text-2xl active:bg-surface-100"
+          class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-xl active:bg-surface-100"
           onclick={() => handleReaction(emoji)}
           aria-label="React with {emoji}"
         >
@@ -112,7 +112,7 @@
       {/each}
       {#if onOpenEmojiPicker}
         <button
-          class="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full text-2xl text-muted active:bg-surface-100"
+          class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-xl text-muted active:bg-surface-100"
           onclick={() => {
             onOpenEmojiPicker();
             onClose();
@@ -123,40 +123,40 @@
         </button>
       {/if}
     </div>
-
-    <hr class="my-1 border-border" />
   {/if}
 
-  <!-- Action list using sidebar-item styling with extra padding for mobile tap targets -->
-  <nav class="sidebar-nav">
+  <nav class="sidebar-nav gap-0 menu-section p-1">
     {#if onReplyInRoom}
-      <button class="sidebar-item py-3.5" onclick={handleReplyInRoom}>
+      <button class="sidebar-item min-h-11 gap-3 px-3 py-2.5 text-base" onclick={handleReplyInRoom}>
         <span class="sidebar-icon iconify uil--corner-up-left"></span>
         Reply
       </button>
     {/if}
 
     {#if onReply}
-      <button class="sidebar-item py-3.5" onclick={handleReply}>
+      <button class="sidebar-item min-h-11 gap-3 px-3 py-2.5 text-base" onclick={handleReply}>
         <span class="sidebar-icon iconify uil--comment-alt-lines"></span>
         Reply in thread
       </button>
     {/if}
 
     {#if canEdit}
-      <button class="sidebar-item py-3.5" onclick={handleEdit}>
+      <button class="sidebar-item min-h-11 gap-3 px-3 py-2.5 text-base" onclick={handleEdit}>
         <span class="sidebar-icon iconify uil--pen"></span>
         Edit
       </button>
     {/if}
 
-    <button class="sidebar-item py-3.5" onclick={handleCopyLink}>
+    <button class="sidebar-item min-h-11 gap-3 px-3 py-2.5 text-base" onclick={handleCopyLink}>
       <span class="sidebar-icon iconify uil--copy"></span>
       Copy link
     </button>
 
     {#if canDelete}
-      <button class="sidebar-item py-3.5" onclick={handleDelete}>
+      <button
+        class="sidebar-item min-h-11 gap-3 px-3 py-2.5 text-base text-danger hover:text-danger"
+        onclick={handleDelete}
+      >
         <span class="sidebar-icon iconify uil--trash-alt"></span>
         Delete
       </button>
