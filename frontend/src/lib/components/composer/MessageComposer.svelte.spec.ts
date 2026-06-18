@@ -1471,7 +1471,7 @@ describe('MessageComposer', () => {
       });
     });
 
-    it('sends with Enter from a trailing blank paragraph after leaving a bullet list', async () => {
+    it('allows a blank paragraph after leaving a bullet list before Enter sends', async () => {
       const { container, roomId } = renderMessageComposer(
         { roomId: 'room_456' },
         new Map([['$$_urql', mockClient]])
@@ -1485,6 +1485,10 @@ describe('MessageComposer', () => {
       await pressEditorKey(editor, 'Enter');
       expect(mutationMock).not.toHaveBeenCalled();
       await vi.waitFor(() => expect(editor.querySelectorAll('ul li')).toHaveLength(1));
+      await vi.waitFor(() => expect(container.textContent).toMatch(/(?:Cmd|Ctrl)\+Return to Send/));
+
+      await pressEditorKey(editor, 'Enter');
+      expect(mutationMock).not.toHaveBeenCalled();
       await vi.waitFor(() =>
         expect(container.textContent).toMatch(/(?:Return|Enter) again to Send/)
       );
@@ -1581,7 +1585,7 @@ describe('MessageComposer', () => {
 
       document.execCommand('insertText', false, 'body');
       await vi.waitFor(() => expect(editor.querySelector('p')?.textContent).toBe('body'));
-      expect(getComputedStyle(editor.querySelector('p')!).marginTop).toBe('0px');
+      expect(getComputedStyle(editor.querySelector('p')!).marginTop).not.toBe('0px');
       await pressEditorKey(editor, 'Enter');
       expect(mutationMock).not.toHaveBeenCalled();
       await vi.waitFor(() =>

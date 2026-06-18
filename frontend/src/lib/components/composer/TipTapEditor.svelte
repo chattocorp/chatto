@@ -605,7 +605,12 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     if (selectionFrom.after(1) !== doc.content.size) return false;
 
     const previousNode = doc.child(doc.childCount - 2);
-    return previousNode.type.name !== 'paragraph' || previousNode.content.size > 0;
+    if (previousNode.type.name === 'paragraph' && previousNode.content.size > 0) return true;
+    if (previousNode.type.name !== 'paragraph') return false;
+    if (doc.childCount <= 2) return false;
+
+    const nodeBeforePrevious = doc.child(doc.childCount - 3);
+    return nodeBeforePrevious.type.name !== 'paragraph' || nodeBeforePrevious.content.size > 0;
   }
 
   export type TipTapEditorApi = {
@@ -1125,6 +1130,31 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   :global(.tiptap-editor .ProseMirror h4),
   :global(.tiptap-editor .ProseMirror h5),
   :global(.tiptap-editor .ProseMirror h6) {
+    margin: 0;
+  }
+
+  :global(.tiptap-editor .ProseMirror > p),
+  :global(.tiptap-editor .ProseMirror > blockquote),
+  :global(.tiptap-editor .ProseMirror > ul),
+  :global(.tiptap-editor .ProseMirror > ol),
+  :global(.tiptap-editor .ProseMirror > h1),
+  :global(.tiptap-editor .ProseMirror > h2),
+  :global(.tiptap-editor .ProseMirror > h3),
+  :global(.tiptap-editor .ProseMirror > h4),
+  :global(.tiptap-editor .ProseMirror > h5),
+  :global(.tiptap-editor .ProseMirror > h6) {
+    margin-block: 0.5em;
+  }
+
+  :global(.tiptap-editor .ProseMirror > :first-child) {
+    margin-top: 0;
+  }
+
+  :global(.tiptap-editor .ProseMirror > :last-child) {
+    margin-bottom: 0;
+  }
+
+  :global(.tiptap-editor .ProseMirror li > p) {
     margin: 0;
   }
 
