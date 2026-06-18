@@ -36,26 +36,22 @@ appears and disappears.
     children?: Snippet;
   } = $props();
 
-  const toneStyles: Record<Tone, { shell: string; icon: string; primary: string }> = {
+  const toneStyles: Record<Tone, { icon: string; primary: string }> = {
     info: {
-      shell: 'border-border bg-surface text-text shadow-lg shadow-black/15',
-      icon: 'bg-primary/10 text-primary',
-      primary: 'bg-primary text-white hover:bg-primary/90'
+      icon: 'text-muted',
+      primary: 'btn-accent'
     },
     success: {
-      shell: 'border-success/25 bg-surface text-text shadow-lg shadow-success/10',
-      icon: 'bg-success/10 text-success',
-      primary: 'bg-success text-white hover:bg-success/90'
+      icon: 'text-success',
+      primary: 'btn-accent'
     },
     warning: {
-      shell: 'border-warning/30 bg-surface text-text shadow-lg shadow-warning/10',
-      icon: 'bg-warning/10 text-warning',
-      primary: 'bg-warning text-white hover:bg-warning/90'
+      icon: 'text-warning',
+      primary: 'btn-warning'
     },
     danger: {
-      shell: 'border-danger/30 bg-surface text-text shadow-lg shadow-danger/10',
-      icon: 'bg-danger/10 text-danger',
-      primary: 'bg-danger text-white hover:bg-danger/90'
+      icon: 'text-danger',
+      primary: 'btn-danger'
     }
   };
 
@@ -71,61 +67,54 @@ appears and disappears.
 
 <div class="pointer-events-none fixed top-3 right-3 left-3 z-[60] flex justify-center sm:top-4">
   <section
-    class={[
-      'pointer-events-auto flex w-full max-w-2xl items-start gap-3 rounded-lg border px-3 py-3 sm:px-4',
-      toneStyles[tone].shell
-    ]}
+    class="pointer-events-auto w-full max-w-4xl menu"
     role="status"
     aria-live="polite"
   >
-    <span
-      class={[
-        'iconify mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg text-lg',
-        resolvedIcon,
-        toneStyles[tone].icon
-      ]}
-    ></span>
+    <div class="flex flex-col gap-3 menu-section px-3 py-2 md:flex-row md:items-center">
+      <span
+        class={['iconify mt-0.5 shrink-0 text-lg md:mt-0', resolvedIcon, toneStyles[tone].icon]}
+        aria-hidden="true"
+      ></span>
 
-    <div class="min-w-0 flex-1">
-      <p class="text-sm font-semibold">{title}</p>
-      <p class="mt-0.5 text-sm text-muted">{message}</p>
-      {#if children}
-        <div class="mt-2 text-sm text-muted">
-          {@render children()}
-        </div>
-      {/if}
-    </div>
+      <div class="min-w-0 flex-1">
+        <p class="text-sm font-medium text-text">{title}</p>
+        <p class="mt-0.5 text-sm text-muted">{message}</p>
+        {#if children}
+          <div class="mt-2 text-sm text-muted">
+            {@render children()}
+          </div>
+        {/if}
+      </div>
 
-    <div class="flex shrink-0 flex-col gap-2 sm:flex-row">
-      {#if secondaryAction}
-        <button
-          type="button"
-          class="cursor-pointer rounded-lg px-3 py-1.5 text-sm font-medium text-muted transition-colors hover:bg-surface-200 hover:text-text disabled:cursor-not-allowed disabled:opacity-60"
-          onclick={secondaryAction.onclick}
-          disabled={loading}
-        >
-          {secondaryAction.label}
-        </button>
-      {/if}
-      {#if primaryAction}
-        <button
-          type="button"
-          class={[
-            'inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60',
-            toneStyles[tone].primary
-          ]}
-          onclick={primaryAction.onclick}
-          disabled={loading}
-        >
-          {#if loading}
-            <span class="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-            ></span>
-          {:else if primaryAction.icon}
-            <span class={['iconify text-base', primaryAction.icon]}></span>
-          {/if}
-          <span>{primaryAction.label}</span>
-        </button>
-      {/if}
+      <div class="flex shrink-0 items-center gap-1.5">
+        {#if secondaryAction}
+          <button
+            type="button"
+            class="btn-secondary btn-sm"
+            onclick={secondaryAction.onclick}
+            disabled={loading}
+          >
+            {secondaryAction.label}
+          </button>
+        {/if}
+        {#if primaryAction}
+          <button
+            type="button"
+            class={[toneStyles[tone].primary, 'btn-sm']}
+            onclick={primaryAction.onclick}
+            disabled={loading}
+          >
+            {#if loading}
+              <span class="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+              ></span>
+            {:else if primaryAction.icon}
+              <span class={['iconify text-base', primaryAction.icon]}></span>
+            {/if}
+            <span>{primaryAction.label}</span>
+          </button>
+        {/if}
+      </div>
     </div>
   </section>
 </div>

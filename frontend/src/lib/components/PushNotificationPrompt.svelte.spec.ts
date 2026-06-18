@@ -78,7 +78,7 @@ describe('PushNotificationPrompt', () => {
     expect(container.textContent).toContain('Enable push notifications');
     expect(container.textContent).toContain('DMs, mentions, and replies');
     await expect.element(buttonWithText(container, 'Enable')).toBeVisible();
-    await expect.element(buttonWithText(container, 'Not now')).toBeVisible();
+    await expect.element(buttonWithText(container, 'No thanks')).toBeVisible();
   });
 
   it('does not show when permission is already granted', async () => {
@@ -94,7 +94,7 @@ describe('PushNotificationPrompt', () => {
     const { container } = render(PushNotificationPrompt, { props: { userId: 'user-1' } });
     await settle();
 
-    buttonWithText(container, 'Not now').click();
+    buttonWithText(container, 'No thanks').click();
     await settle();
 
     expect(container.textContent).not.toContain('Enable push notifications');

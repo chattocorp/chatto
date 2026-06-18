@@ -34,6 +34,7 @@ Please update this section as the project evolves, and refer to it when making d
 - Review your changes and additions in the browser, using the Chrome Devtools MCP.
 - We use Tailwind 4 for styling. Please use it, and don't write custom CSS directives.
 - Establish Tailwind 4 utility classes and/or Svelte components where feasible.
+- Before styling overlays, popovers, banners, toasts, menus, or similar floating UI, reuse the closest established utility/component pattern first (for example `menu`, `menu-section`, `btn`, and existing chat overlays). Add a shared Tailwind utility or component when a pattern is missing instead of inventing one-off visual styles.
 - Checkboxes and similar in the Server Admin UI should save their change immediately on click, confirmed through a toast notification.
 - Implement pagination as automatic "load more" (ie. when the edge of the container is reached), not manual/page-based pagination.
 - Use "Save" buttons only for forms with multiple fields that need to be submitted together, and make sure they are disabled until a change is made.

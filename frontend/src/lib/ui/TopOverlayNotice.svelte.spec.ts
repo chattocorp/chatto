@@ -33,6 +33,9 @@ describe('TopOverlayNotice', () => {
 
     expect(container.textContent).toContain('Enable push notifications');
     expect(container.textContent).toContain('Get notified when Chatto is closed.');
+    expect(container.querySelector('section')).toHaveClass('menu');
+    expect(container.querySelector('.menu-section')).not.toBeNull();
+    await expect.element(buttonWithText(container, 'Not now')).toHaveClass('btn-secondary');
 
     buttonWithText(container, 'Enable').click();
     buttonWithText(container, 'Not now').click();

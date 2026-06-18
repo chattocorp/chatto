@@ -164,7 +164,8 @@
             <div>
               <p class="font-medium text-accent">Push notifications enabled</p>
               <p class="mt-1 text-sm text-muted">
-                Chatto will keep this browser registered whenever you open the app.
+                Chatto uses your browser or OS notification permission as the switch. To turn
+                notifications off, disable them for this site in your browser or OS settings.
               </p>
             </div>
           </div>

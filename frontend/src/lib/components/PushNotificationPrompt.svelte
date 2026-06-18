@@ -75,7 +75,7 @@ have not made a browser permission choice yet.
 {#if shouldShow}
   <TopOverlayNotice
     title="Enable push notifications"
-    message="Get notified about DMs, mentions, and replies when Chatto is closed."
+    message="Get notified about DMs, mentions, and replies."
     icon="uil--bell"
     tone="info"
     loading={loading}
@@ -85,7 +85,7 @@ have not made a browser permission choice yet.
       onclick: enablePush
     }}
     secondaryAction={{
-      label: 'Not now',
+      label: 'No thanks',
       onclick: optOut
     }}
   />

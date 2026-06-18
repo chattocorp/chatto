@@ -244,6 +244,7 @@ describe('Notification settings page', () => {
       prompt: true
     });
     expect(container.textContent).toContain('Push notifications enabled');
+    expect(container.textContent).toContain('disable them for this site');
     expect(container.textContent).not.toContain('Disable');
   });
 
