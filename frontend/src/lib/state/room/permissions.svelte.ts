@@ -3,6 +3,7 @@ import { createContext } from 'svelte';
 export type RoomPermissions = {
   canPostMessage: boolean;
   canPostInThread: boolean;
+  canAttach: boolean;
   canReact: boolean;
   canManageOthersMessage: boolean;
   canEchoMessage: boolean;
@@ -13,6 +14,7 @@ export type RoomPermissions = {
 export const DEFAULT_ROOM_PERMISSIONS: RoomPermissions = {
   canPostMessage: false,
   canPostInThread: false,
+  canAttach: false,
   canReact: false,
   canManageOthersMessage: false,
   canEchoMessage: false,

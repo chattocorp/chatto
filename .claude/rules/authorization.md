@@ -115,7 +115,7 @@ at. Examples after the message-perms consolidation:
 |------------|--------|
 | `server.manage`, `role.manage`, `role.assign`, `admin.*`, `user.*` | `server` only |
 | `room.create` | `server`, `group` (no per-room — you can't create a room inside a room) |
-| `room.join`, `room.manage`, `room.ban-member`, `message.post`, `message.post-in-thread`, `message.react`, `message.echo`, `message.manage` | `server`, `group`, `room` |
+| `room.join`, `room.manage`, `room.ban-member`, `message.post`, `message.post-in-thread`, `message.attach`, `message.react`, `message.echo`, `message.manage` | `server`, `group`, `room` |
 
 ### Permission Naming
 
@@ -160,6 +160,7 @@ the ability to create rooms only in specific groups.
 | `room.join` | Join existing rooms |
 | `message.post` | Post root messages in a room |
 | `message.post-in-thread` | Post messages inside a thread |
+| `message.attach` | Attach files to new messages |
 | `message.react` | Add and remove reactions on messages |
 | `message.echo` | Echo a thread reply back to the main channel |
 | `message.manage` | Edit and delete *other* users' messages. Authors editing or deleting their own messages don't need this. |
@@ -196,7 +197,7 @@ the ability to create rooms only in specific groups.
 | `joinRoom` | Yes | Space membership + `room.join` |
 | `leaveRoom` | Yes | None |
 | `banRoomMember` | Yes | Channel rooms only; `room.ban-member` |
-| `postMessage` | Yes | Room membership + `message.post` (root) or `message.post-in-thread` (thread reply), + `message.echo` (if `alsoSendToChannel`) |
+| `postMessage` | Yes | Room membership + `message.post` (root) or `message.post-in-thread` (thread reply), + `message.attach` (if attachments are present), + `message.echo` (if `alsoSendToChannel`) |
 | `updateMessage` | Yes | Room membership + (author is allowed, subject to the edit window) OR `message.manage` |
 | `deleteMessage` | Yes | Room membership + (author is allowed) OR `message.manage` |
 | `markRoomAsRead` | Yes | Room membership |
@@ -274,7 +275,7 @@ if caller.Id != obj.Id {
 
 ## Customizable Permissions
 
-Default member permissions (`room.list`, `room.join`, `message.post`, `message.post-in-thread`, `message.react`, `message.echo`, and `user.delete-self`) can be denied or cleared from the `everyone` role. When implementing or modifying permission checks:
+Default member permissions (`room.list`, `room.join`, `message.post`, `message.post-in-thread`, `message.react`, `message.echo`, and `user.delete-self`) can be denied or cleared from the `everyone` role. Fresh RBAC seeding also grants `message.attach` to `everyone`, but boot-time default-permission repair must not silently backfill it onto existing RBAC state. When implementing or modifying permission checks:
 
 1. **Always use RBAC resolution** - Never hardcode permission grants based on role names or "default" lists
 2. **Test both grant and revoke** - Permissions must work when granted AND when revoked

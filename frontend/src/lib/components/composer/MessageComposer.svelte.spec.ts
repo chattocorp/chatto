@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { tick, type ComponentProps } from 'svelte';
-import MessageComposer from './MessageComposer.svelte';
+import MessageComposer, { type MessageComposerApi } from './MessageComposer.svelte';
 import { createMockGraphqlClient, q } from '$lib/test-utils';
 import { getToasts, toast } from '$lib/ui/toast';
 import type { RoomMember } from '$lib/state/room';
@@ -268,6 +268,17 @@ describe('MessageComposer', () => {
       await expect.element(q(container, 'button[title="Attach file"]')).toBeInTheDocument();
     });
 
+    it('hides attachment controls when uploads are not allowed', async () => {
+      const { container } = renderMessageComposer(
+        { roomId: 'room_456', canAttach: false },
+        new Map([['$$_urql', mockClient]])
+      );
+
+      await findEditor(container);
+      expect(q(container, 'button[title="Attach file"]')).toBeNull();
+      expect(q(container, 'input[type="file"]')).toBeNull();
+    });
+
     it('renders hidden file input', async () => {
       const { container } = renderMessageComposer(
         { roomId: 'room_456' },
@@ -437,6 +448,40 @@ describe('MessageComposer', () => {
   });
 
   describe('pasted attachments', () => {
+    it('ignores pasted files when uploads are not allowed', async () => {
+      const { container } = renderMessageComposer(
+        { roomId: 'room_456', canAttach: false },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+
+      pasteFile(editor, imageFile());
+
+      expect(prepareFilesMock).not.toHaveBeenCalled();
+      expect(q(container, 'img')).toBeNull();
+    });
+
+    it('ignores externally added files when uploads are not allowed', async () => {
+      const readyApis: MessageComposerApi[] = [];
+      const { container } = renderMessageComposer(
+        {
+          roomId: 'room_456',
+          canAttach: false,
+          onReady: (api) => {
+            readyApis.push(api);
+          }
+        },
+        new Map([['$$_urql', mockClient]])
+      );
+
+      await findEditor(container);
+      expect(readyApis).not.toHaveLength(0);
+      await readyApis.at(-1)!.addFiles([imageFile()]);
+
+      expect(prepareFilesMock).not.toHaveBeenCalled();
+      expect(q(container, 'img')).toBeNull();
+    });
+
     it('disables sending typed text while a pasted image is preparing', async () => {
       const file = imageFile();
       const pendingPreparation = deferred<File[]>();

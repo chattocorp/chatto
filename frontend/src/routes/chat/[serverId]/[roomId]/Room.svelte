@@ -310,9 +310,9 @@
   let isDraggingFiles = $state(false);
   let composerApi = $state<MessageComposerApi | null>(null);
 
-  // Drop zone attachment - only active when user can post messages
+  // Drop zone attachment - only active when user can post and attach files.
   const roomDropZone = $derived(
-    room.roomData?.canPostMessage
+    room.roomData?.canPostMessage && room.roomData?.canAttach
       ? dropZone({
           onDrop: (files) => composerApi?.addFiles(files),
           onDragStateChange: (dragging) => (isDraggingFiles = dragging),
@@ -448,6 +448,7 @@
         <MessageComposer
           {roomId}
           canPost={permissions.canPostMessage}
+          canAttach={permissions.canAttach}
           inReplyTo={replyState.messageEventId ?? undefined}
           replyDisplayName={replyState.actorDisplayName || undefined}
           replyExcerpt={replyState.excerpt || undefined}
@@ -466,6 +467,7 @@
           threadRootEventId={threadId}
           onClose={closeThread}
           canPostInThread={room.roomData.canPostInThread}
+          canAttach={room.roomData.canAttach}
           canEchoMessage={room.roomData.canEchoMessage && room.roomData.canPostMessage}
           highlightEventId={pendingThreadHighlight}
           onHighlightComplete={() => {

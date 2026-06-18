@@ -217,6 +217,11 @@ func (c *ChattoCore) CanPostInThread(ctx context.Context, userID string, kind Ro
 	return c.hasRoomPermission(ctx, kind, roomID, userID, PermMessagePostInThread)
 }
 
+// CanAttachFiles checks if a user can attach files to messages in a specific room.
+func (c *ChattoCore) CanAttachFiles(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
+	return c.hasRoomPermission(ctx, kind, roomID, userID, PermMessageAttach)
+}
+
 // CanReactToMessage checks if a user can add/remove reactions in a specific room.
 func (c *ChattoCore) CanReactToMessage(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
 	return c.hasRoomPermission(ctx, kind, roomID, userID, PermMessageReact)

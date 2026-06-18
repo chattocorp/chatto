@@ -442,8 +442,8 @@ func TestInitDefaultPermissions(t *testing.T) {
 		}
 	})
 
-	t.Run("everyone has default member permissions", func(t *testing.T) {
-		for _, perm := range DefaultEveryonePermissions() {
+	t.Run("everyone has fresh seed member permissions", func(t *testing.T) {
+		for _, perm := range DefaultSeedEveryonePermissions() {
 			if got := core.RBAC.GetDecision(ScopeServer, "", RoleEveryone, perm); got != DecisionAllow {
 				t.Errorf("everyone decision for %s = %s, want %s", perm, got, DecisionAllow)
 			}
@@ -481,6 +481,21 @@ func TestInitDefaultPermissions(t *testing.T) {
 		}
 		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermAdminUsersView); got != DecisionDeny {
 			t.Fatalf("decision after denied ensure = %s, want %s", got, DecisionDeny)
+		}
+	})
+
+	t.Run("ensure default permissions does not backfill seed-only attachment permission", func(t *testing.T) {
+		if err := core.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, PermMessageAttach); err != nil {
+			t.Fatalf("ClearServerPermissionState: %v", err)
+		}
+		if got := core.RBAC.GetDecision(ScopeServer, "", RoleEveryone, PermMessageAttach); got != DecisionNone {
+			t.Fatalf("decision after clear = %s, want %s", got, DecisionNone)
+		}
+		if err := core.EnsureDefaultRolePermissions(ctx); err != nil {
+			t.Fatalf("EnsureDefaultRolePermissions: %v", err)
+		}
+		if got := core.RBAC.GetDecision(ScopeServer, "", RoleEveryone, PermMessageAttach); got != DecisionNone {
+			t.Fatalf("decision after ensure = %s, want %s", got, DecisionNone)
 		}
 	})
 }

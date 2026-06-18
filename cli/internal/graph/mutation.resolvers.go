@@ -265,7 +265,15 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 	// Process file uploads if any (file uploads stay direct via HTTP)
 	var attachments []*corev1.Attachment
 	animatedGIFs := map[string]bool{} // track animated GIFs for video processing
-	if input.Attachments != nil {
+	if len(input.Attachments) > 0 {
+		canAttach, err := r.core.CanAttachFiles(ctx, user.Id, kind, input.RoomID)
+		if err != nil {
+			return nil, err
+		}
+		if !canAttach {
+			return nil, core.ErrPermissionDenied
+		}
+
 		if !r.videoConfig.Enabled {
 			for _, upload := range input.Attachments {
 				if strings.HasPrefix(upload.ContentType, "video/") {

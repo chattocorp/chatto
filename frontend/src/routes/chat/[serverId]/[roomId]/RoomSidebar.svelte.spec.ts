@@ -109,6 +109,7 @@ function roomData(members: RoomMember[], totalCount: number, hasMore: boolean): 
     spaceName: 'Test Server',
     canPostMessage: true,
     canPostInThread: true,
+    canAttach: true,
     canReact: true,
     canManageOthersMessage: false,
     canEchoMessage: false,

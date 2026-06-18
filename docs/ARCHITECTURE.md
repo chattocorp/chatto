@@ -210,7 +210,7 @@ Admin queries are nested under a single `admin: AdminQueries` field that returns
 
 | Mutation                  | Description                                                                                  |
 | ------------------------- | -------------------------------------------------------------------------------------------- |
-| `postMessage`             | Post a message (root or thread reply; optional attachments / link previews / echo-to-channel).|
+| `postMessage`             | Post a message (root or thread reply; attachments additionally require `message.attach`; optional link previews / echo-to-channel).|
 | `updateMessage`           | Update own message body (3-hour window); optional thread-reply echo reconciliation.           |
 | `deleteMessage`           | Delete message body (GDPR crypto-shred); event stays in stream as audit trail.               |
 | `deleteAttachment`        | Delete an attachment from own message.                                                       |
@@ -344,7 +344,7 @@ auth workflow audit facts.
 **Event-sourced aggregates:**
 
 - `EVT` is the source of truth.
-- Fresh deployments seed current invariants such as default RBAC roles and the default room group.
+- Fresh deployments seed current invariants such as default RBAC roles and the default room group. Fresh RBAC seeds include `message.attach` for `everyone`; existing RBAC state is not silently backfilled on boot.
 - Reads come from in-memory projections rebuilt from `EVT`.
 - Room timeline reads use `RoomTimelineProjection`'s derived visible-room index for initial loads, forward/backward pagination, and around-message windows. The raw room log still preserves folded room facts such as edits, retractions, reactions, and thread replies; visible readers skip or fold those facts before serving the room timeline. Asset lifecycle facts live in `AssetProjection`, which also consumes legacy beta `evt.room.{roomId}.asset_*` facts. Live `Subscription.myEvents` delivery reads the committed EVT feed, waits for projection readiness, and emits authorized events without exposing folded facts as standalone timeline rows in `Room.events`.
 - Writes append to `EVT` only for durable domain facts; legacy KV/stream data is not maintained as a mirror.

@@ -143,6 +143,15 @@ func (r *roomResolver) ViewerCanPostInThread(ctx context.Context, obj *corev1.Ro
 	return r.core.CanPostInThread(ctx, user.Id, core.KindOfRoom(obj), obj.Id)
 }
 
+// ViewerCanAttach is the resolver for the viewerCanAttach field.
+func (r *roomResolver) ViewerCanAttach(ctx context.Context, obj *corev1.Room) (bool, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return false, nil
+	}
+	return r.core.CanAttachFiles(ctx, user.Id, core.KindOfRoom(obj), obj.Id)
+}
+
 // ViewerCanReact is the resolver for the viewerCanReact field.
 func (r *roomResolver) ViewerCanReact(ctx context.Context, obj *corev1.Room) (bool, error) {
 	user := auth.ForContext(ctx)

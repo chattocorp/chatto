@@ -119,6 +119,9 @@ func TestPermissionAppliesAtScope(t *testing.T) {
 		{"message.post at server", PermMessagePost, ScopeServer, true},
 		{"message.post at group", PermMessagePost, ScopeGroup, true},
 		{"message.post at room", PermMessagePost, ScopeRoom, true},
+		{"message.attach at server", PermMessageAttach, ScopeServer, true},
+		{"message.attach at group", PermMessageAttach, ScopeGroup, true},
+		{"message.attach at room", PermMessageAttach, ScopeRoom, true},
 		{"room.join at server", PermRoomJoin, ScopeServer, true},
 		{"room.join at room", PermRoomJoin, ScopeRoom, true},
 		{"room.manage at server", PermRoomManage, ScopeServer, true},
@@ -265,10 +268,20 @@ func TestDefaultEveryonePermissions(t *testing.T) {
 		}
 	}
 
-	// Admin-level and opt-in permissions must not leak in.
-	for _, mustNotInclude := range []Permission{PermServerManage, PermRoleManage, PermRoomCreate, PermAdminUsersView} {
+	// Admin-level and seed-only permissions must not leak into the boot backfill list.
+	for _, mustNotInclude := range []Permission{PermServerManage, PermRoleManage, PermRoomCreate, PermAdminUsersView, PermMessageAttach} {
 		if slices.Contains(perms, mustNotInclude) {
 			t.Errorf("everyone defaults must not include %v", mustNotInclude)
+		}
+	}
+}
+
+func TestDefaultSeedEveryonePermissions(t *testing.T) {
+	perms := DefaultSeedEveryonePermissions()
+
+	for _, want := range append(DefaultEveryonePermissions(), PermMessageAttach) {
+		if !slices.Contains(perms, want) {
+			t.Errorf("Expected %v in fresh seed everyone defaults", want)
 		}
 	}
 }
@@ -346,6 +359,14 @@ func TestPermissionConsistency(t *testing.T) {
 		}
 	})
 
+	t.Run("everyone seed defaults are valid", func(t *testing.T) {
+		for _, perm := range DefaultSeedEveryonePermissions() {
+			if err := ValidatePermission(perm); err != nil {
+				t.Errorf("Invalid permission in everyone seed defaults: %v", perm)
+			}
+		}
+	})
+
 	t.Run("moderator defaults are valid", func(t *testing.T) {
 		for _, perm := range DefaultModeratorPermissions() {
 			if err := ValidatePermission(perm); err != nil {
@@ -378,6 +399,7 @@ func TestPermissionConsistency(t *testing.T) {
 		for _, mustNotInclude := range []Permission{
 			PermMessagePost,
 			PermMessagePostInThread,
+			PermMessageAttach,
 			PermMessageReact,
 			PermMessageEcho,
 		} {

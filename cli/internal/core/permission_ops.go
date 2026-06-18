@@ -337,7 +337,7 @@ func (c *ChattoCore) seedDefaultRoomStaffPermissions(ctx context.Context, roomID
 // Owners receive no persisted permission grants here; effective owners are
 // granted every known permission by the resolver. Admin gets
 // `DefaultAdminPermissions`, Moderator gets `DefaultModeratorPermissions`,
-// Everyone gets `DefaultEveryonePermissions`.
+// Everyone gets `DefaultSeedEveryonePermissions`.
 //
 // Permissions are written at server scope. Room and message defaults on
 // everyone act as the broad baseline; room/group decisions are local
@@ -349,7 +349,7 @@ func (c *ChattoCore) InitDefaultPermissions(ctx context.Context) error {
 	}{
 		{RoleAdmin, DefaultAdminPermissions()},
 		{RoleModerator, DefaultModeratorPermissions()},
-		{RoleEveryone, DefaultEveryonePermissions()},
+		{RoleEveryone, DefaultSeedEveryonePermissions()},
 	}
 
 	for _, spec := range roleDefaults {

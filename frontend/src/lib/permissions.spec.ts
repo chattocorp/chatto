@@ -7,6 +7,7 @@ describe('PERMISSION_METADATA', () => {
       'admin.view-audit',
       'admin.view-system',
       'admin.view-users',
+      'message.attach',
       'message.echo',
       'message.manage',
       'message.post',
