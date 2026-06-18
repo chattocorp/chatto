@@ -6,6 +6,10 @@
  */
 
 import { graphql } from '$lib/gql';
+import {
+  NOTIFICATION_CLICK_ACK_MESSAGE_TYPE,
+  NOTIFICATION_CLICK_MESSAGE_TYPE
+} from '$lib/pwa/notificationClick.worker';
 import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
 
 // GraphQL mutations
@@ -220,14 +224,26 @@ export function onSubscriptionChange(callback: () => void): () => void {
  * The SW posts these instead of calling `WindowClient.navigate()` so the
  * SPA can route via `goto()` (client-side navigation, no full reload).
  */
-export function onNotificationClick(callback: (url: string) => void): () => void {
+export function onNotificationClick(callback: (url: string) => void | Promise<void>): () => void {
   if (!('serviceWorker' in navigator)) {
     return () => {};
   }
 
   const handler = (event: MessageEvent) => {
-    if (event.data?.type === 'notification-click' && typeof event.data.url === 'string') {
-      callback(event.data.url);
+    if (
+      event.data?.type === NOTIFICATION_CLICK_MESSAGE_TYPE &&
+      typeof event.data.url === 'string'
+    ) {
+      const responsePort = event.ports[0];
+      void (async () => {
+        try {
+          await callback(event.data.url);
+          responsePort?.postMessage({ type: NOTIFICATION_CLICK_ACK_MESSAGE_TYPE });
+        } catch {
+          // Leave the service worker unacknowledged so it can fall back to
+          // WindowClient.navigate() after its timeout.
+        }
+      })();
     }
   };
 

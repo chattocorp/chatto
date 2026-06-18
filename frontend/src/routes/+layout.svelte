@@ -100,7 +100,7 @@
         const target = new URL(url);
         if (target.origin !== window.location.origin) return;
         // eslint-disable-next-line svelte/no-navigation-without-resolve -- URL comes from same-origin service worker notification data
-        void goto(target.pathname + target.search + target.hash);
+        return goto(target.pathname + target.search + target.hash);
       } catch {
         // Ignore malformed URLs from the SW.
       }
