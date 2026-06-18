@@ -12,7 +12,7 @@ test.describe('drag and drop image upload', () => {
 
     const testMessage = `Drag drop test ${Date.now()}`;
     await roomPage.messageInput.fill(testMessage);
-    await roomPage.messageInput.press('Control+Enter');
+    await roomPage.messageInput.press('Enter');
 
     await expect(roomPage.attachmentPreview).not.toBeVisible();
     await roomPage.expectMessageVisible(testMessage);

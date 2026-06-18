@@ -39,7 +39,8 @@ function editor(
       replaceTextBeforeCursor: (charCount, replacement) => {
         text = text.slice(0, cursor - charCount) + replacement + text.slice(cursor);
         cursor = cursor - charCount + replacement.length;
-      }
+      },
+      insertBlockBreak: () => {}
     },
     getText: () => text,
     setText: (next) => {

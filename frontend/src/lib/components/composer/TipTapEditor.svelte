@@ -13,6 +13,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 - `onKeyDown` - Keyboard event handler; return true to prevent TipTap default
 - `onPaste` - Paste event handler; return true to prevent TipTap default
 - `onNextEnterWillSendChange` - Called when selection enters/leaves a trailing empty paragraph
+- `onRichStructureChange` - Called when the document gains/loses structural Markdown blocks
 - `onReady` - Called with editor API when editor is initialized
 -->
 <script lang="ts">
@@ -634,6 +635,20 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     return previousNode.type.name !== 'paragraph' || previousNode.content.size > 0;
   }
 
+  function hasRichStructure(e: Editor): boolean {
+    let found = false;
+    e.state.doc.descendants((node) => {
+      if (
+        ['heading', 'bulletList', 'orderedList', 'blockquote', 'codeBlock'].includes(node.type.name)
+      ) {
+        found = true;
+        return false;
+      }
+      return true;
+    });
+    return found;
+  }
+
   export type TipTapEditorApi = {
     /** Get the editor's plain text content */
     getText: () => string;
@@ -651,6 +666,8 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
      * length relative to the cursor.
      */
     replaceTextBeforeCursor: (charCount: number, replacement: string) => void;
+    /** Insert the same block break the editor would create for a plain Enter key. */
+    insertBlockBreak: () => void;
   };
 
   let {
@@ -662,6 +679,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     onKeyDown,
     onPaste,
     onNextEnterWillSendChange,
+    onRichStructureChange,
     onReady
   }: {
     placeholder?: string;
@@ -672,6 +690,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     onKeyDown?: (event: KeyboardEvent) => boolean;
     onPaste?: (event: ClipboardEvent) => boolean;
     onNextEnterWillSendChange?: (value: boolean) => void;
+    onRichStructureChange?: (value: boolean) => void;
     onReady?: (api: TipTapEditorApi) => void;
   } = $props();
 
@@ -686,6 +705,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   let linkDraftInitializedFor = $state<string | null>(null);
   let codeLanguageLoadToken = 0;
   let lastNextEnterWillSend = false;
+  let lastRichStructure = false;
 
   let hasLinkControls = $derived(activeLinkHref !== null);
   let activeCodeBlockLanguageLabel = $derived(
@@ -766,6 +786,13 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     if (value === lastNextEnterWillSend) return;
     lastNextEnterWillSend = value;
     onNextEnterWillSendChange?.(value);
+  }
+
+  function updateRichStructure(e: Editor) {
+    const value = !e.isDestroyed && hasRichStructure(e);
+    if (value === lastRichStructure) return;
+    lastRichStructure = value;
+    onRichStructureChange?.(value);
   }
 
   function updateActiveControls(e: Editor) {
@@ -912,6 +939,8 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     const syncControls = () => {
       if (e.isDestroyed) return;
       updateActiveControls(e);
+      updateNextEnterWillSend(e);
+      updateRichStructure(e);
     };
 
     return {
@@ -923,6 +952,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           contentType: 'markdown',
           emitUpdate: false
         });
+        updateRichStructure(e);
         ensureEditorCodeLanguages(e);
         tick().then(syncControls);
       },
@@ -949,6 +979,12 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           .deleteRange({ from: from - charCount, to: from })
           .insertContent(replacement)
           .run();
+        tick().then(syncControls);
+      },
+
+      insertBlockBreak: () => {
+        if (e.isDestroyed) return;
+        e.chain().focus().splitBlock().run();
         tick().then(syncControls);
       }
     };
@@ -1009,12 +1045,14 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           onUpdate: ({ editor: ed }) => {
             updateActiveControls(ed);
             updateNextEnterWillSend(ed);
+            updateRichStructure(ed);
             ensureEditorCodeLanguages(ed);
             onUpdate?.(hasDefaultEmptyDocument(ed) ? '' : getSerializedMarkdown(ed));
           },
           onSelectionUpdate: ({ editor: ed }) => {
             updateActiveControls(ed);
             updateNextEnterWillSend(ed);
+            updateRichStructure(ed);
           }
         })
     );
@@ -1025,12 +1063,15 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     tick().then(() => {
       if (e.isDestroyed || editor !== e) return;
       updateNextEnterWillSend(e);
+      updateRichStructure(e);
       onReady?.(buildApi(e));
     });
 
     return () => {
       lastNextEnterWillSend = false;
       onNextEnterWillSendChange?.(false);
+      lastRichStructure = false;
+      onRichStructureChange?.(false);
       editor?.destroy();
       editor = null;
     };

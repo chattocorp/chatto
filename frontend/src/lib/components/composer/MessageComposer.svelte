@@ -198,6 +198,7 @@
       editSeededForEvent = eventId;
       draftState.clearText();
       message = originalBody;
+      manualRichMode = false;
       alsoSendToChannel = editState.channelEchoEventId !== null;
       api?.setContent(originalBody);
       tick().then(() => api?.focus('end'));
@@ -206,6 +207,7 @@
     } else if (editSeededForEvent && !eventId) {
       // Exiting edit mode - clear the input
       message = '';
+      manualRichMode = false;
       alsoSendToChannel = false;
       editSeededForEvent = '';
       api?.setContent('');
@@ -223,6 +225,7 @@
 
     const draft = draftState.switchKey(DRAFT_KEY);
     message = draft;
+    manualRichMode = false;
     editorApi?.setContent(draft);
     attachments.restore(untrack(() => draftState.takeFiles()));
 
@@ -316,9 +319,16 @@
       (hasVisibleContent(message) || hasSendableAttachments || isEditing)
   );
   let editorNextEnterWillSend = $state(false);
-  let nextEnterWillSend = $derived(canSubmit && editorNextEnterWillSend);
+  let manualRichMode = $state(false);
+  let editorHasRichStructure = $state(false);
+  let isRichComposer = $derived(isEditing || manualRichMode || editorHasRichStructure);
+  let nextEnterWillSend = $derived(canSubmit && isRichComposer && editorNextEnterWillSend);
   let submitHint = $derived(
-    shortcutHints ? (nextEnterWillSend ? shortcutHints.enterAgain : shortcutHints.submit) : null
+    shortcutHints && isRichComposer
+      ? nextEnterWillSend
+        ? shortcutHints.enterAgain
+        : shortcutHints.submit
+      : null
   );
 
   $effect(() => {
@@ -464,6 +474,7 @@
     inReplyTo: string | null;
     linkPreviewInput: ReturnType<typeof linkPreviews.buildInput>;
     alsoSendToChannel: boolean;
+    wasRichComposer: boolean;
   };
 
   type PendingMentionConfirmation = PreparedPost & MentionConfirmation;
@@ -513,6 +524,7 @@
 
   function restorePreparedPost(post: PreparedPost) {
     message = post.bodyToSend;
+    manualRichMode = post.wasRichComposer;
     editorApi?.setContent(post.bodyToSend);
     if (post.filesToSend) {
       attachments.restore(attachments.filesToPreviewItems(post.filesToSend));
@@ -551,6 +563,7 @@
 
     // Reset "also send to channel" checkbox after successful send
     alsoSendToChannel = false;
+    manualRichMode = false;
   }
 
   function cancelMentionConfirmation() {
@@ -595,12 +608,14 @@
       threadRootEventId: inThread ?? null,
       inReplyTo: inReplyTo ?? null,
       linkPreviewInput: linkPreviews.buildInput(),
-      alsoSendToChannel
+      alsoSendToChannel,
+      wasRichComposer: isRichComposer
     };
 
     // Optimistically clear the editor so the user can start typing the next
     // message immediately (matches Slack/Discord behavior).
     message = '';
+    manualRichMode = false;
     editorApi?.setContent('');
     attachments.clear();
     linkPreviews.clear();
@@ -676,17 +691,13 @@
   function cancelEdit() {
     editState.cancelEdit();
     message = '';
+    manualRichMode = false;
     editorApi?.setContent('');
   }
 
   // Handle keyboard events from TipTap editor.
   // Return true to prevent TipTap's default handling.
   function handleEditorKeyDown(event: KeyboardEvent): boolean {
-    if (event.key === 'Enter' && !event.shiftKey && (event.metaKey || event.ctrlKey)) {
-      handleSubmit(); // Fire-and-forget (async, but keydown must return sync)
-      return true;
-    }
-
     // Handle emoji autocomplete keyboard events first
     if (autocomplete.emoji && autocomplete.emojiRef) {
       if (autocomplete.emojiRef.handleKeyDown(event)) {
@@ -701,15 +712,26 @@
       }
     }
 
-    if (
-      event.key === 'Enter' &&
-      !event.shiftKey &&
-      !event.metaKey &&
-      !event.ctrlKey &&
-      nextEnterWillSend
-    ) {
-      handleSubmit(); // Fire-and-forget (async, but keydown must return sync)
-      return true;
+    if (event.key === 'Enter' && !event.shiftKey) {
+      if (event.metaKey || event.ctrlKey) {
+        if (isRichComposer) {
+          handleSubmit(); // Fire-and-forget (async, but keydown must return sync)
+        } else {
+          manualRichMode = true;
+          editorApi?.insertBlockBreak();
+        }
+        return true;
+      }
+
+      if (!isRichComposer) {
+        if (canSubmit) {
+          handleSubmit(); // Fire-and-forget (async, but keydown must return sync)
+          return true;
+        }
+      } else if (nextEnterWillSend) {
+        handleSubmit(); // Fire-and-forget (async, but keydown must return sync)
+        return true;
+      }
     }
 
     // Handle Tab for @mention autocomplete
@@ -760,6 +782,9 @@
   function handleEditorUpdate(text: string) {
     const previousMessage = message;
     message = text;
+    if (!text) {
+      manualRichMode = false;
+    }
     // Only trigger typing indicator for actual user input.
     // Programmatic setContent calls suppress TipTap update events, but this
     // guard still protects any same-value editor update from emitting typing.
@@ -767,6 +792,10 @@
       onTyping?.();
     }
     autocomplete.update();
+  }
+
+  function handleRichStructureChange(value: boolean) {
+    editorHasRichStructure = value;
   }
 
   // Called when TipTap editor is ready - sync any pending state
@@ -914,6 +943,7 @@
         onKeyDown={handleEditorKeyDown}
         onPaste={handlePaste}
         onNextEnterWillSendChange={(value) => (editorNextEnterWillSend = value)}
+        onRichStructureChange={handleRichStructureChange}
         onReady={handleEditorReady}
       />
     {/await}
@@ -937,7 +967,7 @@
         disabled={!canSubmit}
         class="flex h-8 w-8 cursor-pointer items-center justify-center rounded text-muted transition-colors duration-100 enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
         aria-label="Send message"
-        title="Send message (Ctrl/Cmd+Enter)"
+        title={isRichComposer ? 'Send message (Ctrl/Cmd+Enter)' : 'Send message (Enter)'}
       >
         <span class="iconify text-xl uil--telegram-alt"></span>
       </button>

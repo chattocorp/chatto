@@ -1211,7 +1211,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       // Post the reply
       const replyBody = `Reply to target ${timestamp}`;
       await page.getByTestId('thread-reply-input').fill(replyBody);
-      await page.getByTestId('thread-reply-input').press('Control+Enter');
+      await page.getByTestId('thread-reply-input').press('Enter');
 
       // Wait for reply to appear
       await expect(page.getByTestId('thread-pane').getByText(replyBody)).toBeVisible({
@@ -1296,7 +1296,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
 
       // Post the reply
       await page.getByTestId('thread-reply-input').fill(echoBody);
-      await page.getByTestId('thread-reply-input').press('Control+Enter');
+      await page.getByTestId('thread-reply-input').press('Enter');
 
       // Wait for the echo reply to appear in the thread
       await expect(page.getByTestId('thread-pane').getByText(echoBody)).toBeVisible({

@@ -155,7 +155,8 @@ export class RoomPage {
   async sendMessage(text: string): Promise<MessageComponent> {
     await this.waitForInputEditable();
     await this.messageInput.fill(text);
-    await this.messageInput.press('Control+Enter');
+    await this.dismissAutocompleteIfOpen(this.messageInput);
+    await this.messageInput.press('Enter');
     const message = this.getMessage(text);
     await expect(message.locator).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
     return message;
@@ -192,7 +193,8 @@ export class RoomPage {
     if (text) {
       await this.messageInput.fill(text);
     }
-    await this.messageInput.press('Control+Enter');
+    await this.dismissAutocompleteIfOpen(this.messageInput);
+    await this.messageInput.press('Enter');
 
     // Wait for attachment preview to clear (message sent)
     await expect(this.attachmentPreview).not.toBeVisible();
@@ -554,7 +556,8 @@ export class RoomPage {
       timeout: TIMEOUTS.UI_STANDARD
     });
     await this.threadReplyInput.fill(text);
-    await this.threadReplyInput.press('Control+Enter');
+    await this.dismissAutocompleteIfOpen(this.threadReplyInput);
+    await this.threadReplyInput.press('Enter');
     await expect(this.threadPane.getByText(text)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
   }
 
@@ -575,9 +578,20 @@ export class RoomPage {
 
     // Post the reply
     await this.threadReplyInput.fill(text);
-    await this.threadReplyInput.press('Control+Enter');
+    await this.dismissAutocompleteIfOpen(this.threadReplyInput);
+    await this.threadReplyInput.press('Enter');
     // Wait for message to appear in thread pane specifically
     await expect(this.threadPane.getByText(text)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+  }
+
+  private async dismissAutocompleteIfOpen(input: Locator): Promise<void> {
+    const popup = this.page
+      .locator('[data-testid="mention-autocomplete"], [data-testid="emoji-autocomplete"]')
+      .first();
+    await popup.waitFor({ state: 'visible', timeout: 250 }).catch(() => undefined);
+    if (await popup.isVisible()) {
+      await input.press('Escape');
+    }
   }
 
   /**

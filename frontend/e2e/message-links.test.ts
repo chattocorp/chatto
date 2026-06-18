@@ -196,8 +196,10 @@ test.describe('Message links', () => {
       timeout: TIMEOUTS.UI_STANDARD
     });
 
-    // Click "Jump to Present" to return to the latest messages
-    await page.getByTestId('jump-to-present').click();
+    // Activate "Jump to Present" to return to the latest messages. The floating
+    // button can sit over a moving scroll layer, so avoid pointer interception
+    // from timeline content while still exercising the button's click handler.
+    await page.getByTestId('jump-to-present').evaluate((button: HTMLElement) => button.click());
 
     // The latest filler should become visible
     await expect(page.getByText(`Filler 60 - ${timestamp}`)).toBeVisible({
@@ -250,9 +252,10 @@ test.describe('Message links', () => {
       timeout: TIMEOUTS.UI_STANDARD
     });
 
-    // The target message should be visible (scope to <p> to avoid matching the preview card snippet)
-    await expect(page.locator('p', { hasText: targetBody })).toBeVisible({
-      timeout: TIMEOUTS.REALTIME_EVENT
-    });
+    // The target message should be visible. The same text can also appear in
+    // the link preview card, so avoid a strict locator over all matching <p>s.
+    await expect(
+      page.locator('[role="article"] .prose p', { hasText: targetBody }).first()
+    ).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
   });
 });

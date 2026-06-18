@@ -33,7 +33,7 @@ test.describe('audio player', () => {
 
         // User 1 uploads and sends an audio file
         await roomPage.fileInput.setInputFiles('e2e/fixtures/test-audio.mp3');
-        await roomPage.messageInput.press('Control+Enter');
+        await roomPage.messageInput.press('Enter');
 
         // User 1 sees the audio player
         await expect(roomPage.audioPlayer).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });

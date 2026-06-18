@@ -32,7 +32,7 @@ export async function verifyRealtimeSync(
 
   // Sender sends sync message
   await senderRoom.messageInput.fill(syncId);
-  await senderRoom.messageInput.press('Control+Enter');
+  await senderRoom.messageInput.press('Enter');
 
   // Receiver waits to see it (proves subscription is connected)
   await expect(receiverRoom.page.getByText(syncId)).toBeVisible({ timeout });

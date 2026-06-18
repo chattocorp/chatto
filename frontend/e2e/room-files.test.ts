@@ -42,7 +42,7 @@ test('room Files sidebar jumps to root files and opens thread reply files', asyn
     timeout: TIMEOUTS.UI_STANDARD
   });
   await roomPage.threadReplyInput.fill(threadReplyText);
-  await roomPage.threadReplyInput.press('Control+Enter');
+  await roomPage.threadReplyInput.press('Enter');
   await roomPage.expectTextInThreadPane(threadReplyText);
   await roomPage.closeThread();
 

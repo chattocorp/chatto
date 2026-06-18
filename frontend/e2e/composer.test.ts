@@ -160,8 +160,8 @@ test.describe('Composer focus', () => {
   });
 });
 
-test.describe('Composer keyboard submit hint', () => {
-  test('sends when Enter is pressed from a trailing blank paragraph', async ({
+test.describe('Composer simple/rich keyboard modes', () => {
+  test('sends simple text with Enter and hides the rich shortcut hint', async ({
     page,
     chatPage,
     roomPage
@@ -174,12 +174,33 @@ test.describe('Composer keyboard submit hint', () => {
     const message = `Return again send ${Date.now()}`;
     await roomPage.waitForInputEditable();
     await roomPage.messageInput.fill(message);
-    await expect(page.getByText(/(?:Cmd|Ctrl)\+Return to Send/)).toBeVisible();
+    await expect(page.getByText(/(?:Cmd|Ctrl)\+Return to Send/)).not.toBeVisible();
 
     await roomPage.messageInput.press('Enter');
+    await expect(roomPage.getMessage(message).locator).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+    await expect(roomPage.messageInput).toHaveText('');
+  });
+
+  test('activates rich mode with Control+Enter before sending', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    await waitForRoomReady(page, 'general');
+
+    const message = `Manual rich send ${Date.now()}`;
+    await roomPage.waitForInputEditable();
+    await roomPage.messageInput.fill(message);
+
+    await roomPage.messageInput.press('Control+Enter');
+    await expect(roomPage.getMessage(message).locator).not.toBeVisible();
+    await expect(roomPage.messageInput.locator(':scope > p')).toHaveCount(2);
     await expect(page.getByText(/(?:Return|Enter) again to Send/)).toBeVisible();
 
-    await roomPage.messageInput.press('Enter');
+    await roomPage.messageInput.press('Control+Enter');
     await expect(roomPage.getMessage(message).locator).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
     await expect(roomPage.messageInput).toHaveText('');
   });

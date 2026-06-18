@@ -526,7 +526,7 @@ describe('MessageComposer', () => {
       expect(icon).not.toBeNull();
     });
 
-    it('shows a compact keyboard shortcut hint when the composer can submit', async () => {
+    it('hides the keyboard shortcut hint in simple mode', async () => {
       const { container } = renderMessageComposer(
         { roomId: 'room_456' },
         new Map([['$$_urql', mockClient]])
@@ -536,9 +536,23 @@ describe('MessageComposer', () => {
       expect(q(container, '[title$="Return to Send"]')).toBeNull();
       await typeEditorLiteralText(editor, 'hint me');
 
+      expect(q(container, '[title$="Return to Send"]')).toBeNull();
+    });
+
+    it('shows the enter-again hint after manually activating rich mode', async () => {
+      const { container } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+
+      await typeEditorLiteralText(editor, 'hint me');
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
+
+      await vi.waitFor(() => expect(editor.querySelectorAll(':scope > p')).toHaveLength(2));
       await vi.waitFor(() => {
-        const hint = q(container, '[title$="Return to Send"]');
-        expect(hint?.textContent).toMatch(/^(Cmd|Ctrl)\+Return to Send$/);
+        const hint = q(container, '[title$="to Send"]');
+        expect(hint?.textContent).toMatch(/^(Return|Enter) again to Send$/);
       });
     });
 
@@ -1042,6 +1056,28 @@ describe('MessageComposer', () => {
       expect(mutationMock).not.toHaveBeenCalled();
     });
 
+    it('keeps edit mode on rich keyboard behavior', async () => {
+      roomStateMock.editState.eventId = 'evt_edit';
+      roomStateMock.editState.originalBody = 'original body';
+      const { container } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+
+      await vi.waitFor(() => expect(container.textContent).toMatch(/(?:Cmd|Ctrl)\+Return to Send/));
+      await pressEditorKey(editor, 'Enter');
+      expect(mutationMock).not.toHaveBeenCalled();
+
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        eventId: 'evt_edit',
+        body: 'original body'
+      });
+    });
+
     it('preserves literal HTML-looking text when restoring and saving an edit', async () => {
       const body = '<script>alert(1)</script> & <b>bold?</b>';
       const editedBody = `${body}!`;
@@ -1121,7 +1157,7 @@ describe('MessageComposer', () => {
   });
 
   describe('submit behavior', () => {
-    it('uses Enter to complete an active mention before Ctrl+Enter can send', async () => {
+    it('uses Enter to complete an active mention before plain Enter can send', async () => {
       roomStateMock.members = [roomMember('alice')];
       const { container, roomId } = renderMessageComposer(
         { roomId: 'room_456' },
@@ -1139,7 +1175,7 @@ describe('MessageComposer', () => {
       await vi.waitFor(() => expect(editor.textContent).toBe('@alice '));
       expect(mutationMock).not.toHaveBeenCalled();
 
-      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
+      await pressEditorKey(editor, 'Enter');
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -1148,7 +1184,7 @@ describe('MessageComposer', () => {
       });
     });
 
-    it('sends plain text with Ctrl+Enter', async () => {
+    it('sends plain text with Enter in simple mode', async () => {
       const { container, roomId } = renderMessageComposer(
         { roomId: 'room_456' },
         new Map([['$$_urql', mockClient]])
@@ -1156,7 +1192,7 @@ describe('MessageComposer', () => {
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, 'hello from shortcut');
-      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
+      await pressEditorKey(editor, 'Enter');
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -1165,27 +1201,27 @@ describe('MessageComposer', () => {
       });
     });
 
-    it('sends with plain Enter from a trailing blank paragraph', async () => {
+    it('activates rich mode with Ctrl+Enter in simple mode', async () => {
       const { container, roomId } = renderMessageComposer(
         { roomId: 'room_456' },
         new Map([['$$_urql', mockClient]])
       );
       const editor = await findEditor(container);
 
-      await typeEditorLiteralText(editor, 'hello from return');
-      await vi.waitFor(() => expect(container.textContent).toMatch(/(?:Cmd|Ctrl)\+Return to Send/));
-      await pressEditorKey(editor, 'Enter');
+      await typeEditorLiteralText(editor, 'hello from shortcut');
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
       expect(mutationMock).not.toHaveBeenCalled();
+      await vi.waitFor(() => expect(editor.querySelectorAll(':scope > p')).toHaveLength(2));
       await vi.waitFor(() =>
         expect(container.textContent).toMatch(/(?:Return|Enter) again to Send/)
       );
 
-      await pressEditorKey(editor, 'Enter');
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
         roomId,
-        body: 'hello from return'
+        body: 'hello from shortcut'
       });
     });
 
@@ -1404,7 +1440,7 @@ describe('MessageComposer', () => {
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, 'or this:');
-      await pressEditorKey(editor, 'Enter');
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
       await insertEditorLiteralText(editor, '```go ');
 
       await vi.waitFor(() => expect(editor.querySelector('pre code')).toBeTruthy());
@@ -2054,15 +2090,24 @@ describe('MessageComposer', () => {
         .toHaveAttribute('title', 'Attach file');
     });
 
-    it('send button has title attribute', async () => {
+    it('send button title follows composer mode', async () => {
       const { container } = renderMessageComposer(
         { roomId: 'room_456' },
         new Map([['$$_urql', mockClient]])
       );
+      const editor = await findEditor(container);
 
       await expect
         .element(q(container, 'button[aria-label="Send message"]'))
-        .toHaveAttribute('title', 'Send message (Ctrl/Cmd+Enter)');
+        .toHaveAttribute('title', 'Send message (Enter)');
+
+      await typeEditorLiteralText(editor, '- first');
+      await vi.waitFor(() =>
+        expect(q(container, 'button[aria-label="Send message"]')).toHaveAttribute(
+          'title',
+          'Send message (Ctrl/Cmd+Enter)'
+        )
+      );
     });
   });
 });
