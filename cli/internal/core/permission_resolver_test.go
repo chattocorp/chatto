@@ -1008,6 +1008,38 @@ func TestPermissionResolver_DMContract(t *testing.T) {
 	}
 }
 
+func TestPermissionResolver_DMAttachDefaultAllowRespectsExplicitDeny(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	regular, _ := core.CreateUser(ctx, "system", "dmattachdeny", "DM Attach Deny", "password123")
+	dmRoomID := "R_dm_attach_deny_test"
+
+	if err := core.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, PermMessageAttach); err != nil {
+		t.Fatalf("ClearServerPermissionState: %v", err)
+	}
+
+	got, err := core.permissionResolver.HasRoomPermission(ctx, regular.Id, KindDM, dmRoomID, PermMessageAttach)
+	if err != nil {
+		t.Fatalf("HasRoomPermission before deny: %v", err)
+	}
+	if !got {
+		t.Fatal("message.attach should default-allow for DM participants without a persisted grant")
+	}
+
+	if err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessageAttach); err != nil {
+		t.Fatalf("DenyServerPermission: %v", err)
+	}
+
+	got, err = core.permissionResolver.HasRoomPermission(ctx, regular.Id, KindDM, dmRoomID, PermMessageAttach)
+	if err != nil {
+		t.Fatalf("HasRoomPermission after deny: %v", err)
+	}
+	if got {
+		t.Fatal("explicit server deny should override the DM message.attach default allow")
+	}
+}
+
 // ============================================================================
 // Room/group/server scope tests for deny-wins permission resolution.
 // ============================================================================

@@ -350,6 +350,7 @@ var dmDefaultAllowedPermissions = map[Permission]bool{
 	PermRoomJoin:            true,
 	PermMessagePost:         true,
 	PermMessagePostInThread: true,
+	PermMessageAttach:       true,
 	PermMessageReact:        true,
 }
 
