@@ -42,6 +42,14 @@ func TestRoomResolver_ListableButNotJoinable(t *testing.T) {
 	if canJoin {
 		t.Error("viewer should NOT be able to join a room with room.join denied at room scope")
 	}
+
+	isMember, err := roomResolver.ViewerIsMember(ctx, env.testRoom)
+	if err != nil {
+		t.Fatalf("ViewerIsMember: %v", err)
+	}
+	if isMember {
+		t.Error("non-member viewer should not be reported as a room member")
+	}
 }
 
 // TestRoomResolver_HiddenWhenListDenied verifies the opposite end of the
@@ -93,5 +101,13 @@ func TestRoomResolver_ListableForMemberEvenWhenListDenied(t *testing.T) {
 	}
 	if !canList {
 		t.Error("explicit room member should still see the room after a room.list deny")
+	}
+
+	isMember, err := roomResolver.ViewerIsMember(ctx, env.testRoom)
+	if err != nil {
+		t.Fatalf("ViewerIsMember: %v", err)
+	}
+	if !isMember {
+		t.Error("explicit room member should be reported as a room member")
 	}
 }

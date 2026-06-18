@@ -36,7 +36,6 @@ function editor(
       focus: () => {},
       getTextBeforeCursor: () => text.slice(0, cursor),
       isInCodeBlock: () => false,
-      isInPlainParagraph: () => true,
       replaceTextBeforeCursor: (charCount, replacement) => {
         text = text.slice(0, cursor - charCount) + replacement + text.slice(cursor);
         cursor = cursor - charCount + replacement.length;

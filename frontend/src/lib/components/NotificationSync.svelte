@@ -39,7 +39,10 @@ Include this component once in the chat layout (unconditionally).
         if (event.event.__typename === 'NotificationCreatedEvent') {
           notificationStore.addNotification();
           stores.rooms.incrementUnreadNotification(event.event.roomId);
-          playNotificationSound(userPreferences.notificationSound);
+          playNotificationSound(
+            userPreferences.notificationSound,
+            userPreferences.notificationSoundFilters
+          );
         }
 
         if (event.event.__typename === 'NotificationDismissedEvent') {

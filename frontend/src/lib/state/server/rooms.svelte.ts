@@ -16,6 +16,8 @@ export type RoomsListItem = {
   name: string;
   type: RoomType;
   hasUnread: boolean;
+  viewerIsMember: boolean;
+  viewerCanJoinRoom: boolean;
   viewerNotificationCount: number;
   // Populated for DM rooms only — used to derive the display name in the sidebar.
   members: UserAvatarUserFragment[];
@@ -51,25 +53,40 @@ const MyRoomsQuery = graphql(`
     viewer {
       user {
         id
-        rooms {
-          id
-          name
-          type
-          hasUnread
-          archived
-          viewerNotificationPreference {
-            level
-            effectiveLevel
-          }
-          members(limit: 100) {
-            users {
-              ...UserAvatarUser
-            }
-          }
-        }
       }
     }
     server {
+      channelRooms: rooms(type: CHANNEL) {
+        id
+        name
+        type
+        hasUnread
+        archived
+        viewerIsMember
+        viewerCanJoinRoom
+        viewerNotificationPreference {
+          level
+          effectiveLevel
+        }
+      }
+      dmRooms: rooms(type: DM) {
+        id
+        name
+        type
+        hasUnread
+        archived
+        viewerIsMember
+        viewerCanJoinRoom
+        viewerNotificationPreference {
+          level
+          effectiveLevel
+        }
+        members(limit: 100) {
+          users {
+            ...UserAvatarUser
+          }
+        }
+      }
       roomGroups {
         id
         name
@@ -95,22 +112,20 @@ const MyRoomsQuery = graphql(`
 
 const MyRoomNotificationCountsQuery = graphql(`
   query GetMyServerRoomNotificationCounts {
-    viewer {
-      user {
-        rooms {
-          id
-          viewerNotifications(limit: 1) {
-            totalCount
-          }
+    server {
+      rooms {
+        id
+        viewerNotifications(limit: 1) {
+          totalCount
         }
       }
     }
   }
 `);
 
-function uniqueById<T extends { id: string }>(items: T[]): T[] {
+function uniqueById<T extends { id: string }>(items: readonly T[] | null | undefined): T[] {
   const seen: Record<string, true> = Object.create(null);
-  return items.filter((item) => {
+  return (items ?? []).filter((item) => {
     if (seen[item.id]) return false;
     seen[item.id] = true;
     return true;
@@ -193,11 +208,9 @@ export class RoomsStore {
   rooms = $state<RoomsListItem[]>([]);
   roomGroups = $state<RoomsListGroup[] | null>(null);
   isInitialLoading = $state(true);
-  // The viewer's user ID, captured from the same `viewer { user { id, rooms } }`
-  // query that produced `rooms`. Use this in preference to a global auth
-  // context when filtering self out of `room.members` — by construction it is
-  // set whenever there are rooms (with members) to render, eliminating any
-  // race with the auth context being briefly empty during route transitions.
+  // The viewer's user ID, captured from the same sidebar bootstrap query that
+  // produced DM `room.members`. Use this in preference to a global auth
+  // context when filtering self out of DM labels and avatars.
   currentUserId = $state<string | null>(null);
 
   private loadId = 0;
@@ -219,7 +232,12 @@ export class RoomsStore {
 
     if (result.data?.viewer?.user) {
       this.currentUserId = result.data.viewer.user.id;
-      const allRooms = uniqueById(result.data.viewer.user.rooms);
+    }
+
+    if (result.data?.server) {
+      const channelRooms = uniqueById(result.data.server.channelRooms);
+      const dmRooms = uniqueById(result.data.server.dmRooms);
+      const allRooms = uniqueById([...channelRooms, ...dmRooms]);
 
       for (const room of allRooms) {
         const pref = room.viewerNotificationPreference;
@@ -228,29 +246,43 @@ export class RoomsStore {
         }
       }
 
-      const visible = allRooms.filter((r: { archived: boolean }) => !r.archived);
-      this.rooms = visible.map((r: (typeof allRooms)[number]) => ({
-        id: r.id,
-        name: r.name,
-        type: r.type,
-        hasUnread: r.hasUnread,
-        viewerNotificationCount: 0,
-        members: r.members.users.map((m: (typeof r.members.users)[number]) =>
-          useFragment(UserAvatarUserFragmentDoc, m)
-        )
-      }));
-      this.roomUnread.initRooms(visible);
-      void this.refreshNotificationCounts(thisLoad);
-    }
+      const visibleChannels = channelRooms.filter((r) => !r.archived);
+      const visibleDms = dmRooms.filter((r) => !r.archived);
 
-    if (result.data?.server?.roomGroups) {
-      type SetT = NonNullable<typeof result.data.server.roomGroups>[number];
-      this.roomGroups = result.data.server.roomGroups.map((s: SetT) => ({
-        id: s.id,
-        name: s.name,
-        roomIds: uniqueById(s.rooms).map((r: SetT['rooms'][number]) => r.id),
-        items: sidebarItemsFromQuery(s)
-      }));
+      this.rooms = [
+        ...visibleChannels.map((r) => ({
+          id: r.id,
+          name: r.name,
+          type: r.type,
+          hasUnread: r.hasUnread,
+          viewerIsMember: r.viewerIsMember,
+          viewerCanJoinRoom: r.viewerCanJoinRoom,
+          viewerNotificationCount: 0,
+          members: []
+        })),
+        ...visibleDms.map((r) => ({
+          id: r.id,
+          name: r.name,
+          type: r.type,
+          hasUnread: r.hasUnread,
+          viewerIsMember: r.viewerIsMember,
+          viewerCanJoinRoom: r.viewerCanJoinRoom,
+          viewerNotificationCount: 0,
+          members: r.members.users.map((m) => useFragment(UserAvatarUserFragmentDoc, m))
+        }))
+      ];
+      this.roomUnread.initRooms([...visibleChannels, ...visibleDms]);
+      void this.refreshNotificationCounts(thisLoad);
+
+      if (result.data.server.roomGroups) {
+        type SetT = (typeof result.data.server.roomGroups)[number];
+        this.roomGroups = result.data.server.roomGroups.map((s: SetT) => ({
+          id: s.id,
+          name: s.name,
+          roomIds: uniqueById(s.rooms).map((r: SetT['rooms'][number]) => r.id),
+          items: sidebarItemsFromQuery(s)
+        }));
+      }
     } else {
       this.roomGroups = null;
     }
@@ -270,7 +302,7 @@ export class RoomsStore {
         return;
       }
 
-      const rooms = result.data?.viewer?.user.rooms ?? [];
+      const rooms = result.data?.server?.rooms ?? [];
       const countsByRoomId: Record<string, number> = Object.create(null);
       for (const room of rooms) {
         countsByRoomId[room.id] = room.viewerNotifications.totalCount;

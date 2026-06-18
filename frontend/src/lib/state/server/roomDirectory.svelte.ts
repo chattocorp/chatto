@@ -53,8 +53,8 @@ export type JoinGroupResult = { ok: true; joinedRoomIds: string[] } | { ok: fals
  * Owns the "all rooms" listing (joined or not) plus the optimistic UI state
  * for in-flight join/leave operations (`joiningIds` / `leavingIds`) and the
  * just-completed momentary state (`justJoinedIds` / `justLeftIds`). The
- * actual "which rooms have I joined" answer comes from the active server's
- * rooms store — components combine the two via
+ * actual "which rooms have I joined" answer comes from membership-filtered
+ * rows in the active server's rooms store — components combine the two via
  * `isJoined(roomId, joinedSet)` rather than this store duplicating that
  * data.
  *
@@ -113,8 +113,9 @@ export class RoomDirectoryStore {
 
   /**
    * Whether a room should render as "joined" in the directory UI. Combines
-   * authoritative membership (from `RoomsStore.rooms`, supplied by the
-   * caller) with optimistic just-* state held here.
+   * authoritative membership IDs (from `RoomsStore.rooms` rows where
+   * `viewerIsMember` is true, supplied by the caller) with optimistic just-*
+   * state held here.
    */
   isJoined(roomId: string, joinedRoomIds: ReadonlySet<string>): boolean {
     if (this.justLeftIds.has(roomId)) return false;

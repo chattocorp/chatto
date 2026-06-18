@@ -5,7 +5,7 @@ Renders the room list in the server sidebar. When a room layout is configured,
 rooms are organized into collapsible sections. Otherwise, rooms display alphabetically.
 -->
 <script lang="ts">
-  import { goto } from '$app/navigation';
+  import { goto, pushState } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { serverIdToSegment } from '$lib/navigation';
@@ -245,6 +245,17 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     goto(resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId }));
   }
 
+  function openJoinRoomModal(room: RoomsListItem) {
+    pushState('', {
+      modal: {
+        type: 'joinRoom',
+        roomId: room.id,
+        roomName: room.name,
+        viewerCanJoinRoom: room.viewerCanJoinRoom
+      }
+    });
+  }
+
   // Handle click on room notification badge - navigate to notification source and dismiss
   async function handleRoomNotificationClick(event: MouseEvent, roomId: string) {
     event.preventDefault();
@@ -330,25 +341,38 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {#snippet roomLink(room: RoomsListItem)}
   {@const hasActiveCall = activeCallRooms.has(room.id)}
   {@const callParticipants = hasActiveCall ? activeCallRooms.getParticipants(room.id) : []}
+  {@const isJoined = room.viewerIsMember}
+  {@const rowClass = [
+    'sidebar-item group/badges',
+    hasActiveCall ? 'flex-wrap gap-y-1' : '',
+    room.id === activeRoomId ? 'bg-surface-100' : '',
+    room.hasUnread && room.id !== activeRoomId && !notificationLevelStore.isRoomMuted(room.id)
+      ? 'font-semibold'
+      : '',
+    !isJoined ? 'opacity-60 hover:opacity-85' : ''
+  ]}
   <a
     href={resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId: room.id })}
-    class={[
-      'sidebar-item group/badges',
-      hasActiveCall ? 'flex-wrap gap-y-1' : '',
-      room.id === activeRoomId ? 'bg-surface-100' : '',
-      room.hasUnread &&
-      room.id !== activeRoomId &&
-      !notificationLevelStore.isRoomMuted(room.id)
-        ? 'font-semibold'
-        : ''
-    ]}
+    class={rowClass}
     aria-current={room.id === activeRoomId ? 'page' : undefined}
+    onclick={(e) => {
+      if (!isJoined) {
+        e.preventDefault();
+        openJoinRoomModal(room);
+      }
+    }}
   >
-    <span class="sidebar-icon text-muted">#</span>
+    {#if isJoined}
+      <span class="sidebar-icon text-muted">#</span>
+    {:else if room.viewerCanJoinRoom}
+      <span class="sidebar-icon text-muted">+</span>
+    {:else}
+      <span class="sidebar-icon iconify text-muted uil--lock"></span>
+    {/if}
     <span class="flex-1 truncate">{room.name}</span>
 
     <!-- Notification Indicator (warning color for mentions and thread replies) -->
-    {#if room.viewerNotificationCount > 0}
+    {#if isJoined && room.viewerNotificationCount > 0}
       <button
         type="button"
         onclick={(e) => handleRoomNotificationClick(e, room.id)}
@@ -362,14 +386,14 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       </button>
       <span class="sr-only">{room.viewerNotificationCount} notifications</span>
       <!-- Unread Indicator (subtle) -->
-    {:else if room.hasUnread && !notificationLevelStore.isRoomMuted(room.id)}
+    {:else if isJoined && room.hasUnread && !notificationLevelStore.isRoomMuted(room.id)}
       <UnreadDot color="primary" testid="room-unread-dot" />
       <span class="sr-only">unread messages</span>
     {/if}
 
     <!-- Call participant avatars (badge row, wraps below room name).
          Clicking the badge navigates to the room AND joins the call. -->
-    {#if hasActiveCall}
+    {#if isJoined && hasActiveCall}
       {@render callBadge(room, callParticipants)}
     {/if}
   </a>
@@ -426,15 +450,14 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       {@render roomLink(room)}
     {/if}
   {:else}
-    <a
-      href={item.link.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      class="sidebar-item"
+    <button
+      type="button"
+      class="sidebar-item w-full text-left"
+      onclick={() => window.open(item.link.url, '_blank', 'noopener,noreferrer')}
     >
       <span class="sidebar-icon iconify text-muted uil--external-link-alt"></span>
       <span class="flex-1 truncate">{item.link.label}</span>
-    </a>
+    </button>
   {/if}
 {/snippet}
 

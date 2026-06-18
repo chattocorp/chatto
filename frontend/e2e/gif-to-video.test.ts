@@ -41,7 +41,7 @@ test.describe('animated GIF to video conversion @ffmpeg', () => {
       await expect(roomPage.attachmentPreview).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
       // Send the message
-      await roomPage.messageInput.press('Enter');
+      await roomPage.messageInput.press('Control+Enter');
 
       // Wait for preview to clear (message sent)
       await expect(roomPage.attachmentPreview).not.toBeVisible({
@@ -104,7 +104,7 @@ test.describe('animated GIF to video conversion @ffmpeg', () => {
     await expect(roomPage.attachmentPreview).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
     // Send the message
-    await roomPage.messageInput.press('Enter');
+    await roomPage.messageInput.press('Control+Enter');
     await expect(roomPage.attachmentPreview).not.toBeVisible({
       timeout: TIMEOUTS.COMPLEX_OPERATION
     });

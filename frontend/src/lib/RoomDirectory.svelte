@@ -41,7 +41,9 @@ registry.
 
   // --- Derived data ---
 
-  const joinedRoomIds = $derived(new Set(roomsStore.rooms.map((r) => r.id)));
+  const joinedRoomIds = $derived(
+    new Set(roomsStore.rooms.filter((r) => r.viewerIsMember).map((r) => r.id))
+  );
   const roomGroups = $derived(roomsStore.roomGroups);
   const visibleRooms = $derived(directory.allRooms.filter((room) => !room.archived));
 

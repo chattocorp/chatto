@@ -1,11 +1,12 @@
 <script lang="ts">
-  import { PaneHeader, Hint } from '$lib/ui';
+  import { PaneHeader, Hint, FormSection } from '$lib/ui';
   import NotificationLevelSettings from '$lib/components/settings/NotificationLevelSettings.svelte';
   import { userPreferences } from '$lib/state/userPreferences.svelte';
   import {
     notificationSounds,
     playNotificationSound,
     soundCategories,
+    type NotificationSoundFilters,
     type NotificationSoundId,
     type SoundCategory
   } from '$lib/audio/notificationSounds';
@@ -23,8 +24,54 @@
   function selectSound(soundId: NotificationSoundId) {
     userPreferences.notificationSound = soundId;
     if (soundId !== 'silent') {
-      playNotificationSound(soundId);
+      playNotificationSound(soundId, userPreferences.notificationSoundFilters);
     }
+  }
+
+  function previewSelectedSound() {
+    if (userPreferences.notificationSound === 'silent') return;
+    playNotificationSound(
+      userPreferences.notificationSound,
+      userPreferences.notificationSoundFilters
+    );
+  }
+
+  function updateSoundFilter(key: keyof NotificationSoundFilters, event: Event) {
+    const value = Number((event.currentTarget as HTMLInputElement).value);
+    userPreferences.setNotificationSoundFilter(key, value);
+  }
+
+  function updateMuffledFilter(event: Event) {
+    const amount = Number((event.currentTarget as HTMLInputElement).value);
+    userPreferences.setNotificationSoundFilter('lowPassHz', lowPassHzFromMuffledAmount(amount));
+  }
+
+  function lowPassHzFromMuffledAmount(amount: number) {
+    return 20000 - (amount / 100) * (20000 - 800);
+  }
+
+  function muffledAmountFromLowPassHz(value: number) {
+    return Math.round(((20000 - value) / (20000 - 800)) * 100);
+  }
+
+  function formatVolume(value: number) {
+    return `${Math.round(value * 100)}%`;
+  }
+
+  function formatEffect(value: number) {
+    if (value <= 0) return 'Off';
+    return `${Math.round(value)}%`;
+  }
+
+  function formatTinny(value: number) {
+    if (value <= 20) return 'Off';
+    return `${Math.round(((value - 20) / (2000 - 20)) * 100)}%`;
+  }
+
+  function formatMuffled(value: number) {
+    const amount = muffledAmountFromLowPassHz(value);
+    if (amount <= 0) return 'Off';
+    return `${amount}%`;
   }
 
   function getSoundsForCategory(category: SoundCategory) {
@@ -200,4 +247,167 @@
       {/each}
     </div>
   </div>
+
+  <FormSection title="Sound Shape" maxWidth="max-w-lg" bordered>
+    {#snippet actions()}
+      <button
+        type="button"
+        class="cursor-pointer rounded-lg border border-border bg-surface-100 px-3 py-1.5 text-sm transition-colors hover:bg-surface-200 disabled:cursor-not-allowed disabled:opacity-50"
+        onclick={previewSelectedSound}
+        disabled={userPreferences.notificationSound === 'silent'}
+      >
+        Preview
+      </button>
+      <button
+        type="button"
+        class="hover:text-foreground cursor-pointer rounded-lg border border-border px-3 py-1.5 text-sm text-muted transition-colors hover:bg-surface-100"
+        onclick={() => userPreferences.resetNotificationSoundFilters()}
+      >
+        Reset
+      </button>
+    {/snippet}
+
+    <div class="flex flex-col gap-2">
+      <label class="flex flex-col gap-2 rounded-lg border border-border px-3 py-2">
+        <span class="flex items-center justify-between gap-3 text-sm">
+          <span class="flex min-w-0 items-center gap-2 font-medium">
+            <span class="iconify shrink-0 text-base text-muted uil--volume" aria-hidden="true"
+            ></span>
+            <span>Volume</span>
+          </span>
+          <span class="text-muted tabular-nums">
+            {formatVolume(userPreferences.notificationSoundFilters.volume)}
+          </span>
+        </span>
+        <input
+          data-testid="notification-volume-filter"
+          type="range"
+          min="0"
+          max="2"
+          step="0.05"
+          value={userPreferences.notificationSoundFilters.volume}
+          oninput={(event) => updateSoundFilter('volume', event)}
+          onchange={previewSelectedSound}
+          class="w-full cursor-pointer accent-accent"
+        />
+      </label>
+
+      <label class="flex flex-col gap-2 rounded-lg border border-border px-3 py-2">
+        <span class="flex items-center justify-between gap-3 text-sm">
+          <span class="flex min-w-0 items-center gap-2 font-medium">
+            <span class="iconify shrink-0 text-base text-muted uil--bolt" aria-hidden="true"></span>
+            <span>Tinny</span>
+          </span>
+          <span class="text-muted tabular-nums">
+            {formatTinny(userPreferences.notificationSoundFilters.highPassHz)}
+          </span>
+        </span>
+        <input
+          data-testid="notification-high-pass-filter"
+          type="range"
+          min="20"
+          max="2000"
+          step="10"
+          value={userPreferences.notificationSoundFilters.highPassHz}
+          oninput={(event) => updateSoundFilter('highPassHz', event)}
+          onchange={previewSelectedSound}
+          class="w-full cursor-pointer accent-accent"
+        />
+      </label>
+
+      <label class="flex flex-col gap-2 rounded-lg border border-border px-3 py-2">
+        <span class="flex items-center justify-between gap-3 text-sm">
+          <span class="flex min-w-0 items-center gap-2 font-medium">
+            <span class="iconify shrink-0 text-base text-muted uil--volume-mute" aria-hidden="true"
+            ></span>
+            <span>Muffled</span>
+          </span>
+          <span class="text-muted tabular-nums">
+            {formatMuffled(userPreferences.notificationSoundFilters.lowPassHz)}
+          </span>
+        </span>
+        <input
+          data-testid="notification-low-pass-filter"
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          value={muffledAmountFromLowPassHz(userPreferences.notificationSoundFilters.lowPassHz)}
+          oninput={updateMuffledFilter}
+          onchange={previewSelectedSound}
+          class="w-full cursor-pointer accent-accent"
+        />
+      </label>
+
+      <label class="flex flex-col gap-2 rounded-lg border border-border px-3 py-2">
+        <span class="flex items-center justify-between gap-3 text-sm">
+          <span class="flex min-w-0 items-center gap-2 font-medium">
+            <span class="iconify shrink-0 text-base text-muted uil--redo" aria-hidden="true"></span>
+            <span>Echo</span>
+          </span>
+          <span class="text-muted tabular-nums">
+            {formatEffect(userPreferences.notificationSoundFilters.echo)}
+          </span>
+        </span>
+        <input
+          data-testid="notification-echo-filter"
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          value={userPreferences.notificationSoundFilters.echo}
+          oninput={(event) => updateSoundFilter('echo', event)}
+          onchange={previewSelectedSound}
+          class="w-full cursor-pointer accent-accent"
+        />
+      </label>
+
+      <label class="flex flex-col gap-2 rounded-lg border border-border px-3 py-2">
+        <span class="flex items-center justify-between gap-3 text-sm">
+          <span class="flex min-w-0 items-center gap-2 font-medium">
+            <span class="iconify shrink-0 text-base text-muted uil--cloud" aria-hidden="true"
+            ></span>
+            <span>Reverb</span>
+          </span>
+          <span class="text-muted tabular-nums">
+            {formatEffect(userPreferences.notificationSoundFilters.reverb)}
+          </span>
+        </span>
+        <input
+          data-testid="notification-reverb-filter"
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          value={userPreferences.notificationSoundFilters.reverb}
+          oninput={(event) => updateSoundFilter('reverb', event)}
+          onchange={previewSelectedSound}
+          class="w-full cursor-pointer accent-accent"
+        />
+      </label>
+
+      <label class="flex flex-col gap-2 rounded-lg border border-border px-3 py-2">
+        <span class="flex items-center justify-between gap-3 text-sm">
+          <span class="flex min-w-0 items-center gap-2 font-medium">
+            <span class="iconify shrink-0 text-base text-muted uil--fire" aria-hidden="true"></span>
+            <span>Crunch</span>
+          </span>
+          <span class="text-muted tabular-nums">
+            {formatEffect(userPreferences.notificationSoundFilters.crunch)}
+          </span>
+        </span>
+        <input
+          data-testid="notification-crunch-filter"
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          value={userPreferences.notificationSoundFilters.crunch}
+          oninput={(event) => updateSoundFilter('crunch', event)}
+          onchange={previewSelectedSound}
+          class="w-full cursor-pointer accent-accent"
+        />
+      </label>
+    </div>
+  </FormSection>
 </div>

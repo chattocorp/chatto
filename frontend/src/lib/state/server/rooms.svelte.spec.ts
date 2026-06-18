@@ -12,6 +12,8 @@ type QueryRoom = {
   type: RoomType;
   hasUnread: boolean;
   archived: boolean;
+  viewerIsMember: boolean;
+  viewerCanJoinRoom: boolean;
   viewerNotificationPreference: {
     level: NotificationLevel;
     effectiveLevel: NotificationLevel;
@@ -31,10 +33,11 @@ type QueryResponse = {
   viewer: {
     user: {
       id: string;
-      rooms: QueryRoom[];
     };
   };
   server: {
+    channelRooms: QueryRoom[];
+    dmRooms: QueryRoom[];
     roomGroups: Array<{
       id: string;
       name: string;
@@ -50,15 +53,13 @@ type QueryResponse = {
 };
 
 type NotificationCountsResponse = {
-  viewer: {
-    user: {
-      rooms: Array<{
-        id: string;
-        viewerNotifications: {
-          totalCount: number;
-        };
-      }>;
-    };
+  server: {
+    rooms: Array<{
+      id: string;
+      viewerNotifications: {
+        totalCount: number;
+      };
+    }>;
   };
 };
 
@@ -69,6 +70,8 @@ function makeRoom(id: string, overrides: Partial<QueryRoom> = {}): QueryRoom {
     type: overrides.type ?? RoomType.Channel,
     hasUnread: overrides.hasUnread ?? false,
     archived: overrides.archived ?? false,
+    viewerIsMember: overrides.viewerIsMember ?? true,
+    viewerCanJoinRoom: overrides.viewerCanJoinRoom ?? true,
     viewerNotificationPreference:
       overrides.viewerNotificationPreference === undefined
         ? {
@@ -91,17 +94,19 @@ function makeRoom(id: string, overrides: Partial<QueryRoom> = {}): QueryRoom {
 }
 
 function makeResponse(
-  rooms: QueryRoom[],
-  groups: QueryResponse['server']['roomGroups'] = []
+  channelRooms: QueryRoom[],
+  groups: QueryResponse['server']['roomGroups'] = [],
+  dmRooms: QueryRoom[] = []
 ): QueryResponse {
   return {
     viewer: {
       user: {
-        id: 'U1',
-        rooms
+        id: 'U1'
       }
     },
     server: {
+      channelRooms,
+      dmRooms,
       roomGroups: groups
     }
   };
@@ -121,13 +126,11 @@ function operationName(document: unknown): string | undefined {
 
 function makeCountsResponse(counts: Record<string, number>): NotificationCountsResponse {
   return {
-    viewer: {
-      user: {
-        rooms: Object.entries(counts).map(([id, totalCount]) => ({
-          id,
-          viewerNotifications: { totalCount }
-        }))
-      }
+    server: {
+      rooms: Object.entries(counts).map(([id, totalCount]) => ({
+        id,
+        viewerNotifications: { totalCount }
+      }))
     }
   };
 }
@@ -148,6 +151,41 @@ async function settle() {
 }
 
 describe('RoomsStore - refresh', () => {
+  it('loads listable non-member channels from server rooms and DMs with members', async () => {
+    const { client } = makeClient([
+      makeResponse(
+        [makeRoom('public', { viewerIsMember: false, viewerCanJoinRoom: true })],
+        [{ id: 'g1', name: 'Lobby', rooms: [{ id: 'public' }] }],
+        [makeRoom('dm-1', { type: RoomType.Dm, name: '' })]
+      )
+    ]);
+    const store = makeStore(client);
+
+    await store.refresh();
+
+    expect(store.rooms).toMatchObject([
+      {
+        id: 'public',
+        type: RoomType.Channel,
+        viewerIsMember: false,
+        viewerCanJoinRoom: true,
+        members: []
+      },
+      {
+        id: 'dm-1',
+        type: RoomType.Dm,
+        viewerIsMember: true,
+        members: [{ id: 'U1', displayName: 'Alice' }]
+      }
+    ]);
+    expect(store.roomGroups).toMatchObject([
+      {
+        id: 'g1',
+        items: [{ id: 'room:public', type: 'room', roomId: 'public' }]
+      }
+    ]);
+  });
+
   it('discards out-of-order responses', async () => {
     let resolveFirst!: (value: { data: QueryResponse; error: null }) => void;
     let resolveSecond!: (value: { data: QueryResponse; error: null }) => void;
