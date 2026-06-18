@@ -20,6 +20,8 @@ type ProjectionAdminState struct {
 	Name              string
 	Subjects          []string
 	Started           bool
+	StartupComplete   bool
+	StartupDuration   float64
 	LastAppliedSeq    uint64
 	MatchingStreamSeq uint64
 	StreamLastSeq     uint64
@@ -70,6 +72,8 @@ func (c *ChattoCore) ProjectionAdminStates(ctx context.Context) ([]ProjectionAdm
 			Name:              name,
 			Subjects:          projector.Subjects(),
 			Started:           status.Started,
+			StartupComplete:   status.StartupComplete,
+			StartupDuration:   status.StartupDuration.Seconds(),
 			LastAppliedSeq:    lastApplied,
 			MatchingStreamSeq: targetSeq,
 			StreamLastSeq:     streamLastSeq,

@@ -74,6 +74,7 @@ type chattoCollector struct {
 	natsBytes               *prometheus.Desc
 	natsReconnects          *prometheus.Desc
 	projectionStarted       *prometheus.Desc
+	projectionStartup       *prometheus.Desc
 	projectionFailed        *prometheus.Desc
 	projectionLastApplied   *prometheus.Desc
 	projectionTarget        *prometheus.Desc
@@ -177,6 +178,12 @@ func newChattoCollector(server *HTTPServer) *chattoCollector {
 			[]string{"projection"},
 			nil,
 		),
+		projectionStartup: prometheus.NewDesc(
+			"chatto_projection_startup_duration_seconds",
+			"Seconds from process-local projection start until its initial replay completed.",
+			[]string{"projection"},
+			nil,
+		),
 		projectionFailed: prometheus.NewDesc(
 			"chatto_projection_failed",
 			"Whether a process-local projection has failed.",
@@ -238,6 +245,7 @@ func (c *chattoCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.natsBytes
 	ch <- c.natsReconnects
 	ch <- c.projectionStarted
+	ch <- c.projectionStartup
 	ch <- c.projectionFailed
 	ch <- c.projectionLastApplied
 	ch <- c.projectionTarget
@@ -321,6 +329,9 @@ func (c *chattoCollector) collectCoreMetrics(ch chan<- prometheus.Metric) {
 		started := boolMetric(projection.Started)
 		failed := boolMetric(projection.Failed)
 		ch <- prometheus.MustNewConstMetric(c.projectionStarted, prometheus.GaugeValue, started, projection.Key)
+		if projection.StartupComplete {
+			ch <- prometheus.MustNewConstMetric(c.projectionStartup, prometheus.GaugeValue, projection.StartupDuration, projection.Key)
+		}
 		ch <- prometheus.MustNewConstMetric(c.projectionFailed, prometheus.GaugeValue, failed, projection.Key)
 		ch <- prometheus.MustNewConstMetric(c.projectionLastApplied, prometheus.GaugeValue, float64(projection.LastAppliedSeq), projection.Key)
 		ch <- prometheus.MustNewConstMetric(c.projectionTarget, prometheus.GaugeValue, float64(projection.MatchingStreamSeq), projection.Key)

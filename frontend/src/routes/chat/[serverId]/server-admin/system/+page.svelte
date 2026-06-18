@@ -70,6 +70,7 @@
           name
           subjects
           started
+          startupDurationSeconds
           lastAppliedSequence
           matchingStreamSequence
           streamLastSequence
@@ -124,6 +125,18 @@
     if (consumer.filterSubjects.length > 0) return consumer.filterSubjects;
     if (consumer.filterSubject) return [consumer.filterSubject];
     return ['all subjects'];
+  }
+
+  function formatDurationSeconds(seconds: number | null | undefined): string {
+    if (seconds == null) return 'Pending';
+    if (seconds < 0.001) return '<1 ms';
+    if (seconds < 1) return `${Math.round(seconds * 1000)} ms`;
+    if (seconds < 10) return `${seconds.toFixed(2)} s`;
+    if (seconds < 60) return `${seconds.toFixed(1)} s`;
+
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.round(seconds % 60);
+    return `${minutes}m ${remainingSeconds}s`;
   }
 </script>
 
@@ -366,10 +379,11 @@
         </div>
 
         <Panel title="Projections" icon="iconify uil--chart-line" noPadding>
-          <DataTable items={projections} columns={6} emptyMessage="No projections are registered.">
+          <DataTable items={projections} columns={7} emptyMessage="No projections are registered.">
             {#snippet header()}
               <th class="px-4 py-3 font-medium">Projection</th>
               <th class="px-4 py-3 font-medium">State</th>
+              <th class="px-4 py-3 font-medium">Startup</th>
               <th class="px-4 py-3 font-medium">Applied</th>
               <th class="px-4 py-3 font-medium">Lag</th>
               <th class="px-4 py-3 font-medium">Entries</th>
@@ -401,6 +415,11 @@
                     {projection.failure}
                   </div>
                 {/if}
+              </td>
+              <td class="px-4 py-3 font-mono text-sm whitespace-nowrap">
+                <span class={[projection.startupDurationSeconds == null ? 'text-muted' : '']}>
+                  {formatDurationSeconds(projection.startupDurationSeconds)}
+                </span>
               </td>
               <td class="px-4 py-3 font-mono text-sm whitespace-nowrap">
                 {projection.lastAppliedSequence}

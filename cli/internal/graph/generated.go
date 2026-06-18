@@ -538,6 +538,7 @@ type ComplexityRoot struct {
 		Metrics                func(childComplexity int) int
 		Name                   func(childComplexity int) int
 		Started                func(childComplexity int) int
+		StartupDurationSeconds func(childComplexity int) int
 		StreamLastSequence     func(childComplexity int) int
 		Subjects               func(childComplexity int) int
 	}
@@ -3739,6 +3740,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ProjectionState.Started(childComplexity), true
+	case "ProjectionState.startupDurationSeconds":
+		if e.ComplexityRoot.ProjectionState.StartupDurationSeconds == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProjectionState.StartupDurationSeconds(childComplexity), true
 	case "ProjectionState.streamLastSequence":
 		if e.ComplexityRoot.ProjectionState.StreamLastSequence == nil {
 			break
@@ -6408,6 +6415,8 @@ func (ec *executionContext) childFields_ProjectionState(ctx context.Context, fie
 		return ec.fieldContext_ProjectionState_subjects(ctx, field)
 	case "started":
 		return ec.fieldContext_ProjectionState_started(ctx, field)
+	case "startupDurationSeconds":
+		return ec.fieldContext_ProjectionState_startupDurationSeconds(ctx, field)
 	case "lastAppliedSequence":
 		return ec.fieldContext_ProjectionState_lastAppliedSequence(ctx, field)
 	case "matchingStreamSequence":
@@ -18188,6 +18197,29 @@ func (ec *executionContext) _ProjectionState_started(ctx context.Context, field 
 }
 func (ec *executionContext) fieldContext_ProjectionState_started(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("ProjectionState", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _ProjectionState_startupDurationSeconds(ctx context.Context, field graphql.CollectedField, obj *model.ProjectionState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ProjectionState_startupDurationSeconds(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.StartupDurationSeconds, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *float64) graphql.Marshaler {
+			return ec.marshalOFloat2ᚖfloat64(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_ProjectionState_startupDurationSeconds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ProjectionState", field, false, false, errors.New("field of type Float does not have child fields"))
 }
 
 func (ec *executionContext) _ProjectionState_lastAppliedSequence(ctx context.Context, field graphql.CollectedField, obj *model.ProjectionState) (ret graphql.Marshaler) {
@@ -36681,6 +36713,8 @@ func (ec *executionContext) _ProjectionState(ctx context.Context, sel ast.Select
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "startupDurationSeconds":
+			out.Values[i] = ec._ProjectionState_startupDurationSeconds(ctx, field, obj)
 		case "lastAppliedSequence":
 			out.Values[i] = ec._ProjectionState_lastAppliedSequence(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -46339,6 +46373,23 @@ func (ec *executionContext) marshalOFitMode2ᚖhmansᚗdeᚋchattoᚋinternalᚋ
 		return graphql.Null
 	}
 	return v
+}
+
+func (ec *executionContext) unmarshalOFloat2ᚖfloat64(ctx context.Context, v any) (*float64, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalFloatContext(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOFloat2ᚖfloat64(ctx context.Context, sel ast.SelectionSet, v *float64) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	res := graphql.MarshalFloatContext(*v)
+	return graphql.WrapContextMarshaler(ctx, res)
 }
 
 func (ec *executionContext) unmarshalOID2ᚖstring(ctx context.Context, v any) (*string, error) {

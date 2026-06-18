@@ -249,6 +249,8 @@ type ProjectionState {
   subjects: [String!]!
   "Whether the projector run loop has started."
   started: Boolean!
+  "Seconds from projector start until initial replay completed. Null while initial replay is still in progress."
+  startupDurationSeconds: Float
   "Highest event-log sequence applied by this projection, serialized as String to avoid GraphQL Int overflow."
   lastAppliedSequence: String!
   "Highest event-log sequence currently matching this projection's subject filters."

@@ -16,11 +16,16 @@ func projectionStateToModel(state core.ProjectionAdminState) *model.ProjectionSt
 			Bytes: int(metric.Bytes),
 		})
 	}
+	var startupDurationSeconds *float64
+	if state.StartupComplete {
+		startupDurationSeconds = &state.StartupDuration
+	}
 	return &model.ProjectionState{
 		Key:                    state.Key,
 		Name:                   state.Name,
 		Subjects:               append([]string(nil), state.Subjects...),
 		Started:                state.Started,
+		StartupDurationSeconds: startupDurationSeconds,
 		LastAppliedSequence:    strconv.FormatUint(state.LastAppliedSeq, 10),
 		MatchingStreamSequence: strconv.FormatUint(state.MatchingStreamSeq, 10),
 		StreamLastSequence:     strconv.FormatUint(state.StreamLastSeq, 10),

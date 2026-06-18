@@ -749,6 +749,8 @@ type ProjectionState struct {
 	Subjects []string `json:"subjects"`
 	// Whether the projector run loop has started.
 	Started bool `json:"started"`
+	// Seconds from projector start until initial replay completed. Null while initial replay is still in progress.
+	StartupDurationSeconds *float64 `json:"startupDurationSeconds,omitempty"`
 	// Highest event-log sequence applied by this projection, serialized as String to avoid GraphQL Int overflow.
 	LastAppliedSequence string `json:"lastAppliedSequence"`
 	// Highest event-log sequence currently matching this projection's subject filters.

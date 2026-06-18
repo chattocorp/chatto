@@ -108,6 +108,11 @@ type Projector struct {
 	// ChattoCore.Run gets a chance to start the consumer (see the
 	// WaitFor doc for why).
 	started bool
+
+	startupStartedAt time.Time
+	startupTargetSeq uint64
+	startupEndedAt   time.Time
+	startupCompleted bool
 }
 
 // ProjectorStatus is a concurrency-safe snapshot of a projector's
@@ -116,6 +121,10 @@ type Projector struct {
 type ProjectorStatus struct {
 	Started bool
 	LastSeq uint64
+
+	StartupTargetSeq uint64
+	StartupComplete  bool
+	StartupDuration  time.Duration
 
 	Failed    bool
 	FailedSeq uint64
@@ -147,8 +156,17 @@ func (p *Projector) Status() ProjectorStatus {
 	defer p.mu.Unlock()
 
 	status := ProjectorStatus{
-		Started: p.started,
-		LastSeq: p.lastSeq,
+		Started:          p.started,
+		LastSeq:          p.lastSeq,
+		StartupTargetSeq: p.startupTargetSeq,
+		StartupComplete:  p.startupCompleted,
+	}
+	if !p.startupStartedAt.IsZero() {
+		startupEndsAt := p.startupEndedAt
+		if startupEndsAt.IsZero() {
+			startupEndsAt = time.Now()
+		}
+		status.StartupDuration = startupEndsAt.Sub(p.startupStartedAt)
 	}
 	if p.failedErr != nil {
 		status.Failed = true
@@ -421,6 +439,9 @@ func (p *Projector) fail(seq uint64, err error) {
 	if p.failedErr == nil {
 		p.failedSeq = seq
 		p.failedErr = fmt.Errorf("%w at seq %d: %w", ErrProjectionFailed, seq, err)
+		if p.started && p.startupEndedAt.IsZero() {
+			p.startupEndedAt = time.Now()
+		}
 		close(p.failedCh)
 	}
 	for _, w := range p.waiters {
@@ -435,13 +456,25 @@ func (p *Projector) fail(seq uint64, err error) {
 // Snapshot orchestration is deferred (ADR-033). For now, Restore is always
 // called with nil and the loop replays from the beginning of the stream.
 func (p *Projector) Run(ctx context.Context) error {
+	startedAt := time.Now()
 	p.mu.Lock()
 	p.started = true
+	if p.startupStartedAt.IsZero() {
+		p.startupStartedAt = startedAt
+	}
 	p.mu.Unlock()
 
 	if err := p.proj.Restore(nil); err != nil {
 		return fmt.Errorf("restore projection: %w", err)
 	}
+
+	target, err := p.currentTarget(ctx)
+	if err != nil {
+		return fmt.Errorf("read projection startup target: %w", err)
+	}
+	p.mu.Lock()
+	p.startupTargetSeq = target.seq
+	p.mu.Unlock()
 
 	cons, err := p.stream.OrderedConsumer(ctx, jetstream.OrderedConsumerConfig{
 		FilterSubjects:    p.proj.Subjects(),
@@ -467,6 +500,7 @@ func (p *Projector) Run(ctx context.Context) error {
 		return fmt.Errorf("start consume: %w", err)
 	}
 	defer cc.Stop()
+	p.maybeCompleteStartup(time.Now())
 
 	select {
 	case <-ctx.Done():
@@ -523,6 +557,16 @@ func (p *Projector) handleMessage(msg jetstream.Msg) {
 	}
 
 	p.advance(meta.Sequence.Stream)
+	p.maybeCompleteStartup(time.Now())
+}
+
+func (p *Projector) maybeCompleteStartup(now time.Time) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.started && p.startupEndedAt.IsZero() && p.lastSeq >= p.startupTargetSeq {
+		p.startupEndedAt = now
+		p.startupCompleted = true
+	}
 }
 
 // handleConsumeErr is invoked by the SDK when the OrderedConsumer's
