@@ -81,6 +81,9 @@ By the end of this section, your project directory will look like this:
      chatto:
        image: ghcr.io/chattocorp/chatto:latest
        env_file: .env
+       environment:
+         PUID: "${PUID:-1000}"
+         PGID: "${PGID:-1000}"
        depends_on:
          nats:
            condition: service_healthy
@@ -166,6 +169,8 @@ By the end of this section, your project directory will look like this:
 
    PUBLIC_URL=chat.example.com
    CHATTO_OWNERS_EMAILS=admin@example.com
+   PUID=1000
+   PGID=1000
 
    # NATS
    NATS_TOKEN=<generate-me>
@@ -220,6 +225,8 @@ By the end of this section, your project directory will look like this:
 </Steps>
 
 The Chatto container is configured entirely through `.env` in this guide. The image's default config path is `/config/chatto.toml`, but the server can start without that file when the required settings are provided through environment variables.
+
+The image runs Chatto as a non-root user. By default that user is `1000:1000`; set `PUID` and `PGID` in your shell or Compose environment if the files mounted into `/config` or `/data` are owned by a different host user or group. The entrypoint does not recursively change ownership of mounted directories, so make sure writable mounts are owned by the configured IDs.
 
 ## Operations
 
