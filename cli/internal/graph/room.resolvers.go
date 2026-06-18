@@ -33,7 +33,7 @@ func (r *roomResolver) Type(ctx context.Context, obj *corev1.Room) (model.RoomTy
 }
 
 // Members is the resolver for the members field.
-func (r *roomResolver) Members(ctx context.Context, obj *corev1.Room, limit *int32, offset *int32) (*model.RoomMembersConnection, error) {
+func (r *roomResolver) Members(ctx context.Context, obj *corev1.Room, search *string, limit *int32, offset *int32) (*model.RoomMembersConnection, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
@@ -71,6 +71,21 @@ func (r *roomResolver) Members(ctx context.Context, obj *corev1.Room, limit *int
 			users = append(users, u)
 		}
 	}
+	query := ""
+	if search != nil {
+		query = strings.TrimSpace(strings.ToLower(*search))
+	}
+	if query != "" {
+		filtered := users[:0]
+		for _, user := range users {
+			if strings.Contains(strings.ToLower(user.Login), query) ||
+				strings.Contains(strings.ToLower(user.DisplayName), query) {
+				filtered = append(filtered, user)
+			}
+		}
+		users = filtered
+	}
+
 	sort.Slice(users, func(i, j int) bool {
 		left := strings.ToLower(users[i].DisplayName)
 		right := strings.ToLower(users[j].DisplayName)

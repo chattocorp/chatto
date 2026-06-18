@@ -6,17 +6,16 @@ the real sync hook so browser specs can exercise pagination wiring without
 mounting the full chat room shell.
 -->
 <script lang="ts">
-  import { useRoomMembersSync } from '$lib/hooks/useRoomMembersSync.svelte';
   import type { RoomData } from '$lib/hooks/useRoomData.svelte';
   import { createPresenceCache, type PresenceCache } from '$lib/state/presenceCache.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
-  import { RoomFilesStore } from '$lib/state/room';
+  import { RoomFilesStore, RoomMembersStore, setRoomMembersStore } from '$lib/state/room';
   import { setUserSettings, UserSettingsState } from '$lib/state/userSettings.svelte';
   import RoomSidebar, { type RoomSidebarPanel } from './RoomSidebar.svelte';
 
   let {
     roomId = 'room-1',
-    roomData,
+    roomData: _roomData,
     activePanel = 'members',
     presentation = 'desktop',
     currentUserId = 'viewer',
@@ -45,18 +44,19 @@ mounting the full chat room shell.
     onPresenceCacheReady?.(presenceCache);
   });
   const roomFilesStore = new RoomFilesStore(connection());
+  const roomMembersStore = setRoomMembersStore(new RoomMembersStore(connection()));
 
   $effect(() => {
     if (activePanel !== 'files') return;
     roomFilesStore.setRoom(roomId);
   });
 
-  const roomMembers = useRoomMembersSync(() => ({
-    roomId,
-    isDM: false,
-    roomData,
-    dmData: null
-  }));
+  $effect(() => {
+    roomMembersStore.setRoom(roomId);
+    if (activePanel === 'members') {
+      roomMembersStore.ensureLoaded();
+    }
+  });
 </script>
 
 <RoomSidebar
@@ -66,9 +66,9 @@ mounting the full chat room shell.
   loading={false}
   {canBanRoomMembers}
   {currentUserId}
+  membersStore={roomMembersStore}
   filesStore={roomFilesStore}
   {fileGroupingNow}
-  onLoadMoreMembers={roomMembers.loadMoreMembers}
   {onOpenFile}
   {onClose}
 />

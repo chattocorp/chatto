@@ -32,7 +32,7 @@ func TestRoomMembersReturnsTombstonesForMissingUsers(t *testing.T) {
 		t.Fatalf("wait for room directory projection: %v", err)
 	}
 
-	members, err := env.resolver.Room().Members(env.authContext(), env.testRoom, nil, nil)
+	members, err := env.resolver.Room().Members(env.authContext(), env.testRoom, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("Room.members returned error for stale member: %v", err)
 	}

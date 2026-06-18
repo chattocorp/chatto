@@ -157,7 +157,7 @@ export class AutocompleteState {
     }
 
     const partial = this.getMentionPartialAtCursor();
-    if (partial && this.findMatchingMentions(partial.partial).length > 0) {
+    if (partial) {
       this.mention = {
         query: partial.partial,
         triggerStart: partial.start

@@ -26,3 +26,10 @@ export function isUnsupportedGraphQLFieldError(error: unknown, fieldName: string
   const needle = `Cannot query field "${fieldName}"`;
   return graphQLErrorMessages(error).some((message) => message.includes(needle));
 }
+
+export function isUnsupportedGraphQLArgumentError(error: unknown, argumentName: string): boolean {
+  const needles = [`Unknown argument "${argumentName}"`, `Cannot query field "${argumentName}"`];
+  return graphQLErrorMessages(error).some((message) =>
+    needles.some((needle) => message.includes(needle))
+  );
+}
