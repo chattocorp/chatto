@@ -45,6 +45,7 @@
     "@tailwindcss/vite": "^4.3.0",
     "@tiptap/core": "^3.23.2",
     "@tiptap/extension-code-block-lowlight": "3.23.2",
+    "@tiptap/extension-link": "3.23.2",
     "@tiptap/extension-placeholder": "^3.23.2",
     "@tiptap/markdown": "3.23.2",
     "@tiptap/pm": "^3.23.2",
