@@ -640,6 +640,32 @@ describe('MessagesStore — room lifecycle ownership', () => {
 		store.dispose();
 	});
 
+	it('ingests a returned root room message immediately and dedupes later subscription delivery', async () => {
+		const fake = new FakeGqlClient(
+			roomEventsResult({
+				events: [],
+				startCursor: null,
+				endCursor: null,
+				hasOlder: false,
+				hasNewer: false
+			})
+		);
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+		const returnedPost = threadMessageEvent('m-local');
+
+		store.setRoom('room-1');
+		await settle();
+		fake.queryMock.mockClear();
+
+		store.ingestEvent(returnedPost as never);
+		expect(store.rootEvents.map((event) => event.id)).toEqual(['m-local']);
+
+		store.ingestServerEvent(returnedPost as never);
+		expect(store.rootEvents.map((event) => event.id)).toEqual(['m-local']);
+		expect(fake.queryMock).not.toHaveBeenCalled();
+		store.dispose();
+	});
+
 	it('soft-refreshes the latest room window without entering initial loading', async () => {
 		const fake = new FakeGqlClient([
 			roomEventsResult({

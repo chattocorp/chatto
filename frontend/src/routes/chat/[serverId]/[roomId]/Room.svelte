@@ -21,6 +21,7 @@
     createComposerContext,
     createMentionRoles,
     getRoomMembers,
+    MessagesStore,
     RoomFilesStore,
     RoomMembersStore,
     setRoomMembersStore,
@@ -36,7 +37,7 @@
   import { clearLastRoom, setLastRoom } from '$lib/storage/lastRoom';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
-  import { tick } from 'svelte';
+  import { onDestroy, tick } from 'svelte';
   import { fly } from 'svelte/transition';
   import RoomEventsPane from './RoomEventsPane.svelte';
   import RoomSidebar from './RoomSidebar.svelte';
@@ -83,6 +84,12 @@
   const replyState = composerContext.replyState;
   const jumpState = composerContext.jumpState;
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
+  const roomMessageStore = new MessagesStore(
+    connection(),
+    () => currentUser.user?.id ?? null
+  );
+
+  onDestroy(() => roomMessageStore.dispose());
 
   // --- Extracted hooks ---
   const room = useRoomData(() => ({ roomId }));
@@ -471,6 +478,7 @@
 
         <RoomEventsPane
           {roomId}
+          messageStore={roomMessageStore}
           unreadAfterTime={unread.unreadAfterTime}
           unreadBeforeTime={unread.unreadBeforeTime}
           onOpenThread={openThread}
@@ -489,7 +497,21 @@
           autoFocus={!threadId && !mobileRoomSidebarPanel}
           onReady={(api) => (composerApi = api)}
           onTyping={() => typingIndicator?.sendTypingIndicator()}
-          onMessageSent={() => typingIndicator?.resetDebounce()}
+          onMessageSent={(event) => {
+            typingIndicator?.resetDebounce();
+            if (event) {
+              roomMessageStore.ingestEvent(event);
+              if (
+                event.event?.__typename === 'MessagePostedEvent' &&
+                event.event.roomId === roomId &&
+                !event.event.threadRootEventId
+              ) {
+                unread.noteReadCursor(event.createdAt);
+              }
+            } else {
+              void roomMessageStore.refreshCurrentWindow(null);
+            }
+          }}
         />
       </div>
 

@@ -1,19 +1,16 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
   import { useEvent } from '$lib/hooks';
-  import { useConnection } from '$lib/state/server/connection.svelte';
   import {
     getComposerContext,
-    MessagesStore,
     type RefreshCurrentWindowResult,
     type RoomMember
   } from '$lib/state/room';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import type { MessagesStore } from '$lib/state/room';
   import EventList from './EventList.svelte';
 
   let {
     roomId,
+    messageStore: store,
     unreadAfterTime = null,
     unreadBeforeTime = null,
     onOpenThread,
@@ -21,6 +18,7 @@
     typingMembers = []
   }: {
     roomId: string;
+    messageStore: MessagesStore;
     unreadAfterTime?: string | null;
     unreadBeforeTime?: string | null;
     onOpenThread?: (threadRootEventId: string, highlightEventId?: string) => void;
@@ -28,17 +26,9 @@
     typingMembers?: RoomMember[];
   } = $props();
 
-  const connection = useConnection();
   const composerContext = getComposerContext();
   const editState = composerContext.editState;
   const jumpState = composerContext.jumpState;
-  const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
-
-  const store = new MessagesStore(
-    connection(),
-    () => currentUser.user?.id ?? null
-  );
-  onDestroy(() => store.dispose());
 
   let roomEvents = $derived(store.rootEvents);
   let updateCounter = $derived(roomEvents.length);
