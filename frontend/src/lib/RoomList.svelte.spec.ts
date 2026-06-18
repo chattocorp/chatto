@@ -8,6 +8,7 @@ const { mocks } = vi.hoisted(() => ({
     activeCallRoomIds: new Set<string>(),
     callParticipants: new Map<string, unknown[]>(),
     pushState: vi.fn(),
+    goto: vi.fn(),
     store: {
       currentUser: { user: { id: 'me' } },
       notifications: {
@@ -15,6 +16,16 @@ const { mocks } = vi.hoisted(() => ({
         hasRoomNotification: vi.fn().mockReturnValue(false),
         getDMRoomNotification: vi.fn().mockReturnValue(null),
         getRoomNotification: vi.fn().mockReturnValue(null),
+        fetchRoomNotification: vi.fn().mockResolvedValue({
+          ok: true,
+          totalCount: 0,
+          notification: null
+        }),
+        resolveRoomNotification: vi.fn().mockResolvedValue({
+          ok: true,
+          totalCount: 0,
+          notification: null
+        }),
         dismiss: vi.fn(),
         getCleanPath: vi.fn().mockReturnValue('/chat/-/room')
       },
@@ -44,7 +55,10 @@ const { mocks } = vi.hoisted(() => ({
         currentUserId: 'me',
         markRead: vi.fn(),
         bumpRoom: vi.fn(),
-        setUnread: vi.fn()
+        setUnread: vi.fn(),
+        clearUnreadNotifications: vi.fn(),
+        decrementUnreadNotification: vi.fn(),
+        incrementUnreadNotification: vi.fn()
       },
       pendingHighlights: {
         set: vi.fn()
@@ -64,15 +78,13 @@ vi.mock('$app/state', () => ({
 }));
 
 vi.mock('$app/navigation', () => ({
-  goto: vi.fn(),
+  goto: mocks.goto,
   pushState: mocks.pushState
 }));
 
 vi.mock('$app/paths', () => ({
   resolve: (path: string, params?: Record<string, string>) =>
-    path
-      .replace('[serverId]', params?.serverId ?? '')
-      .replace('[roomId]', params?.roomId ?? '')
+    path.replace('[serverId]', params?.serverId ?? '').replace('[roomId]', params?.roomId ?? '')
 }));
 
 vi.mock('$lib/navigation', () => ({
@@ -112,6 +124,30 @@ vi.mock('$lib/state/userProfiles.svelte', () => ({
 }));
 
 import RoomList from './RoomList.svelte';
+
+function notification(id: string, roomId: string, isDM = false) {
+  if (isDM) {
+    return {
+      __typename: 'DMMessageNotificationItem',
+      id,
+      createdAt: '2026-06-18T10:00:00Z',
+      actor: null,
+      summary: 'new direct message',
+      room: { id: roomId }
+    };
+  }
+
+  return {
+    __typename: 'MentionNotificationItem',
+    id,
+    createdAt: '2026-06-18T10:00:00Z',
+    actor: null,
+    summary: 'mentioned you',
+    mentionRoom: { id: roomId, name: 'general' },
+    mentionEventId: 'event-1',
+    mentionInThread: 'thread-1'
+  };
+}
 
 function user(id: string, login: string, displayName: string) {
   return {
@@ -178,6 +214,16 @@ function setRooms() {
   ] as never;
 }
 
+function setRoomNotificationCount(roomId: string, count: number) {
+  const rooms = mocks.store.rooms.rooms as Array<{
+    id: string;
+    viewerNotificationCount: number;
+  }>;
+  const room = rooms.find((item) => item.id === roomId);
+  if (!room) throw new Error(`Missing mocked room ${roomId}`);
+  room.viewerNotificationCount = count;
+}
+
 beforeEach(() => {
   localStorage.clear();
   mocks.activeCallRoomIds = new Set();
@@ -187,6 +233,17 @@ beforeEach(() => {
   mocks.store.rooms.currentUserId = 'me';
   setRooms();
   vi.clearAllMocks();
+  mocks.store.notifications.fetchRoomNotification.mockResolvedValue({
+    ok: true,
+    totalCount: 0,
+    notification: null
+  });
+  mocks.store.notifications.resolveRoomNotification.mockResolvedValue({
+    ok: true,
+    totalCount: 0,
+    notification: null
+  });
+  mocks.store.notifications.getCleanPath.mockReturnValue('/chat/-/room');
 });
 
 describe('RoomList', () => {
@@ -281,6 +338,92 @@ describe('RoomList', () => {
         roomName: 'restricted',
         viewerCanJoinRoom: false
       }
+    });
+  });
+
+  it('resolves a stale channel badge through the room-scoped notification query', async () => {
+    setRoomNotificationCount('channel-1', 1);
+    const roomNotification = notification('mention-1', 'channel-1');
+    mocks.store.notifications.resolveRoomNotification.mockResolvedValue({
+      ok: true,
+      totalCount: 1,
+      notification: roomNotification
+    });
+    mocks.store.notifications.getCleanPath.mockReturnValue('/chat/-/channel-1/thread-1');
+    mocks.store.notifications.dismiss.mockResolvedValue(true);
+
+    const { container } = render(RoomList);
+
+    const badge = q(container, '[data-testid="room-notification-badge"]');
+    await expect.element(badge).toBeInTheDocument();
+    (badge?.closest('button') as HTMLButtonElement).click();
+
+    await vi.waitFor(() => {
+      expect(mocks.store.notifications.resolveRoomNotification).toHaveBeenCalledWith('channel-1', {
+        isDM: false
+      });
+      expect(mocks.store.pendingHighlights.set).toHaveBeenCalledWith(
+        'channel-1',
+        'thread-1',
+        'event-1'
+      );
+      expect(mocks.store.rooms.decrementUnreadNotification).toHaveBeenCalledWith('channel-1');
+      expect(mocks.store.notifications.dismiss).toHaveBeenCalledWith('mention-1');
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/-/channel-1/thread-1');
+    });
+  });
+
+  it('resolves a stale DM badge through the room-scoped notification query', async () => {
+    setRoomNotificationCount('dm-with-participants', 1);
+    const dmNotification = notification('dm-1', 'dm-with-participants', true);
+    mocks.store.notifications.resolveRoomNotification.mockResolvedValue({
+      ok: true,
+      totalCount: 1,
+      notification: dmNotification
+    });
+    mocks.store.notifications.getCleanPath.mockReturnValue('/chat/-/dm-with-participants');
+    mocks.store.notifications.dismiss.mockResolvedValue(true);
+
+    const { container } = render(RoomList);
+
+    const badge = q(container, '[data-testid="dm-notification-badge"]');
+    await expect.element(badge).toBeInTheDocument();
+    (badge?.closest('button') as HTMLButtonElement).click();
+
+    await vi.waitFor(() => {
+      expect(mocks.store.notifications.resolveRoomNotification).toHaveBeenCalledWith(
+        'dm-with-participants',
+        { isDM: true }
+      );
+      expect(mocks.store.rooms.decrementUnreadNotification).toHaveBeenCalledWith(
+        'dm-with-participants'
+      );
+      expect(mocks.store.notifications.dismiss).toHaveBeenCalledWith('dm-1');
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/-/dm-with-participants');
+    });
+  });
+
+  it('clears a stale room badge when the room-scoped query returns no notifications', async () => {
+    setRoomNotificationCount('channel-1', 1);
+    mocks.store.notifications.resolveRoomNotification.mockResolvedValue({
+      ok: true,
+      totalCount: 0,
+      notification: null
+    });
+
+    const { container } = render(RoomList);
+
+    const badge = q(container, '[data-testid="room-notification-badge"]');
+    await expect.element(badge).toBeInTheDocument();
+    (badge?.closest('button') as HTMLButtonElement).click();
+
+    await vi.waitFor(() => {
+      expect(mocks.store.notifications.resolveRoomNotification).toHaveBeenCalledWith('channel-1', {
+        isDM: false
+      });
+      expect(mocks.store.rooms.clearUnreadNotifications).toHaveBeenCalledWith('channel-1');
+      expect(mocks.goto).not.toHaveBeenCalled();
+      expect(mocks.store.notifications.dismiss).not.toHaveBeenCalled();
     });
   });
 });

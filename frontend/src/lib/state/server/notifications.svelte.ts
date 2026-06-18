@@ -1,71 +1,93 @@
 import { SvelteSet } from 'svelte/reactivity';
-import { graphql } from '$lib/gql';
-import type { NotificationsQuery } from '$lib/gql/graphql';
+import { graphql, useFragment } from '$lib/gql';
+import {
+  NotificationItemViewFragmentDoc,
+  type NotificationItemViewFragment
+} from '$lib/gql/graphql';
 import type { Client } from '@urql/svelte';
 import { resolve } from '$app/paths';
 import { serverIdToSegment } from '$lib/navigation';
 
 // GraphQL queries and mutations
+const NotificationItemViewFragment = graphql(`
+  fragment NotificationItemView on NotificationItem {
+    __typename
+    ... on DMMessageNotificationItem {
+      id
+      createdAt
+      actor {
+        ...UserAvatarUser
+      }
+      summary
+      room {
+        id
+      }
+    }
+    ... on MentionNotificationItem {
+      id
+      createdAt
+      actor {
+        ...UserAvatarUser
+      }
+      summary
+      mentionRoom: room {
+        id
+        name
+      }
+      mentionEventId: eventId
+      mentionInThread: threadRootEventId
+    }
+    ... on ReplyNotificationItem {
+      id
+      createdAt
+      actor {
+        ...UserAvatarUser
+      }
+      summary
+      replyRoom: room {
+        id
+        name
+      }
+      replyEventId: eventId
+      inReplyToId
+      replyInThread: threadRootEventId
+    }
+    ... on RoomMessageNotificationItem {
+      id
+      createdAt
+      actor {
+        ...UserAvatarUser
+      }
+      summary
+      roomMsgRoom: room {
+        id
+        name
+      }
+      roomMsgEventId: eventId
+    }
+  }
+`);
+
 const NotificationsQueryDoc = graphql(`
   query Notifications {
     viewer {
       notifications(limit: 50) {
         totalCount
         items {
-          __typename
-          ... on DMMessageNotificationItem {
-            id
-            createdAt
-            actor {
-              ...UserAvatarUser
-            }
-            summary
-            room {
-              id
-            }
-          }
-          ... on MentionNotificationItem {
-            id
-            createdAt
-            actor {
-              ...UserAvatarUser
-            }
-            summary
-            mentionRoom: room {
-              id
-              name
-            }
-            mentionEventId: eventId
-            mentionInThread: threadRootEventId
-          }
-          ... on ReplyNotificationItem {
-            id
-            createdAt
-            actor {
-              ...UserAvatarUser
-            }
-            summary
-            replyRoom: room {
-              id
-              name
-            }
-            replyEventId: eventId
-            inReplyToId
-            replyInThread: threadRootEventId
-          }
-          ... on RoomMessageNotificationItem {
-            id
-            createdAt
-            actor {
-              ...UserAvatarUser
-            }
-            summary
-            roomMsgRoom: room {
-              id
-              name
-            }
-            roomMsgEventId: eventId
-          }
+          ...NotificationItemView
+        }
+      }
+    }
+  }
+`);
+
+const RoomNotificationQueryDoc = graphql(`
+  query RoomNotification($roomId: ID!) {
+    room(roomId: $roomId) {
+      viewerNotifications(limit: 1) {
+        totalCount
+        items {
+          ...NotificationItemView
         }
       }
     }
@@ -103,7 +125,7 @@ const DismissAllNotificationsMutationDoc = graphql(`
 `);
 
 // Union type for all notification types
-export type NotificationItem = NonNullable<NotificationsQuery['viewer']>['notifications']['items'][number];
+export type NotificationItem = NotificationItemViewFragment;
 
 /**
  * Normalized view of a notification's target (where it points to in the app).
@@ -122,6 +144,16 @@ export type NotificationTarget = {
 export type NotificationDismissalCounts = {
   total: number;
   byRoom: Record<string, number>;
+};
+
+export type RoomNotificationLookup = {
+  ok: boolean;
+  totalCount: number | null;
+  notification: NotificationItem | null;
+};
+
+export type RoomNotificationResolveOptions = {
+  isDM?: boolean;
 };
 
 const emptyDismissalCounts = (): NotificationDismissalCounts => ({
@@ -315,6 +347,13 @@ export class NotificationStore {
     );
   }
 
+  getCachedRoomNotification(
+    roomId: string,
+    options: RoomNotificationResolveOptions = {}
+  ): NotificationItem | undefined {
+    return options.isDM ? this.getDMRoomNotification(roomId) : this.getRoomNotification(roomId);
+  }
+
   /**
    * Dismiss all thread-scoped notifications (replies + mentions) for a thread.
    * Called when a user opens a thread to clear the notification indicator.
@@ -410,7 +449,10 @@ export class NotificationStore {
       }
 
       if (result.data?.viewer) {
-        this.notifications = result.data.viewer.notifications.items;
+        this.notifications = useFragment(
+          NotificationItemViewFragmentDoc,
+          result.data.viewer.notifications.items
+        );
         this.unreadNotificationCount = result.data.viewer.notifications.totalCount;
       }
       // Capture the instance display name lazily — used by getLocationString
@@ -430,6 +472,58 @@ export class NotificationStore {
     } finally {
       this.loading = false;
     }
+  }
+
+  /**
+   * Fetch the newest pending notification for a single room.
+   *
+   * Room sidebar badges are sourced from Room.viewerNotifications.totalCount,
+   * so badge clicks need the same scoped source when the global cached page is
+   * empty, stale, or does not include this room's notification.
+   */
+  async fetchRoomNotification(roomId: string): Promise<RoomNotificationLookup> {
+    try {
+      const result = await this.#client.query(RoomNotificationQueryDoc, { roomId }).toPromise();
+
+      if (result.error) {
+        this.error = result.error.message;
+        console.error('Failed to fetch room notification:', result.error);
+        return { ok: false, totalCount: null, notification: null };
+      }
+
+      const connection = result.data?.room?.viewerNotifications;
+      if (!connection) {
+        return { ok: true, totalCount: null, notification: null };
+      }
+
+      const notification = connection.items[0]
+        ? useFragment(NotificationItemViewFragmentDoc, connection.items[0])
+        : null;
+      if (notification) {
+        this.#upsertNotification(notification);
+      }
+
+      return {
+        ok: true,
+        totalCount: connection.totalCount,
+        notification
+      };
+    } catch (e) {
+      this.error = e instanceof Error ? e.message : 'Failed to fetch room notification';
+      console.error('Failed to fetch room notification:', e);
+      return { ok: false, totalCount: null, notification: null };
+    }
+  }
+
+  async resolveRoomNotification(
+    roomId: string,
+    options: RoomNotificationResolveOptions = {}
+  ): Promise<RoomNotificationLookup> {
+    const cached = this.getCachedRoomNotification(roomId, options);
+    if (cached) {
+      return { ok: true, totalCount: null, notification: cached };
+    }
+    return this.fetchRoomNotification(roomId);
   }
 
   /**
@@ -523,9 +617,14 @@ export class NotificationStore {
    * createdAt to preserve the canonical ordering after a rollback.
    */
   #restoreNotification(notification: NotificationItem): void {
-    this.notifications = [...this.notifications, notification].sort((a, b) =>
-      b.createdAt.localeCompare(a.createdAt)
-    );
+    this.#upsertNotification(notification);
+  }
+
+  #upsertNotification(notification: NotificationItem): void {
+    this.notifications = [
+      ...this.notifications.filter((n) => n.id !== notification.id),
+      notification
+    ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
   #markLocalDismissal(notificationId: string): void {

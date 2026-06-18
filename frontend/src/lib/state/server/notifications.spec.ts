@@ -50,6 +50,17 @@ function notificationsResult(items: NotificationItem[]) {
   };
 }
 
+function roomNotificationsResult(items: NotificationItem[], totalCount = items.length) {
+  return {
+    room: {
+      viewerNotifications: {
+        totalCount,
+        items
+      }
+    }
+  };
+}
+
 describe('NotificationStore', () => {
   let consoleError: ReturnType<typeof vi.spyOn>;
 
@@ -66,6 +77,51 @@ describe('NotificationStore', () => {
     expect(store.error).toBeNull();
   });
 
+  it('fetchRoomNotification returns the newest room-scoped notification and caches it', async () => {
+    const roomMention = mention('room-mention');
+    const store = new NotificationStore(
+      makeClient({ data: roomNotificationsResult([roomMention], 4) })
+    );
+
+    const result = await store.fetchRoomNotification('r1');
+
+    expect(result).toEqual({
+      ok: true,
+      totalCount: 4,
+      notification: roomMention
+    });
+    expect(store.notifications.map((n) => n.id)).toEqual(['room-mention']);
+  });
+
+  it('fetchRoomNotification reports an empty room-scoped notification result', async () => {
+    const store = new NotificationStore(makeClient({ data: roomNotificationsResult([], 0) }));
+
+    const result = await store.fetchRoomNotification('r1');
+
+    expect(result).toEqual({
+      ok: true,
+      totalCount: 0,
+      notification: null
+    });
+    expect(store.notifications).toHaveLength(0);
+  });
+
+  it('resolveRoomNotification uses the cached room notification before querying', async () => {
+    const cached = mention('cached');
+    const client = makeClient({ data: roomNotificationsResult([mention('remote')], 1) });
+    const store = new NotificationStore(client);
+    store.notifications = [cached];
+
+    const result = await store.resolveRoomNotification('r1');
+
+    expect(result).toEqual({
+      ok: true,
+      totalCount: null,
+      notification: cached
+    });
+    expect(client.query).not.toHaveBeenCalled();
+  });
+
   // The motivating bug: a remote instance running an older backend rejects
   // the entire query when the frontend asks for a field it doesn't have.
   // Before the resilience contract this caused fetch() to throw and the
@@ -74,7 +130,9 @@ describe('NotificationStore', () => {
   // records the error message, but does NOT replace existing notifications.
   it('retains existing notifications when the server returns a GraphQL error', async () => {
     const errClient = makeClient({
-      error: { message: 'Cannot query field "threadRootEventId" on type "MentionNotificationItem".' }
+      error: {
+        message: 'Cannot query field "threadRootEventId" on type "MentionNotificationItem".'
+      }
     });
     const store = new NotificationStore(errClient);
     // Pre-populate as if a previous fetch had succeeded.
@@ -89,9 +147,7 @@ describe('NotificationStore', () => {
   });
 
   it('does not throw on GraphQL error', async () => {
-    const store = new NotificationStore(
-      makeClient({ error: { message: 'something broke' } })
-    );
+    const store = new NotificationStore(makeClient({ error: { message: 'something broke' } }));
     await expect(store.fetch()).resolves.toBeUndefined();
     expect(store.error).toBe('something broke');
   });

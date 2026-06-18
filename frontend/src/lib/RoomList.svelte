@@ -14,11 +14,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import CollapsibleGroup from '$lib/ui/CollapsibleGroup.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
   import type { CallRoomParticipant } from '$lib/state/server/activeCallRooms.svelte';
-  import {
-    useEvent,
-    useTabResumeCallback,
-    useRoomMarkedAsRead
-  } from '$lib/hooks';
+  import { useEvent, useTabResumeCallback, useRoomMarkedAsRead } from '$lib/hooks';
   import { serverStorageKey } from '$lib/storage/serverStorage';
   import { useFragment } from './gql';
   import { RoomType, type PresenceStatus } from '$lib/gql/graphql';
@@ -256,14 +252,19 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     });
   }
 
-  // Handle click on room notification badge - navigate to notification source and dismiss
-  async function handleRoomNotificationClick(event: MouseEvent, roomId: string) {
+  async function handleNotificationBadgeClick(event: MouseEvent, roomId: string, isDM: boolean) {
     event.preventDefault();
     event.stopPropagation();
 
-    const notification = notificationStore.getRoomNotification(roomId);
+    const lookup = await notificationStore.resolveRoomNotification(roomId, { isDM });
+    const notification = lookup.notification;
+
     if (!notification) {
-      await goto(resolve('/chat/notifications'));
+      if (lookup.ok && lookup.totalCount === 0) {
+        roomsStore.clearUnreadNotifications(roomId);
+      } else {
+        await goto(resolve('/chat/notifications'));
+      }
       return;
     }
 
@@ -280,34 +281,11 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
     await goto(path);
   }
-
-  // Handle click on a DM notification badge. Mirrors handleRoomNotificationClick
-  // but uses the DM-flavoured store accessors — `getRoomNotification` /
-  // `hasRoomNotification` deliberately exclude DMs.
-  async function handleDMNotificationClick(event: MouseEvent, roomId: string) {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const notification = notificationStore.getDMRoomNotification(roomId);
-    if (!notification) {
-      await goto(resolve('/chat/notifications'));
-      return;
-    }
-
-    roomsStore.decrementUnreadNotification(roomId);
-    void notificationStore.dismiss(notification.id).then((dismissed) => {
-      if (!dismissed) roomsStore.incrementUnreadNotification(roomId);
-    });
-
-    const path = notificationStore.getCleanPath(getActiveServer(), notification);
-    // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
-    await goto(path);
-  }
 </script>
 
 {#snippet callBadge(room: RoomsListItem, callParticipants: CallRoomParticipant[])}
   <div
-    class="basis-full pl-7 cursor-pointer"
+    class="basis-full cursor-pointer pl-7"
     role="button"
     tabindex="0"
     aria-label="Join active call"
@@ -322,11 +300,11 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   >
     <div
       class={[
-        'meta-badge border-transparent gap-1.5 px-1.5 py-0.5',
+        'meta-badge gap-1.5 border-transparent px-1.5 py-0.5',
         room.id === activeRoomId ? 'bg-surface-200' : ''
       ]}
     >
-      <span class="iconify animate-pulse text-accent uil--phone text-sm"></span>
+      <span class="iconify animate-pulse text-sm text-accent uil--phone"></span>
       {#if callParticipants.length > 0}
         <div class="inline-flex -space-x-1.5">
           {#each callParticipants as p (p.userId)}
@@ -375,14 +353,11 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     {#if isJoined && room.viewerNotificationCount > 0}
       <button
         type="button"
-        onclick={(e) => handleRoomNotificationClick(e, room.id)}
+        onclick={(e) => handleNotificationBadgeClick(e, room.id, false)}
         class="-mr-2 flex h-6 min-w-6 cursor-pointer items-center justify-center notification-dot"
         aria-label={`Go to ${room.viewerNotificationCount} notifications`}
       >
-        <NotificationBadge
-          count={room.viewerNotificationCount}
-          testid="room-notification-badge"
-        />
+        <NotificationBadge count={room.viewerNotificationCount} testid="room-notification-badge" />
       </button>
       <span class="sr-only">{room.viewerNotificationCount} notifications</span>
       <!-- Unread Indicator (subtle) -->
@@ -405,7 +380,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   <a
     href={resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId: room.id })}
     class={[
-      'sidebar-item group/badges',
+      'group/badges sidebar-item',
       hasActiveCall ? 'flex-wrap gap-y-1' : '',
       room.id === activeRoomId ? 'bg-surface-100' : '',
       room.hasUnread && room.id !== activeRoomId ? 'font-semibold' : ''
@@ -422,14 +397,11 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     {#if room.viewerNotificationCount > 0}
       <button
         type="button"
-        onclick={(e) => handleDMNotificationClick(e, room.id)}
+        onclick={(e) => handleNotificationBadgeClick(e, room.id, true)}
         class="-mr-2 flex h-6 min-w-6 cursor-pointer items-center justify-center notification-dot"
         aria-label={`Go to ${room.viewerNotificationCount} direct message notifications`}
       >
-        <NotificationBadge
-          count={room.viewerNotificationCount}
-          testid="dm-notification-badge"
-        />
+        <NotificationBadge count={room.viewerNotificationCount} testid="dm-notification-badge" />
       </button>
       <span class="sr-only">{room.viewerNotificationCount} new direct messages</span>
     {:else if room.hasUnread}
@@ -464,9 +436,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {#if channels.length === 0 && dmRooms.length === 0 && !hasSidebarItems && !roomsStore.isInitialLoading}
   <EmptyState icon="uil--comments" title="No rooms yet">
     You haven't joined any rooms on this server. Head to the
-    <a
-      href={resolve('/chat/[serverId]/overview', { serverId: serverSegment })}
-      class="link">Overview</a
+    <a href={resolve('/chat/[serverId]/overview', { serverId: serverSegment })} class="link"
+      >Overview</a
     >
     to browse the directory and join the ones you're interested in.
   </EmptyState>

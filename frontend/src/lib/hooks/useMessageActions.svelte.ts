@@ -4,10 +4,7 @@ import { pushState } from '$app/navigation';
 import { getComposerContext } from '$lib/state/room';
 import { emojiToName } from '$lib/emoji';
 import { copyMessageLinkToClipboard } from '$lib/messageLinks';
-import {
-  AddReactionFromActionsDocument,
-  RemoveReactionFromActionsDocument
-} from '$lib/gql/graphql';
+import { graphql } from '$lib/gql';
 
 export type MessageActionParams = {
   serverId: string;
@@ -20,6 +17,18 @@ export type MessageActionParams = {
   channelEchoEventId?: string | null;
   canAddChannelEcho?: boolean;
 };
+
+const AddReactionFromActionsDocument = graphql(`
+  mutation AddReactionFromActions($input: AddReactionInput!) {
+    addReaction(input: $input)
+  }
+`);
+
+const RemoveReactionFromActionsDocument = graphql(`
+  mutation RemoveReactionFromActions($input: RemoveReactionInput!) {
+    removeReaction(input: $input)
+  }
+`);
 
 /**
  * Shared message action handlers for context menu and action sheet.
