@@ -265,6 +265,105 @@ func TestMoveRoomToSet_TargetNotFound(t *testing.T) {
 	}
 }
 
+func TestMoveRoomToSet_FromSourceRejectsChangedSource(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	setA, _ := core.CreateRoomGroup(ctx, "actor", "A", "")
+	setB, _ := core.CreateRoomGroup(ctx, "actor", "B", "")
+	setC, _ := core.CreateRoomGroup(ctx, "actor", "C", "")
+	room, _ := core.CreateRoom(ctx, "actor", KindChannel, "", "general", "")
+
+	if err := core.MoveRoomToGroup(ctx, "actor", room.Id, setA.Id); err != nil {
+		t.Fatalf("MoveRoomToGroup A failed: %v", err)
+	}
+	if err := core.MoveRoomToGroup(ctx, "other-actor", room.Id, setB.Id); err != nil {
+		t.Fatalf("MoveRoomToGroup B failed: %v", err)
+	}
+
+	err := core.MoveRoomToGroupFromSource(ctx, "actor", room.Id, setA.Id, setC.Id)
+	if !errors.Is(err, ErrRoomMoveSourceChanged) {
+		t.Fatalf("MoveRoomToGroupFromSource err = %v, want ErrRoomMoveSourceChanged", err)
+	}
+
+	gotB, _ := core.GetRoomGroup(ctx, setB.Id)
+	if len(gotB.RoomIds) != 1 || gotB.RoomIds[0] != room.Id {
+		t.Fatalf("Set B should still contain the room after rejected move: %+v", gotB.RoomIds)
+	}
+	gotC, _ := core.GetRoomGroup(ctx, setC.Id)
+	if len(gotC.RoomIds) != 0 {
+		t.Fatalf("Set C should remain empty after rejected move: %+v", gotC.RoomIds)
+	}
+}
+
+func TestMoveRoomToSet_FromSourceRejectsChangedSourceAfterOCCRetry(t *testing.T) {
+	harness := newTestEventHarness(t)
+	ctx := testContext(t)
+
+	groupLayout := NewRoomGroupLayoutProjection()
+	groupLayoutProjector := harness.projector(groupLayout)
+	core := &ChattoCore{
+		nc:                       harness.nc,
+		logger:                   testServiceLogger(),
+		EventPublisher:           harness.publisher,
+		RoomGroupLayout:          groupLayout,
+		RoomGroupLayoutProjector: groupLayoutProjector,
+		RoomGroups:               groupLayout.Groups,
+		RoomLayout:               groupLayout.Layout,
+	}
+	core.roomService = newRoomService(nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
+
+	eventsToAppend := []*corev1.Event{
+		newEvent("actor", groupCreatedEvent("G-source", "Source", "")),
+		newEvent("actor", groupCreatedEvent("G-other", "Other", "")),
+		newEvent("actor", groupCreatedEvent("G-target", "Target", "")),
+		newEvent("actor", roomAddedToGroupEvent("G-source", "R1")),
+		newEvent("other-actor", roomRemovedFromGroupEvent("G-source", "R1")),
+		newEvent("other-actor", roomAddedToGroupEvent("G-other", "R1")),
+	}
+	for i, event := range eventsToAppend {
+		subject := events.GroupAggregate(groupIDOfTestGroupEvent(t, event)).SubjectFor(event)
+		seq, err := harness.publisher.AppendEventually(ctx, subject, event)
+		if err != nil {
+			t.Fatalf("append setup event %d: %v", i, err)
+		}
+		if i < 4 {
+			if err := groupLayout.Apply(event, seq); err != nil {
+				t.Fatalf("seed stale group projection event %d: %v", i, err)
+			}
+		}
+	}
+	if got := core.RoomGroups.GroupForRoom("R1"); got != "G-source" {
+		t.Fatalf("test setup source group = %q, want stale G-source", got)
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- core.MoveRoomToGroupFromSource(ctx, "actor", "R1", "G-source", "G-target")
+	}()
+
+	select {
+	case err := <-errCh:
+		t.Fatalf("MoveRoomToGroupFromSource returned before OCC retry catch-up: %v", err)
+	case <-time.After(25 * time.Millisecond):
+	}
+
+	startTestProjector(t, groupLayoutProjector)
+	if err := <-errCh; !errors.Is(err, ErrRoomMoveSourceChanged) {
+		t.Fatalf("MoveRoomToGroupFromSource after OCC retry err = %v, want ErrRoomMoveSourceChanged", err)
+	}
+	if got := core.RoomGroups.GroupForRoom("R1"); got != "G-other" {
+		t.Fatalf("room source after rejected move = %q, want G-other", got)
+	}
+	target, ok := core.RoomGroups.Get("G-target")
+	if !ok {
+		t.Fatal("target group missing after catch-up")
+	}
+	if len(target.RoomIds) != 0 {
+		t.Fatalf("target room IDs = %v, want empty", target.RoomIds)
+	}
+}
+
 func TestMoveRoomToSet_TargetCreatedBeforeProjectionCatchup(t *testing.T) {
 	harness := newTestEventHarness(t)
 	ctx := testContext(t)
