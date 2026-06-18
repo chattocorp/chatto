@@ -15,7 +15,7 @@ mounting the full chat room shell.
 
   let {
     roomId = 'room-1',
-    roomData,
+    roomData: _roomData,
     activePanel = 'members',
     presentation = 'desktop',
     currentUserId = 'viewer',

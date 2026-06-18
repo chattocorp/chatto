@@ -1,6 +1,6 @@
 import type { Client } from '@urql/svelte';
 import { createContext } from 'svelte';
-import { SvelteMap } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { graphql, useFragment } from '$lib/gql';
 import { isUnsupportedGraphQLArgumentError } from '$lib/gql/compatibility';
 import {
@@ -160,7 +160,7 @@ export class RoomMembersStore {
 				this.activeSearch
 			);
 			if (loadId !== this.#loadId) return;
-			const seen = new Set(this.members.map((member) => member.id));
+			const seen = new SvelteSet(this.members.map((member) => member.id));
 			const nextMembers = page.members.filter((member) => !seen.has(member.id));
 			this.members = [...this.members, ...nextMembers];
 			this.totalCount = page.totalCount;
