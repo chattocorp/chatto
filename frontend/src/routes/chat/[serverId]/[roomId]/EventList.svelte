@@ -3,7 +3,12 @@
   import { fade } from 'svelte/transition';
   import { Virtualizer, type VirtualizerHandle } from 'virtua/svelte';
   import type { RoomEventViewFragment } from '$lib/gql/graphql';
-  import type { MessagesStore, RefreshCurrentWindowResult, RoomMember } from '$lib/state/room';
+  import type {
+    MessagesStore,
+    QuoteInsertionContent,
+    RefreshCurrentWindowResult,
+    RoomMember
+  } from '$lib/state/room';
   import { getComposerContext, getRoomPermissions } from '$lib/state/room';
   import RoomEvent from './RoomEvent.svelte';
   import SystemEventGroup from './SystemEventGroup.svelte';
@@ -83,7 +88,7 @@
     onOpenThread?: (
       threadRootEventId: string,
       highlightEventId?: string,
-      quoteText?: string
+      quoteText?: QuoteInsertionContent
     ) => void;
     // Filtering
     filterThreadReplies?: boolean;
@@ -454,7 +459,10 @@
   function captureRefreshAnchor(): RefreshAnchor | null {
     if (!scrollContainer || !virtualizerHandle || virtualItems.length === 0) return null;
 
-    const startIdx = Math.max(0, virtualizerHandle.findItemIndex(virtualizerHandle.getScrollOffset()));
+    const startIdx = Math.max(
+      0,
+      virtualizerHandle.findItemIndex(virtualizerHandle.getScrollOffset())
+    );
     for (let i = startIdx; i < virtualItems.length; i++) {
       const eventId = eventIdForVirtualItem(virtualItems[i]);
       if (!eventId) continue;
@@ -479,7 +487,8 @@
 
     const bottomDistance = distanceFromBottom();
     const wasAtBottom =
-      alwaysScrollToBottom || (bottomDistance === null ? shouldScrollToBottom : bottomDistance < 50);
+      alwaysScrollToBottom ||
+      (bottomDistance === null ? shouldScrollToBottom : bottomDistance < 50);
     const anchor = wasAtBottom ? null : captureRefreshAnchor();
 
     softRefreshInFlight = true;
@@ -717,14 +726,20 @@
     if (eventData.__typename === 'MessagePostedEvent') {
       // Echoes open the original thread
       if (eventData.echoOfEventId != null) {
-        return (_threadRootEventId: string, highlightEventId?: string, quoteText?: string) =>
-          onOpenThread(eventData.echoFromThreadRootEventId!, highlightEventId, quoteText);
+        return (
+          _threadRootEventId: string,
+          highlightEventId?: string,
+          quoteText?: QuoteInsertionContent
+        ) => onOpenThread(eventData.echoFromThreadRootEventId!, highlightEventId, quoteText);
       }
       // Thread replies don't open threads from the main channel
       if (eventData.threadRootEventId !== null) return undefined;
       // Root messages open their own thread
-      return (_threadRootEventId?: string, _highlightEventId?: string, quoteText?: string) =>
-        onOpenThread(event.id, undefined, quoteText);
+      return (
+        _threadRootEventId?: string,
+        _highlightEventId?: string,
+        quoteText?: QuoteInsertionContent
+      ) => onOpenThread(event.id, undefined, quoteText);
     }
 
     return undefined;

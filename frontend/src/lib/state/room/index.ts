@@ -13,6 +13,8 @@ export type {
   ComposerContextOptions,
   EditableMessage,
   FindLastEditableMessage,
+  QuoteInsertionContent,
+  SelectedQuoteBlock,
   QuoteInsertionRequest
 } from './composerContext.svelte';
 export {

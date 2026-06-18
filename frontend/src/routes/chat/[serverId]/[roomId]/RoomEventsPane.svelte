@@ -2,6 +2,7 @@
   import { useEvent } from '$lib/hooks';
   import {
     getComposerContext,
+    type QuoteInsertionContent,
     type RefreshCurrentWindowResult,
     type RoomMember
   } from '$lib/state/room';
@@ -24,7 +25,7 @@
     onOpenThread?: (
       threadRootEventId: string,
       highlightEventId?: string,
-      quoteText?: string
+      quoteText?: QuoteInsertionContent
     ) => void;
     typingUserIds?: string[];
     typingMembers?: RoomMember[];

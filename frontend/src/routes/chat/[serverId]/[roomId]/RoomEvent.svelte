@@ -1,7 +1,7 @@
 <script lang="ts">
   import { graphql } from '$lib/gql';
   import type { RoomEventViewFragment } from '$lib/gql/graphql';
-  import type { MessagesStore } from '$lib/state/room';
+  import type { MessagesStore, QuoteInsertionContent } from '$lib/state/room';
   import MessageEvent from './MessageEvent.svelte';
   import SystemEvent from './SystemEvent.svelte';
 
@@ -158,7 +158,7 @@
     onOpenThread?: (
       threadRootEventId: string,
       highlightEventId?: string,
-      quoteText?: string
+      quoteText?: QuoteInsertionContent
     ) => void;
   } = $props();
 

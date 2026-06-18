@@ -14,6 +14,7 @@
     getRoomMembers,
     getRoomMembersStore,
     getComposerContext,
+    type QuoteInsertionContent,
     type RoomMember
   } from '$lib/state/room';
   import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
@@ -56,7 +57,7 @@
   export type MessageComposerApi = {
     addFiles: (files: File[]) => void;
     focus: () => void;
-    insertQuote: (text: string) => void;
+    insertQuote: (text: QuoteInsertionContent) => void;
   };
 
   let {
@@ -411,7 +412,7 @@
     tick().then(() => editorApi?.focus());
   }
 
-  function insertQuote(text: string) {
+  function insertQuote(text: QuoteInsertionContent) {
     tick().then(() => editorApi?.insertQuote(text));
   }
 

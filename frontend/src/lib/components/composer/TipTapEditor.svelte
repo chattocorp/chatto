@@ -31,6 +31,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     ensureCodeLanguagesLoaded,
     lowlight
   } from '$lib/codeHighlighting';
+  import type { QuoteInsertionContent, SelectedQuoteBlock } from '$lib/state/room';
 
   const markdownLinkInputRegex = /(^|\s)\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)$/;
   const codeFenceLineRegex = /^```([\w-]+)?$/;
@@ -649,6 +650,53 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     return found;
   }
 
+  function quoteParagraphsForText(text: string): JSONContent[] {
+    return text
+      .replace(/\r\n?/g, '\n')
+      .split('\n')
+      .map((line) => ({
+        type: 'paragraph',
+        content: line ? [{ type: 'text', text: line }] : undefined
+      }));
+  }
+
+  function normalizeQuoteInsertionContent(text: QuoteInsertionContent): SelectedQuoteBlock[] {
+    if (typeof text !== 'string') {
+      return text
+        .map((block) => ({
+          quoteDepth: Math.max(0, Math.floor(block.quoteDepth)),
+          text: block.text.replace(/\r\n?/g, '\n').trim()
+        }))
+        .filter((block) => block.text.length > 0);
+    }
+
+    const normalized = text.replace(/\r\n?/g, '\n').trim();
+    if (!normalized) return [];
+    return normalized.split('\n').map((line) => ({ quoteDepth: 0, text: line }));
+  }
+
+  function buildQuoteContent(blocks: SelectedQuoteBlock[]): JSONContent[] {
+    const content: JSONContent[] = [];
+
+    for (const block of blocks) {
+      let target = content;
+
+      for (let depth = 0; depth < block.quoteDepth; depth++) {
+        let current = target.at(-1);
+        if (current?.type !== 'blockquote') {
+          current = { type: 'blockquote', content: [] };
+          target.push(current);
+        }
+        current.content ??= [];
+        target = current.content;
+      }
+
+      target.push(...quoteParagraphsForText(block.text));
+    }
+
+    return content;
+  }
+
   export type TipTapEditorApi = {
     /** Get the editor's plain text content */
     getText: () => string;
@@ -667,7 +715,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
      */
     replaceTextBeforeCursor: (charCount: number, replacement: string) => void;
     /** Insert selected reply text as a blockquote at the current cursor. */
-    insertQuote: (text: string) => void;
+    insertQuote: (text: QuoteInsertionContent) => void;
     /** Insert the same block break the editor would create for a plain Enter key. */
     insertBlockBreak: () => void;
   };
@@ -984,22 +1032,18 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
         tick().then(syncControls);
       },
 
-      insertQuote: (text: string) => {
+      insertQuote: (text: QuoteInsertionContent) => {
         if (e.isDestroyed) return;
-        const normalized = text.replace(/\r\n?/g, '\n').trim();
-        if (!normalized) return;
-
-        const quoteParagraphs: JSONContent[] = normalized.split('\n').map((line) => ({
-          type: 'paragraph',
-          content: line ? [{ type: 'text', text: line }] : undefined
-        }));
+        const quoteBlocks = normalizeQuoteInsertionContent(text);
+        if (quoteBlocks.length === 0) return;
+        const quoteContent = buildQuoteContent(quoteBlocks);
 
         e.chain()
           .focus()
           .insertContent([
             {
               type: 'blockquote',
-              content: quoteParagraphs
+              content: quoteContent
             },
             { type: 'paragraph' }
           ])

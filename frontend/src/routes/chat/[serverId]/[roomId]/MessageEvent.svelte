@@ -18,6 +18,7 @@
     getMentionRoles,
     getComposerContext,
     type MessagesStore,
+    type QuoteInsertionContent,
     type RoomMember
   } from '$lib/state/room';
   import { useConnection } from '$lib/state/server/connection.svelte';
@@ -71,7 +72,7 @@
     onOpenThread?: (
       threadRootEventId: string,
       highlightEventId?: string,
-      quoteText?: string
+      quoteText?: QuoteInsertionContent
     ) => void;
   } = $props();
 
@@ -126,7 +127,7 @@
     centerX?: boolean;
   } | null>(null);
   let messageBodySelectionRoot = $state<HTMLElement>();
-  let selectedReplyQuoteSnapshot = $state<string | null>(null);
+  let selectedReplyQuoteSnapshot = $state<QuoteInsertionContent | null>(null);
 
   // Emoji picker state (position doubles as visibility flag; on mobile ContextMenu ignores it)
   let emojiPickerPos = $state<{ x: number; y: number } | null>(null);
@@ -540,14 +541,14 @@
     }
   }
 
-  function getSelectedReplyQuote(): string | null {
+  function getSelectedReplyQuote(): QuoteInsertionContent | null {
     return selectedQuoteTextForMessageBody(
       typeof window === 'undefined' ? null : window.getSelection(),
       messageBodySelectionRoot
     );
   }
 
-  function takeSelectedReplyQuote(): string | null {
+  function takeSelectedReplyQuote(): QuoteInsertionContent | null {
     const quote = selectedReplyQuoteSnapshot ?? getSelectedReplyQuote();
     selectedReplyQuoteSnapshot = null;
     return quote;

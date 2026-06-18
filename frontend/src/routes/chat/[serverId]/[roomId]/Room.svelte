@@ -26,7 +26,8 @@
     RoomMembersStore,
     setRoomMembersStore,
     createRoomPermissions,
-    DEFAULT_ROOM_PERMISSIONS
+    DEFAULT_ROOM_PERMISSIONS,
+    type QuoteInsertionContent
   } from '$lib/state/room';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -62,10 +63,14 @@
 
   // Thread navigation functions (URL-driven state)
   let pendingThreadHighlight = $state<string | null>(null);
-  let pendingThreadQuote = $state<{ id: number; text: string } | null>(null);
+  let pendingThreadQuote = $state<{ id: number; text: QuoteInsertionContent } | null>(null);
   let pendingThreadQuoteId = 0;
 
-  function openThread(threadRootEventId: string, highlightEventId?: string, quoteText?: string) {
+  function openThread(
+    threadRootEventId: string,
+    highlightEventId?: string,
+    quoteText?: QuoteInsertionContent
+  ) {
     pendingThreadHighlight = highlightEventId ?? null;
     pendingThreadQuote = quoteText ? { id: ++pendingThreadQuoteId, text: quoteText } : null;
     goto(
@@ -87,10 +92,7 @@
   const replyState = composerContext.replyState;
   const jumpState = composerContext.jumpState;
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
-  const roomMessageStore = new MessagesStore(
-    connection(),
-    () => currentUser.user?.id ?? null
-  );
+  const roomMessageStore = new MessagesStore(connection(), () => currentUser.user?.id ?? null);
 
   onDestroy(() => roomMessageStore.dispose());
 
@@ -154,9 +156,7 @@
 
   // Room permissions — derived reactively, no $effect needed
   let permissions = $derived(room.roomData ?? DEFAULT_ROOM_PERMISSIONS);
-  let composerCanAttach = $derived(
-    room.roomData === undefined ? true : permissions.canAttach
-  );
+  let composerCanAttach = $derived(room.roomData === undefined ? true : permissions.canAttach);
 
   createRoomPermissions(() => permissions);
 

@@ -5,7 +5,7 @@ import { tick, type ComponentProps } from 'svelte';
 import MessageComposer, { type MessageComposerApi } from './MessageComposer.svelte';
 import { createMockGraphqlClient, q } from '$lib/test-utils';
 import { getToasts, toast } from '$lib/ui/toast';
-import type { RoomMember } from '$lib/state/room';
+import type { QuoteInsertionContent, RoomMember } from '$lib/state/room';
 import { PresenceStatus } from '$lib/gql/graphql';
 
 function postedMessageEvent(
@@ -54,7 +54,7 @@ const roomStateMock = vi.hoisted(() => ({
     cancelEdit: vi.fn()
   },
   quoteInsertionState: {
-    request: null as { id: number; text: string } | null
+    request: null as { id: number; text: QuoteInsertionContent } | null
   },
   lastEditableMessage: {
     getLastEditableMessage: vi.fn(() => null as { eventId: string; body: string } | null),
@@ -1274,6 +1274,62 @@ describe('MessageComposer', () => {
       await vi.waitFor(() => expect(editor.querySelector('blockquote')).toBeTruthy());
       expect(editor.querySelectorAll('blockquote p')).toHaveLength(2);
       expect(editor.querySelector('blockquote')?.textContent).toBe('first linesecond line');
+    });
+
+    it('renders structured selected reply quotes as nested blockquotes', async () => {
+      let composerApi: MessageComposerApi | null = null;
+      const { container } = renderMessageComposer(
+        {
+          roomId: 'room_456',
+          onReady: (api) => {
+            composerApi = api;
+          }
+        },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+
+      await vi.waitFor(() => expect(composerApi).not.toBeNull());
+      composerApi!.insertQuote([
+        { quoteDepth: 0, text: 'a' },
+        { quoteDepth: 1, text: 'nice, love it' },
+        { quoteDepth: 0, text: ':D' }
+      ]);
+
+      await vi.waitFor(() => expect(editor.querySelector('blockquote blockquote')).toBeTruthy());
+      const outerQuote = editor.querySelector('blockquote')!;
+      const outerParagraphs = Array.from(outerQuote.children).filter(
+        (child): child is HTMLParagraphElement => child instanceof HTMLParagraphElement
+      );
+      expect(outerParagraphs.map((paragraph) => paragraph.textContent)).toEqual(['a', ':D']);
+      expect(editor.querySelector('blockquote blockquote p')?.textContent).toBe('nice, love it');
+    });
+
+    it('submits structured selected reply quotes as nested blockquote markdown', async () => {
+      let composerApi: MessageComposerApi | null = null;
+      const { container, roomId } = renderMessageComposer(
+        {
+          roomId: 'room_456',
+          onReady: (api) => {
+            composerApi = api;
+          }
+        },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+
+      await typeInEditor(editor, 'draft');
+      await vi.waitFor(() => expect(composerApi).not.toBeNull());
+      composerApi!.insertQuote([{ quoteDepth: 1, text: 'quoted text' }]);
+      await vi.waitFor(() => expect(editor.querySelector('blockquote blockquote')).toBeTruthy());
+
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: 'draft\n\n> > quoted text'
+      });
     });
 
     it('activates rich mode with Ctrl+Enter in simple mode', async () => {
