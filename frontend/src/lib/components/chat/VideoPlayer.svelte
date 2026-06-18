@@ -132,7 +132,7 @@
 {#if status === 'COMPLETED' && selectedVariant && autoLoop}
 	<!-- Converted GIFs use a native <video> for reliable autoplay + loop behavior. -->
 	<div
-		class="overflow-hidden rounded-sm"
+		class="embed-frame"
 		style="width: {displaySize.width}px; max-width: 100%;"
 	>
 		<video
@@ -149,7 +149,7 @@
 	</div>
 {:else if status === 'COMPLETED' && selectedVariant && elementsReady}
 	<div
-		class="overflow-hidden rounded-sm"
+		class="embed-frame"
 		style="width: {displaySize.width}px; max-width: 100%;"
 	>
 		<media-player
@@ -175,7 +175,7 @@
 	</div>
 {:else if status === 'PENDING' || status === 'PROCESSING'}
 	<div
-		class="flex items-center gap-3 rounded-lg bg-surface px-4 py-3"
+		class="flex items-center gap-3 px-4 py-3 embed-frame"
 		style="width: {displaySize.width}px; max-width: 100%;"
 	>
 		<div class="h-5 w-5 animate-spin rounded-full border-2 border-muted border-t-transparent"></div>
@@ -185,7 +185,7 @@
 	</div>
 {:else if status === 'FAILED'}
 	<div
-		class="flex items-center gap-3 rounded-lg bg-surface px-4 py-3"
+		class="flex items-center gap-3 px-4 py-3 embed-frame"
 		style="width: {displaySize.width}px; max-width: 100%;"
 	>
 		<span class="iconify uil--exclamation-triangle text-lg text-red-400"></span>
@@ -197,7 +197,7 @@
 		</div>
 	</div>
 {:else}
-	<div class="flex items-center gap-2 rounded-lg bg-surface px-3 py-2">
+	<div class="flex items-center gap-2 px-3 py-2 embed-frame">
 		<span class="iconify uil--video text-lg text-muted"></span>
 		<span class="text-sm">{filename}</span>
 	</div>

@@ -99,7 +99,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
     <button
       type="button"
       onclick={onDismiss}
-      class="absolute top-1 right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white shadow-md ring-1 ring-white/30 transition-opacity hover:bg-black/80 md:opacity-0 md:group-hover/preview:opacity-100"
+      class="embed-control-button md:group-hover/preview:opacity-100"
       aria-label="Dismiss video"
     >
       <span class="iconify text-sm uil--times"></span>
@@ -108,7 +108,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
     <button
       type="button"
       onclick={openDeleteConfirmation}
-      class="absolute top-1 right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white shadow-md ring-1 ring-white/30 transition-opacity hover:bg-black/80 md:opacity-0 md:group-hover/preview:opacity-100"
+      class="embed-control-button md:group-hover/preview:opacity-100"
       aria-label="Delete video"
     >
       <span class="iconify text-sm uil--times"></span>

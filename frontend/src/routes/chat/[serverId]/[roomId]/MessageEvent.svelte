@@ -334,6 +334,9 @@
 
   // Check if message has attachments
   const hasAttachments = $derived((msg?.attachments?.length ?? 0) > 0);
+  const hasVisualEmbed = $derived(
+    hasAttachments || !!messageEvent?.linkPreview || embeddedMessageLinks.length > 0
+  );
 
   // Message is "deleted" if it has no body AND no attachments.
   // Deleted messages always render as a tombstone — hiding them entirely opened up
@@ -547,7 +550,7 @@
   <div
     class={[
       'group relative hover:z-10',
-      compact ? '' : 'mt-4',
+      compact ? (hasVisualEmbed ? 'mt-1.5' : '') : 'mt-4',
       isCurrentUserMentioned ? 'bg-warning/10' : ''
     ]}
     role="article"

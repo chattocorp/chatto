@@ -43,6 +43,12 @@ unknown instance) the component renders nothing.
                   url
                   expiresAt
                 }
+                videoProcessing {
+                  thumbnailAssetUrl {
+                    url
+                    expiresAt
+                  }
+                }
               }
             }
           }
@@ -53,6 +59,7 @@ unknown instance) the component renders nothing.
 </script>
 
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import type { MessageLink } from '$lib/messageLinks';
   import { FitMode, type UserAvatarUserFragment } from '$lib/gql/graphql';
   import { useFragment } from '$lib/gql';
@@ -69,6 +76,7 @@ unknown instance) the component renders nothing.
     type ExpiringAssetUrl
   } from '$lib/attachments/attachmentUrls';
   import { assetUrlForServer } from '$lib/assets/assetUrls';
+  import MessageContent from './MessageContent.svelte';
   import UserAvatar from './UserAvatar.svelte';
 
   let {
@@ -86,6 +94,7 @@ unknown instance) the component renders nothing.
     filename: string;
     contentType: string;
     thumbnailAssetUrl: ExpiringAssetUrl | null;
+    videoThumbnailAssetUrl: ExpiringAssetUrl | null;
     thumbnailUrl: string | null;
   }
 
@@ -102,6 +111,7 @@ unknown instance) the component renders nothing.
   const thumbnailRetrySalts = new SvelteMap<string, number>();
   let refreshPromise: Promise<void> | null = null;
   const failedThumbnailRefreshes = new SvelteSet<string>();
+  const brokenThumbnailIds = new SvelteSet<string>();
   const PREVIEW_THUMBNAIL_REFRESH = {
     width: 120,
     height: 120,
@@ -120,11 +130,15 @@ unknown instance) the component renders nothing.
   }
 
   function previewThumbnailUrl(attachment: Attachment): string | null {
-    if (!attachment.thumbnailAssetUrl) return null;
+    if (brokenThumbnailIds.has(attachment.id)) return null;
+    const thumbnailAssetUrl = attachment.contentType.startsWith('video/')
+      ? (attachment.videoThumbnailAssetUrl ?? attachment.thumbnailAssetUrl)
+      : attachment.thumbnailAssetUrl;
+    if (!thumbnailAssetUrl) return null;
     const salt = thumbnailRetrySalts.get(attachment.id);
     return salt
-      ? withAssetUrlRetryParam(attachment.thumbnailAssetUrl.url, salt)
-      : attachment.thumbnailAssetUrl.url;
+      ? withAssetUrlRetryParam(thumbnailAssetUrl.url, salt)
+      : thumbnailAssetUrl.url;
   }
 
   $effect(() => {
@@ -162,12 +176,20 @@ unknown instance) the component renders nothing.
           body: inner.body ?? null,
           attachments: inner.attachments.map((a) => {
             const thumbnailAssetUrl = normalizePreviewAssetUrl(serverId, a.thumbnailAssetUrl);
+            const videoThumbnailAssetUrl = normalizePreviewAssetUrl(
+              serverId,
+              a.videoProcessing?.thumbnailAssetUrl
+            );
+            const displayThumbnailAssetUrl = a.contentType.startsWith('video/')
+              ? (videoThumbnailAssetUrl ?? thumbnailAssetUrl)
+              : thumbnailAssetUrl;
             return {
               id: a.id,
               filename: a.filename,
               contentType: a.contentType,
               thumbnailAssetUrl,
-              thumbnailUrl: thumbnailAssetUrl?.url ?? null
+              videoThumbnailAssetUrl,
+              thumbnailUrl: displayThumbnailAssetUrl?.url ?? null
             };
           }),
           actor: ev.actor ? useFragment(UserAvatarFragment, ev.actor) : null,
@@ -190,13 +212,8 @@ unknown instance) the component renders nothing.
       : null
   );
 
-  const bodySnippet = $derived(
-    preview?.body
-      ? preview.body.length > 240
-        ? preview.body.slice(0, 240) + '…'
-        : preview.body
-      : ''
-  );
+  const bodyMarkdown = $derived(preview?.body ?? '');
+  const hasBody = $derived(bodyMarkdown.trim().length > 0);
 
   function attachmentLabel(contentType: string): string {
     if (contentType.startsWith('image/')) return 'Image';
@@ -206,12 +223,18 @@ unknown instance) the component renders nothing.
   }
 
   const nextThumbnailRefreshAt = $derived.by(() =>
-    earliestAssetUrlRefreshAt(preview?.attachments.map((a) => a.thumbnailAssetUrl) ?? [])
+    earliestAssetUrlRefreshAt(
+      preview?.attachments.flatMap((a) => [a.thumbnailAssetUrl, a.videoThumbnailAssetUrl]) ?? []
+    )
   );
 
   function hasStaleThumbnailUrl() {
     return (
-      preview?.attachments.some((attachment) => assetUrlNeedsRefresh(attachment.thumbnailAssetUrl)) ??
+      preview?.attachments.some(
+        (attachment) =>
+          assetUrlNeedsRefresh(attachment.thumbnailAssetUrl) ||
+          assetUrlNeedsRefresh(attachment.videoThumbnailAssetUrl)
+      ) ??
       false
     );
   }
@@ -241,17 +264,29 @@ unknown instance) the component renders nothing.
         preview = {
           ...preview,
           attachments: preview.attachments.map((attachment) => {
-            const fresh = normalizePreviewAssetUrl(
+            const freshThumbnail = normalizePreviewAssetUrl(
               current.serverId,
               freshUrls.get(attachment.id)?.thumbnailAssetUrl
             );
-            return fresh
-              ? {
-                  ...attachment,
-                  thumbnailAssetUrl: fresh,
-                  thumbnailUrl: fresh.url
-                }
-              : attachment;
+            const freshVideoThumbnail = normalizePreviewAssetUrl(
+              current.serverId,
+              freshUrls.get(attachment.id)?.videoThumbnailAssetUrl
+            );
+            if (!freshThumbnail && !freshVideoThumbnail) return attachment;
+
+            const thumbnailAssetUrl = freshThumbnail ?? attachment.thumbnailAssetUrl;
+            const videoThumbnailAssetUrl =
+              freshVideoThumbnail ?? attachment.videoThumbnailAssetUrl;
+            const displayThumbnailAssetUrl = attachment.contentType.startsWith('video/')
+              ? (videoThumbnailAssetUrl ?? thumbnailAssetUrl)
+              : thumbnailAssetUrl;
+
+            return {
+              ...attachment,
+              thumbnailAssetUrl,
+              videoThumbnailAssetUrl,
+              thumbnailUrl: displayThumbnailAssetUrl?.url ?? null
+            };
           })
         };
       })
@@ -266,7 +301,10 @@ unknown instance) the component renders nothing.
   }
 
   function refreshAfterThumbnailError(attachment: Attachment) {
-    if (failedThumbnailRefreshes.has(attachment.id)) return;
+    if (failedThumbnailRefreshes.has(attachment.id)) {
+      brokenThumbnailIds.add(attachment.id);
+      return;
+    }
     failedThumbnailRefreshes.add(attachment.id);
     refreshPreviewAttachmentUrls().then(() => {
       thumbnailRetrySalts.set(attachment.id, Date.now());
@@ -283,6 +321,37 @@ unknown instance) the component renders nothing.
     if (document.visibilityState === 'visible') {
       refreshStalePreviewUrls();
     }
+  }
+
+  function openPreview(event: MouseEvent) {
+    if (!preview) return;
+    if (event.defaultPrevented) return;
+
+    const target = event.target as HTMLElement;
+    if (target.closest('a, button')) return;
+
+    goto(
+      resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
+        serverId: serverIdToSegment(preview.serverId),
+        roomId: preview.roomId,
+        messageId: preview.eventId
+      })
+    );
+  }
+
+  function handlePreviewKeydown(event: KeyboardEvent) {
+    if (!preview) return;
+    if (event.target !== event.currentTarget) return;
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+
+    event.preventDefault();
+    goto(
+      resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
+        serverId: serverIdToSegment(preview.serverId),
+        roomId: preview.roomId,
+        messageId: preview.eventId
+      })
+    );
   }
 
   $effect(() => {
@@ -314,57 +383,102 @@ unknown instance) the component renders nothing.
 </script>
 
 {#if preview}
-  <a
-    href={resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
-      serverId: serverIdToSegment(preview.serverId),
-      roomId: preview.roomId,
-      messageId: preview.eventId
-    })}
+  <div
+    role="link"
+    tabindex="0"
+    aria-label={`Open linked message${displayName ? ` from ${displayName}` : ''}`}
     data-testid="message-preview-card"
-    class="group/preview relative flex w-full max-w-md cursor-pointer flex-col embed-frame bg-surface-100 group-hover/msg:bg-surface-200 hover:bg-surface-300"
+    class="group/preview relative flex w-full max-w-[min(42rem,100%)] cursor-pointer flex-col embed-frame"
+    onclick={openPreview}
+    onkeydown={handlePreviewKeydown}
   >
-    <div class="flex min-w-0 flex-col gap-1.5 px-3 py-2.5">
-      {#if preview.spaceName || preview.roomName}
-        <span class="text-xs tracking-wide text-muted">
-          {#if preview.spaceName}{preview.spaceName}{/if}
-          {#if preview.spaceName && preview.roomName}&nbsp;·&nbsp;{/if}
-          {#if preview.roomName}#{preview.roomName}{/if}
-        </span>
-      {/if}
-      <div class="flex items-center gap-2 min-w-0">
-        {#if preview.actor}
-          <UserAvatar user={preview.actor} size="xs" showPresence={false} />
-          <span class="shrink-0 text-sm font-medium">{displayName}</span>
-        {:else}
-          <span class="shrink-0 text-sm font-medium text-muted">Deleted user</span>
-        {/if}
+    <div class="flex min-w-0 flex-col">
+      <div
+        class="flex min-w-0 items-start gap-2 border-b border-border/70 bg-surface-200/60 px-3 py-2"
+      >
+        <div class="mt-1 h-8 w-1 shrink-0 rounded-full bg-accent/70"></div>
+        <div class="flex min-w-0 flex-1 flex-col gap-1">
+          {#if preview.spaceName || preview.roomName}
+            <span class="truncate text-xs tracking-wide text-muted">
+              {#if preview.spaceName}{preview.spaceName}{/if}
+              {#if preview.spaceName && preview.roomName}&nbsp;·&nbsp;{/if}
+              {#if preview.roomName}#{preview.roomName}{/if}
+            </span>
+          {/if}
+          <div class="flex min-w-0 items-center gap-2">
+            {#if preview.actor}
+              <UserAvatar user={preview.actor} size="xs" showPresence={false} />
+              <span class="truncate text-sm font-medium">{displayName}</span>
+            {:else}
+              <span class="truncate text-sm font-medium text-muted">Deleted user</span>
+            {/if}
+          </div>
+        </div>
       </div>
-      {#if bodySnippet}
-        <span class="line-clamp-3 text-sm leading-snug whitespace-pre-wrap break-words">
-          {bodySnippet}
-        </span>
+      {#if hasBody}
+        <div class="relative">
+          <div
+            class="pointer-events-none absolute inset-x-0 top-0 z-10 h-5 bg-gradient-to-b from-surface-100 via-surface-100/80 to-transparent"
+            aria-hidden="true"
+          ></div>
+          <div
+            class="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-5 bg-gradient-to-t from-surface-100 via-surface-100/80 to-transparent"
+            aria-hidden="true"
+          ></div>
+          <div
+            class="max-h-52 overflow-y-auto overscroll-contain px-3 py-2.5 text-sm leading-relaxed pointer-fine:select-text"
+          >
+            <MessageContent body={bodyMarkdown} />
+          </div>
+        </div>
       {/if}
       {#if preview.attachments.length > 0}
-        <div class="flex items-center gap-2">
-          {#each preview.attachments.slice(0, 3) as attachment (attachment.id)}
+        <div
+          class={[
+            'flex items-center gap-2 border-t border-border/70 px-3 py-2',
+            hasBody ? 'bg-surface/60' : ''
+          ]}
+        >
+          {#each preview.attachments.slice(0, 4) as attachment (attachment.id)}
             {@const thumbnailUrl = previewThumbnailUrl(attachment)}
             {#if thumbnailUrl}
-              <img
-                src={thumbnailUrl}
-                alt={attachment.filename}
-                class="h-10 w-10 rounded object-cover"
-                onerror={() => refreshAfterThumbnailError(attachment)}
-              />
+              <div class="relative h-12 w-12 shrink-0 overflow-hidden rounded-sm border border-border">
+                <img
+                  src={thumbnailUrl}
+                  alt={attachment.filename}
+                  class="h-full w-full object-cover"
+                  onerror={() => refreshAfterThumbnailError(attachment)}
+                />
+                {#if attachment.contentType.startsWith('video/')}
+                  <span
+                    class="absolute inset-0 flex items-center justify-center bg-black/15 text-white"
+                    aria-hidden="true"
+                  >
+                    <span
+                      class="iconify uil--play flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-sm shadow-sm"
+                    ></span>
+                  </span>
+                {/if}
+              </div>
             {:else}
-              <div class="flex h-10 w-10 items-center justify-center rounded bg-surface-200 text-xs text-muted">
-                {attachmentLabel(attachment.contentType)}
+              <div
+                class="flex h-12 w-12 items-center justify-center rounded-sm border border-border bg-surface-200 text-xs text-muted"
+              >
+                {#if attachment.contentType.startsWith('video/')}
+                  <span
+                    class="iconify uil--play flex h-6 w-6 items-center justify-center rounded-full bg-black/45 text-sm text-white shadow-sm"
+                    aria-hidden="true"
+                  ></span>
+                {:else}
+                  {attachmentLabel(attachment.contentType)}
+                {/if}
               </div>
             {/if}
           {/each}
-          {#if preview.attachments.length > 3}
-            <span class="text-xs text-muted">+{preview.attachments.length - 3}</span>
+          {#if preview.attachments.length > 4}
+            <span class="text-xs text-muted">+{preview.attachments.length - 4}</span>
           {/if}
-          {#if !bodySnippet}
+          {#if !hasBody}
             <span class="text-xs text-muted">
               {preview.attachments.length === 1
                 ? attachmentLabel(preview.attachments[0].contentType)
@@ -382,11 +496,11 @@ unknown instance) the component renders nothing.
           e.stopPropagation();
           onDismiss?.();
         }}
-        class="absolute top-1 right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white shadow-md ring-1 ring-white/30 transition-opacity hover:bg-black/80 md:opacity-0 md:group-hover/preview:opacity-100"
+        class="embed-control-button md:group-hover/preview:opacity-100"
         aria-label="Dismiss preview"
       >
         <span class="iconify text-sm uil--times"></span>
       </button>
     {/if}
-  </a>
+  </div>
 {/if}

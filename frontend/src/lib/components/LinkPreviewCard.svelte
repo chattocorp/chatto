@@ -116,7 +116,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
     target="_blank"
     rel="noopener noreferrer"
     data-testid="link-preview-card"
-    class="group/preview relative flex w-full max-w-md flex-col embed-frame bg-surface-100 group-hover/msg:bg-surface-200 hover:bg-surface-300"
+    class="group/preview relative flex w-full max-w-md flex-col embed-frame"
     oncontextmenu={handleContextMenu}
   >
     {#if preview.imageUrl}
@@ -149,7 +149,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
           e.stopPropagation();
           onDismiss?.();
         }}
-        class="absolute top-1 right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white shadow-md ring-1 ring-white/30 transition-opacity hover:bg-black/80 md:opacity-0 md:group-hover/preview:opacity-100"
+        class="embed-control-button md:group-hover/preview:opacity-100"
         aria-label="Dismiss preview"
       >
         <span class="iconify text-sm uil--times"></span>
@@ -162,7 +162,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
           e.stopPropagation();
           openDeleteConfirmation();
         }}
-        class="absolute top-1 right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white shadow-md ring-1 ring-white/30 transition-opacity hover:bg-black/80 md:opacity-0 md:group-hover/preview:opacity-100"
+        class="embed-control-button md:group-hover/preview:opacity-100"
         aria-label="Delete preview"
       >
         <span class="iconify text-sm uil--times"></span>
