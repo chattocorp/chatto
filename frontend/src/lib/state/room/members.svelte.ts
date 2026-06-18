@@ -91,6 +91,7 @@ export class RoomMembersStore {
 	members = $state.raw<RoomMember[]>([]);
 	totalCount = $state(0);
 	hasMore = $state(false);
+	hasLoaded = $state(false);
 	isInitialLoading = $state(false);
 	isLoadingMore = $state(false);
 	searchInput = $state('');
@@ -114,7 +115,7 @@ export class RoomMembersStore {
 	}
 
 	ensureLoaded(): void {
-		if (!this.roomId || this.isInitialLoading || this.members.length > 0) return;
+		if (!this.roomId || this.isInitialLoading || this.hasLoaded) return;
 		void this.loadInitial();
 	}
 
@@ -142,6 +143,7 @@ export class RoomMembersStore {
 			}
 		} finally {
 			if (loadId === this.#loadId) {
+				this.hasLoaded = true;
 				this.isInitialLoading = false;
 			}
 		}
@@ -270,6 +272,7 @@ export class RoomMembersStore {
 		this.members = [];
 		this.totalCount = 0;
 		this.hasMore = false;
+		this.hasLoaded = false;
 		this.isInitialLoading = false;
 		this.isLoadingMore = false;
 		this.searchInput = '';

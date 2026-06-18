@@ -472,6 +472,58 @@ describe('RoomSidebar', () => {
     });
   });
 
+  it('shows an empty result instead of retrying forever when search returns no members', async () => {
+    queryMock
+      .mockResolvedValueOnce({
+        data: {
+          room: {
+            members: {
+              users: [member(1), member(2)],
+              totalCount: 2,
+              hasMore: false
+            }
+          }
+        },
+        error: null
+      })
+      .mockResolvedValueOnce({
+        data: {
+          room: {
+            members: {
+              users: [],
+              totalCount: 0,
+              hasMore: false
+            }
+          }
+        },
+        error: null
+      });
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        roomData: roomData([], 0, false)
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(renderedMemberTitles(container)).toHaveLength(2);
+    });
+
+    const input = container.querySelector('#room-member-search') as HTMLInputElement;
+    input.value = 'no-match';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await waitForMemberSearchDebounce();
+
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain('No members found.');
+      expect(q(container, 'h1')?.textContent).toContain('Members (0)');
+      expect(renderedMemberTitles(container)).toEqual([]);
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    expect(queryMock).toHaveBeenCalledTimes(2);
+  });
+
   it('falls back to loaded-page filtering when room member search is unsupported', async () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     queryMock
