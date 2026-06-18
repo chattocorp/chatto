@@ -57,6 +57,25 @@ describe('CallParticipantsState', () => {
 		expect(state.participants).toEqual([]);
 	});
 
+	it('clears observer state for an end event when the loaded snapshot had no call id', async () => {
+		const state = new CallParticipantsState({
+			query: vi.fn(() => ({
+				toPromise: vi.fn(async () => ({ data: { room: { callParticipants: [] } } }))
+			}))
+		} as never);
+
+		await state.load('R1');
+		state.handleEnd('R1', 'call-1');
+		state.handleJoin('R1', 'call-1', {
+			id: 'U1',
+			displayName: 'Alice',
+			login: 'alice',
+			avatarUrl: null
+		} as never);
+
+		expect(state.participants).toEqual([]);
+	});
+
 	it('ignores stale leave and end events from an older call', async () => {
 		const state = new CallParticipantsState({
 			query: vi.fn(() => ({

@@ -2,29 +2,81 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 import { PresenceStatus } from '$lib/gql/graphql';
+import {
+  consumePendingRoomSidebarPanel,
+  getRoomSidebarPanelState,
+  roomSidebarPanelStorageSuffix
+} from '$lib/storage/roomSidebarPanel';
+import { serverStorageKey } from '$lib/storage/serverStorage';
 import CurrentUserBarTestHarness from './CurrentUserBarTestHarness.svelte';
 
-const currentUserState = vi.hoisted(() => ({
-  user: null as {
-    id: string;
-    login: string;
-    displayName: string;
-    avatarUrl: string | null;
-    presenceStatus: PresenceStatus;
-    hasVerifiedEmail: boolean;
-    settings: null;
-  } | null
+type MockRoomMember = {
+  id: string;
+  login: string;
+  displayName: string;
+  avatarUrl: string | null;
+  presenceStatus: PresenceStatus;
+};
+
+type MockRoom = {
+  id: string;
+  name: string;
+  type: 'CHANNEL' | 'DM';
+  members: MockRoomMember[];
+};
+
+const { currentUserState, voiceCallState, roomsState } = vi.hoisted(() => ({
+  currentUserState: {
+    user: null as {
+      id: string;
+      login: string;
+      displayName: string;
+      avatarUrl: string | null;
+      presenceStatus: PresenceStatus;
+      hasVerifiedEmail: boolean;
+      settings: null;
+    } | null
+  },
+  voiceCallState: {
+    connected: false,
+    roomId: null as string | null,
+    isMuted: false,
+    isCameraEnabled: false,
+    toggleMute: vi.fn(),
+    toggleCamera: vi.fn(),
+    leave: vi.fn()
+  },
+  roomsState: {
+    currentUserId: 'user-1',
+    rooms: [
+      {
+        id: 'room-1',
+        name: 'general',
+        type: 'CHANNEL',
+        members: []
+      }
+    ] as MockRoom[]
+  }
+}));
+const navigation = vi.hoisted(() => ({
+  goto: vi.fn()
 }));
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'origin'
 }));
 
+vi.mock('$app/navigation', () => ({
+  goto: navigation.goto
+}));
+
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
     isOriginServer: () => true,
     tryGetStore: () => ({
-      currentUser: currentUserState
+      currentUser: currentUserState,
+      voiceCall: voiceCallState,
+      rooms: roomsState
     })
   }
 }));
@@ -36,6 +88,8 @@ vi.mock('$lib/state/userProfiles.svelte', () => ({
 
 describe('CurrentUserBar', () => {
   beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
     currentUserState.user = {
       id: 'user-1',
       login: 'alice',
@@ -45,6 +99,23 @@ describe('CurrentUserBar', () => {
       hasVerifiedEmail: true,
       settings: null
     };
+    voiceCallState.connected = false;
+    voiceCallState.roomId = null;
+    voiceCallState.isMuted = false;
+    voiceCallState.isCameraEnabled = false;
+    voiceCallState.toggleMute.mockClear();
+    voiceCallState.toggleCamera.mockClear();
+    voiceCallState.leave.mockClear();
+    navigation.goto.mockClear();
+    roomsState.currentUserId = 'user-1';
+    roomsState.rooms = [
+      {
+        id: 'room-1',
+        name: 'general',
+        type: 'CHANNEL',
+        members: []
+      }
+    ];
   });
 
   it('uses the seeded presence cache instead of the first-login offline fallback', () => {
@@ -54,5 +125,79 @@ describe('CurrentUserBar', () => {
     expect(q(container, '[aria-label="Offline"]')).toBeFalsy();
     expect(container.textContent).toContain('Alice');
     expect(container.textContent).toContain('@alice');
+  });
+
+  it('hides call controls when the user is not in a call', () => {
+    const { container } = render(CurrentUserBarTestHarness);
+
+    expect(container.querySelector('[data-testid="current-user-call-link"]')).toBeFalsy();
+    expect(container.querySelector('[data-testid="current-user-call-mute"]')).toBeFalsy();
+  });
+
+  it('shows active call controls and links to the call room', async () => {
+    voiceCallState.connected = true;
+    voiceCallState.roomId = 'room-1';
+    const storageEvents: StorageEvent[] = [];
+    const listener = (event: StorageEvent) => storageEvents.push(event);
+    window.addEventListener('storage', listener);
+
+    const { container } = render(CurrentUserBarTestHarness);
+
+    expect(q(container, '[data-testid="current-user-call-card"]')).toBeTruthy();
+    expect(q(container, '[data-testid="current-user-identity-card"]')).toBeTruthy();
+    const link = q(container, '[data-testid="current-user-call-link"]') as HTMLButtonElement;
+    expect(link.textContent).toContain('# general');
+    link.click();
+
+    (q(container, '[data-testid="current-user-call-mute"]') as HTMLButtonElement).click();
+    (q(container, '[data-testid="current-user-call-camera"]') as HTMLButtonElement).click();
+    (q(container, '[data-testid="current-user-call-leave"]') as HTMLButtonElement).click();
+
+    expect(navigation.goto).toHaveBeenCalledWith('/chat/-/room-1');
+    expect(getRoomSidebarPanelState('origin', 'room-1')).toBe('call');
+    expect(consumePendingRoomSidebarPanel('origin', 'room-1')).toBe('call');
+    expect(storageEvents).toHaveLength(1);
+    expect(storageEvents[0].key).toBe(
+      serverStorageKey('origin', roomSidebarPanelStorageSuffix('room-1'))
+    );
+    expect(storageEvents[0].newValue).toBe('call');
+    expect(voiceCallState.toggleMute).toHaveBeenCalledOnce();
+    expect(voiceCallState.toggleCamera).toHaveBeenCalledOnce();
+    expect(voiceCallState.leave).toHaveBeenCalledOnce();
+    window.removeEventListener('storage', listener);
+  });
+
+  it('uses the DM participant label for active direct-message calls', () => {
+    voiceCallState.connected = true;
+    voiceCallState.roomId = 'dm-1';
+    roomsState.rooms = [
+      {
+        id: 'dm-1',
+        name: 'dm-1',
+        type: 'DM',
+        members: [
+          {
+            id: 'user-1',
+            login: 'alice',
+            displayName: 'Alice',
+            avatarUrl: null,
+            presenceStatus: PresenceStatus.Online
+          },
+          {
+            id: 'user-2',
+            login: 'bob',
+            displayName: 'Bob',
+            avatarUrl: null,
+            presenceStatus: PresenceStatus.Online
+          }
+        ]
+      }
+    ];
+
+    const { container } = render(CurrentUserBarTestHarness);
+
+    const callLink = q(container, '[data-testid="current-user-call-link"]');
+    expect(callLink).toBeTruthy();
+    expect(callLink!.textContent ?? '').toContain('Bob');
   });
 });

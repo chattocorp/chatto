@@ -53,6 +53,24 @@ describe('RoomSidebarToggle', () => {
     expect(onToggle).toHaveBeenCalledWith('files');
   });
 
+  it('switches to the call panel', async () => {
+    const onToggle = vi.fn();
+    const { container } = render(RoomSidebarToggle, {
+      props: {
+        activePanel: 'members',
+        onToggle
+      }
+    });
+
+    const button = container.querySelector('[aria-label="Show call"]') as HTMLButtonElement | null;
+    expect(button).toBeTruthy();
+
+    button!.click();
+    await tick();
+
+    expect(onToggle).toHaveBeenCalledWith('call');
+  });
+
   it('can render only the files panel', async () => {
     const { container } = render(RoomSidebarToggle, {
       props: {
@@ -64,6 +82,20 @@ describe('RoomSidebarToggle', () => {
 
     expect(container.querySelector('[aria-label="Show members"]')).toBeFalsy();
     expect(container.querySelector('[aria-label="Show files"]')).toBeTruthy();
+  });
+
+  it('can render only files and call panels', async () => {
+    const { container } = render(RoomSidebarToggle, {
+      props: {
+        activePanel: null,
+        panels: ['files', 'call'],
+        onToggle: vi.fn()
+      }
+    });
+
+    expect(container.querySelector('[aria-label="Show members"]')).toBeFalsy();
+    expect(container.querySelector('[aria-label="Show files"]')).toBeTruthy();
+    expect(container.querySelector('[aria-label="Show call"]')).toBeTruthy();
   });
 
   it('uses a background-only pressed state for the active panel', async () => {
@@ -87,6 +119,43 @@ describe('RoomSidebarToggle', () => {
     expect(filesButton!.classList.contains('pane-header-icon-button-active')).toBe(true);
     expect(membersButton!.classList.contains('pane-header-icon-button')).toBe(true);
     expect(membersButton!.classList.contains('pane-header-icon-button-active')).toBe(false);
+  });
+
+  it('highlights and pulses the call tab when a call is active in the room', async () => {
+    const { container } = render(RoomSidebarToggle, {
+      props: {
+        activePanel: 'members',
+        hasActiveCall: true,
+        onToggle: vi.fn()
+      }
+    });
+
+    const callButton = container.querySelector(
+      '[aria-label="Show call"]'
+    ) as HTMLButtonElement | null;
+
+    expect(callButton).toBeTruthy();
+    expect(callButton!.classList.contains('text-accent')).toBe(true);
+    expect(callButton!.querySelector('[data-testid="active-call-pulse-icon"]')).toBeTruthy();
+  });
+
+  it('keeps the active call tab highlighted without the pulse twin when selected', async () => {
+    const { container } = render(RoomSidebarToggle, {
+      props: {
+        activePanel: 'call',
+        hasActiveCall: true,
+        onToggle: vi.fn()
+      }
+    });
+
+    const callButton = container.querySelector(
+      '[aria-label="Hide call"]'
+    ) as HTMLButtonElement | null;
+
+    expect(callButton).toBeTruthy();
+    expect(callButton!.classList.contains('text-accent')).toBe(true);
+    expect(callButton!.classList.contains('pane-header-icon-button-active')).toBe(true);
+    expect(callButton!.querySelector('[data-testid="active-call-pulse-icon"]')).toBeFalsy();
   });
 
   it('renders desktop-only by default', async () => {

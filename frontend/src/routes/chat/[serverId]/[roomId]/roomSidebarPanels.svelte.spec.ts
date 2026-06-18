@@ -70,6 +70,43 @@ describe('RoomSidebarPanelsState', () => {
     expect(getRoomSidebarPanelState('server-a', 'room-1')).toBe('files');
   });
 
+  it('persists the call panel for desktop rooms', () => {
+    const sidebar = new RoomSidebarPanelsState(
+      () => 'server-a',
+      () => 'room-1'
+    );
+
+    sidebar.toggleDesktopPanel('call');
+
+    expect(sidebar.activeDesktopPanel).toBe('call');
+    expect(getRoomSidebarPanelState('server-a', 'room-1')).toBe('call');
+  });
+
+  it('opens the requested desktop panel even after the panel was session-closed', () => {
+    const sidebar = new RoomSidebarPanelsState(
+      () => 'server-a',
+      () => 'room-1'
+    );
+
+    sidebar.closeDesktop();
+    sidebar.openDesktopPanel('call');
+
+    expect(sidebar.activeDesktopPanel).toBe('call');
+    expect(getRoomSidebarPanelState('server-a', 'room-1')).toBe('call');
+  });
+
+  it('opens the requested mobile panel without toggling it closed', () => {
+    const sidebar = new RoomSidebarPanelsState(
+      () => 'server-a',
+      () => 'room-1'
+    );
+
+    sidebar.openMobilePanel('call');
+    sidebar.openMobilePanel('call');
+
+    expect(sidebar.mobilePanel).toBe('call');
+  });
+
   it('treats mobile overlay state as closed after the room changes', () => {
     let roomId = 'room-1';
     const sidebar = new RoomSidebarPanelsState(

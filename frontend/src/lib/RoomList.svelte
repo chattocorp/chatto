@@ -13,11 +13,15 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import CollapsibleGroup from '$lib/ui/CollapsibleGroup.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
-  import type { CallRoomParticipant } from '$lib/state/server/activeCallRooms.svelte';
   import { useEvent, useTabResumeCallback, useRoomMarkedAsRead } from '$lib/hooks';
+  import {
+    roomSidebarPanelStorageSuffix,
+    setPendingRoomSidebarPanel,
+    setRoomSidebarPanel
+  } from '$lib/storage/roomSidebarPanel';
   import { serverStorageKey } from '$lib/storage/serverStorage';
   import { useFragment } from './gql';
-  import { RoomType, type PresenceStatus } from '$lib/gql/graphql';
+  import { RoomType } from '$lib/gql/graphql';
   import UserAvatar, { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
   import NotificationBadge from '$lib/ui/NotificationBadge.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
@@ -35,8 +39,9 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   // server changes (URL [serverId] param changes), every derived read in the
   // template re-evaluates against the new server's state automatically.
 
-  const serverSegment = $derived(serverIdToSegment(getActiveServer()));
-  const stores = $derived(serverRegistry.getStore(getActiveServer()));
+  const activeServerId = $derived(getActiveServer());
+  const serverSegment = $derived(serverIdToSegment(activeServerId));
+  const stores = $derived(serverRegistry.getStore(activeServerId));
   const currentUserState = $derived(stores.currentUser);
   const notificationStore = $derived(stores.notifications);
   const notificationLevelStore = $derived(stores.notificationLevels);
@@ -215,32 +220,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     roomsStore.setUnread(event.roomId);
   });
 
-  function toAvatarUser(p: CallRoomParticipant) {
-    return {
-      id: p.userId,
-      login: p.login,
-      displayName: p.displayName,
-      avatarUrl: p.avatarUrl,
-      presenceStatus: 'ONLINE' as PresenceStatus
-    };
-  }
-
-  // Handle click on call participant badge — navigate to room and join the call
-  function handleCallBadgeClick(e: Event, roomId: string) {
-    e.preventDefault();
-    e.stopPropagation();
-
-    const livekitUrl = serverInfo.livekitUrl;
-    if (livekitUrl) {
-      voiceCallState.join(livekitUrl, roomId).catch(() => {
-        stores.handleVoiceCallJoinFailed(roomId);
-        // Silently catch — VoiceCallPanel provides fallback Join button
-      });
-    }
-
-    goto(resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId }));
-  }
-
   function openJoinRoomModal(room: RoomsListItem) {
     pushState('', {
       modal: {
@@ -250,6 +229,46 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         viewerCanJoinRoom: room.viewerCanJoinRoom
       }
     });
+  }
+
+  function wasCallIconClick(event: MouseEvent): boolean {
+    const target = event.target;
+    return target instanceof Element && target.closest('[data-testid="room-call-icon"]') !== null;
+  }
+
+  async function openRoomCallPanel(roomId: string): Promise<void> {
+    setRoomSidebarPanel(activeServerId, roomId, 'call');
+    setPendingRoomSidebarPanel(activeServerId, roomId, 'call');
+    window.dispatchEvent(
+      new StorageEvent('storage', {
+        key: serverStorageKey(activeServerId, roomSidebarPanelStorageSuffix(roomId)),
+        newValue: 'call'
+      })
+    );
+    await goto(resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId }));
+  }
+
+  function handleRoomLinkClick(event: MouseEvent, room: RoomsListItem): void {
+    if (!room.viewerIsMember) {
+      event.preventDefault();
+      openJoinRoomModal(room);
+      return;
+    }
+
+    if (activeCallRooms.has(room.id) && wasCallIconClick(event)) {
+      event.preventDefault();
+      void openRoomCallPanel(room.id);
+    }
+  }
+
+  function handleRoomLinkKeydown(event: KeyboardEvent, room: RoomsListItem): void {
+    if (event.target !== event.currentTarget) return;
+    if (!room.viewerIsMember) return;
+    if (!activeCallRooms.has(room.id)) return;
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+
+    event.preventDefault();
+    void openRoomCallPanel(room.id);
   }
 
   async function handleNotificationBadgeClick(event: MouseEvent, roomId: string, isDM: boolean) {
@@ -283,46 +302,31 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   }
 </script>
 
-{#snippet callBadge(room: RoomsListItem, callParticipants: CallRoomParticipant[])}
-  <div
-    class="basis-full cursor-pointer pl-7"
-    role="button"
-    tabindex="0"
-    aria-label="Join active call"
-    data-testid="room-call-badge"
-    onclick={(e) => handleCallBadgeClick(e, room.id)}
-    onkeydown={(e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        handleCallBadgeClick(e, room.id);
-      }
-    }}
+{#snippet activeCallIcon()}
+  <span
+    class="sidebar-icon relative text-accent"
+    aria-label="Active call"
+    data-testid="room-call-icon"
   >
-    <div
-      class={[
-        'meta-badge gap-1.5 border-transparent px-1.5 py-0.5',
-        room.id === activeRoomId ? 'bg-surface-200' : ''
-      ]}
-    >
-      <span class="iconify animate-pulse text-sm text-accent uil--phone"></span>
-      {#if callParticipants.length > 0}
-        <div class="inline-flex -space-x-1.5">
-          {#each callParticipants as p (p.userId)}
-            <UserAvatar user={toAvatarUser(p)} size="xs" showPresence={false} />
-          {/each}
-        </div>
-      {/if}
-    </div>
-  </div>
+    <span class="relative inline-flex">
+      <span
+        class="pane-header-icon-glyph absolute inset-0 animate-ping opacity-45 uil--phone"
+        aria-hidden="true"
+        data-testid="active-call-pulse-icon"
+      ></span>
+      <span
+        class="pane-header-icon-glyph relative text-accent uil--phone"
+        aria-hidden="true"
+      ></span>
+    </span>
+  </span>
 {/snippet}
 
 {#snippet roomLink(room: RoomsListItem)}
   {@const hasActiveCall = activeCallRooms.has(room.id)}
-  {@const callParticipants = hasActiveCall ? activeCallRooms.getParticipants(room.id) : []}
   {@const isJoined = room.viewerIsMember}
   {@const rowClass = [
     'sidebar-item group/badges',
-    hasActiveCall ? 'flex-wrap gap-y-1' : '',
     room.id === activeRoomId ? 'bg-surface-100' : '',
     room.hasUnread && room.id !== activeRoomId && !notificationLevelStore.isRoomMuted(room.id)
       ? 'font-semibold'
@@ -333,14 +337,12 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     href={resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId: room.id })}
     class={rowClass}
     aria-current={room.id === activeRoomId ? 'page' : undefined}
-    onclick={(e) => {
-      if (!isJoined) {
-        e.preventDefault();
-        openJoinRoomModal(room);
-      }
-    }}
+    onclick={(e) => handleRoomLinkClick(e, room)}
+    onkeydown={(e) => handleRoomLinkKeydown(e, room)}
   >
-    {#if isJoined}
+    {#if isJoined && hasActiveCall}
+      {@render activeCallIcon()}
+    {:else if isJoined}
       <span class="sidebar-icon text-muted">#</span>
     {:else if room.viewerCanJoinRoom}
       <span class="sidebar-icon text-muted">+</span>
@@ -366,32 +368,31 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       <span class="sr-only">unread messages</span>
     {/if}
 
-    <!-- Call participant avatars (badge row, wraps below room name).
-         Clicking the badge navigates to the room AND joins the call. -->
-    {#if isJoined && hasActiveCall}
-      {@render callBadge(room, callParticipants)}
-    {/if}
   </a>
 {/snippet}
 
 {#snippet dmLink(room: RoomsListItem)}
   {@const hasActiveCall = activeCallRooms.has(room.id)}
-  {@const callParticipants = hasActiveCall ? activeCallRooms.getParticipants(room.id) : []}
   <a
     href={resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId: room.id })}
     class={[
       'group/badges sidebar-item',
-      hasActiveCall ? 'flex-wrap gap-y-1' : '',
       room.id === activeRoomId ? 'bg-surface-100' : '',
       room.hasUnread && room.id !== activeRoomId ? 'font-semibold' : ''
     ]}
     aria-current={room.id === activeRoomId ? 'page' : undefined}
+    onclick={(e) => handleRoomLinkClick(e, room)}
+    onkeydown={(e) => handleRoomLinkKeydown(e, room)}
   >
-    <div class="flex shrink-0 -space-x-1">
-      {#each dmAvatarParticipants(room) as participant (participant.id)}
-        <UserAvatar user={participant} size="xs" />
-      {/each}
-    </div>
+    {#if hasActiveCall}
+      {@render activeCallIcon()}
+    {:else}
+      <div class="flex shrink-0 -space-x-1">
+        {#each dmAvatarParticipants(room) as participant (participant.id)}
+          <UserAvatar user={participant} size="xs" />
+        {/each}
+      </div>
+    {/if}
     <span class="flex-1 truncate">{dmDisplayName(room)}</span>
 
     {#if room.viewerNotificationCount > 0}
@@ -409,9 +410,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       <span class="sr-only">unread messages</span>
     {/if}
 
-    {#if hasActiveCall}
-      {@render callBadge(room, callParticipants)}
-    {/if}
   </a>
 {/snippet}
 

@@ -7,7 +7,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
 "UI" section of `docs/GLOSSARY.md`.
 -->
 <script module lang="ts">
-  export type RoomSidebarPanel = 'members' | 'files';
+  export type RoomSidebarPanel = 'members' | 'files' | 'call';
 </script>
 
 <script lang="ts">
@@ -32,6 +32,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   import { toast } from '$lib/ui/toast';
   import HeaderIconButton from '$lib/ui/HeaderIconButton.svelte';
   import BanRoomMemberModal from '$lib/components/moderation/BanRoomMemberModal.svelte';
+  import VoiceCallPanel from '$lib/components/voice/VoiceCallPanel.svelte';
   import RoomFilesPanel from './RoomFilesPanel.svelte';
 
   const BanRoomMemberMutation = graphql(`
@@ -49,6 +50,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     currentUserId = null,
     membersStore,
     filesStore,
+    livekitUrl,
     fileGroupingNow,
     onOpenFile,
     onClose
@@ -61,6 +63,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     currentUserId?: string | null;
     membersStore: RoomMembersStore;
     filesStore?: RoomFilesStore;
+    livekitUrl?: string;
     fileGroupingNow?: Date;
     onOpenFile?: (messageEventId: string, threadRootEventId: string | null) => void;
     onClose?: () => void;
@@ -71,7 +74,11 @@ calls, and similar room-specific panels can plug into the same shell. See the
 
   const members = $derived(membersStore.members);
   const memberCount = $derived(membersStore.totalCount);
-  const title = $derived(activePanel === 'members' ? `Members (${memberCount})` : 'Files');
+  const title = $derived.by(() => {
+    if (activePanel === 'members') return `Members (${memberCount})`;
+    if (activePanel === 'files') return 'Files';
+    return 'Call';
+  });
 
   // Check if user can start DMs (from centralized server permissions)
   const serverPerms = getServerPermissions();
@@ -312,6 +319,14 @@ calls, and similar room-specific panels can plug into the same shell. See the
     {:else}
       <div class="flex min-h-0 flex-1 items-center justify-center p-4 text-sm text-muted">
         No files in this room yet.
+      </div>
+    {/if}
+  {:else if activePanel === 'call'}
+    {#if livekitUrl}
+      <VoiceCallPanel {roomId} {livekitUrl} />
+    {:else}
+      <div class="flex min-h-0 flex-1 items-center justify-center p-4 text-sm text-muted">
+        Calls are not available on this server.
       </div>
     {/if}
   {/if}

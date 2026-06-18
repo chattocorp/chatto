@@ -135,6 +135,67 @@ describe('VoiceCallState', () => {
     expect(calls.indexOf('setE2EEEnabled:true')).toBeLessThan(calls.indexOf('connect'));
   });
 
+  it('coalesces duplicate joins for the same room while connecting', async () => {
+    const client = {
+      mutation: vi.fn(() => ({
+        toPromise: vi.fn(async () => ({ data: { joinVoiceCall: true } }))
+      })),
+      query: vi.fn(() => ({
+        toPromise: vi.fn(async () => ({
+          data: {
+            room: {
+              voiceCallToken: {
+                token: 'livekit-token',
+                e2eeKey: 'shared-e2ee-key',
+                callId: 'call-1'
+              }
+            }
+          }
+        }))
+      }))
+    };
+
+    const state = new VoiceCallState(client as never);
+    await Promise.all([
+      state.join('wss://livekit.example.test', 'R1'),
+      state.join('wss://livekit.example.test', 'R1')
+    ]);
+
+    expect(client.mutation).toHaveBeenCalledTimes(1);
+    expect(client.query).toHaveBeenCalledTimes(1);
+    expect(calls.filter((call) => call === 'connect')).toHaveLength(1);
+  });
+
+  it('coalesces duplicate leave actions while the leave intent is in flight', async () => {
+    const client = {
+      mutation: vi.fn(() => ({
+        toPromise: vi.fn(async () => ({ data: { joinVoiceCall: true } }))
+      })),
+      query: vi.fn(() => ({
+        toPromise: vi.fn(async () => ({
+          data: {
+            room: {
+              voiceCallToken: {
+                token: 'livekit-token',
+                e2eeKey: 'shared-e2ee-key',
+                callId: 'call-1'
+              }
+            }
+          }
+        }))
+      }))
+    };
+
+    const state = new VoiceCallState(client as never);
+    await state.join('wss://livekit.example.test', 'R1');
+
+    await Promise.all([state.leave(), state.leave()]);
+
+    expect(client.mutation).toHaveBeenCalledTimes(2);
+    expect(lastRoom?.disconnect).toHaveBeenCalledOnce();
+    expect(state.isInAnyCall).toBe(false);
+  });
+
   it('records a compensating leave when LiveKit connect fails after join intent', async () => {
     connectFailure = new Error('connect failed');
     const client = {

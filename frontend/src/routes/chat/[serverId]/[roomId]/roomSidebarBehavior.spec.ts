@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   canBanMembersFromRoomSidebar,
+  CHANNEL_ROOM_SIDEBAR_PANELS,
   DM_ROOM_SIDEBAR_PANELS,
-  roomSidebarPanelForRoom
+  roomSidebarPanelForRoom,
+  roomSidebarPanelsForRoom
 } from './roomSidebarBehavior';
 
 describe('room sidebar behavior', () => {
@@ -20,13 +22,14 @@ describe('room sidebar behavior', () => {
     expect(canBanMembersFromRoomSidebar(false, undefined)).toBe(false);
   });
 
-  it('only exposes files as a DM room sidebar panel', () => {
-    expect(DM_ROOM_SIDEBAR_PANELS).toEqual(['files']);
+  it('exposes files and calls as DM room sidebar panels', () => {
+    expect(DM_ROOM_SIDEBAR_PANELS).toEqual(['files', 'call']);
   });
 
   it('keeps channel room sidebar panels unchanged', () => {
     expect(roomSidebarPanelForRoom(false, 'members')).toBe('members');
     expect(roomSidebarPanelForRoom(false, 'files')).toBe('files');
+    expect(roomSidebarPanelForRoom(false, 'call')).toBe('call');
     expect(roomSidebarPanelForRoom(false, null)).toBeNull();
   });
 
@@ -37,5 +40,21 @@ describe('room sidebar behavior', () => {
 
   it('allows the files panel to open for DM rooms', () => {
     expect(roomSidebarPanelForRoom(true, 'files')).toBe('files');
+  });
+
+  it('allows the call panel to open for DM rooms when LiveKit is configured', () => {
+    expect(roomSidebarPanelForRoom(true, 'call', true)).toBe('call');
+  });
+
+  it('hides the call panel when LiveKit is not configured', () => {
+    expect(roomSidebarPanelForRoom(false, 'call', false)).toBeNull();
+    expect(roomSidebarPanelForRoom(true, 'call', false)).toBeNull();
+    expect(roomSidebarPanelsForRoom(false, false)).toEqual(['members', 'files']);
+    expect(roomSidebarPanelsForRoom(true, false)).toEqual(['files']);
+  });
+
+  it('returns all channel panels when LiveKit is configured', () => {
+    expect(CHANNEL_ROOM_SIDEBAR_PANELS).toEqual(['members', 'files', 'call']);
+    expect(roomSidebarPanelsForRoom(false, true)).toEqual(['members', 'files', 'call']);
   });
 });
