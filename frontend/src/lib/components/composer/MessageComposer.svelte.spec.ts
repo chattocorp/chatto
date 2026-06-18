@@ -183,6 +183,18 @@ function pasteFile(target: HTMLElement, file: File) {
   );
 }
 
+function pasteText(target: HTMLElement, text: string) {
+  const dataTransfer = new DataTransfer();
+  dataTransfer.setData('text/plain', text);
+  target.dispatchEvent(
+    new ClipboardEvent('paste', {
+      bubbles: true,
+      cancelable: true,
+      clipboardData: dataTransfer
+    })
+  );
+}
+
 async function findEditor(container: Element, testid = 'message-input'): Promise<HTMLElement> {
   await vi.waitFor(() => expect(q(container, `[data-testid="${testid}"]`)).toBeTruthy(), {
     timeout: 5000
@@ -1166,6 +1178,32 @@ describe('MessageComposer', () => {
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
         roomId,
         body: '[example](https://example.com)'
+      });
+    });
+
+    it('keeps typed space after a pasted autolink outside the link', async () => {
+      const url = 'https://www.spiegel.de/';
+      const { container } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+
+      editor.focus();
+      pasteText(editor, url);
+      await vi.waitFor(() => {
+        const link = editor.querySelector('a');
+        expect(link?.textContent).toBe(url);
+        expect(link?.getAttribute('href')).toBe(url);
+      });
+
+      await insertEditorLiteralText(editor, ' after');
+
+      await vi.waitFor(() => {
+        const links = editor.querySelectorAll('a');
+        expect(links).toHaveLength(1);
+        expect(links[0]?.textContent).toBe(url);
+        expect(editor.textContent).toBe(`${url} after`);
       });
     });
 

@@ -21,6 +21,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   import type { Node as ProseMirrorNode, Schema } from '@tiptap/pm/model';
   import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state';
   import StarterKit from '@tiptap/starter-kit';
+  import Link from '@tiptap/extension-link';
   import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
   import { Markdown } from '@tiptap/markdown';
   import Placeholder from '@tiptap/extension-placeholder';
@@ -54,6 +55,8 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
       ];
     }
   });
+
+  const ComposerLink = Link.extend({ inclusive: false });
 
   function paragraphTextWithLineBreaks(node: ProseMirrorNode) {
     return node.textBetween(0, node.content.size, '\n', '\n');
@@ -947,10 +950,13 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
               underline: false,
               horizontalRule: false,
               trailingNode: false,
-              link: {
-                openOnClick: false,
-                enableClickSelection: true
-              }
+              link: false
+            }),
+            ComposerLink.configure({
+              autolink: true,
+              linkOnPaste: true,
+              openOnClick: false,
+              enableClickSelection: true
             }),
             Markdown.configure({
               markedOptions: {

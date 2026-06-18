@@ -213,6 +213,43 @@ test.describe('Composer keyboard submit hint', () => {
   });
 });
 
+test.describe('Composer links', () => {
+  test('typing space after a pasted autolink leaves the link', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    await waitForRoomReady(page, 'general');
+
+    const url = 'https://www.spiegel.de/';
+    await roomPage.waitForInputEditable();
+    await roomPage.messageInput.click();
+    await roomPage.messageInput.evaluate((element, pastedUrl) => {
+      const dataTransfer = new DataTransfer();
+      dataTransfer.setData('text/plain', pastedUrl);
+      element.dispatchEvent(
+        new ClipboardEvent('paste', {
+          bubbles: true,
+          cancelable: true,
+          clipboardData: dataTransfer
+        })
+      );
+    }, url);
+
+    const link = roomPage.messageInput.locator('a');
+    await expect(link).toHaveText(url);
+    await expect(link).toHaveAttribute('href', url);
+
+    await roomPage.messageInput.pressSequentially(' after');
+
+    await expect(link).toHaveText(url);
+    await expect(roomPage.messageInput).toHaveText(`${url} after`);
+  });
+});
+
 // Use #general (postable) as the starting room and a freshly-created custom
 // room (also postable) as the navigation target. We can't use #announcements
 // — its special permissions deny message.post for regular members, which
