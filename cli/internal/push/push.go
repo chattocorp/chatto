@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
 	"strings"
 
 	webpush "github.com/SherClockHolmes/webpush-go"
@@ -192,14 +193,43 @@ func (s *Sender) SendToMany(ctx context.Context, subscriptions []*corev1.PushSub
 	return results
 }
 
+func buildAppURL(baseURL string, segments []string, queryKey, queryValue string) string {
+	raw, err := url.JoinPath(baseURL, segments...)
+	if err != nil {
+		return ""
+	}
+
+	u, err := url.Parse(raw)
+	if err != nil {
+		return raw
+	}
+	if queryKey != "" && queryValue != "" {
+		query := u.Query()
+		query.Set(queryKey, queryValue)
+		u.RawQuery = query.Encode()
+	}
+	return u.String()
+}
+
+func buildNotificationURL(baseURL, roomID, threadRootID, highlightEventID string) string {
+	segments := []string{"chat", "-"}
+	if roomID != "" {
+		segments = append(segments, roomID)
+	}
+	if threadRootID != "" {
+		segments = append(segments, threadRootID)
+	}
+	return buildAppURL(baseURL, segments, "highlight", highlightEventID)
+}
+
 // BuildPayloadFromNotification creates a push payload from a notification.
 // The baseURL is used to build navigation URLs (e.g., "https://chatto.example.com").
 // The optional payloadCtx provides message preview and room name for richer notifications.
 func BuildPayloadFromNotification(notif *corev1.Notification, actorDisplayName, baseURL string, payloadCtx *PayloadContext) *Payload {
 	payload := &Payload{
 		NotificationID: notif.Id,
-		Icon:           baseURL + "/icons/icon-192.png",
-		Badge:          baseURL + "/icons/icon-192.png", // Badge should be monochrome, but use same for now
+		Icon:           buildAppURL(baseURL, []string{"icons", "icon-192.png"}, "", ""),
+		Badge:          buildAppURL(baseURL, []string{"icons", "icon-192.png"}, "", ""), // Badge should be monochrome, but use same for now
 	}
 
 	// Get preview from context, truncate if needed
@@ -210,18 +240,12 @@ func BuildPayloadFromNotification(notif *corev1.Notification, actorDisplayName, 
 		roomName = payloadCtx.RoomName
 	}
 
-	// URL prefix for the home instance. Push notifications are always generated
-	// by the server the user is connected to, so the instance segment is always "-".
-	// Chat URLs go straight from instance segment to room ID — no spaceId, no /dm/
-	// prefix (DMs are surfaced as rooms under the primary space).
-	chatPrefix := baseURL + "/chat/-"
-
 	switch n := notif.Notification.(type) {
 	case *corev1.Notification_DmMessage:
 		payload.Title = fmt.Sprintf("@%s sent you a new DM", actorDisplayName)
 		payload.Body = preview
 		payload.Tag = "dm-" + n.DmMessage.EventId
-		payload.URL = chatPrefix + "/" + n.DmMessage.RoomId
+		payload.URL = buildNotificationURL(baseURL, n.DmMessage.RoomId, "", "")
 
 	case *corev1.Notification_Mention:
 		if roomName != "" {
@@ -231,10 +255,7 @@ func BuildPayloadFromNotification(notif *corev1.Notification, actorDisplayName, 
 		}
 		payload.Body = preview
 		payload.Tag = "mention-" + n.Mention.EventId
-		payload.URL = chatPrefix + "/" + n.Mention.RoomId
-		if n.Mention.EventId != "" {
-			payload.URL += "?highlight=" + n.Mention.EventId
-		}
+		payload.URL = buildNotificationURL(baseURL, n.Mention.RoomId, n.Mention.InThread, n.Mention.EventId)
 
 	case *corev1.Notification_Reply:
 		if roomName != "" {
@@ -244,13 +265,17 @@ func BuildPayloadFromNotification(notif *corev1.Notification, actorDisplayName, 
 		}
 		payload.Body = preview
 		payload.Tag = "reply-" + n.Reply.EventId
-		if n.Reply.InThread != "" {
-			// Thread reply: navigate to the thread (using thread root) and highlight the replied-to message
-			payload.URL = chatPrefix + "/" + n.Reply.RoomId + "/" + n.Reply.InThread + "?highlight=" + n.Reply.InReplyToId
+		payload.URL = buildNotificationURL(baseURL, n.Reply.RoomId, n.Reply.InThread, n.Reply.EventId)
+
+	case *corev1.Notification_RoomMessage:
+		if roomName != "" {
+			payload.Title = fmt.Sprintf("@%s posted in #%s", actorDisplayName, roomName)
 		} else {
-			// Room-level reply: navigate to room and highlight the reply message
-			payload.URL = chatPrefix + "/" + n.Reply.RoomId + "?highlight=" + n.Reply.EventId
+			payload.Title = fmt.Sprintf("@%s posted a message", actorDisplayName)
 		}
+		payload.Body = preview
+		payload.Tag = "room-message-" + n.RoomMessage.EventId
+		payload.URL = buildNotificationURL(baseURL, n.RoomMessage.RoomId, "", n.RoomMessage.EventId)
 
 	default:
 		payload.Title = "New notification"
@@ -271,6 +296,8 @@ func NotificationTag(notif *corev1.Notification) string {
 		return "mention-" + n.Mention.EventId
 	case *corev1.Notification_Reply:
 		return "reply-" + n.Reply.EventId
+	case *corev1.Notification_RoomMessage:
+		return "room-message-" + n.RoomMessage.EventId
 	default:
 		return ""
 	}

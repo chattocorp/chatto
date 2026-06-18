@@ -570,6 +570,9 @@ func fetchPayloadContext(ctx context.Context, chattoCore *core.ChattoCore, notif
 	case *corev1.Notification_Reply:
 		roomID = n.Reply.RoomId
 		eventID = n.Reply.EventId
+	case *corev1.Notification_RoomMessage:
+		roomID = n.RoomMessage.RoomId
+		eventID = n.RoomMessage.EventId
 	default:
 		return nil
 	}
@@ -616,9 +619,9 @@ func fetchPayloadContext(ctx context.Context, chattoCore *core.ChattoCore, notif
 		}
 	}
 
-	// For mentions and replies, also fetch the room name
+	// For notifications shown as channel activity, also fetch the room name.
 	switch notification.Notification.(type) {
-	case *corev1.Notification_Mention, *corev1.Notification_Reply:
+	case *corev1.Notification_Mention, *corev1.Notification_Reply, *corev1.Notification_RoomMessage:
 		room, err := chattoCore.GetRoom(ctx, kind, roomID)
 		if err != nil {
 			logger.Debug("Failed to fetch room for push notification",

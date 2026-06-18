@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Client } from '@urql/svelte';
-import { NotificationStore, type NotificationItem } from './notifications.svelte';
+import {
+  NotificationStore,
+  notificationTarget,
+  type NotificationItem
+} from './notifications.svelte';
 
 /**
  * Build a minimal mock urql Client whose `query` resolves with a controllable
@@ -120,6 +124,85 @@ describe('NotificationStore', () => {
       notification: cached
     });
     expect(client.query).not.toHaveBeenCalled();
+  });
+
+  it('routes notification targets to the same room/thread/event used by push payloads', () => {
+    const store = new NotificationStore(makeClient({}));
+    const threadMention = {
+      __typename: 'MentionNotificationItem',
+      id: 'thread-mention',
+      createdAt: new Date().toISOString(),
+      actor: {
+        id: 'a',
+        login: 't',
+        displayName: 't',
+        avatarUrl: null,
+        presenceStatus: 'OFFLINE'
+      },
+      summary: 'mentioned you',
+      mentionRoom: { id: 'room-2', name: 'general' },
+      mentionEventId: 'mention-event',
+      mentionInThread: 'thread-root'
+    } as unknown as NotificationItem;
+    const threadReply = {
+      __typename: 'ReplyNotificationItem',
+      id: 'thread-reply',
+      createdAt: new Date().toISOString(),
+      actor: {
+        id: 'a',
+        login: 't',
+        displayName: 't',
+        avatarUrl: null,
+        presenceStatus: 'OFFLINE'
+      },
+      summary: 'replied to you',
+      replyRoom: { id: 'room-2', name: 'general' },
+      replyEventId: 'reply-event',
+      inReplyToId: 'mid-thread-msg',
+      replyInThread: 'thread-root'
+    } as unknown as NotificationItem;
+    const roomMessage = {
+      __typename: 'RoomMessageNotificationItem',
+      id: 'room-message',
+      createdAt: new Date().toISOString(),
+      actor: {
+        id: 'a',
+        login: 't',
+        displayName: 't',
+        avatarUrl: null,
+        presenceStatus: 'OFFLINE'
+      },
+      summary: 'posted a message',
+      roomMsgRoom: { id: 'room-news', name: 'news' },
+      roomMsgEventId: 'room-event'
+    } as unknown as NotificationItem;
+
+    expect(notificationTarget(threadMention)).toMatchObject({
+      roomId: 'room-2',
+      eventId: 'mention-event',
+      threadRootId: 'thread-root'
+    });
+    expect(store.getNavigationPath('origin', threadMention)).toBe(
+      '/chat/-/room-2/thread-root?highlight=mention-event'
+    );
+
+    expect(notificationTarget(threadReply)).toMatchObject({
+      roomId: 'room-2',
+      eventId: 'reply-event',
+      threadRootId: 'thread-root'
+    });
+    expect(store.getNavigationPath('origin', threadReply)).toBe(
+      '/chat/-/room-2/thread-root?highlight=reply-event'
+    );
+
+    expect(notificationTarget(roomMessage)).toMatchObject({
+      roomId: 'room-news',
+      eventId: 'room-event',
+      threadRootId: null
+    });
+    expect(store.getNavigationPath('origin', roomMessage)).toBe(
+      '/chat/-/room-news?highlight=room-event'
+    );
   });
 
   // The motivating bug: a remote instance running an older backend rejects

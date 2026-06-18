@@ -269,6 +269,26 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 		}
 	})
 
+	t.Run("builds thread mention payload", func(t *testing.T) {
+		notif := &corev1.Notification{
+			Id: "notif-thread-mention",
+			Notification: &corev1.Notification_Mention{
+				Mention: &corev1.MentionNotification{
+					RoomId:   "room-2",
+					EventId:  "mention-event",
+					InThread: "thread-root",
+				},
+			},
+		}
+
+		payload := BuildPayloadFromNotification(notif, "Bob", baseURL, nil)
+
+		expectedURL := "https://chatto.example.com/chat/-/room-2/thread-root?highlight=mention-event"
+		if payload.URL != expectedURL {
+			t.Errorf("Expected URL %s, got %s", expectedURL, payload.URL)
+		}
+	})
+
 	t.Run("builds room-level reply payload without context", func(t *testing.T) {
 		notif := &corev1.Notification{
 			Id: "notif-abc",
@@ -317,8 +337,8 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 		if payload.Title != "@Diana replied to you" {
 			t.Errorf("Expected '@Diana replied to you', got %s", payload.Title)
 		}
-		// Thread reply: navigate to thread root and highlight the replied-to message
-		expectedURL := "https://chatto.example.com/chat/-/room-y/thread-root?highlight=mid-thread-msg"
+		// Thread reply: navigate to thread root and highlight the reply event itself.
+		expectedURL := "https://chatto.example.com/chat/-/room-y/thread-root?highlight=reply-event"
 		if payload.URL != expectedURL {
 			t.Errorf("Expected URL %s, got %s", expectedURL, payload.URL)
 		}
@@ -367,6 +387,54 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 		}
 		if payload.Body != "Thanks for the update!" {
 			t.Errorf("Expected 'Thanks for the update!', got %s", payload.Body)
+		}
+	})
+
+	t.Run("builds room message payload with room name and preview", func(t *testing.T) {
+		notif := &corev1.Notification{
+			Id: "notif-room-message",
+			Notification: &corev1.Notification_RoomMessage{
+				RoomMessage: &corev1.RoomMessageNotification{
+					RoomId:  "room-news",
+					EventId: "room-event",
+				},
+			},
+		}
+		ctx := &PayloadContext{MessagePreview: "A watched room has a new message", RoomName: "news"}
+
+		payload := BuildPayloadFromNotification(notif, "Eve", baseURL, ctx)
+
+		if payload.Title != "@Eve posted in #news" {
+			t.Errorf("Expected '@Eve posted in #news', got %s", payload.Title)
+		}
+		if payload.Body != "A watched room has a new message" {
+			t.Errorf("Expected room message preview, got %s", payload.Body)
+		}
+		if payload.Tag != "room-message-room-event" {
+			t.Errorf("Expected tag 'room-message-room-event', got %s", payload.Tag)
+		}
+		expectedURL := "https://chatto.example.com/chat/-/room-news?highlight=room-event"
+		if payload.URL != expectedURL {
+			t.Errorf("Expected URL %s, got %s", expectedURL, payload.URL)
+		}
+	})
+
+	t.Run("escapes notification URL path segments and highlight query", func(t *testing.T) {
+		notif := &corev1.Notification{
+			Id: "notif-escaped",
+			Notification: &corev1.Notification_Mention{
+				Mention: &corev1.MentionNotification{
+					RoomId:  "room with spaces",
+					EventId: "event+plus",
+				},
+			},
+		}
+
+		payload := BuildPayloadFromNotification(notif, "Bob", baseURL, nil)
+
+		expectedURL := "https://chatto.example.com/chat/-/room%20with%20spaces?highlight=event%2Bplus"
+		if payload.URL != expectedURL {
+			t.Errorf("Expected URL %s, got %s", expectedURL, payload.URL)
 		}
 	})
 
@@ -462,6 +530,18 @@ func TestNotificationTag(t *testing.T) {
 		tag := NotificationTag(notif)
 		if tag != "reply-event-ghi" {
 			t.Errorf("Expected 'reply-event-ghi', got %s", tag)
+		}
+	})
+
+	t.Run("returns room message tag with event ID", func(t *testing.T) {
+		notif := &corev1.Notification{
+			Notification: &corev1.Notification_RoomMessage{
+				RoomMessage: &corev1.RoomMessageNotification{RoomId: "room-101", EventId: "event-room"},
+			},
+		}
+		tag := NotificationTag(notif)
+		if tag != "room-message-event-room" {
+			t.Errorf("Expected 'room-message-event-room', got %s", tag)
 		}
 	})
 
