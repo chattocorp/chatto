@@ -180,12 +180,15 @@ export class RoomMembersStore {
 		if (!this.roomId || !this.client) return;
 		const limit = Math.max(ROOM_MEMBERS_PAGE_SIZE, this.members.length);
 		const loadId = ++this.#loadId;
+		this.isInitialLoading = false;
+		this.isLoadingMore = false;
 		try {
 			const page = await this.fetchPage(0, limit, this.activeSearch);
 			if (loadId !== this.#loadId) return;
 			this.members = page.members;
 			this.totalCount = page.totalCount;
 			this.hasMore = page.hasMore;
+			this.hasLoaded = true;
 		} catch (error) {
 			if (loadId === this.#loadId) {
 				console.error('Failed to refresh room members:', error);

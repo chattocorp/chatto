@@ -137,7 +137,7 @@
   });
 
   $effect(() => {
-    if (activeRoomSidebarPanel === 'members' || mobileRoomSidebarPanel === 'members') {
+    if (room.roomData) {
       roomMembersStore.ensureLoaded();
     }
   });
