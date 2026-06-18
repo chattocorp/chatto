@@ -65,7 +65,9 @@ appears and disappears.
   const resolvedIcon = $derived(icon ?? defaultIcons[tone]);
 </script>
 
-<div class="pointer-events-none fixed top-3 right-3 left-3 z-[60] flex justify-center sm:top-4">
+<div
+  class="pointer-events-none fixed top-[calc(env(safe-area-inset-top,0px)+0.75rem)] right-3 left-3 z-[60] flex justify-center sm:top-[calc(env(safe-area-inset-top,0px)+1rem)]"
+>
   <section
     class="pointer-events-auto w-full max-w-4xl menu"
     role="status"
