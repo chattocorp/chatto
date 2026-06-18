@@ -11,9 +11,9 @@
   import VoiceCallPanel from '$lib/components/voice/VoiceCallPanel.svelte';
   import {
     useRoomData,
-    useRoomMembersSync,
     useRoomUnread,
     useEvent,
+    usePresenceChange,
     createTypingIndicator
   } from '$lib/hooks';
   import { appState, sidebarNav } from '$lib/state/globals.svelte';
@@ -22,6 +22,8 @@
     createMentionRoles,
     getRoomMembers,
     RoomFilesStore,
+    RoomMembersStore,
+    setRoomMembersStore,
     createRoomPermissions,
     DEFAULT_ROOM_PERMISSIONS
   } from '$lib/state/room';
@@ -51,6 +53,7 @@
 
   const connection = useConnection();
   const roomFilesStore = new RoomFilesStore(connection());
+  const roomMembersStore = setRoomMembersStore(new RoomMembersStore(connection()));
   const serverSegment = $derived(serverIdToSegment(getActiveServer()));
   const stores = serverRegistry.getStore(getActiveServer());
   const serverInfo = stores.serverInfo;
@@ -126,17 +129,17 @@
     };
   });
 
-  const roomMembers = useRoomMembersSync(() => ({
-    roomId,
-    isDM: room.isDM,
-    roomData: room.roomData,
-    dmData: room.dmData
-  }));
-
   const unread = useRoomUnread(() => ({ roomId }));
 
   $effect(() => {
     roomFilesStore.setRoom(roomId);
+    roomMembersStore.setRoom(roomId);
+  });
+
+  $effect(() => {
+    if (activeRoomSidebarPanel === 'members' || mobileRoomSidebarPanel === 'members') {
+      roomMembersStore.ensureLoaded();
+    }
   });
 
   // Room permissions — derived reactively, no $effect needed
@@ -274,6 +277,7 @@
   //   separator.
   useEvent((event) => {
     roomFilesStore.ingestServerEvent(event);
+    roomMembersStore.ingestServerEvent(event);
     if (!event.event) return;
 
     if (event.event.__typename === 'MessagePostedEvent' && event.event.roomId === roomId) {
@@ -293,6 +297,10 @@
         }
       }
     }
+  });
+
+  usePresenceChange((userId, status) => {
+    roomMembersStore.updatePresence(userId, status);
   });
 
   // Header action visibility — flat derivations keep the template clean
@@ -519,7 +527,7 @@
               room.roomData?.canBanRoomMembers
             )}
             currentUserId={currentUser.user?.id ?? null}
-            onLoadMoreMembers={roomMembers.loadMoreMembers}
+            membersStore={roomMembersStore}
             onOpenFile={(messageEventId, threadRootEventId) =>
               openFileMessage(messageEventId, threadRootEventId, true)}
             onClose={() => roomSidebarPanels.closeMobile()}
@@ -540,7 +548,7 @@
             room.roomData?.canBanRoomMembers
           )}
           currentUserId={currentUser.user?.id ?? null}
-          onLoadMoreMembers={roomMembers.loadMoreMembers}
+          membersStore={roomMembersStore}
           onOpenFile={(messageEventId, threadRootEventId) =>
             openFileMessage(messageEventId, threadRootEventId)}
           onClose={() => roomSidebarPanels.closeDesktop()}

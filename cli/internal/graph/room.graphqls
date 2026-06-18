@@ -23,6 +23,8 @@ type Room {
   description: String
   "List members in this room."
   members(
+    "Search login or display name case-insensitively before pagination."
+    search: String
     "Maximum number of results to return (default 20, max 100)."
     limit: Int
     "Offset for pagination."

@@ -149,17 +149,17 @@ Note: there is no top-level `me` query — viewer-scoped state hangs off the `vi
 
 **Users** ([`query.graphqls`](../cli/internal/graph/query.graphqls))
 
-| Query                              | Description                                                                            |
-| ---------------------------------- | -------------------------------------------------------------------------------------- |
-| `user(userId)`                     | Authenticated lookup of a user by ID.                                                  |
-| `userByLogin(login)`               | Authenticated lookup of a user by login (returns null if not found).                   |
-| `server.members(search, limit, offset)` | Canonical paginated member directory (authenticated users).                       |
+| Query                                   | Description                                                            |
+| --------------------------------------- | ---------------------------------------------------------------------- |
+| `user(userId)`                          | Authenticated lookup of a user by ID.                                  |
+| `userByLogin(login)`                    | Authenticated lookup of a user by login (returns null if not found).   |
+| `server.members(search, limit, offset)` | Canonical paginated member directory (authenticated users).             |
 
 **Rooms** ([`query.graphqls`](../cli/internal/graph/query.graphqls), [`room.graphqls`](../cli/internal/graph/room.graphqls))
 
 | Query                              | Description                                                                            |
 | ---------------------------------- | -------------------------------------------------------------------------------------- |
-| `room(roomId)`                     | Get a room by ID. Room-scoped reads (`members`, `events`, `event(eventId)`, `eventsAround`, `voiceCallToken`, `viewerCan*` flags, `viewerNotifications`) live as fields on the returned `Room`; `members` and `viewerNotifications` are offset-paginated. `events` is the visible room timeline. Folded durable facts such as reactions are reflected in projected room reads; the web client refreshes the current room window after wake/reconnect to catch up without a full document reload. |
+| `room(roomId)`                     | Get a room by ID. Room-scoped reads (`members`, `events`, `event(eventId)`, `eventsAround`, `voiceCallToken`, `viewerCan*` flags, `viewerNotifications`) live as fields on the returned `Room`; `members(search, limit, offset)` and `viewerNotifications` are offset-paginated. `events` is the visible room timeline. Folded durable facts such as reactions are reflected in projected room reads; the web client refreshes the current room window after wake/reconnect to catch up without a full document reload. |
 
 **RBAC tooling** ([`rbac.graphqls`](../cli/internal/graph/rbac.graphqls), [`role_permissions.graphqls`](../cli/internal/graph/role_permissions.graphqls), [`role_permission_matrix.graphqls`](../cli/internal/graph/role_permission_matrix.graphqls), [`user_permissions.graphqls`](../cli/internal/graph/user_permissions.graphqls), [`permission_inspector.graphqls`](../cli/internal/graph/permission_inspector.graphqls))
 

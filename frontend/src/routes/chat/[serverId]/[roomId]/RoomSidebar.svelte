@@ -11,12 +11,13 @@ calls, and similar room-specific panels can plug into the same shell. See the
 </script>
 
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import { graphql } from '$lib/gql';
   import { startDMWith } from '$lib/dm/startDM';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
   import type { PresenceStatus } from '$lib/gql/graphql';
-  import { getRoomMembersState, type RoomFilesStore, type RoomMember } from '$lib/state/room';
+  import type { RoomFilesStore, RoomMember, RoomMembersStore } from '$lib/state/room';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import { getLiveDisplayName, getLiveLogin } from '$lib/state/userProfiles.svelte';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
@@ -46,9 +47,9 @@ calls, and similar room-specific panels can plug into the same shell. See the
     presentation = 'desktop',
     canBanRoomMembers = false,
     currentUserId = null,
+    membersStore,
     filesStore,
     fileGroupingNow,
-    onLoadMoreMembers,
     onOpenFile,
     onClose
   }: {
@@ -58,9 +59,9 @@ calls, and similar room-specific panels can plug into the same shell. See the
     presentation?: 'desktop' | 'overlay';
     canBanRoomMembers?: boolean;
     currentUserId?: string | null;
+    membersStore: RoomMembersStore;
     filesStore?: RoomFilesStore;
     fileGroupingNow?: Date;
-    onLoadMoreMembers?: () => void | Promise<void>;
     onOpenFile?: (messageEventId: string, threadRootEventId: string | null) => void;
     onClose?: () => void;
   } = $props();
@@ -68,10 +69,8 @@ calls, and similar room-specific panels can plug into the same shell. See the
   const connection = useConnection();
   const presenceCache = getPresenceCache();
 
-  // Get members from shared store (populated by Room.svelte)
-  const membersState = $derived(getRoomMembersState());
-  const members = $derived(membersState.members);
-  const memberCount = $derived(membersState.totalCount);
+  const members = $derived(membersStore.members);
+  const memberCount = $derived(membersStore.totalCount);
   const title = $derived(activePanel === 'members' ? `Members (${memberCount})` : 'Files');
 
   // Check if user can start DMs (from centralized server permissions)
@@ -84,6 +83,11 @@ calls, and similar room-specific panels can plug into the same shell. See the
   let banningMemberId = $state<string | null>(null);
   let banDialogMember = $state<RoomMember | null>(null);
   let banError = $state<string | null>(null);
+  let memberSearchTimer: ReturnType<typeof setTimeout> | null = null;
+
+  onDestroy(() => {
+    if (memberSearchTimer) clearTimeout(memberSearchTimer);
+  });
 
   function togglePopover(memberId: string, e: MouseEvent) {
     if (popoverMemberId === memberId) {
@@ -123,12 +127,12 @@ calls, and similar room-specific panels can plug into the same shell. See the
 
   const onlineMembers = $derived(
     (presenceCache.version,
-    membersState.presenceVersion,
+    membersStore.presenceVersion,
     sortByName(members.filter((m) => isOnlineStatus(getPresence(m)))))
   );
   const offlineMembers = $derived(
     (presenceCache.version,
-    membersState.presenceVersion,
+    membersStore.presenceVersion,
     sortByName(members.filter((m) => !isOnlineStatus(getPresence(m)))))
   );
 
@@ -178,14 +182,23 @@ calls, and similar room-specific panels can plug into the same shell. See the
     const observer = new IntersectionObserver(
       (entries) => {
         if (!entries.some((entry) => entry.isIntersecting)) return;
-        if (!membersState.hasMore || membersState.loadingMore) return;
-        void onLoadMoreMembers?.();
+        if (!membersStore.hasMore || membersStore.isLoadingMore) return;
+        void membersStore.loadMore();
       },
       { rootMargin: '160px 0px' }
     );
     observer.observe(node);
 
     return () => observer.disconnect();
+  }
+
+  function scheduleMemberSearch(event: Event) {
+    const value = event.currentTarget instanceof HTMLInputElement ? event.currentTarget.value : '';
+    membersStore.searchInput = value;
+    if (memberSearchTimer) clearTimeout(memberSearchTimer);
+    memberSearchTimer = setTimeout(() => {
+      void membersStore.setSearch(value);
+    }, 250);
   }
 </script>
 
@@ -216,7 +229,25 @@ calls, and similar room-specific panels can plug into the same shell. See the
 
   {#if activePanel === 'members'}
     <nav class="flex flex-1 flex-col overflow-y-auto p-2" aria-label="Members">
-      {#if loading}
+      <div class="sticky top-0 z-10 bg-background pb-2">
+        <label class="sr-only" for="room-member-search">Search room members</label>
+        <div class="relative">
+          <span
+            class="iconify uil--search pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
+            aria-hidden="true"
+          ></span>
+          <input
+            id="room-member-search"
+            type="search"
+            value={membersStore.searchInput}
+            oninput={scheduleMemberSearch}
+            placeholder="Search members"
+            class="h-8 w-full rounded-md bg-surface py-1 pl-8 pr-2 text-sm outline-none transition-colors placeholder:text-muted"
+          />
+        </div>
+      </div>
+
+      {#if loading || membersStore.isInitialLoading}
         <ul role="list">
           {#each Array(8) as _, i (i)}
             <li class="flex items-center gap-2 rounded-md px-2 py-1.5">
@@ -229,7 +260,9 @@ calls, and similar room-specific panels can plug into the same shell. See the
           {/each}
         </ul>
       {:else}
-        {#if onlineMembers.length > 0}
+        {#if members.length === 0}
+          <div class="px-2 py-8 text-center text-sm text-muted">No members found.</div>
+        {:else if onlineMembers.length > 0}
           <CollapsibleGroup
             label="Online ({onlineMembers.length})"
             items={onlineMembers}
@@ -249,13 +282,13 @@ calls, and similar room-specific panels can plug into the same shell. See the
           />
         {/if}
 
-        {#if membersState.hasMore}
+        {#if membersStore.hasMore}
           <div
             class="flex justify-center px-3 py-4 text-sm text-muted"
             data-testid="room-members-load-more-sentinel"
             {@attach loadMoreMembersWhenVisible}
           >
-            {membersState.loadingMore ? 'Loading members...' : ''}
+            {membersStore.isLoadingMore ? 'Loading members...' : ''}
           </div>
         {/if}
       {/if}

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick, untrack } from 'svelte';
+  import { onDestroy, tick, untrack } from 'svelte';
   import { graphql, useFragment } from '$lib/gql';
   import { RoomEventViewFragmentDoc, type RoomEventViewFragment } from '$lib/gql/graphql';
   import { useConnection } from '$lib/state/server/connection.svelte';
@@ -10,7 +10,12 @@
   import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
   import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
   import { toast } from '$lib/ui/toast';
-  import { getRoomMembers, getComposerContext } from '$lib/state/room';
+  import {
+    getRoomMembers,
+    getRoomMembersStore,
+    getComposerContext,
+    type RoomMember
+  } from '$lib/state/room';
   import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
   import { isTouchDevice } from '$lib/utils/isTouchDevice';
   import { hasVisibleContent } from '$lib/validation';
@@ -72,6 +77,17 @@
 
   // Get room members from context (provided by Room.svelte)
   const members = $derived(getRoomMembers());
+  const membersStore = getRoomMembersStore();
+  let mentionSearchMembers = $state.raw<RoomMember[]>([]);
+  let mentionSearchTimer: ReturnType<typeof setTimeout> | null = null;
+  let mentionSearchRequestId = 0;
+  const mentionCandidateMembers = $derived(
+    mentionSearchMembers.length > 0 ? mentionSearchMembers : members
+  );
+
+  onDestroy(() => {
+    if (mentionSearchTimer) clearTimeout(mentionSearchTimer);
+  });
 
   const composerContext = getComposerContext();
   const editState = composerContext.editState;
@@ -110,10 +126,32 @@
   const linkPreviews = new LinkPreviewState(() => connection().client);
   const autocomplete = new AutocompleteState(
     () => editorApi,
-    () => members,
+    () => mentionCandidateMembers,
     () => mentionRoles
   );
   let mentionRoles = $state<MentionRole[]>([]);
+
+  $effect(() => {
+    const query = autocomplete.mention?.query ?? null;
+    const requestId = ++mentionSearchRequestId;
+
+    if (mentionSearchTimer) {
+      clearTimeout(mentionSearchTimer);
+      mentionSearchTimer = null;
+    }
+
+    if (!query) {
+      mentionSearchMembers = [];
+      return;
+    }
+
+    mentionSearchTimer = setTimeout(() => {
+      void membersStore.searchMembers(query).then((results) => {
+        if (requestId !== mentionSearchRequestId) return;
+        mentionSearchMembers = results;
+      });
+    }, 150);
+  });
 
   // Dynamic placeholder changes between normal and edit mode
   let currentPlaceholder = $derived(
@@ -789,7 +827,7 @@
       <MentionAutocomplete
         bind:this={autocomplete.mentionRef}
         query={autocomplete.mention.query}
-        {members}
+        members={mentionCandidateMembers}
         roles={mentionRoles}
         onSelect={handleMentionSelect}
         onClose={closeMentionAutocomplete}

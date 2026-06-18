@@ -28,7 +28,6 @@ export type { MessageActionParams } from './useMessageActions.svelte';
 
 // Data hooks
 export { useRoomData } from './useRoomData.svelte';
-export { useRoomMembersSync } from './useRoomMembersSync.svelte';
 export { useRoomUnread } from './useRoomUnread.svelte';
 
 // Lifecycle hooks

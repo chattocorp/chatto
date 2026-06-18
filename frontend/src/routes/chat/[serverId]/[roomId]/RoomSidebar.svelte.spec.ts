@@ -99,7 +99,7 @@ function buttonByText(container: Element, text: string): HTMLButtonElement | und
 }
 
 function renderedMemberTitles(container: Element): string[] {
-  return Array.from(container.querySelectorAll('[title^="View profile of User "]')).map(
+  return Array.from(container.querySelectorAll('[title^="View profile of "]')).map(
     (element) => element.getAttribute('title') ?? ''
   );
 }
@@ -128,7 +128,15 @@ async function flushRoomFilesPanel(): Promise<void> {
   await tick();
 }
 
+async function waitForMemberSearchDebounce(): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  await tick();
+}
+
 function roomData(members: RoomMember[], totalCount: number, hasMore: boolean): RoomData {
+  void members;
+  void totalCount;
+  void hasMore;
   return {
     room: { id: 'room-1', name: 'general', type: 'CHANNEL' },
     spaceName: 'Test Server',
@@ -138,11 +146,23 @@ function roomData(members: RoomMember[], totalCount: number, hasMore: boolean): 
     canManageOthersMessage: false,
     canEchoMessage: false,
     canManageRoom: false,
-    canBanRoomMembers: false,
-    members,
-    membersTotalCount: totalCount,
-    membersHasMore: hasMore
+    canBanRoomMembers: false
   };
+}
+
+function mockRoomMembers(members: RoomMember[], totalCount = members.length, hasMore = false) {
+  queryMock.mockResolvedValue({
+    data: {
+      room: {
+        members: {
+          users: members,
+          totalCount,
+          hasMore
+        }
+      }
+    },
+    error: null
+  });
 }
 
 function roomFile(
@@ -211,36 +231,63 @@ function roomAudioFile(filename: string) {
 describe('RoomSidebar', () => {
   beforeEach(() => {
     queryMock.mockReset();
-    localStorage.clear();
-    MockIntersectionObserver.instances = [];
-    vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
-  });
-
-  it('shows the exact total count and automatically loads additional member pages', async () => {
-    const firstPage = Array.from({ length: 100 }, (_, index) => member(index + 1));
-    const secondPage = Array.from({ length: 42 }, (_, index) => member(index + 101));
-
     queryMock.mockResolvedValue({
       data: {
         room: {
           members: {
-            users: secondPage,
-            totalCount: 142,
+            users: [member(1)],
+            totalCount: 1,
             hasMore: false
           }
         }
       },
       error: null
     });
+    localStorage.clear();
+    MockIntersectionObserver.instances = [];
+    vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
+  });
+
+  it('shows the exact total count and automatically loads additional member pages', async () => {
+    const firstPage = Array.from({ length: 50 }, (_, index) => member(index + 1));
+    const secondPage = Array.from({ length: 92 }, (_, index) => member(index + 51));
+
+    queryMock
+      .mockResolvedValueOnce({
+        data: {
+          room: {
+            members: {
+              users: firstPage,
+              totalCount: 142,
+              hasMore: true
+            }
+          }
+        },
+        error: null
+      })
+      .mockResolvedValueOnce({
+        data: {
+          room: {
+            members: {
+              users: secondPage,
+              totalCount: 142,
+              hasMore: false
+            }
+          }
+        },
+        error: null
+      });
 
     const { container } = render(RoomSidebarTestHarness, {
       props: {
-        roomData: roomData(firstPage, 142, true)
+        roomData: roomData([], 0, false)
       }
     });
 
     await expect.element(q(container, 'h1')).toHaveTextContent('Members (142)');
-    expect(renderedMemberTitles(container)).toHaveLength(100);
+    await vi.waitFor(() => {
+      expect(renderedMemberTitles(container)).toHaveLength(50);
+    });
     await vi.waitFor(() => {
       expect(
         container.querySelector('[data-testid="room-members-load-more-sentinel"]')
@@ -254,7 +301,15 @@ describe('RoomSidebar', () => {
     await vi.waitFor(() => {
       expect(queryMock).toHaveBeenCalledWith(expect.anything(), {
         roomId: 'room-1',
-        offset: 100
+        search: null,
+        limit: 50,
+        offset: 0
+      });
+      expect(queryMock).toHaveBeenCalledWith(expect.anything(), {
+        roomId: 'room-1',
+        search: null,
+        limit: 50,
+        offset: 50
       });
     });
 
@@ -273,11 +328,23 @@ describe('RoomSidebar', () => {
   });
 
   it('keeps existing pagination state when automatic pagination fails and allows retry', async () => {
-    const firstPage = Array.from({ length: 100 }, (_, index) => member(index + 1));
-    const secondPage = Array.from({ length: 42 }, (_, index) => member(index + 101));
+    const firstPage = Array.from({ length: 50 }, (_, index) => member(index + 1));
+    const secondPage = Array.from({ length: 92 }, (_, index) => member(index + 51));
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     queryMock
+      .mockResolvedValueOnce({
+        data: {
+          room: {
+            members: {
+              users: firstPage,
+              totalCount: 142,
+              hasMore: true
+            }
+          }
+        },
+        error: null
+      })
       .mockResolvedValueOnce({
         data: {
           room: null
@@ -300,12 +367,14 @@ describe('RoomSidebar', () => {
     try {
       const { container } = render(RoomSidebarTestHarness, {
         props: {
-          roomData: roomData(firstPage, 142, true)
+          roomData: roomData([], 0, false)
         }
       });
 
       await expect.element(q(container, 'h1')).toHaveTextContent('Members (142)');
-      expect(renderedMemberTitles(container)).toHaveLength(100);
+      await vi.waitFor(() => {
+        expect(renderedMemberTitles(container)).toHaveLength(50);
+      });
 
       await vi.waitFor(() => {
         expect(MockIntersectionObserver.instances).toHaveLength(1);
@@ -317,12 +386,14 @@ describe('RoomSidebar', () => {
       await vi.waitFor(() => {
         expect(queryMock).toHaveBeenCalledWith(expect.anything(), {
           roomId: 'room-1',
-          offset: 100
+          search: null,
+          limit: 50,
+          offset: 50
         });
       });
 
       await expect.element(q(container, 'h1')).toHaveTextContent('Members (142)');
-      expect(renderedMemberTitles(container)).toHaveLength(100);
+      expect(renderedMemberTitles(container)).toHaveLength(50);
       await vi.waitFor(() => {
         expect(
           container.querySelector('[data-testid="room-members-load-more-sentinel"]')
@@ -333,7 +404,7 @@ describe('RoomSidebar', () => {
       await tick();
 
       await vi.waitFor(() => {
-        expect(queryMock).toHaveBeenCalledTimes(2);
+        expect(queryMock).toHaveBeenCalledTimes(3);
       });
 
       await vi.waitFor(() => {
@@ -342,6 +413,130 @@ describe('RoomSidebar', () => {
           container.querySelector('[data-testid="room-members-load-more-sentinel"]')
         ).toBeFalsy();
       });
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+
+  it('searches room members and resets the rendered member page', async () => {
+    queryMock
+      .mockResolvedValueOnce({
+        data: {
+          room: {
+            members: {
+              users: [member(1), member(2)],
+              totalCount: 2,
+              hasMore: false
+            }
+          }
+        },
+        error: null
+      })
+      .mockResolvedValueOnce({
+        data: {
+          room: {
+            members: {
+              users: [{ ...member(2), displayName: 'Boris Member' }],
+              totalCount: 1,
+              hasMore: false
+            }
+          }
+        },
+        error: null
+      });
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        roomData: roomData([], 0, false)
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(renderedMemberTitles(container)).toHaveLength(2);
+    });
+
+    const input = container.querySelector('#room-member-search') as HTMLInputElement;
+    input.value = 'bor';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await waitForMemberSearchDebounce();
+
+    await vi.waitFor(() => {
+      expect(queryMock).toHaveBeenCalledWith(expect.anything(), {
+        roomId: 'room-1',
+        search: 'bor',
+        limit: 50,
+        offset: 0
+      });
+      expect(renderedMemberTitles(container)).toEqual(['View profile of Boris Member']);
+      expect(q(container, 'h1')?.textContent).toContain('Members (1)');
+    });
+  });
+
+  it('falls back to loaded-page filtering when room member search is unsupported', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    queryMock
+      .mockResolvedValueOnce({
+        data: {
+          room: {
+            members: {
+              users: [member(1), { ...member(2), displayName: 'Boris Member' }],
+              totalCount: 2,
+              hasMore: false
+            }
+          }
+        },
+        error: null
+      })
+      .mockResolvedValueOnce({
+        data: null,
+        error: {
+          graphQLErrors: [{ message: 'Unknown argument "search" on field "Room.members".' }]
+        }
+      })
+      .mockResolvedValueOnce({
+        data: {
+          room: {
+            members: {
+              users: [member(1), { ...member(2), displayName: 'Boris Member' }],
+              totalCount: 2,
+              hasMore: false
+            }
+          }
+        },
+        error: null
+      });
+
+    try {
+      const { container } = render(RoomSidebarTestHarness, {
+        props: {
+          roomData: roomData([], 0, false)
+        }
+      });
+
+      await vi.waitFor(() => {
+        expect(renderedMemberTitles(container)).toHaveLength(2);
+      });
+
+      const input = container.querySelector('#room-member-search') as HTMLInputElement;
+      input.value = 'bor';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      await waitForMemberSearchDebounce();
+
+      await vi.waitFor(() => {
+        expect(queryMock).toHaveBeenCalledWith(expect.anything(), {
+          roomId: 'room-1',
+          search: 'bor',
+          limit: 50,
+          offset: 0
+        });
+        expect(queryMock).toHaveBeenCalledWith(expect.anything(), {
+          roomId: 'room-1',
+          limit: 50,
+          offset: 0
+        });
+        expect(renderedMemberTitles(container)).toEqual(['View profile of Boris Member']);
+      });
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
     } finally {
       consoleErrorSpy.mockRestore();
     }
@@ -685,21 +880,22 @@ describe('RoomSidebar', () => {
   });
 
   it('shows the room-ban action for other members when allowed', async () => {
+    mockRoomMembers([
+      { ...member(0), id: 'viewer', displayName: 'Viewer' },
+      { ...member(1), id: 'other', displayName: 'Other Member' }
+    ]);
+
     const { container } = render(RoomSidebarTestHarness, {
       props: {
         currentUserId: 'viewer',
         canBanRoomMembers: true,
-        roomData: roomData(
-          [
-            { ...member(0), id: 'viewer', displayName: 'Viewer' },
-            { ...member(1), id: 'other', displayName: 'Other Member' }
-          ],
-          2,
-          false
-        )
+        roomData: roomData([], 0, false)
       }
     });
 
+    await vi.waitFor(() => {
+      expect(buttonByText(container, 'Other Member')).toBeTruthy();
+    });
     buttonByText(container, 'Other Member')!.click();
     await tick();
 
@@ -707,21 +903,22 @@ describe('RoomSidebar', () => {
   });
 
   it('hides the room-ban action when member moderation is disabled', async () => {
+    mockRoomMembers([
+      { ...member(0), id: 'viewer', displayName: 'Viewer' },
+      { ...member(1), id: 'other', displayName: 'Other Member' }
+    ]);
+
     const { container } = render(RoomSidebarTestHarness, {
       props: {
         currentUserId: 'viewer',
         canBanRoomMembers: false,
-        roomData: roomData(
-          [
-            { ...member(0), id: 'viewer', displayName: 'Viewer' },
-            { ...member(1), id: 'other', displayName: 'Other Member' }
-          ],
-          2,
-          false
-        )
+        roomData: roomData([], 0, false)
       }
     });
 
+    await vi.waitFor(() => {
+      expect(buttonByText(container, 'Other Member')).toBeTruthy();
+    });
     buttonByText(container, 'Other Member')!.click();
     await tick();
 

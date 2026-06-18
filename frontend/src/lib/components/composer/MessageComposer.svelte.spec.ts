@@ -111,6 +111,9 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
 
 vi.mock('$lib/state/room', () => ({
   getRoomMembers: () => roomStateMock.members,
+  getRoomMembersStore: () => ({
+    searchMembers: vi.fn(async () => roomStateMock.members)
+  }),
   getComposerContext: () => ({
     editState: roomStateMock.editState,
     lastEditableMessage: roomStateMock.lastEditableMessage,
