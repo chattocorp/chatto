@@ -3,6 +3,22 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.3.5](https://github.com/chattocorp/chatto/compare/v0.3.4...v0.3.5) (2026-06-19)
+
+
+### Features
+
+* add LiveKit screen sharing ([#1021](https://github.com/chattocorp/chatto/issues/1021)) ([068abda](https://github.com/chattocorp/chatto/commit/068abda7cf55df077ac0d7a78b6912c2bba9fc63))
+* **frontend:** add call join leave sound cues ([#1023](https://github.com/chattocorp/chatto/issues/1023)) ([1cf9e85](https://github.com/chattocorp/chatto/commit/1cf9e850bc8b48cc46ae6eea36be416940e16e6c))
+* **frontend:** add display theme preference ([#1018](https://github.com/chattocorp/chatto/issues/1018)) ([ed7e276](https://github.com/chattocorp/chatto/commit/ed7e2767e5284144cdaa0ee923a1ca7f91af5f43))
+
+
+### Bug Fixes
+
+* **calls:** improve LiveKit join resilience ([#1022](https://github.com/chattocorp/chatto/issues/1022)) ([e9a0e55](https://github.com/chattocorp/chatto/commit/e9a0e55dcbfa75c783d174530de6771bf98f5313))
+* **frontend:** make thread badges native links ([#1020](https://github.com/chattocorp/chatto/issues/1020)) ([e8c3642](https://github.com/chattocorp/chatto/commit/e8c364242624a9412aef63c0e93508bb9ed2074b))
+* hide call lifecycle events from room history ([#1017](https://github.com/chattocorp/chatto/issues/1017)) ([5315770](https://github.com/chattocorp/chatto/commit/53157702aba589e58f5e5580214187f636ed0dff))
+
 ## [0.3.4](https://github.com/chattocorp/chatto/compare/v0.3.3...v0.3.4) (2026-06-19)
 
 
