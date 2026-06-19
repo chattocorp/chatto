@@ -3,6 +3,27 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.3.4](https://github.com/chattocorp/chatto/compare/v0.3.3...v0.3.4) (2026-06-19)
+
+
+### Features
+
+* add scoped server sign-out ([#1006](https://github.com/chattocorp/chatto/issues/1006)) ([1fc081b](https://github.com/chattocorp/chatto/commit/1fc081b0189b5d60313fbe496a93166b68cbaa06))
+* **frontend:** refresh call sidebar UI ([#1001](https://github.com/chattocorp/chatto/issues/1001)) ([cd48c1a](https://github.com/chattocorp/chatto/commit/cd48c1aa8dcf6357d939a4442923bc443284dfb4))
+
+
+### Bug Fixes
+
+* **frontend:** clear stale mention autocomplete state ([#1015](https://github.com/chattocorp/chatto/issues/1015)) ([9132ab6](https://github.com/chattocorp/chatto/commit/9132ab68f5a5fd69b7c4ea16e47dc3f8e5396cf6))
+* **frontend:** eagerly load room members ([#1009](https://github.com/chattocorp/chatto/issues/1009)) ([d76ae9a](https://github.com/chattocorp/chatto/commit/d76ae9ae4d1f66aeef60fb07687a1a0aafd73535))
+* **frontend:** prevent room badge clipping ([#1012](https://github.com/chattocorp/chatto/issues/1012)) ([5c86be7](https://github.com/chattocorp/chatto/commit/5c86be751a41d2ec6eca69f3eba6ffc4b7579c99))
+* reconcile in-app notification badges ([#1008](https://github.com/chattocorp/chatto/issues/1008)) ([be8cb02](https://github.com/chattocorp/chatto/commit/be8cb02fa6045470940a4a58532858c41e19c633))
+
+
+### Performance Improvements
+
+* share projection event consumers ([#1011](https://github.com/chattocorp/chatto/issues/1011)) ([31e08fc](https://github.com/chattocorp/chatto/commit/31e08fc4f76a324e0518d94ebf9cf06c36979821))
+
 ## [0.3.3](https://github.com/chattocorp/chatto/compare/v0.3.2...v0.3.3) (2026-06-19)
 
 
