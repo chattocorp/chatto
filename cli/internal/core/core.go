@@ -236,15 +236,14 @@ type ChattoCore struct {
 func (c *ChattoCore) Run(ctx context.Context) error {
 	g, gctx := errgroup.WithContext(ctx)
 
-	for _, projection := range c.projections {
-		projection := projection
-		projector := projection.projector
+	for _, group := range projectionRunGroups(c.projections) {
+		group := group
 		g.Go(func() error {
-			if err := projector.Run(gctx); err != nil {
+			if err := events.RunProjectors(gctx, group.projectors...); err != nil {
 				if errors.Is(err, context.Canceled) {
 					return err
 				}
-				return fmt.Errorf("%s projection: %w", projection.name, err)
+				return fmt.Errorf("%s projections: %w", strings.Join(group.names, ", "), err)
 			}
 			return nil
 		})
@@ -296,6 +295,36 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	g.Go(func() error { return c.callService.Run(gctx) })
 
 	return g.Wait()
+}
+
+type projectionRunGroup struct {
+	names      []string
+	projectors []*events.Projector
+}
+
+func projectionRunGroups(projections []projectionRegistration) []projectionRunGroup {
+	groupsBySubjects := make(map[string]int, len(projections))
+	groups := make([]projectionRunGroup, 0, len(projections))
+
+	for _, projection := range projections {
+		key := projectionSubjectsKey(projection.projector.Subjects())
+		if index, exists := groupsBySubjects[key]; exists {
+			groups[index].names = append(groups[index].names, projection.name)
+			groups[index].projectors = append(groups[index].projectors, projection.projector)
+			continue
+		}
+		groupsBySubjects[key] = len(groups)
+		groups = append(groups, projectionRunGroup{
+			names:      []string{projection.name},
+			projectors: []*events.Projector{projection.projector},
+		})
+	}
+
+	return groups
+}
+
+func projectionSubjectsKey(subjects []string) string {
+	return strings.Join(subjects, "\x00")
 }
 
 // AllProjectorsStarted reports whether every registered projector

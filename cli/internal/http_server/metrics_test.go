@@ -94,6 +94,9 @@ func TestMetricsServerUsesProjectionKeys(t *testing.T) {
 	if !strings.Contains(text, `chatto_projection_startup_duration_seconds{projection="content_keys"}`) {
 		t.Fatalf("metrics body missing content_keys startup duration metric\n%s", text)
 	}
+	if !strings.Contains(text, `chatto_projection_startup_messages{projection="content_keys"}`) {
+		t.Fatalf("metrics body missing content_keys startup messages metric\n%s", text)
+	}
 	if strings.Contains(text, `projection="Content Keys"`) {
 		t.Fatalf("metrics body used human projection name as label\n%s", text)
 	}

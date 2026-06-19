@@ -90,3 +90,32 @@ func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 		t.Fatalf("registered projections missing admin states: %v", registryNames)
 	}
 }
+
+func TestProjectionRunGroupsShareIdenticalSubjectConsumers(t *testing.T) {
+	core, _ := setupTestCore(t)
+
+	groups := projectionRunGroups(core.projections)
+	if len(groups) >= len(core.projections) {
+		t.Fatalf("projection run groups = %d, registered projections = %d; want some shared groups", len(groups), len(core.projections))
+	}
+
+	var roomOnly, timelineAndThreads bool
+	for _, group := range groups {
+		names := make(map[string]bool, len(group.names))
+		for _, name := range group.names {
+			names[name] = true
+		}
+		if names["Room Directory"] && names["Call State"] && names["Reactions"] && len(names) == 3 {
+			roomOnly = true
+		}
+		if names["Room Timeline"] && names["Threads"] && len(names) == 2 {
+			timelineAndThreads = true
+		}
+	}
+	if !roomOnly {
+		t.Fatal("room-only projections were not grouped")
+	}
+	if !timelineAndThreads {
+		t.Fatal("room timeline and threads projections were not grouped")
+	}
+}

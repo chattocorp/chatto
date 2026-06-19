@@ -75,6 +75,7 @@ type chattoCollector struct {
 	natsReconnects          *prometheus.Desc
 	projectionStarted       *prometheus.Desc
 	projectionStartup       *prometheus.Desc
+	projectionStartupMsgs   *prometheus.Desc
 	projectionFailed        *prometheus.Desc
 	projectionLastApplied   *prometheus.Desc
 	projectionTarget        *prometheus.Desc
@@ -181,6 +182,12 @@ func newChattoCollector(server *HTTPServer) *chattoCollector {
 		projectionStartup: prometheus.NewDesc(
 			"chatto_projection_startup_duration_seconds",
 			"Seconds from process-local projection start until its initial replay completed.",
+			[]string{"projection"},
+			nil,
+		),
+		projectionStartupMsgs: prometheus.NewDesc(
+			"chatto_projection_startup_messages",
+			"Number of matching EVT messages applied by a process-local projection during initial replay.",
 			[]string{"projection"},
 			nil,
 		),
@@ -331,6 +338,7 @@ func (c *chattoCollector) collectCoreMetrics(ch chan<- prometheus.Metric) {
 		ch <- prometheus.MustNewConstMetric(c.projectionStarted, prometheus.GaugeValue, started, projection.Key)
 		if projection.StartupComplete {
 			ch <- prometheus.MustNewConstMetric(c.projectionStartup, prometheus.GaugeValue, projection.StartupDuration, projection.Key)
+			ch <- prometheus.MustNewConstMetric(c.projectionStartupMsgs, prometheus.GaugeValue, float64(projection.StartupMessages), projection.Key)
 		}
 		ch <- prometheus.MustNewConstMetric(c.projectionFailed, prometheus.GaugeValue, failed, projection.Key)
 		ch <- prometheus.MustNewConstMetric(c.projectionLastApplied, prometheus.GaugeValue, float64(projection.LastAppliedSeq), projection.Key)
