@@ -356,7 +356,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       <button
         type="button"
         onclick={(e) => handleNotificationBadgeClick(e, room.id, false)}
-        class="-mr-2 flex h-6 min-w-6 cursor-pointer items-center justify-center notification-dot"
+        class="flex h-6 min-w-6 cursor-pointer items-center justify-center notification-dot"
         aria-label={`Go to ${room.viewerNotificationCount} notifications`}
       >
         <NotificationBadge count={room.viewerNotificationCount} testid="room-notification-badge" />
@@ -399,7 +399,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       <button
         type="button"
         onclick={(e) => handleNotificationBadgeClick(e, room.id, true)}
-        class="-mr-2 flex h-6 min-w-6 cursor-pointer items-center justify-center notification-dot"
+        class="flex h-6 min-w-6 cursor-pointer items-center justify-center notification-dot"
         aria-label={`Go to ${room.viewerNotificationCount} direct message notifications`}
       >
         <NotificationBadge count={room.viewerNotificationCount} testid="dm-notification-badge" />
