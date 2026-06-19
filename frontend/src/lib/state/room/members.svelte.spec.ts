@@ -104,6 +104,28 @@ describe('RoomMembersStore', () => {
     expect(store.totalCount).toBe(3);
   });
 
+  it('marks failed initial loads as loaded to avoid immediate ensureLoaded retries', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const fakeClient = new FakeGqlClient([{ data: null, error: new Error('network failed') }]);
+    const store = new RoomMembersStore(fakeClient as unknown as GraphQLClient);
+
+    try {
+      store.setRoom('room-1');
+      store.ensureLoaded();
+
+      await vi.waitFor(() => {
+        expect(store.hasLoaded).toBe(true);
+        expect(store.isInitialLoading).toBe(false);
+      });
+
+      store.ensureLoaded();
+
+      expect(fakeClient.queryMock).toHaveBeenCalledTimes(1);
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+
   it('refresh clears a stale initial loading state when it invalidates an initial load', async () => {
     const initial = deferred<OperationResult>();
     const refresh = deferred<OperationResult>();

@@ -1,11 +1,9 @@
 import type { Client } from '@urql/svelte';
 import { createContext } from 'svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import { useFragment } from '$lib/gql';
+import { graphql, useFragment } from '$lib/gql';
 import { isUnsupportedGraphQLArgumentError } from '$lib/gql/compatibility';
 import {
-  RoomMembersDocument,
-  RoomMembersWithoutSearchDocument,
   UserAvatarUserFragmentDoc,
   type PresenceStatus,
   type RoomMembersQuery
@@ -33,6 +31,34 @@ export type RoomMembersPage = {
   totalCount: number;
   hasMore: boolean;
 };
+
+const RoomMembersQuery = graphql(`
+  query RoomMembers($roomId: ID!, $search: String, $limit: Int!, $offset: Int!) {
+    room(roomId: $roomId) {
+      members(search: $search, limit: $limit, offset: $offset) {
+        users {
+          ...UserAvatarUser
+        }
+        totalCount
+        hasMore
+      }
+    }
+  }
+`);
+
+const RoomMembersWithoutSearchQuery = graphql(`
+  query RoomMembersWithoutSearch($roomId: ID!, $limit: Int!, $offset: Int!) {
+    room(roomId: $roomId) {
+      members(limit: $limit, offset: $offset) {
+        users {
+          ...UserAvatarUser
+        }
+        totalCount
+        hasMore
+      }
+    }
+  }
+`);
 
 function memberMatchesSearch(member: RoomMember, search: string): boolean {
   const query = search.trim().toLowerCase();
@@ -122,6 +148,7 @@ export class RoomMembersStore {
       }
     } finally {
       if (loadId === this.#loadId) {
+        this.hasLoaded = true;
         this.isInitialLoading = false;
       }
     }
@@ -224,7 +251,7 @@ export class RoomMembersStore {
     const normalizedSearch = search.trim();
     if (!this.searchUnsupported) {
       const response = await this.client
-        .query(RoomMembersDocument, {
+        .query(RoomMembersQuery, {
           roomId: this.roomId,
           search: normalizedSearch || null,
           limit,
@@ -245,7 +272,7 @@ export class RoomMembersStore {
     }
 
     const response = await this.client
-      .query(RoomMembersWithoutSearchDocument, { roomId: this.roomId, limit, offset })
+      .query(RoomMembersWithoutSearchQuery, { roomId: this.roomId, limit, offset })
       .toPromise();
     if (response.error) throw response.error;
     const connectionData = response.data?.room?.members;
