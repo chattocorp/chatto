@@ -974,7 +974,7 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	// wrapped DEK records live in RUNTIME_STATE so normal backups keep encrypted
 	// content together with its wrapped content-key registry, but not the KEKs
 	// needed to unwrap it.
-	encryptionKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
+	encryptionKV, err := createOrUpdateKeyValueWithStoreRetry(ctx, js, jetstream.KeyValueConfig{
 		Bucket:      "ENCRYPTION_KEYS",
 		Description: "KMS key-encryption keys (excluded from backups)",
 		Storage:     jetstream.FileStorage,
@@ -985,7 +985,7 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		return nil, fmt.Errorf("failed to create ENCRYPTION_KEYS KV bucket: %w", err)
 	}
 
-	runtimeStateKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
+	runtimeStateKV, err := createOrUpdateKeyValueWithStoreRetry(ctx, js, jetstream.KeyValueConfig{
 		Bucket:         "RUNTIME_STATE",
 		Description:    "Persisted latest-value runtime/user state",
 		Storage:        jetstream.FileStorage,
@@ -998,7 +998,7 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		return nil, fmt.Errorf("failed to create RUNTIME_STATE KV bucket: %w", err)
 	}
 
-	memoryCacheKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
+	memoryCacheKV, err := createOrUpdateKeyValueWithStoreRetry(ctx, js, jetstream.KeyValueConfig{
 		Bucket:         "MEMORY_CACHE",
 		Description:    "Volatile memory-backed runtime cache state",
 		Storage:        jetstream.MemoryStorage,
@@ -1071,6 +1071,39 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		memoryCacheKV:   memoryCacheKV,
 		imageCacheStore: imageCacheStore,
 	}, nil
+}
+
+func createOrUpdateKeyValueWithStoreRetry(ctx context.Context, js jetstream.JetStream, cfg jetstream.KeyValueConfig) (jetstream.KeyValue, error) {
+	const attempts = 5
+	var err error
+	for attempt := 0; attempt < attempts; attempt++ {
+		var kv jetstream.KeyValue
+		kv, err = js.CreateOrUpdateKeyValue(ctx, cfg)
+		if err == nil {
+			return kv, nil
+		}
+		if !isTransientJetStreamStoreCreateError(err) || attempt == attempts-1 {
+			return nil, err
+		}
+
+		timer := time.NewTimer(time.Duration(attempt+1) * 25 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil, ctx.Err()
+		case <-timer.C:
+		}
+	}
+	return nil, err
+}
+
+func isTransientJetStreamStoreCreateError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "err_code=10049") ||
+		strings.Contains(msg, "error creating store for stream")
 }
 
 // ============================================================================

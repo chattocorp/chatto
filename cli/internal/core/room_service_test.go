@@ -211,8 +211,8 @@ func TestRoomServiceWaitForTimelineAndThreads(t *testing.T) {
 		t.Fatalf("waitForTimelineAndThreads returned error: %v", err)
 	}
 
-	if got := timeline.RoomEventCount("R-thread"); got != 1 {
-		t.Fatalf("timeline room event count = %d, want 1", got)
+	if got := timelineProjector.Status().LastSeq; got < seq {
+		t.Fatalf("timeline projector last seq = %d, want at least %d", got, seq)
 	}
 	if !threads.ThreadExists("E-root") {
 		t.Fatal("thread projection did not catch up")

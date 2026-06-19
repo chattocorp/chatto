@@ -235,6 +235,10 @@ func (m *RoomService) lastVisibleRoomEntry(roomID string, visible func(*corev1.E
 	return m.timeline.LastVisibleRoomEntry(roomID, visible)
 }
 
+func (m *RoomService) lastRoomMessageEntry(roomID string) (*TimelineEntry, bool) {
+	return m.timeline.LastRoomMessageEntry(roomID)
+}
+
 func (m *RoomService) visibleRoomTimeline(roomID string, limit int, beforeStreamSeq uint64, visible func(*corev1.Event) bool) []*TimelineEntry {
 	return m.timeline.VisibleRoomTimeline(roomID, limit, beforeStreamSeq, visible)
 }

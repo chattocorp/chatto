@@ -40,3 +40,10 @@ func timelineEventIDs(entries []*TimelineEntry) []string {
 	}
 	return out
 }
+
+func eventIDOrEmpty(entry *TimelineEntry) string {
+	if entry == nil || entry.Event == nil {
+		return ""
+	}
+	return entry.Event.GetId()
+}

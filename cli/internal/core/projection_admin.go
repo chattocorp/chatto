@@ -313,31 +313,36 @@ func (p *RoomGroupLayoutProjection) adminProjectionEstimate() (int64, int64, []P
 func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []ProjectionAdminMetric) {
 	p.RLock()
 	defer p.RUnlock()
-	var entries, rawBytes, messagePosts int64
+	var entries, rawBytes int64
+	timelineEventIDs := make(map[string]struct{}, len(p.byEventID))
 	for _, roomEntries := range p.byRoom {
 		var roomBytes int64
 		for _, entry := range roomEntries {
 			entries++
 			eventBytes := timelineEntryEstimatedBytes(entry)
 			roomBytes += eventBytes
-			if entry != nil && entry.Event.GetMessagePosted() != nil {
-				messagePosts++
+			if entry != nil && entry.Event != nil && entry.Event.GetId() != "" {
+				timelineEventIDs[entry.Event.GetId()] = struct{}{}
 			}
 		}
 		rawBytes += roomBytes
 	}
 
-	var visibleEntries, visibleBytes int64
-	for roomID, roomEntries := range p.visibleByRoom {
-		visibleBytes += projectionMapEntryOverhead + int64(len(roomID))
-		for range roomEntries {
-			visibleEntries++
-			visibleBytes += projectionSliceEntryOverhead
-		}
+	var messagePostIndexBytes, messagePosts int64
+	for roomID, roomEntries := range p.messagePostsByRoom {
+		messagePostIndexBytes += projectionMapEntryOverhead + int64(len(roomID))
+		messagePosts += int64(len(roomEntries))
+		messagePostIndexBytes += int64(len(roomEntries)) * projectionSliceEntryOverhead
 	}
-	var eventIndexBytes int64
-	for eventID := range p.byEventID {
+
+	var eventIndexBytes, eventIndexRetainedEntryBytes, eventIndexRetainedEntries int64
+	for eventID, entry := range p.byEventID {
 		eventIndexBytes += projectionMapEntryOverhead + int64(len(eventID))
+		if _, counted := timelineEventIDs[eventID]; counted {
+			continue
+		}
+		eventIndexRetainedEntries++
+		eventIndexRetainedEntryBytes += timelineEntryEstimatedBytes(entry)
 	}
 	appliedEventIDsBytes := estimateStringSetBytes(p.appliedEventIDs)
 	var latestBodyBytes int64
@@ -409,16 +414,17 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 	}
 	shreddedUserBytes := estimateStringSetBytes(p.shreddedUsers)
 
-	totalBytes := rawBytes + visibleBytes + eventIndexBytes + appliedEventIDsBytes +
-		latestBodyBytes + bodyEventSeqsBytes + currentBodySeqBytes + retractedBytes +
+	totalBytes := rawBytes + messagePostIndexBytes + eventIndexBytes + eventIndexRetainedEntryBytes +
+		appliedEventIDsBytes + latestBodyBytes + bodyEventSeqsBytes + currentBodySeqBytes + retractedBytes +
 		hiddenEchoBytes + echoBytes + assetCreationBytes + assetChildrenBytes +
 		videoManifestBytes + assetOwnerBytes + shreddedUserBytes
 	return entries, totalBytes, []ProjectionAdminMetric{
 		{Name: "rooms", Value: int64(len(p.byRoom)), Bytes: 0},
 		{Name: "timeline_entries", Value: entries, Bytes: rawBytes},
-		{Name: "visible_timeline_index", Value: visibleEntries, Bytes: visibleBytes},
 		{Name: "message_posts", Value: messagePosts, Bytes: 0},
+		{Name: "message_posts_by_room_index", Value: messagePosts, Bytes: messagePostIndexBytes},
 		{Name: "event_id_index", Value: int64(len(p.byEventID)), Bytes: eventIndexBytes},
+		{Name: "event_id_retained_entries", Value: eventIndexRetainedEntries, Bytes: eventIndexRetainedEntryBytes},
 		{Name: "applied_event_ids", Value: int64(len(p.appliedEventIDs)), Bytes: appliedEventIDsBytes},
 		{Name: "latest_body_index", Value: int64(len(p.latestBody)), Bytes: latestBodyBytes},
 		{Name: "body_event_seqs", Value: bodyEventSeqs, Bytes: bodyEventSeqsBytes},

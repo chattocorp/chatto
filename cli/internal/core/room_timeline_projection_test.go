@@ -249,7 +249,7 @@ func TestRoomTimeline_Empty(t *testing.T) {
 	}
 }
 
-func TestRoomTimeline_AppendsAllEventKinds(t *testing.T) {
+func TestRoomTimeline_AppendsVisibleEventKinds(t *testing.T) {
 	p := NewRoomTimelineProjection()
 	applyAll(t, p, []*corev1.Event{
 		roomCreatedTimelineEvent("ENV-CREATE", "R1", "general", 1),
@@ -262,16 +262,16 @@ func TestRoomTimeline_AppendsAllEventKinds(t *testing.T) {
 		leftEvent("ENV-LEFT-U2", "R1", "U2", 8),
 	})
 
-	if got := p.RoomEventCount("R1"); got != 8 {
-		t.Errorf("RoomEventCount = %d, want 8 (full event log including edits/retracts)", got)
+	if got := p.RoomEventCount("R1"); got != 6 {
+		t.Errorf("RoomEventCount = %d, want 6 visible room entries", got)
 	}
 
 	// Newest-first ordering.
 	got := p.RoomEvents("R1", 50, 0)
-	if len(got) != 8 {
-		t.Fatalf("RoomEvents len = %d, want 8", len(got))
+	if len(got) != 6 {
+		t.Fatalf("RoomEvents len = %d, want 6", len(got))
 	}
-	wantOrder := []string{"ENV-LEFT-U2", "ENV-RETRACT-M2", "ENV-M2", "ENV-JOIN-U2", "ENV-EDIT-M1", "ENV-M1", "ENV-JOIN-U1", "ENV-CREATE"}
+	wantOrder := []string{"ENV-LEFT-U2", "ENV-M2", "ENV-JOIN-U2", "ENV-M1", "ENV-JOIN-U1", "ENV-CREATE"}
 	for i, e := range got {
 		if e.Event.GetId() != wantOrder[i] {
 			t.Errorf("entry[%d] envelope id = %q, want %q", i, e.Event.GetId(), wantOrder[i])
@@ -333,14 +333,105 @@ func TestRoomTimeline_LookupByEnvelopeID(t *testing.T) {
 	if !ok || entry.Event.GetId() != "ENV-M1" || entry.Event.GetMessagePosted() == nil {
 		t.Errorf("Get(ENV-M1) = %v, want the post", entry)
 	}
-	// Edit also indexed.
-	entry, ok = p.Get("ENV-EDIT-M1")
-	if !ok || entry.Event.GetMessageEdited().GetEventId() != "ENV-M1" {
-		t.Errorf("Get(ENV-EDIT-M1) = %v, want the edit", entry)
+	if _, ok := p.Get("ENV-EDIT-M1"); ok {
+		t.Error("folded edit event should not be returned by Get")
 	}
 	// Unknown.
 	if _, ok := p.Get("nope"); ok {
 		t.Error("Get(nope) should be ok=false")
+	}
+}
+
+func TestRoomTimeline_RetainsOnlyVisibleEntriesAndMessagePostLookups(t *testing.T) {
+	p := NewRoomTimelineProjection()
+	applyAll(t, p, []*corev1.Event{
+		roomCreatedTimelineEvent("ENV-CREATE", "R1", "general", 1),
+		postedEvent(postedOpts{envelopeID: "ENV-ROOT", roomID: "R1", actorID: "U1", body: "root", at: 2}),
+		threadCreatedEvent("ENV-THREAD-CREATED", "R1", "ENV-ROOT", "U1", 3),
+		postedEvent(postedOpts{envelopeID: "ENV-REPLY", roomID: "R1", actorID: "U2", body: "reply", inThread: "ENV-ROOT", at: 4}),
+		postedEvent(postedOpts{envelopeID: "ENV-ECHO", roomID: "R1", actorID: "U2", body: "echo", echoOfEventID: "ENV-REPLY", echoFromThreadRootEventID: "ENV-ROOT", at: 5}),
+		editedEvent("ENV-EDIT-ROOT", "ENV-ROOT", "R1", "U1", "root edited", 6),
+		retractedEvent("ENV-RETRACT-ROOT", "ENV-ROOT", "R1", "U1", "", 7),
+		reactionAddedEvent("ENV-REACT", "R1", "ENV-ROOT", "U2", "thumbsup"),
+		callStartedTimelineEvent("ENV-CALL-STARTED", "R1", "U1", "CALL1", 9),
+		callParticipantJoinedTimelineEvent("ENV-CALL-JOINED", "R1", "U2", "CALL1", 10),
+		callParticipantLeftTimelineEvent("ENV-CALL-LEFT", "R1", "U2", "CALL1", 11),
+		callEndedTimelineEvent("ENV-CALL-ENDED", "R1", "U1", "CALL1", 12),
+		attachmentDeclaredEvent("R1", "A1", "image/png"),
+	})
+
+	events := p.RoomEvents("R1", 20, 0)
+	if got := timelineEventIDs(events); !slices.Equal(got, []string{
+		"ENV-ECHO",
+		"ENV-ROOT",
+		"ENV-CREATE",
+	}) {
+		t.Fatalf("RoomEvents retained IDs = %v", got)
+	}
+	if got := p.RoomEventCount("R1"); got != 3 {
+		t.Fatalf("RoomEventCount = %d, want 3 visible entries", got)
+	}
+
+	for _, eventID := range []string{"ENV-CREATE", "ENV-ROOT", "ENV-REPLY", "ENV-ECHO"} {
+		if _, ok := p.Get(eventID); !ok {
+			t.Fatalf("Get(%s) ok=false, want true", eventID)
+		}
+	}
+	for _, eventID := range []string{
+		"ENV-THREAD-CREATED",
+		"ENV-EDIT-ROOT",
+		"ENV-RETRACT-ROOT",
+		"ENV-REACT",
+		"ENV-CALL-STARTED",
+		"ENV-CALL-JOINED",
+		"ENV-CALL-LEFT",
+		"ENV-CALL-ENDED",
+		"ENV-DECLARED-A1",
+	} {
+		if _, ok := p.Get(eventID); ok {
+			t.Fatalf("Get(%s) ok=true, want false for folded event", eventID)
+		}
+	}
+}
+
+func TestRoomTimeline_LastRoomMessageEntryIncludesThreadReplies(t *testing.T) {
+	p := NewRoomTimelineProjection()
+	applyAll(t, p, []*corev1.Event{
+		postedEvent(postedOpts{envelopeID: "ENV-ROOT", roomID: "R1", actorID: "U1", body: "root", at: 1}),
+		postedEvent(postedOpts{envelopeID: "ENV-REPLY", roomID: "R1", actorID: "U2", body: "reply", inThread: "ENV-ROOT", at: 2}),
+	})
+
+	visibleLast, ok := p.LastVisibleRoomEntry("R1", func(e *corev1.Event) bool {
+		return e.GetMessagePosted() != nil
+	})
+	if !ok || visibleLast.Event.GetId() != "ENV-ROOT" {
+		t.Fatalf("LastVisibleRoomEntry message = %v, want root because replies are folded out", eventIDOrEmpty(visibleLast))
+	}
+	lastMessage, ok := p.LastRoomMessageEntry("R1")
+	if !ok || lastMessage.Event.GetId() != "ENV-REPLY" {
+		t.Fatalf("LastRoomMessageEntry = %v, want thread reply", eventIDOrEmpty(lastMessage))
+	}
+}
+
+func TestRoomTimeline_LastRoomMessageEntrySkipsHiddenEchoes(t *testing.T) {
+	p := NewRoomTimelineProjection()
+	applyAll(t, p, []*corev1.Event{
+		postedEvent(postedOpts{envelopeID: "ENV-ROOT", roomID: "R1", actorID: "U1", body: "root", at: 1}),
+		postedEvent(postedOpts{envelopeID: "ENV-REPLY", roomID: "R1", actorID: "U2", body: "reply", inThread: "ENV-ROOT", at: 2}),
+		postedEvent(postedOpts{envelopeID: "ENV-ECHO", roomID: "R1", actorID: "U2", body: "echo", echoOfEventID: "ENV-REPLY", echoFromThreadRootEventID: "ENV-ROOT", at: 3}),
+	})
+
+	lastMessage, ok := p.LastRoomMessageEntry("R1")
+	if !ok || lastMessage.Event.GetId() != "ENV-ECHO" {
+		t.Fatalf("LastRoomMessageEntry before hiding echo = %v, want echo", eventIDOrEmpty(lastMessage))
+	}
+
+	if err := p.Apply(retractedEvent("ENV-RETRACT-ECHO", "ENV-ECHO", "R1", "U2", "", 4), 4); err != nil {
+		t.Fatalf("Apply retract echo: %v", err)
+	}
+	lastMessage, ok = p.LastRoomMessageEntry("R1")
+	if !ok || lastMessage.Event.GetId() != "ENV-REPLY" {
+		t.Fatalf("LastRoomMessageEntry after hiding echo = %v, want original reply", eventIDOrEmpty(lastMessage))
 	}
 }
 
@@ -492,8 +583,8 @@ func TestRoomTimeline_DerivedVisibleTimelineSkipsFoldedEntries(t *testing.T) {
 		joinedEvent("ENV-JOIN-U2", "R1", "U2", 6),
 	})
 
-	if got := p.RoomEventCount("R1"); got != 6 {
-		t.Fatalf("raw RoomEventCount = %d, want 6", got)
+	if got := p.RoomEventCount("R1"); got != 2 {
+		t.Fatalf("RoomEventCount = %d, want 2 visible entries", got)
 	}
 	if got := p.VisibleRoomEventCount("R1"); got != 2 {
 		t.Fatalf("VisibleRoomEventCount = %d, want 2", got)
@@ -514,8 +605,8 @@ func TestRoomTimeline_CallLifecycleVisibility(t *testing.T) {
 		callEndedTimelineEvent("ENV-CALL-ENDED", "R1", "U1", "CALL1", 5),
 	})
 
-	if got := p.RoomEventCount("R1"); got != 5 {
-		t.Fatalf("raw RoomEventCount = %d, want 5", got)
+	if got := p.RoomEventCount("R1"); got != 1 {
+		t.Fatalf("RoomEventCount = %d, want 1 visible entry", got)
 	}
 	if got := p.VisibleRoomEventCount("R1"); got != 1 {
 		t.Fatalf("VisibleRoomEventCount = %d, want 1", got)
@@ -609,7 +700,8 @@ func TestRoomTimeline_AdminProjectionEstimateCoversDerivedIndexes(t *testing.T) 
 		t.Fatalf("adminProjectionEstimate entries=%d bytes=%d, want non-zero", entries, bytes)
 	}
 	for _, name := range []string{
-		"visible_timeline_index",
+		"event_id_retained_entries",
+		"message_posts_by_room_index",
 		"applied_event_ids",
 		"body_event_seqs",
 		"asset_creations",
@@ -627,6 +719,14 @@ func TestRoomTimeline_AdminProjectionEstimateCoversDerivedIndexes(t *testing.T) 
 		if metric.Bytes == 0 {
 			t.Fatalf("metric %q bytes = 0, want non-zero", name)
 		}
+	}
+	retainedEntries := projectionMetricByName(metrics, "event_id_retained_entries")
+	if retainedEntries.Value != 1 {
+		t.Fatalf("event_id_retained_entries value = %d, want 1 thread reply retained only by event ID", retainedEntries.Value)
+	}
+	messagePostIndex := projectionMetricByName(metrics, "message_posts_by_room_index")
+	if messagePostIndex.Value != 3 {
+		t.Fatalf("message_posts_by_room_index value = %d, want 3 indexed message posts", messagePostIndex.Value)
 	}
 }
 

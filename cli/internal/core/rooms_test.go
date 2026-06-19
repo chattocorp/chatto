@@ -4,6 +4,7 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"time"
 
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -742,6 +743,69 @@ func TestChattoCore_ListMemberRooms(t *testing.T) {
 	}
 	if len(activeRooms) != 1 || activeRooms[0].Id != room2.Id {
 		t.Fatalf("Expected only room2 after RequireLastMessage, got %#v", activeRooms)
+	}
+}
+
+func TestChattoCore_ListMemberRoomsSortsByThreadReplyRecency(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "actor1", "thread-recency-user", "Thread Recency", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	roomWithReply, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "thread-recency-older-root", "Older root")
+	if err != nil {
+		t.Fatalf("CreateRoom roomWithReply: %v", err)
+	}
+	roomWithNewerRoot, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "thread-recency-newer-root", "Newer root")
+	if err != nil {
+		t.Fatalf("CreateRoom roomWithNewerRoot: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, roomWithReply.Id); err != nil {
+		t.Fatalf("JoinRoom roomWithReply: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, roomWithNewerRoot.Id); err != nil {
+		t.Fatalf("JoinRoom roomWithNewerRoot: %v", err)
+	}
+
+	root, err := core.PostMessage(ctx, KindChannel, roomWithReply.Id, user.Id, "older root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage root: %v", err)
+	}
+	time.Sleep(time.Millisecond)
+	if _, err := core.PostMessage(ctx, KindChannel, roomWithNewerRoot.Id, user.Id, "newer root", nil, "", "", nil, false); err != nil {
+		t.Fatalf("PostMessage newer root: %v", err)
+	}
+	time.Sleep(time.Millisecond)
+	if _, err := core.PostMessage(ctx, KindChannel, roomWithReply.Id, user.Id, "fresh reply", nil, root.Id, "", nil, false); err != nil {
+		t.Fatalf("PostMessage reply: %v", err)
+	}
+
+	replyRoomLast, err := core.GetRoomLastMessageAt(ctx, KindChannel, roomWithReply.Id)
+	if err != nil {
+		t.Fatalf("GetRoomLastMessageAt roomWithReply: %v", err)
+	}
+	rootRoomLast, err := core.GetRoomLastMessageAt(ctx, KindChannel, roomWithNewerRoot.Id)
+	if err != nil {
+		t.Fatalf("GetRoomLastMessageAt roomWithNewerRoot: %v", err)
+	}
+	if !replyRoomLast.After(rootRoomLast) {
+		t.Fatalf("roomWithReply last message = %s, want after newer-root room %s", replyRoomLast, rootRoomLast)
+	}
+
+	rooms, err := core.ListMemberRooms(ctx, KindChannel, user.Id, MemberRoomListOptions{
+		RequireLastMessage:    true,
+		SortByLastMessageDesc: true,
+	})
+	if err != nil {
+		t.Fatalf("ListMemberRooms: %v", err)
+	}
+	if len(rooms) != 2 {
+		t.Fatalf("ListMemberRooms len = %d, want 2", len(rooms))
+	}
+	if rooms[0].Id != roomWithReply.Id {
+		t.Fatalf("first sorted room = %s, want room with fresh thread reply %s", rooms[0].Id, roomWithReply.Id)
 	}
 }
 

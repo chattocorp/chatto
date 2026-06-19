@@ -43,9 +43,9 @@ type RoomEventsAroundResult struct {
 // with stream sequence strictly less than `*beforeSeq` are returned.
 //
 // Reads from the in-memory RoomTimelineProjection (ADR-033 / #597). The
-// projection holds every event under the room aggregate; this method
-// filters thread replies out of the channel view (thread replies are
-// served via GetThreadEvents).
+// projection stores the room-visible event log; folded facts such as thread
+// replies, edits, retractions, reactions, and asset processing are handled by
+// sibling projections or derived indexes.
 //
 // Authorization: caller must verify room membership before calling.
 // The `kind` parameter is retained on the signature for API stability
@@ -60,7 +60,7 @@ func (c *ChattoCore) GetRoomEvents(ctx context.Context, kind RoomKind, room_id s
 		before = *beforeSeq
 	}
 
-	// Bounded newest-first walk via the derived visible-room timeline. Fetch
+	// Bounded newest-first walk via the visible-room timeline. Fetch
 	// limit+1 to detect HasOlder without a second call.
 	raw := c.rooms().visibleRoomTimeline(room_id, limit+1, before, nil)
 	hasOlder := len(raw) > limit
@@ -91,9 +91,8 @@ func (c *ChattoCore) GetRoomEvents(ctx context.Context, kind RoomKind, room_id s
 }
 
 // GetRoomEventByEventID returns a room event by its envelope id, or
-// nil if not found. Supports root messages, thread replies, and
-// lifecycle/meta events alike — all live in the same RoomTimeline
-// projection.
+// nil if not found. Supports posted messages, including thread replies and
+// channel echoes, plus visible lifecycle/meta events.
 //
 // Authorization: caller must verify room membership before calling.
 func (c *ChattoCore) GetRoomEventByEventID(ctx context.Context, kind RoomKind, roomID, eventID string) (*corev1.Event, error) {

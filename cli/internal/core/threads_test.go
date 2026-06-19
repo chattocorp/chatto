@@ -60,16 +60,15 @@ func TestChattoCore_PostMessage_Threading(t *testing.T) {
 		if created == nil {
 			t.Fatalf("expected ThreadCreatedEvent for root %s", root.Id)
 		}
-		createdEntry, ok := core.RoomTimeline.Get(created.Id)
-		if !ok {
-			t.Fatalf("ThreadCreatedEvent %s was not projected", created.Id)
+		if _, ok := core.RoomTimeline.Get(created.Id); ok {
+			t.Fatalf("ThreadCreatedEvent %s should not be retained in room timeline lookup", created.Id)
 		}
 		replyEntry, ok := core.RoomTimeline.Get(reply.Id)
 		if !ok {
 			t.Fatalf("reply %s was not projected", reply.Id)
 		}
-		if createdEntry.StreamSeq >= replyEntry.StreamSeq {
-			t.Fatalf("ThreadCreatedEvent seq %d should come before first reply seq %d", createdEntry.StreamSeq, replyEntry.StreamSeq)
+		if replyEntry.Event.GetMessagePosted().GetInThread() != root.Id {
+			t.Fatalf("reply in_thread = %q, want %q", replyEntry.Event.GetMessagePosted().GetInThread(), root.Id)
 		}
 		if !core.Threads.ThreadExists(root.Id) {
 			t.Fatalf("thread projection does not know root %s exists", root.Id)

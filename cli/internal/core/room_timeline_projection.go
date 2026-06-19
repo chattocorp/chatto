@@ -6,28 +6,19 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// RoomTimelineProjection holds an append-only event log per room.
+// RoomTimelineProjection holds the visible append-only event log per room.
 //
-// It consumes the full evt.room.> firehose — every event under any
-// room aggregate (room lifecycle, memberships, messages, edits,
-// retracts) lands in the owning room's slice in stream order. This
-// is the v1 shape for the messages migration (issue #597): dead
-// simple, no fold logic, no in-place mutation. Resolvers walk the
-// slice and decide how to render — fold edits onto their original
-// post, mark retracted entries, merge meta + message events, filter
-// thread replies out of the channel view, etc.
-//
-// We will iterate on this significantly (RAM-bounded windows,
-// derived caches for current-state lookups, etc.) once the read
-// patterns are observed against real data. For now: one slice per
-// room, full *corev1.Event protos preserved, every event indexed by
-// envelope id for direct lookup.
+// It consumes the full evt.room.> firehose, but only room-visible events land
+// in the owning room's timeline slice. Folded state such as edits, retractions,
+// thread replies, reactions, and asset-processing events is maintained through
+// focused derived indexes or sibling projections rather than bloating the room
+// timeline readers walk on every page load.
 type RoomTimelineProjection struct {
 	events.MemoryProjection
-	byRoom          map[string][]*TimelineEntry
-	visibleByRoom   map[string][]*TimelineEntry
-	byEventID       map[string]*TimelineEntry
-	appliedEventIDs eventIDSet
+	byRoom             map[string][]*TimelineEntry
+	byEventID          map[string]*TimelineEntry
+	messagePostsByRoom map[string][]*TimelineEntry
+	appliedEventIDs    eventIDSet
 	// latestBody is the derived current-body index. Updated as
 	// MessageEdited / MessageRetracted entries are applied so that
 	// LatestBody resolves in O(1) instead of an O(room size) walk
@@ -80,8 +71,8 @@ type projectedRoomAttachmentMessage struct {
 func NewRoomTimelineProjection() *RoomTimelineProjection {
 	return &RoomTimelineProjection{
 		byRoom:                     make(map[string][]*TimelineEntry),
-		visibleByRoom:              make(map[string][]*TimelineEntry),
 		byEventID:                  make(map[string]*TimelineEntry),
+		messagePostsByRoom:         make(map[string][]*TimelineEntry),
 		appliedEventIDs:            newEventIDSet(),
 		latestBody:                 make(map[string]*corev1.MessageBody),
 		bodyEventSeqs:              make(map[string][]uint64),
@@ -103,12 +94,11 @@ func (p *RoomTimelineProjection) Subjects() []string {
 	return []string{events.RoomSubjectFilter(), events.UserEventTypeFilter(events.EventUserKeyShredded)}
 }
 
-// Apply implements events.Projection. Extracts the room_id from
-// whichever room-scoped event variant we recognise and appends an
-// entry to that room's slice. Events that don't carry a room_id
-// (shouldn't appear on evt.room.>, but defensive) are silently
-// skipped — projections forward-compat by ignoring what they don't
-// understand.
+// Apply implements events.Projection. Extracts the room_id from whichever
+// room-scoped event variant we recognise and appends visible entries to that
+// room's slice. Events that don't carry a room_id (shouldn't appear on
+// evt.room.>, but defensive) are silently skipped — projections forward-compat
+// by ignoring what they don't understand.
 func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 	if event == nil {
 		return nil
@@ -162,12 +152,16 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 	}
 
 	entry := &TimelineEntry{StreamSeq: seq, Event: event}
-	p.byRoom[roomID] = append(p.byRoom[roomID], entry)
-	if isVisibleRoomTimelineEntry(event) {
-		p.visibleByRoom[roomID] = append(p.visibleByRoom[roomID], entry)
+	if shouldIndexRoomTimelineEvent(event) {
+		if eid := event.GetId(); eid != "" {
+			p.byEventID[eid] = entry
+		}
 	}
-	if eid := event.GetId(); eid != "" {
-		p.byEventID[eid] = entry
+	if event.GetMessagePosted() != nil {
+		p.messagePostsByRoom[roomID] = append(p.messagePostsByRoom[roomID], entry)
+	}
+	if isVisibleRoomTimelineEntry(event) {
+		p.byRoom[roomID] = append(p.byRoom[roomID], entry)
 	}
 
 	// Maintain the latest-body / retracted-flag derived index so
@@ -247,9 +241,8 @@ func (p *RoomTimelineProjection) roomIDOfEventLocked(event *corev1.Event) string
 // newest"). Returns a fresh slice; entries and event payloads are immutable
 // and must be treated as read-only by callers.
 //
-// Entries are the raw timeline — no filtering of meta vs message vs
-// thread reply, no fold of edits, no tombstone hiding. Resolvers
-// pick what to surface.
+// Entries are the room-visible timeline; folded state such as edits, reactions,
+// thread replies, asset processing, and directly hidden echoes is excluded.
 func (p *RoomTimelineProjection) RoomEvents(roomID string, limit int, beforeStreamSeq uint64) []*TimelineEntry {
 	if limit <= 0 {
 		return nil
@@ -271,23 +264,20 @@ func (p *RoomTimelineProjection) RoomEvents(roomID string, limit int, beforeStre
 	return out
 }
 
-// RoomEventCount returns the total number of timeline entries in the
-// room. Used by the future resolver's small-room fast-path
-// equivalent.
+// RoomEventCount returns the total number of non-hidden visible timeline
+// entries in the room.
 func (p *RoomTimelineProjection) RoomEventCount(roomID string) int {
-	p.RLock()
-	defer p.RUnlock()
-	return len(p.byRoom[roomID])
+	return p.VisibleRoomEventCount(roomID)
 }
 
 // VisibleRoomEventCount returns the total number of room-visible timeline
-// entries in the room. Hidden echoes may still be present in the derived slice
-// and are excluded by the visible timeline readers.
+// entries in the room. Hidden echoes may still be present in the room slice and
+// are excluded by the visible timeline readers.
 func (p *RoomTimelineProjection) VisibleRoomEventCount(roomID string) int {
 	p.RLock()
 	defer p.RUnlock()
 	n := 0
-	for _, entry := range p.visibleByRoom[roomID] {
+	for _, entry := range p.byRoom[roomID] {
 		if p.isHiddenEchoEntryLocked(entry) {
 			continue
 		}
@@ -303,13 +293,23 @@ func (p *RoomTimelineProjection) Stats() (rooms int, entries int, messagePosts i
 	rooms = len(p.byRoom)
 	for _, roomEntries := range p.byRoom {
 		entries += len(roomEntries)
-		for _, entry := range roomEntries {
-			if entry != nil && entry.Event.GetMessagePosted() != nil {
-				messagePosts++
-			}
-		}
+	}
+	for _, roomEntries := range p.messagePostsByRoom {
+		messagePosts += len(roomEntries)
 	}
 	return rooms, entries, messagePosts
+}
+
+func shouldIndexRoomTimelineEvent(event *corev1.Event) bool {
+	if event == nil {
+		return false
+	}
+	switch event.GetEvent().(type) {
+	case *corev1.Event_MessagePosted:
+		return true
+	default:
+		return isVisibleRoomTimelineEntry(event)
+	}
 }
 
 // Get returns a single timeline entry by its envelope id, or
@@ -319,6 +319,22 @@ func (p *RoomTimelineProjection) Get(eventID string) (*TimelineEntry, bool) {
 	defer p.RUnlock()
 	e, ok := p.byEventID[eventID]
 	return e, ok
+}
+
+// LastRoomMessageEntry returns the newest non-hidden MessagePostedEvent in a
+// room, including thread replies that are intentionally absent from byRoom.
+func (p *RoomTimelineProjection) LastRoomMessageEntry(roomID string) (*TimelineEntry, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	entries := p.messagePostsByRoom[roomID]
+	for i := len(entries) - 1; i >= 0; i-- {
+		e := entries[i]
+		if p.isHiddenEchoEntryLocked(e) {
+			continue
+		}
+		return e, true
+	}
+	return nil, false
 }
 
 // LatestBody returns the current MessageBodyEvent body for a message, or nil +
@@ -765,16 +781,14 @@ func (p *RoomTimelineProjection) LastVisibleRoomEntry(
 	return nil, false
 }
 
-// VisibleRoomTimeline walks the room's timeline newest-first,
-// applying `visible` as a per-entry filter, and returns up to
-// `limit` matching entries. `beforeStreamSeq > 0` excludes entries
-// with stream seq >= that value (exclusive upper bound for
-// pagination).
+// VisibleRoomTimeline walks the room's visible timeline newest-first, applying
+// `visible` as an optional per-entry filter, and returns up to `limit` matching
+// entries. `beforeStreamSeq > 0` excludes entries with stream seq >= that value
+// (exclusive upper bound for pagination).
 //
-// Stops as soon as `limit` visible entries are accumulated — no
-// full-slice materialisation. Caller may inspect more than `limit`
-// raw entries when the visibility filter rejects some of them
-// (e.g. when filtering thread replies out of a channel timeline).
+// Stops as soon as `limit` visible entries are accumulated — no full-slice
+// materialisation. Caller may inspect more than `limit` entries when a custom
+// visibility filter rejects some of them.
 //
 // Returns entries in newest-first order. Caller reverses to
 // oldest-first if needed.
@@ -790,9 +804,6 @@ func (p *RoomTimelineProjection) VisibleRoomTimeline(
 	p.RLock()
 	defer p.RUnlock()
 	entries := p.byRoom[roomID]
-	if visible == nil {
-		entries = p.visibleByRoom[roomID]
-	}
 	out := make([]*TimelineEntry, 0, limit)
 	for i := len(entries) - 1; i >= 0 && len(out) < limit; i-- {
 		e := entries[i]
@@ -826,9 +837,6 @@ func (p *RoomTimelineProjection) VisibleRoomTimelineAfter(
 	p.RLock()
 	defer p.RUnlock()
 	entries := p.byRoom[roomID]
-	if visible == nil {
-		entries = p.visibleByRoom[roomID]
-	}
 	out := make([]*TimelineEntry, 0, limit)
 	for _, e := range entries {
 		if e.StreamSeq <= afterStreamSeq {
@@ -849,9 +857,9 @@ func (p *RoomTimelineProjection) VisibleRoomTimelineAfter(
 }
 
 // VisibleRoomTimelineAround returns a room-visible window centered on eventID
-// in oldest-first order. It walks the derived visible-room slice instead of the
-// raw room log, so edits/reactions/assets/thread replies are not revisited when
-// serving "jump to message" style reads.
+// in oldest-first order. It walks the visible room slice, so edits/reactions/
+// assets/thread replies are not revisited when serving "jump to message" style
+// reads.
 func (p *RoomTimelineProjection) VisibleRoomTimelineAround(
 	roomID string,
 	eventID string,
@@ -862,7 +870,7 @@ func (p *RoomTimelineProjection) VisibleRoomTimelineAround(
 	}
 	p.RLock()
 	defer p.RUnlock()
-	roomEntries := p.visibleByRoom[roomID]
+	roomEntries := p.byRoom[roomID]
 	targetVisibleIndex := -1
 	visibleCount := 0
 	for _, entry := range roomEntries {

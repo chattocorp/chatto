@@ -172,6 +172,47 @@ func TestChattoCore_GetRoomEventsUsesDerivedVisibleTimelineWithNoise(t *testing.
 	}
 }
 
+func TestChattoCore_GetRoomEventByEventIDExposesOnlyVisibleAndMessagePostLookups(t *testing.T) {
+	core := testCoreWithRoomTimelineEvents(t, []*corev1.Event{
+		roomCreatedTimelineEvent("CREATE", "R1", "general", 1),
+		postedEvent(postedOpts{envelopeID: "ROOT", roomID: "R1", actorID: "U1", body: "root", at: 2}),
+		threadCreatedEvent("THREAD-CREATED", "R1", "ROOT", "U1", 3),
+		postedEvent(postedOpts{envelopeID: "REPLY", roomID: "R1", actorID: "U2", body: "reply", inThread: "ROOT", at: 4}),
+		postedEvent(postedOpts{envelopeID: "ECHO", roomID: "R1", actorID: "U2", body: "echo", echoOfEventID: "REPLY", echoFromThreadRootEventID: "ROOT", at: 5}),
+		editedEvent("EDIT-ROOT", "ROOT", "R1", "U1", "root edited", 6),
+		retractedEvent("HIDE-ECHO", "ECHO", "R1", "U2", "", 7),
+		reactionAddedEvent("REACT-ROOT", "R1", "ROOT", "U2", "thumbsup"),
+	})
+
+	for _, eventID := range []string{"CREATE", "ROOT", "REPLY"} {
+		event, err := core.GetRoomEventByEventID(context.Background(), KindChannel, "R1", eventID)
+		if err != nil {
+			t.Fatalf("GetRoomEventByEventID(%s): %v", eventID, err)
+		}
+		if event == nil || event.GetId() != eventID {
+			t.Fatalf("GetRoomEventByEventID(%s) = %v, want event", eventID, event)
+		}
+	}
+
+	for _, eventID := range []string{"THREAD-CREATED", "EDIT-ROOT", "HIDE-ECHO", "REACT-ROOT", "ECHO"} {
+		event, err := core.GetRoomEventByEventID(context.Background(), KindChannel, "R1", eventID)
+		if err != nil {
+			t.Fatalf("GetRoomEventByEventID(%s): %v", eventID, err)
+		}
+		if event != nil {
+			t.Fatalf("GetRoomEventByEventID(%s) returned folded/hidden event %T", eventID, event.GetEvent())
+		}
+	}
+
+	event, err := core.GetRoomEventByEventID(context.Background(), KindChannel, "R2", "ROOT")
+	if err != nil {
+		t.Fatalf("GetRoomEventByEventID wrong room: %v", err)
+	}
+	if event != nil {
+		t.Fatalf("GetRoomEventByEventID wrong room returned event %s", event.GetId())
+	}
+}
+
 func TestChattoCore_GetRoomEventsAfterUsesDerivedVisibleTimelineWithNoise(t *testing.T) {
 	core := testCoreWithRoomTimelineEvents(t, []*corev1.Event{
 		postedEvent(postedOpts{envelopeID: "M1", roomID: "R1", actorID: "U1", body: "1", at: 1}),

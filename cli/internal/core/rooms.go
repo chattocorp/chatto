@@ -31,11 +31,11 @@ func (c *ChattoCore) getRoomLastRootEvent(roomID string) *corev1.Event {
 }
 
 // getRoomLastMessageEvent returns the most recent MessagePostedEvent
-// of any kind (root or thread reply) in a room, or nil.
+// of any kind (root or thread reply) in a room, or nil. It uses the
+// projection's message-post index because thread replies are not part of the
+// visible room timeline.
 func (c *ChattoCore) getRoomLastMessageEvent(roomID string) *corev1.Event {
-	entry, ok := c.rooms().lastVisibleRoomEntry(roomID, func(e *corev1.Event) bool {
-		return e.GetMessagePosted() != nil
-	})
+	entry, ok := c.rooms().lastRoomMessageEntry(roomID)
 	if !ok {
 		return nil
 	}

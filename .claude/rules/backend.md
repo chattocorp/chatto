@@ -57,13 +57,13 @@ relevant subject/filter; do not sidestep the domain model by adding another
 
 `GetRoomEvents`, `GetRoomEventsAfter`, and `GetRoomEventsAround` read from
 the in-memory `RoomTimelineProjection`, not directly from JetStream consumers.
-The projection keeps both the raw per-room log and a derived visible-room index
-used by the room timeline APIs.
+The projection keeps the visible per-room timeline plus derived indexes for
+folded message state and related lookups.
 
-- **Initial room load**: Walks the visible-room index newest-first, fetches `limit+1` visible entries to compute `HasOlder`, then reverses to the API's chronological oldest-first contract.
-- **Backward pagination**: Uses the opaque stream-sequence cursor as an exclusive upper bound against the visible-room index.
-- **Forward pagination**: Walks the same visible-room index oldest-first from the cursor and fetches `limit+1` entries to compute `HasNewer`.
-- **Jump-to-message reads**: `GetRoomEventsAround` uses the visible-room index to center a window on the target event, so folded noise such as thread replies, edits, reactions, asset processing events, and directly hidden echoes does not distort the visible target index.
+- **Initial room load**: Walks the visible-room timeline newest-first, fetches `limit+1` entries to compute `HasOlder`, then reverses to the API's chronological oldest-first contract.
+- **Backward pagination**: Uses the opaque stream-sequence cursor as an exclusive upper bound against the visible-room timeline.
+- **Forward pagination**: Walks the same visible-room timeline oldest-first from the cursor and fetches `limit+1` entries to compute `HasNewer`.
+- **Jump-to-message reads**: `GetRoomEventsAround` uses the visible-room timeline to center a window on the target event, so folded noise such as thread replies, edits, reactions, asset processing events, and directly hidden echoes does not distort the visible target index.
 
 **Important**: `room_last_msg_at` in the RUNTIME bucket only tracks MESSAGE timestamps, not join/leave events. This is intentional for sorting by "recent activity" (conversations with recent messages). Don't rely on this field to determine when the most recent _event_ occurred.
 
