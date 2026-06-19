@@ -199,6 +199,7 @@
 
     if (eventId && originalBody && editSeededForEvent !== eventId) {
       editSeededForEvent = eventId;
+      autocomplete.reset();
       draftState.clearText();
       message = originalBody;
       manualRichMode = false;
@@ -209,6 +210,7 @@
       linkPreviews.clear();
     } else if (editSeededForEvent && !eventId) {
       // Exiting edit mode - clear the input
+      autocomplete.reset();
       message = '';
       manualRichMode = false;
       alsoSendToChannel = false;
@@ -540,6 +542,7 @@
   }
 
   function restorePreparedPost(post: PreparedPost) {
+    autocomplete.reset();
     message = post.bodyToSend;
     manualRichMode = post.wasRichComposer;
     editorApi?.setContent(post.bodyToSend);
@@ -631,6 +634,7 @@
 
     // Optimistically clear the editor so the user can start typing the next
     // message immediately (matches Slack/Discord behavior).
+    autocomplete.reset();
     message = '';
     manualRichMode = false;
     editorApi?.setContent('');
@@ -686,6 +690,7 @@
     if (response.error) {
       toast.error(response.error.message || 'Failed to edit message');
     } else {
+      autocomplete.reset();
       message = '';
       editorApi?.setContent('');
       editState.cancelEdit();
@@ -706,6 +711,7 @@
   }
 
   function cancelEdit() {
+    autocomplete.reset();
     editState.cancelEdit();
     message = '';
     manualRichMode = false;

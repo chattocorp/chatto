@@ -40,10 +40,14 @@ export class AutocompleteState {
     private readonly getRoles: () => MentionRole[] = () => []
   ) {}
 
-  resetForRoom(): void {
+  reset(): void {
     this.emoji = null;
     this.mention = null;
     this.tabCompletion = null;
+  }
+
+  resetForRoom(): void {
+    this.reset();
   }
 
   update(): void {

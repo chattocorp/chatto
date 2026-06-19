@@ -1061,6 +1061,59 @@ describe('MessageComposer', () => {
       expect(mutationMock).not.toHaveBeenCalled();
     });
 
+    it('closes mention autocomplete when cancelling an edit', async () => {
+      roomStateMock.members = [roomMember('golden_fox07')];
+      roomStateMock.editState.eventId = 'evt_edit';
+      roomStateMock.editState.originalBody = 'original body';
+      const { container } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+
+      await typeEditorLiteralText(editor, '@gold');
+      await vi.waitFor(() =>
+        expect(container.querySelector('[data-testid="mention-autocomplete"]')).toBeTruthy()
+      );
+
+      const cancelButton = Array.from(container.querySelectorAll('button')).find(
+        (button) => button.textContent?.trim() === 'Cancel'
+      ) as HTMLButtonElement | undefined;
+      expect(cancelButton).toBeTruthy();
+      cancelButton!.click();
+
+      expect(roomStateMock.editState.cancelEdit).toHaveBeenCalledOnce();
+      await vi.waitFor(() =>
+        expect(container.querySelector('[data-testid="mention-autocomplete"]')).toBeNull()
+      );
+    });
+
+    it('closes mention autocomplete after saving an edit', async () => {
+      roomStateMock.members = [roomMember('golden_fox07')];
+      roomStateMock.editState.eventId = 'evt_edit';
+      roomStateMock.editState.originalBody = 'original body';
+      const { container } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+
+      await typeEditorLiteralText(editor, '@gold');
+      await vi.waitFor(() =>
+        expect(container.querySelector('[data-testid="mention-autocomplete"]')).toBeTruthy()
+      );
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        eventId: 'evt_edit',
+        body: '@gold'
+      });
+      await vi.waitFor(() =>
+        expect(container.querySelector('[data-testid="mention-autocomplete"]')).toBeNull()
+      );
+    });
+
     it('keeps edit mode on rich keyboard behavior', async () => {
       roomStateMock.editState.eventId = 'evt_edit';
       roomStateMock.editState.originalBody = 'original body';
