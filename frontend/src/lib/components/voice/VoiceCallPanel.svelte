@@ -7,7 +7,7 @@ Room sidebar panel for voice/video calls.
 - **Observer mode**: Call is active but user hasn't joined. Shows participants
   from server state and a Join button.
 - **Participant mode**: User is connected to LiveKit. Shows live audio levels,
-  mute toggle, audio device selector, and hang-up button.
+  mute toggle, camera/screen-share controls, audio device selector, and hang-up button.
 
 **Props:**
 - `roomId` - The room ID
@@ -31,6 +31,7 @@ Room sidebar panel for voice/video calls.
   import AudioDeviceMenu from './AudioDeviceMenu.svelte';
   import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
   import type { Track } from 'livekit-client';
+  import type { Attachment } from 'svelte/attachments';
   import { startDMWith } from '$lib/dm/startDM';
   import { toast } from '$lib/ui/toast';
 
@@ -186,6 +187,51 @@ Room sidebar panel for voice/video calls.
     return participant.displayName;
   }
 
+  const speakingCards: Array<{ identity: string; node: HTMLElement }> = [];
+  let speakingIndicatorInterval: ReturnType<typeof setInterval> | null = null;
+
+  function updateSpeakingIndicators() {
+    for (const { identity, node } of speakingCards) {
+      const indicator = node.querySelector<HTMLElement>('[data-speaking-indicator]');
+      if (!indicator) continue;
+
+      const { isSpeaking, audioLevel } = voiceCallState.getAudioLevel(identity);
+      const opacity = audioLevel > 0.01 ? 0.35 + Math.pow(audioLevel, 0.35) * 0.65 : 0;
+      const visible = isSpeaking || opacity > 0;
+
+      indicator.style.opacity = visible ? String(opacity || 0.85) : '0';
+      indicator.setAttribute('aria-hidden', visible ? 'false' : 'true');
+    }
+  }
+
+  function startSpeakingIndicatorLoop() {
+    if (speakingIndicatorInterval) return;
+
+    speakingIndicatorInterval = setInterval(updateSpeakingIndicators, 60);
+  }
+
+  function stopSpeakingIndicatorLoopIfIdle() {
+    if (speakingCards.length > 0 || !speakingIndicatorInterval) return;
+
+    clearInterval(speakingIndicatorInterval);
+    speakingIndicatorInterval = null;
+  }
+
+  function speakingCard(identity: string): Attachment<HTMLElement> {
+    return (node) => {
+      const entry = { identity, node };
+      speakingCards.push(entry);
+      updateSpeakingIndicators();
+      startSpeakingIndicatorLoop();
+
+      return () => {
+        const index = speakingCards.indexOf(entry);
+        if (index !== -1) speakingCards.splice(index, 1);
+        stopSpeakingIndicatorLoopIfIdle();
+      };
+    };
+  }
+
   // DM start capability
   const serverPerms = getServerPermissions();
   const canStartDMs = $derived(serverPerms.current.canStartDMs);
@@ -233,6 +279,7 @@ Room sidebar panel for voice/video calls.
         'participant-card flex w-full cursor-pointer flex-col overflow-hidden rounded-md border border-border bg-surface-100 text-left text-text transition-colors hover:bg-surface-200',
         mode === 'video' ? 'participant-card-video' : 'participant-card-compact'
       ]}
+      {@attach speakingCard(participant.key)}
       title={participantTitle(participant)}
       data-testid="call-participant-card"
       onclick={(e) => showUserMenu(participant, e)}
@@ -244,6 +291,13 @@ Room sidebar panel for voice/video calls.
           {#if participant.isMuted}
             <span class="iconify uil--microphone-slash text-danger" aria-label="Muted"></span>
           {/if}
+          <span
+            class="iconify uil--volume-up text-muted opacity-0 transition-opacity"
+            aria-label="Speaking"
+            aria-hidden="true"
+            data-speaking-indicator
+            data-testid="call-speaking-indicator"
+          ></span>
           {#if hasConnectionWarning(participant)}
             <span
               class="iconify uil--exclamation-triangle"

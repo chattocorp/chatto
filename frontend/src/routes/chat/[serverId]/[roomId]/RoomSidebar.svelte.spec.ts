@@ -46,7 +46,7 @@ const callStore = vi.hoisted(() => ({
     toggleCamera: vi.fn().mockResolvedValue(undefined),
     toggleScreenShare: vi.fn().mockResolvedValue(undefined),
     refreshDevices: vi.fn().mockResolvedValue(undefined),
-    getAudioLevel: vi.fn(() => ({ isSpeaking: false, audioLevel: 0 })),
+    getAudioLevel: vi.fn((_identity?: string) => ({ isSpeaking: false, audioLevel: 0 })),
     handleParticipantLeftEvent: vi.fn(),
     handleCallEndedEvent: vi.fn()
   },
@@ -339,6 +339,7 @@ describe('RoomSidebar', () => {
     callStore.voiceCall.toggleScreenShare.mockClear();
     callStore.voiceCall.refreshDevices.mockClear();
     callStore.voiceCall.getAudioLevel.mockClear();
+    callStore.voiceCall.getAudioLevel.mockImplementation(() => ({ isSpeaking: false, audioLevel: 0 }));
     callStore.activeCallRooms.active = false;
     callStore.activeCallRooms.load.mockClear();
     callStore.activeCallRooms.has.mockClear();
@@ -550,6 +551,50 @@ describe('RoomSidebar', () => {
     expect(callStore.voiceCall.toggleCamera).toHaveBeenCalledOnce();
     expect(callStore.voiceCall.toggleScreenShare).toHaveBeenCalledOnce();
     expect(callStore.voiceCall.leave).toHaveBeenCalledOnce();
+  });
+
+  it('shows a neutral speaking indicator for active speakers', async () => {
+    callStore.voiceCall.connected = true;
+    callStore.voiceCall.isInAnyCall = true;
+    callStore.voiceCall.roomId = 'room-1';
+    callStore.voiceCall.getAudioLevel.mockImplementation((identity?: string) => ({
+      isSpeaking: identity === 'viewer',
+      audioLevel: identity === 'viewer' ? 0.5 : 0
+    }));
+    callStore.voiceCall.participants = [
+      {
+        identity: 'viewer',
+        login: 'alice',
+        name: 'Alice',
+        avatarUrl: null,
+        isMuted: false,
+        isLocal: true,
+        connectionQuality: 'excellent',
+        isCameraEnabled: false,
+        videoTrack: null,
+        isScreenShareEnabled: false,
+        screenShareTrack: null
+      }
+    ];
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        roomData: roomData([], 0, false),
+        activePanel: 'call',
+        livekitUrl: 'wss://livekit.example.test'
+      }
+    });
+
+    const card = q(container, '[data-testid="call-participant-card"]') as HTMLElement;
+    const indicator = q(container, '[data-testid="call-speaking-indicator"]') as HTMLElement;
+
+    await vi.waitFor(() => {
+      expect(callStore.voiceCall.getAudioLevel).toHaveBeenCalledWith('viewer');
+      expect(indicator.getAttribute('aria-hidden')).toBe('false');
+      expect(Number(indicator.style.opacity)).toBeGreaterThan(0);
+    });
+    expect(indicator.className).toContain('text-muted');
+    expect(card.className).not.toContain('voice-ring');
   });
 
   it('renders one participant list without empty section labels', async () => {
