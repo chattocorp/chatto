@@ -21,7 +21,11 @@
   import { toast } from '$lib/ui/toast';
   import { clearLastRoom } from '$lib/storage/lastRoom';
   import { notifyLogout } from '$lib/auth/sessionChannel';
-  import { csrfFetch } from '$lib/auth/csrf';
+  import {
+    hardRedirectAfterSignOut,
+    signOutServer,
+    signOutServers
+  } from '$lib/auth/signOut';
 
   /** Get the GraphQL client for the currently active instance (derived from URL). */
   function getActiveClient() {
@@ -42,6 +46,8 @@
   let deletingMessage = $state(false);
   let deletingLinkPreview = $state(false);
   let deletingAttachment = $state(false);
+  let signingOutCurrent = $state(false);
+  let signingOutAll = $state(false);
 
   // Keep the lightbox ahead of the one-hour access ticket expiry.
   const IMAGE_MODAL_URL_REFRESH_MS = 50 * 60 * 1000;
@@ -107,6 +113,65 @@
       goto(resolve('/'));
     }
     leavingServer = false;
+  }
+
+  function firstRemainingAuthenticatedServerId(excludedId: string): string | undefined {
+    const originId = serverRegistry.originServer?.id;
+    if (originId && originId !== excludedId && serverRegistry.isAuthenticated(originId)) {
+      return originId;
+    }
+
+    return serverRegistry.servers.find(
+      (server) => server.id !== excludedId && serverRegistry.isAuthenticated(server.id)
+    )?.id;
+  }
+
+  function routeToServerOrRoot(serverId: string | undefined) {
+    if (serverId) {
+      goto(resolve('/chat/[serverId]', {
+        serverId: serverIdToSegment(serverId)
+      }));
+      return;
+    }
+
+    goto(resolve('/'));
+  }
+
+  function hardNavigateToServerOrRoot(serverId: string | undefined) {
+    hardRedirectAfterSignOut(
+      serverId ? resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) }) : '/'
+    );
+  }
+
+  async function handleSignOutCurrentServer() {
+    signingOutCurrent = true;
+    const signedOutServerId = activeInstanceId;
+    const server = serverRegistry.getServer(signedOutServerId);
+
+    if (server) {
+      await signOutServer(server, serverRegistry.isOriginServer(signedOutServerId)).catch(() => {});
+    }
+
+    clearLastRoom(signedOutServerId);
+
+    if (serverRegistry.isOriginServer(signedOutServerId)) {
+      serverRegistry.clearServerAuthentication(signedOutServerId);
+      notifyLogout();
+      hardNavigateToServerOrRoot(firstRemainingAuthenticatedServerId(signedOutServerId));
+    } else {
+      serverRegistry.removeServer(signedOutServerId);
+      routeToServerOrRoot(firstRemainingAuthenticatedServerId(signedOutServerId));
+    }
+  }
+
+  async function handleSignOutAllServers() {
+    signingOutAll = true;
+    await signOutServers([...serverRegistry.servers], (serverId) =>
+      serverRegistry.isOriginServer(serverId)
+    );
+    serverRegistry.removeAll();
+    notifyLogout();
+    hardRedirectAfterSignOut('/');
   }
 
   async function handleDeleteMessage(roomId: string, eventId: string) {
@@ -243,29 +308,37 @@
     <CreateRoom onroomcreated={(roomId) => handleRoomCreated(roomId)} />
   </Dialog>
 {:else if modalType === 'logout'}
-  <ConfirmDialog
-    title="Sign Out"
-    tone="info"
-    actionLabel="Sign Out"
-    actionIcon="iconify uil--signout"
-    onconfirm={async () => {
-      const originToken = serverRegistry.originServer?.token;
-      if (serverRegistry.originServer) {
-        await csrfFetch('/auth/logout', {
-          method: 'POST',
-          headers: originToken ? { Authorization: `Bearer ${originToken}` } : undefined
-        }).catch(() => {});
-      }
-      // Clear all registered instances and their state
-      serverRegistry.removeAll();
-      notifyLogout();
-      window.location.href = '/';
-    }}
-    onclose={closeModal}
-  >
-    This will disconnect all instances and sign you out. Your accounts on each instance are not
-    affected.
-  </ConfirmDialog>
+  <Dialog visible title="Sign Out" size="sm" onclose={closeModal}>
+    {#snippet footer()}
+      <div class="flex justify-end gap-2">
+        <Button variant="secondary" onclick={closeModal}>Cancel</Button>
+        <Button
+          variant="accent"
+          loading={signingOutCurrent}
+          loadingText="Signing out..."
+          disabled={signingOutAll}
+          onclick={handleSignOutCurrentServer}
+        >
+          <span class="iconify uil--sign-out-alt"></span>
+          Sign out of current server
+        </Button>
+        <Button
+          variant="danger"
+          loading={signingOutAll}
+          loadingText="Signing out..."
+          disabled={signingOutCurrent}
+          onclick={handleSignOutAllServers}
+        >
+          <span class="iconify uil--signout"></span>
+          Sign out of all servers
+        </Button>
+      </div>
+    {/snippet}
+
+    <p class="text-muted">
+      Sign out of only the selected server, or disconnect every server from this client.
+    </p>
+  </Dialog>
 {:else if modalType === 'joinRoom' && roomId}
   {#if page.state.modal?.viewerCanJoinRoom}
     <ConfirmDialog

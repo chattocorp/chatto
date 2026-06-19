@@ -14,7 +14,19 @@ const { mocks } = vi.hoisted(() => ({
     toastSuccess: vi.fn(),
     toastError: vi.fn(),
     joinRoom: vi.fn(),
-    refreshRooms: vi.fn()
+    refreshRooms: vi.fn(),
+    activeServer: 'origin',
+    servers: [] as Array<{ id: string; url: string; name: string; token: string | null }>,
+    originServer: undefined as { id: string; url: string; name: string; token: string | null } | undefined,
+    authenticated: {} as Record<string, boolean>,
+    signOutServer: vi.fn(),
+    signOutServers: vi.fn(),
+    hardRedirectAfterSignOut: vi.fn(),
+    notifyLogout: vi.fn(),
+    clearLastRoom: vi.fn(),
+    removeServer: vi.fn(),
+    removeAll: vi.fn(),
+    clearServerAuthentication: vi.fn()
   }
 }));
 
@@ -40,11 +52,11 @@ vi.mock('$app/paths', () => ({
 }));
 
 vi.mock('$lib/navigation', () => ({
-  serverIdToSegment: () => '-'
+  serverIdToSegment: (serverId: string) => (serverId === 'origin' ? '-' : `${serverId}.example.test`)
 }));
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
-  getActiveServer: () => 'origin'
+  getActiveServer: () => mocks.activeServer
 }));
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
@@ -57,9 +69,18 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
         refresh: mocks.refreshRooms
       }
     })),
-    removeServer: vi.fn(),
-    removeAll: vi.fn(),
-    originServer: { id: 'origin', token: null }
+    getServer: vi.fn((id: string) => mocks.servers.find((server) => server.id === id)),
+    isOriginServer: vi.fn((id: string) => mocks.originServer?.id === id),
+    isAuthenticated: vi.fn((id: string) => mocks.authenticated[id] === true),
+    clearServerAuthentication: mocks.clearServerAuthentication,
+    removeServer: mocks.removeServer,
+    removeAll: mocks.removeAll,
+    get servers() {
+      return mocks.servers;
+    },
+    get originServer() {
+      return mocks.originServer;
+    }
   }
 }));
 
@@ -83,15 +104,17 @@ vi.mock('$lib/ui/toast', () => ({
 }));
 
 vi.mock('$lib/storage/lastRoom', () => ({
-  clearLastRoom: vi.fn()
+  clearLastRoom: mocks.clearLastRoom
 }));
 
 vi.mock('$lib/auth/sessionChannel', () => ({
-  notifyLogout: vi.fn()
+  notifyLogout: mocks.notifyLogout
 }));
 
-vi.mock('$lib/auth/csrf', () => ({
-  csrfFetch: vi.fn()
+vi.mock('$lib/auth/signOut', () => ({
+  signOutServer: mocks.signOutServer,
+  signOutServers: mocks.signOutServers,
+  hardRedirectAfterSignOut: mocks.hardRedirectAfterSignOut
 }));
 
 vi.mock('$lib/attachments/attachmentUrls', () => ({
@@ -123,6 +146,16 @@ vi.mock('$lib/ui/form', async () => {
 
 import ModalContainer from './ModalContainer.svelte';
 
+function clickButton(container: HTMLElement, label: string): void {
+  const button = [...container.querySelectorAll('button')].find(
+    (candidate) => candidate.textContent?.trim() === label
+  );
+  if (!(button instanceof HTMLButtonElement)) {
+    throw new Error(`Button not found: ${label}`);
+  }
+  button.click();
+}
+
 beforeEach(() => {
   vi.spyOn(window.history, 'back').mockImplementation(() => undefined);
   mocks.modal = {
@@ -133,6 +166,17 @@ beforeEach(() => {
   };
   mocks.joinRoom.mockResolvedValue({ ok: true, room: { id: 'room-1', name: 'general' } });
   mocks.refreshRooms.mockResolvedValue(undefined);
+  mocks.signOutServer.mockResolvedValue(new Response('{}', { status: 200 }));
+  mocks.signOutServers.mockResolvedValue(undefined);
+  mocks.activeServer = 'origin';
+  mocks.originServer = {
+    id: 'origin',
+    url: 'https://origin.example.test',
+    name: 'Origin',
+    token: null
+  };
+  mocks.servers = [mocks.originServer];
+  mocks.authenticated = { origin: true };
   vi.clearAllMocks();
 });
 
@@ -185,5 +229,112 @@ describe('ModalContainer join room modal', () => {
     (q(container, 'button') as HTMLButtonElement).click();
 
     expect(mocks.joinRoom).not.toHaveBeenCalled();
+  });
+});
+
+describe('ModalContainer sign out modal', () => {
+  it('shows current-server and all-server choices', async () => {
+    mocks.modal = { type: 'logout' };
+
+    const { container } = render(ModalContainer);
+
+    await expect.element(q(container, 'dialog')).toHaveTextContent(
+      'Sign out of only the selected server'
+    );
+    expect([...container.querySelectorAll('button')].map((button) => button.textContent?.trim())).toEqual([
+      'Cancel',
+      'Sign out of current server',
+      'Sign out of all servers'
+    ]);
+  });
+
+  it('signs out of only the active remote server', async () => {
+    const remote = {
+      id: 'remote',
+      url: 'https://remote.example.test',
+      name: 'Remote',
+      token: 'remote-token'
+    };
+    mocks.modal = { type: 'logout' };
+    mocks.activeServer = remote.id;
+    mocks.servers = [mocks.originServer!, remote];
+    mocks.authenticated = { origin: true, remote: true };
+
+    const { container } = render(ModalContainer);
+    clickButton(container, 'Sign out of current server');
+
+    await vi.waitFor(() => {
+      expect(mocks.signOutServer).toHaveBeenCalledWith(remote, false);
+      expect(mocks.clearLastRoom).toHaveBeenCalledWith(remote.id);
+      expect(mocks.removeServer).toHaveBeenCalledWith(remote.id);
+      expect(mocks.removeAll).not.toHaveBeenCalled();
+      expect(mocks.notifyLogout).not.toHaveBeenCalled();
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/-');
+    });
+  });
+
+  it('clears origin authentication when signing out of the current origin server', async () => {
+    const remote = {
+      id: 'remote',
+      url: 'https://remote.example.test',
+      name: 'Remote',
+      token: 'remote-token'
+    };
+    mocks.modal = { type: 'logout' };
+    mocks.activeServer = 'origin';
+    mocks.servers = [mocks.originServer!, remote];
+    mocks.authenticated = { origin: true, remote: true };
+
+    const { container } = render(ModalContainer);
+    clickButton(container, 'Sign out of current server');
+
+    await vi.waitFor(() => {
+      expect(mocks.signOutServer).toHaveBeenCalledWith(mocks.originServer, true);
+      expect(mocks.clearServerAuthentication).toHaveBeenCalledWith('origin');
+      expect(mocks.removeServer).not.toHaveBeenCalled();
+      expect(mocks.notifyLogout).toHaveBeenCalledOnce();
+      expect(mocks.hardRedirectAfterSignOut).toHaveBeenCalledWith('/chat/remote.example.test');
+    });
+  });
+
+  it('signs out of all registered servers', async () => {
+    const remote = {
+      id: 'remote',
+      url: 'https://remote.example.test',
+      name: 'Remote',
+      token: 'remote-token'
+    };
+    mocks.modal = { type: 'logout' };
+    mocks.servers = [mocks.originServer!, remote];
+
+    const { container } = render(ModalContainer);
+    clickButton(container, 'Sign out of all servers');
+
+    await vi.waitFor(() => {
+      expect(mocks.signOutServers).toHaveBeenCalledWith(mocks.servers, expect.any(Function));
+      expect(mocks.removeAll).toHaveBeenCalledOnce();
+      expect(mocks.notifyLogout).toHaveBeenCalledOnce();
+      expect(mocks.hardRedirectAfterSignOut).toHaveBeenCalledWith('/');
+      expect(mocks.removeServer).not.toHaveBeenCalled();
+    });
+  });
+
+  it('keeps the all-server escape path when the active server is missing', async () => {
+    mocks.modal = { type: 'logout' };
+    mocks.activeServer = 'missing';
+    mocks.originServer = undefined;
+    mocks.servers = [];
+    mocks.authenticated = {};
+
+    const { container } = render(ModalContainer);
+
+    await expect.element(q(container, 'dialog')).toHaveTextContent('Sign out of all servers');
+    clickButton(container, 'Sign out of all servers');
+
+    await vi.waitFor(() => {
+      expect(mocks.signOutServers).toHaveBeenCalledWith([], expect.any(Function));
+      expect(mocks.removeAll).toHaveBeenCalledOnce();
+      expect(mocks.hardRedirectAfterSignOut).toHaveBeenCalledWith('/');
+    });
   });
 });
