@@ -284,7 +284,7 @@ Room sidebar panel for voice/video calls.
       </div>
 
       {#if showVideo}
-        <div class="border-t border-border p-2">
+        <div class="p-2 pt-0">
           <VideoThumbnail
             track={participant.videoTrack!}
             name={participant.displayName}
@@ -311,7 +311,7 @@ Room sidebar panel for voice/video calls.
       </div>
 
       {#if showVideo}
-        <div class="border-t border-border p-2">
+        <div class="p-2 pt-0">
           <VideoThumbnail
             track={participant.videoTrack!}
             name={participant.displayName}
