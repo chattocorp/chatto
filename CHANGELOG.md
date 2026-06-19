@@ -3,6 +3,13 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.3.7](https://github.com/chattocorp/chatto/compare/v0.3.6...v0.3.7) (2026-06-19)
+
+
+### Bug Fixes
+
+* remove graphql error logging ([#1026](https://github.com/chattocorp/chatto/issues/1026)) ([bb3071c](https://github.com/chattocorp/chatto/commit/bb3071c3eb2acc63fb4e7c1fc655824e9fce0878))
+
 ## [0.3.6](https://github.com/chattocorp/chatto/compare/v0.3.5...v0.3.6) (2026-06-19)
 
 
