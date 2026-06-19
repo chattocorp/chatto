@@ -243,8 +243,8 @@ describe('ModalContainer sign out modal', () => {
     );
     expect([...container.querySelectorAll('button')].map((button) => button.textContent?.trim())).toEqual([
       'Cancel',
-      'Sign out of current server',
-      'Sign out of all servers'
+      'Current Server',
+      'All Servers'
     ]);
   });
 
@@ -261,7 +261,7 @@ describe('ModalContainer sign out modal', () => {
     mocks.authenticated = { origin: true, remote: true };
 
     const { container } = render(ModalContainer);
-    clickButton(container, 'Sign out of current server');
+    clickButton(container, 'Current Server');
 
     await vi.waitFor(() => {
       expect(mocks.signOutServer).toHaveBeenCalledWith(remote, false);
@@ -286,7 +286,7 @@ describe('ModalContainer sign out modal', () => {
     mocks.authenticated = { origin: true, remote: true };
 
     const { container } = render(ModalContainer);
-    clickButton(container, 'Sign out of current server');
+    clickButton(container, 'Current Server');
 
     await vi.waitFor(() => {
       expect(mocks.signOutServer).toHaveBeenCalledWith(mocks.originServer, true);
@@ -308,7 +308,7 @@ describe('ModalContainer sign out modal', () => {
     mocks.servers = [mocks.originServer!, remote];
 
     const { container } = render(ModalContainer);
-    clickButton(container, 'Sign out of all servers');
+    clickButton(container, 'All Servers');
 
     await vi.waitFor(() => {
       expect(mocks.signOutServers).toHaveBeenCalledWith(mocks.servers, expect.any(Function));
@@ -328,8 +328,8 @@ describe('ModalContainer sign out modal', () => {
 
     const { container } = render(ModalContainer);
 
-    await expect.element(q(container, 'dialog')).toHaveTextContent('Sign out of all servers');
-    clickButton(container, 'Sign out of all servers');
+    await expect.element(q(container, 'dialog')).toHaveTextContent('All Servers');
+    clickButton(container, 'All Servers');
 
     await vi.waitFor(() => {
       expect(mocks.signOutServers).toHaveBeenCalledWith([], expect.any(Function));

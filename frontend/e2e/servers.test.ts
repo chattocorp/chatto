@@ -74,7 +74,7 @@ test.describe('Leave Server', () => {
 		await page.waitForURL(new RegExp(`/chat/${remoteHostname.replace(/\./g, '\\.')}`));
 		await page.getByTitle('Sign out').click();
 		await expect(page.getByRole('dialog')).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
-		await page.getByRole('button', { name: 'Sign out of current server' }).click();
+		await page.getByRole('button', { name: 'Current Server' }).click();
 
 		await expect(page).toHaveURL(/\/chat\/-/);
 		await expect(
@@ -101,7 +101,7 @@ test.describe('Leave Server', () => {
 
 		await page.getByTitle('Sign out').click();
 		await expect(page.getByRole('dialog')).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
-		await page.getByRole('button', { name: 'Sign out of current server' }).click();
+		await page.getByRole('button', { name: 'Current Server' }).click();
 
 		await expect(page).toHaveURL(/\/chat\/-/);
 		await expect(

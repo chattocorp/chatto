@@ -320,7 +320,7 @@
           onclick={handleSignOutCurrentServer}
         >
           <span class="iconify uil--sign-out-alt"></span>
-          Sign out of current server
+          Current Server
         </Button>
         <Button
           variant="danger"
@@ -330,7 +330,7 @@
           onclick={handleSignOutAllServers}
         >
           <span class="iconify uil--signout"></span>
-          Sign out of all servers
+          All Servers
         </Button>
       </div>
     {/snippet}

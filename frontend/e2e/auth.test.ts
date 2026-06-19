@@ -379,7 +379,7 @@ test.describe('Authentication', () => {
       await expect(authPage.logoutDialog).toBeVisible();
       await expect(authPage.logoutDialog.getByText('disconnect every server')).toBeVisible();
       await expect(
-        authPage.logoutDialog.getByRole('button', { name: 'Sign out of current server' })
+        authPage.logoutDialog.getByRole('button', { name: 'Current Server' })
       ).toBeVisible();
       await expect(authPage.confirmLogoutButton).toBeVisible();
     });
