@@ -3,6 +3,13 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.3.3](https://github.com/chattocorp/chatto/compare/v0.3.2...v0.3.3) (2026-06-19)
+
+
+### Performance Improvements
+
+* optimize projection startup paths ([#1005](https://github.com/chattocorp/chatto/issues/1005)) ([b69f2ef](https://github.com/chattocorp/chatto/commit/b69f2ef93c3263a2021a75b71e2d131de28ab2ac))
+
 ## [0.3.2](https://github.com/chattocorp/chatto/compare/v0.3.1...v0.3.2) (2026-06-19)
 
 
