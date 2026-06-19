@@ -256,7 +256,7 @@ Room sidebar panel for voice/video calls.
     <button
       type="button"
       class={[
-        'participant-card voice-ring voice-ring-card flex w-full cursor-pointer flex-col overflow-hidden rounded-md border border-border bg-surface-100 text-left text-text transition-colors hover:border-text/20 hover:bg-surface-200',
+        'participant-card voice-ring voice-ring-card flex w-full cursor-pointer flex-col overflow-hidden rounded-md border border-border bg-surface-100 text-left text-text transition-colors hover:bg-surface-200',
         mode === 'video' ? 'participant-card-video' : 'participant-card-compact',
         participant.isMuted && 'voice-ring-muted'
       ]}
@@ -298,7 +298,7 @@ Room sidebar panel for voice/video calls.
     <button
       type="button"
       class={[
-        'participant-card flex w-full cursor-pointer flex-col overflow-hidden rounded-md border border-border bg-surface-100 text-left text-text transition-colors hover:border-text/20 hover:bg-surface-200',
+        'participant-card flex w-full cursor-pointer flex-col overflow-hidden rounded-md border border-border bg-surface-100 text-left text-text transition-colors hover:bg-surface-200',
         mode === 'video' ? 'participant-card-video' : 'participant-card-compact'
       ]}
       title={participantTitle(participant)}
@@ -437,8 +437,8 @@ Room sidebar panel for voice/video calls.
 <style>
   .voice-ring {
     position: relative;
-    outline: 2px solid var(--color-border);
-    outline-offset: 1px;
+    outline: 0 solid transparent;
+    outline-offset: 0;
     transition:
       outline-color 150ms ease-out,
       outline-width 150ms ease-out,
