@@ -157,6 +157,22 @@ Room sidebar panel for voice/video calls.
   const controlButtonClass = 'btn-secondary btn-sm h-9 w-full !px-0';
   const dangerControlButtonClass = 'btn-danger btn-sm h-9 w-full !px-0';
 
+  function hasVideo(participant: DisplayParticipant) {
+    return participant.isCameraEnabled && participant.videoTrack;
+  }
+
+  function hasConnectionWarning(participant: DisplayParticipant) {
+    return participant.connectionQuality === 'poor' || participant.connectionQuality === 'lost';
+  }
+
+  function participantTitle(participant: DisplayParticipant) {
+    if (isInThisCall && hasConnectionWarning(participant)) {
+      return `${participant.displayName} — poor connection`;
+    }
+
+    return participant.displayName;
+  }
+
   // --- Imperative audio level ring animation ---
   // Reads from voiceCallState.getAudioLevel() (non-reactive) and directly
   // mutates DOM elements at ~60ms. Completely bypasses Svelte's reactive graph.
@@ -234,6 +250,80 @@ Room sidebar panel for voice/video calls.
     }
   }
 </script>
+
+{#snippet participantCard(participant: DisplayParticipant, mode: 'compact' | 'video')}
+  {@const showVideo = mode === 'video' && hasVideo(participant)}
+  {#if isInThisCall}
+    <button
+      type="button"
+      class={[
+        'participant-card voice-ring voice-ring-card flex w-full cursor-pointer flex-col overflow-hidden rounded-md border border-border bg-surface-100 text-left text-text transition-colors hover:border-text/20 hover:bg-surface-200',
+        mode === 'video' ? 'participant-card-video' : 'participant-card-compact',
+        participant.isMuted && 'voice-ring-muted'
+      ]}
+      use:trackButton={participant.key}
+      title={participantTitle(participant)}
+      data-testid="call-participant-card"
+      onclick={(e) => showUserMenu(participant, e)}
+    >
+      <div class="flex min-w-0 items-center gap-2 p-2">
+        <UserAvatar user={participant.avatarUser} size="sm" showPresence={false} />
+        <span class="min-w-0 flex-1 truncate text-sm font-medium">{participant.displayName}</span>
+        <span class="inline-flex min-w-4 shrink-0 items-center justify-end gap-1.5 text-sm">
+          {#if participant.isMuted}
+            <span class="iconify uil--microphone-slash text-danger" aria-label="Muted"></span>
+          {/if}
+          {#if hasConnectionWarning(participant)}
+            <span
+              class="iconify uil--exclamation-triangle"
+              class:text-danger={participant.connectionQuality === 'lost'}
+              class:text-warning={participant.connectionQuality === 'poor'}
+              aria-label="Poor connection"
+            ></span>
+          {/if}
+        </span>
+      </div>
+
+      {#if showVideo}
+        <div class="border-t border-border">
+          <VideoThumbnail
+            track={participant.videoTrack!}
+            name={participant.displayName}
+            user={participant.avatarUser}
+            showIdentityOverlay={false}
+          />
+        </div>
+      {/if}
+    </button>
+  {:else}
+    <button
+      type="button"
+      class={[
+        'participant-card flex w-full cursor-pointer flex-col overflow-hidden rounded-md border border-border bg-surface-100 text-left text-text transition-colors hover:border-text/20 hover:bg-surface-200',
+        mode === 'video' ? 'participant-card-video' : 'participant-card-compact'
+      ]}
+      title={participantTitle(participant)}
+      data-testid="call-participant-card"
+      onclick={(e) => showUserMenu(participant, e)}
+    >
+      <div class="flex min-w-0 items-center gap-2 p-2">
+        <UserAvatar user={participant.avatarUser} size="sm" showPresence={false} />
+        <span class="min-w-0 flex-1 truncate text-sm font-medium">{participant.displayName}</span>
+      </div>
+
+      {#if showVideo}
+        <div class="border-t border-border">
+          <VideoThumbnail
+            track={participant.videoTrack!}
+            name={participant.displayName}
+            user={participant.avatarUser}
+            showIdentityOverlay={false}
+          />
+        </div>
+      {/if}
+    </button>
+  {/if}
+{/snippet}
 
 <div
   class="flex min-h-0 flex-1 flex-col"
@@ -314,81 +404,43 @@ Room sidebar panel for voice/video calls.
 
   <div class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-3">
     {#if !isIdle}
-      {#if videoParticipants.length > 0}
-        <section class="@container flex flex-col gap-2" aria-label="Video participants">
-          <h2 class="px-1 text-xs font-semibold tracking-wider text-muted uppercase">
-            Video ({videoParticipants.length})
-          </h2>
-          <div
-            class={[
-              'grid grid-cols-1 gap-3',
-              videoParticipants.length > 1 && '@min-[368px]:grid-cols-2'
-            ]}
-            data-testid="call-video-grid"
-          >
-            {#each videoParticipants as participant (participant.key)}
-              <button
-                type="button"
-                class="voice-ring voice-ring-video aspect-video w-full cursor-pointer overflow-hidden bg-surface-100 text-left"
-                class:voice-ring-muted={participant.isMuted}
-                use:trackButton={participant.key}
-                title={participant.connectionQuality === 'poor' || participant.connectionQuality === 'lost'
-                  ? `${participant.displayName} — poor connection`
-                  : participant.displayName}
-                onclick={(e) => showUserMenu(participant, e)}
-              >
-                <VideoThumbnail
-                  track={participant.videoTrack!}
-                  name={participant.displayName}
-                  user={participant.avatarUser}
-                />
-                {#if participant.connectionQuality === 'poor' || participant.connectionQuality === 'lost'}
-                  <span
-                    class="connection-warning iconify uil--exclamation-triangle"
-                    class:text-danger={participant.connectionQuality === 'lost'}
-                    class:text-warning={participant.connectionQuality === 'poor'}
-                  ></span>
-                {/if}
-              </button>
-            {/each}
-          </div>
-        </section>
-      {/if}
+      {#if isInThisCall}
+        {#if videoParticipants.length > 0}
+          <section class="@container flex flex-col gap-2" aria-label="Video participants">
+            <h2 class="px-1 text-xs font-semibold tracking-wider text-muted uppercase">
+              Video ({videoParticipants.length})
+            </h2>
+            <div
+              class={[
+                'grid grid-cols-1 gap-3',
+                videoParticipants.length > 1 && '@min-[368px]:grid-cols-2'
+              ]}
+              data-testid="call-video-grid"
+            >
+              {#each videoParticipants as participant (participant.key)}
+                {@render participantCard(participant, 'video')}
+              {/each}
+            </div>
+          </section>
+        {/if}
 
-      {#if voiceParticipants.length > 0}
-        <section class="flex flex-col gap-2" aria-label="Voice participants">
-          <h2 class="px-1 text-xs font-semibold tracking-wider text-muted uppercase">
-            Voice ({voiceParticipants.length})
-          </h2>
-          <div class="sidebar-nav">
-            {#each voiceParticipants as participant (participant.key)}
-              <button
-                type="button"
-                class="sidebar-item text-left"
-                title={participant.connectionQuality === 'poor' || participant.connectionQuality === 'lost'
-                  ? `${participant.displayName} — poor connection`
-                  : participant.displayName}
-                onclick={(e) => showUserMenu(participant, e)}
-              >
-                <span
-                  class="voice-ring shrink-0"
-                  class:voice-ring-muted={participant.isMuted}
-                  use:trackButton={participant.key}
-                >
-                  <UserAvatar user={participant.avatarUser} size="sm" showPresence={false} />
-                  {#if participant.connectionQuality === 'poor' || participant.connectionQuality === 'lost'}
-                    <span
-                      class="connection-warning iconify uil--exclamation-triangle"
-                      class:text-danger={participant.connectionQuality === 'lost'}
-                      class:text-warning={participant.connectionQuality === 'poor'}
-                    ></span>
-                  {/if}
-                </span>
-                <span class="min-w-0 flex-1 truncate">{participant.displayName}</span>
-                {#if participant.isMuted}
-                  <span class="iconify uil--microphone-slash text-danger" aria-label="Muted"></span>
-                {/if}
-              </button>
+        {#if voiceParticipants.length > 0}
+          <section class="flex flex-col gap-2" aria-label="Voice participants">
+            <h2 class="px-1 text-xs font-semibold tracking-wider text-muted uppercase">
+              Voice ({voiceParticipants.length})
+            </h2>
+            <div class="flex flex-col gap-2">
+              {#each voiceParticipants as participant (participant.key)}
+                {@render participantCard(participant, 'compact')}
+              {/each}
+            </div>
+          </section>
+        {/if}
+      {:else}
+        <section class="flex flex-col gap-2" aria-label="Call participants">
+          <div class="flex flex-col gap-2" data-testid="call-participants-list">
+            {#each sortedParticipants as participant (participant.key)}
+              {@render participantCard(participant, 'compact')}
             {/each}
           </div>
         </section>
@@ -414,10 +466,8 @@ Room sidebar panel for voice/video calls.
 <style>
   .voice-ring {
     position: relative;
-    display: inline-flex;
     outline: 2px solid var(--color-border);
     outline-offset: 1px;
-    border-radius: 9999px;
     transition:
       outline-color 150ms ease-out,
       outline-width 150ms ease-out,
@@ -428,16 +478,8 @@ Room sidebar panel for voice/video calls.
     outline-color: var(--color-danger);
   }
 
-  .voice-ring-video {
-    display: block;
-    border-radius: 0.25rem;
-  }
-
-  .connection-warning {
-    position: absolute;
-    bottom: -2px;
-    right: -2px;
-    font-size: 0.625rem;
+  .voice-ring-card {
+    border-radius: 0.5rem;
   }
 
   /* Applied imperatively via classList.toggle() in the 60ms audio level loop */

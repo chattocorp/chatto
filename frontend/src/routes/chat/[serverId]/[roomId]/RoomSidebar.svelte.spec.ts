@@ -465,8 +465,11 @@ describe('RoomSidebar', () => {
 
     await expect.element(q(container, '[data-testid="call-observer-panel"]')).toBeInTheDocument();
     expect(container.textContent).not.toContain('1 in call');
-    expect(container.textContent).toContain('Voice (1)');
+    expect(container.textContent).not.toContain('Voice (1)');
+    expect(container.textContent).not.toContain('Video (1)');
     expect(container.textContent).toContain('Bob');
+    await expect.element(q(container, '[data-testid="call-participant-card"]')).toBeInTheDocument();
+    await expect.element(q(container, '[data-testid="call-participants-list"]')).toBeInTheDocument();
     await vi.waitFor(() => {
       expect(callStore.callParticipants.load).toHaveBeenCalledWith('room-1');
     });
@@ -532,7 +535,8 @@ describe('RoomSidebar', () => {
     expect(container.textContent).toContain('Voice (1)');
     expect(container.textContent).toContain('Bob');
     expect(q(container, '[data-testid="call-device-menu-button"]')).toBeTruthy();
-    expect(q(container, '.voice-ring-video')!.classList.contains('aspect-video')).toBe(true);
+    expect(q(container, '.participant-card-video')).toBeTruthy();
+    expect(q(container, '.participant-card-compact')).toBeTruthy();
 
     (q(container, '[data-testid="call-mute-toggle"]') as HTMLButtonElement).click();
     (q(container, '[data-testid="call-camera-toggle"]') as HTMLButtonElement).click();

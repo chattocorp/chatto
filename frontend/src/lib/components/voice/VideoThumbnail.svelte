@@ -1,8 +1,9 @@
 <!--
 @component
 
-Renders a LiveKit video track in a thumbnail-sized `<video>` element with
-a small avatar overlay in the top-left corner for identification.
+Renders a LiveKit video track in a thumbnail-sized `<video>` element.
+It can optionally include a small avatar overlay in the top-left corner for
+identification.
 
 Manages the attach/detach lifecycle imperatively — only detaches/reattaches
 when the track reference actually changes, not on every parent re-render.
@@ -15,6 +16,7 @@ resolution to request for sidebar-width tiles.
 - `track` - The LiveKit video Track to display
 - `name` - Participant display name (shown as tooltip)
 - `user` - User object for the avatar overlay (same shape as UserAvatar's `user` prop)
+- `showIdentityOverlay` - Whether to show the avatar overlay
 -->
 <script lang="ts">
 	import { onDestroy } from 'svelte';
@@ -25,7 +27,8 @@ resolution to request for sidebar-width tiles.
 	let {
 		track,
 		name,
-		user
+		user,
+		showIdentityOverlay = true
 	}: {
 		track: Track;
 		name: string;
@@ -36,6 +39,7 @@ resolution to request for sidebar-width tiles.
 			avatarUrl: string | null;
 			presenceStatus: PresenceStatus;
 		};
+		showIdentityOverlay?: boolean;
 	} = $props();
 
 	let videoEl = $state<HTMLVideoElement | null>(null);
@@ -84,9 +88,11 @@ resolution to request for sidebar-width tiles.
 		playsinline
 		muted
 	></video>
-	<div
-		class="absolute top-2 left-2 h-6 w-6 rounded-full shadow-[0_0_0_1.5px_var(--color-surface-100)]"
-	>
-		<UserAvatar {user} size="xs" showPresence={false} />
-	</div>
+	{#if showIdentityOverlay}
+		<div
+			class="absolute top-2 left-2 h-6 w-6 rounded-full shadow-[0_0_0_1.5px_var(--color-surface-100)]"
+		>
+			<UserAvatar {user} size="xs" showPresence={false} />
+		</div>
+	{/if}
 </div>
