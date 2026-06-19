@@ -44,6 +44,8 @@ export type CallRoomParticipant = {
 	avatarUrl: string | null;
 };
 
+export type CallPresenceKind = 'voice' | 'video';
+
 type ActiveCallRoomSnapshot = {
 	callId: string | null;
 	participants: CallRoomParticipant[];
@@ -77,6 +79,27 @@ export class ActiveCallRoomsState {
 	 */
 	getParticipants(roomId: string): CallRoomParticipant[] {
 		return this.serverRooms.get(roomId)?.participants ?? [];
+	}
+
+	/**
+	 * Return a user's call presence for a room.
+	 *
+	 * Backend-observed participants only tell us that someone is in the call,
+	 * so those render as voice. Once the local user has joined LiveKit, track
+	 * state lets us upgrade participants with an active camera track to video.
+	 */
+	getParticipantCallPresence(roomId: string, userId: string): CallPresenceKind | null {
+		if (this.#voiceCall.connected && this.#voiceCall.roomId === roomId) {
+			const liveParticipant = this.#voiceCall.participants.find((p) => p.identity === userId);
+			if (liveParticipant) {
+				return liveParticipant.isCameraEnabled && liveParticipant.videoTrack ? 'video' : 'voice';
+			}
+		}
+
+		const serverParticipant = this.serverRooms
+			.get(roomId)
+			?.participants.some((p) => p.userId === userId);
+		return serverParticipant ? 'voice' : null;
 	}
 
 	/**
@@ -180,7 +203,9 @@ export class ActiveCallRoomsState {
 	 * Handle a CallEndedEvent — clear the room's server-side call snapshot.
 	 */
 	handleEnd(roomId: string, callId: string): void {
-		if (this.serverRooms.get(roomId)?.callId !== callId) return;
+		const snapshot = this.serverRooms.get(roomId);
+		if (!snapshot) return;
+		if (snapshot.callId !== null && snapshot.callId !== callId) return;
 		this.serverRooms.delete(roomId);
 	}
 

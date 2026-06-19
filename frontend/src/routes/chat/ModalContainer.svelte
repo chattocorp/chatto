@@ -6,6 +6,7 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import SignOutDialog from './SignOutDialog.svelte';
 
   const activeInstanceId = $derived(getActiveServer());
   const serverSegment = $derived(serverIdToSegment(activeInstanceId));
@@ -20,8 +21,6 @@
   import { refreshAttachmentUrlsForMessage } from '$lib/attachments/attachmentUrls';
   import { toast } from '$lib/ui/toast';
   import { clearLastRoom } from '$lib/storage/lastRoom';
-  import { notifyLogout } from '$lib/auth/sessionChannel';
-  import { csrfFetch } from '$lib/auth/csrf';
 
   /** Get the GraphQL client for the currently active instance (derived from URL). */
   function getActiveClient() {
@@ -243,29 +242,7 @@
     <CreateRoom onroomcreated={(roomId) => handleRoomCreated(roomId)} />
   </Dialog>
 {:else if modalType === 'logout'}
-  <ConfirmDialog
-    title="Sign Out"
-    tone="info"
-    actionLabel="Sign Out"
-    actionIcon="iconify uil--signout"
-    onconfirm={async () => {
-      const originToken = serverRegistry.originServer?.token;
-      if (serverRegistry.originServer) {
-        await csrfFetch('/auth/logout', {
-          method: 'POST',
-          headers: originToken ? { Authorization: `Bearer ${originToken}` } : undefined
-        }).catch(() => {});
-      }
-      // Clear all registered instances and their state
-      serverRegistry.removeAll();
-      notifyLogout();
-      window.location.href = '/';
-    }}
-    onclose={closeModal}
-  >
-    This will disconnect all instances and sign you out. Your accounts on each instance are not
-    affected.
-  </ConfirmDialog>
+  <SignOutDialog onclose={closeModal} />
 {:else if modalType === 'joinRoom' && roomId}
   {#if page.state.modal?.viewerCanJoinRoom}
     <ConfirmDialog

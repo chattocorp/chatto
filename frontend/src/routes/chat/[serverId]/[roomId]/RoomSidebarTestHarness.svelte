@@ -20,6 +20,7 @@ mounting the full chat room shell.
     presentation = 'desktop',
     currentUserId = 'viewer',
     canBanRoomMembers = false,
+    livekitUrl,
     fileGroupingNow,
     onPresenceCacheReady,
     onOpenFile,
@@ -31,6 +32,7 @@ mounting the full chat room shell.
     presentation?: 'desktop' | 'overlay';
     currentUserId?: string | null;
     canBanRoomMembers?: boolean;
+    livekitUrl?: string;
     fileGroupingNow?: Date;
     onPresenceCacheReady?: (cache: PresenceCache) => void;
     onOpenFile?: (messageEventId: string, threadRootEventId: string | null) => void;
@@ -68,6 +70,7 @@ mounting the full chat room shell.
   {currentUserId}
   membersStore={roomMembersStore}
   filesStore={roomFilesStore}
+  {livekitUrl}
   {fileGroupingNow}
   {onOpenFile}
   {onClose}

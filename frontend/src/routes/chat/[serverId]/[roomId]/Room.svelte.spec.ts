@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
+import {
+  consumePendingRoomSidebarPanel,
+  setPendingRoomSidebarPanel
+} from '$lib/storage/roomSidebarPanel';
 
 const { mocks } = vi.hoisted(() => {
   const queryData = {
@@ -35,7 +39,8 @@ const { mocks } = vi.hoisted(() => {
       mutation: vi.fn(() => ({
         toPromise: vi.fn().mockResolvedValue({ data: {}, error: null })
       })),
-      subscription: vi.fn()
+      subscription: vi.fn(),
+      livekitUrl: null as string | null
     }
   };
 });
@@ -118,7 +123,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
     getStore: () => ({
       currentUser: { user: { id: 'test-user', login: 'testuser' }, loading: false },
       serverInfo: {
-        livekitUrl: null,
+        livekitUrl: mocks.livekitUrl,
         videoProcessingEnabled: false,
         maxUploadSize: 25 * 1024 * 1024,
         maxVideoUploadSize: 25 * 1024 * 1024
@@ -131,6 +136,9 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
       },
       pendingHighlights: {
         consume: vi.fn(() => null)
+      },
+      activeCallRooms: {
+        has: vi.fn(() => false)
       },
       rooms: {
         decrementUnreadNotification: vi.fn()
@@ -208,6 +216,10 @@ import Room from './Room.svelte';
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
+  sessionStorage.clear();
+  mocks.livekitUrl = null;
+  vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true })));
 });
 
 describe('Room local message echo', () => {
@@ -235,5 +247,16 @@ describe('Room local message echo', () => {
     await expect.element(q(container, '[data-testid="room-event-ids"]')).toHaveTextContent('');
     expect(mocks.resetTypingDebounce).toHaveBeenCalledOnce();
     expect(mocks.noteReadCursor).not.toHaveBeenCalled();
+  });
+
+  it('opens a pending call panel request as a mobile sidebar after navigation', async () => {
+    mocks.livekitUrl = 'wss://livekit.example.test';
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false })));
+    setPendingRoomSidebarPanel('server-1', 'room-1', 'call');
+
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    await expect.element(q(container, '[data-testid="room-sidebar-mobile-pane"]')).toBeInTheDocument();
+    expect(consumePendingRoomSidebarPanel('server-1', 'room-1')).toBeNull();
   });
 });

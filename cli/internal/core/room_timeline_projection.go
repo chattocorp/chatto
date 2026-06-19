@@ -134,11 +134,9 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 
 	if ev := event.GetMessageBody(); ev != nil {
 		targetID := ev.GetEventId()
-		body := cloneMessageBody(ev.GetBody())
+		body := ev.GetBody()
 		if targetID != "" && body != nil {
-			if body.GetBodyEventId() == "" {
-				body.BodyEventId = event.GetId()
-			} else if body.GetBodyEventId() != event.GetId() {
+			if body.GetBodyEventId() != "" && body.GetBodyEventId() != event.GetId() {
 				return nil
 			}
 			if authorID := body.GetAuthorId(); authorID != "" {
@@ -147,6 +145,10 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 					p.retractedFlags[targetID] = struct{}{}
 					p.removeAttachmentMessageLocked(targetID)
 				} else {
+					body = cloneMessageBody(body)
+					if body.GetBodyEventId() == "" {
+						body.BodyEventId = event.GetId()
+					}
 					p.latestBody[targetID] = body
 					p.bodyEventSeqs[targetID] = append(p.bodyEventSeqs[targetID], seq)
 					p.currentBodySeq[targetID] = seq
@@ -419,11 +421,20 @@ func (p *RoomTimelineProjection) addAttachmentMessageLocked(roomID, eventID stri
 
 	ids := p.attachmentMessageIDsByRoom[roomID]
 	insertAt := len(ids)
-	for i, existingID := range ids {
-		existing := p.byEventID[existingID]
-		if existing == nil || existing.StreamSeq > streamSeq {
-			insertAt = i
-			break
+	if len(ids) > 0 {
+		last := p.byEventID[ids[len(ids)-1]]
+		if last != nil && last.StreamSeq <= streamSeq {
+			ids = append(ids, eventID)
+			p.attachmentMessageIDsByRoom[roomID] = ids
+			p.attachmentMessageRoom[eventID] = roomID
+			return
+		}
+		for i, existingID := range ids {
+			existing := p.byEventID[existingID]
+			if existing == nil || existing.StreamSeq > streamSeq {
+				insertAt = i
+				break
+			}
 		}
 	}
 	ids = append(ids, "")

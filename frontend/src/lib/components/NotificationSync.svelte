@@ -37,8 +37,10 @@ Include this component once in the chat layout (unconditionally).
         if (!event.event) return;
 
         if (event.event.__typename === 'NotificationCreatedEvent') {
-          notificationStore.addNotification();
-          stores.rooms.incrementUnreadNotification(event.event.roomId);
+          void Promise.allSettled([
+            notificationStore.addNotification(),
+            stores.rooms.refreshNotificationCounts()
+          ]);
           playNotificationSound(
             userPreferences.notificationSound,
             userPreferences.notificationSoundFilters
@@ -48,9 +50,12 @@ Include this component once in the chat layout (unconditionally).
         if (event.event.__typename === 'NotificationDismissedEvent') {
           const roomId = notificationStore.removeNotification(event.event.notificationId);
           if (roomId) {
-            stores.rooms.decrementUnreadNotification(roomId);
+            void stores.rooms.refreshNotificationCounts();
           } else if (!notificationStore.consumeLocalDismissal(event.event.notificationId)) {
-            void Promise.allSettled([notificationStore.fetch(), stores.rooms.refresh()]);
+            void Promise.allSettled([
+              notificationStore.fetch(),
+              stores.rooms.refreshNotificationCounts()
+            ]);
           }
         }
       };

@@ -29,6 +29,7 @@
   const stores = serverRegistry.getStore(getActiveServer());
   const notificationStore = stores.notifications;
   const serverInfo = stores.serverInfo;
+  const activeCallRooms = stores.activeCallRooms;
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import MessageActionSheet from './MessageActionSheet.svelte';
   import MessageContextMenu from '$lib/components/menus/MessageContextMenu.svelte';
@@ -98,6 +99,9 @@
   // Display name with live updates from profile cache
   const displayName = $derived(
     actor ? getLiveDisplayName(actor.id, actor.displayName || actor.login) : 'Deleted User'
+  );
+  const actorCallPresence = $derived(
+    actor ? activeCallRooms.getParticipantCallPresence(roomId, actor.id) : null
   );
 
   // Permission checks for message actions. Authors can always edit (within
@@ -575,6 +579,20 @@
   }
 </script>
 
+{#snippet callPresenceIcon(kind: 'voice' | 'video' | null)}
+  {#if kind}
+    <span
+      class={[
+        'iconify shrink-0 text-xs leading-none text-accent',
+        kind === 'video' ? 'uil--video' : 'uil--phone'
+      ]}
+      title={kind === 'video' ? 'In a video call' : 'In a voice call'}
+      aria-label={kind === 'video' ? 'In a video call' : 'In a voice call'}
+      data-testid={`user-call-presence-${kind}`}
+    ></span>
+  {/if}
+{/snippet}
+
 {#if msg}
   <div
     class={[
@@ -658,7 +676,7 @@
             {#if actor}
               <button
                 type="button"
-                class="shrink-0 cursor-pointer leading-none font-semibold hover:underline"
+                class="inline-flex shrink-0 cursor-pointer items-center gap-1.5 leading-none font-semibold hover:underline"
                 onclick={showPopoverForActor}
                 ontouchstart={(e) => e.stopPropagation()}
                 oncontextmenu={(e) => {
@@ -667,7 +685,8 @@
                   showPopoverForActor(e);
                 }}
               >
-                {displayName}
+                <span>{displayName}</span>
+                {@render callPresenceIcon(actorCallPresence)}
               </button>
             {:else}
               <strong class="shrink-0 leading-none font-semibold text-muted">{displayName}</strong>
@@ -699,6 +718,10 @@
           >
             <span class="shrink-0">in reply to</span>
             {#if replyPreview.actor}
+              {@const replyCallPresence = activeCallRooms.getParticipantCallPresence(
+                roomId,
+                replyPreview.actor.id
+              )}
               <button
                 type="button"
                 data-testid="reply-attribution-author"
@@ -710,6 +733,7 @@
               >
                 <UserAvatar user={replyPreview.actor} size="xs" showPresence={false} />
                 <strong class="font-medium">{replyPreview.name}</strong>
+                {@render callPresenceIcon(replyCallPresence)}
               </button>
             {:else}
               <strong class="shrink-0 font-medium">{replyPreview.name}</strong>

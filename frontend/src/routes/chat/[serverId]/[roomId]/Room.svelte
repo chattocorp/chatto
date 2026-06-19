@@ -7,8 +7,6 @@
     type MessageComposerApi
   } from '$lib/components/composer/MessageComposer.svelte';
   import { graphql } from '$lib/gql';
-  import VoiceCallButton from '$lib/components/voice/VoiceCallButton.svelte';
-  import VoiceCallPanel from '$lib/components/voice/VoiceCallPanel.svelte';
   import {
     useRoomData,
     useRoomUnread,
@@ -36,6 +34,12 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { clearLastRoom, setLastRoom } from '$lib/storage/lastRoom';
+  import {
+    consumePendingRoomSidebarPanel,
+    roomSidebarPanelStorageSuffix,
+    type RoomSidebarPanel
+  } from '$lib/storage/roomSidebarPanel';
+  import { serverStorageKey } from '$lib/storage/serverStorage';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import { onDestroy, tick } from 'svelte';
@@ -45,8 +49,8 @@
   import RoomSidebarToggle from './RoomSidebarToggle.svelte';
   import {
     canBanMembersFromRoomSidebar,
-    DM_ROOM_SIDEBAR_PANELS,
-    roomSidebarPanelForRoom
+    roomSidebarPanelForRoom,
+    roomSidebarPanelsForRoom
   } from './roomSidebarBehavior';
   import { RoomSidebarPanelsState } from './roomSidebarPanels.svelte';
   import ThreadPane from './ThreadPane.svelte';
@@ -325,14 +329,37 @@
     () => roomId
   );
   const activeRoomSidebarPanel = $derived(
-    roomSidebarPanelForRoom(room.isDM, roomSidebarPanels.activeDesktopPanel)
+    roomSidebarPanelForRoom(room.isDM, roomSidebarPanels.activeDesktopPanel, showVoiceCall)
   );
   const mobileRoomSidebarPanel = $derived(
-    roomSidebarPanelForRoom(room.isDM, roomSidebarPanels.mobilePanel)
+    roomSidebarPanelForRoom(room.isDM, roomSidebarPanels.mobilePanel, showVoiceCall)
   );
-  const roomSidebarTogglePanels = $derived(room.isDM ? DM_ROOM_SIDEBAR_PANELS : undefined);
+  const roomSidebarTogglePanels = $derived(roomSidebarPanelsForRoom(room.isDM, showVoiceCall));
+  const hasActiveRoomCall = $derived(stores.activeCallRooms.has(roomId));
 
   let leavingRoom = $state(false);
+
+  function openRoomSidebarPanel(panel: RoomSidebarPanel): void {
+    if (window.matchMedia('(min-width: 1024px)').matches) {
+      roomSidebarPanels.openDesktopPanel(panel);
+    } else {
+      roomSidebarPanels.openMobilePanel(panel);
+    }
+  }
+
+  function handleRoomSidebarPanelStorage(event: StorageEvent): void {
+    const key = serverStorageKey(getActiveServer(), roomSidebarPanelStorageSuffix(roomId));
+    if (event.key !== key) return;
+    if (event.newValue !== 'call') return;
+
+    consumePendingRoomSidebarPanel(getActiveServer(), roomId);
+    openRoomSidebarPanel('call');
+  }
+
+  $effect(() => {
+    const pendingPanel = consumePendingRoomSidebarPanel(getActiveServer(), roomId);
+    if (pendingPanel) openRoomSidebarPanel(pendingPanel);
+  });
 
   function openFileMessage(
     messageEventId: string,
@@ -373,6 +400,7 @@
 </script>
 
 <svelte:window
+  onstorage={handleRoomSidebarPanelStorage}
   onkeydown={(e) => {
     if (e.key === 'Escape' && mobileRoomSidebarPanel && !e.defaultPrevented) {
       e.preventDefault();
@@ -439,17 +467,16 @@
               mode="mobile"
               activePanel={mobileRoomSidebarPanel}
               panels={roomSidebarTogglePanels}
+              hasActiveCall={hasActiveRoomCall}
               onToggle={(panel) => roomSidebarPanels.toggleMobilePanel(panel)}
             />
             <RoomSidebarToggle
               mode="desktop"
               activePanel={activeRoomSidebarPanel}
               panels={roomSidebarTogglePanels}
+              hasActiveCall={hasActiveRoomCall}
               onToggle={(panel) => roomSidebarPanels.toggleDesktopPanel(panel)}
             />
-            {#if showVoiceCall}
-              <VoiceCallButton {roomId} livekitUrl={serverInfo.livekitUrl!} />
-            {/if}
             {#if showLeaveRoom}
               <button
                 class="group/pane-header-icon-button pane-header-icon-button"
@@ -469,10 +496,6 @@
             {/if}
           {/snippet}
         </PaneHeader>
-
-        {#if room.roomData && serverInfo.livekitUrl}
-          <VoiceCallPanel {roomId} livekitUrl={serverInfo.livekitUrl} />
-        {/if}
 
         <RoomEventsPane
           {roomId}
@@ -551,6 +574,7 @@
             presentation="overlay"
             loading={room.isRoomLoading}
             filesStore={roomFilesStore}
+            livekitUrl={serverInfo.livekitUrl ?? undefined}
             canBanRoomMembers={canBanMembersFromRoomSidebar(
               room.isDM,
               room.roomData?.canBanRoomMembers
@@ -572,6 +596,7 @@
           activePanel={activeRoomSidebarPanel}
           loading={room.isRoomLoading}
           filesStore={roomFilesStore}
+          livekitUrl={serverInfo.livekitUrl ?? undefined}
           canBanRoomMembers={canBanMembersFromRoomSidebar(
             room.isDM,
             room.roomData?.canBanRoomMembers

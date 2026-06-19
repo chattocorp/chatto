@@ -1,16 +1,13 @@
 <!--
 @component
 
-Compact bar shown below the room header when there is an active voice call.
+Room sidebar panel for voice/video calls.
 
 **Two modes:**
 - **Observer mode**: Call is active but user hasn't joined. Shows participants
   from server state and a Join button.
 - **Participant mode**: User is connected to LiveKit. Shows live audio levels,
   mute toggle, audio device selector, and hang-up button.
-
-Both modes share the same layout — only the participant data source and action
-buttons differ. This prevents layout shift when joining/leaving a call.
 
 **Props:**
 - `roomId` - The room ID
@@ -49,8 +46,14 @@ buttons differ. This prevents layout shift when joining/leaving a call.
   let isInAnotherCall = $derived(voiceCallState.isInAnyCall && !isInThisCall);
   let isConnecting = $derived(voiceCallState.connecting && voiceCallState.roomId === roomId);
   let hasActiveCall = $derived(activeCallRooms.has(roomId));
-  let visible = $derived(isInThisCall || hasActiveCall);
   let deviceMenuAnchor = $state<{ top: number; bottom: number; left: number } | null>(null);
+
+  // The call tab can be opened directly from a room even if the sidebar room
+  // list has not refreshed its active-call snapshot yet. Refresh here so
+  // observers see the active participants before deciding whether to join.
+  $effect(() => {
+    if (!isInThisCall) void activeCallRooms.load();
+  });
 
   // Load server-side participants when there's an active call and we're not in it
   $effect(() => {
@@ -101,8 +104,6 @@ buttons differ. This prevents layout shift when joining/leaving a call.
     videoTrack: Track | null;
   };
 
-  const MAX_VISIBLE_PARTICIPANTS = 6;
-
   let participants: DisplayParticipant[] = $derived.by(() => {
     if (isInThisCall) {
       return voiceCallState.participants.map((p) => ({
@@ -146,18 +147,38 @@ buttons differ. This prevents layout shift when joining/leaving a call.
       return 0;
     })
   );
-  let visibleParticipants = $derived(sortedParticipants.slice(0, MAX_VISIBLE_PARTICIPANTS));
-  let overflowCount = $derived(sortedParticipants.length - MAX_VISIBLE_PARTICIPANTS);
-  let videoParticipants = $derived(visibleParticipants.filter((p) => p.isCameraEnabled && p.videoTrack));
-  let voiceParticipants = $derived(visibleParticipants.filter((p) => !(p.isCameraEnabled && p.videoTrack)));
+  let videoParticipants = $derived(sortedParticipants.filter((p) => p.isCameraEnabled && p.videoTrack));
+  let isIdle = $derived(!hasActiveCall && !isInThisCall);
+  let joinLabel = $derived.by(() => {
+    if (isConnecting) return hasActiveCall ? 'Joining...' : 'Starting...';
+    return hasActiveCall ? 'Join call' : 'Start call';
+  });
+  const controlButtonClass = 'btn-secondary btn-sm h-9 w-full !px-0';
+  const dangerControlButtonClass = 'btn-danger btn-sm h-9 w-full !px-0';
+
+  function hasVideo(participant: DisplayParticipant) {
+    return participant.isCameraEnabled && participant.videoTrack;
+  }
+
+  function hasConnectionWarning(participant: DisplayParticipant) {
+    return participant.connectionQuality === 'poor' || participant.connectionQuality === 'lost';
+  }
+
+  function participantTitle(participant: DisplayParticipant) {
+    if (isInThisCall && hasConnectionWarning(participant)) {
+      return `${participant.displayName} — poor connection`;
+    }
+
+    return participant.displayName;
+  }
 
   // --- Imperative audio level ring animation ---
   // Reads from voiceCallState.getAudioLevel() (non-reactive) and directly
   // mutates DOM elements at ~60ms. Completely bypasses Svelte's reactive graph.
   // eslint-disable-next-line svelte/prefer-svelte-reactivity -- imperative DOM ref map, not read reactively
-  const buttonRefs = new Map<string, HTMLButtonElement>();
+  const buttonRefs = new Map<string, HTMLElement>();
 
-  function trackButton(node: HTMLButtonElement, identity: string) {
+  function trackButton(node: HTMLElement, identity: string) {
     buttonRefs.set(identity, node);
     return {
       update(newIdentity: string) {
@@ -229,159 +250,195 @@ buttons differ. This prevents layout shift when joining/leaving a call.
   }
 </script>
 
-{#if visible}
-  <div
-    class="flex min-h-10 flex-row items-center gap-3 bg-surface-100 px-3 py-1.5"
-    data-testid={isInThisCall ? undefined : 'call-observer-panel'}
-  >
-    <!-- Call indicator -->
-    <div class="flex flex-row items-center gap-1.5 text-accent">
-      <span class="iconify animate-pulse uil--phone"></span>
-    </div>
-
-    <!-- Participants -->
-    <div class="flex flex-row items-center gap-2">
-      {#each videoParticipants as participant (participant.key)}
-        <button
-          type="button"
-          class="voice-ring voice-ring-video cursor-pointer"
-          class:voice-ring-muted={participant.isMuted}
-          use:trackButton={participant.key}
-          title={participant.connectionQuality === 'poor' || participant.connectionQuality === 'lost'
-            ? `${participant.displayName} — poor connection`
-            : participant.displayName}
-          onclick={(e) => showUserMenu(participant, e)}
-        >
-          <VideoThumbnail track={participant.videoTrack!} name={participant.displayName} user={participant.avatarUser} />
-          {#if participant.connectionQuality === 'poor' || participant.connectionQuality === 'lost'}
+{#snippet participantCard(participant: DisplayParticipant, mode: 'compact' | 'video')}
+  {@const showVideo = mode === 'video' && hasVideo(participant)}
+  {#if isInThisCall}
+    <button
+      type="button"
+      class={[
+        'participant-card voice-ring voice-ring-card flex w-full cursor-pointer flex-col overflow-hidden rounded-md border border-border bg-surface-100 text-left text-text transition-colors hover:bg-surface-200',
+        mode === 'video' ? 'participant-card-video' : 'participant-card-compact',
+        participant.isMuted && 'voice-ring-muted'
+      ]}
+      use:trackButton={participant.key}
+      title={participantTitle(participant)}
+      data-testid="call-participant-card"
+      onclick={(e) => showUserMenu(participant, e)}
+    >
+      <div class="flex min-w-0 items-center gap-2 p-2">
+        <UserAvatar user={participant.avatarUser} size="sm" showPresence={false} />
+        <span class="min-w-0 flex-1 truncate text-sm font-medium">{participant.displayName}</span>
+        <span class="inline-flex min-w-4 shrink-0 items-center justify-end gap-1.5 text-sm">
+          {#if participant.isMuted}
+            <span class="iconify uil--microphone-slash text-danger" aria-label="Muted"></span>
+          {/if}
+          {#if hasConnectionWarning(participant)}
             <span
-              class="connection-warning iconify uil--exclamation-triangle"
+              class="iconify uil--exclamation-triangle"
               class:text-danger={participant.connectionQuality === 'lost'}
               class:text-warning={participant.connectionQuality === 'poor'}
+              aria-label="Poor connection"
             ></span>
           {/if}
-        </button>
-      {/each}
+        </span>
+      </div>
 
-      {#if voiceParticipants.length > 0}
-        <div class="voice-only-grid">
-          {#each voiceParticipants as participant (participant.key)}
-            <button
-              type="button"
-              class="voice-ring cursor-pointer"
-              class:voice-ring-muted={participant.isMuted}
-              use:trackButton={participant.key}
-              title={participant.connectionQuality === 'poor' || participant.connectionQuality === 'lost'
-                ? `${participant.displayName} — poor connection`
-                : participant.displayName}
-              onclick={(e) => showUserMenu(participant, e)}
-            >
-              <UserAvatar user={participant.avatarUser} size="xs" showPresence={false} />
-              {#if participant.connectionQuality === 'poor' || participant.connectionQuality === 'lost'}
-                <span
-                  class="connection-warning iconify uil--exclamation-triangle"
-                  class:text-danger={participant.connectionQuality === 'lost'}
-                  class:text-warning={participant.connectionQuality === 'poor'}
-                ></span>
-              {/if}
-            </button>
-          {/each}
+      {#if showVideo}
+        <div class="p-2 pt-0">
+          <VideoThumbnail
+            track={participant.videoTrack!}
+            name={participant.displayName}
+            user={participant.avatarUser}
+            showIdentityOverlay={false}
+          />
         </div>
       {/if}
+    </button>
+  {:else}
+    <button
+      type="button"
+      class={[
+        'participant-card flex w-full cursor-pointer flex-col overflow-hidden rounded-md border border-border bg-surface-100 text-left text-text transition-colors hover:bg-surface-200',
+        mode === 'video' ? 'participant-card-video' : 'participant-card-compact'
+      ]}
+      title={participantTitle(participant)}
+      data-testid="call-participant-card"
+      onclick={(e) => showUserMenu(participant, e)}
+    >
+      <div class="flex min-w-0 items-center gap-2 p-2">
+        <UserAvatar user={participant.avatarUser} size="sm" showPresence={false} />
+        <span class="min-w-0 flex-1 truncate text-sm font-medium">{participant.displayName}</span>
+      </div>
 
-      {#if overflowCount > 0}
-        <span class="text-xs text-muted">+{overflowCount}</span>
+      {#if showVideo}
+        <div class="p-2 pt-0">
+          <VideoThumbnail
+            track={participant.videoTrack!}
+            name={participant.displayName}
+            user={participant.avatarUser}
+            showIdentityOverlay={false}
+          />
+        </div>
       {/if}
-    </div>
+    </button>
+  {/if}
+{/snippet}
 
-    <!-- Actions -->
-    <div class="ml-auto flex flex-row items-center gap-2">
-      {#if isInThisCall}
-        <!-- Device selector -->
+<div
+  class="flex min-h-0 flex-1 flex-col"
+  data-testid={isInThisCall ? 'call-participant-panel' : 'call-observer-panel'}
+>
+  <div class="border-b border-border bg-background p-3">
+    {#if isInThisCall}
+      <div class="grid grid-cols-4 gap-2">
         <button
           type="button"
-          class="iconify cursor-pointer text-muted uil--setting hover:text-text"
+          class={controlButtonClass}
           title="Devices"
+          aria-label="Devices"
           data-testid="call-device-menu-button"
           onclick={openDeviceMenu}
-        ></button>
+        >
+          <span class="iconify uil--setting text-lg" aria-hidden="true"></span>
+        </button>
 
-        {#if deviceMenuAnchor}
-          <AudioDeviceMenu anchor={deviceMenuAnchor} onclose={() => (deviceMenuAnchor = null)} />
-        {/if}
-
-        <!-- Camera toggle -->
         <button
           type="button"
-          class={[
-            'iconify cursor-pointer hover:text-text',
-            voiceCallState.isCameraEnabled
-              ? 'text-muted uil--video'
-              : 'text-danger uil--video-slash'
-          ]}
+          class={voiceCallState.isCameraEnabled ? controlButtonClass : dangerControlButtonClass}
           title={voiceCallState.isCameraEnabled ? 'Turn off camera' : 'Turn on camera'}
+          aria-label={voiceCallState.isCameraEnabled ? 'Turn off camera' : 'Turn on camera'}
           data-testid="call-camera-toggle"
           onclick={() => voiceCallState.toggleCamera()}
-        ></button>
+        >
+          <span
+            class={[
+              'iconify text-lg',
+              voiceCallState.isCameraEnabled ? 'uil--video' : 'uil--video-slash'
+            ]}
+            aria-hidden="true"
+          ></span>
+        </button>
 
-        <!-- Mute toggle -->
         <button
           type="button"
-          class={[
-            'iconify cursor-pointer hover:text-text',
-            voiceCallState.isMuted
-              ? 'text-danger uil--microphone-slash'
-              : 'text-muted uil--microphone'
-          ]}
+          class={voiceCallState.isMuted ? dangerControlButtonClass : controlButtonClass}
           title={voiceCallState.isMuted ? 'Unmute' : 'Mute'}
+          aria-label={voiceCallState.isMuted ? 'Unmute' : 'Mute'}
+          data-testid="call-mute-toggle"
           onclick={() => voiceCallState.toggleMute()}
-        ></button>
+        >
+          <span
+            class={[
+              'iconify text-lg',
+              voiceCallState.isMuted ? 'uil--microphone-slash' : 'uil--microphone'
+            ]}
+            aria-hidden="true"
+          ></span>
+        </button>
 
-        <!-- Hang up -->
         <button
           type="button"
-          class="iconify cursor-pointer text-danger uil--phone-slash hover:brightness-125"
+          class={dangerControlButtonClass}
           onclick={() => voiceCallState.leave()}
           title="Leave call"
-        ></button>
-      {:else}
-        <!-- Join button -->
-        <button
-          type="button"
-          class="cursor-pointer rounded bg-accent px-3 py-1 text-xs font-medium text-white hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
-          data-testid="call-join-button"
-          onclick={handleJoin}
-          disabled={isInAnotherCall || isConnecting}
-          title={isInAnotherCall ? 'Already in another call' : 'Join voice call'}
+          aria-label="Leave call"
+          data-testid="call-leave-button"
         >
-          {#if isConnecting}
-            Joining...
-          {:else}
-            Join
-          {/if}
+          <span class="iconify uil--phone-slash text-lg" aria-hidden="true"></span>
         </button>
-      {/if}
-    </div>
+      </div>
+    {:else}
+      <button
+        type="button"
+        class="btn-accent btn-sm w-full"
+        data-testid="call-join-button"
+        onclick={handleJoin}
+        disabled={isInAnotherCall || isConnecting}
+        title={isInAnotherCall ? 'Already in another call' : joinLabel}
+      >
+        {joinLabel}
+      </button>
+    {/if}
   </div>
 
-  {#if popoverParticipant && popoverAnchorRect}
-    <UserContextMenu
-      user={popoverParticipant.avatarUser}
-      anchorRect={popoverAnchorRect}
-      canSendMessage={canStartDMs}
-      onSendMessage={() => startDMWith(getActiveServer(), popoverParticipant!.avatarUser.id)}
-      onClose={closeUserMenu}
-    />
-  {/if}
+  <div class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-3">
+    {#if !isIdle}
+      <section class="@container flex flex-col gap-2" aria-label="Call participants">
+        <div
+          class={[
+            'grid grid-cols-1 gap-3',
+            isInThisCall && videoParticipants.length > 1 && '@min-[368px]:grid-cols-2'
+          ]}
+          data-testid="call-participants-list"
+        >
+          {#each sortedParticipants as participant (participant.key)}
+            {@render participantCard(participant, isInThisCall && hasVideo(participant) ? 'video' : 'compact')}
+          {/each}
+        </div>
+      </section>
+    {/if}
+  </div>
+</div>
+
+{#if deviceMenuAnchor}
+  <AudioDeviceMenu anchor={deviceMenuAnchor} onclose={() => (deviceMenuAnchor = null)} />
+{/if}
+
+{#if popoverParticipant && popoverAnchorRect}
+  <UserContextMenu
+    user={popoverParticipant.avatarUser}
+    anchorRect={popoverAnchorRect}
+    canSendMessage={canStartDMs}
+    onSendMessage={() => startDMWith(getActiveServer(), popoverParticipant!.avatarUser.id)}
+    onClose={closeUserMenu}
+  />
 {/if}
 
 <style>
   .voice-ring {
     position: relative;
-    display: inline-flex;
-    outline: 2px solid var(--color-border);
-    outline-offset: 1px;
-    border-radius: 9999px;
+    outline: 0 solid transparent;
+    outline-offset: 0;
     transition:
       outline-color 150ms ease-out,
       outline-width 150ms ease-out,
@@ -392,23 +449,8 @@ buttons differ. This prevents layout shift when joining/leaving a call.
     outline-color: var(--color-danger);
   }
 
-  .voice-ring-video {
-    border-radius: 0.25rem;
-  }
-
-  .voice-only-grid {
-    display: flex;
-    flex-wrap: wrap;
-    align-content: center;
-    gap: 0.375rem;
-    max-height: 68px;
-  }
-
-  .connection-warning {
-    position: absolute;
-    bottom: -2px;
-    right: -2px;
-    font-size: 0.625rem;
+  .voice-ring-card {
+    border-radius: 0.5rem;
   }
 
   /* Applied imperatively via classList.toggle() in the 60ms audio level loop */

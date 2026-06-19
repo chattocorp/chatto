@@ -23,7 +23,7 @@ test.describe('Add Server (sidebar entry point)', () => {
 });
 
 test.describe('Leave Server', () => {
-	let remoteServer: ServerInfo;
+	let remoteServer: ServerInfo | undefined;
 
 	test.beforeEach(async ({}, testInfo) => {
 		remoteServer = await startSecondServer(testInfo);
@@ -43,7 +43,7 @@ test.describe('Leave Server', () => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
 
-		const baseURL = remoteBaseURL(remoteServer);
+		const baseURL = remoteBaseURL(remoteServer!);
 		const remoteHostname = new URL(baseURL).hostname;
 		const remoteUser = await createUserOnRemote(baseURL, 'remoteuser-hidden', 'password123');
 		await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteUser.userId);
@@ -60,6 +60,54 @@ test.describe('Leave Server', () => {
 
 		// The leave-server affordance was removed from the server header.
 		await expect(page.getByTitle('Leave server')).not.toBeVisible();
+	});
+
+	test('can sign out of only the selected remote server', async ({ page, chatPage }) => {
+		await createAndLoginTestUser(page);
+		await chatPage.goto();
+
+		const baseURL = remoteBaseURL(remoteServer!);
+		const remoteHostname = new URL(baseURL).hostname;
+		const remoteUser = await createUserOnRemote(baseURL, 'remoteuser-signout', 'password123');
+		await connectRemoteInstance(page, { ...remoteServer!, baseURL }, remoteUser.userId);
+
+		await page.waitForURL(new RegExp(`/chat/${remoteHostname.replace(/\./g, '\\.')}`));
+		await page.getByTitle('Sign out').click();
+		await expect(page.getByRole('dialog')).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+		await page.getByRole('button', { name: 'Current Server' }).click();
+
+		await expect(page).toHaveURL(/\/chat\/-/);
+		await expect(
+			page.locator(`[data-testid="server-icon"][href*="${remoteHostname}"]`)
+		).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+		await expect(page.getByTitle('Sign out')).toBeVisible();
+	});
+
+	test('can remove the selected remote server when it is unreachable', async (
+		{ page, chatPage },
+		testInfo
+	) => {
+		await createAndLoginTestUser(page);
+		await chatPage.goto();
+
+		const baseURL = remoteBaseURL(remoteServer!);
+		const remoteHostname = new URL(baseURL).hostname;
+		const remoteUser = await createUserOnRemote(baseURL, 'remoteuser-dead', 'password123');
+		await connectRemoteInstance(page, { ...remoteServer!, baseURL }, remoteUser.userId);
+
+		await page.waitForURL(new RegExp(`/chat/${remoteHostname.replace(/\./g, '\\.')}`));
+		await stopSecondServer(remoteServer!, testInfo);
+		remoteServer = undefined;
+
+		await page.getByTitle('Sign out').click();
+		await expect(page.getByRole('dialog')).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+		await page.getByRole('button', { name: 'Current Server' }).click();
+
+		await expect(page).toHaveURL(/\/chat\/-/);
+		await expect(
+			page.locator(`[data-testid="server-icon"][href*="${remoteHostname}"]`)
+		).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+		await expect(page.getByTitle('Sign out')).toBeVisible();
 	});
 });
 

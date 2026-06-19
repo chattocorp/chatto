@@ -54,12 +54,13 @@ vapid_subject = 'mailto:dev@chatto.run'
 [video]
 enabled = true
 
-# LiveKit voice calls. Provided by the always-on chatto-tools stack on OrbStack.
+# LiveKit voice calls. For local development, run:
+# LIVEKIT_KEYS='devkey: devsecret' livekit-server --dev --bind 0.0.0.0
 [livekit]
 enabled = true
-url = 'ws://livekit.chatto-tools.orb.local:7880'
+url = 'ws://localhost:7880'
 api_key = 'devkey'
-api_secret = 'secret'
+api_secret = 'devsecret'
 
 [nats.embedded]
 enabled = true

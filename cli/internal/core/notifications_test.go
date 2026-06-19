@@ -5,11 +5,14 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
+	"hmans.de/chatto/internal/core/subjects"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 func TestCreateNotification(t *testing.T) {
-	core, _ := setupTestCore(t)
+	core, nc := setupTestCore(t)
 	ctx := context.Background()
 
 	recipientID := "recipient-user"
@@ -106,6 +109,53 @@ func TestCreateNotification(t *testing.T) {
 		}
 		if replyNotif.InReplyToId != "root-event" {
 			t.Errorf("Expected in reply to ID root-event, got %s", replyNotif.InReplyToId)
+		}
+	})
+
+	t.Run("publishes room message notification routing context", func(t *testing.T) {
+		subject := subjects.LiveSyncUserEvent(recipientID, "notification_created")
+		sub, err := nc.SubscribeSync(subject)
+		if err != nil {
+			t.Fatalf("SubscribeSync(%s): %v", subject, err)
+		}
+		defer sub.Unsubscribe()
+		if err := nc.Flush(); err != nil {
+			t.Fatalf("Flush subscription: %v", err)
+		}
+
+		created, err := core.CreateNotification(ctx, recipientID, actorID, &corev1.Notification{
+			Notification: &corev1.Notification_RoomMessage{
+				RoomMessage: &corev1.RoomMessageNotification{
+					RoomId:  "all-messages-room",
+					EventId: "all-messages-event",
+				},
+			},
+		})
+		if err != nil {
+			t.Fatalf("CreateNotification error: %v", err)
+		}
+
+		msg, err := sub.NextMsg(2 * time.Second)
+		if err != nil {
+			t.Fatalf("waiting for notification_created live event: %v", err)
+		}
+
+		var live corev1.LiveEvent
+		if err := proto.Unmarshal(msg.Data, &live); err != nil {
+			t.Fatalf("unmarshal live event: %v", err)
+		}
+		event := live.GetNotificationCreated()
+		if event == nil {
+			t.Fatalf("expected NotificationCreatedEvent, got %T", live.Event)
+		}
+		if event.NotificationId != created.Id {
+			t.Errorf("NotificationId = %q, want %q", event.NotificationId, created.Id)
+		}
+		if event.RoomId != "all-messages-room" {
+			t.Errorf("RoomId = %q, want all-messages-room", event.RoomId)
+		}
+		if event.EventId != "all-messages-event" {
+			t.Errorf("EventId = %q, want all-messages-event", event.EventId)
 		}
 	})
 }
@@ -452,6 +502,15 @@ func TestNotificationTypeName(t *testing.T) {
 				},
 			},
 			expected: "reply",
+		},
+		{
+			name: "room_message",
+			notif: &corev1.Notification{
+				Notification: &corev1.Notification_RoomMessage{
+					RoomMessage: &corev1.RoomMessageNotification{},
+				},
+			},
+			expected: "room_message",
 		},
 		{
 			name:     "unknown",

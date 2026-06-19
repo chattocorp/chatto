@@ -9,6 +9,67 @@ import { PresenceStatus } from '$lib/gql/graphql';
 import RoomSidebarTestHarness from './RoomSidebarTestHarness.svelte';
 
 const queryMock = vi.hoisted(() => vi.fn());
+const callStore = vi.hoisted(() => ({
+  voiceCall: {
+    roomId: null as string | null,
+    connecting: false,
+    connected: false,
+    isInAnyCall: false,
+    isMuted: false,
+    isCameraEnabled: false,
+    participants: [] as Array<{
+      identity: string;
+      name: string;
+      login: string;
+      avatarUrl: string | null;
+      isMuted: boolean;
+      isLocal: boolean;
+      connectionQuality: 'excellent' | 'good' | 'poor' | 'lost' | 'unknown';
+      isCameraEnabled: boolean;
+      videoTrack: unknown;
+    }>,
+    audioDevices: [],
+    audioOutputDevices: [],
+    videoDevices: [],
+    selectedDeviceId: null,
+    selectedOutputDeviceId: null,
+    selectedVideoDeviceId: null,
+    isInCall: vi.fn(
+      (roomId: string) => callStore.voiceCall.connected && callStore.voiceCall.roomId === roomId
+    ),
+    join: vi.fn().mockResolvedValue(undefined),
+    leave: vi.fn().mockResolvedValue(undefined),
+    toggleMute: vi.fn().mockResolvedValue(undefined),
+    toggleCamera: vi.fn().mockResolvedValue(undefined),
+    refreshDevices: vi.fn().mockResolvedValue(undefined),
+    getAudioLevel: vi.fn(() => ({ isSpeaking: false, audioLevel: 0 })),
+    handleParticipantLeftEvent: vi.fn(),
+    handleCallEndedEvent: vi.fn()
+  },
+  activeCallRooms: {
+    active: false,
+    load: vi.fn().mockResolvedValue(undefined),
+    has: vi.fn(() => callStore.activeCallRooms.active),
+    handleEnd: vi.fn()
+  },
+  callParticipants: {
+    participants: [] as Array<{
+      userId: string;
+      displayName: string;
+      login: string;
+      avatarUrl: string | null;
+    }>,
+    load: vi.fn().mockResolvedValue(undefined),
+    clear: vi.fn(),
+    handleJoin: vi.fn(),
+    handleLeave: vi.fn(),
+    handleEnd: vi.fn()
+  },
+  rooms: {
+    currentUserId: 'viewer'
+  },
+  handleVoiceCallJoinFailed: vi.fn()
+}));
 
 class MockIntersectionObserver {
   static instances: MockIntersectionObserver[] = [];
@@ -47,6 +108,10 @@ vi.mock('$lib/hooks/useEvent.svelte', () => ({
   usePresenceChange: vi.fn()
 }));
 
+vi.mock('$lib/hooks', () => ({
+  useEvent: vi.fn()
+}));
+
 vi.mock('$lib/state/server/connection.svelte', () => ({
   useConnection: () => () => ({
     isConnected: true,
@@ -66,6 +131,13 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'test-server'
+}));
+
+vi.mock('$lib/state/server/registry.svelte', () => ({
+  serverRegistry: {
+    getStore: () => callStore,
+    getServer: () => ({ id: 'test-server', url: 'https://chat.example.test' })
+  }
 }));
 
 vi.mock('$lib/state/server/permissions.svelte', () => ({
@@ -247,6 +319,30 @@ describe('RoomSidebar', () => {
     localStorage.clear();
     MockIntersectionObserver.instances = [];
     vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
+    callStore.voiceCall.roomId = null;
+    callStore.voiceCall.connecting = false;
+    callStore.voiceCall.connected = false;
+    callStore.voiceCall.isInAnyCall = false;
+    callStore.voiceCall.isMuted = false;
+    callStore.voiceCall.isCameraEnabled = false;
+    callStore.voiceCall.participants = [];
+    callStore.voiceCall.isInCall.mockClear();
+    callStore.voiceCall.join.mockClear();
+    callStore.voiceCall.leave.mockClear();
+    callStore.voiceCall.toggleMute.mockClear();
+    callStore.voiceCall.toggleCamera.mockClear();
+    callStore.voiceCall.refreshDevices.mockClear();
+    callStore.voiceCall.getAudioLevel.mockClear();
+    callStore.activeCallRooms.active = false;
+    callStore.activeCallRooms.load.mockClear();
+    callStore.activeCallRooms.has.mockClear();
+    callStore.callParticipants.participants = [];
+    callStore.callParticipants.load.mockClear();
+    callStore.callParticipants.clear.mockClear();
+    callStore.callParticipants.handleJoin.mockClear();
+    callStore.callParticipants.handleLeave.mockClear();
+    callStore.callParticipants.handleEnd.mockClear();
+    callStore.handleVoiceCallJoinFailed.mockClear();
   });
 
   it('shows the exact total count and eagerly loads all member pages', async () => {
@@ -308,6 +404,248 @@ describe('RoomSidebar', () => {
       expect(renderedMemberTitles(container)).toContain(`View profile of User ${index}`);
     }
     expect(container.querySelector('[data-testid="room-members-load-more-sentinel"]')).toBeFalsy();
+  });
+
+  it('renders the call tab empty state and starts a call', async () => {
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        roomData: roomData([], 0, false),
+        activePanel: 'call',
+        livekitUrl: 'wss://livekit.example.test'
+      }
+    });
+
+    await expect.element(q(container, 'h1')).toHaveTextContent('Call');
+    await expect
+      .element(q(container, '[data-testid="call-join-button"]'))
+      .toHaveTextContent('Start call');
+    expect(container.textContent).not.toContain('No active call');
+    expect(container.textContent).not.toContain("Start one when you're ready.");
+
+    (q(container, '[data-testid="call-join-button"]') as HTMLButtonElement).click();
+    await tick();
+
+    expect(callStore.voiceCall.join).toHaveBeenCalledWith('wss://livekit.example.test', 'room-1');
+  });
+
+  it('renders projected call participants before joining', async () => {
+    callStore.activeCallRooms.active = true;
+    callStore.callParticipants.participants = [
+      {
+        userId: 'user-2',
+        login: 'bob',
+        displayName: 'Bob',
+        avatarUrl: null
+      }
+    ];
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        roomData: roomData([], 0, false),
+        activePanel: 'call',
+        livekitUrl: 'wss://livekit.example.test'
+      }
+    });
+
+    await expect.element(q(container, '[data-testid="call-observer-panel"]')).toBeInTheDocument();
+    expect(container.textContent).not.toContain('1 in call');
+    expect(container.textContent).not.toContain('Voice (1)');
+    expect(container.textContent).not.toContain('Video (1)');
+    expect(container.textContent).toContain('Bob');
+    await expect.element(q(container, '[data-testid="call-participant-card"]')).toBeInTheDocument();
+    await expect
+      .element(q(container, '[data-testid="call-participants-list"]'))
+      .toBeInTheDocument();
+    await vi.waitFor(() => {
+      expect(callStore.callParticipants.load).toHaveBeenCalledWith('room-1');
+    });
+  });
+
+  it('refreshes active-call room state when the call tab opens for an observer', async () => {
+    render(RoomSidebarTestHarness, {
+      props: {
+        roomData: roomData([], 0, false),
+        activePanel: 'call',
+        livekitUrl: 'wss://livekit.example.test'
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(callStore.activeCallRooms.load).toHaveBeenCalledOnce();
+    });
+  });
+
+  it('renders connected participant cards video-first and exposes call controls', async () => {
+    const videoTrack = {
+      attach: vi.fn(),
+      detach: vi.fn()
+    };
+    callStore.voiceCall.connected = true;
+    callStore.voiceCall.isInAnyCall = true;
+    callStore.voiceCall.roomId = 'room-1';
+    callStore.voiceCall.participants = [
+      {
+        identity: 'viewer',
+        login: 'alice',
+        name: 'Alice',
+        avatarUrl: null,
+        isMuted: false,
+        isLocal: true,
+        connectionQuality: 'excellent',
+        isCameraEnabled: true,
+        videoTrack
+      },
+      {
+        identity: 'user-2',
+        login: 'bob',
+        name: 'Bob',
+        avatarUrl: null,
+        isMuted: true,
+        isLocal: false,
+        connectionQuality: 'good',
+        isCameraEnabled: false,
+        videoTrack: null
+      }
+    ];
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        roomData: roomData([], 0, false),
+        activePanel: 'call',
+        livekitUrl: 'wss://livekit.example.test'
+      }
+    });
+
+    await expect
+      .element(q(container, '[data-testid="call-participant-panel"]'))
+      .toBeInTheDocument();
+    expect(container.textContent).not.toContain('Video (1)');
+    expect(container.textContent).not.toContain('Voice (1)');
+    expect(container.textContent).toContain('Bob');
+    expect(q(container, '[data-testid="call-device-menu-button"]')).toBeTruthy();
+    const participantCards = Array.from(
+      container.querySelectorAll<HTMLElement>('[data-testid="call-participant-card"]')
+    );
+    expect(participantCards).toHaveLength(2);
+    expect(participantCards[0].className).toContain('participant-card-video');
+    expect(participantCards[1].className).toContain('participant-card-compact');
+
+    (q(container, '[data-testid="call-mute-toggle"]') as HTMLButtonElement).click();
+    (q(container, '[data-testid="call-camera-toggle"]') as HTMLButtonElement).click();
+    (q(container, '[data-testid="call-leave-button"]') as HTMLButtonElement).click();
+    await tick();
+
+    expect(callStore.voiceCall.toggleMute).toHaveBeenCalledOnce();
+    expect(callStore.voiceCall.toggleCamera).toHaveBeenCalledOnce();
+    expect(callStore.voiceCall.leave).toHaveBeenCalledOnce();
+  });
+
+  it('renders one participant list without empty section labels', async () => {
+    const videoTrack = {
+      attach: vi.fn(),
+      detach: vi.fn()
+    };
+    callStore.voiceCall.connected = true;
+    callStore.voiceCall.isInAnyCall = true;
+    callStore.voiceCall.roomId = 'room-1';
+    callStore.voiceCall.participants = [
+      {
+        identity: 'viewer',
+        login: 'alice',
+        name: 'Alice',
+        avatarUrl: null,
+        isMuted: false,
+        isLocal: true,
+        connectionQuality: 'excellent',
+        isCameraEnabled: true,
+        videoTrack
+      }
+    ];
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        roomData: roomData([], 0, false),
+        activePanel: 'call',
+        livekitUrl: 'wss://livekit.example.test'
+      }
+    });
+
+    expect(container.textContent).not.toContain('Video (1)');
+    expect(container.textContent).not.toContain('Voice (0)');
+    expect(container.textContent).not.toContain('No voice-only participants.');
+    const participantList = q(container, '[data-testid="call-participants-list"]');
+    expect(participantList).toBeTruthy();
+    expect(participantList!.className).not.toContain('@min-[368px]:grid-cols-2');
+  });
+
+  it('uses a two-column video grid when multiple videos have room', async () => {
+    const videoTrackA = {
+      attach: vi.fn(),
+      detach: vi.fn()
+    };
+    const videoTrackB = {
+      attach: vi.fn(),
+      detach: vi.fn()
+    };
+    callStore.voiceCall.connected = true;
+    callStore.voiceCall.isInAnyCall = true;
+    callStore.voiceCall.roomId = 'room-1';
+    callStore.voiceCall.participants = [
+      {
+        identity: 'viewer',
+        login: 'alice',
+        name: 'Alice',
+        avatarUrl: null,
+        isMuted: false,
+        isLocal: true,
+        connectionQuality: 'excellent',
+        isCameraEnabled: true,
+        videoTrack: videoTrackA
+      },
+      {
+        identity: 'user-2',
+        login: 'bob',
+        name: 'Bob',
+        avatarUrl: null,
+        isMuted: false,
+        isLocal: false,
+        connectionQuality: 'good',
+        isCameraEnabled: true,
+        videoTrack: videoTrackB
+      }
+    ];
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        roomData: roomData([], 0, false),
+        activePanel: 'call',
+        livekitUrl: 'wss://livekit.example.test'
+      }
+    });
+
+    expect(container.textContent).not.toContain('Video (2)');
+    const participantList = q(container, '[data-testid="call-participants-list"]');
+    expect(participantList).toBeTruthy();
+    expect(participantList!.className).toContain('@min-[368px]:grid-cols-2');
+  });
+
+  it('disables joining this room while connected to another call', async () => {
+    callStore.activeCallRooms.active = true;
+    callStore.voiceCall.connected = true;
+    callStore.voiceCall.isInAnyCall = true;
+    callStore.voiceCall.roomId = 'other-room';
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        roomData: roomData([], 0, false),
+        activePanel: 'call',
+        livekitUrl: 'wss://livekit.example.test'
+      }
+    });
+
+    const joinButton = q(container, '[data-testid="call-join-button"]') as HTMLButtonElement;
+    expect(joinButton.disabled).toBe(true);
+    expect(joinButton.title).toBe('Already in another call');
   });
 
   it('filters room members locally without changing the canonical total count', async () => {

@@ -112,7 +112,7 @@ export class CallParticipantsState {
 	/** Clear observer participants when the room's call ends. */
 	handleEnd(roomId: string, callId: string): void {
 		if (roomId !== this.currentRoomId) return;
-		if (this.currentCallId !== callId) return;
+		if (this.currentCallId !== null && this.currentCallId !== callId) return;
 		this.clear();
 	}
 

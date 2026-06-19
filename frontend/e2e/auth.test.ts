@@ -377,7 +377,11 @@ test.describe('Authentication', () => {
       // Click sign out button - should show confirmation modal
       await authPage.logoutButton.click();
       await expect(authPage.logoutDialog).toBeVisible();
-      await expect(authPage.logoutDialog.getByText('disconnect all instances')).toBeVisible();
+      await expect(authPage.logoutDialog.getByText('disconnect every server')).toBeVisible();
+      await expect(
+        authPage.logoutDialog.getByRole('button', { name: 'Current Server' })
+      ).toBeVisible();
+      await expect(authPage.confirmLogoutButton).toBeVisible();
     });
 
     test('can cancel logout and stay logged in', async ({ authPage }) => {

@@ -1,20 +1,22 @@
 <!--
 @component
 
-Renders a LiveKit video track in a thumbnail-sized `<video>` element with
-a small avatar overlay in the top-left corner for identification.
+Renders a LiveKit video track in a thumbnail-sized `<video>` element.
+It can optionally include a small avatar overlay in the top-left corner for
+identification.
 
 Manages the attach/detach lifecycle imperatively — only detaches/reattaches
 when the track reference actually changes, not on every parent re-render.
 This prevents flicker from the 60ms audio level polling in VoiceCallPanel.
 
 The explicit width/height attributes tell LiveKit's `adaptiveStream` what
-resolution to request (h180 simulcast layer for 120px thumbnails).
+resolution to request for sidebar-width tiles.
 
 **Props:**
 - `track` - The LiveKit video Track to display
 - `name` - Participant display name (shown as tooltip)
 - `user` - User object for the avatar overlay (same shape as UserAvatar's `user` prop)
+- `showIdentityOverlay` - Whether to show the avatar overlay
 -->
 <script lang="ts">
 	import { onDestroy } from 'svelte';
@@ -25,7 +27,8 @@ resolution to request (h180 simulcast layer for 120px thumbnails).
 	let {
 		track,
 		name,
-		user
+		user,
+		showIdentityOverlay = true
 	}: {
 		track: Track;
 		name: string;
@@ -36,6 +39,7 @@ resolution to request (h180 simulcast layer for 120px thumbnails).
 			avatarUrl: string | null;
 			presenceStatus: PresenceStatus;
 		};
+		showIdentityOverlay?: boolean;
 	} = $props();
 
 	let videoEl = $state<HTMLVideoElement | null>(null);
@@ -73,35 +77,22 @@ resolution to request (h180 simulcast layer for 120px thumbnails).
 	});
 </script>
 
-<div class="video-thumbnail">
+<div class="relative block aspect-video w-full overflow-hidden rounded-md bg-surface-200">
 	<video
 		bind:this={videoEl}
-		width="120"
-		height="68"
-		class="rounded object-cover"
+		width="640"
+		height="360"
+		class="h-full w-full object-cover"
 		title={name}
 		autoplay
 		playsinline
 		muted
 	></video>
-	<div class="avatar-badge">
-		<UserAvatar {user} size="xs" showPresence={false} />
-	</div>
+	{#if showIdentityOverlay}
+		<div
+			class="absolute top-2 left-2 h-6 w-6 rounded-full shadow-[0_0_0_1.5px_var(--color-surface-100)]"
+		>
+			<UserAvatar {user} size="xs" showPresence={false} />
+		</div>
+	{/if}
 </div>
-
-<style>
-	.video-thumbnail {
-		position: relative;
-		display: inline-flex;
-	}
-
-	.avatar-badge {
-		position: absolute;
-		top: 2px;
-		left: 2px;
-		width: 1.25rem;
-		height: 1.25rem;
-		border-radius: 9999px;
-		box-shadow: 0 0 0 1.5px var(--color-surface-100);
-	}
-</style>

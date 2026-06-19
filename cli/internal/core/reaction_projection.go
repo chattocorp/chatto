@@ -122,10 +122,6 @@ func (p *ReactionProjection) noteRoomOwnershipLocked(event *corev1.Event, roomID
 		if event.GetId() != "" {
 			p.messageRoom[event.GetId()] = roomID
 		}
-	case *corev1.Event_MessageBody:
-		if e.MessageBody.GetEventId() != "" {
-			p.messageRoom[e.MessageBody.GetEventId()] = roomID
-		}
 	case *corev1.Event_AssetCreated:
 		if assetID := e.AssetCreated.GetAsset().GetId(); assetID != "" {
 			p.assetRoom[assetID] = roomID

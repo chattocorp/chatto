@@ -382,7 +382,7 @@ test.describe('Sign Out', () => {
     }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [200, 500, 1000] });
 
     // Confirm sign out
-    await dialog.getByRole('button', { name: 'Sign Out' }).click();
+    await dialog.getByRole('button', { name: 'All Servers' }).click();
 
     // Should end up at the login page (hard reload clears state)
     await page.waitForURL('/login');

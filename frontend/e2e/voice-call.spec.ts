@@ -60,17 +60,26 @@ async function joinRoomViaAPI(page: Page, roomId: string) {
   });
 }
 
+async function openCallTab(page: Page) {
+  await page
+    .locator('[data-testid="room-sidebar-toggle"]:visible')
+    .getByLabel('Show call')
+    .click();
+}
+
 test.describe('Voice calls', () => {
-  test('call button appears in room header', async ({ page, chatPage }) => {
+  test('call tab appears in room sidebar toggle', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    const callButton = page.getByTitle('Join voice call');
-    await expect(callButton).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    const callTab = page
+      .locator('[data-testid="room-sidebar-toggle"]:visible')
+      .getByLabel('Show call');
+    await expect(callTab).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
   });
 
-  test('call button appears in DM rooms', async ({ page, browser, serverURL }) => {
+  test('call tab appears in DM rooms', async ({ page, browser, serverURL }) => {
     // Create two users
     await createAndLoginTestUser(page);
 
@@ -79,9 +88,11 @@ test.describe('Voice calls', () => {
       const dmPage = new DMPage(page);
       await dmPage.startConversation(userB.login);
 
-      // Call button should be visible in the DM room header
-      const callButton = page.getByTitle('Join voice call');
-      await expect(callButton).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+      // Call tab should be visible in the DM room sidebar toggle
+      const callTab = page
+        .locator('[data-testid="room-sidebar-toggle"]:visible')
+        .getByLabel('Show call');
+      await expect(callTab).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
     });
   });
 
@@ -200,7 +211,7 @@ test.describe('Voice calls', () => {
     const roomId = await getRoomIdByName(page, 'general');
 
     // The call icon should NOT be visible initially
-    const callIcon = chatPage.roomList.locator('.uil--phone');
+    const callIcon = chatPage.roomList.getByTestId('room-call-icon');
     await expect(callIcon).not.toBeVisible();
 
     // User B joins the same server and room
@@ -219,7 +230,7 @@ test.describe('Voice calls', () => {
         }
       });
 
-      // User A should see the call icon appear
+      // User A should see the active-call icon appear
       await expect(callIcon).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
       // Simulate User B leaving the voice call
@@ -231,7 +242,7 @@ test.describe('Voice calls', () => {
         }
       });
 
-      // User A should see the call icon disappear
+      // User A should see the active-call icon disappear
       // (handleLeave re-queries activeCallRoomIds, which returns [] since KV is now empty)
       await expect(callIcon).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
     });
@@ -323,7 +334,9 @@ test.describe('Voice calls', () => {
         }
       });
 
-      // User A should see the observer panel with "Call active" and a Join button
+      await openCallTab(page);
+
+      // User A should see the call sidebar observer state with a Join button
       const observerPanel = page.getByTestId('call-observer-panel');
       await expect(observerPanel).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
       await expect(page.getByTestId('call-join-button')).toBeVisible();
@@ -331,13 +344,15 @@ test.describe('Voice calls', () => {
       // User A should see User B's display name in the participant list
       await expect(observerPanel.getByTitle(userB.displayName)).toBeVisible();
 
-      // Simulate User B leaving — observer panel should disappear
+      // Simulate User B leaving — the open call tab falls back to its idle start-call state
       await page.request.post('/webhooks/test/call-leave', {
         data: { spaceId, roomId, userId: userB.id }
       });
 
-      await expect(observerPanel).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-      await expect(page.getByTestId('call-join-button')).not.toBeVisible();
+      await expect(observerPanel.getByTitle(userB.displayName)).not.toBeVisible({
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
+      await expect(page.getByTestId('call-join-button')).toHaveText('Start call');
     });
   });
 
@@ -360,8 +375,6 @@ test.describe('Voice calls', () => {
       await withServerUser(browser!, serverURL, async ({ page: page3, user: userC }) => {
         await joinRoomViaAPI(page3, roomId);
 
-        const observerPanel = page.getByTestId('call-observer-panel');
-
         // User B joins the call
         await page.request.post('/webhooks/test/call-join', {
           data: {
@@ -372,6 +385,9 @@ test.describe('Voice calls', () => {
             login: userB.login
           }
         });
+
+        await openCallTab(page);
+        const observerPanel = page.getByTestId('call-observer-panel');
 
         await expect(observerPanel).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
         await expect(observerPanel.getByTitle(userB.displayName)).toBeVisible();
@@ -404,17 +420,20 @@ test.describe('Voice calls', () => {
         await expect(observerPanel.getByTitle(userC.displayName)).toBeVisible();
         await expect(observerPanel).toBeVisible();
 
-        // User C leaves — panel should disappear
+        // User C leaves — the open call tab falls back to its idle start-call state
         await page.request.post('/webhooks/test/call-leave', {
           data: { spaceId, roomId, userId: userC.id }
         });
 
-        await expect(observerPanel).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+        await expect(observerPanel.getByTitle(userC.displayName)).not.toBeVisible({
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
+        await expect(page.getByTestId('call-join-button')).toHaveText('Start call');
       });
     });
   });
 
-  test('participant avatars appear in room list sidebar during active call', async ({
+  test('active-call icon appears in room list sidebar during active call', async ({
     page,
     chatPage,
     browser,
@@ -427,9 +446,10 @@ test.describe('Voice calls', () => {
     await chatPage.enterRoom('general');
     const roomId = await getRoomIdByName(page, 'general');
 
-    // No call badge in sidebar initially
+    // No active-call icon in sidebar initially
     const roomList = chatPage.roomList;
-    await expect(roomList.locator('.meta-badge')).not.toBeVisible();
+    const callIcon = roomList.getByTestId('room-call-icon');
+    await expect(callIcon).not.toBeVisible();
 
     await withServerUser(browser!, serverURL, async ({ page: page2, user: userB }) => {
       await joinRoomViaAPI(page2, roomId);
@@ -445,17 +465,17 @@ test.describe('Voice calls', () => {
         }
       });
 
-      // Call badge with phone icon should appear in sidebar
-      const callBadge = roomList.locator('.meta-badge');
-      await expect(callBadge).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-      await expect(callBadge.locator('.uil--phone')).toBeVisible();
+      // Active-call icon with phone pulse twin should appear in sidebar
+      await expect(callIcon).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(callIcon.locator('.uil--phone').first()).toBeVisible();
+      await expect(callIcon.getByTestId('active-call-pulse-icon')).toBeVisible();
 
-      // Simulate User B leaving — badge should disappear
+      // Simulate User B leaving — active-call icon should disappear
       await page.request.post('/webhooks/test/call-leave', {
         data: { spaceId, roomId, userId: userB.id }
       });
 
-      await expect(callBadge).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(callIcon).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
     });
   });
 

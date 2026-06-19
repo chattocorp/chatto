@@ -103,6 +103,9 @@ export class VoiceCallState {
   // Internal LiveKit room instance
   private room: Room | null = null;
   private activeCallId: string | null = null;
+  private joinInFlight: Promise<void> | null = null;
+  private joinInFlightRoomId: string | null = null;
+  private leaveInFlight: Promise<void> | null = null;
   private e2eeWorker: Worker | null = null;
   private audioLevelInterval: ReturnType<typeof setInterval> | null = null;
   private suppressDisconnectToast = false;
@@ -155,6 +158,28 @@ export class VoiceCallState {
     // Already in this call
     if (this.isInCall(roomId)) return;
 
+    if (this.joinInFlight) {
+      if (this.joinInFlightRoomId === roomId) {
+        return this.joinInFlight;
+      }
+      await this.joinInFlight;
+      if (this.isInCall(roomId)) return;
+    }
+
+    const joinPromise = this.performJoin(livekitUrl, roomId);
+    this.joinInFlight = joinPromise;
+    this.joinInFlightRoomId = roomId;
+    try {
+      await joinPromise;
+    } finally {
+      if (this.joinInFlight === joinPromise) {
+        this.joinInFlight = null;
+        this.joinInFlightRoomId = null;
+      }
+    }
+  }
+
+  private async performJoin(livekitUrl: string, roomId: string): Promise<void> {
     // Leave existing call first
     if (this.connected) {
       await this.leave();
@@ -250,14 +275,27 @@ export class VoiceCallState {
    * Leave the current voice call.
    */
   async leave(): Promise<void> {
+    if (this.leaveInFlight) return this.leaveInFlight;
     if (!this.room) return;
 
+    const leavePromise = this.performLeave();
+    this.leaveInFlight = leavePromise;
+    try {
+      await leavePromise;
+    } finally {
+      if (this.leaveInFlight === leavePromise) {
+        this.leaveInFlight = null;
+      }
+    }
+  }
+
+  private async performLeave(): Promise<void> {
     const roomId = this.roomId;
     if (roomId) {
       await this.recordLeaveIntent(roomId);
     }
 
-    this.room.disconnect();
+    this.room?.disconnect();
     this.cleanup();
   }
 
@@ -614,6 +652,8 @@ export class VoiceCallState {
     this.e2eeWorker?.terminate();
     this.e2eeWorker = null;
     this.activeCallId = null;
+    this.joinInFlight = null;
+    this.joinInFlightRoomId = null;
     this.suppressDisconnectToast = false;
     this.connected = false;
     this.connecting = false;

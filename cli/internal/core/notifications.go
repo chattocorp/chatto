@@ -290,6 +290,9 @@ func (c *ChattoCore) publishNotificationCreatedEvent(ctx context.Context, notif 
 		roomID = n.Reply.RoomId
 		eventID = n.Reply.EventId
 		inReplyToID = n.Reply.InReplyToId
+	case *corev1.Notification_RoomMessage:
+		roomID = n.RoomMessage.RoomId
+		eventID = n.RoomMessage.EventId
 	}
 
 	event := newLiveEvent(notif.ActorId, &corev1.LiveEvent{
@@ -343,6 +346,8 @@ func notificationTypeName(notif *corev1.Notification) string {
 		return "mention"
 	case *corev1.Notification_Reply:
 		return "reply"
+	case *corev1.Notification_RoomMessage:
+		return "room_message"
 	default:
 		return "unknown"
 	}

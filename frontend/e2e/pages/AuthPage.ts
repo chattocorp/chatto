@@ -146,7 +146,7 @@ export class AuthPage {
 
   /** Confirm sign out button in dialog */
   get confirmLogoutButton(): Locator {
-    return this.page.getByRole('dialog').getByRole('button', { name: 'Sign Out' });
+    return this.page.getByRole('dialog').getByRole('button', { name: 'All Servers' });
   }
 
   /** Cancel logout button in dialog */
