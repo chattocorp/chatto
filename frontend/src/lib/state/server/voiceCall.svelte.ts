@@ -47,6 +47,40 @@ type ParticipantMetadata = {
   avatarUrl?: string;
 };
 
+const genericJoinFailureMessage = 'Failed to join voice call';
+const unsupportedEncryptedCallMessage =
+  'This browser does not support encrypted voice calls yet. Try the latest Firefox, Chrome, or Edge.';
+const signalingFailureMessage =
+  'Could not reach the voice server. Check your network and try again.';
+
+export class VoiceCallJoinError extends Error {
+  readonly userMessage: string;
+  readonly cause?: unknown;
+
+  constructor(message: string, userMessage: string, cause?: unknown) {
+    super(message);
+    this.name = 'VoiceCallJoinError';
+    this.userMessage = userMessage;
+    this.cause = cause;
+  }
+}
+
+export function getVoiceCallJoinErrorMessage(err: unknown): string {
+  if (err instanceof VoiceCallJoinError) return err.userMessage;
+
+  const message = errorMessage(err);
+  if (
+    /signal connection|serverunreachable|websocket|web socket|abort handler/i.test(message)
+  ) {
+    return signalingFailureMessage;
+  }
+  if (/e2ee|cryptor|encoded transform|insertable stream/i.test(message)) {
+    return unsupportedEncryptedCallMessage;
+  }
+
+  return genericJoinFailureMessage;
+}
+
 const VoiceCallTokenQuery = graphql(`
   query GetVoiceCallToken($roomId: ID!) {
     room(roomId: $roomId) {
@@ -182,6 +216,8 @@ export class VoiceCallState {
   }
 
   private async performJoin(livekitUrl: string, roomId: string): Promise<void> {
+    assertLiveKitE2EESupported();
+
     // Leave existing call first
     if (this.connected) {
       await this.leave();
@@ -262,7 +298,7 @@ export class VoiceCallState {
       this.updateParticipants();
       await this.refreshDevices();
     } catch (err) {
-      console.error('Failed to join voice call:', err);
+      console.error('Failed to join voice call:', summarizeJoinError(err));
       if (joinIntentRecorded) {
         await this.recordLeaveIntent(roomId);
       }
@@ -755,4 +791,45 @@ function getParticipantScreenShareTrack(participant: Participant): Track | null 
     }
   }
   return null;
+}
+
+function assertLiveKitE2EESupported(): void {
+  const globals = globalThis as typeof globalThis & Record<string, unknown>;
+  const senderCtor = globals.RTCRtpSender as { prototype?: object } | undefined;
+  const senderProto = senderCtor?.prototype as Record<string, unknown> | undefined;
+  const hasEncodedTransform =
+    typeof globals.RTCRtpScriptTransform === 'function' ||
+    typeof senderProto?.createEncodedStreams === 'function';
+
+  if (
+    typeof globals.Worker !== 'function' ||
+    typeof globals.TransformStream !== 'function' ||
+    typeof globals.ReadableStream !== 'function' ||
+    typeof globals.WritableStream !== 'function' ||
+    !globals.crypto ||
+    typeof globals.crypto !== 'object' ||
+    !('subtle' in globals.crypto) ||
+    !hasEncodedTransform
+  ) {
+    throw new VoiceCallJoinError(
+      'LiveKit E2EE is not supported by this browser',
+      unsupportedEncryptedCallMessage
+    );
+  }
+}
+
+function summarizeJoinError(err: unknown): string {
+  return redactSensitiveUrlParts(errorMessage(err));
+}
+
+function errorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  return String(err);
+}
+
+function redactSensitiveUrlParts(message: string): string {
+  return message
+    .replace(/access_token=([^&\s]+)/gi, 'access_token=<redacted>')
+    .replace(/join_request=([^&\s]+)/gi, 'join_request=<redacted>')
+    .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, '<jwt-redacted>');
 }

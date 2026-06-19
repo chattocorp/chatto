@@ -21,6 +21,7 @@ States:
   const stores = serverRegistry.getStore(getActiveServer());
   const voiceCallState = stores.voiceCall;
   import { toast } from '$lib/ui/toast';
+  import { getVoiceCallJoinErrorMessage } from '$lib/state/server/voiceCall.svelte';
 
   let {
     roomId,
@@ -37,9 +38,9 @@ States:
   async function handleJoin() {
     try {
       await voiceCallState.join(livekitUrl, roomId);
-    } catch {
+    } catch (err) {
       stores.handleVoiceCallJoinFailed(roomId);
-      toast.error('Failed to join voice call');
+      toast.error(getVoiceCallJoinErrorMessage(err));
     }
   }
 </script>

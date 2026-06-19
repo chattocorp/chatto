@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { VoiceCallState } from './voiceCall.svelte';
+import {
+  getVoiceCallJoinErrorMessage,
+  VoiceCallJoinError,
+  VoiceCallState
+} from './voiceCall.svelte';
 
 const calls: string[] = [];
 let lastRoomOptions: Record<string, unknown> | null = null;
@@ -161,6 +165,12 @@ describe('VoiceCallState', () => {
     screenShareFailure = null;
     roomEventHandlers = new Map();
     localTrackPublications = [];
+    vi.stubGlobal('Worker', class MockWorker {});
+    vi.stubGlobal('TransformStream', class MockTransformStream {});
+    vi.stubGlobal('ReadableStream', class MockReadableStream {});
+    vi.stubGlobal('WritableStream', class MockWritableStream {});
+    vi.stubGlobal('RTCRtpScriptTransform', class MockRTCRtpScriptTransform {});
+    vi.stubGlobal('crypto', { subtle: {} });
   });
 
   afterEach(() => {
@@ -199,6 +209,36 @@ describe('VoiceCallState', () => {
       calls.indexOf('setE2EEEnabled:true')
     );
     expect(calls.indexOf('setE2EEEnabled:true')).toBeLessThan(calls.indexOf('connect'));
+  });
+
+  it('fails before recording join intent when encrypted calls are unsupported', async () => {
+    vi.stubGlobal('RTCRtpScriptTransform', undefined);
+    vi.stubGlobal('RTCRtpSender', class MockRTCRtpSender {});
+
+    const client = {
+      mutation: vi.fn(() => ({
+        toPromise: vi.fn(async () => ({ data: { joinVoiceCall: true } }))
+      })),
+      query: vi.fn()
+    };
+
+    const state = new VoiceCallState(client as never);
+
+    await expect(state.join('wss://livekit.example.test', 'R1')).rejects.toThrow(
+      VoiceCallJoinError
+    );
+
+    expect(client.mutation).not.toHaveBeenCalled();
+    expect(client.query).not.toHaveBeenCalled();
+    expect(state.isInAnyCall).toBe(false);
+  });
+
+  it('maps signaling failures to an actionable join error message', () => {
+    const error = new Error('could not establish signal connection: Abort handler called');
+
+    expect(getVoiceCallJoinErrorMessage(error)).toBe(
+      'Could not reach the voice server. Check your network and try again.'
+    );
   });
 
   it('coalesces duplicate joins for the same room while connecting', async () => {

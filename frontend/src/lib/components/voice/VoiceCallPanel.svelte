@@ -30,6 +30,7 @@ Room sidebar panel for voice/video calls.
   import VideoThumbnail from './VideoThumbnail.svelte';
   import AudioDeviceMenu from './AudioDeviceMenu.svelte';
   import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
+  import { getVoiceCallJoinErrorMessage } from '$lib/state/server/voiceCall.svelte';
   import type { Track } from 'livekit-client';
   import type { Attachment } from 'svelte/attachments';
   import { startDMWith } from '$lib/dm/startDM';
@@ -263,9 +264,9 @@ Room sidebar panel for voice/video calls.
   async function handleJoin() {
     try {
       await voiceCallState.join(livekitUrl, roomId);
-    } catch {
+    } catch (err) {
       stores.handleVoiceCallJoinFailed(roomId);
-      toast.error('Failed to join voice call');
+      toast.error(getVoiceCallJoinErrorMessage(err));
     }
   }
 </script>

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"hmans.de/chatto/internal/events"
@@ -342,13 +343,16 @@ func TestGenerateVoiceCallToken(t *testing.T) {
 		t.Errorf("Token video.room = %v, want %q", video["room"], roomName)
 	}
 
-	// Verify exp and nbf claims exist (don't check duration — that's
-	// the LiveKit library's responsibility via SetValidFor)
-	if _, ok := claims["exp"].(float64); !ok {
+	exp, ok := claims["exp"].(float64)
+	if !ok {
 		t.Error("Token missing exp claim")
 	}
-	if _, ok := claims["nbf"].(float64); !ok {
+	nbf, ok := claims["nbf"].(float64)
+	if !ok {
 		t.Error("Token missing nbf claim")
+	}
+	if ttl := time.Duration(exp-nbf) * time.Second; ttl != VoiceCallTokenTTL {
+		t.Errorf("Token TTL = %s, want %s", ttl, VoiceCallTokenTTL)
 	}
 }
 
