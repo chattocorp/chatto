@@ -369,6 +369,7 @@ Room sidebar panel for voice/video calls.
         name={`${participant.displayName}'s screen`}
         user={participant.avatarUser}
         showIdentityOverlay={false}
+        fit="contain"
       />
     </div>
   </button>

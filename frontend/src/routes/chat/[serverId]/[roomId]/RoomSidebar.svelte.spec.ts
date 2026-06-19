@@ -704,8 +704,10 @@ describe('RoomSidebar', () => {
     const cards = Array.from(participantList!.children);
     expect(cards[0].getAttribute('data-testid')).toBe('call-screen-share-card');
     expect(cards[0].textContent).toContain("Alice's screen");
+    expect(cards[0].querySelector('video')?.className).toContain('object-contain');
     expect(cards[1].getAttribute('data-testid')).toBe('call-participant-card');
     expect(cards[1].textContent).toContain('Bob');
+    expect(cards[1].querySelector('video')?.className).toContain('object-cover');
     expect(cards[2].getAttribute('data-testid')).toBe('call-participant-card');
     expect(cards[2].textContent).toContain('Alice');
     expect(cards[3].getAttribute('data-testid')).toBe('call-participant-card');
