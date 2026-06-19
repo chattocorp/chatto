@@ -8,11 +8,13 @@ Tiny test double for form Button used by ModalContainer specs.
 
   let {
     children,
+    disabled = false,
     onclick
   }: {
     children: Snippet;
+    disabled?: boolean;
     onclick?: (e: MouseEvent) => void;
   } = $props();
 </script>
 
-<button type="button" {onclick}>{@render children()}</button>
+<button type="button" {disabled} {onclick}>{@render children()}</button>

@@ -9,6 +9,11 @@
 
   const activeInstanceId = $derived(getActiveServer());
   const serverSegment = $derived(serverIdToSegment(activeInstanceId));
+  const currentViewedServerId = $derived(page.params.serverId ? activeInstanceId : '');
+  const activeSignOutServer = $derived(
+    currentViewedServerId ? serverRegistry.getServer(currentViewedServerId) : undefined
+  );
+  const canSignOutCurrentServer = $derived(Boolean(activeSignOutServer));
   import Dialog from '$lib/ui/Dialog.svelte';
   import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
   import { Button } from '$lib/ui/form';
@@ -144,13 +149,16 @@
   }
 
   async function handleSignOutCurrentServer() {
-    signingOutCurrent = true;
-    const signedOutServerId = activeInstanceId;
-    const server = serverRegistry.getServer(signedOutServerId);
+    const signedOutServerId = currentViewedServerId;
+    const server = activeSignOutServer;
 
-    if (server) {
-      await signOutServer(server, serverRegistry.isOriginServer(signedOutServerId)).catch(() => {});
+    if (!server || !signedOutServerId) {
+      return;
     }
+
+    signingOutCurrent = true;
+
+    await signOutServer(server, serverRegistry.isOriginServer(signedOutServerId)).catch(() => {});
 
     clearLastRoom(signedOutServerId);
 
@@ -315,8 +323,7 @@
         <Button
           variant="accent"
           loading={signingOutCurrent}
-          loadingText="Signing out..."
-          disabled={signingOutAll}
+          disabled={signingOutAll || !canSignOutCurrentServer}
           onclick={handleSignOutCurrentServer}
         >
           <span class="iconify uil--sign-out-alt"></span>
@@ -325,8 +332,7 @@
         <Button
           variant="danger"
           loading={signingOutAll}
-          loadingText="Signing out..."
-          disabled={signingOutCurrent}
+          disabled={signingOutCurrent && canSignOutCurrentServer}
           onclick={handleSignOutAllServers}
         >
           <span class="iconify uil--signout"></span>

@@ -16,6 +16,7 @@ const { mocks } = vi.hoisted(() => ({
     joinRoom: vi.fn(),
     refreshRooms: vi.fn(),
     activeServer: 'origin',
+    serverIdParam: '-' as string | undefined,
     servers: [] as Array<{ id: string; url: string; name: string; token: string | null }>,
     originServer: undefined as { id: string; url: string; name: string; token: string | null } | undefined,
     authenticated: {} as Record<string, boolean>,
@@ -34,6 +35,9 @@ vi.mock('$app/state', () => ({
   page: {
     get state() {
       return { modal: mocks.modal };
+    },
+    get params() {
+      return mocks.serverIdParam ? { serverId: mocks.serverIdParam } : {};
     },
     url: new URL('https://chat.example.test/chat/-')
   }
@@ -146,13 +150,18 @@ vi.mock('$lib/ui/form', async () => {
 
 import ModalContainer from './ModalContainer.svelte';
 
-function clickButton(container: HTMLElement, label: string): void {
+function findButton(container: HTMLElement, label: string): HTMLButtonElement {
   const button = [...container.querySelectorAll('button')].find(
     (candidate) => candidate.textContent?.trim() === label
   );
   if (!(button instanceof HTMLButtonElement)) {
     throw new Error(`Button not found: ${label}`);
   }
+  return button;
+}
+
+function clickButton(container: HTMLElement, label: string): void {
+  const button = findButton(container, label);
   button.click();
 }
 
@@ -169,6 +178,7 @@ beforeEach(() => {
   mocks.signOutServer.mockResolvedValue(new Response('{}', { status: 200 }));
   mocks.signOutServers.mockResolvedValue(undefined);
   mocks.activeServer = 'origin';
+  mocks.serverIdParam = '-';
   mocks.originServer = {
     id: 'origin',
     url: 'https://origin.example.test',
@@ -322,6 +332,7 @@ describe('ModalContainer sign out modal', () => {
   it('keeps the all-server escape path when the active server is missing', async () => {
     mocks.modal = { type: 'logout' };
     mocks.activeServer = 'missing';
+    mocks.serverIdParam = undefined;
     mocks.originServer = undefined;
     mocks.servers = [];
     mocks.authenticated = {};
@@ -329,10 +340,34 @@ describe('ModalContainer sign out modal', () => {
     const { container } = render(ModalContainer);
 
     await expect.element(q(container, 'dialog')).toHaveTextContent('All Servers');
+    expect(findButton(container, 'Current Server')).toBeDisabled();
+    expect(findButton(container, 'All Servers')).not.toBeDisabled();
     clickButton(container, 'All Servers');
 
     await vi.waitFor(() => {
       expect(mocks.signOutServers).toHaveBeenCalledWith([], expect.any(Function));
+      expect(mocks.removeAll).toHaveBeenCalledOnce();
+      expect(mocks.hardRedirectAfterSignOut).toHaveBeenCalledWith('/');
+    });
+  });
+
+  it('keeps all-server sign-out available outside a server route', async () => {
+    mocks.modal = { type: 'logout' };
+    mocks.activeServer = 'origin';
+    mocks.serverIdParam = undefined;
+    mocks.authenticated = { origin: true };
+
+    const { container } = render(ModalContainer);
+
+    expect(findButton(container, 'Current Server')).toBeDisabled();
+    expect(findButton(container, 'All Servers')).not.toBeDisabled();
+    clickButton(container, 'Current Server');
+    expect(mocks.signOutServer).not.toHaveBeenCalled();
+
+    clickButton(container, 'All Servers');
+
+    await vi.waitFor(() => {
+      expect(mocks.signOutServers).toHaveBeenCalledWith(mocks.servers, expect.any(Function));
       expect(mocks.removeAll).toHaveBeenCalledOnce();
       expect(mocks.hardRedirectAfterSignOut).toHaveBeenCalledWith('/');
     });
