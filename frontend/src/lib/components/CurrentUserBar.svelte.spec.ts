@@ -42,8 +42,10 @@ const { currentUserState, voiceCallState, roomsState } = vi.hoisted(() => ({
     roomId: null as string | null,
     isMuted: false,
     isCameraEnabled: false,
+    isScreenShareEnabled: false,
     toggleMute: vi.fn(),
     toggleCamera: vi.fn(),
+    toggleScreenShare: vi.fn(),
     leave: vi.fn()
   },
   roomsState: {
@@ -103,8 +105,10 @@ describe('CurrentUserBar', () => {
     voiceCallState.roomId = null;
     voiceCallState.isMuted = false;
     voiceCallState.isCameraEnabled = false;
+    voiceCallState.isScreenShareEnabled = false;
     voiceCallState.toggleMute.mockClear();
     voiceCallState.toggleCamera.mockClear();
+    voiceCallState.toggleScreenShare.mockClear();
     voiceCallState.leave.mockClear();
     navigation.goto.mockClear();
     roomsState.currentUserId = 'user-1';
@@ -151,6 +155,7 @@ describe('CurrentUserBar', () => {
 
     (q(container, '[data-testid="current-user-call-mute"]') as HTMLButtonElement).click();
     (q(container, '[data-testid="current-user-call-camera"]') as HTMLButtonElement).click();
+    (q(container, '[data-testid="current-user-call-screen-share"]') as HTMLButtonElement).click();
     (q(container, '[data-testid="current-user-call-leave"]') as HTMLButtonElement).click();
 
     expect(navigation.goto).toHaveBeenCalledWith('/chat/-/room-1');
@@ -163,6 +168,7 @@ describe('CurrentUserBar', () => {
     expect(storageEvents[0].newValue).toBe('call');
     expect(voiceCallState.toggleMute).toHaveBeenCalledOnce();
     expect(voiceCallState.toggleCamera).toHaveBeenCalledOnce();
+    expect(voiceCallState.toggleScreenShare).toHaveBeenCalledOnce();
     expect(voiceCallState.leave).toHaveBeenCalledOnce();
     window.removeEventListener('storage', listener);
   });

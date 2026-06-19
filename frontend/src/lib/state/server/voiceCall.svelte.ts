@@ -3,7 +3,7 @@
  *
  * Per-instance class that wraps livekit-client's Room instance.
  * Handles joining/leaving calls, mute toggle, camera toggle,
- * and audio/video device selection.
+ * screen share toggle, and audio/video device selection.
  */
 
 import {
@@ -31,6 +31,8 @@ export type CallParticipantInfo = {
   connectionQuality: 'excellent' | 'good' | 'poor' | 'lost' | 'unknown';
   isCameraEnabled: boolean;
   videoTrack: Track | null;
+  isScreenShareEnabled: boolean;
+  screenShareTrack: Track | null;
 };
 
 /** Non-reactive audio level snapshot, read imperatively by the UI at ~60ms. */
@@ -84,6 +86,7 @@ export class VoiceCallState {
 
   // Video state — camera is always disabled by default
   isCameraEnabled = $state(false);
+  isScreenShareEnabled = $state(false);
 
   // Participants (including local)
   participants = $state<CallParticipantInfo[]>([]);
@@ -110,8 +113,7 @@ export class VoiceCallState {
   private audioLevelInterval: ReturnType<typeof setInterval> | null = null;
   private suppressDisconnectToast = false;
 
-  // Non-reactive audio level cache — updated at 60ms by the polling interval,
-  // read imperatively by VoiceCallPanel to drive the speaking ring animation.
+  // Non-reactive audio level cache — updated at 60ms by the polling interval.
   // Deliberately NOT $state to avoid triggering Svelte reactivity at 60Hz.
   // eslint-disable-next-line svelte/prefer-svelte-reactivity -- deliberately non-reactive, polled imperatively at 60Hz
   private audioLevelCache = new Map<string, AudioLevelInfo>();
@@ -378,6 +380,22 @@ export class VoiceCallState {
   }
 
   /**
+   * Toggle video-only screen/window/tab sharing.
+   */
+  async toggleScreenShare(): Promise<void> {
+    if (!this.room) return;
+
+    const newEnabled = !this.isScreenShareEnabled;
+    try {
+      await this.room.localParticipant.setScreenShareEnabled(newEnabled);
+      this.isScreenShareEnabled = newEnabled;
+    } catch {
+      this.isScreenShareEnabled = newEnabled ? false : this.isScreenShareEnabled;
+    }
+    this.updateParticipants();
+  }
+
+  /**
    * Refresh available audio and video devices.
    */
   async refreshDevices(): Promise<void> {
@@ -515,9 +533,16 @@ export class VoiceCallState {
       this.updateParticipants();
     });
 
-    // Poll audio levels at ~60ms for smooth visual feedback.
-    // ActiveSpeakersChanged fires at ~100ms which is slightly too coarse
-    // for buttery equalizer animation.
+    this.room.on(RoomEvent.LocalTrackPublished, () => {
+      this.updateParticipants();
+    });
+
+    this.room.on(RoomEvent.LocalTrackUnpublished, () => {
+      this.updateParticipants();
+    });
+
+    // Keep audio level snapshots fresh for call UI consumers without pushing
+    // 60Hz updates through Svelte's reactive graph.
     this.audioLevelInterval = setInterval(() => {
       this.updateAudioLevels();
     }, 60);
@@ -533,6 +558,8 @@ export class VoiceCallState {
       this.room.localParticipant,
       ...Array.from(this.room.remoteParticipants.values())
     ];
+    this.isCameraEnabled = isParticipantCameraEnabled(this.room.localParticipant);
+    this.isScreenShareEnabled = isParticipantScreenShareEnabled(this.room.localParticipant);
 
     this.participants = allParticipants.map((p) => {
       const md = parseParticipantMetadata(p.metadata);
@@ -545,7 +572,9 @@ export class VoiceCallState {
         isLocal: p === this.room!.localParticipant,
         connectionQuality: p.connectionQuality as CallParticipantInfo['connectionQuality'],
         isCameraEnabled: isParticipantCameraEnabled(p),
-        videoTrack: getParticipantVideoTrack(p)
+        videoTrack: getParticipantCameraTrack(p),
+        isScreenShareEnabled: isParticipantScreenShareEnabled(p),
+        screenShareTrack: getParticipantScreenShareTrack(p)
       };
     });
   }
@@ -553,7 +582,7 @@ export class VoiceCallState {
   /**
    * Update the non-reactive audio level cache. Called at ~60ms.
    * Writes to a plain Map (not $state) so Svelte's reactive graph is
-   * completely untouched — the UI reads this imperatively via getAudioLevel().
+   * completely untouched.
    */
   private updateAudioLevels(): void {
     if (!this.room) return;
@@ -660,6 +689,7 @@ export class VoiceCallState {
     this.roomId = null;
     this.isMuted = false;
     this.isCameraEnabled = false;
+    this.isScreenShareEnabled = false;
     this.participants = [];
     this.audioDevices = [];
     this.selectedDeviceId = null;
@@ -700,9 +730,27 @@ function isParticipantCameraEnabled(participant: Participant): boolean {
   return false;
 }
 
-function getParticipantVideoTrack(participant: Participant): Track | null {
+function getParticipantCameraTrack(participant: Participant): Track | null {
   for (const pub of participant.getTrackPublications()) {
     if (pub.track?.source === Track.Source.Camera && !pub.isMuted) {
+      return pub.track;
+    }
+  }
+  return null;
+}
+
+function isParticipantScreenShareEnabled(participant: Participant): boolean {
+  for (const pub of participant.getTrackPublications()) {
+    if (pub.track?.source === Track.Source.ScreenShare) {
+      return !pub.isMuted;
+    }
+  }
+  return false;
+}
+
+function getParticipantScreenShareTrack(participant: Participant): Track | null {
+  for (const pub of participant.getTrackPublications()) {
+    if (pub.track?.source === Track.Source.ScreenShare && !pub.isMuted) {
       return pub.track;
     }
   }

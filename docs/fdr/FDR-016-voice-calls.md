@@ -5,21 +5,23 @@
 
 ## Overview
 
-Rooms support real-time voice conversations with optional camera video. A phone tab in the room sidebar lets members start or join the room call; the call panel shows participant cards with video-enabled participants first, and provides mute, camera, device-selection, and hang-up controls. Audio and video are routed through LiveKit (an external WebRTC service); Chatto only handles authorization, participant state, and the UI.
+Rooms support real-time voice conversations with optional camera video and video-only screen/window/tab sharing. A phone tab in the room sidebar lets members start or join the room call; the call panel shows screen-share tiles first, then video-enabled participant cards, then compact voice-only participant cards, and provides mute, camera, screen-share, device-selection, and hang-up controls. Audio and video are routed through LiveKit (an external WebRTC service); Chatto only handles authorization, participant state, and the UI.
 
 ## Behavior
 
 - Members of a room with the right permission see a phone tab alongside the room sidebar's members/files tabs when LiveKit is configured.
 - Opening the call tab shows the current room call. If no call is active, it offers a "Start call" action. If a call is active and the viewer has not joined, it shows projected participants as ungrouped participant cards and a "Join call" action.
 - When the current room has an active call, the phone tab is accent-highlighted and pulses while another sidebar tab is selected.
-- Joining the call switches the call tab into participant mode with larger video participant cards before compact voice-only participant cards, without separate Video or Voice section headings. Participant mode exposes speaking indicators, mute state, camera toggle, device selector, and hang-up controls.
-- While the viewer is in any call, the lower-left current-user card shows the active call room plus quick mute, camera, and leave controls so the call remains visible outside the room tab.
+- Joining the call switches the call tab into participant mode with pinned screen-share tiles first, larger camera video participant cards next, and compact voice-only participant cards after that, without separate Video or Voice section headings. Participant mode exposes mute state, camera toggle, screen-share toggle, device selector, and hang-up controls.
+- While the viewer is in any call, the lower-left current-user card shows the active call room plus quick mute, camera, screen-share, and leave controls so the call remains visible outside the room tab.
 - Other rooms with an active call replace the normal room/DM icon with the same accent phone icon and animated pulse twin used by the call tab so members know there's a conversation happening; clicking that icon opens the room with the call tab selected.
 - Message author names show a compact call presence icon when the author is in the current room's active call: phone for voice-only participants, video camera when the viewer has joined the LiveKit call and can see an active camera track.
 - A member's join/leave updates active call indicators and participant lists, but individual participant transitions are not shown as room timeline messages. Explicit user intent is recorded immediately, and LiveKit webhooks/reconciliation confirm or correct the active participant projection.
 - The first join starts a call session and shows a room timeline notice that the member started a call. The final leave ends it and shows a room timeline notice that the active call ended.
 - Hanging up disconnects from LiveKit and clears the participant from everyone else's view.
 - New clients always enable LiveKit E2EE before connecting. Chatto distributes a KMS-backed per-call shared key with the LiveKit join token; the raw key is never written to EVT and is shredded when the call ends.
+- Screen sharing is video-only in Chatto's UI. Browser tab audio sharing is not published by Chatto today.
+- Screen-share state is LiveKit track state only. Users who have not joined the call still see who is in the active call, but they do not see whether a participant is sharing a screen.
 - When LiveKit is not configured on the server, all voice UI is hidden — no button, no panel, no indicator.
 
 ## Design Decisions
@@ -48,11 +50,11 @@ Rooms support real-time voice conversations with optional camera video. A phone 
 **Why:** LiveKit delivers audio data over WebRTC, but the browser doesn't autoplay it without an attached element. Without explicit attach, the UI looks like everything works — participant rings even animate — but nobody hears anything. The pattern lives in `frontend/src/lib/state/voiceCall.svelte.ts`; any refactor that touches LiveKit subscription handling needs to keep the `track.attach()` / `track.detach()` calls intact.
 **Tradeoff:** A subtle requirement that's easy to miss when refactoring; the skill warns explicitly.
 
-### 5. Audio levels poll at ~60ms instead of using ActiveSpeakersChanged
+### 5. Screen sharing is joined-client LiveKit track state
 
-**Decision:** Speaking indicators (avatar rings) read audio levels via a 60ms `setInterval` poll instead of relying on LiveKit's `ActiveSpeakersChanged` event.
-**Why:** `ActiveSpeakersChanged` fires roughly every 100ms — fast enough for "who's talking" but visibly choppy for animated speaker rings. The 60ms poll feels smoother.
-**Tradeoff:** A small recurring poll cost. Worth it for the visual quality.
+**Decision:** Screen/window/tab sharing uses LiveKit's browser screen-share publishing path and is represented only by `Track.Source.ScreenShare` on joined clients. Chatto does not persist separate screen-share events, add GraphQL fields, or expose screen-share state to call observers before they join.
+**Why:** Screen sharing is media-session state, and the existing durable room facts already answer the server-owned question of who is in the call. Keeping screen-share state inside LiveKit avoids adding durable state that can become stale when browser capture ends.
+**Tradeoff:** Non-joined observers know a call is active and who is in it, but not whether someone is sharing. Browser-tab audio sharing is also out of scope for this version.
 
 ### 6. Test endpoints bypass webhook validation in build-tag mode
 

@@ -102,6 +102,8 @@ Room sidebar panel for voice/video calls.
     connectionQuality: string;
     isCameraEnabled: boolean;
     videoTrack: Track | null;
+    isScreenShareEnabled: boolean;
+    screenShareTrack: Track | null;
   };
 
   let participants: DisplayParticipant[] = $derived.by(() => {
@@ -119,7 +121,9 @@ Room sidebar panel for voice/video calls.
         isMuted: p.isMuted,
         connectionQuality: p.connectionQuality,
         isCameraEnabled: p.isCameraEnabled,
-        videoTrack: p.videoTrack
+        videoTrack: p.videoTrack,
+        isScreenShareEnabled: p.isScreenShareEnabled,
+        screenShareTrack: p.screenShareTrack
       }));
     }
 
@@ -136,7 +140,9 @@ Room sidebar panel for voice/video calls.
       isMuted: false,
       connectionQuality: 'unknown',
       isCameraEnabled: false,
-      videoTrack: null
+      videoTrack: null,
+      isScreenShareEnabled: false,
+      screenShareTrack: null
     }));
   });
 
@@ -147,7 +153,11 @@ Room sidebar panel for voice/video calls.
       return 0;
     })
   );
+  let screenShareParticipants = $derived(
+    sortedParticipants.filter((p) => p.isScreenShareEnabled && p.screenShareTrack)
+  );
   let videoParticipants = $derived(sortedParticipants.filter((p) => p.isCameraEnabled && p.videoTrack));
+  let mediaTileCount = $derived(screenShareParticipants.length + videoParticipants.length);
   let isIdle = $derived(!hasActiveCall && !isInThisCall);
   let joinLabel = $derived.by(() => {
     if (isConnecting) return hasActiveCall ? 'Joining...' : 'Starting...';
@@ -158,6 +168,10 @@ Room sidebar panel for voice/video calls.
 
   function hasVideo(participant: DisplayParticipant) {
     return participant.isCameraEnabled && participant.videoTrack;
+  }
+
+  function hasScreenShare(participant: DisplayParticipant) {
+    return participant.isScreenShareEnabled && participant.screenShareTrack;
   }
 
   function hasConnectionWarning(participant: DisplayParticipant) {
@@ -171,46 +185,6 @@ Room sidebar panel for voice/video calls.
 
     return participant.displayName;
   }
-
-  // --- Imperative audio level ring animation ---
-  // Reads from voiceCallState.getAudioLevel() (non-reactive) and directly
-  // mutates DOM elements at ~60ms. Completely bypasses Svelte's reactive graph.
-  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- imperative DOM ref map, not read reactively
-  const buttonRefs = new Map<string, HTMLElement>();
-
-  function trackButton(node: HTMLElement, identity: string) {
-    buttonRefs.set(identity, node);
-    return {
-      update(newIdentity: string) {
-        buttonRefs.delete(identity);
-        identity = newIdentity;
-        buttonRefs.set(identity, node);
-      },
-      destroy() {
-        buttonRefs.delete(identity);
-      }
-    };
-  }
-
-  $effect(() => {
-    if (!isInThisCall) return;
-
-    const interval = setInterval(() => {
-      for (const [identity, button] of buttonRefs) {
-        const { isSpeaking, audioLevel } = voiceCallState.getAudioLevel(identity);
-        const ringOpacity = audioLevel > 0.01 ? 0.3 + Math.pow(audioLevel, 0.3) * 0.7 : 0;
-        button.style.setProperty('--ring-opacity', String(ringOpacity));
-        button.classList.toggle('voice-ring-speaking', ringOpacity > 0);
-
-        // Also update muted ring (muted + speaking should show speaking ring)
-        if (button.classList.contains('voice-ring-muted') && isSpeaking) {
-          button.classList.remove('voice-ring-muted');
-        }
-      }
-    }, 60);
-
-    return () => clearInterval(interval);
-  });
 
   // DM start capability
   const serverPerms = getServerPermissions();
@@ -256,11 +230,9 @@ Room sidebar panel for voice/video calls.
     <button
       type="button"
       class={[
-        'participant-card voice-ring voice-ring-card flex w-full cursor-pointer flex-col overflow-hidden rounded-md border border-border bg-surface-100 text-left text-text transition-colors hover:bg-surface-200',
-        mode === 'video' ? 'participant-card-video' : 'participant-card-compact',
-        participant.isMuted && 'voice-ring-muted'
+        'participant-card flex w-full cursor-pointer flex-col overflow-hidden rounded-md border border-border bg-surface-100 text-left text-text transition-colors hover:bg-surface-200',
+        mode === 'video' ? 'participant-card-video' : 'participant-card-compact'
       ]}
-      use:trackButton={participant.key}
       title={participantTitle(participant)}
       data-testid="call-participant-card"
       onclick={(e) => showUserMenu(participant, e)}
@@ -324,13 +296,37 @@ Room sidebar panel for voice/video calls.
   {/if}
 {/snippet}
 
+{#snippet screenShareCard(participant: DisplayParticipant)}
+  <button
+    type="button"
+    class="participant-card participant-card-video @min-[368px]:col-span-2 flex w-full cursor-pointer flex-col overflow-hidden rounded-md border border-border bg-surface-100 text-left text-text transition-colors hover:bg-surface-200"
+    title={`${participant.displayName}'s screen`}
+    data-testid="call-screen-share-card"
+    onclick={(e) => showUserMenu(participant, e)}
+  >
+    <div class="flex min-w-0 items-center gap-2 p-2">
+      <UserAvatar user={participant.avatarUser} size="sm" showPresence={false} />
+      <span class="min-w-0 flex-1 truncate text-sm font-medium">{participant.displayName}'s screen</span>
+      <span class="iconify uil--desktop shrink-0 text-muted" aria-label="Screen share"></span>
+    </div>
+    <div class="p-2 pt-0">
+      <VideoThumbnail
+        track={participant.screenShareTrack!}
+        name={`${participant.displayName}'s screen`}
+        user={participant.avatarUser}
+        showIdentityOverlay={false}
+      />
+    </div>
+  </button>
+{/snippet}
+
 <div
   class="flex min-h-0 flex-1 flex-col"
   data-testid={isInThisCall ? 'call-participant-panel' : 'call-observer-panel'}
 >
   <div class="border-b border-border bg-background p-3">
     {#if isInThisCall}
-      <div class="grid grid-cols-4 gap-2">
+      <div class="grid grid-cols-5 gap-2">
         <button
           type="button"
           class={controlButtonClass}
@@ -378,6 +374,17 @@ Room sidebar panel for voice/video calls.
 
         <button
           type="button"
+          class={voiceCallState.isScreenShareEnabled ? controlButtonClass : dangerControlButtonClass}
+          title={voiceCallState.isScreenShareEnabled ? 'Stop sharing screen' : 'Share screen'}
+          aria-label={voiceCallState.isScreenShareEnabled ? 'Stop sharing screen' : 'Share screen'}
+          data-testid="call-screen-share-toggle"
+          onclick={() => voiceCallState.toggleScreenShare()}
+        >
+          <span class="iconify uil--desktop text-lg" aria-hidden="true"></span>
+        </button>
+
+        <button
+          type="button"
           class={dangerControlButtonClass}
           onclick={() => voiceCallState.leave()}
           title="Leave call"
@@ -407,10 +414,15 @@ Room sidebar panel for voice/video calls.
         <div
           class={[
             'grid grid-cols-1 gap-3',
-            isInThisCall && videoParticipants.length > 1 && '@min-[368px]:grid-cols-2'
+            isInThisCall && mediaTileCount > 1 && '@min-[368px]:grid-cols-2'
           ]}
           data-testid="call-participants-list"
         >
+          {#each screenShareParticipants as participant (`${participant.key}:screen`)}
+            {#if hasScreenShare(participant)}
+              {@render screenShareCard(participant)}
+            {/if}
+          {/each}
           {#each sortedParticipants as participant (participant.key)}
             {@render participantCard(participant, isInThisCall && hasVideo(participant) ? 'video' : 'compact')}
           {/each}
@@ -433,34 +445,3 @@ Room sidebar panel for voice/video calls.
     onClose={closeUserMenu}
   />
 {/if}
-
-<style>
-  .voice-ring {
-    position: relative;
-    outline: 0 solid transparent;
-    outline-offset: 0;
-    transition:
-      outline-color 150ms ease-out,
-      outline-width 150ms ease-out,
-      outline-offset 150ms ease-out;
-  }
-
-  .voice-ring-muted {
-    outline-color: var(--color-danger);
-  }
-
-  .voice-ring-card {
-    border-radius: 0.5rem;
-  }
-
-  /* Applied imperatively via classList.toggle() in the 60ms audio level loop */
-  .voice-ring:global(.voice-ring-speaking) {
-    outline-color: color-mix(
-      in srgb,
-      var(--color-accent) calc(var(--ring-opacity, 0) * 100%),
-      var(--color-border)
-    );
-    outline-width: calc(2px + var(--ring-opacity, 0) * 2.5px);
-    outline-offset: calc(1px + var(--ring-opacity, 0) * 2px);
-  }
-</style>
