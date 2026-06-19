@@ -5,14 +5,14 @@
 
 ## Overview
 
-Rooms support real-time voice conversations with optional camera video. A phone tab in the room sidebar lets members start or join the room call; the call panel shows participant cards, separates video participants from voice-only participants after joining, and provides mute, camera, device-selection, and hang-up controls. Audio and video are routed through LiveKit (an external WebRTC service); Chatto only handles authorization, participant state, and the UI.
+Rooms support real-time voice conversations with optional camera video. A phone tab in the room sidebar lets members start or join the room call; the call panel shows participant cards with video-enabled participants first, and provides mute, camera, device-selection, and hang-up controls. Audio and video are routed through LiveKit (an external WebRTC service); Chatto only handles authorization, participant state, and the UI.
 
 ## Behavior
 
 - Members of a room with the right permission see a phone tab alongside the room sidebar's members/files tabs when LiveKit is configured.
 - Opening the call tab shows the current room call. If no call is active, it offers a "Start call" action. If a call is active and the viewer has not joined, it shows projected participants as ungrouped participant cards and a "Join call" action.
 - When the current room has an active call, the phone tab is accent-highlighted and pulses while another sidebar tab is selected.
-- Joining the call switches the call tab into participant mode with compact voice-only participant cards and larger video participant cards. Participant mode groups cards under Video and Voice headings when those groups are non-empty, and exposes speaking indicators, mute state, camera toggle, device selector, and hang-up controls.
+- Joining the call switches the call tab into participant mode with larger video participant cards before compact voice-only participant cards, without separate Video or Voice section headings. Participant mode exposes speaking indicators, mute state, camera toggle, device selector, and hang-up controls.
 - While the viewer is in any call, the lower-left current-user card shows the active call room plus quick mute, camera, and leave controls so the call remains visible outside the room tab.
 - Other rooms with an active call replace the normal room/DM icon with the same accent phone icon and animated pulse twin used by the call tab so members know there's a conversation happening; clicking that icon opens the room with the call tab selected.
 - Message author names show a compact call presence icon when the author is in the current room's active call: phone for voice-only participants, video camera when the viewer has joined the LiveKit call and can see an active camera track.

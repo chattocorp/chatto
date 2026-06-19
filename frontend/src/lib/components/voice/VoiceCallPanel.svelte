@@ -148,7 +148,6 @@ Room sidebar panel for voice/video calls.
     })
   );
   let videoParticipants = $derived(sortedParticipants.filter((p) => p.isCameraEnabled && p.videoTrack));
-  let voiceParticipants = $derived(sortedParticipants.filter((p) => !(p.isCameraEnabled && p.videoTrack)));
   let isIdle = $derived(!hasActiveCall && !isInThisCall);
   let joinLabel = $derived.by(() => {
     if (isConnecting) return hasActiveCall ? 'Joining...' : 'Starting...';
@@ -285,7 +284,7 @@ Room sidebar panel for voice/video calls.
       </div>
 
       {#if showVideo}
-        <div class="border-t border-border">
+        <div class="border-t border-border p-2">
           <VideoThumbnail
             track={participant.videoTrack!}
             name={participant.displayName}
@@ -312,7 +311,7 @@ Room sidebar panel for voice/video calls.
       </div>
 
       {#if showVideo}
-        <div class="border-t border-border">
+        <div class="border-t border-border p-2">
           <VideoThumbnail
             track={participant.videoTrack!}
             name={participant.displayName}
@@ -404,47 +403,19 @@ Room sidebar panel for voice/video calls.
 
   <div class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-3">
     {#if !isIdle}
-      {#if isInThisCall}
-        {#if videoParticipants.length > 0}
-          <section class="@container flex flex-col gap-2" aria-label="Video participants">
-            <h2 class="px-1 text-xs font-semibold tracking-wider text-muted uppercase">
-              Video ({videoParticipants.length})
-            </h2>
-            <div
-              class={[
-                'grid grid-cols-1 gap-3',
-                videoParticipants.length > 1 && '@min-[368px]:grid-cols-2'
-              ]}
-              data-testid="call-video-grid"
-            >
-              {#each videoParticipants as participant (participant.key)}
-                {@render participantCard(participant, 'video')}
-              {/each}
-            </div>
-          </section>
-        {/if}
-
-        {#if voiceParticipants.length > 0}
-          <section class="flex flex-col gap-2" aria-label="Voice participants">
-            <h2 class="px-1 text-xs font-semibold tracking-wider text-muted uppercase">
-              Voice ({voiceParticipants.length})
-            </h2>
-            <div class="flex flex-col gap-2">
-              {#each voiceParticipants as participant (participant.key)}
-                {@render participantCard(participant, 'compact')}
-              {/each}
-            </div>
-          </section>
-        {/if}
-      {:else}
-        <section class="flex flex-col gap-2" aria-label="Call participants">
-          <div class="flex flex-col gap-2" data-testid="call-participants-list">
-            {#each sortedParticipants as participant (participant.key)}
-              {@render participantCard(participant, 'compact')}
-            {/each}
-          </div>
-        </section>
-      {/if}
+      <section class="@container flex flex-col gap-2" aria-label="Call participants">
+        <div
+          class={[
+            'grid grid-cols-1 gap-3',
+            isInThisCall && videoParticipants.length > 1 && '@min-[368px]:grid-cols-2'
+          ]}
+          data-testid="call-participants-list"
+        >
+          {#each sortedParticipants as participant (participant.key)}
+            {@render participantCard(participant, isInThisCall && hasVideo(participant) ? 'video' : 'compact')}
+          {/each}
+        </div>
+      </section>
     {/if}
   </div>
 </div>

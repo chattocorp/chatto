@@ -489,7 +489,7 @@ describe('RoomSidebar', () => {
     });
   });
 
-  it('splits connected video and voice participants and exposes call controls', async () => {
+  it('renders connected participant cards video-first and exposes call controls', async () => {
     const videoTrack = {
       attach: vi.fn(),
       detach: vi.fn()
@@ -531,12 +531,16 @@ describe('RoomSidebar', () => {
     });
 
     await expect.element(q(container, '[data-testid="call-participant-panel"]')).toBeInTheDocument();
-    expect(container.textContent).toContain('Video (1)');
-    expect(container.textContent).toContain('Voice (1)');
+    expect(container.textContent).not.toContain('Video (1)');
+    expect(container.textContent).not.toContain('Voice (1)');
     expect(container.textContent).toContain('Bob');
     expect(q(container, '[data-testid="call-device-menu-button"]')).toBeTruthy();
-    expect(q(container, '.participant-card-video')).toBeTruthy();
-    expect(q(container, '.participant-card-compact')).toBeTruthy();
+    const participantCards = Array.from(
+      container.querySelectorAll<HTMLElement>('[data-testid="call-participant-card"]')
+    );
+    expect(participantCards).toHaveLength(2);
+    expect(participantCards[0].className).toContain('participant-card-video');
+    expect(participantCards[1].className).toContain('participant-card-compact');
 
     (q(container, '[data-testid="call-mute-toggle"]') as HTMLButtonElement).click();
     (q(container, '[data-testid="call-camera-toggle"]') as HTMLButtonElement).click();
@@ -548,7 +552,7 @@ describe('RoomSidebar', () => {
     expect(callStore.voiceCall.leave).toHaveBeenCalledOnce();
   });
 
-  it('hides empty call participant sections', async () => {
+  it('renders one participant list without empty section labels', async () => {
     const videoTrack = {
       attach: vi.fn(),
       detach: vi.fn()
@@ -578,12 +582,12 @@ describe('RoomSidebar', () => {
       }
     });
 
-    expect(container.textContent).toContain('Video (1)');
+    expect(container.textContent).not.toContain('Video (1)');
     expect(container.textContent).not.toContain('Voice (0)');
     expect(container.textContent).not.toContain('No voice-only participants.');
-    const videoGrid = q(container, '[data-testid="call-video-grid"]');
-    expect(videoGrid).toBeTruthy();
-    expect(videoGrid!.className).not.toContain('@min-[368px]:grid-cols-2');
+    const participantList = q(container, '[data-testid="call-participants-list"]');
+    expect(participantList).toBeTruthy();
+    expect(participantList!.className).not.toContain('@min-[368px]:grid-cols-2');
   });
 
   it('uses a two-column video grid when multiple videos have room', async () => {
@@ -631,10 +635,10 @@ describe('RoomSidebar', () => {
       }
     });
 
-    expect(container.textContent).toContain('Video (2)');
-    const videoGrid = q(container, '[data-testid="call-video-grid"]');
-    expect(videoGrid).toBeTruthy();
-    expect(videoGrid!.className).toContain('@min-[368px]:grid-cols-2');
+    expect(container.textContent).not.toContain('Video (2)');
+    const participantList = q(container, '[data-testid="call-participants-list"]');
+    expect(participantList).toBeTruthy();
+    expect(participantList!.className).toContain('@min-[368px]:grid-cols-2');
   });
 
   it('disables joining this room while connected to another call', async () => {
