@@ -10,6 +10,7 @@ const { mocks } = vi.hoisted(() => ({
       roomName: 'general',
       viewerCanJoinRoom: true
     } as Record<string, unknown> | undefined,
+    closeModal: vi.fn(),
     goto: vi.fn(),
     toastSuccess: vi.fn(),
     toastError: vi.fn(),
@@ -149,6 +150,7 @@ vi.mock('$lib/ui/form', async () => {
 });
 
 import ModalContainer from './ModalContainer.svelte';
+import SignOutDialog from './SignOutDialog.svelte';
 
 function findButton(container: HTMLElement, label: string): HTMLButtonElement {
   const button = [...container.querySelectorAll('button')].find(
@@ -371,5 +373,31 @@ describe('ModalContainer sign out modal', () => {
       expect(mocks.removeAll).toHaveBeenCalledOnce();
       expect(mocks.hardRedirectAfterSignOut).toHaveBeenCalledWith('/');
     });
+  });
+
+  it('does not reuse busy state when the logout dialog is opened again', async () => {
+    let finishSignOut: ((response: Response) => void) | undefined;
+    mocks.modal = { type: 'logout' };
+    mocks.signOutServer.mockImplementation(
+      () =>
+        new Promise<Response>((resolve) => {
+          finishSignOut = resolve;
+        })
+    );
+
+    const first = render(SignOutDialog, { props: { onclose: mocks.closeModal } });
+    clickButton(first.container, 'Current Server');
+
+    await vi.waitFor(() => {
+      expect(findButton(first.container, 'Current Server').getAttribute('aria-busy')).toBe('true');
+    });
+
+    const second = render(SignOutDialog, { props: { onclose: mocks.closeModal } });
+
+    expect(findButton(second.container, 'Current Server').hasAttribute('aria-busy')).toBe(false);
+    expect(findButton(second.container, 'Current Server')).not.toBeDisabled();
+    expect(findButton(second.container, 'All Servers')).not.toBeDisabled();
+
+    finishSignOut?.(new Response('{}', { status: 200 }));
   });
 });
