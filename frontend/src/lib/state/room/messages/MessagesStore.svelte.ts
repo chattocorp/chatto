@@ -257,9 +257,7 @@ export class MessagesStore {
       eventData.__typename === 'UserLeftRoomEvent' ||
       eventData.__typename === 'RoomUpdatedEvent' ||
       eventData.__typename === 'RoomArchivedEvent' ||
-      eventData.__typename === 'RoomUnarchivedEvent' ||
-      eventData.__typename === 'CallStartedEvent' ||
-      eventData.__typename === 'CallEndedEvent'
+      eventData.__typename === 'RoomUnarchivedEvent'
     ) {
       this.onSystemEvent(spaceEvent);
     }

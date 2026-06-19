@@ -422,7 +422,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
 		store.dispose();
 	});
 
-	it('treats call start and end as root timeline system events', async () => {
+	it('ignores call lifecycle and participant events in the room timeline', async () => {
 		const fake = new FakeGqlClient(
 			roomEventsResult({
 				events: [],
@@ -443,7 +443,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
 		store.ingestServerEvent(callEvent('CallParticipantLeftEvent', 'call-left') as never);
 		store.ingestServerEvent(callEvent('CallEndedEvent', 'call-ended') as never);
 
-		expect(store.rootEvents.map((event) => event.id)).toEqual(['call-started', 'call-ended']);
+		expect(store.rootEvents).toEqual([]);
 		expect(fake.queryMock).not.toHaveBeenCalled();
 		store.dispose();
 	});

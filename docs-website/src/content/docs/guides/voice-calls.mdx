@@ -18,7 +18,7 @@ LiveKit runs as a **separate service** alongside Chatto. Chatto handles authenti
 
 Calls are **implicit** — there's no "start call" action. The first person to join creates the call and a fresh E2EE key; when the last person leaves, the call ends and Chatto shreds that key.
 
-Chatto records call start/join/leave/end facts durably and reconciles active participants against LiveKit webhooks, so call indicators recover after server restarts. Room history shows when a call starts and when the active call ends; individual participant joins and leaves update the active call UI without appearing as timeline messages. LiveKit media is end-to-end encrypted by current Chatto clients; older clients that do not support this call encryption cannot decode encrypted media.
+Chatto records call start/join/leave/end facts durably and reconciles active participants against LiveKit webhooks, so call indicators recover after server restarts. These call facts update the active call UI without appearing as room timeline messages. LiveKit media is end-to-end encrypted by current Chatto clients; older clients that do not support this call encryption cannot decode encrypted media.
 
 ## Requirements
 
@@ -120,7 +120,6 @@ Use `wss://` (WebSocket Secure) URLs in production. Plain `ws://` should only be
 - **Video device selection** — Switch between cameras without leaving the call
 - **Active call indicators** — Rooms with active calls show a call indicator in the room list
 - **Audio level visualization** — Participant avatars pulse with accent-colored rings based on speaking volume
-- **Call history notices** — Room history shows when a call starts and when the active call ends
 
 ## Disabling Voice & Video Calls
 

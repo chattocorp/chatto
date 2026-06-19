@@ -121,12 +121,11 @@ func isAssetLifecycleEvent(event *corev1.Event) bool {
 //   - RoomMemberBannedEvent / RoomMemberUnbannedEvent — moderation audit facts,
 //     projected for admin surfaces but not displayed as chat timeline items.
 //
-//   - Voice call participant join/leave events — projected into call state and
-//     delivered live, but not displayed as chat timeline items.
+//   - Voice call lifecycle and participant events — projected into call state
+//     and delivered live, but not displayed as chat timeline items.
 //
 // Visible: root messages, room lifecycle (created/updated/archived/
-// unarchived/deleted), memberships (user_joined / user_left), and voice call
-// lifecycle start/end notices.
+// unarchived/deleted), and memberships (user_joined / user_left).
 func isVisibleRoomTimelineEntry(event *corev1.Event) bool {
 	if event == nil {
 		return false
@@ -141,7 +140,8 @@ func isVisibleRoomTimelineEntry(event *corev1.Event) bool {
 		*corev1.Event_AssetProcessingStarted,
 		*corev1.Event_AssetProcessingSucceeded, *corev1.Event_AssetProcessingFailed,
 		*corev1.Event_ReactionAdded, *corev1.Event_ReactionRemoved,
-		*corev1.Event_VoiceCallParticipantJoined, *corev1.Event_VoiceCallParticipantLeft:
+		*corev1.Event_VoiceCallStarted, *corev1.Event_VoiceCallParticipantJoined,
+		*corev1.Event_VoiceCallParticipantLeft, *corev1.Event_VoiceCallEnded:
 		return false
 	}
 	return true

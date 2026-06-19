@@ -517,12 +517,12 @@ func TestRoomTimeline_CallLifecycleVisibility(t *testing.T) {
 	if got := p.RoomEventCount("R1"); got != 5 {
 		t.Fatalf("raw RoomEventCount = %d, want 5", got)
 	}
-	if got := p.VisibleRoomEventCount("R1"); got != 3 {
-		t.Fatalf("VisibleRoomEventCount = %d, want 3", got)
+	if got := p.VisibleRoomEventCount("R1"); got != 1 {
+		t.Fatalf("VisibleRoomEventCount = %d, want 1", got)
 	}
 	visible := p.VisibleRoomTimeline("R1", 10, 0, nil)
-	if got := timelineEventIDs(visible); !slices.Equal(got, []string{"ENV-CALL-ENDED", "ENV-CALL-STARTED", "ENV-M1"}) {
-		t.Fatalf("derived visible timeline = %v, want call end, call start, and message only", got)
+	if got := timelineEventIDs(visible); !slices.Equal(got, []string{"ENV-M1"}) {
+		t.Fatalf("derived visible timeline = %v, want message only", got)
 	}
 }
 

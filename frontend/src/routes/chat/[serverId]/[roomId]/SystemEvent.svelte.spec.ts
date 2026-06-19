@@ -15,7 +15,7 @@ vi.mock('$lib/state/presenceCache.svelte', () => ({
 }));
 
 function systemEvent(
-  typename: 'CallStartedEvent' | 'CallEndedEvent',
+  typename: 'UserJoinedRoomEvent' | 'UserLeftRoomEvent',
   actorName = 'Alice'
 ): RoomEventViewFragment {
   return {
@@ -31,27 +31,25 @@ function systemEvent(
     },
     event: {
       __typename: typename,
-      roomId: 'room-1',
-      callId: 'call-1'
+      roomId: 'room-1'
     }
   } as unknown as RoomEventViewFragment;
 }
 
 describe('SystemEvent', () => {
-  it('renders call start copy with the actor name', () => {
+  it('renders member join copy with the actor name', () => {
     const { container } = render(SystemEvent, {
-      props: { event: systemEvent('CallStartedEvent', 'Alice') }
+      props: { event: systemEvent('UserJoinedRoomEvent', 'Alice') }
     });
 
-    expect(container.textContent).toContain('Alice started a call');
+    expect(container.textContent).toContain('Alice joined the room');
   });
 
-  it('renders call end copy without the actor name', () => {
+  it('renders member leave copy with the actor name', () => {
     const { container } = render(SystemEvent, {
-      props: { event: systemEvent('CallEndedEvent', 'Alice') }
+      props: { event: systemEvent('UserLeftRoomEvent', 'Alice') }
     });
 
-    expect(container.textContent).toContain('The active call has ended');
-    expect(container.textContent).not.toContain('Alice');
+    expect(container.textContent).toContain('Alice left the room');
   });
 });
