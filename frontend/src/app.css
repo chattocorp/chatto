@@ -18,8 +18,10 @@
  * Theme tokens.
  *
  * The active theme is selected by `data-theme` on `<html>`, which is set by
- * the inline script in `app.html`. That script reads `localStorage.theme` for
- * an explicit override, otherwise mirrors `prefers-color-scheme`.
+ * the inline script in `app.html`. That script reads
+ * `chatto:preferences.displayTheme` for the client-side Display setting,
+ * falls back to legacy `localStorage.theme`, then mirrors
+ * `prefers-color-scheme`.
  *
  * Light is the default (`:root`). Dark applies via the attribute selector,
  * so it wins whenever the script (or Storybook's theme toolbar) has set

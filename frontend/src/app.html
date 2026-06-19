@@ -6,31 +6,48 @@
       // Resolve and apply the active theme as early as possible — before CSS
       // loads — so:
       //   1. The active token set is in place by first paint (no FOUC).
-      //   2. A future "Choose theme" UI can write `localStorage.theme` and
-      //      have it picked up here without waiting for SvelteKit to hydrate.
+      //   2. The client-side Display setting works before SvelteKit hydrates.
       //
-      // Resolution: localStorage.theme ('light' | 'dark') if set, otherwise
-      // the OS-level prefers-color-scheme. Anything else (including 'auto'
-      // or missing) follows the system.
+      // Resolution: chatto:preferences.displayTheme ('system' | 'light' |
+      // 'dark') if set, then legacy localStorage.theme ('light' | 'dark'),
+      // otherwise the OS-level prefers-color-scheme.
       (() => {
         const root = document.documentElement;
         const mq = window.matchMedia('(prefers-color-scheme: dark)');
+
+        function storedPreferenceTheme() {
+          try {
+            const raw = localStorage.getItem('chatto:preferences');
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            const theme = parsed && typeof parsed === 'object' ? parsed.displayTheme : null;
+            return theme === 'system' || theme === 'light' || theme === 'dark' ? theme : null;
+          } catch {
+            return null;
+          }
+        }
+
+        function legacyTheme() {
+          try {
+            const theme = localStorage.getItem('theme');
+            return theme === 'light' || theme === 'dark' ? theme : null;
+          } catch {
+            return null;
+          }
+        }
+
         function apply() {
-          const stored = localStorage.getItem('theme');
+          const stored = storedPreferenceTheme() ?? legacyTheme() ?? 'system';
           const effective =
-            stored === 'light' || stored === 'dark'
-              ? stored
-              : mq.matches
-                ? 'dark'
-                : 'light';
+            stored === 'light' || stored === 'dark' ? stored : mq.matches ? 'dark' : 'light';
           root.dataset.theme = effective;
           // Pre-CSS background hint, mirrors --color-background.
           root.style.backgroundColor = effective === 'dark' ? '#171717' : '#f3f4f6';
         }
         apply();
-        // Live updates when the OS theme changes (only relevant when no
-        // explicit override is stored — apply() recomputes either way).
-        mq.addEventListener('change', apply);
+        mq.addEventListener('change', () => {
+          if ((storedPreferenceTheme() ?? legacyTheme() ?? 'system') === 'system') apply();
+        });
       })();
     </script>
     <!-- OG_META_PLACEHOLDER -->
