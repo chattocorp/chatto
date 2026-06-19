@@ -113,6 +113,8 @@ type Projector struct {
 	startupTargetSeq uint64
 	startupEndedAt   time.Time
 	startupCompleted bool
+	startupMessages  uint64
+	startupLogged    bool
 }
 
 // ProjectorStatus is a concurrency-safe snapshot of a projector's
@@ -125,6 +127,7 @@ type ProjectorStatus struct {
 	StartupTargetSeq uint64
 	StartupComplete  bool
 	StartupDuration  time.Duration
+	StartupMessages  uint64
 
 	Failed    bool
 	FailedSeq uint64
@@ -160,6 +163,7 @@ func (p *Projector) Status() ProjectorStatus {
 		LastSeq:          p.lastSeq,
 		StartupTargetSeq: p.startupTargetSeq,
 		StartupComplete:  p.startupCompleted,
+		StartupMessages:  p.startupMessages,
 	}
 	if !p.startupStartedAt.IsZero() {
 		startupEndsAt := p.startupEndedAt
@@ -556,16 +560,51 @@ func (p *Projector) handleMessage(msg jetstream.Msg) {
 		return
 	}
 
+	p.countStartupMessage()
 	p.advance(meta.Sequence.Stream)
 	p.maybeCompleteStartup(time.Now())
 }
 
-func (p *Projector) maybeCompleteStartup(now time.Time) {
+func (p *Projector) countStartupMessage() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	if p.started && p.startupEndedAt.IsZero() {
+		p.startupMessages++
+	}
+}
+
+func (p *Projector) maybeCompleteStartup(now time.Time) {
+	p.mu.Lock()
+	shouldLog := false
+	var duration time.Duration
+	var targetSeq, lastSeq, messages uint64
 	if p.started && p.startupEndedAt.IsZero() && p.lastSeq >= p.startupTargetSeq {
 		p.startupEndedAt = now
 		p.startupCompleted = true
+	}
+	if p.started && p.startupCompleted && !p.startupLogged {
+		p.startupLogged = true
+		shouldLog = true
+		duration = p.startupEndedAt.Sub(p.startupStartedAt)
+		targetSeq = p.startupTargetSeq
+		lastSeq = p.lastSeq
+		messages = p.startupMessages
+	}
+	p.mu.Unlock()
+
+	if shouldLog {
+		var rate float64
+		if seconds := duration.Seconds(); seconds > 0 {
+			rate = float64(messages) / seconds
+		}
+		p.logger.Info("Projection startup complete",
+			"duration", duration,
+			"messages", messages,
+			"messages_per_second", rate,
+			"last_seq", lastSeq,
+			"target_seq", targetSeq,
+			"subjects", p.proj.Subjects(),
+		)
 	}
 }
 

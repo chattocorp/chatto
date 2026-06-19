@@ -14,10 +14,11 @@ type threadReplySummary struct {
 }
 
 type threadSummary struct {
-	replyIDs       []string
-	replyCount     int
-	lastReplyAt    *time.Time
-	participantIDs []string
+	replyIDs          []string
+	replyCount        int
+	lastReplyAt       *time.Time
+	participantIDs    []string
+	participantCounts map[string]int
 }
 
 // ThreadProjection holds an append-only event log per thread,
@@ -117,7 +118,7 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 			p.byThread[threadRoot] = nil
 		}
 		if _, exists := p.summaryByThread[threadRoot]; !exists {
-			p.summaryByThread[threadRoot] = &threadSummary{}
+			p.summaryByThread[threadRoot] = newThreadSummary()
 		}
 		markApplied()
 
@@ -139,11 +140,11 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 		}
 		summary := p.summaryByThread[threadRoot]
 		if summary == nil {
-			summary = &threadSummary{}
+			summary = newThreadSummary()
 			p.summaryByThread[threadRoot] = summary
 		}
 		summary.replyIDs = append(summary.replyIDs, replyID)
-		p.recomputeSummaryLocked(threadRoot)
+		p.applyReplyToSummaryLocked(summary, replyID)
 		markApplied()
 
 	case *corev1.Event_MessageEdited:
@@ -162,11 +163,20 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 		p.byThread[threadRoot] = append(p.byThread[threadRoot], &TimelineEntry{StreamSeq: seq, Event: event})
 		if reply := p.replySummaries[e.MessageRetracted.GetEventId()]; reply != nil {
 			reply.retracted = true
+			// Retractions are rare and can invalidate last-reply or participant
+			// ordering, so recomputing the affected thread keeps the hot reply
+			// path O(1) without making removal bookkeeping subtle.
 			p.recomputeSummaryLocked(threadRoot)
 		}
 		markApplied()
 	}
 	return nil
+}
+
+func newThreadSummary() *threadSummary {
+	return &threadSummary{
+		participantCounts: make(map[string]int),
+	}
 }
 
 func eventCreatedAt(event *corev1.Event) time.Time {
@@ -179,34 +189,47 @@ func eventCreatedAt(event *corev1.Event) time.Time {
 func (p *ThreadProjection) recomputeSummaryLocked(threadRoot string) {
 	summary := p.summaryByThread[threadRoot]
 	if summary == nil {
-		summary = &threadSummary{}
+		summary = newThreadSummary()
 		p.summaryByThread[threadRoot] = summary
+	} else if summary.participantCounts == nil {
+		summary.participantCounts = make(map[string]int)
 	}
 
 	summary.replyCount = 0
 	summary.lastReplyAt = nil
 	summary.participantIDs = nil
-	participants := make(map[string]struct{})
+	clear(summary.participantCounts)
 
 	for _, replyID := range summary.replyIDs {
-		reply := p.replySummaries[replyID]
-		if reply == nil || reply.retracted {
-			continue
-		}
-		if _, shredded := p.shreddedUsers[reply.actorID]; shredded {
-			continue
-		}
+		p.applyReplyToSummaryLocked(summary, replyID)
+	}
+}
 
-		summary.replyCount++
-		if !reply.createdAt.IsZero() && (summary.lastReplyAt == nil || reply.createdAt.After(*summary.lastReplyAt)) {
-			at := reply.createdAt
-			summary.lastReplyAt = &at
-		}
-		if reply.actorID != "" {
-			if _, seen := participants[reply.actorID]; !seen && len(summary.participantIDs) < maxThreadParticipants {
-				participants[reply.actorID] = struct{}{}
-				summary.participantIDs = append(summary.participantIDs, reply.actorID)
-			}
+func (p *ThreadProjection) applyReplyToSummaryLocked(summary *threadSummary, replyID string) {
+	if summary == nil || replyID == "" {
+		return
+	}
+	if summary.participantCounts == nil {
+		summary.participantCounts = make(map[string]int)
+	}
+
+	reply := p.replySummaries[replyID]
+	if reply == nil || reply.retracted {
+		return
+	}
+	if _, shredded := p.shreddedUsers[reply.actorID]; shredded {
+		return
+	}
+
+	summary.replyCount++
+	if !reply.createdAt.IsZero() && (summary.lastReplyAt == nil || reply.createdAt.After(*summary.lastReplyAt)) {
+		at := reply.createdAt
+		summary.lastReplyAt = &at
+	}
+	if reply.actorID != "" {
+		summary.participantCounts[reply.actorID]++
+		if summary.participantCounts[reply.actorID] == 1 && len(summary.participantIDs) < maxThreadParticipants {
+			summary.participantIDs = append(summary.participantIDs, reply.actorID)
 		}
 	}
 }
