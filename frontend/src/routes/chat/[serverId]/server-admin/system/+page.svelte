@@ -1,104 +1,107 @@
 <script lang="ts">
-  import { graphql } from '$lib/gql';
-  import { useQuery } from '$lib/hooks';
+  import { onMount } from 'svelte';
   import { Panel, StatCard, DataTable, formatBytes, formatNumber } from '$lib/components/admin';
   import { Hint, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
+  import {
+    GetAdminSystemInfoRequest,
+    type AdminNatsConsumerInfoView,
+    type AdminNatsStreamInfoView,
+    type AdminProjectionStateView,
+    type AdminSystemInfoView
+  } from '$lib/pb/chatto/api/v1/chat_pb';
+  import { withActiveServerWireClient } from '$lib/wire/activeServerClient';
 
-  const AdminSystemInfoQuery = graphql(`
-    query AdminSystemInfo {
-      admin {
-        systemInfo {
-          connection {
-            connected
-            serverId
-            serverName
-            version
-            maxPayload
-            rtt
-          }
-          account {
-            memory
-            memoryUsed
-            storage
-            storageUsed
-            streams
-            streamsUsed
-            consumers
-            consumersUsed
-          }
-          nats {
-            totalMessages
-            totalBytes
-            totalConsumerPending
-            totalAckPending
-            streams {
-              name
-              description
-              subjects
-              storage
-              messages
-              bytes
-              firstSequence
-              lastSequence
-              consumerCount
-              replicas
-              clusterLeader
-            }
-            consumers {
-              stream
-              name
-              durable
-              filterSubject
-              filterSubjects
-              ackPolicy
-              pullBased
-              pushBound
-              pending
-              ackPending
-              redelivered
-              waiting
-              deliveredConsumerSequence
-              deliveredStreamSequence
-              ackFloorConsumerSequence
-              ackFloorStreamSequence
-            }
-          }
-        }
-        projections {
-          name
-          subjects
-          started
-          lastAppliedSequence
-          matchingStreamSequence
-          streamLastSequence
-          lag
-          failed
-          failedSequence
-          failure
-          entryCount
-          estimatedBytes
-          averageEntryBytes
-        }
-      }
-    }
-  `);
+  type StreamInfo = {
+    name: string;
+    description: string;
+    subjects: string[];
+    storage: string;
+    messages: number;
+    bytes: number;
+    firstSequence: string;
+    lastSequence: string;
+    consumerCount: number;
+    replicas: number;
+    clusterLeader: string;
+  };
 
-  const systemQuery = useQuery(AdminSystemInfoQuery, () => ({}));
+  type ConsumerInfo = {
+    stream: string;
+    name: string;
+    durable: string;
+    filterSubject: string;
+    filterSubjects: string[];
+    ackPolicy: string;
+    pullBased: boolean;
+    pushBound: boolean;
+    pending: number;
+    ackPending: number;
+    redelivered: number;
+    waiting: number;
+    deliveredConsumerSequence: string;
+    deliveredStreamSequence: string;
+    ackFloorConsumerSequence: string;
+    ackFloorStreamSequence: string;
+  };
 
-  const systemInfo = $derived(systemQuery.data?.admin?.systemInfo ?? null);
+  type SystemInfo = {
+    connection: {
+      connected: boolean;
+      serverId: string;
+      serverName: string;
+      version: string;
+      maxPayload: number;
+      rtt: string;
+    };
+    account: {
+      memory: number;
+      memoryUsed: number;
+      storage: number;
+      storageUsed: number;
+      streams: number;
+      streamsUsed: number;
+      consumers: number;
+      consumersUsed: number;
+    };
+    nats: {
+      totalMessages: number;
+      totalBytes: number;
+      totalConsumerPending: number;
+      totalAckPending: number;
+      streams: StreamInfo[];
+      consumers: ConsumerInfo[];
+    };
+  };
+
+  type ProjectionState = {
+    name: string;
+    subjects: string[];
+    started: boolean;
+    lastAppliedSequence: string;
+    matchingStreamSequence: string;
+    streamLastSequence: string;
+    lag: number;
+    failed: boolean;
+    failedSequence: string;
+    failure: string;
+    entryCount: number;
+    estimatedBytes: number;
+    averageEntryBytes: number;
+  };
+
+  let systemInfo = $state<SystemInfo | null>(null);
+  let projections = $state<ProjectionState[]>([]);
+  let loading = $state(true);
+  let error = $state<string | null>(null);
+
+  onMount(() => {
+    void loadSystemInfo();
+  });
+
   const streams = $derived(systemInfo?.nats.streams ?? []);
   const consumers = $derived(systemInfo?.nats.consumers ?? []);
-  const projections = $derived(
-    [...(systemQuery.data?.admin?.projections ?? [])].sort((a, b) => {
-      if (a.failed !== b.failed) return a.failed ? -1 : 1;
-      if (a.estimatedBytes !== b.estimatedBytes) return b.estimatedBytes - a.estimatedBytes;
-      return a.name.localeCompare(b.name);
-    })
-  );
-  const loading = $derived(systemQuery.loading);
-  const error = $derived(systemQuery.error ?? null);
   const totalEstimatedBytes = $derived(
     projections.reduce((sum, projection) => sum + projection.estimatedBytes, 0)
   );
@@ -112,6 +115,134 @@
   const consumersWithBacklog = $derived(
     consumers.filter((consumer) => consumer.pending > 0).length
   );
+
+  async function loadSystemInfo() {
+    loading = true;
+    error = null;
+
+    try {
+      const response = await withActiveServerWireClient((client) =>
+        client.getAdminSystemInfo(new GetAdminSystemInfoRequest())
+      );
+      if (!response.systemInfo) {
+        systemInfo = null;
+        projections = [];
+        error = 'System information is unavailable';
+        return;
+      }
+
+      systemInfo = mapSystemInfo(response.systemInfo);
+      projections = response.projections.map(mapProjectionState).sort(compareProjections);
+    } catch (err) {
+      systemInfo = null;
+      projections = [];
+      error = 'Failed to load system information';
+      console.error('Failed to load system information', err);
+    } finally {
+      loading = false;
+    }
+  }
+
+  function protoNumber(value: bigint | number | undefined): number {
+    if (typeof value === 'bigint') return Number(value);
+    return value ?? 0;
+  }
+
+  function mapSystemInfo(info: AdminSystemInfoView): SystemInfo {
+    const connection = info.connection;
+    const account = info.account;
+    const nats = info.nats;
+
+    return {
+      connection: {
+        connected: connection?.connected ?? false,
+        serverId: connection?.serverId ?? '',
+        serverName: connection?.serverName ?? '',
+        version: connection?.version ?? '',
+        maxPayload: protoNumber(connection?.maxPayload),
+        rtt: connection?.rtt ?? ''
+      },
+      account: {
+        memory: protoNumber(account?.memory),
+        memoryUsed: protoNumber(account?.memoryUsed),
+        storage: protoNumber(account?.storage),
+        storageUsed: protoNumber(account?.storageUsed),
+        streams: account?.streams ?? 0,
+        streamsUsed: account?.streamsUsed ?? 0,
+        consumers: account?.consumers ?? 0,
+        consumersUsed: account?.consumersUsed ?? 0
+      },
+      nats: {
+        totalMessages: protoNumber(nats?.totalMessages),
+        totalBytes: protoNumber(nats?.totalBytes),
+        totalConsumerPending: protoNumber(nats?.totalConsumerPending),
+        totalAckPending: nats?.totalAckPending ?? 0,
+        streams: nats?.streams.map(mapStreamInfo) ?? [],
+        consumers: nats?.consumers.map(mapConsumerInfo) ?? []
+      }
+    };
+  }
+
+  function mapStreamInfo(stream: AdminNatsStreamInfoView): StreamInfo {
+    return {
+      name: stream.name,
+      description: stream.description,
+      subjects: [...stream.subjects],
+      storage: stream.storage,
+      messages: protoNumber(stream.messages),
+      bytes: protoNumber(stream.bytes),
+      firstSequence: stream.firstSequence,
+      lastSequence: stream.lastSequence,
+      consumerCount: stream.consumerCount,
+      replicas: stream.replicas,
+      clusterLeader: stream.clusterLeader
+    };
+  }
+
+  function mapConsumerInfo(consumer: AdminNatsConsumerInfoView): ConsumerInfo {
+    return {
+      stream: consumer.stream,
+      name: consumer.name,
+      durable: consumer.durable,
+      filterSubject: consumer.filterSubject,
+      filterSubjects: [...consumer.filterSubjects],
+      ackPolicy: consumer.ackPolicy,
+      pullBased: consumer.pullBased,
+      pushBound: consumer.pushBound,
+      pending: protoNumber(consumer.pending),
+      ackPending: consumer.ackPending,
+      redelivered: consumer.redelivered,
+      waiting: consumer.waiting,
+      deliveredConsumerSequence: consumer.deliveredConsumerSequence,
+      deliveredStreamSequence: consumer.deliveredStreamSequence,
+      ackFloorConsumerSequence: consumer.ackFloorConsumerSequence,
+      ackFloorStreamSequence: consumer.ackFloorStreamSequence
+    };
+  }
+
+  function mapProjectionState(projection: AdminProjectionStateView): ProjectionState {
+    return {
+      name: projection.name,
+      subjects: [...projection.subjects],
+      started: projection.started,
+      lastAppliedSequence: projection.lastAppliedSequence,
+      matchingStreamSequence: projection.matchingStreamSequence,
+      streamLastSequence: projection.streamLastSequence,
+      lag: protoNumber(projection.lag),
+      failed: projection.failed,
+      failedSequence: projection.failedSequence,
+      failure: projection.failure,
+      entryCount: protoNumber(projection.entryCount),
+      estimatedBytes: protoNumber(projection.estimatedBytes),
+      averageEntryBytes: protoNumber(projection.averageEntryBytes)
+    };
+  }
+
+  function compareProjections(a: ProjectionState, b: ProjectionState) {
+    if (a.failed !== b.failed) return a.failed ? -1 : 1;
+    if (a.estimatedBytes !== b.estimatedBytes) return b.estimatedBytes - a.estimatedBytes;
+    return a.name.localeCompare(b.name);
+  }
 
   function formatLimit(limit: number, formatter: (n: number) => string = String): string {
     return limit <= 0 ? 'unlimited' : formatter(limit);

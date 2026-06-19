@@ -18,7 +18,8 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
 
-  const serverInfo = serverRegistry.getStore(getActiveServer()).serverInfo;
+  const activeServerId = getActiveServer();
+  const serverInfo = serverRegistry.getStore(activeServerId).serverInfo;
 
   function selectSound(soundId: NotificationSoundId) {
     userPreferences.notificationSound = soundId;
@@ -58,7 +59,7 @@
     pushError = null;
 
     try {
-      const success = await subscribeToPush(vapidKey);
+      const success = await subscribeToPush(activeServerId, vapidKey);
       if (success) {
         pushSubscribed = true;
       } else {
@@ -76,7 +77,7 @@
     pushError = null;
 
     try {
-      const success = await unsubscribeFromPush();
+      const success = await unsubscribeFromPush(activeServerId);
       if (success) {
         pushSubscribed = false;
       } else {

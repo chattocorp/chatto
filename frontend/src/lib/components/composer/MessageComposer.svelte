@@ -1,25 +1,27 @@
 <script lang="ts">
   import { tick, untrack } from 'svelte';
-  import { graphql } from '$lib/gql';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { uploadRoomAttachments } from '$lib/attachments/uploadRoomAttachments';
   import { parseMessageLink } from '$lib/messageLinks';
   import LinkPreviewCard from '$lib/components/LinkPreviewCard.svelte';
   import LinkPreviewSkeleton from '$lib/components/LinkPreviewSkeleton.svelte';
   import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
   import { toast } from '$lib/ui/toast';
-  import { getRoomMembers, getComposerContext } from '$lib/state/room';
+  import { getRoomMembers, getComposerContext, getMentionRoles } from '$lib/state/room';
   import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
   import { isTouchDevice } from '$lib/utils/isTouchDevice';
   import { hasVisibleContent } from '$lib/validation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { tryWirePostMessage, tryWireUpdateMessage, wireMentionConfirmation } from '$lib/wire';
+  import { LinkPreviewInput as WireLinkPreviewInput } from '$lib/pb/chatto/api/v1/chat_pb';
   import EmojiAutocomplete from '$lib/components/composer/EmojiAutocomplete.svelte';
   import MentionAutocomplete from '$lib/components/composer/MentionAutocomplete.svelte';
   import type { TipTapEditorApi } from './TipTapEditor.svelte';
   import { DraftState, draftKey } from './draft.svelte';
   import { AttachmentsState } from './attachments.svelte';
   import { LinkPreviewState } from './linkPreviews.svelte';
-  import { AutocompleteState, type MentionRole } from './autocomplete.svelte';
+  import { AutocompleteState } from './autocomplete.svelte';
 
   const tipTapEditorModule = import('./TipTapEditor.svelte');
 
@@ -105,13 +107,13 @@
   let editorApi = $state<TipTapEditorApi | null>(null);
   const draftState = new DraftState();
   const attachments = new AttachmentsState(() => serverInfo);
-  const linkPreviews = new LinkPreviewState(() => connection().client);
+  const linkPreviews = new LinkPreviewState();
+  const mentionRoles = $derived(getMentionRoles());
   const autocomplete = new AutocompleteState(
     () => editorApi,
     () => members,
     () => mentionRoles
   );
-  let mentionRoles = $state<MentionRole[]>([]);
 
   // Dynamic placeholder changes between normal and edit mode
   let currentPlaceholder = $derived(
@@ -176,63 +178,8 @@
     draftState.persistText(message);
   });
 
-  const PostMessageMutation = graphql(`
-    mutation PostMessage($input: PostMessageInput!) {
-      postMessage(input: $input) {
-        id
-      }
-    }
-  `);
-
-  const ComposerMentionRolesQuery = graphql(`
-    query ComposerMentionRoles {
-      server {
-        roles {
-          name
-          isSystem
-          position
-          pingable
-        }
-      }
-    }
-  `);
-
-  const UpdateMessageMutation = graphql(`
-    mutation UpdateMessageFromInput($input: UpdateMessageInput!) {
-      updateMessage(input: $input)
-    }
-  `);
-
   $effect(() => {
     return linkPreviews.scheduleDetection(message, isEditing);
-  });
-
-  $effect(() => {
-    const client = connection().client;
-    let cancelled = false;
-
-    async function loadMentionRoles() {
-      const response = await client.query(ComposerMentionRolesQuery, {});
-      if (cancelled) return;
-      if (response.error) {
-        mentionRoles = [];
-        return;
-      }
-      mentionRoles =
-        response.data?.server?.roles
-          .filter((role) => role.name !== 'everyone')
-          .map((role) => ({
-            name: role.name,
-            isSystem: role.isSystem,
-            position: role.position,
-            pingable: role.pingable
-          })) ?? [];
-    }
-
-    void loadMentionRoles();
-    return () => {
-      cancelled = true;
-    };
   });
 
   let loading = $state(false);
@@ -358,29 +305,6 @@
     return text.replace(/\n{3,}/g, '\n\n');
   }
 
-  type MentionConfirmation = {
-    recipientCount: number;
-    token: string;
-  };
-
-  function mentionConfirmation(error: unknown): MentionConfirmation | null {
-    const graphQLErrors =
-      error && typeof error === 'object' && 'graphQLErrors' in error
-        ? (error.graphQLErrors as Array<{ extensions?: Record<string, unknown> }>)
-        : [];
-
-    for (const graphQLError of graphQLErrors) {
-      const extensions = graphQLError.extensions;
-      if (extensions?.code !== 'MENTION_CONFIRMATION_REQUIRED') continue;
-      const count = extensions.recipientCount;
-      const token = extensions.mentionConfirmationToken;
-      if (typeof count === 'number' && typeof token === 'string' && token) {
-        return { recipientCount: count, token };
-      }
-    }
-    return null;
-  }
-
   async function postMessage() {
     // Require either non-empty message body or attachments.
     // hasVisibleContent rejects messages with only invisible Unicode characters.
@@ -402,53 +326,14 @@
     loading = true;
 
     try {
-      const buildInput = (mentionConfirmationToken: string | null) => ({
-        input: {
-          roomId,
-          body: bodyToSend || null,
-          attachments: filesToSend,
-          threadRootEventId: inThread ?? null,
-          inReplyTo: inReplyTo ?? null,
-          linkPreview: linkPreviewInput,
-          alsoSendToChannel: alsoSendToChannel || null,
-          mentionConfirmationToken
-        }
-      });
-
-      let response = await connection().client.mutation(PostMessageMutation, buildInput(null));
-
-      if (response.error) {
-        const confirmation = mentionConfirmation(response.error);
-        if (confirmation !== null) {
-          const confirmed = window.confirm(
-            `This message will notify ${confirmation.recipientCount} people. Send it anyway?`
-          );
-          if (confirmed) {
-            response = await connection().client.mutation(
-              PostMessageMutation,
-              buildInput(confirmation.token)
-            );
-          } else {
-            message = bodyToSend;
-            editorApi?.setContent(bodyToSend);
-            if (filesToSend) {
-              attachments.restore(attachments.filesToPreviewItems(filesToSend));
-            }
-            return;
-          }
-        }
-      }
-
-      if (response.error) {
-        toast.error('Failed to send message');
-        console.error('Error posting message:', response.error);
-        // Restore message so user can retry without retyping
+      const restoreDraft = () => {
         message = bodyToSend;
         editorApi?.setContent(bodyToSend);
         if (filesToSend) {
           attachments.restore(attachments.filesToPreviewItems(filesToSend));
         }
-      } else {
+      };
+      const finishSend = () => {
         // Scroll the enclosing pane to the user's new message. The composer
         // reads `scrollState` from its surrounding ComposerContext, so this
         // targets the main room's EventList in a room composer and the
@@ -466,6 +351,91 @@
 
         // Notify parent that message was sent (for resetting typing indicator debounce)
         onMessageSent?.();
+      };
+
+      let uploadedAttachmentAssetIds: string[] | null = null;
+      let videoProcessingAssetIds: string[] = [];
+
+      async function ensureAttachmentsUploaded() {
+        if (!filesToSend) {
+          return { attachmentAssetIds: [] as string[], videoProcessingAssetIds: [] as string[] };
+        }
+        if (uploadedAttachmentAssetIds) {
+          return { attachmentAssetIds: uploadedAttachmentAssetIds, videoProcessingAssetIds };
+        }
+
+        const upload = await uploadRoomAttachments({
+          roomId,
+          files: filesToSend,
+          threadRootEventId: inThread ?? null
+        });
+        uploadedAttachmentAssetIds = upload.attachments
+          .map((uploaded) => uploaded.attachment?.id)
+          .filter((id): id is string => !!id);
+        videoProcessingAssetIds = upload.videoProcessingAssetIds;
+        if (uploadedAttachmentAssetIds.length !== filesToSend.length) {
+          throw new Error('Attachment upload did not return all attachment IDs');
+        }
+        return { attachmentAssetIds: uploadedAttachmentAssetIds, videoProcessingAssetIds };
+      }
+
+      async function sendViaWire(mentionConfirmationToken: string | null) {
+        const upload = await ensureAttachmentsUploaded();
+        const handledByWire = await tryWirePostMessage({
+          roomId,
+          body: bodyToSend,
+          threadRootEventId: inThread ?? null,
+          inReplyToEventId: inReplyTo ?? null,
+          alsoSendToChannel,
+          attachmentAssetIds: upload.attachmentAssetIds,
+          videoProcessingAssetIds: upload.videoProcessingAssetIds,
+          linkPreview: linkPreviewInput
+            ? new WireLinkPreviewInput({
+                url: linkPreviewInput.url,
+                title: linkPreviewInput.title ?? undefined,
+                description: linkPreviewInput.description ?? undefined,
+                siteName: linkPreviewInput.siteName ?? undefined,
+                imageAssetId: linkPreviewInput.imageAssetId ?? undefined,
+                embedType: linkPreviewInput.embedType ?? undefined,
+                embedId: linkPreviewInput.embedId ?? undefined
+              })
+            : null,
+          mentionConfirmationToken
+        });
+        if (!handledByWire) {
+          throw new Error('wire client is not connected');
+        }
+      }
+
+      try {
+        await sendViaWire(null);
+        finishSend();
+        return;
+      } catch (error) {
+        const confirmation = wireMentionConfirmation(error);
+        if (confirmation !== null) {
+          const confirmed = window.confirm(
+            `This message will notify ${confirmation.recipientCount} people. Send it anyway?`
+          );
+          if (confirmed) {
+            try {
+              await sendViaWire(confirmation.token);
+              finishSend();
+              return;
+            } catch (retryError) {
+              toast.error('Failed to send message');
+              console.error('Error posting message:', retryError);
+              restoreDraft();
+              return;
+            }
+          } else {
+            restoreDraft();
+            return;
+          }
+        }
+        toast.error('Failed to send message');
+        console.error('Error posting message:', error);
+        restoreDraft();
       }
     } finally {
       loading = false;
@@ -494,19 +464,19 @@
       input.alsoSendToChannel = alsoSendToChannel;
     }
 
-    const response = await connection().client.mutation(UpdateMessageMutation, {
-      input
-    });
-
-    if (response.error) {
-      toast.error(response.error.message || 'Failed to edit message');
-    } else {
+    try {
+      const handledByWire = await tryWireUpdateMessage(input);
+      if (!handledByWire) {
+        throw new Error('wire client is not connected');
+      }
       message = '';
       editorApi?.setContent('');
       editState.cancelEdit();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to edit message');
+    } finally {
+      loading = false;
     }
-
-    loading = false;
   }
 
   async function handleSubmit() {

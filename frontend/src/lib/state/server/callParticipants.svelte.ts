@@ -5,31 +5,14 @@
  * to room members who haven't joined yet.
  *
  * Data sources:
- * - Initial load: `callParticipants` GraphQL query (from the call-state projection)
+ * - Initial load: wire `GetCallParticipants` request (from the call-state projection)
  * - Real-time updates: Optimistic adds/removes from CallParticipantJoined/Left events
  */
 
-import { graphql, useFragment } from '$lib/gql';
-import type {
-	GetCallParticipantsQuery,
-	UserAvatarUserFragment
-} from '$lib/gql/graphql';
-import { UserAvatarUserFragmentDoc } from '$lib/gql/graphql';
-import type { Client } from '@urql/svelte';
-
-const CallParticipantsQuery = graphql(`
-	query GetCallParticipants($roomId: ID!) {
-		room(roomId: $roomId) {
-			callParticipants {
-				user {
-					...UserAvatarUser
-				}
-				joinedAt
-				callId
-			}
-		}
-	}
-`);
+import { GetCallParticipantsRequest, type CallParticipantView } from '$lib/pb/chatto/api/v1/chat_pb';
+import type { User } from '$lib/pb/chatto/core/v1/models_pb';
+import type { WireClient } from '$lib/wire/client';
+import { wireEventBusManager } from './wireEventBus.svelte';
 
 /** Participant info stored in observer mode. */
 export type ObserverParticipant = {
@@ -39,10 +22,12 @@ export type ObserverParticipant = {
 	avatarUrl: string | null;
 };
 
-type QueryCallParticipant = NonNullable<GetCallParticipantsQuery['room']>['callParticipants'][number];
+type ParticipantActor = Pick<User, 'id' | 'displayName' | 'login'> & {
+	avatarUrl?: string | null;
+};
 
 export class CallParticipantsState {
-	#client: Client;
+	#getWireClient: () => WireClient | null | undefined;
 
 	/** Current participants visible to observers. */
 	participants = $state<ObserverParticipant[]>([]);
@@ -51,8 +36,12 @@ export class CallParticipantsState {
 	private currentRoomId: string | null = null;
 	private currentCallId: string | null = null;
 
-	constructor(client: Client) {
-		this.#client = client;
+	constructor(
+		serverId: string,
+		getWireClient: () => WireClient | null | undefined = () =>
+			wireEventBusManager.getClient(serverId)
+	) {
+		this.#getWireClient = getWireClient;
 	}
 
 	/**
@@ -62,14 +51,17 @@ export class CallParticipantsState {
 	async load(roomId: string): Promise<void> {
 		this.currentRoomId = roomId;
 
-		const result = await this.#client
-			.query(CallParticipantsQuery, { roomId })
-			.toPromise();
+		const client = this.#getWireClient();
+		if (!client) return;
 
-		const participants = result.data?.room?.callParticipants;
-		if (participants) {
+		const result = await client.getCallParticipants(new GetCallParticipantsRequest({ roomId }));
+		const participants = result.participants;
+		if (participants.length > 0) {
 			this.currentCallId = participants[0]?.callId ?? null;
-			this.participants = participants.map(toObserverParticipant);
+			this.participants = participants.map(toObserverParticipant).filter((p) => p.userId);
+		} else {
+			this.currentCallId = null;
+			this.participants = [];
 		}
 	}
 
@@ -77,7 +69,7 @@ export class CallParticipantsState {
 	 * Optimistically add a participant from a CallParticipantJoinedEvent.
 	 * Uses the actor data from the Event envelope.
 	 */
-	handleJoin(roomId: string, callId: string, actor: UserAvatarUserFragment | null): void {
+	handleJoin(roomId: string, callId: string, actor: ParticipantActor | null): void {
 		if (roomId !== this.currentRoomId) return;
 		if (this.currentCallId && this.currentCallId !== callId) return;
 		if (!actor) return;
@@ -124,12 +116,12 @@ export class CallParticipantsState {
 	}
 }
 
-function toObserverParticipant(p: QueryCallParticipant): ObserverParticipant {
-	const user = useFragment(UserAvatarUserFragmentDoc, p.user);
+function toObserverParticipant(p: CallParticipantView): ObserverParticipant {
+	const user = p.user;
 	return {
-		userId: user.id,
-		displayName: user.displayName,
-		login: user.login,
-		avatarUrl: user.avatarUrl ?? null
+		userId: user?.id ?? '',
+		displayName: user?.displayName ?? '',
+		login: user?.login ?? '',
+		avatarUrl: null
 	};
 }

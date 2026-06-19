@@ -1,8 +1,7 @@
-import { graphql } from '$lib/gql';
-import { useConnection } from '$lib/state/server/connection.svelte';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 import { getActiveServer } from '$lib/state/activeServer.svelte';
 import { appState } from '$lib/state/globals.svelte';
+import { tryWireMarkRoomAsRead } from '$lib/wire';
 
 /**
  * Manages room unread state: marks the room as read on entry and every time
@@ -13,7 +12,6 @@ import { appState } from '$lib/state/globals.svelte';
  * Must be called during component initialization (uses context).
  */
 export function useRoomUnread(getProps: () => { roomId: string }) {
-  const connection = useConnection();
   const roomUnreadStore = serverRegistry.getStore(getActiveServer()).roomUnread;
 
   let unreadAfterTime = $state<string | null>(null);
@@ -28,21 +26,14 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
     roomUnreadStore.setRoomUnread(targetRoomId, false);
 
     try {
-      const result = await connection()
-        .client.mutation(
-          graphql(`
-            mutation MarkRoomAsRead($input: MarkRoomAsReadInput!) {
-              markRoomAsRead(input: $input) {
-                previousLastReadAt
-                lastReadAt
-              }
-            }
-          `),
-          { input: { roomId: targetRoomId, upToEventId } }
-        )
-        .toPromise();
-
-      const data = result.data?.markRoomAsRead ?? null;
+      const result = await tryWireMarkRoomAsRead({ roomId: targetRoomId, upToEventId });
+      const data = result
+        ? {
+            previousLastReadAt:
+              result.previousLastReadAt?.toDate().toISOString() ?? null,
+            lastReadAt: result.lastReadAt?.toDate().toISOString() ?? null
+          }
+        : null;
       if (data?.lastReadAt && getProps().roomId === targetRoomId) {
         lastCursor = data.lastReadAt;
       }

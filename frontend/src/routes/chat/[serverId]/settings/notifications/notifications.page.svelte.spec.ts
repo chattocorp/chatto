@@ -2,13 +2,23 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import NotificationsPage from './+page.svelte';
-import { NotificationLevel } from '$lib/gql/graphql';
 import { q } from '$lib/test-utils';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
+import {
+  GetViewerResponse,
+  ListMyRoomsResponse,
+  RoomListItemView,
+  Viewer,
+  ViewerNotificationPreferenceView
+} from '$lib/pb/chatto/api/v1/chat_pb';
+import { Room, RoomKind } from '$lib/pb/chatto/core/v1/models_pb';
+import { NotificationLevel as WireNotificationLevel } from '$lib/pb/chatto/core/v1/user_preferences_pb';
 
 const mocks = vi.hoisted(() => ({
-  query: vi.fn(),
-  mutation: vi.fn(),
+  getViewer: vi.fn(),
+  listMyRooms: vi.fn(),
+  setServerNotificationLevel: vi.fn(),
+  setRoomNotificationLevel: vi.fn(),
   playNotificationSound: vi.fn(),
   notificationLevels: {
     setServerPreference: vi.fn(),
@@ -47,16 +57,15 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   }
 }));
 
-vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({
-    isConnected: true,
-    showConnectionLostBanner: false,
-    client: {
-      query: mocks.query,
-      mutation: mocks.mutation,
-      subscription: vi.fn()
-    }
-  })
+vi.mock('$lib/state/server/wireEventBus.svelte', () => ({
+  wireEventBusManager: {
+    getClient: () => ({
+      getViewer: mocks.getViewer,
+      listMyRooms: mocks.listMyRooms,
+      setServerNotificationLevel: mocks.setServerNotificationLevel,
+      setRoomNotificationLevel: mocks.setRoomNotificationLevel
+    })
+  }
 }));
 
 async function settle() {
@@ -64,31 +73,6 @@ async function settle() {
   await Promise.resolve();
   await Promise.resolve();
   flushSync();
-}
-
-function preferenceResult() {
-  return {
-    server: {
-      viewerNotificationPreference: {
-        level: NotificationLevel.Normal,
-        effectiveLevel: NotificationLevel.Normal
-      }
-    },
-    viewer: {
-      user: {
-        rooms: [
-          {
-            id: 'room-1',
-            name: 'general',
-            viewerNotificationPreference: {
-              level: NotificationLevel.Default,
-              effectiveLevel: NotificationLevel.Normal
-            }
-          }
-        ]
-      }
-    }
-  };
 }
 
 function buttonWithText(container: Element, text: string): HTMLButtonElement {
@@ -108,14 +92,37 @@ describe('Notification settings page', () => {
     mocks.playNotificationSound.mockClear();
     mocks.notificationLevels.setServerPreference.mockClear();
     mocks.notificationLevels.setRoomPreference.mockClear();
-    mocks.query.mockReset();
-    mocks.query.mockReturnValue({
-      toPromise: vi.fn().mockResolvedValue({
-        data: preferenceResult(),
-        error: null
+    mocks.getViewer.mockReset();
+    mocks.getViewer.mockResolvedValue(
+      new GetViewerResponse({
+        viewer: new Viewer({
+          serverNotificationPreference: new ViewerNotificationPreferenceView({
+            level: WireNotificationLevel.NORMAL,
+            effectiveLevel: WireNotificationLevel.NORMAL
+          })
+        })
       })
-    });
-    mocks.mutation.mockReset();
+    );
+    mocks.listMyRooms.mockReset();
+    mocks.listMyRooms.mockResolvedValue(
+      new ListMyRoomsResponse({
+        roomViews: [
+          new RoomListItemView({
+            room: new Room({
+              id: 'room-1',
+              name: 'general',
+              kind: RoomKind.CHANNEL
+            }),
+            viewerNotificationPreference: new ViewerNotificationPreferenceView({
+              level: WireNotificationLevel.UNSPECIFIED,
+              effectiveLevel: WireNotificationLevel.NORMAL
+            })
+          })
+        ]
+      })
+    );
+    mocks.setServerNotificationLevel.mockReset();
+    mocks.setRoomNotificationLevel.mockReset();
   });
 
   it('renders notification levels and sound choices from mocked state', async () => {
@@ -126,6 +133,7 @@ describe('Notification settings page', () => {
     await expect
       .element(q(container, '[data-testid="room-notification-general"]'))
       .toBeInTheDocument();
+    expect(mocks.listMyRooms.mock.calls[0][0]?.kind).toBe(RoomKind.CHANNEL);
     expect(container.textContent).toContain('Notification Sound');
     expect(container.textContent).toContain('Silent');
     expect(container.textContent).toContain('Simple');

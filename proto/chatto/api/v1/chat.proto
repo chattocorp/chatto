@@ -4,21 +4,111 @@ package chatto.api.v1;
 
 import "chatto/core/v1/event.proto";
 import "chatto/core/v1/models.proto";
+import "chatto/core/v1/user_preferences.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/api/v1;apiv1";
 
 // ChattoApiService is the experimental app API used by the /api/wire WebSocket.
 service ChattoApiService {
   rpc GetViewer(GetViewerRequest) returns (GetViewerResponse);
+  rpc GetCurrentUser(GetCurrentUserRequest) returns (GetCurrentUserResponse);
+  rpc GetAuthenticatedServerSettings(GetAuthenticatedServerSettingsRequest) returns (GetAuthenticatedServerSettingsResponse);
+  rpc GetAccountDeletionStatus(GetAccountDeletionStatusRequest) returns (GetAccountDeletionStatusResponse);
+  rpc RequestAccountDeletion(RequestAccountDeletionRequest) returns (RequestAccountDeletionResponse);
+  rpc DeleteMyAccount(DeleteMyAccountRequest) returns (DeleteMyAccountResponse);
+  rpc GetServerSettings(GetServerSettingsRequest) returns (GetServerSettingsResponse);
+  rpc UpdateServerSettings(UpdateServerSettingsRequest) returns (UpdateServerSettingsResponse);
+  rpc GetAdminSecurityConfig(GetAdminSecurityConfigRequest) returns (GetAdminSecurityConfigResponse);
+  rpc UpdateBlockedUsernames(UpdateBlockedUsernamesRequest) returns (UpdateBlockedUsernamesResponse);
+  rpc GetAdminSystemInfo(GetAdminSystemInfoRequest) returns (GetAdminSystemInfoResponse);
+  rpc ListAdminEventLog(ListAdminEventLogRequest) returns (ListAdminEventLogResponse);
+  rpc GetAdminEventLogEntry(GetAdminEventLogEntryRequest) returns (GetAdminEventLogEntryResponse);
+  rpc ListAdminMembers(ListAdminMembersRequest) returns (ListAdminMembersResponse);
+  rpc GetAdminMember(GetAdminMemberRequest) returns (GetAdminMemberResponse);
+  rpc AdminUpdateUser(AdminUpdateUserRequest) returns (AdminUpdateUserResponse);
+  rpc AdminClearUsernameCooldown(AdminClearUsernameCooldownRequest) returns (AdminClearUsernameCooldownResponse);
+  rpc AssignMemberRole(AssignMemberRoleRequest) returns (AssignMemberRoleResponse);
+  rpc RevokeMemberRole(RevokeMemberRoleRequest) returns (RevokeMemberRoleResponse);
+  rpc GetAdminRoleCapabilities(GetAdminRoleCapabilitiesRequest) returns (GetAdminRoleCapabilitiesResponse);
+  rpc GetAdminRole(GetAdminRoleRequest) returns (GetAdminRoleResponse);
+  rpc CreateAdminRole(CreateAdminRoleRequest) returns (CreateAdminRoleResponse);
+  rpc UpdateAdminRole(UpdateAdminRoleRequest) returns (UpdateAdminRoleResponse);
+  rpc DeleteAdminRole(DeleteAdminRoleRequest) returns (DeleteAdminRoleResponse);
+  rpc GetRolePermissionTierMatrix(GetRolePermissionTierMatrixRequest) returns (GetRolePermissionTierMatrixResponse);
+  rpc GetRolePermissionMatrix(GetRolePermissionMatrixRequest) returns (GetRolePermissionMatrixResponse);
+  rpc GetUserPermissionMatrix(GetUserPermissionMatrixRequest) returns (GetUserPermissionMatrixResponse);
+  rpc SetRolePermissionState(SetRolePermissionStateRequest) returns (SetPermissionStateResponse);
+  rpc SetUserPermissionState(SetUserPermissionStateRequest) returns (SetPermissionStateResponse);
+  rpc GetProfileSettings(GetProfileSettingsRequest) returns (GetProfileSettingsResponse);
+  rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
+  rpc GetUserSettings(GetUserSettingsRequest) returns (GetUserSettingsResponse);
+  rpc UpdateUserSettings(UpdateUserSettingsRequest) returns (UpdateUserSettingsResponse);
+  rpc SetServerNotificationLevel(SetServerNotificationLevelRequest) returns (SetNotificationLevelResponse);
+  rpc SetRoomNotificationLevel(SetRoomNotificationLevelRequest) returns (SetNotificationLevelResponse);
+  rpc SubscribeToPush(SubscribeToPushRequest) returns (SubscribeToPushResponse);
+  rpc UnsubscribeFromPush(UnsubscribeFromPushRequest) returns (UnsubscribeFromPushResponse);
+  rpc ListNotifications(ListNotificationsRequest) returns (ListNotificationsResponse);
+  rpc HasNotifications(HasNotificationsRequest) returns (HasNotificationsResponse);
+  rpc DismissNotification(DismissNotificationRequest) returns (DismissNotificationResponse);
+  rpc DismissAllNotifications(DismissAllNotificationsRequest) returns (DismissAllNotificationsResponse);
   rpc ListMyRooms(ListMyRoomsRequest) returns (ListMyRoomsResponse);
+  rpc GetRoom(GetRoomRequest) returns (GetRoomResponse);
+  rpc GetRoomMembers(GetRoomMembersRequest) returns (GetRoomMembersResponse);
+  rpc GetRoomDirectory(GetRoomDirectoryRequest) returns (GetRoomDirectoryResponse);
+  rpc SearchMembers(SearchMembersRequest) returns (SearchMembersResponse);
+  rpc StartDM(StartDMRequest) returns (StartDMResponse);
+  rpc CreateRoom(CreateRoomRequest) returns (CreateRoomResponse);
+  rpc GetAdminRoomLayout(GetAdminRoomLayoutRequest) returns (GetAdminRoomLayoutResponse);
+  rpc CreateAdminRoomGroup(CreateAdminRoomGroupRequest) returns (CreateAdminRoomGroupResponse);
+  rpc UpdateAdminRoomGroup(UpdateAdminRoomGroupRequest) returns (UpdateAdminRoomGroupResponse);
+  rpc DeleteAdminRoomGroup(DeleteAdminRoomGroupRequest) returns (DeleteAdminRoomGroupResponse);
+  rpc ReorderAdminRoomGroups(ReorderAdminRoomGroupsRequest) returns (ReorderAdminRoomGroupsResponse);
+  rpc MoveAdminRoomToGroup(MoveAdminRoomToGroupRequest) returns (MoveAdminRoomToGroupResponse);
+  rpc ReorderAdminRoomsInGroup(ReorderAdminRoomsInGroupRequest) returns (ReorderAdminRoomsInGroupResponse);
+  rpc UpdateAdminRoom(UpdateAdminRoomRequest) returns (UpdateAdminRoomResponse);
+  rpc ArchiveAdminRoom(ArchiveAdminRoomRequest) returns (ArchiveAdminRoomResponse);
+  rpc UnarchiveAdminRoom(UnarchiveAdminRoomRequest) returns (UnarchiveAdminRoomResponse);
+  rpc JoinRoom(JoinRoomRequest) returns (JoinRoomResponse);
+  rpc LeaveRoom(LeaveRoomRequest) returns (LeaveRoomResponse);
+  rpc JoinGroup(JoinGroupRequest) returns (JoinGroupResponse);
+  rpc BanRoomMember(BanRoomMemberRequest) returns (BanRoomMemberResponse);
+  rpc ListRoomBans(ListRoomBansRequest) returns (ListRoomBansResponse);
+  rpc UnbanRoomMember(UnbanRoomMemberRequest) returns (UnbanRoomMemberResponse);
+  rpc GetRoomEvent(GetRoomEventRequest) returns (GetRoomEventResponse);
   rpc GetRoomTimeline(GetRoomTimelineRequest) returns (GetRoomTimelineResponse);
+  rpc GetRoomTimelineAfter(GetRoomTimelineAfterRequest) returns (GetRoomTimelineAfterResponse);
+  rpc GetRoomTimelineAround(GetRoomTimelineAroundRequest) returns (GetRoomTimelineAroundResponse);
+  rpc GetThreadEvents(GetThreadEventsRequest) returns (GetThreadEventsResponse);
+  rpc GetThreadEventsAround(GetThreadEventsAroundRequest) returns (GetThreadEventsAroundResponse);
+  rpc ListMyFollowedThreads(ListMyFollowedThreadsRequest) returns (ListMyFollowedThreadsResponse);
+  rpc GetLinkPreview(GetLinkPreviewRequest) returns (GetLinkPreviewResponse);
   rpc PostMessage(PostMessageRequest) returns (PostMessageResponse);
+  rpc UpdateMessage(UpdateMessageRequest) returns (UpdateMessageResponse);
+  rpc DeleteMessage(DeleteMessageRequest) returns (DeleteMessageResponse);
+  rpc DeleteAttachment(DeleteAttachmentRequest) returns (DeleteAttachmentResponse);
+  rpc DeleteLinkPreview(DeleteLinkPreviewRequest) returns (DeleteLinkPreviewResponse);
+  rpc AddReaction(AddReactionRequest) returns (AddReactionResponse);
+  rpc RemoveReaction(RemoveReactionRequest) returns (RemoveReactionResponse);
+  rpc FollowThread(FollowThreadRequest) returns (FollowThreadResponse);
+  rpc UnfollowThread(UnfollowThreadRequest) returns (UnfollowThreadResponse);
+  rpc MarkRoomAsRead(MarkRoomAsReadRequest) returns (MarkRoomAsReadResponse);
+  rpc MarkThreadAsRead(MarkThreadAsReadRequest) returns (MarkThreadAsReadResponse);
   rpc SendTypingIndicator(SendTypingIndicatorRequest) returns (SendTypingIndicatorResponse);
+  rpc UpdateMyPresence(UpdateMyPresenceRequest) returns (UpdateMyPresenceResponse);
+  rpc ListActiveCalls(ListActiveCallsRequest) returns (ListActiveCallsResponse);
+  rpc GetCallParticipants(GetCallParticipantsRequest) returns (GetCallParticipantsResponse);
+  rpc JoinVoiceCall(JoinVoiceCallRequest) returns (JoinVoiceCallResponse);
+  rpc LeaveVoiceCall(LeaveVoiceCallRequest) returns (LeaveVoiceCallResponse);
+  rpc GetVoiceCallToken(GetVoiceCallTokenRequest) returns (GetVoiceCallTokenResponse);
 }
 
 // Viewer is the current authenticated user context.
 message Viewer {
   chatto.core.v1.User user = 1;
+  ViewerPermissionsView permissions = 2;
+  ViewerNotificationPreferenceView server_notification_preference = 3;
+  repeated RoomNotificationPreferenceView room_notification_preferences = 4;
 }
 
 // GetViewerRequest requests the current authenticated user.
@@ -27,6 +117,644 @@ message GetViewerRequest {}
 // GetViewerResponse returns the current authenticated user.
 message GetViewerResponse {
   Viewer viewer = 1;
+  ServerProfileView server_profile = 2;
+}
+
+// CurrentUserPresenceStatus is the UI-facing presence enum for the current user.
+// Core presence storage represents OFFLINE by key absence, so this API enum
+// includes the derived offline state explicitly.
+enum CurrentUserPresenceStatus {
+  CURRENT_USER_PRESENCE_STATUS_UNSPECIFIED = 0;
+  CURRENT_USER_PRESENCE_STATUS_OFFLINE = 1;
+  CURRENT_USER_PRESENCE_STATUS_ONLINE = 2;
+  CURRENT_USER_PRESENCE_STATUS_AWAY = 3;
+  CURRENT_USER_PRESENCE_STATUS_DO_NOT_DISTURB = 4;
+}
+
+// CurrentUserView contains the authenticated user shape used during app startup.
+message CurrentUserView {
+  chatto.core.v1.User user = 1;
+  string avatar_url = 2;
+  CurrentUserPresenceStatus presence_status = 3;
+  bool has_verified_email = 4;
+  chatto.core.v1.ServerUserPreferences settings = 5;
+}
+
+message GetCurrentUserRequest {}
+
+message GetCurrentUserResponse {
+  CurrentUserView user = 1;
+}
+
+message AuthenticatedServerSettingsView {
+  bool push_notifications_enabled = 1;
+  string vapid_public_key = 2;
+  string livekit_url = 3;
+  bool video_processing_enabled = 4;
+  int64 max_upload_size = 5;
+  int64 max_video_upload_size = 6;
+  int32 message_edit_window_seconds = 7;
+  string motd = 8;
+}
+
+message GetAuthenticatedServerSettingsRequest {}
+
+message GetAuthenticatedServerSettingsResponse {
+  AuthenticatedServerSettingsView settings = 1;
+}
+
+message GetAccountDeletionStatusRequest {}
+
+message GetAccountDeletionStatusResponse {
+  bool viewer_can_delete_account = 1;
+}
+
+message RequestAccountDeletionRequest {}
+
+message RequestAccountDeletionResponse {
+  string confirmation_token = 1;
+}
+
+message DeleteMyAccountRequest {
+  string confirmation_token = 1;
+}
+
+message DeleteMyAccountResponse {
+  bool deleted = 1;
+}
+
+// ServerSettingsView contains editable server profile/config fields.
+message ServerSettingsView {
+  string name = 1;
+  string description = 2;
+  string motd = 3;
+  string welcome_message = 4;
+  string logo_url = 5;
+  string banner_url = 6;
+  bool viewer_can_manage_server = 7;
+}
+
+message GetServerSettingsRequest {}
+
+message GetServerSettingsResponse {
+  ServerSettingsView settings = 1;
+}
+
+message UpdateServerSettingsRequest {
+  optional string server_name = 1;
+  optional string description = 2;
+  optional string motd = 3;
+  optional string welcome_message = 4;
+}
+
+message UpdateServerSettingsResponse {
+  ServerSettingsView settings = 1;
+}
+
+message AdminSecurityConfigView {
+  string blocked_usernames = 1;
+}
+
+message GetAdminSecurityConfigRequest {}
+
+message GetAdminSecurityConfigResponse {
+  AdminSecurityConfigView config = 1;
+}
+
+message UpdateBlockedUsernamesRequest {
+  string blocked_usernames = 1;
+}
+
+message UpdateBlockedUsernamesResponse {
+  AdminSecurityConfigView config = 1;
+}
+
+message AdminConnectionInfoView {
+  bool connected = 1;
+  string server_id = 2;
+  string server_name = 3;
+  string version = 4;
+  int64 max_payload = 5;
+  string rtt = 6;
+}
+
+message AdminAccountInfoView {
+  uint64 memory = 1;
+  uint64 memory_used = 2;
+  uint64 storage = 3;
+  uint64 storage_used = 4;
+  int32 streams = 5;
+  int32 streams_used = 6;
+  int32 consumers = 7;
+  int32 consumers_used = 8;
+}
+
+message AdminNatsStreamInfoView {
+  string name = 1;
+  string description = 2;
+  repeated string subjects = 3;
+  string storage = 4;
+  uint64 messages = 5;
+  uint64 bytes = 6;
+  string first_sequence = 7;
+  string last_sequence = 8;
+  int32 consumer_count = 9;
+  int32 replicas = 10;
+  string cluster_leader = 11;
+}
+
+message AdminNatsConsumerInfoView {
+  string stream = 1;
+  string name = 2;
+  string durable = 3;
+  string filter_subject = 4;
+  repeated string filter_subjects = 5;
+  string ack_policy = 6;
+  bool pull_based = 7;
+  bool push_bound = 8;
+  uint64 pending = 9;
+  int32 ack_pending = 10;
+  int32 redelivered = 11;
+  int32 waiting = 12;
+  string delivered_consumer_sequence = 13;
+  string delivered_stream_sequence = 14;
+  string ack_floor_consumer_sequence = 15;
+  string ack_floor_stream_sequence = 16;
+}
+
+message AdminNatsStatsView {
+  repeated AdminNatsStreamInfoView streams = 1;
+  repeated AdminNatsConsumerInfoView consumers = 2;
+  uint64 total_messages = 3;
+  uint64 total_bytes = 4;
+  uint64 total_consumer_pending = 5;
+  int32 total_ack_pending = 6;
+}
+
+message AdminServerStatsView {
+  int32 user_count = 1;
+  int32 channel_room_count = 2;
+  int32 dm_room_count = 3;
+}
+
+message AdminSystemInfoView {
+  AdminConnectionInfoView connection = 1;
+  AdminAccountInfoView account = 2;
+  AdminNatsStatsView nats = 3;
+  AdminServerStatsView stats = 4;
+}
+
+message AdminProjectionStateView {
+  string key = 1;
+  string name = 2;
+  repeated string subjects = 3;
+  bool started = 4;
+  string last_applied_sequence = 5;
+  string matching_stream_sequence = 6;
+  string stream_last_sequence = 7;
+  uint64 lag = 8;
+  bool failed = 9;
+  string failed_sequence = 10;
+  string failure = 11;
+  int64 entry_count = 12;
+  int64 estimated_bytes = 13;
+  int64 average_entry_bytes = 14;
+}
+
+message GetAdminSystemInfoRequest {}
+
+message GetAdminSystemInfoResponse {
+  AdminSystemInfoView system_info = 1;
+  repeated AdminProjectionStateView projections = 2;
+}
+
+message AdminEventLogEntryView {
+  string sequence = 1;
+  string subject = 2;
+  string aggregate_type = 3;
+  string aggregate_id = 4;
+  string event_type = 5;
+  string event_id = 6;
+  string actor_id = 7;
+  google.protobuf.Timestamp created_at = 8;
+  string payload_json = 9;
+}
+
+message ListAdminEventLogRequest {
+  int32 limit = 1;
+  string before = 2;
+}
+
+message ListAdminEventLogResponse {
+  repeated AdminEventLogEntryView entries = 1;
+  bool has_older = 2;
+  string end_cursor = 3;
+  int64 total_count = 4;
+}
+
+message GetAdminEventLogEntryRequest {
+  string sequence = 1;
+}
+
+message GetAdminEventLogEntryResponse {
+  AdminEventLogEntryView entry = 1;
+}
+
+message AdminRoleView {
+  string name = 1;
+  string display_name = 2;
+  string description = 3;
+  repeated string permissions = 4;
+  repeated string permission_denials = 5;
+  bool is_system = 6;
+  int32 position = 7;
+  bool pingable = 8;
+}
+
+message AdminMemberView {
+  chatto.core.v1.User user = 1;
+  string avatar_url = 2;
+  repeated string roles = 3;
+  google.protobuf.Timestamp last_login_change = 4;
+}
+
+message ListAdminMembersRequest {
+  string search = 1;
+  int32 limit = 2;
+  int32 offset = 3;
+}
+
+message ListAdminMembersResponse {
+  repeated AdminMemberView members = 1;
+  repeated AdminRoleView roles = 2;
+  int32 total_count = 3;
+  bool has_more = 4;
+}
+
+message GetAdminMemberRequest {
+  string user_id = 1;
+}
+
+message GetAdminMemberResponse {
+  AdminMemberView member = 1;
+  repeated AdminRoleView roles = 2;
+  repeated string available_permissions = 3;
+  bool viewer_can_assign_roles = 4;
+  bool viewer_can_manage_roles = 5;
+  bool viewer_can_manage_user_permissions = 6;
+}
+
+message AdminUpdateUserRequest {
+  string user_id = 1;
+  optional string login = 2;
+  optional string display_name = 3;
+}
+
+message AdminUpdateUserResponse {
+  AdminMemberView member = 1;
+}
+
+message AdminClearUsernameCooldownRequest {
+  string user_id = 1;
+}
+
+message AdminClearUsernameCooldownResponse {
+  AdminMemberView member = 1;
+}
+
+message AssignMemberRoleRequest {
+  string user_id = 1;
+  string role_name = 2;
+}
+
+message AssignMemberRoleResponse {
+  AdminMemberView member = 1;
+}
+
+message RevokeMemberRoleRequest {
+  string user_id = 1;
+  string role_name = 2;
+}
+
+message RevokeMemberRoleResponse {
+  AdminMemberView member = 1;
+}
+
+message GetAdminRoleCapabilitiesRequest {}
+
+message GetAdminRoleCapabilitiesResponse {
+  bool viewer_can_manage_roles = 1;
+  bool viewer_can_assign_roles = 2;
+}
+
+message GetAdminRoleRequest {
+  string name = 1;
+}
+
+message GetAdminRoleResponse {
+  AdminRoleView role = 1;
+  repeated chatto.core.v1.User users = 2;
+  bool viewer_can_manage_roles = 3;
+  bool viewer_can_assign_roles = 4;
+}
+
+message CreateAdminRoleRequest {
+  string name = 1;
+  string display_name = 2;
+  string description = 3;
+  bool pingable = 4;
+}
+
+message CreateAdminRoleResponse {
+  AdminRoleView role = 1;
+}
+
+message UpdateAdminRoleRequest {
+  string name = 1;
+  string display_name = 2;
+  string description = 3;
+  optional bool pingable = 4;
+}
+
+message UpdateAdminRoleResponse {
+  AdminRoleView role = 1;
+}
+
+message DeleteAdminRoleRequest {
+  string name = 1;
+}
+
+message DeleteAdminRoleResponse {
+  bool deleted = 1;
+}
+
+message TierPermissionsView {
+  repeated string permissions = 1;
+  repeated string permission_denials = 2;
+}
+
+message TierRoleView {
+  string role_name = 1;
+  string display_name = 2;
+  string description = 3;
+  bool is_system = 4;
+  int32 position = 5;
+  TierPermissionsView override = 6;
+  repeated string inherited_allows = 7;
+  repeated string inherited_denials = 8;
+}
+
+message RolePermissionTierMatrixView {
+  repeated string applicable_permissions = 1;
+  repeated TierRoleView roles = 2;
+}
+
+enum PermissionMatrixScopeKind {
+  PERMISSION_MATRIX_SCOPE_KIND_UNSPECIFIED = 0;
+  PERMISSION_MATRIX_SCOPE_KIND_SERVER = 1;
+  PERMISSION_MATRIX_SCOPE_KIND_GROUP = 2;
+  PERMISSION_MATRIX_SCOPE_KIND_ROOM = 3;
+}
+
+enum PermissionMatrixDecision {
+  PERMISSION_MATRIX_DECISION_UNSPECIFIED = 0;
+  PERMISSION_MATRIX_DECISION_ALLOW = 1;
+  PERMISSION_MATRIX_DECISION_DENY = 2;
+  PERMISSION_MATRIX_DECISION_NONE = 3;
+}
+
+enum PermissionEditState {
+  PERMISSION_EDIT_STATE_UNSPECIFIED = 0;
+  PERMISSION_EDIT_STATE_ALLOW = 1;
+  PERMISSION_EDIT_STATE_DENY = 2;
+  PERMISSION_EDIT_STATE_NEUTRAL = 3;
+}
+
+message PermissionMatrixScopeView {
+  string id = 1;
+  string label = 2;
+  PermissionMatrixScopeKind kind = 3;
+  string parent_group_id = 4;
+}
+
+message PermissionMatrixCellView {
+  string permission = 1;
+  string scope_id = 2;
+  PermissionMatrixDecision override = 3;
+  PermissionMatrixDecision effective = 4;
+}
+
+message RolePermissionMatrixView {
+  string role_name = 1;
+  repeated string applicable_permissions = 2;
+  repeated PermissionMatrixScopeView scopes = 3;
+  repeated PermissionMatrixCellView cells = 4;
+}
+
+message UserPermissionMatrixView {
+  string user_id = 1;
+  repeated string applicable_permissions = 2;
+  repeated PermissionMatrixScopeView scopes = 3;
+  repeated PermissionMatrixCellView cells = 4;
+}
+
+message GetRolePermissionTierMatrixRequest {
+  string room_id = 1;
+  string group_id = 2;
+}
+
+message GetRolePermissionTierMatrixResponse {
+  RolePermissionTierMatrixView matrix = 1;
+}
+
+message GetRolePermissionMatrixRequest {
+  string role_name = 1;
+}
+
+message GetRolePermissionMatrixResponse {
+  RolePermissionMatrixView matrix = 1;
+}
+
+message GetUserPermissionMatrixRequest {
+  string user_id = 1;
+}
+
+message GetUserPermissionMatrixResponse {
+  UserPermissionMatrixView matrix = 1;
+}
+
+message SetRolePermissionStateRequest {
+  string role_name = 1;
+  string permission = 2;
+  PermissionEditState state = 3;
+  string room_id = 4;
+  string group_id = 5;
+}
+
+message SetUserPermissionStateRequest {
+  string user_id = 1;
+  string permission = 2;
+  PermissionEditState state = 3;
+  string room_id = 4;
+  string group_id = 5;
+}
+
+message SetPermissionStateResponse {
+  bool changed = 1;
+}
+
+// ProfileSettingsView contains the current user's editable profile settings.
+message ProfileSettingsView {
+  chatto.core.v1.User user = 1;
+  string avatar_url = 2;
+  google.protobuf.Timestamp last_login_change = 3;
+}
+
+// GetProfileSettingsRequest requests the current user's profile settings.
+message GetProfileSettingsRequest {}
+
+// GetProfileSettingsResponse returns the current user's profile settings.
+message GetProfileSettingsResponse {
+  ProfileSettingsView profile = 1;
+}
+
+// UpdateProfileRequest updates the current user's editable profile fields.
+message UpdateProfileRequest {
+  optional string display_name = 1;
+  optional string login = 2;
+}
+
+// UpdateProfileResponse returns the updated current-user profile settings.
+message UpdateProfileResponse {
+  ProfileSettingsView profile = 1;
+}
+
+// GetUserSettingsRequest requests the current user's display preferences.
+message GetUserSettingsRequest {}
+
+// GetUserSettingsResponse returns the current user's display preferences.
+message GetUserSettingsResponse {
+  chatto.core.v1.ServerUserPreferences settings = 1;
+}
+
+// UpdateUserSettingsRequest updates the current user's display preferences.
+message UpdateUserSettingsRequest {
+  optional string timezone = 1;
+  optional chatto.core.v1.TimeFormat time_format = 2;
+}
+
+// UpdateUserSettingsResponse returns the current user's updated display preferences.
+message UpdateUserSettingsResponse {
+  chatto.core.v1.ServerUserPreferences settings = 1;
+}
+
+message SetServerNotificationLevelRequest {
+  chatto.core.v1.NotificationLevel level = 1;
+}
+
+message SetRoomNotificationLevelRequest {
+  string room_id = 1;
+  chatto.core.v1.NotificationLevel level = 2;
+}
+
+message SetNotificationLevelResponse {
+  ViewerNotificationPreferenceView preference = 1;
+}
+
+message SubscribeToPushRequest {
+  string endpoint = 1;
+  string p256dh = 2;
+  string auth = 3;
+  string user_agent = 4;
+}
+
+message SubscribeToPushResponse {
+  bool subscribed = 1;
+}
+
+message UnsubscribeFromPushRequest {
+  string endpoint = 1;
+}
+
+message UnsubscribeFromPushResponse {
+  bool unsubscribed = 1;
+}
+
+enum NotificationKind {
+  NOTIFICATION_KIND_UNSPECIFIED = 0;
+  NOTIFICATION_KIND_DM_MESSAGE = 1;
+  NOTIFICATION_KIND_MENTION = 2;
+  NOTIFICATION_KIND_REPLY = 3;
+  NOTIFICATION_KIND_ROOM_MESSAGE = 4;
+}
+
+message NotificationItemView {
+  string id = 1;
+  google.protobuf.Timestamp created_at = 2;
+  NotificationKind kind = 3;
+  chatto.core.v1.User actor = 4;
+  string summary = 5;
+  string room_id = 6;
+  string room_name = 7;
+  optional string event_id = 8;
+  optional string thread_root_event_id = 9;
+  optional string in_reply_to_id = 10;
+}
+
+message ListNotificationsRequest {
+  int32 limit = 1;
+  int32 offset = 2;
+}
+
+message ListNotificationsResponse {
+  repeated NotificationItemView items = 1;
+  int32 total_count = 2;
+  bool has_more = 3;
+  string server_name = 4;
+}
+
+message HasNotificationsRequest {}
+
+message HasNotificationsResponse {
+  bool has_notifications = 1;
+}
+
+message DismissNotificationRequest {
+  string notification_id = 1;
+}
+
+message DismissNotificationResponse {
+  bool dismissed = 1;
+}
+
+message DismissAllNotificationsRequest {}
+
+message DismissAllNotificationsResponse {
+  int32 dismissed_count = 1;
+}
+
+// ServerProfileView is lightweight server branding for product chrome.
+message ServerProfileView {
+  string name = 1;
+  string logo_url = 2;
+  string banner_url = 3;
+}
+
+// ViewerPermissionsView contains server-scoped capability hints for the viewer.
+message ViewerPermissionsView {
+  bool can_view_admin = 1;
+  bool can_start_dms = 2;
+  bool can_admin_view_users = 3;
+  bool can_admin_manage_users = 4;
+  bool can_admin_view_roles = 5;
+  bool can_admin_manage_roles = 6;
+  bool can_admin_view_system = 7;
+  bool can_admin_view_audit = 8;
+  bool can_manage_server = 9;
+  bool can_manage_rooms = 10;
+  bool can_manage_roles = 11;
+  bool can_assign_roles = 12;
+  bool can_manage_user_permissions = 13;
 }
 
 // ListMyRoomsRequest requests rooms the current user participates in.
@@ -34,9 +762,615 @@ message ListMyRoomsRequest {
   chatto.core.v1.RoomKind kind = 1;
 }
 
+// ViewerNotificationPreferenceView is the viewer's room notification setting.
+message ViewerNotificationPreferenceView {
+  chatto.core.v1.NotificationLevel level = 1;
+  chatto.core.v1.NotificationLevel effective_level = 2;
+}
+
+// RoomNotificationPreferenceView is a resolved viewer preference for one room.
+message RoomNotificationPreferenceView {
+  string room_id = 1;
+  chatto.core.v1.NotificationLevel level = 2;
+  chatto.core.v1.NotificationLevel effective_level = 3;
+}
+
+// RoomListItemView is one sidebar-ready room row.
+message RoomListItemView {
+  chatto.core.v1.Room room = 1;
+  bool has_unread = 2;
+  ViewerNotificationPreferenceView viewer_notification_preference = 3;
+  repeated chatto.core.v1.User members = 4;
+}
+
 // ListMyRoomsResponse returns rooms the current user participates in.
 message ListMyRoomsResponse {
   repeated chatto.core.v1.Room rooms = 1;
+  string viewer_user_id = 2;
+  repeated RoomListItemView room_views = 3;
+  repeated chatto.core.v1.RoomGroup room_groups = 4;
+}
+
+message GetRoomDirectoryRequest {}
+
+message RoomDirectoryItemView {
+  chatto.core.v1.Room room = 1;
+  bool viewer_can_join_room = 2;
+}
+
+message GetRoomDirectoryResponse {
+  repeated RoomDirectoryItemView room_views = 1;
+}
+
+message SearchMembersRequest {
+  string search = 1;
+  int32 limit = 2;
+  int32 offset = 3;
+}
+
+message SearchMembersResponse {
+  repeated chatto.core.v1.User users = 1;
+  int32 total_count = 2;
+  bool has_more = 3;
+  string viewer_user_id = 4;
+  bool viewer_can_start_dms = 5;
+}
+
+message StartDMRequest {
+  repeated string participant_ids = 1;
+}
+
+message StartDMResponse {
+  chatto.core.v1.Room room = 1;
+  bool created = 2;
+}
+
+message CreateRoomRequest {
+  string name = 1;
+  string description = 2;
+  string group_id = 3;
+}
+
+message CreateRoomResponse {
+  chatto.core.v1.Room room = 1;
+}
+
+message AdminRoomInfoView {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  bool archived = 4;
+}
+
+message AdminRoomGroupView {
+  string id = 1;
+  string name = 2;
+  repeated AdminRoomInfoView rooms = 3;
+}
+
+message GetAdminRoomLayoutRequest {}
+
+message GetAdminRoomLayoutResponse {
+  repeated AdminRoomGroupView groups = 1;
+}
+
+message CreateAdminRoomGroupRequest {
+  string name = 1;
+  string description = 2;
+}
+
+message CreateAdminRoomGroupResponse {
+  AdminRoomGroupView group = 1;
+}
+
+message UpdateAdminRoomGroupRequest {
+  string group_id = 1;
+  string name = 2;
+  string description = 3;
+}
+
+message UpdateAdminRoomGroupResponse {
+  AdminRoomGroupView group = 1;
+}
+
+message DeleteAdminRoomGroupRequest {
+  string group_id = 1;
+}
+
+message DeleteAdminRoomGroupResponse {
+  bool deleted = 1;
+}
+
+message ReorderAdminRoomGroupsRequest {
+  repeated string ordered_group_ids = 1;
+}
+
+message ReorderAdminRoomGroupsResponse {
+  repeated AdminRoomGroupView groups = 1;
+}
+
+message MoveAdminRoomToGroupRequest {
+  string room_id = 1;
+  string group_id = 2;
+}
+
+message MoveAdminRoomToGroupResponse {
+  AdminRoomInfoView room = 1;
+}
+
+message ReorderAdminRoomsInGroupRequest {
+  string group_id = 1;
+  repeated string ordered_room_ids = 2;
+}
+
+message ReorderAdminRoomsInGroupResponse {
+  AdminRoomGroupView group = 1;
+}
+
+message UpdateAdminRoomRequest {
+  string room_id = 1;
+  string name = 2;
+  string description = 3;
+}
+
+message UpdateAdminRoomResponse {
+  AdminRoomInfoView room = 1;
+}
+
+message ArchiveAdminRoomRequest {
+  string room_id = 1;
+}
+
+message ArchiveAdminRoomResponse {
+  AdminRoomInfoView room = 1;
+}
+
+message UnarchiveAdminRoomRequest {
+  string room_id = 1;
+}
+
+message UnarchiveAdminRoomResponse {
+  AdminRoomInfoView room = 1;
+}
+
+// MentionRole is the subset of RBAC role metadata needed by mention autocomplete.
+message MentionRole {
+  string name = 1;
+  bool is_system = 2;
+  int32 position = 3;
+  bool pingable = 4;
+}
+
+// RoomMembersPage is a paginated room-member response.
+message RoomMembersPage {
+  repeated chatto.core.v1.User users = 1;
+  int32 total_count = 2;
+  bool has_more = 3;
+}
+
+message GetRoomRequest {
+  string room_id = 1;
+  int32 members_limit = 2;
+  int32 members_offset = 3;
+}
+
+message GetRoomResponse {
+  chatto.core.v1.Room room = 1;
+  string server_name = 2;
+  bool viewer_can_post_message = 3;
+  bool viewer_can_post_in_thread = 4;
+  bool viewer_can_react = 5;
+  bool viewer_can_manage_others_message = 6;
+  bool viewer_can_echo_message = 7;
+  bool viewer_can_manage_room = 8;
+  bool viewer_can_ban_room_members = 9;
+  bool viewer_can_manage_rooms = 10;
+  RoomMembersPage members = 11;
+  string viewer_user_id = 12;
+  repeated MentionRole mention_roles = 13;
+}
+
+message GetRoomMembersRequest {
+  string room_id = 1;
+  int32 limit = 2;
+  int32 offset = 3;
+}
+
+message GetRoomMembersResponse {
+  RoomMembersPage members = 1;
+}
+
+message JoinRoomRequest {
+  string room_id = 1;
+}
+
+message JoinRoomResponse {
+  chatto.core.v1.Room room = 1;
+}
+
+message LeaveRoomRequest {
+  string room_id = 1;
+}
+
+message LeaveRoomResponse {}
+
+message JoinGroupRequest {
+  string group_id = 1;
+}
+
+message JoinGroupResponse {
+  repeated string joined_room_ids = 1;
+}
+
+message BanRoomMemberRequest {
+  string room_id = 1;
+  string user_id = 2;
+  string reason = 3;
+  google.protobuf.Timestamp expires_at = 4;
+}
+
+message BanRoomMemberResponse {}
+
+message UserAvatarView {
+  chatto.core.v1.User user = 1;
+  string avatar_url = 2;
+  CurrentUserPresenceStatus presence_status = 3;
+}
+
+message RoomBanView {
+  string id = 1;
+  string room_id = 2;
+  AdminRoomInfoView room = 3;
+  string user_id = 4;
+  UserAvatarView user = 5;
+  string moderator_id = 6;
+  UserAvatarView moderator = 7;
+  string reason = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp expires_at = 10;
+}
+
+message ListRoomBansRequest {
+  string room_id = 1;
+}
+
+message ListRoomBansResponse {
+  repeated RoomBanView bans = 1;
+}
+
+message UnbanRoomMemberRequest {
+  string room_id = 1;
+  string user_id = 2;
+  string reason = 3;
+}
+
+message UnbanRoomMemberResponse {
+  bool unbanned = 1;
+}
+
+message CallParticipantView {
+  chatto.core.v1.User user = 1;
+  google.protobuf.Timestamp joined_at = 2;
+  string call_id = 3;
+}
+
+message ActiveCallView {
+  string room_id = 1;
+  string call_id = 2;
+  repeated CallParticipantView participants = 3;
+}
+
+message ListActiveCallsRequest {}
+
+message ListActiveCallsResponse {
+  repeated ActiveCallView calls = 1;
+}
+
+message GetCallParticipantsRequest {
+  string room_id = 1;
+}
+
+message GetCallParticipantsResponse {
+  repeated CallParticipantView participants = 1;
+}
+
+message JoinVoiceCallRequest {
+  string room_id = 1;
+}
+
+message JoinVoiceCallResponse {
+  bool joined = 1;
+}
+
+message LeaveVoiceCallRequest {
+  string room_id = 1;
+}
+
+message LeaveVoiceCallResponse {
+  bool left = 1;
+}
+
+message VoiceCallTokenView {
+  string token = 1;
+  string e2ee_key = 2;
+  string call_id = 3;
+}
+
+message GetVoiceCallTokenRequest {
+  string room_id = 1;
+}
+
+message GetVoiceCallTokenResponse {
+  VoiceCallTokenView token = 1;
+}
+
+// AssetUrl is the stable browser-loadable URL shape used by message attachments.
+message AssetUrl {
+  string url = 1;
+  google.protobuf.Timestamp expires_at = 2;
+}
+
+// AssetFitMode is used by protobuf HTTP helpers that request transformed assets.
+enum AssetFitMode {
+  ASSET_FIT_MODE_UNSPECIFIED = 0;
+  ASSET_FIT_MODE_CONTAIN = 1;
+  ASSET_FIT_MODE_COVER = 2;
+  ASSET_FIT_MODE_EXACT = 3;
+}
+
+// VideoProcessingStatus mirrors the GraphQL video processing enum for the chat UI.
+enum VideoProcessingStatus {
+  VIDEO_PROCESSING_STATUS_UNSPECIFIED = 0;
+  VIDEO_PROCESSING_STATUS_PROCESSING = 1;
+  VIDEO_PROCESSING_STATUS_COMPLETED = 2;
+  VIDEO_PROCESSING_STATUS_FAILED = 3;
+}
+
+// VideoVariantView is a display-ready video derivative entry.
+message VideoVariantView {
+  string quality = 1;
+  int32 width = 2;
+  int32 height = 3;
+  int64 size = 4;
+  AssetUrl asset_url = 5;
+}
+
+// VideoProcessingView is the display-ready processing state for a video attachment.
+message VideoProcessingView {
+  VideoProcessingStatus status = 1;
+  optional int64 duration_ms = 2;
+  optional int32 width = 3;
+  optional int32 height = 4;
+  bool source_available = 5;
+  optional string reason_code = 6;
+  AssetUrl thumbnail_asset_url = 7;
+  repeated VideoVariantView variants = 8;
+}
+
+// AttachmentView is an attachment hydrated with URLs needed by browser clients.
+message AttachmentView {
+  string id = 1;
+  string filename = 2;
+  string content_type = 3;
+  int32 width = 4;
+  int32 height = 5;
+  AssetUrl asset_url = 6;
+  AssetUrl thumbnail_asset_url = 7;
+  VideoProcessingView video_processing = 8;
+}
+
+// UploadedAttachment is an uploaded attachment plus transient processing hints.
+message UploadedAttachment {
+  chatto.core.v1.Attachment attachment = 1;
+  bool needs_video_processing = 2;
+}
+
+// UploadRoomAttachmentsResponse is returned by the multipart room upload endpoint.
+message UploadRoomAttachmentsResponse {
+  repeated UploadedAttachment attachments = 1;
+  repeated string video_processing_asset_ids = 2;
+}
+
+// RefreshMessageAttachmentUrlsRequest requests freshly signed URLs for one message.
+message RefreshMessageAttachmentUrlsRequest {
+  string room_id = 1;
+  string event_id = 2;
+  int32 thumbnail_width = 3;
+  int32 thumbnail_height = 4;
+  AssetFitMode thumbnail_fit = 5;
+}
+
+// RefreshMessageAttachmentUrlsResponse returns attachment views with fresh URLs.
+message RefreshMessageAttachmentUrlsResponse {
+  repeated AttachmentView attachments = 1;
+}
+
+// UserAvatarAssetResponse is returned by the HTTP avatar upload/delete endpoints.
+message UserAvatarAssetResponse {
+  chatto.core.v1.User user = 1;
+  string avatar_url = 2;
+}
+
+// ServerBrandingAssetResponse is returned by the HTTP server logo/banner endpoints.
+message ServerBrandingAssetResponse {
+  ServerProfileView profile = 1;
+}
+
+// LinkPreviewView is the link preview shape consumed by the room UI.
+message LinkPreviewView {
+  string url = 1;
+  string title = 2;
+  string description = 3;
+  string site_name = 4;
+  optional string image_url = 5;
+  string embed_type = 6;
+  optional string embed_id = 7;
+  optional string image_asset_id = 8;
+}
+
+message LinkPreviewInput {
+  string url = 1;
+  optional string title = 2;
+  optional string description = 3;
+  optional string site_name = 4;
+  optional string image_asset_id = 5;
+  optional string embed_type = 6;
+  optional string embed_id = 7;
+}
+
+message GetLinkPreviewRequest {
+  string url = 1;
+}
+
+message GetLinkPreviewResponse {
+  LinkPreviewView preview = 1;
+}
+
+// ReactionSummaryView is a message reaction summary from the viewer's perspective.
+message ReactionSummaryView {
+  string emoji = 1;
+  int32 count = 2;
+  bool has_reacted = 3;
+  repeated chatto.core.v1.User users = 4;
+}
+
+// MessagePostedView is a display-ready MessagePostedEvent payload.
+message MessagePostedView {
+  string room_id = 1;
+  optional string body = 2;
+  repeated AttachmentView attachments = 3;
+  LinkPreviewView link_preview = 4;
+  optional google.protobuf.Timestamp updated_at = 5;
+  optional string in_reply_to = 6;
+  optional string thread_root_event_id = 7;
+  optional string echo_of_event_id = 8;
+  optional string echo_from_thread_root_event_id = 9;
+  optional string channel_echo_event_id = 10;
+  int32 reply_count = 11;
+  optional google.protobuf.Timestamp last_reply_at = 12;
+  repeated chatto.core.v1.User thread_participants = 13;
+  optional bool viewer_is_following_thread = 14;
+  repeated ReactionSummaryView reactions = 15;
+}
+
+// MessageEditedView is a display-ready MessageEditedEvent payload.
+message MessageEditedView {
+  string room_id = 1;
+  string message_event_id = 2;
+  optional string body = 3;
+  repeated AttachmentView attachments = 4;
+  LinkPreviewView link_preview = 5;
+  optional google.protobuf.Timestamp updated_at = 6;
+}
+
+message MessageRetractedView {
+  string room_id = 1;
+  string message_event_id = 2;
+  optional string reason = 3;
+}
+
+message RoomScopedEventView {
+  string room_id = 1;
+}
+
+message ReactionEventView {
+  string room_id = 1;
+  string message_event_id = 2;
+  string emoji = 3;
+}
+
+message AssetProcessingEventView {
+  string room_id = 1;
+  string asset_id = 2;
+  string message_event_id = 3;
+}
+
+message AssetDeletedView {
+  string room_id = 1;
+  string asset_id = 2;
+}
+
+message ServerMemberDeletedView {
+  string user_id = 1;
+}
+
+message CallEventView {
+  string room_id = 1;
+  string call_id = 2;
+}
+
+message ThreadCreatedView {
+  string room_id = 1;
+  string thread_root_event_id = 2;
+}
+
+message RoomModerationEventView {
+  string room_id = 1;
+  string user_id = 2;
+  optional string reason = 3;
+  optional google.protobuf.Timestamp expires_at = 4;
+}
+
+// RoomEventPayload is the schemaful display payload for a room timeline row.
+message RoomEventPayload {
+  oneof payload {
+    MessagePostedView message_posted = 1;
+    MessageEditedView message_edited = 2;
+    MessageRetractedView message_retracted = 3;
+    RoomScopedEventView room_created = 4;
+    RoomScopedEventView room_updated = 5;
+    RoomScopedEventView room_deleted = 6;
+    RoomScopedEventView room_archived = 7;
+    RoomScopedEventView room_unarchived = 8;
+    RoomScopedEventView user_joined_room = 9;
+    RoomScopedEventView user_left_room = 10;
+    ReactionEventView reaction_added = 11;
+    ReactionEventView reaction_removed = 12;
+    AssetProcessingEventView asset_processing_started = 13;
+    AssetProcessingEventView asset_processing_succeeded = 14;
+    AssetProcessingEventView asset_processing_failed = 15;
+    AssetDeletedView asset_deleted = 16;
+    ServerMemberDeletedView server_member_deleted = 17;
+    CallEventView call_started = 18;
+    CallEventView call_participant_joined = 19;
+    CallEventView call_participant_left = 20;
+    CallEventView call_ended = 21;
+    ThreadCreatedView thread_created = 22;
+    RoomModerationEventView room_member_banned = 23;
+    RoomModerationEventView room_member_unbanned = 24;
+  }
+}
+
+// RoomEventView is a display-ready room event plus the raw durable event for fallback clients.
+message RoomEventView {
+  string id = 1;
+  google.protobuf.Timestamp created_at = 2;
+  string actor_id = 3;
+  chatto.core.v1.User actor = 4;
+  uint64 sequence = 5;
+  chatto.core.v1.Event raw_event = 6;
+  RoomEventPayload event = 7;
+}
+
+// RoomEventsPage is the shared paginated room-event response body.
+message RoomEventsPage {
+  repeated RoomEventView events = 1;
+  bool has_older = 2;
+  bool has_newer = 3;
+  uint64 start_sequence = 4;
+  uint64 end_sequence = 5;
+  int32 target_index = 6;
+}
+
+// GetRoomEventRequest requests one visible event by ID.
+message GetRoomEventRequest {
+  string room_id = 1;
+  string event_id = 2;
+}
+
+// GetRoomEventResponse returns one hydrated event, if visible to the viewer.
+message GetRoomEventResponse {
+  RoomEventView event = 1;
 }
 
 // GetRoomTimelineRequest requests visible room timeline events.
@@ -59,6 +1393,78 @@ message GetRoomTimelineResponse {
   bool has_newer = 3;
   uint64 start_sequence = 4;
   uint64 end_sequence = 5;
+  repeated RoomEventView event_views = 6;
+}
+
+// GetRoomTimelineAfterRequest requests events newer than an existing cursor.
+message GetRoomTimelineAfterRequest {
+  string room_id = 1;
+  int32 limit = 2;
+  uint64 after_sequence = 3;
+}
+
+message GetRoomTimelineAfterResponse {
+  RoomEventsPage page = 1;
+}
+
+// GetRoomTimelineAroundRequest requests a window centered around one event.
+message GetRoomTimelineAroundRequest {
+  string room_id = 1;
+  string event_id = 2;
+  int32 limit = 3;
+}
+
+message GetRoomTimelineAroundResponse {
+  RoomEventsPage page = 1;
+}
+
+// GetThreadEventsRequest requests a thread root and a reply page.
+message GetThreadEventsRequest {
+  string room_id = 1;
+  string thread_root_event_id = 2;
+  int32 limit = 3;
+  uint64 before_sequence = 4;
+  uint64 after_sequence = 5;
+}
+
+message GetThreadEventsResponse {
+  RoomEventView root_event = 1;
+  RoomEventsPage replies = 2;
+}
+
+// GetThreadEventsAroundRequest requests a thread window centered around one reply.
+message GetThreadEventsAroundRequest {
+  string room_id = 1;
+  string thread_root_event_id = 2;
+  string anchor_event_id = 3;
+  int32 limit = 4;
+}
+
+message GetThreadEventsAroundResponse {
+  RoomEventView root_event = 1;
+  RoomEventsPage replies = 2;
+}
+
+message FollowedThreadView {
+  string room_id = 1;
+  chatto.core.v1.Room room = 2;
+  string thread_root_event_id = 3;
+  RoomEventView root_message = 4;
+  int32 reply_count = 5;
+  google.protobuf.Timestamp last_reply_at = 6;
+  bool has_unread = 7;
+  repeated chatto.core.v1.User thread_participants = 8;
+}
+
+message ListMyFollowedThreadsRequest {
+  int32 limit = 1;
+  int32 offset = 2;
+}
+
+message ListMyFollowedThreadsResponse {
+  repeated FollowedThreadView threads = 1;
+  int32 total_count = 2;
+  bool has_more = 3;
 }
 
 // PostMessageRequest posts a message into a room.
@@ -69,12 +1475,116 @@ message PostMessageRequest {
   string in_reply_to_event_id = 4;
   bool also_send_to_channel = 5;
   bool large_mention_confirmed = 6;
+  repeated string attachment_asset_ids = 7;
+  LinkPreviewInput link_preview = 8;
+  string mention_confirmation_token = 9;
+  repeated string video_processing_asset_ids = 10;
 }
 
 // PostMessageResponse returns the committed message event.
 message PostMessageResponse {
   chatto.core.v1.Event event = 1;
   uint64 sequence = 2;
+}
+
+// UpdateMessageRequest edits an existing message body.
+message UpdateMessageRequest {
+  string room_id = 1;
+  string event_id = 2;
+  string body = 3;
+  optional bool also_send_to_channel = 4;
+}
+
+// UpdateMessageResponse is empty on success.
+message UpdateMessageResponse {}
+
+// DeleteMessageRequest retracts one message event.
+message DeleteMessageRequest {
+  string room_id = 1;
+  string event_id = 2;
+}
+
+// DeleteMessageResponse is empty on success.
+message DeleteMessageResponse {}
+
+// DeleteAttachmentRequest removes one attachment from a message.
+message DeleteAttachmentRequest {
+  string room_id = 1;
+  string event_id = 2;
+  string attachment_id = 3;
+}
+
+// DeleteAttachmentResponse is empty on success.
+message DeleteAttachmentResponse {}
+
+// DeleteLinkPreviewRequest removes the link preview attached to a message.
+message DeleteLinkPreviewRequest {
+  string room_id = 1;
+  string event_id = 2;
+  string url = 3;
+}
+
+// DeleteLinkPreviewResponse is empty on success.
+message DeleteLinkPreviewResponse {}
+
+// AddReactionRequest adds a shortcode reaction to a message.
+message AddReactionRequest {
+  string room_id = 1;
+  string message_event_id = 2;
+  string emoji = 3;
+}
+
+message AddReactionResponse {
+  bool changed = 1;
+}
+
+// RemoveReactionRequest removes a shortcode reaction from a message.
+message RemoveReactionRequest {
+  string room_id = 1;
+  string message_event_id = 2;
+  string emoji = 3;
+}
+
+message RemoveReactionResponse {
+  bool changed = 1;
+}
+
+message FollowThreadRequest {
+  string room_id = 1;
+  string thread_root_event_id = 2;
+}
+
+message FollowThreadResponse {
+  bool changed = 1;
+}
+
+message UnfollowThreadRequest {
+  string room_id = 1;
+  string thread_root_event_id = 2;
+}
+
+message UnfollowThreadResponse {
+  bool changed = 1;
+}
+
+message MarkRoomAsReadRequest {
+  string room_id = 1;
+  string up_to_event_id = 2;
+}
+
+message MarkRoomAsReadResponse {
+  google.protobuf.Timestamp previous_last_read_at = 1;
+  google.protobuf.Timestamp last_read_at = 2;
+}
+
+message MarkThreadAsReadRequest {
+  string room_id = 1;
+  string thread_root_event_id = 2;
+  string up_to_event_id = 3;
+}
+
+message MarkThreadAsReadResponse {
+  google.protobuf.Timestamp previous_read_at = 1;
 }
 
 // SendTypingIndicatorRequest publishes a transient typing signal.
@@ -85,3 +1595,12 @@ message SendTypingIndicatorRequest {
 
 // SendTypingIndicatorResponse is empty on success.
 message SendTypingIndicatorResponse {}
+
+// UpdateMyPresenceRequest updates the current user's transient presence state.
+message UpdateMyPresenceRequest {
+  chatto.core.v1.UserPresenceStatus status = 1;
+}
+
+message UpdateMyPresenceResponse {
+  bool updated = 1;
+}

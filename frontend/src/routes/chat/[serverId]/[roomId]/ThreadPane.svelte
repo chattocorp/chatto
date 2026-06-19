@@ -1,9 +1,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { fly } from 'svelte/transition';
-  import { graphql } from '$lib/gql';
-  import { useEvent, createTypingIndicator } from '$lib/hooks';
-  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { useWireEvent, createTypingIndicator } from '$lib/hooks';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
 
@@ -16,7 +14,12 @@
     type MessageComposerApi
   } from '$lib/components/composer/MessageComposer.svelte';
   import EventList from './EventList.svelte';
-  import { onThreadFollowChanged } from '$lib/eventBus.svelte';
+  import { wireMessagePosted, wireThreadFollowChanged } from '$lib/wire/events';
+  import {
+    tryWireFollowThread,
+    tryWireMarkThreadAsRead,
+    tryWireUnfollowThread
+  } from '$lib/wire';
 
   let {
     roomId,
@@ -38,14 +41,12 @@
     onHighlightComplete?: () => void;
   } = $props();
 
-  const connection = useConnection();
   const members = $derived(getRoomMembers());
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
 
-  const store = new MessagesStore(
-    connection(),
-    () => currentUser.user?.id ?? null
-  );
+  const store = new MessagesStore(() => currentUser.user?.id ?? null, {
+    serverId: getActiveServer()
+  });
   onDestroy(() => store.dispose());
 
   let threadEvents = $derived(store.threadEvents);
@@ -92,6 +93,15 @@
 
   let canPost = $derived(canPostInThread);
 
+  // -- Thread follow state --
+  // Subscription events (auto-follow on reply, cross-tab sync) are authoritative.
+  // If one fires for this thread before the initial query resolves we must not
+  // let the query's stale viewerIsFollowingThread clobber it. Track per-thread
+  // so that switching to a different thread starts fresh.
+  let isFollowingThread = $state(false);
+  let _followSeededForThread = '';
+  let _followSubFiredForThread = '';
+
   // Reload thread events when the thread prop changes. Silent reconnect +
   // tab-resume catch-ups are owned by the server event bus.
   $effect(() => {
@@ -104,43 +114,30 @@
     jumpState.jumpToMessage(highlightEventId);
   });
 
-  // Subscribe to server events: clear typing indicator on a thread reply,
+  // Subscribe to wire events: clear typing indicator on a thread reply,
   // forward to the store, and mark the thread as read (with explicit event
   // ID) for replies arriving from other users while the user is present.
-  useEvent((serverEvent) => {
-    const eventData = serverEvent.event;
-    if (!eventData) return;
-
-    if (
-      eventData.__typename === 'MessagePostedEvent' &&
-      eventData.roomId === roomId &&
-      eventData.threadRootEventId === threadRootEventId
-    ) {
-      const actorId = serverEvent.actorId;
+  useWireEvent((streamEvent) => {
+    const posted = wireMessagePosted(streamEvent);
+    if (posted && posted.roomId === roomId && posted.threadRootEventId === threadRootEventId) {
+      const actorId = posted.actorId;
       if (actorId) {
         typingIndicator.removeTypingUser(actorId);
       }
 
-      if (
-        currentUser.user &&
-        actorId !== currentUser.user.id &&
-        appState.isPresent
-      ) {
-        void markThreadAsRead(threadRootEventId, serverEvent.id);
+      if (currentUser.user && actorId !== currentUser.user.id && appState.isPresent) {
+        void markThreadAsRead(threadRootEventId, posted.eventId);
       }
     }
 
-    store.ingestServerEvent(serverEvent);
-  });
+    const followChanged = wireThreadFollowChanged(streamEvent);
+    if (followChanged?.threadRootEventId === threadRootEventId) {
+      isFollowingThread = followChanged.isFollowing;
+      _followSubFiredForThread = followChanged.threadRootEventId;
+    }
 
-  // -- Thread follow state --
-  // Subscription events (auto-follow on reply, cross-tab sync) are authoritative.
-  // If one fires for this thread before the initial query resolves we must not
-  // let the query's stale viewerIsFollowingThread clobber it. Track per-thread
-  // so that switching to a different thread starts fresh.
-  let isFollowingThread = $state(false);
-  let _followSeededForThread = '';
-  let _followSubFiredForThread = '';
+    void store.ingestWireEvent(streamEvent);
+  });
 
   $effect(() => {
     const threadId = threadRootEventId;
@@ -166,41 +163,22 @@
     }
   });
 
-  const followThreadMutation = graphql(`
-    mutation FollowThreadFromPane($input: FollowThreadInput!) {
-      followThread(input: $input)
-    }
-  `);
-
-  const unfollowThreadMutation = graphql(`
-    mutation UnfollowThreadFromPane($input: UnfollowThreadInput!) {
-      unfollowThread(input: $input)
-    }
-  `);
-
   async function toggleThreadFollow() {
     const wasFollowing = isFollowingThread;
     isFollowingThread = !wasFollowing;
 
-    const mutation = wasFollowing ? unfollowThreadMutation : followThreadMutation;
-    const result = await connection().client.mutation(mutation, {
-      input: { roomId, threadRootEventId }
-    });
-
-    if (result.error) {
+    try {
+      const handledByWire = wasFollowing
+        ? await tryWireUnfollowThread({ roomId, threadRootEventId })
+        : await tryWireFollowThread({ roomId, threadRootEventId });
+      if (!handledByWire) {
+        isFollowingThread = wasFollowing;
+      }
+    } catch (error) {
+      console.error('Failed to toggle thread follow:', error);
       isFollowingThread = wasFollowing;
     }
   }
-
-  // Sync thread follow state from live events (auto-follow on reply, cross-tab sync).
-  $effect(() =>
-    onThreadFollowChanged((update) => {
-      if (update.threadRootEventId === threadRootEventId) {
-        isFollowingThread = update.isFollowing;
-        _followSubFiredForThread = update.threadRootEventId;
-      }
-    })
-  );
 
   // Dismiss reply notifications when viewing this thread (only when window is focused)
   $effect(() => {
@@ -210,23 +188,19 @@
   });
 
   async function markThreadAsRead(currentThreadId: string, upToEventId?: string) {
-    const result = await connection()
-      .client.mutation(
-        graphql(`
-          mutation MarkThreadAsRead($input: MarkThreadAsReadInput!) {
-            markThreadAsRead(input: $input) {
-              previousReadAt
-            }
-          }
-        `),
-        { input: { roomId, threadRootEventId: currentThreadId, upToEventId } }
-      )
-      .toPromise();
-
-    if (result.error) {
-      console.error('Failed to mark thread as read:', result.error);
+    try {
+      const result = await tryWireMarkThreadAsRead({
+        roomId,
+        threadRootEventId: currentThreadId,
+        upToEventId
+      });
+      return {
+        previousReadAt: result?.previousReadAt?.toDate().toISOString() ?? null
+      };
+    } catch (error) {
+      console.error('Failed to mark thread as read:', error);
+      return null;
     }
-    return result.data?.markThreadAsRead ?? null;
   }
 
   // Fire mark-thread-as-read on every presence-true edge (fresh open or
@@ -275,11 +249,7 @@
   data-testid="thread-pane"
   transition:fly={{ x: 300, duration: 200 }}
 >
-  <PaneHeader
-    title="Thread in #{roomName}"
-    onBack={onClose}
-    backLabel="Back to room"
-  >
+  <PaneHeader title="Thread in #{roomName}" onBack={onClose} backLabel="Back to room">
     {#snippet actions()}
       <HeaderIconButton
         icon={isFollowingThread ? 'uil--bell' : 'uil--bell-slash'}

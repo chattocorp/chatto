@@ -11,11 +11,10 @@ calls, and similar room-specific panels can plug into the same shell. See the
 </script>
 
 <script lang="ts">
-  import { graphql } from '$lib/gql';
   import { startDMWith } from '$lib/dm/startDM';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
-  import type { PresenceStatus } from '$lib/gql/graphql';
+  import type { PresenceStatus } from '$lib/chatTypes';
   import { getRoomMembersState, type RoomMember } from '$lib/state/room';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import { getLiveDisplayName, getLiveLogin } from '$lib/state/userProfiles.svelte';
@@ -25,18 +24,12 @@ calls, and similar room-specific panels can plug into the same shell. See the
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import ResizeHandle from '$lib/components/ResizeHandle.svelte';
   import { roomSidebarWidth } from '$lib/state/roomSidebarWidth.svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
   import { ROOM_SIDEBAR_MAX_WIDTH, ROOM_SIDEBAR_MIN_WIDTH } from '$lib/storage/roomSidebarWidth';
   import { serverStorageKey } from '$lib/storage/serverStorage';
   import { toast } from '$lib/ui/toast';
   import HeaderIconButton from '$lib/ui/HeaderIconButton.svelte';
   import BanRoomMemberModal from '$lib/components/moderation/BanRoomMemberModal.svelte';
-
-  const BanRoomMemberMutation = graphql(`
-    mutation BanRoomMemberFromSidebar($input: BanRoomMemberInput!) {
-      banRoomMember(input: $input)
-    }
-  `);
+  import { tryWireBanRoomMember } from '$lib/wire';
 
   let {
     loading = false,
@@ -58,7 +51,6 @@ calls, and similar room-specific panels can plug into the same shell. See the
     onClose?: () => void;
   } = $props();
 
-  const connection = useConnection();
   const presenceCache = getPresenceCache();
 
   // Get members from shared store (populated by Room.svelte)
@@ -147,18 +139,24 @@ calls, and similar room-specific panels can plug into the same shell. See the
     banningMemberId = member.id;
     banError = null;
     const displayName = member.displayName || member.login;
-    const result = await connection().client.mutation(BanRoomMemberMutation, {
-      input: { roomId, userId: member.id, reason, expiresAt }
-    });
-    banningMemberId = null;
 
-    if (result.error) {
+    try {
+      const handled = await tryWireBanRoomMember({
+        roomId,
+        userId: member.id,
+        reason,
+        expiresAt
+      });
+      if (!handled) throw new Error('wire client unavailable');
+    } catch (error) {
+      banningMemberId = null;
       banError = 'Failed to ban member from room';
       toast.error(banError);
-      console.error('Failed to ban member from room:', result.error);
+      console.error('Failed to ban member from room:', error);
       return;
     }
 
+    banningMemberId = null;
     toast.success(`Banned ${displayName} from room`);
     banDialogMember = null;
   }

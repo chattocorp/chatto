@@ -22,7 +22,7 @@ import {
   type RoomMarkedAsReadInfo,
   type RoomLayoutUpdatedInfo
 } from '$lib/eventBus.svelte';
-import type { PresenceStatus } from '$lib/gql/graphql';
+import type { PresenceStatus } from '$lib/chatTypes';
 import { eventBusManager } from '$lib/state/server/eventBus.svelte';
 import { getActiveServer } from '$lib/state/activeServer.svelte';
 

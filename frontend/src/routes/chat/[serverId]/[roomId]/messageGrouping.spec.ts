@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { computeEventMetadata } from './messageGrouping';
-import type { RoomEventViewFragment } from '$lib/gql/graphql';
+import { PresenceStatus, type RoomEventViewFragment } from '$lib/chatTypes';
 import type { UserSettingsState } from '$lib/state/userSettings.svelte';
 
 // Mock settings with explicit UTC timezone so tests are deterministic regardless of host TZ
@@ -32,6 +32,8 @@ function createMockEvent(
     actor: {
       id: overrides.actorId ?? 'u_user1',
       login: 'testuser',
+      displayName: 'Test User',
+      presenceStatus: PresenceStatus.Offline,
       avatarUrl: null
     }
   };

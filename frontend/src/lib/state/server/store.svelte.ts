@@ -17,8 +17,9 @@ import { RoomsStore } from './rooms.svelte';
 import { RoomDirectoryStore } from './roomDirectory.svelte';
 import { AdminRoomLayoutStore } from './adminRoomLayout.svelte';
 import { eventBusManager } from './eventBus.svelte';
+import { wireEventBusManager } from './wireEventBus.svelte';
 import type { EventBusCatchUpReason, EventHandler } from '$lib/eventBus.svelte';
-import type { GraphQLClient } from './graphqlClient.svelte';
+import type { ServerConnection } from './serverConnection.svelte';
 import type { RegisteredServer } from './registry.svelte';
 
 /**
@@ -74,24 +75,29 @@ export class ServerStateStore {
   #catchUpRefreshInFlight = false;
   #queuedCatchUpRefreshReason: EventBusCatchUpReason | null = null;
 
-  constructor(registered: RegisteredServer, gqlClient: GraphQLClient) {
+  constructor(registered: RegisteredServer, connection: ServerConnection) {
     this.serverId = registered.id;
     this.#registered = registered;
     const cookieAuth = this.#cookieAuth;
 
-    const client = gqlClient.client;
-    this.currentUser = new CurrentUserState(client, cookieAuth);
-    this.serverInfo = new ServerInfoState(client, registered.url);
-    this.notifications = new NotificationStore(client);
+    this.currentUser = new CurrentUserState(connection.wireUrl, connection.token, cookieAuth);
+    this.serverInfo = new ServerInfoState(
+      registered.url,
+      { url: connection.wireUrl, token: connection.token },
+      () => wireEventBusManager.getClient(registered.id)
+    );
+    this.notifications = new NotificationStore(registered.id);
     this.roomUnread = new RoomUnreadStore();
     this.notificationLevels = new NotificationLevelStore();
     this.pendingHighlights = new PendingHighlightStore();
-    this.voiceCall = new VoiceCallState(client);
-    this.callParticipants = new CallParticipantsState(client);
-    this.activeCallRooms = new ActiveCallRoomsState(client, this.voiceCall);
-    this.rooms = new RoomsStore(client, this.notificationLevels, this.roomUnread);
-    this.roomDirectory = new RoomDirectoryStore(client);
-    this.adminRoomLayout = new AdminRoomLayoutStore(client);
+    this.voiceCall = new VoiceCallState(registered.id);
+    this.callParticipants = new CallParticipantsState(registered.id);
+    this.activeCallRooms = new ActiveCallRoomsState(registered.id, this.voiceCall);
+    this.rooms = new RoomsStore(registered.id, this.notificationLevels, this.roomUnread);
+    this.roomDirectory = new RoomDirectoryStore(registered.id);
+    this.adminRoomLayout = new AdminRoomLayoutStore(() =>
+      wireEventBusManager.getClient(registered.id)
+    );
 
     // Self-managed lifecycle for the substores that need fetch / event
     // wiring. Living here (in the per-server bundle) means consumers
@@ -257,7 +263,7 @@ export class ServerStateStore {
     return this.#registered.token != null;
   }
 
-  /** Update permissions from viewer query data. */
+  /** Update permissions from the server-scoped viewer bootstrap. */
   setPermissions(viewer: ViewerData): void {
     this.permissions = { ...viewer, loaded: true };
   }

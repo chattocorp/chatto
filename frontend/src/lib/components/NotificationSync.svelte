@@ -41,7 +41,7 @@ Include this component once in the chat layout (unconditionally).
           playNotificationSound(userPreferences.notificationSound);
         }
 
-        if (event.event.__typename === 'NotificationDismissedEvent') {
+        if (event.event.__typename === 'NotificationDismissedEvent' && event.event.notificationId) {
           notificationStore.removeNotification(event.event.notificationId);
         }
       };

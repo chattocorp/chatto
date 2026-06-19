@@ -1,17 +1,23 @@
 <script lang="ts">
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import { graphql } from '$lib/gql';
-  import { TimeFormat } from '$lib/gql/graphql';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { wireEventBusManager } from '$lib/state/server/wireEventBus.svelte';
   import { PaneHeader, FormSection } from '$lib/ui';
   import { Button, FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
+  import { TimeFormat, timeFormatToWire } from '$lib/preferences/timeFormat';
+  import { UpdateUserSettingsRequest } from '$lib/pb/chatto/api/v1/chat_pb';
 
   const userSettings = getUserSettings();
-  const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
-  const connection = useConnection();
+  const activeServerId = getActiveServer();
+
+  function wireClient() {
+    const client = wireEventBusManager.getClient(activeServerId);
+    if (!client) {
+      throw new Error('No server connection');
+    }
+    return client;
+  }
 
   // All available IANA timezone names
   const allTimezones = Intl.supportedValuesOf('timeZone');
@@ -48,6 +54,26 @@
     if (!timezoneSearch) return undefined;
     if (allTimezones.includes(timezoneSearch)) return undefined;
     return 'Please select a valid timezone from the list';
+  });
+
+  $effect(() => {
+    let cancelled = false;
+    Promise.resolve()
+      .then(() => wireClient().getUserSettings())
+      .then((result) => {
+        if (cancelled) return;
+        userSettings.updateFromData(result.settings);
+        timezoneSearch = userSettings.timezone ?? '';
+        selectedTimezone = userSettings.timezone;
+        selectedTimeFormat = userSettings.timeFormat;
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        console.error('[preferences] failed to load display settings', err);
+      });
+    return () => {
+      cancelled = true;
+    };
   });
 
   function handleTimezoneInput(e: Event) {
@@ -129,37 +155,18 @@
     error = '';
 
     try {
-      const result = await connection()
-        .client.mutation(
-          graphql(`
-            mutation UpdateSettings($input: UpdateSettingsInput!) {
-              updateSettings(input: $input) {
-                timezone
-                timeFormat
-              }
-            }
-          `),
-          {
-            input: {
-              userId: currentUser.user!.id,
-              // Send empty string to clear (Go backend: nil = no change, "" = clear)
-              timezone: selectedTimezone ?? '',
-              timeFormat: selectedTimeFormat
-            }
-          }
-        )
-        .toPromise();
+      const result = await wireClient().updateUserSettings(
+        new UpdateUserSettingsRequest({
+          // Send empty string to clear (Go backend: nil = no change, "" = clear).
+          timezone: selectedTimezone ?? '',
+          timeFormat: timeFormatToWire(selectedTimeFormat)
+        })
+      );
 
-      if (result.error) {
-        error = result.error.message;
-        return;
-      }
-
-      // Update the local settings state so formatting changes take effect immediately
-      const data = result.data?.updateSettings;
-      if (data) {
-        userSettings.updateFromData(data);
-      }
+      userSettings.updateFromData(result.settings);
+      timezoneSearch = userSettings.timezone ?? '';
+      selectedTimezone = userSettings.timezone;
+      selectedTimeFormat = userSettings.timeFormat;
 
       toast.success('Display settings saved');
     } catch (err) {

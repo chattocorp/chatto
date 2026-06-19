@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { buildVirtualItems, type VirtualItem } from './virtualItems';
 import { computeEventMetadata, type EventWithMeta } from './messageGrouping';
-import type { RoomEventViewFragment } from '$lib/gql/graphql';
+import type { RoomEventViewFragment } from '$lib/chatTypes';
 import type { UserSettingsState } from '$lib/state/userSettings.svelte';
 
 const utcSettings = {

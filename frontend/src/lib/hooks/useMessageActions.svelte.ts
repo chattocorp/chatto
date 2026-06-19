@@ -1,9 +1,8 @@
-import { useConnection } from '$lib/state/server/connection.svelte';
-import { graphql } from '$lib/gql';
 import { toast } from '$lib/ui/toast';
 import { pushState } from '$app/navigation';
 import { getComposerContext } from '$lib/state/room';
 import { emojiToName } from '$lib/emoji';
+import { tryWireAddReaction, tryWireRemoveReaction } from '$lib/wire';
 
 export type MessageActionParams = {
 	roomId: string;
@@ -16,39 +15,30 @@ export type MessageActionParams = {
 	canAddChannelEcho?: boolean;
 };
 
-const addReactionMutation = graphql(`
-	mutation AddReactionFromActions($input: AddReactionInput!) {
-		addReaction(input: $input)
-	}
-`);
-
-const removeReactionMutation = graphql(`
-	mutation RemoveReactionFromActions($input: RemoveReactionInput!) {
-		removeReaction(input: $input)
-	}
-`);
-
 /**
  * Shared message action handlers for context menu and action sheet.
  * Must be called during component initialization (uses getEditState context).
  */
 export function useMessageActions() {
 	const editState = getComposerContext().editState;
-	const connection = useConnection();
 
 	async function addReaction(params: MessageActionParams, emoji: string) {
 		const name = emojiToName(emoji);
 		if (!name) return;
 
-		const result = await connection().client.mutation(addReactionMutation, {
-			input: {
-				roomId: params.roomId,
-				messageEventId: params.messageEventId,
-				emoji: name
-			}
-		});
-		if (result.error) {
+		const input = {
+			roomId: params.roomId,
+			messageEventId: params.messageEventId,
+			emoji: name
+		};
+
+		try {
+			const handledByWire = await tryWireAddReaction(input);
+			if (handledByWire) return;
 			toast.error('Failed to add reaction');
+		} catch (error) {
+			toast.error('Failed to add reaction');
+			console.error('Failed to add reaction:', error);
 		}
 	}
 
@@ -56,15 +46,19 @@ export function useMessageActions() {
 		const name = emojiToName(emoji);
 		if (!name) return;
 
-		const result = await connection().client.mutation(removeReactionMutation, {
-			input: {
-				roomId: params.roomId,
-				messageEventId: params.messageEventId,
-				emoji: name
-			}
-		});
-		if (result.error) {
+		const input = {
+			roomId: params.roomId,
+			messageEventId: params.messageEventId,
+			emoji: name
+		};
+
+		try {
+			const handledByWire = await tryWireRemoveReaction(input);
+			if (handledByWire) return;
 			toast.error('Failed to remove reaction');
+		} catch (error) {
+			toast.error('Failed to remove reaction');
+			console.error('Failed to remove reaction:', error);
 		}
 	}
 

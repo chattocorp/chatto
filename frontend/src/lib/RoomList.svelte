@@ -20,9 +20,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     useRoomMarkedAsRead
   } from '$lib/hooks';
   import { serverStorageKey } from '$lib/storage/serverStorage';
-  import { useFragment } from './gql';
-  import { RoomType, type PresenceStatus } from '$lib/gql/graphql';
-  import UserAvatar, { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
+  import { RoomType, type PresenceStatus } from '$lib/chatTypes';
+  import UserAvatar from '$lib/components/UserAvatar.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
   import { appState } from '$lib/state/globals.svelte';
@@ -141,6 +140,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   // and update voice-call indicators.
   useEvent((serverEvent) => {
     const event = serverEvent.event;
+    if (!event) return;
 
     if (event.__typename === 'UserLeftRoomEvent' && event.roomId === activeRoomId) {
       // Only navigate away when *the viewer* leaves the active room.
@@ -151,7 +151,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         goto(resolve('/chat/[serverId]', { serverId: serverSegment }));
       }
     } else if (event.__typename === 'CallParticipantJoinedEvent') {
-      const actor = serverEvent.actor ? useFragment(UserAvatarFragment, serverEvent.actor) : null;
+      const actor = serverEvent.actor ?? null;
       activeCallRooms.handleJoin(event.roomId, event.callId, actor);
     } else if (event.__typename === 'CallParticipantLeftEvent') {
       activeCallRooms.handleLeave(event.roomId, event.callId, serverEvent.actorId ?? null);

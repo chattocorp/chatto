@@ -1,4 +1,4 @@
-import type { RoomEventViewFragment } from '$lib/gql/graphql';
+import type { RoomEventViewFragment } from '$lib/chatTypes';
 import type { EditableMessage, RoomPermissions } from '$lib/state/room';
 
 type FindLastEditableMessageOptions = {

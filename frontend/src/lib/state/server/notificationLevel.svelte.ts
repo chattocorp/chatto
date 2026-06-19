@@ -10,7 +10,7 @@
  */
 
 import { SvelteMap } from 'svelte/reactivity';
-import { NotificationLevel } from '$lib/gql/graphql';
+import { NotificationLevel } from '$lib/preferences/notificationLevel';
 
 export class NotificationLevelStore {
   /** Server-level preference. */
@@ -55,9 +55,10 @@ export class NotificationLevelStore {
    * Get the viewer's notification preference for a room.
    * Returns DEFAULT with the server's effective level if not set.
    */
-  getRoomPreference(
-    roomId: string
-  ): { level: NotificationLevel; effectiveLevel: NotificationLevel } {
+  getRoomPreference(roomId: string): {
+    level: NotificationLevel;
+    effectiveLevel: NotificationLevel;
+  } {
     const roomPref = this.roomLevels.get(roomId);
     if (roomPref) return roomPref;
     return {

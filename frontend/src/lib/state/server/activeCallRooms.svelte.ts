@@ -1,8 +1,8 @@
 /**
  * Tracks which rooms have active voice calls and who's in each call.
  *
- * Uses the `activeCallRoomIds` GraphQL query (backed by LiveKit's ListRooms API)
- * as the source of truth. Real-time updates come from room events:
+ * Uses the wire `ListActiveCalls` request as the source of truth. Real-time
+ * updates come from room events:
  * - CallParticipantJoinedEvent → add participant to the room
  * - CallParticipantLeftEvent → remove participant; delete room if empty
  * - CallEndedEvent → delete the room regardless of participant snapshot
@@ -10,31 +10,12 @@
  * Also includes the local user's active call from VoiceCallState for instant feedback.
  */
 
-import { SvelteMap } from 'svelte/reactivity';
-import { graphql, useFragment } from '$lib/gql';
-import { UserAvatarUserFragmentDoc, type UserAvatarUserFragment } from '$lib/gql/graphql';
-import type { Client } from '@urql/svelte';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { ListActiveCallsRequest, type CallParticipantView } from '$lib/pb/chatto/api/v1/chat_pb';
+import type { User } from '$lib/pb/chatto/core/v1/models_pb';
+import type { WireClient } from '$lib/wire/client';
 import type { VoiceCallState } from '$lib/state/server/voiceCall.svelte';
-
-const ActiveCallRoomIdsQuery = graphql(`
-	query GetActiveCallRoomIds {
-		activeCallRoomIds
-	}
-`);
-
-const CallParticipantsQuery = graphql(`
-	query GetSidebarCallParticipants($roomId: ID!) {
-		room(roomId: $roomId) {
-			callParticipants {
-				user {
-					...UserAvatarUser
-				}
-				joinedAt
-				callId
-			}
-		}
-	}
-`);
+import { wireEventBusManager } from './wireEventBus.svelte';
 
 /** Participant info for display in the room list sidebar. */
 export type CallRoomParticipant = {
@@ -49,16 +30,25 @@ type ActiveCallRoomSnapshot = {
 	participants: CallRoomParticipant[];
 };
 
+type ParticipantActor = Pick<User, 'id' | 'displayName' | 'login'> & {
+	avatarUrl?: string | null;
+};
+
 export class ActiveCallRoomsState {
-	#client: Client;
 	#voiceCall: VoiceCallState;
+	#getWireClient: () => WireClient | null | undefined;
 
 	/** Map of room ID → server-observed active call snapshot. */
 	private serverRooms = new SvelteMap<string, ActiveCallRoomSnapshot>();
 
-	constructor(client: Client, voiceCall: VoiceCallState) {
-		this.#client = client;
+	constructor(
+		serverId: string,
+		voiceCall: VoiceCallState,
+		getWireClient: () => WireClient | null | undefined = () =>
+			wireEventBusManager.getClient(serverId)
+	) {
 		this.#voiceCall = voiceCall;
+		this.#getWireClient = getWireClient;
 	}
 
 	/**
@@ -84,52 +74,30 @@ export class ActiveCallRoomsState {
 	 * Should be called when entering the chat (alongside room list loading).
 	 */
 	async load(): Promise<void> {
-		const result = await this.#client.query(ActiveCallRoomIdsQuery, {}).toPromise();
-		const roomIds = result.data?.activeCallRoomIds ?? [];
+		const client = this.#getWireClient();
+		if (!client) return;
 
-		// Remove rooms that are no longer active
+		const result = await client.listActiveCalls(new ListActiveCallsRequest());
+		const roomIds = new SvelteSet(result.calls.map((call) => call.roomId).filter(Boolean));
 		for (const id of this.serverRooms.keys()) {
-			if (!roomIds.includes(id)) {
+			if (!roomIds.has(id)) {
 				this.serverRooms.delete(id);
 			}
 		}
 
-		// Fetch participants for each active room in parallel
-		await Promise.all(
-			roomIds.map(async (roomId: string) => {
-				const participantResult = await this.#client
-					.query(CallParticipantsQuery, { roomId })
-					.toPromise();
-
-				const participants = participantResult.data?.room?.callParticipants;
-				if (participants) {
-					this.serverRooms.set(
-						roomId,
-						{
-							callId: participants[0]?.callId ?? null,
-							participants: participants.map((p) => {
-								const user = useFragment(UserAvatarUserFragmentDoc, p.user);
-								return {
-									userId: user.id,
-									displayName: user.displayName,
-									login: user.login,
-									avatarUrl: user.avatarUrl ?? null
-								};
-							})
-						}
-					);
-				} else if (!this.serverRooms.has(roomId)) {
-					// Room is active but we couldn't fetch participants
-					this.serverRooms.set(roomId, { callId: null, participants: [] });
-				}
-			})
-		);
+		for (const call of result.calls) {
+			if (!call.roomId) continue;
+			this.serverRooms.set(call.roomId, {
+				callId: call.callId || call.participants[0]?.callId || null,
+				participants: call.participants.map(toCallRoomParticipant).filter((p) => p.userId)
+			});
+		}
 	}
 
 	/**
 	 * Handle a CallParticipantJoinedEvent — add participant to the room.
 	 */
-	handleJoin(roomId: string, callId: string, actor: UserAvatarUserFragment | null): void {
+	handleJoin(roomId: string, callId: string, actor: ParticipantActor | null): void {
 		const existing = this.serverRooms.get(roomId);
 		if (existing?.callId && existing.callId !== callId) return;
 
@@ -190,4 +158,14 @@ export class ActiveCallRoomsState {
 	clear(): void {
 		this.serverRooms.clear();
 	}
+}
+
+function toCallRoomParticipant(p: CallParticipantView): CallRoomParticipant {
+	const user = p.user;
+	return {
+		userId: user?.id ?? '',
+		displayName: user?.displayName ?? '',
+		login: user?.login ?? '',
+		avatarUrl: null
+	};
 }

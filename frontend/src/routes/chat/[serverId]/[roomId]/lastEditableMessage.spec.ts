@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { RoomEventViewFragment } from '$lib/gql/graphql';
+import type { RoomEventViewFragment } from '$lib/chatTypes';
 import type { RoomPermissions } from '$lib/state/room';
 import { findLastEditableMessage } from './lastEditableMessage';
 

@@ -1,6 +1,10 @@
-import { describe, expect, it, vi } from 'vitest';
-import type { Client } from '@urql/svelte';
-import { FitMode } from '$lib/gql/graphql';
+import { Timestamp } from '@bufbuild/protobuf';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  AssetFitMode,
+  RefreshMessageAttachmentUrlsRequest,
+  RefreshMessageAttachmentUrlsResponse
+} from '$lib/pb/chatto/api/v1/chat_pb';
 import {
   ASSET_URL_REFRESH_LEAD_MS,
   assetUrlExpiresAtMs,
@@ -13,73 +17,91 @@ import {
   type RefreshedAttachmentUrls
 } from './attachmentUrls';
 
-function clientWith(result: unknown): Client {
+const { fetchMock } = vi.hoisted(() => ({
+  fetchMock: vi.fn()
+}));
+
+vi.mock('$lib/state/activeServer.svelte', () => ({
+  getActiveServer: () => 'origin'
+}));
+
+vi.mock('$lib/state/server/registry.svelte', () => ({
+  serverRegistry: {
+    isOriginServer: (id: string) => id === 'origin',
+    getServer: (id: string) => {
+      if (id === 'origin') return { id, url: 'http://localhost', token: null };
+      if (id === 'remote') return { id, url: 'https://remote.example.test/', token: 'remote-token' };
+      return undefined;
+    }
+  }
+}));
+
+function expiring(url: string, iso = '2026-05-29T15:00:00Z') {
   return {
-    query: vi.fn(() => ({
-      toPromise: () => Promise.resolve(result)
-    }))
-  } as unknown as Client;
+    url,
+    expiresAt: Timestamp.fromDate(new Date(iso))
+  };
 }
 
-describe('refreshAttachmentUrlsForMessage', () => {
-  it('extracts fresh URLs from a message event response', async () => {
-    const query = vi.fn(() => ({
-      toPromise: () =>
-        Promise.resolve({
-          data: {
-            room: {
-              event: {
-                event: {
-                  attachments: [
-                    {
-                      id: 'att_1',
-                      assetUrl: {
-                        url: 'https://cdn.example.com/fresh-1.jpg',
-                        expiresAt: '2026-05-29T15:00:00Z'
-                      },
-                      thumbnailAssetUrl: null,
-                      videoProcessing: {
-                        thumbnailAssetUrl: {
-                          url: 'https://cdn.example.com/video-thumb.jpg',
-                          expiresAt: '2026-05-29T15:00:00Z'
-                        },
-                        variants: [
-                          {
-                            quality: '720p',
-                            assetUrl: {
-                              url: 'https://cdn.example.com/video-720.mp4',
-                              expiresAt: '2026-05-29T15:00:00Z'
-                            }
-                          }
-                        ]
-                      }
-                    },
-                    {
-                      id: 'att_2',
-                      assetUrl: {
-                        url: 'https://cdn.example.com/fresh-2.jpg',
-                        expiresAt: '2026-05-29T15:00:00Z'
-                      },
-                      thumbnailAssetUrl: null,
-                      videoProcessing: null
-                    }
-                  ]
-                }
-              }
+function refreshResponse(): Response {
+  const bytes = new RefreshMessageAttachmentUrlsResponse({
+    attachments: [
+      {
+        id: 'att_1',
+        assetUrl: expiring('https://cdn.example.com/fresh-1.jpg'),
+        thumbnailAssetUrl: undefined,
+        videoProcessing: {
+          thumbnailAssetUrl: expiring('https://cdn.example.com/video-thumb.jpg'),
+          variants: [
+            {
+              quality: '720p',
+              assetUrl: expiring('https://cdn.example.com/video-720.mp4')
             }
-          }
-        })
-    }));
-    const client = { query } as unknown as Client;
+          ]
+        }
+      },
+      {
+        id: 'att_2',
+        assetUrl: expiring('https://cdn.example.com/fresh-2.jpg'),
+        thumbnailAssetUrl: undefined,
+        videoProcessing: undefined
+      }
+    ]
+  }).toBinary();
+  return new Response(
+    bytes.slice().buffer as ArrayBuffer,
+    {
+      status: 200,
+      headers: { 'Content-Type': 'application/protobuf' }
+    }
+  );
+}
 
-    const urls = await refreshAttachmentUrlsForMessage(client, 'room_1', 'event_1');
+beforeEach(() => {
+  fetchMock.mockReset();
+  vi.stubGlobal('fetch', fetchMock);
+});
 
-    expect(query).toHaveBeenCalledWith(expect.anything(), {
+describe('refreshAttachmentUrlsForMessage', () => {
+  it('extracts fresh URLs from a protobuf response', async () => {
+    fetchMock.mockResolvedValue(refreshResponse());
+
+    const urls = await refreshAttachmentUrlsForMessage('room_1', 'event_1');
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('/api/rooms/room_1/attachments/urls/refresh');
+    const headers = init.headers as Headers;
+    expect(headers.get('Accept')).toBe('application/protobuf');
+    expect(headers.get('Content-Type')).toBe('application/protobuf');
+    const request = RefreshMessageAttachmentUrlsRequest.fromBinary(
+      new Uint8Array(init.body as ArrayBuffer)
+    );
+    expect(request).toMatchObject({
       roomId: 'room_1',
       eventId: 'event_1',
       thumbnailWidth: 960,
       thumbnailHeight: 800,
-      thumbnailFit: FitMode.Contain
+      thumbnailFit: AssetFitMode.CONTAIN
     });
     expect(urls.get('att_1')?.assetUrl.url).toBe('https://cdn.example.com/fresh-1.jpg');
     expect(urls.get('att_1')?.videoThumbnailAssetUrl?.url).toBe(
@@ -91,50 +113,40 @@ describe('refreshAttachmentUrlsForMessage', () => {
     expect(urls.get('att_2')?.assetUrl.url).toBe('https://cdn.example.com/fresh-2.jpg');
   });
 
-  it('passes caller-selected thumbnail shape to the refresh query', async () => {
-    const client = clientWith({
-      data: {
-        room: {
-          event: {
-            event: {
-              attachments: [
-                {
-                  id: 'att_1',
-                  assetUrl: {
-                    url: 'https://cdn.example.com/fresh-1.jpg',
-                    expiresAt: '2026-05-29T15:00:00Z'
-                  },
-                  thumbnailAssetUrl: null,
-                  videoProcessing: null
-                }
-              ]
-            }
-          }
-        }
-      }
-    });
+  it('passes caller-selected thumbnail shape and server auth to the protobuf endpoint', async () => {
+    fetchMock.mockResolvedValue(refreshResponse());
 
-    await refreshAttachmentUrlsForMessage(client, 'room_1', 'event_1', {
-      width: 120,
-      height: 120,
-      fit: FitMode.Cover
-    });
+    await refreshAttachmentUrlsForMessage(
+      'room 1',
+      'event_1',
+      {
+        width: 120,
+        height: 120,
+        fit: AssetFitMode.COVER
+      },
+      'remote'
+    );
 
-    expect(client.query).toHaveBeenCalledWith(expect.anything(), {
-      roomId: 'room_1',
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://remote.example.test/api/rooms/room%201/attachments/urls/refresh');
+    const headers = init.headers as Headers;
+    expect(headers.get('Authorization')).toBe('Bearer remote-token');
+    const request = RefreshMessageAttachmentUrlsRequest.fromBinary(
+      new Uint8Array(init.body as ArrayBuffer)
+    );
+    expect(request).toMatchObject({
+      roomId: 'room 1',
       eventId: 'event_1',
       thumbnailWidth: 120,
       thumbnailHeight: 120,
-      thumbnailFit: FitMode.Cover
+      thumbnailFit: AssetFitMode.COVER
     });
   });
 
-  it('returns an empty map when the refresh query fails', async () => {
-    const client = clientWith({
-      error: new Error('network failed')
-    });
+  it('returns an empty map when the refresh request fails', async () => {
+    fetchMock.mockResolvedValue(new Response('network failed', { status: 503 }));
 
-    const urls = await refreshAttachmentUrlsForMessage(client, 'room_1', 'event_1');
+    const urls = await refreshAttachmentUrlsForMessage('room_1', 'event_1');
 
     expect(urls.size).toBe(0);
   });

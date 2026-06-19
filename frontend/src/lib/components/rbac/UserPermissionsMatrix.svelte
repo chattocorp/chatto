@@ -1,16 +1,23 @@
 <!--
 @component
 
-Per-user permission matrix loader. Owns the GraphQL query for the user's
+Per-user permission matrix loader. Owns the wire request for the user's
 matrix and the mutation dispatch for cell clicks; delegates rendering to
 `SubjectPermissionsMatrix`.
 -->
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { afterNavigate } from '$app/navigation';
+  import { onMount } from 'svelte';
   import { Hint } from '$lib/ui';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import { graphql } from '$lib/gql';
+  import {
+    GetUserPermissionMatrixRequest,
+    PermissionMatrixDecision,
+    PermissionMatrixScopeKind,
+    type PermissionMatrixCellView,
+    type PermissionMatrixScopeView
+  } from '$lib/pb/chatto/api/v1/chat_pb';
   import { toast } from '$lib/ui/toast';
+  import { withActiveServerWireClient } from '$lib/wire/activeServerClient';
   import {
     setUserPermission,
     type UserMutationScope,
@@ -19,73 +26,57 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
   import SubjectPermissionsMatrix, {
     type MatrixData,
     type MatrixScope,
-    type CellState
+    type CellState,
+    type MatrixDecision,
+    type MatrixScopeKind
   } from './SubjectPermissionsMatrix.svelte';
 
   type Matrix = MatrixData & { userId: string };
 
   let { userId }: { userId: string } = $props();
 
-  const connection = useConnection();
-
   let data = $state<Matrix | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
   let updatingKey = $state<string | null>(null);
+  let currentLoadUserId = '';
 
-  $effect(() => {
+  onMount(scheduleLoad);
+  afterNavigate(scheduleLoad);
+
+  function scheduleLoad() {
+    if (userId === currentLoadUserId) return;
+    currentLoadUserId = userId;
     void load(userId);
-  });
+  }
 
   async function load(uid: string) {
     // Only show the loading state on the initial load; refreshes after a
     // mutation keep the existing matrix visible so the page doesn't flash
     // a blank panel between request and response.
     //
-    // Wrap the `data` read in `untrack` so the caller `$effect` doesn't
-    // subscribe to it — otherwise every assignment below would re-fire
-    // the effect and loop.
-    const current = untrack(() => data);
+    // Route-driven reloads call this directly, so reading `data` here won't
+    // subscribe an async effect or create a reload loop.
+    const current = data;
     if (!current || current.userId !== uid) loading = true;
     error = null;
 
-    const resp = await connection().client.query(
-      graphql(`
-        query UserPermissionsMatrixQuery($userId: ID!) {
-          admin {
-            rbac {
-              userPermissionMatrix(userId: $userId) {
-                userId
-                applicablePermissions
-                scopes {
-                  id
-                  label
-                  kind
-                  parentGroupId
-                }
-                cells {
-                  permission
-                  scopeId
-                  override
-                  effective
-                }
-              }
-            }
-          }
-        }
-      `),
-      { userId: uid },
-      { requestPolicy: 'network-only' }
-    );
+    let matrix;
+    try {
+      const resp = await withActiveServerWireClient((client) =>
+        client.getUserPermissionMatrix(new GetUserPermissionMatrixRequest({ userId: uid }))
+      );
+      matrix = resp.matrix;
+    } catch (loadError: unknown) {
+      if (uid !== userId) return;
+      loading = false;
+      error = errorMessage(loadError);
+      return;
+    }
 
     if (uid !== userId) return;
 
     loading = false;
-    if (resp.error) {
-      error = resp.error.message;
-      return;
-    }
-    const matrix = resp.data?.admin?.rbac.userPermissionMatrix;
     if (!matrix) {
       error = 'No data returned';
       return;
@@ -94,9 +85,39 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
     data = {
       userId: m.userId,
       applicablePermissions: [...m.applicablePermissions],
-      scopes: m.scopes.map((s) => ({ ...s })),
-      cells: m.cells.map((c) => ({ ...c }))
+      scopes: m.scopes.map(scopeFromWire),
+      cells: m.cells.map(cellFromWire)
     };
+  }
+
+  function scopeFromWire(scope: PermissionMatrixScopeView): MatrixScope {
+    return {
+      id: scope.id,
+      label: scope.label,
+      kind: scopeKindFromWire(scope.kind),
+      parentGroupId: scope.parentGroupId
+    };
+  }
+
+  function cellFromWire(cell: PermissionMatrixCellView): MatrixData['cells'][number] {
+    return {
+      permission: cell.permission,
+      scopeId: cell.scopeId,
+      override: decisionFromWire(cell.override),
+      effective: decisionFromWire(cell.effective)
+    };
+  }
+
+  function scopeKindFromWire(kind: PermissionMatrixScopeKind): MatrixScopeKind {
+    if (kind === PermissionMatrixScopeKind.GROUP) return 'GROUP';
+    if (kind === PermissionMatrixScopeKind.ROOM) return 'ROOM';
+    return 'SERVER';
+  }
+
+  function decisionFromWire(decision: PermissionMatrixDecision): MatrixDecision {
+    if (decision === PermissionMatrixDecision.ALLOW) return 'ALLOW';
+    if (decision === PermissionMatrixDecision.DENY) return 'DENY';
+    return 'NONE';
   }
 
   function mutationScopeFor(scope: MatrixScope): UserMutationScope {
@@ -117,12 +138,8 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
     updatingKey = cellKey;
     error = null;
 
-    const result = await setUserPermission(
-      connection().client,
-      data.userId,
-      mutationScopeFor(scope),
-      permission,
-      next as UserPermissionState
+    const result = await withActiveServerWireClient((client) =>
+      setUserPermission(client, data!.userId, mutationScopeFor(scope), permission, next as UserPermissionState)
     );
     if (result.error) {
       error = result.error;
@@ -135,6 +152,10 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
     // consistent — a server-scope grant flows into rooms via inheritance.
     await load(data.userId);
     updatingKey = null;
+  }
+
+  function errorMessage(value: unknown): string {
+    return value instanceof Error ? value.message : String(value);
   }
 </script>
 

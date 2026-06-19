@@ -23,12 +23,17 @@ under it. Column headers are clickable when `onRoleClick` is provided
 (routing to per-role detail pages owned by the parent route).
 -->
 <script lang="ts">
+  import { afterNavigate } from '$app/navigation';
+  import { onMount } from 'svelte';
   import { Panel, DataTable } from '$lib/components/admin';
   import { Hint, HelpTooltip } from '$lib/ui';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import { graphql } from '$lib/gql';
+  import {
+    GetRolePermissionTierMatrixRequest,
+    type TierRoleView
+  } from '$lib/pb/chatto/api/v1/chat_pb';
   import { toast } from '$lib/ui/toast';
   import { getPermissionDescription } from '$lib/permissions';
+  import { withActiveServerWireClient } from '$lib/wire/activeServerClient';
   import { setRolePermission, type MutationScope } from './permissionMutations';
   import MatrixCell from './MatrixCell.svelte';
 
@@ -125,51 +130,52 @@ under it. Column headers are clickable when `onRoleClick` is provided
     isRoleClickable?: (role: TierRole) => boolean;
   } = $props();
 
-  const connection = useConnection();
-
   let data = $state<TierRoles | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
   let updating = $state<string | null>(null); // "{roleName}::{permission}" while a mutation is in flight
+  let currentLoadKey = '';
 
-  $effect(() => {
+  onMount(scheduleLoad);
+  afterNavigate(scheduleLoad);
+
+  function scheduleLoad() {
     const s = spaceId ?? null;
     const rm = roomId ?? null;
     const st = groupId ?? null;
+    const key = `${s ?? ''}|${rm ?? ''}|${st ?? ''}`;
+    if (key === currentLoadKey) return;
+    currentLoadKey = key;
     void load(s, rm, st);
-  });
+  }
 
   async function load(s: string | null, rm: string | null, st: string | null) {
     loading = true;
     error = null;
 
-    const resp = await connection().client.query(
-      graphql(`
-        query MatrixTierRoles($roomId: ID, $groupId: ID) {
-          admin {
-            rbac {
-              rolePermissionTierMatrix(roomId: $roomId, groupId: $groupId) {
-                applicablePermissions
-                roles {
-                  roleName
-                  displayName
-                  description
-                  isSystem
-                  position
-                  override {
-                    permissions
-                    permissionDenials
-                  }
-                  inheritedAllows
-                  inheritedDenials
-                }
-              }
-            }
-          }
-        }
-      `),
-      { roomId: rm ?? undefined, groupId: st ?? undefined }
-    );
+    let matrix;
+    try {
+      const resp = await withActiveServerWireClient((client) =>
+        client.getRolePermissionTierMatrix(
+          new GetRolePermissionTierMatrixRequest({
+            roomId: rm ?? '',
+            groupId: st ?? ''
+          })
+        )
+      );
+      matrix = resp.matrix;
+    } catch (loadError: unknown) {
+      if (
+        s !== (spaceId ?? null) ||
+        rm !== (roomId ?? null) ||
+        st !== (groupId ?? null)
+      ) {
+        return;
+      }
+      loading = false;
+      error = errorMessage(loadError);
+      return;
+    }
 
     if (
       s !== (spaceId ?? null) ||
@@ -180,11 +186,6 @@ under it. Column headers are clickable when `onRoleClick` is provided
     }
 
     loading = false;
-    if (resp.error) {
-      error = resp.error.message;
-      return;
-    }
-    const matrix = resp.data?.admin?.rbac.rolePermissionTierMatrix;
     if (!matrix) {
       error = 'No data returned';
       return;
@@ -192,15 +193,23 @@ under it. Column headers are clickable when `onRoleClick` is provided
     // Clone so we can safely apply optimistic updates.
     data = {
       applicablePermissions: [...matrix.applicablePermissions],
-      roles: matrix.roles.map((r: TierRole) => ({
-        ...r,
-        override: {
-          permissions: [...r.override.permissions],
-          permissionDenials: [...r.override.permissionDenials]
-        },
-        inheritedAllows: [...r.inheritedAllows],
-        inheritedDenials: [...r.inheritedDenials]
-      }))
+      roles: matrix.roles.map(tierRoleFromWire)
+    };
+  }
+
+  function tierRoleFromWire(role: TierRoleView): TierRole {
+    return {
+      roleName: role.roleName,
+      displayName: role.displayName,
+      description: role.description,
+      isSystem: role.isSystem,
+      position: role.position,
+      override: {
+        permissions: [...(role.override?.permissions ?? [])],
+        permissionDenials: [...(role.override?.permissionDenials ?? [])]
+      },
+      inheritedAllows: [...role.inheritedAllows],
+      inheritedDenials: [...role.inheritedDenials]
     };
   }
 
@@ -274,11 +283,8 @@ under it. Column headers are clickable when `onRoleClick` is provided
     updating = cellKey;
     error = null;
 
-    const result = await setRolePermission(
-      connection().client,
-      scopeFor(role),
-      permission,
-      next
+    const result = await withActiveServerWireClient((client) =>
+      setRolePermission(client, scopeFor(role), permission, next)
     );
     if (result.error) {
       error = result.error;
@@ -298,6 +304,10 @@ under it. Column headers are clickable when `onRoleClick` is provided
       role.override.permissionDenials = [...role.override.permissionDenials, permission];
     }
     updating = null;
+  }
+
+  function errorMessage(value: unknown): string {
+    return value instanceof Error ? value.message : String(value);
   }
 </script>
 

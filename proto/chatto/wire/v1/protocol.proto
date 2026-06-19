@@ -109,6 +109,12 @@ message WireError {
   ErrorCode code = 2;
   string message = 3;
   bool retryable = 4;
+  MentionConfirmationRequiredError mention_confirmation_required = 5;
+}
+
+message MentionConfirmationRequiredError {
+  int32 recipient_count = 1;
+  string token = 2;
 }
 
 // StreamEvent is the client-facing event envelope for durable EVT facts,

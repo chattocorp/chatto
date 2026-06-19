@@ -635,6 +635,11 @@ export class WireError extends Message<WireError> {
    */
   retryable = false;
 
+  /**
+   * @generated from field: chatto.wire.v1.MentionConfirmationRequiredError mention_confirmation_required = 5;
+   */
+  mentionConfirmationRequired?: MentionConfirmationRequiredError;
+
   constructor(data?: PartialMessage<WireError>) {
     super();
     proto3.util.initPartial(data, this);
@@ -647,6 +652,7 @@ export class WireError extends Message<WireError> {
     { no: 2, name: "code", kind: "enum", T: proto3.getEnumType(ErrorCode) },
     { no: 3, name: "message", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "retryable", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 5, name: "mention_confirmation_required", kind: "message", T: MentionConfirmationRequiredError },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): WireError {
@@ -663,6 +669,49 @@ export class WireError extends Message<WireError> {
 
   static equals(a: WireError | PlainMessage<WireError> | undefined, b: WireError | PlainMessage<WireError> | undefined): boolean {
     return proto3.util.equals(WireError, a, b);
+  }
+}
+
+/**
+ * @generated from message chatto.wire.v1.MentionConfirmationRequiredError
+ */
+export class MentionConfirmationRequiredError extends Message<MentionConfirmationRequiredError> {
+  /**
+   * @generated from field: int32 recipient_count = 1;
+   */
+  recipientCount = 0;
+
+  /**
+   * @generated from field: string token = 2;
+   */
+  token = "";
+
+  constructor(data?: PartialMessage<MentionConfirmationRequiredError>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.wire.v1.MentionConfirmationRequiredError";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "recipient_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 2, name: "token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MentionConfirmationRequiredError {
+    return new MentionConfirmationRequiredError().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MentionConfirmationRequiredError {
+    return new MentionConfirmationRequiredError().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MentionConfirmationRequiredError {
+    return new MentionConfirmationRequiredError().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MentionConfirmationRequiredError | PlainMessage<MentionConfirmationRequiredError> | undefined, b: MentionConfirmationRequiredError | PlainMessage<MentionConfirmationRequiredError> | undefined): boolean {
+    return proto3.util.equals(MentionConfirmationRequiredError, a, b);
   }
 }
 

@@ -1,10 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
-import { makeSubject, type Source, type Subject } from 'wonka';
-import type { Client } from '@urql/svelte';
 import { eventBusManager } from '$lib/state/server/eventBus.svelte';
-import type { GraphQLClient } from '$lib/state/server/graphqlClient.svelte';
+import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
 import Harness from './UseMayHaveMissedMessagesCallbackHarness.svelte';
 
 const { mocks } = vi.hoisted(() => ({
@@ -21,22 +19,10 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
   useConnection: () => () => ({ reconnectCount: 0 })
 }));
 
-class FakeGqlClient {
+class FakeServerConnection {
   reconnectCount = $state(0);
-  #subjects: Subject<{ data?: unknown; error?: unknown }>[] = [];
-  client: Client;
-
-  constructor() {
-    this.client = {
-      subscription: vi.fn().mockImplementation(() => {
-        const subj = makeSubject<{ data?: unknown; error?: unknown }>();
-        this.#subjects.push(subj);
-        return subj.source as unknown as Source<unknown>;
-      }),
-      query: vi.fn(),
-      mutation: vi.fn()
-    } as unknown as Client;
-  }
+  wireUrl = 'ws://example.test/api/wire';
+  token = 'test-token';
 }
 
 const TEST_SERVER = 'test-server';
@@ -57,8 +43,8 @@ describe('useMayHaveMissedMessagesCallback', () => {
   });
 
   it('runs the callback when the active event bus reports a catch-up gap', async () => {
-    const fake = new FakeGqlClient();
-    eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
+    const fake = new FakeServerConnection();
+    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection);
     const onSignal = vi.fn();
 
     const rendered = render(Harness, { props: { onSignal } });
@@ -101,8 +87,8 @@ describe('useMayHaveMissedMessagesCallback', () => {
   });
 
   it('runs a queued event-bus catch-up even after the in-flight refresh succeeds', async () => {
-    const fake = new FakeGqlClient();
-    eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
+    const fake = new FakeServerConnection();
+    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection);
     let resolveFirst!: (value: boolean) => void;
     const firstRefresh = new Promise<boolean>((resolve) => {
       resolveFirst = resolve;

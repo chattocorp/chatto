@@ -1,20 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
-import type { Client } from '@urql/svelte';
-import { PresenceStatus, PresenceStatusInput } from './gql/graphql';
-import { initPresenceTracking } from './presenceTracking';
+import type { UpdateMyPresenceRequest } from '$lib/pb/chatto/api/v1/chat_pb';
+import { UserPresenceStatus } from '$lib/pb/chatto/core/v1/models_pb';
+import {
+  initPresenceTracking,
+  PresenceTrackerStatus,
+  type PresenceClient
+} from './presenceTracking';
 
-type MockClient = Pick<Client, 'mutation'>;
-type PresenceMutation = (
-  document: unknown,
-  variables: { input: { status: PresenceStatusInput } }
-) => { toPromise: () => Promise<unknown> };
-type PresenceStatusHandler = (status: PresenceStatus) => void;
+type PresenceUpdate = (request: UpdateMyPresenceRequest) => Promise<unknown>;
+type PresenceStatusHandler = (status: PresenceTrackerStatus) => void;
 
 let documentTarget: EventTarget;
 let windowTarget: EventTarget;
 let visibilityState: DocumentVisibilityState;
 let cleanup: (() => void) | null;
-let mutation: Mock<PresenceMutation>;
+let updateMyPresence: Mock<PresenceUpdate>;
 let onStatusChange: Mock<PresenceStatusHandler>;
 
 function dispatchDocumentEvent(type: string) {
@@ -31,16 +31,14 @@ function setVisibility(next: DocumentVisibilityState) {
 }
 
 function startTracking() {
-  mutation = vi.fn<PresenceMutation>(() => ({
-    toPromise: () => Promise.resolve({ data: { updateMyPresence: true } })
-  }));
+  updateMyPresence = vi.fn<PresenceUpdate>(() => Promise.resolve({ updated: true }));
   onStatusChange = vi.fn<PresenceStatusHandler>();
-  const client = { mutation } as unknown as MockClient;
-  cleanup = initPresenceTracking(() => [client as Client], onStatusChange);
+  const client = { updateMyPresence } satisfies PresenceClient;
+  cleanup = initPresenceTracking(() => [client], onStatusChange);
 }
 
-function sentStatuses(): PresenceStatusInput[] {
-  return mutation.mock.calls.map((call) => call[1].input.status);
+function sentStatuses(): UserPresenceStatus[] {
+  return updateMyPresence.mock.calls.map((call) => call[0].status);
 }
 
 describe('initPresenceTracking', () => {
@@ -79,8 +77,8 @@ describe('initPresenceTracking', () => {
     dispatchDocumentEvent('pointermove');
     vi.advanceTimersByTime(4 * 60 * 1000 + 59 * 1000);
 
-    expect(sentStatuses()).not.toContain(PresenceStatusInput.Away);
-    expect(onStatusChange).not.toHaveBeenCalledWith(PresenceStatus.Away);
+    expect(sentStatuses()).not.toContain(UserPresenceStatus.AWAY);
+    expect(onStatusChange).not.toHaveBeenCalledWith(PresenceTrackerStatus.Away);
   });
 
   it.each(['wheel', 'scroll', 'keydown', 'pointerdown'] as const)(
@@ -92,8 +90,8 @@ describe('initPresenceTracking', () => {
       dispatchDocumentEvent(eventName);
       vi.advanceTimersByTime(4 * 60 * 1000 + 59 * 1000);
 
-      expect(sentStatuses()).not.toContain(PresenceStatusInput.Away);
-      expect(onStatusChange).not.toHaveBeenCalledWith(PresenceStatus.Away);
+      expect(sentStatuses()).not.toContain(UserPresenceStatus.AWAY);
+      expect(onStatusChange).not.toHaveBeenCalledWith(PresenceTrackerStatus.Away);
     }
   );
 
@@ -101,13 +99,13 @@ describe('initPresenceTracking', () => {
     startTracking();
 
     vi.advanceTimersByTime(5 * 60 * 1000);
-    expect(sentStatuses()).toEqual([PresenceStatusInput.Away]);
-    expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.Away);
+    expect(sentStatuses()).toEqual([UserPresenceStatus.AWAY]);
+    expect(onStatusChange).toHaveBeenLastCalledWith(PresenceTrackerStatus.Away);
 
     dispatchDocumentEvent('pointermove');
 
-    expect(sentStatuses()).toEqual([PresenceStatusInput.Away, PresenceStatusInput.Online]);
-    expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.Online);
+    expect(sentStatuses()).toEqual([UserPresenceStatus.AWAY, UserPresenceStatus.ONLINE]);
+    expect(onStatusChange).toHaveBeenLastCalledWith(PresenceTrackerStatus.Online);
   });
 
   it('reports away after the hidden delay and returns online when visible again', () => {
@@ -118,13 +116,13 @@ describe('initPresenceTracking', () => {
     expect(sentStatuses()).toEqual([]);
 
     vi.advanceTimersByTime(1);
-    expect(sentStatuses()).toEqual([PresenceStatusInput.Away]);
-    expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.Away);
+    expect(sentStatuses()).toEqual([UserPresenceStatus.AWAY]);
+    expect(onStatusChange).toHaveBeenLastCalledWith(PresenceTrackerStatus.Away);
 
     setVisibility('visible');
 
-    expect(sentStatuses()).toEqual([PresenceStatusInput.Away, PresenceStatusInput.Online]);
-    expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.Online);
+    expect(sentStatuses()).toEqual([UserPresenceStatus.AWAY, UserPresenceStatus.ONLINE]);
+    expect(onStatusChange).toHaveBeenLastCalledWith(PresenceTrackerStatus.Online);
   });
 
   it('throttles noisy activity while active without delaying return from idle', () => {
@@ -138,11 +136,11 @@ describe('initPresenceTracking', () => {
     expect(sentStatuses()).toEqual([]);
 
     vi.advanceTimersByTime(5 * 60 * 1000);
-    expect(sentStatuses()).toEqual([PresenceStatusInput.Away]);
+    expect(sentStatuses()).toEqual([UserPresenceStatus.AWAY]);
 
     dispatchDocumentEvent('wheel');
 
-    expect(sentStatuses()).toEqual([PresenceStatusInput.Away, PresenceStatusInput.Online]);
+    expect(sentStatuses()).toEqual([UserPresenceStatus.AWAY, UserPresenceStatus.ONLINE]);
   });
 
   it('returns online on window focus after idle', () => {
@@ -151,6 +149,6 @@ describe('initPresenceTracking', () => {
     vi.advanceTimersByTime(5 * 60 * 1000);
     dispatchWindowEvent('focus');
 
-    expect(sentStatuses()).toEqual([PresenceStatusInput.Away, PresenceStatusInput.Online]);
+    expect(sentStatuses()).toEqual([UserPresenceStatus.AWAY, UserPresenceStatus.ONLINE]);
   });
 });

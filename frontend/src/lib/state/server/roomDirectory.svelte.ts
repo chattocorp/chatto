@@ -1,6 +1,7 @@
 import { SvelteSet } from 'svelte/reactivity';
-import type { Client } from '@urql/svelte';
-import { graphql } from '$lib/gql';
+import type { GetRoomDirectoryResponse } from '$lib/pb/chatto/api/v1/chat_pb';
+import { tryWireJoinGroup, tryWireJoinRoom, tryWireLeaveRoom } from '$lib/wire';
+import { wireEventBusManager } from '$lib/state/server/wireEventBus.svelte';
 import { isRoomStateRefreshEvent } from './rooms.svelte';
 
 export type DirectoryRoom = {
@@ -11,41 +12,39 @@ export type DirectoryRoom = {
   viewerCanJoinRoom: boolean;
 };
 
-const RoomsForDirectoryQuery = graphql(`
-  query GetServerRoomDirectory {
-    server {
-      rooms(type: CHANNEL) {
-        id
-        name
-        description
-        archived
-        viewerCanJoinRoom
-      }
-    }
-  }
-`);
-
-const JoinRoomFromDirectory = graphql(`
-  mutation JoinRoomFromDirectory($input: JoinRoomInput!) {
-    joinRoom(input: $input) { id }
-  }
-`);
-
-const LeaveRoomFromDirectory = graphql(`
-  mutation LeaveRoomFromDirectoryStore($input: LeaveRoomInput!) {
-    leaveRoom(input: $input)
-  }
-`);
-
-const JoinGroupFromDirectory = graphql(`
-  mutation JoinGroupFromDirectory($input: JoinGroupInput!) {
-    joinGroup(input: $input)
-  }
-`);
-
 export type JoinResult = { ok: true; room?: DirectoryRoom } | { ok: false; error: Error };
 export type LeaveResult = { ok: true; room?: DirectoryRoom } | { ok: false; error: Error };
 export type JoinGroupResult = { ok: true; joinedRoomIds: string[] } | { ok: false; error: Error };
+
+export interface RoomDirectoryWireQueries {
+  listRooms(): Promise<DirectoryRoom[] | null>;
+}
+
+export interface RoomDirectoryWireMutations {
+  joinRoom(roomId: string): Promise<boolean>;
+  leaveRoom(roomId: string): Promise<boolean>;
+  joinGroup(groupId: string): Promise<string[] | null>;
+}
+
+const defaultWireMutations: RoomDirectoryWireMutations = {
+  joinRoom: (roomId) => tryWireJoinRoom({ roomId }),
+  leaveRoom: (roomId) => tryWireLeaveRoom({ roomId }),
+  joinGroup: (groupId) => tryWireJoinGroup({ groupId })
+};
+
+function defaultWireQueries(serverId: string): RoomDirectoryWireQueries {
+  return {
+    async listRooms() {
+      const client = wireEventBusManager.getClient(serverId);
+      if (!client) return null;
+      return directoryRoomsFromWire(await client.getRoomDirectory());
+    }
+  };
+}
+
+function mutationError(error: unknown, fallback: string): Error {
+  return error instanceof Error ? error : new Error(fallback);
+}
 
 /**
  * Reactive state for the Browse Rooms directory page.
@@ -85,7 +84,11 @@ export class RoomDirectoryStore {
 
   private loadId = 0;
 
-  constructor(private readonly client: Client) {}
+  constructor(
+    serverId: string,
+    private readonly wireMutations: RoomDirectoryWireMutations = defaultWireMutations,
+    private readonly wireQueries: RoomDirectoryWireQueries = defaultWireQueries(serverId)
+  ) {}
 
   // ---------------------------------------------------------------------------
   // Loading
@@ -93,11 +96,11 @@ export class RoomDirectoryStore {
 
   async refresh(): Promise<void> {
     const thisLoad = ++this.loadId;
-    const result = await this.client.query(RoomsForDirectoryQuery, {}).toPromise();
+    const rooms = await this.wireQueries.listRooms();
     if (this.loadId !== thisLoad) return;
 
-    if (result.data?.server) {
-      this.allRooms = result.data.server.rooms;
+    if (rooms) {
+      this.allRooms = rooms;
       // A successful refresh confirms what was optimistically applied; clear
       // the just-* sets so isJoined() falls back on the authoritative joined
       // membership reported by RoomsStore.
@@ -129,17 +132,16 @@ export class RoomDirectoryStore {
   async joinRoom(roomId: string): Promise<JoinResult> {
     this.joiningIds.add(roomId);
     try {
-      const result = await this.client
-        .mutation(JoinRoomFromDirectory, { input: { roomId } })
-        .toPromise();
-
-      if (result.error) {
-        return { ok: false, error: new Error(result.error.message) };
+      const handledByWire = await this.wireMutations.joinRoom(roomId);
+      if (!handledByWire) {
+        return { ok: false, error: new Error('Failed to join room') };
       }
 
       this.justJoinedIds.add(roomId);
       this.justLeftIds.delete(roomId);
       return { ok: true, room: this.allRooms.find((r) => r.id === roomId) };
+    } catch (error) {
+      return { ok: false, error: mutationError(error, 'Failed to join room') };
     } finally {
       this.joiningIds.delete(roomId);
     }
@@ -153,20 +155,18 @@ export class RoomDirectoryStore {
   async joinGroup(groupId: string): Promise<JoinGroupResult> {
     this.joiningGroupIds.add(groupId);
     try {
-      const result = await this.client
-        .mutation(JoinGroupFromDirectory, { input: { groupId } })
-        .toPromise();
-
-      if (result.error) {
-        return { ok: false, error: new Error(result.error.message) };
+      const joined = await this.wireMutations.joinGroup(groupId);
+      if (!joined) {
+        return { ok: false, error: new Error('Failed to join rooms') };
       }
 
-      const joined = result.data?.joinGroup ?? [];
       for (const id of joined) {
         this.justJoinedIds.add(id);
         this.justLeftIds.delete(id);
       }
       return { ok: true, joinedRoomIds: joined };
+    } catch (error) {
+      return { ok: false, error: mutationError(error, 'Failed to join rooms') };
     } finally {
       this.joiningGroupIds.delete(groupId);
     }
@@ -175,17 +175,16 @@ export class RoomDirectoryStore {
   async leaveRoom(roomId: string): Promise<LeaveResult> {
     this.leavingIds.add(roomId);
     try {
-      const result = await this.client
-        .mutation(LeaveRoomFromDirectory, { input: { roomId } })
-        .toPromise();
-
-      if (result.error) {
-        return { ok: false, error: new Error(result.error.message) };
+      const handledByWire = await this.wireMutations.leaveRoom(roomId);
+      if (!handledByWire) {
+        return { ok: false, error: new Error('Failed to leave room') };
       }
 
       this.justLeftIds.add(roomId);
       this.justJoinedIds.delete(roomId);
       return { ok: true, room: this.allRooms.find((r) => r.id === roomId) };
+    } catch (error) {
+      return { ok: false, error: mutationError(error, 'Failed to leave room') };
     } finally {
       this.leavingIds.delete(roomId);
     }
@@ -216,4 +215,20 @@ export class RoomDirectoryStore {
   ingestRoomLayoutUpdated(): void {
     void this.refresh();
   }
+}
+
+function directoryRoomsFromWire(response: GetRoomDirectoryResponse): DirectoryRoom[] {
+  const rooms: DirectoryRoom[] = [];
+  for (const view of response.roomViews) {
+    const room = view.room;
+    if (!room) continue;
+    rooms.push({
+      id: room.id,
+      name: room.name,
+      description: room.description || null,
+      archived: room.archived,
+      viewerCanJoinRoom: view.viewerCanJoinRoom
+    });
+  }
+  return rooms;
 }

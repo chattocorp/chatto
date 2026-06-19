@@ -5,17 +5,34 @@ Server-wide and per-room notification level settings for the current user.
 These preferences are server-side and sync across devices.
 -->
 <script lang="ts">
-  import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { graphql } from '$lib/gql';
-  import { NotificationLevel } from '$lib/gql/graphql';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { wireEventBusManager } from '$lib/state/server/wireEventBus.svelte';
   import { FormSection } from '$lib/ui';
   import { FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
+  import {
+    NotificationLevel,
+    notificationLevelFromWire,
+    notificationLevelToWire
+  } from '$lib/preferences/notificationLevel';
+  import {
+    ListMyRoomsRequest,
+    SetRoomNotificationLevelRequest,
+    SetServerNotificationLevelRequest
+  } from '$lib/pb/chatto/api/v1/chat_pb';
+  import { RoomKind } from '$lib/pb/chatto/core/v1/models_pb';
 
-  const notificationLevelStore = serverRegistry.getStore(getActiveServer()).notificationLevels;
-  const connection = useConnection();
+  const activeServerId = getActiveServer();
+  const notificationLevelStore = serverRegistry.getStore(activeServerId).notificationLevels;
+
+  function wireClient() {
+    const client = wireEventBusManager.getClient(activeServerId);
+    if (!client) {
+      throw new Error('No server connection');
+    }
+    return client;
+  }
 
   let serverLevel = $state<NotificationLevel>(NotificationLevel.Default);
   let serverEffectiveLevel = $state<NotificationLevel>(NotificationLevel.Normal);
@@ -43,59 +60,33 @@ These preferences are server-side and sync across devices.
     error = '';
 
     try {
-      const result = await connection()
-        .client.query(
-          graphql(`
-            query GetServerNotificationPreferences {
-              server {
-                viewerNotificationPreference {
-                  level
-                  effectiveLevel
-                }
-              }
-              viewer {
-                user {
-                  rooms(type: CHANNEL) {
-                    id
-                    name
-                    viewerNotificationPreference {
-                      level
-                      effectiveLevel
-                    }
-                  }
-                }
-              }
-            }
-          `),
-          {}
-        )
-        .toPromise();
+      const [viewerResult, roomsResult] = await Promise.all([
+        wireClient().getViewer(),
+        wireClient().listMyRooms(new ListMyRoomsRequest({ kind: RoomKind.CHANNEL }))
+      ]);
 
-      if (result.error) {
-        error = result.error.message;
-        return;
+      const serverPref = viewerResult.viewer?.serverNotificationPreference;
+      if (serverPref) {
+        const level = notificationLevelFromWire(serverPref.level);
+        const effectiveLevel = notificationLevelFromWire(serverPref.effectiveLevel);
+        serverLevel = level === NotificationLevel.Default ? NotificationLevel.Normal : level;
+        serverEffectiveLevel = effectiveLevel;
+        notificationLevelStore.setServerPreference(level, effectiveLevel);
       }
 
-      if (result.data?.server?.viewerNotificationPreference) {
-        const pref = result.data.server.viewerNotificationPreference;
-        serverLevel =
-          pref.level === NotificationLevel.Default ? NotificationLevel.Normal : pref.level;
-        serverEffectiveLevel = pref.effectiveLevel;
-        notificationLevelStore.setServerPreference(pref.level, pref.effectiveLevel);
-      }
+      rooms = roomsResult.roomViews
+        .map((roomView) => ({
+          id: roomView.room?.id ?? '',
+          name: roomView.room?.name ?? '',
+          level: notificationLevelFromWire(roomView.viewerNotificationPreference?.level),
+          effectiveLevel: notificationLevelFromWire(
+            roomView.viewerNotificationPreference?.effectiveLevel
+          )
+        }))
+        .filter((room) => room.id && room.name);
 
-      if (result.data?.viewer?.user.rooms) {
-        rooms = result.data.viewer.user.rooms.map((room) => ({
-          id: room.id,
-          name: room.name,
-          level: room.viewerNotificationPreference?.level ?? NotificationLevel.Default,
-          effectiveLevel:
-            room.viewerNotificationPreference?.effectiveLevel ?? NotificationLevel.Normal
-        }));
-
-        for (const room of rooms) {
-          notificationLevelStore.setRoomPreference(room.id, room.level, room.effectiveLevel);
-        }
+      for (const room of rooms) {
+        notificationLevelStore.setRoomPreference(room.id, room.level, room.effectiveLevel);
       }
     } catch (e) {
       error = e instanceof Error ? e.message : 'Failed to load notification preferences';
@@ -108,31 +99,17 @@ These preferences are server-side and sync across devices.
     savingServerLevel = true;
 
     try {
-      const result = await connection()
-        .client.mutation(
-          graphql(`
-            mutation SetServerNotificationLevel($input: SetServerNotificationLevelInput!) {
-              setServerNotificationLevel(input: $input) {
-                level
-                effectiveLevel
-              }
-            }
-          `),
-          { input: { level: newLevel } }
-        )
-        .toPromise();
+      const result = await wireClient().setServerNotificationLevel(
+        new SetServerNotificationLevelRequest({ level: notificationLevelToWire(newLevel) })
+      );
 
-      if (result.error) {
-        toast.error(result.error.message);
-        return;
-      }
-
-      if (result.data?.setServerNotificationLevel) {
-        const pref = result.data.setServerNotificationLevel;
-        serverLevel = pref.level;
-        serverEffectiveLevel = pref.effectiveLevel;
-        notificationLevelStore.setServerPreference(pref.level, pref.effectiveLevel);
-
+      if (result.preference) {
+        const pref = result.preference;
+        const level = notificationLevelFromWire(pref.level);
+        const effectiveLevel = notificationLevelFromWire(pref.effectiveLevel);
+        serverLevel = level;
+        serverEffectiveLevel = effectiveLevel;
+        notificationLevelStore.setServerPreference(level, effectiveLevel);
         await loadPreferences();
         toast.success('Server notification level updated');
       }
@@ -147,34 +124,23 @@ These preferences are server-side and sync across devices.
     savingRoomId = roomId;
 
     try {
-      const result = await connection()
-        .client.mutation(
-          graphql(`
-            mutation SetRoomNotificationLevel($input: SetRoomNotificationLevelInput!) {
-              setRoomNotificationLevel(input: $input) {
-                level
-                effectiveLevel
-              }
-            }
-          `),
-          { input: { roomId, level: newLevel } }
-        )
-        .toPromise();
+      const result = await wireClient().setRoomNotificationLevel(
+        new SetRoomNotificationLevelRequest({
+          roomId,
+          level: notificationLevelToWire(newLevel)
+        })
+      );
 
-      if (result.error) {
-        toast.error(result.error.message);
-        return;
-      }
-
-      if (result.data?.setRoomNotificationLevel) {
-        const pref = result.data.setRoomNotificationLevel;
-
+      if (result.preference) {
+        const pref = result.preference;
+        const level = notificationLevelFromWire(pref.level);
+        const effectiveLevel = notificationLevelFromWire(pref.effectiveLevel);
         const idx = rooms.findIndex((r) => r.id === roomId);
         if (idx !== -1) {
-          rooms[idx] = { ...rooms[idx], level: pref.level, effectiveLevel: pref.effectiveLevel };
+          rooms[idx] = { ...rooms[idx], level, effectiveLevel };
         }
 
-        notificationLevelStore.setRoomPreference(roomId, pref.level, pref.effectiveLevel);
+        notificationLevelStore.setRoomPreference(roomId, level, effectiveLevel);
         toast.success('Room notification level updated');
       }
     } catch (e) {

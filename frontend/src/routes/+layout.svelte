@@ -19,7 +19,7 @@
   import { sidebarNav } from '$lib/state/globals.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useServerRegistry } from '$lib/state/server/useServerRegistry.svelte';
-  import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
+  import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { eventBusManager } from '$lib/state/server/eventBus.svelte';
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
   import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
@@ -59,7 +59,7 @@
     if (store?.isAuthenticated) {
       eventBusManager.startBus(
         server.id,
-        graphqlClientManager.getClient(server.id)
+        serverConnectionManager.getClient(server.id)
       );
     }
   }
@@ -70,7 +70,7 @@
         // startBus is idempotent — no-op if already started above.
         eventBusManager.startBus(
           server.id,
-          graphqlClientManager.getClient(server.id)
+          serverConnectionManager.getClient(server.id)
         );
       }
     }

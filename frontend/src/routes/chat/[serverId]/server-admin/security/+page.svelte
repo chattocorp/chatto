@@ -1,61 +1,66 @@
 <script lang="ts">
-  import { graphql } from '$lib/gql';
-  import { useQuery, useMutation } from '$lib/hooks';
+  import { onMount } from 'svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
+  import { Hint } from '$lib/ui';
   import { TextArea, Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { Panel } from '$lib/components/admin';
+  import {
+    GetAdminSecurityConfigRequest,
+    UpdateBlockedUsernamesRequest
+  } from '$lib/pb/chatto/api/v1/chat_pb';
+  import { withActiveServerWireClient } from '$lib/wire/activeServerClient';
 
   const defaultBlockedUsernames = 'root\nadmin\nsuperuser\nop\noperator\nsupport';
 
-  let blockedUsernames = $state('');
+  let blockedUsernames = $state(defaultBlockedUsernames);
+  let loading = $state(true);
+  let saving = $state(false);
+  let error = $state<string | null>(null);
 
-  const configQuery = useQuery(
-    graphql(`
-      query AdminSecurityConfig {
-        admin {
-          serverConfig {
-            blockedUsernames
-          }
-        }
-      }
-    `),
-    () => ({}),
-    {
-      onCompleted: (data) => {
-        if (data.admin?.serverConfig) {
-          blockedUsernames = data.admin.serverConfig.blockedUsernames ?? defaultBlockedUsernames;
-        }
-      },
-      onError: (err) => toast.error(err)
+  onMount(() => {
+    void loadConfig();
+  });
+
+  async function loadConfig() {
+    loading = true;
+    error = null;
+
+    try {
+      const response = await withActiveServerWireClient((client) =>
+        client.getAdminSecurityConfig(new GetAdminSecurityConfigRequest())
+      );
+      blockedUsernames = response.config?.blockedUsernames ?? defaultBlockedUsernames;
+    } catch (err) {
+      error = 'Failed to load security settings';
+      toast.error(error);
+      console.error('Failed to load security settings', err);
+    } finally {
+      loading = false;
     }
-  );
-
-  const saveMutation = useMutation(
-    graphql(`
-      mutation UpdateBlockedUsernames($input: UpdateBlockedUsernamesInput!) {
-        admin {
-          updateBlockedUsernames(input: $input)
-        }
-      }
-    `),
-    {
-      onCompleted: (data) => {
-        if (data.admin) {
-          blockedUsernames = data.admin.updateBlockedUsernames;
-          toast.success('Settings saved');
-        }
-      },
-      onError: (err) => toast.error(err)
-    }
-  );
-
-  const saving = $derived(saveMutation.loading);
+  }
 
   async function save(e: Event) {
     e.preventDefault();
-    await saveMutation.execute({ input: { blockedUsernames } });
+    if (saving) return;
+
+    saving = true;
+    error = null;
+
+    try {
+      const response = await withActiveServerWireClient((client) =>
+        client.updateBlockedUsernames(new UpdateBlockedUsernamesRequest({ blockedUsernames }))
+      );
+      blockedUsernames = response.config?.blockedUsernames ?? blockedUsernames;
+      toast.success('Settings saved');
+    } catch (err) {
+      error = 'Failed to save security settings';
+      toast.error(error);
+      console.error('Failed to save security settings', err);
+    } finally {
+      saving = false;
+    }
   }
 </script>
 
@@ -65,9 +70,13 @@
 
 <div class="flex flex-col gap-6 overflow-y-auto p-6">
   <Panel title="Blocked Usernames" icon="iconify uil--shield-exclamation">
-    {#if configQuery.loading}
+    {#if loading}
       <div class="text-muted">Loading...</div>
     {:else}
+      {#if error}
+        <Hint tone="danger" icon="uil--exclamation-octagon">{error}</Hint>
+      {/if}
+
       <form onsubmit={save} class="flex flex-col gap-4">
         <TextArea
           label="Blocked Usernames"

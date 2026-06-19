@@ -1,18 +1,15 @@
 <script lang="ts">
   import { onDestroy, type Snippet } from 'svelte';
   import type { CurrentUser } from '$lib/auth/loadAuth';
-  import { PresenceStatus } from '$lib/gql/graphql';
+  import { PresenceStatus } from '$lib/chatTypes';
   import type { PresenceCache } from '$lib/state/presenceCache.svelte';
   import type { UserSettingsState } from '$lib/state/userSettings.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
+  import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { provideEventBus } from '$lib/eventBus.svelte';
   import { eventBusManager } from '$lib/state/server/eventBus.svelte';
-  import {
-    useUserProfileUpdate,
-    useUserSettingsUpdate,
-    useSessionTerminated
-  } from '$lib/hooks';
+  import { wireEventBusManager } from '$lib/state/server/wireEventBus.svelte';
+  import { useUserProfileUpdate, useUserSettingsUpdate, useSessionTerminated } from '$lib/hooks';
   import { initSessionChannel } from '$lib/auth/sessionChannel';
   import { initPresenceTracking } from '$lib/presenceTracking';
   import ReturnUrlHandler from '$lib/components/ReturnUrlHandler.svelte';
@@ -28,7 +25,14 @@
   }: {
     user: CurrentUser;
     userSettings: UserSettingsState;
-    profileCache: { update: (userId: string, displayName: string, avatarUrl: string | null, login: string) => void };
+    profileCache: {
+      update: (
+        userId: string,
+        displayName: string,
+        avatarUrl: string | null,
+        login: string
+      ) => void;
+    };
     presenceCache: PresenceCache;
     children: Snippet;
   } = $props();
@@ -68,7 +72,7 @@
   // dropped no-op.
   const originServerId = serverRegistry.originServer?.id;
   if (originServerId) {
-    const originClient = graphqlClientManager.originClient;
+    const originClient = serverConnectionManager.originClient;
     eventBusManager.startBus(originServerId, originClient);
     provideEventBus(() => originServerId);
 
@@ -90,20 +94,21 @@
     });
 
     // Handle logout from another tab in the same browser (instant, no server round-trip)
-    $effect(() => initSessionChannel(() => serverRegistry.handleAuthenticationRequired(originServerId)));
-
+    $effect(() =>
+      initSessionChannel(() => serverRegistry.handleAuthenticationRequired(originServerId))
+    );
   }
 
   // Initialize presence tracking (idle detection → AWAY, active → ONLINE).
   // This works across all instances, not just origin.
   initPresenceTracking(
     () =>
-      serverRegistry.servers.map(
-        (i) => graphqlClientManager.getClient(i.id).client
-      ),
+      serverRegistry.servers
+        .map((i) => wireEventBusManager.getClient(i.id))
+        .filter((client) => client !== undefined),
     (status) => {
       if (currentUserState.user) {
-        presenceCache.update(currentUserState.user.id, status);
+        presenceCache.update(currentUserState.user.id, status as PresenceStatus);
       }
     }
   );

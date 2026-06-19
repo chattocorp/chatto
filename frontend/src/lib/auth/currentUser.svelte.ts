@@ -1,9 +1,12 @@
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
-import type { Client } from '@urql/svelte';
-import { LoadCurrentUserDocument, clearCachedUser, type CurrentUser } from './loadAuth';
+import {
+  clearCachedUser,
+  fetchCurrentUserViaWire,
+  isWireAuthenticationRequiredError,
+  type CurrentUser
+} from './loadAuth';
 import { csrfFetch } from './csrf';
-import { isAuthenticationRequiredError } from './errors';
 
 export type { CurrentUser };
 
@@ -24,20 +27,23 @@ interface AuthFailureOptions {
 export class CurrentUserState {
   user = $state<CurrentUser | undefined>(undefined);
   loading = $state(true);
-  #client: Client;
+  #wireUrl: string;
+  #token: string | null;
   #cookieAuth: boolean;
   #isLoggingOut = false;
 
-  constructor(client: Client, cookieAuth: boolean = false) {
-    this.#client = client;
+  constructor(wireUrl: string, token: string | null, cookieAuth: boolean = false) {
+    this.#wireUrl = wireUrl;
+    this.#token = token;
     this.#cookieAuth = cookieAuth;
   }
 
   async load() {
-    const resp = await this.#client.query(LoadCurrentUserDocument, {});
-
-    if (resp.error) {
-      if (isAuthenticationRequiredError(resp.error)) {
+    try {
+      const fetched = await fetchCurrentUserViaWire(this.#wireUrl, this.#token);
+      this.user = fetched ?? undefined;
+    } catch (err) {
+      if (isWireAuthenticationRequiredError(err)) {
         this.user = undefined;
         this.loading = false;
         return;
@@ -46,12 +52,10 @@ export class CurrentUserState {
       // error so unreachable instances are visible in the dev console.
       // Don't throw — the caller treats this as a per-instance soft
       // failure, not a global crash.
-      console.error('[auth] failed to load current user', resp.error);
+      console.error('[auth] failed to load current user', err);
+    } finally {
+      this.loading = false;
     }
-
-    const fetched = resp.data?.viewer?.user;
-    this.user = fetched ?? undefined;
-    this.loading = false;
   }
 
   /**

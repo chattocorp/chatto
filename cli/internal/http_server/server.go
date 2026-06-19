@@ -174,6 +174,7 @@ func (s *HTTPServer) setupRoutes() error {
 	s.setupOIDCRoutes()
 	s.setupAuthRoutes()
 	s.setupOAuthRoutes()
+	s.setupAttachmentUploadRoutes()
 	s.setupAssetRoutes()
 
 	if err := s.setupFrontendRoutes(); err != nil {

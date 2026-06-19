@@ -2,11 +2,15 @@
  * Server info state — public branding plus authenticated runtime settings.
  */
 
-import { graphql } from '$lib/gql';
-import type { Client } from '@urql/svelte';
+import { fetchPublicServerInfo } from '$lib/serverInfo';
+import { WireClient, type WireClientConfig } from '$lib/wire/client';
+
+type WireSettingsClient = Pick<WireClient, 'getAuthenticatedServerSettings'>;
 
 export class ServerInfoState {
-  #client: Client;
+  #wireConfig: WireClientConfig;
+  #getWireClient: (() => WireSettingsClient | null | undefined) | null;
+  #serverUrl: string;
   #label: string;
 
   name = $state('Chatto');
@@ -38,9 +42,15 @@ export class ServerInfoState {
    * errors can be traced back to a specific server. Pass the URL (or any
    * stable identifier) — used purely for diagnostics.
    */
-  constructor(client: Client, label = 'unknown') {
-    this.#client = client;
-    this.#label = label;
+  constructor(
+    serverUrl = '',
+    wireConfig: WireClientConfig = {},
+    getWireClient?: () => WireSettingsClient | null | undefined
+  ) {
+    this.#serverUrl = serverUrl;
+    this.#wireConfig = wireConfig;
+    this.#getWireClient = getWireClient ?? null;
+    this.#label = serverUrl || 'origin';
   }
 
   /**
@@ -57,58 +67,24 @@ export class ServerInfoState {
     try {
       await this.refreshProfile();
     } catch (err) {
-      // Defensive: anything thrown during the query or above .then body.
+      // Defensive: anything thrown during the public server-info fetch.
       // Don't re-throw — failure is isolated to this server.
       this.error = err instanceof Error ? err.message : String(err);
-      console.error(
-        `[server:${this.#label}] failed to load server info`,
-        err
-      );
+      console.error(`[server:${this.#label}] failed to load server info`, err);
     } finally {
       this.loading = false;
     }
   }
 
   async refreshProfile(): Promise<void> {
-    const resp = await this.#client
-      .query(
-        graphql(`
-          query GetServerInfo {
-            server {
-              directRegistrationEnabled
-              profile {
-                name
-                welcomeMessage
-                description
-                logoUrl
-                bannerUrl
-              }
-            }
-          }
-        `),
-        {},
-        { requestPolicy: 'network-only' }
-      )
-      .toPromise();
-
-    if (resp.error) {
-      this.error = resp.error.message;
-      console.error(
-        `[server:${this.#label}] failed to load server info`,
-        resp.error
-      );
-      return;
-    }
-
-    if (resp.data?.server) {
-      this.error = null;
-      this.name = resp.data.server.profile.name;
-      this.welcomeMessage = resp.data.server.profile.welcomeMessage ?? null;
-      this.description = resp.data.server.profile.description ?? null;
-      this.iconUrl = resp.data.server.profile.logoUrl ?? null;
-      this.bannerUrl = resp.data.server.profile.bannerUrl ?? null;
-      this.directRegistrationEnabled = resp.data.server.directRegistrationEnabled;
-    }
+    const info = await fetchPublicServerInfo(this.#serverUrl);
+    this.error = null;
+    this.name = info.name;
+    this.welcomeMessage = info.welcomeMessage;
+    this.description = info.description;
+    this.iconUrl = info.iconUrl;
+    this.bannerUrl = info.bannerUrl;
+    this.directRegistrationEnabled = info.directRegistrationEnabled;
   }
 
   /**
@@ -116,43 +92,31 @@ export class ServerInfoState {
    * after the store knows the viewer is authenticated.
    */
   async refreshAuthenticatedSettings(): Promise<void> {
-    const resp = await this.#client
-      .query(
-        graphql(`
-          query GetAuthenticatedServerSettings {
-            server {
-              pushNotificationsEnabled
-              vapidPublicKey
-              livekitUrl
-              videoProcessingEnabled
-              maxUploadSize
-              maxVideoUploadSize
-              messageEditWindowSeconds
-              profile {
-                motd
-              }
-            }
-          }
-        `),
-        {},
-        { requestPolicy: 'network-only' }
-      )
-      .toPromise();
+    const resp = await this.#withWireClient((client) => client.getAuthenticatedServerSettings());
+    const settings = resp.settings;
+    if (!settings) return;
 
-    if (resp.error) {
-      throw resp.error;
-    }
-
-    if (resp.data?.server) {
-      this.motd = resp.data.server.profile.motd ?? null;
-      this.pushNotificationsEnabled = resp.data.server.pushNotificationsEnabled;
-      this.vapidPublicKey = resp.data.server.vapidPublicKey ?? null;
-      this.livekitUrl = resp.data.server.livekitUrl ?? null;
-      this.videoProcessingEnabled = resp.data.server.videoProcessingEnabled;
-      this.maxUploadSize = resp.data.server.maxUploadSize;
-      this.maxVideoUploadSize = resp.data.server.maxVideoUploadSize;
-      this.messageEditWindowSeconds = resp.data.server.messageEditWindowSeconds;
-    }
+    this.motd = settings.motd || null;
+    this.pushNotificationsEnabled = settings.pushNotificationsEnabled;
+    this.vapidPublicKey = settings.vapidPublicKey || null;
+    this.livekitUrl = settings.livekitUrl || null;
+    this.videoProcessingEnabled = settings.videoProcessingEnabled;
+    this.maxUploadSize = Number(settings.maxUploadSize);
+    this.maxVideoUploadSize = Number(settings.maxVideoUploadSize);
+    this.messageEditWindowSeconds = settings.messageEditWindowSeconds;
   }
 
+  async #withWireClient<T>(task: (client: WireSettingsClient) => Promise<T>): Promise<T> {
+    const shared = this.#getWireClient?.();
+    if (shared) {
+      return task(shared);
+    }
+
+    const client = new WireClient(this.#wireConfig);
+    try {
+      return await task(client);
+    } finally {
+      client.dispose();
+    }
+  }
 }

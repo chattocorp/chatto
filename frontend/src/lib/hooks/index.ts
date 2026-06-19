@@ -1,9 +1,3 @@
-// GraphQL
-export { useQuery } from './useQuery.svelte';
-export type { UseQueryOptions, UseQueryReturn } from './useQuery.svelte';
-export { useMutation } from './useMutation.svelte';
-export type { UseMutationOptions, UseMutationReturn, MutationResult } from './useMutation.svelte';
-
 // Server events — unified bus from `myEvents` subscription.
 export {
   useEvent,
@@ -21,6 +15,7 @@ export {
   useSessionTerminated,
   useActiveRoomLayoutUpdated
 } from './useEvent.svelte';
+export { useWireEvent } from './useWireEvent.svelte';
 
 // Message actions
 export { useMessageActions } from './useMessageActions.svelte';

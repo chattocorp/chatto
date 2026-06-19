@@ -1,51 +1,5 @@
-<script lang="ts" module>
-  import { graphql } from '$lib/gql';
-
-  export const MessageAttachmentFragment = graphql(`
-    fragment MessageAttachmentView on Attachment {
-      id
-      filename
-      contentType
-      width
-      height
-      assetUrl {
-        url
-        expiresAt
-      }
-      thumbnailAssetUrl(width: 960, height: 800, fit: CONTAIN) {
-        url
-        expiresAt
-      }
-      videoProcessing {
-        status
-        durationMs
-        width
-        height
-        thumbnailAssetUrl {
-          url
-          expiresAt
-        }
-        sourceAvailable
-        variants {
-          assetUrl {
-            url
-            expiresAt
-          }
-          quality
-          width
-          height
-          size
-        }
-        reasonCode
-      }
-    }
-  `);
-</script>
-
 <script lang="ts">
-  import type { FragmentType } from '$lib/gql/fragment-masking';
-  import { useFragment } from '$lib/gql/fragment-masking';
-  import type { MessageAttachmentViewFragment } from '$lib/gql/graphql';
+  import type { MessageAttachmentViewFragment } from '$lib/chatTypes';
   import type { ImageItem } from '$lib/ui/ImageModal.svelte';
 
   type RawAttachment = MessageAttachmentViewFragment;
@@ -53,7 +7,6 @@
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import { pushState } from '$app/navigation';
-  import { useConnection } from '$lib/state/server/connection.svelte';
   import { toast } from '$lib/ui/toast';
   import {
     assetUrlNeedsRefresh,
@@ -73,7 +26,7 @@
     eventId,
     canDeleteAttachment = false
   }: {
-    attachments: readonly FragmentType<typeof MessageAttachmentFragment>[];
+    attachments: readonly MessageAttachmentViewFragment[];
     serverId: string;
     roomId: string;
     eventId: string;
@@ -155,9 +108,7 @@
 
   type Attachment = ReturnType<typeof normalizeAttachment>;
 
-  const attachments = $derived.by(() =>
-    rawAttachments.map((a) => normalizeAttachment(useFragment(MessageAttachmentFragment, a)))
-  );
+  const attachments = $derived.by(() => rawAttachments.map((a) => normalizeAttachment(a)));
 
   const MIN_THUMB_SIZE = 24;
 
@@ -173,8 +124,6 @@
   }
 
   const imageAttachments = $derived(attachments.filter((a) => a.contentType.startsWith('image/')));
-
-  const connection = useConnection();
 
   function attachmentAssetUrls(attachment: Attachment) {
     return [
@@ -272,7 +221,7 @@
   });
 
   async function refreshUrlsForMessage(): Promise<Map<string, RefreshedAttachmentUrls>> {
-    return refreshAttachmentUrlsForMessage(connection().client, roomId, eventId);
+    return refreshAttachmentUrlsForMessage(roomId, eventId);
   }
 
   async function openImageModal(attachment: Attachment) {

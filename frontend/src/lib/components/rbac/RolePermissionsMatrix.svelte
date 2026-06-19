@@ -1,7 +1,7 @@
 <!--
 @component
 
-Per-role permission matrix loader. Owns the GraphQL query for the
+Per-role permission matrix loader. Owns the wire request for the
 role's matrix and the mutation dispatch for cell clicks; delegates
 rendering to `SubjectPermissionsMatrix` (shared with the user variant).
 
@@ -10,11 +10,18 @@ Mutations reuse the existing per-tier role mutations
 and the deny/clear variants) via `setRolePermission`.
 -->
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { afterNavigate } from '$app/navigation';
+  import { onMount } from 'svelte';
   import { Hint } from '$lib/ui';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import { graphql } from '$lib/gql';
+  import {
+    GetRolePermissionMatrixRequest,
+    PermissionMatrixDecision,
+    PermissionMatrixScopeKind,
+    type PermissionMatrixCellView,
+    type PermissionMatrixScopeView
+  } from '$lib/pb/chatto/api/v1/chat_pb';
   import { toast } from '$lib/ui/toast';
+  import { withActiveServerWireClient } from '$lib/wire/activeServerClient';
   import {
     setRolePermission,
     type MutationScope as RoleMutationScope,
@@ -23,67 +30,52 @@ and the deny/clear variants) via `setRolePermission`.
   import SubjectPermissionsMatrix, {
     type MatrixData,
     type MatrixScope,
-    type CellState
+    type CellState,
+    type MatrixDecision,
+    type MatrixScopeKind
   } from './SubjectPermissionsMatrix.svelte';
 
   type Matrix = MatrixData & { roleName: string };
 
   let { roleName }: { roleName: string } = $props();
 
-  const connection = useConnection();
-
   let data = $state<Matrix | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
   let updatingKey = $state<string | null>(null);
+  let currentLoadName = '';
   const isOwnerRole = $derived(roleName === 'owner');
 
-  $effect(() => {
+  onMount(scheduleLoad);
+  afterNavigate(scheduleLoad);
+
+  function scheduleLoad() {
+    if (roleName === currentLoadName) return;
+    currentLoadName = roleName;
     void load(roleName);
-  });
+  }
 
   async function load(name: string) {
-    const current = untrack(() => data);
+    const current = data;
     if (!current || current.roleName !== name) loading = true;
     error = null;
 
-    const resp = await connection().client.query(
-      graphql(`
-        query RolePermissionsMatrixQuery($roleName: String!) {
-          admin {
-            rbac {
-              rolePermissionMatrix(roleName: $roleName) {
-                roleName
-                applicablePermissions
-                scopes {
-                  id
-                  label
-                  kind
-                  parentGroupId
-                }
-                cells {
-                  permission
-                  scopeId
-                  override
-                  effective
-                }
-              }
-            }
-          }
-        }
-      `),
-      { roleName: name },
-      { requestPolicy: 'network-only' }
-    );
+    let matrix;
+    try {
+      const resp = await withActiveServerWireClient((client) =>
+        client.getRolePermissionMatrix(new GetRolePermissionMatrixRequest({ roleName: name }))
+      );
+      matrix = resp.matrix;
+    } catch (loadError: unknown) {
+      if (name !== roleName) return;
+      loading = false;
+      error = errorMessage(loadError);
+      return;
+    }
 
     if (name !== roleName) return;
 
     loading = false;
-    if (resp.error) {
-      error = resp.error.message;
-      return;
-    }
-    const matrix = resp.data?.admin?.rbac.rolePermissionMatrix;
     if (!matrix) {
       error = 'Role not found.';
       return;
@@ -92,9 +84,39 @@ and the deny/clear variants) via `setRolePermission`.
     data = {
       roleName: m.roleName,
       applicablePermissions: [...m.applicablePermissions],
-      scopes: m.scopes.map((s) => ({ ...s })),
-      cells: m.cells.map((c) => ({ ...c }))
+      scopes: m.scopes.map(scopeFromWire),
+      cells: m.cells.map(cellFromWire)
     };
+  }
+
+  function scopeFromWire(scope: PermissionMatrixScopeView): MatrixScope {
+    return {
+      id: scope.id,
+      label: scope.label,
+      kind: scopeKindFromWire(scope.kind),
+      parentGroupId: scope.parentGroupId
+    };
+  }
+
+  function cellFromWire(cell: PermissionMatrixCellView): MatrixData['cells'][number] {
+    return {
+      permission: cell.permission,
+      scopeId: cell.scopeId,
+      override: decisionFromWire(cell.override),
+      effective: decisionFromWire(cell.effective)
+    };
+  }
+
+  function scopeKindFromWire(kind: PermissionMatrixScopeKind): MatrixScopeKind {
+    if (kind === PermissionMatrixScopeKind.GROUP) return 'GROUP';
+    if (kind === PermissionMatrixScopeKind.ROOM) return 'ROOM';
+    return 'SERVER';
+  }
+
+  function decisionFromWire(decision: PermissionMatrixDecision): MatrixDecision {
+    if (decision === PermissionMatrixDecision.ALLOW) return 'ALLOW';
+    if (decision === PermissionMatrixDecision.DENY) return 'DENY';
+    return 'NONE';
   }
 
   function mutationScopeFor(scope: MatrixScope, name: string): RoleMutationScope {
@@ -115,11 +137,8 @@ and the deny/clear variants) via `setRolePermission`.
     updatingKey = cellKey;
     error = null;
 
-    const result = await setRolePermission(
-      connection().client,
-      mutationScopeFor(scope, data.roleName),
-      permission,
-      next as PermissionState
+    const result = await withActiveServerWireClient((client) =>
+      setRolePermission(client, mutationScopeFor(scope, data!.roleName), permission, next as PermissionState)
     );
     if (result.error) {
       error = result.error;
@@ -130,6 +149,10 @@ and the deny/clear variants) via `setRolePermission`.
 
     await load(data.roleName);
     updatingKey = null;
+  }
+
+  function errorMessage(value: unknown): string {
+    return value instanceof Error ? value.message : String(value);
   }
 </script>
 

@@ -1,20 +1,5 @@
-<script lang="ts" module>
-  import { graphql } from '$lib/gql';
-
-  // Request 96x96 for 2x retina (covers sizes up to lg at 48px CSS pixels)
-  export const UserAvatarFragment = graphql(`
-    fragment UserAvatarUser on User {
-      id
-      login
-      displayName
-      avatarUrl(width: 96, height: 96)
-      presenceStatus
-    }
-  `);
-</script>
-
 <script lang="ts">
-  import type { UserAvatarUserFragment } from '$lib/gql/graphql';
+  import type { UserAvatarUserFragment } from '$lib/chatTypes';
   import { getLiveAvatarUrl } from '$lib/state/userProfiles.svelte';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import { getAvatarInitials } from '$lib/utils/initials';
@@ -67,7 +52,7 @@
 
   const avatarUrl = $derived(user ? getLiveAvatarUrl(user.id, user.avatarUrl ?? null) : null);
 
-  // Use live presence from global cache if available, otherwise fall back to initial GraphQL value.
+  // Use live presence from global cache if available, otherwise fall back to initial user value.
   // The global cache is populated by ServerEventProvider, so all UserAvatar instances — including
   // newly-mounted ones like popovers — see the latest presence immediately.
   const presence = $derived(user ? presenceCache.get(user.id, user.presenceStatus) : undefined);

@@ -1,34 +1,52 @@
 import { tick } from 'svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import type { Client } from '@urql/svelte';
-import { useFragment } from '$lib/gql';
+import type { RoomEventViewFragment } from '$lib/chatTypes';
 import {
-  RoomEventViewFragmentDoc,
-  type RoomEventViewFragment
-} from '$lib/gql/graphql';
+  GetRoomEventRequest,
+  GetRoomTimelineAfterRequest,
+  GetRoomTimelineAroundRequest,
+  GetRoomTimelineRequest,
+  GetThreadEventsAroundRequest,
+  GetThreadEventsRequest
+} from '$lib/pb/chatto/api/v1/chat_pb';
 import type { EventEnvelope } from '$lib/eventBus.svelte';
-import type { GraphQLClient } from '$lib/state/server/graphqlClient.svelte';
+import { wireEventBusManager } from '$lib/state/server/wireEventBus.svelte';
 import type { JumpToMessageState } from '../composerContext.svelte';
-import {
-  PAGE_SIZE,
-  RefetchOneQuery,
-  RoomAfterQuery,
-  RoomAroundQuery,
-  RoomBeforeQuery,
-  RoomLatestQuery,
-  ThreadEventsAroundQuery,
-  ThreadEventsQuery
-} from './queries';
 import { isRootRoomEvent, isThreadEvent } from './filters';
+import { type EventConnectionPage, type RawEvent, getActorId, unmask } from './helpers';
+import type { StreamEvent } from '$lib/pb/chatto/wire/v1/protocol_pb';
 import {
-  type EventConnectionPage,
-  type RawEvent,
-  getActorId,
-  threadRepliesConnection,
-  unmask
-} from './helpers';
+  wireDurableEvent,
+  wireDurableRoomId,
+  wireMessagePosted,
+  wireLiveEvent,
+  type WireMessagePosted
+} from '$lib/wire/events';
+import type { WireClient } from '$lib/wire';
+import {
+  cursorToSequence,
+  sequenceToCursor,
+  wireRoomEventViewToFragment,
+  wireRoomEventsPageToConnection
+} from '$lib/wire';
+
+const PAGE_SIZE = 50;
 
 type MessageScope = 'room' | 'thread';
+type RoomWireClient = Pick<
+  WireClient,
+  | 'getRoomEvent'
+  | 'getRoomTimeline'
+  | 'getRoomTimelineAfter'
+  | 'getRoomTimelineAround'
+  | 'getThreadEvents'
+  | 'getThreadEventsAround'
+>;
+
+type MessagesStoreOptions = {
+  serverId?: string;
+  wireClient?: RoomWireClient;
+};
 
 export type RefreshCurrentWindowResult = {
   hasOlder: boolean;
@@ -46,9 +64,9 @@ function compareEventCreatedAt(a: RoomEventViewFragment, b: RoomEventViewFragmen
 
 /**
  * Message store for both the main room timeline and a single thread pane.
- * The scope-specific methods (`setRoom` / `setThread`) choose which Core
- * GraphQL connection backs the list while the lifecycle, pagination, refetch,
- * and subscription ingestion behavior stays shared.
+ * The scope-specific methods (`setRoom` / `setThread`) choose which wire
+ * request backs the list while the lifecycle, pagination, refetch, and
+ * live-event ingestion behavior stays shared.
  */
 export class MessagesStore {
   events = $state<RoomEventViewFragment[]>([]);
@@ -56,7 +74,8 @@ export class MessagesStore {
   isLoadingMore = $state(false);
   hasReachedStart = $state(false);
 
-  private readonly client: Client;
+  private readonly serverId?: string;
+  private readonly wireClientOverride?: RoomWireClient;
   private scope: MessageScope | null = null;
   private threadRootEventId = '';
   private seenIds: SvelteSet<string> = new SvelteSet<string>();
@@ -71,16 +90,17 @@ export class MessagesStore {
   #loadId = 0;
 
   constructor(
-    gqlClient: GraphQLClient,
-    private readonly getCurrentUserId: () => string | null
+    private readonly getCurrentUserId: () => string | null,
+    options: MessagesStoreOptions = {}
   ) {
-    this.client = gqlClient.client;
+    this.serverId = options.serverId;
+    this.wireClientOverride = options.wireClient;
   }
 
   /** Tear down lifecycle listeners. Idempotent. */
   dispose(): void {
-    // The message store has no owned subscriptions. Server-event replay is
-    // managed by the singleton event bus.
+    // The message store has no owned wire subscriptions. Server-event replay
+    // is managed by the singleton event bus.
   }
 
   /** Root-level events only (excludes thread replies). */
@@ -111,18 +131,15 @@ export class MessagesStore {
     const existing = this.pendingPreviewFetches.get(key);
     if (existing) return existing;
 
-    const roomId = this.roomId;
-    const promise = this.client
-      .query(RefetchOneQuery, { roomId, eventId })
-      .toPromise()
-      .then((result) => {
-        if (result.error) {
-          console.error('MessagesStore: ensureEvent error:', result.error);
-          return;
-        }
-
-        const fetched = result.data?.room?.event;
-        const event = fetched ? useFragment(RoomEventViewFragmentDoc, fetched) : null;
+    const wireClient = this.wireClient();
+    const promise = (
+      wireClient
+        ? wireClient
+            .getRoomEvent(new GetRoomEventRequest({ roomId: this.roomId, eventId }))
+            .then((response) => wireRoomEventViewToFragment(response.event))
+        : Promise.resolve(null)
+    )
+      .then((event) => {
         this.previewEvents.set(key, event ?? null);
       })
       .catch((error: unknown) => {
@@ -148,6 +165,13 @@ export class MessagesStore {
 
   private previewKey(eventId: string): string {
     return eventCacheKey(this.roomId, eventId);
+  }
+
+  private wireClient(): RoomWireClient | undefined {
+    return (
+      this.wireClientOverride ??
+      (this.serverId ? wireEventBusManager.getClient(this.serverId) : undefined)
+    );
   }
 
   setRoom(roomId: string): void {
@@ -256,6 +280,65 @@ export class MessagesStore {
     }
   }
 
+  async ingestWireEvent(streamEvent: StreamEvent): Promise<void> {
+    const liveEvent = wireLiveEvent(streamEvent);
+    if (liveEvent?.event.case === 'serverMemberDeleted') {
+      await this.refetchAll();
+      return;
+    }
+
+    const durable = wireDurableEvent(streamEvent);
+    if (!durable) return;
+
+    const roomId = wireDurableRoomId(streamEvent);
+    if (roomId != null && roomId !== this.roomId) return;
+
+    switch (durable.event.case) {
+      case 'serverMemberDeleted':
+        await this.refetchAll();
+        return;
+
+      case 'roomDeleted':
+        if (durable.event.value.roomId === this.roomId) this.resetState();
+        return;
+
+      case 'messagePosted':
+        await this.ingestWireMessagePosted(streamEvent);
+        return;
+
+      case 'messageEdited':
+        await this.refetchByMessageEventId(durable.event.value.eventId);
+        return;
+
+      case 'messageRetracted':
+        this.applyDeletion(durable.event.value.eventId);
+        return;
+
+      case 'reactionAdded':
+      case 'reactionRemoved':
+        await this.refetchByMessageEventId(durable.event.value.messageEventId);
+        return;
+
+      case 'assetProcessingStarted':
+      case 'assetProcessingSucceeded':
+      case 'assetProcessingFailed':
+        if (durable.event.value.messageEventId) {
+          await this.refetchByMessageEventId(durable.event.value.messageEventId);
+        }
+        return;
+
+      case 'userJoinedRoom':
+      case 'userLeftRoom':
+      case 'roomUpdated':
+      case 'roomArchived':
+      case 'roomUnarchived':
+      case 'voiceCallStarted':
+      case 'voiceCallEnded':
+        await this.fetchAndIngestSystemEvent(durable.id);
+        return;
+    }
+  }
+
   async loadMore(): Promise<void> {
     if (this.isLoadingMore || this.hasReachedStart || !this.oldestCursor) return;
 
@@ -297,28 +380,35 @@ export class MessagesStore {
   }
 
   private async fetchOlderPage(before: string): Promise<EventConnectionPage | null> {
+    const wireClient = this.wireClient();
+    if (!wireClient) return null;
+
     if (this.scope === 'thread') {
-      const result = await this.client
-        .query(ThreadEventsQuery, {
+      const response = await wireClient.getThreadEvents(
+        new GetThreadEventsRequest({
           roomId: this.roomId,
           threadRootEventId: this.threadRootEventId,
           limit: PAGE_SIZE,
-          before
+          beforeSequence: cursorToSequence(before)
         })
-        .toPromise();
-
-      return threadRepliesConnection(result.data?.room?.event);
+      );
+      return wireRoomEventsPageToConnection(response.replies);
     }
 
-    const result = await this.client
-      .query(RoomBeforeQuery, {
+    const response = await wireClient.getRoomTimeline(
+      new GetRoomTimelineRequest({
         roomId: this.roomId,
         limit: PAGE_SIZE,
-        before
+        beforeSequence: cursorToSequence(before)
       })
-      .toPromise();
-
-    return result.data?.room?.events ?? null;
+    );
+    return {
+      events: response.eventViews.map(wireRoomEventViewToFragment).filter(isRoomEventView),
+      startCursor: sequenceToCursor(response.startSequence),
+      endCursor: sequenceToCursor(response.endSequence),
+      hasOlder: response.hasOlder,
+      hasNewer: response.hasNewer
+    };
   }
 
   private afterOlderPagePrepended(): void {
@@ -334,18 +424,24 @@ export class MessagesStore {
 
     jumpState.isLoadingNewer = true;
     try {
-      const result = await this.client
-        .query(RoomAfterQuery, {
-          roomId: this.roomId,
-          limit: PAGE_SIZE,
-          after: this.newestCursor
-        })
-        .toPromise();
+      const wireClient = this.wireClient();
+      const page = wireClient
+        ? wireRoomEventsPageToConnection(
+            (
+              await wireClient.getRoomTimelineAfter(
+                new GetRoomTimelineAfterRequest({
+                  roomId: this.roomId,
+                  limit: PAGE_SIZE,
+                  afterSequence: cursorToSequence(this.newestCursor)
+                })
+              )
+            ).page
+          )
+        : null;
 
       // User left jumped mode while in flight — abandon the result.
       if (!jumpState.isJumpedMode) return;
 
-      const page = result.data?.room?.events;
       if (!page) return;
 
       const newer = unmask(page.events);
@@ -375,19 +471,8 @@ export class MessagesStore {
 
     this.isInitialLoading = true;
     try {
-      const result = await this.client
-        .query(RoomAroundQuery, {
-          roomId: this.roomId,
-          eventId,
-          limit: PAGE_SIZE
-        })
-        .toPromise();
-
-      const around = result.data?.room?.eventsAround;
-      if (result.error || !around) {
-        if (result.error) console.error('MessagesStore: jumpToMessage failed:', result.error);
-        return;
-      }
+      const around = await this.fetchRoomAroundPage(eventId);
+      if (!around) return;
 
       const { events: rawEvents, hasOlder, hasNewer, startCursor, endCursor } = around;
       const parsed = unmask(rawEvents);
@@ -417,7 +502,7 @@ export class MessagesStore {
   /**
    * Refresh the currently displayed message window from projected state without
    * clearing the buffer. Used after tab wake / reconnect when the client may
-   * have missed subscription events.
+   * have missed live events.
    */
   async refreshCurrentWindow(anchorEventId?: string | null): Promise<RefreshCurrentWindowResult> {
     if (!this.scope || !this.roomId) return { hasOlder: false, hasNewer: false, refreshed: false };
@@ -524,18 +609,53 @@ export class MessagesStore {
     }
   }
 
-  private async refetchOne(eventId: string): Promise<void> {
-    const result = await this.client
-      .query(
-        RefetchOneQuery,
-        { roomId: this.roomId, eventId },
-        { requestPolicy: 'network-only' }
-      )
-      .toPromise();
+  private async ingestWireMessagePosted(streamEvent: StreamEvent): Promise<void> {
+    const posted = wireMessagePosted(streamEvent);
+    if (!posted || !this.shouldFetchWireMessagePosted(posted)) return;
 
-    const fetched = result.data?.room?.event;
-    if (!fetched) return;
-    const updated = useFragment(RoomEventViewFragmentDoc, fetched);
+    const fetched = await this.fetchOne(posted.eventId);
+    if (fetched?.event.__typename === 'MessagePostedEvent') {
+      this.onMessagePosted(fetched, fetched.event);
+    }
+  }
+
+  private shouldFetchWireMessagePosted(posted: WireMessagePosted): boolean {
+    if (posted.roomId !== this.roomId) return false;
+
+    if (this.scope === 'thread') {
+      return (
+        posted.eventId === this.threadRootEventId ||
+        posted.threadRootEventId === this.threadRootEventId ||
+        posted.echoFromThreadRootEventId === this.threadRootEventId
+      );
+    }
+
+    if (this.scope === 'room') {
+      if (!posted.threadRootEventId) return true;
+      return this.events.some((event) => event.id === posted.threadRootEventId);
+    }
+
+    return false;
+  }
+
+  private async fetchAndIngestSystemEvent(eventId: string): Promise<void> {
+    if (this.scope !== 'room') return;
+
+    const fetched = await this.fetchOne(eventId);
+    if (fetched) this.onSystemEvent(fetched);
+  }
+
+  private async fetchOne(eventId: string): Promise<RoomEventViewFragment | null> {
+    const wireClient = this.wireClient();
+    if (!wireClient) return null;
+    const response = await wireClient.getRoomEvent(
+      new GetRoomEventRequest({ roomId: this.roomId, eventId })
+    );
+    return wireRoomEventViewToFragment(response.event);
+  }
+
+  private async refetchOne(eventId: string): Promise<void> {
+    const updated = await this.fetchOne(eventId);
     if (!updated) return;
     const idx = this.events.findIndex((e) => e.id === eventId);
     if (idx !== -1) this.events[idx] = updated;
@@ -567,10 +687,7 @@ export class MessagesStore {
     const targetIndex = this.events.findIndex((e) => e.id === messageEventId);
     const target = targetIndex === -1 ? null : this.events[targetIndex];
     const targetPayload = target?.event;
-    if (
-      targetPayload?.__typename === 'MessagePostedEvent' &&
-      targetPayload.echoOfEventId
-    ) {
+    if (targetPayload?.__typename === 'MessagePostedEvent' && targetPayload.echoOfEventId) {
       this.events.splice(targetIndex, 1);
       return;
     }
@@ -683,10 +800,7 @@ export class MessagesStore {
     }
   }
 
-  private addEvent(
-    event: RoomEventViewFragment,
-    options: { sortRoom?: boolean } = {}
-  ): boolean {
+  private addEvent(event: RoomEventViewFragment, options: { sortRoom?: boolean } = {}): boolean {
     if (this.seenIds.has(event.id)) return false;
     this.seenIds.add(event.id);
     this.events.push(event);
@@ -710,13 +824,12 @@ export class MessagesStore {
   }
 
   /**
-   * Replace the buffer with fetched events but preserve any subscription
-   * events that arrived during the in-flight query. Always the right
-   * choice when a paginated query result replaces the timeline: the
-   * eventBus subscription has been live since layout mount, so any
-   * MessagePostedEvent for this room that lands while the query is in
-   * flight has already been added to {@link events} via
-   * {@link ingestServerEvent} and must not be wiped by the result.
+   * Replace the buffer with fetched events but preserve any live events that
+   * arrived during the in-flight request. Always the right choice when a
+   * paginated response replaces the timeline: the event bus has been live
+   * since layout mount, so any MessagePostedEvent for this room that lands
+   * while the request is in flight has already been added to {@link events}
+   * via event ingestion and must not be wiped by the result.
    */
   private replaceMergingExisting(rawEvents: readonly RawEvent[]): void {
     const fetched = unmask(rawEvents);
@@ -778,9 +891,10 @@ export class MessagesStore {
       merged.push(e);
     }
 
-    // Preserve subscription events that arrived while the refresh query was in
-    // flight. Older pre-refresh rows outside the fetched window are deliberately
-    // dropped: this is a projected-state reload of the current window.
+    // Preserve live events that arrived while the refresh request was in
+    // flight. Older pre-refresh rows outside the fetched window are
+    // deliberately dropped: this is a projected-state reload of the current
+    // window.
     for (const e of this.events) {
       if (existingBeforeFetch.has(e.id) || newSeen.has(e.id)) continue;
       newSeen.add(e.id);
@@ -802,28 +916,69 @@ export class MessagesStore {
     });
   }
 
+  private async fetchLatestRoomPage(label: string): Promise<EventConnectionPage | null> {
+    const wireClient = this.wireClient();
+    if (!wireClient) {
+      console.debug(`MessagesStore: ${label} skipped because the wire client is unavailable`);
+      return null;
+    }
+    const response = await wireClient.getRoomTimeline(
+      new GetRoomTimelineRequest({ roomId: this.roomId, limit: PAGE_SIZE })
+    );
+    return {
+      events: response.eventViews.map(wireRoomEventViewToFragment).filter(isRoomEventView),
+      startCursor: sequenceToCursor(response.startSequence),
+      endCursor: sequenceToCursor(response.endSequence),
+      hasOlder: response.hasOlder,
+      hasNewer: response.hasNewer
+    };
+  }
+
+  private async fetchRoomAroundPage(anchorEventId: string): Promise<EventConnectionPage | null> {
+    const wireClient = this.wireClient();
+    if (!wireClient) return null;
+    const response = await wireClient.getRoomTimelineAround(
+      new GetRoomTimelineAroundRequest({
+        roomId: this.roomId,
+        eventId: anchorEventId,
+        limit: PAGE_SIZE
+      })
+    );
+    return wireRoomEventsPageToConnection(response.page);
+  }
+
+  private async fetchThreadWindowPage(
+    anchorEventId: string | null
+  ): Promise<{ root: RawEvent; replies: EventConnectionPage | null } | null> {
+    const wireClient = this.wireClient();
+    if (!wireClient) return null;
+    const response = anchorEventId
+      ? await wireClient.getThreadEventsAround(
+          new GetThreadEventsAroundRequest({
+            roomId: this.roomId,
+            threadRootEventId: this.threadRootEventId,
+            anchorEventId,
+            limit: PAGE_SIZE
+          })
+        )
+      : await wireClient.getThreadEvents(
+          new GetThreadEventsRequest({
+            roomId: this.roomId,
+            threadRootEventId: this.threadRootEventId,
+            limit: PAGE_SIZE
+          })
+        );
+    const root = wireRoomEventViewToFragment(response.rootEvent);
+    if (!root) return null;
+    return { root, replies: wireRoomEventsPageToConnection(response.replies) };
+  }
+
   private async refreshRoomLatest(
     thisLoad: number,
     existingBeforeFetch: ReadonlySet<string>
   ): Promise<RefreshCurrentWindowResult> {
-    const result = await this.client
-      .query(
-        RoomLatestQuery,
-        {
-          roomId: this.roomId,
-          limit: PAGE_SIZE
-        },
-        { requestPolicy: 'network-only' }
-      )
-      .toPromise();
-
+    const page = await this.fetchLatestRoomPage('refreshRoomLatest');
     if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false, refreshed: false };
-    if (result.error) {
-      console.error('MessagesStore: refreshRoomLatest error:', result.error);
-      return { hasOlder: false, hasNewer: false, refreshed: false };
-    }
-
-    const page = result.data?.room?.events;
     if (!page) return { hasOlder: false, hasNewer: false, refreshed: false };
     this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch);
     return { hasOlder: page.hasOlder, hasNewer: page.hasNewer, refreshed: true };
@@ -834,25 +989,8 @@ export class MessagesStore {
     anchorEventId: string,
     existingBeforeFetch: ReadonlySet<string>
   ): Promise<RefreshCurrentWindowResult | null> {
-    const result = await this.client
-      .query(
-        RoomAroundQuery,
-        {
-          roomId: this.roomId,
-          eventId: anchorEventId,
-          limit: PAGE_SIZE
-        },
-        { requestPolicy: 'network-only' }
-      )
-      .toPromise();
-
+    const page = await this.fetchRoomAroundPage(anchorEventId);
     if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false, refreshed: false };
-    if (result.error) {
-      console.error('MessagesStore: refreshRoomAround error:', result.error);
-      return null;
-    }
-
-    const page = result.data?.room?.eventsAround;
     if (!page) return null;
     this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch);
     return { hasOlder: page.hasOlder, hasNewer: page.hasNewer, refreshed: true };
@@ -863,37 +1001,15 @@ export class MessagesStore {
     existingBeforeFetch: ReadonlySet<string>,
     anchorEventId: string | null
   ): Promise<RefreshCurrentWindowResult> {
-    const query = anchorEventId ? ThreadEventsAroundQuery : ThreadEventsQuery;
-    const variables = anchorEventId
-      ? {
-          roomId: this.roomId,
-          threadRootEventId: this.threadRootEventId,
-          anchorEventId,
-          limit: PAGE_SIZE
-        }
-      : {
-          roomId: this.roomId,
-          threadRootEventId: this.threadRootEventId,
-          limit: PAGE_SIZE
-        };
-    const result = await this.client
-      .query(query, variables, { requestPolicy: 'network-only' })
-      .toPromise();
-
+    const window = await this.fetchThreadWindowPage(anchorEventId);
     if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false, refreshed: false };
-    if (result.error) {
-      console.error('MessagesStore: refreshThreadWindow error:', result.error);
-      return { hasOlder: false, hasNewer: false, refreshed: false };
-    }
+    if (!window) return { hasOlder: false, hasNewer: false, refreshed: false };
 
-    const root = result.data?.room?.event;
-    if (!root) return { hasOlder: false, hasNewer: false, refreshed: false };
-
-    const page = threadRepliesConnection(root);
+    const page = window.replies;
     const replies = page?.events ?? [];
     this.replaceWithSnapshotAndUpdateCursors(
       {
-        events: [root, ...replies],
+        events: [window.root, ...replies],
         startCursor: page?.startCursor,
         endCursor: page?.endCursor,
         hasOlder: page?.hasOlder
@@ -901,7 +1017,11 @@ export class MessagesStore {
       existingBeforeFetch
     );
     this.sortThreadEvents();
-    return { hasOlder: page?.hasOlder ?? false, hasNewer: page?.hasNewer ?? false, refreshed: true };
+    return {
+      hasOlder: page?.hasOlder ?? false,
+      hasNewer: page?.hasNewer ?? false,
+      refreshed: true
+    };
   }
 
   private resetAndFetchLatest(): void {
@@ -912,16 +1032,9 @@ export class MessagesStore {
   }
 
   private fetchLatest(thisLoad: number): void {
-    this.client
-      .query(RoomLatestQuery, {
-        roomId: this.roomId,
-        limit: PAGE_SIZE
-      })
-      .toPromise()
-      .then((result) => {
+    this.fetchLatestRoomPage('fetchLatest')
+      .then((page) => {
         if (this.isStale(thisLoad)) return;
-        if (result.error) console.error('MessagesStore: fetchLatest error:', result.error);
-        const page = result.data?.room?.events;
         if (page) {
           this.replaceWithFetchedAndUpdateCursors(page);
           this.hasReachedStart = !page.hasOlder;
@@ -936,24 +1049,16 @@ export class MessagesStore {
   }
 
   private fetchThread(thisLoad: number): void {
-    this.client
-      .query(ThreadEventsQuery, {
-        roomId: this.roomId,
-        threadRootEventId: this.threadRootEventId,
-        limit: PAGE_SIZE
-      })
-      .toPromise()
-      .then((result) => {
+    this.fetchThreadWindowPage(null)
+      .then((threadWindow) => {
         if (this.isStale(thisLoad)) return;
-        if (result.error) console.error('MessagesStore: fetchThread error:', result.error);
-        const root = result.data?.room?.event;
-        if (root) {
-          // Merge with any subscription events that arrived during the
-          // in-flight query (e.g. the user's own reply or a fast cross-user
-          // reply). Overwriting would drop them.
-          const page = threadRepliesConnection(root);
+        if (threadWindow) {
+          // Merge with any live events that arrived during the in-flight
+          // request (e.g. the user's own reply or a fast cross-user reply).
+          // Overwriting would drop them.
+          const page = threadWindow.replies;
           const replies = page?.events ?? [];
-          this.replaceMergingExisting([root, ...replies]);
+          this.replaceMergingExisting([threadWindow.root, ...replies]);
           this.sortThreadEvents();
           this.oldestCursor = page?.startCursor ?? undefined;
           this.newestCursor = page?.endCursor ?? undefined;
@@ -1032,4 +1137,8 @@ export class MessagesStore {
       .sort((a, b) => compareEventCreatedAt(a.event, b.event) || a.index - b.index)
       .map(({ event }) => event);
   }
+}
+
+function isRoomEventView(value: RoomEventViewFragment | null): value is RoomEventViewFragment {
+  return value !== null;
 }

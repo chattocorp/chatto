@@ -1,33 +1,18 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
-import { makeSubject, type Source, type Subject } from 'wonka';
-import type { Client } from '@urql/svelte';
 import { ServerStateStore } from './store.svelte';
 import { eventBusManager } from './eventBus.svelte';
-import type { GraphQLClient } from './graphqlClient.svelte';
+import type { ServerConnection } from './serverConnection.svelte';
 import type { RegisteredServer } from './registry.svelte';
 
-class FakeGqlClient {
+class FakeServerConnection {
   reconnectCount = $state(0);
-  client: Client;
-  subject: Subject<{ data?: unknown; error?: unknown }>;
-  query = vi.fn();
+  wireUrl = 'ws://example.test/api/wire';
+  token = 'test-token';
   results: unknown[];
 
   constructor(results: unknown[]) {
     this.results = results;
-    this.subject = makeSubject<{ data?: unknown; error?: unknown }>();
-    this.query.mockImplementation(() => {
-      const data = this.results.shift() ?? null;
-      return {
-        toPromise: vi.fn().mockResolvedValue({ data, error: null })
-      };
-    });
-    this.client = {
-      query: this.query,
-      mutation: vi.fn(),
-      subscription: vi.fn(() => this.subject.source as unknown as Source<unknown>)
-    } as unknown as Client;
   }
 }
 
@@ -65,8 +50,8 @@ function deferred<T = void>(): {
 
 const stores: ServerStateStore[] = [];
 
-function makeStore(fake: FakeGqlClient, server: RegisteredServer = registered): ServerStateStore {
-  const store = new ServerStateStore(server, fake as unknown as GraphQLClient);
+function makeStore(fake: FakeServerConnection, server: RegisteredServer = registered): ServerStateStore {
+  const store = new ServerStateStore(server, fake as unknown as ServerConnection);
   stores.push(store);
   return store;
 }
@@ -87,58 +72,31 @@ afterEach(() => {
 
 describe('ServerStateStore live server updates', () => {
   it('refreshes public profile and authenticated settings on ServerUpdatedEvent', async () => {
-    const fake = new FakeGqlClient([
-      {
-        server: {
-          pushNotificationsEnabled: false,
-          vapidPublicKey: null,
-          livekitUrl: null,
-          videoProcessingEnabled: false,
-          maxUploadSize: 25,
-          maxVideoUploadSize: 25,
-          messageEditWindowSeconds: 3600,
-          profile: {
-            motd: null
-          }
-        }
-      },
-      { server: { rooms: [] } },
-      { server: { rooms: [] } },
-      { server: { rooms: [], roomGroups: [] } },
-      {
-        server: {
-          directRegistrationEnabled: false,
-          profile: {
-            name: 'Fresh Name',
-            welcomeMessage: 'Fresh welcome',
-            description: 'Fresh description',
-            logoUrl: 'https://cdn/icon.webp',
-            bannerUrl: 'https://cdn/banner.webp'
-          }
-        }
-      },
-      {
-        server: {
-          pushNotificationsEnabled: true,
-          vapidPublicKey: 'vapid',
-          livekitUrl: 'wss://livekit',
-          videoProcessingEnabled: true,
-          maxUploadSize: 100,
-          maxVideoUploadSize: 200,
-          messageEditWindowSeconds: 120,
-          profile: {
-            motd: 'Fresh MOTD'
-          }
-        }
-      }
-    ]);
+    const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
+    store.serverInfo.refreshProfile = vi.fn().mockImplementation(async () => {
+      store.serverInfo.name = 'Fresh Name';
+      store.serverInfo.welcomeMessage = 'Fresh welcome';
+      store.serverInfo.description = 'Fresh description';
+      store.serverInfo.iconUrl = 'https://cdn/icon.webp';
+      store.serverInfo.bannerUrl = 'https://cdn/banner.webp';
+    });
+    store.serverInfo.refreshAuthenticatedSettings = vi.fn().mockImplementation(async () => {
+      store.serverInfo.motd = 'Fresh MOTD';
+      store.serverInfo.pushNotificationsEnabled = true;
+      store.serverInfo.livekitUrl = 'wss://livekit';
+      store.serverInfo.videoProcessingEnabled = true;
+      store.serverInfo.maxUploadSize = 100;
+      store.serverInfo.maxVideoUploadSize = 200;
+      store.serverInfo.messageEditWindowSeconds = 120;
+    });
     store.currentUser.user = { id: 'U1', login: 'alice', displayName: 'Alice' } as never;
     await flushPromises();
     await Promise.resolve();
-    fake.query.mockClear();
+    vi.mocked(store.serverInfo.refreshProfile).mockClear();
+    vi.mocked(store.serverInfo.refreshAuthenticatedSettings).mockClear();
 
-    eventBusManager.startBus(registered.id, fake as unknown as GraphQLClient);
+    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
     flushSync();
     const bus = eventBusManager.getBus(registered.id);
     if (!bus) throw new Error('event bus did not start');
@@ -149,13 +107,20 @@ describe('ServerStateStore live server updates', () => {
         createdAt: new Date().toISOString(),
         actorId: 'U1',
         actor: null,
-        event: { __typename: 'ServerUpdatedEvent', name: 'stale' }
+        event: {
+          __typename: 'ServerUpdatedEvent',
+          name: 'stale',
+          description: null,
+          logoUrl: null,
+          bannerUrl: null
+        }
       });
     }
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(fake.query).toHaveBeenCalledTimes(2);
+    expect(store.serverInfo.refreshProfile).toHaveBeenCalledOnce();
+    expect(store.serverInfo.refreshAuthenticatedSettings).toHaveBeenCalledOnce();
     expect(store.serverInfo.name).toBe('Fresh Name');
     expect(store.serverInfo.welcomeMessage).toBe('Fresh welcome');
     expect(store.serverInfo.description).toBe('Fresh description');
@@ -167,7 +132,7 @@ describe('ServerStateStore live server updates', () => {
   });
 
   it('forwards RoomGroupsUpdatedEvent once to every room-state store', async () => {
-    const fake = new FakeGqlClient([
+    const fake = new FakeServerConnection([
       {
         server: {
           pushNotificationsEnabled: false,
@@ -200,7 +165,7 @@ describe('ServerStateStore live server updates', () => {
     store.roomDirectory.refresh = vi.fn().mockResolvedValue(undefined);
     store.adminRoomLayout.refresh = vi.fn().mockResolvedValue(undefined);
 
-    eventBusManager.startBus(registered.id, fake as unknown as GraphQLClient);
+    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
     flushSync();
     const bus = eventBusManager.getBus(registered.id);
     if (!bus) throw new Error('event bus did not start');
@@ -223,7 +188,7 @@ describe('ServerStateStore live server updates', () => {
   });
 
   it('refreshes projected server state for bearer-auth sessions', async () => {
-    const fake = new FakeGqlClient([]);
+    const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
     store.serverInfo.livekitUrl = 'wss://livekit';
     store.serverInfo.refreshProfile = vi.fn().mockResolvedValue(undefined);
@@ -234,7 +199,7 @@ describe('ServerStateStore live server updates', () => {
     store.adminRoomLayout.refresh = vi.fn().mockResolvedValue(undefined);
     store.activeCallRooms.load = vi.fn().mockResolvedValue(undefined);
 
-    eventBusManager.startBus(registered.id, fake as unknown as GraphQLClient);
+    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
     flushSync();
     const bus = eventBusManager.getBus(registered.id);
     if (!bus) throw new Error('event bus did not start');
@@ -254,7 +219,7 @@ describe('ServerStateStore live server updates', () => {
   });
 
   it('refreshes projected server state for cookie-auth sessions', async () => {
-    const fake = new FakeGqlClient([]);
+    const fake = new FakeServerConnection([]);
     const store = makeStore(fake, cookieRegistered);
     store.currentUser.user = { id: 'U1', login: 'alice', displayName: 'Alice' } as never;
     await flushPromises();
@@ -265,7 +230,7 @@ describe('ServerStateStore live server updates', () => {
     store.roomDirectory.refresh = vi.fn().mockResolvedValue(undefined);
     store.adminRoomLayout.refresh = vi.fn().mockResolvedValue(undefined);
 
-    eventBusManager.startBus(registered.id, fake as unknown as GraphQLClient);
+    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
     flushSync();
     const bus = eventBusManager.getBus(registered.id);
     if (!bus) throw new Error('event bus did not start');
@@ -284,7 +249,7 @@ describe('ServerStateStore live server updates', () => {
   });
 
   it('runs one queued projected-state refresh after an in-flight catch-up succeeds', async () => {
-    const fake = new FakeGqlClient([]);
+    const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
     const rooms = deferred();
     store.serverInfo.refreshProfile = vi.fn().mockResolvedValue(undefined);
@@ -294,7 +259,7 @@ describe('ServerStateStore live server updates', () => {
     store.roomDirectory.refresh = vi.fn().mockResolvedValue(undefined);
     store.adminRoomLayout.refresh = vi.fn().mockResolvedValue(undefined);
 
-    eventBusManager.startBus(registered.id, fake as unknown as GraphQLClient);
+    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
     flushSync();
     const bus = eventBusManager.getBus(registered.id);
     if (!bus) throw new Error('event bus did not start');
@@ -319,7 +284,7 @@ describe('ServerStateStore live server updates', () => {
 
   it('runs a queued projected-state refresh after the in-flight catch-up fails', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const fake = new FakeGqlClient([]);
+    const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
     const rooms = deferred();
     store.serverInfo.refreshProfile = vi.fn().mockResolvedValue(undefined);
@@ -329,7 +294,7 @@ describe('ServerStateStore live server updates', () => {
     store.roomDirectory.refresh = vi.fn().mockResolvedValue(undefined);
     store.adminRoomLayout.refresh = vi.fn().mockResolvedValue(undefined);
 
-    eventBusManager.startBus(registered.id, fake as unknown as GraphQLClient);
+    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
     flushSync();
     const bus = eventBusManager.getBus(registered.id);
     if (!bus) throw new Error('event bus did not start');
@@ -358,7 +323,7 @@ describe('ServerStateStore live server updates', () => {
 
   it('does not dedupe the next projected-state catch-up after a failed refresh', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const fake = new FakeGqlClient([]);
+    const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
     store.serverInfo.refreshProfile = vi.fn().mockResolvedValue(undefined);
     store.serverInfo.refreshAuthenticatedSettings = vi.fn().mockResolvedValue(undefined);
@@ -370,7 +335,7 @@ describe('ServerStateStore live server updates', () => {
     store.roomDirectory.refresh = vi.fn().mockResolvedValue(undefined);
     store.adminRoomLayout.refresh = vi.fn().mockResolvedValue(undefined);
 
-    eventBusManager.startBus(registered.id, fake as unknown as GraphQLClient);
+    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
     flushSync();
     const bus = eventBusManager.getBus(registered.id);
     if (!bus) throw new Error('event bus did not start');

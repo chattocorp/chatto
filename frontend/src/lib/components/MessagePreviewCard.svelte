@@ -3,7 +3,7 @@
 
 Displays a preview card for a Chatto message link (e.g. pasted in the composer
 or embedded in a posted message). The message is fetched through the appropriate
-instance's GraphQL client; if it can't be loaded (not found, no permission,
+instance's protobuf wire client; if it can't be loaded (not found, no permission,
 unknown instance) the component renders nothing.
 
 **Props:**
@@ -11,57 +11,15 @@ unknown instance) the component renders nothing.
 - `onDismiss` — Callback when user dismisses the preview (composer mode).
 - `showDismiss` — Whether to show the dismiss button (default: true).
 -->
-<script lang="ts" module>
-  import { graphql } from '$lib/gql';
-  import { UserAvatarFragment } from './UserAvatar.svelte';
-
-  export const MessagePreviewQuery = graphql(`
-    query MessagePreview($roomId: ID!, $eventId: ID!) {
-      server {
-        profile {
-          name
-        }
-      }
-      room(roomId: $roomId) {
-        id
-        name
-        event(eventId: $eventId) {
-          id
-          createdAt
-          actor {
-            ...UserAvatarUser
-          }
-          event {
-            __typename
-            ... on MessagePostedEvent {
-              body
-              attachments {
-                id
-                filename
-                contentType
-                thumbnailAssetUrl(width: 120, height: 120, fit: COVER) {
-                  url
-                  expiresAt
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  `);
-</script>
-
 <script lang="ts">
   import type { MessageLink } from '$lib/messageLinks';
-  import { FitMode, type UserAvatarUserFragment } from '$lib/gql/graphql';
-  import { useFragment } from '$lib/gql';
+  import type { UserAvatarUserFragment } from '$lib/chatTypes';
   import { resolve } from '$app/paths';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import { serverIdToSegment } from '$lib/navigation';
-  import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import {
+    AttachmentThumbnailFit,
     assetUrlNeedsRefresh,
     earliestAssetUrlRefreshAt,
     refreshAttachmentUrlsForMessage,
@@ -70,6 +28,9 @@ unknown instance) the component renders nothing.
   } from '$lib/attachments/attachmentUrls';
   import { assetUrlForServer } from '$lib/assets/assetUrls';
   import UserAvatar from './UserAvatar.svelte';
+  import { wireEventBusManager } from '$lib/state/server/wireEventBus.svelte';
+  import { GetRoomEventRequest, GetRoomRequest } from '$lib/pb/chatto/api/v1/chat_pb';
+  import { wireRoomEventViewToFragment } from '$lib/wire';
 
   let {
     link,
@@ -89,6 +50,13 @@ unknown instance) the component renders nothing.
     thumbnailUrl: string | null;
   }
 
+  type PreviewAttachmentData = {
+    id: string;
+    filename: string;
+    contentType: string;
+    thumbnailAssetUrl?: ExpiringAssetUrl | null;
+  };
+
   let preview = $state<{
     serverId: string;
     roomId: string;
@@ -105,7 +73,7 @@ unknown instance) the component renders nothing.
   const PREVIEW_THUMBNAIL_REFRESH = {
     width: 120,
     height: 120,
-    fit: FitMode.Cover
+    fit: AttachmentThumbnailFit.COVER
   };
 
   function normalizePreviewAssetUrl(
@@ -137,14 +105,16 @@ unknown instance) the component renders nothing.
 
     (async () => {
       try {
-        const client = graphqlClientManager.getClient(serverId).client;
-        const result = await client
-          .query(MessagePreviewQuery, { roomId, eventId: messageId })
-          .toPromise();
+        const client = wireEventBusManager.getClient(serverId);
+        if (!client) return;
+        const [roomResponse, eventResponse] = await Promise.all([
+          client.getRoom(new GetRoomRequest({ roomId, membersLimit: 1 })),
+          client.getRoomEvent(new GetRoomEventRequest({ roomId, eventId: messageId }))
+        ]);
 
         if (cancelled) return;
 
-        const ev = result.data?.room?.event;
+        const ev = wireRoomEventViewToFragment(eventResponse.event);
         const inner = ev?.event;
         if (!ev || !inner || inner.__typename !== 'MessagePostedEvent') {
           return;
@@ -160,7 +130,7 @@ unknown instance) the component renders nothing.
           roomId,
           eventId: messageId,
           body: inner.body ?? null,
-          attachments: inner.attachments.map((a) => {
+          attachments: (inner.attachments as PreviewAttachmentData[]).map((a) => {
             const thumbnailAssetUrl = normalizePreviewAssetUrl(serverId, a.thumbnailAssetUrl);
             return {
               id: a.id,
@@ -170,9 +140,9 @@ unknown instance) the component renders nothing.
               thumbnailUrl: thumbnailAssetUrl?.url ?? null
             };
           }),
-          actor: ev.actor ? useFragment(UserAvatarFragment, ev.actor) : null,
-          spaceName: result.data?.server?.profile.name ?? null,
-          roomName: result.data?.room?.name ?? null
+          actor: ev.actor ?? null,
+          spaceName: roomResponse.serverName || null,
+          roomName: roomResponse.room?.name ?? null
         };
       } catch {
         // Fail silently — no preview shown.
@@ -220,12 +190,11 @@ unknown instance) the component renders nothing.
     if (!preview || refreshPromise) return refreshPromise ?? undefined;
 
     const current = preview;
-    const client = graphqlClientManager.getClient(current.serverId).client;
     refreshPromise = refreshAttachmentUrlsForMessage(
-      client,
       current.roomId,
       current.eventId,
-      PREVIEW_THUMBNAIL_REFRESH
+      PREVIEW_THUMBNAIL_REFRESH,
+      current.serverId
     )
       .then((freshUrls) => {
         if (freshUrls.size === 0) return;

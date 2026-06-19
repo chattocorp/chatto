@@ -1,9 +1,16 @@
 import { untrack } from 'svelte';
-import type { Client } from '@urql/svelte';
-import { graphql, useFragment } from '$lib/gql';
-import { RoomType, UserAvatarUserFragmentDoc, type UserAvatarUserFragment } from '$lib/gql/graphql';
+import { PresenceStatus, RoomType, type UserAvatarUserFragment } from '$lib/chatTypes';
+import {
+  ListMyRoomsRequest,
+  type ListMyRoomsResponse,
+  type RoomListItemView
+} from '$lib/pb/chatto/api/v1/chat_pb';
+import { RoomKind, type User } from '$lib/pb/chatto/core/v1/models_pb';
 import type { NotificationLevelStore } from '$lib/state/server/notificationLevel.svelte';
+import { notificationLevelFromWire } from '$lib/state/server/notificationLevelWire';
 import type { RoomUnreadStore } from '$lib/state/server/roomUnread.svelte';
+import { wireEventBusManager } from '$lib/state/server/wireEventBus.svelte';
+import type { WireClient } from '$lib/wire/client';
 
 export type RoomsListItem = {
   id: string;
@@ -19,50 +26,6 @@ export type RoomsListGroup = {
   name: string;
   roomIds: string[];
 };
-
-const MyRoomsQuery = graphql(`
-  query GetMyServerRooms {
-    viewer {
-      user {
-        id
-        rooms {
-          id
-          name
-          type
-          hasUnread
-          archived
-          viewerNotificationPreference {
-            level
-            effectiveLevel
-          }
-          members(limit: 100) {
-            users {
-              ...UserAvatarUser
-            }
-          }
-        }
-      }
-    }
-    server {
-      roomGroups {
-        id
-        name
-        rooms {
-          id
-        }
-      }
-    }
-  }
-`);
-
-function uniqueById<T extends { id: string }>(items: T[]): T[] {
-  const seen: Record<string, true> = Object.create(null);
-  return items.filter((item) => {
-    if (seen[item.id]) return false;
-    seen[item.id] = true;
-    return true;
-  });
-}
 
 const roomStateRefreshEvents = new Set([
   'RoomCreatedEvent',
@@ -99,19 +62,20 @@ export class RoomsStore {
   rooms = $state<RoomsListItem[]>([]);
   roomGroups = $state<RoomsListGroup[] | null>(null);
   isInitialLoading = $state(true);
-  // The viewer's user ID, captured from the same `viewer { user { id, rooms } }`
-  // query that produced `rooms`. Use this in preference to a global auth
-  // context when filtering self out of `room.members` — by construction it is
-  // set whenever there are rooms (with members) to render, eliminating any
-  // race with the auth context being briefly empty during route transitions.
+  // The viewer's user ID, captured from the same wire response that produced
+  // `rooms`. Prefer this to a global auth context when filtering self out of
+  // `room.members`, eliminating route-transition races where auth is briefly
+  // empty while rooms are already rendered.
   currentUserId = $state<string | null>(null);
 
   private loadId = 0;
 
   constructor(
-    private readonly client: Client,
+    private readonly serverId: string,
     private readonly notificationLevels: NotificationLevelStore,
-    private readonly roomUnread: RoomUnreadStore
+    private readonly roomUnread: RoomUnreadStore,
+    private readonly getWireClient: () => WireClient | undefined = () =>
+      wireEventBusManager.getClient(serverId)
   ) {}
 
   // -------------------------------------------------------------------------
@@ -120,44 +84,42 @@ export class RoomsStore {
 
   async refresh(): Promise<void> {
     const thisLoad = ++this.loadId;
-    const result = await this.client.query(MyRoomsQuery, {}).toPromise();
+    const client = this.getWireClient();
+    if (!client) {
+      console.warn(`[server:${this.serverId}] cannot refresh rooms before wire client is ready`);
+      return;
+    }
+
+    const [channelResponse, dmResponse] = await Promise.all([
+      client.listMyRooms(new ListMyRoomsRequest({ kind: RoomKind.CHANNEL })),
+      client.listMyRooms(new ListMyRoomsRequest({ kind: RoomKind.DM }))
+    ]);
     if (this.loadId !== thisLoad) return;
 
-    if (result.data?.viewer?.user) {
-      this.currentUserId = result.data.viewer.user.id;
-      const allRooms = uniqueById(result.data.viewer.user.rooms);
+    this.currentUserId = firstViewerUserId(channelResponse, dmResponse);
+    const views = uniqueRoomViews([...channelResponse.roomViews, ...dmResponse.roomViews]);
 
-      for (const room of allRooms) {
-        const pref = room.viewerNotificationPreference;
-        if (pref) {
-          this.notificationLevels.setRoomPreference(room.id, pref.level, pref.effectiveLevel);
-        }
+    for (const view of views) {
+      const room = view.room;
+      const pref = view.viewerNotificationPreference;
+      if (room && pref) {
+        this.notificationLevels.setRoomPreference(
+          room.id,
+          notificationLevelFromWire(pref.level),
+          notificationLevelFromWire(pref.effectiveLevel)
+        );
       }
-
-      const visible = allRooms.filter((r: { archived: boolean }) => !r.archived);
-      this.rooms = visible.map((r: (typeof allRooms)[number]) => ({
-        id: r.id,
-        name: r.name,
-        type: r.type,
-        hasUnread: r.hasUnread,
-        members: r.members.users.map((m: (typeof r.members.users)[number]) =>
-          useFragment(UserAvatarUserFragmentDoc, m)
-        )
-      }));
-      this.roomUnread.initRooms(visible);
     }
 
-    if (result.data?.server?.roomGroups) {
-      type SetT = NonNullable<typeof result.data.server.roomGroups>[number];
-      this.roomGroups = result.data.server.roomGroups.map((s: SetT) => ({
-        id: s.id,
-        name: s.name,
-        roomIds: uniqueById(s.rooms).map((r: SetT['rooms'][number]) => r.id)
-      }));
-    } else {
-      this.roomGroups = null;
-    }
-
+    this.rooms = views.map(roomListItemFromWire).filter(isRoomsListItem);
+    this.roomUnread.initRooms(this.rooms);
+    this.roomGroups = channelResponse.roomGroups.length
+      ? channelResponse.roomGroups.map((group) => ({
+          id: group.id,
+          name: group.name,
+          roomIds: uniqueStrings(group.roomIds)
+        }))
+      : null;
     this.isInitialLoading = false;
   }
 
@@ -213,7 +175,7 @@ export class RoomsStore {
    * sidebar without a manual reload.
    */
   ingestServerEvent(serverEvent: {
-    event?: { __typename?: string; roomId?: string } | null;
+    event?: { __typename?: string; roomId?: string | null } | null;
   }): void {
     const event = serverEvent.event;
     if (!event) return;
@@ -228,4 +190,53 @@ export class RoomsStore {
       }
     }
   }
+}
+
+function firstViewerUserId(...responses: ListMyRoomsResponse[]): string | null {
+  return responses.find((response) => response.viewerUserId)?.viewerUserId ?? null;
+}
+
+function uniqueRoomViews(views: RoomListItemView[]): RoomListItemView[] {
+  const seen: Record<string, true> = Object.create(null);
+  return views.filter((view) => {
+    const id = view.room?.id;
+    if (!id || seen[id]) return false;
+    seen[id] = true;
+    return true;
+  });
+}
+
+function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values)];
+}
+
+function roomListItemFromWire(view: RoomListItemView): RoomsListItem | null {
+  const room = view.room;
+  if (!room || room.archived) return null;
+  return {
+    id: room.id,
+    name: room.name,
+    type: roomTypeFromWire(room.kind),
+    hasUnread: view.hasUnread,
+    members: view.members.map(userToAvatarFragment)
+  };
+}
+
+function isRoomsListItem(value: RoomsListItem | null): value is RoomsListItem {
+  return value !== null;
+}
+
+function roomTypeFromWire(kind: RoomKind): RoomType {
+  return kind === RoomKind.DM ? RoomType.Dm : RoomType.Channel;
+}
+
+function userToAvatarFragment(user: User): UserAvatarUserFragment {
+  return {
+    __typename: 'User',
+    id: user.id,
+    login: user.login,
+    displayName: user.displayName,
+    avatarUrl: null,
+    presenceStatus: PresenceStatus.Offline
+  };
 }

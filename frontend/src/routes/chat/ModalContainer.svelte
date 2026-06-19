@@ -4,7 +4,6 @@
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
 
   const activeInstanceId = $derived(getActiveServer());
@@ -15,17 +14,17 @@
 
   import ImageModal from '$lib/ui/ImageModal.svelte';
 
-  import { graphql } from '$lib/gql';
   import { refreshAttachmentUrlsForMessage } from '$lib/attachments/attachmentUrls';
   import { toast } from '$lib/ui/toast';
   import { clearLastRoom } from '$lib/storage/lastRoom';
   import { notifyLogout } from '$lib/auth/sessionChannel';
   import { csrfFetch } from '$lib/auth/csrf';
-
-  /** Get the GraphQL client for the currently active instance (derived from URL). */
-  function getActiveClient() {
-    return graphqlClientManager.getClient(activeInstanceId).client;
-  }
+  import {
+    tryWireDeleteAttachment,
+    tryWireDeleteLinkPreview,
+    tryWireDeleteMessage,
+    tryWireLeaveRoom
+  } from '$lib/wire';
 
   function closeModal() {
     history.back();
@@ -46,27 +45,25 @@
 
   async function handleLeaveRoom(roomId: string) {
     leavingRoom = true;
-    const result = await getActiveClient()
-      .mutation(
-        graphql(`
-          mutation LeaveRoomFromModal($input: LeaveRoomInput!) {
-            leaveRoom(input: $input)
-          }
-        `),
-        { input: { roomId } }
-      )
-      .toPromise();
-    leavingRoom = false;
-
-    if (result.error) {
+    let closeOnFailure = true;
+    try {
+      const handledByWire = await tryWireLeaveRoom({ roomId });
+      if (!handledByWire) {
+        toast.error('Failed to leave room');
+        return;
+      }
+      clearLastRoom(activeInstanceId);
+      closeOnFailure = false;
+      goto(resolve('/chat/[serverId]', { serverId: serverSegment }));
+    } catch (error) {
       toast.error('Failed to leave room');
-      console.error('Error leaving room:', result.error);
-      closeModal();
-      return;
+      console.error('Error leaving room:', error);
+    } finally {
+      leavingRoom = false;
+      if (closeOnFailure) {
+        closeModal();
+      }
     }
-
-    clearLastRoom(activeInstanceId);
-    goto(resolve('/chat/[serverId]', { serverId: serverSegment }));
   }
 
   async function handleLeaveServer() {
@@ -91,67 +88,54 @@
 
   async function handleDeleteMessage(roomId: string, eventId: string) {
     deletingMessage = true;
-    const result = await getActiveClient()
-      .mutation(
-        graphql(`
-          mutation DeleteMessageFromModal($input: DeleteMessageInput!) {
-            deleteMessage(input: $input)
-          }
-        `),
-        { input: { roomId, eventId } }
-      )
-      .toPromise();
-    deletingMessage = false;
-
-    if (result.error) {
-      toast.error('Failed to delete message');
-      console.error('Error deleting message:', result.error);
-    } else {
+    try {
+      const handledByWire = await tryWireDeleteMessage({ roomId, eventId });
+      if (!handledByWire) {
+        toast.error('Failed to delete message');
+        return;
+      }
       toast.success('Message deleted');
+      closeModal();
+    } catch (error) {
+      toast.error('Failed to delete message');
+      console.error('Error deleting message:', error);
+    } finally {
+      deletingMessage = false;
     }
-    closeModal();
   }
 
   async function handleDeleteLinkPreview(roomId: string, eventId: string, previewUrl: string) {
     deletingLinkPreview = true;
-    const result = await getActiveClient()
-      .mutation(
-        graphql(`
-          mutation DeleteLinkPreviewFromModal($input: DeleteLinkPreviewInput!) {
-            deleteLinkPreview(input: $input)
-          }
-        `),
-        { input: { roomId, eventId, url: previewUrl } }
-      )
-      .toPromise();
-    deletingLinkPreview = false;
-
-    if (result.error) {
+    try {
+      const handledByWire = await tryWireDeleteLinkPreview({ roomId, eventId, url: previewUrl });
+      if (!handledByWire) {
+        toast.error('Failed to delete link preview');
+        return;
+      }
+    } catch (error) {
       toast.error('Failed to delete link preview');
-      console.error('Error deleting link preview:', result.error);
+      console.error('Error deleting link preview:', error);
+    } finally {
+      deletingLinkPreview = false;
+      closeModal();
     }
-    closeModal();
   }
 
   async function handleDeleteAttachment(roomId: string, eventId: string, attachmentId: string) {
     deletingAttachment = true;
-    const result = await getActiveClient()
-      .mutation(
-        graphql(`
-          mutation DeleteAttachmentFromModal($input: DeleteAttachmentInput!) {
-            deleteAttachment(input: $input)
-          }
-        `),
-        { input: { roomId, eventId, attachmentId } }
-      )
-      .toPromise();
-    deletingAttachment = false;
-
-    if (result.error) {
+    try {
+      const handledByWire = await tryWireDeleteAttachment({ roomId, eventId, attachmentId });
+      if (!handledByWire) {
+        toast.error('Failed to delete attachment');
+        return;
+      }
+    } catch (error) {
       toast.error('Failed to delete attachment');
-      console.error('Error deleting attachment:', result.error);
+      console.error('Error deleting attachment:', error);
+    } finally {
+      deletingAttachment = false;
+      closeModal();
     }
-    closeModal();
   }
 
   async function refreshImageViewerUrls() {
@@ -161,11 +145,7 @@
     }
     const refreshRoomId = roomId;
     const refreshEventId = eventId;
-    const freshUrls = await refreshAttachmentUrlsForMessage(
-      getActiveClient(),
-      refreshRoomId,
-      refreshEventId
-    );
+    const freshUrls = await refreshAttachmentUrlsForMessage(refreshRoomId, refreshEventId);
     if (freshUrls.size === 0) {
       return;
     }

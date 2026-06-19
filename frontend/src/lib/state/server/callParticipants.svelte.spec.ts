@@ -1,14 +1,51 @@
 import { describe, expect, it, vi } from 'vitest';
+import {
+	CallParticipantView,
+	GetCallParticipantsResponse
+} from '$lib/pb/chatto/api/v1/chat_pb';
+import { User } from '$lib/pb/chatto/core/v1/models_pb';
 import { CallParticipantsState } from './callParticipants.svelte';
 
 describe('CallParticipantsState', () => {
-	it('removes a failed local participant from observer participants', async () => {
-		const state = new CallParticipantsState({
-			query: vi.fn(() => ({
-				toPromise: vi.fn(async () => ({ data: { room: { callParticipants: [] } } }))
-			}))
-		} as never);
+	function makeState(client = { getCallParticipants: vi.fn(async () => new GetCallParticipantsResponse()) }) {
+		return new CallParticipantsState('server_1', () => client as never);
+	}
 
+	it('loads call participants from the wire API', async () => {
+		const client = {
+			getCallParticipants: vi.fn(
+				async () =>
+					new GetCallParticipantsResponse({
+						participants: [
+							new CallParticipantView({
+								callId: 'call-1',
+								user: new User({
+									id: 'U1',
+									displayName: 'Alice',
+									login: 'alice'
+								})
+							})
+						]
+					})
+			)
+		};
+		const state = makeState(client);
+
+		await state.load('R1');
+
+		expect(client.getCallParticipants).toHaveBeenCalledOnce();
+		expect(state.participants).toEqual([
+			{
+				userId: 'U1',
+				displayName: 'Alice',
+				login: 'alice',
+				avatarUrl: null
+			}
+		]);
+	});
+
+	it('removes a failed local participant from observer participants', async () => {
+		const state = makeState();
 		await state.load('R1');
 		state.handleJoin('R1', 'call-1', {
 			id: 'U1',
@@ -36,11 +73,7 @@ describe('CallParticipantsState', () => {
 	});
 
 	it('clears observer participants when the current room call ends', async () => {
-		const state = new CallParticipantsState({
-			query: vi.fn(() => ({
-				toPromise: vi.fn(async () => ({ data: { room: { callParticipants: [] } } }))
-			}))
-		} as never);
+		const state = makeState();
 
 		await state.load('R1');
 		state.handleJoin('R1', 'call-1', {
@@ -58,11 +91,7 @@ describe('CallParticipantsState', () => {
 	});
 
 	it('ignores stale leave and end events from an older call', async () => {
-		const state = new CallParticipantsState({
-			query: vi.fn(() => ({
-				toPromise: vi.fn(async () => ({ data: { room: { callParticipants: [] } } }))
-			}))
-		} as never);
+		const state = makeState();
 
 		await state.load('R1');
 		state.handleJoin('R1', 'call-2', {

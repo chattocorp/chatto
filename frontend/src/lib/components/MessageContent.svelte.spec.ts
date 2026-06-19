@@ -3,7 +3,7 @@ import { render } from 'vitest-browser-svelte';
 import MessageContent, { renderMarkdown, rendererReady } from './MessageContent.svelte';
 import { q } from '$lib/test-utils';
 import type { RoomMember } from '$lib/mentions';
-import { PresenceStatus } from '$lib/gql/graphql';
+import { PresenceStatus } from '$lib/chatTypes';
 
 function renderMessage(body: string, members: RoomMember[] = [], roleHandles: string[] = []) {
   return render(MessageContent, { props: { body, members, roleHandles } });

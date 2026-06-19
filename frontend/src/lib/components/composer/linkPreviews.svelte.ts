@@ -1,22 +1,24 @@
-import type { Client } from '@urql/svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import { graphql } from '$lib/gql';
-import { type LinkPreviewForComposerQuery, type LinkPreviewInput } from '$lib/gql/graphql';
-import { useFragment } from '$lib/gql/fragment-masking';
+import { GetLinkPreviewRequest } from '$lib/pb/chatto/api/v1/chat_pb';
 import { extractURLs } from '$lib/linkPreview';
 import { parseMessageLink } from '$lib/messageLinks';
-import { LinkPreviewFragment } from '$lib/components/LinkPreviewCard.svelte';
+import { activeWireClient } from '$lib/wire';
 
-const LinkPreviewForComposerDocument = graphql(`
-  query LinkPreviewForComposer($url: String!) {
-    linkPreview(url: $url) {
-      ...LinkPreviewView
-      imageAssetId
-    }
-  }
-`);
+export type ComposerLinkPreviewInput = {
+  url: string;
+  title?: string | null;
+  description?: string | null;
+  siteName?: string | null;
+  imageAssetId?: string | null;
+  embedType?: string | null;
+  embedId?: string | null;
+};
 
-type PreviewData = NonNullable<LinkPreviewForComposerQuery['linkPreview']>;
+type PreviewData = ComposerLinkPreviewInput & {
+  imageUrl?: string | null;
+};
+
+type PreviewFetcher = (url: string) => Promise<PreviewData | null>;
 
 export class LinkPreviewState {
   detectedURLs = $state<string[]>([]);
@@ -25,7 +27,7 @@ export class LinkPreviewState {
   fetchingURLs = new SvelteSet<string>();
   #urlDetectionTimeout: ReturnType<typeof setTimeout> | undefined;
 
-  constructor(private readonly getClient: () => Client) {}
+  constructor(private readonly fetchPreviewData: PreviewFetcher = fetchWireLinkPreview) {}
 
   get activeURL(): string | undefined {
     return this.detectedURLs[0];
@@ -57,12 +59,12 @@ export class LinkPreviewState {
   async fetchPreview(url: string): Promise<void> {
     this.fetchingURLs.add(url);
 
-    const result = await this.getClient().query(LinkPreviewForComposerDocument, { url });
+    const result = await this.fetchPreviewData(url);
 
     this.fetchingURLs.delete(url);
 
-    if (result.data?.linkPreview) {
-      this.previews.set(url, result.data.linkPreview);
+    if (result) {
+      this.previews.set(url, result);
     } else {
       this.previews.set(url, null);
     }
@@ -80,23 +82,42 @@ export class LinkPreviewState {
     this.fetchingURLs.clear();
   }
 
-  buildInput(): LinkPreviewInput | null {
+  buildInput(): ComposerLinkPreviewInput | null {
     const previewURL = this.activeURL;
     const activePreview = previewURL ? this.previews.get(previewURL) : null;
-    const previewFields = activePreview ? useFragment(LinkPreviewFragment, activePreview) : null;
 
-    if (!previewURL || !activePreview || !previewFields || this.dismissedURLs.has(previewURL)) {
+    if (!previewURL || !activePreview || this.dismissedURLs.has(previewURL)) {
       return null;
     }
 
     return {
-      url: previewFields.url,
-      title: previewFields.title,
-      description: previewFields.description,
-      siteName: previewFields.siteName,
+      url: activePreview.url,
+      title: activePreview.title,
+      description: activePreview.description,
+      siteName: activePreview.siteName,
       imageAssetId: activePreview.imageAssetId,
-      embedType: previewFields.embedType,
-      embedId: previewFields.embedId
+      embedType: activePreview.embedType,
+      embedId: activePreview.embedId
     };
   }
+}
+
+async function fetchWireLinkPreview(url: string): Promise<PreviewData | null> {
+  const client = activeWireClient();
+  if (!client) return null;
+
+  const response = await client.getLinkPreview(new GetLinkPreviewRequest({ url }));
+  const preview = response.preview;
+  if (!preview?.url) return null;
+
+  return {
+    url: preview.url,
+    title: preview.title,
+    description: preview.description,
+    siteName: preview.siteName,
+    imageUrl: preview.imageUrl ?? null,
+    imageAssetId: preview.imageAssetId ?? null,
+    embedType: preview.embedType,
+    embedId: preview.embedId ?? null
+  };
 }

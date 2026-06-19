@@ -8,44 +8,37 @@
 import { redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import { browser } from '$app/environment';
-import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
+import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
-import { graphql } from '$lib/gql';
-import type { LoadCurrentUserQuery } from '$lib/gql/graphql';
-import { isAuthenticationRequiredError } from './errors';
+import { CurrentUserPresenceStatus, type CurrentUserView } from '$lib/pb/chatto/api/v1/chat_pb';
+import { TimeFormat as WireTimeFormat } from '$lib/pb/chatto/core/v1/user_preferences_pb';
+import { ErrorCode } from '$lib/pb/chatto/wire/v1/protocol_pb';
+import { WireClient, WireProtocolError } from '$lib/wire/client';
+import { PresenceStatus, TimeFormat } from '$lib/chatTypes';
 
-export const LoadCurrentUserDocument = graphql(`
-  query LoadCurrentUser {
-    viewer {
-      user {
-        id
-        login
-        displayName
-        avatarUrl
-        presenceStatus
-        hasVerifiedEmail
-        settings {
-          timezone
-          timeFormat
-        }
-      }
-    }
-  }
-`);
-
-// Re-export the CurrentUser type for use in load function return types
-export type CurrentUser = NonNullable<LoadCurrentUserQuery['viewer']>['user'];
+export interface CurrentUser {
+  id: string;
+  login: string;
+  displayName: string;
+  avatarUrl: string | null;
+  presenceStatus: PresenceStatus;
+  hasVerifiedEmail: boolean;
+  settings: {
+    timezone?: string | null;
+    timeFormat: TimeFormat;
+  } | null;
+}
 
 // Module-level cache for the current user. Root load re-checks the server on
 // navigation, but keeps this value as a fallback when the check itself fails.
 let cachedUser: CurrentUser | null = null;
 
 /**
- * Load the current user from the GraphQL API.
+ * Load the current user from the protobuf wire API.
  * Returns null if not authenticated.
  *
  * On transient network errors (e.g., slow CI, server still warming up after reload),
- * retries once. If the query still fails and we previously had a user, keep the
+ * retries once. If the wire request still fails and we previously had a user, keep the
  * cached user rather than rendering the app as unauthenticated.
  */
 export async function loadCurrentUser(): Promise<CurrentUser | null> {
@@ -56,31 +49,88 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
   }
 
   for (let attempt = 0; attempt < 2; attempt++) {
-    const resp = await graphqlClientManager.originClient.client.query(
-      LoadCurrentUserDocument,
-      {},
-      { requestPolicy: 'network-only' }
-    );
-
-    if (resp.error?.networkError && attempt === 0) {
-      await new Promise((r) => setTimeout(r, 200));
-      continue;
-    }
-
-    if (resp.error) {
-      if (isAuthenticationRequiredError(resp.error)) {
+    try {
+      cachedUser = await fetchCurrentUserViaWire(
+        serverConnectionManager.originClient.wireUrl,
+        serverConnectionManager.originClient.token
+      );
+      return cachedUser;
+    } catch (err) {
+      if (isWireAuthenticationRequiredError(err)) {
         cachedUser = null;
         serverRegistry.clearOriginAuthentication();
         return null;
       }
+      if (attempt === 0) {
+        await new Promise((r) => setTimeout(r, 200));
+        continue;
+      }
       return cachedUser;
     }
-
-    cachedUser = resp.data?.viewer?.user ?? null;
-    return cachedUser;
   }
 
   return cachedUser;
+}
+
+export async function fetchCurrentUserViaWire(
+  wireUrl: string,
+  token: string | null
+): Promise<CurrentUser | null> {
+  const client = new WireClient({ url: wireUrl, token });
+  try {
+    const resp = await client.getCurrentUser();
+    return currentUserFromWire(resp.user);
+  } finally {
+    client.dispose();
+  }
+}
+
+export function currentUserFromWire(view: CurrentUserView | undefined): CurrentUser | null {
+  const user = view?.user;
+  if (!user) return null;
+  return {
+    id: user.id,
+    login: user.login,
+    displayName: user.displayName,
+    avatarUrl: view.avatarUrl || null,
+    presenceStatus: presenceStatusFromWire(view.presenceStatus),
+    hasVerifiedEmail: view.hasVerifiedEmail,
+    settings: {
+      timezone: view.settings?.timezone ?? null,
+      timeFormat: timeFormatFromWire(view.settings?.timeFormat)
+    }
+  };
+}
+
+export function isWireAuthenticationRequiredError(error: unknown): boolean {
+  return error instanceof WireProtocolError && error.wireError?.code === ErrorCode.UNAUTHENTICATED;
+}
+
+function presenceStatusFromWire(status: CurrentUserPresenceStatus): PresenceStatus {
+  switch (status) {
+    case CurrentUserPresenceStatus.ONLINE:
+      return PresenceStatus.Online;
+    case CurrentUserPresenceStatus.AWAY:
+      return PresenceStatus.Away;
+    case CurrentUserPresenceStatus.DO_NOT_DISTURB:
+      return PresenceStatus.DoNotDisturb;
+    case CurrentUserPresenceStatus.OFFLINE:
+    case CurrentUserPresenceStatus.UNSPECIFIED:
+    default:
+      return PresenceStatus.Offline;
+  }
+}
+
+function timeFormatFromWire(format: WireTimeFormat | undefined): TimeFormat {
+  switch (format) {
+    case WireTimeFormat.TIME_FORMAT_12H:
+      return TimeFormat.TwelveHour;
+    case WireTimeFormat.TIME_FORMAT_24H:
+      return TimeFormat.TwentyFourHour;
+    case WireTimeFormat.TIME_FORMAT_UNSPECIFIED:
+    default:
+      return TimeFormat.Auto;
+  }
 }
 
 /**

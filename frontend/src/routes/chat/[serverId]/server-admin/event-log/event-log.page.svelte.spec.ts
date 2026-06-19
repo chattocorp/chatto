@@ -11,11 +11,11 @@ type Entry = {
   eventType: string;
   eventId: string;
   actorId: string;
-  createdAt: string;
+  createdAt: { toDate(): Date };
 };
 
 const mocks = vi.hoisted(() => ({
-  query: vi.fn(),
+  listAdminEventLog: vi.fn(),
   goto: vi.fn()
 }));
 
@@ -90,16 +90,12 @@ vi.mock('$lib/state/userSettings.svelte', () => ({
   })
 }));
 
-vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({
-    isConnected: true,
-    showConnectionLostBanner: false,
-    client: {
-      query: mocks.query,
-      mutation: vi.fn(),
-      subscription: vi.fn()
-    }
-  })
+vi.mock('$lib/wire/activeServerClient', () => ({
+  withActiveServerWireClient: vi.fn((callback: (client: unknown) => unknown) =>
+    callback({
+      listAdminEventLog: mocks.listAdminEventLog
+    })
+  )
 }));
 
 function entry(sequence: string, eventType: string): Entry {
@@ -111,7 +107,7 @@ function entry(sequence: string, eventType: string): Entry {
     eventType,
     eventId: `event-${sequence}`,
     actorId: `actor-${sequence}`,
-    createdAt: '2026-01-01T12:00:00Z'
+    createdAt: { toDate: () => new Date('2026-01-01T12:00:00Z') }
   };
 }
 
@@ -122,26 +118,18 @@ function result(
   endCursor?: string
 ) {
   return {
-    admin: {
-      eventLog: {
-        entries,
-        totalCount,
-        hasOlder,
-        endCursor: endCursor ?? entries.at(-1)?.sequence ?? null
-      }
-    }
+    entries,
+    totalCount,
+    hasOlder,
+    endCursor: endCursor ?? entries.at(-1)?.sequence ?? ''
   };
 }
 
-function queueResults(...results: Array<ReturnType<typeof result> | { admin: null }>) {
-  mocks.query.mockImplementation(() => {
+function queueResults(...results: Array<ReturnType<typeof result> | Error>) {
+  mocks.listAdminEventLog.mockImplementation(() => {
     const data = results.shift();
-    return {
-      toPromise: vi.fn().mockResolvedValue({
-        data,
-        error: null
-      })
-    };
+    if (data instanceof Error) return Promise.reject(data);
+    return Promise.resolve(data);
   });
 }
 
@@ -158,7 +146,7 @@ describe('server admin event log pagination', () => {
     observers = [];
     globalThis.IntersectionObserver =
       MockIntersectionObserver as unknown as typeof IntersectionObserver;
-    mocks.query.mockReset();
+    mocks.listAdminEventLog.mockReset();
     mocks.goto.mockReset();
   });
 
@@ -175,10 +163,13 @@ describe('server admin event log pagination', () => {
     const { container } = render(EventLogPage);
     await settle();
 
-    expect(mocks.query).toHaveBeenNthCalledWith(1, expect.anything(), {
-      limit: 50,
-      before: null
-    });
+    expect(mocks.listAdminEventLog).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        limit: 50,
+        before: ''
+      })
+    );
     expect(container.textContent).toContain('3 total events in stream');
     expect(container.textContent).toContain('user.created');
     expect(container.textContent).toContain('room.created');
@@ -187,16 +178,19 @@ describe('server admin event log pagination', () => {
     observers[0].trigger(true);
     await settle();
 
-    expect(mocks.query).toHaveBeenNthCalledWith(2, expect.anything(), {
-      limit: 50,
-      before: '101'
-    });
+    expect(mocks.listAdminEventLog).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        limit: 50,
+        before: '101'
+      })
+    );
     expect(container.textContent).toContain('auth.login');
     expect(container.textContent?.match(/room.created/g)).toHaveLength(1);
   });
 
   it('renders the audit permission error when admin data is unavailable', async () => {
-    queueResults({ admin: null });
+    queueResults(new Error('Event log unavailable (audit permission required)'));
 
     const { container } = render(EventLogPage);
     await settle();

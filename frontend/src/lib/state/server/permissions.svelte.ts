@@ -3,8 +3,7 @@ import { getActiveServer } from '$lib/state/activeServer.svelte';
 import { serverRegistry } from './registry.svelte';
 
 /**
- * Viewer permissions data from the GraphQL `viewer` query.
- * This matches the shape returned by the Viewer type in the schema.
+ * Viewer permissions data from the server-scoped viewer bootstrap.
  */
 export type ViewerData = {
   /** Whether the viewer has at least one admin-capability entry point. */
@@ -21,7 +20,7 @@ export type ViewerData = {
 /**
  * Server-level permissions for the current user, plus a `loaded` flag.
  * The underlying state lives on the per-server `ServerStateStore`
- * (populated by `ServerSidebarEntry`'s viewer query).
+ * (populated by `ServerSidebarEntry`'s viewer bootstrap).
  */
 export type ServerPermissions = ViewerData & {
   loaded: boolean;

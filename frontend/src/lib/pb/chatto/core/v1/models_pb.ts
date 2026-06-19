@@ -741,7 +741,7 @@ export class Role extends Message<Role> {
   description = "";
 
   /**
-   * Hierarchy position: lower = higher rank. Owner=0, Everyone=MAX_INT32
+   * Display/order position; not an authorization rank.
    *
    * @generated from field: int32 position = 4;
    */

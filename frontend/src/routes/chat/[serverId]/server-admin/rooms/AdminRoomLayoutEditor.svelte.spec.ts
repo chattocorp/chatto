@@ -1,9 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
-import type { Client } from '@urql/svelte';
 import { q } from '$lib/test-utils';
-import { AdminRoomLayoutStore, type AdminRoomInfo } from '$lib/state/server/adminRoomLayout.svelte';
+import {
+  AdminRoomLayoutStore,
+  type AdminRoomInfo,
+  type AdminRoomLayoutWireClient
+} from '$lib/state/server/adminRoomLayout.svelte';
 import AdminRoomLayoutEditor from './AdminRoomLayoutEditor.svelte';
 
 vi.mock('$app/navigation', () => ({
@@ -48,10 +51,17 @@ function room(id: string, overrides: Partial<AdminRoomInfo> = {}): AdminRoomInfo
 
 function makeLayout(): AdminRoomLayoutStore {
   const client = {
-    query: vi.fn(),
-    mutation: vi.fn(),
-    subscription: vi.fn()
-  } as unknown as Client;
+    getAdminRoomLayout: vi.fn().mockResolvedValue({ groups: [] }),
+    createAdminRoomGroup: vi.fn().mockResolvedValue({ group: null }),
+    updateAdminRoomGroup: vi.fn().mockResolvedValue({ group: null }),
+    deleteAdminRoomGroup: vi.fn().mockResolvedValue({ deleted: true }),
+    reorderAdminRoomGroups: vi.fn().mockResolvedValue({ groups: [] }),
+    moveAdminRoomToGroup: vi.fn().mockResolvedValue({ room: null }),
+    reorderAdminRoomsInGroup: vi.fn().mockResolvedValue({ group: null }),
+    updateAdminRoom: vi.fn().mockResolvedValue({ room: null }),
+    archiveAdminRoom: vi.fn().mockResolvedValue({ room: null }),
+    unarchiveAdminRoom: vi.fn().mockResolvedValue({ room: null })
+  } as unknown as AdminRoomLayoutWireClient;
   return new AdminRoomLayoutStore(client);
 }
 

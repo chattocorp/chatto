@@ -1,10 +1,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import {
+	GetViewerResponse,
+	ServerProfileView,
+	Viewer,
+	ViewerPermissionsView
+} from '$lib/pb/chatto/api/v1/chat_pb';
+import { User } from '$lib/pb/chatto/core/v1/models_pb';
 import { q } from '$lib/test-utils';
 
 const { mocks } = vi.hoisted(() => {
 	const client = {
-		query: vi.fn()
+		getViewer: vi.fn()
 	};
 
 	return {
@@ -42,6 +49,7 @@ const { mocks } = vi.hoisted(() => {
 					name: 'Chatto',
 					iconUrl: null
 				},
+				rooms: { refresh: vi.fn().mockResolvedValue(undefined) },
 				setPermissions: vi.fn(),
 				serverIndicator: vi.fn().mockReturnValue(null)
 			}
@@ -79,14 +87,19 @@ vi.mock('$lib/eventBus.svelte', () => ({
 	createEventBusHandlerRegistrar: vi.fn(() => undefined)
 }));
 
-vi.mock('$lib/state/server/graphqlClient.svelte', () => ({
-	graphqlClientManager: {
+vi.mock('$lib/state/server/serverConnection.svelte', () => ({
+	serverConnectionManager: {
 		getClient: vi.fn(() => ({
 			get showConnectionLostIcon() {
 				return mocks.showConnectionLostIcon;
-			},
-			client: mocks.client
+			}
 		}))
+	}
+}));
+
+vi.mock('$lib/state/server/wireEventBus.svelte', () => ({
+	wireEventBusManager: {
+		getClient: vi.fn(() => mocks.client)
 	}
 }));
 
@@ -107,8 +120,9 @@ describe('ServerSidebarEntry', () => {
 		consoleErrorSpy?.mockRestore();
 		consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 		mocks.showConnectionLostIcon = false;
-		mocks.client.query.mockReset();
+		mocks.client.getViewer.mockReset();
 		mocks.store.notifications.fetch.mockClear();
+		mocks.store.rooms.refresh.mockClear();
 		mocks.store.serverIndicator.mockReturnValue(null);
 		mocks.store.serverInfo.name = 'Chatto';
 		mocks.store.serverInfo.iconUrl = null;
@@ -119,12 +133,7 @@ describe('ServerSidebarEntry', () => {
 	});
 
 	it('keeps a failed server in the gutter as a dimmed icon', async () => {
-		mocks.client.query.mockReturnValue({
-			toPromise: vi.fn().mockResolvedValue({
-				data: null,
-				error: new Error('connection refused')
-			})
-		});
+		mocks.client.getViewer.mockRejectedValue(new Error('connection refused'));
 
 		const { container } = render(ServerSidebarEntry, {
 			props: {
@@ -134,7 +143,7 @@ describe('ServerSidebarEntry', () => {
 		});
 
 		await vi.waitFor(() => {
-			expect(mocks.client.query).toHaveBeenCalled();
+			expect(mocks.client.getViewer).toHaveBeenCalled();
 		});
 
 		const icon = q(container, '[data-testid="server-icon"]');
@@ -148,23 +157,24 @@ describe('ServerSidebarEntry', () => {
 	});
 
 	it('removes the dimmed state after sidebar init succeeds', async () => {
-		mocks.client.query.mockReturnValue({
-			toPromise: vi.fn().mockResolvedValue({
-				data: {
-					server: {
-						profile: {
-							name: 'Loaded Remote',
-							logoUrl: null
-						},
-						viewerNotificationPreference: null,
-						viewerHasUnreadRooms: false,
-						rooms: []
-					},
-					viewer: null
-				},
-				error: null
+		mocks.client.getViewer.mockResolvedValue(
+			new GetViewerResponse({
+				serverProfile: new ServerProfileView({
+					name: 'Loaded Remote',
+					logoUrl: ''
+				}),
+				viewer: new Viewer({
+					user: new User({
+						id: 'user-1',
+						login: 'alice',
+						displayName: 'Alice'
+					}),
+					permissions: new ViewerPermissionsView({
+						canStartDms: true
+					})
+				})
 			})
-		});
+		);
 
 		const { container } = render(ServerSidebarEntry, {
 			props: {

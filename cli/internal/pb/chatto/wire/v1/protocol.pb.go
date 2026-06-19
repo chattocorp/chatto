@@ -818,13 +818,14 @@ func (x *Ping) GetSentAt() *timestamppb.Timestamp {
 
 // WireError reports request or connection errors in a schemaful way.
 type WireError struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RequestId     string                 `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
-	Code          ErrorCode              `protobuf:"varint,2,opt,name=code,proto3,enum=chatto.wire.v1.ErrorCode" json:"code,omitempty"`
-	Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
-	Retryable     bool                   `protobuf:"varint,4,opt,name=retryable,proto3" json:"retryable,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                       protoimpl.MessageState            `protogen:"open.v1"`
+	RequestId                   string                            `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	Code                        ErrorCode                         `protobuf:"varint,2,opt,name=code,proto3,enum=chatto.wire.v1.ErrorCode" json:"code,omitempty"`
+	Message                     string                            `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	Retryable                   bool                              `protobuf:"varint,4,opt,name=retryable,proto3" json:"retryable,omitempty"`
+	MentionConfirmationRequired *MentionConfirmationRequiredError `protobuf:"bytes,5,opt,name=mention_confirmation_required,json=mentionConfirmationRequired,proto3" json:"mention_confirmation_required,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
 }
 
 func (x *WireError) Reset() {
@@ -885,6 +886,65 @@ func (x *WireError) GetRetryable() bool {
 	return false
 }
 
+func (x *WireError) GetMentionConfirmationRequired() *MentionConfirmationRequiredError {
+	if x != nil {
+		return x.MentionConfirmationRequired
+	}
+	return nil
+}
+
+type MentionConfirmationRequiredError struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	RecipientCount int32                  `protobuf:"varint,1,opt,name=recipient_count,json=recipientCount,proto3" json:"recipient_count,omitempty"`
+	Token          string                 `protobuf:"bytes,2,opt,name=token,proto3" json:"token,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *MentionConfirmationRequiredError) Reset() {
+	*x = MentionConfirmationRequiredError{}
+	mi := &file_chatto_wire_v1_protocol_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MentionConfirmationRequiredError) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MentionConfirmationRequiredError) ProtoMessage() {}
+
+func (x *MentionConfirmationRequiredError) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_wire_v1_protocol_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MentionConfirmationRequiredError.ProtoReflect.Descriptor instead.
+func (*MentionConfirmationRequiredError) Descriptor() ([]byte, []int) {
+	return file_chatto_wire_v1_protocol_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *MentionConfirmationRequiredError) GetRecipientCount() int32 {
+	if x != nil {
+		return x.RecipientCount
+	}
+	return 0
+}
+
+func (x *MentionConfirmationRequiredError) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
 // StreamEvent is the client-facing event envelope for durable EVT facts,
 // transient LiveEvent signals, and synthetic heartbeat events.
 type StreamEvent struct {
@@ -905,7 +965,7 @@ type StreamEvent struct {
 
 func (x *StreamEvent) Reset() {
 	*x = StreamEvent{}
-	mi := &file_chatto_wire_v1_protocol_proto_msgTypes[10]
+	mi := &file_chatto_wire_v1_protocol_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -917,7 +977,7 @@ func (x *StreamEvent) String() string {
 func (*StreamEvent) ProtoMessage() {}
 
 func (x *StreamEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_wire_v1_protocol_proto_msgTypes[10]
+	mi := &file_chatto_wire_v1_protocol_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -930,7 +990,7 @@ func (x *StreamEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamEvent.ProtoReflect.Descriptor instead.
 func (*StreamEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_wire_v1_protocol_proto_rawDescGZIP(), []int{10}
+	return file_chatto_wire_v1_protocol_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *StreamEvent) GetEventId() string {
@@ -1029,7 +1089,7 @@ type InvalidationHint struct {
 
 func (x *InvalidationHint) Reset() {
 	*x = InvalidationHint{}
-	mi := &file_chatto_wire_v1_protocol_proto_msgTypes[11]
+	mi := &file_chatto_wire_v1_protocol_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1041,7 +1101,7 @@ func (x *InvalidationHint) String() string {
 func (*InvalidationHint) ProtoMessage() {}
 
 func (x *InvalidationHint) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_wire_v1_protocol_proto_msgTypes[11]
+	mi := &file_chatto_wire_v1_protocol_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1054,7 +1114,7 @@ func (x *InvalidationHint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InvalidationHint.ProtoReflect.Descriptor instead.
 func (*InvalidationHint) Descriptor() ([]byte, []int) {
-	return file_chatto_wire_v1_protocol_proto_rawDescGZIP(), []int{11}
+	return file_chatto_wire_v1_protocol_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *InvalidationHint) GetKind() InvalidationKind {
@@ -1120,13 +1180,17 @@ const file_chatto_wire_v1_protocol_proto_rawDesc = "" +
 	"\x0fdelivery_cursor\x18\x02 \x01(\tR\x0edeliveryCursor\"Q\n" +
 	"\x04Ping\x12\x14\n" +
 	"\x05nonce\x18\x01 \x01(\x03R\x05nonce\x123\n" +
-	"\asent_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x06sentAt\"\x91\x01\n" +
+	"\asent_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x06sentAt\"\x87\x02\n" +
 	"\tWireError\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tR\trequestId\x12-\n" +
 	"\x04code\x18\x02 \x01(\x0e2\x19.chatto.wire.v1.ErrorCodeR\x04code\x12\x18\n" +
 	"\amessage\x18\x03 \x01(\tR\amessage\x12\x1c\n" +
-	"\tretryable\x18\x04 \x01(\bR\tretryable\"\xf9\x02\n" +
+	"\tretryable\x18\x04 \x01(\bR\tretryable\x12t\n" +
+	"\x1dmention_confirmation_required\x18\x05 \x01(\v20.chatto.wire.v1.MentionConfirmationRequiredErrorR\x1bmentionConfirmationRequired\"a\n" +
+	" MentionConfirmationRequiredError\x12'\n" +
+	"\x0frecipient_count\x18\x01 \x01(\x05R\x0erecipientCount\x12\x14\n" +
+	"\x05token\x18\x02 \x01(\tR\x05token\"\xf9\x02\n" +
 	"\vStreamEvent\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12'\n" +
 	"\x0fdelivery_cursor\x18\x02 \x01(\tR\x0edeliveryCursor\x12\x1d\n" +
@@ -1174,26 +1238,27 @@ func file_chatto_wire_v1_protocol_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_wire_v1_protocol_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_chatto_wire_v1_protocol_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_chatto_wire_v1_protocol_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_chatto_wire_v1_protocol_proto_goTypes = []any{
-	(ErrorCode)(0),                // 0: chatto.wire.v1.ErrorCode
-	(InvalidationKind)(0),         // 1: chatto.wire.v1.InvalidationKind
-	(*ClientFrame)(nil),           // 2: chatto.wire.v1.ClientFrame
-	(*ServerFrame)(nil),           // 3: chatto.wire.v1.ServerFrame
-	(*ClientHello)(nil),           // 4: chatto.wire.v1.ClientHello
-	(*ServerHello)(nil),           // 5: chatto.wire.v1.ServerHello
-	(*Request)(nil),               // 6: chatto.wire.v1.Request
-	(*Response)(nil),              // 7: chatto.wire.v1.Response
-	(*CancelRequest)(nil),         // 8: chatto.wire.v1.CancelRequest
-	(*Ack)(nil),                   // 9: chatto.wire.v1.Ack
-	(*Ping)(nil),                  // 10: chatto.wire.v1.Ping
-	(*WireError)(nil),             // 11: chatto.wire.v1.WireError
-	(*StreamEvent)(nil),           // 12: chatto.wire.v1.StreamEvent
-	(*InvalidationHint)(nil),      // 13: chatto.wire.v1.InvalidationHint
-	(*timestamppb.Timestamp)(nil), // 14: google.protobuf.Timestamp
-	(*v1.Event)(nil),              // 15: chatto.core.v1.Event
-	(*v1.LiveEvent)(nil),          // 16: chatto.core.v1.LiveEvent
-	(*v1.HeartbeatEvent)(nil),     // 17: chatto.core.v1.HeartbeatEvent
+	(ErrorCode)(0),                           // 0: chatto.wire.v1.ErrorCode
+	(InvalidationKind)(0),                    // 1: chatto.wire.v1.InvalidationKind
+	(*ClientFrame)(nil),                      // 2: chatto.wire.v1.ClientFrame
+	(*ServerFrame)(nil),                      // 3: chatto.wire.v1.ServerFrame
+	(*ClientHello)(nil),                      // 4: chatto.wire.v1.ClientHello
+	(*ServerHello)(nil),                      // 5: chatto.wire.v1.ServerHello
+	(*Request)(nil),                          // 6: chatto.wire.v1.Request
+	(*Response)(nil),                         // 7: chatto.wire.v1.Response
+	(*CancelRequest)(nil),                    // 8: chatto.wire.v1.CancelRequest
+	(*Ack)(nil),                              // 9: chatto.wire.v1.Ack
+	(*Ping)(nil),                             // 10: chatto.wire.v1.Ping
+	(*WireError)(nil),                        // 11: chatto.wire.v1.WireError
+	(*MentionConfirmationRequiredError)(nil), // 12: chatto.wire.v1.MentionConfirmationRequiredError
+	(*StreamEvent)(nil),                      // 13: chatto.wire.v1.StreamEvent
+	(*InvalidationHint)(nil),                 // 14: chatto.wire.v1.InvalidationHint
+	(*timestamppb.Timestamp)(nil),            // 15: google.protobuf.Timestamp
+	(*v1.Event)(nil),                         // 16: chatto.core.v1.Event
+	(*v1.LiveEvent)(nil),                     // 17: chatto.core.v1.LiveEvent
+	(*v1.HeartbeatEvent)(nil),                // 18: chatto.core.v1.HeartbeatEvent
 }
 var file_chatto_wire_v1_protocol_proto_depIdxs = []int32{
 	4,  // 0: chatto.wire.v1.ClientFrame.hello:type_name -> chatto.wire.v1.ClientHello
@@ -1202,21 +1267,22 @@ var file_chatto_wire_v1_protocol_proto_depIdxs = []int32{
 	9,  // 3: chatto.wire.v1.ClientFrame.ack:type_name -> chatto.wire.v1.Ack
 	5,  // 4: chatto.wire.v1.ServerFrame.hello:type_name -> chatto.wire.v1.ServerHello
 	7,  // 5: chatto.wire.v1.ServerFrame.response:type_name -> chatto.wire.v1.Response
-	12, // 6: chatto.wire.v1.ServerFrame.event:type_name -> chatto.wire.v1.StreamEvent
+	13, // 6: chatto.wire.v1.ServerFrame.event:type_name -> chatto.wire.v1.StreamEvent
 	11, // 7: chatto.wire.v1.ServerFrame.error:type_name -> chatto.wire.v1.WireError
 	10, // 8: chatto.wire.v1.ServerFrame.ping:type_name -> chatto.wire.v1.Ping
-	14, // 9: chatto.wire.v1.Ping.sent_at:type_name -> google.protobuf.Timestamp
+	15, // 9: chatto.wire.v1.Ping.sent_at:type_name -> google.protobuf.Timestamp
 	0,  // 10: chatto.wire.v1.WireError.code:type_name -> chatto.wire.v1.ErrorCode
-	13, // 11: chatto.wire.v1.StreamEvent.invalidates:type_name -> chatto.wire.v1.InvalidationHint
-	15, // 12: chatto.wire.v1.StreamEvent.durable_event:type_name -> chatto.core.v1.Event
-	16, // 13: chatto.wire.v1.StreamEvent.live_event:type_name -> chatto.core.v1.LiveEvent
-	17, // 14: chatto.wire.v1.StreamEvent.heartbeat:type_name -> chatto.core.v1.HeartbeatEvent
-	1,  // 15: chatto.wire.v1.InvalidationHint.kind:type_name -> chatto.wire.v1.InvalidationKind
-	16, // [16:16] is the sub-list for method output_type
-	16, // [16:16] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	12, // 11: chatto.wire.v1.WireError.mention_confirmation_required:type_name -> chatto.wire.v1.MentionConfirmationRequiredError
+	14, // 12: chatto.wire.v1.StreamEvent.invalidates:type_name -> chatto.wire.v1.InvalidationHint
+	16, // 13: chatto.wire.v1.StreamEvent.durable_event:type_name -> chatto.core.v1.Event
+	17, // 14: chatto.wire.v1.StreamEvent.live_event:type_name -> chatto.core.v1.LiveEvent
+	18, // 15: chatto.wire.v1.StreamEvent.heartbeat:type_name -> chatto.core.v1.HeartbeatEvent
+	1,  // 16: chatto.wire.v1.InvalidationHint.kind:type_name -> chatto.wire.v1.InvalidationKind
+	17, // [17:17] is the sub-list for method output_type
+	17, // [17:17] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_chatto_wire_v1_protocol_proto_init() }
@@ -1237,7 +1303,7 @@ func file_chatto_wire_v1_protocol_proto_init() {
 		(*ServerFrame_Error)(nil),
 		(*ServerFrame_Ping)(nil),
 	}
-	file_chatto_wire_v1_protocol_proto_msgTypes[10].OneofWrappers = []any{
+	file_chatto_wire_v1_protocol_proto_msgTypes[11].OneofWrappers = []any{
 		(*StreamEvent_DurableEvent)(nil),
 		(*StreamEvent_LiveEvent)(nil),
 		(*StreamEvent_Heartbeat)(nil),
@@ -1248,7 +1314,7 @@ func file_chatto_wire_v1_protocol_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_wire_v1_protocol_proto_rawDesc), len(file_chatto_wire_v1_protocol_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   12,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

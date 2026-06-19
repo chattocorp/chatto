@@ -13,6 +13,9 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
+	"net/textproto"
+	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -20,9 +23,11 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/email"
+	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	"hmans.de/chatto/internal/testutil"
 )
 
@@ -93,6 +98,7 @@ func setupUploadTestServer(t *testing.T) *uploadTestEnv {
 
 	s.setupAuthRoutes()
 	s.setupGraphQLAPI(s.buildAllowedOrigins())
+	s.setupAttachmentUploadRoutes()
 
 	ts := httptest.NewServer(router)
 	t.Cleanup(func() { ts.Close() })
@@ -205,9 +211,488 @@ func (env *uploadTestEnv) doMultipartUpload(t *testing.T, operations string, fil
 	return &gqlResp
 }
 
+func (env *uploadTestEnv) doRoomAttachmentUpload(
+	t *testing.T,
+	roomID string,
+	fileData []byte,
+	fileName string,
+	contentType string,
+	fields map[string]string,
+) (*http.Response, *apiv1.UploadRoomAttachmentsResponse) {
+	t.Helper()
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	for name, value := range fields {
+		if err := writer.WriteField(name, value); err != nil {
+			t.Fatalf("Failed to write form field %s: %v", name, err)
+		}
+	}
+
+	header := make(textproto.MIMEHeader)
+	header.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, roomAttachmentUploadFieldName, fileName))
+	header.Set("Content-Type", contentType)
+	part, err := writer.CreatePart(header)
+	if err != nil {
+		t.Fatalf("Failed to create attachment part: %v", err)
+	}
+	if _, err := io.Copy(part, bytes.NewReader(fileData)); err != nil {
+		t.Fatalf("Failed to copy file data: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Failed to close multipart writer: %v", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, env.server.URL+"/api/rooms/"+roomID+"/attachments", &body)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	resp, err := env.client.Do(req)
+	if err != nil {
+		t.Fatalf("Failed to send request: %v", err)
+	}
+	t.Cleanup(func() { resp.Body.Close() })
+
+	if resp.StatusCode != http.StatusOK {
+		return resp, nil
+	}
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Failed to read upload response: %v", err)
+	}
+	var decoded apiv1.UploadRoomAttachmentsResponse
+	if err := proto.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("Failed to decode upload response: %v", err)
+	}
+	return resp, &decoded
+}
+
+func (env *uploadTestEnv) doAttachmentURLRefresh(
+	t *testing.T,
+	roomID string,
+	req *apiv1.RefreshMessageAttachmentUrlsRequest,
+) (*http.Response, *apiv1.RefreshMessageAttachmentUrlsResponse) {
+	t.Helper()
+
+	data, err := proto.Marshal(req)
+	if err != nil {
+		t.Fatalf("Failed to marshal refresh request: %v", err)
+	}
+	httpReq, err := http.NewRequest(http.MethodPost, env.server.URL+"/api/rooms/"+roomID+"/attachments/urls/refresh", bytes.NewReader(data))
+	if err != nil {
+		t.Fatalf("Failed to create refresh request: %v", err)
+	}
+	httpReq.Header.Set("Content-Type", protobufContentType)
+	httpReq.Header.Set("Accept", protobufContentType)
+
+	resp, err := env.client.Do(httpReq)
+	if err != nil {
+		t.Fatalf("Failed to send refresh request: %v", err)
+	}
+	t.Cleanup(func() { resp.Body.Close() })
+
+	if resp.StatusCode != http.StatusOK {
+		return resp, nil
+	}
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Failed to read refresh response: %v", err)
+	}
+	var decoded apiv1.RefreshMessageAttachmentUrlsResponse
+	if err := proto.Unmarshal(responseBody, &decoded); err != nil {
+		t.Fatalf("Failed to decode refresh response: %v", err)
+	}
+	return resp, &decoded
+}
+
+func (env *uploadTestEnv) doProfileAssetUpload(
+	t *testing.T,
+	path string,
+	fieldName string,
+	fileData []byte,
+	fileName string,
+	contentType string,
+) (*http.Response, []byte) {
+	t.Helper()
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	header := make(textproto.MIMEHeader)
+	header.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, fieldName, fileName))
+	header.Set("Content-Type", contentType)
+	part, err := writer.CreatePart(header)
+	if err != nil {
+		t.Fatalf("Failed to create asset part: %v", err)
+	}
+	if _, err := io.Copy(part, bytes.NewReader(fileData)); err != nil {
+		t.Fatalf("Failed to copy file data: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Failed to close multipart writer: %v", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, env.server.URL+path, &body)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("Accept", protobufContentType)
+
+	resp, err := env.client.Do(req)
+	if err != nil {
+		t.Fatalf("Failed to send request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Failed to read upload response: %v", err)
+	}
+	return resp, responseBody
+}
+
+func (env *uploadTestEnv) doProfileAssetDelete(t *testing.T, path string) (*http.Response, []byte) {
+	t.Helper()
+
+	req, err := http.NewRequest(http.MethodDelete, env.server.URL+path, nil)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+	req.Header.Set("Accept", protobufContentType)
+
+	resp, err := env.client.Do(req)
+	if err != nil {
+		t.Fatalf("Failed to send request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Failed to read delete response: %v", err)
+	}
+	return resp, responseBody
+}
+
 // ============================================================================
 // Upload Tests
 // ============================================================================
+
+func TestUpload_RoomAttachmentEndpoint_Success(t *testing.T) {
+	env := setupUploadTestServer(t)
+
+	user, err := env.core.CreateUser(env.ctx, "system", "roomattach", "Room Attach", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, user.Id, core.KindChannel, "", "room-attachment-upload", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, user.Id, core.KindChannel, user.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+
+	env.login(t, "roomattach", "password123")
+
+	resp, decoded := env.doRoomAttachmentUpload(t, room.Id, []byte("hello attachment"), "note.txt", "text/plain", nil)
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("status = %d, want 200: %s", resp.StatusCode, body)
+	}
+	if contentType := resp.Header.Get("Content-Type"); contentType != protobufContentType {
+		t.Fatalf("Content-Type = %q, want %q", contentType, protobufContentType)
+	}
+	if decoded == nil || len(decoded.GetAttachments()) != 1 {
+		t.Fatalf("attachments = %v, want one attachment", decoded.GetAttachments())
+	}
+	uploaded := decoded.GetAttachments()[0]
+	if uploaded.GetNeedsVideoProcessing() {
+		t.Fatal("plain text attachment should not need video processing")
+	}
+	if len(decoded.GetVideoProcessingAssetIds()) != 0 {
+		t.Fatalf("video processing IDs = %v, want none", decoded.GetVideoProcessingAssetIds())
+	}
+	attachment := uploaded.GetAttachment()
+	if attachment.GetId() == "" {
+		t.Fatal("attachment id is empty")
+	}
+	if attachment.GetFilename() != "note.txt" {
+		t.Fatalf("filename = %q, want note.txt", attachment.GetFilename())
+	}
+	if attachment.GetContentType() != "text/plain" {
+		t.Fatalf("content type = %q, want text/plain", attachment.GetContentType())
+	}
+
+	reader, _, err := env.core.GetAttachmentReader(env.ctx, attachment)
+	if err != nil {
+		t.Fatalf("GetAttachmentReader: %v", err)
+	}
+	if closer, ok := reader.(io.Closer); ok {
+		defer closer.Close()
+	}
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatalf("Read attachment: %v", err)
+	}
+	if string(data) != "hello attachment" {
+		t.Fatalf("stored attachment = %q, want %q", string(data), "hello attachment")
+	}
+}
+
+func TestUpload_RoomAttachmentEndpoint_Unauthenticated(t *testing.T) {
+	env := setupUploadTestServer(t)
+
+	user, err := env.core.CreateUser(env.ctx, "system", "roomattachunauth", "Room Attach", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, user.Id, core.KindChannel, "", "room-attachment-upload-unauth", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, user.Id, core.KindChannel, user.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+
+	resp, _ := env.doRoomAttachmentUpload(t, room.Id, []byte("hello attachment"), "note.txt", "text/plain", nil)
+	if resp.StatusCode != http.StatusUnauthorized {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("status = %d, want 401: %s", resp.StatusCode, body)
+	}
+}
+
+func TestUpload_AttachmentURLRefreshEndpoint_Success(t *testing.T) {
+	env := setupUploadTestServer(t)
+
+	user, err := env.core.CreateUser(env.ctx, "system", "urlrefresh", "URL Refresh", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, user.Id, core.KindChannel, "", "attachment-url-refresh", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, user.Id, core.KindChannel, user.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+	attachment, err := env.core.UploadAttachment(env.ctx, user.Id, room.Id, "test.png", "image/png", bytes.NewReader(createTestPNG(t, 64, 64)))
+	if err != nil {
+		t.Fatalf("UploadAttachment: %v", err)
+	}
+	event, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, user.Id, "with attachment", []string{attachment.GetId()}, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+
+	env.login(t, "urlrefresh", "password123")
+
+	resp, decoded := env.doAttachmentURLRefresh(t, room.Id, &apiv1.RefreshMessageAttachmentUrlsRequest{
+		RoomId:          room.Id,
+		EventId:         event.GetId(),
+		ThumbnailWidth:  120,
+		ThumbnailHeight: 120,
+		ThumbnailFit:    apiv1.AssetFitMode_ASSET_FIT_MODE_COVER,
+	})
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("status = %d, want 200: %s", resp.StatusCode, body)
+	}
+	if contentType := resp.Header.Get("Content-Type"); contentType != protobufContentType {
+		t.Fatalf("Content-Type = %q, want %q", contentType, protobufContentType)
+	}
+	views := decoded.GetAttachments()
+	if len(views) != 1 {
+		t.Fatalf("attachments = %v, want one attachment", views)
+	}
+	view := views[0]
+	if view.GetId() != attachment.GetId() {
+		t.Fatalf("attachment id = %q, want %q", view.GetId(), attachment.GetId())
+	}
+	if view.GetAssetUrl().GetUrl() == "" {
+		t.Fatal("asset URL is empty")
+	}
+	if thumbURL := view.GetThumbnailAssetUrl().GetUrl(); !strings.Contains(thumbURL, "/image/120x120/cover") {
+		t.Fatalf("thumbnail URL = %q, want requested transform", thumbURL)
+	}
+	if view.GetAssetUrl().GetExpiresAt() == nil || view.GetThumbnailAssetUrl().GetExpiresAt() == nil {
+		t.Fatal("expected expiring asset URLs")
+	}
+}
+
+func TestUpload_AttachmentURLRefreshEndpoint_Unauthenticated(t *testing.T) {
+	env := setupUploadTestServer(t)
+
+	user, err := env.core.CreateUser(env.ctx, "system", "urlrefreshunauth", "URL Refresh", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, user.Id, core.KindChannel, "", "attachment-url-refresh-unauth", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+
+	resp, _ := env.doAttachmentURLRefresh(t, room.Id, &apiv1.RefreshMessageAttachmentUrlsRequest{
+		EventId: "event_missing",
+	})
+	if resp.StatusCode != http.StatusUnauthorized {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("status = %d, want 401: %s", resp.StatusCode, body)
+	}
+}
+
+func TestUpload_UserAvatarEndpoint_SuccessAndDelete(t *testing.T) {
+	env := setupUploadTestServer(t)
+
+	user, err := env.core.CreateUser(env.ctx, "system", "avatarhttp", "Avatar HTTP", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	env.login(t, "avatarhttp", "password123")
+
+	path := "/api/users/" + url.PathEscape(user.Id) + "/avatar"
+	resp, body := env.doProfileAssetUpload(t, path, userAvatarUploadFieldName, createTestPNG(t, 256, 256), "avatar.png", "image/png")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", resp.StatusCode, body)
+	}
+	if contentType := resp.Header.Get("Content-Type"); contentType != protobufContentType {
+		t.Fatalf("Content-Type = %q, want %q", contentType, protobufContentType)
+	}
+	var upload apiv1.UserAvatarAssetResponse
+	if err := proto.Unmarshal(body, &upload); err != nil {
+		t.Fatalf("Failed to decode avatar upload response: %v", err)
+	}
+	if upload.GetUser().GetId() != user.Id {
+		t.Fatalf("response user id = %q, want %q", upload.GetUser().GetId(), user.Id)
+	}
+	if upload.GetAvatarUrl() == "" {
+		t.Fatal("avatar URL is empty after upload")
+	}
+
+	avatarURL, err := env.core.GetUserAvatarURL(env.ctx, user.Id, nil, nil, "")
+	if err != nil {
+		t.Fatalf("GetUserAvatarURL: %v", err)
+	}
+	if avatarURL == "" {
+		t.Fatal("core avatar URL is empty after upload")
+	}
+
+	resp, body = env.doProfileAssetDelete(t, path)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("delete status = %d, want 200: %s", resp.StatusCode, body)
+	}
+	var deleted apiv1.UserAvatarAssetResponse
+	if err := proto.Unmarshal(body, &deleted); err != nil {
+		t.Fatalf("Failed to decode avatar delete response: %v", err)
+	}
+	if deleted.GetAvatarUrl() != "" {
+		t.Fatalf("avatar URL after delete = %q, want empty", deleted.GetAvatarUrl())
+	}
+	asset, err := env.core.GetUserAvatar(env.ctx, user.Id)
+	if err != nil {
+		t.Fatalf("GetUserAvatar: %v", err)
+	}
+	if asset != nil {
+		t.Fatal("expected avatar asset to be cleared")
+	}
+}
+
+func TestUpload_UserAvatarEndpoint_RejectsOtherUserWithoutRoleAssign(t *testing.T) {
+	env := setupUploadTestServer(t)
+
+	actor, err := env.core.CreateUser(env.ctx, "system", "avataractor", "Avatar Actor", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser actor: %v", err)
+	}
+	target, err := env.core.CreateUser(env.ctx, "system", "avatartarget", "Avatar Target", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser target: %v", err)
+	}
+	env.login(t, actor.Login, "password123")
+
+	path := "/api/users/" + url.PathEscape(target.Id) + "/avatar"
+	resp, body := env.doProfileAssetUpload(t, path, userAvatarUploadFieldName, createTestPNG(t, 128, 128), "avatar.png", "image/png")
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403: %s", resp.StatusCode, body)
+	}
+}
+
+func TestUpload_ServerBrandingEndpoints_SuccessAndDelete(t *testing.T) {
+	env := setupUploadTestServer(t)
+
+	user, err := env.core.CreateUser(env.ctx, "system", "brandinghttp", "Branding HTTP", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, user.Id, core.RoleOwner); err != nil {
+		t.Fatalf("AssignServerRole: %v", err)
+	}
+	env.login(t, "brandinghttp", "password123")
+
+	resp, body := env.doProfileAssetUpload(t, "/api/server/logo", serverLogoUploadFieldName, createTestPNG(t, 256, 256), "logo.png", "image/png")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("logo status = %d, want 200: %s", resp.StatusCode, body)
+	}
+	var logo apiv1.ServerBrandingAssetResponse
+	if err := proto.Unmarshal(body, &logo); err != nil {
+		t.Fatalf("Failed to decode logo upload response: %v", err)
+	}
+	if logo.GetProfile().GetLogoUrl() == "" {
+		t.Fatal("logo URL is empty after upload")
+	}
+
+	resp, body = env.doProfileAssetDelete(t, "/api/server/logo")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("logo delete status = %d, want 200: %s", resp.StatusCode, body)
+	}
+	var logoDeleted apiv1.ServerBrandingAssetResponse
+	if err := proto.Unmarshal(body, &logoDeleted); err != nil {
+		t.Fatalf("Failed to decode logo delete response: %v", err)
+	}
+	if logoDeleted.GetProfile().GetLogoUrl() != "" {
+		t.Fatalf("logo URL after delete = %q, want empty", logoDeleted.GetProfile().GetLogoUrl())
+	}
+
+	resp, body = env.doProfileAssetUpload(t, "/api/server/banner", serverBannerUploadFieldName, createTestPNG(t, 1200, 630), "banner.png", "image/png")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("banner status = %d, want 200: %s", resp.StatusCode, body)
+	}
+	var banner apiv1.ServerBrandingAssetResponse
+	if err := proto.Unmarshal(body, &banner); err != nil {
+		t.Fatalf("Failed to decode banner upload response: %v", err)
+	}
+	if banner.GetProfile().GetBannerUrl() == "" {
+		t.Fatal("banner URL is empty after upload")
+	}
+
+	resp, body = env.doProfileAssetDelete(t, "/api/server/banner")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("banner delete status = %d, want 200: %s", resp.StatusCode, body)
+	}
+	var bannerDeleted apiv1.ServerBrandingAssetResponse
+	if err := proto.Unmarshal(body, &bannerDeleted); err != nil {
+		t.Fatalf("Failed to decode banner delete response: %v", err)
+	}
+	if bannerDeleted.GetProfile().GetBannerUrl() != "" {
+		t.Fatalf("banner URL after delete = %q, want empty", bannerDeleted.GetProfile().GetBannerUrl())
+	}
+}
+
+func TestUpload_ServerBrandingEndpoint_RejectsNonManager(t *testing.T) {
+	env := setupUploadTestServer(t)
+
+	user, err := env.core.CreateUser(env.ctx, "system", "brandingregular", "Branding Regular", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	env.login(t, user.Login, "password123")
+
+	resp, body := env.doProfileAssetUpload(t, "/api/server/logo", serverLogoUploadFieldName, createTestPNG(t, 256, 256), "logo.png", "image/png")
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403: %s", resp.StatusCode, body)
+	}
+}
 
 func TestUpload_ServerLogo_Success(t *testing.T) {
 	env := setupUploadTestServer(t)

@@ -9,6 +9,7 @@ package apiv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	v1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	reflect "reflect"
 	sync "sync"
@@ -22,12 +23,390 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// CurrentUserPresenceStatus is the UI-facing presence enum for the current user.
+// Core presence storage represents OFFLINE by key absence, so this API enum
+// includes the derived offline state explicitly.
+type CurrentUserPresenceStatus int32
+
+const (
+	CurrentUserPresenceStatus_CURRENT_USER_PRESENCE_STATUS_UNSPECIFIED    CurrentUserPresenceStatus = 0
+	CurrentUserPresenceStatus_CURRENT_USER_PRESENCE_STATUS_OFFLINE        CurrentUserPresenceStatus = 1
+	CurrentUserPresenceStatus_CURRENT_USER_PRESENCE_STATUS_ONLINE         CurrentUserPresenceStatus = 2
+	CurrentUserPresenceStatus_CURRENT_USER_PRESENCE_STATUS_AWAY           CurrentUserPresenceStatus = 3
+	CurrentUserPresenceStatus_CURRENT_USER_PRESENCE_STATUS_DO_NOT_DISTURB CurrentUserPresenceStatus = 4
+)
+
+// Enum value maps for CurrentUserPresenceStatus.
+var (
+	CurrentUserPresenceStatus_name = map[int32]string{
+		0: "CURRENT_USER_PRESENCE_STATUS_UNSPECIFIED",
+		1: "CURRENT_USER_PRESENCE_STATUS_OFFLINE",
+		2: "CURRENT_USER_PRESENCE_STATUS_ONLINE",
+		3: "CURRENT_USER_PRESENCE_STATUS_AWAY",
+		4: "CURRENT_USER_PRESENCE_STATUS_DO_NOT_DISTURB",
+	}
+	CurrentUserPresenceStatus_value = map[string]int32{
+		"CURRENT_USER_PRESENCE_STATUS_UNSPECIFIED":    0,
+		"CURRENT_USER_PRESENCE_STATUS_OFFLINE":        1,
+		"CURRENT_USER_PRESENCE_STATUS_ONLINE":         2,
+		"CURRENT_USER_PRESENCE_STATUS_AWAY":           3,
+		"CURRENT_USER_PRESENCE_STATUS_DO_NOT_DISTURB": 4,
+	}
+)
+
+func (x CurrentUserPresenceStatus) Enum() *CurrentUserPresenceStatus {
+	p := new(CurrentUserPresenceStatus)
+	*p = x
+	return p
+}
+
+func (x CurrentUserPresenceStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (CurrentUserPresenceStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_chatto_api_v1_chat_proto_enumTypes[0].Descriptor()
+}
+
+func (CurrentUserPresenceStatus) Type() protoreflect.EnumType {
+	return &file_chatto_api_v1_chat_proto_enumTypes[0]
+}
+
+func (x CurrentUserPresenceStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use CurrentUserPresenceStatus.Descriptor instead.
+func (CurrentUserPresenceStatus) EnumDescriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{0}
+}
+
+type PermissionMatrixScopeKind int32
+
+const (
+	PermissionMatrixScopeKind_PERMISSION_MATRIX_SCOPE_KIND_UNSPECIFIED PermissionMatrixScopeKind = 0
+	PermissionMatrixScopeKind_PERMISSION_MATRIX_SCOPE_KIND_SERVER      PermissionMatrixScopeKind = 1
+	PermissionMatrixScopeKind_PERMISSION_MATRIX_SCOPE_KIND_GROUP       PermissionMatrixScopeKind = 2
+	PermissionMatrixScopeKind_PERMISSION_MATRIX_SCOPE_KIND_ROOM        PermissionMatrixScopeKind = 3
+)
+
+// Enum value maps for PermissionMatrixScopeKind.
+var (
+	PermissionMatrixScopeKind_name = map[int32]string{
+		0: "PERMISSION_MATRIX_SCOPE_KIND_UNSPECIFIED",
+		1: "PERMISSION_MATRIX_SCOPE_KIND_SERVER",
+		2: "PERMISSION_MATRIX_SCOPE_KIND_GROUP",
+		3: "PERMISSION_MATRIX_SCOPE_KIND_ROOM",
+	}
+	PermissionMatrixScopeKind_value = map[string]int32{
+		"PERMISSION_MATRIX_SCOPE_KIND_UNSPECIFIED": 0,
+		"PERMISSION_MATRIX_SCOPE_KIND_SERVER":      1,
+		"PERMISSION_MATRIX_SCOPE_KIND_GROUP":       2,
+		"PERMISSION_MATRIX_SCOPE_KIND_ROOM":        3,
+	}
+)
+
+func (x PermissionMatrixScopeKind) Enum() *PermissionMatrixScopeKind {
+	p := new(PermissionMatrixScopeKind)
+	*p = x
+	return p
+}
+
+func (x PermissionMatrixScopeKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PermissionMatrixScopeKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_chatto_api_v1_chat_proto_enumTypes[1].Descriptor()
+}
+
+func (PermissionMatrixScopeKind) Type() protoreflect.EnumType {
+	return &file_chatto_api_v1_chat_proto_enumTypes[1]
+}
+
+func (x PermissionMatrixScopeKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PermissionMatrixScopeKind.Descriptor instead.
+func (PermissionMatrixScopeKind) EnumDescriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{1}
+}
+
+type PermissionMatrixDecision int32
+
+const (
+	PermissionMatrixDecision_PERMISSION_MATRIX_DECISION_UNSPECIFIED PermissionMatrixDecision = 0
+	PermissionMatrixDecision_PERMISSION_MATRIX_DECISION_ALLOW       PermissionMatrixDecision = 1
+	PermissionMatrixDecision_PERMISSION_MATRIX_DECISION_DENY        PermissionMatrixDecision = 2
+	PermissionMatrixDecision_PERMISSION_MATRIX_DECISION_NONE        PermissionMatrixDecision = 3
+)
+
+// Enum value maps for PermissionMatrixDecision.
+var (
+	PermissionMatrixDecision_name = map[int32]string{
+		0: "PERMISSION_MATRIX_DECISION_UNSPECIFIED",
+		1: "PERMISSION_MATRIX_DECISION_ALLOW",
+		2: "PERMISSION_MATRIX_DECISION_DENY",
+		3: "PERMISSION_MATRIX_DECISION_NONE",
+	}
+	PermissionMatrixDecision_value = map[string]int32{
+		"PERMISSION_MATRIX_DECISION_UNSPECIFIED": 0,
+		"PERMISSION_MATRIX_DECISION_ALLOW":       1,
+		"PERMISSION_MATRIX_DECISION_DENY":        2,
+		"PERMISSION_MATRIX_DECISION_NONE":        3,
+	}
+)
+
+func (x PermissionMatrixDecision) Enum() *PermissionMatrixDecision {
+	p := new(PermissionMatrixDecision)
+	*p = x
+	return p
+}
+
+func (x PermissionMatrixDecision) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PermissionMatrixDecision) Descriptor() protoreflect.EnumDescriptor {
+	return file_chatto_api_v1_chat_proto_enumTypes[2].Descriptor()
+}
+
+func (PermissionMatrixDecision) Type() protoreflect.EnumType {
+	return &file_chatto_api_v1_chat_proto_enumTypes[2]
+}
+
+func (x PermissionMatrixDecision) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PermissionMatrixDecision.Descriptor instead.
+func (PermissionMatrixDecision) EnumDescriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{2}
+}
+
+type PermissionEditState int32
+
+const (
+	PermissionEditState_PERMISSION_EDIT_STATE_UNSPECIFIED PermissionEditState = 0
+	PermissionEditState_PERMISSION_EDIT_STATE_ALLOW       PermissionEditState = 1
+	PermissionEditState_PERMISSION_EDIT_STATE_DENY        PermissionEditState = 2
+	PermissionEditState_PERMISSION_EDIT_STATE_NEUTRAL     PermissionEditState = 3
+)
+
+// Enum value maps for PermissionEditState.
+var (
+	PermissionEditState_name = map[int32]string{
+		0: "PERMISSION_EDIT_STATE_UNSPECIFIED",
+		1: "PERMISSION_EDIT_STATE_ALLOW",
+		2: "PERMISSION_EDIT_STATE_DENY",
+		3: "PERMISSION_EDIT_STATE_NEUTRAL",
+	}
+	PermissionEditState_value = map[string]int32{
+		"PERMISSION_EDIT_STATE_UNSPECIFIED": 0,
+		"PERMISSION_EDIT_STATE_ALLOW":       1,
+		"PERMISSION_EDIT_STATE_DENY":        2,
+		"PERMISSION_EDIT_STATE_NEUTRAL":     3,
+	}
+)
+
+func (x PermissionEditState) Enum() *PermissionEditState {
+	p := new(PermissionEditState)
+	*p = x
+	return p
+}
+
+func (x PermissionEditState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PermissionEditState) Descriptor() protoreflect.EnumDescriptor {
+	return file_chatto_api_v1_chat_proto_enumTypes[3].Descriptor()
+}
+
+func (PermissionEditState) Type() protoreflect.EnumType {
+	return &file_chatto_api_v1_chat_proto_enumTypes[3]
+}
+
+func (x PermissionEditState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PermissionEditState.Descriptor instead.
+func (PermissionEditState) EnumDescriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{3}
+}
+
+type NotificationKind int32
+
+const (
+	NotificationKind_NOTIFICATION_KIND_UNSPECIFIED  NotificationKind = 0
+	NotificationKind_NOTIFICATION_KIND_DM_MESSAGE   NotificationKind = 1
+	NotificationKind_NOTIFICATION_KIND_MENTION      NotificationKind = 2
+	NotificationKind_NOTIFICATION_KIND_REPLY        NotificationKind = 3
+	NotificationKind_NOTIFICATION_KIND_ROOM_MESSAGE NotificationKind = 4
+)
+
+// Enum value maps for NotificationKind.
+var (
+	NotificationKind_name = map[int32]string{
+		0: "NOTIFICATION_KIND_UNSPECIFIED",
+		1: "NOTIFICATION_KIND_DM_MESSAGE",
+		2: "NOTIFICATION_KIND_MENTION",
+		3: "NOTIFICATION_KIND_REPLY",
+		4: "NOTIFICATION_KIND_ROOM_MESSAGE",
+	}
+	NotificationKind_value = map[string]int32{
+		"NOTIFICATION_KIND_UNSPECIFIED":  0,
+		"NOTIFICATION_KIND_DM_MESSAGE":   1,
+		"NOTIFICATION_KIND_MENTION":      2,
+		"NOTIFICATION_KIND_REPLY":        3,
+		"NOTIFICATION_KIND_ROOM_MESSAGE": 4,
+	}
+)
+
+func (x NotificationKind) Enum() *NotificationKind {
+	p := new(NotificationKind)
+	*p = x
+	return p
+}
+
+func (x NotificationKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (NotificationKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_chatto_api_v1_chat_proto_enumTypes[4].Descriptor()
+}
+
+func (NotificationKind) Type() protoreflect.EnumType {
+	return &file_chatto_api_v1_chat_proto_enumTypes[4]
+}
+
+func (x NotificationKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use NotificationKind.Descriptor instead.
+func (NotificationKind) EnumDescriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{4}
+}
+
+// AssetFitMode is used by protobuf HTTP helpers that request transformed assets.
+type AssetFitMode int32
+
+const (
+	AssetFitMode_ASSET_FIT_MODE_UNSPECIFIED AssetFitMode = 0
+	AssetFitMode_ASSET_FIT_MODE_CONTAIN     AssetFitMode = 1
+	AssetFitMode_ASSET_FIT_MODE_COVER       AssetFitMode = 2
+	AssetFitMode_ASSET_FIT_MODE_EXACT       AssetFitMode = 3
+)
+
+// Enum value maps for AssetFitMode.
+var (
+	AssetFitMode_name = map[int32]string{
+		0: "ASSET_FIT_MODE_UNSPECIFIED",
+		1: "ASSET_FIT_MODE_CONTAIN",
+		2: "ASSET_FIT_MODE_COVER",
+		3: "ASSET_FIT_MODE_EXACT",
+	}
+	AssetFitMode_value = map[string]int32{
+		"ASSET_FIT_MODE_UNSPECIFIED": 0,
+		"ASSET_FIT_MODE_CONTAIN":     1,
+		"ASSET_FIT_MODE_COVER":       2,
+		"ASSET_FIT_MODE_EXACT":       3,
+	}
+)
+
+func (x AssetFitMode) Enum() *AssetFitMode {
+	p := new(AssetFitMode)
+	*p = x
+	return p
+}
+
+func (x AssetFitMode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (AssetFitMode) Descriptor() protoreflect.EnumDescriptor {
+	return file_chatto_api_v1_chat_proto_enumTypes[5].Descriptor()
+}
+
+func (AssetFitMode) Type() protoreflect.EnumType {
+	return &file_chatto_api_v1_chat_proto_enumTypes[5]
+}
+
+func (x AssetFitMode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use AssetFitMode.Descriptor instead.
+func (AssetFitMode) EnumDescriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{5}
+}
+
+// VideoProcessingStatus mirrors the GraphQL video processing enum for the chat UI.
+type VideoProcessingStatus int32
+
+const (
+	VideoProcessingStatus_VIDEO_PROCESSING_STATUS_UNSPECIFIED VideoProcessingStatus = 0
+	VideoProcessingStatus_VIDEO_PROCESSING_STATUS_PROCESSING  VideoProcessingStatus = 1
+	VideoProcessingStatus_VIDEO_PROCESSING_STATUS_COMPLETED   VideoProcessingStatus = 2
+	VideoProcessingStatus_VIDEO_PROCESSING_STATUS_FAILED      VideoProcessingStatus = 3
+)
+
+// Enum value maps for VideoProcessingStatus.
+var (
+	VideoProcessingStatus_name = map[int32]string{
+		0: "VIDEO_PROCESSING_STATUS_UNSPECIFIED",
+		1: "VIDEO_PROCESSING_STATUS_PROCESSING",
+		2: "VIDEO_PROCESSING_STATUS_COMPLETED",
+		3: "VIDEO_PROCESSING_STATUS_FAILED",
+	}
+	VideoProcessingStatus_value = map[string]int32{
+		"VIDEO_PROCESSING_STATUS_UNSPECIFIED": 0,
+		"VIDEO_PROCESSING_STATUS_PROCESSING":  1,
+		"VIDEO_PROCESSING_STATUS_COMPLETED":   2,
+		"VIDEO_PROCESSING_STATUS_FAILED":      3,
+	}
+)
+
+func (x VideoProcessingStatus) Enum() *VideoProcessingStatus {
+	p := new(VideoProcessingStatus)
+	*p = x
+	return p
+}
+
+func (x VideoProcessingStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (VideoProcessingStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_chatto_api_v1_chat_proto_enumTypes[6].Descriptor()
+}
+
+func (VideoProcessingStatus) Type() protoreflect.EnumType {
+	return &file_chatto_api_v1_chat_proto_enumTypes[6]
+}
+
+func (x VideoProcessingStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use VideoProcessingStatus.Descriptor instead.
+func (VideoProcessingStatus) EnumDescriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{6}
+}
+
 // Viewer is the current authenticated user context.
 type Viewer struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	User          *v1.User               `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                        protoimpl.MessageState            `protogen:"open.v1"`
+	User                         *v1.User                          `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	Permissions                  *ViewerPermissionsView            `protobuf:"bytes,2,opt,name=permissions,proto3" json:"permissions,omitempty"`
+	ServerNotificationPreference *ViewerNotificationPreferenceView `protobuf:"bytes,3,opt,name=server_notification_preference,json=serverNotificationPreference,proto3" json:"server_notification_preference,omitempty"`
+	RoomNotificationPreferences  []*RoomNotificationPreferenceView `protobuf:"bytes,4,rep,name=room_notification_preferences,json=roomNotificationPreferences,proto3" json:"room_notification_preferences,omitempty"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
 }
 
 func (x *Viewer) Reset() {
@@ -63,6 +442,27 @@ func (*Viewer) Descriptor() ([]byte, []int) {
 func (x *Viewer) GetUser() *v1.User {
 	if x != nil {
 		return x.User
+	}
+	return nil
+}
+
+func (x *Viewer) GetPermissions() *ViewerPermissionsView {
+	if x != nil {
+		return x.Permissions
+	}
+	return nil
+}
+
+func (x *Viewer) GetServerNotificationPreference() *ViewerNotificationPreferenceView {
+	if x != nil {
+		return x.ServerNotificationPreference
+	}
+	return nil
+}
+
+func (x *Viewer) GetRoomNotificationPreferences() []*RoomNotificationPreferenceView {
+	if x != nil {
+		return x.RoomNotificationPreferences
 	}
 	return nil
 }
@@ -108,6 +508,7 @@ func (*GetViewerRequest) Descriptor() ([]byte, []int) {
 type GetViewerResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Viewer        *Viewer                `protobuf:"bytes,1,opt,name=viewer,proto3" json:"viewer,omitempty"`
+	ServerProfile *ServerProfileView     `protobuf:"bytes,2,opt,name=server_profile,json=serverProfile,proto3" json:"server_profile,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -149,6 +550,6042 @@ func (x *GetViewerResponse) GetViewer() *Viewer {
 	return nil
 }
 
+func (x *GetViewerResponse) GetServerProfile() *ServerProfileView {
+	if x != nil {
+		return x.ServerProfile
+	}
+	return nil
+}
+
+// CurrentUserView contains the authenticated user shape used during app startup.
+type CurrentUserView struct {
+	state            protoimpl.MessageState    `protogen:"open.v1"`
+	User             *v1.User                  `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	AvatarUrl        string                    `protobuf:"bytes,2,opt,name=avatar_url,json=avatarUrl,proto3" json:"avatar_url,omitempty"`
+	PresenceStatus   CurrentUserPresenceStatus `protobuf:"varint,3,opt,name=presence_status,json=presenceStatus,proto3,enum=chatto.api.v1.CurrentUserPresenceStatus" json:"presence_status,omitempty"`
+	HasVerifiedEmail bool                      `protobuf:"varint,4,opt,name=has_verified_email,json=hasVerifiedEmail,proto3" json:"has_verified_email,omitempty"`
+	Settings         *v1.ServerUserPreferences `protobuf:"bytes,5,opt,name=settings,proto3" json:"settings,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *CurrentUserView) Reset() {
+	*x = CurrentUserView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CurrentUserView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CurrentUserView) ProtoMessage() {}
+
+func (x *CurrentUserView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CurrentUserView.ProtoReflect.Descriptor instead.
+func (*CurrentUserView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *CurrentUserView) GetUser() *v1.User {
+	if x != nil {
+		return x.User
+	}
+	return nil
+}
+
+func (x *CurrentUserView) GetAvatarUrl() string {
+	if x != nil {
+		return x.AvatarUrl
+	}
+	return ""
+}
+
+func (x *CurrentUserView) GetPresenceStatus() CurrentUserPresenceStatus {
+	if x != nil {
+		return x.PresenceStatus
+	}
+	return CurrentUserPresenceStatus_CURRENT_USER_PRESENCE_STATUS_UNSPECIFIED
+}
+
+func (x *CurrentUserView) GetHasVerifiedEmail() bool {
+	if x != nil {
+		return x.HasVerifiedEmail
+	}
+	return false
+}
+
+func (x *CurrentUserView) GetSettings() *v1.ServerUserPreferences {
+	if x != nil {
+		return x.Settings
+	}
+	return nil
+}
+
+type GetCurrentUserRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetCurrentUserRequest) Reset() {
+	*x = GetCurrentUserRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetCurrentUserRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetCurrentUserRequest) ProtoMessage() {}
+
+func (x *GetCurrentUserRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetCurrentUserRequest.ProtoReflect.Descriptor instead.
+func (*GetCurrentUserRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{4}
+}
+
+type GetCurrentUserResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	User          *CurrentUserView       `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetCurrentUserResponse) Reset() {
+	*x = GetCurrentUserResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetCurrentUserResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetCurrentUserResponse) ProtoMessage() {}
+
+func (x *GetCurrentUserResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetCurrentUserResponse.ProtoReflect.Descriptor instead.
+func (*GetCurrentUserResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *GetCurrentUserResponse) GetUser() *CurrentUserView {
+	if x != nil {
+		return x.User
+	}
+	return nil
+}
+
+type AuthenticatedServerSettingsView struct {
+	state                    protoimpl.MessageState `protogen:"open.v1"`
+	PushNotificationsEnabled bool                   `protobuf:"varint,1,opt,name=push_notifications_enabled,json=pushNotificationsEnabled,proto3" json:"push_notifications_enabled,omitempty"`
+	VapidPublicKey           string                 `protobuf:"bytes,2,opt,name=vapid_public_key,json=vapidPublicKey,proto3" json:"vapid_public_key,omitempty"`
+	LivekitUrl               string                 `protobuf:"bytes,3,opt,name=livekit_url,json=livekitUrl,proto3" json:"livekit_url,omitempty"`
+	VideoProcessingEnabled   bool                   `protobuf:"varint,4,opt,name=video_processing_enabled,json=videoProcessingEnabled,proto3" json:"video_processing_enabled,omitempty"`
+	MaxUploadSize            int64                  `protobuf:"varint,5,opt,name=max_upload_size,json=maxUploadSize,proto3" json:"max_upload_size,omitempty"`
+	MaxVideoUploadSize       int64                  `protobuf:"varint,6,opt,name=max_video_upload_size,json=maxVideoUploadSize,proto3" json:"max_video_upload_size,omitempty"`
+	MessageEditWindowSeconds int32                  `protobuf:"varint,7,opt,name=message_edit_window_seconds,json=messageEditWindowSeconds,proto3" json:"message_edit_window_seconds,omitempty"`
+	Motd                     string                 `protobuf:"bytes,8,opt,name=motd,proto3" json:"motd,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
+}
+
+func (x *AuthenticatedServerSettingsView) Reset() {
+	*x = AuthenticatedServerSettingsView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthenticatedServerSettingsView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthenticatedServerSettingsView) ProtoMessage() {}
+
+func (x *AuthenticatedServerSettingsView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthenticatedServerSettingsView.ProtoReflect.Descriptor instead.
+func (*AuthenticatedServerSettingsView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *AuthenticatedServerSettingsView) GetPushNotificationsEnabled() bool {
+	if x != nil {
+		return x.PushNotificationsEnabled
+	}
+	return false
+}
+
+func (x *AuthenticatedServerSettingsView) GetVapidPublicKey() string {
+	if x != nil {
+		return x.VapidPublicKey
+	}
+	return ""
+}
+
+func (x *AuthenticatedServerSettingsView) GetLivekitUrl() string {
+	if x != nil {
+		return x.LivekitUrl
+	}
+	return ""
+}
+
+func (x *AuthenticatedServerSettingsView) GetVideoProcessingEnabled() bool {
+	if x != nil {
+		return x.VideoProcessingEnabled
+	}
+	return false
+}
+
+func (x *AuthenticatedServerSettingsView) GetMaxUploadSize() int64 {
+	if x != nil {
+		return x.MaxUploadSize
+	}
+	return 0
+}
+
+func (x *AuthenticatedServerSettingsView) GetMaxVideoUploadSize() int64 {
+	if x != nil {
+		return x.MaxVideoUploadSize
+	}
+	return 0
+}
+
+func (x *AuthenticatedServerSettingsView) GetMessageEditWindowSeconds() int32 {
+	if x != nil {
+		return x.MessageEditWindowSeconds
+	}
+	return 0
+}
+
+func (x *AuthenticatedServerSettingsView) GetMotd() string {
+	if x != nil {
+		return x.Motd
+	}
+	return ""
+}
+
+type GetAuthenticatedServerSettingsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAuthenticatedServerSettingsRequest) Reset() {
+	*x = GetAuthenticatedServerSettingsRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAuthenticatedServerSettingsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAuthenticatedServerSettingsRequest) ProtoMessage() {}
+
+func (x *GetAuthenticatedServerSettingsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAuthenticatedServerSettingsRequest.ProtoReflect.Descriptor instead.
+func (*GetAuthenticatedServerSettingsRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{7}
+}
+
+type GetAuthenticatedServerSettingsResponse struct {
+	state         protoimpl.MessageState           `protogen:"open.v1"`
+	Settings      *AuthenticatedServerSettingsView `protobuf:"bytes,1,opt,name=settings,proto3" json:"settings,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAuthenticatedServerSettingsResponse) Reset() {
+	*x = GetAuthenticatedServerSettingsResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAuthenticatedServerSettingsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAuthenticatedServerSettingsResponse) ProtoMessage() {}
+
+func (x *GetAuthenticatedServerSettingsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAuthenticatedServerSettingsResponse.ProtoReflect.Descriptor instead.
+func (*GetAuthenticatedServerSettingsResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *GetAuthenticatedServerSettingsResponse) GetSettings() *AuthenticatedServerSettingsView {
+	if x != nil {
+		return x.Settings
+	}
+	return nil
+}
+
+type GetAccountDeletionStatusRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAccountDeletionStatusRequest) Reset() {
+	*x = GetAccountDeletionStatusRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAccountDeletionStatusRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAccountDeletionStatusRequest) ProtoMessage() {}
+
+func (x *GetAccountDeletionStatusRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAccountDeletionStatusRequest.ProtoReflect.Descriptor instead.
+func (*GetAccountDeletionStatusRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{9}
+}
+
+type GetAccountDeletionStatusResponse struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	ViewerCanDeleteAccount bool                   `protobuf:"varint,1,opt,name=viewer_can_delete_account,json=viewerCanDeleteAccount,proto3" json:"viewer_can_delete_account,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *GetAccountDeletionStatusResponse) Reset() {
+	*x = GetAccountDeletionStatusResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAccountDeletionStatusResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAccountDeletionStatusResponse) ProtoMessage() {}
+
+func (x *GetAccountDeletionStatusResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAccountDeletionStatusResponse.ProtoReflect.Descriptor instead.
+func (*GetAccountDeletionStatusResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *GetAccountDeletionStatusResponse) GetViewerCanDeleteAccount() bool {
+	if x != nil {
+		return x.ViewerCanDeleteAccount
+	}
+	return false
+}
+
+type RequestAccountDeletionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RequestAccountDeletionRequest) Reset() {
+	*x = RequestAccountDeletionRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RequestAccountDeletionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RequestAccountDeletionRequest) ProtoMessage() {}
+
+func (x *RequestAccountDeletionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RequestAccountDeletionRequest.ProtoReflect.Descriptor instead.
+func (*RequestAccountDeletionRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{11}
+}
+
+type RequestAccountDeletionResponse struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	ConfirmationToken string                 `protobuf:"bytes,1,opt,name=confirmation_token,json=confirmationToken,proto3" json:"confirmation_token,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *RequestAccountDeletionResponse) Reset() {
+	*x = RequestAccountDeletionResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RequestAccountDeletionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RequestAccountDeletionResponse) ProtoMessage() {}
+
+func (x *RequestAccountDeletionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RequestAccountDeletionResponse.ProtoReflect.Descriptor instead.
+func (*RequestAccountDeletionResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *RequestAccountDeletionResponse) GetConfirmationToken() string {
+	if x != nil {
+		return x.ConfirmationToken
+	}
+	return ""
+}
+
+type DeleteMyAccountRequest struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	ConfirmationToken string                 `protobuf:"bytes,1,opt,name=confirmation_token,json=confirmationToken,proto3" json:"confirmation_token,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *DeleteMyAccountRequest) Reset() {
+	*x = DeleteMyAccountRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteMyAccountRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteMyAccountRequest) ProtoMessage() {}
+
+func (x *DeleteMyAccountRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteMyAccountRequest.ProtoReflect.Descriptor instead.
+func (*DeleteMyAccountRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *DeleteMyAccountRequest) GetConfirmationToken() string {
+	if x != nil {
+		return x.ConfirmationToken
+	}
+	return ""
+}
+
+type DeleteMyAccountResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Deleted       bool                   `protobuf:"varint,1,opt,name=deleted,proto3" json:"deleted,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteMyAccountResponse) Reset() {
+	*x = DeleteMyAccountResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteMyAccountResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteMyAccountResponse) ProtoMessage() {}
+
+func (x *DeleteMyAccountResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteMyAccountResponse.ProtoReflect.Descriptor instead.
+func (*DeleteMyAccountResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *DeleteMyAccountResponse) GetDeleted() bool {
+	if x != nil {
+		return x.Deleted
+	}
+	return false
+}
+
+// ServerSettingsView contains editable server profile/config fields.
+type ServerSettingsView struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Name                  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Description           string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	Motd                  string                 `protobuf:"bytes,3,opt,name=motd,proto3" json:"motd,omitempty"`
+	WelcomeMessage        string                 `protobuf:"bytes,4,opt,name=welcome_message,json=welcomeMessage,proto3" json:"welcome_message,omitempty"`
+	LogoUrl               string                 `protobuf:"bytes,5,opt,name=logo_url,json=logoUrl,proto3" json:"logo_url,omitempty"`
+	BannerUrl             string                 `protobuf:"bytes,6,opt,name=banner_url,json=bannerUrl,proto3" json:"banner_url,omitempty"`
+	ViewerCanManageServer bool                   `protobuf:"varint,7,opt,name=viewer_can_manage_server,json=viewerCanManageServer,proto3" json:"viewer_can_manage_server,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *ServerSettingsView) Reset() {
+	*x = ServerSettingsView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServerSettingsView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServerSettingsView) ProtoMessage() {}
+
+func (x *ServerSettingsView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServerSettingsView.ProtoReflect.Descriptor instead.
+func (*ServerSettingsView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ServerSettingsView) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ServerSettingsView) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *ServerSettingsView) GetMotd() string {
+	if x != nil {
+		return x.Motd
+	}
+	return ""
+}
+
+func (x *ServerSettingsView) GetWelcomeMessage() string {
+	if x != nil {
+		return x.WelcomeMessage
+	}
+	return ""
+}
+
+func (x *ServerSettingsView) GetLogoUrl() string {
+	if x != nil {
+		return x.LogoUrl
+	}
+	return ""
+}
+
+func (x *ServerSettingsView) GetBannerUrl() string {
+	if x != nil {
+		return x.BannerUrl
+	}
+	return ""
+}
+
+func (x *ServerSettingsView) GetViewerCanManageServer() bool {
+	if x != nil {
+		return x.ViewerCanManageServer
+	}
+	return false
+}
+
+type GetServerSettingsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetServerSettingsRequest) Reset() {
+	*x = GetServerSettingsRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetServerSettingsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetServerSettingsRequest) ProtoMessage() {}
+
+func (x *GetServerSettingsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetServerSettingsRequest.ProtoReflect.Descriptor instead.
+func (*GetServerSettingsRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{16}
+}
+
+type GetServerSettingsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Settings      *ServerSettingsView    `protobuf:"bytes,1,opt,name=settings,proto3" json:"settings,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetServerSettingsResponse) Reset() {
+	*x = GetServerSettingsResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetServerSettingsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetServerSettingsResponse) ProtoMessage() {}
+
+func (x *GetServerSettingsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetServerSettingsResponse.ProtoReflect.Descriptor instead.
+func (*GetServerSettingsResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *GetServerSettingsResponse) GetSettings() *ServerSettingsView {
+	if x != nil {
+		return x.Settings
+	}
+	return nil
+}
+
+type UpdateServerSettingsRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ServerName     *string                `protobuf:"bytes,1,opt,name=server_name,json=serverName,proto3,oneof" json:"server_name,omitempty"`
+	Description    *string                `protobuf:"bytes,2,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	Motd           *string                `protobuf:"bytes,3,opt,name=motd,proto3,oneof" json:"motd,omitempty"`
+	WelcomeMessage *string                `protobuf:"bytes,4,opt,name=welcome_message,json=welcomeMessage,proto3,oneof" json:"welcome_message,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *UpdateServerSettingsRequest) Reset() {
+	*x = UpdateServerSettingsRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateServerSettingsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateServerSettingsRequest) ProtoMessage() {}
+
+func (x *UpdateServerSettingsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateServerSettingsRequest.ProtoReflect.Descriptor instead.
+func (*UpdateServerSettingsRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *UpdateServerSettingsRequest) GetServerName() string {
+	if x != nil && x.ServerName != nil {
+		return *x.ServerName
+	}
+	return ""
+}
+
+func (x *UpdateServerSettingsRequest) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
+}
+
+func (x *UpdateServerSettingsRequest) GetMotd() string {
+	if x != nil && x.Motd != nil {
+		return *x.Motd
+	}
+	return ""
+}
+
+func (x *UpdateServerSettingsRequest) GetWelcomeMessage() string {
+	if x != nil && x.WelcomeMessage != nil {
+		return *x.WelcomeMessage
+	}
+	return ""
+}
+
+type UpdateServerSettingsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Settings      *ServerSettingsView    `protobuf:"bytes,1,opt,name=settings,proto3" json:"settings,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateServerSettingsResponse) Reset() {
+	*x = UpdateServerSettingsResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateServerSettingsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateServerSettingsResponse) ProtoMessage() {}
+
+func (x *UpdateServerSettingsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateServerSettingsResponse.ProtoReflect.Descriptor instead.
+func (*UpdateServerSettingsResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *UpdateServerSettingsResponse) GetSettings() *ServerSettingsView {
+	if x != nil {
+		return x.Settings
+	}
+	return nil
+}
+
+type AdminSecurityConfigView struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	BlockedUsernames string                 `protobuf:"bytes,1,opt,name=blocked_usernames,json=blockedUsernames,proto3" json:"blocked_usernames,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *AdminSecurityConfigView) Reset() {
+	*x = AdminSecurityConfigView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdminSecurityConfigView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdminSecurityConfigView) ProtoMessage() {}
+
+func (x *AdminSecurityConfigView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdminSecurityConfigView.ProtoReflect.Descriptor instead.
+func (*AdminSecurityConfigView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *AdminSecurityConfigView) GetBlockedUsernames() string {
+	if x != nil {
+		return x.BlockedUsernames
+	}
+	return ""
+}
+
+type GetAdminSecurityConfigRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAdminSecurityConfigRequest) Reset() {
+	*x = GetAdminSecurityConfigRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAdminSecurityConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAdminSecurityConfigRequest) ProtoMessage() {}
+
+func (x *GetAdminSecurityConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAdminSecurityConfigRequest.ProtoReflect.Descriptor instead.
+func (*GetAdminSecurityConfigRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{21}
+}
+
+type GetAdminSecurityConfigResponse struct {
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	Config        *AdminSecurityConfigView `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAdminSecurityConfigResponse) Reset() {
+	*x = GetAdminSecurityConfigResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAdminSecurityConfigResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAdminSecurityConfigResponse) ProtoMessage() {}
+
+func (x *GetAdminSecurityConfigResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAdminSecurityConfigResponse.ProtoReflect.Descriptor instead.
+func (*GetAdminSecurityConfigResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *GetAdminSecurityConfigResponse) GetConfig() *AdminSecurityConfigView {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+type UpdateBlockedUsernamesRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	BlockedUsernames string                 `protobuf:"bytes,1,opt,name=blocked_usernames,json=blockedUsernames,proto3" json:"blocked_usernames,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *UpdateBlockedUsernamesRequest) Reset() {
+	*x = UpdateBlockedUsernamesRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateBlockedUsernamesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateBlockedUsernamesRequest) ProtoMessage() {}
+
+func (x *UpdateBlockedUsernamesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateBlockedUsernamesRequest.ProtoReflect.Descriptor instead.
+func (*UpdateBlockedUsernamesRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *UpdateBlockedUsernamesRequest) GetBlockedUsernames() string {
+	if x != nil {
+		return x.BlockedUsernames
+	}
+	return ""
+}
+
+type UpdateBlockedUsernamesResponse struct {
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	Config        *AdminSecurityConfigView `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateBlockedUsernamesResponse) Reset() {
+	*x = UpdateBlockedUsernamesResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateBlockedUsernamesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateBlockedUsernamesResponse) ProtoMessage() {}
+
+func (x *UpdateBlockedUsernamesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateBlockedUsernamesResponse.ProtoReflect.Descriptor instead.
+func (*UpdateBlockedUsernamesResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *UpdateBlockedUsernamesResponse) GetConfig() *AdminSecurityConfigView {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+type AdminConnectionInfoView struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Connected     bool                   `protobuf:"varint,1,opt,name=connected,proto3" json:"connected,omitempty"`
+	ServerId      string                 `protobuf:"bytes,2,opt,name=server_id,json=serverId,proto3" json:"server_id,omitempty"`
+	ServerName    string                 `protobuf:"bytes,3,opt,name=server_name,json=serverName,proto3" json:"server_name,omitempty"`
+	Version       string                 `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
+	MaxPayload    int64                  `protobuf:"varint,5,opt,name=max_payload,json=maxPayload,proto3" json:"max_payload,omitempty"`
+	Rtt           string                 `protobuf:"bytes,6,opt,name=rtt,proto3" json:"rtt,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdminConnectionInfoView) Reset() {
+	*x = AdminConnectionInfoView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdminConnectionInfoView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdminConnectionInfoView) ProtoMessage() {}
+
+func (x *AdminConnectionInfoView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdminConnectionInfoView.ProtoReflect.Descriptor instead.
+func (*AdminConnectionInfoView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *AdminConnectionInfoView) GetConnected() bool {
+	if x != nil {
+		return x.Connected
+	}
+	return false
+}
+
+func (x *AdminConnectionInfoView) GetServerId() string {
+	if x != nil {
+		return x.ServerId
+	}
+	return ""
+}
+
+func (x *AdminConnectionInfoView) GetServerName() string {
+	if x != nil {
+		return x.ServerName
+	}
+	return ""
+}
+
+func (x *AdminConnectionInfoView) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *AdminConnectionInfoView) GetMaxPayload() int64 {
+	if x != nil {
+		return x.MaxPayload
+	}
+	return 0
+}
+
+func (x *AdminConnectionInfoView) GetRtt() string {
+	if x != nil {
+		return x.Rtt
+	}
+	return ""
+}
+
+type AdminAccountInfoView struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Memory        uint64                 `protobuf:"varint,1,opt,name=memory,proto3" json:"memory,omitempty"`
+	MemoryUsed    uint64                 `protobuf:"varint,2,opt,name=memory_used,json=memoryUsed,proto3" json:"memory_used,omitempty"`
+	Storage       uint64                 `protobuf:"varint,3,opt,name=storage,proto3" json:"storage,omitempty"`
+	StorageUsed   uint64                 `protobuf:"varint,4,opt,name=storage_used,json=storageUsed,proto3" json:"storage_used,omitempty"`
+	Streams       int32                  `protobuf:"varint,5,opt,name=streams,proto3" json:"streams,omitempty"`
+	StreamsUsed   int32                  `protobuf:"varint,6,opt,name=streams_used,json=streamsUsed,proto3" json:"streams_used,omitempty"`
+	Consumers     int32                  `protobuf:"varint,7,opt,name=consumers,proto3" json:"consumers,omitempty"`
+	ConsumersUsed int32                  `protobuf:"varint,8,opt,name=consumers_used,json=consumersUsed,proto3" json:"consumers_used,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdminAccountInfoView) Reset() {
+	*x = AdminAccountInfoView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdminAccountInfoView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdminAccountInfoView) ProtoMessage() {}
+
+func (x *AdminAccountInfoView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdminAccountInfoView.ProtoReflect.Descriptor instead.
+func (*AdminAccountInfoView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *AdminAccountInfoView) GetMemory() uint64 {
+	if x != nil {
+		return x.Memory
+	}
+	return 0
+}
+
+func (x *AdminAccountInfoView) GetMemoryUsed() uint64 {
+	if x != nil {
+		return x.MemoryUsed
+	}
+	return 0
+}
+
+func (x *AdminAccountInfoView) GetStorage() uint64 {
+	if x != nil {
+		return x.Storage
+	}
+	return 0
+}
+
+func (x *AdminAccountInfoView) GetStorageUsed() uint64 {
+	if x != nil {
+		return x.StorageUsed
+	}
+	return 0
+}
+
+func (x *AdminAccountInfoView) GetStreams() int32 {
+	if x != nil {
+		return x.Streams
+	}
+	return 0
+}
+
+func (x *AdminAccountInfoView) GetStreamsUsed() int32 {
+	if x != nil {
+		return x.StreamsUsed
+	}
+	return 0
+}
+
+func (x *AdminAccountInfoView) GetConsumers() int32 {
+	if x != nil {
+		return x.Consumers
+	}
+	return 0
+}
+
+func (x *AdminAccountInfoView) GetConsumersUsed() int32 {
+	if x != nil {
+		return x.ConsumersUsed
+	}
+	return 0
+}
+
+type AdminNatsStreamInfoView struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Description   string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	Subjects      []string               `protobuf:"bytes,3,rep,name=subjects,proto3" json:"subjects,omitempty"`
+	Storage       string                 `protobuf:"bytes,4,opt,name=storage,proto3" json:"storage,omitempty"`
+	Messages      uint64                 `protobuf:"varint,5,opt,name=messages,proto3" json:"messages,omitempty"`
+	Bytes         uint64                 `protobuf:"varint,6,opt,name=bytes,proto3" json:"bytes,omitempty"`
+	FirstSequence string                 `protobuf:"bytes,7,opt,name=first_sequence,json=firstSequence,proto3" json:"first_sequence,omitempty"`
+	LastSequence  string                 `protobuf:"bytes,8,opt,name=last_sequence,json=lastSequence,proto3" json:"last_sequence,omitempty"`
+	ConsumerCount int32                  `protobuf:"varint,9,opt,name=consumer_count,json=consumerCount,proto3" json:"consumer_count,omitempty"`
+	Replicas      int32                  `protobuf:"varint,10,opt,name=replicas,proto3" json:"replicas,omitempty"`
+	ClusterLeader string                 `protobuf:"bytes,11,opt,name=cluster_leader,json=clusterLeader,proto3" json:"cluster_leader,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdminNatsStreamInfoView) Reset() {
+	*x = AdminNatsStreamInfoView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdminNatsStreamInfoView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdminNatsStreamInfoView) ProtoMessage() {}
+
+func (x *AdminNatsStreamInfoView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdminNatsStreamInfoView.ProtoReflect.Descriptor instead.
+func (*AdminNatsStreamInfoView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *AdminNatsStreamInfoView) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *AdminNatsStreamInfoView) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *AdminNatsStreamInfoView) GetSubjects() []string {
+	if x != nil {
+		return x.Subjects
+	}
+	return nil
+}
+
+func (x *AdminNatsStreamInfoView) GetStorage() string {
+	if x != nil {
+		return x.Storage
+	}
+	return ""
+}
+
+func (x *AdminNatsStreamInfoView) GetMessages() uint64 {
+	if x != nil {
+		return x.Messages
+	}
+	return 0
+}
+
+func (x *AdminNatsStreamInfoView) GetBytes() uint64 {
+	if x != nil {
+		return x.Bytes
+	}
+	return 0
+}
+
+func (x *AdminNatsStreamInfoView) GetFirstSequence() string {
+	if x != nil {
+		return x.FirstSequence
+	}
+	return ""
+}
+
+func (x *AdminNatsStreamInfoView) GetLastSequence() string {
+	if x != nil {
+		return x.LastSequence
+	}
+	return ""
+}
+
+func (x *AdminNatsStreamInfoView) GetConsumerCount() int32 {
+	if x != nil {
+		return x.ConsumerCount
+	}
+	return 0
+}
+
+func (x *AdminNatsStreamInfoView) GetReplicas() int32 {
+	if x != nil {
+		return x.Replicas
+	}
+	return 0
+}
+
+func (x *AdminNatsStreamInfoView) GetClusterLeader() string {
+	if x != nil {
+		return x.ClusterLeader
+	}
+	return ""
+}
+
+type AdminNatsConsumerInfoView struct {
+	state                     protoimpl.MessageState `protogen:"open.v1"`
+	Stream                    string                 `protobuf:"bytes,1,opt,name=stream,proto3" json:"stream,omitempty"`
+	Name                      string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Durable                   string                 `protobuf:"bytes,3,opt,name=durable,proto3" json:"durable,omitempty"`
+	FilterSubject             string                 `protobuf:"bytes,4,opt,name=filter_subject,json=filterSubject,proto3" json:"filter_subject,omitempty"`
+	FilterSubjects            []string               `protobuf:"bytes,5,rep,name=filter_subjects,json=filterSubjects,proto3" json:"filter_subjects,omitempty"`
+	AckPolicy                 string                 `protobuf:"bytes,6,opt,name=ack_policy,json=ackPolicy,proto3" json:"ack_policy,omitempty"`
+	PullBased                 bool                   `protobuf:"varint,7,opt,name=pull_based,json=pullBased,proto3" json:"pull_based,omitempty"`
+	PushBound                 bool                   `protobuf:"varint,8,opt,name=push_bound,json=pushBound,proto3" json:"push_bound,omitempty"`
+	Pending                   uint64                 `protobuf:"varint,9,opt,name=pending,proto3" json:"pending,omitempty"`
+	AckPending                int32                  `protobuf:"varint,10,opt,name=ack_pending,json=ackPending,proto3" json:"ack_pending,omitempty"`
+	Redelivered               int32                  `protobuf:"varint,11,opt,name=redelivered,proto3" json:"redelivered,omitempty"`
+	Waiting                   int32                  `protobuf:"varint,12,opt,name=waiting,proto3" json:"waiting,omitempty"`
+	DeliveredConsumerSequence string                 `protobuf:"bytes,13,opt,name=delivered_consumer_sequence,json=deliveredConsumerSequence,proto3" json:"delivered_consumer_sequence,omitempty"`
+	DeliveredStreamSequence   string                 `protobuf:"bytes,14,opt,name=delivered_stream_sequence,json=deliveredStreamSequence,proto3" json:"delivered_stream_sequence,omitempty"`
+	AckFloorConsumerSequence  string                 `protobuf:"bytes,15,opt,name=ack_floor_consumer_sequence,json=ackFloorConsumerSequence,proto3" json:"ack_floor_consumer_sequence,omitempty"`
+	AckFloorStreamSequence    string                 `protobuf:"bytes,16,opt,name=ack_floor_stream_sequence,json=ackFloorStreamSequence,proto3" json:"ack_floor_stream_sequence,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
+}
+
+func (x *AdminNatsConsumerInfoView) Reset() {
+	*x = AdminNatsConsumerInfoView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdminNatsConsumerInfoView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdminNatsConsumerInfoView) ProtoMessage() {}
+
+func (x *AdminNatsConsumerInfoView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdminNatsConsumerInfoView.ProtoReflect.Descriptor instead.
+func (*AdminNatsConsumerInfoView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *AdminNatsConsumerInfoView) GetStream() string {
+	if x != nil {
+		return x.Stream
+	}
+	return ""
+}
+
+func (x *AdminNatsConsumerInfoView) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *AdminNatsConsumerInfoView) GetDurable() string {
+	if x != nil {
+		return x.Durable
+	}
+	return ""
+}
+
+func (x *AdminNatsConsumerInfoView) GetFilterSubject() string {
+	if x != nil {
+		return x.FilterSubject
+	}
+	return ""
+}
+
+func (x *AdminNatsConsumerInfoView) GetFilterSubjects() []string {
+	if x != nil {
+		return x.FilterSubjects
+	}
+	return nil
+}
+
+func (x *AdminNatsConsumerInfoView) GetAckPolicy() string {
+	if x != nil {
+		return x.AckPolicy
+	}
+	return ""
+}
+
+func (x *AdminNatsConsumerInfoView) GetPullBased() bool {
+	if x != nil {
+		return x.PullBased
+	}
+	return false
+}
+
+func (x *AdminNatsConsumerInfoView) GetPushBound() bool {
+	if x != nil {
+		return x.PushBound
+	}
+	return false
+}
+
+func (x *AdminNatsConsumerInfoView) GetPending() uint64 {
+	if x != nil {
+		return x.Pending
+	}
+	return 0
+}
+
+func (x *AdminNatsConsumerInfoView) GetAckPending() int32 {
+	if x != nil {
+		return x.AckPending
+	}
+	return 0
+}
+
+func (x *AdminNatsConsumerInfoView) GetRedelivered() int32 {
+	if x != nil {
+		return x.Redelivered
+	}
+	return 0
+}
+
+func (x *AdminNatsConsumerInfoView) GetWaiting() int32 {
+	if x != nil {
+		return x.Waiting
+	}
+	return 0
+}
+
+func (x *AdminNatsConsumerInfoView) GetDeliveredConsumerSequence() string {
+	if x != nil {
+		return x.DeliveredConsumerSequence
+	}
+	return ""
+}
+
+func (x *AdminNatsConsumerInfoView) GetDeliveredStreamSequence() string {
+	if x != nil {
+		return x.DeliveredStreamSequence
+	}
+	return ""
+}
+
+func (x *AdminNatsConsumerInfoView) GetAckFloorConsumerSequence() string {
+	if x != nil {
+		return x.AckFloorConsumerSequence
+	}
+	return ""
+}
+
+func (x *AdminNatsConsumerInfoView) GetAckFloorStreamSequence() string {
+	if x != nil {
+		return x.AckFloorStreamSequence
+	}
+	return ""
+}
+
+type AdminNatsStatsView struct {
+	state                protoimpl.MessageState       `protogen:"open.v1"`
+	Streams              []*AdminNatsStreamInfoView   `protobuf:"bytes,1,rep,name=streams,proto3" json:"streams,omitempty"`
+	Consumers            []*AdminNatsConsumerInfoView `protobuf:"bytes,2,rep,name=consumers,proto3" json:"consumers,omitempty"`
+	TotalMessages        uint64                       `protobuf:"varint,3,opt,name=total_messages,json=totalMessages,proto3" json:"total_messages,omitempty"`
+	TotalBytes           uint64                       `protobuf:"varint,4,opt,name=total_bytes,json=totalBytes,proto3" json:"total_bytes,omitempty"`
+	TotalConsumerPending uint64                       `protobuf:"varint,5,opt,name=total_consumer_pending,json=totalConsumerPending,proto3" json:"total_consumer_pending,omitempty"`
+	TotalAckPending      int32                        `protobuf:"varint,6,opt,name=total_ack_pending,json=totalAckPending,proto3" json:"total_ack_pending,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *AdminNatsStatsView) Reset() {
+	*x = AdminNatsStatsView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdminNatsStatsView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdminNatsStatsView) ProtoMessage() {}
+
+func (x *AdminNatsStatsView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdminNatsStatsView.ProtoReflect.Descriptor instead.
+func (*AdminNatsStatsView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *AdminNatsStatsView) GetStreams() []*AdminNatsStreamInfoView {
+	if x != nil {
+		return x.Streams
+	}
+	return nil
+}
+
+func (x *AdminNatsStatsView) GetConsumers() []*AdminNatsConsumerInfoView {
+	if x != nil {
+		return x.Consumers
+	}
+	return nil
+}
+
+func (x *AdminNatsStatsView) GetTotalMessages() uint64 {
+	if x != nil {
+		return x.TotalMessages
+	}
+	return 0
+}
+
+func (x *AdminNatsStatsView) GetTotalBytes() uint64 {
+	if x != nil {
+		return x.TotalBytes
+	}
+	return 0
+}
+
+func (x *AdminNatsStatsView) GetTotalConsumerPending() uint64 {
+	if x != nil {
+		return x.TotalConsumerPending
+	}
+	return 0
+}
+
+func (x *AdminNatsStatsView) GetTotalAckPending() int32 {
+	if x != nil {
+		return x.TotalAckPending
+	}
+	return 0
+}
+
+type AdminServerStatsView struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	UserCount        int32                  `protobuf:"varint,1,opt,name=user_count,json=userCount,proto3" json:"user_count,omitempty"`
+	ChannelRoomCount int32                  `protobuf:"varint,2,opt,name=channel_room_count,json=channelRoomCount,proto3" json:"channel_room_count,omitempty"`
+	DmRoomCount      int32                  `protobuf:"varint,3,opt,name=dm_room_count,json=dmRoomCount,proto3" json:"dm_room_count,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *AdminServerStatsView) Reset() {
+	*x = AdminServerStatsView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdminServerStatsView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdminServerStatsView) ProtoMessage() {}
+
+func (x *AdminServerStatsView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdminServerStatsView.ProtoReflect.Descriptor instead.
+func (*AdminServerStatsView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *AdminServerStatsView) GetUserCount() int32 {
+	if x != nil {
+		return x.UserCount
+	}
+	return 0
+}
+
+func (x *AdminServerStatsView) GetChannelRoomCount() int32 {
+	if x != nil {
+		return x.ChannelRoomCount
+	}
+	return 0
+}
+
+func (x *AdminServerStatsView) GetDmRoomCount() int32 {
+	if x != nil {
+		return x.DmRoomCount
+	}
+	return 0
+}
+
+type AdminSystemInfoView struct {
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	Connection    *AdminConnectionInfoView `protobuf:"bytes,1,opt,name=connection,proto3" json:"connection,omitempty"`
+	Account       *AdminAccountInfoView    `protobuf:"bytes,2,opt,name=account,proto3" json:"account,omitempty"`
+	Nats          *AdminNatsStatsView      `protobuf:"bytes,3,opt,name=nats,proto3" json:"nats,omitempty"`
+	Stats         *AdminServerStatsView    `protobuf:"bytes,4,opt,name=stats,proto3" json:"stats,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdminSystemInfoView) Reset() {
+	*x = AdminSystemInfoView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdminSystemInfoView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdminSystemInfoView) ProtoMessage() {}
+
+func (x *AdminSystemInfoView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdminSystemInfoView.ProtoReflect.Descriptor instead.
+func (*AdminSystemInfoView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *AdminSystemInfoView) GetConnection() *AdminConnectionInfoView {
+	if x != nil {
+		return x.Connection
+	}
+	return nil
+}
+
+func (x *AdminSystemInfoView) GetAccount() *AdminAccountInfoView {
+	if x != nil {
+		return x.Account
+	}
+	return nil
+}
+
+func (x *AdminSystemInfoView) GetNats() *AdminNatsStatsView {
+	if x != nil {
+		return x.Nats
+	}
+	return nil
+}
+
+func (x *AdminSystemInfoView) GetStats() *AdminServerStatsView {
+	if x != nil {
+		return x.Stats
+	}
+	return nil
+}
+
+type AdminProjectionStateView struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	Key                    string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Name                   string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Subjects               []string               `protobuf:"bytes,3,rep,name=subjects,proto3" json:"subjects,omitempty"`
+	Started                bool                   `protobuf:"varint,4,opt,name=started,proto3" json:"started,omitempty"`
+	LastAppliedSequence    string                 `protobuf:"bytes,5,opt,name=last_applied_sequence,json=lastAppliedSequence,proto3" json:"last_applied_sequence,omitempty"`
+	MatchingStreamSequence string                 `protobuf:"bytes,6,opt,name=matching_stream_sequence,json=matchingStreamSequence,proto3" json:"matching_stream_sequence,omitempty"`
+	StreamLastSequence     string                 `protobuf:"bytes,7,opt,name=stream_last_sequence,json=streamLastSequence,proto3" json:"stream_last_sequence,omitempty"`
+	Lag                    uint64                 `protobuf:"varint,8,opt,name=lag,proto3" json:"lag,omitempty"`
+	Failed                 bool                   `protobuf:"varint,9,opt,name=failed,proto3" json:"failed,omitempty"`
+	FailedSequence         string                 `protobuf:"bytes,10,opt,name=failed_sequence,json=failedSequence,proto3" json:"failed_sequence,omitempty"`
+	Failure                string                 `protobuf:"bytes,11,opt,name=failure,proto3" json:"failure,omitempty"`
+	EntryCount             int64                  `protobuf:"varint,12,opt,name=entry_count,json=entryCount,proto3" json:"entry_count,omitempty"`
+	EstimatedBytes         int64                  `protobuf:"varint,13,opt,name=estimated_bytes,json=estimatedBytes,proto3" json:"estimated_bytes,omitempty"`
+	AverageEntryBytes      int64                  `protobuf:"varint,14,opt,name=average_entry_bytes,json=averageEntryBytes,proto3" json:"average_entry_bytes,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *AdminProjectionStateView) Reset() {
+	*x = AdminProjectionStateView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdminProjectionStateView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdminProjectionStateView) ProtoMessage() {}
+
+func (x *AdminProjectionStateView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdminProjectionStateView.ProtoReflect.Descriptor instead.
+func (*AdminProjectionStateView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *AdminProjectionStateView) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *AdminProjectionStateView) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *AdminProjectionStateView) GetSubjects() []string {
+	if x != nil {
+		return x.Subjects
+	}
+	return nil
+}
+
+func (x *AdminProjectionStateView) GetStarted() bool {
+	if x != nil {
+		return x.Started
+	}
+	return false
+}
+
+func (x *AdminProjectionStateView) GetLastAppliedSequence() string {
+	if x != nil {
+		return x.LastAppliedSequence
+	}
+	return ""
+}
+
+func (x *AdminProjectionStateView) GetMatchingStreamSequence() string {
+	if x != nil {
+		return x.MatchingStreamSequence
+	}
+	return ""
+}
+
+func (x *AdminProjectionStateView) GetStreamLastSequence() string {
+	if x != nil {
+		return x.StreamLastSequence
+	}
+	return ""
+}
+
+func (x *AdminProjectionStateView) GetLag() uint64 {
+	if x != nil {
+		return x.Lag
+	}
+	return 0
+}
+
+func (x *AdminProjectionStateView) GetFailed() bool {
+	if x != nil {
+		return x.Failed
+	}
+	return false
+}
+
+func (x *AdminProjectionStateView) GetFailedSequence() string {
+	if x != nil {
+		return x.FailedSequence
+	}
+	return ""
+}
+
+func (x *AdminProjectionStateView) GetFailure() string {
+	if x != nil {
+		return x.Failure
+	}
+	return ""
+}
+
+func (x *AdminProjectionStateView) GetEntryCount() int64 {
+	if x != nil {
+		return x.EntryCount
+	}
+	return 0
+}
+
+func (x *AdminProjectionStateView) GetEstimatedBytes() int64 {
+	if x != nil {
+		return x.EstimatedBytes
+	}
+	return 0
+}
+
+func (x *AdminProjectionStateView) GetAverageEntryBytes() int64 {
+	if x != nil {
+		return x.AverageEntryBytes
+	}
+	return 0
+}
+
+type GetAdminSystemInfoRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAdminSystemInfoRequest) Reset() {
+	*x = GetAdminSystemInfoRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAdminSystemInfoRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAdminSystemInfoRequest) ProtoMessage() {}
+
+func (x *GetAdminSystemInfoRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAdminSystemInfoRequest.ProtoReflect.Descriptor instead.
+func (*GetAdminSystemInfoRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{33}
+}
+
+type GetAdminSystemInfoResponse struct {
+	state         protoimpl.MessageState      `protogen:"open.v1"`
+	SystemInfo    *AdminSystemInfoView        `protobuf:"bytes,1,opt,name=system_info,json=systemInfo,proto3" json:"system_info,omitempty"`
+	Projections   []*AdminProjectionStateView `protobuf:"bytes,2,rep,name=projections,proto3" json:"projections,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAdminSystemInfoResponse) Reset() {
+	*x = GetAdminSystemInfoResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAdminSystemInfoResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAdminSystemInfoResponse) ProtoMessage() {}
+
+func (x *GetAdminSystemInfoResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAdminSystemInfoResponse.ProtoReflect.Descriptor instead.
+func (*GetAdminSystemInfoResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *GetAdminSystemInfoResponse) GetSystemInfo() *AdminSystemInfoView {
+	if x != nil {
+		return x.SystemInfo
+	}
+	return nil
+}
+
+func (x *GetAdminSystemInfoResponse) GetProjections() []*AdminProjectionStateView {
+	if x != nil {
+		return x.Projections
+	}
+	return nil
+}
+
+type AdminEventLogEntryView struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Sequence      string                 `protobuf:"bytes,1,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	Subject       string                 `protobuf:"bytes,2,opt,name=subject,proto3" json:"subject,omitempty"`
+	AggregateType string                 `protobuf:"bytes,3,opt,name=aggregate_type,json=aggregateType,proto3" json:"aggregate_type,omitempty"`
+	AggregateId   string                 `protobuf:"bytes,4,opt,name=aggregate_id,json=aggregateId,proto3" json:"aggregate_id,omitempty"`
+	EventType     string                 `protobuf:"bytes,5,opt,name=event_type,json=eventType,proto3" json:"event_type,omitempty"`
+	EventId       string                 `protobuf:"bytes,6,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	ActorId       string                 `protobuf:"bytes,7,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	PayloadJson   string                 `protobuf:"bytes,9,opt,name=payload_json,json=payloadJson,proto3" json:"payload_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdminEventLogEntryView) Reset() {
+	*x = AdminEventLogEntryView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdminEventLogEntryView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdminEventLogEntryView) ProtoMessage() {}
+
+func (x *AdminEventLogEntryView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdminEventLogEntryView.ProtoReflect.Descriptor instead.
+func (*AdminEventLogEntryView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *AdminEventLogEntryView) GetSequence() string {
+	if x != nil {
+		return x.Sequence
+	}
+	return ""
+}
+
+func (x *AdminEventLogEntryView) GetSubject() string {
+	if x != nil {
+		return x.Subject
+	}
+	return ""
+}
+
+func (x *AdminEventLogEntryView) GetAggregateType() string {
+	if x != nil {
+		return x.AggregateType
+	}
+	return ""
+}
+
+func (x *AdminEventLogEntryView) GetAggregateId() string {
+	if x != nil {
+		return x.AggregateId
+	}
+	return ""
+}
+
+func (x *AdminEventLogEntryView) GetEventType() string {
+	if x != nil {
+		return x.EventType
+	}
+	return ""
+}
+
+func (x *AdminEventLogEntryView) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+func (x *AdminEventLogEntryView) GetActorId() string {
+	if x != nil {
+		return x.ActorId
+	}
+	return ""
+}
+
+func (x *AdminEventLogEntryView) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *AdminEventLogEntryView) GetPayloadJson() string {
+	if x != nil {
+		return x.PayloadJson
+	}
+	return ""
+}
+
+type ListAdminEventLogRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Limit         int32                  `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	Before        string                 `protobuf:"bytes,2,opt,name=before,proto3" json:"before,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAdminEventLogRequest) Reset() {
+	*x = ListAdminEventLogRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAdminEventLogRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAdminEventLogRequest) ProtoMessage() {}
+
+func (x *ListAdminEventLogRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAdminEventLogRequest.ProtoReflect.Descriptor instead.
+func (*ListAdminEventLogRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *ListAdminEventLogRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *ListAdminEventLogRequest) GetBefore() string {
+	if x != nil {
+		return x.Before
+	}
+	return ""
+}
+
+type ListAdminEventLogResponse struct {
+	state         protoimpl.MessageState    `protogen:"open.v1"`
+	Entries       []*AdminEventLogEntryView `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
+	HasOlder      bool                      `protobuf:"varint,2,opt,name=has_older,json=hasOlder,proto3" json:"has_older,omitempty"`
+	EndCursor     string                    `protobuf:"bytes,3,opt,name=end_cursor,json=endCursor,proto3" json:"end_cursor,omitempty"`
+	TotalCount    int64                     `protobuf:"varint,4,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAdminEventLogResponse) Reset() {
+	*x = ListAdminEventLogResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAdminEventLogResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAdminEventLogResponse) ProtoMessage() {}
+
+func (x *ListAdminEventLogResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAdminEventLogResponse.ProtoReflect.Descriptor instead.
+func (*ListAdminEventLogResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *ListAdminEventLogResponse) GetEntries() []*AdminEventLogEntryView {
+	if x != nil {
+		return x.Entries
+	}
+	return nil
+}
+
+func (x *ListAdminEventLogResponse) GetHasOlder() bool {
+	if x != nil {
+		return x.HasOlder
+	}
+	return false
+}
+
+func (x *ListAdminEventLogResponse) GetEndCursor() string {
+	if x != nil {
+		return x.EndCursor
+	}
+	return ""
+}
+
+func (x *ListAdminEventLogResponse) GetTotalCount() int64 {
+	if x != nil {
+		return x.TotalCount
+	}
+	return 0
+}
+
+type GetAdminEventLogEntryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Sequence      string                 `protobuf:"bytes,1,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAdminEventLogEntryRequest) Reset() {
+	*x = GetAdminEventLogEntryRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAdminEventLogEntryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAdminEventLogEntryRequest) ProtoMessage() {}
+
+func (x *GetAdminEventLogEntryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAdminEventLogEntryRequest.ProtoReflect.Descriptor instead.
+func (*GetAdminEventLogEntryRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *GetAdminEventLogEntryRequest) GetSequence() string {
+	if x != nil {
+		return x.Sequence
+	}
+	return ""
+}
+
+type GetAdminEventLogEntryResponse struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	Entry         *AdminEventLogEntryView `protobuf:"bytes,1,opt,name=entry,proto3" json:"entry,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAdminEventLogEntryResponse) Reset() {
+	*x = GetAdminEventLogEntryResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAdminEventLogEntryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAdminEventLogEntryResponse) ProtoMessage() {}
+
+func (x *GetAdminEventLogEntryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAdminEventLogEntryResponse.ProtoReflect.Descriptor instead.
+func (*GetAdminEventLogEntryResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *GetAdminEventLogEntryResponse) GetEntry() *AdminEventLogEntryView {
+	if x != nil {
+		return x.Entry
+	}
+	return nil
+}
+
+type AdminRoleView struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Name              string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	DisplayName       string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Description       string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	Permissions       []string               `protobuf:"bytes,4,rep,name=permissions,proto3" json:"permissions,omitempty"`
+	PermissionDenials []string               `protobuf:"bytes,5,rep,name=permission_denials,json=permissionDenials,proto3" json:"permission_denials,omitempty"`
+	IsSystem          bool                   `protobuf:"varint,6,opt,name=is_system,json=isSystem,proto3" json:"is_system,omitempty"`
+	Position          int32                  `protobuf:"varint,7,opt,name=position,proto3" json:"position,omitempty"`
+	Pingable          bool                   `protobuf:"varint,8,opt,name=pingable,proto3" json:"pingable,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *AdminRoleView) Reset() {
+	*x = AdminRoleView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdminRoleView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdminRoleView) ProtoMessage() {}
+
+func (x *AdminRoleView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdminRoleView.ProtoReflect.Descriptor instead.
+func (*AdminRoleView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *AdminRoleView) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *AdminRoleView) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *AdminRoleView) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *AdminRoleView) GetPermissions() []string {
+	if x != nil {
+		return x.Permissions
+	}
+	return nil
+}
+
+func (x *AdminRoleView) GetPermissionDenials() []string {
+	if x != nil {
+		return x.PermissionDenials
+	}
+	return nil
+}
+
+func (x *AdminRoleView) GetIsSystem() bool {
+	if x != nil {
+		return x.IsSystem
+	}
+	return false
+}
+
+func (x *AdminRoleView) GetPosition() int32 {
+	if x != nil {
+		return x.Position
+	}
+	return 0
+}
+
+func (x *AdminRoleView) GetPingable() bool {
+	if x != nil {
+		return x.Pingable
+	}
+	return false
+}
+
+type AdminMemberView struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	User            *v1.User               `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	AvatarUrl       string                 `protobuf:"bytes,2,opt,name=avatar_url,json=avatarUrl,proto3" json:"avatar_url,omitempty"`
+	Roles           []string               `protobuf:"bytes,3,rep,name=roles,proto3" json:"roles,omitempty"`
+	LastLoginChange *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=last_login_change,json=lastLoginChange,proto3" json:"last_login_change,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *AdminMemberView) Reset() {
+	*x = AdminMemberView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdminMemberView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdminMemberView) ProtoMessage() {}
+
+func (x *AdminMemberView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdminMemberView.ProtoReflect.Descriptor instead.
+func (*AdminMemberView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *AdminMemberView) GetUser() *v1.User {
+	if x != nil {
+		return x.User
+	}
+	return nil
+}
+
+func (x *AdminMemberView) GetAvatarUrl() string {
+	if x != nil {
+		return x.AvatarUrl
+	}
+	return ""
+}
+
+func (x *AdminMemberView) GetRoles() []string {
+	if x != nil {
+		return x.Roles
+	}
+	return nil
+}
+
+func (x *AdminMemberView) GetLastLoginChange() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastLoginChange
+	}
+	return nil
+}
+
+type ListAdminMembersRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Search        string                 `protobuf:"bytes,1,opt,name=search,proto3" json:"search,omitempty"`
+	Limit         int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	Offset        int32                  `protobuf:"varint,3,opt,name=offset,proto3" json:"offset,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAdminMembersRequest) Reset() {
+	*x = ListAdminMembersRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAdminMembersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAdminMembersRequest) ProtoMessage() {}
+
+func (x *ListAdminMembersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAdminMembersRequest.ProtoReflect.Descriptor instead.
+func (*ListAdminMembersRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *ListAdminMembersRequest) GetSearch() string {
+	if x != nil {
+		return x.Search
+	}
+	return ""
+}
+
+func (x *ListAdminMembersRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *ListAdminMembersRequest) GetOffset() int32 {
+	if x != nil {
+		return x.Offset
+	}
+	return 0
+}
+
+type ListAdminMembersResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Members       []*AdminMemberView     `protobuf:"bytes,1,rep,name=members,proto3" json:"members,omitempty"`
+	Roles         []*AdminRoleView       `protobuf:"bytes,2,rep,name=roles,proto3" json:"roles,omitempty"`
+	TotalCount    int32                  `protobuf:"varint,3,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	HasMore       bool                   `protobuf:"varint,4,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAdminMembersResponse) Reset() {
+	*x = ListAdminMembersResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAdminMembersResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAdminMembersResponse) ProtoMessage() {}
+
+func (x *ListAdminMembersResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAdminMembersResponse.ProtoReflect.Descriptor instead.
+func (*ListAdminMembersResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *ListAdminMembersResponse) GetMembers() []*AdminMemberView {
+	if x != nil {
+		return x.Members
+	}
+	return nil
+}
+
+func (x *ListAdminMembersResponse) GetRoles() []*AdminRoleView {
+	if x != nil {
+		return x.Roles
+	}
+	return nil
+}
+
+func (x *ListAdminMembersResponse) GetTotalCount() int32 {
+	if x != nil {
+		return x.TotalCount
+	}
+	return 0
+}
+
+func (x *ListAdminMembersResponse) GetHasMore() bool {
+	if x != nil {
+		return x.HasMore
+	}
+	return false
+}
+
+type GetAdminMemberRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAdminMemberRequest) Reset() {
+	*x = GetAdminMemberRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAdminMemberRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAdminMemberRequest) ProtoMessage() {}
+
+func (x *GetAdminMemberRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAdminMemberRequest.ProtoReflect.Descriptor instead.
+func (*GetAdminMemberRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *GetAdminMemberRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+type GetAdminMemberResponse struct {
+	state                          protoimpl.MessageState `protogen:"open.v1"`
+	Member                         *AdminMemberView       `protobuf:"bytes,1,opt,name=member,proto3" json:"member,omitempty"`
+	Roles                          []*AdminRoleView       `protobuf:"bytes,2,rep,name=roles,proto3" json:"roles,omitempty"`
+	AvailablePermissions           []string               `protobuf:"bytes,3,rep,name=available_permissions,json=availablePermissions,proto3" json:"available_permissions,omitempty"`
+	ViewerCanAssignRoles           bool                   `protobuf:"varint,4,opt,name=viewer_can_assign_roles,json=viewerCanAssignRoles,proto3" json:"viewer_can_assign_roles,omitempty"`
+	ViewerCanManageRoles           bool                   `protobuf:"varint,5,opt,name=viewer_can_manage_roles,json=viewerCanManageRoles,proto3" json:"viewer_can_manage_roles,omitempty"`
+	ViewerCanManageUserPermissions bool                   `protobuf:"varint,6,opt,name=viewer_can_manage_user_permissions,json=viewerCanManageUserPermissions,proto3" json:"viewer_can_manage_user_permissions,omitempty"`
+	unknownFields                  protoimpl.UnknownFields
+	sizeCache                      protoimpl.SizeCache
+}
+
+func (x *GetAdminMemberResponse) Reset() {
+	*x = GetAdminMemberResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAdminMemberResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAdminMemberResponse) ProtoMessage() {}
+
+func (x *GetAdminMemberResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAdminMemberResponse.ProtoReflect.Descriptor instead.
+func (*GetAdminMemberResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *GetAdminMemberResponse) GetMember() *AdminMemberView {
+	if x != nil {
+		return x.Member
+	}
+	return nil
+}
+
+func (x *GetAdminMemberResponse) GetRoles() []*AdminRoleView {
+	if x != nil {
+		return x.Roles
+	}
+	return nil
+}
+
+func (x *GetAdminMemberResponse) GetAvailablePermissions() []string {
+	if x != nil {
+		return x.AvailablePermissions
+	}
+	return nil
+}
+
+func (x *GetAdminMemberResponse) GetViewerCanAssignRoles() bool {
+	if x != nil {
+		return x.ViewerCanAssignRoles
+	}
+	return false
+}
+
+func (x *GetAdminMemberResponse) GetViewerCanManageRoles() bool {
+	if x != nil {
+		return x.ViewerCanManageRoles
+	}
+	return false
+}
+
+func (x *GetAdminMemberResponse) GetViewerCanManageUserPermissions() bool {
+	if x != nil {
+		return x.ViewerCanManageUserPermissions
+	}
+	return false
+}
+
+type AdminUpdateUserRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Login         *string                `protobuf:"bytes,2,opt,name=login,proto3,oneof" json:"login,omitempty"`
+	DisplayName   *string                `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3,oneof" json:"display_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdminUpdateUserRequest) Reset() {
+	*x = AdminUpdateUserRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdminUpdateUserRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdminUpdateUserRequest) ProtoMessage() {}
+
+func (x *AdminUpdateUserRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdminUpdateUserRequest.ProtoReflect.Descriptor instead.
+func (*AdminUpdateUserRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *AdminUpdateUserRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *AdminUpdateUserRequest) GetLogin() string {
+	if x != nil && x.Login != nil {
+		return *x.Login
+	}
+	return ""
+}
+
+func (x *AdminUpdateUserRequest) GetDisplayName() string {
+	if x != nil && x.DisplayName != nil {
+		return *x.DisplayName
+	}
+	return ""
+}
+
+type AdminUpdateUserResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Member        *AdminMemberView       `protobuf:"bytes,1,opt,name=member,proto3" json:"member,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdminUpdateUserResponse) Reset() {
+	*x = AdminUpdateUserResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdminUpdateUserResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdminUpdateUserResponse) ProtoMessage() {}
+
+func (x *AdminUpdateUserResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdminUpdateUserResponse.ProtoReflect.Descriptor instead.
+func (*AdminUpdateUserResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{47}
+}
+
+func (x *AdminUpdateUserResponse) GetMember() *AdminMemberView {
+	if x != nil {
+		return x.Member
+	}
+	return nil
+}
+
+type AdminClearUsernameCooldownRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdminClearUsernameCooldownRequest) Reset() {
+	*x = AdminClearUsernameCooldownRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[48]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdminClearUsernameCooldownRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdminClearUsernameCooldownRequest) ProtoMessage() {}
+
+func (x *AdminClearUsernameCooldownRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[48]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdminClearUsernameCooldownRequest.ProtoReflect.Descriptor instead.
+func (*AdminClearUsernameCooldownRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{48}
+}
+
+func (x *AdminClearUsernameCooldownRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+type AdminClearUsernameCooldownResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Member        *AdminMemberView       `protobuf:"bytes,1,opt,name=member,proto3" json:"member,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdminClearUsernameCooldownResponse) Reset() {
+	*x = AdminClearUsernameCooldownResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[49]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdminClearUsernameCooldownResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdminClearUsernameCooldownResponse) ProtoMessage() {}
+
+func (x *AdminClearUsernameCooldownResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[49]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdminClearUsernameCooldownResponse.ProtoReflect.Descriptor instead.
+func (*AdminClearUsernameCooldownResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{49}
+}
+
+func (x *AdminClearUsernameCooldownResponse) GetMember() *AdminMemberView {
+	if x != nil {
+		return x.Member
+	}
+	return nil
+}
+
+type AssignMemberRoleRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RoleName      string                 `protobuf:"bytes,2,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AssignMemberRoleRequest) Reset() {
+	*x = AssignMemberRoleRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[50]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AssignMemberRoleRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AssignMemberRoleRequest) ProtoMessage() {}
+
+func (x *AssignMemberRoleRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[50]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AssignMemberRoleRequest.ProtoReflect.Descriptor instead.
+func (*AssignMemberRoleRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{50}
+}
+
+func (x *AssignMemberRoleRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *AssignMemberRoleRequest) GetRoleName() string {
+	if x != nil {
+		return x.RoleName
+	}
+	return ""
+}
+
+type AssignMemberRoleResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Member        *AdminMemberView       `protobuf:"bytes,1,opt,name=member,proto3" json:"member,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AssignMemberRoleResponse) Reset() {
+	*x = AssignMemberRoleResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[51]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AssignMemberRoleResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AssignMemberRoleResponse) ProtoMessage() {}
+
+func (x *AssignMemberRoleResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[51]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AssignMemberRoleResponse.ProtoReflect.Descriptor instead.
+func (*AssignMemberRoleResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{51}
+}
+
+func (x *AssignMemberRoleResponse) GetMember() *AdminMemberView {
+	if x != nil {
+		return x.Member
+	}
+	return nil
+}
+
+type RevokeMemberRoleRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RoleName      string                 `protobuf:"bytes,2,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeMemberRoleRequest) Reset() {
+	*x = RevokeMemberRoleRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[52]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeMemberRoleRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeMemberRoleRequest) ProtoMessage() {}
+
+func (x *RevokeMemberRoleRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[52]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeMemberRoleRequest.ProtoReflect.Descriptor instead.
+func (*RevokeMemberRoleRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{52}
+}
+
+func (x *RevokeMemberRoleRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *RevokeMemberRoleRequest) GetRoleName() string {
+	if x != nil {
+		return x.RoleName
+	}
+	return ""
+}
+
+type RevokeMemberRoleResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Member        *AdminMemberView       `protobuf:"bytes,1,opt,name=member,proto3" json:"member,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeMemberRoleResponse) Reset() {
+	*x = RevokeMemberRoleResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[53]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeMemberRoleResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeMemberRoleResponse) ProtoMessage() {}
+
+func (x *RevokeMemberRoleResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[53]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeMemberRoleResponse.ProtoReflect.Descriptor instead.
+func (*RevokeMemberRoleResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{53}
+}
+
+func (x *RevokeMemberRoleResponse) GetMember() *AdminMemberView {
+	if x != nil {
+		return x.Member
+	}
+	return nil
+}
+
+type GetAdminRoleCapabilitiesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAdminRoleCapabilitiesRequest) Reset() {
+	*x = GetAdminRoleCapabilitiesRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[54]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAdminRoleCapabilitiesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAdminRoleCapabilitiesRequest) ProtoMessage() {}
+
+func (x *GetAdminRoleCapabilitiesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[54]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAdminRoleCapabilitiesRequest.ProtoReflect.Descriptor instead.
+func (*GetAdminRoleCapabilitiesRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{54}
+}
+
+type GetAdminRoleCapabilitiesResponse struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	ViewerCanManageRoles bool                   `protobuf:"varint,1,opt,name=viewer_can_manage_roles,json=viewerCanManageRoles,proto3" json:"viewer_can_manage_roles,omitempty"`
+	ViewerCanAssignRoles bool                   `protobuf:"varint,2,opt,name=viewer_can_assign_roles,json=viewerCanAssignRoles,proto3" json:"viewer_can_assign_roles,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *GetAdminRoleCapabilitiesResponse) Reset() {
+	*x = GetAdminRoleCapabilitiesResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[55]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAdminRoleCapabilitiesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAdminRoleCapabilitiesResponse) ProtoMessage() {}
+
+func (x *GetAdminRoleCapabilitiesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[55]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAdminRoleCapabilitiesResponse.ProtoReflect.Descriptor instead.
+func (*GetAdminRoleCapabilitiesResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{55}
+}
+
+func (x *GetAdminRoleCapabilitiesResponse) GetViewerCanManageRoles() bool {
+	if x != nil {
+		return x.ViewerCanManageRoles
+	}
+	return false
+}
+
+func (x *GetAdminRoleCapabilitiesResponse) GetViewerCanAssignRoles() bool {
+	if x != nil {
+		return x.ViewerCanAssignRoles
+	}
+	return false
+}
+
+type GetAdminRoleRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAdminRoleRequest) Reset() {
+	*x = GetAdminRoleRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[56]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAdminRoleRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAdminRoleRequest) ProtoMessage() {}
+
+func (x *GetAdminRoleRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[56]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAdminRoleRequest.ProtoReflect.Descriptor instead.
+func (*GetAdminRoleRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{56}
+}
+
+func (x *GetAdminRoleRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type GetAdminRoleResponse struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Role                 *AdminRoleView         `protobuf:"bytes,1,opt,name=role,proto3" json:"role,omitempty"`
+	Users                []*v1.User             `protobuf:"bytes,2,rep,name=users,proto3" json:"users,omitempty"`
+	ViewerCanManageRoles bool                   `protobuf:"varint,3,opt,name=viewer_can_manage_roles,json=viewerCanManageRoles,proto3" json:"viewer_can_manage_roles,omitempty"`
+	ViewerCanAssignRoles bool                   `protobuf:"varint,4,opt,name=viewer_can_assign_roles,json=viewerCanAssignRoles,proto3" json:"viewer_can_assign_roles,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *GetAdminRoleResponse) Reset() {
+	*x = GetAdminRoleResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[57]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAdminRoleResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAdminRoleResponse) ProtoMessage() {}
+
+func (x *GetAdminRoleResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[57]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAdminRoleResponse.ProtoReflect.Descriptor instead.
+func (*GetAdminRoleResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{57}
+}
+
+func (x *GetAdminRoleResponse) GetRole() *AdminRoleView {
+	if x != nil {
+		return x.Role
+	}
+	return nil
+}
+
+func (x *GetAdminRoleResponse) GetUsers() []*v1.User {
+	if x != nil {
+		return x.Users
+	}
+	return nil
+}
+
+func (x *GetAdminRoleResponse) GetViewerCanManageRoles() bool {
+	if x != nil {
+		return x.ViewerCanManageRoles
+	}
+	return false
+}
+
+func (x *GetAdminRoleResponse) GetViewerCanAssignRoles() bool {
+	if x != nil {
+		return x.ViewerCanAssignRoles
+	}
+	return false
+}
+
+type CreateAdminRoleRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	DisplayName   string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	Pingable      bool                   `protobuf:"varint,4,opt,name=pingable,proto3" json:"pingable,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateAdminRoleRequest) Reset() {
+	*x = CreateAdminRoleRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[58]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateAdminRoleRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateAdminRoleRequest) ProtoMessage() {}
+
+func (x *CreateAdminRoleRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[58]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateAdminRoleRequest.ProtoReflect.Descriptor instead.
+func (*CreateAdminRoleRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{58}
+}
+
+func (x *CreateAdminRoleRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CreateAdminRoleRequest) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *CreateAdminRoleRequest) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *CreateAdminRoleRequest) GetPingable() bool {
+	if x != nil {
+		return x.Pingable
+	}
+	return false
+}
+
+type CreateAdminRoleResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Role          *AdminRoleView         `protobuf:"bytes,1,opt,name=role,proto3" json:"role,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateAdminRoleResponse) Reset() {
+	*x = CreateAdminRoleResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[59]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateAdminRoleResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateAdminRoleResponse) ProtoMessage() {}
+
+func (x *CreateAdminRoleResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[59]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateAdminRoleResponse.ProtoReflect.Descriptor instead.
+func (*CreateAdminRoleResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{59}
+}
+
+func (x *CreateAdminRoleResponse) GetRole() *AdminRoleView {
+	if x != nil {
+		return x.Role
+	}
+	return nil
+}
+
+type UpdateAdminRoleRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	DisplayName   string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	Pingable      *bool                  `protobuf:"varint,4,opt,name=pingable,proto3,oneof" json:"pingable,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateAdminRoleRequest) Reset() {
+	*x = UpdateAdminRoleRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[60]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateAdminRoleRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateAdminRoleRequest) ProtoMessage() {}
+
+func (x *UpdateAdminRoleRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[60]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateAdminRoleRequest.ProtoReflect.Descriptor instead.
+func (*UpdateAdminRoleRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{60}
+}
+
+func (x *UpdateAdminRoleRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *UpdateAdminRoleRequest) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *UpdateAdminRoleRequest) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *UpdateAdminRoleRequest) GetPingable() bool {
+	if x != nil && x.Pingable != nil {
+		return *x.Pingable
+	}
+	return false
+}
+
+type UpdateAdminRoleResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Role          *AdminRoleView         `protobuf:"bytes,1,opt,name=role,proto3" json:"role,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateAdminRoleResponse) Reset() {
+	*x = UpdateAdminRoleResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[61]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateAdminRoleResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateAdminRoleResponse) ProtoMessage() {}
+
+func (x *UpdateAdminRoleResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[61]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateAdminRoleResponse.ProtoReflect.Descriptor instead.
+func (*UpdateAdminRoleResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{61}
+}
+
+func (x *UpdateAdminRoleResponse) GetRole() *AdminRoleView {
+	if x != nil {
+		return x.Role
+	}
+	return nil
+}
+
+type DeleteAdminRoleRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteAdminRoleRequest) Reset() {
+	*x = DeleteAdminRoleRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[62]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteAdminRoleRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteAdminRoleRequest) ProtoMessage() {}
+
+func (x *DeleteAdminRoleRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[62]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteAdminRoleRequest.ProtoReflect.Descriptor instead.
+func (*DeleteAdminRoleRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{62}
+}
+
+func (x *DeleteAdminRoleRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type DeleteAdminRoleResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Deleted       bool                   `protobuf:"varint,1,opt,name=deleted,proto3" json:"deleted,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteAdminRoleResponse) Reset() {
+	*x = DeleteAdminRoleResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[63]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteAdminRoleResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteAdminRoleResponse) ProtoMessage() {}
+
+func (x *DeleteAdminRoleResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[63]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteAdminRoleResponse.ProtoReflect.Descriptor instead.
+func (*DeleteAdminRoleResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{63}
+}
+
+func (x *DeleteAdminRoleResponse) GetDeleted() bool {
+	if x != nil {
+		return x.Deleted
+	}
+	return false
+}
+
+type TierPermissionsView struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Permissions       []string               `protobuf:"bytes,1,rep,name=permissions,proto3" json:"permissions,omitempty"`
+	PermissionDenials []string               `protobuf:"bytes,2,rep,name=permission_denials,json=permissionDenials,proto3" json:"permission_denials,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *TierPermissionsView) Reset() {
+	*x = TierPermissionsView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[64]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TierPermissionsView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TierPermissionsView) ProtoMessage() {}
+
+func (x *TierPermissionsView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[64]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TierPermissionsView.ProtoReflect.Descriptor instead.
+func (*TierPermissionsView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{64}
+}
+
+func (x *TierPermissionsView) GetPermissions() []string {
+	if x != nil {
+		return x.Permissions
+	}
+	return nil
+}
+
+func (x *TierPermissionsView) GetPermissionDenials() []string {
+	if x != nil {
+		return x.PermissionDenials
+	}
+	return nil
+}
+
+type TierRoleView struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	RoleName         string                 `protobuf:"bytes,1,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
+	DisplayName      string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Description      string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	IsSystem         bool                   `protobuf:"varint,4,opt,name=is_system,json=isSystem,proto3" json:"is_system,omitempty"`
+	Position         int32                  `protobuf:"varint,5,opt,name=position,proto3" json:"position,omitempty"`
+	Override         *TierPermissionsView   `protobuf:"bytes,6,opt,name=override,proto3" json:"override,omitempty"`
+	InheritedAllows  []string               `protobuf:"bytes,7,rep,name=inherited_allows,json=inheritedAllows,proto3" json:"inherited_allows,omitempty"`
+	InheritedDenials []string               `protobuf:"bytes,8,rep,name=inherited_denials,json=inheritedDenials,proto3" json:"inherited_denials,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *TierRoleView) Reset() {
+	*x = TierRoleView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[65]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TierRoleView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TierRoleView) ProtoMessage() {}
+
+func (x *TierRoleView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[65]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TierRoleView.ProtoReflect.Descriptor instead.
+func (*TierRoleView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{65}
+}
+
+func (x *TierRoleView) GetRoleName() string {
+	if x != nil {
+		return x.RoleName
+	}
+	return ""
+}
+
+func (x *TierRoleView) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *TierRoleView) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *TierRoleView) GetIsSystem() bool {
+	if x != nil {
+		return x.IsSystem
+	}
+	return false
+}
+
+func (x *TierRoleView) GetPosition() int32 {
+	if x != nil {
+		return x.Position
+	}
+	return 0
+}
+
+func (x *TierRoleView) GetOverride() *TierPermissionsView {
+	if x != nil {
+		return x.Override
+	}
+	return nil
+}
+
+func (x *TierRoleView) GetInheritedAllows() []string {
+	if x != nil {
+		return x.InheritedAllows
+	}
+	return nil
+}
+
+func (x *TierRoleView) GetInheritedDenials() []string {
+	if x != nil {
+		return x.InheritedDenials
+	}
+	return nil
+}
+
+type RolePermissionTierMatrixView struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	ApplicablePermissions []string               `protobuf:"bytes,1,rep,name=applicable_permissions,json=applicablePermissions,proto3" json:"applicable_permissions,omitempty"`
+	Roles                 []*TierRoleView        `protobuf:"bytes,2,rep,name=roles,proto3" json:"roles,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *RolePermissionTierMatrixView) Reset() {
+	*x = RolePermissionTierMatrixView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[66]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RolePermissionTierMatrixView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RolePermissionTierMatrixView) ProtoMessage() {}
+
+func (x *RolePermissionTierMatrixView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[66]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RolePermissionTierMatrixView.ProtoReflect.Descriptor instead.
+func (*RolePermissionTierMatrixView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{66}
+}
+
+func (x *RolePermissionTierMatrixView) GetApplicablePermissions() []string {
+	if x != nil {
+		return x.ApplicablePermissions
+	}
+	return nil
+}
+
+func (x *RolePermissionTierMatrixView) GetRoles() []*TierRoleView {
+	if x != nil {
+		return x.Roles
+	}
+	return nil
+}
+
+type PermissionMatrixScopeView struct {
+	state         protoimpl.MessageState    `protogen:"open.v1"`
+	Id            string                    `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Label         string                    `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	Kind          PermissionMatrixScopeKind `protobuf:"varint,3,opt,name=kind,proto3,enum=chatto.api.v1.PermissionMatrixScopeKind" json:"kind,omitempty"`
+	ParentGroupId string                    `protobuf:"bytes,4,opt,name=parent_group_id,json=parentGroupId,proto3" json:"parent_group_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PermissionMatrixScopeView) Reset() {
+	*x = PermissionMatrixScopeView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[67]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PermissionMatrixScopeView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PermissionMatrixScopeView) ProtoMessage() {}
+
+func (x *PermissionMatrixScopeView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[67]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PermissionMatrixScopeView.ProtoReflect.Descriptor instead.
+func (*PermissionMatrixScopeView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{67}
+}
+
+func (x *PermissionMatrixScopeView) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *PermissionMatrixScopeView) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *PermissionMatrixScopeView) GetKind() PermissionMatrixScopeKind {
+	if x != nil {
+		return x.Kind
+	}
+	return PermissionMatrixScopeKind_PERMISSION_MATRIX_SCOPE_KIND_UNSPECIFIED
+}
+
+func (x *PermissionMatrixScopeView) GetParentGroupId() string {
+	if x != nil {
+		return x.ParentGroupId
+	}
+	return ""
+}
+
+type PermissionMatrixCellView struct {
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	Permission    string                   `protobuf:"bytes,1,opt,name=permission,proto3" json:"permission,omitempty"`
+	ScopeId       string                   `protobuf:"bytes,2,opt,name=scope_id,json=scopeId,proto3" json:"scope_id,omitempty"`
+	Override      PermissionMatrixDecision `protobuf:"varint,3,opt,name=override,proto3,enum=chatto.api.v1.PermissionMatrixDecision" json:"override,omitempty"`
+	Effective     PermissionMatrixDecision `protobuf:"varint,4,opt,name=effective,proto3,enum=chatto.api.v1.PermissionMatrixDecision" json:"effective,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PermissionMatrixCellView) Reset() {
+	*x = PermissionMatrixCellView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[68]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PermissionMatrixCellView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PermissionMatrixCellView) ProtoMessage() {}
+
+func (x *PermissionMatrixCellView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[68]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PermissionMatrixCellView.ProtoReflect.Descriptor instead.
+func (*PermissionMatrixCellView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{68}
+}
+
+func (x *PermissionMatrixCellView) GetPermission() string {
+	if x != nil {
+		return x.Permission
+	}
+	return ""
+}
+
+func (x *PermissionMatrixCellView) GetScopeId() string {
+	if x != nil {
+		return x.ScopeId
+	}
+	return ""
+}
+
+func (x *PermissionMatrixCellView) GetOverride() PermissionMatrixDecision {
+	if x != nil {
+		return x.Override
+	}
+	return PermissionMatrixDecision_PERMISSION_MATRIX_DECISION_UNSPECIFIED
+}
+
+func (x *PermissionMatrixCellView) GetEffective() PermissionMatrixDecision {
+	if x != nil {
+		return x.Effective
+	}
+	return PermissionMatrixDecision_PERMISSION_MATRIX_DECISION_UNSPECIFIED
+}
+
+type RolePermissionMatrixView struct {
+	state                 protoimpl.MessageState       `protogen:"open.v1"`
+	RoleName              string                       `protobuf:"bytes,1,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
+	ApplicablePermissions []string                     `protobuf:"bytes,2,rep,name=applicable_permissions,json=applicablePermissions,proto3" json:"applicable_permissions,omitempty"`
+	Scopes                []*PermissionMatrixScopeView `protobuf:"bytes,3,rep,name=scopes,proto3" json:"scopes,omitempty"`
+	Cells                 []*PermissionMatrixCellView  `protobuf:"bytes,4,rep,name=cells,proto3" json:"cells,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *RolePermissionMatrixView) Reset() {
+	*x = RolePermissionMatrixView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[69]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RolePermissionMatrixView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RolePermissionMatrixView) ProtoMessage() {}
+
+func (x *RolePermissionMatrixView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[69]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RolePermissionMatrixView.ProtoReflect.Descriptor instead.
+func (*RolePermissionMatrixView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{69}
+}
+
+func (x *RolePermissionMatrixView) GetRoleName() string {
+	if x != nil {
+		return x.RoleName
+	}
+	return ""
+}
+
+func (x *RolePermissionMatrixView) GetApplicablePermissions() []string {
+	if x != nil {
+		return x.ApplicablePermissions
+	}
+	return nil
+}
+
+func (x *RolePermissionMatrixView) GetScopes() []*PermissionMatrixScopeView {
+	if x != nil {
+		return x.Scopes
+	}
+	return nil
+}
+
+func (x *RolePermissionMatrixView) GetCells() []*PermissionMatrixCellView {
+	if x != nil {
+		return x.Cells
+	}
+	return nil
+}
+
+type UserPermissionMatrixView struct {
+	state                 protoimpl.MessageState       `protogen:"open.v1"`
+	UserId                string                       `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	ApplicablePermissions []string                     `protobuf:"bytes,2,rep,name=applicable_permissions,json=applicablePermissions,proto3" json:"applicable_permissions,omitempty"`
+	Scopes                []*PermissionMatrixScopeView `protobuf:"bytes,3,rep,name=scopes,proto3" json:"scopes,omitempty"`
+	Cells                 []*PermissionMatrixCellView  `protobuf:"bytes,4,rep,name=cells,proto3" json:"cells,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *UserPermissionMatrixView) Reset() {
+	*x = UserPermissionMatrixView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[70]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UserPermissionMatrixView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UserPermissionMatrixView) ProtoMessage() {}
+
+func (x *UserPermissionMatrixView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[70]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UserPermissionMatrixView.ProtoReflect.Descriptor instead.
+func (*UserPermissionMatrixView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{70}
+}
+
+func (x *UserPermissionMatrixView) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *UserPermissionMatrixView) GetApplicablePermissions() []string {
+	if x != nil {
+		return x.ApplicablePermissions
+	}
+	return nil
+}
+
+func (x *UserPermissionMatrixView) GetScopes() []*PermissionMatrixScopeView {
+	if x != nil {
+		return x.Scopes
+	}
+	return nil
+}
+
+func (x *UserPermissionMatrixView) GetCells() []*PermissionMatrixCellView {
+	if x != nil {
+		return x.Cells
+	}
+	return nil
+}
+
+type GetRolePermissionTierMatrixRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	GroupId       string                 `protobuf:"bytes,2,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRolePermissionTierMatrixRequest) Reset() {
+	*x = GetRolePermissionTierMatrixRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[71]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRolePermissionTierMatrixRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRolePermissionTierMatrixRequest) ProtoMessage() {}
+
+func (x *GetRolePermissionTierMatrixRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[71]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRolePermissionTierMatrixRequest.ProtoReflect.Descriptor instead.
+func (*GetRolePermissionTierMatrixRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{71}
+}
+
+func (x *GetRolePermissionTierMatrixRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *GetRolePermissionTierMatrixRequest) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+type GetRolePermissionTierMatrixResponse struct {
+	state         protoimpl.MessageState        `protogen:"open.v1"`
+	Matrix        *RolePermissionTierMatrixView `protobuf:"bytes,1,opt,name=matrix,proto3" json:"matrix,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRolePermissionTierMatrixResponse) Reset() {
+	*x = GetRolePermissionTierMatrixResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[72]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRolePermissionTierMatrixResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRolePermissionTierMatrixResponse) ProtoMessage() {}
+
+func (x *GetRolePermissionTierMatrixResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[72]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRolePermissionTierMatrixResponse.ProtoReflect.Descriptor instead.
+func (*GetRolePermissionTierMatrixResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{72}
+}
+
+func (x *GetRolePermissionTierMatrixResponse) GetMatrix() *RolePermissionTierMatrixView {
+	if x != nil {
+		return x.Matrix
+	}
+	return nil
+}
+
+type GetRolePermissionMatrixRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoleName      string                 `protobuf:"bytes,1,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRolePermissionMatrixRequest) Reset() {
+	*x = GetRolePermissionMatrixRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[73]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRolePermissionMatrixRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRolePermissionMatrixRequest) ProtoMessage() {}
+
+func (x *GetRolePermissionMatrixRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[73]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRolePermissionMatrixRequest.ProtoReflect.Descriptor instead.
+func (*GetRolePermissionMatrixRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{73}
+}
+
+func (x *GetRolePermissionMatrixRequest) GetRoleName() string {
+	if x != nil {
+		return x.RoleName
+	}
+	return ""
+}
+
+type GetRolePermissionMatrixResponse struct {
+	state         protoimpl.MessageState    `protogen:"open.v1"`
+	Matrix        *RolePermissionMatrixView `protobuf:"bytes,1,opt,name=matrix,proto3" json:"matrix,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRolePermissionMatrixResponse) Reset() {
+	*x = GetRolePermissionMatrixResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[74]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRolePermissionMatrixResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRolePermissionMatrixResponse) ProtoMessage() {}
+
+func (x *GetRolePermissionMatrixResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[74]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRolePermissionMatrixResponse.ProtoReflect.Descriptor instead.
+func (*GetRolePermissionMatrixResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{74}
+}
+
+func (x *GetRolePermissionMatrixResponse) GetMatrix() *RolePermissionMatrixView {
+	if x != nil {
+		return x.Matrix
+	}
+	return nil
+}
+
+type GetUserPermissionMatrixRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUserPermissionMatrixRequest) Reset() {
+	*x = GetUserPermissionMatrixRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[75]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUserPermissionMatrixRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUserPermissionMatrixRequest) ProtoMessage() {}
+
+func (x *GetUserPermissionMatrixRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[75]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUserPermissionMatrixRequest.ProtoReflect.Descriptor instead.
+func (*GetUserPermissionMatrixRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{75}
+}
+
+func (x *GetUserPermissionMatrixRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+type GetUserPermissionMatrixResponse struct {
+	state         protoimpl.MessageState    `protogen:"open.v1"`
+	Matrix        *UserPermissionMatrixView `protobuf:"bytes,1,opt,name=matrix,proto3" json:"matrix,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUserPermissionMatrixResponse) Reset() {
+	*x = GetUserPermissionMatrixResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[76]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUserPermissionMatrixResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUserPermissionMatrixResponse) ProtoMessage() {}
+
+func (x *GetUserPermissionMatrixResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[76]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUserPermissionMatrixResponse.ProtoReflect.Descriptor instead.
+func (*GetUserPermissionMatrixResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{76}
+}
+
+func (x *GetUserPermissionMatrixResponse) GetMatrix() *UserPermissionMatrixView {
+	if x != nil {
+		return x.Matrix
+	}
+	return nil
+}
+
+type SetRolePermissionStateRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoleName      string                 `protobuf:"bytes,1,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
+	Permission    string                 `protobuf:"bytes,2,opt,name=permission,proto3" json:"permission,omitempty"`
+	State         PermissionEditState    `protobuf:"varint,3,opt,name=state,proto3,enum=chatto.api.v1.PermissionEditState" json:"state,omitempty"`
+	RoomId        string                 `protobuf:"bytes,4,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	GroupId       string                 `protobuf:"bytes,5,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetRolePermissionStateRequest) Reset() {
+	*x = SetRolePermissionStateRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[77]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetRolePermissionStateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetRolePermissionStateRequest) ProtoMessage() {}
+
+func (x *SetRolePermissionStateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[77]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetRolePermissionStateRequest.ProtoReflect.Descriptor instead.
+func (*SetRolePermissionStateRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{77}
+}
+
+func (x *SetRolePermissionStateRequest) GetRoleName() string {
+	if x != nil {
+		return x.RoleName
+	}
+	return ""
+}
+
+func (x *SetRolePermissionStateRequest) GetPermission() string {
+	if x != nil {
+		return x.Permission
+	}
+	return ""
+}
+
+func (x *SetRolePermissionStateRequest) GetState() PermissionEditState {
+	if x != nil {
+		return x.State
+	}
+	return PermissionEditState_PERMISSION_EDIT_STATE_UNSPECIFIED
+}
+
+func (x *SetRolePermissionStateRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *SetRolePermissionStateRequest) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+type SetUserPermissionStateRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Permission    string                 `protobuf:"bytes,2,opt,name=permission,proto3" json:"permission,omitempty"`
+	State         PermissionEditState    `protobuf:"varint,3,opt,name=state,proto3,enum=chatto.api.v1.PermissionEditState" json:"state,omitempty"`
+	RoomId        string                 `protobuf:"bytes,4,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	GroupId       string                 `protobuf:"bytes,5,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetUserPermissionStateRequest) Reset() {
+	*x = SetUserPermissionStateRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[78]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetUserPermissionStateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetUserPermissionStateRequest) ProtoMessage() {}
+
+func (x *SetUserPermissionStateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[78]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetUserPermissionStateRequest.ProtoReflect.Descriptor instead.
+func (*SetUserPermissionStateRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{78}
+}
+
+func (x *SetUserPermissionStateRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *SetUserPermissionStateRequest) GetPermission() string {
+	if x != nil {
+		return x.Permission
+	}
+	return ""
+}
+
+func (x *SetUserPermissionStateRequest) GetState() PermissionEditState {
+	if x != nil {
+		return x.State
+	}
+	return PermissionEditState_PERMISSION_EDIT_STATE_UNSPECIFIED
+}
+
+func (x *SetUserPermissionStateRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *SetUserPermissionStateRequest) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+type SetPermissionStateResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Changed       bool                   `protobuf:"varint,1,opt,name=changed,proto3" json:"changed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetPermissionStateResponse) Reset() {
+	*x = SetPermissionStateResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[79]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetPermissionStateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetPermissionStateResponse) ProtoMessage() {}
+
+func (x *SetPermissionStateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[79]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetPermissionStateResponse.ProtoReflect.Descriptor instead.
+func (*SetPermissionStateResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{79}
+}
+
+func (x *SetPermissionStateResponse) GetChanged() bool {
+	if x != nil {
+		return x.Changed
+	}
+	return false
+}
+
+// ProfileSettingsView contains the current user's editable profile settings.
+type ProfileSettingsView struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	User            *v1.User               `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	AvatarUrl       string                 `protobuf:"bytes,2,opt,name=avatar_url,json=avatarUrl,proto3" json:"avatar_url,omitempty"`
+	LastLoginChange *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=last_login_change,json=lastLoginChange,proto3" json:"last_login_change,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ProfileSettingsView) Reset() {
+	*x = ProfileSettingsView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[80]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProfileSettingsView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProfileSettingsView) ProtoMessage() {}
+
+func (x *ProfileSettingsView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[80]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProfileSettingsView.ProtoReflect.Descriptor instead.
+func (*ProfileSettingsView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{80}
+}
+
+func (x *ProfileSettingsView) GetUser() *v1.User {
+	if x != nil {
+		return x.User
+	}
+	return nil
+}
+
+func (x *ProfileSettingsView) GetAvatarUrl() string {
+	if x != nil {
+		return x.AvatarUrl
+	}
+	return ""
+}
+
+func (x *ProfileSettingsView) GetLastLoginChange() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastLoginChange
+	}
+	return nil
+}
+
+// GetProfileSettingsRequest requests the current user's profile settings.
+type GetProfileSettingsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetProfileSettingsRequest) Reset() {
+	*x = GetProfileSettingsRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[81]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetProfileSettingsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetProfileSettingsRequest) ProtoMessage() {}
+
+func (x *GetProfileSettingsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[81]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetProfileSettingsRequest.ProtoReflect.Descriptor instead.
+func (*GetProfileSettingsRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{81}
+}
+
+// GetProfileSettingsResponse returns the current user's profile settings.
+type GetProfileSettingsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Profile       *ProfileSettingsView   `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetProfileSettingsResponse) Reset() {
+	*x = GetProfileSettingsResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[82]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetProfileSettingsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetProfileSettingsResponse) ProtoMessage() {}
+
+func (x *GetProfileSettingsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[82]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetProfileSettingsResponse.ProtoReflect.Descriptor instead.
+func (*GetProfileSettingsResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{82}
+}
+
+func (x *GetProfileSettingsResponse) GetProfile() *ProfileSettingsView {
+	if x != nil {
+		return x.Profile
+	}
+	return nil
+}
+
+// UpdateProfileRequest updates the current user's editable profile fields.
+type UpdateProfileRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DisplayName   *string                `protobuf:"bytes,1,opt,name=display_name,json=displayName,proto3,oneof" json:"display_name,omitempty"`
+	Login         *string                `protobuf:"bytes,2,opt,name=login,proto3,oneof" json:"login,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateProfileRequest) Reset() {
+	*x = UpdateProfileRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[83]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateProfileRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateProfileRequest) ProtoMessage() {}
+
+func (x *UpdateProfileRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[83]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateProfileRequest.ProtoReflect.Descriptor instead.
+func (*UpdateProfileRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{83}
+}
+
+func (x *UpdateProfileRequest) GetDisplayName() string {
+	if x != nil && x.DisplayName != nil {
+		return *x.DisplayName
+	}
+	return ""
+}
+
+func (x *UpdateProfileRequest) GetLogin() string {
+	if x != nil && x.Login != nil {
+		return *x.Login
+	}
+	return ""
+}
+
+// UpdateProfileResponse returns the updated current-user profile settings.
+type UpdateProfileResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Profile       *ProfileSettingsView   `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateProfileResponse) Reset() {
+	*x = UpdateProfileResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[84]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateProfileResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateProfileResponse) ProtoMessage() {}
+
+func (x *UpdateProfileResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[84]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateProfileResponse.ProtoReflect.Descriptor instead.
+func (*UpdateProfileResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{84}
+}
+
+func (x *UpdateProfileResponse) GetProfile() *ProfileSettingsView {
+	if x != nil {
+		return x.Profile
+	}
+	return nil
+}
+
+// GetUserSettingsRequest requests the current user's display preferences.
+type GetUserSettingsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUserSettingsRequest) Reset() {
+	*x = GetUserSettingsRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[85]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUserSettingsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUserSettingsRequest) ProtoMessage() {}
+
+func (x *GetUserSettingsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[85]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUserSettingsRequest.ProtoReflect.Descriptor instead.
+func (*GetUserSettingsRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{85}
+}
+
+// GetUserSettingsResponse returns the current user's display preferences.
+type GetUserSettingsResponse struct {
+	state         protoimpl.MessageState    `protogen:"open.v1"`
+	Settings      *v1.ServerUserPreferences `protobuf:"bytes,1,opt,name=settings,proto3" json:"settings,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUserSettingsResponse) Reset() {
+	*x = GetUserSettingsResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[86]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUserSettingsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUserSettingsResponse) ProtoMessage() {}
+
+func (x *GetUserSettingsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[86]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUserSettingsResponse.ProtoReflect.Descriptor instead.
+func (*GetUserSettingsResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{86}
+}
+
+func (x *GetUserSettingsResponse) GetSettings() *v1.ServerUserPreferences {
+	if x != nil {
+		return x.Settings
+	}
+	return nil
+}
+
+// UpdateUserSettingsRequest updates the current user's display preferences.
+type UpdateUserSettingsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Timezone      *string                `protobuf:"bytes,1,opt,name=timezone,proto3,oneof" json:"timezone,omitempty"`
+	TimeFormat    *v1.TimeFormat         `protobuf:"varint,2,opt,name=time_format,json=timeFormat,proto3,enum=chatto.core.v1.TimeFormat,oneof" json:"time_format,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateUserSettingsRequest) Reset() {
+	*x = UpdateUserSettingsRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[87]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateUserSettingsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateUserSettingsRequest) ProtoMessage() {}
+
+func (x *UpdateUserSettingsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[87]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateUserSettingsRequest.ProtoReflect.Descriptor instead.
+func (*UpdateUserSettingsRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{87}
+}
+
+func (x *UpdateUserSettingsRequest) GetTimezone() string {
+	if x != nil && x.Timezone != nil {
+		return *x.Timezone
+	}
+	return ""
+}
+
+func (x *UpdateUserSettingsRequest) GetTimeFormat() v1.TimeFormat {
+	if x != nil && x.TimeFormat != nil {
+		return *x.TimeFormat
+	}
+	return v1.TimeFormat(0)
+}
+
+// UpdateUserSettingsResponse returns the current user's updated display preferences.
+type UpdateUserSettingsResponse struct {
+	state         protoimpl.MessageState    `protogen:"open.v1"`
+	Settings      *v1.ServerUserPreferences `protobuf:"bytes,1,opt,name=settings,proto3" json:"settings,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateUserSettingsResponse) Reset() {
+	*x = UpdateUserSettingsResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[88]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateUserSettingsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateUserSettingsResponse) ProtoMessage() {}
+
+func (x *UpdateUserSettingsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[88]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateUserSettingsResponse.ProtoReflect.Descriptor instead.
+func (*UpdateUserSettingsResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{88}
+}
+
+func (x *UpdateUserSettingsResponse) GetSettings() *v1.ServerUserPreferences {
+	if x != nil {
+		return x.Settings
+	}
+	return nil
+}
+
+type SetServerNotificationLevelRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Level         v1.NotificationLevel   `protobuf:"varint,1,opt,name=level,proto3,enum=chatto.core.v1.NotificationLevel" json:"level,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetServerNotificationLevelRequest) Reset() {
+	*x = SetServerNotificationLevelRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[89]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetServerNotificationLevelRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetServerNotificationLevelRequest) ProtoMessage() {}
+
+func (x *SetServerNotificationLevelRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[89]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetServerNotificationLevelRequest.ProtoReflect.Descriptor instead.
+func (*SetServerNotificationLevelRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{89}
+}
+
+func (x *SetServerNotificationLevelRequest) GetLevel() v1.NotificationLevel {
+	if x != nil {
+		return x.Level
+	}
+	return v1.NotificationLevel(0)
+}
+
+type SetRoomNotificationLevelRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	Level         v1.NotificationLevel   `protobuf:"varint,2,opt,name=level,proto3,enum=chatto.core.v1.NotificationLevel" json:"level,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetRoomNotificationLevelRequest) Reset() {
+	*x = SetRoomNotificationLevelRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[90]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetRoomNotificationLevelRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetRoomNotificationLevelRequest) ProtoMessage() {}
+
+func (x *SetRoomNotificationLevelRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[90]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetRoomNotificationLevelRequest.ProtoReflect.Descriptor instead.
+func (*SetRoomNotificationLevelRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{90}
+}
+
+func (x *SetRoomNotificationLevelRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *SetRoomNotificationLevelRequest) GetLevel() v1.NotificationLevel {
+	if x != nil {
+		return x.Level
+	}
+	return v1.NotificationLevel(0)
+}
+
+type SetNotificationLevelResponse struct {
+	state         protoimpl.MessageState            `protogen:"open.v1"`
+	Preference    *ViewerNotificationPreferenceView `protobuf:"bytes,1,opt,name=preference,proto3" json:"preference,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetNotificationLevelResponse) Reset() {
+	*x = SetNotificationLevelResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[91]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetNotificationLevelResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetNotificationLevelResponse) ProtoMessage() {}
+
+func (x *SetNotificationLevelResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[91]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetNotificationLevelResponse.ProtoReflect.Descriptor instead.
+func (*SetNotificationLevelResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{91}
+}
+
+func (x *SetNotificationLevelResponse) GetPreference() *ViewerNotificationPreferenceView {
+	if x != nil {
+		return x.Preference
+	}
+	return nil
+}
+
+type SubscribeToPushRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Endpoint      string                 `protobuf:"bytes,1,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
+	P256Dh        string                 `protobuf:"bytes,2,opt,name=p256dh,proto3" json:"p256dh,omitempty"`
+	Auth          string                 `protobuf:"bytes,3,opt,name=auth,proto3" json:"auth,omitempty"`
+	UserAgent     string                 `protobuf:"bytes,4,opt,name=user_agent,json=userAgent,proto3" json:"user_agent,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubscribeToPushRequest) Reset() {
+	*x = SubscribeToPushRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[92]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubscribeToPushRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubscribeToPushRequest) ProtoMessage() {}
+
+func (x *SubscribeToPushRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[92]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubscribeToPushRequest.ProtoReflect.Descriptor instead.
+func (*SubscribeToPushRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{92}
+}
+
+func (x *SubscribeToPushRequest) GetEndpoint() string {
+	if x != nil {
+		return x.Endpoint
+	}
+	return ""
+}
+
+func (x *SubscribeToPushRequest) GetP256Dh() string {
+	if x != nil {
+		return x.P256Dh
+	}
+	return ""
+}
+
+func (x *SubscribeToPushRequest) GetAuth() string {
+	if x != nil {
+		return x.Auth
+	}
+	return ""
+}
+
+func (x *SubscribeToPushRequest) GetUserAgent() string {
+	if x != nil {
+		return x.UserAgent
+	}
+	return ""
+}
+
+type SubscribeToPushResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Subscribed    bool                   `protobuf:"varint,1,opt,name=subscribed,proto3" json:"subscribed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubscribeToPushResponse) Reset() {
+	*x = SubscribeToPushResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[93]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubscribeToPushResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubscribeToPushResponse) ProtoMessage() {}
+
+func (x *SubscribeToPushResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[93]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubscribeToPushResponse.ProtoReflect.Descriptor instead.
+func (*SubscribeToPushResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{93}
+}
+
+func (x *SubscribeToPushResponse) GetSubscribed() bool {
+	if x != nil {
+		return x.Subscribed
+	}
+	return false
+}
+
+type UnsubscribeFromPushRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Endpoint      string                 `protobuf:"bytes,1,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnsubscribeFromPushRequest) Reset() {
+	*x = UnsubscribeFromPushRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[94]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnsubscribeFromPushRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnsubscribeFromPushRequest) ProtoMessage() {}
+
+func (x *UnsubscribeFromPushRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[94]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnsubscribeFromPushRequest.ProtoReflect.Descriptor instead.
+func (*UnsubscribeFromPushRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{94}
+}
+
+func (x *UnsubscribeFromPushRequest) GetEndpoint() string {
+	if x != nil {
+		return x.Endpoint
+	}
+	return ""
+}
+
+type UnsubscribeFromPushResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Unsubscribed  bool                   `protobuf:"varint,1,opt,name=unsubscribed,proto3" json:"unsubscribed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnsubscribeFromPushResponse) Reset() {
+	*x = UnsubscribeFromPushResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[95]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnsubscribeFromPushResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnsubscribeFromPushResponse) ProtoMessage() {}
+
+func (x *UnsubscribeFromPushResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[95]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnsubscribeFromPushResponse.ProtoReflect.Descriptor instead.
+func (*UnsubscribeFromPushResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{95}
+}
+
+func (x *UnsubscribeFromPushResponse) GetUnsubscribed() bool {
+	if x != nil {
+		return x.Unsubscribed
+	}
+	return false
+}
+
+type NotificationItemView struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Id                string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	CreatedAt         *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	Kind              NotificationKind       `protobuf:"varint,3,opt,name=kind,proto3,enum=chatto.api.v1.NotificationKind" json:"kind,omitempty"`
+	Actor             *v1.User               `protobuf:"bytes,4,opt,name=actor,proto3" json:"actor,omitempty"`
+	Summary           string                 `protobuf:"bytes,5,opt,name=summary,proto3" json:"summary,omitempty"`
+	RoomId            string                 `protobuf:"bytes,6,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	RoomName          string                 `protobuf:"bytes,7,opt,name=room_name,json=roomName,proto3" json:"room_name,omitempty"`
+	EventId           *string                `protobuf:"bytes,8,opt,name=event_id,json=eventId,proto3,oneof" json:"event_id,omitempty"`
+	ThreadRootEventId *string                `protobuf:"bytes,9,opt,name=thread_root_event_id,json=threadRootEventId,proto3,oneof" json:"thread_root_event_id,omitempty"`
+	InReplyToId       *string                `protobuf:"bytes,10,opt,name=in_reply_to_id,json=inReplyToId,proto3,oneof" json:"in_reply_to_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *NotificationItemView) Reset() {
+	*x = NotificationItemView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[96]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NotificationItemView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NotificationItemView) ProtoMessage() {}
+
+func (x *NotificationItemView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[96]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NotificationItemView.ProtoReflect.Descriptor instead.
+func (*NotificationItemView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{96}
+}
+
+func (x *NotificationItemView) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *NotificationItemView) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *NotificationItemView) GetKind() NotificationKind {
+	if x != nil {
+		return x.Kind
+	}
+	return NotificationKind_NOTIFICATION_KIND_UNSPECIFIED
+}
+
+func (x *NotificationItemView) GetActor() *v1.User {
+	if x != nil {
+		return x.Actor
+	}
+	return nil
+}
+
+func (x *NotificationItemView) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
+func (x *NotificationItemView) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *NotificationItemView) GetRoomName() string {
+	if x != nil {
+		return x.RoomName
+	}
+	return ""
+}
+
+func (x *NotificationItemView) GetEventId() string {
+	if x != nil && x.EventId != nil {
+		return *x.EventId
+	}
+	return ""
+}
+
+func (x *NotificationItemView) GetThreadRootEventId() string {
+	if x != nil && x.ThreadRootEventId != nil {
+		return *x.ThreadRootEventId
+	}
+	return ""
+}
+
+func (x *NotificationItemView) GetInReplyToId() string {
+	if x != nil && x.InReplyToId != nil {
+		return *x.InReplyToId
+	}
+	return ""
+}
+
+type ListNotificationsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Limit         int32                  `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	Offset        int32                  `protobuf:"varint,2,opt,name=offset,proto3" json:"offset,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListNotificationsRequest) Reset() {
+	*x = ListNotificationsRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[97]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListNotificationsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListNotificationsRequest) ProtoMessage() {}
+
+func (x *ListNotificationsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[97]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListNotificationsRequest.ProtoReflect.Descriptor instead.
+func (*ListNotificationsRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{97}
+}
+
+func (x *ListNotificationsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *ListNotificationsRequest) GetOffset() int32 {
+	if x != nil {
+		return x.Offset
+	}
+	return 0
+}
+
+type ListNotificationsResponse struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	Items         []*NotificationItemView `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	TotalCount    int32                   `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	HasMore       bool                    `protobuf:"varint,3,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
+	ServerName    string                  `protobuf:"bytes,4,opt,name=server_name,json=serverName,proto3" json:"server_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListNotificationsResponse) Reset() {
+	*x = ListNotificationsResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[98]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListNotificationsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListNotificationsResponse) ProtoMessage() {}
+
+func (x *ListNotificationsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[98]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListNotificationsResponse.ProtoReflect.Descriptor instead.
+func (*ListNotificationsResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{98}
+}
+
+func (x *ListNotificationsResponse) GetItems() []*NotificationItemView {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+func (x *ListNotificationsResponse) GetTotalCount() int32 {
+	if x != nil {
+		return x.TotalCount
+	}
+	return 0
+}
+
+func (x *ListNotificationsResponse) GetHasMore() bool {
+	if x != nil {
+		return x.HasMore
+	}
+	return false
+}
+
+func (x *ListNotificationsResponse) GetServerName() string {
+	if x != nil {
+		return x.ServerName
+	}
+	return ""
+}
+
+type HasNotificationsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HasNotificationsRequest) Reset() {
+	*x = HasNotificationsRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[99]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HasNotificationsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HasNotificationsRequest) ProtoMessage() {}
+
+func (x *HasNotificationsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[99]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HasNotificationsRequest.ProtoReflect.Descriptor instead.
+func (*HasNotificationsRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{99}
+}
+
+type HasNotificationsResponse struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	HasNotifications bool                   `protobuf:"varint,1,opt,name=has_notifications,json=hasNotifications,proto3" json:"has_notifications,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *HasNotificationsResponse) Reset() {
+	*x = HasNotificationsResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[100]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HasNotificationsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HasNotificationsResponse) ProtoMessage() {}
+
+func (x *HasNotificationsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[100]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HasNotificationsResponse.ProtoReflect.Descriptor instead.
+func (*HasNotificationsResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{100}
+}
+
+func (x *HasNotificationsResponse) GetHasNotifications() bool {
+	if x != nil {
+		return x.HasNotifications
+	}
+	return false
+}
+
+type DismissNotificationRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	NotificationId string                 `protobuf:"bytes,1,opt,name=notification_id,json=notificationId,proto3" json:"notification_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *DismissNotificationRequest) Reset() {
+	*x = DismissNotificationRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[101]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DismissNotificationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DismissNotificationRequest) ProtoMessage() {}
+
+func (x *DismissNotificationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[101]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DismissNotificationRequest.ProtoReflect.Descriptor instead.
+func (*DismissNotificationRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{101}
+}
+
+func (x *DismissNotificationRequest) GetNotificationId() string {
+	if x != nil {
+		return x.NotificationId
+	}
+	return ""
+}
+
+type DismissNotificationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Dismissed     bool                   `protobuf:"varint,1,opt,name=dismissed,proto3" json:"dismissed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DismissNotificationResponse) Reset() {
+	*x = DismissNotificationResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[102]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DismissNotificationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DismissNotificationResponse) ProtoMessage() {}
+
+func (x *DismissNotificationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[102]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DismissNotificationResponse.ProtoReflect.Descriptor instead.
+func (*DismissNotificationResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{102}
+}
+
+func (x *DismissNotificationResponse) GetDismissed() bool {
+	if x != nil {
+		return x.Dismissed
+	}
+	return false
+}
+
+type DismissAllNotificationsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DismissAllNotificationsRequest) Reset() {
+	*x = DismissAllNotificationsRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[103]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DismissAllNotificationsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DismissAllNotificationsRequest) ProtoMessage() {}
+
+func (x *DismissAllNotificationsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[103]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DismissAllNotificationsRequest.ProtoReflect.Descriptor instead.
+func (*DismissAllNotificationsRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{103}
+}
+
+type DismissAllNotificationsResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	DismissedCount int32                  `protobuf:"varint,1,opt,name=dismissed_count,json=dismissedCount,proto3" json:"dismissed_count,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *DismissAllNotificationsResponse) Reset() {
+	*x = DismissAllNotificationsResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[104]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DismissAllNotificationsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DismissAllNotificationsResponse) ProtoMessage() {}
+
+func (x *DismissAllNotificationsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[104]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DismissAllNotificationsResponse.ProtoReflect.Descriptor instead.
+func (*DismissAllNotificationsResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{104}
+}
+
+func (x *DismissAllNotificationsResponse) GetDismissedCount() int32 {
+	if x != nil {
+		return x.DismissedCount
+	}
+	return 0
+}
+
+// ServerProfileView is lightweight server branding for product chrome.
+type ServerProfileView struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	LogoUrl       string                 `protobuf:"bytes,2,opt,name=logo_url,json=logoUrl,proto3" json:"logo_url,omitempty"`
+	BannerUrl     string                 `protobuf:"bytes,3,opt,name=banner_url,json=bannerUrl,proto3" json:"banner_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ServerProfileView) Reset() {
+	*x = ServerProfileView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[105]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServerProfileView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServerProfileView) ProtoMessage() {}
+
+func (x *ServerProfileView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[105]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServerProfileView.ProtoReflect.Descriptor instead.
+func (*ServerProfileView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{105}
+}
+
+func (x *ServerProfileView) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ServerProfileView) GetLogoUrl() string {
+	if x != nil {
+		return x.LogoUrl
+	}
+	return ""
+}
+
+func (x *ServerProfileView) GetBannerUrl() string {
+	if x != nil {
+		return x.BannerUrl
+	}
+	return ""
+}
+
+// ViewerPermissionsView contains server-scoped capability hints for the viewer.
+type ViewerPermissionsView struct {
+	state                    protoimpl.MessageState `protogen:"open.v1"`
+	CanViewAdmin             bool                   `protobuf:"varint,1,opt,name=can_view_admin,json=canViewAdmin,proto3" json:"can_view_admin,omitempty"`
+	CanStartDms              bool                   `protobuf:"varint,2,opt,name=can_start_dms,json=canStartDms,proto3" json:"can_start_dms,omitempty"`
+	CanAdminViewUsers        bool                   `protobuf:"varint,3,opt,name=can_admin_view_users,json=canAdminViewUsers,proto3" json:"can_admin_view_users,omitempty"`
+	CanAdminManageUsers      bool                   `protobuf:"varint,4,opt,name=can_admin_manage_users,json=canAdminManageUsers,proto3" json:"can_admin_manage_users,omitempty"`
+	CanAdminViewRoles        bool                   `protobuf:"varint,5,opt,name=can_admin_view_roles,json=canAdminViewRoles,proto3" json:"can_admin_view_roles,omitempty"`
+	CanAdminManageRoles      bool                   `protobuf:"varint,6,opt,name=can_admin_manage_roles,json=canAdminManageRoles,proto3" json:"can_admin_manage_roles,omitempty"`
+	CanAdminViewSystem       bool                   `protobuf:"varint,7,opt,name=can_admin_view_system,json=canAdminViewSystem,proto3" json:"can_admin_view_system,omitempty"`
+	CanAdminViewAudit        bool                   `protobuf:"varint,8,opt,name=can_admin_view_audit,json=canAdminViewAudit,proto3" json:"can_admin_view_audit,omitempty"`
+	CanManageServer          bool                   `protobuf:"varint,9,opt,name=can_manage_server,json=canManageServer,proto3" json:"can_manage_server,omitempty"`
+	CanManageRooms           bool                   `protobuf:"varint,10,opt,name=can_manage_rooms,json=canManageRooms,proto3" json:"can_manage_rooms,omitempty"`
+	CanManageRoles           bool                   `protobuf:"varint,11,opt,name=can_manage_roles,json=canManageRoles,proto3" json:"can_manage_roles,omitempty"`
+	CanAssignRoles           bool                   `protobuf:"varint,12,opt,name=can_assign_roles,json=canAssignRoles,proto3" json:"can_assign_roles,omitempty"`
+	CanManageUserPermissions bool                   `protobuf:"varint,13,opt,name=can_manage_user_permissions,json=canManageUserPermissions,proto3" json:"can_manage_user_permissions,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
+}
+
+func (x *ViewerPermissionsView) Reset() {
+	*x = ViewerPermissionsView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[106]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ViewerPermissionsView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ViewerPermissionsView) ProtoMessage() {}
+
+func (x *ViewerPermissionsView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[106]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ViewerPermissionsView.ProtoReflect.Descriptor instead.
+func (*ViewerPermissionsView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{106}
+}
+
+func (x *ViewerPermissionsView) GetCanViewAdmin() bool {
+	if x != nil {
+		return x.CanViewAdmin
+	}
+	return false
+}
+
+func (x *ViewerPermissionsView) GetCanStartDms() bool {
+	if x != nil {
+		return x.CanStartDms
+	}
+	return false
+}
+
+func (x *ViewerPermissionsView) GetCanAdminViewUsers() bool {
+	if x != nil {
+		return x.CanAdminViewUsers
+	}
+	return false
+}
+
+func (x *ViewerPermissionsView) GetCanAdminManageUsers() bool {
+	if x != nil {
+		return x.CanAdminManageUsers
+	}
+	return false
+}
+
+func (x *ViewerPermissionsView) GetCanAdminViewRoles() bool {
+	if x != nil {
+		return x.CanAdminViewRoles
+	}
+	return false
+}
+
+func (x *ViewerPermissionsView) GetCanAdminManageRoles() bool {
+	if x != nil {
+		return x.CanAdminManageRoles
+	}
+	return false
+}
+
+func (x *ViewerPermissionsView) GetCanAdminViewSystem() bool {
+	if x != nil {
+		return x.CanAdminViewSystem
+	}
+	return false
+}
+
+func (x *ViewerPermissionsView) GetCanAdminViewAudit() bool {
+	if x != nil {
+		return x.CanAdminViewAudit
+	}
+	return false
+}
+
+func (x *ViewerPermissionsView) GetCanManageServer() bool {
+	if x != nil {
+		return x.CanManageServer
+	}
+	return false
+}
+
+func (x *ViewerPermissionsView) GetCanManageRooms() bool {
+	if x != nil {
+		return x.CanManageRooms
+	}
+	return false
+}
+
+func (x *ViewerPermissionsView) GetCanManageRoles() bool {
+	if x != nil {
+		return x.CanManageRoles
+	}
+	return false
+}
+
+func (x *ViewerPermissionsView) GetCanAssignRoles() bool {
+	if x != nil {
+		return x.CanAssignRoles
+	}
+	return false
+}
+
+func (x *ViewerPermissionsView) GetCanManageUserPermissions() bool {
+	if x != nil {
+		return x.CanManageUserPermissions
+	}
+	return false
+}
+
 // ListMyRoomsRequest requests rooms the current user participates in.
 type ListMyRoomsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -159,7 +6596,7 @@ type ListMyRoomsRequest struct {
 
 func (x *ListMyRoomsRequest) Reset() {
 	*x = ListMyRoomsRequest{}
-	mi := &file_chatto_api_v1_chat_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[107]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -171,7 +6608,7 @@ func (x *ListMyRoomsRequest) String() string {
 func (*ListMyRoomsRequest) ProtoMessage() {}
 
 func (x *ListMyRoomsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_chat_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[107]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -184,7 +6621,7 @@ func (x *ListMyRoomsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMyRoomsRequest.ProtoReflect.Descriptor instead.
 func (*ListMyRoomsRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{3}
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{107}
 }
 
 func (x *ListMyRoomsRequest) GetKind() v1.RoomKind {
@@ -194,17 +6631,203 @@ func (x *ListMyRoomsRequest) GetKind() v1.RoomKind {
 	return v1.RoomKind(0)
 }
 
+// ViewerNotificationPreferenceView is the viewer's room notification setting.
+type ViewerNotificationPreferenceView struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Level          v1.NotificationLevel   `protobuf:"varint,1,opt,name=level,proto3,enum=chatto.core.v1.NotificationLevel" json:"level,omitempty"`
+	EffectiveLevel v1.NotificationLevel   `protobuf:"varint,2,opt,name=effective_level,json=effectiveLevel,proto3,enum=chatto.core.v1.NotificationLevel" json:"effective_level,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ViewerNotificationPreferenceView) Reset() {
+	*x = ViewerNotificationPreferenceView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[108]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ViewerNotificationPreferenceView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ViewerNotificationPreferenceView) ProtoMessage() {}
+
+func (x *ViewerNotificationPreferenceView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[108]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ViewerNotificationPreferenceView.ProtoReflect.Descriptor instead.
+func (*ViewerNotificationPreferenceView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{108}
+}
+
+func (x *ViewerNotificationPreferenceView) GetLevel() v1.NotificationLevel {
+	if x != nil {
+		return x.Level
+	}
+	return v1.NotificationLevel(0)
+}
+
+func (x *ViewerNotificationPreferenceView) GetEffectiveLevel() v1.NotificationLevel {
+	if x != nil {
+		return x.EffectiveLevel
+	}
+	return v1.NotificationLevel(0)
+}
+
+// RoomNotificationPreferenceView is a resolved viewer preference for one room.
+type RoomNotificationPreferenceView struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	RoomId         string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	Level          v1.NotificationLevel   `protobuf:"varint,2,opt,name=level,proto3,enum=chatto.core.v1.NotificationLevel" json:"level,omitempty"`
+	EffectiveLevel v1.NotificationLevel   `protobuf:"varint,3,opt,name=effective_level,json=effectiveLevel,proto3,enum=chatto.core.v1.NotificationLevel" json:"effective_level,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *RoomNotificationPreferenceView) Reset() {
+	*x = RoomNotificationPreferenceView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[109]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomNotificationPreferenceView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomNotificationPreferenceView) ProtoMessage() {}
+
+func (x *RoomNotificationPreferenceView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[109]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomNotificationPreferenceView.ProtoReflect.Descriptor instead.
+func (*RoomNotificationPreferenceView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{109}
+}
+
+func (x *RoomNotificationPreferenceView) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *RoomNotificationPreferenceView) GetLevel() v1.NotificationLevel {
+	if x != nil {
+		return x.Level
+	}
+	return v1.NotificationLevel(0)
+}
+
+func (x *RoomNotificationPreferenceView) GetEffectiveLevel() v1.NotificationLevel {
+	if x != nil {
+		return x.EffectiveLevel
+	}
+	return v1.NotificationLevel(0)
+}
+
+// RoomListItemView is one sidebar-ready room row.
+type RoomListItemView struct {
+	state                        protoimpl.MessageState            `protogen:"open.v1"`
+	Room                         *v1.Room                          `protobuf:"bytes,1,opt,name=room,proto3" json:"room,omitempty"`
+	HasUnread                    bool                              `protobuf:"varint,2,opt,name=has_unread,json=hasUnread,proto3" json:"has_unread,omitempty"`
+	ViewerNotificationPreference *ViewerNotificationPreferenceView `protobuf:"bytes,3,opt,name=viewer_notification_preference,json=viewerNotificationPreference,proto3" json:"viewer_notification_preference,omitempty"`
+	Members                      []*v1.User                        `protobuf:"bytes,4,rep,name=members,proto3" json:"members,omitempty"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
+}
+
+func (x *RoomListItemView) Reset() {
+	*x = RoomListItemView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[110]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomListItemView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomListItemView) ProtoMessage() {}
+
+func (x *RoomListItemView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[110]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomListItemView.ProtoReflect.Descriptor instead.
+func (*RoomListItemView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{110}
+}
+
+func (x *RoomListItemView) GetRoom() *v1.Room {
+	if x != nil {
+		return x.Room
+	}
+	return nil
+}
+
+func (x *RoomListItemView) GetHasUnread() bool {
+	if x != nil {
+		return x.HasUnread
+	}
+	return false
+}
+
+func (x *RoomListItemView) GetViewerNotificationPreference() *ViewerNotificationPreferenceView {
+	if x != nil {
+		return x.ViewerNotificationPreference
+	}
+	return nil
+}
+
+func (x *RoomListItemView) GetMembers() []*v1.User {
+	if x != nil {
+		return x.Members
+	}
+	return nil
+}
+
 // ListMyRoomsResponse returns rooms the current user participates in.
 type ListMyRoomsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Rooms         []*v1.Room             `protobuf:"bytes,1,rep,name=rooms,proto3" json:"rooms,omitempty"`
+	ViewerUserId  string                 `protobuf:"bytes,2,opt,name=viewer_user_id,json=viewerUserId,proto3" json:"viewer_user_id,omitempty"`
+	RoomViews     []*RoomListItemView    `protobuf:"bytes,3,rep,name=room_views,json=roomViews,proto3" json:"room_views,omitempty"`
+	RoomGroups    []*v1.RoomGroup        `protobuf:"bytes,4,rep,name=room_groups,json=roomGroups,proto3" json:"room_groups,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListMyRoomsResponse) Reset() {
 	*x = ListMyRoomsResponse{}
-	mi := &file_chatto_api_v1_chat_proto_msgTypes[4]
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[111]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -216,7 +6839,7 @@ func (x *ListMyRoomsResponse) String() string {
 func (*ListMyRoomsResponse) ProtoMessage() {}
 
 func (x *ListMyRoomsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_chat_proto_msgTypes[4]
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[111]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -229,12 +6852,5784 @@ func (x *ListMyRoomsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMyRoomsResponse.ProtoReflect.Descriptor instead.
 func (*ListMyRoomsResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{4}
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{111}
 }
 
 func (x *ListMyRoomsResponse) GetRooms() []*v1.Room {
 	if x != nil {
 		return x.Rooms
+	}
+	return nil
+}
+
+func (x *ListMyRoomsResponse) GetViewerUserId() string {
+	if x != nil {
+		return x.ViewerUserId
+	}
+	return ""
+}
+
+func (x *ListMyRoomsResponse) GetRoomViews() []*RoomListItemView {
+	if x != nil {
+		return x.RoomViews
+	}
+	return nil
+}
+
+func (x *ListMyRoomsResponse) GetRoomGroups() []*v1.RoomGroup {
+	if x != nil {
+		return x.RoomGroups
+	}
+	return nil
+}
+
+type GetRoomDirectoryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRoomDirectoryRequest) Reset() {
+	*x = GetRoomDirectoryRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[112]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRoomDirectoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRoomDirectoryRequest) ProtoMessage() {}
+
+func (x *GetRoomDirectoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[112]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRoomDirectoryRequest.ProtoReflect.Descriptor instead.
+func (*GetRoomDirectoryRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{112}
+}
+
+type RoomDirectoryItemView struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Room              *v1.Room               `protobuf:"bytes,1,opt,name=room,proto3" json:"room,omitempty"`
+	ViewerCanJoinRoom bool                   `protobuf:"varint,2,opt,name=viewer_can_join_room,json=viewerCanJoinRoom,proto3" json:"viewer_can_join_room,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *RoomDirectoryItemView) Reset() {
+	*x = RoomDirectoryItemView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[113]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomDirectoryItemView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomDirectoryItemView) ProtoMessage() {}
+
+func (x *RoomDirectoryItemView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[113]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomDirectoryItemView.ProtoReflect.Descriptor instead.
+func (*RoomDirectoryItemView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{113}
+}
+
+func (x *RoomDirectoryItemView) GetRoom() *v1.Room {
+	if x != nil {
+		return x.Room
+	}
+	return nil
+}
+
+func (x *RoomDirectoryItemView) GetViewerCanJoinRoom() bool {
+	if x != nil {
+		return x.ViewerCanJoinRoom
+	}
+	return false
+}
+
+type GetRoomDirectoryResponse struct {
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	RoomViews     []*RoomDirectoryItemView `protobuf:"bytes,1,rep,name=room_views,json=roomViews,proto3" json:"room_views,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRoomDirectoryResponse) Reset() {
+	*x = GetRoomDirectoryResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[114]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRoomDirectoryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRoomDirectoryResponse) ProtoMessage() {}
+
+func (x *GetRoomDirectoryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[114]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRoomDirectoryResponse.ProtoReflect.Descriptor instead.
+func (*GetRoomDirectoryResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{114}
+}
+
+func (x *GetRoomDirectoryResponse) GetRoomViews() []*RoomDirectoryItemView {
+	if x != nil {
+		return x.RoomViews
+	}
+	return nil
+}
+
+type SearchMembersRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Search        string                 `protobuf:"bytes,1,opt,name=search,proto3" json:"search,omitempty"`
+	Limit         int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	Offset        int32                  `protobuf:"varint,3,opt,name=offset,proto3" json:"offset,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchMembersRequest) Reset() {
+	*x = SearchMembersRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[115]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchMembersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchMembersRequest) ProtoMessage() {}
+
+func (x *SearchMembersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[115]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchMembersRequest.ProtoReflect.Descriptor instead.
+func (*SearchMembersRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{115}
+}
+
+func (x *SearchMembersRequest) GetSearch() string {
+	if x != nil {
+		return x.Search
+	}
+	return ""
+}
+
+func (x *SearchMembersRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *SearchMembersRequest) GetOffset() int32 {
+	if x != nil {
+		return x.Offset
+	}
+	return 0
+}
+
+type SearchMembersResponse struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Users             []*v1.User             `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty"`
+	TotalCount        int32                  `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	HasMore           bool                   `protobuf:"varint,3,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
+	ViewerUserId      string                 `protobuf:"bytes,4,opt,name=viewer_user_id,json=viewerUserId,proto3" json:"viewer_user_id,omitempty"`
+	ViewerCanStartDms bool                   `protobuf:"varint,5,opt,name=viewer_can_start_dms,json=viewerCanStartDms,proto3" json:"viewer_can_start_dms,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *SearchMembersResponse) Reset() {
+	*x = SearchMembersResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[116]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchMembersResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchMembersResponse) ProtoMessage() {}
+
+func (x *SearchMembersResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[116]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchMembersResponse.ProtoReflect.Descriptor instead.
+func (*SearchMembersResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{116}
+}
+
+func (x *SearchMembersResponse) GetUsers() []*v1.User {
+	if x != nil {
+		return x.Users
+	}
+	return nil
+}
+
+func (x *SearchMembersResponse) GetTotalCount() int32 {
+	if x != nil {
+		return x.TotalCount
+	}
+	return 0
+}
+
+func (x *SearchMembersResponse) GetHasMore() bool {
+	if x != nil {
+		return x.HasMore
+	}
+	return false
+}
+
+func (x *SearchMembersResponse) GetViewerUserId() string {
+	if x != nil {
+		return x.ViewerUserId
+	}
+	return ""
+}
+
+func (x *SearchMembersResponse) GetViewerCanStartDms() bool {
+	if x != nil {
+		return x.ViewerCanStartDms
+	}
+	return false
+}
+
+type StartDMRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ParticipantIds []string               `protobuf:"bytes,1,rep,name=participant_ids,json=participantIds,proto3" json:"participant_ids,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *StartDMRequest) Reset() {
+	*x = StartDMRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[117]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartDMRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartDMRequest) ProtoMessage() {}
+
+func (x *StartDMRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[117]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartDMRequest.ProtoReflect.Descriptor instead.
+func (*StartDMRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{117}
+}
+
+func (x *StartDMRequest) GetParticipantIds() []string {
+	if x != nil {
+		return x.ParticipantIds
+	}
+	return nil
+}
+
+type StartDMResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Room          *v1.Room               `protobuf:"bytes,1,opt,name=room,proto3" json:"room,omitempty"`
+	Created       bool                   `protobuf:"varint,2,opt,name=created,proto3" json:"created,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartDMResponse) Reset() {
+	*x = StartDMResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[118]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartDMResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartDMResponse) ProtoMessage() {}
+
+func (x *StartDMResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[118]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartDMResponse.ProtoReflect.Descriptor instead.
+func (*StartDMResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{118}
+}
+
+func (x *StartDMResponse) GetRoom() *v1.Room {
+	if x != nil {
+		return x.Room
+	}
+	return nil
+}
+
+func (x *StartDMResponse) GetCreated() bool {
+	if x != nil {
+		return x.Created
+	}
+	return false
+}
+
+type CreateRoomRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Description   string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	GroupId       string                 `protobuf:"bytes,3,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateRoomRequest) Reset() {
+	*x = CreateRoomRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[119]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateRoomRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateRoomRequest) ProtoMessage() {}
+
+func (x *CreateRoomRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[119]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateRoomRequest.ProtoReflect.Descriptor instead.
+func (*CreateRoomRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{119}
+}
+
+func (x *CreateRoomRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CreateRoomRequest) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *CreateRoomRequest) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+type CreateRoomResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Room          *v1.Room               `protobuf:"bytes,1,opt,name=room,proto3" json:"room,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateRoomResponse) Reset() {
+	*x = CreateRoomResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[120]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateRoomResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateRoomResponse) ProtoMessage() {}
+
+func (x *CreateRoomResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[120]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateRoomResponse.ProtoReflect.Descriptor instead.
+func (*CreateRoomResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{120}
+}
+
+func (x *CreateRoomResponse) GetRoom() *v1.Room {
+	if x != nil {
+		return x.Room
+	}
+	return nil
+}
+
+type AdminRoomInfoView struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	Archived      bool                   `protobuf:"varint,4,opt,name=archived,proto3" json:"archived,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdminRoomInfoView) Reset() {
+	*x = AdminRoomInfoView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[121]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdminRoomInfoView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdminRoomInfoView) ProtoMessage() {}
+
+func (x *AdminRoomInfoView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[121]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdminRoomInfoView.ProtoReflect.Descriptor instead.
+func (*AdminRoomInfoView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{121}
+}
+
+func (x *AdminRoomInfoView) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *AdminRoomInfoView) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *AdminRoomInfoView) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *AdminRoomInfoView) GetArchived() bool {
+	if x != nil {
+		return x.Archived
+	}
+	return false
+}
+
+type AdminRoomGroupView struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Rooms         []*AdminRoomInfoView   `protobuf:"bytes,3,rep,name=rooms,proto3" json:"rooms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdminRoomGroupView) Reset() {
+	*x = AdminRoomGroupView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[122]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdminRoomGroupView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdminRoomGroupView) ProtoMessage() {}
+
+func (x *AdminRoomGroupView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[122]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdminRoomGroupView.ProtoReflect.Descriptor instead.
+func (*AdminRoomGroupView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{122}
+}
+
+func (x *AdminRoomGroupView) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *AdminRoomGroupView) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *AdminRoomGroupView) GetRooms() []*AdminRoomInfoView {
+	if x != nil {
+		return x.Rooms
+	}
+	return nil
+}
+
+type GetAdminRoomLayoutRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAdminRoomLayoutRequest) Reset() {
+	*x = GetAdminRoomLayoutRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[123]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAdminRoomLayoutRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAdminRoomLayoutRequest) ProtoMessage() {}
+
+func (x *GetAdminRoomLayoutRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[123]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAdminRoomLayoutRequest.ProtoReflect.Descriptor instead.
+func (*GetAdminRoomLayoutRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{123}
+}
+
+type GetAdminRoomLayoutResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Groups        []*AdminRoomGroupView  `protobuf:"bytes,1,rep,name=groups,proto3" json:"groups,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAdminRoomLayoutResponse) Reset() {
+	*x = GetAdminRoomLayoutResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[124]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAdminRoomLayoutResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAdminRoomLayoutResponse) ProtoMessage() {}
+
+func (x *GetAdminRoomLayoutResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[124]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAdminRoomLayoutResponse.ProtoReflect.Descriptor instead.
+func (*GetAdminRoomLayoutResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{124}
+}
+
+func (x *GetAdminRoomLayoutResponse) GetGroups() []*AdminRoomGroupView {
+	if x != nil {
+		return x.Groups
+	}
+	return nil
+}
+
+type CreateAdminRoomGroupRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Description   string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateAdminRoomGroupRequest) Reset() {
+	*x = CreateAdminRoomGroupRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[125]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateAdminRoomGroupRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateAdminRoomGroupRequest) ProtoMessage() {}
+
+func (x *CreateAdminRoomGroupRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[125]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateAdminRoomGroupRequest.ProtoReflect.Descriptor instead.
+func (*CreateAdminRoomGroupRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{125}
+}
+
+func (x *CreateAdminRoomGroupRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CreateAdminRoomGroupRequest) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+type CreateAdminRoomGroupResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Group         *AdminRoomGroupView    `protobuf:"bytes,1,opt,name=group,proto3" json:"group,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateAdminRoomGroupResponse) Reset() {
+	*x = CreateAdminRoomGroupResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[126]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateAdminRoomGroupResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateAdminRoomGroupResponse) ProtoMessage() {}
+
+func (x *CreateAdminRoomGroupResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[126]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateAdminRoomGroupResponse.ProtoReflect.Descriptor instead.
+func (*CreateAdminRoomGroupResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{126}
+}
+
+func (x *CreateAdminRoomGroupResponse) GetGroup() *AdminRoomGroupView {
+	if x != nil {
+		return x.Group
+	}
+	return nil
+}
+
+type UpdateAdminRoomGroupRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GroupId       string                 `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateAdminRoomGroupRequest) Reset() {
+	*x = UpdateAdminRoomGroupRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[127]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateAdminRoomGroupRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateAdminRoomGroupRequest) ProtoMessage() {}
+
+func (x *UpdateAdminRoomGroupRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[127]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateAdminRoomGroupRequest.ProtoReflect.Descriptor instead.
+func (*UpdateAdminRoomGroupRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{127}
+}
+
+func (x *UpdateAdminRoomGroupRequest) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+func (x *UpdateAdminRoomGroupRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *UpdateAdminRoomGroupRequest) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+type UpdateAdminRoomGroupResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Group         *AdminRoomGroupView    `protobuf:"bytes,1,opt,name=group,proto3" json:"group,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateAdminRoomGroupResponse) Reset() {
+	*x = UpdateAdminRoomGroupResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[128]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateAdminRoomGroupResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateAdminRoomGroupResponse) ProtoMessage() {}
+
+func (x *UpdateAdminRoomGroupResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[128]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateAdminRoomGroupResponse.ProtoReflect.Descriptor instead.
+func (*UpdateAdminRoomGroupResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{128}
+}
+
+func (x *UpdateAdminRoomGroupResponse) GetGroup() *AdminRoomGroupView {
+	if x != nil {
+		return x.Group
+	}
+	return nil
+}
+
+type DeleteAdminRoomGroupRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GroupId       string                 `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteAdminRoomGroupRequest) Reset() {
+	*x = DeleteAdminRoomGroupRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[129]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteAdminRoomGroupRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteAdminRoomGroupRequest) ProtoMessage() {}
+
+func (x *DeleteAdminRoomGroupRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[129]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteAdminRoomGroupRequest.ProtoReflect.Descriptor instead.
+func (*DeleteAdminRoomGroupRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{129}
+}
+
+func (x *DeleteAdminRoomGroupRequest) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+type DeleteAdminRoomGroupResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Deleted       bool                   `protobuf:"varint,1,opt,name=deleted,proto3" json:"deleted,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteAdminRoomGroupResponse) Reset() {
+	*x = DeleteAdminRoomGroupResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[130]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteAdminRoomGroupResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteAdminRoomGroupResponse) ProtoMessage() {}
+
+func (x *DeleteAdminRoomGroupResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[130]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteAdminRoomGroupResponse.ProtoReflect.Descriptor instead.
+func (*DeleteAdminRoomGroupResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{130}
+}
+
+func (x *DeleteAdminRoomGroupResponse) GetDeleted() bool {
+	if x != nil {
+		return x.Deleted
+	}
+	return false
+}
+
+type ReorderAdminRoomGroupsRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	OrderedGroupIds []string               `protobuf:"bytes,1,rep,name=ordered_group_ids,json=orderedGroupIds,proto3" json:"ordered_group_ids,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ReorderAdminRoomGroupsRequest) Reset() {
+	*x = ReorderAdminRoomGroupsRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[131]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReorderAdminRoomGroupsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReorderAdminRoomGroupsRequest) ProtoMessage() {}
+
+func (x *ReorderAdminRoomGroupsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[131]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReorderAdminRoomGroupsRequest.ProtoReflect.Descriptor instead.
+func (*ReorderAdminRoomGroupsRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{131}
+}
+
+func (x *ReorderAdminRoomGroupsRequest) GetOrderedGroupIds() []string {
+	if x != nil {
+		return x.OrderedGroupIds
+	}
+	return nil
+}
+
+type ReorderAdminRoomGroupsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Groups        []*AdminRoomGroupView  `protobuf:"bytes,1,rep,name=groups,proto3" json:"groups,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReorderAdminRoomGroupsResponse) Reset() {
+	*x = ReorderAdminRoomGroupsResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[132]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReorderAdminRoomGroupsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReorderAdminRoomGroupsResponse) ProtoMessage() {}
+
+func (x *ReorderAdminRoomGroupsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[132]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReorderAdminRoomGroupsResponse.ProtoReflect.Descriptor instead.
+func (*ReorderAdminRoomGroupsResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{132}
+}
+
+func (x *ReorderAdminRoomGroupsResponse) GetGroups() []*AdminRoomGroupView {
+	if x != nil {
+		return x.Groups
+	}
+	return nil
+}
+
+type MoveAdminRoomToGroupRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	GroupId       string                 `protobuf:"bytes,2,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MoveAdminRoomToGroupRequest) Reset() {
+	*x = MoveAdminRoomToGroupRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[133]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MoveAdminRoomToGroupRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MoveAdminRoomToGroupRequest) ProtoMessage() {}
+
+func (x *MoveAdminRoomToGroupRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[133]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MoveAdminRoomToGroupRequest.ProtoReflect.Descriptor instead.
+func (*MoveAdminRoomToGroupRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{133}
+}
+
+func (x *MoveAdminRoomToGroupRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *MoveAdminRoomToGroupRequest) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+type MoveAdminRoomToGroupResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Room          *AdminRoomInfoView     `protobuf:"bytes,1,opt,name=room,proto3" json:"room,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MoveAdminRoomToGroupResponse) Reset() {
+	*x = MoveAdminRoomToGroupResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[134]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MoveAdminRoomToGroupResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MoveAdminRoomToGroupResponse) ProtoMessage() {}
+
+func (x *MoveAdminRoomToGroupResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[134]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MoveAdminRoomToGroupResponse.ProtoReflect.Descriptor instead.
+func (*MoveAdminRoomToGroupResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{134}
+}
+
+func (x *MoveAdminRoomToGroupResponse) GetRoom() *AdminRoomInfoView {
+	if x != nil {
+		return x.Room
+	}
+	return nil
+}
+
+type ReorderAdminRoomsInGroupRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	GroupId        string                 `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	OrderedRoomIds []string               `protobuf:"bytes,2,rep,name=ordered_room_ids,json=orderedRoomIds,proto3" json:"ordered_room_ids,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ReorderAdminRoomsInGroupRequest) Reset() {
+	*x = ReorderAdminRoomsInGroupRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[135]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReorderAdminRoomsInGroupRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReorderAdminRoomsInGroupRequest) ProtoMessage() {}
+
+func (x *ReorderAdminRoomsInGroupRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[135]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReorderAdminRoomsInGroupRequest.ProtoReflect.Descriptor instead.
+func (*ReorderAdminRoomsInGroupRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{135}
+}
+
+func (x *ReorderAdminRoomsInGroupRequest) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+func (x *ReorderAdminRoomsInGroupRequest) GetOrderedRoomIds() []string {
+	if x != nil {
+		return x.OrderedRoomIds
+	}
+	return nil
+}
+
+type ReorderAdminRoomsInGroupResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Group         *AdminRoomGroupView    `protobuf:"bytes,1,opt,name=group,proto3" json:"group,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReorderAdminRoomsInGroupResponse) Reset() {
+	*x = ReorderAdminRoomsInGroupResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[136]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReorderAdminRoomsInGroupResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReorderAdminRoomsInGroupResponse) ProtoMessage() {}
+
+func (x *ReorderAdminRoomsInGroupResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[136]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReorderAdminRoomsInGroupResponse.ProtoReflect.Descriptor instead.
+func (*ReorderAdminRoomsInGroupResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{136}
+}
+
+func (x *ReorderAdminRoomsInGroupResponse) GetGroup() *AdminRoomGroupView {
+	if x != nil {
+		return x.Group
+	}
+	return nil
+}
+
+type UpdateAdminRoomRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateAdminRoomRequest) Reset() {
+	*x = UpdateAdminRoomRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[137]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateAdminRoomRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateAdminRoomRequest) ProtoMessage() {}
+
+func (x *UpdateAdminRoomRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[137]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateAdminRoomRequest.ProtoReflect.Descriptor instead.
+func (*UpdateAdminRoomRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{137}
+}
+
+func (x *UpdateAdminRoomRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *UpdateAdminRoomRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *UpdateAdminRoomRequest) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+type UpdateAdminRoomResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Room          *AdminRoomInfoView     `protobuf:"bytes,1,opt,name=room,proto3" json:"room,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateAdminRoomResponse) Reset() {
+	*x = UpdateAdminRoomResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[138]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateAdminRoomResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateAdminRoomResponse) ProtoMessage() {}
+
+func (x *UpdateAdminRoomResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[138]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateAdminRoomResponse.ProtoReflect.Descriptor instead.
+func (*UpdateAdminRoomResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{138}
+}
+
+func (x *UpdateAdminRoomResponse) GetRoom() *AdminRoomInfoView {
+	if x != nil {
+		return x.Room
+	}
+	return nil
+}
+
+type ArchiveAdminRoomRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArchiveAdminRoomRequest) Reset() {
+	*x = ArchiveAdminRoomRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[139]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchiveAdminRoomRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchiveAdminRoomRequest) ProtoMessage() {}
+
+func (x *ArchiveAdminRoomRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[139]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchiveAdminRoomRequest.ProtoReflect.Descriptor instead.
+func (*ArchiveAdminRoomRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{139}
+}
+
+func (x *ArchiveAdminRoomRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+type ArchiveAdminRoomResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Room          *AdminRoomInfoView     `protobuf:"bytes,1,opt,name=room,proto3" json:"room,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArchiveAdminRoomResponse) Reset() {
+	*x = ArchiveAdminRoomResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[140]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchiveAdminRoomResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchiveAdminRoomResponse) ProtoMessage() {}
+
+func (x *ArchiveAdminRoomResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[140]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchiveAdminRoomResponse.ProtoReflect.Descriptor instead.
+func (*ArchiveAdminRoomResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{140}
+}
+
+func (x *ArchiveAdminRoomResponse) GetRoom() *AdminRoomInfoView {
+	if x != nil {
+		return x.Room
+	}
+	return nil
+}
+
+type UnarchiveAdminRoomRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnarchiveAdminRoomRequest) Reset() {
+	*x = UnarchiveAdminRoomRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[141]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnarchiveAdminRoomRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnarchiveAdminRoomRequest) ProtoMessage() {}
+
+func (x *UnarchiveAdminRoomRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[141]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnarchiveAdminRoomRequest.ProtoReflect.Descriptor instead.
+func (*UnarchiveAdminRoomRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{141}
+}
+
+func (x *UnarchiveAdminRoomRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+type UnarchiveAdminRoomResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Room          *AdminRoomInfoView     `protobuf:"bytes,1,opt,name=room,proto3" json:"room,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnarchiveAdminRoomResponse) Reset() {
+	*x = UnarchiveAdminRoomResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[142]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnarchiveAdminRoomResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnarchiveAdminRoomResponse) ProtoMessage() {}
+
+func (x *UnarchiveAdminRoomResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[142]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnarchiveAdminRoomResponse.ProtoReflect.Descriptor instead.
+func (*UnarchiveAdminRoomResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{142}
+}
+
+func (x *UnarchiveAdminRoomResponse) GetRoom() *AdminRoomInfoView {
+	if x != nil {
+		return x.Room
+	}
+	return nil
+}
+
+// MentionRole is the subset of RBAC role metadata needed by mention autocomplete.
+type MentionRole struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	IsSystem      bool                   `protobuf:"varint,2,opt,name=is_system,json=isSystem,proto3" json:"is_system,omitempty"`
+	Position      int32                  `protobuf:"varint,3,opt,name=position,proto3" json:"position,omitempty"`
+	Pingable      bool                   `protobuf:"varint,4,opt,name=pingable,proto3" json:"pingable,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MentionRole) Reset() {
+	*x = MentionRole{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[143]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MentionRole) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MentionRole) ProtoMessage() {}
+
+func (x *MentionRole) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[143]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MentionRole.ProtoReflect.Descriptor instead.
+func (*MentionRole) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{143}
+}
+
+func (x *MentionRole) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *MentionRole) GetIsSystem() bool {
+	if x != nil {
+		return x.IsSystem
+	}
+	return false
+}
+
+func (x *MentionRole) GetPosition() int32 {
+	if x != nil {
+		return x.Position
+	}
+	return 0
+}
+
+func (x *MentionRole) GetPingable() bool {
+	if x != nil {
+		return x.Pingable
+	}
+	return false
+}
+
+// RoomMembersPage is a paginated room-member response.
+type RoomMembersPage struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Users         []*v1.User             `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty"`
+	TotalCount    int32                  `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	HasMore       bool                   `protobuf:"varint,3,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomMembersPage) Reset() {
+	*x = RoomMembersPage{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[144]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomMembersPage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomMembersPage) ProtoMessage() {}
+
+func (x *RoomMembersPage) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[144]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomMembersPage.ProtoReflect.Descriptor instead.
+func (*RoomMembersPage) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{144}
+}
+
+func (x *RoomMembersPage) GetUsers() []*v1.User {
+	if x != nil {
+		return x.Users
+	}
+	return nil
+}
+
+func (x *RoomMembersPage) GetTotalCount() int32 {
+	if x != nil {
+		return x.TotalCount
+	}
+	return 0
+}
+
+func (x *RoomMembersPage) GetHasMore() bool {
+	if x != nil {
+		return x.HasMore
+	}
+	return false
+}
+
+type GetRoomRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	MembersLimit  int32                  `protobuf:"varint,2,opt,name=members_limit,json=membersLimit,proto3" json:"members_limit,omitempty"`
+	MembersOffset int32                  `protobuf:"varint,3,opt,name=members_offset,json=membersOffset,proto3" json:"members_offset,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRoomRequest) Reset() {
+	*x = GetRoomRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[145]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRoomRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRoomRequest) ProtoMessage() {}
+
+func (x *GetRoomRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[145]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRoomRequest.ProtoReflect.Descriptor instead.
+func (*GetRoomRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{145}
+}
+
+func (x *GetRoomRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *GetRoomRequest) GetMembersLimit() int32 {
+	if x != nil {
+		return x.MembersLimit
+	}
+	return 0
+}
+
+func (x *GetRoomRequest) GetMembersOffset() int32 {
+	if x != nil {
+		return x.MembersOffset
+	}
+	return 0
+}
+
+type GetRoomResponse struct {
+	state                        protoimpl.MessageState `protogen:"open.v1"`
+	Room                         *v1.Room               `protobuf:"bytes,1,opt,name=room,proto3" json:"room,omitempty"`
+	ServerName                   string                 `protobuf:"bytes,2,opt,name=server_name,json=serverName,proto3" json:"server_name,omitempty"`
+	ViewerCanPostMessage         bool                   `protobuf:"varint,3,opt,name=viewer_can_post_message,json=viewerCanPostMessage,proto3" json:"viewer_can_post_message,omitempty"`
+	ViewerCanPostInThread        bool                   `protobuf:"varint,4,opt,name=viewer_can_post_in_thread,json=viewerCanPostInThread,proto3" json:"viewer_can_post_in_thread,omitempty"`
+	ViewerCanReact               bool                   `protobuf:"varint,5,opt,name=viewer_can_react,json=viewerCanReact,proto3" json:"viewer_can_react,omitempty"`
+	ViewerCanManageOthersMessage bool                   `protobuf:"varint,6,opt,name=viewer_can_manage_others_message,json=viewerCanManageOthersMessage,proto3" json:"viewer_can_manage_others_message,omitempty"`
+	ViewerCanEchoMessage         bool                   `protobuf:"varint,7,opt,name=viewer_can_echo_message,json=viewerCanEchoMessage,proto3" json:"viewer_can_echo_message,omitempty"`
+	ViewerCanManageRoom          bool                   `protobuf:"varint,8,opt,name=viewer_can_manage_room,json=viewerCanManageRoom,proto3" json:"viewer_can_manage_room,omitempty"`
+	ViewerCanBanRoomMembers      bool                   `protobuf:"varint,9,opt,name=viewer_can_ban_room_members,json=viewerCanBanRoomMembers,proto3" json:"viewer_can_ban_room_members,omitempty"`
+	ViewerCanManageRooms         bool                   `protobuf:"varint,10,opt,name=viewer_can_manage_rooms,json=viewerCanManageRooms,proto3" json:"viewer_can_manage_rooms,omitempty"`
+	Members                      *RoomMembersPage       `protobuf:"bytes,11,opt,name=members,proto3" json:"members,omitempty"`
+	ViewerUserId                 string                 `protobuf:"bytes,12,opt,name=viewer_user_id,json=viewerUserId,proto3" json:"viewer_user_id,omitempty"`
+	MentionRoles                 []*MentionRole         `protobuf:"bytes,13,rep,name=mention_roles,json=mentionRoles,proto3" json:"mention_roles,omitempty"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
+}
+
+func (x *GetRoomResponse) Reset() {
+	*x = GetRoomResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[146]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRoomResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRoomResponse) ProtoMessage() {}
+
+func (x *GetRoomResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[146]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRoomResponse.ProtoReflect.Descriptor instead.
+func (*GetRoomResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{146}
+}
+
+func (x *GetRoomResponse) GetRoom() *v1.Room {
+	if x != nil {
+		return x.Room
+	}
+	return nil
+}
+
+func (x *GetRoomResponse) GetServerName() string {
+	if x != nil {
+		return x.ServerName
+	}
+	return ""
+}
+
+func (x *GetRoomResponse) GetViewerCanPostMessage() bool {
+	if x != nil {
+		return x.ViewerCanPostMessage
+	}
+	return false
+}
+
+func (x *GetRoomResponse) GetViewerCanPostInThread() bool {
+	if x != nil {
+		return x.ViewerCanPostInThread
+	}
+	return false
+}
+
+func (x *GetRoomResponse) GetViewerCanReact() bool {
+	if x != nil {
+		return x.ViewerCanReact
+	}
+	return false
+}
+
+func (x *GetRoomResponse) GetViewerCanManageOthersMessage() bool {
+	if x != nil {
+		return x.ViewerCanManageOthersMessage
+	}
+	return false
+}
+
+func (x *GetRoomResponse) GetViewerCanEchoMessage() bool {
+	if x != nil {
+		return x.ViewerCanEchoMessage
+	}
+	return false
+}
+
+func (x *GetRoomResponse) GetViewerCanManageRoom() bool {
+	if x != nil {
+		return x.ViewerCanManageRoom
+	}
+	return false
+}
+
+func (x *GetRoomResponse) GetViewerCanBanRoomMembers() bool {
+	if x != nil {
+		return x.ViewerCanBanRoomMembers
+	}
+	return false
+}
+
+func (x *GetRoomResponse) GetViewerCanManageRooms() bool {
+	if x != nil {
+		return x.ViewerCanManageRooms
+	}
+	return false
+}
+
+func (x *GetRoomResponse) GetMembers() *RoomMembersPage {
+	if x != nil {
+		return x.Members
+	}
+	return nil
+}
+
+func (x *GetRoomResponse) GetViewerUserId() string {
+	if x != nil {
+		return x.ViewerUserId
+	}
+	return ""
+}
+
+func (x *GetRoomResponse) GetMentionRoles() []*MentionRole {
+	if x != nil {
+		return x.MentionRoles
+	}
+	return nil
+}
+
+type GetRoomMembersRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	Limit         int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	Offset        int32                  `protobuf:"varint,3,opt,name=offset,proto3" json:"offset,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRoomMembersRequest) Reset() {
+	*x = GetRoomMembersRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[147]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRoomMembersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRoomMembersRequest) ProtoMessage() {}
+
+func (x *GetRoomMembersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[147]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRoomMembersRequest.ProtoReflect.Descriptor instead.
+func (*GetRoomMembersRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{147}
+}
+
+func (x *GetRoomMembersRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *GetRoomMembersRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *GetRoomMembersRequest) GetOffset() int32 {
+	if x != nil {
+		return x.Offset
+	}
+	return 0
+}
+
+type GetRoomMembersResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Members       *RoomMembersPage       `protobuf:"bytes,1,opt,name=members,proto3" json:"members,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRoomMembersResponse) Reset() {
+	*x = GetRoomMembersResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[148]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRoomMembersResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRoomMembersResponse) ProtoMessage() {}
+
+func (x *GetRoomMembersResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[148]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRoomMembersResponse.ProtoReflect.Descriptor instead.
+func (*GetRoomMembersResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{148}
+}
+
+func (x *GetRoomMembersResponse) GetMembers() *RoomMembersPage {
+	if x != nil {
+		return x.Members
+	}
+	return nil
+}
+
+type JoinRoomRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *JoinRoomRequest) Reset() {
+	*x = JoinRoomRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[149]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *JoinRoomRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*JoinRoomRequest) ProtoMessage() {}
+
+func (x *JoinRoomRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[149]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use JoinRoomRequest.ProtoReflect.Descriptor instead.
+func (*JoinRoomRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{149}
+}
+
+func (x *JoinRoomRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+type JoinRoomResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Room          *v1.Room               `protobuf:"bytes,1,opt,name=room,proto3" json:"room,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *JoinRoomResponse) Reset() {
+	*x = JoinRoomResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[150]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *JoinRoomResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*JoinRoomResponse) ProtoMessage() {}
+
+func (x *JoinRoomResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[150]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use JoinRoomResponse.ProtoReflect.Descriptor instead.
+func (*JoinRoomResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{150}
+}
+
+func (x *JoinRoomResponse) GetRoom() *v1.Room {
+	if x != nil {
+		return x.Room
+	}
+	return nil
+}
+
+type LeaveRoomRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LeaveRoomRequest) Reset() {
+	*x = LeaveRoomRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[151]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LeaveRoomRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LeaveRoomRequest) ProtoMessage() {}
+
+func (x *LeaveRoomRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[151]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LeaveRoomRequest.ProtoReflect.Descriptor instead.
+func (*LeaveRoomRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{151}
+}
+
+func (x *LeaveRoomRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+type LeaveRoomResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LeaveRoomResponse) Reset() {
+	*x = LeaveRoomResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[152]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LeaveRoomResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LeaveRoomResponse) ProtoMessage() {}
+
+func (x *LeaveRoomResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[152]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LeaveRoomResponse.ProtoReflect.Descriptor instead.
+func (*LeaveRoomResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{152}
+}
+
+type JoinGroupRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GroupId       string                 `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *JoinGroupRequest) Reset() {
+	*x = JoinGroupRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[153]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *JoinGroupRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*JoinGroupRequest) ProtoMessage() {}
+
+func (x *JoinGroupRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[153]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use JoinGroupRequest.ProtoReflect.Descriptor instead.
+func (*JoinGroupRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{153}
+}
+
+func (x *JoinGroupRequest) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+type JoinGroupResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	JoinedRoomIds []string               `protobuf:"bytes,1,rep,name=joined_room_ids,json=joinedRoomIds,proto3" json:"joined_room_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *JoinGroupResponse) Reset() {
+	*x = JoinGroupResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[154]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *JoinGroupResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*JoinGroupResponse) ProtoMessage() {}
+
+func (x *JoinGroupResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[154]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use JoinGroupResponse.ProtoReflect.Descriptor instead.
+func (*JoinGroupResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{154}
+}
+
+func (x *JoinGroupResponse) GetJoinedRoomIds() []string {
+	if x != nil {
+		return x.JoinedRoomIds
+	}
+	return nil
+}
+
+type BanRoomMemberRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Reason        string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BanRoomMemberRequest) Reset() {
+	*x = BanRoomMemberRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[155]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BanRoomMemberRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BanRoomMemberRequest) ProtoMessage() {}
+
+func (x *BanRoomMemberRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[155]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BanRoomMemberRequest.ProtoReflect.Descriptor instead.
+func (*BanRoomMemberRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{155}
+}
+
+func (x *BanRoomMemberRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *BanRoomMemberRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *BanRoomMemberRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *BanRoomMemberRequest) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+type BanRoomMemberResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BanRoomMemberResponse) Reset() {
+	*x = BanRoomMemberResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[156]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BanRoomMemberResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BanRoomMemberResponse) ProtoMessage() {}
+
+func (x *BanRoomMemberResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[156]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BanRoomMemberResponse.ProtoReflect.Descriptor instead.
+func (*BanRoomMemberResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{156}
+}
+
+type UserAvatarView struct {
+	state          protoimpl.MessageState    `protogen:"open.v1"`
+	User           *v1.User                  `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	AvatarUrl      string                    `protobuf:"bytes,2,opt,name=avatar_url,json=avatarUrl,proto3" json:"avatar_url,omitempty"`
+	PresenceStatus CurrentUserPresenceStatus `protobuf:"varint,3,opt,name=presence_status,json=presenceStatus,proto3,enum=chatto.api.v1.CurrentUserPresenceStatus" json:"presence_status,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *UserAvatarView) Reset() {
+	*x = UserAvatarView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[157]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UserAvatarView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UserAvatarView) ProtoMessage() {}
+
+func (x *UserAvatarView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[157]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UserAvatarView.ProtoReflect.Descriptor instead.
+func (*UserAvatarView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{157}
+}
+
+func (x *UserAvatarView) GetUser() *v1.User {
+	if x != nil {
+		return x.User
+	}
+	return nil
+}
+
+func (x *UserAvatarView) GetAvatarUrl() string {
+	if x != nil {
+		return x.AvatarUrl
+	}
+	return ""
+}
+
+func (x *UserAvatarView) GetPresenceStatus() CurrentUserPresenceStatus {
+	if x != nil {
+		return x.PresenceStatus
+	}
+	return CurrentUserPresenceStatus_CURRENT_USER_PRESENCE_STATUS_UNSPECIFIED
+}
+
+type RoomBanView struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	RoomId        string                 `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	Room          *AdminRoomInfoView     `protobuf:"bytes,3,opt,name=room,proto3" json:"room,omitempty"`
+	UserId        string                 `protobuf:"bytes,4,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	User          *UserAvatarView        `protobuf:"bytes,5,opt,name=user,proto3" json:"user,omitempty"`
+	ModeratorId   string                 `protobuf:"bytes,6,opt,name=moderator_id,json=moderatorId,proto3" json:"moderator_id,omitempty"`
+	Moderator     *UserAvatarView        `protobuf:"bytes,7,opt,name=moderator,proto3" json:"moderator,omitempty"`
+	Reason        string                 `protobuf:"bytes,8,opt,name=reason,proto3" json:"reason,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomBanView) Reset() {
+	*x = RoomBanView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[158]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomBanView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomBanView) ProtoMessage() {}
+
+func (x *RoomBanView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[158]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomBanView.ProtoReflect.Descriptor instead.
+func (*RoomBanView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{158}
+}
+
+func (x *RoomBanView) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *RoomBanView) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *RoomBanView) GetRoom() *AdminRoomInfoView {
+	if x != nil {
+		return x.Room
+	}
+	return nil
+}
+
+func (x *RoomBanView) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *RoomBanView) GetUser() *UserAvatarView {
+	if x != nil {
+		return x.User
+	}
+	return nil
+}
+
+func (x *RoomBanView) GetModeratorId() string {
+	if x != nil {
+		return x.ModeratorId
+	}
+	return ""
+}
+
+func (x *RoomBanView) GetModerator() *UserAvatarView {
+	if x != nil {
+		return x.Moderator
+	}
+	return nil
+}
+
+func (x *RoomBanView) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *RoomBanView) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *RoomBanView) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+type ListRoomBansRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListRoomBansRequest) Reset() {
+	*x = ListRoomBansRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[159]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListRoomBansRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListRoomBansRequest) ProtoMessage() {}
+
+func (x *ListRoomBansRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[159]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListRoomBansRequest.ProtoReflect.Descriptor instead.
+func (*ListRoomBansRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{159}
+}
+
+func (x *ListRoomBansRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+type ListRoomBansResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Bans          []*RoomBanView         `protobuf:"bytes,1,rep,name=bans,proto3" json:"bans,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListRoomBansResponse) Reset() {
+	*x = ListRoomBansResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[160]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListRoomBansResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListRoomBansResponse) ProtoMessage() {}
+
+func (x *ListRoomBansResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[160]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListRoomBansResponse.ProtoReflect.Descriptor instead.
+func (*ListRoomBansResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{160}
+}
+
+func (x *ListRoomBansResponse) GetBans() []*RoomBanView {
+	if x != nil {
+		return x.Bans
+	}
+	return nil
+}
+
+type UnbanRoomMemberRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Reason        string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnbanRoomMemberRequest) Reset() {
+	*x = UnbanRoomMemberRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[161]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnbanRoomMemberRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnbanRoomMemberRequest) ProtoMessage() {}
+
+func (x *UnbanRoomMemberRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[161]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnbanRoomMemberRequest.ProtoReflect.Descriptor instead.
+func (*UnbanRoomMemberRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{161}
+}
+
+func (x *UnbanRoomMemberRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *UnbanRoomMemberRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *UnbanRoomMemberRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type UnbanRoomMemberResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Unbanned      bool                   `protobuf:"varint,1,opt,name=unbanned,proto3" json:"unbanned,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnbanRoomMemberResponse) Reset() {
+	*x = UnbanRoomMemberResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[162]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnbanRoomMemberResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnbanRoomMemberResponse) ProtoMessage() {}
+
+func (x *UnbanRoomMemberResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[162]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnbanRoomMemberResponse.ProtoReflect.Descriptor instead.
+func (*UnbanRoomMemberResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{162}
+}
+
+func (x *UnbanRoomMemberResponse) GetUnbanned() bool {
+	if x != nil {
+		return x.Unbanned
+	}
+	return false
+}
+
+type CallParticipantView struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	User          *v1.User               `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	JoinedAt      *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=joined_at,json=joinedAt,proto3" json:"joined_at,omitempty"`
+	CallId        string                 `protobuf:"bytes,3,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CallParticipantView) Reset() {
+	*x = CallParticipantView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[163]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CallParticipantView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CallParticipantView) ProtoMessage() {}
+
+func (x *CallParticipantView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[163]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CallParticipantView.ProtoReflect.Descriptor instead.
+func (*CallParticipantView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{163}
+}
+
+func (x *CallParticipantView) GetUser() *v1.User {
+	if x != nil {
+		return x.User
+	}
+	return nil
+}
+
+func (x *CallParticipantView) GetJoinedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.JoinedAt
+	}
+	return nil
+}
+
+func (x *CallParticipantView) GetCallId() string {
+	if x != nil {
+		return x.CallId
+	}
+	return ""
+}
+
+type ActiveCallView struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	CallId        string                 `protobuf:"bytes,2,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
+	Participants  []*CallParticipantView `protobuf:"bytes,3,rep,name=participants,proto3" json:"participants,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ActiveCallView) Reset() {
+	*x = ActiveCallView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[164]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActiveCallView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActiveCallView) ProtoMessage() {}
+
+func (x *ActiveCallView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[164]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActiveCallView.ProtoReflect.Descriptor instead.
+func (*ActiveCallView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{164}
+}
+
+func (x *ActiveCallView) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *ActiveCallView) GetCallId() string {
+	if x != nil {
+		return x.CallId
+	}
+	return ""
+}
+
+func (x *ActiveCallView) GetParticipants() []*CallParticipantView {
+	if x != nil {
+		return x.Participants
+	}
+	return nil
+}
+
+type ListActiveCallsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListActiveCallsRequest) Reset() {
+	*x = ListActiveCallsRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[165]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListActiveCallsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListActiveCallsRequest) ProtoMessage() {}
+
+func (x *ListActiveCallsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[165]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListActiveCallsRequest.ProtoReflect.Descriptor instead.
+func (*ListActiveCallsRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{165}
+}
+
+type ListActiveCallsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Calls         []*ActiveCallView      `protobuf:"bytes,1,rep,name=calls,proto3" json:"calls,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListActiveCallsResponse) Reset() {
+	*x = ListActiveCallsResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[166]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListActiveCallsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListActiveCallsResponse) ProtoMessage() {}
+
+func (x *ListActiveCallsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[166]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListActiveCallsResponse.ProtoReflect.Descriptor instead.
+func (*ListActiveCallsResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{166}
+}
+
+func (x *ListActiveCallsResponse) GetCalls() []*ActiveCallView {
+	if x != nil {
+		return x.Calls
+	}
+	return nil
+}
+
+type GetCallParticipantsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetCallParticipantsRequest) Reset() {
+	*x = GetCallParticipantsRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[167]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetCallParticipantsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetCallParticipantsRequest) ProtoMessage() {}
+
+func (x *GetCallParticipantsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[167]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetCallParticipantsRequest.ProtoReflect.Descriptor instead.
+func (*GetCallParticipantsRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{167}
+}
+
+func (x *GetCallParticipantsRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+type GetCallParticipantsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Participants  []*CallParticipantView `protobuf:"bytes,1,rep,name=participants,proto3" json:"participants,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetCallParticipantsResponse) Reset() {
+	*x = GetCallParticipantsResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[168]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetCallParticipantsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetCallParticipantsResponse) ProtoMessage() {}
+
+func (x *GetCallParticipantsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[168]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetCallParticipantsResponse.ProtoReflect.Descriptor instead.
+func (*GetCallParticipantsResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{168}
+}
+
+func (x *GetCallParticipantsResponse) GetParticipants() []*CallParticipantView {
+	if x != nil {
+		return x.Participants
+	}
+	return nil
+}
+
+type JoinVoiceCallRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *JoinVoiceCallRequest) Reset() {
+	*x = JoinVoiceCallRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[169]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *JoinVoiceCallRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*JoinVoiceCallRequest) ProtoMessage() {}
+
+func (x *JoinVoiceCallRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[169]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use JoinVoiceCallRequest.ProtoReflect.Descriptor instead.
+func (*JoinVoiceCallRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{169}
+}
+
+func (x *JoinVoiceCallRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+type JoinVoiceCallResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Joined        bool                   `protobuf:"varint,1,opt,name=joined,proto3" json:"joined,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *JoinVoiceCallResponse) Reset() {
+	*x = JoinVoiceCallResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[170]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *JoinVoiceCallResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*JoinVoiceCallResponse) ProtoMessage() {}
+
+func (x *JoinVoiceCallResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[170]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use JoinVoiceCallResponse.ProtoReflect.Descriptor instead.
+func (*JoinVoiceCallResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{170}
+}
+
+func (x *JoinVoiceCallResponse) GetJoined() bool {
+	if x != nil {
+		return x.Joined
+	}
+	return false
+}
+
+type LeaveVoiceCallRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LeaveVoiceCallRequest) Reset() {
+	*x = LeaveVoiceCallRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[171]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LeaveVoiceCallRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LeaveVoiceCallRequest) ProtoMessage() {}
+
+func (x *LeaveVoiceCallRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[171]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LeaveVoiceCallRequest.ProtoReflect.Descriptor instead.
+func (*LeaveVoiceCallRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{171}
+}
+
+func (x *LeaveVoiceCallRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+type LeaveVoiceCallResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Left          bool                   `protobuf:"varint,1,opt,name=left,proto3" json:"left,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LeaveVoiceCallResponse) Reset() {
+	*x = LeaveVoiceCallResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[172]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LeaveVoiceCallResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LeaveVoiceCallResponse) ProtoMessage() {}
+
+func (x *LeaveVoiceCallResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[172]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LeaveVoiceCallResponse.ProtoReflect.Descriptor instead.
+func (*LeaveVoiceCallResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{172}
+}
+
+func (x *LeaveVoiceCallResponse) GetLeft() bool {
+	if x != nil {
+		return x.Left
+	}
+	return false
+}
+
+type VoiceCallTokenView struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	E2EeKey       string                 `protobuf:"bytes,2,opt,name=e2ee_key,json=e2eeKey,proto3" json:"e2ee_key,omitempty"`
+	CallId        string                 `protobuf:"bytes,3,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VoiceCallTokenView) Reset() {
+	*x = VoiceCallTokenView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[173]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VoiceCallTokenView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VoiceCallTokenView) ProtoMessage() {}
+
+func (x *VoiceCallTokenView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[173]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VoiceCallTokenView.ProtoReflect.Descriptor instead.
+func (*VoiceCallTokenView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{173}
+}
+
+func (x *VoiceCallTokenView) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+func (x *VoiceCallTokenView) GetE2EeKey() string {
+	if x != nil {
+		return x.E2EeKey
+	}
+	return ""
+}
+
+func (x *VoiceCallTokenView) GetCallId() string {
+	if x != nil {
+		return x.CallId
+	}
+	return ""
+}
+
+type GetVoiceCallTokenRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetVoiceCallTokenRequest) Reset() {
+	*x = GetVoiceCallTokenRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[174]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetVoiceCallTokenRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetVoiceCallTokenRequest) ProtoMessage() {}
+
+func (x *GetVoiceCallTokenRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[174]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetVoiceCallTokenRequest.ProtoReflect.Descriptor instead.
+func (*GetVoiceCallTokenRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{174}
+}
+
+func (x *GetVoiceCallTokenRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+type GetVoiceCallTokenResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Token         *VoiceCallTokenView    `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetVoiceCallTokenResponse) Reset() {
+	*x = GetVoiceCallTokenResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[175]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetVoiceCallTokenResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetVoiceCallTokenResponse) ProtoMessage() {}
+
+func (x *GetVoiceCallTokenResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[175]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetVoiceCallTokenResponse.ProtoReflect.Descriptor instead.
+func (*GetVoiceCallTokenResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{175}
+}
+
+func (x *GetVoiceCallTokenResponse) GetToken() *VoiceCallTokenView {
+	if x != nil {
+		return x.Token
+	}
+	return nil
+}
+
+// AssetUrl is the stable browser-loadable URL shape used by message attachments.
+type AssetUrl struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Url           string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AssetUrl) Reset() {
+	*x = AssetUrl{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[176]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AssetUrl) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AssetUrl) ProtoMessage() {}
+
+func (x *AssetUrl) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[176]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AssetUrl.ProtoReflect.Descriptor instead.
+func (*AssetUrl) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{176}
+}
+
+func (x *AssetUrl) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *AssetUrl) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+// VideoVariantView is a display-ready video derivative entry.
+type VideoVariantView struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Quality       string                 `protobuf:"bytes,1,opt,name=quality,proto3" json:"quality,omitempty"`
+	Width         int32                  `protobuf:"varint,2,opt,name=width,proto3" json:"width,omitempty"`
+	Height        int32                  `protobuf:"varint,3,opt,name=height,proto3" json:"height,omitempty"`
+	Size          int64                  `protobuf:"varint,4,opt,name=size,proto3" json:"size,omitempty"`
+	AssetUrl      *AssetUrl              `protobuf:"bytes,5,opt,name=asset_url,json=assetUrl,proto3" json:"asset_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VideoVariantView) Reset() {
+	*x = VideoVariantView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[177]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VideoVariantView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VideoVariantView) ProtoMessage() {}
+
+func (x *VideoVariantView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[177]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VideoVariantView.ProtoReflect.Descriptor instead.
+func (*VideoVariantView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{177}
+}
+
+func (x *VideoVariantView) GetQuality() string {
+	if x != nil {
+		return x.Quality
+	}
+	return ""
+}
+
+func (x *VideoVariantView) GetWidth() int32 {
+	if x != nil {
+		return x.Width
+	}
+	return 0
+}
+
+func (x *VideoVariantView) GetHeight() int32 {
+	if x != nil {
+		return x.Height
+	}
+	return 0
+}
+
+func (x *VideoVariantView) GetSize() int64 {
+	if x != nil {
+		return x.Size
+	}
+	return 0
+}
+
+func (x *VideoVariantView) GetAssetUrl() *AssetUrl {
+	if x != nil {
+		return x.AssetUrl
+	}
+	return nil
+}
+
+// VideoProcessingView is the display-ready processing state for a video attachment.
+type VideoProcessingView struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Status            VideoProcessingStatus  `protobuf:"varint,1,opt,name=status,proto3,enum=chatto.api.v1.VideoProcessingStatus" json:"status,omitempty"`
+	DurationMs        *int64                 `protobuf:"varint,2,opt,name=duration_ms,json=durationMs,proto3,oneof" json:"duration_ms,omitempty"`
+	Width             *int32                 `protobuf:"varint,3,opt,name=width,proto3,oneof" json:"width,omitempty"`
+	Height            *int32                 `protobuf:"varint,4,opt,name=height,proto3,oneof" json:"height,omitempty"`
+	SourceAvailable   bool                   `protobuf:"varint,5,opt,name=source_available,json=sourceAvailable,proto3" json:"source_available,omitempty"`
+	ReasonCode        *string                `protobuf:"bytes,6,opt,name=reason_code,json=reasonCode,proto3,oneof" json:"reason_code,omitempty"`
+	ThumbnailAssetUrl *AssetUrl              `protobuf:"bytes,7,opt,name=thumbnail_asset_url,json=thumbnailAssetUrl,proto3" json:"thumbnail_asset_url,omitempty"`
+	Variants          []*VideoVariantView    `protobuf:"bytes,8,rep,name=variants,proto3" json:"variants,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *VideoProcessingView) Reset() {
+	*x = VideoProcessingView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[178]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VideoProcessingView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VideoProcessingView) ProtoMessage() {}
+
+func (x *VideoProcessingView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[178]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VideoProcessingView.ProtoReflect.Descriptor instead.
+func (*VideoProcessingView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{178}
+}
+
+func (x *VideoProcessingView) GetStatus() VideoProcessingStatus {
+	if x != nil {
+		return x.Status
+	}
+	return VideoProcessingStatus_VIDEO_PROCESSING_STATUS_UNSPECIFIED
+}
+
+func (x *VideoProcessingView) GetDurationMs() int64 {
+	if x != nil && x.DurationMs != nil {
+		return *x.DurationMs
+	}
+	return 0
+}
+
+func (x *VideoProcessingView) GetWidth() int32 {
+	if x != nil && x.Width != nil {
+		return *x.Width
+	}
+	return 0
+}
+
+func (x *VideoProcessingView) GetHeight() int32 {
+	if x != nil && x.Height != nil {
+		return *x.Height
+	}
+	return 0
+}
+
+func (x *VideoProcessingView) GetSourceAvailable() bool {
+	if x != nil {
+		return x.SourceAvailable
+	}
+	return false
+}
+
+func (x *VideoProcessingView) GetReasonCode() string {
+	if x != nil && x.ReasonCode != nil {
+		return *x.ReasonCode
+	}
+	return ""
+}
+
+func (x *VideoProcessingView) GetThumbnailAssetUrl() *AssetUrl {
+	if x != nil {
+		return x.ThumbnailAssetUrl
+	}
+	return nil
+}
+
+func (x *VideoProcessingView) GetVariants() []*VideoVariantView {
+	if x != nil {
+		return x.Variants
+	}
+	return nil
+}
+
+// AttachmentView is an attachment hydrated with URLs needed by browser clients.
+type AttachmentView struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Id                string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Filename          string                 `protobuf:"bytes,2,opt,name=filename,proto3" json:"filename,omitempty"`
+	ContentType       string                 `protobuf:"bytes,3,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	Width             int32                  `protobuf:"varint,4,opt,name=width,proto3" json:"width,omitempty"`
+	Height            int32                  `protobuf:"varint,5,opt,name=height,proto3" json:"height,omitempty"`
+	AssetUrl          *AssetUrl              `protobuf:"bytes,6,opt,name=asset_url,json=assetUrl,proto3" json:"asset_url,omitempty"`
+	ThumbnailAssetUrl *AssetUrl              `protobuf:"bytes,7,opt,name=thumbnail_asset_url,json=thumbnailAssetUrl,proto3" json:"thumbnail_asset_url,omitempty"`
+	VideoProcessing   *VideoProcessingView   `protobuf:"bytes,8,opt,name=video_processing,json=videoProcessing,proto3" json:"video_processing,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *AttachmentView) Reset() {
+	*x = AttachmentView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[179]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AttachmentView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AttachmentView) ProtoMessage() {}
+
+func (x *AttachmentView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[179]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AttachmentView.ProtoReflect.Descriptor instead.
+func (*AttachmentView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{179}
+}
+
+func (x *AttachmentView) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *AttachmentView) GetFilename() string {
+	if x != nil {
+		return x.Filename
+	}
+	return ""
+}
+
+func (x *AttachmentView) GetContentType() string {
+	if x != nil {
+		return x.ContentType
+	}
+	return ""
+}
+
+func (x *AttachmentView) GetWidth() int32 {
+	if x != nil {
+		return x.Width
+	}
+	return 0
+}
+
+func (x *AttachmentView) GetHeight() int32 {
+	if x != nil {
+		return x.Height
+	}
+	return 0
+}
+
+func (x *AttachmentView) GetAssetUrl() *AssetUrl {
+	if x != nil {
+		return x.AssetUrl
+	}
+	return nil
+}
+
+func (x *AttachmentView) GetThumbnailAssetUrl() *AssetUrl {
+	if x != nil {
+		return x.ThumbnailAssetUrl
+	}
+	return nil
+}
+
+func (x *AttachmentView) GetVideoProcessing() *VideoProcessingView {
+	if x != nil {
+		return x.VideoProcessing
+	}
+	return nil
+}
+
+// UploadedAttachment is an uploaded attachment plus transient processing hints.
+type UploadedAttachment struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Attachment           *v1.Attachment         `protobuf:"bytes,1,opt,name=attachment,proto3" json:"attachment,omitempty"`
+	NeedsVideoProcessing bool                   `protobuf:"varint,2,opt,name=needs_video_processing,json=needsVideoProcessing,proto3" json:"needs_video_processing,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *UploadedAttachment) Reset() {
+	*x = UploadedAttachment{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[180]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UploadedAttachment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UploadedAttachment) ProtoMessage() {}
+
+func (x *UploadedAttachment) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[180]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UploadedAttachment.ProtoReflect.Descriptor instead.
+func (*UploadedAttachment) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{180}
+}
+
+func (x *UploadedAttachment) GetAttachment() *v1.Attachment {
+	if x != nil {
+		return x.Attachment
+	}
+	return nil
+}
+
+func (x *UploadedAttachment) GetNeedsVideoProcessing() bool {
+	if x != nil {
+		return x.NeedsVideoProcessing
+	}
+	return false
+}
+
+// UploadRoomAttachmentsResponse is returned by the multipart room upload endpoint.
+type UploadRoomAttachmentsResponse struct {
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	Attachments             []*UploadedAttachment  `protobuf:"bytes,1,rep,name=attachments,proto3" json:"attachments,omitempty"`
+	VideoProcessingAssetIds []string               `protobuf:"bytes,2,rep,name=video_processing_asset_ids,json=videoProcessingAssetIds,proto3" json:"video_processing_asset_ids,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *UploadRoomAttachmentsResponse) Reset() {
+	*x = UploadRoomAttachmentsResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[181]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UploadRoomAttachmentsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UploadRoomAttachmentsResponse) ProtoMessage() {}
+
+func (x *UploadRoomAttachmentsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[181]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UploadRoomAttachmentsResponse.ProtoReflect.Descriptor instead.
+func (*UploadRoomAttachmentsResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{181}
+}
+
+func (x *UploadRoomAttachmentsResponse) GetAttachments() []*UploadedAttachment {
+	if x != nil {
+		return x.Attachments
+	}
+	return nil
+}
+
+func (x *UploadRoomAttachmentsResponse) GetVideoProcessingAssetIds() []string {
+	if x != nil {
+		return x.VideoProcessingAssetIds
+	}
+	return nil
+}
+
+// RefreshMessageAttachmentUrlsRequest requests freshly signed URLs for one message.
+type RefreshMessageAttachmentUrlsRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	RoomId          string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	EventId         string                 `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	ThumbnailWidth  int32                  `protobuf:"varint,3,opt,name=thumbnail_width,json=thumbnailWidth,proto3" json:"thumbnail_width,omitempty"`
+	ThumbnailHeight int32                  `protobuf:"varint,4,opt,name=thumbnail_height,json=thumbnailHeight,proto3" json:"thumbnail_height,omitempty"`
+	ThumbnailFit    AssetFitMode           `protobuf:"varint,5,opt,name=thumbnail_fit,json=thumbnailFit,proto3,enum=chatto.api.v1.AssetFitMode" json:"thumbnail_fit,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *RefreshMessageAttachmentUrlsRequest) Reset() {
+	*x = RefreshMessageAttachmentUrlsRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[182]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RefreshMessageAttachmentUrlsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RefreshMessageAttachmentUrlsRequest) ProtoMessage() {}
+
+func (x *RefreshMessageAttachmentUrlsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[182]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RefreshMessageAttachmentUrlsRequest.ProtoReflect.Descriptor instead.
+func (*RefreshMessageAttachmentUrlsRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{182}
+}
+
+func (x *RefreshMessageAttachmentUrlsRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *RefreshMessageAttachmentUrlsRequest) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+func (x *RefreshMessageAttachmentUrlsRequest) GetThumbnailWidth() int32 {
+	if x != nil {
+		return x.ThumbnailWidth
+	}
+	return 0
+}
+
+func (x *RefreshMessageAttachmentUrlsRequest) GetThumbnailHeight() int32 {
+	if x != nil {
+		return x.ThumbnailHeight
+	}
+	return 0
+}
+
+func (x *RefreshMessageAttachmentUrlsRequest) GetThumbnailFit() AssetFitMode {
+	if x != nil {
+		return x.ThumbnailFit
+	}
+	return AssetFitMode_ASSET_FIT_MODE_UNSPECIFIED
+}
+
+// RefreshMessageAttachmentUrlsResponse returns attachment views with fresh URLs.
+type RefreshMessageAttachmentUrlsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Attachments   []*AttachmentView      `protobuf:"bytes,1,rep,name=attachments,proto3" json:"attachments,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RefreshMessageAttachmentUrlsResponse) Reset() {
+	*x = RefreshMessageAttachmentUrlsResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[183]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RefreshMessageAttachmentUrlsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RefreshMessageAttachmentUrlsResponse) ProtoMessage() {}
+
+func (x *RefreshMessageAttachmentUrlsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[183]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RefreshMessageAttachmentUrlsResponse.ProtoReflect.Descriptor instead.
+func (*RefreshMessageAttachmentUrlsResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{183}
+}
+
+func (x *RefreshMessageAttachmentUrlsResponse) GetAttachments() []*AttachmentView {
+	if x != nil {
+		return x.Attachments
+	}
+	return nil
+}
+
+// UserAvatarAssetResponse is returned by the HTTP avatar upload/delete endpoints.
+type UserAvatarAssetResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	User          *v1.User               `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	AvatarUrl     string                 `protobuf:"bytes,2,opt,name=avatar_url,json=avatarUrl,proto3" json:"avatar_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UserAvatarAssetResponse) Reset() {
+	*x = UserAvatarAssetResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[184]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UserAvatarAssetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UserAvatarAssetResponse) ProtoMessage() {}
+
+func (x *UserAvatarAssetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[184]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UserAvatarAssetResponse.ProtoReflect.Descriptor instead.
+func (*UserAvatarAssetResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{184}
+}
+
+func (x *UserAvatarAssetResponse) GetUser() *v1.User {
+	if x != nil {
+		return x.User
+	}
+	return nil
+}
+
+func (x *UserAvatarAssetResponse) GetAvatarUrl() string {
+	if x != nil {
+		return x.AvatarUrl
+	}
+	return ""
+}
+
+// ServerBrandingAssetResponse is returned by the HTTP server logo/banner endpoints.
+type ServerBrandingAssetResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Profile       *ServerProfileView     `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ServerBrandingAssetResponse) Reset() {
+	*x = ServerBrandingAssetResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[185]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServerBrandingAssetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServerBrandingAssetResponse) ProtoMessage() {}
+
+func (x *ServerBrandingAssetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[185]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServerBrandingAssetResponse.ProtoReflect.Descriptor instead.
+func (*ServerBrandingAssetResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{185}
+}
+
+func (x *ServerBrandingAssetResponse) GetProfile() *ServerProfileView {
+	if x != nil {
+		return x.Profile
+	}
+	return nil
+}
+
+// LinkPreviewView is the link preview shape consumed by the room UI.
+type LinkPreviewView struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Url           string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	SiteName      string                 `protobuf:"bytes,4,opt,name=site_name,json=siteName,proto3" json:"site_name,omitempty"`
+	ImageUrl      *string                `protobuf:"bytes,5,opt,name=image_url,json=imageUrl,proto3,oneof" json:"image_url,omitempty"`
+	EmbedType     string                 `protobuf:"bytes,6,opt,name=embed_type,json=embedType,proto3" json:"embed_type,omitempty"`
+	EmbedId       *string                `protobuf:"bytes,7,opt,name=embed_id,json=embedId,proto3,oneof" json:"embed_id,omitempty"`
+	ImageAssetId  *string                `protobuf:"bytes,8,opt,name=image_asset_id,json=imageAssetId,proto3,oneof" json:"image_asset_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LinkPreviewView) Reset() {
+	*x = LinkPreviewView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[186]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LinkPreviewView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LinkPreviewView) ProtoMessage() {}
+
+func (x *LinkPreviewView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[186]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LinkPreviewView.ProtoReflect.Descriptor instead.
+func (*LinkPreviewView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{186}
+}
+
+func (x *LinkPreviewView) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *LinkPreviewView) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *LinkPreviewView) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *LinkPreviewView) GetSiteName() string {
+	if x != nil {
+		return x.SiteName
+	}
+	return ""
+}
+
+func (x *LinkPreviewView) GetImageUrl() string {
+	if x != nil && x.ImageUrl != nil {
+		return *x.ImageUrl
+	}
+	return ""
+}
+
+func (x *LinkPreviewView) GetEmbedType() string {
+	if x != nil {
+		return x.EmbedType
+	}
+	return ""
+}
+
+func (x *LinkPreviewView) GetEmbedId() string {
+	if x != nil && x.EmbedId != nil {
+		return *x.EmbedId
+	}
+	return ""
+}
+
+func (x *LinkPreviewView) GetImageAssetId() string {
+	if x != nil && x.ImageAssetId != nil {
+		return *x.ImageAssetId
+	}
+	return ""
+}
+
+type LinkPreviewInput struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Url           string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	Title         *string                `protobuf:"bytes,2,opt,name=title,proto3,oneof" json:"title,omitempty"`
+	Description   *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	SiteName      *string                `protobuf:"bytes,4,opt,name=site_name,json=siteName,proto3,oneof" json:"site_name,omitempty"`
+	ImageAssetId  *string                `protobuf:"bytes,5,opt,name=image_asset_id,json=imageAssetId,proto3,oneof" json:"image_asset_id,omitempty"`
+	EmbedType     *string                `protobuf:"bytes,6,opt,name=embed_type,json=embedType,proto3,oneof" json:"embed_type,omitempty"`
+	EmbedId       *string                `protobuf:"bytes,7,opt,name=embed_id,json=embedId,proto3,oneof" json:"embed_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LinkPreviewInput) Reset() {
+	*x = LinkPreviewInput{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[187]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LinkPreviewInput) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LinkPreviewInput) ProtoMessage() {}
+
+func (x *LinkPreviewInput) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[187]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LinkPreviewInput.ProtoReflect.Descriptor instead.
+func (*LinkPreviewInput) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{187}
+}
+
+func (x *LinkPreviewInput) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *LinkPreviewInput) GetTitle() string {
+	if x != nil && x.Title != nil {
+		return *x.Title
+	}
+	return ""
+}
+
+func (x *LinkPreviewInput) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
+}
+
+func (x *LinkPreviewInput) GetSiteName() string {
+	if x != nil && x.SiteName != nil {
+		return *x.SiteName
+	}
+	return ""
+}
+
+func (x *LinkPreviewInput) GetImageAssetId() string {
+	if x != nil && x.ImageAssetId != nil {
+		return *x.ImageAssetId
+	}
+	return ""
+}
+
+func (x *LinkPreviewInput) GetEmbedType() string {
+	if x != nil && x.EmbedType != nil {
+		return *x.EmbedType
+	}
+	return ""
+}
+
+func (x *LinkPreviewInput) GetEmbedId() string {
+	if x != nil && x.EmbedId != nil {
+		return *x.EmbedId
+	}
+	return ""
+}
+
+type GetLinkPreviewRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Url           string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetLinkPreviewRequest) Reset() {
+	*x = GetLinkPreviewRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[188]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetLinkPreviewRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetLinkPreviewRequest) ProtoMessage() {}
+
+func (x *GetLinkPreviewRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[188]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetLinkPreviewRequest.ProtoReflect.Descriptor instead.
+func (*GetLinkPreviewRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{188}
+}
+
+func (x *GetLinkPreviewRequest) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+type GetLinkPreviewResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Preview       *LinkPreviewView       `protobuf:"bytes,1,opt,name=preview,proto3" json:"preview,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetLinkPreviewResponse) Reset() {
+	*x = GetLinkPreviewResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[189]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetLinkPreviewResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetLinkPreviewResponse) ProtoMessage() {}
+
+func (x *GetLinkPreviewResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[189]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetLinkPreviewResponse.ProtoReflect.Descriptor instead.
+func (*GetLinkPreviewResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{189}
+}
+
+func (x *GetLinkPreviewResponse) GetPreview() *LinkPreviewView {
+	if x != nil {
+		return x.Preview
+	}
+	return nil
+}
+
+// ReactionSummaryView is a message reaction summary from the viewer's perspective.
+type ReactionSummaryView struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Emoji         string                 `protobuf:"bytes,1,opt,name=emoji,proto3" json:"emoji,omitempty"`
+	Count         int32                  `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
+	HasReacted    bool                   `protobuf:"varint,3,opt,name=has_reacted,json=hasReacted,proto3" json:"has_reacted,omitempty"`
+	Users         []*v1.User             `protobuf:"bytes,4,rep,name=users,proto3" json:"users,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReactionSummaryView) Reset() {
+	*x = ReactionSummaryView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[190]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReactionSummaryView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReactionSummaryView) ProtoMessage() {}
+
+func (x *ReactionSummaryView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[190]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReactionSummaryView.ProtoReflect.Descriptor instead.
+func (*ReactionSummaryView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{190}
+}
+
+func (x *ReactionSummaryView) GetEmoji() string {
+	if x != nil {
+		return x.Emoji
+	}
+	return ""
+}
+
+func (x *ReactionSummaryView) GetCount() int32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+func (x *ReactionSummaryView) GetHasReacted() bool {
+	if x != nil {
+		return x.HasReacted
+	}
+	return false
+}
+
+func (x *ReactionSummaryView) GetUsers() []*v1.User {
+	if x != nil {
+		return x.Users
+	}
+	return nil
+}
+
+// MessagePostedView is a display-ready MessagePostedEvent payload.
+type MessagePostedView struct {
+	state                     protoimpl.MessageState `protogen:"open.v1"`
+	RoomId                    string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	Body                      *string                `protobuf:"bytes,2,opt,name=body,proto3,oneof" json:"body,omitempty"`
+	Attachments               []*AttachmentView      `protobuf:"bytes,3,rep,name=attachments,proto3" json:"attachments,omitempty"`
+	LinkPreview               *LinkPreviewView       `protobuf:"bytes,4,opt,name=link_preview,json=linkPreview,proto3" json:"link_preview,omitempty"`
+	UpdatedAt                 *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=updated_at,json=updatedAt,proto3,oneof" json:"updated_at,omitempty"`
+	InReplyTo                 *string                `protobuf:"bytes,6,opt,name=in_reply_to,json=inReplyTo,proto3,oneof" json:"in_reply_to,omitempty"`
+	ThreadRootEventId         *string                `protobuf:"bytes,7,opt,name=thread_root_event_id,json=threadRootEventId,proto3,oneof" json:"thread_root_event_id,omitempty"`
+	EchoOfEventId             *string                `protobuf:"bytes,8,opt,name=echo_of_event_id,json=echoOfEventId,proto3,oneof" json:"echo_of_event_id,omitempty"`
+	EchoFromThreadRootEventId *string                `protobuf:"bytes,9,opt,name=echo_from_thread_root_event_id,json=echoFromThreadRootEventId,proto3,oneof" json:"echo_from_thread_root_event_id,omitempty"`
+	ChannelEchoEventId        *string                `protobuf:"bytes,10,opt,name=channel_echo_event_id,json=channelEchoEventId,proto3,oneof" json:"channel_echo_event_id,omitempty"`
+	ReplyCount                int32                  `protobuf:"varint,11,opt,name=reply_count,json=replyCount,proto3" json:"reply_count,omitempty"`
+	LastReplyAt               *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=last_reply_at,json=lastReplyAt,proto3,oneof" json:"last_reply_at,omitempty"`
+	ThreadParticipants        []*v1.User             `protobuf:"bytes,13,rep,name=thread_participants,json=threadParticipants,proto3" json:"thread_participants,omitempty"`
+	ViewerIsFollowingThread   *bool                  `protobuf:"varint,14,opt,name=viewer_is_following_thread,json=viewerIsFollowingThread,proto3,oneof" json:"viewer_is_following_thread,omitempty"`
+	Reactions                 []*ReactionSummaryView `protobuf:"bytes,15,rep,name=reactions,proto3" json:"reactions,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
+}
+
+func (x *MessagePostedView) Reset() {
+	*x = MessagePostedView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[191]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MessagePostedView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MessagePostedView) ProtoMessage() {}
+
+func (x *MessagePostedView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[191]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MessagePostedView.ProtoReflect.Descriptor instead.
+func (*MessagePostedView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{191}
+}
+
+func (x *MessagePostedView) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *MessagePostedView) GetBody() string {
+	if x != nil && x.Body != nil {
+		return *x.Body
+	}
+	return ""
+}
+
+func (x *MessagePostedView) GetAttachments() []*AttachmentView {
+	if x != nil {
+		return x.Attachments
+	}
+	return nil
+}
+
+func (x *MessagePostedView) GetLinkPreview() *LinkPreviewView {
+	if x != nil {
+		return x.LinkPreview
+	}
+	return nil
+}
+
+func (x *MessagePostedView) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
+func (x *MessagePostedView) GetInReplyTo() string {
+	if x != nil && x.InReplyTo != nil {
+		return *x.InReplyTo
+	}
+	return ""
+}
+
+func (x *MessagePostedView) GetThreadRootEventId() string {
+	if x != nil && x.ThreadRootEventId != nil {
+		return *x.ThreadRootEventId
+	}
+	return ""
+}
+
+func (x *MessagePostedView) GetEchoOfEventId() string {
+	if x != nil && x.EchoOfEventId != nil {
+		return *x.EchoOfEventId
+	}
+	return ""
+}
+
+func (x *MessagePostedView) GetEchoFromThreadRootEventId() string {
+	if x != nil && x.EchoFromThreadRootEventId != nil {
+		return *x.EchoFromThreadRootEventId
+	}
+	return ""
+}
+
+func (x *MessagePostedView) GetChannelEchoEventId() string {
+	if x != nil && x.ChannelEchoEventId != nil {
+		return *x.ChannelEchoEventId
+	}
+	return ""
+}
+
+func (x *MessagePostedView) GetReplyCount() int32 {
+	if x != nil {
+		return x.ReplyCount
+	}
+	return 0
+}
+
+func (x *MessagePostedView) GetLastReplyAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastReplyAt
+	}
+	return nil
+}
+
+func (x *MessagePostedView) GetThreadParticipants() []*v1.User {
+	if x != nil {
+		return x.ThreadParticipants
+	}
+	return nil
+}
+
+func (x *MessagePostedView) GetViewerIsFollowingThread() bool {
+	if x != nil && x.ViewerIsFollowingThread != nil {
+		return *x.ViewerIsFollowingThread
+	}
+	return false
+}
+
+func (x *MessagePostedView) GetReactions() []*ReactionSummaryView {
+	if x != nil {
+		return x.Reactions
+	}
+	return nil
+}
+
+// MessageEditedView is a display-ready MessageEditedEvent payload.
+type MessageEditedView struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	RoomId         string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	MessageEventId string                 `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
+	Body           *string                `protobuf:"bytes,3,opt,name=body,proto3,oneof" json:"body,omitempty"`
+	Attachments    []*AttachmentView      `protobuf:"bytes,4,rep,name=attachments,proto3" json:"attachments,omitempty"`
+	LinkPreview    *LinkPreviewView       `protobuf:"bytes,5,opt,name=link_preview,json=linkPreview,proto3" json:"link_preview,omitempty"`
+	UpdatedAt      *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=updated_at,json=updatedAt,proto3,oneof" json:"updated_at,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *MessageEditedView) Reset() {
+	*x = MessageEditedView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[192]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MessageEditedView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MessageEditedView) ProtoMessage() {}
+
+func (x *MessageEditedView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[192]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MessageEditedView.ProtoReflect.Descriptor instead.
+func (*MessageEditedView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{192}
+}
+
+func (x *MessageEditedView) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *MessageEditedView) GetMessageEventId() string {
+	if x != nil {
+		return x.MessageEventId
+	}
+	return ""
+}
+
+func (x *MessageEditedView) GetBody() string {
+	if x != nil && x.Body != nil {
+		return *x.Body
+	}
+	return ""
+}
+
+func (x *MessageEditedView) GetAttachments() []*AttachmentView {
+	if x != nil {
+		return x.Attachments
+	}
+	return nil
+}
+
+func (x *MessageEditedView) GetLinkPreview() *LinkPreviewView {
+	if x != nil {
+		return x.LinkPreview
+	}
+	return nil
+}
+
+func (x *MessageEditedView) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
+type MessageRetractedView struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	RoomId         string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	MessageEventId string                 `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
+	Reason         *string                `protobuf:"bytes,3,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *MessageRetractedView) Reset() {
+	*x = MessageRetractedView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[193]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MessageRetractedView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MessageRetractedView) ProtoMessage() {}
+
+func (x *MessageRetractedView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[193]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MessageRetractedView.ProtoReflect.Descriptor instead.
+func (*MessageRetractedView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{193}
+}
+
+func (x *MessageRetractedView) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *MessageRetractedView) GetMessageEventId() string {
+	if x != nil {
+		return x.MessageEventId
+	}
+	return ""
+}
+
+func (x *MessageRetractedView) GetReason() string {
+	if x != nil && x.Reason != nil {
+		return *x.Reason
+	}
+	return ""
+}
+
+type RoomScopedEventView struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomScopedEventView) Reset() {
+	*x = RoomScopedEventView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[194]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomScopedEventView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomScopedEventView) ProtoMessage() {}
+
+func (x *RoomScopedEventView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[194]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomScopedEventView.ProtoReflect.Descriptor instead.
+func (*RoomScopedEventView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{194}
+}
+
+func (x *RoomScopedEventView) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+type ReactionEventView struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	RoomId         string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	MessageEventId string                 `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
+	Emoji          string                 `protobuf:"bytes,3,opt,name=emoji,proto3" json:"emoji,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ReactionEventView) Reset() {
+	*x = ReactionEventView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[195]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReactionEventView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReactionEventView) ProtoMessage() {}
+
+func (x *ReactionEventView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[195]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReactionEventView.ProtoReflect.Descriptor instead.
+func (*ReactionEventView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{195}
+}
+
+func (x *ReactionEventView) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *ReactionEventView) GetMessageEventId() string {
+	if x != nil {
+		return x.MessageEventId
+	}
+	return ""
+}
+
+func (x *ReactionEventView) GetEmoji() string {
+	if x != nil {
+		return x.Emoji
+	}
+	return ""
+}
+
+type AssetProcessingEventView struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	RoomId         string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	AssetId        string                 `protobuf:"bytes,2,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	MessageEventId string                 `protobuf:"bytes,3,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *AssetProcessingEventView) Reset() {
+	*x = AssetProcessingEventView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[196]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AssetProcessingEventView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AssetProcessingEventView) ProtoMessage() {}
+
+func (x *AssetProcessingEventView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[196]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AssetProcessingEventView.ProtoReflect.Descriptor instead.
+func (*AssetProcessingEventView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{196}
+}
+
+func (x *AssetProcessingEventView) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *AssetProcessingEventView) GetAssetId() string {
+	if x != nil {
+		return x.AssetId
+	}
+	return ""
+}
+
+func (x *AssetProcessingEventView) GetMessageEventId() string {
+	if x != nil {
+		return x.MessageEventId
+	}
+	return ""
+}
+
+type AssetDeletedView struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	AssetId       string                 `protobuf:"bytes,2,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AssetDeletedView) Reset() {
+	*x = AssetDeletedView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[197]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AssetDeletedView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AssetDeletedView) ProtoMessage() {}
+
+func (x *AssetDeletedView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[197]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AssetDeletedView.ProtoReflect.Descriptor instead.
+func (*AssetDeletedView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{197}
+}
+
+func (x *AssetDeletedView) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *AssetDeletedView) GetAssetId() string {
+	if x != nil {
+		return x.AssetId
+	}
+	return ""
+}
+
+type ServerMemberDeletedView struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ServerMemberDeletedView) Reset() {
+	*x = ServerMemberDeletedView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[198]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServerMemberDeletedView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServerMemberDeletedView) ProtoMessage() {}
+
+func (x *ServerMemberDeletedView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[198]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServerMemberDeletedView.ProtoReflect.Descriptor instead.
+func (*ServerMemberDeletedView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{198}
+}
+
+func (x *ServerMemberDeletedView) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+type CallEventView struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	CallId        string                 `protobuf:"bytes,2,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CallEventView) Reset() {
+	*x = CallEventView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[199]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CallEventView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CallEventView) ProtoMessage() {}
+
+func (x *CallEventView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[199]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CallEventView.ProtoReflect.Descriptor instead.
+func (*CallEventView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{199}
+}
+
+func (x *CallEventView) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *CallEventView) GetCallId() string {
+	if x != nil {
+		return x.CallId
+	}
+	return ""
+}
+
+type ThreadCreatedView struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	RoomId            string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	ThreadRootEventId string                 `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *ThreadCreatedView) Reset() {
+	*x = ThreadCreatedView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[200]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ThreadCreatedView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ThreadCreatedView) ProtoMessage() {}
+
+func (x *ThreadCreatedView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[200]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ThreadCreatedView.ProtoReflect.Descriptor instead.
+func (*ThreadCreatedView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{200}
+}
+
+func (x *ThreadCreatedView) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *ThreadCreatedView) GetThreadRootEventId() string {
+	if x != nil {
+		return x.ThreadRootEventId
+	}
+	return ""
+}
+
+type RoomModerationEventView struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Reason        *string                `protobuf:"bytes,3,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
+	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=expires_at,json=expiresAt,proto3,oneof" json:"expires_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomModerationEventView) Reset() {
+	*x = RoomModerationEventView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[201]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomModerationEventView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomModerationEventView) ProtoMessage() {}
+
+func (x *RoomModerationEventView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[201]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomModerationEventView.ProtoReflect.Descriptor instead.
+func (*RoomModerationEventView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{201}
+}
+
+func (x *RoomModerationEventView) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *RoomModerationEventView) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *RoomModerationEventView) GetReason() string {
+	if x != nil && x.Reason != nil {
+		return *x.Reason
+	}
+	return ""
+}
+
+func (x *RoomModerationEventView) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+// RoomEventPayload is the schemaful display payload for a room timeline row.
+type RoomEventPayload struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Payload:
+	//
+	//	*RoomEventPayload_MessagePosted
+	//	*RoomEventPayload_MessageEdited
+	//	*RoomEventPayload_MessageRetracted
+	//	*RoomEventPayload_RoomCreated
+	//	*RoomEventPayload_RoomUpdated
+	//	*RoomEventPayload_RoomDeleted
+	//	*RoomEventPayload_RoomArchived
+	//	*RoomEventPayload_RoomUnarchived
+	//	*RoomEventPayload_UserJoinedRoom
+	//	*RoomEventPayload_UserLeftRoom
+	//	*RoomEventPayload_ReactionAdded
+	//	*RoomEventPayload_ReactionRemoved
+	//	*RoomEventPayload_AssetProcessingStarted
+	//	*RoomEventPayload_AssetProcessingSucceeded
+	//	*RoomEventPayload_AssetProcessingFailed
+	//	*RoomEventPayload_AssetDeleted
+	//	*RoomEventPayload_ServerMemberDeleted
+	//	*RoomEventPayload_CallStarted
+	//	*RoomEventPayload_CallParticipantJoined
+	//	*RoomEventPayload_CallParticipantLeft
+	//	*RoomEventPayload_CallEnded
+	//	*RoomEventPayload_ThreadCreated
+	//	*RoomEventPayload_RoomMemberBanned
+	//	*RoomEventPayload_RoomMemberUnbanned
+	Payload       isRoomEventPayload_Payload `protobuf_oneof:"payload"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomEventPayload) Reset() {
+	*x = RoomEventPayload{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[202]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomEventPayload) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomEventPayload) ProtoMessage() {}
+
+func (x *RoomEventPayload) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[202]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomEventPayload.ProtoReflect.Descriptor instead.
+func (*RoomEventPayload) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{202}
+}
+
+func (x *RoomEventPayload) GetPayload() isRoomEventPayload_Payload {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
+func (x *RoomEventPayload) GetMessagePosted() *MessagePostedView {
+	if x != nil {
+		if x, ok := x.Payload.(*RoomEventPayload_MessagePosted); ok {
+			return x.MessagePosted
+		}
+	}
+	return nil
+}
+
+func (x *RoomEventPayload) GetMessageEdited() *MessageEditedView {
+	if x != nil {
+		if x, ok := x.Payload.(*RoomEventPayload_MessageEdited); ok {
+			return x.MessageEdited
+		}
+	}
+	return nil
+}
+
+func (x *RoomEventPayload) GetMessageRetracted() *MessageRetractedView {
+	if x != nil {
+		if x, ok := x.Payload.(*RoomEventPayload_MessageRetracted); ok {
+			return x.MessageRetracted
+		}
+	}
+	return nil
+}
+
+func (x *RoomEventPayload) GetRoomCreated() *RoomScopedEventView {
+	if x != nil {
+		if x, ok := x.Payload.(*RoomEventPayload_RoomCreated); ok {
+			return x.RoomCreated
+		}
+	}
+	return nil
+}
+
+func (x *RoomEventPayload) GetRoomUpdated() *RoomScopedEventView {
+	if x != nil {
+		if x, ok := x.Payload.(*RoomEventPayload_RoomUpdated); ok {
+			return x.RoomUpdated
+		}
+	}
+	return nil
+}
+
+func (x *RoomEventPayload) GetRoomDeleted() *RoomScopedEventView {
+	if x != nil {
+		if x, ok := x.Payload.(*RoomEventPayload_RoomDeleted); ok {
+			return x.RoomDeleted
+		}
+	}
+	return nil
+}
+
+func (x *RoomEventPayload) GetRoomArchived() *RoomScopedEventView {
+	if x != nil {
+		if x, ok := x.Payload.(*RoomEventPayload_RoomArchived); ok {
+			return x.RoomArchived
+		}
+	}
+	return nil
+}
+
+func (x *RoomEventPayload) GetRoomUnarchived() *RoomScopedEventView {
+	if x != nil {
+		if x, ok := x.Payload.(*RoomEventPayload_RoomUnarchived); ok {
+			return x.RoomUnarchived
+		}
+	}
+	return nil
+}
+
+func (x *RoomEventPayload) GetUserJoinedRoom() *RoomScopedEventView {
+	if x != nil {
+		if x, ok := x.Payload.(*RoomEventPayload_UserJoinedRoom); ok {
+			return x.UserJoinedRoom
+		}
+	}
+	return nil
+}
+
+func (x *RoomEventPayload) GetUserLeftRoom() *RoomScopedEventView {
+	if x != nil {
+		if x, ok := x.Payload.(*RoomEventPayload_UserLeftRoom); ok {
+			return x.UserLeftRoom
+		}
+	}
+	return nil
+}
+
+func (x *RoomEventPayload) GetReactionAdded() *ReactionEventView {
+	if x != nil {
+		if x, ok := x.Payload.(*RoomEventPayload_ReactionAdded); ok {
+			return x.ReactionAdded
+		}
+	}
+	return nil
+}
+
+func (x *RoomEventPayload) GetReactionRemoved() *ReactionEventView {
+	if x != nil {
+		if x, ok := x.Payload.(*RoomEventPayload_ReactionRemoved); ok {
+			return x.ReactionRemoved
+		}
+	}
+	return nil
+}
+
+func (x *RoomEventPayload) GetAssetProcessingStarted() *AssetProcessingEventView {
+	if x != nil {
+		if x, ok := x.Payload.(*RoomEventPayload_AssetProcessingStarted); ok {
+			return x.AssetProcessingStarted
+		}
+	}
+	return nil
+}
+
+func (x *RoomEventPayload) GetAssetProcessingSucceeded() *AssetProcessingEventView {
+	if x != nil {
+		if x, ok := x.Payload.(*RoomEventPayload_AssetProcessingSucceeded); ok {
+			return x.AssetProcessingSucceeded
+		}
+	}
+	return nil
+}
+
+func (x *RoomEventPayload) GetAssetProcessingFailed() *AssetProcessingEventView {
+	if x != nil {
+		if x, ok := x.Payload.(*RoomEventPayload_AssetProcessingFailed); ok {
+			return x.AssetProcessingFailed
+		}
+	}
+	return nil
+}
+
+func (x *RoomEventPayload) GetAssetDeleted() *AssetDeletedView {
+	if x != nil {
+		if x, ok := x.Payload.(*RoomEventPayload_AssetDeleted); ok {
+			return x.AssetDeleted
+		}
+	}
+	return nil
+}
+
+func (x *RoomEventPayload) GetServerMemberDeleted() *ServerMemberDeletedView {
+	if x != nil {
+		if x, ok := x.Payload.(*RoomEventPayload_ServerMemberDeleted); ok {
+			return x.ServerMemberDeleted
+		}
+	}
+	return nil
+}
+
+func (x *RoomEventPayload) GetCallStarted() *CallEventView {
+	if x != nil {
+		if x, ok := x.Payload.(*RoomEventPayload_CallStarted); ok {
+			return x.CallStarted
+		}
+	}
+	return nil
+}
+
+func (x *RoomEventPayload) GetCallParticipantJoined() *CallEventView {
+	if x != nil {
+		if x, ok := x.Payload.(*RoomEventPayload_CallParticipantJoined); ok {
+			return x.CallParticipantJoined
+		}
+	}
+	return nil
+}
+
+func (x *RoomEventPayload) GetCallParticipantLeft() *CallEventView {
+	if x != nil {
+		if x, ok := x.Payload.(*RoomEventPayload_CallParticipantLeft); ok {
+			return x.CallParticipantLeft
+		}
+	}
+	return nil
+}
+
+func (x *RoomEventPayload) GetCallEnded() *CallEventView {
+	if x != nil {
+		if x, ok := x.Payload.(*RoomEventPayload_CallEnded); ok {
+			return x.CallEnded
+		}
+	}
+	return nil
+}
+
+func (x *RoomEventPayload) GetThreadCreated() *ThreadCreatedView {
+	if x != nil {
+		if x, ok := x.Payload.(*RoomEventPayload_ThreadCreated); ok {
+			return x.ThreadCreated
+		}
+	}
+	return nil
+}
+
+func (x *RoomEventPayload) GetRoomMemberBanned() *RoomModerationEventView {
+	if x != nil {
+		if x, ok := x.Payload.(*RoomEventPayload_RoomMemberBanned); ok {
+			return x.RoomMemberBanned
+		}
+	}
+	return nil
+}
+
+func (x *RoomEventPayload) GetRoomMemberUnbanned() *RoomModerationEventView {
+	if x != nil {
+		if x, ok := x.Payload.(*RoomEventPayload_RoomMemberUnbanned); ok {
+			return x.RoomMemberUnbanned
+		}
+	}
+	return nil
+}
+
+type isRoomEventPayload_Payload interface {
+	isRoomEventPayload_Payload()
+}
+
+type RoomEventPayload_MessagePosted struct {
+	MessagePosted *MessagePostedView `protobuf:"bytes,1,opt,name=message_posted,json=messagePosted,proto3,oneof"`
+}
+
+type RoomEventPayload_MessageEdited struct {
+	MessageEdited *MessageEditedView `protobuf:"bytes,2,opt,name=message_edited,json=messageEdited,proto3,oneof"`
+}
+
+type RoomEventPayload_MessageRetracted struct {
+	MessageRetracted *MessageRetractedView `protobuf:"bytes,3,opt,name=message_retracted,json=messageRetracted,proto3,oneof"`
+}
+
+type RoomEventPayload_RoomCreated struct {
+	RoomCreated *RoomScopedEventView `protobuf:"bytes,4,opt,name=room_created,json=roomCreated,proto3,oneof"`
+}
+
+type RoomEventPayload_RoomUpdated struct {
+	RoomUpdated *RoomScopedEventView `protobuf:"bytes,5,opt,name=room_updated,json=roomUpdated,proto3,oneof"`
+}
+
+type RoomEventPayload_RoomDeleted struct {
+	RoomDeleted *RoomScopedEventView `protobuf:"bytes,6,opt,name=room_deleted,json=roomDeleted,proto3,oneof"`
+}
+
+type RoomEventPayload_RoomArchived struct {
+	RoomArchived *RoomScopedEventView `protobuf:"bytes,7,opt,name=room_archived,json=roomArchived,proto3,oneof"`
+}
+
+type RoomEventPayload_RoomUnarchived struct {
+	RoomUnarchived *RoomScopedEventView `protobuf:"bytes,8,opt,name=room_unarchived,json=roomUnarchived,proto3,oneof"`
+}
+
+type RoomEventPayload_UserJoinedRoom struct {
+	UserJoinedRoom *RoomScopedEventView `protobuf:"bytes,9,opt,name=user_joined_room,json=userJoinedRoom,proto3,oneof"`
+}
+
+type RoomEventPayload_UserLeftRoom struct {
+	UserLeftRoom *RoomScopedEventView `protobuf:"bytes,10,opt,name=user_left_room,json=userLeftRoom,proto3,oneof"`
+}
+
+type RoomEventPayload_ReactionAdded struct {
+	ReactionAdded *ReactionEventView `protobuf:"bytes,11,opt,name=reaction_added,json=reactionAdded,proto3,oneof"`
+}
+
+type RoomEventPayload_ReactionRemoved struct {
+	ReactionRemoved *ReactionEventView `protobuf:"bytes,12,opt,name=reaction_removed,json=reactionRemoved,proto3,oneof"`
+}
+
+type RoomEventPayload_AssetProcessingStarted struct {
+	AssetProcessingStarted *AssetProcessingEventView `protobuf:"bytes,13,opt,name=asset_processing_started,json=assetProcessingStarted,proto3,oneof"`
+}
+
+type RoomEventPayload_AssetProcessingSucceeded struct {
+	AssetProcessingSucceeded *AssetProcessingEventView `protobuf:"bytes,14,opt,name=asset_processing_succeeded,json=assetProcessingSucceeded,proto3,oneof"`
+}
+
+type RoomEventPayload_AssetProcessingFailed struct {
+	AssetProcessingFailed *AssetProcessingEventView `protobuf:"bytes,15,opt,name=asset_processing_failed,json=assetProcessingFailed,proto3,oneof"`
+}
+
+type RoomEventPayload_AssetDeleted struct {
+	AssetDeleted *AssetDeletedView `protobuf:"bytes,16,opt,name=asset_deleted,json=assetDeleted,proto3,oneof"`
+}
+
+type RoomEventPayload_ServerMemberDeleted struct {
+	ServerMemberDeleted *ServerMemberDeletedView `protobuf:"bytes,17,opt,name=server_member_deleted,json=serverMemberDeleted,proto3,oneof"`
+}
+
+type RoomEventPayload_CallStarted struct {
+	CallStarted *CallEventView `protobuf:"bytes,18,opt,name=call_started,json=callStarted,proto3,oneof"`
+}
+
+type RoomEventPayload_CallParticipantJoined struct {
+	CallParticipantJoined *CallEventView `protobuf:"bytes,19,opt,name=call_participant_joined,json=callParticipantJoined,proto3,oneof"`
+}
+
+type RoomEventPayload_CallParticipantLeft struct {
+	CallParticipantLeft *CallEventView `protobuf:"bytes,20,opt,name=call_participant_left,json=callParticipantLeft,proto3,oneof"`
+}
+
+type RoomEventPayload_CallEnded struct {
+	CallEnded *CallEventView `protobuf:"bytes,21,opt,name=call_ended,json=callEnded,proto3,oneof"`
+}
+
+type RoomEventPayload_ThreadCreated struct {
+	ThreadCreated *ThreadCreatedView `protobuf:"bytes,22,opt,name=thread_created,json=threadCreated,proto3,oneof"`
+}
+
+type RoomEventPayload_RoomMemberBanned struct {
+	RoomMemberBanned *RoomModerationEventView `protobuf:"bytes,23,opt,name=room_member_banned,json=roomMemberBanned,proto3,oneof"`
+}
+
+type RoomEventPayload_RoomMemberUnbanned struct {
+	RoomMemberUnbanned *RoomModerationEventView `protobuf:"bytes,24,opt,name=room_member_unbanned,json=roomMemberUnbanned,proto3,oneof"`
+}
+
+func (*RoomEventPayload_MessagePosted) isRoomEventPayload_Payload() {}
+
+func (*RoomEventPayload_MessageEdited) isRoomEventPayload_Payload() {}
+
+func (*RoomEventPayload_MessageRetracted) isRoomEventPayload_Payload() {}
+
+func (*RoomEventPayload_RoomCreated) isRoomEventPayload_Payload() {}
+
+func (*RoomEventPayload_RoomUpdated) isRoomEventPayload_Payload() {}
+
+func (*RoomEventPayload_RoomDeleted) isRoomEventPayload_Payload() {}
+
+func (*RoomEventPayload_RoomArchived) isRoomEventPayload_Payload() {}
+
+func (*RoomEventPayload_RoomUnarchived) isRoomEventPayload_Payload() {}
+
+func (*RoomEventPayload_UserJoinedRoom) isRoomEventPayload_Payload() {}
+
+func (*RoomEventPayload_UserLeftRoom) isRoomEventPayload_Payload() {}
+
+func (*RoomEventPayload_ReactionAdded) isRoomEventPayload_Payload() {}
+
+func (*RoomEventPayload_ReactionRemoved) isRoomEventPayload_Payload() {}
+
+func (*RoomEventPayload_AssetProcessingStarted) isRoomEventPayload_Payload() {}
+
+func (*RoomEventPayload_AssetProcessingSucceeded) isRoomEventPayload_Payload() {}
+
+func (*RoomEventPayload_AssetProcessingFailed) isRoomEventPayload_Payload() {}
+
+func (*RoomEventPayload_AssetDeleted) isRoomEventPayload_Payload() {}
+
+func (*RoomEventPayload_ServerMemberDeleted) isRoomEventPayload_Payload() {}
+
+func (*RoomEventPayload_CallStarted) isRoomEventPayload_Payload() {}
+
+func (*RoomEventPayload_CallParticipantJoined) isRoomEventPayload_Payload() {}
+
+func (*RoomEventPayload_CallParticipantLeft) isRoomEventPayload_Payload() {}
+
+func (*RoomEventPayload_CallEnded) isRoomEventPayload_Payload() {}
+
+func (*RoomEventPayload_ThreadCreated) isRoomEventPayload_Payload() {}
+
+func (*RoomEventPayload_RoomMemberBanned) isRoomEventPayload_Payload() {}
+
+func (*RoomEventPayload_RoomMemberUnbanned) isRoomEventPayload_Payload() {}
+
+// RoomEventView is a display-ready room event plus the raw durable event for fallback clients.
+type RoomEventView struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	ActorId       string                 `protobuf:"bytes,3,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
+	Actor         *v1.User               `protobuf:"bytes,4,opt,name=actor,proto3" json:"actor,omitempty"`
+	Sequence      uint64                 `protobuf:"varint,5,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	RawEvent      *v1.Event              `protobuf:"bytes,6,opt,name=raw_event,json=rawEvent,proto3" json:"raw_event,omitempty"`
+	Event         *RoomEventPayload      `protobuf:"bytes,7,opt,name=event,proto3" json:"event,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomEventView) Reset() {
+	*x = RoomEventView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[203]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomEventView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomEventView) ProtoMessage() {}
+
+func (x *RoomEventView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[203]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomEventView.ProtoReflect.Descriptor instead.
+func (*RoomEventView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{203}
+}
+
+func (x *RoomEventView) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *RoomEventView) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *RoomEventView) GetActorId() string {
+	if x != nil {
+		return x.ActorId
+	}
+	return ""
+}
+
+func (x *RoomEventView) GetActor() *v1.User {
+	if x != nil {
+		return x.Actor
+	}
+	return nil
+}
+
+func (x *RoomEventView) GetSequence() uint64 {
+	if x != nil {
+		return x.Sequence
+	}
+	return 0
+}
+
+func (x *RoomEventView) GetRawEvent() *v1.Event {
+	if x != nil {
+		return x.RawEvent
+	}
+	return nil
+}
+
+func (x *RoomEventView) GetEvent() *RoomEventPayload {
+	if x != nil {
+		return x.Event
+	}
+	return nil
+}
+
+// RoomEventsPage is the shared paginated room-event response body.
+type RoomEventsPage struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Events        []*RoomEventView       `protobuf:"bytes,1,rep,name=events,proto3" json:"events,omitempty"`
+	HasOlder      bool                   `protobuf:"varint,2,opt,name=has_older,json=hasOlder,proto3" json:"has_older,omitempty"`
+	HasNewer      bool                   `protobuf:"varint,3,opt,name=has_newer,json=hasNewer,proto3" json:"has_newer,omitempty"`
+	StartSequence uint64                 `protobuf:"varint,4,opt,name=start_sequence,json=startSequence,proto3" json:"start_sequence,omitempty"`
+	EndSequence   uint64                 `protobuf:"varint,5,opt,name=end_sequence,json=endSequence,proto3" json:"end_sequence,omitempty"`
+	TargetIndex   int32                  `protobuf:"varint,6,opt,name=target_index,json=targetIndex,proto3" json:"target_index,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomEventsPage) Reset() {
+	*x = RoomEventsPage{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[204]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomEventsPage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomEventsPage) ProtoMessage() {}
+
+func (x *RoomEventsPage) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[204]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomEventsPage.ProtoReflect.Descriptor instead.
+func (*RoomEventsPage) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{204}
+}
+
+func (x *RoomEventsPage) GetEvents() []*RoomEventView {
+	if x != nil {
+		return x.Events
+	}
+	return nil
+}
+
+func (x *RoomEventsPage) GetHasOlder() bool {
+	if x != nil {
+		return x.HasOlder
+	}
+	return false
+}
+
+func (x *RoomEventsPage) GetHasNewer() bool {
+	if x != nil {
+		return x.HasNewer
+	}
+	return false
+}
+
+func (x *RoomEventsPage) GetStartSequence() uint64 {
+	if x != nil {
+		return x.StartSequence
+	}
+	return 0
+}
+
+func (x *RoomEventsPage) GetEndSequence() uint64 {
+	if x != nil {
+		return x.EndSequence
+	}
+	return 0
+}
+
+func (x *RoomEventsPage) GetTargetIndex() int32 {
+	if x != nil {
+		return x.TargetIndex
+	}
+	return 0
+}
+
+// GetRoomEventRequest requests one visible event by ID.
+type GetRoomEventRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	EventId       string                 `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRoomEventRequest) Reset() {
+	*x = GetRoomEventRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[205]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRoomEventRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRoomEventRequest) ProtoMessage() {}
+
+func (x *GetRoomEventRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[205]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRoomEventRequest.ProtoReflect.Descriptor instead.
+func (*GetRoomEventRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{205}
+}
+
+func (x *GetRoomEventRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *GetRoomEventRequest) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+// GetRoomEventResponse returns one hydrated event, if visible to the viewer.
+type GetRoomEventResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Event         *RoomEventView         `protobuf:"bytes,1,opt,name=event,proto3" json:"event,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRoomEventResponse) Reset() {
+	*x = GetRoomEventResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[206]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRoomEventResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRoomEventResponse) ProtoMessage() {}
+
+func (x *GetRoomEventResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[206]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRoomEventResponse.ProtoReflect.Descriptor instead.
+func (*GetRoomEventResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{206}
+}
+
+func (x *GetRoomEventResponse) GetEvent() *RoomEventView {
+	if x != nil {
+		return x.Event
 	}
 	return nil
 }
@@ -251,7 +12646,7 @@ type GetRoomTimelineRequest struct {
 
 func (x *GetRoomTimelineRequest) Reset() {
 	*x = GetRoomTimelineRequest{}
-	mi := &file_chatto_api_v1_chat_proto_msgTypes[5]
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[207]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -263,7 +12658,7 @@ func (x *GetRoomTimelineRequest) String() string {
 func (*GetRoomTimelineRequest) ProtoMessage() {}
 
 func (x *GetRoomTimelineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_chat_proto_msgTypes[5]
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[207]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -276,7 +12671,7 @@ func (x *GetRoomTimelineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRoomTimelineRequest.ProtoReflect.Descriptor instead.
 func (*GetRoomTimelineRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{5}
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{207}
 }
 
 func (x *GetRoomTimelineRequest) GetRoomId() string {
@@ -311,7 +12706,7 @@ type TimelineEvent struct {
 
 func (x *TimelineEvent) Reset() {
 	*x = TimelineEvent{}
-	mi := &file_chatto_api_v1_chat_proto_msgTypes[6]
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[208]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -323,7 +12718,7 @@ func (x *TimelineEvent) String() string {
 func (*TimelineEvent) ProtoMessage() {}
 
 func (x *TimelineEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_chat_proto_msgTypes[6]
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[208]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -336,7 +12731,7 @@ func (x *TimelineEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TimelineEvent.ProtoReflect.Descriptor instead.
 func (*TimelineEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{6}
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{208}
 }
 
 func (x *TimelineEvent) GetEvent() *v1.Event {
@@ -361,13 +12756,14 @@ type GetRoomTimelineResponse struct {
 	HasNewer      bool                   `protobuf:"varint,3,opt,name=has_newer,json=hasNewer,proto3" json:"has_newer,omitempty"`
 	StartSequence uint64                 `protobuf:"varint,4,opt,name=start_sequence,json=startSequence,proto3" json:"start_sequence,omitempty"`
 	EndSequence   uint64                 `protobuf:"varint,5,opt,name=end_sequence,json=endSequence,proto3" json:"end_sequence,omitempty"`
+	EventViews    []*RoomEventView       `protobuf:"bytes,6,rep,name=event_views,json=eventViews,proto3" json:"event_views,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetRoomTimelineResponse) Reset() {
 	*x = GetRoomTimelineResponse{}
-	mi := &file_chatto_api_v1_chat_proto_msgTypes[7]
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[209]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -379,7 +12775,7 @@ func (x *GetRoomTimelineResponse) String() string {
 func (*GetRoomTimelineResponse) ProtoMessage() {}
 
 func (x *GetRoomTimelineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_chat_proto_msgTypes[7]
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[209]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -392,7 +12788,7 @@ func (x *GetRoomTimelineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRoomTimelineResponse.ProtoReflect.Descriptor instead.
 func (*GetRoomTimelineResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{7}
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{209}
 }
 
 func (x *GetRoomTimelineResponse) GetEvents() []*TimelineEvent {
@@ -430,22 +12826,705 @@ func (x *GetRoomTimelineResponse) GetEndSequence() uint64 {
 	return 0
 }
 
+func (x *GetRoomTimelineResponse) GetEventViews() []*RoomEventView {
+	if x != nil {
+		return x.EventViews
+	}
+	return nil
+}
+
+// GetRoomTimelineAfterRequest requests events newer than an existing cursor.
+type GetRoomTimelineAfterRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	Limit         int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	AfterSequence uint64                 `protobuf:"varint,3,opt,name=after_sequence,json=afterSequence,proto3" json:"after_sequence,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRoomTimelineAfterRequest) Reset() {
+	*x = GetRoomTimelineAfterRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[210]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRoomTimelineAfterRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRoomTimelineAfterRequest) ProtoMessage() {}
+
+func (x *GetRoomTimelineAfterRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[210]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRoomTimelineAfterRequest.ProtoReflect.Descriptor instead.
+func (*GetRoomTimelineAfterRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{210}
+}
+
+func (x *GetRoomTimelineAfterRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *GetRoomTimelineAfterRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *GetRoomTimelineAfterRequest) GetAfterSequence() uint64 {
+	if x != nil {
+		return x.AfterSequence
+	}
+	return 0
+}
+
+type GetRoomTimelineAfterResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Page          *RoomEventsPage        `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRoomTimelineAfterResponse) Reset() {
+	*x = GetRoomTimelineAfterResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[211]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRoomTimelineAfterResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRoomTimelineAfterResponse) ProtoMessage() {}
+
+func (x *GetRoomTimelineAfterResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[211]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRoomTimelineAfterResponse.ProtoReflect.Descriptor instead.
+func (*GetRoomTimelineAfterResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{211}
+}
+
+func (x *GetRoomTimelineAfterResponse) GetPage() *RoomEventsPage {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+// GetRoomTimelineAroundRequest requests a window centered around one event.
+type GetRoomTimelineAroundRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	EventId       string                 `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRoomTimelineAroundRequest) Reset() {
+	*x = GetRoomTimelineAroundRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[212]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRoomTimelineAroundRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRoomTimelineAroundRequest) ProtoMessage() {}
+
+func (x *GetRoomTimelineAroundRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[212]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRoomTimelineAroundRequest.ProtoReflect.Descriptor instead.
+func (*GetRoomTimelineAroundRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{212}
+}
+
+func (x *GetRoomTimelineAroundRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *GetRoomTimelineAroundRequest) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+func (x *GetRoomTimelineAroundRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type GetRoomTimelineAroundResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Page          *RoomEventsPage        `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRoomTimelineAroundResponse) Reset() {
+	*x = GetRoomTimelineAroundResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[213]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRoomTimelineAroundResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRoomTimelineAroundResponse) ProtoMessage() {}
+
+func (x *GetRoomTimelineAroundResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[213]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRoomTimelineAroundResponse.ProtoReflect.Descriptor instead.
+func (*GetRoomTimelineAroundResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{213}
+}
+
+func (x *GetRoomTimelineAroundResponse) GetPage() *RoomEventsPage {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+// GetThreadEventsRequest requests a thread root and a reply page.
+type GetThreadEventsRequest struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	RoomId            string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	ThreadRootEventId string                 `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	Limit             int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	BeforeSequence    uint64                 `protobuf:"varint,4,opt,name=before_sequence,json=beforeSequence,proto3" json:"before_sequence,omitempty"`
+	AfterSequence     uint64                 `protobuf:"varint,5,opt,name=after_sequence,json=afterSequence,proto3" json:"after_sequence,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *GetThreadEventsRequest) Reset() {
+	*x = GetThreadEventsRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[214]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetThreadEventsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetThreadEventsRequest) ProtoMessage() {}
+
+func (x *GetThreadEventsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[214]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetThreadEventsRequest.ProtoReflect.Descriptor instead.
+func (*GetThreadEventsRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{214}
+}
+
+func (x *GetThreadEventsRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *GetThreadEventsRequest) GetThreadRootEventId() string {
+	if x != nil {
+		return x.ThreadRootEventId
+	}
+	return ""
+}
+
+func (x *GetThreadEventsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *GetThreadEventsRequest) GetBeforeSequence() uint64 {
+	if x != nil {
+		return x.BeforeSequence
+	}
+	return 0
+}
+
+func (x *GetThreadEventsRequest) GetAfterSequence() uint64 {
+	if x != nil {
+		return x.AfterSequence
+	}
+	return 0
+}
+
+type GetThreadEventsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RootEvent     *RoomEventView         `protobuf:"bytes,1,opt,name=root_event,json=rootEvent,proto3" json:"root_event,omitempty"`
+	Replies       *RoomEventsPage        `protobuf:"bytes,2,opt,name=replies,proto3" json:"replies,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetThreadEventsResponse) Reset() {
+	*x = GetThreadEventsResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[215]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetThreadEventsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetThreadEventsResponse) ProtoMessage() {}
+
+func (x *GetThreadEventsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[215]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetThreadEventsResponse.ProtoReflect.Descriptor instead.
+func (*GetThreadEventsResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{215}
+}
+
+func (x *GetThreadEventsResponse) GetRootEvent() *RoomEventView {
+	if x != nil {
+		return x.RootEvent
+	}
+	return nil
+}
+
+func (x *GetThreadEventsResponse) GetReplies() *RoomEventsPage {
+	if x != nil {
+		return x.Replies
+	}
+	return nil
+}
+
+// GetThreadEventsAroundRequest requests a thread window centered around one reply.
+type GetThreadEventsAroundRequest struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	RoomId            string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	ThreadRootEventId string                 `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	AnchorEventId     string                 `protobuf:"bytes,3,opt,name=anchor_event_id,json=anchorEventId,proto3" json:"anchor_event_id,omitempty"`
+	Limit             int32                  `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *GetThreadEventsAroundRequest) Reset() {
+	*x = GetThreadEventsAroundRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[216]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetThreadEventsAroundRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetThreadEventsAroundRequest) ProtoMessage() {}
+
+func (x *GetThreadEventsAroundRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[216]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetThreadEventsAroundRequest.ProtoReflect.Descriptor instead.
+func (*GetThreadEventsAroundRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{216}
+}
+
+func (x *GetThreadEventsAroundRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *GetThreadEventsAroundRequest) GetThreadRootEventId() string {
+	if x != nil {
+		return x.ThreadRootEventId
+	}
+	return ""
+}
+
+func (x *GetThreadEventsAroundRequest) GetAnchorEventId() string {
+	if x != nil {
+		return x.AnchorEventId
+	}
+	return ""
+}
+
+func (x *GetThreadEventsAroundRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type GetThreadEventsAroundResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RootEvent     *RoomEventView         `protobuf:"bytes,1,opt,name=root_event,json=rootEvent,proto3" json:"root_event,omitempty"`
+	Replies       *RoomEventsPage        `protobuf:"bytes,2,opt,name=replies,proto3" json:"replies,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetThreadEventsAroundResponse) Reset() {
+	*x = GetThreadEventsAroundResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[217]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetThreadEventsAroundResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetThreadEventsAroundResponse) ProtoMessage() {}
+
+func (x *GetThreadEventsAroundResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[217]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetThreadEventsAroundResponse.ProtoReflect.Descriptor instead.
+func (*GetThreadEventsAroundResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{217}
+}
+
+func (x *GetThreadEventsAroundResponse) GetRootEvent() *RoomEventView {
+	if x != nil {
+		return x.RootEvent
+	}
+	return nil
+}
+
+func (x *GetThreadEventsAroundResponse) GetReplies() *RoomEventsPage {
+	if x != nil {
+		return x.Replies
+	}
+	return nil
+}
+
+type FollowedThreadView struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	RoomId             string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	Room               *v1.Room               `protobuf:"bytes,2,opt,name=room,proto3" json:"room,omitempty"`
+	ThreadRootEventId  string                 `protobuf:"bytes,3,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	RootMessage        *RoomEventView         `protobuf:"bytes,4,opt,name=root_message,json=rootMessage,proto3" json:"root_message,omitempty"`
+	ReplyCount         int32                  `protobuf:"varint,5,opt,name=reply_count,json=replyCount,proto3" json:"reply_count,omitempty"`
+	LastReplyAt        *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=last_reply_at,json=lastReplyAt,proto3" json:"last_reply_at,omitempty"`
+	HasUnread          bool                   `protobuf:"varint,7,opt,name=has_unread,json=hasUnread,proto3" json:"has_unread,omitempty"`
+	ThreadParticipants []*v1.User             `protobuf:"bytes,8,rep,name=thread_participants,json=threadParticipants,proto3" json:"thread_participants,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *FollowedThreadView) Reset() {
+	*x = FollowedThreadView{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[218]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FollowedThreadView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FollowedThreadView) ProtoMessage() {}
+
+func (x *FollowedThreadView) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[218]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FollowedThreadView.ProtoReflect.Descriptor instead.
+func (*FollowedThreadView) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{218}
+}
+
+func (x *FollowedThreadView) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *FollowedThreadView) GetRoom() *v1.Room {
+	if x != nil {
+		return x.Room
+	}
+	return nil
+}
+
+func (x *FollowedThreadView) GetThreadRootEventId() string {
+	if x != nil {
+		return x.ThreadRootEventId
+	}
+	return ""
+}
+
+func (x *FollowedThreadView) GetRootMessage() *RoomEventView {
+	if x != nil {
+		return x.RootMessage
+	}
+	return nil
+}
+
+func (x *FollowedThreadView) GetReplyCount() int32 {
+	if x != nil {
+		return x.ReplyCount
+	}
+	return 0
+}
+
+func (x *FollowedThreadView) GetLastReplyAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastReplyAt
+	}
+	return nil
+}
+
+func (x *FollowedThreadView) GetHasUnread() bool {
+	if x != nil {
+		return x.HasUnread
+	}
+	return false
+}
+
+func (x *FollowedThreadView) GetThreadParticipants() []*v1.User {
+	if x != nil {
+		return x.ThreadParticipants
+	}
+	return nil
+}
+
+type ListMyFollowedThreadsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Limit         int32                  `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	Offset        int32                  `protobuf:"varint,2,opt,name=offset,proto3" json:"offset,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListMyFollowedThreadsRequest) Reset() {
+	*x = ListMyFollowedThreadsRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[219]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListMyFollowedThreadsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListMyFollowedThreadsRequest) ProtoMessage() {}
+
+func (x *ListMyFollowedThreadsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[219]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListMyFollowedThreadsRequest.ProtoReflect.Descriptor instead.
+func (*ListMyFollowedThreadsRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{219}
+}
+
+func (x *ListMyFollowedThreadsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *ListMyFollowedThreadsRequest) GetOffset() int32 {
+	if x != nil {
+		return x.Offset
+	}
+	return 0
+}
+
+type ListMyFollowedThreadsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Threads       []*FollowedThreadView  `protobuf:"bytes,1,rep,name=threads,proto3" json:"threads,omitempty"`
+	TotalCount    int32                  `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	HasMore       bool                   `protobuf:"varint,3,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListMyFollowedThreadsResponse) Reset() {
+	*x = ListMyFollowedThreadsResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[220]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListMyFollowedThreadsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListMyFollowedThreadsResponse) ProtoMessage() {}
+
+func (x *ListMyFollowedThreadsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[220]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListMyFollowedThreadsResponse.ProtoReflect.Descriptor instead.
+func (*ListMyFollowedThreadsResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{220}
+}
+
+func (x *ListMyFollowedThreadsResponse) GetThreads() []*FollowedThreadView {
+	if x != nil {
+		return x.Threads
+	}
+	return nil
+}
+
+func (x *ListMyFollowedThreadsResponse) GetTotalCount() int32 {
+	if x != nil {
+		return x.TotalCount
+	}
+	return 0
+}
+
+func (x *ListMyFollowedThreadsResponse) GetHasMore() bool {
+	if x != nil {
+		return x.HasMore
+	}
+	return false
+}
+
 // PostMessageRequest posts a message into a room.
 type PostMessageRequest struct {
-	state                 protoimpl.MessageState `protogen:"open.v1"`
-	RoomId                string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	Body                  string                 `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
-	ThreadRootEventId     string                 `protobuf:"bytes,3,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
-	InReplyToEventId      string                 `protobuf:"bytes,4,opt,name=in_reply_to_event_id,json=inReplyToEventId,proto3" json:"in_reply_to_event_id,omitempty"`
-	AlsoSendToChannel     bool                   `protobuf:"varint,5,opt,name=also_send_to_channel,json=alsoSendToChannel,proto3" json:"also_send_to_channel,omitempty"`
-	LargeMentionConfirmed bool                   `protobuf:"varint,6,opt,name=large_mention_confirmed,json=largeMentionConfirmed,proto3" json:"large_mention_confirmed,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	state                    protoimpl.MessageState `protogen:"open.v1"`
+	RoomId                   string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	Body                     string                 `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
+	ThreadRootEventId        string                 `protobuf:"bytes,3,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	InReplyToEventId         string                 `protobuf:"bytes,4,opt,name=in_reply_to_event_id,json=inReplyToEventId,proto3" json:"in_reply_to_event_id,omitempty"`
+	AlsoSendToChannel        bool                   `protobuf:"varint,5,opt,name=also_send_to_channel,json=alsoSendToChannel,proto3" json:"also_send_to_channel,omitempty"`
+	LargeMentionConfirmed    bool                   `protobuf:"varint,6,opt,name=large_mention_confirmed,json=largeMentionConfirmed,proto3" json:"large_mention_confirmed,omitempty"`
+	AttachmentAssetIds       []string               `protobuf:"bytes,7,rep,name=attachment_asset_ids,json=attachmentAssetIds,proto3" json:"attachment_asset_ids,omitempty"`
+	LinkPreview              *LinkPreviewInput      `protobuf:"bytes,8,opt,name=link_preview,json=linkPreview,proto3" json:"link_preview,omitempty"`
+	MentionConfirmationToken string                 `protobuf:"bytes,9,opt,name=mention_confirmation_token,json=mentionConfirmationToken,proto3" json:"mention_confirmation_token,omitempty"`
+	VideoProcessingAssetIds  []string               `protobuf:"bytes,10,rep,name=video_processing_asset_ids,json=videoProcessingAssetIds,proto3" json:"video_processing_asset_ids,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *PostMessageRequest) Reset() {
 	*x = PostMessageRequest{}
-	mi := &file_chatto_api_v1_chat_proto_msgTypes[8]
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[221]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -457,7 +13536,7 @@ func (x *PostMessageRequest) String() string {
 func (*PostMessageRequest) ProtoMessage() {}
 
 func (x *PostMessageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_chat_proto_msgTypes[8]
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[221]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -470,7 +13549,7 @@ func (x *PostMessageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PostMessageRequest.ProtoReflect.Descriptor instead.
 func (*PostMessageRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{8}
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{221}
 }
 
 func (x *PostMessageRequest) GetRoomId() string {
@@ -515,6 +13594,34 @@ func (x *PostMessageRequest) GetLargeMentionConfirmed() bool {
 	return false
 }
 
+func (x *PostMessageRequest) GetAttachmentAssetIds() []string {
+	if x != nil {
+		return x.AttachmentAssetIds
+	}
+	return nil
+}
+
+func (x *PostMessageRequest) GetLinkPreview() *LinkPreviewInput {
+	if x != nil {
+		return x.LinkPreview
+	}
+	return nil
+}
+
+func (x *PostMessageRequest) GetMentionConfirmationToken() string {
+	if x != nil {
+		return x.MentionConfirmationToken
+	}
+	return ""
+}
+
+func (x *PostMessageRequest) GetVideoProcessingAssetIds() []string {
+	if x != nil {
+		return x.VideoProcessingAssetIds
+	}
+	return nil
+}
+
 // PostMessageResponse returns the committed message event.
 type PostMessageResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -526,7 +13633,7 @@ type PostMessageResponse struct {
 
 func (x *PostMessageResponse) Reset() {
 	*x = PostMessageResponse{}
-	mi := &file_chatto_api_v1_chat_proto_msgTypes[9]
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[222]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -538,7 +13645,7 @@ func (x *PostMessageResponse) String() string {
 func (*PostMessageResponse) ProtoMessage() {}
 
 func (x *PostMessageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_chat_proto_msgTypes[9]
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[222]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -551,7 +13658,7 @@ func (x *PostMessageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PostMessageResponse.ProtoReflect.Descriptor instead.
 func (*PostMessageResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{9}
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{222}
 }
 
 func (x *PostMessageResponse) GetEvent() *v1.Event {
@@ -568,6 +13675,1008 @@ func (x *PostMessageResponse) GetSequence() uint64 {
 	return 0
 }
 
+// UpdateMessageRequest edits an existing message body.
+type UpdateMessageRequest struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	RoomId            string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	EventId           string                 `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	Body              string                 `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
+	AlsoSendToChannel *bool                  `protobuf:"varint,4,opt,name=also_send_to_channel,json=alsoSendToChannel,proto3,oneof" json:"also_send_to_channel,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *UpdateMessageRequest) Reset() {
+	*x = UpdateMessageRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[223]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateMessageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateMessageRequest) ProtoMessage() {}
+
+func (x *UpdateMessageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[223]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateMessageRequest.ProtoReflect.Descriptor instead.
+func (*UpdateMessageRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{223}
+}
+
+func (x *UpdateMessageRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *UpdateMessageRequest) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+func (x *UpdateMessageRequest) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+func (x *UpdateMessageRequest) GetAlsoSendToChannel() bool {
+	if x != nil && x.AlsoSendToChannel != nil {
+		return *x.AlsoSendToChannel
+	}
+	return false
+}
+
+// UpdateMessageResponse is empty on success.
+type UpdateMessageResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateMessageResponse) Reset() {
+	*x = UpdateMessageResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[224]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateMessageResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateMessageResponse) ProtoMessage() {}
+
+func (x *UpdateMessageResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[224]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateMessageResponse.ProtoReflect.Descriptor instead.
+func (*UpdateMessageResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{224}
+}
+
+// DeleteMessageRequest retracts one message event.
+type DeleteMessageRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	EventId       string                 `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteMessageRequest) Reset() {
+	*x = DeleteMessageRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[225]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteMessageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteMessageRequest) ProtoMessage() {}
+
+func (x *DeleteMessageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[225]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteMessageRequest.ProtoReflect.Descriptor instead.
+func (*DeleteMessageRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{225}
+}
+
+func (x *DeleteMessageRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *DeleteMessageRequest) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+// DeleteMessageResponse is empty on success.
+type DeleteMessageResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteMessageResponse) Reset() {
+	*x = DeleteMessageResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[226]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteMessageResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteMessageResponse) ProtoMessage() {}
+
+func (x *DeleteMessageResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[226]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteMessageResponse.ProtoReflect.Descriptor instead.
+func (*DeleteMessageResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{226}
+}
+
+// DeleteAttachmentRequest removes one attachment from a message.
+type DeleteAttachmentRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	EventId       string                 `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	AttachmentId  string                 `protobuf:"bytes,3,opt,name=attachment_id,json=attachmentId,proto3" json:"attachment_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteAttachmentRequest) Reset() {
+	*x = DeleteAttachmentRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[227]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteAttachmentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteAttachmentRequest) ProtoMessage() {}
+
+func (x *DeleteAttachmentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[227]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteAttachmentRequest.ProtoReflect.Descriptor instead.
+func (*DeleteAttachmentRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{227}
+}
+
+func (x *DeleteAttachmentRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *DeleteAttachmentRequest) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+func (x *DeleteAttachmentRequest) GetAttachmentId() string {
+	if x != nil {
+		return x.AttachmentId
+	}
+	return ""
+}
+
+// DeleteAttachmentResponse is empty on success.
+type DeleteAttachmentResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteAttachmentResponse) Reset() {
+	*x = DeleteAttachmentResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[228]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteAttachmentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteAttachmentResponse) ProtoMessage() {}
+
+func (x *DeleteAttachmentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[228]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteAttachmentResponse.ProtoReflect.Descriptor instead.
+func (*DeleteAttachmentResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{228}
+}
+
+// DeleteLinkPreviewRequest removes the link preview attached to a message.
+type DeleteLinkPreviewRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	EventId       string                 `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	Url           string                 `protobuf:"bytes,3,opt,name=url,proto3" json:"url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteLinkPreviewRequest) Reset() {
+	*x = DeleteLinkPreviewRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[229]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteLinkPreviewRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteLinkPreviewRequest) ProtoMessage() {}
+
+func (x *DeleteLinkPreviewRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[229]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteLinkPreviewRequest.ProtoReflect.Descriptor instead.
+func (*DeleteLinkPreviewRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{229}
+}
+
+func (x *DeleteLinkPreviewRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *DeleteLinkPreviewRequest) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+func (x *DeleteLinkPreviewRequest) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+// DeleteLinkPreviewResponse is empty on success.
+type DeleteLinkPreviewResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteLinkPreviewResponse) Reset() {
+	*x = DeleteLinkPreviewResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[230]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteLinkPreviewResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteLinkPreviewResponse) ProtoMessage() {}
+
+func (x *DeleteLinkPreviewResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[230]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteLinkPreviewResponse.ProtoReflect.Descriptor instead.
+func (*DeleteLinkPreviewResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{230}
+}
+
+// AddReactionRequest adds a shortcode reaction to a message.
+type AddReactionRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	RoomId         string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	MessageEventId string                 `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
+	Emoji          string                 `protobuf:"bytes,3,opt,name=emoji,proto3" json:"emoji,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *AddReactionRequest) Reset() {
+	*x = AddReactionRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[231]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddReactionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddReactionRequest) ProtoMessage() {}
+
+func (x *AddReactionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[231]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddReactionRequest.ProtoReflect.Descriptor instead.
+func (*AddReactionRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{231}
+}
+
+func (x *AddReactionRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *AddReactionRequest) GetMessageEventId() string {
+	if x != nil {
+		return x.MessageEventId
+	}
+	return ""
+}
+
+func (x *AddReactionRequest) GetEmoji() string {
+	if x != nil {
+		return x.Emoji
+	}
+	return ""
+}
+
+type AddReactionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Changed       bool                   `protobuf:"varint,1,opt,name=changed,proto3" json:"changed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddReactionResponse) Reset() {
+	*x = AddReactionResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[232]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddReactionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddReactionResponse) ProtoMessage() {}
+
+func (x *AddReactionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[232]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddReactionResponse.ProtoReflect.Descriptor instead.
+func (*AddReactionResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{232}
+}
+
+func (x *AddReactionResponse) GetChanged() bool {
+	if x != nil {
+		return x.Changed
+	}
+	return false
+}
+
+// RemoveReactionRequest removes a shortcode reaction from a message.
+type RemoveReactionRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	RoomId         string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	MessageEventId string                 `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
+	Emoji          string                 `protobuf:"bytes,3,opt,name=emoji,proto3" json:"emoji,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *RemoveReactionRequest) Reset() {
+	*x = RemoveReactionRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[233]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveReactionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveReactionRequest) ProtoMessage() {}
+
+func (x *RemoveReactionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[233]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveReactionRequest.ProtoReflect.Descriptor instead.
+func (*RemoveReactionRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{233}
+}
+
+func (x *RemoveReactionRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *RemoveReactionRequest) GetMessageEventId() string {
+	if x != nil {
+		return x.MessageEventId
+	}
+	return ""
+}
+
+func (x *RemoveReactionRequest) GetEmoji() string {
+	if x != nil {
+		return x.Emoji
+	}
+	return ""
+}
+
+type RemoveReactionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Changed       bool                   `protobuf:"varint,1,opt,name=changed,proto3" json:"changed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveReactionResponse) Reset() {
+	*x = RemoveReactionResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[234]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveReactionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveReactionResponse) ProtoMessage() {}
+
+func (x *RemoveReactionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[234]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveReactionResponse.ProtoReflect.Descriptor instead.
+func (*RemoveReactionResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{234}
+}
+
+func (x *RemoveReactionResponse) GetChanged() bool {
+	if x != nil {
+		return x.Changed
+	}
+	return false
+}
+
+type FollowThreadRequest struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	RoomId            string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	ThreadRootEventId string                 `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *FollowThreadRequest) Reset() {
+	*x = FollowThreadRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[235]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FollowThreadRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FollowThreadRequest) ProtoMessage() {}
+
+func (x *FollowThreadRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[235]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FollowThreadRequest.ProtoReflect.Descriptor instead.
+func (*FollowThreadRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{235}
+}
+
+func (x *FollowThreadRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *FollowThreadRequest) GetThreadRootEventId() string {
+	if x != nil {
+		return x.ThreadRootEventId
+	}
+	return ""
+}
+
+type FollowThreadResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Changed       bool                   `protobuf:"varint,1,opt,name=changed,proto3" json:"changed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FollowThreadResponse) Reset() {
+	*x = FollowThreadResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[236]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FollowThreadResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FollowThreadResponse) ProtoMessage() {}
+
+func (x *FollowThreadResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[236]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FollowThreadResponse.ProtoReflect.Descriptor instead.
+func (*FollowThreadResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{236}
+}
+
+func (x *FollowThreadResponse) GetChanged() bool {
+	if x != nil {
+		return x.Changed
+	}
+	return false
+}
+
+type UnfollowThreadRequest struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	RoomId            string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	ThreadRootEventId string                 `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *UnfollowThreadRequest) Reset() {
+	*x = UnfollowThreadRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[237]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnfollowThreadRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnfollowThreadRequest) ProtoMessage() {}
+
+func (x *UnfollowThreadRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[237]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnfollowThreadRequest.ProtoReflect.Descriptor instead.
+func (*UnfollowThreadRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{237}
+}
+
+func (x *UnfollowThreadRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *UnfollowThreadRequest) GetThreadRootEventId() string {
+	if x != nil {
+		return x.ThreadRootEventId
+	}
+	return ""
+}
+
+type UnfollowThreadResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Changed       bool                   `protobuf:"varint,1,opt,name=changed,proto3" json:"changed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnfollowThreadResponse) Reset() {
+	*x = UnfollowThreadResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[238]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnfollowThreadResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnfollowThreadResponse) ProtoMessage() {}
+
+func (x *UnfollowThreadResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[238]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnfollowThreadResponse.ProtoReflect.Descriptor instead.
+func (*UnfollowThreadResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{238}
+}
+
+func (x *UnfollowThreadResponse) GetChanged() bool {
+	if x != nil {
+		return x.Changed
+	}
+	return false
+}
+
+type MarkRoomAsReadRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	UpToEventId   string                 `protobuf:"bytes,2,opt,name=up_to_event_id,json=upToEventId,proto3" json:"up_to_event_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MarkRoomAsReadRequest) Reset() {
+	*x = MarkRoomAsReadRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[239]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MarkRoomAsReadRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MarkRoomAsReadRequest) ProtoMessage() {}
+
+func (x *MarkRoomAsReadRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[239]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MarkRoomAsReadRequest.ProtoReflect.Descriptor instead.
+func (*MarkRoomAsReadRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{239}
+}
+
+func (x *MarkRoomAsReadRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *MarkRoomAsReadRequest) GetUpToEventId() string {
+	if x != nil {
+		return x.UpToEventId
+	}
+	return ""
+}
+
+type MarkRoomAsReadResponse struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	PreviousLastReadAt *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=previous_last_read_at,json=previousLastReadAt,proto3" json:"previous_last_read_at,omitempty"`
+	LastReadAt         *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=last_read_at,json=lastReadAt,proto3" json:"last_read_at,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *MarkRoomAsReadResponse) Reset() {
+	*x = MarkRoomAsReadResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[240]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MarkRoomAsReadResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MarkRoomAsReadResponse) ProtoMessage() {}
+
+func (x *MarkRoomAsReadResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[240]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MarkRoomAsReadResponse.ProtoReflect.Descriptor instead.
+func (*MarkRoomAsReadResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{240}
+}
+
+func (x *MarkRoomAsReadResponse) GetPreviousLastReadAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.PreviousLastReadAt
+	}
+	return nil
+}
+
+func (x *MarkRoomAsReadResponse) GetLastReadAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastReadAt
+	}
+	return nil
+}
+
+type MarkThreadAsReadRequest struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	RoomId            string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	ThreadRootEventId string                 `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	UpToEventId       string                 `protobuf:"bytes,3,opt,name=up_to_event_id,json=upToEventId,proto3" json:"up_to_event_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *MarkThreadAsReadRequest) Reset() {
+	*x = MarkThreadAsReadRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[241]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MarkThreadAsReadRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MarkThreadAsReadRequest) ProtoMessage() {}
+
+func (x *MarkThreadAsReadRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[241]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MarkThreadAsReadRequest.ProtoReflect.Descriptor instead.
+func (*MarkThreadAsReadRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{241}
+}
+
+func (x *MarkThreadAsReadRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *MarkThreadAsReadRequest) GetThreadRootEventId() string {
+	if x != nil {
+		return x.ThreadRootEventId
+	}
+	return ""
+}
+
+func (x *MarkThreadAsReadRequest) GetUpToEventId() string {
+	if x != nil {
+		return x.UpToEventId
+	}
+	return ""
+}
+
+type MarkThreadAsReadResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	PreviousReadAt *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=previous_read_at,json=previousReadAt,proto3" json:"previous_read_at,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *MarkThreadAsReadResponse) Reset() {
+	*x = MarkThreadAsReadResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[242]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MarkThreadAsReadResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MarkThreadAsReadResponse) ProtoMessage() {}
+
+func (x *MarkThreadAsReadResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[242]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MarkThreadAsReadResponse.ProtoReflect.Descriptor instead.
+func (*MarkThreadAsReadResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{242}
+}
+
+func (x *MarkThreadAsReadResponse) GetPreviousReadAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.PreviousReadAt
+	}
+	return nil
+}
+
 // SendTypingIndicatorRequest publishes a transient typing signal.
 type SendTypingIndicatorRequest struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
@@ -579,7 +14688,7 @@ type SendTypingIndicatorRequest struct {
 
 func (x *SendTypingIndicatorRequest) Reset() {
 	*x = SendTypingIndicatorRequest{}
-	mi := &file_chatto_api_v1_chat_proto_msgTypes[10]
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[243]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -591,7 +14700,7 @@ func (x *SendTypingIndicatorRequest) String() string {
 func (*SendTypingIndicatorRequest) ProtoMessage() {}
 
 func (x *SendTypingIndicatorRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_chat_proto_msgTypes[10]
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[243]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -604,7 +14713,7 @@ func (x *SendTypingIndicatorRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendTypingIndicatorRequest.ProtoReflect.Descriptor instead.
 func (*SendTypingIndicatorRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{10}
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{243}
 }
 
 func (x *SendTypingIndicatorRequest) GetRoomId() string {
@@ -630,7 +14739,7 @@ type SendTypingIndicatorResponse struct {
 
 func (x *SendTypingIndicatorResponse) Reset() {
 	*x = SendTypingIndicatorResponse{}
-	mi := &file_chatto_api_v1_chat_proto_msgTypes[11]
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[244]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -642,7 +14751,7 @@ func (x *SendTypingIndicatorResponse) String() string {
 func (*SendTypingIndicatorResponse) ProtoMessage() {}
 
 func (x *SendTypingIndicatorResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_chat_proto_msgTypes[11]
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[244]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -655,56 +14764,1269 @@ func (x *SendTypingIndicatorResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendTypingIndicatorResponse.ProtoReflect.Descriptor instead.
 func (*SendTypingIndicatorResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{11}
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{244}
+}
+
+// UpdateMyPresenceRequest updates the current user's transient presence state.
+type UpdateMyPresenceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Status        v1.UserPresenceStatus  `protobuf:"varint,1,opt,name=status,proto3,enum=chatto.core.v1.UserPresenceStatus" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateMyPresenceRequest) Reset() {
+	*x = UpdateMyPresenceRequest{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[245]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateMyPresenceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateMyPresenceRequest) ProtoMessage() {}
+
+func (x *UpdateMyPresenceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[245]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateMyPresenceRequest.ProtoReflect.Descriptor instead.
+func (*UpdateMyPresenceRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{245}
+}
+
+func (x *UpdateMyPresenceRequest) GetStatus() v1.UserPresenceStatus {
+	if x != nil {
+		return x.Status
+	}
+	return v1.UserPresenceStatus(0)
+}
+
+type UpdateMyPresenceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Updated       bool                   `protobuf:"varint,1,opt,name=updated,proto3" json:"updated,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateMyPresenceResponse) Reset() {
+	*x = UpdateMyPresenceResponse{}
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[246]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateMyPresenceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateMyPresenceResponse) ProtoMessage() {}
+
+func (x *UpdateMyPresenceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_chat_proto_msgTypes[246]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateMyPresenceResponse.ProtoReflect.Descriptor instead.
+func (*UpdateMyPresenceResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_chat_proto_rawDescGZIP(), []int{246}
+}
+
+func (x *UpdateMyPresenceResponse) GetUpdated() bool {
+	if x != nil {
+		return x.Updated
+	}
+	return false
 }
 
 var File_chatto_api_v1_chat_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_chat_proto_rawDesc = "" +
 	"\n" +
-	"\x18chatto/api/v1/chat.proto\x12\rchatto.api.v1\x1a\x1achatto/core/v1/event.proto\x1a\x1bchatto/core/v1/models.proto\"2\n" +
+	"\x18chatto/api/v1/chat.proto\x12\rchatto.api.v1\x1a\x1achatto/core/v1/event.proto\x1a\x1bchatto/core/v1/models.proto\x1a%chatto/core/v1/user_preferences.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe4\x02\n" +
 	"\x06Viewer\x12(\n" +
-	"\x04user\x18\x01 \x01(\v2\x14.chatto.core.v1.UserR\x04user\"\x12\n" +
-	"\x10GetViewerRequest\"B\n" +
+	"\x04user\x18\x01 \x01(\v2\x14.chatto.core.v1.UserR\x04user\x12F\n" +
+	"\vpermissions\x18\x02 \x01(\v2$.chatto.api.v1.ViewerPermissionsViewR\vpermissions\x12u\n" +
+	"\x1eserver_notification_preference\x18\x03 \x01(\v2/.chatto.api.v1.ViewerNotificationPreferenceViewR\x1cserverNotificationPreference\x12q\n" +
+	"\x1droom_notification_preferences\x18\x04 \x03(\v2-.chatto.api.v1.RoomNotificationPreferenceViewR\x1broomNotificationPreferences\"\x12\n" +
+	"\x10GetViewerRequest\"\x8b\x01\n" +
 	"\x11GetViewerResponse\x12-\n" +
-	"\x06viewer\x18\x01 \x01(\v2\x15.chatto.api.v1.ViewerR\x06viewer\"B\n" +
+	"\x06viewer\x18\x01 \x01(\v2\x15.chatto.api.v1.ViewerR\x06viewer\x12G\n" +
+	"\x0eserver_profile\x18\x02 \x01(\v2 .chatto.api.v1.ServerProfileViewR\rserverProfile\"\x9e\x02\n" +
+	"\x0fCurrentUserView\x12(\n" +
+	"\x04user\x18\x01 \x01(\v2\x14.chatto.core.v1.UserR\x04user\x12\x1d\n" +
+	"\n" +
+	"avatar_url\x18\x02 \x01(\tR\tavatarUrl\x12Q\n" +
+	"\x0fpresence_status\x18\x03 \x01(\x0e2(.chatto.api.v1.CurrentUserPresenceStatusR\x0epresenceStatus\x12,\n" +
+	"\x12has_verified_email\x18\x04 \x01(\bR\x10hasVerifiedEmail\x12A\n" +
+	"\bsettings\x18\x05 \x01(\v2%.chatto.core.v1.ServerUserPreferencesR\bsettings\"\x17\n" +
+	"\x15GetCurrentUserRequest\"L\n" +
+	"\x16GetCurrentUserResponse\x122\n" +
+	"\x04user\x18\x01 \x01(\v2\x1e.chatto.api.v1.CurrentUserViewR\x04user\"\x92\x03\n" +
+	"\x1fAuthenticatedServerSettingsView\x12<\n" +
+	"\x1apush_notifications_enabled\x18\x01 \x01(\bR\x18pushNotificationsEnabled\x12(\n" +
+	"\x10vapid_public_key\x18\x02 \x01(\tR\x0evapidPublicKey\x12\x1f\n" +
+	"\vlivekit_url\x18\x03 \x01(\tR\n" +
+	"livekitUrl\x128\n" +
+	"\x18video_processing_enabled\x18\x04 \x01(\bR\x16videoProcessingEnabled\x12&\n" +
+	"\x0fmax_upload_size\x18\x05 \x01(\x03R\rmaxUploadSize\x121\n" +
+	"\x15max_video_upload_size\x18\x06 \x01(\x03R\x12maxVideoUploadSize\x12=\n" +
+	"\x1bmessage_edit_window_seconds\x18\a \x01(\x05R\x18messageEditWindowSeconds\x12\x12\n" +
+	"\x04motd\x18\b \x01(\tR\x04motd\"'\n" +
+	"%GetAuthenticatedServerSettingsRequest\"t\n" +
+	"&GetAuthenticatedServerSettingsResponse\x12J\n" +
+	"\bsettings\x18\x01 \x01(\v2..chatto.api.v1.AuthenticatedServerSettingsViewR\bsettings\"!\n" +
+	"\x1fGetAccountDeletionStatusRequest\"]\n" +
+	" GetAccountDeletionStatusResponse\x129\n" +
+	"\x19viewer_can_delete_account\x18\x01 \x01(\bR\x16viewerCanDeleteAccount\"\x1f\n" +
+	"\x1dRequestAccountDeletionRequest\"O\n" +
+	"\x1eRequestAccountDeletionResponse\x12-\n" +
+	"\x12confirmation_token\x18\x01 \x01(\tR\x11confirmationToken\"G\n" +
+	"\x16DeleteMyAccountRequest\x12-\n" +
+	"\x12confirmation_token\x18\x01 \x01(\tR\x11confirmationToken\"3\n" +
+	"\x17DeleteMyAccountResponse\x12\x18\n" +
+	"\adeleted\x18\x01 \x01(\bR\adeleted\"\xfa\x01\n" +
+	"\x12ServerSettingsView\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x12\n" +
+	"\x04motd\x18\x03 \x01(\tR\x04motd\x12'\n" +
+	"\x0fwelcome_message\x18\x04 \x01(\tR\x0ewelcomeMessage\x12\x19\n" +
+	"\blogo_url\x18\x05 \x01(\tR\alogoUrl\x12\x1d\n" +
+	"\n" +
+	"banner_url\x18\x06 \x01(\tR\tbannerUrl\x127\n" +
+	"\x18viewer_can_manage_server\x18\a \x01(\bR\x15viewerCanManageServer\"\x1a\n" +
+	"\x18GetServerSettingsRequest\"Z\n" +
+	"\x19GetServerSettingsResponse\x12=\n" +
+	"\bsettings\x18\x01 \x01(\v2!.chatto.api.v1.ServerSettingsViewR\bsettings\"\xee\x01\n" +
+	"\x1bUpdateServerSettingsRequest\x12$\n" +
+	"\vserver_name\x18\x01 \x01(\tH\x00R\n" +
+	"serverName\x88\x01\x01\x12%\n" +
+	"\vdescription\x18\x02 \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x17\n" +
+	"\x04motd\x18\x03 \x01(\tH\x02R\x04motd\x88\x01\x01\x12,\n" +
+	"\x0fwelcome_message\x18\x04 \x01(\tH\x03R\x0ewelcomeMessage\x88\x01\x01B\x0e\n" +
+	"\f_server_nameB\x0e\n" +
+	"\f_descriptionB\a\n" +
+	"\x05_motdB\x12\n" +
+	"\x10_welcome_message\"]\n" +
+	"\x1cUpdateServerSettingsResponse\x12=\n" +
+	"\bsettings\x18\x01 \x01(\v2!.chatto.api.v1.ServerSettingsViewR\bsettings\"F\n" +
+	"\x17AdminSecurityConfigView\x12+\n" +
+	"\x11blocked_usernames\x18\x01 \x01(\tR\x10blockedUsernames\"\x1f\n" +
+	"\x1dGetAdminSecurityConfigRequest\"`\n" +
+	"\x1eGetAdminSecurityConfigResponse\x12>\n" +
+	"\x06config\x18\x01 \x01(\v2&.chatto.api.v1.AdminSecurityConfigViewR\x06config\"L\n" +
+	"\x1dUpdateBlockedUsernamesRequest\x12+\n" +
+	"\x11blocked_usernames\x18\x01 \x01(\tR\x10blockedUsernames\"`\n" +
+	"\x1eUpdateBlockedUsernamesResponse\x12>\n" +
+	"\x06config\x18\x01 \x01(\v2&.chatto.api.v1.AdminSecurityConfigViewR\x06config\"\xc2\x01\n" +
+	"\x17AdminConnectionInfoView\x12\x1c\n" +
+	"\tconnected\x18\x01 \x01(\bR\tconnected\x12\x1b\n" +
+	"\tserver_id\x18\x02 \x01(\tR\bserverId\x12\x1f\n" +
+	"\vserver_name\x18\x03 \x01(\tR\n" +
+	"serverName\x12\x18\n" +
+	"\aversion\x18\x04 \x01(\tR\aversion\x12\x1f\n" +
+	"\vmax_payload\x18\x05 \x01(\x03R\n" +
+	"maxPayload\x12\x10\n" +
+	"\x03rtt\x18\x06 \x01(\tR\x03rtt\"\x8e\x02\n" +
+	"\x14AdminAccountInfoView\x12\x16\n" +
+	"\x06memory\x18\x01 \x01(\x04R\x06memory\x12\x1f\n" +
+	"\vmemory_used\x18\x02 \x01(\x04R\n" +
+	"memoryUsed\x12\x18\n" +
+	"\astorage\x18\x03 \x01(\x04R\astorage\x12!\n" +
+	"\fstorage_used\x18\x04 \x01(\x04R\vstorageUsed\x12\x18\n" +
+	"\astreams\x18\x05 \x01(\x05R\astreams\x12!\n" +
+	"\fstreams_used\x18\x06 \x01(\x05R\vstreamsUsed\x12\x1c\n" +
+	"\tconsumers\x18\a \x01(\x05R\tconsumers\x12%\n" +
+	"\x0econsumers_used\x18\b \x01(\x05R\rconsumersUsed\"\xed\x02\n" +
+	"\x17AdminNatsStreamInfoView\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x1a\n" +
+	"\bsubjects\x18\x03 \x03(\tR\bsubjects\x12\x18\n" +
+	"\astorage\x18\x04 \x01(\tR\astorage\x12\x1a\n" +
+	"\bmessages\x18\x05 \x01(\x04R\bmessages\x12\x14\n" +
+	"\x05bytes\x18\x06 \x01(\x04R\x05bytes\x12%\n" +
+	"\x0efirst_sequence\x18\a \x01(\tR\rfirstSequence\x12#\n" +
+	"\rlast_sequence\x18\b \x01(\tR\flastSequence\x12%\n" +
+	"\x0econsumer_count\x18\t \x01(\x05R\rconsumerCount\x12\x1a\n" +
+	"\breplicas\x18\n" +
+	" \x01(\x05R\breplicas\x12%\n" +
+	"\x0ecluster_leader\x18\v \x01(\tR\rclusterLeader\"\xfb\x04\n" +
+	"\x19AdminNatsConsumerInfoView\x12\x16\n" +
+	"\x06stream\x18\x01 \x01(\tR\x06stream\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
+	"\adurable\x18\x03 \x01(\tR\adurable\x12%\n" +
+	"\x0efilter_subject\x18\x04 \x01(\tR\rfilterSubject\x12'\n" +
+	"\x0ffilter_subjects\x18\x05 \x03(\tR\x0efilterSubjects\x12\x1d\n" +
+	"\n" +
+	"ack_policy\x18\x06 \x01(\tR\tackPolicy\x12\x1d\n" +
+	"\n" +
+	"pull_based\x18\a \x01(\bR\tpullBased\x12\x1d\n" +
+	"\n" +
+	"push_bound\x18\b \x01(\bR\tpushBound\x12\x18\n" +
+	"\apending\x18\t \x01(\x04R\apending\x12\x1f\n" +
+	"\vack_pending\x18\n" +
+	" \x01(\x05R\n" +
+	"ackPending\x12 \n" +
+	"\vredelivered\x18\v \x01(\x05R\vredelivered\x12\x18\n" +
+	"\awaiting\x18\f \x01(\x05R\awaiting\x12>\n" +
+	"\x1bdelivered_consumer_sequence\x18\r \x01(\tR\x19deliveredConsumerSequence\x12:\n" +
+	"\x19delivered_stream_sequence\x18\x0e \x01(\tR\x17deliveredStreamSequence\x12=\n" +
+	"\x1back_floor_consumer_sequence\x18\x0f \x01(\tR\x18ackFloorConsumerSequence\x129\n" +
+	"\x19ack_floor_stream_sequence\x18\x10 \x01(\tR\x16ackFloorStreamSequence\"\xc8\x02\n" +
+	"\x12AdminNatsStatsView\x12@\n" +
+	"\astreams\x18\x01 \x03(\v2&.chatto.api.v1.AdminNatsStreamInfoViewR\astreams\x12F\n" +
+	"\tconsumers\x18\x02 \x03(\v2(.chatto.api.v1.AdminNatsConsumerInfoViewR\tconsumers\x12%\n" +
+	"\x0etotal_messages\x18\x03 \x01(\x04R\rtotalMessages\x12\x1f\n" +
+	"\vtotal_bytes\x18\x04 \x01(\x04R\n" +
+	"totalBytes\x124\n" +
+	"\x16total_consumer_pending\x18\x05 \x01(\x04R\x14totalConsumerPending\x12*\n" +
+	"\x11total_ack_pending\x18\x06 \x01(\x05R\x0ftotalAckPending\"\x87\x01\n" +
+	"\x14AdminServerStatsView\x12\x1d\n" +
+	"\n" +
+	"user_count\x18\x01 \x01(\x05R\tuserCount\x12,\n" +
+	"\x12channel_room_count\x18\x02 \x01(\x05R\x10channelRoomCount\x12\"\n" +
+	"\rdm_room_count\x18\x03 \x01(\x05R\vdmRoomCount\"\x8e\x02\n" +
+	"\x13AdminSystemInfoView\x12F\n" +
+	"\n" +
+	"connection\x18\x01 \x01(\v2&.chatto.api.v1.AdminConnectionInfoViewR\n" +
+	"connection\x12=\n" +
+	"\aaccount\x18\x02 \x01(\v2#.chatto.api.v1.AdminAccountInfoViewR\aaccount\x125\n" +
+	"\x04nats\x18\x03 \x01(\v2!.chatto.api.v1.AdminNatsStatsViewR\x04nats\x129\n" +
+	"\x05stats\x18\x04 \x01(\v2#.chatto.api.v1.AdminServerStatsViewR\x05stats\"\xfd\x03\n" +
+	"\x18AdminProjectionStateView\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
+	"\bsubjects\x18\x03 \x03(\tR\bsubjects\x12\x18\n" +
+	"\astarted\x18\x04 \x01(\bR\astarted\x122\n" +
+	"\x15last_applied_sequence\x18\x05 \x01(\tR\x13lastAppliedSequence\x128\n" +
+	"\x18matching_stream_sequence\x18\x06 \x01(\tR\x16matchingStreamSequence\x120\n" +
+	"\x14stream_last_sequence\x18\a \x01(\tR\x12streamLastSequence\x12\x10\n" +
+	"\x03lag\x18\b \x01(\x04R\x03lag\x12\x16\n" +
+	"\x06failed\x18\t \x01(\bR\x06failed\x12'\n" +
+	"\x0ffailed_sequence\x18\n" +
+	" \x01(\tR\x0efailedSequence\x12\x18\n" +
+	"\afailure\x18\v \x01(\tR\afailure\x12\x1f\n" +
+	"\ventry_count\x18\f \x01(\x03R\n" +
+	"entryCount\x12'\n" +
+	"\x0festimated_bytes\x18\r \x01(\x03R\x0eestimatedBytes\x12.\n" +
+	"\x13average_entry_bytes\x18\x0e \x01(\x03R\x11averageEntryBytes\"\x1b\n" +
+	"\x19GetAdminSystemInfoRequest\"\xac\x01\n" +
+	"\x1aGetAdminSystemInfoResponse\x12C\n" +
+	"\vsystem_info\x18\x01 \x01(\v2\".chatto.api.v1.AdminSystemInfoViewR\n" +
+	"systemInfo\x12I\n" +
+	"\vprojections\x18\x02 \x03(\v2'.chatto.api.v1.AdminProjectionStateViewR\vprojections\"\xcb\x02\n" +
+	"\x16AdminEventLogEntryView\x12\x1a\n" +
+	"\bsequence\x18\x01 \x01(\tR\bsequence\x12\x18\n" +
+	"\asubject\x18\x02 \x01(\tR\asubject\x12%\n" +
+	"\x0eaggregate_type\x18\x03 \x01(\tR\raggregateType\x12!\n" +
+	"\faggregate_id\x18\x04 \x01(\tR\vaggregateId\x12\x1d\n" +
+	"\n" +
+	"event_type\x18\x05 \x01(\tR\teventType\x12\x19\n" +
+	"\bevent_id\x18\x06 \x01(\tR\aeventId\x12\x19\n" +
+	"\bactor_id\x18\a \x01(\tR\aactorId\x129\n" +
+	"\n" +
+	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12!\n" +
+	"\fpayload_json\x18\t \x01(\tR\vpayloadJson\"H\n" +
+	"\x18ListAdminEventLogRequest\x12\x14\n" +
+	"\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x16\n" +
+	"\x06before\x18\x02 \x01(\tR\x06before\"\xb9\x01\n" +
+	"\x19ListAdminEventLogResponse\x12?\n" +
+	"\aentries\x18\x01 \x03(\v2%.chatto.api.v1.AdminEventLogEntryViewR\aentries\x12\x1b\n" +
+	"\thas_older\x18\x02 \x01(\bR\bhasOlder\x12\x1d\n" +
+	"\n" +
+	"end_cursor\x18\x03 \x01(\tR\tendCursor\x12\x1f\n" +
+	"\vtotal_count\x18\x04 \x01(\x03R\n" +
+	"totalCount\":\n" +
+	"\x1cGetAdminEventLogEntryRequest\x12\x1a\n" +
+	"\bsequence\x18\x01 \x01(\tR\bsequence\"\\\n" +
+	"\x1dGetAdminEventLogEntryResponse\x12;\n" +
+	"\x05entry\x18\x01 \x01(\v2%.chatto.api.v1.AdminEventLogEntryViewR\x05entry\"\x8e\x02\n" +
+	"\rAdminRoleView\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
+	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12 \n" +
+	"\vpermissions\x18\x04 \x03(\tR\vpermissions\x12-\n" +
+	"\x12permission_denials\x18\x05 \x03(\tR\x11permissionDenials\x12\x1b\n" +
+	"\tis_system\x18\x06 \x01(\bR\bisSystem\x12\x1a\n" +
+	"\bposition\x18\a \x01(\x05R\bposition\x12\x1a\n" +
+	"\bpingable\x18\b \x01(\bR\bpingable\"\xb8\x01\n" +
+	"\x0fAdminMemberView\x12(\n" +
+	"\x04user\x18\x01 \x01(\v2\x14.chatto.core.v1.UserR\x04user\x12\x1d\n" +
+	"\n" +
+	"avatar_url\x18\x02 \x01(\tR\tavatarUrl\x12\x14\n" +
+	"\x05roles\x18\x03 \x03(\tR\x05roles\x12F\n" +
+	"\x11last_login_change\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x0flastLoginChange\"_\n" +
+	"\x17ListAdminMembersRequest\x12\x16\n" +
+	"\x06search\x18\x01 \x01(\tR\x06search\x12\x14\n" +
+	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n" +
+	"\x06offset\x18\x03 \x01(\x05R\x06offset\"\xc4\x01\n" +
+	"\x18ListAdminMembersResponse\x128\n" +
+	"\amembers\x18\x01 \x03(\v2\x1e.chatto.api.v1.AdminMemberViewR\amembers\x122\n" +
+	"\x05roles\x18\x02 \x03(\v2\x1c.chatto.api.v1.AdminRoleViewR\x05roles\x12\x1f\n" +
+	"\vtotal_count\x18\x03 \x01(\x05R\n" +
+	"totalCount\x12\x19\n" +
+	"\bhas_more\x18\x04 \x01(\bR\ahasMore\"0\n" +
+	"\x15GetAdminMemberRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"\xf3\x02\n" +
+	"\x16GetAdminMemberResponse\x126\n" +
+	"\x06member\x18\x01 \x01(\v2\x1e.chatto.api.v1.AdminMemberViewR\x06member\x122\n" +
+	"\x05roles\x18\x02 \x03(\v2\x1c.chatto.api.v1.AdminRoleViewR\x05roles\x123\n" +
+	"\x15available_permissions\x18\x03 \x03(\tR\x14availablePermissions\x125\n" +
+	"\x17viewer_can_assign_roles\x18\x04 \x01(\bR\x14viewerCanAssignRoles\x125\n" +
+	"\x17viewer_can_manage_roles\x18\x05 \x01(\bR\x14viewerCanManageRoles\x12J\n" +
+	"\"viewer_can_manage_user_permissions\x18\x06 \x01(\bR\x1eviewerCanManageUserPermissions\"\x8f\x01\n" +
+	"\x16AdminUpdateUserRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x19\n" +
+	"\x05login\x18\x02 \x01(\tH\x00R\x05login\x88\x01\x01\x12&\n" +
+	"\fdisplay_name\x18\x03 \x01(\tH\x01R\vdisplayName\x88\x01\x01B\b\n" +
+	"\x06_loginB\x0f\n" +
+	"\r_display_name\"Q\n" +
+	"\x17AdminUpdateUserResponse\x126\n" +
+	"\x06member\x18\x01 \x01(\v2\x1e.chatto.api.v1.AdminMemberViewR\x06member\"<\n" +
+	"!AdminClearUsernameCooldownRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"\\\n" +
+	"\"AdminClearUsernameCooldownResponse\x126\n" +
+	"\x06member\x18\x01 \x01(\v2\x1e.chatto.api.v1.AdminMemberViewR\x06member\"O\n" +
+	"\x17AssignMemberRoleRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1b\n" +
+	"\trole_name\x18\x02 \x01(\tR\broleName\"R\n" +
+	"\x18AssignMemberRoleResponse\x126\n" +
+	"\x06member\x18\x01 \x01(\v2\x1e.chatto.api.v1.AdminMemberViewR\x06member\"O\n" +
+	"\x17RevokeMemberRoleRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1b\n" +
+	"\trole_name\x18\x02 \x01(\tR\broleName\"R\n" +
+	"\x18RevokeMemberRoleResponse\x126\n" +
+	"\x06member\x18\x01 \x01(\v2\x1e.chatto.api.v1.AdminMemberViewR\x06member\"!\n" +
+	"\x1fGetAdminRoleCapabilitiesRequest\"\x90\x01\n" +
+	" GetAdminRoleCapabilitiesResponse\x125\n" +
+	"\x17viewer_can_manage_roles\x18\x01 \x01(\bR\x14viewerCanManageRoles\x125\n" +
+	"\x17viewer_can_assign_roles\x18\x02 \x01(\bR\x14viewerCanAssignRoles\")\n" +
+	"\x13GetAdminRoleRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\"\xe2\x01\n" +
+	"\x14GetAdminRoleResponse\x120\n" +
+	"\x04role\x18\x01 \x01(\v2\x1c.chatto.api.v1.AdminRoleViewR\x04role\x12*\n" +
+	"\x05users\x18\x02 \x03(\v2\x14.chatto.core.v1.UserR\x05users\x125\n" +
+	"\x17viewer_can_manage_roles\x18\x03 \x01(\bR\x14viewerCanManageRoles\x125\n" +
+	"\x17viewer_can_assign_roles\x18\x04 \x01(\bR\x14viewerCanAssignRoles\"\x8d\x01\n" +
+	"\x16CreateAdminRoleRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
+	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x1a\n" +
+	"\bpingable\x18\x04 \x01(\bR\bpingable\"K\n" +
+	"\x17CreateAdminRoleResponse\x120\n" +
+	"\x04role\x18\x01 \x01(\v2\x1c.chatto.api.v1.AdminRoleViewR\x04role\"\x9f\x01\n" +
+	"\x16UpdateAdminRoleRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
+	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x1f\n" +
+	"\bpingable\x18\x04 \x01(\bH\x00R\bpingable\x88\x01\x01B\v\n" +
+	"\t_pingable\"K\n" +
+	"\x17UpdateAdminRoleResponse\x120\n" +
+	"\x04role\x18\x01 \x01(\v2\x1c.chatto.api.v1.AdminRoleViewR\x04role\",\n" +
+	"\x16DeleteAdminRoleRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\"3\n" +
+	"\x17DeleteAdminRoleResponse\x12\x18\n" +
+	"\adeleted\x18\x01 \x01(\bR\adeleted\"f\n" +
+	"\x13TierPermissionsView\x12 \n" +
+	"\vpermissions\x18\x01 \x03(\tR\vpermissions\x12-\n" +
+	"\x12permission_denials\x18\x02 \x03(\tR\x11permissionDenials\"\xc1\x02\n" +
+	"\fTierRoleView\x12\x1b\n" +
+	"\trole_name\x18\x01 \x01(\tR\broleName\x12!\n" +
+	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x1b\n" +
+	"\tis_system\x18\x04 \x01(\bR\bisSystem\x12\x1a\n" +
+	"\bposition\x18\x05 \x01(\x05R\bposition\x12>\n" +
+	"\boverride\x18\x06 \x01(\v2\".chatto.api.v1.TierPermissionsViewR\boverride\x12)\n" +
+	"\x10inherited_allows\x18\a \x03(\tR\x0finheritedAllows\x12+\n" +
+	"\x11inherited_denials\x18\b \x03(\tR\x10inheritedDenials\"\x88\x01\n" +
+	"\x1cRolePermissionTierMatrixView\x125\n" +
+	"\x16applicable_permissions\x18\x01 \x03(\tR\x15applicablePermissions\x121\n" +
+	"\x05roles\x18\x02 \x03(\v2\x1b.chatto.api.v1.TierRoleViewR\x05roles\"\xa7\x01\n" +
+	"\x19PermissionMatrixScopeView\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\x12<\n" +
+	"\x04kind\x18\x03 \x01(\x0e2(.chatto.api.v1.PermissionMatrixScopeKindR\x04kind\x12&\n" +
+	"\x0fparent_group_id\x18\x04 \x01(\tR\rparentGroupId\"\xe1\x01\n" +
+	"\x18PermissionMatrixCellView\x12\x1e\n" +
+	"\n" +
+	"permission\x18\x01 \x01(\tR\n" +
+	"permission\x12\x19\n" +
+	"\bscope_id\x18\x02 \x01(\tR\ascopeId\x12C\n" +
+	"\boverride\x18\x03 \x01(\x0e2'.chatto.api.v1.PermissionMatrixDecisionR\boverride\x12E\n" +
+	"\teffective\x18\x04 \x01(\x0e2'.chatto.api.v1.PermissionMatrixDecisionR\teffective\"\xef\x01\n" +
+	"\x18RolePermissionMatrixView\x12\x1b\n" +
+	"\trole_name\x18\x01 \x01(\tR\broleName\x125\n" +
+	"\x16applicable_permissions\x18\x02 \x03(\tR\x15applicablePermissions\x12@\n" +
+	"\x06scopes\x18\x03 \x03(\v2(.chatto.api.v1.PermissionMatrixScopeViewR\x06scopes\x12=\n" +
+	"\x05cells\x18\x04 \x03(\v2'.chatto.api.v1.PermissionMatrixCellViewR\x05cells\"\xeb\x01\n" +
+	"\x18UserPermissionMatrixView\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x125\n" +
+	"\x16applicable_permissions\x18\x02 \x03(\tR\x15applicablePermissions\x12@\n" +
+	"\x06scopes\x18\x03 \x03(\v2(.chatto.api.v1.PermissionMatrixScopeViewR\x06scopes\x12=\n" +
+	"\x05cells\x18\x04 \x03(\v2'.chatto.api.v1.PermissionMatrixCellViewR\x05cells\"X\n" +
+	"\"GetRolePermissionTierMatrixRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
+	"\bgroup_id\x18\x02 \x01(\tR\agroupId\"j\n" +
+	"#GetRolePermissionTierMatrixResponse\x12C\n" +
+	"\x06matrix\x18\x01 \x01(\v2+.chatto.api.v1.RolePermissionTierMatrixViewR\x06matrix\"=\n" +
+	"\x1eGetRolePermissionMatrixRequest\x12\x1b\n" +
+	"\trole_name\x18\x01 \x01(\tR\broleName\"b\n" +
+	"\x1fGetRolePermissionMatrixResponse\x12?\n" +
+	"\x06matrix\x18\x01 \x01(\v2'.chatto.api.v1.RolePermissionMatrixViewR\x06matrix\"9\n" +
+	"\x1eGetUserPermissionMatrixRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"b\n" +
+	"\x1fGetUserPermissionMatrixResponse\x12?\n" +
+	"\x06matrix\x18\x01 \x01(\v2'.chatto.api.v1.UserPermissionMatrixViewR\x06matrix\"\xca\x01\n" +
+	"\x1dSetRolePermissionStateRequest\x12\x1b\n" +
+	"\trole_name\x18\x01 \x01(\tR\broleName\x12\x1e\n" +
+	"\n" +
+	"permission\x18\x02 \x01(\tR\n" +
+	"permission\x128\n" +
+	"\x05state\x18\x03 \x01(\x0e2\".chatto.api.v1.PermissionEditStateR\x05state\x12\x17\n" +
+	"\aroom_id\x18\x04 \x01(\tR\x06roomId\x12\x19\n" +
+	"\bgroup_id\x18\x05 \x01(\tR\agroupId\"\xc6\x01\n" +
+	"\x1dSetUserPermissionStateRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1e\n" +
+	"\n" +
+	"permission\x18\x02 \x01(\tR\n" +
+	"permission\x128\n" +
+	"\x05state\x18\x03 \x01(\x0e2\".chatto.api.v1.PermissionEditStateR\x05state\x12\x17\n" +
+	"\aroom_id\x18\x04 \x01(\tR\x06roomId\x12\x19\n" +
+	"\bgroup_id\x18\x05 \x01(\tR\agroupId\"6\n" +
+	"\x1aSetPermissionStateResponse\x12\x18\n" +
+	"\achanged\x18\x01 \x01(\bR\achanged\"\xa6\x01\n" +
+	"\x13ProfileSettingsView\x12(\n" +
+	"\x04user\x18\x01 \x01(\v2\x14.chatto.core.v1.UserR\x04user\x12\x1d\n" +
+	"\n" +
+	"avatar_url\x18\x02 \x01(\tR\tavatarUrl\x12F\n" +
+	"\x11last_login_change\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x0flastLoginChange\"\x1b\n" +
+	"\x19GetProfileSettingsRequest\"Z\n" +
+	"\x1aGetProfileSettingsResponse\x12<\n" +
+	"\aprofile\x18\x01 \x01(\v2\".chatto.api.v1.ProfileSettingsViewR\aprofile\"t\n" +
+	"\x14UpdateProfileRequest\x12&\n" +
+	"\fdisplay_name\x18\x01 \x01(\tH\x00R\vdisplayName\x88\x01\x01\x12\x19\n" +
+	"\x05login\x18\x02 \x01(\tH\x01R\x05login\x88\x01\x01B\x0f\n" +
+	"\r_display_nameB\b\n" +
+	"\x06_login\"U\n" +
+	"\x15UpdateProfileResponse\x12<\n" +
+	"\aprofile\x18\x01 \x01(\v2\".chatto.api.v1.ProfileSettingsViewR\aprofile\"\x18\n" +
+	"\x16GetUserSettingsRequest\"\\\n" +
+	"\x17GetUserSettingsResponse\x12A\n" +
+	"\bsettings\x18\x01 \x01(\v2%.chatto.core.v1.ServerUserPreferencesR\bsettings\"\x9b\x01\n" +
+	"\x19UpdateUserSettingsRequest\x12\x1f\n" +
+	"\btimezone\x18\x01 \x01(\tH\x00R\btimezone\x88\x01\x01\x12@\n" +
+	"\vtime_format\x18\x02 \x01(\x0e2\x1a.chatto.core.v1.TimeFormatH\x01R\n" +
+	"timeFormat\x88\x01\x01B\v\n" +
+	"\t_timezoneB\x0e\n" +
+	"\f_time_format\"_\n" +
+	"\x1aUpdateUserSettingsResponse\x12A\n" +
+	"\bsettings\x18\x01 \x01(\v2%.chatto.core.v1.ServerUserPreferencesR\bsettings\"\\\n" +
+	"!SetServerNotificationLevelRequest\x127\n" +
+	"\x05level\x18\x01 \x01(\x0e2!.chatto.core.v1.NotificationLevelR\x05level\"s\n" +
+	"\x1fSetRoomNotificationLevelRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x127\n" +
+	"\x05level\x18\x02 \x01(\x0e2!.chatto.core.v1.NotificationLevelR\x05level\"o\n" +
+	"\x1cSetNotificationLevelResponse\x12O\n" +
+	"\n" +
+	"preference\x18\x01 \x01(\v2/.chatto.api.v1.ViewerNotificationPreferenceViewR\n" +
+	"preference\"\x7f\n" +
+	"\x16SubscribeToPushRequest\x12\x1a\n" +
+	"\bendpoint\x18\x01 \x01(\tR\bendpoint\x12\x16\n" +
+	"\x06p256dh\x18\x02 \x01(\tR\x06p256dh\x12\x12\n" +
+	"\x04auth\x18\x03 \x01(\tR\x04auth\x12\x1d\n" +
+	"\n" +
+	"user_agent\x18\x04 \x01(\tR\tuserAgent\"9\n" +
+	"\x17SubscribeToPushResponse\x12\x1e\n" +
+	"\n" +
+	"subscribed\x18\x01 \x01(\bR\n" +
+	"subscribed\"8\n" +
+	"\x1aUnsubscribeFromPushRequest\x12\x1a\n" +
+	"\bendpoint\x18\x01 \x01(\tR\bendpoint\"A\n" +
+	"\x1bUnsubscribeFromPushResponse\x12\"\n" +
+	"\funsubscribed\x18\x01 \x01(\bR\funsubscribed\"\xcb\x03\n" +
+	"\x14NotificationItemView\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
+	"\n" +
+	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x123\n" +
+	"\x04kind\x18\x03 \x01(\x0e2\x1f.chatto.api.v1.NotificationKindR\x04kind\x12*\n" +
+	"\x05actor\x18\x04 \x01(\v2\x14.chatto.core.v1.UserR\x05actor\x12\x18\n" +
+	"\asummary\x18\x05 \x01(\tR\asummary\x12\x17\n" +
+	"\aroom_id\x18\x06 \x01(\tR\x06roomId\x12\x1b\n" +
+	"\troom_name\x18\a \x01(\tR\broomName\x12\x1e\n" +
+	"\bevent_id\x18\b \x01(\tH\x00R\aeventId\x88\x01\x01\x124\n" +
+	"\x14thread_root_event_id\x18\t \x01(\tH\x01R\x11threadRootEventId\x88\x01\x01\x12(\n" +
+	"\x0ein_reply_to_id\x18\n" +
+	" \x01(\tH\x02R\vinReplyToId\x88\x01\x01B\v\n" +
+	"\t_event_idB\x17\n" +
+	"\x15_thread_root_event_idB\x11\n" +
+	"\x0f_in_reply_to_id\"H\n" +
+	"\x18ListNotificationsRequest\x12\x14\n" +
+	"\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x16\n" +
+	"\x06offset\x18\x02 \x01(\x05R\x06offset\"\xb3\x01\n" +
+	"\x19ListNotificationsResponse\x129\n" +
+	"\x05items\x18\x01 \x03(\v2#.chatto.api.v1.NotificationItemViewR\x05items\x12\x1f\n" +
+	"\vtotal_count\x18\x02 \x01(\x05R\n" +
+	"totalCount\x12\x19\n" +
+	"\bhas_more\x18\x03 \x01(\bR\ahasMore\x12\x1f\n" +
+	"\vserver_name\x18\x04 \x01(\tR\n" +
+	"serverName\"\x19\n" +
+	"\x17HasNotificationsRequest\"G\n" +
+	"\x18HasNotificationsResponse\x12+\n" +
+	"\x11has_notifications\x18\x01 \x01(\bR\x10hasNotifications\"E\n" +
+	"\x1aDismissNotificationRequest\x12'\n" +
+	"\x0fnotification_id\x18\x01 \x01(\tR\x0enotificationId\";\n" +
+	"\x1bDismissNotificationResponse\x12\x1c\n" +
+	"\tdismissed\x18\x01 \x01(\bR\tdismissed\" \n" +
+	"\x1eDismissAllNotificationsRequest\"J\n" +
+	"\x1fDismissAllNotificationsResponse\x12'\n" +
+	"\x0fdismissed_count\x18\x01 \x01(\x05R\x0edismissedCount\"a\n" +
+	"\x11ServerProfileView\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x19\n" +
+	"\blogo_url\x18\x02 \x01(\tR\alogoUrl\x12\x1d\n" +
+	"\n" +
+	"banner_url\x18\x03 \x01(\tR\tbannerUrl\"\xfa\x04\n" +
+	"\x15ViewerPermissionsView\x12$\n" +
+	"\x0ecan_view_admin\x18\x01 \x01(\bR\fcanViewAdmin\x12\"\n" +
+	"\rcan_start_dms\x18\x02 \x01(\bR\vcanStartDms\x12/\n" +
+	"\x14can_admin_view_users\x18\x03 \x01(\bR\x11canAdminViewUsers\x123\n" +
+	"\x16can_admin_manage_users\x18\x04 \x01(\bR\x13canAdminManageUsers\x12/\n" +
+	"\x14can_admin_view_roles\x18\x05 \x01(\bR\x11canAdminViewRoles\x123\n" +
+	"\x16can_admin_manage_roles\x18\x06 \x01(\bR\x13canAdminManageRoles\x121\n" +
+	"\x15can_admin_view_system\x18\a \x01(\bR\x12canAdminViewSystem\x12/\n" +
+	"\x14can_admin_view_audit\x18\b \x01(\bR\x11canAdminViewAudit\x12*\n" +
+	"\x11can_manage_server\x18\t \x01(\bR\x0fcanManageServer\x12(\n" +
+	"\x10can_manage_rooms\x18\n" +
+	" \x01(\bR\x0ecanManageRooms\x12(\n" +
+	"\x10can_manage_roles\x18\v \x01(\bR\x0ecanManageRoles\x12(\n" +
+	"\x10can_assign_roles\x18\f \x01(\bR\x0ecanAssignRoles\x12=\n" +
+	"\x1bcan_manage_user_permissions\x18\r \x01(\bR\x18canManageUserPermissions\"B\n" +
 	"\x12ListMyRoomsRequest\x12,\n" +
-	"\x04kind\x18\x01 \x01(\x0e2\x18.chatto.core.v1.RoomKindR\x04kind\"A\n" +
+	"\x04kind\x18\x01 \x01(\x0e2\x18.chatto.core.v1.RoomKindR\x04kind\"\xa7\x01\n" +
+	" ViewerNotificationPreferenceView\x127\n" +
+	"\x05level\x18\x01 \x01(\x0e2!.chatto.core.v1.NotificationLevelR\x05level\x12J\n" +
+	"\x0feffective_level\x18\x02 \x01(\x0e2!.chatto.core.v1.NotificationLevelR\x0eeffectiveLevel\"\xbe\x01\n" +
+	"\x1eRoomNotificationPreferenceView\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x127\n" +
+	"\x05level\x18\x02 \x01(\x0e2!.chatto.core.v1.NotificationLevelR\x05level\x12J\n" +
+	"\x0feffective_level\x18\x03 \x01(\x0e2!.chatto.core.v1.NotificationLevelR\x0eeffectiveLevel\"\x82\x02\n" +
+	"\x10RoomListItemView\x12(\n" +
+	"\x04room\x18\x01 \x01(\v2\x14.chatto.core.v1.RoomR\x04room\x12\x1d\n" +
+	"\n" +
+	"has_unread\x18\x02 \x01(\bR\thasUnread\x12u\n" +
+	"\x1eviewer_notification_preference\x18\x03 \x01(\v2/.chatto.api.v1.ViewerNotificationPreferenceViewR\x1cviewerNotificationPreference\x12.\n" +
+	"\amembers\x18\x04 \x03(\v2\x14.chatto.core.v1.UserR\amembers\"\xe3\x01\n" +
 	"\x13ListMyRoomsResponse\x12*\n" +
-	"\x05rooms\x18\x01 \x03(\v2\x14.chatto.core.v1.RoomR\x05rooms\"p\n" +
+	"\x05rooms\x18\x01 \x03(\v2\x14.chatto.core.v1.RoomR\x05rooms\x12$\n" +
+	"\x0eviewer_user_id\x18\x02 \x01(\tR\fviewerUserId\x12>\n" +
+	"\n" +
+	"room_views\x18\x03 \x03(\v2\x1f.chatto.api.v1.RoomListItemViewR\troomViews\x12:\n" +
+	"\vroom_groups\x18\x04 \x03(\v2\x19.chatto.core.v1.RoomGroupR\n" +
+	"roomGroups\"\x19\n" +
+	"\x17GetRoomDirectoryRequest\"r\n" +
+	"\x15RoomDirectoryItemView\x12(\n" +
+	"\x04room\x18\x01 \x01(\v2\x14.chatto.core.v1.RoomR\x04room\x12/\n" +
+	"\x14viewer_can_join_room\x18\x02 \x01(\bR\x11viewerCanJoinRoom\"_\n" +
+	"\x18GetRoomDirectoryResponse\x12C\n" +
+	"\n" +
+	"room_views\x18\x01 \x03(\v2$.chatto.api.v1.RoomDirectoryItemViewR\troomViews\"\\\n" +
+	"\x14SearchMembersRequest\x12\x16\n" +
+	"\x06search\x18\x01 \x01(\tR\x06search\x12\x14\n" +
+	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n" +
+	"\x06offset\x18\x03 \x01(\x05R\x06offset\"\xd6\x01\n" +
+	"\x15SearchMembersResponse\x12*\n" +
+	"\x05users\x18\x01 \x03(\v2\x14.chatto.core.v1.UserR\x05users\x12\x1f\n" +
+	"\vtotal_count\x18\x02 \x01(\x05R\n" +
+	"totalCount\x12\x19\n" +
+	"\bhas_more\x18\x03 \x01(\bR\ahasMore\x12$\n" +
+	"\x0eviewer_user_id\x18\x04 \x01(\tR\fviewerUserId\x12/\n" +
+	"\x14viewer_can_start_dms\x18\x05 \x01(\bR\x11viewerCanStartDms\"9\n" +
+	"\x0eStartDMRequest\x12'\n" +
+	"\x0fparticipant_ids\x18\x01 \x03(\tR\x0eparticipantIds\"U\n" +
+	"\x0fStartDMResponse\x12(\n" +
+	"\x04room\x18\x01 \x01(\v2\x14.chatto.core.v1.RoomR\x04room\x12\x18\n" +
+	"\acreated\x18\x02 \x01(\bR\acreated\"d\n" +
+	"\x11CreateRoomRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x19\n" +
+	"\bgroup_id\x18\x03 \x01(\tR\agroupId\">\n" +
+	"\x12CreateRoomResponse\x12(\n" +
+	"\x04room\x18\x01 \x01(\v2\x14.chatto.core.v1.RoomR\x04room\"u\n" +
+	"\x11AdminRoomInfoView\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x1a\n" +
+	"\barchived\x18\x04 \x01(\bR\barchived\"p\n" +
+	"\x12AdminRoomGroupView\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x126\n" +
+	"\x05rooms\x18\x03 \x03(\v2 .chatto.api.v1.AdminRoomInfoViewR\x05rooms\"\x1b\n" +
+	"\x19GetAdminRoomLayoutRequest\"W\n" +
+	"\x1aGetAdminRoomLayoutResponse\x129\n" +
+	"\x06groups\x18\x01 \x03(\v2!.chatto.api.v1.AdminRoomGroupViewR\x06groups\"S\n" +
+	"\x1bCreateAdminRoomGroupRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\"W\n" +
+	"\x1cCreateAdminRoomGroupResponse\x127\n" +
+	"\x05group\x18\x01 \x01(\v2!.chatto.api.v1.AdminRoomGroupViewR\x05group\"n\n" +
+	"\x1bUpdateAdminRoomGroupRequest\x12\x19\n" +
+	"\bgroup_id\x18\x01 \x01(\tR\agroupId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\"W\n" +
+	"\x1cUpdateAdminRoomGroupResponse\x127\n" +
+	"\x05group\x18\x01 \x01(\v2!.chatto.api.v1.AdminRoomGroupViewR\x05group\"8\n" +
+	"\x1bDeleteAdminRoomGroupRequest\x12\x19\n" +
+	"\bgroup_id\x18\x01 \x01(\tR\agroupId\"8\n" +
+	"\x1cDeleteAdminRoomGroupResponse\x12\x18\n" +
+	"\adeleted\x18\x01 \x01(\bR\adeleted\"K\n" +
+	"\x1dReorderAdminRoomGroupsRequest\x12*\n" +
+	"\x11ordered_group_ids\x18\x01 \x03(\tR\x0forderedGroupIds\"[\n" +
+	"\x1eReorderAdminRoomGroupsResponse\x129\n" +
+	"\x06groups\x18\x01 \x03(\v2!.chatto.api.v1.AdminRoomGroupViewR\x06groups\"Q\n" +
+	"\x1bMoveAdminRoomToGroupRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
+	"\bgroup_id\x18\x02 \x01(\tR\agroupId\"T\n" +
+	"\x1cMoveAdminRoomToGroupResponse\x124\n" +
+	"\x04room\x18\x01 \x01(\v2 .chatto.api.v1.AdminRoomInfoViewR\x04room\"f\n" +
+	"\x1fReorderAdminRoomsInGroupRequest\x12\x19\n" +
+	"\bgroup_id\x18\x01 \x01(\tR\agroupId\x12(\n" +
+	"\x10ordered_room_ids\x18\x02 \x03(\tR\x0eorderedRoomIds\"[\n" +
+	" ReorderAdminRoomsInGroupResponse\x127\n" +
+	"\x05group\x18\x01 \x01(\v2!.chatto.api.v1.AdminRoomGroupViewR\x05group\"g\n" +
+	"\x16UpdateAdminRoomRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\"O\n" +
+	"\x17UpdateAdminRoomResponse\x124\n" +
+	"\x04room\x18\x01 \x01(\v2 .chatto.api.v1.AdminRoomInfoViewR\x04room\"2\n" +
+	"\x17ArchiveAdminRoomRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\"P\n" +
+	"\x18ArchiveAdminRoomResponse\x124\n" +
+	"\x04room\x18\x01 \x01(\v2 .chatto.api.v1.AdminRoomInfoViewR\x04room\"4\n" +
+	"\x19UnarchiveAdminRoomRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\"R\n" +
+	"\x1aUnarchiveAdminRoomResponse\x124\n" +
+	"\x04room\x18\x01 \x01(\v2 .chatto.api.v1.AdminRoomInfoViewR\x04room\"v\n" +
+	"\vMentionRole\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1b\n" +
+	"\tis_system\x18\x02 \x01(\bR\bisSystem\x12\x1a\n" +
+	"\bposition\x18\x03 \x01(\x05R\bposition\x12\x1a\n" +
+	"\bpingable\x18\x04 \x01(\bR\bpingable\"y\n" +
+	"\x0fRoomMembersPage\x12*\n" +
+	"\x05users\x18\x01 \x03(\v2\x14.chatto.core.v1.UserR\x05users\x12\x1f\n" +
+	"\vtotal_count\x18\x02 \x01(\x05R\n" +
+	"totalCount\x12\x19\n" +
+	"\bhas_more\x18\x03 \x01(\bR\ahasMore\"u\n" +
+	"\x0eGetRoomRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12#\n" +
+	"\rmembers_limit\x18\x02 \x01(\x05R\fmembersLimit\x12%\n" +
+	"\x0emembers_offset\x18\x03 \x01(\x05R\rmembersOffset\"\xc1\x05\n" +
+	"\x0fGetRoomResponse\x12(\n" +
+	"\x04room\x18\x01 \x01(\v2\x14.chatto.core.v1.RoomR\x04room\x12\x1f\n" +
+	"\vserver_name\x18\x02 \x01(\tR\n" +
+	"serverName\x125\n" +
+	"\x17viewer_can_post_message\x18\x03 \x01(\bR\x14viewerCanPostMessage\x128\n" +
+	"\x19viewer_can_post_in_thread\x18\x04 \x01(\bR\x15viewerCanPostInThread\x12(\n" +
+	"\x10viewer_can_react\x18\x05 \x01(\bR\x0eviewerCanReact\x12F\n" +
+	" viewer_can_manage_others_message\x18\x06 \x01(\bR\x1cviewerCanManageOthersMessage\x125\n" +
+	"\x17viewer_can_echo_message\x18\a \x01(\bR\x14viewerCanEchoMessage\x123\n" +
+	"\x16viewer_can_manage_room\x18\b \x01(\bR\x13viewerCanManageRoom\x12<\n" +
+	"\x1bviewer_can_ban_room_members\x18\t \x01(\bR\x17viewerCanBanRoomMembers\x125\n" +
+	"\x17viewer_can_manage_rooms\x18\n" +
+	" \x01(\bR\x14viewerCanManageRooms\x128\n" +
+	"\amembers\x18\v \x01(\v2\x1e.chatto.api.v1.RoomMembersPageR\amembers\x12$\n" +
+	"\x0eviewer_user_id\x18\f \x01(\tR\fviewerUserId\x12?\n" +
+	"\rmention_roles\x18\r \x03(\v2\x1a.chatto.api.v1.MentionRoleR\fmentionRoles\"^\n" +
+	"\x15GetRoomMembersRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x14\n" +
+	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n" +
+	"\x06offset\x18\x03 \x01(\x05R\x06offset\"R\n" +
+	"\x16GetRoomMembersResponse\x128\n" +
+	"\amembers\x18\x01 \x01(\v2\x1e.chatto.api.v1.RoomMembersPageR\amembers\"*\n" +
+	"\x0fJoinRoomRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\"<\n" +
+	"\x10JoinRoomResponse\x12(\n" +
+	"\x04room\x18\x01 \x01(\v2\x14.chatto.core.v1.RoomR\x04room\"+\n" +
+	"\x10LeaveRoomRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\"\x13\n" +
+	"\x11LeaveRoomResponse\"-\n" +
+	"\x10JoinGroupRequest\x12\x19\n" +
+	"\bgroup_id\x18\x01 \x01(\tR\agroupId\";\n" +
+	"\x11JoinGroupResponse\x12&\n" +
+	"\x0fjoined_room_ids\x18\x01 \x03(\tR\rjoinedRoomIds\"\x9b\x01\n" +
+	"\x14BanRoomMemberRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\x129\n" +
+	"\n" +
+	"expires_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\x17\n" +
+	"\x15BanRoomMemberResponse\"\xac\x01\n" +
+	"\x0eUserAvatarView\x12(\n" +
+	"\x04user\x18\x01 \x01(\v2\x14.chatto.core.v1.UserR\x04user\x12\x1d\n" +
+	"\n" +
+	"avatar_url\x18\x02 \x01(\tR\tavatarUrl\x12Q\n" +
+	"\x0fpresence_status\x18\x03 \x01(\x0e2(.chatto.api.v1.CurrentUserPresenceStatusR\x0epresenceStatus\"\xa6\x03\n" +
+	"\vRoomBanView\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x124\n" +
+	"\x04room\x18\x03 \x01(\v2 .chatto.api.v1.AdminRoomInfoViewR\x04room\x12\x17\n" +
+	"\auser_id\x18\x04 \x01(\tR\x06userId\x121\n" +
+	"\x04user\x18\x05 \x01(\v2\x1d.chatto.api.v1.UserAvatarViewR\x04user\x12!\n" +
+	"\fmoderator_id\x18\x06 \x01(\tR\vmoderatorId\x12;\n" +
+	"\tmoderator\x18\a \x01(\v2\x1d.chatto.api.v1.UserAvatarViewR\tmoderator\x12\x16\n" +
+	"\x06reason\x18\b \x01(\tR\x06reason\x129\n" +
+	"\n" +
+	"created_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\n" +
+	"expires_at\x18\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\".\n" +
+	"\x13ListRoomBansRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\"F\n" +
+	"\x14ListRoomBansResponse\x12.\n" +
+	"\x04bans\x18\x01 \x03(\v2\x1a.chatto.api.v1.RoomBanViewR\x04bans\"b\n" +
+	"\x16UnbanRoomMemberRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\"5\n" +
+	"\x17UnbanRoomMemberResponse\x12\x1a\n" +
+	"\bunbanned\x18\x01 \x01(\bR\bunbanned\"\x91\x01\n" +
+	"\x13CallParticipantView\x12(\n" +
+	"\x04user\x18\x01 \x01(\v2\x14.chatto.core.v1.UserR\x04user\x127\n" +
+	"\tjoined_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bjoinedAt\x12\x17\n" +
+	"\acall_id\x18\x03 \x01(\tR\x06callId\"\x8a\x01\n" +
+	"\x0eActiveCallView\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x17\n" +
+	"\acall_id\x18\x02 \x01(\tR\x06callId\x12F\n" +
+	"\fparticipants\x18\x03 \x03(\v2\".chatto.api.v1.CallParticipantViewR\fparticipants\"\x18\n" +
+	"\x16ListActiveCallsRequest\"N\n" +
+	"\x17ListActiveCallsResponse\x123\n" +
+	"\x05calls\x18\x01 \x03(\v2\x1d.chatto.api.v1.ActiveCallViewR\x05calls\"5\n" +
+	"\x1aGetCallParticipantsRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\"e\n" +
+	"\x1bGetCallParticipantsResponse\x12F\n" +
+	"\fparticipants\x18\x01 \x03(\v2\".chatto.api.v1.CallParticipantViewR\fparticipants\"/\n" +
+	"\x14JoinVoiceCallRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\"/\n" +
+	"\x15JoinVoiceCallResponse\x12\x16\n" +
+	"\x06joined\x18\x01 \x01(\bR\x06joined\"0\n" +
+	"\x15LeaveVoiceCallRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\",\n" +
+	"\x16LeaveVoiceCallResponse\x12\x12\n" +
+	"\x04left\x18\x01 \x01(\bR\x04left\"^\n" +
+	"\x12VoiceCallTokenView\x12\x14\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\x12\x19\n" +
+	"\be2ee_key\x18\x02 \x01(\tR\ae2eeKey\x12\x17\n" +
+	"\acall_id\x18\x03 \x01(\tR\x06callId\"3\n" +
+	"\x18GetVoiceCallTokenRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\"T\n" +
+	"\x19GetVoiceCallTokenResponse\x127\n" +
+	"\x05token\x18\x01 \x01(\v2!.chatto.api.v1.VoiceCallTokenViewR\x05token\"W\n" +
+	"\bAssetUrl\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\x129\n" +
+	"\n" +
+	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\xa4\x01\n" +
+	"\x10VideoVariantView\x12\x18\n" +
+	"\aquality\x18\x01 \x01(\tR\aquality\x12\x14\n" +
+	"\x05width\x18\x02 \x01(\x05R\x05width\x12\x16\n" +
+	"\x06height\x18\x03 \x01(\x05R\x06height\x12\x12\n" +
+	"\x04size\x18\x04 \x01(\x03R\x04size\x124\n" +
+	"\tasset_url\x18\x05 \x01(\v2\x17.chatto.api.v1.AssetUrlR\bassetUrl\"\xbd\x03\n" +
+	"\x13VideoProcessingView\x12<\n" +
+	"\x06status\x18\x01 \x01(\x0e2$.chatto.api.v1.VideoProcessingStatusR\x06status\x12$\n" +
+	"\vduration_ms\x18\x02 \x01(\x03H\x00R\n" +
+	"durationMs\x88\x01\x01\x12\x19\n" +
+	"\x05width\x18\x03 \x01(\x05H\x01R\x05width\x88\x01\x01\x12\x1b\n" +
+	"\x06height\x18\x04 \x01(\x05H\x02R\x06height\x88\x01\x01\x12)\n" +
+	"\x10source_available\x18\x05 \x01(\bR\x0fsourceAvailable\x12$\n" +
+	"\vreason_code\x18\x06 \x01(\tH\x03R\n" +
+	"reasonCode\x88\x01\x01\x12G\n" +
+	"\x13thumbnail_asset_url\x18\a \x01(\v2\x17.chatto.api.v1.AssetUrlR\x11thumbnailAssetUrl\x12;\n" +
+	"\bvariants\x18\b \x03(\v2\x1f.chatto.api.v1.VideoVariantViewR\bvariantsB\x0e\n" +
+	"\f_duration_msB\b\n" +
+	"\x06_widthB\t\n" +
+	"\a_heightB\x0e\n" +
+	"\f_reason_code\"\xdb\x02\n" +
+	"\x0eAttachmentView\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
+	"\bfilename\x18\x02 \x01(\tR\bfilename\x12!\n" +
+	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\x12\x14\n" +
+	"\x05width\x18\x04 \x01(\x05R\x05width\x12\x16\n" +
+	"\x06height\x18\x05 \x01(\x05R\x06height\x124\n" +
+	"\tasset_url\x18\x06 \x01(\v2\x17.chatto.api.v1.AssetUrlR\bassetUrl\x12G\n" +
+	"\x13thumbnail_asset_url\x18\a \x01(\v2\x17.chatto.api.v1.AssetUrlR\x11thumbnailAssetUrl\x12M\n" +
+	"\x10video_processing\x18\b \x01(\v2\".chatto.api.v1.VideoProcessingViewR\x0fvideoProcessing\"\x86\x01\n" +
+	"\x12UploadedAttachment\x12:\n" +
+	"\n" +
+	"attachment\x18\x01 \x01(\v2\x1a.chatto.core.v1.AttachmentR\n" +
+	"attachment\x124\n" +
+	"\x16needs_video_processing\x18\x02 \x01(\bR\x14needsVideoProcessing\"\xa1\x01\n" +
+	"\x1dUploadRoomAttachmentsResponse\x12C\n" +
+	"\vattachments\x18\x01 \x03(\v2!.chatto.api.v1.UploadedAttachmentR\vattachments\x12;\n" +
+	"\x1avideo_processing_asset_ids\x18\x02 \x03(\tR\x17videoProcessingAssetIds\"\xef\x01\n" +
+	"#RefreshMessageAttachmentUrlsRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
+	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12'\n" +
+	"\x0fthumbnail_width\x18\x03 \x01(\x05R\x0ethumbnailWidth\x12)\n" +
+	"\x10thumbnail_height\x18\x04 \x01(\x05R\x0fthumbnailHeight\x12@\n" +
+	"\rthumbnail_fit\x18\x05 \x01(\x0e2\x1b.chatto.api.v1.AssetFitModeR\fthumbnailFit\"g\n" +
+	"$RefreshMessageAttachmentUrlsResponse\x12?\n" +
+	"\vattachments\x18\x01 \x03(\v2\x1d.chatto.api.v1.AttachmentViewR\vattachments\"b\n" +
+	"\x17UserAvatarAssetResponse\x12(\n" +
+	"\x04user\x18\x01 \x01(\v2\x14.chatto.core.v1.UserR\x04user\x12\x1d\n" +
+	"\n" +
+	"avatar_url\x18\x02 \x01(\tR\tavatarUrl\"Y\n" +
+	"\x1bServerBrandingAssetResponse\x12:\n" +
+	"\aprofile\x18\x01 \x01(\v2 .chatto.api.v1.ServerProfileViewR\aprofile\"\xb2\x02\n" +
+	"\x0fLinkPreviewView\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x1b\n" +
+	"\tsite_name\x18\x04 \x01(\tR\bsiteName\x12 \n" +
+	"\timage_url\x18\x05 \x01(\tH\x00R\bimageUrl\x88\x01\x01\x12\x1d\n" +
+	"\n" +
+	"embed_type\x18\x06 \x01(\tR\tembedType\x12\x1e\n" +
+	"\bembed_id\x18\a \x01(\tH\x01R\aembedId\x88\x01\x01\x12)\n" +
+	"\x0eimage_asset_id\x18\b \x01(\tH\x02R\fimageAssetId\x88\x01\x01B\f\n" +
+	"\n" +
+	"_image_urlB\v\n" +
+	"\t_embed_idB\x11\n" +
+	"\x0f_image_asset_id\"\xce\x02\n" +
+	"\x10LinkPreviewInput\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\x12\x19\n" +
+	"\x05title\x18\x02 \x01(\tH\x00R\x05title\x88\x01\x01\x12%\n" +
+	"\vdescription\x18\x03 \x01(\tH\x01R\vdescription\x88\x01\x01\x12 \n" +
+	"\tsite_name\x18\x04 \x01(\tH\x02R\bsiteName\x88\x01\x01\x12)\n" +
+	"\x0eimage_asset_id\x18\x05 \x01(\tH\x03R\fimageAssetId\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"embed_type\x18\x06 \x01(\tH\x04R\tembedType\x88\x01\x01\x12\x1e\n" +
+	"\bembed_id\x18\a \x01(\tH\x05R\aembedId\x88\x01\x01B\b\n" +
+	"\x06_titleB\x0e\n" +
+	"\f_descriptionB\f\n" +
+	"\n" +
+	"_site_nameB\x11\n" +
+	"\x0f_image_asset_idB\r\n" +
+	"\v_embed_typeB\v\n" +
+	"\t_embed_id\")\n" +
+	"\x15GetLinkPreviewRequest\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\"R\n" +
+	"\x16GetLinkPreviewResponse\x128\n" +
+	"\apreview\x18\x01 \x01(\v2\x1e.chatto.api.v1.LinkPreviewViewR\apreview\"\x8e\x01\n" +
+	"\x13ReactionSummaryView\x12\x14\n" +
+	"\x05emoji\x18\x01 \x01(\tR\x05emoji\x12\x14\n" +
+	"\x05count\x18\x02 \x01(\x05R\x05count\x12\x1f\n" +
+	"\vhas_reacted\x18\x03 \x01(\bR\n" +
+	"hasReacted\x12*\n" +
+	"\x05users\x18\x04 \x03(\v2\x14.chatto.core.v1.UserR\x05users\"\x87\b\n" +
+	"\x11MessagePostedView\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x17\n" +
+	"\x04body\x18\x02 \x01(\tH\x00R\x04body\x88\x01\x01\x12?\n" +
+	"\vattachments\x18\x03 \x03(\v2\x1d.chatto.api.v1.AttachmentViewR\vattachments\x12A\n" +
+	"\flink_preview\x18\x04 \x01(\v2\x1e.chatto.api.v1.LinkPreviewViewR\vlinkPreview\x12>\n" +
+	"\n" +
+	"updated_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampH\x01R\tupdatedAt\x88\x01\x01\x12#\n" +
+	"\vin_reply_to\x18\x06 \x01(\tH\x02R\tinReplyTo\x88\x01\x01\x124\n" +
+	"\x14thread_root_event_id\x18\a \x01(\tH\x03R\x11threadRootEventId\x88\x01\x01\x12,\n" +
+	"\x10echo_of_event_id\x18\b \x01(\tH\x04R\rechoOfEventId\x88\x01\x01\x12F\n" +
+	"\x1eecho_from_thread_root_event_id\x18\t \x01(\tH\x05R\x19echoFromThreadRootEventId\x88\x01\x01\x126\n" +
+	"\x15channel_echo_event_id\x18\n" +
+	" \x01(\tH\x06R\x12channelEchoEventId\x88\x01\x01\x12\x1f\n" +
+	"\vreply_count\x18\v \x01(\x05R\n" +
+	"replyCount\x12C\n" +
+	"\rlast_reply_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampH\aR\vlastReplyAt\x88\x01\x01\x12E\n" +
+	"\x13thread_participants\x18\r \x03(\v2\x14.chatto.core.v1.UserR\x12threadParticipants\x12@\n" +
+	"\x1aviewer_is_following_thread\x18\x0e \x01(\bH\bR\x17viewerIsFollowingThread\x88\x01\x01\x12@\n" +
+	"\treactions\x18\x0f \x03(\v2\".chatto.api.v1.ReactionSummaryViewR\treactionsB\a\n" +
+	"\x05_bodyB\r\n" +
+	"\v_updated_atB\x0e\n" +
+	"\f_in_reply_toB\x17\n" +
+	"\x15_thread_root_event_idB\x13\n" +
+	"\x11_echo_of_event_idB!\n" +
+	"\x1f_echo_from_thread_root_event_idB\x18\n" +
+	"\x16_channel_echo_event_idB\x10\n" +
+	"\x0e_last_reply_atB\x1d\n" +
+	"\x1b_viewer_is_following_thread\"\xcb\x02\n" +
+	"\x11MessageEditedView\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12(\n" +
+	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventId\x12\x17\n" +
+	"\x04body\x18\x03 \x01(\tH\x00R\x04body\x88\x01\x01\x12?\n" +
+	"\vattachments\x18\x04 \x03(\v2\x1d.chatto.api.v1.AttachmentViewR\vattachments\x12A\n" +
+	"\flink_preview\x18\x05 \x01(\v2\x1e.chatto.api.v1.LinkPreviewViewR\vlinkPreview\x12>\n" +
+	"\n" +
+	"updated_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampH\x01R\tupdatedAt\x88\x01\x01B\a\n" +
+	"\x05_bodyB\r\n" +
+	"\v_updated_at\"\x81\x01\n" +
+	"\x14MessageRetractedView\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12(\n" +
+	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventId\x12\x1b\n" +
+	"\x06reason\x18\x03 \x01(\tH\x00R\x06reason\x88\x01\x01B\t\n" +
+	"\a_reason\".\n" +
+	"\x13RoomScopedEventView\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\"l\n" +
+	"\x11ReactionEventView\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12(\n" +
+	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventId\x12\x14\n" +
+	"\x05emoji\x18\x03 \x01(\tR\x05emoji\"x\n" +
+	"\x18AssetProcessingEventView\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
+	"\basset_id\x18\x02 \x01(\tR\aassetId\x12(\n" +
+	"\x10message_event_id\x18\x03 \x01(\tR\x0emessageEventId\"F\n" +
+	"\x10AssetDeletedView\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
+	"\basset_id\x18\x02 \x01(\tR\aassetId\"2\n" +
+	"\x17ServerMemberDeletedView\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"A\n" +
+	"\rCallEventView\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x17\n" +
+	"\acall_id\x18\x02 \x01(\tR\x06callId\"]\n" +
+	"\x11ThreadCreatedView\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\"\xc2\x01\n" +
+	"\x17RoomModerationEventView\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x1b\n" +
+	"\x06reason\x18\x03 \x01(\tH\x00R\x06reason\x88\x01\x01\x12>\n" +
+	"\n" +
+	"expires_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampH\x01R\texpiresAt\x88\x01\x01B\t\n" +
+	"\a_reasonB\r\n" +
+	"\v_expires_at\"\xb6\x0f\n" +
+	"\x10RoomEventPayload\x12I\n" +
+	"\x0emessage_posted\x18\x01 \x01(\v2 .chatto.api.v1.MessagePostedViewH\x00R\rmessagePosted\x12I\n" +
+	"\x0emessage_edited\x18\x02 \x01(\v2 .chatto.api.v1.MessageEditedViewH\x00R\rmessageEdited\x12R\n" +
+	"\x11message_retracted\x18\x03 \x01(\v2#.chatto.api.v1.MessageRetractedViewH\x00R\x10messageRetracted\x12G\n" +
+	"\froom_created\x18\x04 \x01(\v2\".chatto.api.v1.RoomScopedEventViewH\x00R\vroomCreated\x12G\n" +
+	"\froom_updated\x18\x05 \x01(\v2\".chatto.api.v1.RoomScopedEventViewH\x00R\vroomUpdated\x12G\n" +
+	"\froom_deleted\x18\x06 \x01(\v2\".chatto.api.v1.RoomScopedEventViewH\x00R\vroomDeleted\x12I\n" +
+	"\rroom_archived\x18\a \x01(\v2\".chatto.api.v1.RoomScopedEventViewH\x00R\froomArchived\x12M\n" +
+	"\x0froom_unarchived\x18\b \x01(\v2\".chatto.api.v1.RoomScopedEventViewH\x00R\x0eroomUnarchived\x12N\n" +
+	"\x10user_joined_room\x18\t \x01(\v2\".chatto.api.v1.RoomScopedEventViewH\x00R\x0euserJoinedRoom\x12J\n" +
+	"\x0euser_left_room\x18\n" +
+	" \x01(\v2\".chatto.api.v1.RoomScopedEventViewH\x00R\fuserLeftRoom\x12I\n" +
+	"\x0ereaction_added\x18\v \x01(\v2 .chatto.api.v1.ReactionEventViewH\x00R\rreactionAdded\x12M\n" +
+	"\x10reaction_removed\x18\f \x01(\v2 .chatto.api.v1.ReactionEventViewH\x00R\x0freactionRemoved\x12c\n" +
+	"\x18asset_processing_started\x18\r \x01(\v2'.chatto.api.v1.AssetProcessingEventViewH\x00R\x16assetProcessingStarted\x12g\n" +
+	"\x1aasset_processing_succeeded\x18\x0e \x01(\v2'.chatto.api.v1.AssetProcessingEventViewH\x00R\x18assetProcessingSucceeded\x12a\n" +
+	"\x17asset_processing_failed\x18\x0f \x01(\v2'.chatto.api.v1.AssetProcessingEventViewH\x00R\x15assetProcessingFailed\x12F\n" +
+	"\rasset_deleted\x18\x10 \x01(\v2\x1f.chatto.api.v1.AssetDeletedViewH\x00R\fassetDeleted\x12\\\n" +
+	"\x15server_member_deleted\x18\x11 \x01(\v2&.chatto.api.v1.ServerMemberDeletedViewH\x00R\x13serverMemberDeleted\x12A\n" +
+	"\fcall_started\x18\x12 \x01(\v2\x1c.chatto.api.v1.CallEventViewH\x00R\vcallStarted\x12V\n" +
+	"\x17call_participant_joined\x18\x13 \x01(\v2\x1c.chatto.api.v1.CallEventViewH\x00R\x15callParticipantJoined\x12R\n" +
+	"\x15call_participant_left\x18\x14 \x01(\v2\x1c.chatto.api.v1.CallEventViewH\x00R\x13callParticipantLeft\x12=\n" +
+	"\n" +
+	"call_ended\x18\x15 \x01(\v2\x1c.chatto.api.v1.CallEventViewH\x00R\tcallEnded\x12I\n" +
+	"\x0ethread_created\x18\x16 \x01(\v2 .chatto.api.v1.ThreadCreatedViewH\x00R\rthreadCreated\x12V\n" +
+	"\x12room_member_banned\x18\x17 \x01(\v2&.chatto.api.v1.RoomModerationEventViewH\x00R\x10roomMemberBanned\x12Z\n" +
+	"\x14room_member_unbanned\x18\x18 \x01(\v2&.chatto.api.v1.RoomModerationEventViewH\x00R\x12roomMemberUnbannedB\t\n" +
+	"\apayload\"\xa8\x02\n" +
+	"\rRoomEventView\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
+	"\n" +
+	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x19\n" +
+	"\bactor_id\x18\x03 \x01(\tR\aactorId\x12*\n" +
+	"\x05actor\x18\x04 \x01(\v2\x14.chatto.core.v1.UserR\x05actor\x12\x1a\n" +
+	"\bsequence\x18\x05 \x01(\x04R\bsequence\x122\n" +
+	"\traw_event\x18\x06 \x01(\v2\x15.chatto.core.v1.EventR\brawEvent\x125\n" +
+	"\x05event\x18\a \x01(\v2\x1f.chatto.api.v1.RoomEventPayloadR\x05event\"\xed\x01\n" +
+	"\x0eRoomEventsPage\x124\n" +
+	"\x06events\x18\x01 \x03(\v2\x1c.chatto.api.v1.RoomEventViewR\x06events\x12\x1b\n" +
+	"\thas_older\x18\x02 \x01(\bR\bhasOlder\x12\x1b\n" +
+	"\thas_newer\x18\x03 \x01(\bR\bhasNewer\x12%\n" +
+	"\x0estart_sequence\x18\x04 \x01(\x04R\rstartSequence\x12!\n" +
+	"\fend_sequence\x18\x05 \x01(\x04R\vendSequence\x12!\n" +
+	"\ftarget_index\x18\x06 \x01(\x05R\vtargetIndex\"I\n" +
+	"\x13GetRoomEventRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
+	"\bevent_id\x18\x02 \x01(\tR\aeventId\"J\n" +
+	"\x14GetRoomEventResponse\x122\n" +
+	"\x05event\x18\x01 \x01(\v2\x1c.chatto.api.v1.RoomEventViewR\x05event\"p\n" +
 	"\x16GetRoomTimelineRequest\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12'\n" +
 	"\x0fbefore_sequence\x18\x03 \x01(\x04R\x0ebeforeSequence\"X\n" +
 	"\rTimelineEvent\x12+\n" +
 	"\x05event\x18\x01 \x01(\v2\x15.chatto.core.v1.EventR\x05event\x12\x1a\n" +
-	"\bsequence\x18\x02 \x01(\x04R\bsequence\"\xd3\x01\n" +
+	"\bsequence\x18\x02 \x01(\x04R\bsequence\"\x92\x02\n" +
 	"\x17GetRoomTimelineResponse\x124\n" +
 	"\x06events\x18\x01 \x03(\v2\x1c.chatto.api.v1.TimelineEventR\x06events\x12\x1b\n" +
 	"\thas_older\x18\x02 \x01(\bR\bhasOlder\x12\x1b\n" +
 	"\thas_newer\x18\x03 \x01(\bR\bhasNewer\x12%\n" +
 	"\x0estart_sequence\x18\x04 \x01(\x04R\rstartSequence\x12!\n" +
-	"\fend_sequence\x18\x05 \x01(\x04R\vendSequence\"\x8b\x02\n" +
+	"\fend_sequence\x18\x05 \x01(\x04R\vendSequence\x12=\n" +
+	"\vevent_views\x18\x06 \x03(\v2\x1c.chatto.api.v1.RoomEventViewR\n" +
+	"eventViews\"s\n" +
+	"\x1bGetRoomTimelineAfterRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x14\n" +
+	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12%\n" +
+	"\x0eafter_sequence\x18\x03 \x01(\x04R\rafterSequence\"Q\n" +
+	"\x1cGetRoomTimelineAfterResponse\x121\n" +
+	"\x04page\x18\x01 \x01(\v2\x1d.chatto.api.v1.RoomEventsPageR\x04page\"h\n" +
+	"\x1cGetRoomTimelineAroundRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
+	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12\x14\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\"R\n" +
+	"\x1dGetRoomTimelineAroundResponse\x121\n" +
+	"\x04page\x18\x01 \x01(\v2\x1d.chatto.api.v1.RoomEventsPageR\x04page\"\xc8\x01\n" +
+	"\x16GetThreadEventsRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\x12\x14\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\x12'\n" +
+	"\x0fbefore_sequence\x18\x04 \x01(\x04R\x0ebeforeSequence\x12%\n" +
+	"\x0eafter_sequence\x18\x05 \x01(\x04R\rafterSequence\"\x8f\x01\n" +
+	"\x17GetThreadEventsResponse\x12;\n" +
+	"\n" +
+	"root_event\x18\x01 \x01(\v2\x1c.chatto.api.v1.RoomEventViewR\trootEvent\x127\n" +
+	"\areplies\x18\x02 \x01(\v2\x1d.chatto.api.v1.RoomEventsPageR\areplies\"\xa6\x01\n" +
+	"\x1cGetThreadEventsAroundRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\x12&\n" +
+	"\x0fanchor_event_id\x18\x03 \x01(\tR\ranchorEventId\x12\x14\n" +
+	"\x05limit\x18\x04 \x01(\x05R\x05limit\"\x95\x01\n" +
+	"\x1dGetThreadEventsAroundResponse\x12;\n" +
+	"\n" +
+	"root_event\x18\x01 \x01(\v2\x1c.chatto.api.v1.RoomEventViewR\trootEvent\x127\n" +
+	"\areplies\x18\x02 \x01(\v2\x1d.chatto.api.v1.RoomEventsPageR\areplies\"\x90\x03\n" +
+	"\x12FollowedThreadView\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12(\n" +
+	"\x04room\x18\x02 \x01(\v2\x14.chatto.core.v1.RoomR\x04room\x12/\n" +
+	"\x14thread_root_event_id\x18\x03 \x01(\tR\x11threadRootEventId\x12?\n" +
+	"\froot_message\x18\x04 \x01(\v2\x1c.chatto.api.v1.RoomEventViewR\vrootMessage\x12\x1f\n" +
+	"\vreply_count\x18\x05 \x01(\x05R\n" +
+	"replyCount\x12>\n" +
+	"\rlast_reply_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\vlastReplyAt\x12\x1d\n" +
+	"\n" +
+	"has_unread\x18\a \x01(\bR\thasUnread\x12E\n" +
+	"\x13thread_participants\x18\b \x03(\v2\x14.chatto.core.v1.UserR\x12threadParticipants\"L\n" +
+	"\x1cListMyFollowedThreadsRequest\x12\x14\n" +
+	"\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x16\n" +
+	"\x06offset\x18\x02 \x01(\x05R\x06offset\"\x98\x01\n" +
+	"\x1dListMyFollowedThreadsResponse\x12;\n" +
+	"\athreads\x18\x01 \x03(\v2!.chatto.api.v1.FollowedThreadViewR\athreads\x12\x1f\n" +
+	"\vtotal_count\x18\x02 \x01(\x05R\n" +
+	"totalCount\x12\x19\n" +
+	"\bhas_more\x18\x03 \x01(\bR\ahasMore\"\xfc\x03\n" +
 	"\x12PostMessageRequest\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x12\n" +
 	"\x04body\x18\x02 \x01(\tR\x04body\x12/\n" +
 	"\x14thread_root_event_id\x18\x03 \x01(\tR\x11threadRootEventId\x12.\n" +
 	"\x14in_reply_to_event_id\x18\x04 \x01(\tR\x10inReplyToEventId\x12/\n" +
 	"\x14also_send_to_channel\x18\x05 \x01(\bR\x11alsoSendToChannel\x126\n" +
-	"\x17large_mention_confirmed\x18\x06 \x01(\bR\x15largeMentionConfirmed\"^\n" +
+	"\x17large_mention_confirmed\x18\x06 \x01(\bR\x15largeMentionConfirmed\x120\n" +
+	"\x14attachment_asset_ids\x18\a \x03(\tR\x12attachmentAssetIds\x12B\n" +
+	"\flink_preview\x18\b \x01(\v2\x1f.chatto.api.v1.LinkPreviewInputR\vlinkPreview\x12<\n" +
+	"\x1amention_confirmation_token\x18\t \x01(\tR\x18mentionConfirmationToken\x12;\n" +
+	"\x1avideo_processing_asset_ids\x18\n" +
+	" \x03(\tR\x17videoProcessingAssetIds\"^\n" +
 	"\x13PostMessageResponse\x12+\n" +
 	"\x05event\x18\x01 \x01(\v2\x15.chatto.core.v1.EventR\x05event\x12\x1a\n" +
-	"\bsequence\x18\x02 \x01(\x04R\bsequence\"f\n" +
+	"\bsequence\x18\x02 \x01(\x04R\bsequence\"\xad\x01\n" +
+	"\x14UpdateMessageRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
+	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12\x12\n" +
+	"\x04body\x18\x03 \x01(\tR\x04body\x124\n" +
+	"\x14also_send_to_channel\x18\x04 \x01(\bH\x00R\x11alsoSendToChannel\x88\x01\x01B\x17\n" +
+	"\x15_also_send_to_channel\"\x17\n" +
+	"\x15UpdateMessageResponse\"J\n" +
+	"\x14DeleteMessageRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
+	"\bevent_id\x18\x02 \x01(\tR\aeventId\"\x17\n" +
+	"\x15DeleteMessageResponse\"r\n" +
+	"\x17DeleteAttachmentRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
+	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12#\n" +
+	"\rattachment_id\x18\x03 \x01(\tR\fattachmentId\"\x1a\n" +
+	"\x18DeleteAttachmentResponse\"`\n" +
+	"\x18DeleteLinkPreviewRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
+	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12\x10\n" +
+	"\x03url\x18\x03 \x01(\tR\x03url\"\x1b\n" +
+	"\x19DeleteLinkPreviewResponse\"m\n" +
+	"\x12AddReactionRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12(\n" +
+	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventId\x12\x14\n" +
+	"\x05emoji\x18\x03 \x01(\tR\x05emoji\"/\n" +
+	"\x13AddReactionResponse\x12\x18\n" +
+	"\achanged\x18\x01 \x01(\bR\achanged\"p\n" +
+	"\x15RemoveReactionRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12(\n" +
+	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventId\x12\x14\n" +
+	"\x05emoji\x18\x03 \x01(\tR\x05emoji\"2\n" +
+	"\x16RemoveReactionResponse\x12\x18\n" +
+	"\achanged\x18\x01 \x01(\bR\achanged\"_\n" +
+	"\x13FollowThreadRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\"0\n" +
+	"\x14FollowThreadResponse\x12\x18\n" +
+	"\achanged\x18\x01 \x01(\bR\achanged\"a\n" +
+	"\x15UnfollowThreadRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\"2\n" +
+	"\x16UnfollowThreadResponse\x12\x18\n" +
+	"\achanged\x18\x01 \x01(\bR\achanged\"U\n" +
+	"\x15MarkRoomAsReadRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12#\n" +
+	"\x0eup_to_event_id\x18\x02 \x01(\tR\vupToEventId\"\xa5\x01\n" +
+	"\x16MarkRoomAsReadResponse\x12M\n" +
+	"\x15previous_last_read_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x12previousLastReadAt\x12<\n" +
+	"\flast_read_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"lastReadAt\"\x88\x01\n" +
+	"\x17MarkThreadAsReadRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\x12#\n" +
+	"\x0eup_to_event_id\x18\x03 \x01(\tR\vupToEventId\"`\n" +
+	"\x18MarkThreadAsReadResponse\x12D\n" +
+	"\x10previous_read_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x0epreviousReadAt\"f\n" +
 	"\x1aSendTypingIndicatorRequest\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
 	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\"\x1d\n" +
-	"\x1bSendTypingIndicatorResponse2\xde\x03\n" +
+	"\x1bSendTypingIndicatorResponse\"U\n" +
+	"\x17UpdateMyPresenceRequest\x12:\n" +
+	"\x06status\x18\x01 \x01(\x0e2\".chatto.core.v1.UserPresenceStatusR\x06status\"4\n" +
+	"\x18UpdateMyPresenceResponse\x12\x18\n" +
+	"\aupdated\x18\x01 \x01(\bR\aupdated*\xf4\x01\n" +
+	"\x19CurrentUserPresenceStatus\x12,\n" +
+	"(CURRENT_USER_PRESENCE_STATUS_UNSPECIFIED\x10\x00\x12(\n" +
+	"$CURRENT_USER_PRESENCE_STATUS_OFFLINE\x10\x01\x12'\n" +
+	"#CURRENT_USER_PRESENCE_STATUS_ONLINE\x10\x02\x12%\n" +
+	"!CURRENT_USER_PRESENCE_STATUS_AWAY\x10\x03\x12/\n" +
+	"+CURRENT_USER_PRESENCE_STATUS_DO_NOT_DISTURB\x10\x04*\xc1\x01\n" +
+	"\x19PermissionMatrixScopeKind\x12,\n" +
+	"(PERMISSION_MATRIX_SCOPE_KIND_UNSPECIFIED\x10\x00\x12'\n" +
+	"#PERMISSION_MATRIX_SCOPE_KIND_SERVER\x10\x01\x12&\n" +
+	"\"PERMISSION_MATRIX_SCOPE_KIND_GROUP\x10\x02\x12%\n" +
+	"!PERMISSION_MATRIX_SCOPE_KIND_ROOM\x10\x03*\xb6\x01\n" +
+	"\x18PermissionMatrixDecision\x12*\n" +
+	"&PERMISSION_MATRIX_DECISION_UNSPECIFIED\x10\x00\x12$\n" +
+	" PERMISSION_MATRIX_DECISION_ALLOW\x10\x01\x12#\n" +
+	"\x1fPERMISSION_MATRIX_DECISION_DENY\x10\x02\x12#\n" +
+	"\x1fPERMISSION_MATRIX_DECISION_NONE\x10\x03*\xa0\x01\n" +
+	"\x13PermissionEditState\x12%\n" +
+	"!PERMISSION_EDIT_STATE_UNSPECIFIED\x10\x00\x12\x1f\n" +
+	"\x1bPERMISSION_EDIT_STATE_ALLOW\x10\x01\x12\x1e\n" +
+	"\x1aPERMISSION_EDIT_STATE_DENY\x10\x02\x12!\n" +
+	"\x1dPERMISSION_EDIT_STATE_NEUTRAL\x10\x03*\xb7\x01\n" +
+	"\x10NotificationKind\x12!\n" +
+	"\x1dNOTIFICATION_KIND_UNSPECIFIED\x10\x00\x12 \n" +
+	"\x1cNOTIFICATION_KIND_DM_MESSAGE\x10\x01\x12\x1d\n" +
+	"\x19NOTIFICATION_KIND_MENTION\x10\x02\x12\x1b\n" +
+	"\x17NOTIFICATION_KIND_REPLY\x10\x03\x12\"\n" +
+	"\x1eNOTIFICATION_KIND_ROOM_MESSAGE\x10\x04*~\n" +
+	"\fAssetFitMode\x12\x1e\n" +
+	"\x1aASSET_FIT_MODE_UNSPECIFIED\x10\x00\x12\x1a\n" +
+	"\x16ASSET_FIT_MODE_CONTAIN\x10\x01\x12\x18\n" +
+	"\x14ASSET_FIT_MODE_COVER\x10\x02\x12\x18\n" +
+	"\x14ASSET_FIT_MODE_EXACT\x10\x03*\xb3\x01\n" +
+	"\x15VideoProcessingStatus\x12'\n" +
+	"#VIDEO_PROCESSING_STATUS_UNSPECIFIED\x10\x00\x12&\n" +
+	"\"VIDEO_PROCESSING_STATUS_PROCESSING\x10\x01\x12%\n" +
+	"!VIDEO_PROCESSING_STATUS_COMPLETED\x10\x02\x12\"\n" +
+	"\x1eVIDEO_PROCESSING_STATUS_FAILED\x10\x032\xe6H\n" +
 	"\x10ChattoApiService\x12N\n" +
-	"\tGetViewer\x12\x1f.chatto.api.v1.GetViewerRequest\x1a .chatto.api.v1.GetViewerResponse\x12T\n" +
-	"\vListMyRooms\x12!.chatto.api.v1.ListMyRoomsRequest\x1a\".chatto.api.v1.ListMyRoomsResponse\x12`\n" +
-	"\x0fGetRoomTimeline\x12%.chatto.api.v1.GetRoomTimelineRequest\x1a&.chatto.api.v1.GetRoomTimelineResponse\x12T\n" +
-	"\vPostMessage\x12!.chatto.api.v1.PostMessageRequest\x1a\".chatto.api.v1.PostMessageResponse\x12l\n" +
-	"\x13SendTypingIndicator\x12).chatto.api.v1.SendTypingIndicatorRequest\x1a*.chatto.api.v1.SendTypingIndicatorResponseB\xa5\x01\n" +
+	"\tGetViewer\x12\x1f.chatto.api.v1.GetViewerRequest\x1a .chatto.api.v1.GetViewerResponse\x12]\n" +
+	"\x0eGetCurrentUser\x12$.chatto.api.v1.GetCurrentUserRequest\x1a%.chatto.api.v1.GetCurrentUserResponse\x12\x8d\x01\n" +
+	"\x1eGetAuthenticatedServerSettings\x124.chatto.api.v1.GetAuthenticatedServerSettingsRequest\x1a5.chatto.api.v1.GetAuthenticatedServerSettingsResponse\x12{\n" +
+	"\x18GetAccountDeletionStatus\x12..chatto.api.v1.GetAccountDeletionStatusRequest\x1a/.chatto.api.v1.GetAccountDeletionStatusResponse\x12u\n" +
+	"\x16RequestAccountDeletion\x12,.chatto.api.v1.RequestAccountDeletionRequest\x1a-.chatto.api.v1.RequestAccountDeletionResponse\x12`\n" +
+	"\x0fDeleteMyAccount\x12%.chatto.api.v1.DeleteMyAccountRequest\x1a&.chatto.api.v1.DeleteMyAccountResponse\x12f\n" +
+	"\x11GetServerSettings\x12'.chatto.api.v1.GetServerSettingsRequest\x1a(.chatto.api.v1.GetServerSettingsResponse\x12o\n" +
+	"\x14UpdateServerSettings\x12*.chatto.api.v1.UpdateServerSettingsRequest\x1a+.chatto.api.v1.UpdateServerSettingsResponse\x12u\n" +
+	"\x16GetAdminSecurityConfig\x12,.chatto.api.v1.GetAdminSecurityConfigRequest\x1a-.chatto.api.v1.GetAdminSecurityConfigResponse\x12u\n" +
+	"\x16UpdateBlockedUsernames\x12,.chatto.api.v1.UpdateBlockedUsernamesRequest\x1a-.chatto.api.v1.UpdateBlockedUsernamesResponse\x12i\n" +
+	"\x12GetAdminSystemInfo\x12(.chatto.api.v1.GetAdminSystemInfoRequest\x1a).chatto.api.v1.GetAdminSystemInfoResponse\x12f\n" +
+	"\x11ListAdminEventLog\x12'.chatto.api.v1.ListAdminEventLogRequest\x1a(.chatto.api.v1.ListAdminEventLogResponse\x12r\n" +
+	"\x15GetAdminEventLogEntry\x12+.chatto.api.v1.GetAdminEventLogEntryRequest\x1a,.chatto.api.v1.GetAdminEventLogEntryResponse\x12c\n" +
+	"\x10ListAdminMembers\x12&.chatto.api.v1.ListAdminMembersRequest\x1a'.chatto.api.v1.ListAdminMembersResponse\x12]\n" +
+	"\x0eGetAdminMember\x12$.chatto.api.v1.GetAdminMemberRequest\x1a%.chatto.api.v1.GetAdminMemberResponse\x12`\n" +
+	"\x0fAdminUpdateUser\x12%.chatto.api.v1.AdminUpdateUserRequest\x1a&.chatto.api.v1.AdminUpdateUserResponse\x12\x81\x01\n" +
+	"\x1aAdminClearUsernameCooldown\x120.chatto.api.v1.AdminClearUsernameCooldownRequest\x1a1.chatto.api.v1.AdminClearUsernameCooldownResponse\x12c\n" +
+	"\x10AssignMemberRole\x12&.chatto.api.v1.AssignMemberRoleRequest\x1a'.chatto.api.v1.AssignMemberRoleResponse\x12c\n" +
+	"\x10RevokeMemberRole\x12&.chatto.api.v1.RevokeMemberRoleRequest\x1a'.chatto.api.v1.RevokeMemberRoleResponse\x12{\n" +
+	"\x18GetAdminRoleCapabilities\x12..chatto.api.v1.GetAdminRoleCapabilitiesRequest\x1a/.chatto.api.v1.GetAdminRoleCapabilitiesResponse\x12W\n" +
+	"\fGetAdminRole\x12\".chatto.api.v1.GetAdminRoleRequest\x1a#.chatto.api.v1.GetAdminRoleResponse\x12`\n" +
+	"\x0fCreateAdminRole\x12%.chatto.api.v1.CreateAdminRoleRequest\x1a&.chatto.api.v1.CreateAdminRoleResponse\x12`\n" +
+	"\x0fUpdateAdminRole\x12%.chatto.api.v1.UpdateAdminRoleRequest\x1a&.chatto.api.v1.UpdateAdminRoleResponse\x12`\n" +
+	"\x0fDeleteAdminRole\x12%.chatto.api.v1.DeleteAdminRoleRequest\x1a&.chatto.api.v1.DeleteAdminRoleResponse\x12\x84\x01\n" +
+	"\x1bGetRolePermissionTierMatrix\x121.chatto.api.v1.GetRolePermissionTierMatrixRequest\x1a2.chatto.api.v1.GetRolePermissionTierMatrixResponse\x12x\n" +
+	"\x17GetRolePermissionMatrix\x12-.chatto.api.v1.GetRolePermissionMatrixRequest\x1a..chatto.api.v1.GetRolePermissionMatrixResponse\x12x\n" +
+	"\x17GetUserPermissionMatrix\x12-.chatto.api.v1.GetUserPermissionMatrixRequest\x1a..chatto.api.v1.GetUserPermissionMatrixResponse\x12q\n" +
+	"\x16SetRolePermissionState\x12,.chatto.api.v1.SetRolePermissionStateRequest\x1a).chatto.api.v1.SetPermissionStateResponse\x12q\n" +
+	"\x16SetUserPermissionState\x12,.chatto.api.v1.SetUserPermissionStateRequest\x1a).chatto.api.v1.SetPermissionStateResponse\x12i\n" +
+	"\x12GetProfileSettings\x12(.chatto.api.v1.GetProfileSettingsRequest\x1a).chatto.api.v1.GetProfileSettingsResponse\x12Z\n" +
+	"\rUpdateProfile\x12#.chatto.api.v1.UpdateProfileRequest\x1a$.chatto.api.v1.UpdateProfileResponse\x12`\n" +
+	"\x0fGetUserSettings\x12%.chatto.api.v1.GetUserSettingsRequest\x1a&.chatto.api.v1.GetUserSettingsResponse\x12i\n" +
+	"\x12UpdateUserSettings\x12(.chatto.api.v1.UpdateUserSettingsRequest\x1a).chatto.api.v1.UpdateUserSettingsResponse\x12{\n" +
+	"\x1aSetServerNotificationLevel\x120.chatto.api.v1.SetServerNotificationLevelRequest\x1a+.chatto.api.v1.SetNotificationLevelResponse\x12w\n" +
+	"\x18SetRoomNotificationLevel\x12..chatto.api.v1.SetRoomNotificationLevelRequest\x1a+.chatto.api.v1.SetNotificationLevelResponse\x12`\n" +
+	"\x0fSubscribeToPush\x12%.chatto.api.v1.SubscribeToPushRequest\x1a&.chatto.api.v1.SubscribeToPushResponse\x12l\n" +
+	"\x13UnsubscribeFromPush\x12).chatto.api.v1.UnsubscribeFromPushRequest\x1a*.chatto.api.v1.UnsubscribeFromPushResponse\x12f\n" +
+	"\x11ListNotifications\x12'.chatto.api.v1.ListNotificationsRequest\x1a(.chatto.api.v1.ListNotificationsResponse\x12c\n" +
+	"\x10HasNotifications\x12&.chatto.api.v1.HasNotificationsRequest\x1a'.chatto.api.v1.HasNotificationsResponse\x12l\n" +
+	"\x13DismissNotification\x12).chatto.api.v1.DismissNotificationRequest\x1a*.chatto.api.v1.DismissNotificationResponse\x12x\n" +
+	"\x17DismissAllNotifications\x12-.chatto.api.v1.DismissAllNotificationsRequest\x1a..chatto.api.v1.DismissAllNotificationsResponse\x12T\n" +
+	"\vListMyRooms\x12!.chatto.api.v1.ListMyRoomsRequest\x1a\".chatto.api.v1.ListMyRoomsResponse\x12H\n" +
+	"\aGetRoom\x12\x1d.chatto.api.v1.GetRoomRequest\x1a\x1e.chatto.api.v1.GetRoomResponse\x12]\n" +
+	"\x0eGetRoomMembers\x12$.chatto.api.v1.GetRoomMembersRequest\x1a%.chatto.api.v1.GetRoomMembersResponse\x12c\n" +
+	"\x10GetRoomDirectory\x12&.chatto.api.v1.GetRoomDirectoryRequest\x1a'.chatto.api.v1.GetRoomDirectoryResponse\x12Z\n" +
+	"\rSearchMembers\x12#.chatto.api.v1.SearchMembersRequest\x1a$.chatto.api.v1.SearchMembersResponse\x12H\n" +
+	"\aStartDM\x12\x1d.chatto.api.v1.StartDMRequest\x1a\x1e.chatto.api.v1.StartDMResponse\x12Q\n" +
+	"\n" +
+	"CreateRoom\x12 .chatto.api.v1.CreateRoomRequest\x1a!.chatto.api.v1.CreateRoomResponse\x12i\n" +
+	"\x12GetAdminRoomLayout\x12(.chatto.api.v1.GetAdminRoomLayoutRequest\x1a).chatto.api.v1.GetAdminRoomLayoutResponse\x12o\n" +
+	"\x14CreateAdminRoomGroup\x12*.chatto.api.v1.CreateAdminRoomGroupRequest\x1a+.chatto.api.v1.CreateAdminRoomGroupResponse\x12o\n" +
+	"\x14UpdateAdminRoomGroup\x12*.chatto.api.v1.UpdateAdminRoomGroupRequest\x1a+.chatto.api.v1.UpdateAdminRoomGroupResponse\x12o\n" +
+	"\x14DeleteAdminRoomGroup\x12*.chatto.api.v1.DeleteAdminRoomGroupRequest\x1a+.chatto.api.v1.DeleteAdminRoomGroupResponse\x12u\n" +
+	"\x16ReorderAdminRoomGroups\x12,.chatto.api.v1.ReorderAdminRoomGroupsRequest\x1a-.chatto.api.v1.ReorderAdminRoomGroupsResponse\x12o\n" +
+	"\x14MoveAdminRoomToGroup\x12*.chatto.api.v1.MoveAdminRoomToGroupRequest\x1a+.chatto.api.v1.MoveAdminRoomToGroupResponse\x12{\n" +
+	"\x18ReorderAdminRoomsInGroup\x12..chatto.api.v1.ReorderAdminRoomsInGroupRequest\x1a/.chatto.api.v1.ReorderAdminRoomsInGroupResponse\x12`\n" +
+	"\x0fUpdateAdminRoom\x12%.chatto.api.v1.UpdateAdminRoomRequest\x1a&.chatto.api.v1.UpdateAdminRoomResponse\x12c\n" +
+	"\x10ArchiveAdminRoom\x12&.chatto.api.v1.ArchiveAdminRoomRequest\x1a'.chatto.api.v1.ArchiveAdminRoomResponse\x12i\n" +
+	"\x12UnarchiveAdminRoom\x12(.chatto.api.v1.UnarchiveAdminRoomRequest\x1a).chatto.api.v1.UnarchiveAdminRoomResponse\x12K\n" +
+	"\bJoinRoom\x12\x1e.chatto.api.v1.JoinRoomRequest\x1a\x1f.chatto.api.v1.JoinRoomResponse\x12N\n" +
+	"\tLeaveRoom\x12\x1f.chatto.api.v1.LeaveRoomRequest\x1a .chatto.api.v1.LeaveRoomResponse\x12N\n" +
+	"\tJoinGroup\x12\x1f.chatto.api.v1.JoinGroupRequest\x1a .chatto.api.v1.JoinGroupResponse\x12Z\n" +
+	"\rBanRoomMember\x12#.chatto.api.v1.BanRoomMemberRequest\x1a$.chatto.api.v1.BanRoomMemberResponse\x12W\n" +
+	"\fListRoomBans\x12\".chatto.api.v1.ListRoomBansRequest\x1a#.chatto.api.v1.ListRoomBansResponse\x12`\n" +
+	"\x0fUnbanRoomMember\x12%.chatto.api.v1.UnbanRoomMemberRequest\x1a&.chatto.api.v1.UnbanRoomMemberResponse\x12W\n" +
+	"\fGetRoomEvent\x12\".chatto.api.v1.GetRoomEventRequest\x1a#.chatto.api.v1.GetRoomEventResponse\x12`\n" +
+	"\x0fGetRoomTimeline\x12%.chatto.api.v1.GetRoomTimelineRequest\x1a&.chatto.api.v1.GetRoomTimelineResponse\x12o\n" +
+	"\x14GetRoomTimelineAfter\x12*.chatto.api.v1.GetRoomTimelineAfterRequest\x1a+.chatto.api.v1.GetRoomTimelineAfterResponse\x12r\n" +
+	"\x15GetRoomTimelineAround\x12+.chatto.api.v1.GetRoomTimelineAroundRequest\x1a,.chatto.api.v1.GetRoomTimelineAroundResponse\x12`\n" +
+	"\x0fGetThreadEvents\x12%.chatto.api.v1.GetThreadEventsRequest\x1a&.chatto.api.v1.GetThreadEventsResponse\x12r\n" +
+	"\x15GetThreadEventsAround\x12+.chatto.api.v1.GetThreadEventsAroundRequest\x1a,.chatto.api.v1.GetThreadEventsAroundResponse\x12r\n" +
+	"\x15ListMyFollowedThreads\x12+.chatto.api.v1.ListMyFollowedThreadsRequest\x1a,.chatto.api.v1.ListMyFollowedThreadsResponse\x12]\n" +
+	"\x0eGetLinkPreview\x12$.chatto.api.v1.GetLinkPreviewRequest\x1a%.chatto.api.v1.GetLinkPreviewResponse\x12T\n" +
+	"\vPostMessage\x12!.chatto.api.v1.PostMessageRequest\x1a\".chatto.api.v1.PostMessageResponse\x12Z\n" +
+	"\rUpdateMessage\x12#.chatto.api.v1.UpdateMessageRequest\x1a$.chatto.api.v1.UpdateMessageResponse\x12Z\n" +
+	"\rDeleteMessage\x12#.chatto.api.v1.DeleteMessageRequest\x1a$.chatto.api.v1.DeleteMessageResponse\x12c\n" +
+	"\x10DeleteAttachment\x12&.chatto.api.v1.DeleteAttachmentRequest\x1a'.chatto.api.v1.DeleteAttachmentResponse\x12f\n" +
+	"\x11DeleteLinkPreview\x12'.chatto.api.v1.DeleteLinkPreviewRequest\x1a(.chatto.api.v1.DeleteLinkPreviewResponse\x12T\n" +
+	"\vAddReaction\x12!.chatto.api.v1.AddReactionRequest\x1a\".chatto.api.v1.AddReactionResponse\x12]\n" +
+	"\x0eRemoveReaction\x12$.chatto.api.v1.RemoveReactionRequest\x1a%.chatto.api.v1.RemoveReactionResponse\x12W\n" +
+	"\fFollowThread\x12\".chatto.api.v1.FollowThreadRequest\x1a#.chatto.api.v1.FollowThreadResponse\x12]\n" +
+	"\x0eUnfollowThread\x12$.chatto.api.v1.UnfollowThreadRequest\x1a%.chatto.api.v1.UnfollowThreadResponse\x12]\n" +
+	"\x0eMarkRoomAsRead\x12$.chatto.api.v1.MarkRoomAsReadRequest\x1a%.chatto.api.v1.MarkRoomAsReadResponse\x12c\n" +
+	"\x10MarkThreadAsRead\x12&.chatto.api.v1.MarkThreadAsReadRequest\x1a'.chatto.api.v1.MarkThreadAsReadResponse\x12l\n" +
+	"\x13SendTypingIndicator\x12).chatto.api.v1.SendTypingIndicatorRequest\x1a*.chatto.api.v1.SendTypingIndicatorResponse\x12c\n" +
+	"\x10UpdateMyPresence\x12&.chatto.api.v1.UpdateMyPresenceRequest\x1a'.chatto.api.v1.UpdateMyPresenceResponse\x12`\n" +
+	"\x0fListActiveCalls\x12%.chatto.api.v1.ListActiveCallsRequest\x1a&.chatto.api.v1.ListActiveCallsResponse\x12l\n" +
+	"\x13GetCallParticipants\x12).chatto.api.v1.GetCallParticipantsRequest\x1a*.chatto.api.v1.GetCallParticipantsResponse\x12Z\n" +
+	"\rJoinVoiceCall\x12#.chatto.api.v1.JoinVoiceCallRequest\x1a$.chatto.api.v1.JoinVoiceCallResponse\x12]\n" +
+	"\x0eLeaveVoiceCall\x12$.chatto.api.v1.LeaveVoiceCallRequest\x1a%.chatto.api.v1.LeaveVoiceCallResponse\x12f\n" +
+	"\x11GetVoiceCallToken\x12'.chatto.api.v1.GetVoiceCallTokenRequest\x1a(.chatto.api.v1.GetVoiceCallTokenResponseB\xa5\x01\n" +
 	"\x11com.chatto.api.v1B\tChatProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
@@ -719,48 +16041,652 @@ func file_chatto_api_v1_chat_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_chat_proto_rawDescData
 }
 
-var file_chatto_api_v1_chat_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_chatto_api_v1_chat_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
+var file_chatto_api_v1_chat_proto_msgTypes = make([]protoimpl.MessageInfo, 247)
 var file_chatto_api_v1_chat_proto_goTypes = []any{
-	(*Viewer)(nil),                      // 0: chatto.api.v1.Viewer
-	(*GetViewerRequest)(nil),            // 1: chatto.api.v1.GetViewerRequest
-	(*GetViewerResponse)(nil),           // 2: chatto.api.v1.GetViewerResponse
-	(*ListMyRoomsRequest)(nil),          // 3: chatto.api.v1.ListMyRoomsRequest
-	(*ListMyRoomsResponse)(nil),         // 4: chatto.api.v1.ListMyRoomsResponse
-	(*GetRoomTimelineRequest)(nil),      // 5: chatto.api.v1.GetRoomTimelineRequest
-	(*TimelineEvent)(nil),               // 6: chatto.api.v1.TimelineEvent
-	(*GetRoomTimelineResponse)(nil),     // 7: chatto.api.v1.GetRoomTimelineResponse
-	(*PostMessageRequest)(nil),          // 8: chatto.api.v1.PostMessageRequest
-	(*PostMessageResponse)(nil),         // 9: chatto.api.v1.PostMessageResponse
-	(*SendTypingIndicatorRequest)(nil),  // 10: chatto.api.v1.SendTypingIndicatorRequest
-	(*SendTypingIndicatorResponse)(nil), // 11: chatto.api.v1.SendTypingIndicatorResponse
-	(*v1.User)(nil),                     // 12: chatto.core.v1.User
-	(v1.RoomKind)(0),                    // 13: chatto.core.v1.RoomKind
-	(*v1.Room)(nil),                     // 14: chatto.core.v1.Room
-	(*v1.Event)(nil),                    // 15: chatto.core.v1.Event
+	(CurrentUserPresenceStatus)(0),                 // 0: chatto.api.v1.CurrentUserPresenceStatus
+	(PermissionMatrixScopeKind)(0),                 // 1: chatto.api.v1.PermissionMatrixScopeKind
+	(PermissionMatrixDecision)(0),                  // 2: chatto.api.v1.PermissionMatrixDecision
+	(PermissionEditState)(0),                       // 3: chatto.api.v1.PermissionEditState
+	(NotificationKind)(0),                          // 4: chatto.api.v1.NotificationKind
+	(AssetFitMode)(0),                              // 5: chatto.api.v1.AssetFitMode
+	(VideoProcessingStatus)(0),                     // 6: chatto.api.v1.VideoProcessingStatus
+	(*Viewer)(nil),                                 // 7: chatto.api.v1.Viewer
+	(*GetViewerRequest)(nil),                       // 8: chatto.api.v1.GetViewerRequest
+	(*GetViewerResponse)(nil),                      // 9: chatto.api.v1.GetViewerResponse
+	(*CurrentUserView)(nil),                        // 10: chatto.api.v1.CurrentUserView
+	(*GetCurrentUserRequest)(nil),                  // 11: chatto.api.v1.GetCurrentUserRequest
+	(*GetCurrentUserResponse)(nil),                 // 12: chatto.api.v1.GetCurrentUserResponse
+	(*AuthenticatedServerSettingsView)(nil),        // 13: chatto.api.v1.AuthenticatedServerSettingsView
+	(*GetAuthenticatedServerSettingsRequest)(nil),  // 14: chatto.api.v1.GetAuthenticatedServerSettingsRequest
+	(*GetAuthenticatedServerSettingsResponse)(nil), // 15: chatto.api.v1.GetAuthenticatedServerSettingsResponse
+	(*GetAccountDeletionStatusRequest)(nil),        // 16: chatto.api.v1.GetAccountDeletionStatusRequest
+	(*GetAccountDeletionStatusResponse)(nil),       // 17: chatto.api.v1.GetAccountDeletionStatusResponse
+	(*RequestAccountDeletionRequest)(nil),          // 18: chatto.api.v1.RequestAccountDeletionRequest
+	(*RequestAccountDeletionResponse)(nil),         // 19: chatto.api.v1.RequestAccountDeletionResponse
+	(*DeleteMyAccountRequest)(nil),                 // 20: chatto.api.v1.DeleteMyAccountRequest
+	(*DeleteMyAccountResponse)(nil),                // 21: chatto.api.v1.DeleteMyAccountResponse
+	(*ServerSettingsView)(nil),                     // 22: chatto.api.v1.ServerSettingsView
+	(*GetServerSettingsRequest)(nil),               // 23: chatto.api.v1.GetServerSettingsRequest
+	(*GetServerSettingsResponse)(nil),              // 24: chatto.api.v1.GetServerSettingsResponse
+	(*UpdateServerSettingsRequest)(nil),            // 25: chatto.api.v1.UpdateServerSettingsRequest
+	(*UpdateServerSettingsResponse)(nil),           // 26: chatto.api.v1.UpdateServerSettingsResponse
+	(*AdminSecurityConfigView)(nil),                // 27: chatto.api.v1.AdminSecurityConfigView
+	(*GetAdminSecurityConfigRequest)(nil),          // 28: chatto.api.v1.GetAdminSecurityConfigRequest
+	(*GetAdminSecurityConfigResponse)(nil),         // 29: chatto.api.v1.GetAdminSecurityConfigResponse
+	(*UpdateBlockedUsernamesRequest)(nil),          // 30: chatto.api.v1.UpdateBlockedUsernamesRequest
+	(*UpdateBlockedUsernamesResponse)(nil),         // 31: chatto.api.v1.UpdateBlockedUsernamesResponse
+	(*AdminConnectionInfoView)(nil),                // 32: chatto.api.v1.AdminConnectionInfoView
+	(*AdminAccountInfoView)(nil),                   // 33: chatto.api.v1.AdminAccountInfoView
+	(*AdminNatsStreamInfoView)(nil),                // 34: chatto.api.v1.AdminNatsStreamInfoView
+	(*AdminNatsConsumerInfoView)(nil),              // 35: chatto.api.v1.AdminNatsConsumerInfoView
+	(*AdminNatsStatsView)(nil),                     // 36: chatto.api.v1.AdminNatsStatsView
+	(*AdminServerStatsView)(nil),                   // 37: chatto.api.v1.AdminServerStatsView
+	(*AdminSystemInfoView)(nil),                    // 38: chatto.api.v1.AdminSystemInfoView
+	(*AdminProjectionStateView)(nil),               // 39: chatto.api.v1.AdminProjectionStateView
+	(*GetAdminSystemInfoRequest)(nil),              // 40: chatto.api.v1.GetAdminSystemInfoRequest
+	(*GetAdminSystemInfoResponse)(nil),             // 41: chatto.api.v1.GetAdminSystemInfoResponse
+	(*AdminEventLogEntryView)(nil),                 // 42: chatto.api.v1.AdminEventLogEntryView
+	(*ListAdminEventLogRequest)(nil),               // 43: chatto.api.v1.ListAdminEventLogRequest
+	(*ListAdminEventLogResponse)(nil),              // 44: chatto.api.v1.ListAdminEventLogResponse
+	(*GetAdminEventLogEntryRequest)(nil),           // 45: chatto.api.v1.GetAdminEventLogEntryRequest
+	(*GetAdminEventLogEntryResponse)(nil),          // 46: chatto.api.v1.GetAdminEventLogEntryResponse
+	(*AdminRoleView)(nil),                          // 47: chatto.api.v1.AdminRoleView
+	(*AdminMemberView)(nil),                        // 48: chatto.api.v1.AdminMemberView
+	(*ListAdminMembersRequest)(nil),                // 49: chatto.api.v1.ListAdminMembersRequest
+	(*ListAdminMembersResponse)(nil),               // 50: chatto.api.v1.ListAdminMembersResponse
+	(*GetAdminMemberRequest)(nil),                  // 51: chatto.api.v1.GetAdminMemberRequest
+	(*GetAdminMemberResponse)(nil),                 // 52: chatto.api.v1.GetAdminMemberResponse
+	(*AdminUpdateUserRequest)(nil),                 // 53: chatto.api.v1.AdminUpdateUserRequest
+	(*AdminUpdateUserResponse)(nil),                // 54: chatto.api.v1.AdminUpdateUserResponse
+	(*AdminClearUsernameCooldownRequest)(nil),      // 55: chatto.api.v1.AdminClearUsernameCooldownRequest
+	(*AdminClearUsernameCooldownResponse)(nil),     // 56: chatto.api.v1.AdminClearUsernameCooldownResponse
+	(*AssignMemberRoleRequest)(nil),                // 57: chatto.api.v1.AssignMemberRoleRequest
+	(*AssignMemberRoleResponse)(nil),               // 58: chatto.api.v1.AssignMemberRoleResponse
+	(*RevokeMemberRoleRequest)(nil),                // 59: chatto.api.v1.RevokeMemberRoleRequest
+	(*RevokeMemberRoleResponse)(nil),               // 60: chatto.api.v1.RevokeMemberRoleResponse
+	(*GetAdminRoleCapabilitiesRequest)(nil),        // 61: chatto.api.v1.GetAdminRoleCapabilitiesRequest
+	(*GetAdminRoleCapabilitiesResponse)(nil),       // 62: chatto.api.v1.GetAdminRoleCapabilitiesResponse
+	(*GetAdminRoleRequest)(nil),                    // 63: chatto.api.v1.GetAdminRoleRequest
+	(*GetAdminRoleResponse)(nil),                   // 64: chatto.api.v1.GetAdminRoleResponse
+	(*CreateAdminRoleRequest)(nil),                 // 65: chatto.api.v1.CreateAdminRoleRequest
+	(*CreateAdminRoleResponse)(nil),                // 66: chatto.api.v1.CreateAdminRoleResponse
+	(*UpdateAdminRoleRequest)(nil),                 // 67: chatto.api.v1.UpdateAdminRoleRequest
+	(*UpdateAdminRoleResponse)(nil),                // 68: chatto.api.v1.UpdateAdminRoleResponse
+	(*DeleteAdminRoleRequest)(nil),                 // 69: chatto.api.v1.DeleteAdminRoleRequest
+	(*DeleteAdminRoleResponse)(nil),                // 70: chatto.api.v1.DeleteAdminRoleResponse
+	(*TierPermissionsView)(nil),                    // 71: chatto.api.v1.TierPermissionsView
+	(*TierRoleView)(nil),                           // 72: chatto.api.v1.TierRoleView
+	(*RolePermissionTierMatrixView)(nil),           // 73: chatto.api.v1.RolePermissionTierMatrixView
+	(*PermissionMatrixScopeView)(nil),              // 74: chatto.api.v1.PermissionMatrixScopeView
+	(*PermissionMatrixCellView)(nil),               // 75: chatto.api.v1.PermissionMatrixCellView
+	(*RolePermissionMatrixView)(nil),               // 76: chatto.api.v1.RolePermissionMatrixView
+	(*UserPermissionMatrixView)(nil),               // 77: chatto.api.v1.UserPermissionMatrixView
+	(*GetRolePermissionTierMatrixRequest)(nil),     // 78: chatto.api.v1.GetRolePermissionTierMatrixRequest
+	(*GetRolePermissionTierMatrixResponse)(nil),    // 79: chatto.api.v1.GetRolePermissionTierMatrixResponse
+	(*GetRolePermissionMatrixRequest)(nil),         // 80: chatto.api.v1.GetRolePermissionMatrixRequest
+	(*GetRolePermissionMatrixResponse)(nil),        // 81: chatto.api.v1.GetRolePermissionMatrixResponse
+	(*GetUserPermissionMatrixRequest)(nil),         // 82: chatto.api.v1.GetUserPermissionMatrixRequest
+	(*GetUserPermissionMatrixResponse)(nil),        // 83: chatto.api.v1.GetUserPermissionMatrixResponse
+	(*SetRolePermissionStateRequest)(nil),          // 84: chatto.api.v1.SetRolePermissionStateRequest
+	(*SetUserPermissionStateRequest)(nil),          // 85: chatto.api.v1.SetUserPermissionStateRequest
+	(*SetPermissionStateResponse)(nil),             // 86: chatto.api.v1.SetPermissionStateResponse
+	(*ProfileSettingsView)(nil),                    // 87: chatto.api.v1.ProfileSettingsView
+	(*GetProfileSettingsRequest)(nil),              // 88: chatto.api.v1.GetProfileSettingsRequest
+	(*GetProfileSettingsResponse)(nil),             // 89: chatto.api.v1.GetProfileSettingsResponse
+	(*UpdateProfileRequest)(nil),                   // 90: chatto.api.v1.UpdateProfileRequest
+	(*UpdateProfileResponse)(nil),                  // 91: chatto.api.v1.UpdateProfileResponse
+	(*GetUserSettingsRequest)(nil),                 // 92: chatto.api.v1.GetUserSettingsRequest
+	(*GetUserSettingsResponse)(nil),                // 93: chatto.api.v1.GetUserSettingsResponse
+	(*UpdateUserSettingsRequest)(nil),              // 94: chatto.api.v1.UpdateUserSettingsRequest
+	(*UpdateUserSettingsResponse)(nil),             // 95: chatto.api.v1.UpdateUserSettingsResponse
+	(*SetServerNotificationLevelRequest)(nil),      // 96: chatto.api.v1.SetServerNotificationLevelRequest
+	(*SetRoomNotificationLevelRequest)(nil),        // 97: chatto.api.v1.SetRoomNotificationLevelRequest
+	(*SetNotificationLevelResponse)(nil),           // 98: chatto.api.v1.SetNotificationLevelResponse
+	(*SubscribeToPushRequest)(nil),                 // 99: chatto.api.v1.SubscribeToPushRequest
+	(*SubscribeToPushResponse)(nil),                // 100: chatto.api.v1.SubscribeToPushResponse
+	(*UnsubscribeFromPushRequest)(nil),             // 101: chatto.api.v1.UnsubscribeFromPushRequest
+	(*UnsubscribeFromPushResponse)(nil),            // 102: chatto.api.v1.UnsubscribeFromPushResponse
+	(*NotificationItemView)(nil),                   // 103: chatto.api.v1.NotificationItemView
+	(*ListNotificationsRequest)(nil),               // 104: chatto.api.v1.ListNotificationsRequest
+	(*ListNotificationsResponse)(nil),              // 105: chatto.api.v1.ListNotificationsResponse
+	(*HasNotificationsRequest)(nil),                // 106: chatto.api.v1.HasNotificationsRequest
+	(*HasNotificationsResponse)(nil),               // 107: chatto.api.v1.HasNotificationsResponse
+	(*DismissNotificationRequest)(nil),             // 108: chatto.api.v1.DismissNotificationRequest
+	(*DismissNotificationResponse)(nil),            // 109: chatto.api.v1.DismissNotificationResponse
+	(*DismissAllNotificationsRequest)(nil),         // 110: chatto.api.v1.DismissAllNotificationsRequest
+	(*DismissAllNotificationsResponse)(nil),        // 111: chatto.api.v1.DismissAllNotificationsResponse
+	(*ServerProfileView)(nil),                      // 112: chatto.api.v1.ServerProfileView
+	(*ViewerPermissionsView)(nil),                  // 113: chatto.api.v1.ViewerPermissionsView
+	(*ListMyRoomsRequest)(nil),                     // 114: chatto.api.v1.ListMyRoomsRequest
+	(*ViewerNotificationPreferenceView)(nil),       // 115: chatto.api.v1.ViewerNotificationPreferenceView
+	(*RoomNotificationPreferenceView)(nil),         // 116: chatto.api.v1.RoomNotificationPreferenceView
+	(*RoomListItemView)(nil),                       // 117: chatto.api.v1.RoomListItemView
+	(*ListMyRoomsResponse)(nil),                    // 118: chatto.api.v1.ListMyRoomsResponse
+	(*GetRoomDirectoryRequest)(nil),                // 119: chatto.api.v1.GetRoomDirectoryRequest
+	(*RoomDirectoryItemView)(nil),                  // 120: chatto.api.v1.RoomDirectoryItemView
+	(*GetRoomDirectoryResponse)(nil),               // 121: chatto.api.v1.GetRoomDirectoryResponse
+	(*SearchMembersRequest)(nil),                   // 122: chatto.api.v1.SearchMembersRequest
+	(*SearchMembersResponse)(nil),                  // 123: chatto.api.v1.SearchMembersResponse
+	(*StartDMRequest)(nil),                         // 124: chatto.api.v1.StartDMRequest
+	(*StartDMResponse)(nil),                        // 125: chatto.api.v1.StartDMResponse
+	(*CreateRoomRequest)(nil),                      // 126: chatto.api.v1.CreateRoomRequest
+	(*CreateRoomResponse)(nil),                     // 127: chatto.api.v1.CreateRoomResponse
+	(*AdminRoomInfoView)(nil),                      // 128: chatto.api.v1.AdminRoomInfoView
+	(*AdminRoomGroupView)(nil),                     // 129: chatto.api.v1.AdminRoomGroupView
+	(*GetAdminRoomLayoutRequest)(nil),              // 130: chatto.api.v1.GetAdminRoomLayoutRequest
+	(*GetAdminRoomLayoutResponse)(nil),             // 131: chatto.api.v1.GetAdminRoomLayoutResponse
+	(*CreateAdminRoomGroupRequest)(nil),            // 132: chatto.api.v1.CreateAdminRoomGroupRequest
+	(*CreateAdminRoomGroupResponse)(nil),           // 133: chatto.api.v1.CreateAdminRoomGroupResponse
+	(*UpdateAdminRoomGroupRequest)(nil),            // 134: chatto.api.v1.UpdateAdminRoomGroupRequest
+	(*UpdateAdminRoomGroupResponse)(nil),           // 135: chatto.api.v1.UpdateAdminRoomGroupResponse
+	(*DeleteAdminRoomGroupRequest)(nil),            // 136: chatto.api.v1.DeleteAdminRoomGroupRequest
+	(*DeleteAdminRoomGroupResponse)(nil),           // 137: chatto.api.v1.DeleteAdminRoomGroupResponse
+	(*ReorderAdminRoomGroupsRequest)(nil),          // 138: chatto.api.v1.ReorderAdminRoomGroupsRequest
+	(*ReorderAdminRoomGroupsResponse)(nil),         // 139: chatto.api.v1.ReorderAdminRoomGroupsResponse
+	(*MoveAdminRoomToGroupRequest)(nil),            // 140: chatto.api.v1.MoveAdminRoomToGroupRequest
+	(*MoveAdminRoomToGroupResponse)(nil),           // 141: chatto.api.v1.MoveAdminRoomToGroupResponse
+	(*ReorderAdminRoomsInGroupRequest)(nil),        // 142: chatto.api.v1.ReorderAdminRoomsInGroupRequest
+	(*ReorderAdminRoomsInGroupResponse)(nil),       // 143: chatto.api.v1.ReorderAdminRoomsInGroupResponse
+	(*UpdateAdminRoomRequest)(nil),                 // 144: chatto.api.v1.UpdateAdminRoomRequest
+	(*UpdateAdminRoomResponse)(nil),                // 145: chatto.api.v1.UpdateAdminRoomResponse
+	(*ArchiveAdminRoomRequest)(nil),                // 146: chatto.api.v1.ArchiveAdminRoomRequest
+	(*ArchiveAdminRoomResponse)(nil),               // 147: chatto.api.v1.ArchiveAdminRoomResponse
+	(*UnarchiveAdminRoomRequest)(nil),              // 148: chatto.api.v1.UnarchiveAdminRoomRequest
+	(*UnarchiveAdminRoomResponse)(nil),             // 149: chatto.api.v1.UnarchiveAdminRoomResponse
+	(*MentionRole)(nil),                            // 150: chatto.api.v1.MentionRole
+	(*RoomMembersPage)(nil),                        // 151: chatto.api.v1.RoomMembersPage
+	(*GetRoomRequest)(nil),                         // 152: chatto.api.v1.GetRoomRequest
+	(*GetRoomResponse)(nil),                        // 153: chatto.api.v1.GetRoomResponse
+	(*GetRoomMembersRequest)(nil),                  // 154: chatto.api.v1.GetRoomMembersRequest
+	(*GetRoomMembersResponse)(nil),                 // 155: chatto.api.v1.GetRoomMembersResponse
+	(*JoinRoomRequest)(nil),                        // 156: chatto.api.v1.JoinRoomRequest
+	(*JoinRoomResponse)(nil),                       // 157: chatto.api.v1.JoinRoomResponse
+	(*LeaveRoomRequest)(nil),                       // 158: chatto.api.v1.LeaveRoomRequest
+	(*LeaveRoomResponse)(nil),                      // 159: chatto.api.v1.LeaveRoomResponse
+	(*JoinGroupRequest)(nil),                       // 160: chatto.api.v1.JoinGroupRequest
+	(*JoinGroupResponse)(nil),                      // 161: chatto.api.v1.JoinGroupResponse
+	(*BanRoomMemberRequest)(nil),                   // 162: chatto.api.v1.BanRoomMemberRequest
+	(*BanRoomMemberResponse)(nil),                  // 163: chatto.api.v1.BanRoomMemberResponse
+	(*UserAvatarView)(nil),                         // 164: chatto.api.v1.UserAvatarView
+	(*RoomBanView)(nil),                            // 165: chatto.api.v1.RoomBanView
+	(*ListRoomBansRequest)(nil),                    // 166: chatto.api.v1.ListRoomBansRequest
+	(*ListRoomBansResponse)(nil),                   // 167: chatto.api.v1.ListRoomBansResponse
+	(*UnbanRoomMemberRequest)(nil),                 // 168: chatto.api.v1.UnbanRoomMemberRequest
+	(*UnbanRoomMemberResponse)(nil),                // 169: chatto.api.v1.UnbanRoomMemberResponse
+	(*CallParticipantView)(nil),                    // 170: chatto.api.v1.CallParticipantView
+	(*ActiveCallView)(nil),                         // 171: chatto.api.v1.ActiveCallView
+	(*ListActiveCallsRequest)(nil),                 // 172: chatto.api.v1.ListActiveCallsRequest
+	(*ListActiveCallsResponse)(nil),                // 173: chatto.api.v1.ListActiveCallsResponse
+	(*GetCallParticipantsRequest)(nil),             // 174: chatto.api.v1.GetCallParticipantsRequest
+	(*GetCallParticipantsResponse)(nil),            // 175: chatto.api.v1.GetCallParticipantsResponse
+	(*JoinVoiceCallRequest)(nil),                   // 176: chatto.api.v1.JoinVoiceCallRequest
+	(*JoinVoiceCallResponse)(nil),                  // 177: chatto.api.v1.JoinVoiceCallResponse
+	(*LeaveVoiceCallRequest)(nil),                  // 178: chatto.api.v1.LeaveVoiceCallRequest
+	(*LeaveVoiceCallResponse)(nil),                 // 179: chatto.api.v1.LeaveVoiceCallResponse
+	(*VoiceCallTokenView)(nil),                     // 180: chatto.api.v1.VoiceCallTokenView
+	(*GetVoiceCallTokenRequest)(nil),               // 181: chatto.api.v1.GetVoiceCallTokenRequest
+	(*GetVoiceCallTokenResponse)(nil),              // 182: chatto.api.v1.GetVoiceCallTokenResponse
+	(*AssetUrl)(nil),                               // 183: chatto.api.v1.AssetUrl
+	(*VideoVariantView)(nil),                       // 184: chatto.api.v1.VideoVariantView
+	(*VideoProcessingView)(nil),                    // 185: chatto.api.v1.VideoProcessingView
+	(*AttachmentView)(nil),                         // 186: chatto.api.v1.AttachmentView
+	(*UploadedAttachment)(nil),                     // 187: chatto.api.v1.UploadedAttachment
+	(*UploadRoomAttachmentsResponse)(nil),          // 188: chatto.api.v1.UploadRoomAttachmentsResponse
+	(*RefreshMessageAttachmentUrlsRequest)(nil),    // 189: chatto.api.v1.RefreshMessageAttachmentUrlsRequest
+	(*RefreshMessageAttachmentUrlsResponse)(nil),   // 190: chatto.api.v1.RefreshMessageAttachmentUrlsResponse
+	(*UserAvatarAssetResponse)(nil),                // 191: chatto.api.v1.UserAvatarAssetResponse
+	(*ServerBrandingAssetResponse)(nil),            // 192: chatto.api.v1.ServerBrandingAssetResponse
+	(*LinkPreviewView)(nil),                        // 193: chatto.api.v1.LinkPreviewView
+	(*LinkPreviewInput)(nil),                       // 194: chatto.api.v1.LinkPreviewInput
+	(*GetLinkPreviewRequest)(nil),                  // 195: chatto.api.v1.GetLinkPreviewRequest
+	(*GetLinkPreviewResponse)(nil),                 // 196: chatto.api.v1.GetLinkPreviewResponse
+	(*ReactionSummaryView)(nil),                    // 197: chatto.api.v1.ReactionSummaryView
+	(*MessagePostedView)(nil),                      // 198: chatto.api.v1.MessagePostedView
+	(*MessageEditedView)(nil),                      // 199: chatto.api.v1.MessageEditedView
+	(*MessageRetractedView)(nil),                   // 200: chatto.api.v1.MessageRetractedView
+	(*RoomScopedEventView)(nil),                    // 201: chatto.api.v1.RoomScopedEventView
+	(*ReactionEventView)(nil),                      // 202: chatto.api.v1.ReactionEventView
+	(*AssetProcessingEventView)(nil),               // 203: chatto.api.v1.AssetProcessingEventView
+	(*AssetDeletedView)(nil),                       // 204: chatto.api.v1.AssetDeletedView
+	(*ServerMemberDeletedView)(nil),                // 205: chatto.api.v1.ServerMemberDeletedView
+	(*CallEventView)(nil),                          // 206: chatto.api.v1.CallEventView
+	(*ThreadCreatedView)(nil),                      // 207: chatto.api.v1.ThreadCreatedView
+	(*RoomModerationEventView)(nil),                // 208: chatto.api.v1.RoomModerationEventView
+	(*RoomEventPayload)(nil),                       // 209: chatto.api.v1.RoomEventPayload
+	(*RoomEventView)(nil),                          // 210: chatto.api.v1.RoomEventView
+	(*RoomEventsPage)(nil),                         // 211: chatto.api.v1.RoomEventsPage
+	(*GetRoomEventRequest)(nil),                    // 212: chatto.api.v1.GetRoomEventRequest
+	(*GetRoomEventResponse)(nil),                   // 213: chatto.api.v1.GetRoomEventResponse
+	(*GetRoomTimelineRequest)(nil),                 // 214: chatto.api.v1.GetRoomTimelineRequest
+	(*TimelineEvent)(nil),                          // 215: chatto.api.v1.TimelineEvent
+	(*GetRoomTimelineResponse)(nil),                // 216: chatto.api.v1.GetRoomTimelineResponse
+	(*GetRoomTimelineAfterRequest)(nil),            // 217: chatto.api.v1.GetRoomTimelineAfterRequest
+	(*GetRoomTimelineAfterResponse)(nil),           // 218: chatto.api.v1.GetRoomTimelineAfterResponse
+	(*GetRoomTimelineAroundRequest)(nil),           // 219: chatto.api.v1.GetRoomTimelineAroundRequest
+	(*GetRoomTimelineAroundResponse)(nil),          // 220: chatto.api.v1.GetRoomTimelineAroundResponse
+	(*GetThreadEventsRequest)(nil),                 // 221: chatto.api.v1.GetThreadEventsRequest
+	(*GetThreadEventsResponse)(nil),                // 222: chatto.api.v1.GetThreadEventsResponse
+	(*GetThreadEventsAroundRequest)(nil),           // 223: chatto.api.v1.GetThreadEventsAroundRequest
+	(*GetThreadEventsAroundResponse)(nil),          // 224: chatto.api.v1.GetThreadEventsAroundResponse
+	(*FollowedThreadView)(nil),                     // 225: chatto.api.v1.FollowedThreadView
+	(*ListMyFollowedThreadsRequest)(nil),           // 226: chatto.api.v1.ListMyFollowedThreadsRequest
+	(*ListMyFollowedThreadsResponse)(nil),          // 227: chatto.api.v1.ListMyFollowedThreadsResponse
+	(*PostMessageRequest)(nil),                     // 228: chatto.api.v1.PostMessageRequest
+	(*PostMessageResponse)(nil),                    // 229: chatto.api.v1.PostMessageResponse
+	(*UpdateMessageRequest)(nil),                   // 230: chatto.api.v1.UpdateMessageRequest
+	(*UpdateMessageResponse)(nil),                  // 231: chatto.api.v1.UpdateMessageResponse
+	(*DeleteMessageRequest)(nil),                   // 232: chatto.api.v1.DeleteMessageRequest
+	(*DeleteMessageResponse)(nil),                  // 233: chatto.api.v1.DeleteMessageResponse
+	(*DeleteAttachmentRequest)(nil),                // 234: chatto.api.v1.DeleteAttachmentRequest
+	(*DeleteAttachmentResponse)(nil),               // 235: chatto.api.v1.DeleteAttachmentResponse
+	(*DeleteLinkPreviewRequest)(nil),               // 236: chatto.api.v1.DeleteLinkPreviewRequest
+	(*DeleteLinkPreviewResponse)(nil),              // 237: chatto.api.v1.DeleteLinkPreviewResponse
+	(*AddReactionRequest)(nil),                     // 238: chatto.api.v1.AddReactionRequest
+	(*AddReactionResponse)(nil),                    // 239: chatto.api.v1.AddReactionResponse
+	(*RemoveReactionRequest)(nil),                  // 240: chatto.api.v1.RemoveReactionRequest
+	(*RemoveReactionResponse)(nil),                 // 241: chatto.api.v1.RemoveReactionResponse
+	(*FollowThreadRequest)(nil),                    // 242: chatto.api.v1.FollowThreadRequest
+	(*FollowThreadResponse)(nil),                   // 243: chatto.api.v1.FollowThreadResponse
+	(*UnfollowThreadRequest)(nil),                  // 244: chatto.api.v1.UnfollowThreadRequest
+	(*UnfollowThreadResponse)(nil),                 // 245: chatto.api.v1.UnfollowThreadResponse
+	(*MarkRoomAsReadRequest)(nil),                  // 246: chatto.api.v1.MarkRoomAsReadRequest
+	(*MarkRoomAsReadResponse)(nil),                 // 247: chatto.api.v1.MarkRoomAsReadResponse
+	(*MarkThreadAsReadRequest)(nil),                // 248: chatto.api.v1.MarkThreadAsReadRequest
+	(*MarkThreadAsReadResponse)(nil),               // 249: chatto.api.v1.MarkThreadAsReadResponse
+	(*SendTypingIndicatorRequest)(nil),             // 250: chatto.api.v1.SendTypingIndicatorRequest
+	(*SendTypingIndicatorResponse)(nil),            // 251: chatto.api.v1.SendTypingIndicatorResponse
+	(*UpdateMyPresenceRequest)(nil),                // 252: chatto.api.v1.UpdateMyPresenceRequest
+	(*UpdateMyPresenceResponse)(nil),               // 253: chatto.api.v1.UpdateMyPresenceResponse
+	(*v1.User)(nil),                                // 254: chatto.core.v1.User
+	(*v1.ServerUserPreferences)(nil),               // 255: chatto.core.v1.ServerUserPreferences
+	(*timestamppb.Timestamp)(nil),                  // 256: google.protobuf.Timestamp
+	(v1.TimeFormat)(0),                             // 257: chatto.core.v1.TimeFormat
+	(v1.NotificationLevel)(0),                      // 258: chatto.core.v1.NotificationLevel
+	(v1.RoomKind)(0),                               // 259: chatto.core.v1.RoomKind
+	(*v1.Room)(nil),                                // 260: chatto.core.v1.Room
+	(*v1.RoomGroup)(nil),                           // 261: chatto.core.v1.RoomGroup
+	(*v1.Attachment)(nil),                          // 262: chatto.core.v1.Attachment
+	(*v1.Event)(nil),                               // 263: chatto.core.v1.Event
+	(v1.UserPresenceStatus)(0),                     // 264: chatto.core.v1.UserPresenceStatus
 }
 var file_chatto_api_v1_chat_proto_depIdxs = []int32{
-	12, // 0: chatto.api.v1.Viewer.user:type_name -> chatto.core.v1.User
-	0,  // 1: chatto.api.v1.GetViewerResponse.viewer:type_name -> chatto.api.v1.Viewer
-	13, // 2: chatto.api.v1.ListMyRoomsRequest.kind:type_name -> chatto.core.v1.RoomKind
-	14, // 3: chatto.api.v1.ListMyRoomsResponse.rooms:type_name -> chatto.core.v1.Room
-	15, // 4: chatto.api.v1.TimelineEvent.event:type_name -> chatto.core.v1.Event
-	6,  // 5: chatto.api.v1.GetRoomTimelineResponse.events:type_name -> chatto.api.v1.TimelineEvent
-	15, // 6: chatto.api.v1.PostMessageResponse.event:type_name -> chatto.core.v1.Event
-	1,  // 7: chatto.api.v1.ChattoApiService.GetViewer:input_type -> chatto.api.v1.GetViewerRequest
-	3,  // 8: chatto.api.v1.ChattoApiService.ListMyRooms:input_type -> chatto.api.v1.ListMyRoomsRequest
-	5,  // 9: chatto.api.v1.ChattoApiService.GetRoomTimeline:input_type -> chatto.api.v1.GetRoomTimelineRequest
-	8,  // 10: chatto.api.v1.ChattoApiService.PostMessage:input_type -> chatto.api.v1.PostMessageRequest
-	10, // 11: chatto.api.v1.ChattoApiService.SendTypingIndicator:input_type -> chatto.api.v1.SendTypingIndicatorRequest
-	2,  // 12: chatto.api.v1.ChattoApiService.GetViewer:output_type -> chatto.api.v1.GetViewerResponse
-	4,  // 13: chatto.api.v1.ChattoApiService.ListMyRooms:output_type -> chatto.api.v1.ListMyRoomsResponse
-	7,  // 14: chatto.api.v1.ChattoApiService.GetRoomTimeline:output_type -> chatto.api.v1.GetRoomTimelineResponse
-	9,  // 15: chatto.api.v1.ChattoApiService.PostMessage:output_type -> chatto.api.v1.PostMessageResponse
-	11, // 16: chatto.api.v1.ChattoApiService.SendTypingIndicator:output_type -> chatto.api.v1.SendTypingIndicatorResponse
-	12, // [12:17] is the sub-list for method output_type
-	7,  // [7:12] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	254, // 0: chatto.api.v1.Viewer.user:type_name -> chatto.core.v1.User
+	113, // 1: chatto.api.v1.Viewer.permissions:type_name -> chatto.api.v1.ViewerPermissionsView
+	115, // 2: chatto.api.v1.Viewer.server_notification_preference:type_name -> chatto.api.v1.ViewerNotificationPreferenceView
+	116, // 3: chatto.api.v1.Viewer.room_notification_preferences:type_name -> chatto.api.v1.RoomNotificationPreferenceView
+	7,   // 4: chatto.api.v1.GetViewerResponse.viewer:type_name -> chatto.api.v1.Viewer
+	112, // 5: chatto.api.v1.GetViewerResponse.server_profile:type_name -> chatto.api.v1.ServerProfileView
+	254, // 6: chatto.api.v1.CurrentUserView.user:type_name -> chatto.core.v1.User
+	0,   // 7: chatto.api.v1.CurrentUserView.presence_status:type_name -> chatto.api.v1.CurrentUserPresenceStatus
+	255, // 8: chatto.api.v1.CurrentUserView.settings:type_name -> chatto.core.v1.ServerUserPreferences
+	10,  // 9: chatto.api.v1.GetCurrentUserResponse.user:type_name -> chatto.api.v1.CurrentUserView
+	13,  // 10: chatto.api.v1.GetAuthenticatedServerSettingsResponse.settings:type_name -> chatto.api.v1.AuthenticatedServerSettingsView
+	22,  // 11: chatto.api.v1.GetServerSettingsResponse.settings:type_name -> chatto.api.v1.ServerSettingsView
+	22,  // 12: chatto.api.v1.UpdateServerSettingsResponse.settings:type_name -> chatto.api.v1.ServerSettingsView
+	27,  // 13: chatto.api.v1.GetAdminSecurityConfigResponse.config:type_name -> chatto.api.v1.AdminSecurityConfigView
+	27,  // 14: chatto.api.v1.UpdateBlockedUsernamesResponse.config:type_name -> chatto.api.v1.AdminSecurityConfigView
+	34,  // 15: chatto.api.v1.AdminNatsStatsView.streams:type_name -> chatto.api.v1.AdminNatsStreamInfoView
+	35,  // 16: chatto.api.v1.AdminNatsStatsView.consumers:type_name -> chatto.api.v1.AdminNatsConsumerInfoView
+	32,  // 17: chatto.api.v1.AdminSystemInfoView.connection:type_name -> chatto.api.v1.AdminConnectionInfoView
+	33,  // 18: chatto.api.v1.AdminSystemInfoView.account:type_name -> chatto.api.v1.AdminAccountInfoView
+	36,  // 19: chatto.api.v1.AdminSystemInfoView.nats:type_name -> chatto.api.v1.AdminNatsStatsView
+	37,  // 20: chatto.api.v1.AdminSystemInfoView.stats:type_name -> chatto.api.v1.AdminServerStatsView
+	38,  // 21: chatto.api.v1.GetAdminSystemInfoResponse.system_info:type_name -> chatto.api.v1.AdminSystemInfoView
+	39,  // 22: chatto.api.v1.GetAdminSystemInfoResponse.projections:type_name -> chatto.api.v1.AdminProjectionStateView
+	256, // 23: chatto.api.v1.AdminEventLogEntryView.created_at:type_name -> google.protobuf.Timestamp
+	42,  // 24: chatto.api.v1.ListAdminEventLogResponse.entries:type_name -> chatto.api.v1.AdminEventLogEntryView
+	42,  // 25: chatto.api.v1.GetAdminEventLogEntryResponse.entry:type_name -> chatto.api.v1.AdminEventLogEntryView
+	254, // 26: chatto.api.v1.AdminMemberView.user:type_name -> chatto.core.v1.User
+	256, // 27: chatto.api.v1.AdminMemberView.last_login_change:type_name -> google.protobuf.Timestamp
+	48,  // 28: chatto.api.v1.ListAdminMembersResponse.members:type_name -> chatto.api.v1.AdminMemberView
+	47,  // 29: chatto.api.v1.ListAdminMembersResponse.roles:type_name -> chatto.api.v1.AdminRoleView
+	48,  // 30: chatto.api.v1.GetAdminMemberResponse.member:type_name -> chatto.api.v1.AdminMemberView
+	47,  // 31: chatto.api.v1.GetAdminMemberResponse.roles:type_name -> chatto.api.v1.AdminRoleView
+	48,  // 32: chatto.api.v1.AdminUpdateUserResponse.member:type_name -> chatto.api.v1.AdminMemberView
+	48,  // 33: chatto.api.v1.AdminClearUsernameCooldownResponse.member:type_name -> chatto.api.v1.AdminMemberView
+	48,  // 34: chatto.api.v1.AssignMemberRoleResponse.member:type_name -> chatto.api.v1.AdminMemberView
+	48,  // 35: chatto.api.v1.RevokeMemberRoleResponse.member:type_name -> chatto.api.v1.AdminMemberView
+	47,  // 36: chatto.api.v1.GetAdminRoleResponse.role:type_name -> chatto.api.v1.AdminRoleView
+	254, // 37: chatto.api.v1.GetAdminRoleResponse.users:type_name -> chatto.core.v1.User
+	47,  // 38: chatto.api.v1.CreateAdminRoleResponse.role:type_name -> chatto.api.v1.AdminRoleView
+	47,  // 39: chatto.api.v1.UpdateAdminRoleResponse.role:type_name -> chatto.api.v1.AdminRoleView
+	71,  // 40: chatto.api.v1.TierRoleView.override:type_name -> chatto.api.v1.TierPermissionsView
+	72,  // 41: chatto.api.v1.RolePermissionTierMatrixView.roles:type_name -> chatto.api.v1.TierRoleView
+	1,   // 42: chatto.api.v1.PermissionMatrixScopeView.kind:type_name -> chatto.api.v1.PermissionMatrixScopeKind
+	2,   // 43: chatto.api.v1.PermissionMatrixCellView.override:type_name -> chatto.api.v1.PermissionMatrixDecision
+	2,   // 44: chatto.api.v1.PermissionMatrixCellView.effective:type_name -> chatto.api.v1.PermissionMatrixDecision
+	74,  // 45: chatto.api.v1.RolePermissionMatrixView.scopes:type_name -> chatto.api.v1.PermissionMatrixScopeView
+	75,  // 46: chatto.api.v1.RolePermissionMatrixView.cells:type_name -> chatto.api.v1.PermissionMatrixCellView
+	74,  // 47: chatto.api.v1.UserPermissionMatrixView.scopes:type_name -> chatto.api.v1.PermissionMatrixScopeView
+	75,  // 48: chatto.api.v1.UserPermissionMatrixView.cells:type_name -> chatto.api.v1.PermissionMatrixCellView
+	73,  // 49: chatto.api.v1.GetRolePermissionTierMatrixResponse.matrix:type_name -> chatto.api.v1.RolePermissionTierMatrixView
+	76,  // 50: chatto.api.v1.GetRolePermissionMatrixResponse.matrix:type_name -> chatto.api.v1.RolePermissionMatrixView
+	77,  // 51: chatto.api.v1.GetUserPermissionMatrixResponse.matrix:type_name -> chatto.api.v1.UserPermissionMatrixView
+	3,   // 52: chatto.api.v1.SetRolePermissionStateRequest.state:type_name -> chatto.api.v1.PermissionEditState
+	3,   // 53: chatto.api.v1.SetUserPermissionStateRequest.state:type_name -> chatto.api.v1.PermissionEditState
+	254, // 54: chatto.api.v1.ProfileSettingsView.user:type_name -> chatto.core.v1.User
+	256, // 55: chatto.api.v1.ProfileSettingsView.last_login_change:type_name -> google.protobuf.Timestamp
+	87,  // 56: chatto.api.v1.GetProfileSettingsResponse.profile:type_name -> chatto.api.v1.ProfileSettingsView
+	87,  // 57: chatto.api.v1.UpdateProfileResponse.profile:type_name -> chatto.api.v1.ProfileSettingsView
+	255, // 58: chatto.api.v1.GetUserSettingsResponse.settings:type_name -> chatto.core.v1.ServerUserPreferences
+	257, // 59: chatto.api.v1.UpdateUserSettingsRequest.time_format:type_name -> chatto.core.v1.TimeFormat
+	255, // 60: chatto.api.v1.UpdateUserSettingsResponse.settings:type_name -> chatto.core.v1.ServerUserPreferences
+	258, // 61: chatto.api.v1.SetServerNotificationLevelRequest.level:type_name -> chatto.core.v1.NotificationLevel
+	258, // 62: chatto.api.v1.SetRoomNotificationLevelRequest.level:type_name -> chatto.core.v1.NotificationLevel
+	115, // 63: chatto.api.v1.SetNotificationLevelResponse.preference:type_name -> chatto.api.v1.ViewerNotificationPreferenceView
+	256, // 64: chatto.api.v1.NotificationItemView.created_at:type_name -> google.protobuf.Timestamp
+	4,   // 65: chatto.api.v1.NotificationItemView.kind:type_name -> chatto.api.v1.NotificationKind
+	254, // 66: chatto.api.v1.NotificationItemView.actor:type_name -> chatto.core.v1.User
+	103, // 67: chatto.api.v1.ListNotificationsResponse.items:type_name -> chatto.api.v1.NotificationItemView
+	259, // 68: chatto.api.v1.ListMyRoomsRequest.kind:type_name -> chatto.core.v1.RoomKind
+	258, // 69: chatto.api.v1.ViewerNotificationPreferenceView.level:type_name -> chatto.core.v1.NotificationLevel
+	258, // 70: chatto.api.v1.ViewerNotificationPreferenceView.effective_level:type_name -> chatto.core.v1.NotificationLevel
+	258, // 71: chatto.api.v1.RoomNotificationPreferenceView.level:type_name -> chatto.core.v1.NotificationLevel
+	258, // 72: chatto.api.v1.RoomNotificationPreferenceView.effective_level:type_name -> chatto.core.v1.NotificationLevel
+	260, // 73: chatto.api.v1.RoomListItemView.room:type_name -> chatto.core.v1.Room
+	115, // 74: chatto.api.v1.RoomListItemView.viewer_notification_preference:type_name -> chatto.api.v1.ViewerNotificationPreferenceView
+	254, // 75: chatto.api.v1.RoomListItemView.members:type_name -> chatto.core.v1.User
+	260, // 76: chatto.api.v1.ListMyRoomsResponse.rooms:type_name -> chatto.core.v1.Room
+	117, // 77: chatto.api.v1.ListMyRoomsResponse.room_views:type_name -> chatto.api.v1.RoomListItemView
+	261, // 78: chatto.api.v1.ListMyRoomsResponse.room_groups:type_name -> chatto.core.v1.RoomGroup
+	260, // 79: chatto.api.v1.RoomDirectoryItemView.room:type_name -> chatto.core.v1.Room
+	120, // 80: chatto.api.v1.GetRoomDirectoryResponse.room_views:type_name -> chatto.api.v1.RoomDirectoryItemView
+	254, // 81: chatto.api.v1.SearchMembersResponse.users:type_name -> chatto.core.v1.User
+	260, // 82: chatto.api.v1.StartDMResponse.room:type_name -> chatto.core.v1.Room
+	260, // 83: chatto.api.v1.CreateRoomResponse.room:type_name -> chatto.core.v1.Room
+	128, // 84: chatto.api.v1.AdminRoomGroupView.rooms:type_name -> chatto.api.v1.AdminRoomInfoView
+	129, // 85: chatto.api.v1.GetAdminRoomLayoutResponse.groups:type_name -> chatto.api.v1.AdminRoomGroupView
+	129, // 86: chatto.api.v1.CreateAdminRoomGroupResponse.group:type_name -> chatto.api.v1.AdminRoomGroupView
+	129, // 87: chatto.api.v1.UpdateAdminRoomGroupResponse.group:type_name -> chatto.api.v1.AdminRoomGroupView
+	129, // 88: chatto.api.v1.ReorderAdminRoomGroupsResponse.groups:type_name -> chatto.api.v1.AdminRoomGroupView
+	128, // 89: chatto.api.v1.MoveAdminRoomToGroupResponse.room:type_name -> chatto.api.v1.AdminRoomInfoView
+	129, // 90: chatto.api.v1.ReorderAdminRoomsInGroupResponse.group:type_name -> chatto.api.v1.AdminRoomGroupView
+	128, // 91: chatto.api.v1.UpdateAdminRoomResponse.room:type_name -> chatto.api.v1.AdminRoomInfoView
+	128, // 92: chatto.api.v1.ArchiveAdminRoomResponse.room:type_name -> chatto.api.v1.AdminRoomInfoView
+	128, // 93: chatto.api.v1.UnarchiveAdminRoomResponse.room:type_name -> chatto.api.v1.AdminRoomInfoView
+	254, // 94: chatto.api.v1.RoomMembersPage.users:type_name -> chatto.core.v1.User
+	260, // 95: chatto.api.v1.GetRoomResponse.room:type_name -> chatto.core.v1.Room
+	151, // 96: chatto.api.v1.GetRoomResponse.members:type_name -> chatto.api.v1.RoomMembersPage
+	150, // 97: chatto.api.v1.GetRoomResponse.mention_roles:type_name -> chatto.api.v1.MentionRole
+	151, // 98: chatto.api.v1.GetRoomMembersResponse.members:type_name -> chatto.api.v1.RoomMembersPage
+	260, // 99: chatto.api.v1.JoinRoomResponse.room:type_name -> chatto.core.v1.Room
+	256, // 100: chatto.api.v1.BanRoomMemberRequest.expires_at:type_name -> google.protobuf.Timestamp
+	254, // 101: chatto.api.v1.UserAvatarView.user:type_name -> chatto.core.v1.User
+	0,   // 102: chatto.api.v1.UserAvatarView.presence_status:type_name -> chatto.api.v1.CurrentUserPresenceStatus
+	128, // 103: chatto.api.v1.RoomBanView.room:type_name -> chatto.api.v1.AdminRoomInfoView
+	164, // 104: chatto.api.v1.RoomBanView.user:type_name -> chatto.api.v1.UserAvatarView
+	164, // 105: chatto.api.v1.RoomBanView.moderator:type_name -> chatto.api.v1.UserAvatarView
+	256, // 106: chatto.api.v1.RoomBanView.created_at:type_name -> google.protobuf.Timestamp
+	256, // 107: chatto.api.v1.RoomBanView.expires_at:type_name -> google.protobuf.Timestamp
+	165, // 108: chatto.api.v1.ListRoomBansResponse.bans:type_name -> chatto.api.v1.RoomBanView
+	254, // 109: chatto.api.v1.CallParticipantView.user:type_name -> chatto.core.v1.User
+	256, // 110: chatto.api.v1.CallParticipantView.joined_at:type_name -> google.protobuf.Timestamp
+	170, // 111: chatto.api.v1.ActiveCallView.participants:type_name -> chatto.api.v1.CallParticipantView
+	171, // 112: chatto.api.v1.ListActiveCallsResponse.calls:type_name -> chatto.api.v1.ActiveCallView
+	170, // 113: chatto.api.v1.GetCallParticipantsResponse.participants:type_name -> chatto.api.v1.CallParticipantView
+	180, // 114: chatto.api.v1.GetVoiceCallTokenResponse.token:type_name -> chatto.api.v1.VoiceCallTokenView
+	256, // 115: chatto.api.v1.AssetUrl.expires_at:type_name -> google.protobuf.Timestamp
+	183, // 116: chatto.api.v1.VideoVariantView.asset_url:type_name -> chatto.api.v1.AssetUrl
+	6,   // 117: chatto.api.v1.VideoProcessingView.status:type_name -> chatto.api.v1.VideoProcessingStatus
+	183, // 118: chatto.api.v1.VideoProcessingView.thumbnail_asset_url:type_name -> chatto.api.v1.AssetUrl
+	184, // 119: chatto.api.v1.VideoProcessingView.variants:type_name -> chatto.api.v1.VideoVariantView
+	183, // 120: chatto.api.v1.AttachmentView.asset_url:type_name -> chatto.api.v1.AssetUrl
+	183, // 121: chatto.api.v1.AttachmentView.thumbnail_asset_url:type_name -> chatto.api.v1.AssetUrl
+	185, // 122: chatto.api.v1.AttachmentView.video_processing:type_name -> chatto.api.v1.VideoProcessingView
+	262, // 123: chatto.api.v1.UploadedAttachment.attachment:type_name -> chatto.core.v1.Attachment
+	187, // 124: chatto.api.v1.UploadRoomAttachmentsResponse.attachments:type_name -> chatto.api.v1.UploadedAttachment
+	5,   // 125: chatto.api.v1.RefreshMessageAttachmentUrlsRequest.thumbnail_fit:type_name -> chatto.api.v1.AssetFitMode
+	186, // 126: chatto.api.v1.RefreshMessageAttachmentUrlsResponse.attachments:type_name -> chatto.api.v1.AttachmentView
+	254, // 127: chatto.api.v1.UserAvatarAssetResponse.user:type_name -> chatto.core.v1.User
+	112, // 128: chatto.api.v1.ServerBrandingAssetResponse.profile:type_name -> chatto.api.v1.ServerProfileView
+	193, // 129: chatto.api.v1.GetLinkPreviewResponse.preview:type_name -> chatto.api.v1.LinkPreviewView
+	254, // 130: chatto.api.v1.ReactionSummaryView.users:type_name -> chatto.core.v1.User
+	186, // 131: chatto.api.v1.MessagePostedView.attachments:type_name -> chatto.api.v1.AttachmentView
+	193, // 132: chatto.api.v1.MessagePostedView.link_preview:type_name -> chatto.api.v1.LinkPreviewView
+	256, // 133: chatto.api.v1.MessagePostedView.updated_at:type_name -> google.protobuf.Timestamp
+	256, // 134: chatto.api.v1.MessagePostedView.last_reply_at:type_name -> google.protobuf.Timestamp
+	254, // 135: chatto.api.v1.MessagePostedView.thread_participants:type_name -> chatto.core.v1.User
+	197, // 136: chatto.api.v1.MessagePostedView.reactions:type_name -> chatto.api.v1.ReactionSummaryView
+	186, // 137: chatto.api.v1.MessageEditedView.attachments:type_name -> chatto.api.v1.AttachmentView
+	193, // 138: chatto.api.v1.MessageEditedView.link_preview:type_name -> chatto.api.v1.LinkPreviewView
+	256, // 139: chatto.api.v1.MessageEditedView.updated_at:type_name -> google.protobuf.Timestamp
+	256, // 140: chatto.api.v1.RoomModerationEventView.expires_at:type_name -> google.protobuf.Timestamp
+	198, // 141: chatto.api.v1.RoomEventPayload.message_posted:type_name -> chatto.api.v1.MessagePostedView
+	199, // 142: chatto.api.v1.RoomEventPayload.message_edited:type_name -> chatto.api.v1.MessageEditedView
+	200, // 143: chatto.api.v1.RoomEventPayload.message_retracted:type_name -> chatto.api.v1.MessageRetractedView
+	201, // 144: chatto.api.v1.RoomEventPayload.room_created:type_name -> chatto.api.v1.RoomScopedEventView
+	201, // 145: chatto.api.v1.RoomEventPayload.room_updated:type_name -> chatto.api.v1.RoomScopedEventView
+	201, // 146: chatto.api.v1.RoomEventPayload.room_deleted:type_name -> chatto.api.v1.RoomScopedEventView
+	201, // 147: chatto.api.v1.RoomEventPayload.room_archived:type_name -> chatto.api.v1.RoomScopedEventView
+	201, // 148: chatto.api.v1.RoomEventPayload.room_unarchived:type_name -> chatto.api.v1.RoomScopedEventView
+	201, // 149: chatto.api.v1.RoomEventPayload.user_joined_room:type_name -> chatto.api.v1.RoomScopedEventView
+	201, // 150: chatto.api.v1.RoomEventPayload.user_left_room:type_name -> chatto.api.v1.RoomScopedEventView
+	202, // 151: chatto.api.v1.RoomEventPayload.reaction_added:type_name -> chatto.api.v1.ReactionEventView
+	202, // 152: chatto.api.v1.RoomEventPayload.reaction_removed:type_name -> chatto.api.v1.ReactionEventView
+	203, // 153: chatto.api.v1.RoomEventPayload.asset_processing_started:type_name -> chatto.api.v1.AssetProcessingEventView
+	203, // 154: chatto.api.v1.RoomEventPayload.asset_processing_succeeded:type_name -> chatto.api.v1.AssetProcessingEventView
+	203, // 155: chatto.api.v1.RoomEventPayload.asset_processing_failed:type_name -> chatto.api.v1.AssetProcessingEventView
+	204, // 156: chatto.api.v1.RoomEventPayload.asset_deleted:type_name -> chatto.api.v1.AssetDeletedView
+	205, // 157: chatto.api.v1.RoomEventPayload.server_member_deleted:type_name -> chatto.api.v1.ServerMemberDeletedView
+	206, // 158: chatto.api.v1.RoomEventPayload.call_started:type_name -> chatto.api.v1.CallEventView
+	206, // 159: chatto.api.v1.RoomEventPayload.call_participant_joined:type_name -> chatto.api.v1.CallEventView
+	206, // 160: chatto.api.v1.RoomEventPayload.call_participant_left:type_name -> chatto.api.v1.CallEventView
+	206, // 161: chatto.api.v1.RoomEventPayload.call_ended:type_name -> chatto.api.v1.CallEventView
+	207, // 162: chatto.api.v1.RoomEventPayload.thread_created:type_name -> chatto.api.v1.ThreadCreatedView
+	208, // 163: chatto.api.v1.RoomEventPayload.room_member_banned:type_name -> chatto.api.v1.RoomModerationEventView
+	208, // 164: chatto.api.v1.RoomEventPayload.room_member_unbanned:type_name -> chatto.api.v1.RoomModerationEventView
+	256, // 165: chatto.api.v1.RoomEventView.created_at:type_name -> google.protobuf.Timestamp
+	254, // 166: chatto.api.v1.RoomEventView.actor:type_name -> chatto.core.v1.User
+	263, // 167: chatto.api.v1.RoomEventView.raw_event:type_name -> chatto.core.v1.Event
+	209, // 168: chatto.api.v1.RoomEventView.event:type_name -> chatto.api.v1.RoomEventPayload
+	210, // 169: chatto.api.v1.RoomEventsPage.events:type_name -> chatto.api.v1.RoomEventView
+	210, // 170: chatto.api.v1.GetRoomEventResponse.event:type_name -> chatto.api.v1.RoomEventView
+	263, // 171: chatto.api.v1.TimelineEvent.event:type_name -> chatto.core.v1.Event
+	215, // 172: chatto.api.v1.GetRoomTimelineResponse.events:type_name -> chatto.api.v1.TimelineEvent
+	210, // 173: chatto.api.v1.GetRoomTimelineResponse.event_views:type_name -> chatto.api.v1.RoomEventView
+	211, // 174: chatto.api.v1.GetRoomTimelineAfterResponse.page:type_name -> chatto.api.v1.RoomEventsPage
+	211, // 175: chatto.api.v1.GetRoomTimelineAroundResponse.page:type_name -> chatto.api.v1.RoomEventsPage
+	210, // 176: chatto.api.v1.GetThreadEventsResponse.root_event:type_name -> chatto.api.v1.RoomEventView
+	211, // 177: chatto.api.v1.GetThreadEventsResponse.replies:type_name -> chatto.api.v1.RoomEventsPage
+	210, // 178: chatto.api.v1.GetThreadEventsAroundResponse.root_event:type_name -> chatto.api.v1.RoomEventView
+	211, // 179: chatto.api.v1.GetThreadEventsAroundResponse.replies:type_name -> chatto.api.v1.RoomEventsPage
+	260, // 180: chatto.api.v1.FollowedThreadView.room:type_name -> chatto.core.v1.Room
+	210, // 181: chatto.api.v1.FollowedThreadView.root_message:type_name -> chatto.api.v1.RoomEventView
+	256, // 182: chatto.api.v1.FollowedThreadView.last_reply_at:type_name -> google.protobuf.Timestamp
+	254, // 183: chatto.api.v1.FollowedThreadView.thread_participants:type_name -> chatto.core.v1.User
+	225, // 184: chatto.api.v1.ListMyFollowedThreadsResponse.threads:type_name -> chatto.api.v1.FollowedThreadView
+	194, // 185: chatto.api.v1.PostMessageRequest.link_preview:type_name -> chatto.api.v1.LinkPreviewInput
+	263, // 186: chatto.api.v1.PostMessageResponse.event:type_name -> chatto.core.v1.Event
+	256, // 187: chatto.api.v1.MarkRoomAsReadResponse.previous_last_read_at:type_name -> google.protobuf.Timestamp
+	256, // 188: chatto.api.v1.MarkRoomAsReadResponse.last_read_at:type_name -> google.protobuf.Timestamp
+	256, // 189: chatto.api.v1.MarkThreadAsReadResponse.previous_read_at:type_name -> google.protobuf.Timestamp
+	264, // 190: chatto.api.v1.UpdateMyPresenceRequest.status:type_name -> chatto.core.v1.UserPresenceStatus
+	8,   // 191: chatto.api.v1.ChattoApiService.GetViewer:input_type -> chatto.api.v1.GetViewerRequest
+	11,  // 192: chatto.api.v1.ChattoApiService.GetCurrentUser:input_type -> chatto.api.v1.GetCurrentUserRequest
+	14,  // 193: chatto.api.v1.ChattoApiService.GetAuthenticatedServerSettings:input_type -> chatto.api.v1.GetAuthenticatedServerSettingsRequest
+	16,  // 194: chatto.api.v1.ChattoApiService.GetAccountDeletionStatus:input_type -> chatto.api.v1.GetAccountDeletionStatusRequest
+	18,  // 195: chatto.api.v1.ChattoApiService.RequestAccountDeletion:input_type -> chatto.api.v1.RequestAccountDeletionRequest
+	20,  // 196: chatto.api.v1.ChattoApiService.DeleteMyAccount:input_type -> chatto.api.v1.DeleteMyAccountRequest
+	23,  // 197: chatto.api.v1.ChattoApiService.GetServerSettings:input_type -> chatto.api.v1.GetServerSettingsRequest
+	25,  // 198: chatto.api.v1.ChattoApiService.UpdateServerSettings:input_type -> chatto.api.v1.UpdateServerSettingsRequest
+	28,  // 199: chatto.api.v1.ChattoApiService.GetAdminSecurityConfig:input_type -> chatto.api.v1.GetAdminSecurityConfigRequest
+	30,  // 200: chatto.api.v1.ChattoApiService.UpdateBlockedUsernames:input_type -> chatto.api.v1.UpdateBlockedUsernamesRequest
+	40,  // 201: chatto.api.v1.ChattoApiService.GetAdminSystemInfo:input_type -> chatto.api.v1.GetAdminSystemInfoRequest
+	43,  // 202: chatto.api.v1.ChattoApiService.ListAdminEventLog:input_type -> chatto.api.v1.ListAdminEventLogRequest
+	45,  // 203: chatto.api.v1.ChattoApiService.GetAdminEventLogEntry:input_type -> chatto.api.v1.GetAdminEventLogEntryRequest
+	49,  // 204: chatto.api.v1.ChattoApiService.ListAdminMembers:input_type -> chatto.api.v1.ListAdminMembersRequest
+	51,  // 205: chatto.api.v1.ChattoApiService.GetAdminMember:input_type -> chatto.api.v1.GetAdminMemberRequest
+	53,  // 206: chatto.api.v1.ChattoApiService.AdminUpdateUser:input_type -> chatto.api.v1.AdminUpdateUserRequest
+	55,  // 207: chatto.api.v1.ChattoApiService.AdminClearUsernameCooldown:input_type -> chatto.api.v1.AdminClearUsernameCooldownRequest
+	57,  // 208: chatto.api.v1.ChattoApiService.AssignMemberRole:input_type -> chatto.api.v1.AssignMemberRoleRequest
+	59,  // 209: chatto.api.v1.ChattoApiService.RevokeMemberRole:input_type -> chatto.api.v1.RevokeMemberRoleRequest
+	61,  // 210: chatto.api.v1.ChattoApiService.GetAdminRoleCapabilities:input_type -> chatto.api.v1.GetAdminRoleCapabilitiesRequest
+	63,  // 211: chatto.api.v1.ChattoApiService.GetAdminRole:input_type -> chatto.api.v1.GetAdminRoleRequest
+	65,  // 212: chatto.api.v1.ChattoApiService.CreateAdminRole:input_type -> chatto.api.v1.CreateAdminRoleRequest
+	67,  // 213: chatto.api.v1.ChattoApiService.UpdateAdminRole:input_type -> chatto.api.v1.UpdateAdminRoleRequest
+	69,  // 214: chatto.api.v1.ChattoApiService.DeleteAdminRole:input_type -> chatto.api.v1.DeleteAdminRoleRequest
+	78,  // 215: chatto.api.v1.ChattoApiService.GetRolePermissionTierMatrix:input_type -> chatto.api.v1.GetRolePermissionTierMatrixRequest
+	80,  // 216: chatto.api.v1.ChattoApiService.GetRolePermissionMatrix:input_type -> chatto.api.v1.GetRolePermissionMatrixRequest
+	82,  // 217: chatto.api.v1.ChattoApiService.GetUserPermissionMatrix:input_type -> chatto.api.v1.GetUserPermissionMatrixRequest
+	84,  // 218: chatto.api.v1.ChattoApiService.SetRolePermissionState:input_type -> chatto.api.v1.SetRolePermissionStateRequest
+	85,  // 219: chatto.api.v1.ChattoApiService.SetUserPermissionState:input_type -> chatto.api.v1.SetUserPermissionStateRequest
+	88,  // 220: chatto.api.v1.ChattoApiService.GetProfileSettings:input_type -> chatto.api.v1.GetProfileSettingsRequest
+	90,  // 221: chatto.api.v1.ChattoApiService.UpdateProfile:input_type -> chatto.api.v1.UpdateProfileRequest
+	92,  // 222: chatto.api.v1.ChattoApiService.GetUserSettings:input_type -> chatto.api.v1.GetUserSettingsRequest
+	94,  // 223: chatto.api.v1.ChattoApiService.UpdateUserSettings:input_type -> chatto.api.v1.UpdateUserSettingsRequest
+	96,  // 224: chatto.api.v1.ChattoApiService.SetServerNotificationLevel:input_type -> chatto.api.v1.SetServerNotificationLevelRequest
+	97,  // 225: chatto.api.v1.ChattoApiService.SetRoomNotificationLevel:input_type -> chatto.api.v1.SetRoomNotificationLevelRequest
+	99,  // 226: chatto.api.v1.ChattoApiService.SubscribeToPush:input_type -> chatto.api.v1.SubscribeToPushRequest
+	101, // 227: chatto.api.v1.ChattoApiService.UnsubscribeFromPush:input_type -> chatto.api.v1.UnsubscribeFromPushRequest
+	104, // 228: chatto.api.v1.ChattoApiService.ListNotifications:input_type -> chatto.api.v1.ListNotificationsRequest
+	106, // 229: chatto.api.v1.ChattoApiService.HasNotifications:input_type -> chatto.api.v1.HasNotificationsRequest
+	108, // 230: chatto.api.v1.ChattoApiService.DismissNotification:input_type -> chatto.api.v1.DismissNotificationRequest
+	110, // 231: chatto.api.v1.ChattoApiService.DismissAllNotifications:input_type -> chatto.api.v1.DismissAllNotificationsRequest
+	114, // 232: chatto.api.v1.ChattoApiService.ListMyRooms:input_type -> chatto.api.v1.ListMyRoomsRequest
+	152, // 233: chatto.api.v1.ChattoApiService.GetRoom:input_type -> chatto.api.v1.GetRoomRequest
+	154, // 234: chatto.api.v1.ChattoApiService.GetRoomMembers:input_type -> chatto.api.v1.GetRoomMembersRequest
+	119, // 235: chatto.api.v1.ChattoApiService.GetRoomDirectory:input_type -> chatto.api.v1.GetRoomDirectoryRequest
+	122, // 236: chatto.api.v1.ChattoApiService.SearchMembers:input_type -> chatto.api.v1.SearchMembersRequest
+	124, // 237: chatto.api.v1.ChattoApiService.StartDM:input_type -> chatto.api.v1.StartDMRequest
+	126, // 238: chatto.api.v1.ChattoApiService.CreateRoom:input_type -> chatto.api.v1.CreateRoomRequest
+	130, // 239: chatto.api.v1.ChattoApiService.GetAdminRoomLayout:input_type -> chatto.api.v1.GetAdminRoomLayoutRequest
+	132, // 240: chatto.api.v1.ChattoApiService.CreateAdminRoomGroup:input_type -> chatto.api.v1.CreateAdminRoomGroupRequest
+	134, // 241: chatto.api.v1.ChattoApiService.UpdateAdminRoomGroup:input_type -> chatto.api.v1.UpdateAdminRoomGroupRequest
+	136, // 242: chatto.api.v1.ChattoApiService.DeleteAdminRoomGroup:input_type -> chatto.api.v1.DeleteAdminRoomGroupRequest
+	138, // 243: chatto.api.v1.ChattoApiService.ReorderAdminRoomGroups:input_type -> chatto.api.v1.ReorderAdminRoomGroupsRequest
+	140, // 244: chatto.api.v1.ChattoApiService.MoveAdminRoomToGroup:input_type -> chatto.api.v1.MoveAdminRoomToGroupRequest
+	142, // 245: chatto.api.v1.ChattoApiService.ReorderAdminRoomsInGroup:input_type -> chatto.api.v1.ReorderAdminRoomsInGroupRequest
+	144, // 246: chatto.api.v1.ChattoApiService.UpdateAdminRoom:input_type -> chatto.api.v1.UpdateAdminRoomRequest
+	146, // 247: chatto.api.v1.ChattoApiService.ArchiveAdminRoom:input_type -> chatto.api.v1.ArchiveAdminRoomRequest
+	148, // 248: chatto.api.v1.ChattoApiService.UnarchiveAdminRoom:input_type -> chatto.api.v1.UnarchiveAdminRoomRequest
+	156, // 249: chatto.api.v1.ChattoApiService.JoinRoom:input_type -> chatto.api.v1.JoinRoomRequest
+	158, // 250: chatto.api.v1.ChattoApiService.LeaveRoom:input_type -> chatto.api.v1.LeaveRoomRequest
+	160, // 251: chatto.api.v1.ChattoApiService.JoinGroup:input_type -> chatto.api.v1.JoinGroupRequest
+	162, // 252: chatto.api.v1.ChattoApiService.BanRoomMember:input_type -> chatto.api.v1.BanRoomMemberRequest
+	166, // 253: chatto.api.v1.ChattoApiService.ListRoomBans:input_type -> chatto.api.v1.ListRoomBansRequest
+	168, // 254: chatto.api.v1.ChattoApiService.UnbanRoomMember:input_type -> chatto.api.v1.UnbanRoomMemberRequest
+	212, // 255: chatto.api.v1.ChattoApiService.GetRoomEvent:input_type -> chatto.api.v1.GetRoomEventRequest
+	214, // 256: chatto.api.v1.ChattoApiService.GetRoomTimeline:input_type -> chatto.api.v1.GetRoomTimelineRequest
+	217, // 257: chatto.api.v1.ChattoApiService.GetRoomTimelineAfter:input_type -> chatto.api.v1.GetRoomTimelineAfterRequest
+	219, // 258: chatto.api.v1.ChattoApiService.GetRoomTimelineAround:input_type -> chatto.api.v1.GetRoomTimelineAroundRequest
+	221, // 259: chatto.api.v1.ChattoApiService.GetThreadEvents:input_type -> chatto.api.v1.GetThreadEventsRequest
+	223, // 260: chatto.api.v1.ChattoApiService.GetThreadEventsAround:input_type -> chatto.api.v1.GetThreadEventsAroundRequest
+	226, // 261: chatto.api.v1.ChattoApiService.ListMyFollowedThreads:input_type -> chatto.api.v1.ListMyFollowedThreadsRequest
+	195, // 262: chatto.api.v1.ChattoApiService.GetLinkPreview:input_type -> chatto.api.v1.GetLinkPreviewRequest
+	228, // 263: chatto.api.v1.ChattoApiService.PostMessage:input_type -> chatto.api.v1.PostMessageRequest
+	230, // 264: chatto.api.v1.ChattoApiService.UpdateMessage:input_type -> chatto.api.v1.UpdateMessageRequest
+	232, // 265: chatto.api.v1.ChattoApiService.DeleteMessage:input_type -> chatto.api.v1.DeleteMessageRequest
+	234, // 266: chatto.api.v1.ChattoApiService.DeleteAttachment:input_type -> chatto.api.v1.DeleteAttachmentRequest
+	236, // 267: chatto.api.v1.ChattoApiService.DeleteLinkPreview:input_type -> chatto.api.v1.DeleteLinkPreviewRequest
+	238, // 268: chatto.api.v1.ChattoApiService.AddReaction:input_type -> chatto.api.v1.AddReactionRequest
+	240, // 269: chatto.api.v1.ChattoApiService.RemoveReaction:input_type -> chatto.api.v1.RemoveReactionRequest
+	242, // 270: chatto.api.v1.ChattoApiService.FollowThread:input_type -> chatto.api.v1.FollowThreadRequest
+	244, // 271: chatto.api.v1.ChattoApiService.UnfollowThread:input_type -> chatto.api.v1.UnfollowThreadRequest
+	246, // 272: chatto.api.v1.ChattoApiService.MarkRoomAsRead:input_type -> chatto.api.v1.MarkRoomAsReadRequest
+	248, // 273: chatto.api.v1.ChattoApiService.MarkThreadAsRead:input_type -> chatto.api.v1.MarkThreadAsReadRequest
+	250, // 274: chatto.api.v1.ChattoApiService.SendTypingIndicator:input_type -> chatto.api.v1.SendTypingIndicatorRequest
+	252, // 275: chatto.api.v1.ChattoApiService.UpdateMyPresence:input_type -> chatto.api.v1.UpdateMyPresenceRequest
+	172, // 276: chatto.api.v1.ChattoApiService.ListActiveCalls:input_type -> chatto.api.v1.ListActiveCallsRequest
+	174, // 277: chatto.api.v1.ChattoApiService.GetCallParticipants:input_type -> chatto.api.v1.GetCallParticipantsRequest
+	176, // 278: chatto.api.v1.ChattoApiService.JoinVoiceCall:input_type -> chatto.api.v1.JoinVoiceCallRequest
+	178, // 279: chatto.api.v1.ChattoApiService.LeaveVoiceCall:input_type -> chatto.api.v1.LeaveVoiceCallRequest
+	181, // 280: chatto.api.v1.ChattoApiService.GetVoiceCallToken:input_type -> chatto.api.v1.GetVoiceCallTokenRequest
+	9,   // 281: chatto.api.v1.ChattoApiService.GetViewer:output_type -> chatto.api.v1.GetViewerResponse
+	12,  // 282: chatto.api.v1.ChattoApiService.GetCurrentUser:output_type -> chatto.api.v1.GetCurrentUserResponse
+	15,  // 283: chatto.api.v1.ChattoApiService.GetAuthenticatedServerSettings:output_type -> chatto.api.v1.GetAuthenticatedServerSettingsResponse
+	17,  // 284: chatto.api.v1.ChattoApiService.GetAccountDeletionStatus:output_type -> chatto.api.v1.GetAccountDeletionStatusResponse
+	19,  // 285: chatto.api.v1.ChattoApiService.RequestAccountDeletion:output_type -> chatto.api.v1.RequestAccountDeletionResponse
+	21,  // 286: chatto.api.v1.ChattoApiService.DeleteMyAccount:output_type -> chatto.api.v1.DeleteMyAccountResponse
+	24,  // 287: chatto.api.v1.ChattoApiService.GetServerSettings:output_type -> chatto.api.v1.GetServerSettingsResponse
+	26,  // 288: chatto.api.v1.ChattoApiService.UpdateServerSettings:output_type -> chatto.api.v1.UpdateServerSettingsResponse
+	29,  // 289: chatto.api.v1.ChattoApiService.GetAdminSecurityConfig:output_type -> chatto.api.v1.GetAdminSecurityConfigResponse
+	31,  // 290: chatto.api.v1.ChattoApiService.UpdateBlockedUsernames:output_type -> chatto.api.v1.UpdateBlockedUsernamesResponse
+	41,  // 291: chatto.api.v1.ChattoApiService.GetAdminSystemInfo:output_type -> chatto.api.v1.GetAdminSystemInfoResponse
+	44,  // 292: chatto.api.v1.ChattoApiService.ListAdminEventLog:output_type -> chatto.api.v1.ListAdminEventLogResponse
+	46,  // 293: chatto.api.v1.ChattoApiService.GetAdminEventLogEntry:output_type -> chatto.api.v1.GetAdminEventLogEntryResponse
+	50,  // 294: chatto.api.v1.ChattoApiService.ListAdminMembers:output_type -> chatto.api.v1.ListAdminMembersResponse
+	52,  // 295: chatto.api.v1.ChattoApiService.GetAdminMember:output_type -> chatto.api.v1.GetAdminMemberResponse
+	54,  // 296: chatto.api.v1.ChattoApiService.AdminUpdateUser:output_type -> chatto.api.v1.AdminUpdateUserResponse
+	56,  // 297: chatto.api.v1.ChattoApiService.AdminClearUsernameCooldown:output_type -> chatto.api.v1.AdminClearUsernameCooldownResponse
+	58,  // 298: chatto.api.v1.ChattoApiService.AssignMemberRole:output_type -> chatto.api.v1.AssignMemberRoleResponse
+	60,  // 299: chatto.api.v1.ChattoApiService.RevokeMemberRole:output_type -> chatto.api.v1.RevokeMemberRoleResponse
+	62,  // 300: chatto.api.v1.ChattoApiService.GetAdminRoleCapabilities:output_type -> chatto.api.v1.GetAdminRoleCapabilitiesResponse
+	64,  // 301: chatto.api.v1.ChattoApiService.GetAdminRole:output_type -> chatto.api.v1.GetAdminRoleResponse
+	66,  // 302: chatto.api.v1.ChattoApiService.CreateAdminRole:output_type -> chatto.api.v1.CreateAdminRoleResponse
+	68,  // 303: chatto.api.v1.ChattoApiService.UpdateAdminRole:output_type -> chatto.api.v1.UpdateAdminRoleResponse
+	70,  // 304: chatto.api.v1.ChattoApiService.DeleteAdminRole:output_type -> chatto.api.v1.DeleteAdminRoleResponse
+	79,  // 305: chatto.api.v1.ChattoApiService.GetRolePermissionTierMatrix:output_type -> chatto.api.v1.GetRolePermissionTierMatrixResponse
+	81,  // 306: chatto.api.v1.ChattoApiService.GetRolePermissionMatrix:output_type -> chatto.api.v1.GetRolePermissionMatrixResponse
+	83,  // 307: chatto.api.v1.ChattoApiService.GetUserPermissionMatrix:output_type -> chatto.api.v1.GetUserPermissionMatrixResponse
+	86,  // 308: chatto.api.v1.ChattoApiService.SetRolePermissionState:output_type -> chatto.api.v1.SetPermissionStateResponse
+	86,  // 309: chatto.api.v1.ChattoApiService.SetUserPermissionState:output_type -> chatto.api.v1.SetPermissionStateResponse
+	89,  // 310: chatto.api.v1.ChattoApiService.GetProfileSettings:output_type -> chatto.api.v1.GetProfileSettingsResponse
+	91,  // 311: chatto.api.v1.ChattoApiService.UpdateProfile:output_type -> chatto.api.v1.UpdateProfileResponse
+	93,  // 312: chatto.api.v1.ChattoApiService.GetUserSettings:output_type -> chatto.api.v1.GetUserSettingsResponse
+	95,  // 313: chatto.api.v1.ChattoApiService.UpdateUserSettings:output_type -> chatto.api.v1.UpdateUserSettingsResponse
+	98,  // 314: chatto.api.v1.ChattoApiService.SetServerNotificationLevel:output_type -> chatto.api.v1.SetNotificationLevelResponse
+	98,  // 315: chatto.api.v1.ChattoApiService.SetRoomNotificationLevel:output_type -> chatto.api.v1.SetNotificationLevelResponse
+	100, // 316: chatto.api.v1.ChattoApiService.SubscribeToPush:output_type -> chatto.api.v1.SubscribeToPushResponse
+	102, // 317: chatto.api.v1.ChattoApiService.UnsubscribeFromPush:output_type -> chatto.api.v1.UnsubscribeFromPushResponse
+	105, // 318: chatto.api.v1.ChattoApiService.ListNotifications:output_type -> chatto.api.v1.ListNotificationsResponse
+	107, // 319: chatto.api.v1.ChattoApiService.HasNotifications:output_type -> chatto.api.v1.HasNotificationsResponse
+	109, // 320: chatto.api.v1.ChattoApiService.DismissNotification:output_type -> chatto.api.v1.DismissNotificationResponse
+	111, // 321: chatto.api.v1.ChattoApiService.DismissAllNotifications:output_type -> chatto.api.v1.DismissAllNotificationsResponse
+	118, // 322: chatto.api.v1.ChattoApiService.ListMyRooms:output_type -> chatto.api.v1.ListMyRoomsResponse
+	153, // 323: chatto.api.v1.ChattoApiService.GetRoom:output_type -> chatto.api.v1.GetRoomResponse
+	155, // 324: chatto.api.v1.ChattoApiService.GetRoomMembers:output_type -> chatto.api.v1.GetRoomMembersResponse
+	121, // 325: chatto.api.v1.ChattoApiService.GetRoomDirectory:output_type -> chatto.api.v1.GetRoomDirectoryResponse
+	123, // 326: chatto.api.v1.ChattoApiService.SearchMembers:output_type -> chatto.api.v1.SearchMembersResponse
+	125, // 327: chatto.api.v1.ChattoApiService.StartDM:output_type -> chatto.api.v1.StartDMResponse
+	127, // 328: chatto.api.v1.ChattoApiService.CreateRoom:output_type -> chatto.api.v1.CreateRoomResponse
+	131, // 329: chatto.api.v1.ChattoApiService.GetAdminRoomLayout:output_type -> chatto.api.v1.GetAdminRoomLayoutResponse
+	133, // 330: chatto.api.v1.ChattoApiService.CreateAdminRoomGroup:output_type -> chatto.api.v1.CreateAdminRoomGroupResponse
+	135, // 331: chatto.api.v1.ChattoApiService.UpdateAdminRoomGroup:output_type -> chatto.api.v1.UpdateAdminRoomGroupResponse
+	137, // 332: chatto.api.v1.ChattoApiService.DeleteAdminRoomGroup:output_type -> chatto.api.v1.DeleteAdminRoomGroupResponse
+	139, // 333: chatto.api.v1.ChattoApiService.ReorderAdminRoomGroups:output_type -> chatto.api.v1.ReorderAdminRoomGroupsResponse
+	141, // 334: chatto.api.v1.ChattoApiService.MoveAdminRoomToGroup:output_type -> chatto.api.v1.MoveAdminRoomToGroupResponse
+	143, // 335: chatto.api.v1.ChattoApiService.ReorderAdminRoomsInGroup:output_type -> chatto.api.v1.ReorderAdminRoomsInGroupResponse
+	145, // 336: chatto.api.v1.ChattoApiService.UpdateAdminRoom:output_type -> chatto.api.v1.UpdateAdminRoomResponse
+	147, // 337: chatto.api.v1.ChattoApiService.ArchiveAdminRoom:output_type -> chatto.api.v1.ArchiveAdminRoomResponse
+	149, // 338: chatto.api.v1.ChattoApiService.UnarchiveAdminRoom:output_type -> chatto.api.v1.UnarchiveAdminRoomResponse
+	157, // 339: chatto.api.v1.ChattoApiService.JoinRoom:output_type -> chatto.api.v1.JoinRoomResponse
+	159, // 340: chatto.api.v1.ChattoApiService.LeaveRoom:output_type -> chatto.api.v1.LeaveRoomResponse
+	161, // 341: chatto.api.v1.ChattoApiService.JoinGroup:output_type -> chatto.api.v1.JoinGroupResponse
+	163, // 342: chatto.api.v1.ChattoApiService.BanRoomMember:output_type -> chatto.api.v1.BanRoomMemberResponse
+	167, // 343: chatto.api.v1.ChattoApiService.ListRoomBans:output_type -> chatto.api.v1.ListRoomBansResponse
+	169, // 344: chatto.api.v1.ChattoApiService.UnbanRoomMember:output_type -> chatto.api.v1.UnbanRoomMemberResponse
+	213, // 345: chatto.api.v1.ChattoApiService.GetRoomEvent:output_type -> chatto.api.v1.GetRoomEventResponse
+	216, // 346: chatto.api.v1.ChattoApiService.GetRoomTimeline:output_type -> chatto.api.v1.GetRoomTimelineResponse
+	218, // 347: chatto.api.v1.ChattoApiService.GetRoomTimelineAfter:output_type -> chatto.api.v1.GetRoomTimelineAfterResponse
+	220, // 348: chatto.api.v1.ChattoApiService.GetRoomTimelineAround:output_type -> chatto.api.v1.GetRoomTimelineAroundResponse
+	222, // 349: chatto.api.v1.ChattoApiService.GetThreadEvents:output_type -> chatto.api.v1.GetThreadEventsResponse
+	224, // 350: chatto.api.v1.ChattoApiService.GetThreadEventsAround:output_type -> chatto.api.v1.GetThreadEventsAroundResponse
+	227, // 351: chatto.api.v1.ChattoApiService.ListMyFollowedThreads:output_type -> chatto.api.v1.ListMyFollowedThreadsResponse
+	196, // 352: chatto.api.v1.ChattoApiService.GetLinkPreview:output_type -> chatto.api.v1.GetLinkPreviewResponse
+	229, // 353: chatto.api.v1.ChattoApiService.PostMessage:output_type -> chatto.api.v1.PostMessageResponse
+	231, // 354: chatto.api.v1.ChattoApiService.UpdateMessage:output_type -> chatto.api.v1.UpdateMessageResponse
+	233, // 355: chatto.api.v1.ChattoApiService.DeleteMessage:output_type -> chatto.api.v1.DeleteMessageResponse
+	235, // 356: chatto.api.v1.ChattoApiService.DeleteAttachment:output_type -> chatto.api.v1.DeleteAttachmentResponse
+	237, // 357: chatto.api.v1.ChattoApiService.DeleteLinkPreview:output_type -> chatto.api.v1.DeleteLinkPreviewResponse
+	239, // 358: chatto.api.v1.ChattoApiService.AddReaction:output_type -> chatto.api.v1.AddReactionResponse
+	241, // 359: chatto.api.v1.ChattoApiService.RemoveReaction:output_type -> chatto.api.v1.RemoveReactionResponse
+	243, // 360: chatto.api.v1.ChattoApiService.FollowThread:output_type -> chatto.api.v1.FollowThreadResponse
+	245, // 361: chatto.api.v1.ChattoApiService.UnfollowThread:output_type -> chatto.api.v1.UnfollowThreadResponse
+	247, // 362: chatto.api.v1.ChattoApiService.MarkRoomAsRead:output_type -> chatto.api.v1.MarkRoomAsReadResponse
+	249, // 363: chatto.api.v1.ChattoApiService.MarkThreadAsRead:output_type -> chatto.api.v1.MarkThreadAsReadResponse
+	251, // 364: chatto.api.v1.ChattoApiService.SendTypingIndicator:output_type -> chatto.api.v1.SendTypingIndicatorResponse
+	253, // 365: chatto.api.v1.ChattoApiService.UpdateMyPresence:output_type -> chatto.api.v1.UpdateMyPresenceResponse
+	173, // 366: chatto.api.v1.ChattoApiService.ListActiveCalls:output_type -> chatto.api.v1.ListActiveCallsResponse
+	175, // 367: chatto.api.v1.ChattoApiService.GetCallParticipants:output_type -> chatto.api.v1.GetCallParticipantsResponse
+	177, // 368: chatto.api.v1.ChattoApiService.JoinVoiceCall:output_type -> chatto.api.v1.JoinVoiceCallResponse
+	179, // 369: chatto.api.v1.ChattoApiService.LeaveVoiceCall:output_type -> chatto.api.v1.LeaveVoiceCallResponse
+	182, // 370: chatto.api.v1.ChattoApiService.GetVoiceCallToken:output_type -> chatto.api.v1.GetVoiceCallTokenResponse
+	281, // [281:371] is the sub-list for method output_type
+	191, // [191:281] is the sub-list for method input_type
+	191, // [191:191] is the sub-list for extension type_name
+	191, // [191:191] is the sub-list for extension extendee
+	0,   // [0:191] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_chat_proto_init() }
@@ -768,18 +16694,59 @@ func file_chatto_api_v1_chat_proto_init() {
 	if File_chatto_api_v1_chat_proto != nil {
 		return
 	}
+	file_chatto_api_v1_chat_proto_msgTypes[18].OneofWrappers = []any{}
+	file_chatto_api_v1_chat_proto_msgTypes[46].OneofWrappers = []any{}
+	file_chatto_api_v1_chat_proto_msgTypes[60].OneofWrappers = []any{}
+	file_chatto_api_v1_chat_proto_msgTypes[83].OneofWrappers = []any{}
+	file_chatto_api_v1_chat_proto_msgTypes[87].OneofWrappers = []any{}
+	file_chatto_api_v1_chat_proto_msgTypes[96].OneofWrappers = []any{}
+	file_chatto_api_v1_chat_proto_msgTypes[178].OneofWrappers = []any{}
+	file_chatto_api_v1_chat_proto_msgTypes[186].OneofWrappers = []any{}
+	file_chatto_api_v1_chat_proto_msgTypes[187].OneofWrappers = []any{}
+	file_chatto_api_v1_chat_proto_msgTypes[191].OneofWrappers = []any{}
+	file_chatto_api_v1_chat_proto_msgTypes[192].OneofWrappers = []any{}
+	file_chatto_api_v1_chat_proto_msgTypes[193].OneofWrappers = []any{}
+	file_chatto_api_v1_chat_proto_msgTypes[201].OneofWrappers = []any{}
+	file_chatto_api_v1_chat_proto_msgTypes[202].OneofWrappers = []any{
+		(*RoomEventPayload_MessagePosted)(nil),
+		(*RoomEventPayload_MessageEdited)(nil),
+		(*RoomEventPayload_MessageRetracted)(nil),
+		(*RoomEventPayload_RoomCreated)(nil),
+		(*RoomEventPayload_RoomUpdated)(nil),
+		(*RoomEventPayload_RoomDeleted)(nil),
+		(*RoomEventPayload_RoomArchived)(nil),
+		(*RoomEventPayload_RoomUnarchived)(nil),
+		(*RoomEventPayload_UserJoinedRoom)(nil),
+		(*RoomEventPayload_UserLeftRoom)(nil),
+		(*RoomEventPayload_ReactionAdded)(nil),
+		(*RoomEventPayload_ReactionRemoved)(nil),
+		(*RoomEventPayload_AssetProcessingStarted)(nil),
+		(*RoomEventPayload_AssetProcessingSucceeded)(nil),
+		(*RoomEventPayload_AssetProcessingFailed)(nil),
+		(*RoomEventPayload_AssetDeleted)(nil),
+		(*RoomEventPayload_ServerMemberDeleted)(nil),
+		(*RoomEventPayload_CallStarted)(nil),
+		(*RoomEventPayload_CallParticipantJoined)(nil),
+		(*RoomEventPayload_CallParticipantLeft)(nil),
+		(*RoomEventPayload_CallEnded)(nil),
+		(*RoomEventPayload_ThreadCreated)(nil),
+		(*RoomEventPayload_RoomMemberBanned)(nil),
+		(*RoomEventPayload_RoomMemberUnbanned)(nil),
+	}
+	file_chatto_api_v1_chat_proto_msgTypes[223].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_chat_proto_rawDesc), len(file_chatto_api_v1_chat_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   12,
+			NumEnums:      7,
+			NumMessages:   247,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_chatto_api_v1_chat_proto_goTypes,
 		DependencyIndexes: file_chatto_api_v1_chat_proto_depIdxs,
+		EnumInfos:         file_chatto_api_v1_chat_proto_enumTypes,
 		MessageInfos:      file_chatto_api_v1_chat_proto_msgTypes,
 	}.Build()
 	File_chatto_api_v1_chat_proto = out.File

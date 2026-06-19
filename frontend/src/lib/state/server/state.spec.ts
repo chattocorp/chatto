@@ -1,52 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Client } from '@urql/svelte';
+import { AuthenticatedServerSettingsView } from '$lib/pb/chatto/api/v1/chat_pb';
 import { ServerInfoState } from './state.svelte';
 
-/** Build a minimal urql Client mock with controllable query result. */
-function makeClient(result: {
-  data?: unknown;
-  error?: { message: string; networkError?: Error } | null;
-}): Client {
-  return {
-    query: vi.fn().mockReturnValue({
-      toPromise: vi.fn().mockResolvedValue({
-        data: result.data ?? null,
-        error: result.error ?? null
-      })
-    }),
-    mutation: vi.fn(),
-    subscription: vi.fn()
-  } as unknown as Client;
+function okServerInfo(data: unknown): Response {
+  return new Response(JSON.stringify(data), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' }
+  });
 }
 
-function makeClientSequence(results: Array<{
-  data?: unknown;
-  error?: { message: string; networkError?: Error } | null;
-}>): Client {
+function makeWireSettings(settings: Partial<AuthenticatedServerSettingsView>) {
   return {
-    query: vi.fn().mockImplementation(() => {
-      const result = results.shift() ?? {};
-      return {
-        toPromise: vi.fn().mockResolvedValue({
-          data: result.data ?? null,
-          error: result.error ?? null
-        })
-      };
-    }),
-    mutation: vi.fn(),
-    subscription: vi.fn()
-  } as unknown as Client;
-}
-
-/** Build a urql Client mock whose query rejects (synchronous throw inside the chain). */
-function makeRejectingClient(err: Error): Client {
-  return {
-    query: vi.fn().mockReturnValue({
-      toPromise: vi.fn().mockRejectedValue(err)
-    }),
-    mutation: vi.fn(),
-    subscription: vi.fn()
-  } as unknown as Client;
+    getAuthenticatedServerSettings: vi.fn().mockResolvedValue({
+      settings: new AuthenticatedServerSettingsView(settings)
+    })
+  };
 }
 
 describe('ServerInfoState.init()', () => {
@@ -54,32 +22,32 @@ describe('ServerInfoState.init()', () => {
 
   beforeEach(() => {
     consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.stubGlobal('fetch', vi.fn());
   });
 
   it('populates fields and clears loading on success', async () => {
-    const client = makeClient({
-      data: {
-        server: {
-          directRegistrationEnabled: false,
-          profile: {
-            name: 'Acme',
-            welcomeMessage: 'welcome',
-            description: 'a server for acme',
-            logoUrl: 'https://icon',
-            bannerUrl: 'https://banner'
-          }
-        }
-      }
-    });
-    const state = new ServerInfoState(client, 'https://acme.test');
+    vi.mocked(fetch).mockResolvedValueOnce(
+      okServerInfo({
+        name: 'Acme',
+        registrationOpen: false,
+        welcomeMessage: 'welcome',
+        description: 'a server for acme',
+        iconUrl: 'https://icon',
+        bannerUrl: 'https://banner'
+      })
+    );
+    const state = new ServerInfoState('https://acme.test');
 
     await state.init();
 
+    expect(fetch).toHaveBeenCalledWith('https://acme.test/api/server');
     expect(state.loading).toBe(false);
     expect(state.error).toBeNull();
     expect(state.name).toBe('Acme');
     expect(state.welcomeMessage).toBe('welcome');
     expect(state.description).toBe('a server for acme');
+    expect(state.iconUrl).toBe('https://icon');
+    expect(state.bannerUrl).toBe('https://banner');
     expect(state.directRegistrationEnabled).toBe(false);
     expect(state.videoProcessingEnabled).toBe(false);
     expect(state.messageEditWindowSeconds).toBe(3 * 60 * 60);
@@ -87,43 +55,28 @@ describe('ServerInfoState.init()', () => {
   });
 
   it('loads authenticated runtime settings separately', async () => {
-    const client = makeClientSequence([
-      {
-        data: {
-          server: {
-            directRegistrationEnabled: false,
-            profile: {
-              name: 'Acme',
-              welcomeMessage: 'welcome',
-              description: 'a server for acme',
-              logoUrl: 'https://icon',
-              bannerUrl: 'https://banner'
-            }
-          }
-        }
-      },
-      {
-        data: {
-          server: {
-            pushNotificationsEnabled: true,
-            vapidPublicKey: 'vap',
-            livekitUrl: 'wss://lk',
-            videoProcessingEnabled: true,
-            maxUploadSize: 100,
-            maxVideoUploadSize: 200,
-            messageEditWindowSeconds: 7200,
-            profile: {
-              motd: 'hello'
-            }
-          }
-        }
-      }
-    ]);
-    const state = new ServerInfoState(client, 'https://acme.test');
+    vi.mocked(fetch).mockResolvedValueOnce(
+      okServerInfo({
+        name: 'Acme',
+        registrationOpen: false
+      })
+    );
+    const wire = makeWireSettings({
+      pushNotificationsEnabled: true,
+      vapidPublicKey: 'vap',
+      livekitUrl: 'wss://lk',
+      videoProcessingEnabled: true,
+      maxUploadSize: BigInt(100),
+      maxVideoUploadSize: BigInt(200),
+      messageEditWindowSeconds: 7200,
+      motd: 'hello'
+    });
+    const state = new ServerInfoState('https://acme.test', {}, () => wire);
 
     await state.init();
     await state.refreshAuthenticatedSettings();
 
+    expect(wire.getAuthenticatedServerSettings).toHaveBeenCalledOnce();
     expect(state.motd).toBe('hello');
     expect(state.pushNotificationsEnabled).toBe(true);
     expect(state.vapidPublicKey).toBe('vap');
@@ -135,21 +88,17 @@ describe('ServerInfoState.init()', () => {
   });
 
   it('refreshes profile fields without toggling initial loading state', async () => {
-    const client = makeClient({
-      data: {
-        server: {
-          directRegistrationEnabled: true,
-          profile: {
-            name: 'Fresh',
-            welcomeMessage: 'fresh welcome',
-            description: 'fresh description',
-            logoUrl: 'https://fresh-icon',
-            bannerUrl: 'https://fresh-banner'
-          }
-        }
-      }
-    });
-    const state = new ServerInfoState(client, 'https://fresh.test');
+    vi.mocked(fetch).mockResolvedValueOnce(
+      okServerInfo({
+        name: 'Fresh',
+        registrationOpen: true,
+        welcomeMessage: 'fresh welcome',
+        description: 'fresh description',
+        iconUrl: 'https://fresh-icon',
+        bannerUrl: 'https://fresh-banner'
+      })
+    );
+    const state = new ServerInfoState('https://fresh.test');
     state.loading = false;
 
     await state.refreshProfile();
@@ -162,36 +111,28 @@ describe('ServerInfoState.init()', () => {
     expect(state.bannerUrl).toBe('https://fresh-banner');
   });
 
-  it('logs and sets error when urql returns a network error (CORS/unreachable)', async () => {
-    const client = makeClient({
-      error: {
-        message: '[Network] Failed to fetch',
-        networkError: new Error('Failed to fetch')
-      }
-    });
-    const state = new ServerInfoState(client, 'https://chatto.run');
+  it('logs and sets error when /api/server returns a non-OK response', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response('{}', { status: 500 }));
+    const state = new ServerInfoState('https://chatto.run');
 
     await state.init();
 
     expect(state.loading).toBe(false);
-    expect(state.error).toBe('[Network] Failed to fetch');
-    expect(state.name).toBe('Chatto'); // default unchanged
+    expect(state.error).toBe('GET /api/server failed with 500');
+    expect(state.name).toBe('Chatto');
     expect(consoleError).toHaveBeenCalledTimes(1);
     expect(consoleError.mock.calls[0][0]).toContain('https://chatto.run');
     expect(consoleError.mock.calls[0][0]).toContain('failed to load server info');
   });
 
-  it('logs and sets error when the query promise rejects', async () => {
-    const client = makeRejectingClient(new Error('boom'));
-    const state = new ServerInfoState(client, 'https://chatto.run');
+  it('logs and sets error when the fetch promise rejects', async () => {
+    vi.mocked(fetch).mockRejectedValueOnce(new Error('boom'));
+    const state = new ServerInfoState('https://chatto.run');
 
     await state.init();
 
     expect(state.loading).toBe(false);
     expect(state.error).toBe('boom');
-    // The .catch path logs at least once with our scoped message
-    // (there may be additional unhandled-rejection-style logs depending
-    // on the runtime, but our explicit log must be present).
     const ourCalls = consoleError.mock.calls.filter(
       (c: unknown[]) =>
         typeof c[0] === 'string' &&
@@ -202,10 +143,9 @@ describe('ServerInfoState.init()', () => {
   });
 
   it('does not throw — failure must be isolated to this server', async () => {
-    const client = makeRejectingClient(new Error('boom'));
-    const state = new ServerInfoState(client);
+    vi.mocked(fetch).mockRejectedValueOnce(new Error('boom'));
+    const state = new ServerInfoState();
 
-    // Must resolve, not reject.
     await expect(state.init()).resolves.toBeUndefined();
   });
 });

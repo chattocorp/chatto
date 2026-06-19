@@ -1,11 +1,9 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
+  import { afterNavigate, goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import { graphql } from '$lib/gql';
   import { Panel, UserList } from '$lib/components/admin';
   import { Hint } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
@@ -13,15 +11,22 @@
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button, Checkbox, TextInput, TextArea, FormError } from '$lib/ui/form';
   import { DeleteRoleModal, RolePermissionsMatrix, type Role } from '$lib/components/rbac';
+  import {
+    DeleteAdminRoleRequest,
+    GetAdminRoleRequest,
+    UpdateAdminRoleRequest
+  } from '$lib/pb/chatto/api/v1/chat_pb';
+  import type { AdminRoleView } from '$lib/pb/chatto/api/v1/chat_pb';
+  import type { User } from '$lib/pb/chatto/core/v1/models_pb';
+  import { withActiveServerWireClient } from '$lib/wire/activeServerClient';
 
-  type User = { id: string; login: string; displayName: string };
+  type RoleUser = { id: string; login: string; displayName: string };
 
   const serverSegment = $derived(serverIdToSegment(getActiveServer()));
-  const connection = useConnection();
   const roleName = $derived(page.params.name!);
 
   let role = $state<Role | null>(null);
-  let roleUsers = $state<User[]>([]);
+  let roleUsers = $state<RoleUser[]>([]);
   let canManageRoles = $state(false);
   let canAssignRoles = $state(false);
   let loading = $state(true);
@@ -35,80 +40,48 @@
   let editDisplayName = $state('');
   let editDescription = $state('');
   let editPingable = $state(false);
-
-  const UpdateRoleDetailPageMutation = graphql(`
-    mutation UpdateRoleDetailPage($input: UpdateRoleInput!) {
-      updateRole(input: $input) {
-        name
-        displayName
-        description
-        pingable
-      }
-    }
-  `);
+  let requestId = 0;
+  let loadedRoleName = '';
 
   async function loadData() {
+    const targetRoleName = roleName;
+    if (!targetRoleName) return;
+
+    const currentRequest = ++requestId;
     loading = true;
     error = null;
 
-    // Metadata + users + viewer permissions. The editor handles its own
-    // permission loading through the RBAC matrix query.
-    const resp = await connection().client.query(
-      graphql(`
-        query SpaceRoleDetail($name: String!) {
-          server {
-            role(name: $name) {
-              name
-              displayName
-              description
-              permissions
-              permissionDenials
-              isSystem
-              position
-              pingable
-            }
-            roleUsers(roleName: $name) {
-              id
-              login
-              displayName
-            }
-            viewerCanManageRoles
-            viewerCanAssignRoles
-          }
-        }
-      `),
-      { name: roleName }
-    );
+    try {
+      const resp = await withActiveServerWireClient((client) =>
+        client.getAdminRole(new GetAdminRoleRequest({ name: targetRoleName }))
+      );
+      if (currentRequest !== requestId) return;
 
-    if (resp.error) {
-      error = resp.error.message;
-      loading = false;
-      return;
+      role = roleFromWire(resp.role);
+      roleUsers = resp.users.map(userFromWire);
+      canManageRoles = resp.viewerCanManageRoles;
+      canAssignRoles = resp.viewerCanAssignRoles;
+
+      if (role) {
+        editDisplayName = role.displayName;
+        editDescription = role.description;
+        editPingable = role.pingable;
+      }
+      loadedRoleName = targetRoleName;
+    } catch (e) {
+      if (currentRequest !== requestId) return;
+      error = e instanceof Error ? e.message : 'Failed to load role';
+      role = null;
+    } finally {
+      if (currentRequest === requestId) {
+        loading = false;
+      }
     }
-
-    if (!resp.data?.server) {
-      error = 'Server not found';
-      loading = false;
-      return;
-    }
-
-    role = resp.data.server.role ?? null;
-    roleUsers = resp.data.server.roleUsers;
-    canManageRoles = resp.data.server.viewerCanManageRoles;
-    canAssignRoles = resp.data.server.viewerCanAssignRoles;
-
-    if (role) {
-      editDisplayName = role.displayName;
-      editDescription = role.description;
-      editPingable = role.pingable;
-    }
-
-    loading = false;
   }
 
-  $effect(() => {
-    if (roleName) {
-      loadData();
+  afterNavigate(() => {
+    if (roleName && roleName !== loadedRoleName) {
+      void loadData();
     }
   });
 
@@ -118,22 +91,28 @@
     saving = true;
     error = null;
 
-    const resp = await connection().client.mutation(UpdateRoleDetailPageMutation, {
-      input: {
-        name: role.name,
-        displayName: editDisplayName,
-        description: editDescription
+    try {
+      const resp = await withActiveServerWireClient((client) =>
+        client.updateAdminRole(
+          new UpdateAdminRoleRequest({
+            name: role?.name ?? '',
+            displayName: editDisplayName,
+            description: editDescription
+          })
+        )
+      );
+      const updated = roleFromWire(resp.role);
+      if (updated) {
+        role = updated;
+        editDisplayName = updated.displayName;
+        editDescription = updated.description;
+        editPingable = updated.pingable;
       }
-    });
-
-    if (resp.error) {
-      error = resp.error.message;
-    } else {
-      // Reload data
-      await loadData();
+    } catch (e) {
+      error = e instanceof Error ? e.message : 'Failed to update role';
+    } finally {
+      saving = false;
     }
-
-    saving = false;
   }
 
   async function savePingable(event: Event) {
@@ -148,28 +127,30 @@
     savingPingable = true;
     error = null;
 
-    const resp = await connection().client.mutation(UpdateRoleDetailPageMutation, {
-      input: {
-        name: role.name,
-        displayName: role.displayName,
-        description: role.description,
-        pingable: nextPingable
+    try {
+      const resp = await withActiveServerWireClient((client) =>
+        client.updateAdminRole(
+          new UpdateAdminRoleRequest({
+            name: role?.name ?? '',
+            displayName: role?.displayName ?? '',
+            description: role?.description ?? '',
+            pingable: nextPingable
+          })
+        )
+      );
+      const updated = roleFromWire(resp.role);
+      if (!updated) {
+        throw new Error('Failed to update role ping setting');
       }
-    });
-
-    if (resp.error || !resp.data?.updateRole) {
+      role = updated;
+      editPingable = updated.pingable;
+      toast.success(updated.pingable ? 'Role pings enabled' : 'Role pings disabled');
+    } catch (e) {
       editPingable = previousPingable;
-      error = resp.error?.message ?? 'Failed to update role ping setting';
-    } else {
-      role = {
-        ...role,
-        pingable: resp.data.updateRole.pingable
-      };
-      editPingable = resp.data.updateRole.pingable;
-      toast.success(resp.data.updateRole.pingable ? 'Role pings enabled' : 'Role pings disabled');
+      error = e instanceof Error ? e.message : 'Failed to update role ping setting';
+    } finally {
+      savingPingable = false;
     }
-
-    savingPingable = false;
   }
 
   async function deleteRole() {
@@ -178,22 +159,15 @@
     deleting = true;
     error = null;
 
-    const resp = await connection().client.mutation(
-      graphql(`
-        mutation DeleteRoleDetailPage($input: DeleteRoleInput!) {
-          deleteRole(input: $input)
-        }
-      `),
-      { input: { name: role.name } }
-    );
-
-    if (resp.error) {
-      error = resp.error.message;
+    try {
+      await withActiveServerWireClient((client) =>
+        client.deleteAdminRole(new DeleteAdminRoleRequest({ name: role?.name ?? '' }))
+      );
+      goto(resolve('/chat/[serverId]/server-admin/permissions', { serverId: serverSegment }));
+    } catch (e) {
+      error = e instanceof Error ? e.message : 'Failed to delete role';
       deleting = false;
       showDeleteConfirm = false;
-    } else {
-      // Navigate back to permissions list
-      goto(resolve('/chat/[serverId]/server-admin/permissions', { serverId: serverSegment }));
     }
   }
 
@@ -205,6 +179,28 @@
     role && (editDisplayName !== role.displayName || editDescription !== role.description)
   );
   const canEditPingable = $derived(role?.name !== 'everyone');
+
+  function roleFromWire(value: AdminRoleView | undefined): Role | null {
+    if (!value) return null;
+    return {
+      name: value.name,
+      displayName: value.displayName,
+      description: value.description,
+      permissions: [...value.permissions],
+      permissionDenials: [...value.permissionDenials],
+      isSystem: value.isSystem,
+      position: value.position,
+      pingable: value.pingable
+    };
+  }
+
+  function userFromWire(value: User): RoleUser {
+    return {
+      id: value.id,
+      login: value.login,
+      displayName: value.displayName
+    };
+  }
 </script>
 
 <PageTitle title={`${role?.displayName ?? 'Edit Role'} | Space Admin`} />

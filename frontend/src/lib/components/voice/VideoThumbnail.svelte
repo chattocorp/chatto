@@ -19,7 +19,7 @@ resolution to request (h180 simulcast layer for 120px thumbnails).
 <script lang="ts">
 	import { onDestroy } from 'svelte';
 	import type { Track } from 'livekit-client';
-	import type { PresenceStatus } from '$lib/gql/graphql';
+	import type { PresenceStatus } from '$lib/chatTypes';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 
 	let {

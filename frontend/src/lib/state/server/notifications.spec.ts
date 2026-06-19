@@ -1,24 +1,36 @@
+import { Timestamp } from '@bufbuild/protobuf';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Client } from '@urql/svelte';
-import { NotificationStore, type NotificationItem } from './notifications.svelte';
+import {
+  DismissAllNotificationsResponse,
+  DismissNotificationRequest,
+  DismissNotificationResponse,
+  ListNotificationsResponse,
+  NotificationItemView,
+  NotificationKind
+} from '$lib/pb/chatto/api/v1/chat_pb';
+import { User } from '$lib/pb/chatto/core/v1/models_pb';
+import {
+  NotificationStore,
+  type NotificationItem,
+  type NotificationWireClient
+} from './notifications.svelte';
 
-/**
- * Build a minimal mock urql Client whose `query` resolves with a controllable
- * `{ data, error }` pair. This is intentionally simpler than
- * `test-utils/mockGraphqlClient` — we want full control over the query result
- * so we can simulate schema-mismatch and network-error cases.
- */
-function makeClient(result: { data?: unknown; error?: { message: string } | null }): Client {
+function makeStore(client: NotificationWireClient): NotificationStore {
+  return new NotificationStore('server_1', () => client);
+}
+
+function makeClient(overrides: Partial<NotificationWireClient> = {}): NotificationWireClient {
   return {
-    query: vi.fn().mockReturnValue({
-      toPromise: vi.fn().mockResolvedValue({
-        data: result.data ?? null,
-        error: result.error ?? null
-      })
-    }),
-    mutation: vi.fn(),
-    subscription: vi.fn()
-  } as unknown as Client;
+    listNotifications: vi.fn().mockResolvedValue(new ListNotificationsResponse()),
+    hasNotifications: vi.fn().mockResolvedValue({ hasNotifications: false }),
+    dismissNotification: vi
+      .fn()
+      .mockResolvedValue(new DismissNotificationResponse({ dismissed: true })),
+    dismissAllNotifications: vi
+      .fn()
+      .mockResolvedValue(new DismissAllNotificationsResponse({ dismissedCount: 0 })),
+    ...overrides
+  };
 }
 
 const mention = (id: string): NotificationItem =>
@@ -27,6 +39,7 @@ const mention = (id: string): NotificationItem =>
     id,
     createdAt: new Date('2026-04-29T12:00:00Z').toISOString(),
     actor: {
+      __typename: 'User',
       id: 'a',
       login: 'tester',
       displayName: 'Tester',
@@ -34,19 +47,26 @@ const mention = (id: string): NotificationItem =>
       presenceStatus: 'OFFLINE'
     },
     summary: 'mentioned you',
-    mentionSpace: { id: 's1', name: 'Space' },
     mentionRoom: { id: 'r1', name: 'general' },
-    mentionEventId: 'evt'
+    mentionEventId: 'evt',
+    mentionInThread: null
   }) as unknown as NotificationItem;
 
-function notificationsResult(items: NotificationItem[]) {
-  return {
-    viewer: {
-      notifications: {
-        items
-      }
-    }
-  };
+function mentionView(id: string): NotificationItemView {
+  return new NotificationItemView({
+    id,
+    createdAt: Timestamp.fromDate(new Date('2026-04-29T12:00:00Z')),
+    kind: NotificationKind.MENTION,
+    actor: new User({
+      id: 'a',
+      login: 'tester',
+      displayName: 'Tester'
+    }),
+    summary: 'Tester mentioned you',
+    roomId: 'r1',
+    roomName: 'general',
+    eventId: 'evt'
+  });
 }
 
 describe('NotificationStore', () => {
@@ -54,61 +74,70 @@ describe('NotificationStore', () => {
 
   beforeEach(() => {
     consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
   it('populates notifications on success', async () => {
-    const store = new NotificationStore(
-      makeClient({ data: notificationsResult([mention('n1'), mention('n2')]) })
+    const store = makeStore(
+      makeClient({
+        listNotifications: vi.fn().mockResolvedValue(
+          new ListNotificationsResponse({
+            items: [mentionView('n1'), mentionView('n2')],
+            serverName: 'Test Server'
+          })
+        )
+      })
     );
     await store.fetch();
     expect(store.notifications).toHaveLength(2);
+    expect(store.serverName).toBe('Test Server');
     expect(store.error).toBeNull();
   });
 
-  // The motivating bug: a remote instance running an older backend rejects
-  // the entire query when the frontend asks for a field it doesn't have.
-  // Before the resilience contract this caused fetch() to throw and the
-  // remote's NotificationStore to lock up — symptom was the orange DM dot
-  // disappearing for cross-instance DMs. The contract is: a server error
-  // records the error message, but does NOT replace existing notifications.
-  it('retains existing notifications when the server returns a GraphQL error', async () => {
+  it('retains existing notifications when the server returns a wire error', async () => {
     const errClient = makeClient({
-      error: { message: 'Cannot query field "threadRootEventId" on type "MentionNotificationItem".' }
+      listNotifications: vi.fn().mockRejectedValue(new Error('unknown method ListNotifications'))
     });
-    const store = new NotificationStore(errClient);
-    // Pre-populate as if a previous fetch had succeeded.
+    const store = makeStore(errClient);
     store.notifications = [mention('original')];
 
     await store.fetch();
 
     expect(store.notifications).toHaveLength(1);
     expect(store.notifications[0].id).toBe('original');
-    expect(store.error).toContain('Cannot query field');
+    expect(store.error).toContain('unknown method');
     expect(consoleError).toHaveBeenCalled();
   });
 
-  it('does not throw on GraphQL error', async () => {
-    const store = new NotificationStore(
-      makeClient({ error: { message: 'something broke' } })
+  it('does not throw on wire error', async () => {
+    const store = makeStore(
+      makeClient({
+        listNotifications: vi.fn().mockRejectedValue(new Error('something broke'))
+      })
     );
     await expect(store.fetch()).resolves.toBeUndefined();
     expect(store.error).toBe('something broke');
   });
 
   it('does not throw on network/transport error', async () => {
-    const client = {
-      query: vi.fn().mockReturnValue({
-        toPromise: vi.fn().mockRejectedValue(new Error('network down'))
-      }),
-      mutation: vi.fn(),
-      subscription: vi.fn()
-    } as unknown as Client;
-    const store = new NotificationStore(client);
+    const client = makeClient({
+      listNotifications: vi.fn().mockRejectedValue(new Error('network down'))
+    });
+    const store = makeStore(client);
     store.notifications = [mention('keepme')];
     await expect(store.fetch()).resolves.toBeUndefined();
-    // Existing notifications survive a network blip too.
     expect(store.notifications).toHaveLength(1);
     expect(store.error).toBe('network down');
+  });
+
+  it('checkHasNotifications calls the wire lightweight endpoint', async () => {
+    const client = makeClient({
+      hasNotifications: vi.fn().mockResolvedValue({ hasNotifications: true })
+    });
+    const store = makeStore(client);
+
+    await expect(store.checkHasNotifications()).resolves.toBe(true);
+    expect(client.hasNotifications).toHaveBeenCalledOnce();
   });
 
   // Mentions inside a thread must NOT be dismissed when the user enters the
@@ -119,49 +148,31 @@ describe('NotificationStore', () => {
       __typename: 'MentionNotificationItem',
       id: 'room-mention',
       createdAt: new Date().toISOString(),
-      actor: {
-        id: 'a',
-        login: 't',
-        displayName: 't',
-        avatarUrl: null,
-        presenceStatus: 'OFFLINE'
-      },
+      actor: null,
       summary: 'mentioned you',
-      mentionSpace: { id: 's1', name: 'S' },
       mentionRoom: { id: 'r1', name: 'r' },
       mentionEventId: 'e1',
       mentionInThread: null
-    } as unknown as NotificationItem;
+    } as NotificationItem;
     const threadMention = {
       __typename: 'MentionNotificationItem',
       id: 'thread-mention',
       createdAt: new Date().toISOString(),
-      actor: {
-        id: 'a',
-        login: 't',
-        displayName: 't',
-        avatarUrl: null,
-        presenceStatus: 'OFFLINE'
-      },
+      actor: null,
       summary: 'mentioned you',
-      mentionSpace: { id: 's1', name: 'S' },
       mentionRoom: { id: 'r1', name: 'r' },
       mentionEventId: 'e2',
       mentionInThread: 'thread-root'
-    } as unknown as NotificationItem;
+    } as NotificationItem;
 
     const dismissedIds: string[] = [];
-    const client = {
-      query: vi.fn(),
-      mutation: vi.fn().mockImplementation((_doc, vars: { input: { notificationId: string } }) => ({
-        toPromise: vi.fn().mockImplementation(() => {
-          dismissedIds.push(vars.input.notificationId);
-          return Promise.resolve({ data: { dismissNotification: true }, error: null });
-        })
-      })),
-      subscription: vi.fn()
-    } as unknown as Client;
-    const store = new NotificationStore(client);
+    const client = makeClient({
+      dismissNotification: vi.fn().mockImplementation((request: DismissNotificationRequest) => {
+        dismissedIds.push(request.notificationId);
+        return Promise.resolve(new DismissNotificationResponse({ dismissed: true }));
+      })
+    });
+    const store = makeStore(client);
     store.notifications = [roomMention, threadMention];
 
     await store.dismissMentionNotifications('r1');
@@ -177,37 +188,64 @@ describe('NotificationStore', () => {
       __typename: 'MentionNotificationItem',
       id: 'thread-mention',
       createdAt: new Date().toISOString(),
-      actor: {
-        id: 'a',
-        login: 't',
-        displayName: 't',
-        avatarUrl: null,
-        presenceStatus: 'OFFLINE'
-      },
+      actor: null,
       summary: 'mentioned you',
-      mentionSpace: { id: 's1', name: 'S' },
       mentionRoom: { id: 'r1', name: 'r' },
       mentionEventId: 'e2',
       mentionInThread: 'thread-root'
-    } as unknown as NotificationItem;
+    } as NotificationItem;
 
     const dismissedIds: string[] = [];
-    const client = {
-      query: vi.fn(),
-      mutation: vi.fn().mockImplementation((_doc, vars: { input: { notificationId: string } }) => ({
-        toPromise: vi.fn().mockImplementation(() => {
-          dismissedIds.push(vars.input.notificationId);
-          return Promise.resolve({ data: { dismissNotification: true }, error: null });
-        })
-      })),
-      subscription: vi.fn()
-    } as unknown as Client;
-    const store = new NotificationStore(client);
+    const client = makeClient({
+      dismissNotification: vi.fn().mockImplementation((request: DismissNotificationRequest) => {
+        dismissedIds.push(request.notificationId);
+        return Promise.resolve(new DismissNotificationResponse({ dismissed: true }));
+      })
+    });
+    const store = makeStore(client);
     store.notifications = [threadMention];
 
     await store.dismissThreadNotifications('thread-root');
 
     expect(dismissedIds).toEqual(['thread-mention']);
+    expect(store.notifications).toHaveLength(0);
+  });
+
+  it('restores a notification when optimistic single dismiss fails', async () => {
+    const client = makeClient({
+      dismissNotification: vi
+        .fn()
+        .mockResolvedValue(new DismissNotificationResponse({ dismissed: false }))
+    });
+    const store = makeStore(client);
+    store.notifications = [mention('restore-me')];
+
+    await expect(store.dismiss('restore-me')).resolves.toBe(false);
+    expect(store.notifications.map((n) => n.id)).toEqual(['restore-me']);
+  });
+
+  it('restores notifications when dismissAll transport fails', async () => {
+    const client = makeClient({
+      dismissAllNotifications: vi.fn().mockRejectedValue(new Error('network down'))
+    });
+    const store = makeStore(client);
+    store.notifications = [mention('keep-one'), mention('keep-two')];
+
+    await expect(store.dismissAll()).resolves.toBe(0);
+    expect(store.notifications.map((n) => n.id)).toEqual(['keep-one', 'keep-two']);
+  });
+
+  it('returns the wire dismissed count when dismissAll succeeds', async () => {
+    const store = makeStore(
+      makeClient({
+        dismissAllNotifications: vi
+          .fn()
+          .mockResolvedValue(new DismissAllNotificationsResponse({ dismissedCount: 2 }))
+      })
+    );
+    store.notifications = [mention('one'), mention('two')];
+
+    await expect(store.dismissAll()).resolves.toBe(2);
     expect(store.notifications).toHaveLength(0);
   });
 
@@ -219,48 +257,30 @@ describe('NotificationStore', () => {
       __typename: 'DMMessageNotificationItem',
       id: 'dm-a',
       createdAt: new Date('2026-04-29T12:00:00Z').toISOString(),
-      actor: {
-        id: 'u',
-        login: 't',
-        displayName: 't',
-        avatarUrl: null,
-        presenceStatus: 'OFFLINE'
-      },
+      actor: null,
       summary: 'hi',
       room: { id: 'roomA' }
-    } as unknown as NotificationItem;
+    } as NotificationItem;
     const dmB = {
       __typename: 'DMMessageNotificationItem',
       id: 'dm-b',
       createdAt: new Date('2026-04-29T13:00:00Z').toISOString(),
-      actor: {
-        id: 'u',
-        login: 't',
-        displayName: 't',
-        avatarUrl: null,
-        presenceStatus: 'OFFLINE'
-      },
+      actor: null,
       summary: 'later',
       room: { id: 'roomA' }
-    } as unknown as NotificationItem;
+    } as NotificationItem;
     const roomMention = {
       __typename: 'MentionNotificationItem',
       id: 'mention-same-id',
       createdAt: new Date().toISOString(),
-      actor: {
-        id: 'u',
-        login: 't',
-        displayName: 't',
-        avatarUrl: null,
-        presenceStatus: 'OFFLINE'
-      },
+      actor: null,
       summary: 'mention',
-      mentionSpace: { id: 's', name: 'S' },
       mentionRoom: { id: 'roomA', name: 'r' },
-      mentionEventId: 'e'
-    } as unknown as NotificationItem;
+      mentionEventId: 'e',
+      mentionInThread: null
+    } as NotificationItem;
 
-    const store = new NotificationStore(makeClient({}));
+    const store = makeStore(makeClient());
     // Most-recent-first ordering, as fetch() would produce.
     store.notifications = [dmB, dmA, roomMention];
 
@@ -284,11 +304,19 @@ describe('NotificationStore', () => {
   // Per-instance isolation: each instance has its own NotificationStore, and
   // an error in one must not affect notifications loaded on another.
   it('one store failing does not affect a sibling store', async () => {
-    const homeStore = new NotificationStore(
-      makeClient({ data: notificationsResult([mention('h1')]) })
+    const homeStore = makeStore(
+      makeClient({
+        listNotifications: vi.fn().mockResolvedValue(
+          new ListNotificationsResponse({
+            items: [mentionView('h1')]
+          })
+        )
+      })
     );
-    const remoteStore = new NotificationStore(
-      makeClient({ error: { message: 'Cannot query field "threadRootEventId"' } })
+    const remoteStore = makeStore(
+      makeClient({
+        listNotifications: vi.fn().mockRejectedValue(new Error('unknown method ListNotifications'))
+      })
     );
 
     await Promise.all([homeStore.fetch(), remoteStore.fetch()]);
@@ -296,6 +324,6 @@ describe('NotificationStore', () => {
     expect(homeStore.notifications).toHaveLength(1);
     expect(homeStore.error).toBeNull();
     expect(remoteStore.notifications).toHaveLength(0);
-    expect(remoteStore.error).toContain('Cannot query field');
+    expect(remoteStore.error).toContain('unknown method');
   });
 });

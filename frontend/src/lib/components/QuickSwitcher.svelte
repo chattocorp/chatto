@@ -4,18 +4,20 @@
   import { scoreItem } from './quickSwitcherSearch';
   import { serverIdToSegment } from '$lib/navigation';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
-  import { graphql, useFragment } from '$lib/gql';
+  import { PresenceStatus, type UserAvatarUserFragment } from '$lib/chatTypes';
   import {
-    RoomType,
-    UserAvatarUserFragmentDoc,
-    type UserAvatarUserFragment
-  } from '$lib/gql/graphql';
+    ListMyRoomsRequest,
+    SearchMembersRequest,
+    type RoomListItemView
+  } from '$lib/pb/chatto/api/v1/chat_pb';
+  import { RoomKind, type User } from '$lib/pb/chatto/core/v1/models_pb';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import { getGradientForName } from '$lib/utils/gradients';
   import { recentQuickSwitcher } from '$lib/state/recentQuickSwitcher.svelte';
   import { quickSwitcher } from '$lib/state/globals.svelte';
+  import { wireEventBusManager } from '$lib/state/server/wireEventBus.svelte';
+  import { tryWireStartDM } from '$lib/wire';
   import { toast } from '$lib/ui/toast';
 
   type ServerLogo = { name: string; logoUrl?: string | null };
@@ -47,65 +49,6 @@
   let userSearchTimer: ReturnType<typeof setTimeout> | undefined;
   let userSearchRequestId = 0;
 
-  // --- GraphQL queries ---
-
-  const ServerQuery = graphql(`
-    query QuickSwitcherServer {
-      server {
-        profile {
-          name
-          logoUrl
-        }
-      }
-    }
-  `);
-
-  const RoomsQuery = graphql(`
-    query QuickSwitcherRooms {
-      viewer {
-        user {
-          id
-          rooms {
-            id
-            name
-            type
-            members(limit: 100) {
-              users {
-                ...UserAvatarUser
-              }
-            }
-          }
-        }
-      }
-    }
-  `);
-
-  const MembersQuery = graphql(`
-    query QuickSwitcherMembers($search: String) {
-      viewer {
-        canStartDMs
-        user {
-          id
-        }
-      }
-      server {
-        members(search: $search, limit: 20) {
-          users {
-            ...UserAvatarUser
-          }
-        }
-      }
-    }
-  `);
-
-  const StartDMMutation = graphql(`
-    mutation QuickSwitcherStartDM($input: StartDMInput!) {
-      startDM(input: $input) {
-        id
-      }
-    }
-  `);
-
   // --- Data loading ---
 
   async function loadAll() {
@@ -113,29 +56,44 @@
     const instances = serverRegistry.servers;
     const multiInstance = instances.length > 1;
     const items: ResultItem[] = [];
-    const opts = { requestPolicy: 'network-only' as const };
 
     await Promise.allSettled(
       instances.map(async (instance) => {
-        const client = graphqlClientManager.getClient(instance.id).client;
+        const client = wireEventBusManager.getClient(instance.id);
         const store = serverRegistry.tryGetStore(instance.id);
-        const serverName = store?.serverInfo.name || instance.name || getHostname(instance.url);
-        const serverLabel = multiInstance ? serverName : '';
-
-        // Fetch server metadata + this user's rooms in parallel.
-        const [serverSettled, roomsSettled] = await Promise.allSettled([
-          client.query(ServerQuery, {}, opts).toPromise(),
-          client.query(RoomsQuery, {}, opts).toPromise()
-        ]);
-
-        const serverResult = serverSettled.status === 'fulfilled' ? serverSettled.value : null;
-        const roomsResult = roomsSettled.status === 'fulfilled' ? roomsSettled.value : null;
+        let serverName = store?.serverInfo.name || instance.name || getHostname(instance.url);
+        let serverLabel = multiInstance ? serverName : '';
 
         const logo: ServerLogo = {
-          name: serverResult?.data?.server?.profile.name ?? serverName,
-          logoUrl: serverResult?.data?.server?.profile.logoUrl ?? null
+          name: serverName,
+          logoUrl: store?.serverInfo.iconUrl ?? instance.iconUrl ?? null
         };
-        const currentUserId = roomsResult?.data?.viewer?.user.id ?? undefined;
+        let currentUserId: string | undefined;
+        let roomViews: RoomListItemView[] = [];
+
+        if (client) {
+          const [viewerSettled, channelRoomsSettled, dmRoomsSettled] = await Promise.allSettled([
+            client.getViewer(),
+            client.listMyRooms(new ListMyRoomsRequest({ kind: RoomKind.CHANNEL })),
+            client.listMyRooms(new ListMyRoomsRequest({ kind: RoomKind.DM }))
+          ]);
+
+          if (viewerSettled.status === 'fulfilled') {
+            logo.name = viewerSettled.value.serverProfile?.name || logo.name;
+            logo.logoUrl = viewerSettled.value.serverProfile?.logoUrl || null;
+            serverName = logo.name;
+            serverLabel = multiInstance ? serverName : '';
+            currentUserId = viewerSettled.value.viewer?.user?.id || undefined;
+          }
+          if (channelRoomsSettled.status === 'fulfilled') {
+            roomViews = [...roomViews, ...channelRoomsSettled.value.roomViews];
+            currentUserId = currentUserId || channelRoomsSettled.value.viewerUserId || undefined;
+          }
+          if (dmRoomsSettled.status === 'fulfilled') {
+            roomViews = [...roomViews, ...dmRoomsSettled.value.roomViews];
+            currentUserId = currentUserId || dmRoomsSettled.value.viewerUserId || undefined;
+          }
+        }
 
         items.push({
           kind: 'server',
@@ -149,48 +107,47 @@
           score: 0
         });
 
-        if (roomsResult?.data?.viewer?.user) {
-          for (const room of roomsResult.data.viewer.user.rooms) {
-            if (room.type === RoomType.Dm) {
-              const participants = room.members.users.map((m) =>
-                useFragment(UserAvatarUserFragmentDoc, m)
-              );
-              const others = participants.filter((p) => p.id !== currentUserId);
-              const isSelf = others.length === 0;
+        for (const view of roomViews) {
+          const room = view.room;
+          if (!room || room.archived) continue;
 
-              let label: string;
-              if (isSelf) {
-                const self = participants.find((p) => p.id === currentUserId);
-                label = self ? self.displayName || self.login : 'You';
-              } else {
-                label = others.map((p) => p.displayName || p.login).join(', ');
-              }
+          if (room.kind === RoomKind.DM) {
+            const participants = view.members.map(userToAvatarFragment);
+            const others = participants.filter((p) => p.id !== currentUserId);
+            const isSelf = others.length === 0;
 
-              items.push({
-                kind: 'dm',
-                id: room.id,
-                label,
-                detail: serverLabel,
-                serverId: instance.id,
-                serverName,
-                participants,
-                currentUserId,
-                score: 0
-              });
-              continue;
+            let label: string;
+            if (isSelf) {
+              const self = participants.find((p) => p.id === currentUserId);
+              label = self ? self.displayName || self.login : 'You';
+            } else {
+              label = others.map((p) => p.displayName || p.login).join(', ');
             }
 
             items.push({
-              kind: 'room',
+              kind: 'dm',
               id: room.id,
-              label: room.name,
-              detail: serverLabel || logo.name,
+              label,
+              detail: serverLabel,
               serverId: instance.id,
               serverName,
-              serverLogo: logo,
+              participants,
+              currentUserId,
               score: 0
             });
+            continue;
           }
+
+          items.push({
+            kind: 'room',
+            id: room.id,
+            label: room.name,
+            detail: serverLabel || logo.name,
+            serverId: instance.id,
+            serverName,
+            serverLogo: logo,
+            score: 0
+          });
         }
       })
     );
@@ -236,23 +193,23 @@
   async function loadUserResults(search: string, requestId: number) {
     const instances = serverRegistry.servers;
     const multiInstance = instances.length > 1;
-    const opts = { requestPolicy: 'network-only' as const };
     const items: ResultItem[] = [];
 
     await Promise.allSettled(
       instances.map(async (instance) => {
-        const client = graphqlClientManager.getClient(instance.id).client;
+        const client = wireEventBusManager.getClient(instance.id);
+        if (!client) return;
+
         const store = serverRegistry.tryGetStore(instance.id);
         const serverName = store?.serverInfo.name || instance.name || getHostname(instance.url);
         const serverLabel = multiInstance ? serverName : '';
 
-        const result = await client.query(MembersQuery, { search }, opts).toPromise();
-        const viewer = result.data?.viewer;
-        if (!viewer?.canStartDMs) return;
+        const result = await client.searchMembers(new SearchMembersRequest({ search, limit: 20 }));
+        if (!result.viewerCanStartDms) return;
 
-        const currentUserId = viewer.user.id;
-        for (const member of result.data?.server.members.users ?? []) {
-          const user = useFragment(UserAvatarUserFragmentDoc, member);
+        const currentUserId = result.viewerUserId;
+        for (const member of result.users) {
+          const user = userToAvatarFragment(member);
           items.push({
             kind: 'user',
             id: user.id,
@@ -373,7 +330,7 @@
       scheduleUserSearch('');
       dialogEl?.showModal();
       requestAnimationFrame(() => inputEl?.focus());
-      loadAll();
+      void loadAll();
     } else {
       if (userSearchTimer) clearTimeout(userSearchTimer);
       userItems = [];
@@ -403,17 +360,10 @@
   async function startDMFromUser(item: ResultItem) {
     if (!item.targetUserId) throw new Error('Missing DM target');
 
-    const result = await graphqlClientManager
-      .getClient(item.serverId)
-      .client.mutation(StartDMMutation, {
-        input: {
-          participantIds: item.targetUserId === item.currentUserId ? [] : [item.targetUserId]
-        }
-      })
-      .toPromise();
-
-    const roomId = result.data?.startDM.id;
-    if (!roomId) throw result.error ?? new Error('Failed to start DM');
+    const roomId = await tryWireStartDM(item.serverId, {
+      participantIds: item.targetUserId === item.currentUserId ? [] : [item.targetUserId]
+    });
+    if (!roomId) throw new Error('Failed to start DM');
 
     return roomId;
   }
@@ -517,6 +467,17 @@
 
   function userAvatarParticipant(item: ResultItem): UserAvatarUserFragment | null {
     return item.participants?.[0] ?? null;
+  }
+
+  function userToAvatarFragment(user: User): UserAvatarUserFragment {
+    return {
+      __typename: 'User',
+      id: user.id,
+      login: user.login,
+      displayName: user.displayName,
+      avatarUrl: null,
+      presenceStatus: PresenceStatus.Offline
+    };
   }
 </script>
 

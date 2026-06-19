@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
-import { RoomType } from '$lib/gql/graphql';
+import { RoomType } from '$lib/chatTypes';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {

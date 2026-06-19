@@ -1,108 +1,60 @@
 import { SvelteSet } from 'svelte/reactivity';
-import { graphql } from '$lib/gql';
-import type { NotificationsQuery } from '$lib/gql/graphql';
-import type { Client } from '@urql/svelte';
 import { resolve } from '$app/paths';
+import {
+  DismissNotificationRequest,
+  ListNotificationsRequest,
+  NotificationKind,
+  type NotificationItemView
+} from '$lib/pb/chatto/api/v1/chat_pb';
+import type { User } from '$lib/pb/chatto/core/v1/models_pb';
+import type { UserAvatarUserFragment } from '$lib/chatTypes';
 import { serverIdToSegment } from '$lib/navigation';
+import { wireEventBusManager } from '$lib/state/server/wireEventBus.svelte';
+import type { WireClient } from '$lib/wire/client';
 
-// GraphQL queries and mutations
-const NotificationsQueryDoc = graphql(`
-  query Notifications {
-    viewer {
-      notifications(limit: 50) {
-        items {
-          __typename
-          ... on DMMessageNotificationItem {
-            id
-            createdAt
-            actor {
-              ...UserAvatarUser
-            }
-            summary
-            room {
-              id
-            }
-          }
-          ... on MentionNotificationItem {
-            id
-            createdAt
-            actor {
-              ...UserAvatarUser
-            }
-            summary
-            mentionRoom: room {
-              id
-              name
-            }
-            mentionEventId: eventId
-            mentionInThread: threadRootEventId
-          }
-          ... on ReplyNotificationItem {
-            id
-            createdAt
-            actor {
-              ...UserAvatarUser
-            }
-            summary
-            replyRoom: room {
-              id
-              name
-            }
-            replyEventId: eventId
-            inReplyToId
-            replyInThread: threadRootEventId
-          }
-          ... on RoomMessageNotificationItem {
-            id
-            createdAt
-            actor {
-              ...UserAvatarUser
-            }
-            summary
-            roomMsgRoom: room {
-              id
-              name
-            }
-            roomMsgEventId: eventId
-          }
-        }
-      }
-    }
-  }
-`);
+export type NotificationWireClient = Pick<
+  WireClient,
+  'listNotifications' | 'hasNotifications' | 'dismissNotification' | 'dismissAllNotifications'
+>;
 
-const HasNotificationsQueryDoc = graphql(`
-  query HasNotifications {
-    viewer {
-      hasNotifications
-    }
-  }
-`);
+type NotificationBase = {
+  id: string;
+  createdAt: string;
+  actor: UserAvatarUserFragment | null;
+  summary: string;
+};
 
-const InstanceNameQueryDoc = graphql(`
-  query NotificationInstanceName {
-    server {
-      profile {
-        name
-      }
-    }
-  }
-`);
+export type DMMessageNotificationItem = NotificationBase & {
+  __typename: 'DMMessageNotificationItem';
+  room: { id: string };
+};
 
-const DismissNotificationMutationDoc = graphql(`
-  mutation DismissNotification($input: DismissNotificationInput!) {
-    dismissNotification(input: $input)
-  }
-`);
+export type MentionNotificationItem = NotificationBase & {
+  __typename: 'MentionNotificationItem';
+  mentionRoom: { id: string; name: string } | null;
+  mentionEventId: string | null;
+  mentionInThread: string | null;
+};
 
-const DismissAllNotificationsMutationDoc = graphql(`
-  mutation DismissAllNotifications {
-    dismissAllNotifications
-  }
-`);
+export type ReplyNotificationItem = NotificationBase & {
+  __typename: 'ReplyNotificationItem';
+  replyRoom: { id: string; name: string } | null;
+  replyEventId: string | null;
+  inReplyToId: string | null;
+  replyInThread: string | null;
+};
 
-// Union type for all notification types
-export type NotificationItem = NonNullable<NotificationsQuery['viewer']>['notifications']['items'][number];
+export type RoomMessageNotificationItem = NotificationBase & {
+  __typename: 'RoomMessageNotificationItem';
+  roomMsgRoom: { id: string; name: string } | null;
+  roomMsgEventId: string | null;
+};
+
+export type NotificationItem =
+  | DMMessageNotificationItem
+  | MentionNotificationItem
+  | ReplyNotificationItem
+  | RoomMessageNotificationItem;
 
 /**
  * Normalized view of a notification's target (where it points to in the app).
@@ -160,15 +112,6 @@ export function notificationTarget(n: NotificationItem): NotificationTarget {
         eventId: n.roomMsgEventId ?? null,
         threadRootId: null
       };
-    default:
-      return {
-        isDM: false,
-        spaceName: null,
-        roomId: null,
-        roomName: null,
-        eventId: null,
-        threadRootId: null
-      };
   }
 }
 
@@ -177,21 +120,20 @@ export function notificationTarget(n: NotificationItem): NotificationTarget {
  * Manages notifications for the current user with real-time sync.
  */
 export class NotificationStore {
-  #client: Client;
   notifications = $state<NotificationItem[]>([]);
   /**
    * Server display name, captured alongside the notification list and used
-   * by getLocationString() for non-DM notifications. Post-#330 PR(a) the
-   * notification's space name no longer comes from the per-notification
-   * fragment — it's the instance name.
+   * by getLocationString() for non-DM notifications.
    */
   serverName = $state<string | null>(null);
   loading = $state(false);
   error = $state<string | null>(null);
 
-  constructor(client: Client) {
-    this.#client = client;
-  }
+  constructor(
+    private readonly serverId: string,
+    private readonly getWireClient: () => NotificationWireClient | undefined = () =>
+      wireEventBusManager.getClient(serverId)
+  ) {}
 
   // Derived properties
   get hasNotifications() {
@@ -309,7 +251,6 @@ export class NotificationStore {
         (n.__typename === 'MentionNotificationItem' && n.mentionInThread === threadRootId)
     );
 
-    // Dismiss each one (in parallel)
     await Promise.all(threadNotifications.map((n) => this.dismiss(n.id)));
   }
 
@@ -327,7 +268,6 @@ export class NotificationStore {
         n.mentionRoom?.id === roomId
     );
 
-    // Dismiss each one (in parallel)
     await Promise.all(mentionNotifications.map((n) => this.dismiss(n.id)));
   }
 
@@ -367,48 +307,32 @@ export class NotificationStore {
       (n) => n.__typename === 'DMMessageNotificationItem' && n.room.id === roomId
     );
 
-    // Dismiss each one (in parallel)
     await Promise.all(dmNotifications.map((n) => this.dismiss(n.id)));
   }
 
   /**
    * Fetch all notifications from the server.
    *
-   * Resilience contract: a server-side error (e.g. a schema mismatch on a
-   * remote instance running an older backend, network failure, transient
-   * 500) records the error message and logs it, but leaves
-   * `this.notifications` at its previous value. This matters in
-   * multi-instance setups — the bell, DM dot, etc. aggregate across
-   * NotificationStore instances, and one bad response on one instance
-   * must not erase already-loaded notifications on others.
+   * Resilience contract: a server-side error (e.g. an older backend without
+   * this wire method, network failure, transient 500) records the error
+   * message and logs it, but leaves `this.notifications` at its previous value.
    */
   async fetch() {
     this.loading = true;
     this.error = null;
 
     try {
-      const result = await this.#client.query(NotificationsQueryDoc, {}).toPromise();
-
-      if (result.error) {
-        this.error = result.error.message;
-        console.error('Failed to fetch notifications:', result.error);
+      const client = this.getWireClient();
+      if (!client) {
+        console.warn(
+          `[server:${this.serverId}] cannot fetch notifications before wire client is ready`
+        );
         return;
       }
 
-      if (result.data?.viewer) {
-        this.notifications = result.data.viewer.notifications.items;
-      }
-      // Capture the instance display name lazily — used by getLocationString
-      // for non-DM notifications. Failure here is non-fatal; the UI just
-      // omits the "in <name>" suffix.
-      try {
-        const nameRes = await this.#client
-          .query(InstanceNameQueryDoc, {}, { requestPolicy: 'cache-first' })
-          .toPromise();
-        this.serverName = nameRes.data?.server?.profile.name ?? null;
-      } catch {
-        // ignore
-      }
+      const response = await client.listNotifications(new ListNotificationsRequest({ limit: 50 }));
+      this.notifications = response.items.map(notificationItemFromWire).filter(isNotificationItem);
+      this.serverName = response.serverName || null;
     } catch (e) {
       this.error = e instanceof Error ? e.message : 'Failed to fetch notifications';
       console.error('Failed to fetch notifications:', e);
@@ -422,8 +346,10 @@ export class NotificationStore {
    */
   async checkHasNotifications(): Promise<boolean> {
     try {
-      const result = await this.#client.query(HasNotificationsQueryDoc, {}).toPromise();
-      return result.data?.viewer?.hasNotifications ?? false;
+      const client = this.getWireClient();
+      if (!client) return false;
+      const result = await client.hasNotifications();
+      return result.hasNotifications;
     } catch (e) {
       console.error('Failed to check notifications:', e);
       return false;
@@ -441,11 +367,16 @@ export class NotificationStore {
     this.notifications = this.notifications.filter((n) => n.id !== notificationId);
 
     try {
-      const result = await this.#client
-        .mutation(DismissNotificationMutationDoc, { input: { notificationId } })
-        .toPromise();
+      const client = this.getWireClient();
+      if (!client) {
+        this.#restoreNotification(removed);
+        return false;
+      }
 
-      if (result.error || !result.data?.dismissNotification) {
+      const result = await client.dismissNotification(
+        new DismissNotificationRequest({ notificationId })
+      );
+      if (!result.dismissed) {
         this.#restoreNotification(removed);
         return false;
       }
@@ -468,15 +399,14 @@ export class NotificationStore {
     this.notifications = [];
 
     try {
-      const result = await this.#client
-        .mutation(DismissAllNotificationsMutationDoc, {})
-        .toPromise();
-
-      if (result.error || result.data?.dismissAllNotifications == null) {
+      const client = this.getWireClient();
+      if (!client) {
         this.notifications = original;
         return 0;
       }
-      return result.data.dismissAllNotifications;
+
+      const result = await client.dismissAllNotifications();
+      return result.dismissedCount;
     } catch (e) {
       console.error('Failed to dismiss all notifications:', e);
       this.notifications = original;
@@ -499,7 +429,6 @@ export class NotificationStore {
    * Triggers a refetch to get full notification data.
    */
   async addNotification() {
-    // Refetch to get the new notification with full data
     await this.fetch();
   }
 
@@ -513,8 +442,7 @@ export class NotificationStore {
   /**
    * Get location string for a notification (e.g., "#general in My Server").
    * Returns null for DM notifications and any notification missing names.
-   * The "in <name>" suffix uses the instance display name (server = instance
-   * post-#330 PR(a)), captured alongside the notification list.
+   * The "in <name>" suffix uses the instance display name.
    */
   getLocationString(notification: NotificationItem): string | null {
     const t = notificationTarget(notification);
@@ -534,8 +462,6 @@ export class NotificationStore {
     const t = notificationTarget(notification);
 
     if (t.isDM && t.roomId) {
-      // DMs are now rooms on the Server (#330 phase 3) — use the standard
-      // room URL rather than the legacy /chat/dm/... path.
       return resolve('/chat/[serverId]/[roomId]', {
         serverId: seg,
         roomId: t.roomId
@@ -572,8 +498,6 @@ export class NotificationStore {
     const t = notificationTarget(notification);
 
     if (t.isDM && t.roomId) {
-      // DMs are now rooms on the Server (#330 phase 3) — use the standard
-      // room URL rather than the legacy /chat/dm/... path.
       return resolve('/chat/[serverId]/[roomId]', {
         serverId: seg,
         roomId: t.roomId
@@ -602,4 +526,78 @@ export class NotificationStore {
     });
     return t.eventId ? `${roomPath}?highlight=${t.eventId}` : roomPath;
   }
+}
+
+function notificationItemFromWire(view: NotificationItemView): NotificationItem | null {
+  const base = notificationBaseFromWire(view);
+  const room = roomReferenceFromWire(view);
+
+  switch (view.kind) {
+    case NotificationKind.DM_MESSAGE:
+      if (!view.roomId) return null;
+      return {
+        ...base,
+        __typename: 'DMMessageNotificationItem',
+        room: { id: view.roomId }
+      };
+    case NotificationKind.MENTION:
+      return {
+        ...base,
+        __typename: 'MentionNotificationItem',
+        mentionRoom: room,
+        mentionEventId: view.eventId ?? null,
+        mentionInThread: view.threadRootEventId ?? null
+      };
+    case NotificationKind.REPLY:
+      return {
+        ...base,
+        __typename: 'ReplyNotificationItem',
+        replyRoom: room,
+        replyEventId: view.eventId ?? null,
+        inReplyToId: view.inReplyToId ?? null,
+        replyInThread: view.threadRootEventId ?? null
+      };
+    case NotificationKind.ROOM_MESSAGE:
+      return {
+        ...base,
+        __typename: 'RoomMessageNotificationItem',
+        roomMsgRoom: room,
+        roomMsgEventId: view.eventId ?? null
+      };
+    case NotificationKind.UNSPECIFIED:
+      return null;
+  }
+}
+
+function notificationBaseFromWire(view: NotificationItemView): NotificationBase {
+  return {
+    id: view.id,
+    createdAt: view.createdAt?.toDate().toISOString() ?? new Date(0).toISOString(),
+    actor: userToAvatarFragment(view.actor),
+    summary: view.summary || 'New notification'
+  };
+}
+
+function roomReferenceFromWire(view: NotificationItemView): { id: string; name: string } | null {
+  if (!view.roomId) return null;
+  return {
+    id: view.roomId,
+    name: view.roomName
+  };
+}
+
+function userToAvatarFragment(user: User | undefined): UserAvatarUserFragment | null {
+  if (!user) return null;
+  return {
+    __typename: 'User',
+    id: user.id,
+    login: user.login,
+    displayName: user.displayName,
+    avatarUrl: null,
+    presenceStatus: 'OFFLINE' as UserAvatarUserFragment['presenceStatus']
+  };
+}
+
+function isNotificationItem(value: NotificationItem | null): value is NotificationItem {
+  return value !== null;
 }

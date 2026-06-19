@@ -4,20 +4,18 @@
   import { page } from '$app/state';
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-
-  import { graphql } from '$lib/gql';
-  import { useFragment } from '$lib/gql/fragment-masking';
-  import type { MyFollowedThreadsQuery as MyFollowedThreadsQueryType } from '$lib/gql/graphql';
-  import { RoomEventViewFragmentDoc, type RoomEventViewFragment } from '$lib/gql/graphql';
+  import { ListMyFollowedThreadsRequest, type FollowedThreadView } from '$lib/pb/chatto/api/v1/chat_pb';
+  import type { RoomEventViewFragment } from '$lib/chatTypes';
+  import { wireRoomEventViewToFragment } from '$lib/wire';
+  import { wireMessagePosted, wireThreadFollowChanged } from '$lib/wire/events';
+  import { wireEventBusManager } from '$lib/state/server/wireEventBus.svelte';
   import { EmptyState, Hint, PaneHeader } from '$lib/ui';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button } from '$lib/ui/form';
   import RoomEvent from '../[roomId]/RoomEvent.svelte';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { formatDate } from '$lib/utils/formatTime';
-  import { onThreadFollowChanged } from '$lib/eventBus.svelte';
-  import { useEvent } from '$lib/hooks';
+  import { useWireEvent } from '$lib/hooks';
   import {
     createRoomPermissions,
     DEFAULT_ROOM_PERMISSIONS,
@@ -34,41 +32,8 @@
   createComposerContext();
   createMentionRoles();
 
-  const connection = useConnection();
   const userSettings = getUserSettings();
   const PAGE_SIZE = 20;
-
-  // prettier-ignore
-  const MyFollowedThreadsDoc = graphql(`
-		query MyFollowedThreads($limit: Int!, $offset: Int!) {
-			viewer {
-				followedThreads(limit: $limit, offset: $offset) {
-					threads {
-						roomId
-						room {
-							name
-						}
-						threadRootEventId
-						rootMessage {
-							...RoomEventView
-						}
-						replyCount
-						lastReplyAt
-						threadParticipants(first: 3) {
-							...UserAvatarUser
-						}
-						hasUnread
-					}
-					totalCount
-					hasMore
-				}
-			}
-		}
-	`);
-
-  type RawThread = NonNullable<
-    MyFollowedThreadsQueryType['viewer']
-  >['followedThreads']['threads'][number];
 
   type FollowedThreadItem = {
     roomId: string;
@@ -80,16 +45,14 @@
     hasUnread: boolean;
   };
 
-  function mapThread(t: RawThread): FollowedThreadItem {
-    const rootMessage = t.rootMessage ? useFragment(RoomEventViewFragmentDoc, t.rootMessage) : null;
-
+  function mapThread(t: FollowedThreadView): FollowedThreadItem {
     return {
       roomId: t.roomId,
-      roomName: t.room.name,
+      roomName: t.room?.name ?? t.roomId,
       threadRootEventId: t.threadRootEventId,
-      rootMessage,
+      rootMessage: wireRoomEventViewToFragment(t.rootMessage),
       replyCount: t.replyCount,
-      lastReplyAt: t.lastReplyAt,
+      lastReplyAt: t.lastReplyAt?.toDate().toISOString() ?? null,
       hasUnread: t.hasUnread
     };
   }
@@ -122,24 +85,23 @@
     error = null;
 
     try {
-      const result = await connection()
-        .client.query(MyFollowedThreadsDoc, {
+      const serverId = getActiveServer();
+      const client = wireEventBusManager.getClient(serverId);
+      if (!client) throw new Error('Not connected to server');
+
+      const page = await client.listMyFollowedThreads(
+        new ListMyFollowedThreadsRequest({
           limit: PAGE_SIZE,
           offset: append ? threads.length : 0
         })
-        .toPromise();
+      );
 
       if (thisId !== loadId) return;
 
-      if (result.error) {
-        error = result.error.message;
-      } else if (result.data?.viewer) {
-        const page = result.data.viewer.followedThreads;
-        const nextThreads = page.threads.map(mapThread);
-        threads = append ? mergeThreads(threads, nextThreads) : nextThreads;
-        hasMore = page.hasMore;
-        totalCount = page.totalCount;
-      }
+      const nextThreads = page.threads.map(mapThread);
+      threads = append ? mergeThreads(threads, nextThreads) : nextThreads;
+      hasMore = page.hasMore;
+      totalCount = page.totalCount;
     } catch (e) {
       if (thisId !== loadId) return;
       error = e instanceof Error ? e.message : 'Failed to load threads';
@@ -163,16 +125,16 @@
     loadThreads();
   });
 
-  // Real-time: Refresh when thread follow state changes
-  $effect(() => onThreadFollowChanged(() => loadThreads()));
+  useWireEvent((streamEvent) => {
+    const followChanged = wireThreadFollowChanged(streamEvent);
+    if (followChanged) {
+      loadThreads();
+      return;
+    }
 
-  // Real-time: Refresh when a new thread reply arrives
-  useEvent((spaceEvent) => {
-    const event = spaceEvent.event;
-    if (!event) return;
-    if (event.__typename === 'MessagePostedEvent' && event.threadRootEventId) {
-      // Only refresh if it's a reply in a thread we're displaying
-      if (threads.some((t) => t.threadRootEventId === event.threadRootEventId)) {
+    const messagePosted = wireMessagePosted(streamEvent);
+    if (messagePosted?.threadRootEventId) {
+      if (threads.some((t) => t.threadRootEventId === messagePosted.threadRootEventId)) {
         loadThreads();
       }
     }

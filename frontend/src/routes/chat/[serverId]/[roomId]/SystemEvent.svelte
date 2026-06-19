@@ -1,7 +1,6 @@
 <script lang="ts">
-  import type { RoomEventViewFragment, UserAvatarUserFragment } from '$lib/gql/graphql';
-  import UserAvatar, { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
-  import { useFragment } from '$lib/gql/fragment-masking';
+  import type { RoomEventViewFragment, UserAvatarUserFragment } from '$lib/chatTypes';
+  import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
 
   let { event }: { event: RoomEventViewFragment } = $props();
@@ -17,7 +16,7 @@
   }
 
   const subject = $derived.by<Subject>(() => {
-    const actor = event?.actor ? useFragment(UserAvatarFragment, event.actor) : null;
+    const actor = event?.actor ?? null;
     if (actor) {
       return { id: actor.id, name: displayName(actor), user: actor };
     }

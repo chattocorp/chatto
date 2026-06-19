@@ -1,6 +1,6 @@
 import { createContext } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
-import type { PresenceStatus } from '$lib/gql/graphql';
+import type { PresenceStatus } from '$lib/chatTypes';
 
 /**
  * Room member data for the current room.

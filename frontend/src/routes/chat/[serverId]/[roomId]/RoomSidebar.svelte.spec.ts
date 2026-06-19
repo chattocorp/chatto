@@ -5,10 +5,11 @@ import { q } from '$lib/test-utils';
 import type { RoomMember } from '$lib/state/room';
 import type { PresenceCache } from '$lib/state/presenceCache.svelte';
 import type { RoomData } from '$lib/hooks/useRoomData.svelte';
-import { PresenceStatus } from '$lib/gql/graphql';
+import { PresenceStatus } from '$lib/chatTypes';
 import RoomSidebarTestHarness from './RoomSidebarTestHarness.svelte';
 
 const queryMock = vi.hoisted(() => vi.fn());
+const getRoomMembersMock = vi.hoisted(() => vi.fn());
 
 class MockIntersectionObserver {
   static instances: MockIntersectionObserver[] = [];
@@ -59,6 +60,14 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
   })
 }));
 
+vi.mock('$lib/state/server/wireEventBus.svelte', () => ({
+  wireEventBusManager: {
+    getClient: () => ({
+      getRoomMembers: getRoomMembersMock
+    })
+  }
+}));
+
 vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'test-server'
 }));
@@ -84,6 +93,14 @@ function member(index: number): RoomMember {
     displayName: `User ${index}`,
     avatarUrl: null,
     presenceStatus: PresenceStatus.Online
+  };
+}
+
+function wireUser(member: RoomMember) {
+  return {
+    id: member.id,
+    login: member.login,
+    displayName: member.displayName
   };
 }
 
@@ -114,6 +131,8 @@ function roomData(members: RoomMember[], totalCount: number, hasMore: boolean): 
     canEchoMessage: false,
     canManageRoom: false,
     canBanRoomMembers: false,
+    viewerUserId: 'user-1',
+    mentionRoles: [],
     members,
     membersTotalCount: totalCount,
     membersHasMore: hasMore
@@ -123,6 +142,7 @@ function roomData(members: RoomMember[], totalCount: number, hasMore: boolean): 
 describe('RoomSidebar', () => {
   beforeEach(() => {
     queryMock.mockReset();
+    getRoomMembersMock.mockReset();
     localStorage.clear();
     MockIntersectionObserver.instances = [];
     vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
@@ -132,17 +152,12 @@ describe('RoomSidebar', () => {
     const firstPage = Array.from({ length: 100 }, (_, index) => member(index + 1));
     const secondPage = Array.from({ length: 42 }, (_, index) => member(index + 101));
 
-    queryMock.mockResolvedValue({
-      data: {
-        room: {
-          members: {
-            users: secondPage,
-            totalCount: 142,
-            hasMore: false
-          }
-        }
-      },
-      error: null
+    getRoomMembersMock.mockResolvedValue({
+      members: {
+        users: secondPage.map(wireUser),
+        totalCount: 142,
+        hasMore: false
+      }
     });
 
     const { container } = render(RoomSidebarTestHarness, {
@@ -164,10 +179,10 @@ describe('RoomSidebar', () => {
     await tick();
 
     await vi.waitFor(() => {
-      expect(queryMock).toHaveBeenCalledWith(expect.anything(), {
+      expect(getRoomMembersMock).toHaveBeenCalledWith(expect.objectContaining({
         roomId: 'room-1',
         offset: 100
-      });
+      }));
     });
 
     await expect.element(q(container, 'h1')).toHaveTextContent('Members (142)');
@@ -176,6 +191,9 @@ describe('RoomSidebar', () => {
         container.querySelector('[data-testid="room-members-load-more-sentinel"]')
       ).toBeFalsy();
     });
+
+    buttonByText(container, 'Offline (42)')?.click();
+    await tick();
 
     const renderedTitles = renderedMemberTitles(container);
     expect(renderedTitles).toHaveLength(142);
@@ -189,24 +207,14 @@ describe('RoomSidebar', () => {
     const secondPage = Array.from({ length: 42 }, (_, index) => member(index + 101));
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    queryMock
+    getRoomMembersMock
+      .mockRejectedValueOnce(new Error('network failed'))
       .mockResolvedValueOnce({
-        data: {
-          room: null
-        },
-        error: new Error('network failed')
-      })
-      .mockResolvedValueOnce({
-        data: {
-          room: {
-            members: {
-              users: secondPage,
-              totalCount: 142,
-              hasMore: false
-            }
-          }
-        },
-        error: null
+        members: {
+          users: secondPage.map(wireUser),
+          totalCount: 142,
+          hasMore: false
+        }
       });
 
     try {
@@ -227,10 +235,10 @@ describe('RoomSidebar', () => {
       await tick();
 
       await vi.waitFor(() => {
-        expect(queryMock).toHaveBeenCalledWith(expect.anything(), {
+        expect(getRoomMembersMock).toHaveBeenCalledWith(expect.objectContaining({
           roomId: 'room-1',
           offset: 100
-        });
+        }));
       });
 
       await expect.element(q(container, 'h1')).toHaveTextContent('Members (142)');
@@ -245,8 +253,11 @@ describe('RoomSidebar', () => {
       await tick();
 
       await vi.waitFor(() => {
-        expect(queryMock).toHaveBeenCalledTimes(2);
+        expect(getRoomMembersMock).toHaveBeenCalledTimes(2);
       });
+
+      buttonByText(container, 'Offline (42)')?.click();
+      await tick();
 
       await vi.waitFor(() => {
         expect(renderedMemberTitles(container)).toHaveLength(142);

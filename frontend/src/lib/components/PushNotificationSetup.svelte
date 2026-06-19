@@ -41,7 +41,7 @@ Include this component once in the authenticated layout.
         return;
       }
 
-      const success = await subscribe(vapidKey);
+      const success = await subscribe(originId, vapidKey);
       if (success) {
         console.log('Push subscription renewed successfully');
       } else {

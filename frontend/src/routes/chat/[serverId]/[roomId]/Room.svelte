@@ -6,14 +6,13 @@
   import MessageComposer, {
     type MessageComposerApi
   } from '$lib/components/composer/MessageComposer.svelte';
-  import { graphql } from '$lib/gql';
   import VoiceCallButton from '$lib/components/voice/VoiceCallButton.svelte';
   import VoiceCallPanel from '$lib/components/voice/VoiceCallPanel.svelte';
   import {
     useRoomData,
     useRoomMembersSync,
     useRoomUnread,
-    useEvent,
+    useWireEvent,
     createTypingIndicator
   } from '$lib/hooks';
   import { appState, sidebarNav } from '$lib/state/globals.svelte';
@@ -24,7 +23,6 @@
     createRoomPermissions,
     DEFAULT_ROOM_PERMISSIONS
   } from '$lib/state/room';
-  import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import { resolve } from '$app/paths';
@@ -40,10 +38,10 @@
   import RoomSidebarToggle from './RoomSidebarToggle.svelte';
   import { RoomSidebarPanelsState } from './roomSidebarPanels.svelte';
   import ThreadPane from './ThreadPane.svelte';
+  import { wireMessagePosted } from '$lib/wire/events';
 
   let { roomId, threadId }: { roomId: string; threadId?: string } = $props();
 
-  const connection = useConnection();
   const serverSegment = $derived(serverIdToSegment(getActiveServer()));
   const stores = serverRegistry.getStore(getActiveServer());
   const serverInfo = stores.serverInfo;
@@ -77,46 +75,12 @@
   // --- Extracted hooks ---
   const room = useRoomData(() => ({ roomId }));
 
-  const RoomMentionRolesQuery = graphql(`
-    query RoomMentionRoles {
-      server {
-        roles {
-          name
-          isSystem
-          position
-          pingable
-        }
-      }
-    }
-  `);
-
   $effect(() => {
-    const client = connection().client;
-    let cancelled = false;
-
-    async function loadMentionRoles() {
-      const response = await client.query(RoomMentionRolesQuery, {});
-      if (cancelled) return;
-      if (response.error) {
-        mentionRoles.clear();
-        return;
-      }
-      mentionRoles.setRoles(
-        response.data?.server?.roles
-          .filter((role) => role.name !== 'everyone')
-          .map((role) => ({
-            name: role.name,
-            isSystem: role.isSystem,
-            position: role.position,
-            pingable: role.pingable
-          })) ?? []
-      );
+    if (room.roomData) {
+      mentionRoles.setRoles(room.roomData.mentionRoles);
+    } else if (room.roomData === null) {
+      mentionRoles.clear();
     }
-
-    void loadMentionRoles();
-    return () => {
-      cancelled = true;
-    };
   });
 
   const roomMembers = useRoomMembersSync(() => ({
@@ -251,23 +215,22 @@
   //   we just mirror that onto the local cursor — without it, backgrounding
   //   the tab would strand the user's own latest message below the unread
   //   separator.
-  useEvent((event) => {
-    if (!event.event) return;
+  useWireEvent((event) => {
+    const posted = wireMessagePosted(event);
+    if (posted?.roomId === roomId) {
+      const actorId = posted.actorId;
 
-    if (event.event.__typename === 'MessagePostedEvent' && event.event.roomId === roomId) {
-      const actorId = event.actorId;
-
-      if (!event.event.threadRootEventId) {
+      if (!posted.threadRootEventId) {
         if (actorId) {
           typingIndicator.removeTypingUser(actorId);
         }
       }
 
-      if (!event.event.threadRootEventId && currentUser.user) {
+      if (!posted.threadRootEventId && currentUser.user) {
         if (actorId === currentUser.user.id) {
-          unread.noteReadCursor(event.createdAt);
+          unread.noteReadCursor(posted.createdAt);
         } else if (appState.isPresent) {
-          unread.markRoomAsRead(roomId, event.id);
+          unread.markRoomAsRead(roomId, posted.eventId);
         }
       }
     }

@@ -1,17 +1,19 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import { graphql } from '$lib/gql';
   import { Panel } from '$lib/components/admin';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { FormError } from '$lib/ui/form';
   import { RoleForm } from '$lib/components/rbac';
-
-  const connection = useConnection();
+  import {
+    CreateAdminRoleRequest,
+    GetAdminRoleCapabilitiesRequest
+  } from '$lib/pb/chatto/api/v1/chat_pb';
+  import { withActiveServerWireClient } from '$lib/wire/activeServerClient';
 
   let name = $state('');
   let displayName = $state('');
@@ -24,70 +26,50 @@
 
   async function loadPermissions() {
     loading = true;
+    error = null;
 
-    const resp = await connection().client.query(
-      graphql(`
-        query SpaceRolesNewCheck {
-          server {
-            viewerCanManageRoles
-          }
-        }
-      `),
-      {}
-    );
-
-    if (resp.error || !resp.data?.server) {
-      error = 'Failed to load instance';
+    try {
+      const resp = await withActiveServerWireClient((client) =>
+        client.getAdminRoleCapabilities(new GetAdminRoleCapabilitiesRequest())
+      );
+      canManageRoles = resp.viewerCanManageRoles;
+    } catch (e) {
+      error = e instanceof Error ? e.message : 'Failed to load server role permissions';
+    } finally {
       loading = false;
-      return;
     }
-
-    canManageRoles = resp.data.server.viewerCanManageRoles;
-    loading = false;
   }
 
-  $effect(() => {
-    loadPermissions();
+  onMount(() => {
+    void loadPermissions();
   });
 
   async function createRole() {
     creating = true;
     error = null;
 
-    const resp = await connection().client.mutation(
-      graphql(`
-        mutation CreateRoleNewPage($input: CreateRoleInput!) {
-          createRole(input: $input) {
-            name
-            displayName
-            description
+    try {
+      await withActiveServerWireClient((client) =>
+        client.createAdminRole(
+          new CreateAdminRoleRequest({
+            name: name.trim(),
+            displayName: displayName.trim(),
+            description: description.trim(),
             pingable
-          }
-        }
-      `),
-      {
-        input: {
-          name: name.trim(),
-          displayName: displayName.trim(),
-          description: description.trim(),
-          pingable
-        }
-      }
-    );
+          })
+        )
+      );
 
-    if (resp.error) {
-      error = resp.error.message;
+      goto(
+        resolve('/chat/[serverId]/server-admin/permissions/[name]', {
+          serverId: serverIdToSegment(getActiveServer()),
+          name: name.trim()
+        })
+      );
+    } catch (e) {
+      error = e instanceof Error ? e.message : 'Failed to create role';
       creating = false;
-      return;
     }
-
-    // Navigate to the new role's detail page
-    goto(
-      resolve('/chat/[serverId]/server-admin/permissions/[name]', {
-        serverId: serverIdToSegment(getActiveServer()),
-        name: name.trim()
-      })
-    );
   }
 </script>
 

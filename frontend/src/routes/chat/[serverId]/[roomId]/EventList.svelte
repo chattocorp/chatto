@@ -2,7 +2,7 @@
   import { tick, untrack } from 'svelte';
   import { fade } from 'svelte/transition';
   import { Virtualizer, type VirtualizerHandle } from 'virtua/svelte';
-  import type { RoomEventViewFragment } from '$lib/gql/graphql';
+  import type { RoomEventViewFragment } from '$lib/chatTypes';
   import type { MessagesStore, RefreshCurrentWindowResult, RoomMember } from '$lib/state/room';
   import { getComposerContext, getRoomPermissions } from '$lib/state/room';
   import RoomEvent from './RoomEvent.svelte';

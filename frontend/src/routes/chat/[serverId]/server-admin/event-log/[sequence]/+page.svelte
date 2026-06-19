@@ -1,49 +1,44 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { graphql } from '$lib/gql';
-  import { useQuery } from '$lib/hooks';
   import { Panel } from '$lib/components/admin';
   import { Hint, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
+  import {
+    GetAdminEventLogEntryRequest,
+    type AdminEventLogEntryView
+  } from '$lib/pb/chatto/api/v1/chat_pb';
+  import { withActiveServerWireClient } from '$lib/wire/activeServerClient';
   import { formatDateTime as formatDateTimeUtil } from '$lib/utils/formatTime';
 
   const userSettings = getUserSettings();
 
-  const EventLogEntryQuery = graphql(`
-    query AdminEventLogEntry($sequence: String!) {
-      admin {
-        eventLogEntry(sequence: $sequence) {
-          sequence
-          subject
-          aggregateType
-          aggregateId
-          eventType
-          eventId
-          actorId
-          createdAt
-          payloadJson
-        }
-      }
-    }
-  `);
+  type Entry = {
+    sequence: string;
+    subject: string;
+    aggregateType: string;
+    aggregateId: string;
+    eventType: string;
+    eventId: string;
+    actorId: string;
+    createdAt: string;
+    payloadJson: string;
+  };
 
   const sequence = $derived(page.params.sequence!);
 
-  const entryQuery = useQuery(EventLogEntryQuery, () => ({ sequence }));
+  let entry = $state<Entry | null>(null);
+  let loading = $state(true);
+  let error = $state<string | null>(null);
 
-  let entry = $derived(entryQuery.data?.admin?.eventLogEntry ?? null);
-  let loading = $derived(entryQuery.loading);
-  let error = $derived(
-    entryQuery.error ??
-      (!entryQuery.loading && !entryQuery.data?.admin
-        ? 'Event log unavailable (audit permission required)'
-        : null)
-  );
+  onMount(() => {
+    void loadEntry(sequence);
+  });
 
   const backHref = $derived(
     resolve('/chat/[serverId]/server-admin/event-log', {
@@ -52,7 +47,40 @@
   );
 
   function formatTimestamp(iso: string): string {
+    if (!iso) return '-';
     return formatDateTimeUtil(iso, userSettings);
+  }
+
+  async function loadEntry(targetSequence: string) {
+    loading = true;
+    error = null;
+    entry = null;
+
+    try {
+      const response = await withActiveServerWireClient((client) =>
+        client.getAdminEventLogEntry(new GetAdminEventLogEntryRequest({ sequence: targetSequence }))
+      );
+      entry = response.entry ? mapEventLogEntry(response.entry) : null;
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to load event';
+      console.error('Failed to load event log entry', err);
+    } finally {
+      loading = false;
+    }
+  }
+
+  function mapEventLogEntry(value: AdminEventLogEntryView): Entry {
+    return {
+      sequence: value.sequence,
+      subject: value.subject,
+      aggregateType: value.aggregateType,
+      aggregateId: value.aggregateId,
+      eventType: value.eventType,
+      eventId: value.eventId,
+      actorId: value.actorId,
+      createdAt: value.createdAt?.toDate().toISOString() ?? '',
+      payloadJson: value.payloadJson
+    };
   }
 </script>
 

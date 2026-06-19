@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
-import { PresenceStatus } from '$lib/gql/graphql';
+import { PresenceStatus } from '$lib/chatTypes';
 import CurrentUserBarTestHarness from './CurrentUserBarTestHarness.svelte';
 
 const currentUserState = vi.hoisted(() => ({

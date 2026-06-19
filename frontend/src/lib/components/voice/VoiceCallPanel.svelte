@@ -26,9 +26,7 @@ buttons differ. This prevents layout shift when joining/leaving a call.
   const activeCallRooms = stores.activeCallRooms;
   const callParticipantsState = stores.callParticipants;
   import { useEvent } from '$lib/hooks';
-  import { useFragment } from '$lib/gql';
-  import { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
-  import type { PresenceStatus } from '$lib/gql/graphql';
+  import type { PresenceStatus } from '$lib/chatTypes';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import VideoThumbnail from './VideoThumbnail.svelte';
   import AudioDeviceMenu from './AudioDeviceMenu.svelte';
@@ -67,7 +65,7 @@ buttons differ. This prevents layout shift when joining/leaving a call.
     if (!event) return;
 
     if (event.__typename === 'CallParticipantJoinedEvent' && event.roomId === roomId) {
-      const actor = spaceEvent.actor ? useFragment(UserAvatarFragment, spaceEvent.actor) : null;
+      const actor = spaceEvent.actor ?? null;
       callParticipantsState.handleJoin(event.roomId, event.callId, actor);
     } else if (event.__typename === 'CallParticipantLeftEvent' && event.roomId === roomId) {
       callParticipantsState.handleLeave(event.roomId, event.callId, spaceEvent.actorId ?? null);

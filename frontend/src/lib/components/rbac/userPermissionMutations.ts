@@ -7,13 +7,15 @@
  *   - group:  a room group's scope.
  *   - room:   a specific room's scope.
  *
- * The backend exposes a single trio of mutations (`grantUserPermission`,
- * `denyUserPermission`, `clearUserPermissionState`) that route on
- * `roomId` vs `groupId` (mutually exclusive; with neither, server scope).
+ * The wire API exposes a single state setter that routes on `roomId` vs
+ * `groupId` (mutually exclusive; with neither, server scope).
  */
 
-import type { Client } from '@urql/svelte';
-import { graphql } from '$lib/gql';
+import {
+  PermissionEditState,
+  SetUserPermissionStateRequest
+} from '$lib/pb/chatto/api/v1/chat_pb';
+import type { WireClient } from '$lib/wire/client';
 
 export type UserPermissionState = 'allow' | 'deny' | 'neutral';
 
@@ -23,50 +25,37 @@ export type UserMutationScope =
   | { tier: 'room'; roomId: string };
 
 export async function setUserPermission(
-  client: Client,
+  client: WireClient,
   userId: string,
   scope: UserMutationScope,
   permission: string,
   newState: UserPermissionState
 ): Promise<{ error?: string }> {
-  const input: {
-    userId: string;
-    permission: string;
-    roomId?: string;
-    groupId?: string;
-  } = { userId, permission };
-  if (scope.tier === 'group') input.groupId = scope.groupId;
-  if (scope.tier === 'room') input.roomId = scope.roomId;
+  const request = new SetUserPermissionStateRequest({
+    userId,
+    permission,
+    state: permissionStateToWire(newState)
+  });
+  if (scope.tier === 'group') request.groupId = scope.groupId;
+  if (scope.tier === 'room') request.roomId = scope.roomId;
 
-  if (newState === 'allow') {
-    const r = await client.mutation(
-      graphql(`
-        mutation MatrixGrantUserPerm($input: GrantUserPermissionInput!) {
-          grantUserPermission(input: $input)
-        }
-      `),
-      { input }
-    );
-    return { error: r.error?.message };
+  try {
+    await client.setUserPermissionState(request);
+    return {};
+  } catch (error: unknown) {
+    return { error: errorMessage(error) };
   }
-  if (newState === 'deny') {
-    const r = await client.mutation(
-      graphql(`
-        mutation MatrixDenyUserPerm($input: DenyUserPermissionInput!) {
-          denyUserPermission(input: $input)
-        }
-      `),
-      { input }
-    );
-    return { error: r.error?.message };
+}
+
+function permissionStateToWire(state: UserPermissionState): PermissionEditState {
+  if (state === 'allow') return PermissionEditState.ALLOW;
+  if (state === 'deny') return PermissionEditState.DENY;
+  return PermissionEditState.NEUTRAL;
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
   }
-  const r = await client.mutation(
-    graphql(`
-      mutation MatrixClearUserPerm($input: ClearUserPermissionStateInput!) {
-        clearUserPermissionState(input: $input)
-      }
-    `),
-    { input }
-  );
-  return { error: r.error?.message };
+  return String(error);
 }

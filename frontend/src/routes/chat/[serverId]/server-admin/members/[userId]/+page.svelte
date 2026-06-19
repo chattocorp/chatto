@@ -1,12 +1,10 @@
 <script lang="ts">
-
+  import { afterNavigate } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { graphql } from '$lib/gql';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
   import { Panel } from '$lib/components/admin';
   import { UserPermissionsMatrix } from '$lib/components/rbac';
@@ -23,6 +21,15 @@
     getLoginChangeCooldownRemaining,
     formatCooldownRemaining
   } from '$lib/validation';
+  import {
+    AdminClearUsernameCooldownRequest,
+    AdminUpdateUserRequest,
+    AssignMemberRoleRequest,
+    GetAdminMemberRequest,
+    RevokeMemberRoleRequest
+  } from '$lib/pb/chatto/api/v1/chat_pb';
+  import type { AdminMemberView, AdminRoleView } from '$lib/pb/chatto/api/v1/chat_pb';
+  import { withActiveServerWireClient } from '$lib/wire/activeServerClient';
 
   type User = {
     id: string;
@@ -43,7 +50,6 @@
   const IMPLICIT_ROLES = ['everyone'];
 
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
-  const connection = useConnection();
   const userId = $derived(page.params.userId!);
 
   const serverPerms = getServerPermissions();
@@ -66,66 +72,50 @@
   let identityError = $state<string | null>(null);
   let lastLoginChange = $state<Date | null>(null);
   let clearingCooldown = $state(false);
+  let requestId = 0;
+  let loadedUserId = '';
 
   async function loadData() {
+    const targetUserId = userId;
+    if (!targetUserId) return;
+
+    const currentRequest = ++requestId;
+    loading = true;
     error = null;
 
-    const resp = await connection().client.query(
-      graphql(`
-        query SpaceMemberDetails($userId: ID!) {
-          user(userId: $userId) {
-            lastLoginChange
-          }
-          server {
-            viewerCanAssignRoles
-            viewerCanManageRoles
-            viewerCanManageUserPermissions
-            availablePermissions
-            roles {
-              name
-              displayName
-              position
-              permissions
-              permissionDenials
-            }
-            member(userId: $userId) {
-              id
-              login
-              displayName
-              avatarUrl
-              roles
-            }
-          }
-        }
-      `),
-      { userId }
-    );
+    try {
+      const resp = await withActiveServerWireClient((client) =>
+        client.getAdminMember(new GetAdminMemberRequest({ userId: targetUserId }))
+      );
+      if (currentRequest !== requestId) return;
 
-    if (resp.error) {
-      error = resp.error.message;
-      loading = false;
-      return;
+      const nextMember = memberFromWire(resp.member);
+      member = nextMember;
+      allRoles = resp.roles.map(roleFromWire);
+      memberSpaceRoles = nextMember?.roles ?? [];
+      canAssignRoles = resp.viewerCanAssignRoles;
+      canManageRoles = resp.viewerCanManageRoles;
+      canManageUserPermissions = resp.viewerCanManageUserPermissions;
+      editLogin = nextMember?.login ?? '';
+      editDisplayName = nextMember?.displayName ?? '';
+      lastLoginChange = resp.member?.lastLoginChange?.toDate() ?? null;
+      loadedUserId = targetUserId;
+    } catch (e) {
+      if (currentRequest !== requestId) return;
+      error = e instanceof Error ? e.message : 'Failed to load member';
+      member = null;
+    } finally {
+      if (currentRequest === requestId) {
+        loading = false;
+      }
     }
-
-    if (!resp.data?.server) {
-      error = 'Server not found';
-      loading = false;
-      return;
-    }
-
-    member = resp.data.server.member ?? null;
-    allRoles = resp.data.server.roles ?? [];
-    memberSpaceRoles = resp.data.server.member?.roles ?? [];
-    canAssignRoles = resp.data.server.viewerCanAssignRoles;
-    canManageRoles = resp.data.server.viewerCanManageRoles;
-    canManageUserPermissions = resp.data.server.viewerCanManageUserPermissions;
-    editLogin = resp.data.server.member?.login ?? '';
-    editDisplayName = resp.data.server.member?.displayName ?? '';
-    lastLoginChange = resp.data.user?.lastLoginChange
-      ? new Date(resp.data.user.lastLoginChange)
-      : null;
-    loading = false;
   }
+
+  afterNavigate(() => {
+    if (userId && userId !== loadedUserId) {
+      void loadData();
+    }
+  });
 
   // Identity edit derivations
   const loginModified = $derived(!!member && editLogin !== member.login);
@@ -161,36 +151,23 @@
     }
 
     savingIdentity = true;
-    const resp = await connection().client.mutation(
-      graphql(`
-        mutation AdminUpdateUser($input: AdminUpdateUserInput!) {
-          admin {
-            updateUser(input: $input) {
-              id
-              login
-              displayName
-            }
-          }
-        }
-      `),
-      { input }
-    );
-    savingIdentity = false;
-
-    if (resp.error) {
-      identityError = resp.error.message;
-      return;
-    }
-
-    const updated = resp.data?.admin?.updateUser;
-    if (updated && member) {
-      member = { ...member, login: updated.login, displayName: updated.displayName };
-      editLogin = updated.login;
-      editDisplayName = updated.displayName;
+    try {
+      const resp = await withActiveServerWireClient((client) =>
+        client.adminUpdateUser(new AdminUpdateUserRequest(input))
+      );
+      const updated = memberFromWire(resp.member);
+      if (updated && member) {
+        member = updated;
+        memberSpaceRoles = updated.roles;
+        editLogin = updated.login;
+        editDisplayName = updated.displayName;
+        lastLoginChange = resp.member?.lastLoginChange?.toDate() ?? null;
+      }
       toast.success('User updated');
-      // Refetch so the rest of the page (live-login lookups, role assignments)
-      // sees the new identity without a manual reload.
-      await loadData();
+    } catch (e) {
+      identityError = e instanceof Error ? e.message : 'Failed to update user';
+    } finally {
+      savingIdentity = false;
     }
   }
 
@@ -204,25 +181,23 @@
   async function clearCooldown() {
     if (!member || clearingCooldown) return;
     clearingCooldown = true;
-    const resp = await connection().client.mutation(
-      graphql(`
-        mutation AdminClearUsernameCooldown($input: ClearUsernameCooldownInput!) {
-          admin {
-            clearUsernameCooldown(input: $input)
-          }
-        }
-      `),
-      { input: { userId: member.id } }
-    );
-    clearingCooldown = false;
-
-    if (resp.error) {
-      identityError = resp.error.message;
-      return;
-    }
-    if (resp.data?.admin?.clearUsernameCooldown) {
+    try {
+      const resp = await withActiveServerWireClient((client) =>
+        client.adminClearUsernameCooldown(
+          new AdminClearUsernameCooldownRequest({ userId: member?.id ?? '' })
+        )
+      );
+      const updated = memberFromWire(resp.member);
+      if (updated) {
+        member = updated;
+        memberSpaceRoles = updated.roles;
+      }
       lastLoginChange = null;
       toast.success('Username change cooldown cleared');
+    } catch (e) {
+      identityError = e instanceof Error ? e.message : 'Failed to clear username cooldown';
+    } finally {
+      clearingCooldown = false;
     }
   }
 
@@ -262,44 +237,51 @@
     updating = roleName;
     error = null;
 
-    const mutation = currentlyHas
-      ? graphql(`
-          mutation RevokeRoleFromMember($input: RevokeRoleInput!) {
-            revokeRole(input: $input)
-          }
-        `)
-      : graphql(`
-          mutation AssignRoleToMember($input: AssignRoleInput!) {
-            assignRole(input: $input)
-          }
-        `);
-
-    const resp = await connection().client.mutation(mutation, {
-      input: { userId: member.id, roleName }
-    });
-
-    if (resp.error) {
-      error = resp.error.message;
-    } else {
+    try {
+      const resp = await withActiveServerWireClient((client) =>
+        currentlyHas
+          ? client.revokeMemberRole(new RevokeMemberRoleRequest({ userId: member?.id ?? '', roleName }))
+          : client.assignMemberRole(new AssignMemberRoleRequest({ userId: member?.id ?? '', roleName }))
+      );
+      const updated = memberFromWire(resp.member);
+      if (updated) {
+        member = updated;
+        memberSpaceRoles = updated.roles;
+      }
       const displayName = getRoleDisplayName(roleName);
       if (currentlyHas) {
         toast.success(`Removed ${displayName} role`);
       } else {
         toast.success(`Assigned ${displayName} role`);
       }
-      // Reload to get updated state
-      await loadData();
+    } catch (e) {
+      error = e instanceof Error ? e.message : 'Failed to update role';
+    } finally {
+      updating = null;
     }
-
-    updating = null;
   }
 
-  // Load data when params change
-  $effect(() => {
-    if (userId) {
-      loadData();
-    }
-  });
+  function memberFromWire(value: AdminMemberView | undefined): User | null {
+    if (!value?.user) return null;
+    return {
+      id: value.user.id,
+      login: value.user.login,
+      displayName: value.user.displayName,
+      avatarUrl: value.avatarUrl || null,
+      roles: [...value.roles],
+      lastLoginChange: value.lastLoginChange?.toDate().toISOString() ?? null
+    };
+  }
+
+  function roleFromWire(value: AdminRoleView): Role {
+    return {
+      name: value.name,
+      displayName: value.displayName,
+      position: value.position,
+      permissions: [...value.permissions],
+      permissionDenials: [...value.permissionDenials]
+    };
+  }
 </script>
 
 <PageTitle title={`${member?.displayName ?? 'Member'} | Server Admin`} />

@@ -1,12 +1,12 @@
 /**
  * Server-side user display preferences (timezone, time format).
  *
- * Populated from the LoadCurrentUser query during app initialization.
+ * Populated from the wire current-user response during app initialization.
  * Used by time formatting utilities to respect user preferences.
  */
 
 import { createContext } from 'svelte';
-import { TimeFormat } from '$lib/gql/graphql';
+import { TimeFormat, normalizeTimeFormat } from '$lib/preferences/timeFormat';
 
 export class UserSettingsState {
   /** IANA timezone name, or null for browser default. */
@@ -33,13 +33,16 @@ export class UserSettingsState {
     return undefined;
   }
 
-  /** Update from GraphQL settings data. */
+  /** Update from API settings data. */
   updateFromData(
-    settings: { timezone?: string | null; timeFormat: TimeFormat } | null | undefined
+    settings:
+      | { timezone?: string | null; timeFormat?: TimeFormat | string | number | null }
+      | null
+      | undefined
   ) {
     if (settings) {
       this.timezone = settings.timezone ?? null;
-      this.timeFormat = settings.timeFormat;
+      this.timeFormat = normalizeTimeFormat(settings.timeFormat);
     } else {
       this.timezone = null;
       this.timeFormat = TimeFormat.Auto;

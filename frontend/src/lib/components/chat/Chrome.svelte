@@ -3,10 +3,8 @@
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { untrack } from 'svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverIdToSegment } from '$lib/navigation';
-  import { graphql } from '$lib/gql';
   import { clearLastRoom } from '$lib/storage/lastRoom';
   import { useActiveEvent, useReconnectCallback } from '$lib/hooks';
   import ServerSidebar from '$lib/components/ServerSidebar.svelte';
@@ -20,10 +18,10 @@
   import SidebarNav from '$lib/components/SidebarNav.svelte';
   import MyThreadsNavItem from './MyThreadsNavItem.svelte';
   import { getAdminNavItems } from './adminNav';
+  import { wireEventBusManager } from '$lib/state/server/wireEventBus.svelte';
 
   let { children } = $props();
 
-  const connection = useConnection();
   const serverSegment = $derived(serverIdToSegment(getActiveServer()));
 
   // Detect if we're in server admin mode based on URL (use startsWith to avoid
@@ -91,49 +89,32 @@
   // null if the server says it's not accessible, or 'transient' on network
   // failure (treat as "try again later", not as access denial).
   async function validateServer(): Promise<ServerChromeData | null | 'transient'> {
-    const result = await connection()
-      .client.query(
-        graphql(`
-          query ValidateSpaceAccess {
-            server {
-              profile {
-                name
-                bannerUrl
-              }
-              viewerHasAnyAdminPermission
-              viewerCanManageServer
-              viewerCanManageRooms
-              viewerCanManageRoles
-              viewerCanAssignRoles
-              viewerCanManageUserPermissions
-            }
-          }
-        `),
-        {}
-      )
-      .toPromise();
-
-    // Transient network failure (e.g., wake-from-sleep) — caller should
-    // preserve existing data and storage, and rely on the reconnect handler
-    // to revalidate.
-    if (result.error?.networkError) {
+    const client = wireEventBusManager.getClient(getActiveServer());
+    if (!client) {
       return 'transient';
     }
 
-    if (!result.data?.server) {
-      return null;
+    let response;
+    try {
+      response = await client.getViewer();
+    } catch {
+      // Transient network failure (e.g., wake-from-sleep) — caller should
+      // preserve existing data and storage, and rely on the reconnect handler
+      // to revalidate.
+      return 'transient';
     }
 
-    const inst = result.data.server;
+    const profile = response.serverProfile;
+    const permissions = response.viewer?.permissions;
     return {
-      name: inst.profile.name,
-      bannerUrl: inst.profile.bannerUrl ?? null,
-      hasAnyAdminPermission: inst.viewerHasAnyAdminPermission,
-      canManage: inst.viewerCanManageServer,
-      canManageRooms: inst.viewerCanManageRooms,
-      canManageRoles: inst.viewerCanManageRoles,
-      canAssignRoles: inst.viewerCanAssignRoles,
-      canManageUserPermissions: inst.viewerCanManageUserPermissions
+      name: profile?.name || 'Chatto',
+      bannerUrl: profile?.bannerUrl || null,
+      hasAnyAdminPermission: permissions?.canViewAdmin ?? false,
+      canManage: permissions?.canManageServer ?? false,
+      canManageRooms: permissions?.canManageRooms ?? false,
+      canManageRoles: permissions?.canManageRoles ?? permissions?.canAdminManageRoles ?? false,
+      canAssignRoles: permissions?.canAssignRoles ?? permissions?.canAdminManageUsers ?? false,
+      canManageUserPermissions: permissions?.canManageUserPermissions ?? false
     };
   }
 

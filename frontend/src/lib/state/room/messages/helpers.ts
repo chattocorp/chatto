@@ -1,11 +1,6 @@
-import { useFragment } from '$lib/gql';
-import {
-  RoomEventViewFragmentDoc,
-  type RoomEventViewFragment
-} from '$lib/gql/graphql';
-import type { FragmentType } from '$lib/gql/fragment-masking';
+import type { RoomEventViewFragment } from '$lib/chatTypes';
 
-export type RawEvent = FragmentType<typeof RoomEventViewFragmentDoc>;
+export type RawEvent = RoomEventViewFragment;
 
 export type EventConnectionPage = {
   events: readonly RawEvent[];
@@ -16,21 +11,34 @@ export type EventConnectionPage = {
 };
 
 export function unmask(raw: readonly RawEvent[]): RoomEventViewFragment[] {
-  return raw
-    .map((e) => useFragment(RoomEventViewFragmentDoc, e))
-    .filter((e): e is RoomEventViewFragment => e !== null);
+  return raw.filter(isRoomEventView);
+}
+
+function isRoomEventView(value: RawEvent): value is RoomEventViewFragment {
+  return Boolean(
+    value &&
+    typeof value === 'object' &&
+    '__typename' in value &&
+    value.__typename === 'Event' &&
+    'event' in value
+  );
 }
 
 export function getActorId(actor: RoomEventViewFragment['actor']): string | undefined {
   return actor ? (actor as { id?: string }).id : undefined;
 }
 
-export function threadRepliesConnection(root: {
-  event?: {
-    __typename?: string;
-    threadReplies?: EventConnectionPage;
-  } | null;
-} | null | undefined): EventConnectionPage | null {
+export function threadRepliesConnection(
+  root:
+    | {
+        event?: {
+          __typename?: string;
+          threadReplies?: EventConnectionPage;
+        } | null;
+      }
+    | null
+    | undefined
+): EventConnectionPage | null {
   if (root?.event?.__typename !== 'MessagePostedEvent') return null;
   return root.event.threadReplies ?? null;
 }

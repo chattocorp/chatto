@@ -1,279 +1,238 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { flushSync } from 'svelte';
-import { makeSubject, type Source, type Subject } from 'wonka';
-import type { Client } from '@urql/svelte';
-import type { GraphQLClient } from './graphqlClient.svelte';
+import { Event as DurableEvent } from '$lib/pb/chatto/core/v1/event_pb';
+import { HeartbeatEvent } from '$lib/pb/chatto/core/v1/live_events_pb';
+import { MessagePostedEvent } from '$lib/pb/chatto/core/v1/message_events_pb';
+import { StreamEvent } from '$lib/pb/chatto/wire/v1/protocol_pb';
+import type { ServerConnection } from './serverConnection.svelte';
 
-const { mockStartWireEventLogger, mockStopWireEventLogger } = vi.hoisted(() => {
-	const stop = vi.fn();
-	return {
-		mockStopWireEventLogger: stop,
-		mockStartWireEventLogger: vi.fn(() => ({ stop }))
-	};
+const { mockStartWireEventBus, mockStopWireEventBus, wireBuses } = vi.hoisted(() => {
+  const buses = new Map<string, { handlers: Set<(event: StreamEvent) => void> }>();
+
+  return {
+    wireBuses: buses,
+    mockStartWireEventBus: vi.fn((serverId: string) => {
+      if (!buses.has(serverId)) {
+        buses.set(serverId, { handlers: new Set<(event: StreamEvent) => void>() });
+      }
+      return () => mockStopWireEventBus(serverId);
+    }),
+    mockStopWireEventBus: vi.fn((serverId: string) => {
+      buses.delete(serverId);
+    })
+  };
 });
 
-vi.mock('./wireEventLogger', () => ({
-	startWireEventLogger: mockStartWireEventLogger
+vi.mock('./wireEventBus.svelte', () => ({
+  wireEventBusManager: {
+    startBus: mockStartWireEventBus,
+    stopBus: mockStopWireEventBus,
+    getBus: (serverId: string) => wireBuses.get(serverId),
+    getClient: vi.fn()
+  }
 }));
 
 import { eventBusManager } from './eventBus.svelte';
 
-/**
- * Returns a fake GraphQLClient-shaped object whose `client.subscription()`
- * yields a fresh Wonka subject each time, plus controls to drive it from the
- * test. `reconnectCount` is a Svelte `$state` so the bus's `$effect` reacts
- * to `bumpReconnect()`.
- *
- * The real `OperationResultSource` is a Wonka `Source` with helper methods
- * tacked on — the bus only uses it through `pipe(source, ...)`, so a bare
- * Source is sufficient. The cast launders TS noise.
- */
-class FakeGqlClient {
-	reconnectCount = $state(0);
-	#subjects: Subject<{ data?: unknown; error?: unknown }>[] = [];
-	subscribeCalls = 0;
-	client: Client;
-
-	constructor() {
-		const subscription = vi.fn().mockImplementation(() => {
-			this.subscribeCalls++;
-			const subj = makeSubject<{ data?: unknown; error?: unknown }>();
-			this.#subjects.push(subj);
-			return subj.source as unknown as Source<unknown>;
-		});
-		this.client = {
-			subscription,
-			query: vi.fn(),
-			mutation: vi.fn()
-		} as unknown as Client;
-	}
-
-	/** The currently-live subject (the one the bus is subscribed to right now). */
-	get current(): Subject<{ data?: unknown; error?: unknown }> {
-		if (this.#subjects.length === 0) throw new Error('no subscription started yet');
-		return this.#subjects[this.#subjects.length - 1];
-	}
-
-	bumpReconnect() {
-		this.reconnectCount++;
-		flushSync();
-	}
-
-	get subscriptionMock() {
-		return this.client.subscription as ReturnType<typeof vi.fn>;
-	}
-}
-
 const TEST_SERVER = 'test-server-bus';
 
-describe('eventBusManager subscription robustness', () => {
-	let consoleError: ReturnType<typeof vi.spyOn>;
-	let consoleWarn: ReturnType<typeof vi.spyOn>;
-	let consoleDebug: ReturnType<typeof vi.spyOn>;
+function fakeServerConnection(): ServerConnection {
+  return {
+    wireUrl: 'ws://example.test/api/wire',
+    token: 'test-token'
+  } as unknown as ServerConnection;
+}
 
-	beforeEach(() => {
-		mockStartWireEventLogger.mockClear();
-		mockStopWireEventLogger.mockClear();
-		mockStartWireEventLogger.mockReturnValue({ stop: mockStopWireEventLogger });
-		consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-		consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		consoleDebug = vi.spyOn(console, 'debug').mockImplementation(() => {});
-	});
+function dispatchWireEvent(event: StreamEvent): void {
+  const bus = wireBuses.get(TEST_SERVER);
+  if (!bus) throw new Error('wire bus did not start');
+  for (const handler of bus.handlers) handler(event);
+}
 
-	afterEach(() => {
-		eventBusManager.stopBus(TEST_SERVER);
-		consoleError.mockRestore();
-		consoleWarn.mockRestore();
-		consoleDebug.mockRestore();
-		vi.useRealTimers();
-	});
+function messagePostedStreamEvent(id = 'evt_1', roomId = 'room_1'): StreamEvent {
+  return new StreamEvent({
+    eventId: id,
+    eventType: 'message_posted',
+    payload: {
+      case: 'durableEvent',
+      value: new DurableEvent({
+        id,
+        actorId: 'user_1',
+        event: {
+          case: 'messagePosted',
+          value: new MessagePostedEvent({ roomId })
+        }
+      })
+    }
+  });
+}
 
-	it('starts and stops the wire event logger with the bus', () => {
-		const fake = new FakeGqlClient();
-		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
+function heartbeatStreamEvent(): StreamEvent {
+  return new StreamEvent({
+    eventId: 'heartbeat',
+    eventType: 'heartbeat',
+    payload: {
+      case: 'heartbeat',
+      value: new HeartbeatEvent()
+    }
+  });
+}
 
-		expect(mockStartWireEventLogger).toHaveBeenCalledWith(TEST_SERVER, fake);
-		eventBusManager.stopBus(TEST_SERVER);
-		expect(mockStopWireEventLogger).toHaveBeenCalledOnce();
-	});
+describe('eventBusManager wire bridge', () => {
+  let consoleError: ReturnType<typeof vi.spyOn>;
+  let consoleWarn: ReturnType<typeof vi.spyOn>;
+  let consoleDebug: ReturnType<typeof vi.spyOn>;
 
-	it('does not start a duplicate wire event logger for an existing bus', () => {
-		const fake = new FakeGqlClient();
-		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
-		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
+  beforeEach(() => {
+    eventBusManager.stopAll();
+    wireBuses.clear();
+    mockStartWireEventBus.mockClear();
+    mockStopWireEventBus.mockClear();
+    consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    consoleDebug = vi.spyOn(console, 'debug').mockImplementation(() => {});
+  });
 
-		expect(mockStartWireEventLogger).toHaveBeenCalledTimes(1);
-	});
+  afterEach(() => {
+    eventBusManager.stopAll();
+    wireBuses.clear();
+    consoleError.mockRestore();
+    consoleWarn.mockRestore();
+    consoleDebug.mockRestore();
+    vi.useRealTimers();
+  });
 
-	it('logs an error when the subscription delivers result.error', () => {
-		const fake = new FakeGqlClient();
-		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
+  it('starts and stops the wire event bus with the public bus', () => {
+    const client = fakeServerConnection();
+    eventBusManager.startBus(TEST_SERVER, client);
 
-		fake.current.next({ error: new Error('subscription failed') });
+    expect(mockStartWireEventBus).toHaveBeenCalledWith(TEST_SERVER, client);
+    expect(wireBuses.get(TEST_SERVER)?.handlers.size).toBe(1);
 
-		expect(consoleError).toHaveBeenCalledTimes(1);
-		expect(consoleError.mock.calls[0][0]).toContain(TEST_SERVER);
-		expect(consoleError.mock.calls[0][0]).toContain('subscription error');
-	});
+    eventBusManager.stopBus(TEST_SERVER);
 
-	it('isolates handler errors so one throwing handler does not stop the others', () => {
-		const fake = new FakeGqlClient();
-		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
+    expect(mockStopWireEventBus).toHaveBeenCalledWith(TEST_SERVER);
+    expect(eventBusManager.getBus(TEST_SERVER)).toBeUndefined();
+    expect(wireBuses.get(TEST_SERVER)).toBeUndefined();
+  });
 
-		const bus = eventBusManager.getBus(TEST_SERVER)!;
-		const ranBefore = vi.fn();
-		const ranAfter = vi.fn();
-		bus.handlers.add(ranBefore);
-		bus.handlers.add(() => {
-			throw new Error('handler boom');
-		});
-		bus.handlers.add(ranAfter);
+  it('does not start a duplicate wire event bus for an existing public bus', () => {
+    const client = fakeServerConnection();
+    eventBusManager.startBus(TEST_SERVER, client);
+    eventBusManager.startBus(TEST_SERVER, client);
 
-		const event = { actorId: 'a', event: { __typename: 'ServerUpdatedEvent' } };
-		fake.current.next({ data: { myEvents: event } });
+    expect(mockStartWireEventBus).toHaveBeenCalledTimes(1);
+    expect(wireBuses.get(TEST_SERVER)?.handlers.size).toBe(1);
+  });
 
-		expect(ranBefore).toHaveBeenCalledTimes(1);
-		expect(ranAfter).toHaveBeenCalledTimes(1);
-		expect(consoleError).toHaveBeenCalled();
-		expect(consoleError.mock.calls[0][0]).toContain('handler threw');
-	});
+  it('dispatches decoded wire events to public handlers', () => {
+    eventBusManager.startBus(TEST_SERVER, fakeServerConnection());
+    const handler = vi.fn();
+    eventBusManager.getBus(TEST_SERVER)!.handlers.add(handler);
 
-	it('continues delivering events after a handler error on a previous event', () => {
-		const fake = new FakeGqlClient();
-		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
+    dispatchWireEvent(messagePostedStreamEvent('evt_message', 'room_1'));
 
-		const bus = eventBusManager.getBus(TEST_SERVER)!;
-		const handler = vi.fn();
-		let throwOnce = true;
-		bus.handlers.add(() => {
-			if (throwOnce) {
-				throwOnce = false;
-				throw new Error('handler boom');
-			}
-		});
-		bus.handlers.add(handler);
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler.mock.calls[0][0]).toMatchObject({
+      id: 'evt_message',
+      actorId: 'user_1',
+      event: {
+        __typename: 'MessagePostedEvent',
+        roomId: 'room_1'
+      }
+    });
+  });
 
-		const event = { actorId: 'a', event: { __typename: 'ServerUpdatedEvent' } };
-		fake.current.next({ data: { myEvents: event } });
-		fake.current.next({ data: { myEvents: event } });
+  it('isolates handler errors so one throwing handler does not stop the others', () => {
+    eventBusManager.startBus(TEST_SERVER, fakeServerConnection());
+    const bus = eventBusManager.getBus(TEST_SERVER)!;
+    const ranBefore = vi.fn();
+    const ranAfter = vi.fn();
 
-		expect(handler).toHaveBeenCalledTimes(2);
-	});
+    bus.handlers.add(ranBefore);
+    bus.handlers.add(() => {
+      throw new Error('handler boom');
+    });
+    bus.handlers.add(ranAfter);
 
-	it('re-subscribes when the source ends (onEnd)', () => {
-		const fake = new FakeGqlClient();
-		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
-		expect(fake.subscribeCalls).toBe(1);
-		const catchUp = vi.fn();
-		eventBusManager.getBus(TEST_SERVER)!.catchUpHandlers.add(catchUp);
+    dispatchWireEvent(messagePostedStreamEvent());
 
-		// Server sent Complete (or graphql-ws closed the Sink) → source ends.
-		fake.current.complete();
+    expect(ranBefore).toHaveBeenCalledTimes(1);
+    expect(ranAfter).toHaveBeenCalledTimes(1);
+    expect(consoleError).toHaveBeenCalled();
+    expect(consoleError.mock.calls[0][0]).toContain('handler threw');
+  });
 
-		expect(fake.subscribeCalls).toBe(2);
-		expect(catchUp).toHaveBeenCalledWith('subscription-ended');
-		expect(consoleWarn.mock.calls.some((c: unknown[]) => String(c[0]).includes('source ended'))).toBe(true);
+  it('continues delivering events after a handler error on a previous event', () => {
+    eventBusManager.startBus(TEST_SERVER, fakeServerConnection());
+    const bus = eventBusManager.getBus(TEST_SERVER)!;
+    const handler = vi.fn();
+    let throwOnce = true;
 
-		// And the new subscription is wired through — events flow.
-		const handler = vi.fn();
-		eventBusManager.getBus(TEST_SERVER)!.handlers.add(handler);
-		fake.current.next({
-			data: { myEvents: { actorId: 'a', event: { __typename: 'ServerUpdatedEvent' } } }
-		});
-		expect(handler).toHaveBeenCalledTimes(1);
-	});
+    bus.handlers.add(() => {
+      if (!throwOnce) return;
+      throwOnce = false;
+      throw new Error('handler boom');
+    });
+    bus.handlers.add(handler);
 
-	it('re-notifies catch-up handlers after the projection grace period', async () => {
-		vi.useFakeTimers();
-		const fake = new FakeGqlClient();
-		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
-		const catchUp = vi.fn();
-		eventBusManager.getBus(TEST_SERVER)!.catchUpHandlers.add(catchUp);
+    dispatchWireEvent(messagePostedStreamEvent('evt_1'));
+    dispatchWireEvent(messagePostedStreamEvent('evt_2'));
 
-		fake.current.complete();
+    expect(handler).toHaveBeenCalledTimes(2);
+  });
 
-		expect(catchUp).toHaveBeenCalledTimes(1);
-		expect(catchUp).toHaveBeenNthCalledWith(1, 'subscription-ended');
+  it('does not dispatch heartbeat events to public handlers', () => {
+    eventBusManager.startBus(TEST_SERVER, fakeServerConnection());
+    const handler = vi.fn();
+    eventBusManager.getBus(TEST_SERVER)!.handlers.add(handler);
 
-		await vi.advanceTimersByTimeAsync(2_499);
-		expect(catchUp).toHaveBeenCalledTimes(1);
+    dispatchWireEvent(heartbeatStreamEvent());
 
-		await vi.advanceTimersByTimeAsync(1);
-		expect(catchUp).toHaveBeenCalledTimes(2);
-		expect(catchUp).toHaveBeenNthCalledWith(2, 'subscription-ended');
-	});
+    expect(handler).not.toHaveBeenCalled();
+  });
 
-	it('re-subscribes when the WebSocket reconnects (reconnectCount increments)', () => {
-		const fake = new FakeGqlClient();
-		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
-		expect(fake.subscribeCalls).toBe(1);
-		const catchUp = vi.fn();
-		eventBusManager.getBus(TEST_SERVER)!.catchUpHandlers.add(catchUp);
+  it('notifies catch-up handlers when heartbeats stall', async () => {
+    vi.useFakeTimers();
+    eventBusManager.startBus(TEST_SERVER, fakeServerConnection());
+    const catchUp = vi.fn();
+    eventBusManager.getBus(TEST_SERVER)!.catchUpHandlers.add(catchUp);
 
-		fake.bumpReconnect();
+    await vi.advanceTimersByTimeAsync(75_000);
 
-		expect(fake.subscribeCalls).toBe(2);
-		expect(catchUp).toHaveBeenCalledWith('ws-reconnected');
-		expect(consoleWarn.mock.calls.some((c: unknown[]) => String(c[0]).includes('ws reconnected'))).toBe(true);
-	});
+    expect(catchUp).toHaveBeenCalledTimes(1);
+    expect(catchUp).toHaveBeenNthCalledWith(1, 'heartbeat-stalled');
+    expect(
+      consoleWarn.mock.calls.some((call: unknown[]) => String(call[0]).includes('heartbeat stalled'))
+    ).toBe(true);
+  });
 
-	it('re-subscribes and notifies catch-up handlers when heartbeats stall', () => {
-		vi.useFakeTimers();
-		const fake = new FakeGqlClient();
-		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
-		expect(fake.subscribeCalls).toBe(1);
-		const catchUp = vi.fn();
-		eventBusManager.getBus(TEST_SERVER)!.catchUpHandlers.add(catchUp);
+  it('re-notifies catch-up handlers after the projection grace period', async () => {
+    vi.useFakeTimers();
+    eventBusManager.startBus(TEST_SERVER, fakeServerConnection());
+    const catchUp = vi.fn();
+    eventBusManager.getBus(TEST_SERVER)!.catchUpHandlers.add(catchUp);
 
-		vi.advanceTimersByTime(90_000);
+    await vi.advanceTimersByTimeAsync(75_000);
+    expect(catchUp).toHaveBeenCalledTimes(1);
 
-		expect(fake.subscribeCalls).toBe(2);
-		expect(catchUp).toHaveBeenCalledWith('heartbeat-stalled');
-		expect(consoleWarn.mock.calls.some((c: unknown[]) => String(c[0]).includes('heartbeat stalled'))).toBe(true);
-	});
+    await vi.advanceTimersByTimeAsync(2_499);
+    expect(catchUp).toHaveBeenCalledTimes(1);
 
-	it('subscribes without variables on initial start and reconnect', () => {
-		const fake = new FakeGqlClient();
-		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
-		expect(fake.subscriptionMock.mock.calls[0][1]).toEqual({});
+    await vi.advanceTimersByTimeAsync(1);
+    expect(catchUp).toHaveBeenCalledTimes(2);
+    expect(catchUp).toHaveBeenNthCalledWith(2, 'heartbeat-stalled');
+  });
 
-		fake.current.next({
-			data: {
-				myEvents: {
-					actorId: 'a',
-					event: { __typename: 'ServerUpdatedEvent' }
-				}
-			}
-		});
-		fake.bumpReconnect();
+  it('removes the wire bridge handler before stopping the wire bus', () => {
+    eventBusManager.startBus(TEST_SERVER, fakeServerConnection());
+    const wireBus = wireBuses.get(TEST_SERVER);
+    if (!wireBus) throw new Error('wire bus did not start');
 
-		expect(fake.subscriptionMock.mock.calls[1][1]).toEqual({});
-	});
+    expect(wireBus.handlers.size).toBe(1);
 
-	it('does not dispatch heartbeat events to handlers', () => {
-		const fake = new FakeGqlClient();
-		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
-		const handler = vi.fn();
-		eventBusManager.getBus(TEST_SERVER)!.handlers.add(handler);
+    eventBusManager.stopBus(TEST_SERVER);
 
-		fake.current.next({
-			data: { myEvents: { actorId: '', event: { __typename: 'HeartbeatEvent' } } }
-		});
-
-		expect(handler).not.toHaveBeenCalled();
-	});
-
-	it('does NOT re-subscribe when stopBus is called (teardown guard)', () => {
-		const fake = new FakeGqlClient();
-		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
-		expect(fake.subscribeCalls).toBe(1);
-
-		eventBusManager.stopBus(TEST_SERVER);
-
-		// Unsubscribing the wonka source completes it, which would trigger
-		// onEnd → resubscribe without the guard. With the guard, no new
-		// subscription is started.
-		expect(fake.subscribeCalls).toBe(1);
-	});
-
+    expect(wireBus.handlers.size).toBe(0);
+    expect(mockStopWireEventBus).toHaveBeenCalledWith(TEST_SERVER);
+  });
 });

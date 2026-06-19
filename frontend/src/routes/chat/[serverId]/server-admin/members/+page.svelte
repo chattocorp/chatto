@@ -4,46 +4,32 @@
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { graphql } from '$lib/gql';
-  import type { ServerAdminMembersQuery } from '$lib/gql/graphql';
   import { Panel, DataTable } from '$lib/components/admin';
   import { Hint, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { TextInput } from '$lib/ui/form';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
   import { formatDate as formatDateUtil } from '$lib/utils/formatTime';
+  import { ListAdminMembersRequest } from '$lib/pb/chatto/api/v1/chat_pb';
+  import type { AdminMemberView, AdminRoleView } from '$lib/pb/chatto/api/v1/chat_pb';
+  import { withActiveServerWireClient } from '$lib/wire/activeServerClient';
 
   const userSettings = getUserSettings();
-  const connection = useConnection();
   const PAGE_SIZE = 20;
 
-  const ServerAdminMembersDocument = graphql(`
-    query ServerAdminMembers($search: String, $limit: Int!, $offset: Int!) {
-      server {
-        roles {
-          name
-          displayName
-        }
-        members(search: $search, limit: $limit, offset: $offset) {
-          users {
-            id
-            login
-            displayName
-            avatarUrl
-            roles
-            createdAt
-          }
-          totalCount
-          hasMore
-        }
-      }
-    }
-  `);
-
-  type User = ServerAdminMembersQuery['server']['members']['users'][number];
-  type Role = ServerAdminMembersQuery['server']['roles'][number];
+  type User = {
+    id: string;
+    login: string;
+    displayName: string;
+    avatarUrl?: string;
+    roles: string[];
+    createdAt?: string | null;
+  };
+  type Role = {
+    name: string;
+    displayName: string;
+  };
 
   let searchInput = $state('');
   let activeSearch = '';
@@ -82,13 +68,15 @@
   }
 
   async function queryMembers(search: string, offset: number) {
-    return connection()
-      .client.query(ServerAdminMembersDocument, {
-        search: search || null,
-        limit: PAGE_SIZE,
-        offset
-      })
-      .toPromise();
+    return withActiveServerWireClient((client) =>
+      client.listAdminMembers(
+        new ListAdminMembersRequest({
+          search,
+          limit: PAGE_SIZE,
+          offset
+        })
+      )
+    );
   }
 
   async function loadFirstPage(search = activeSearch) {
@@ -104,21 +92,10 @@
       const result = await queryMembers(search, 0);
       if (currentRequest !== requestId) return;
 
-      if (result.error) {
-        error = result.error.message;
-        return;
-      }
-
-      if (!result.data?.server) {
-        error = 'Server not found';
-        return;
-      }
-
-      const members = result.data.server.members;
-      roles = result.data.server.roles;
-      users = members.users;
-      totalCount = members.totalCount;
-      hasMore = members.hasMore;
+      roles = result.roles.map(roleFromWire);
+      users = result.members.map(memberFromWire);
+      totalCount = result.totalCount;
+      hasMore = result.hasMore;
     } catch (e) {
       if (currentRequest !== requestId) return;
       error = e instanceof Error ? e.message : 'Failed to load members';
@@ -142,22 +119,12 @@
       const result = await queryMembers(search, offset);
       if (currentRequest !== requestId) return;
 
-      if (result.error) {
-        error = result.error.message;
-        return;
-      }
-
-      if (!result.data?.server) {
-        error = 'Server not found';
-        return;
-      }
-
-      const members = result.data.server.members;
       const seen = new Set(users.map((user) => user.id));
-      roles = result.data.server.roles;
-      users = [...users, ...members.users.filter((user) => !seen.has(user.id))];
-      totalCount = members.totalCount;
-      hasMore = members.hasMore;
+      const nextUsers = result.members.map(memberFromWire);
+      roles = result.roles.map(roleFromWire);
+      users = [...users, ...nextUsers.filter((user) => !seen.has(user.id))];
+      totalCount = result.totalCount;
+      hasMore = result.hasMore;
     } catch (e) {
       if (currentRequest !== requestId) return;
       error = e instanceof Error ? e.message : 'Failed to load more members';
@@ -176,6 +143,24 @@
   function formatDate(dateStr: string | null | undefined): string {
     if (!dateStr) return '—';
     return formatDateUtil(dateStr, userSettings);
+  }
+
+  function memberFromWire(member: AdminMemberView): User {
+    return {
+      id: member.user?.id ?? '',
+      login: member.user?.login ?? '',
+      displayName: member.user?.displayName ?? '',
+      avatarUrl: member.avatarUrl || undefined,
+      roles: [...member.roles],
+      createdAt: member.user?.createdAt?.toDate().toISOString() ?? null
+    };
+  }
+
+  function roleFromWire(role: AdminRoleView): Role {
+    return {
+      name: role.name,
+      displayName: role.displayName
+    };
   }
 
   // Roles to display in the members list. `everyone` is implicit on every

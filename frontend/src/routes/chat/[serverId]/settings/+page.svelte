@@ -1,13 +1,14 @@
 <script lang="ts">
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import { graphql } from '$lib/gql';
+  import { wireEventBusManager } from '$lib/state/server/wireEventBus.svelte';
   import { PaneHeader, FormSection, Dialog } from '$lib/ui';
   import { TextInput, Button, FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { dropZone } from '$lib/attachments/dropZone.svelte';
   import DropZoneOverlay from '$lib/attachments/DropZoneOverlay.svelte';
+  import { deleteUserAvatar, uploadUserAvatar } from '$lib/attachments/profileAssets';
+  import { UpdateProfileRequest } from '$lib/pb/chatto/api/v1/chat_pb';
   import {
     validateAndNormalizeDisplayName,
     validateAndNormalizeLogin,
@@ -21,10 +22,16 @@
   // so we don't need the registry lookup to re-resolve reactively — and
   // the captured CurrentUserState is itself a reactive class (`user` /
   // `loading` are `$state`), so subsequent profile updates flow through.
-  // The connection getter resolves to the active server's GraphQL client,
-  // so profile/avatar mutations land on the right backend.
-  const currentUser = serverRegistry.getStore(getActiveServer()).currentUser;
-  const connection = useConnection();
+  const activeServerId = getActiveServer();
+  const currentUser = serverRegistry.getStore(activeServerId).currentUser;
+
+  function wireClient() {
+    const client = wireEventBusManager.getClient(activeServerId);
+    if (!client) {
+      throw new Error('No server connection');
+    }
+    return client;
+  }
 
   // Form state seeded once from the user's current profile. After init
   // these are local edit buffers; profile updates from elsewhere
@@ -69,28 +76,25 @@
 
   // Fetch last login change on mount
   $effect(() => {
-    connection().client
-      .query(
-        graphql(`
-          query GetMyLastLoginChange {
-            viewer {
-              user {
-                id
-                lastLoginChange
-              }
-            }
-          }
-        `),
-        {}
-      )
-      .toPromise()
+    let cancelled = false;
+    Promise.resolve()
+      .then(() => wireClient().getProfileSettings())
       .then((result) => {
-        const last = result.data?.viewer?.user.lastLoginChange;
-        if (last) {
-          lastLoginChange = new Date(last);
+        if (cancelled) return;
+        const profile = result.profile;
+        if (profile?.lastLoginChange) {
+          lastLoginChange = profile.lastLoginChange.toDate();
         }
         cooldownLoaded = true;
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        console.error('[profile] failed to load profile settings', err);
+        cooldownLoaded = true;
       });
+    return () => {
+      cancelled = true;
+    };
   });
 
   // Clear messages when the user modifies inputs
@@ -115,31 +119,19 @@
     uploadingAvatar = true;
 
     try {
-      const result = await connection().client
-        .mutation(
-          graphql(`
-            mutation UploadAvatar($input: UploadAvatarInput!) {
-              uploadAvatar(input: $input) {
-                id
-                avatarUrl
-              }
-            }
-          `),
-          { input: { userId: currentUser.user!.id, file } }
-        )
-        .toPromise();
-
-      if (result.error) {
-        throw new Error(result.error.message);
+      const userId = currentUser.user?.id;
+      if (!userId) {
+        throw new Error('No user is signed in');
       }
 
-      avatarUrl = result.data?.uploadAvatar.avatarUrl ?? null;
+      const result = await uploadUserAvatar(userId, file);
+      avatarUrl = result.avatarUrl || null;
 
       // Update the current user state
-      if (currentUser.user && result.data?.uploadAvatar) {
+      if (currentUser.user) {
         currentUser.user = {
           ...currentUser.user,
-          avatarUrl: result.data.uploadAvatar.avatarUrl
+          avatarUrl
         };
       }
 
@@ -170,31 +162,19 @@
     deletingAvatar = true;
 
     try {
-      const result = await connection().client
-        .mutation(
-          graphql(`
-            mutation DeleteAvatar($input: DeleteAvatarInput!) {
-              deleteAvatar(input: $input) {
-                id
-                avatarUrl
-              }
-            }
-          `),
-          { input: { userId: currentUser.user!.id } }
-        )
-        .toPromise();
-
-      if (result.error) {
-        throw new Error(result.error.message);
+      const userId = currentUser.user?.id;
+      if (!userId) {
+        throw new Error('No user is signed in');
       }
 
-      avatarUrl = null;
+      const result = await deleteUserAvatar(userId);
+      avatarUrl = result.avatarUrl || null;
 
       // Update the current user state
       if (currentUser.user) {
         currentUser.user = {
           ...currentUser.user,
-          avatarUrl: null
+          avatarUrl
         };
       }
 
@@ -267,47 +247,39 @@
     successMessage = '';
 
     try {
-      const result = await connection().client
-        .mutation(
-          graphql(`
-            mutation UpdateProfile($input: UpdateProfileInput!) {
-              updateProfile(input: $input) {
-                id
-                displayName
-                login
-              }
-            }
-          `),
-          {
-            input: {
-              userId: currentUser.user!.id,
-              displayName: normalizedDisplayName ?? null,
-              login: normalizedLogin ?? null
-            }
-          }
-        )
-        .toPromise();
+      const result = await wireClient().updateProfile(
+        new UpdateProfileRequest({
+          ...(normalizedDisplayName !== undefined ? { displayName: normalizedDisplayName } : {}),
+          ...(normalizedLogin !== undefined ? { login: normalizedLogin } : {})
+        })
+      );
 
-      if (result.error) {
-        error = result.error.message;
+      const profile = result.profile;
+      const updatedUser = profile?.user;
+      if (!updatedUser) {
+        error = 'Failed to save profile';
         return;
       }
 
       // Update the current user state
-      if (currentUser.user && result.data?.updateProfile) {
+      if (currentUser.user) {
         currentUser.user = {
           ...currentUser.user,
-          displayName: result.data.updateProfile.displayName,
-          login: result.data.updateProfile.login
+          displayName: updatedUser.displayName,
+          login: updatedUser.login,
+          avatarUrl: profile.avatarUrl || null
         };
       }
 
       // Update local state to match
-      displayName = result.data?.updateProfile.displayName ?? displayName;
-      login = result.data?.updateProfile.login ?? login;
+      displayName = updatedUser.displayName || displayName;
+      login = updatedUser.login || login;
+      avatarUrl = profile.avatarUrl || null;
 
       // Update cooldown if login was changed
-      if (normalizedLogin) {
+      if (profile.lastLoginChange) {
+        lastLoginChange = profile.lastLoginChange.toDate();
+      } else if (normalizedLogin) {
         lastLoginChange = new Date();
       }
 
@@ -325,8 +297,16 @@
 <div class="flex flex-col gap-6 overflow-y-auto p-6">
   <!-- Avatar Section -->
   <FormSection title="Avatar" maxWidth="max-w-md">
-    <div class="relative flex items-start gap-6" data-testid="avatar-drop-zone" {@attach avatarDropZone}>
-      <DropZoneOverlay visible={isDraggingAvatar} title="Drop image" subtitle="Upload as your avatar" />
+    <div
+      class="relative flex items-start gap-6"
+      data-testid="avatar-drop-zone"
+      {@attach avatarDropZone}
+    >
+      <DropZoneOverlay
+        visible={isDraggingAvatar}
+        title="Drop image"
+        subtitle="Upload as your avatar"
+      />
       <!-- Avatar Preview -->
       <div
         class="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-200 text-4xl font-black text-muted shadow-md"

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { useEvent } from '$lib/hooks';
-  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { useWireEvent } from '$lib/hooks';
+  import { wireMessageRetracted } from '$lib/wire/events';
   import {
     getComposerContext,
     MessagesStore,
@@ -28,16 +28,14 @@
     typingMembers?: RoomMember[];
   } = $props();
 
-  const connection = useConnection();
   const composerContext = getComposerContext();
   const editState = composerContext.editState;
   const jumpState = composerContext.jumpState;
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
 
-  const store = new MessagesStore(
-    connection(),
-    () => currentUser.user?.id ?? null
-  );
+  const store = new MessagesStore(() => currentUser.user?.id ?? null, {
+    serverId: getActiveServer()
+  });
   onDestroy(() => store.dispose());
 
   let roomEvents = $derived(store.rootEvents);
@@ -75,21 +73,19 @@
     store.setRoom(roomId);
   });
 
-  // Subscribe to server events: route to store, plus handle component-level
+  // Subscribe to wire events: route to store, plus handle component-level
   // concerns the store doesn't own (e.g. cancel an in-progress edit).
-  useEvent((serverEvent) => {
-    const eventData = serverEvent.event;
-    if (!eventData) return;
-
+  useWireEvent((streamEvent) => {
+    const retracted = wireMessageRetracted(streamEvent);
     if (
-      eventData.__typename === 'MessageRetractedEvent' &&
-      eventData.roomId === roomId &&
-      editState.eventId === eventData.messageEventId
+      retracted &&
+      retracted.roomId === roomId &&
+      editState.eventId === retracted.messageEventId
     ) {
       editState.cancelEdit();
     }
 
-    store.ingestServerEvent(serverEvent);
+    void store.ingestWireEvent(streamEvent);
   });
 
   function handleSoftRefresh(result: RefreshCurrentWindowResult, anchored: boolean): void {

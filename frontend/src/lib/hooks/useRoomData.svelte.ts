@@ -1,9 +1,10 @@
-import { graphql, useFragment } from '$lib/gql';
-import { RoomType, UserAvatarUserFragmentDoc, type PresenceStatus } from '$lib/gql/graphql';
+import { RoomType, PresenceStatus } from '$lib/chatTypes';
 import { useActiveRoomLayoutUpdated } from '$lib/hooks/useEvent.svelte';
 import { useReconnectTrigger } from '$lib/hooks/useReconnectCallback.svelte';
-import { useConnection } from '$lib/state/server/connection.svelte';
-import type { RoomMember } from '$lib/state/room';
+import type { MentionRole, RoomMember } from '$lib/state/room';
+import { activeWireClient } from '$lib/wire';
+import { GetRoomRequest, type GetRoomResponse } from '$lib/pb/chatto/api/v1/chat_pb';
+import { RoomKind, type User } from '$lib/pb/chatto/core/v1/models_pb';
 import { untrack } from 'svelte';
 
 export type RoomData = {
@@ -16,6 +17,8 @@ export type RoomData = {
   canEchoMessage: boolean;
   canManageRoom: boolean;
   canBanRoomMembers: boolean;
+  viewerUserId: string | null;
+  mentionRoles: MentionRole[];
   members: RoomMember[];
   membersTotalCount: number;
   membersHasMore: boolean;
@@ -44,7 +47,6 @@ export type DMData = {
  * Must be called during component initialization (uses context).
  */
 export function useRoomData(getProps: () => { roomId: string }) {
-  const connection = useConnection();
   const reconnect = useReconnectTrigger();
 
   // Refresh on room-groups-updated too: an admin renaming/reordering
@@ -85,73 +87,39 @@ export function useRoomData(getProps: () => { roomId: string }) {
       }
     });
 
-    connection()
-      .client.query(
-        graphql(`
-          query GetRoom($roomId: ID!) {
-            room(roomId: $roomId) {
-              id
-              name
-              type
-              viewerCanPostMessage
-              viewerCanPostInThread
-              viewerCanReact
-              viewerCanManageOthersMessage
-              viewerCanEchoMessage
-              viewerCanManageRoom
-              viewerCanBanRoomMembers
-              members(limit: 100) {
-                users {
-                  ...UserAvatarUser
-                }
-                totalCount
-                hasMore
-              }
-            }
-            server {
-              profile {
-                name
-              }
-              viewerCanManageRooms
-            }
-          }
-        `),
-        { roomId: currentRoomId }
-      )
-      .toPromise()
+    fetchWireRoom(currentRoomId)
       .then((resp) => {
         if (roomLoadId.current !== thisLoadId) return;
 
-        // Transient network failure (e.g., wake-from-sleep) — keep prior data
-        // visible and let the reconnect handler retry. Don't flip to null,
-        // which would trigger the not-found redirect path.
-        // Logged so a stuck-blank-screen incident leaves a fingerprint.
-        if (resp.error?.networkError) {
-          console.warn(
-            '[useRoomData] networkError, ignoring (roomData stays at prior value)',
-            { roomId: currentRoomId, error: resp.error }
-          );
-          return;
-        }
-
-        if (!resp.data?.room) {
+        if (!resp.room?.id) {
           roomData = null;
           return;
         }
 
         roomData = {
-          room: resp.data.room,
-          spaceName: resp.data.server?.profile.name ?? null,
-          canPostMessage: resp.data.room.viewerCanPostMessage,
-          canPostInThread: resp.data.room.viewerCanPostInThread,
-          canReact: resp.data.room.viewerCanReact,
-          canManageOthersMessage: resp.data.room.viewerCanManageOthersMessage,
-          canEchoMessage: resp.data.room.viewerCanEchoMessage,
-          canManageRoom: resp.data.room.viewerCanManageRoom,
-          canBanRoomMembers: resp.data.room.viewerCanBanRoomMembers,
-          members: resp.data.room.members.users.map((m) => useFragment(UserAvatarUserFragmentDoc, m)),
-          membersTotalCount: resp.data.room.members.totalCount,
-          membersHasMore: resp.data.room.members.hasMore
+          room: {
+            id: resp.room.id,
+            name: resp.room.name,
+            type: roomTypeFromWire(resp.room.kind)
+          },
+          spaceName: resp.serverName || null,
+          canPostMessage: resp.viewerCanPostMessage,
+          canPostInThread: resp.viewerCanPostInThread,
+          canReact: resp.viewerCanReact,
+          canManageOthersMessage: resp.viewerCanManageOthersMessage,
+          canEchoMessage: resp.viewerCanEchoMessage,
+          canManageRoom: resp.viewerCanManageRoom,
+          canBanRoomMembers: resp.viewerCanBanRoomMembers,
+          viewerUserId: resp.viewerUserId || null,
+          mentionRoles: resp.mentionRoles.map((role) => ({
+            name: role.name,
+            isSystem: role.isSystem,
+            position: role.position,
+            pingable: role.pingable
+          })),
+          members: resp.members?.users.map(wireUserToRoomMember).filter(isRoomMember) ?? [],
+          membersTotalCount: resp.members?.totalCount ?? 0,
+          membersHasMore: resp.members?.hasMore ?? false
         };
       })
       .catch((err) => {
@@ -168,44 +136,10 @@ export function useRoomData(getProps: () => { roomId: string }) {
       return;
     }
 
-    void reconnect.count;
-
-    connection()
-      .client.query(
-        graphql(`
-          query GetDMRoomMembers($roomId: ID!) {
-            room(roomId: $roomId) {
-              id
-              members(limit: 100) {
-                users {
-                  ...UserAvatarUser
-                }
-                totalCount
-                hasMore
-              }
-            }
-            viewer {
-              user {
-                id
-              }
-            }
-          }
-        `),
-        { roomId: getProps().roomId }
-      )
-      .toPromise()
-      .then((resp) => {
-        if (!resp.data?.room) {
-          dmData = { participants: [], currentUserId: null };
-          return;
-        }
-        dmData = {
-          participants: resp.data.room.members.users.map((m) =>
-            useFragment(UserAvatarUserFragmentDoc, m)
-          ),
-          currentUserId: resp.data.viewer?.user.id ?? null
-        };
-      });
+    dmData = {
+      participants: roomData?.members ?? [],
+      currentUserId: roomData?.viewerUserId ?? null
+    };
   });
 
   return {
@@ -222,4 +156,29 @@ export function useRoomData(getProps: () => { roomId: string }) {
       return isRoomLoading;
     }
   };
+}
+
+async function fetchWireRoom(roomId: string): Promise<GetRoomResponse> {
+  const client = activeWireClient();
+  if (!client) throw new Error('wire client is not connected');
+  return client.getRoom(new GetRoomRequest({ roomId, membersLimit: 100 }));
+}
+
+function roomTypeFromWire(kind: RoomKind): RoomType {
+  return kind === RoomKind.DM ? RoomType.Dm : RoomType.Channel;
+}
+
+function wireUserToRoomMember(user: User | undefined): RoomMember | null {
+  if (!user?.id) return null;
+  return {
+    id: user.id,
+    login: user.login,
+    displayName: user.displayName,
+    avatarUrl: null,
+    presenceStatus: PresenceStatus.Offline
+  };
+}
+
+function isRoomMember(member: RoomMember | null): member is RoomMember {
+  return member !== null;
 }

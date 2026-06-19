@@ -1,7 +1,6 @@
 <script lang="ts">
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import { graphql } from './gql';
   import { TextInput, TextArea, Button, FormError, createFormState, z } from '$lib/ui/form';
+  import { tryWireCreateRoom, tryWireJoinRoom } from '$lib/wire';
 
   let {
     groupId,
@@ -11,8 +10,6 @@
     groupId?: string;
     onroomcreated?: (roomId: string) => void;
   } = $props();
-
-  const connection = useConnection();
 
   const schema = z.object({
     name: z.string().trim().min(1, 'Room name is required'),
@@ -43,49 +40,19 @@
         return;
       }
 
-      const result = await connection()
-        .client.mutation(
-          graphql(`
-            mutation CreateRoom($input: CreateRoomInput!) {
-              createRoom(input: $input) {
-                id
-                name
-                description
-              }
-            }
-          `),
-          {
-            input: {
-              name: values.name.trim(),
-              description: values.description.trim() || undefined,
-              groupId: targetGroupId
-            }
-          }
-        )
-        .toPromise();
-
-      if (result.error) {
-        submitError = result.error.message;
-        console.error('Error creating room:', result.error);
+      const roomId = await tryWireCreateRoom({
+        name: values.name.trim(),
+        description: values.description.trim() || undefined,
+        groupId: targetGroupId
+      });
+      if (!roomId) {
+        submitError = 'Failed to create room';
         return;
       }
 
-      const roomId = result.data!.createRoom.id;
-
-      const joinResult = await connection()
-        .client.mutation(
-          graphql(`
-            mutation JoinRoom($input: JoinRoomInput!) {
-              joinRoom(input: $input) { id }
-            }
-          `),
-          { input: { roomId } }
-        )
-        .toPromise();
-
-      if (joinResult.error) {
-        submitError = joinResult.error.message;
-        console.error('Error joining room:', joinResult.error);
+      const handledByWire = await tryWireJoinRoom({ roomId });
+      if (!handledByWire) {
+        submitError = 'Failed to join room';
         return;
       }
 

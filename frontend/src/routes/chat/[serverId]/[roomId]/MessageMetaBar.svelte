@@ -19,14 +19,12 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
 - `onOpenEmojiPicker` - Callback to open the emoji picker
 -->
 <script lang="ts">
-  import type { RoomEventViewFragment } from '$lib/gql/graphql';
-  import UserAvatar, { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
+  import type { RoomEventViewFragment } from '$lib/chatTypes';
+  import UserAvatar from '$lib/components/UserAvatar.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
-  import { useFragment } from '$lib/gql/fragment-masking';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import { graphql } from '$lib/gql';
   import { toast } from '$lib/ui/toast';
   import { getEmojiByName } from '$lib/emoji';
+  import { tryWireAddReaction, tryWireRemoveReaction } from '$lib/wire';
 
   // Extract the MessagePostedEvent type from the union
   type MessagePostedEvent = Extract<
@@ -68,20 +66,6 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
     isEchoEvent?: boolean;
   } = $props();
 
-  const connection = useConnection();
-
-  const addReactionMutation = graphql(`
-    mutation AddReaction($input: AddReactionInput!) {
-      addReaction(input: $input)
-    }
-  `);
-
-  const removeReactionMutation = graphql(`
-    mutation RemoveReaction($input: RemoveReactionInput!) {
-      removeReaction(input: $input)
-    }
-  `);
-
   function formatReactionUsers(users: { displayName: string }[], count: number): string {
     const maxDisplay = 5;
     const names = users.slice(0, maxDisplay).map((u) => u.displayName);
@@ -95,12 +79,15 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
 
   async function toggleReaction(reaction: ReactionSummary) {
     const input = { roomId, messageEventId, emoji: reaction.emoji };
-    const result = reaction.hasReacted
-      ? await connection().client.mutation(removeReactionMutation, { input })
-      : await connection().client.mutation(addReactionMutation, { input });
-
-    if (result.error) {
+    try {
+      const handledByWire = reaction.hasReacted
+        ? await tryWireRemoveReaction(input)
+        : await tryWireAddReaction(input);
+      if (handledByWire) return;
       toast.error('Failed to update reaction');
+    } catch (error) {
+      toast.error('Failed to update reaction');
+      console.error('Failed to update reaction:', error);
     }
   }
 </script>
@@ -121,10 +108,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
       {#if threadParticipants && threadParticipants.length > 0}
         <div class="flex -space-x-1.5">
           {#each threadParticipants.slice(0, 3) as participant, i (i)}
-            {@const p = useFragment(UserAvatarFragment, participant)}
-            {#if p}
-              <UserAvatar user={p} size="xs" showPresence={false} />
-            {/if}
+            <UserAvatar user={participant} size="xs" showPresence={false} />
           {/each}
         </div>
       {/if}

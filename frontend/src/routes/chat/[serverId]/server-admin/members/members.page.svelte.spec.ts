@@ -4,16 +4,18 @@ import { flushSync } from 'svelte';
 import MembersPage from './+page.svelte';
 
 type Member = {
-  id: string;
-  login: string;
-  displayName: string;
-  avatarUrl: string | null;
+  user: {
+    id: string;
+    login: string;
+    displayName: string;
+    createdAt: { toDate(): Date };
+  };
+  avatarUrl: string;
   roles: string[];
-  createdAt: string;
 };
 
 const mocks = vi.hoisted(() => ({
-  query: vi.fn(),
+  listAdminMembers: vi.fn(),
   goto: vi.fn()
 }));
 
@@ -88,51 +90,37 @@ vi.mock('$lib/state/userSettings.svelte', () => ({
   })
 }));
 
-vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({
-    isConnected: true,
-    showConnectionLostBanner: false,
-    client: {
-      query: mocks.query,
-      mutation: vi.fn(),
-      subscription: vi.fn()
-    }
-  })
+vi.mock('$lib/wire/activeServerClient', () => ({
+  withActiveServerWireClient: (callback: (client: { listAdminMembers: typeof mocks.listAdminMembers }) => unknown) =>
+    callback({ listAdminMembers: mocks.listAdminMembers })
 }));
 
 function member(index: number, prefix = 'member'): Member {
   return {
-    id: `${prefix}-${index}`,
-    login: `${prefix}${index}`,
-    displayName: `${prefix} ${index}`,
-    avatarUrl: null,
-    roles: ['everyone'],
-    createdAt: '2026-01-01T12:00:00Z'
+    user: {
+      id: `${prefix}-${index}`,
+      login: `${prefix}${index}`,
+      displayName: `${prefix} ${index}`,
+      createdAt: { toDate: () => new Date('2026-01-01T12:00:00Z') }
+    },
+    avatarUrl: '',
+    roles: ['admin']
   };
 }
 
 function result(users: Member[], totalCount = users.length, hasMore = false) {
   return {
-    server: {
-      roles: [{ name: 'admin', displayName: 'Admin' }],
-      members: {
-        users,
-        totalCount,
-        hasMore
-      }
-    }
+    roles: [{ name: 'admin', displayName: 'Admin' }],
+    members: users,
+    totalCount,
+    hasMore
   };
 }
 
 function queueResults(...results: ReturnType<typeof result>[]) {
-  mocks.query.mockImplementation(() => {
+  mocks.listAdminMembers.mockImplementation(() => {
     const data = results.shift();
-    return {
-      toPromise: vi.fn().mockResolvedValue({
-        data,
-        error: null
-      })
-    };
+    return Promise.resolve(data);
   });
 }
 
@@ -150,7 +138,7 @@ describe('server admin members pagination', () => {
     observers = [];
     globalThis.IntersectionObserver =
       MockIntersectionObserver as unknown as typeof IntersectionObserver;
-    mocks.query.mockReset();
+    mocks.listAdminMembers.mockReset();
     mocks.goto.mockReset();
   });
 
@@ -172,8 +160,8 @@ describe('server admin members pagination', () => {
     const { container } = render(MembersPage);
     await settle();
 
-    expect(mocks.query).toHaveBeenNthCalledWith(1, expect.anything(), {
-      search: null,
+    expect(mocks.listAdminMembers).toHaveBeenNthCalledWith(1, {
+      search: '',
       limit: 20,
       offset: 0
     });
@@ -183,8 +171,8 @@ describe('server admin members pagination', () => {
     observers[0].trigger(true);
     await settle();
 
-    expect(mocks.query).toHaveBeenNthCalledWith(2, expect.anything(), {
-      search: null,
+    expect(mocks.listAdminMembers).toHaveBeenNthCalledWith(2, {
+      search: '',
       limit: 20,
       offset: 20
     });
@@ -207,7 +195,7 @@ describe('server admin members pagination', () => {
     await vi.advanceTimersByTimeAsync(300);
     await settle();
 
-    expect(mocks.query).toHaveBeenNthCalledWith(2, expect.anything(), {
+    expect(mocks.listAdminMembers).toHaveBeenNthCalledWith(2, {
       search: 'target',
       limit: 20,
       offset: 0

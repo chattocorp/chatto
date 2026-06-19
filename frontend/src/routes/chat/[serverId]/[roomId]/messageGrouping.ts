@@ -1,4 +1,4 @@
-import type { RoomEventViewFragment } from '$lib/gql/graphql';
+import type { RoomEventViewFragment } from '$lib/chatTypes';
 import type { UserSettingsState } from '$lib/state/userSettings.svelte';
 import { isSameDay, formatDayLabel } from '$lib/utils/formatTime';
 

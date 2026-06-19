@@ -5,27 +5,11 @@
   re-fire the highlight). Renders nothing — the goto() fires on mount.
 -->
 <script lang="ts" module>
-  import { graphql } from '$lib/gql';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import type { Client } from '@urql/svelte';
   import type { PendingHighlightStore } from '$lib/state/server/pendingHighlight.svelte';
-
-  const ResolveMessageLinkQuery = graphql(`
-    query ResolveMessageLink($roomId: ID!, $eventId: ID!) {
-      room(roomId: $roomId) {
-        event(eventId: $eventId) {
-          id
-          event {
-            __typename
-            ... on MessagePostedEvent {
-              threadRootEventId
-            }
-          }
-        }
-      }
-    }
-  `);
+  import { wireEventBusManager } from '$lib/state/server/wireEventBus.svelte';
+  import { GetRoomEventRequest } from '$lib/pb/chatto/api/v1/chat_pb';
 
   /**
    * Fetch a message by ID and redirect to the appropriate room or thread URL.
@@ -33,7 +17,7 @@
    * on error, falls back to the room URL.
    */
   export async function resolveAndRedirect(
-    client: Client,
+    serverId: string,
     pendingHighlights: PendingHighlightStore,
     serverSegment: string,
     roomId: string,
@@ -42,20 +26,26 @@
     const roomParams = { serverId: serverSegment, roomId };
 
     try {
-      const result = await client
-        .query(ResolveMessageLinkQuery, { roomId, eventId: messageId }, { requestPolicy: 'network-only' })
-        .toPromise();
+      const client = wireEventBusManager.getClient(serverId);
+      if (!client) {
+        pendingHighlights.set(roomId, null, messageId);
+        goto(resolve('/chat/[serverId]/[roomId]', roomParams), { replaceState: true });
+        return;
+      }
 
-      const event = result.data?.room?.event;
+      const response = await client.getRoomEvent(
+        new GetRoomEventRequest({ roomId, eventId: messageId })
+      );
+      const event = response.event;
       if (!event) {
         pendingHighlights.set(roomId, null, messageId);
         goto(resolve('/chat/[serverId]/[roomId]', roomParams), { replaceState: true });
         return;
       }
 
-      const inner = event.event;
+      const payload = event.event?.payload;
       const threadRoot =
-        inner?.__typename === 'MessagePostedEvent' ? inner.threadRootEventId : null;
+        payload?.case === 'messagePosted' ? (payload.value.threadRootEventId ?? null) : null;
 
       if (threadRoot) {
         pendingHighlights.set(roomId, threadRoot, messageId);
@@ -79,12 +69,11 @@
 
 <script lang="ts">
   import { page } from '$app/state';
-  import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
 
-  const connection = useConnection();
-  const stores = $derived(serverRegistry.getStore(getActiveServer()));
+  const activeServerId = $derived(getActiveServer());
+  const stores = $derived(serverRegistry.getStore(activeServerId));
 
   // Wait for the active server's rooms store to settle before redirecting,
   // so a deep-link to a DM doesn't briefly resolve as a missing channel
@@ -94,7 +83,7 @@
   $effect(() => {
     if (roomsStore.isInitialLoading) return;
     resolveAndRedirect(
-      connection().client,
+      activeServerId,
       stores.pendingHighlights,
       page.params.serverId!,
       page.params.roomId!,

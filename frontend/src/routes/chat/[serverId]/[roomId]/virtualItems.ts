@@ -1,4 +1,4 @@
-import type { RoomEventViewFragment } from '$lib/gql/graphql';
+import type { RoomEventViewFragment } from '$lib/chatTypes';
 import type { EventWithMeta } from './messageGrouping';
 
 export type SystemGroupKind = 'join' | 'leave';

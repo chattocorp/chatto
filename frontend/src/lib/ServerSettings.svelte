@@ -3,19 +3,24 @@
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-
-  import { graphql } from '$lib/gql';
   import { Panel } from '$lib/components/admin';
   import { TextInput, TextArea, Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { dropZone } from '$lib/attachments/dropZone.svelte';
   import DropZoneOverlay from '$lib/attachments/DropZoneOverlay.svelte';
-
-  const connection = useConnection();
+  import {
+    deleteServerBanner,
+    deleteServerLogo,
+    uploadServerBanner,
+    uploadServerLogo
+  } from '$lib/attachments/profileAssets';
+  import {
+    UpdateServerSettingsRequest,
+    type ServerSettingsView
+  } from '$lib/pb/chatto/api/v1/chat_pb';
+  import { withActiveServerWireClient } from '$lib/wire/activeServerClient';
 
   let loading = $state(true);
-  let canManage = $state(false);
   let loaded = $state(false);
   let error = $state<string | null>(null);
 
@@ -51,57 +56,35 @@
     return undefined;
   });
 
+  function applySettings(settings: ServerSettingsView) {
+    loaded = true;
+    name = settings.name;
+    description = settings.description;
+    motd = settings.motd;
+    welcomeMessage = settings.welcomeMessage;
+    logoUrl = settings.logoUrl || null;
+    bannerUrl = settings.bannerUrl || null;
+  }
+
   // Load instance data and check permissions
   async function loadData() {
     loading = true;
     error = null;
 
     try {
-      const result = await connection().client
-        .query(
-          graphql(`
-            query ServerSettingsModal {
-              server {
-                profile {
-                  name
-                  description
-                  motd
-                  welcomeMessage
-                  logoUrl
-                  bannerUrl
-                }
-                viewerCanManageServer
-              }
-            }
-          `),
-          {}
-        )
-        .toPromise();
-
-      if (result.error) {
-        error = 'Failed to load instance';
-        return;
-      }
-
-      if (!result.data?.server) {
+      const result = await withActiveServerWireClient((client) => client.getServerSettings());
+      const settings = result.settings;
+      if (!settings) {
         error = 'Server not found';
         return;
       }
 
-      canManage = result.data.server.viewerCanManageServer;
-      if (!canManage) {
+      applySettings(settings);
+      if (!settings.viewerCanManageServer) {
         toast.error('You do not have permission to manage this instance');
         goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(getActiveServer()) }));
         return;
       }
-
-      loaded = true;
-      name = result.data.server.profile.name;
-      description = result.data.server.profile.description ?? '';
-      motd = result.data.server.profile.motd ?? '';
-      welcomeMessage = result.data.server.profile.welcomeMessage ?? '';
-      logoUrl = result.data.server.profile.logoUrl ?? null;
-      bannerUrl = result.data.server.profile.bannerUrl ?? null;
     } catch (_e) {
       error = 'Failed to load instance';
     } finally {
@@ -110,7 +93,8 @@
   }
 
   $effect(() => {
-    loadData();
+    getActiveServer();
+    void loadData();
   });
 
   async function handleSave(e: Event) {
@@ -123,38 +107,25 @@
     error = null;
 
     try {
-      const result = await connection().client
-        .mutation(
-          graphql(`
-            mutation UpdateServerSettingsModal($input: UpdateServerConfigInput!) {
-              updateServerConfig(input: $input) {
-                name
-                description
-                motd
-                welcomeMessage
-              }
-            }
-          `),
-          {
-            input: {
-              serverName: name.trim(),
-              description: description.trim(),
-              motd,
-              welcomeMessage
-            }
-          }
+      const result = await withActiveServerWireClient((client) =>
+        client.updateServerSettings(
+          new UpdateServerSettingsRequest({
+            serverName: name.trim(),
+            description: description.trim(),
+            motd,
+            welcomeMessage
+          })
         )
-        .toPromise();
+      );
 
-      if (result.error) {
+      if (!result.settings) {
         error = 'Failed to save changes';
         return;
       }
 
-      if (result.data?.updateServerConfig) {
-        saveSuccess = true;
-        setTimeout(() => (saveSuccess = false), 3000);
-      }
+      applySettings(result.settings);
+      saveSuccess = true;
+      setTimeout(() => (saveSuccess = false), 3000);
     } catch (_e) {
       error = 'Failed to save changes';
     } finally {
@@ -176,26 +147,8 @@
     uploadingLogo = true;
 
     try {
-      const result = await connection().client
-        .mutation(
-          graphql(`
-            mutation UploadInstanceLogo($input: UploadServerLogoInput!) {
-              uploadServerLogo(input: $input) {
-                profile {
-                  logoUrl
-                }
-              }
-            }
-          `),
-          { input: { file } }
-        )
-        .toPromise();
-
-      if (result.error) {
-        throw new Error(result.error.message);
-      }
-
-      logoUrl = result.data?.uploadServerLogo.profile.logoUrl ?? null;
+      const result = await uploadServerLogo(file);
+      logoUrl = result.profile?.logoUrl || null;
       toast.success('Logo uploaded successfully');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to upload logo');
@@ -223,26 +176,8 @@
     deletingLogo = true;
 
     try {
-      const result = await connection().client
-        .mutation(
-          graphql(`
-            mutation DeleteInstanceLogo {
-              deleteServerLogo {
-                profile {
-                  logoUrl
-                }
-              }
-            }
-          `),
-          {}
-        )
-        .toPromise();
-
-      if (result.error) {
-        throw new Error(result.error.message);
-      }
-
-      logoUrl = null;
+      const result = await deleteServerLogo();
+      logoUrl = result.profile?.logoUrl || null;
       toast.success('Logo removed');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to delete logo');
@@ -265,26 +200,8 @@
     uploadingBanner = true;
 
     try {
-      const result = await connection().client
-        .mutation(
-          graphql(`
-            mutation UploadInstanceBanner($input: UploadServerBannerInput!) {
-              uploadServerBanner(input: $input) {
-                profile {
-                  bannerUrl
-                }
-              }
-            }
-          `),
-          { input: { file } }
-        )
-        .toPromise();
-
-      if (result.error) {
-        throw new Error(result.error.message);
-      }
-
-      bannerUrl = result.data?.uploadServerBanner.profile.bannerUrl ?? null;
+      const result = await uploadServerBanner(file);
+      bannerUrl = result.profile?.bannerUrl || null;
       toast.success('Banner uploaded successfully');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to upload banner');
@@ -312,26 +229,8 @@
     deletingBanner = true;
 
     try {
-      const result = await connection().client
-        .mutation(
-          graphql(`
-            mutation DeleteInstanceBanner {
-              deleteServerBanner {
-                profile {
-                  bannerUrl
-                }
-              }
-            }
-          `),
-          {}
-        )
-        .toPromise();
-
-      if (result.error) {
-        throw new Error(result.error.message);
-      }
-
-      bannerUrl = null;
+      const result = await deleteServerBanner();
+      bannerUrl = result.profile?.bannerUrl || null;
       toast.success('Banner removed');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to delete banner');
@@ -404,8 +303,16 @@
 
     <!-- Logo Section -->
     <Panel title="Logo" icon="iconify uil--image">
-      <div class="relative flex items-start gap-6" data-testid="logo-drop-zone" {@attach logoDropZone}>
-        <DropZoneOverlay visible={isDraggingLogo} title="Drop image" subtitle="Upload as instance logo" />
+      <div
+        class="relative flex items-start gap-6"
+        data-testid="logo-drop-zone"
+        {@attach logoDropZone}
+      >
+        <DropZoneOverlay
+          visible={isDraggingLogo}
+          title="Drop image"
+          subtitle="Upload as instance logo"
+        />
         <!-- Logo Preview -->
         <div
           class="flex h-24 w-24 items-center justify-center overflow-hidden rounded-xl bg-surface-200 text-5xl font-black text-muted shadow-md"
@@ -461,13 +368,25 @@
 
     <!-- Banner Section -->
     <Panel title="Banner" icon="iconify uil--scenery">
-      <div class="relative flex flex-col gap-4" data-testid="banner-drop-zone" {@attach bannerDropZone}>
-        <DropZoneOverlay visible={isDraggingBanner} title="Drop image" subtitle="Upload as instance banner" />
+      <div
+        class="relative flex flex-col gap-4"
+        data-testid="banner-drop-zone"
+        {@attach bannerDropZone}
+      >
+        <DropZoneOverlay
+          visible={isDraggingBanner}
+          title="Drop image"
+          subtitle="Upload as instance banner"
+        />
         <!-- Banner Preview — capped width so the OG-aspect 1200×630 doesn't
              swallow the panel on wide layouts. -->
         {#if bannerUrl}
           <div class="w-full max-w-md overflow-hidden rounded-lg bg-surface-200 shadow-md">
-            <img src={bannerUrl} alt="Server banner" class="aspect-[1200/630] w-full object-cover" />
+            <img
+              src={bannerUrl}
+              alt="Server banner"
+              class="aspect-[1200/630] w-full object-cover"
+            />
           </div>
         {:else}
           <div

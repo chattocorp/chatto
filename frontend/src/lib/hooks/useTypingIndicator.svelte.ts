@@ -1,13 +1,7 @@
 import { SvelteMap } from 'svelte/reactivity';
-import { onTypingEvent, type TypingEventData } from '$lib/eventBus.svelte';
-import { useConnection } from '$lib/state/server/connection.svelte';
-import { graphql } from '$lib/gql';
-
-const SendTypingIndicatorMutation = graphql(`
-  mutation SendTypingIndicator($input: SendTypingIndicatorInput!) {
-    sendTypingIndicator(input: $input)
-  }
-`);
+import { tryWireSendTypingIndicator } from '$lib/wire';
+import { wireUserTyping } from '$lib/wire/events';
+import { useWireEvent } from './useWireEvent.svelte';
 
 /** How long to display typing indicator after receiving an event (ms) */
 export const TYPING_TIMEOUT_MS = 6000;
@@ -27,6 +21,12 @@ interface TypingIndicatorConfig {
   currentUserId: string | null;
 }
 
+interface TypingEventData {
+  userId: string;
+  roomId: string;
+  threadRootEventId: string | null;
+}
+
 /**
  * Typing indicator hook for a room or thread.
  * MUST be called during component initialization (uses getContext).
@@ -36,8 +36,6 @@ interface TypingIndicatorConfig {
  * tracked.
  */
 export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
-  const connection = useConnection();
-
   /** Current configuration snapshot */
   let configRoomId: string | null = null;
   let configThreadRootEventId: string | null = null;
@@ -88,8 +86,11 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
     }
   }
 
-  // Subscribe to typing events
-  const unsubscribe = onTypingEvent(handleTypingEvent);
+  useWireEvent((event) => {
+    const typing = wireUserTyping(event);
+    if (!typing) return;
+    handleTypingEvent(typing);
+  });
   const cleanupInterval = setInterval(cleanupExpired, 1000);
 
   // Sync config reactively — getConfig() is called inside the $effect,
@@ -113,7 +114,6 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
   // Cleanup on destroy
   $effect(() => {
     return () => {
-      unsubscribe();
       clearInterval(cleanupInterval);
       typingUsers.clear();
     };
@@ -149,12 +149,12 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
       lastSentAt = now;
 
       try {
-        await connection().client.mutation(SendTypingIndicatorMutation, {
-          input: {
-            roomId: configRoomId,
-            threadRootEventId: configThreadRootEventId
-          }
+        const handledByWire = await tryWireSendTypingIndicator({
+          roomId: configRoomId,
+          threadRootEventId: configThreadRootEventId
         });
+        if (handledByWire) return;
+        console.debug('Failed to send typing indicator: wire client is not connected');
       } catch (err) {
         console.debug('Failed to send typing indicator:', err);
       }

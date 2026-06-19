@@ -1,12 +1,10 @@
-import { graphql, useFragment } from '$lib/gql';
-import { UserAvatarUserFragmentDoc } from '$lib/gql/graphql';
+import { PresenceStatus } from '$lib/chatTypes';
 import { usePresenceChange, useEvent } from '$lib/hooks/useEvent.svelte';
-import { useConnection } from '$lib/state/server/connection.svelte';
-import {
-  createRoomMembers,
-  type RoomMember
-} from '$lib/state/room';
+import { createRoomMembers, type RoomMember } from '$lib/state/room';
 import type { RoomData, DMData } from '$lib/hooks/useRoomData.svelte';
+import { GetRoomMembersRequest } from '$lib/pb/chatto/api/v1/chat_pb';
+import type { User } from '$lib/pb/chatto/core/v1/models_pb';
+import { activeWireClient } from '$lib/wire';
 
 type RoomMembersPage = {
   members: RoomMember[];
@@ -31,44 +29,35 @@ export function useRoomMembersSync(
     dmData: DMData | null;
   }
 ) {
-  const connection = useConnection();
   const roomMembersStore = createRoomMembers();
 
   async function fetchRoomMembers(offset = 0): Promise<RoomMembersPage | null> {
     const { roomId } = getProps();
-    const resp = await connection().client.query(
-      graphql(`
-        query GetRoomMembersForStore($roomId: ID!, $offset: Int) {
-          room(roomId: $roomId) {
-            members(limit: 100, offset: $offset) {
-              users {
-                ...UserAvatarUser
-              }
-              totalCount
-              hasMore
-            }
-          }
-        }
-      `),
-      { roomId, offset }
-    );
-
-    if (resp.error) {
-      console.error('Failed to fetch room members:', resp.error);
+    const client = activeWireClient();
+    if (!client) {
+      console.error('Failed to fetch room members: wire client is not connected');
       return null;
     }
 
-    const connectionData = resp.data?.room?.members;
-    if (!connectionData) {
-      console.error('Failed to fetch room members: missing members connection');
+    try {
+      const response = await client.getRoomMembers(
+        new GetRoomMembersRequest({ roomId, limit: 100, offset })
+      );
+      const members = response.members;
+      if (!members) {
+        console.error('Failed to fetch room members: missing members connection');
+        return null;
+      }
+
+      return {
+        members: members.users.map(wireUserToRoomMember).filter(isRoomMember),
+        totalCount: members.totalCount,
+        hasMore: members.hasMore
+      };
+    } catch (error) {
+      console.error('Failed to fetch room members:', error);
       return null;
     }
-
-    return {
-      members: connectionData.users.map((m) => useFragment(UserAvatarUserFragmentDoc, m)),
-      totalCount: connectionData.totalCount,
-      hasMore: connectionData.hasMore
-    };
   }
 
   async function loadMoreMembers() {
@@ -147,4 +136,19 @@ export function useRoomMembersSync(
     ...roomMembersStore,
     loadMoreMembers
   };
+}
+
+function wireUserToRoomMember(user: User | undefined): RoomMember | null {
+  if (!user?.id) return null;
+  return {
+    id: user.id,
+    login: user.login,
+    displayName: user.displayName,
+    avatarUrl: null,
+    presenceStatus: PresenceStatus.Offline
+  };
+}
+
+function isRoomMember(member: RoomMember | null): member is RoomMember {
+  return member !== null;
 }

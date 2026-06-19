@@ -17,8 +17,13 @@ import {
   type RemoteTrack,
   type RemoteTrackPublication
 } from 'livekit-client';
-import { graphql } from '$lib/gql';
-import type { Client } from '@urql/svelte';
+import {
+  GetVoiceCallTokenRequest,
+  JoinVoiceCallRequest,
+  LeaveVoiceCallRequest
+} from '$lib/pb/chatto/api/v1/chat_pb';
+import type { WireClient } from '$lib/wire/client';
+import { wireEventBusManager } from './wireEventBus.svelte';
 import { toast } from '$lib/ui/toast';
 
 export type CallParticipantInfo = {
@@ -45,32 +50,9 @@ type ParticipantMetadata = {
   avatarUrl?: string;
 };
 
-const VoiceCallTokenQuery = graphql(`
-  query GetVoiceCallToken($roomId: ID!) {
-    room(roomId: $roomId) {
-      voiceCallToken {
-        token
-        e2eeKey
-        callId
-      }
-    }
-  }
-`);
-
-const JoinVoiceCallMutation = graphql(`
-  mutation JoinVoiceCall($roomId: ID!) {
-    joinVoiceCall(input: { roomId: $roomId })
-  }
-`);
-
-const LeaveVoiceCallMutation = graphql(`
-  mutation LeaveVoiceCall($roomId: ID!) {
-    leaveVoiceCall(input: { roomId: $roomId })
-  }
-`);
-
 export class VoiceCallState {
-  #client: Client;
+  #serverId: string;
+  #getWireClient: () => WireClient | null | undefined;
 
   // Current call context
   roomId = $state<string | null>(null);
@@ -121,8 +103,13 @@ export class VoiceCallState {
   private analyserSource: MediaStreamAudioSourceNode | null = null;
   private analyserData: Float32Array<ArrayBuffer> | null = null;
 
-  constructor(client: Client) {
-    this.#client = client;
+  constructor(
+    serverId: string,
+    getWireClient: () => WireClient | null | undefined = () =>
+      wireEventBusManager.getClient(serverId)
+  ) {
+    this.#serverId = serverId;
+    this.#getWireClient = getWireClient;
   }
 
   /**
@@ -165,23 +152,15 @@ export class VoiceCallState {
     let joinIntentRecorded = false;
 
     try {
-      const intentResult = await this.#client
-        .mutation(JoinVoiceCallMutation, { roomId })
-        .toPromise();
-      if (intentResult.error) {
-        throw intentResult.error;
-      }
+      const client = this.wireClient();
+      const intentResult = await client.joinVoiceCall(new JoinVoiceCallRequest({ roomId }));
+      if (!intentResult.joined) throw new Error('Voice calls are unavailable');
       joinIntentRecorded = true;
 
-      // Get token from server (pure query, no side effects)
-      const result = await this.#client.query(VoiceCallTokenQuery, { roomId }).toPromise();
-      if (result.error) {
-        throw result.error;
-      }
-
-      const token = result.data?.room?.voiceCallToken?.token;
-      const e2eeKey = result.data?.room?.voiceCallToken?.e2eeKey;
-      const callId = result.data?.room?.voiceCallToken?.callId;
+      const result = await client.getVoiceCallToken(new GetVoiceCallTokenRequest({ roomId }));
+      const token = result.token?.token;
+      const e2eeKey = result.token?.e2eeKey;
+      const callId = result.token?.callId;
       if (!token || !e2eeKey || !callId) {
         throw new Error('Failed to get voice call token');
       }
@@ -297,10 +276,20 @@ export class VoiceCallState {
 
   private async recordLeaveIntent(roomId: string): Promise<void> {
     try {
-      await this.#client.mutation(LeaveVoiceCallMutation, { roomId }).toPromise();
+      const client = this.#getWireClient();
+      if (!client) return;
+      await client.leaveVoiceCall(new LeaveVoiceCallRequest({ roomId }));
     } catch {
       // LiveKit disconnect/cleanup should still proceed if the intent write fails.
     }
+  }
+
+  private wireClient(): WireClient {
+    const client = this.#getWireClient();
+    if (!client) {
+      throw new Error(`wire client unavailable for server ${this.#serverId}`);
+    }
+    return client;
   }
 
   /**

@@ -5,21 +5,8 @@
  * the browser is completely closed. Uses the Service Worker and Web Push API.
  */
 
-import { graphql } from '$lib/gql';
-import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
-
-// GraphQL mutations
-const SubscribeToPushMutationDoc = graphql(`
-  mutation SubscribeToPush($input: PushSubscriptionInput!) {
-    subscribeToPush(input: $input)
-  }
-`);
-
-const UnsubscribeFromPushMutationDoc = graphql(`
-  mutation UnsubscribeFromPush($input: UnsubscribeFromPushInput!) {
-    unsubscribeFromPush(input: $input)
-  }
-`);
+import { SubscribeToPushRequest, UnsubscribeFromPushRequest } from '$lib/pb/chatto/api/v1/chat_pb';
+import { wireEventBusManager } from '$lib/state/server/wireEventBus.svelte';
 
 /**
  * Check if push notifications are supported in this browser.
@@ -97,10 +84,11 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
  * 2. Create a push subscription with the browser
  * 3. Send the subscription to the server
  *
+ * @param serverId - Server whose wire API should store the subscription
  * @param vapidPublicKey - The server's VAPID public key
  * @returns true if subscription was successful
  */
-export async function subscribe(vapidPublicKey: string): Promise<boolean> {
+export async function subscribe(serverId: string, vapidPublicKey: string): Promise<boolean> {
   if (!isSupported()) {
     console.warn('Push notifications not supported');
     return false;
@@ -133,26 +121,28 @@ export async function subscribe(vapidPublicKey: string): Promise<boolean> {
       return false;
     }
 
-    // Send to server
-    const result = await graphqlClientManager.originClient.client
-      .mutation(SubscribeToPushMutationDoc, {
-        input: {
+    try {
+      const client = wireEventBusManager.getClient(serverId);
+      if (!client) throw new Error('wire client is not connected');
+
+      const result = await client.subscribeToPush(
+        new SubscribeToPushRequest({
           endpoint: json.endpoint,
           p256dh: json.keys.p256dh,
           auth: json.keys.auth,
           userAgent: navigator.userAgent
-        }
-      })
-      .toPromise();
+        })
+      );
 
-    if (result.error) {
-      console.error('Failed to save push subscription:', result.error);
-      // Unsubscribe from browser since server save failed
+      if (!result.subscribed) {
+        await subscription.unsubscribe();
+      }
+
+      return result.subscribed;
+    } catch (error) {
       await subscription.unsubscribe();
-      return false;
+      throw error;
     }
-
-    return result.data?.subscribeToPush ?? false;
   } catch (error) {
     console.error('Failed to subscribe to push:', error);
     return false;
@@ -167,7 +157,7 @@ export async function subscribe(vapidPublicKey: string): Promise<boolean> {
  *
  * @returns true if unsubscription was successful
  */
-export async function unsubscribe(): Promise<boolean> {
+export async function unsubscribe(serverId: string): Promise<boolean> {
   const subscription = await getSubscription();
   if (!subscription) {
     // Already unsubscribed
@@ -175,17 +165,11 @@ export async function unsubscribe(): Promise<boolean> {
   }
 
   try {
-    // Remove from server first
-    const result = await graphqlClientManager.originClient.client
-      .mutation(UnsubscribeFromPushMutationDoc, {
-        input: { endpoint: subscription.endpoint }
-      })
-      .toPromise();
-
-    if (result.error) {
-      console.error('Failed to remove push subscription from server:', result.error);
-      // Continue to unsubscribe from browser anyway
-    }
+    const client = wireEventBusManager.getClient(serverId);
+    if (!client) throw new Error('wire client is not connected');
+    await client.unsubscribeFromPush(
+      new UnsubscribeFromPushRequest({ endpoint: subscription.endpoint })
+    );
 
     // Unsubscribe from browser
     await subscription.unsubscribe();

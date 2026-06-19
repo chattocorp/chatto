@@ -1,34 +1,35 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { graphql } from '$lib/gql';
-  import { useQuery } from '$lib/hooks';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import Hint from '$lib/ui/Hint.svelte';
   import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
 
   const roomId = $derived(page.params.roomId!);
-  const serverSegment = $derived(serverIdToSegment(getActiveServer()));
+  const activeServerId = $derived(getActiveServer());
+  const stores = $derived(serverRegistry.getStore(activeServerId));
+  const layout = $derived(stores.adminRoomLayout);
+  const serverSegment = $derived(serverIdToSegment(activeServerId));
   const backHref = $derived(
     resolve('/chat/[serverId]/server-admin/rooms', { serverId: serverSegment })
   );
 
-  // Lightweight lookup for the room's display name; the matrix itself
-  // fetches its own data via admin.rbac.rolePermissionTierMatrix.
-  const RoomNameQuery = graphql(`
-    query AdminRoomPermissionsName($roomId: ID!) {
-      room(roomId: $roomId) {
-        id
-        name
-      }
-    }
-  `);
+  onMount(() => {
+    if (!layout.initialized) void layout.refresh();
+  });
 
-  const nameQuery = useQuery(RoomNameQuery, () => ({ roomId }));
-  const room = $derived(nameQuery.data?.room ?? null);
+  const room = $derived.by(() => {
+    for (const group of layout.groups) {
+      const match = group.rooms.find((candidate) => candidate.id === roomId);
+      if (match) return match;
+    }
+    return null;
+  });
   const pageTitle = $derived(room ? `Permissions — #${room.name}` : 'Room permissions');
 </script>
 
@@ -44,6 +45,9 @@
   />
 
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
+    {#if layout.error}
+      <Hint tone="danger">{layout.error}</Hint>
+    {/if}
     <Hint>
       Per-room overrides for this room. Values set here take precedence over the group's
       and the server-wide defaults.

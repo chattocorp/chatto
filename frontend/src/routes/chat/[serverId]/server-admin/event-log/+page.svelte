@@ -4,44 +4,31 @@
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { graphql } from '$lib/gql';
-  import type { AdminEventLogQuery } from '$lib/gql/graphql';
   import { Panel, DataTable } from '$lib/components/admin';
   import { Hint, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
+  import {
+    ListAdminEventLogRequest,
+    type AdminEventLogEntryView
+  } from '$lib/pb/chatto/api/v1/chat_pb';
+  import { withActiveServerWireClient } from '$lib/wire/activeServerClient';
   import { formatDateTime as formatDateTimeUtil } from '$lib/utils/formatTime';
 
   const userSettings = getUserSettings();
-  const connection = useConnection();
-
-  const EventLogQuery = graphql(`
-    query AdminEventLog($limit: Int, $before: String) {
-      admin {
-        eventLog(limit: $limit, before: $before) {
-          entries {
-            sequence
-            subject
-            aggregateType
-            aggregateId
-            eventType
-            eventId
-            actorId
-            createdAt
-          }
-          hasOlder
-          endCursor
-          totalCount
-        }
-      }
-    }
-  `);
 
   const pageSize = 50;
-  type EventLogConnection = NonNullable<AdminEventLogQuery['admin']>['eventLog'];
-  type Entry = EventLogConnection['entries'][number];
+  type Entry = {
+    sequence: string;
+    subject: string;
+    aggregateType: string;
+    aggregateId: string;
+    eventType: string;
+    eventId: string;
+    actorId: string;
+    createdAt: string;
+  };
 
   let entries = $state<Entry[]>([]);
   let totalCount = $state('0');
@@ -64,16 +51,14 @@
   }
 
   function formatTimestamp(iso: string): string {
+    if (!iso) return '-';
     return formatDateTimeUtil(iso, userSettings);
   }
 
   async function queryEventLog(before: string | null) {
-    return connection()
-      .client.query(EventLogQuery, {
-        limit: pageSize,
-        before
-      })
-      .toPromise();
+    return withActiveServerWireClient((client) =>
+      client.listAdminEventLog(new ListAdminEventLogRequest({ limit: pageSize, before: before ?? '' }))
+    );
   }
 
   async function loadFirstPage() {
@@ -86,24 +71,13 @@
     endCursor = null;
 
     try {
-      const result = await queryEventLog(null);
+      const conn = await queryEventLog(null);
       if (currentRequest !== requestId) return;
 
-      if (result.error) {
-        error = result.error.message;
-        return;
-      }
-
-      const conn = result.data?.admin?.eventLog;
-      if (!conn) {
-        error = 'Event log unavailable (audit permission required)';
-        return;
-      }
-
-      entries = conn.entries;
+      entries = conn.entries.map(mapEventLogEntry);
       totalCount = String(conn.totalCount);
       hasOlder = conn.hasOlder;
-      endCursor = conn.endCursor ?? null;
+      endCursor = conn.endCursor || null;
     } catch (e) {
       if (currentRequest !== requestId) return;
       error = e instanceof Error ? e.message : 'Failed to load event log';
@@ -125,24 +99,13 @@
     error = null;
 
     try {
-      const result = await queryEventLog(before);
+      const conn = await queryEventLog(before);
       if (currentRequest !== requestId) return;
 
-      if (result.error) {
-        error = result.error.message;
-        return;
-      }
-
-      const conn = result.data?.admin?.eventLog;
-      if (!conn) {
-        error = 'Event log unavailable (audit permission required)';
-        return;
-      }
-
-      entries = mergeEntries(entries, conn.entries);
+      entries = mergeEntries(entries, conn.entries.map(mapEventLogEntry));
       totalCount = String(conn.totalCount);
       hasOlder = conn.hasOlder;
-      endCursor = conn.endCursor ?? null;
+      endCursor = conn.endCursor || null;
     } catch (e) {
       if (currentRequest !== requestId) return;
       error = e instanceof Error ? e.message : 'Failed to load older events';
@@ -156,6 +119,19 @@
   function mergeEntries(existing: Entry[], next: Entry[]): Entry[] {
     const seen = new Set(existing.map((entry) => entry.sequence));
     return [...existing, ...next.filter((entry) => !seen.has(entry.sequence))];
+  }
+
+  function mapEventLogEntry(entry: AdminEventLogEntryView): Entry {
+    return {
+      sequence: entry.sequence,
+      subject: entry.subject,
+      aggregateType: entry.aggregateType,
+      aggregateId: entry.aggregateId,
+      eventType: entry.eventType,
+      eventId: entry.eventId,
+      actorId: entry.actorId,
+      createdAt: entry.createdAt?.toDate().toISOString() ?? ''
+    };
   }
 
   function openEntry(entry: Entry) {

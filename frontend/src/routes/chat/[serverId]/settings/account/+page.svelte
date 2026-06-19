@@ -1,31 +1,17 @@
 <script lang="ts">
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import { graphql } from '$lib/gql';
   import { PaneHeader, Dialog, FormSection, Hint } from '$lib/ui';
   import { TextInput, Button, FormError } from '$lib/ui/form';
-  import { useQuery } from '$lib/hooks';
   import { notifyLogout } from '$lib/auth/sessionChannel';
   import { csrfFetch } from '$lib/auth/csrf';
+  import { DeleteMyAccountRequest } from '$lib/pb/chatto/api/v1/chat_pb';
+  import { withActiveServerWireClient } from '$lib/wire/activeServerClient';
 
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
-  const connection = useConnection();
 
-  // Check if the user has permission to delete their own account
-  const permQuery = useQuery(
-    graphql(`
-      query AccountPermissions {
-        viewer {
-          user {
-            viewerCanDeleteAccount
-          }
-        }
-      }
-    `),
-    () => ({})
-  );
-  let canDeleteAccount = $derived(permQuery.data?.viewer?.user.viewerCanDeleteAccount ?? false);
+  let canDeleteAccount = $state(false);
+  let accountPermissionLoad = 0;
 
   // Modal state
   let showDeleteModal = $state(false);
@@ -34,6 +20,26 @@
   let error = $state('');
 
   const canDelete = $derived(confirmText === 'DELETE');
+
+  async function loadAccountPermissions() {
+    const run = ++accountPermissionLoad;
+    try {
+      const result = await withActiveServerWireClient((client) =>
+        client.getAccountDeletionStatus()
+      );
+      if (run !== accountPermissionLoad) return;
+      canDeleteAccount = result.viewerCanDeleteAccount;
+    } catch (err) {
+      if (run !== accountPermissionLoad) return;
+      canDeleteAccount = false;
+      console.error('Failed to load account deletion permission', err);
+    }
+  }
+
+  $effect(() => {
+    getActiveServer();
+    void loadAccountPermissions();
+  });
 
   function openDeleteModal() {
     confirmText = '';
@@ -54,47 +60,20 @@
     error = '';
 
     try {
-      // Step 1: Request a confirmation token (XSS protection)
-      const tokenResult = await connection()
-        .client.mutation(
-          graphql(`
-            mutation RequestAccountDeletion {
-              requestAccountDeletion
-            }
-          `),
-          {}
-        )
-        .toPromise();
+      // Request a confirmation token first; the token is consumed by the delete call.
+      const deleteResult = await withActiveServerWireClient(async (client) => {
+        const tokenResult = await client.requestAccountDeletion();
+        const confirmationToken = tokenResult.confirmationToken;
+        if (!confirmationToken) return undefined;
+        return client.deleteMyAccount(new DeleteMyAccountRequest({ confirmationToken }));
+      });
 
-      if (tokenResult.error) {
-        error = tokenResult.error.message;
-        return;
-      }
-
-      const confirmationToken = tokenResult.data?.requestAccountDeletion;
-      if (!confirmationToken) {
+      if (!deleteResult) {
         error = 'Failed to request account deletion';
         return;
       }
 
-      // Step 2: Delete account with the confirmation token
-      const result = await connection()
-        .client.mutation(
-          graphql(`
-            mutation DeleteMyAccount($input: DeleteMyAccountInput!) {
-              deleteMyAccount(input: $input)
-            }
-          `),
-          { input: { confirmationToken } }
-        )
-        .toPromise();
-
-      if (result.error) {
-        error = result.error.message;
-        return;
-      }
-
-      if (result.data?.deleteMyAccount) {
+      if (deleteResult.deleted) {
         // Log out and redirect to home
         const originToken = serverRegistry.originServer?.token;
         await csrfFetch('/auth/logout', {

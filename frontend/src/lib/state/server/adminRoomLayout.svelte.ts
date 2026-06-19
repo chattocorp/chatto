@@ -1,104 +1,34 @@
-import type { Client } from '@urql/svelte';
-import { graphql } from '$lib/gql';
 import { SvelteMap } from 'svelte/reactivity';
+import {
+  ArchiveAdminRoomRequest,
+  CreateAdminRoomGroupRequest,
+  DeleteAdminRoomGroupRequest,
+  MoveAdminRoomToGroupRequest,
+  ReorderAdminRoomGroupsRequest,
+  ReorderAdminRoomsInGroupRequest,
+  UnarchiveAdminRoomRequest,
+  UpdateAdminRoomGroupRequest,
+  UpdateAdminRoomRequest,
+  type AdminRoomGroupView,
+  type AdminRoomInfoView
+} from '$lib/pb/chatto/api/v1/chat_pb';
+import type { WireClient } from '$lib/wire/client';
 
 const OWN_MUTATION_ECHO_SUPPRESSION_MS = 2000;
 
-const AdminRoomGroupsQuery = graphql(`
-  query AdminRoomGroups {
-    server {
-      rooms(type: CHANNEL) {
-        id
-        name
-        description
-        archived
-      }
-      roomGroups {
-        id
-        name
-        rooms {
-          id
-        }
-      }
-    }
-  }
-`);
-
-const CreateRoomGroupMutation = graphql(`
-  mutation AdminCreateRoomGroup($input: CreateRoomGroupInput!) {
-    createRoomGroup(input: $input) {
-      id
-      name
-    }
-  }
-`);
-
-const UpdateRoomGroupMutation = graphql(`
-  mutation AdminUpdateRoomGroup($input: UpdateRoomGroupInput!) {
-    updateRoomGroup(input: $input) {
-      id
-      name
-    }
-  }
-`);
-
-const DeleteRoomGroupMutation = graphql(`
-  mutation AdminDeleteRoomGroup($input: DeleteRoomGroupInput!) {
-    deleteRoomGroup(input: $input)
-  }
-`);
-
-const ReorderRoomGroupsMutation = graphql(`
-  mutation AdminReorderRoomGroups($input: ReorderRoomGroupsInput!) {
-    reorderRoomGroups(input: $input) {
-      id
-    }
-  }
-`);
-
-const MoveRoomToGroupMutation = graphql(`
-  mutation AdminMoveRoomToGroup($input: MoveRoomToGroupInput!) {
-    moveRoomToGroup(input: $input) {
-      id
-    }
-  }
-`);
-
-const ReorderRoomsInGroupMutation = graphql(`
-  mutation AdminReorderRoomsInGroup($input: ReorderRoomsInGroupInput!) {
-    reorderRoomsInGroup(input: $input) {
-      id
-    }
-  }
-`);
-
-const UpdateRoomMutation = graphql(`
-  mutation AdminUpdateRoom($input: UpdateRoomInput!) {
-    updateRoom(input: $input) {
-      id
-      name
-      description
-    }
-  }
-`);
-
-const ArchiveRoomMutation = graphql(`
-  mutation ArchiveRoom($input: ArchiveRoomInput!) {
-    archiveRoom(input: $input) {
-      id
-      archived
-    }
-  }
-`);
-
-const UnarchiveRoomMutation = graphql(`
-  mutation UnarchiveRoom($input: UnarchiveRoomInput!) {
-    unarchiveRoom(input: $input) {
-      id
-      archived
-    }
-  }
-`);
+export type AdminRoomLayoutWireClient = Pick<
+  WireClient,
+  | 'getAdminRoomLayout'
+  | 'createAdminRoomGroup'
+  | 'updateAdminRoomGroup'
+  | 'deleteAdminRoomGroup'
+  | 'reorderAdminRoomGroups'
+  | 'moveAdminRoomToGroup'
+  | 'reorderAdminRoomsInGroup'
+  | 'updateAdminRoom'
+  | 'archiveAdminRoom'
+  | 'unarchiveAdminRoom'
+>;
 
 export type AdminRoomInfo = {
   id: string;
@@ -224,6 +154,23 @@ function normalizeGroups(groups: AdminRoomGroup[]): AdminRoomGroup[] {
   }));
 }
 
+function roomFromWire(room: AdminRoomInfoView): AdminRoomInfo {
+  return {
+    id: room.id,
+    name: room.name,
+    description: room.description || null,
+    archived: room.archived
+  };
+}
+
+function groupFromWire(group: AdminRoomGroupView): AdminRoomGroup {
+  return {
+    id: group.id,
+    name: group.name,
+    rooms: (group.rooms ?? []).map(roomFromWire)
+  };
+}
+
 export class AdminRoomLayoutStore {
   groups = $state<AdminRoomGroup[]>([]);
   initialized = $state(false);
@@ -239,11 +186,25 @@ export class AdminRoomLayoutStore {
   #preDragSnapshot: GroupRoomOrder | null = null;
   #pendingMoveDiff = false;
   #preReorderIds: string[] | null = null;
+  #client: () => AdminRoomLayoutWireClient | null | undefined;
 
   constructor(
-    private readonly client: Client,
+    clientOrGetter:
+      | AdminRoomLayoutWireClient
+      | (() => AdminRoomLayoutWireClient | null | undefined),
     private readonly now: () => number = () => Date.now()
-  ) {}
+  ) {
+    this.#client =
+      typeof clientOrGetter === 'function' ? clientOrGetter : () => clientOrGetter;
+  }
+
+  private client(): AdminRoomLayoutWireClient {
+    const client = this.#client();
+    if (!client) {
+      throw new Error('wire client is not connected');
+    }
+    return client;
+  }
 
   get loading(): boolean {
     return this.isRefreshing && !this.initialized;
@@ -253,43 +214,10 @@ export class AdminRoomLayoutStore {
     const thisLoad = ++this.#loadId;
     this.isRefreshing = true;
     try {
-      const result = await this.client
-        .query(AdminRoomGroupsQuery, {}, { requestPolicy: 'network-only' })
-        .toPromise();
+      const result = await this.client().getAdminRoomLayout();
       if (this.#loadId !== thisLoad) return;
 
-      if (result.error) {
-        this.error = errorMessage(result.error);
-        return;
-      }
-
-      const server = result.data?.server;
-      if (!server) {
-        this.error = 'Server not found';
-        return;
-      }
-
-      const roomsMap = new SvelteMap<string, AdminRoomInfo>(
-        (server.rooms ?? []).map((room) => [
-          room.id,
-          {
-            id: room.id,
-            name: room.name,
-            description: room.description,
-            archived: room.archived
-          }
-        ])
-      );
-
-      this.groups = normalizeGroups(
-        server.roomGroups.map((group) => ({
-          id: group.id,
-          name: group.name,
-          rooms: (group.rooms ?? [])
-            .map((room) => roomsMap.get(room.id))
-            .filter((room): room is AdminRoomInfo => room != null)
-        }))
-      );
+      this.groups = normalizeGroups(result.groups.map(groupFromWire));
       this.error = null;
       this.initialized = true;
     } catch (err) {
@@ -304,16 +232,18 @@ export class AdminRoomLayoutStore {
   }
 
   async createGroup(name: string): Promise<StoreResult<{ group: AdminRoomGroup }>> {
-    const result = await this.client
-      .mutation(CreateRoomGroupMutation, { input: { name } })
-      .toPromise();
-
-    if (result.error || !result.data?.createRoomGroup) {
-      return { ok: false, error: errorMessage(result.error) };
+    let result;
+    try {
+      result = await this.client().createAdminRoomGroup(new CreateAdminRoomGroupRequest({ name }));
+    } catch (err) {
+      return { ok: false, error: errorMessage(err) };
     }
 
-    const created = result.data.createRoomGroup;
-    const group = { id: created.id, name: created.name, rooms: [] };
+    if (!result.group) {
+      return { ok: false, error: 'missing created room group' };
+    }
+
+    const group = groupFromWire(result.group);
     this.groups = [...this.groups, group];
     this.markMutation();
     return { ok: true, group };
@@ -323,12 +253,12 @@ export class AdminRoomLayoutStore {
     const idx = this.groups.findIndex((group) => group.id === groupId);
     if (idx === -1) return { ok: true };
 
-    const result = await this.client
-      .mutation(UpdateRoomGroupMutation, { input: { id: groupId, name: newName } })
-      .toPromise();
-
-    if (result.error) {
-      return { ok: false, error: errorMessage(result.error) };
+    try {
+      await this.client().updateAdminRoomGroup(
+        new UpdateAdminRoomGroupRequest({ groupId, name: newName })
+      );
+    } catch (err) {
+      return { ok: false, error: errorMessage(err) };
     }
 
     this.groups[idx] = { ...this.groups[idx], name: newName };
@@ -337,12 +267,10 @@ export class AdminRoomLayoutStore {
   }
 
   async deleteGroup(groupId: string): Promise<StoreResult> {
-    const result = await this.client
-      .mutation(DeleteRoomGroupMutation, { input: { id: groupId } })
-      .toPromise();
-
-    if (result.error) {
-      return { ok: false, error: errorMessage(result.error) };
+    try {
+      await this.client().deleteAdminRoomGroup(new DeleteAdminRoomGroupRequest({ groupId }));
+    } catch (err) {
+      return { ok: false, error: errorMessage(err) };
     }
 
     this.groups = this.groups.filter((group) => group.id !== groupId);
@@ -353,17 +281,15 @@ export class AdminRoomLayoutStore {
   async updateRoom(roomId: string, name: string, description: string | null): Promise<StoreResult> {
     this.updatingRoom = true;
     try {
-      const result = await this.client
-        .mutation(UpdateRoomMutation, { input: { roomId, name, description } })
-        .toPromise();
-
-      if (result.error) {
-        return { ok: false, error: errorMessage(result.error) };
-      }
+      await this.client().updateAdminRoom(
+        new UpdateAdminRoomRequest({ roomId, name, description: description ?? '' })
+      );
 
       this.markMutation();
       await this.refresh();
       return { ok: true };
+    } catch (err) {
+      return { ok: false, error: errorMessage(err) };
     } finally {
       this.updatingRoom = false;
     }
@@ -423,16 +349,16 @@ export class AdminRoomLayoutStore {
     this.#preReorderIds = null;
     if (!orderedIds) return { ok: true, changed: false };
 
-    const result = await this.client
-      .mutation(ReorderRoomGroupsMutation, { input: { orderedIds } })
-      .toPromise();
-
-    if (result.error) {
+    try {
+      await this.client().reorderAdminRoomGroups(
+        new ReorderAdminRoomGroupsRequest({ orderedGroupIds: orderedIds })
+      );
+    } catch (err) {
       void this.refresh();
       return {
         ok: false,
         changed: true,
-        error: errorMessage(result.error),
+        error: errorMessage(err),
         refreshRequested: true
       };
     }
@@ -451,20 +377,20 @@ export class AdminRoomLayoutStore {
 
     const errors: string[] = [];
     for (const move of plan.moves) {
-      const result = await this.client
-        .mutation(MoveRoomToGroupMutation, { input: move })
-        .toPromise();
-      if (result.error) {
-        errors.push(`Failed to move room: ${errorMessage(result.error)}`);
+      try {
+        await this.client().moveAdminRoomToGroup(new MoveAdminRoomToGroupRequest(move));
+      } catch (err) {
+        errors.push(`Failed to move room: ${errorMessage(err)}`);
       }
     }
 
     for (const reorder of plan.reorders) {
-      const result = await this.client
-        .mutation(ReorderRoomsInGroupMutation, { input: reorder })
-        .toPromise();
-      if (result.error) {
-        errors.push(`Failed to reorder rooms: ${errorMessage(result.error)}`);
+      try {
+        await this.client().reorderAdminRoomsInGroup(
+          new ReorderAdminRoomsInGroupRequest(reorder)
+        );
+      } catch (err) {
+        errors.push(`Failed to reorder rooms: ${errorMessage(err)}`);
       }
     }
 
@@ -518,17 +444,17 @@ export class AdminRoomLayoutStore {
   private async setRoomArchived(roomId: string, archived: boolean): Promise<StoreResult> {
     this.archivingRoomId = roomId;
     try {
-      const result = await this.client
-        .mutation(archived ? ArchiveRoomMutation : UnarchiveRoomMutation, { input: { roomId } })
-        .toPromise();
-
-      if (result.error) {
-        return { ok: false, error: errorMessage(result.error) };
+      if (archived) {
+        await this.client().archiveAdminRoom(new ArchiveAdminRoomRequest({ roomId }));
+      } else {
+        await this.client().unarchiveAdminRoom(new UnarchiveAdminRoomRequest({ roomId }));
       }
 
       this.markMutation();
       await this.refresh();
       return { ok: true };
+    } catch (err) {
+      return { ok: false, error: errorMessage(err) };
     } finally {
       this.archivingRoomId = null;
     }

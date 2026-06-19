@@ -3,15 +3,13 @@
   import { startDMWith } from '$lib/dm/startDM';
   import { resolve } from '$app/paths';
   import MessageContent from '$lib/components/MessageContent.svelte';
-  import UserAvatar, { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
+  import UserAvatar from '$lib/components/UserAvatar.svelte';
   import LinkPreviewCard from '$lib/components/LinkPreviewCard.svelte';
   import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
   import BanRoomMemberModal from '$lib/components/moderation/BanRoomMemberModal.svelte';
   import BottomSheet from '$lib/ui/BottomSheet.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
-  import { useFragment } from '$lib/gql/fragment-masking';
-  import { graphql } from '$lib/gql';
-  import type { RoomEventViewFragment } from '$lib/gql/graphql';
+  import type { RoomEventViewFragment } from '$lib/chatTypes';
   import {
     getRoomPermissions,
     getRoomMembers,
@@ -20,10 +18,10 @@
     type MessagesStore,
     type RoomMember
   } from '$lib/state/room';
-  import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { tryWireBanRoomMember } from '$lib/wire';
 
   const stores = serverRegistry.getStore(getActiveServer());
   const notificationStore = stores.notifications;
@@ -47,6 +45,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { extractURLs } from '$lib/linkPreview';
   import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
+  import { tryWireFollowThread, tryWireUnfollowThread } from '$lib/wire';
 
   // Long-press thresholds in milliseconds
   const HIGHLIGHT_DELAY_MS = 150; // Delay before showing visual feedback (avoids flicker on scroll)
@@ -66,7 +65,6 @@
     onOpenThread?: (threadRootEventId: string, highlightEventId?: string) => void;
   } = $props();
 
-  const connection = useConnection();
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
   const roomPermissions = $derived(getRoomPermissions());
   const composerContext = getComposerContext();
@@ -83,7 +81,7 @@
   );
   // Actor may be null if the user has been deleted.
   // Guard with event?. for Svelte 5 reactivity glitch during virtualizer data transitions.
-  const actor = $derived(event?.actor ? useFragment(UserAvatarFragment, event.actor) : null);
+  const actor = $derived(event?.actor ?? null);
 
   // Display name with live updates from profile cache
   const displayName = $derived(
@@ -296,29 +294,20 @@
     }
   });
 
-  const followThreadMutation = graphql(`
-    mutation FollowThread($input: FollowThreadInput!) {
-      followThread(input: $input)
-    }
-  `);
-
-  const unfollowThreadMutation = graphql(`
-    mutation UnfollowThread($input: UnfollowThreadInput!) {
-      unfollowThread(input: $input)
-    }
-  `);
-
   async function toggleThreadFollow(e: MouseEvent) {
     e.stopPropagation();
     const wasFollowing = isFollowingThread;
     isFollowingThread = !wasFollowing;
 
-    const mutation = wasFollowing ? unfollowThreadMutation : followThreadMutation;
-    const result = await connection().client.mutation(mutation, {
-      input: { roomId, threadRootEventId: event.id }
-    });
-
-    if (result.error) {
+    try {
+      const handledByWire = wasFollowing
+        ? await tryWireUnfollowThread({ roomId, threadRootEventId: event.id })
+        : await tryWireFollowThread({ roomId, threadRootEventId: event.id });
+      if (!handledByWire) {
+        isFollowingThread = wasFollowing;
+      }
+    } catch (error) {
+      console.error('Failed to toggle thread follow:', error);
       isFollowingThread = wasFollowing;
     }
   }
@@ -362,9 +351,7 @@
 
     if (!replyTarget) return { name: 'a message', body: null as string | null, actor: null };
 
-    const repliedActor = replyTarget.actor
-      ? useFragment(UserAvatarFragment, replyTarget.actor)
-      : null;
+    const repliedActor = replyTarget.actor ?? null;
     const name = repliedActor
       ? getLiveDisplayName(repliedActor.id, repliedActor.displayName || repliedActor.login)
       : 'Deleted User';
@@ -395,12 +382,6 @@
   let banDialogUser = $state<RoomMember | null>(null);
   let banError = $state<string | null>(null);
 
-  const BanRoomMemberMutation = graphql(`
-    mutation BanRoomMemberFromMessageEvent($input: BanRoomMemberInput!) {
-      banRoomMember(input: $input)
-    }
-  `);
-
   const canBanPopoverUser = $derived.by(() => {
     if (
       !popoverUser ||
@@ -425,18 +406,24 @@
     banningMemberId = member.id;
     banError = null;
     const displayName = member.displayName || member.login;
-    const result = await connection().client.mutation(BanRoomMemberMutation, {
-      input: { roomId, userId: member.id, reason, expiresAt }
-    });
-    banningMemberId = null;
 
-    if (result.error) {
+    try {
+      const handled = await tryWireBanRoomMember({
+        roomId,
+        userId: member.id,
+        reason,
+        expiresAt
+      });
+      if (!handled) throw new Error('wire client unavailable');
+    } catch (error) {
+      banningMemberId = null;
       banError = 'Failed to ban member from room';
       toast.error(banError);
-      console.error('Failed to ban member from room:', result.error);
+      console.error('Failed to ban member from room:', error);
       return;
     }
 
+    banningMemberId = null;
     toast.success(`Banned ${displayName} from room`);
     banDialogUser = null;
   }

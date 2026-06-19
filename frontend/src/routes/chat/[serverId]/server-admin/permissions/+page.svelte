@@ -4,8 +4,6 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
-  import { graphql } from '$lib/gql';
-  import { useQuery } from '$lib/hooks';
   import { Hint } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
@@ -13,28 +11,12 @@
   import { Panel } from '$lib/components/admin';
   import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
 
-  // Lightweight query just to gate UI on viewerCanManageRoles. The heavy
-  // lifting is done by PermissionMatrix's own admin.rbac.rolePermissionTierMatrix query.
-  const SpaceRolesGateQuery = graphql(`
-    query SpaceRolesGate {
-      server {
-        viewerCanManageRoles
-      }
-    }
-  `);
-
   const serverSegment = $derived(serverIdToSegment(getActiveServer()));
 
-  const gateQuery = useQuery(SpaceRolesGateQuery, () => ({}));
-  const canManageRoles = $derived(gateQuery.data?.server?.viewerCanManageRoles ?? false);
-  const error = $derived(
-    gateQuery.error ?? (!gateQuery.loading && !gateQuery.data?.server ? 'Server not found' : null)
-  );
-
-  // Role detail pages require admin.manage-roles. Gate the column-header
-  // click so non-admins see plain text.
+  // Role detail pages and role creation require admin.manage-roles. Gate the
+  // controls so non-admins see plain text and no create affordance.
   const serverPerms = getServerPermissions();
-  const canManageRolesFull = $derived(serverPerms.current.canAdminManageRoles);
+  const canManageRoles = $derived(serverPerms.current.canAdminManageRoles);
 
   function openRoleDetail(role: { roleName: string }) {
     goto(
@@ -56,27 +38,24 @@
   />
 
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
-    {#if error}
-      <Hint tone="danger">{error}</Hint>
-    {:else}
-      {#if canManageRoles}
-        <Panel title="Role Presets">
-          <p class="mb-4 text-muted">
-            Roles bundle permissions for groups of users — for example a "moderator" role that
-            can moderate messages, or a "dev team" role with access to engineering rooms.
-            Assign roles to members from each user's profile.
-          </p>
-          <Button
-            variant="primary"
-            size="sm"
-            href={resolve('/chat/[serverId]/server-admin/permissions/new', {
-              serverId: serverSegment
-            })}
-          >
-            Create Role
-          </Button>
-        </Panel>
-      {/if}
+    {#if canManageRoles}
+      <Panel title="Role Presets">
+        <p class="mb-4 text-muted">
+          Roles bundle permissions for groups of users — for example a "moderator" role that
+          can moderate messages, or a "dev team" role with access to engineering rooms.
+          Assign roles to members from each user's profile.
+        </p>
+        <Button
+          variant="primary"
+          size="sm"
+          href={resolve('/chat/[serverId]/server-admin/permissions/new', {
+            serverId: serverSegment
+          })}
+        >
+          Create Role
+        </Button>
+      </Panel>
+    {/if}
       <Hint>
         <div class="space-y-2">
           <p>
@@ -100,8 +79,7 @@
       </Hint>
       <PermissionMatrix
         onRoleClick={openRoleDetail}
-        isRoleClickable={() => canManageRolesFull}
+        isRoleClickable={() => canManageRoles}
       />
-    {/if}
   </div>
 </div>

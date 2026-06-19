@@ -1,4 +1,4 @@
-import type { RoomEventViewFragment } from '$lib/gql/graphql';
+import type { RoomEventViewFragment } from '$lib/chatTypes';
 
 export function isRootRoomEvent(event: RoomEventViewFragment): boolean {
   const eventData = event.event;
