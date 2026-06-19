@@ -20,6 +20,7 @@ import { eventBusManager } from './eventBus.svelte';
 import type { EventBusCatchUpReason, EventHandler } from '$lib/eventBus.svelte';
 import type { GraphQLClient } from './graphqlClient.svelte';
 import type { RegisteredServer } from './registry.svelte';
+import { playCallSound } from '$lib/audio/callSounds';
 
 /**
  * What kind of indicator a server (or the DM area) should display.
@@ -70,6 +71,7 @@ export class ServerStateStore {
 
   /** Disposer for the internal effect root that wires lifecycle reactivity. */
   readonly #disposeEffects: () => void;
+  readonly #playedCallSoundEventIds: string[] = [];
   #lastSuccessfulCatchUpRefreshAt = 0;
   #catchUpRefreshInFlight = false;
   #queuedCatchUpRefreshReason: EventBusCatchUpReason | null = null;
@@ -141,6 +143,30 @@ export class ServerStateStore {
                 );
               });
             }
+          } else if (event.event?.__typename === 'CallParticipantJoinedEvent') {
+            this.playCallTransitionSound(
+              event.id,
+              'join',
+              event.event.roomId,
+              event.event.callId ?? null,
+              event.actorId ?? null
+            );
+          } else if (event.event?.__typename === 'CallParticipantLeftEvent') {
+            this.playCallTransitionSound(
+              event.id,
+              'leave',
+              event.event.roomId,
+              event.event.callId ?? null,
+              event.actorId ?? null
+            );
+            this.voiceCall.handleParticipantLeftEvent(
+              event.event.roomId,
+              event.event.callId ?? null,
+              event.actorId ?? null,
+              this.currentUserId()
+            );
+          } else if (event.event?.__typename === 'CallEndedEvent') {
+            this.voiceCall.handleCallEndedEvent(event.event.roomId, event.event.callId ?? null);
           }
         };
         const catchUpHandler = (reason: EventBusCatchUpReason) => {
@@ -287,6 +313,43 @@ export class ServerStateStore {
     if (this.notifications.hasDMNotifications()) return 'notification';
     // We no longer track DM unread separately — `hasAnyUnread` covers it.
     return null;
+  }
+
+  private playCallTransitionSound(
+    eventId: string,
+    kind: 'join' | 'leave',
+    roomId: string,
+    callId: string | null,
+    actorId: string | null
+  ): void {
+    if (this.#playedCallSoundEventIds.includes(eventId)) return;
+
+    const currentUserId = this.currentUserId();
+    if (!actorId || !currentUserId) return;
+
+    const decision = this.voiceCall.callTransitionSoundDecision(
+      kind,
+      roomId,
+      callId,
+      actorId === currentUserId
+    );
+    if (decision === 'skip') return;
+
+    this.rememberPlayedCallSoundEvent(eventId);
+    if (decision === 'defer') return;
+
+    void playCallSound(kind);
+  }
+
+  private rememberPlayedCallSoundEvent(eventId: string): void {
+    this.#playedCallSoundEventIds.push(eventId);
+    if (this.#playedCallSoundEventIds.length > 500) {
+      this.#playedCallSoundEventIds.shift();
+    }
+  }
+
+  private currentUserId(): string | null {
+    return this.rooms.currentUserId ?? this.currentUser.user?.id ?? this.#registered.userId;
   }
 
   /** Remove optimistic call UI state after a local join attempt fails. */

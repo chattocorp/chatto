@@ -2,6 +2,17 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import { makeSubject, type Source, type Subject } from 'wonka';
 import type { Client } from '@urql/svelte';
+
+const { soundMocks } = vi.hoisted(() => ({
+  soundMocks: {
+    playCallSound: vi.fn(() => Promise.resolve())
+  }
+}));
+
+vi.mock('$lib/audio/callSounds', () => ({
+  playCallSound: soundMocks.playCallSound
+}));
+
 import { ServerStateStore } from './store.svelte';
 import { eventBusManager } from './eventBus.svelte';
 import type { GraphQLClient } from './graphqlClient.svelte';
@@ -106,6 +117,7 @@ afterEach(() => {
     store.dispose();
   }
   eventBusManager.stopBus(registered.id);
+  soundMocks.playCallSound.mockClear();
   vi.restoreAllMocks();
 });
 
@@ -257,6 +269,143 @@ describe('ServerStateStore live server updates', () => {
     expect(store.rooms.refresh).toHaveBeenCalledOnce();
     expect(store.roomDirectory.refresh).toHaveBeenCalledOnce();
     expect(store.adminRoomLayout.refresh).toHaveBeenCalledOnce();
+  });
+
+  it('plays call join and leave sounds for participant events in the current active call', async () => {
+    const fake = new FakeGqlClient([]);
+    const store = makeStore(fake);
+    store.rooms.currentUserId = 'U1';
+    const shouldPlay = vi
+      .spyOn(store.voiceCall, 'callTransitionSoundDecision')
+      .mockReturnValue('play');
+
+    eventBusManager.startBus(registered.id, fake as unknown as GraphQLClient);
+    flushSync();
+    const bus = eventBusManager.getBus(registered.id);
+    if (!bus) throw new Error('event bus did not start');
+
+    for (const handler of bus.handlers) {
+      handler({
+        id: 'E-call-join',
+        createdAt: new Date().toISOString(),
+        actorId: 'U2',
+        actor: null,
+        event: { __typename: 'CallParticipantJoinedEvent', roomId: 'R1', callId: 'call-1' }
+      });
+      handler({
+        id: 'E-call-leave',
+        createdAt: new Date().toISOString(),
+        actorId: 'U1',
+        actor: null,
+        event: { __typename: 'CallParticipantLeftEvent', roomId: 'R1', callId: 'call-1' }
+      });
+    }
+
+    expect(shouldPlay).toHaveBeenNthCalledWith(1, 'join', 'R1', 'call-1', false);
+    expect(shouldPlay).toHaveBeenNthCalledWith(2, 'leave', 'R1', 'call-1', true);
+    expect(soundMocks.playCallSound).toHaveBeenCalledTimes(2);
+    expect(soundMocks.playCallSound).toHaveBeenNthCalledWith(1, 'join');
+    expect(soundMocks.playCallSound).toHaveBeenNthCalledWith(2, 'leave');
+  });
+
+  it('dedupes call sound events by event ID', async () => {
+    const fake = new FakeGqlClient([]);
+    const store = makeStore(fake);
+    store.rooms.currentUserId = 'U1';
+    vi.spyOn(store.voiceCall, 'callTransitionSoundDecision').mockReturnValue('play');
+
+    eventBusManager.startBus(registered.id, fake as unknown as GraphQLClient);
+    flushSync();
+    const bus = eventBusManager.getBus(registered.id);
+    if (!bus) throw new Error('event bus did not start');
+
+    for (const handler of bus.handlers) {
+      const event = {
+        id: 'E-duplicate-call-join',
+        createdAt: new Date().toISOString(),
+        actorId: 'U2',
+        actor: null,
+        event: { __typename: 'CallParticipantJoinedEvent', roomId: 'R1', callId: 'call-1' }
+      } as const;
+      handler(event);
+      handler(event);
+    }
+
+    expect(soundMocks.playCallSound).toHaveBeenCalledOnce();
+    expect(soundMocks.playCallSound).toHaveBeenCalledWith('join');
+  });
+
+  it('dedupes deferred call sound events by event ID', async () => {
+    const fake = new FakeGqlClient([]);
+    const store = makeStore(fake);
+    store.rooms.currentUserId = 'U1';
+    const decision = vi
+      .spyOn(store.voiceCall, 'callTransitionSoundDecision')
+      .mockReturnValueOnce('defer')
+      .mockReturnValueOnce('play');
+
+    eventBusManager.startBus(registered.id, fake as unknown as GraphQLClient);
+    flushSync();
+    const bus = eventBusManager.getBus(registered.id);
+    if (!bus) throw new Error('event bus did not start');
+
+    for (const handler of bus.handlers) {
+      const event = {
+        id: 'E-deferred-call-join',
+        createdAt: new Date().toISOString(),
+        actorId: 'U1',
+        actor: null,
+        event: { __typename: 'CallParticipantJoinedEvent', roomId: 'R1', callId: 'call-1' }
+      } as const;
+      handler(event);
+      handler(event);
+    }
+
+    expect(decision).toHaveBeenCalledOnce();
+    expect(soundMocks.playCallSound).not.toHaveBeenCalled();
+  });
+
+  it('does not play call sounds for missing-actor or inactive events', async () => {
+    const fake = new FakeGqlClient([]);
+    const store = makeStore(fake);
+    store.rooms.currentUserId = 'U1';
+    const shouldPlay = vi.spyOn(store.voiceCall, 'callTransitionSoundDecision');
+
+    eventBusManager.startBus(registered.id, fake as unknown as GraphQLClient);
+    flushSync();
+    const bus = eventBusManager.getBus(registered.id);
+    if (!bus) throw new Error('event bus did not start');
+
+    shouldPlay.mockReturnValue('play');
+    for (const handler of bus.handlers) {
+      handler({
+        id: 'E-missing-actor',
+        createdAt: new Date().toISOString(),
+        actorId: null,
+        actor: null,
+        event: { __typename: 'CallParticipantJoinedEvent', roomId: 'R1', callId: 'call-1' }
+      });
+    }
+
+    shouldPlay.mockReturnValue('skip');
+    for (const handler of bus.handlers) {
+      handler({
+        id: 'E-stale',
+        createdAt: new Date().toISOString(),
+        actorId: 'U2',
+        actor: null,
+        event: { __typename: 'CallParticipantJoinedEvent', roomId: 'R2', callId: 'old-call' }
+      });
+      handler({
+        id: 'E-inactive',
+        createdAt: new Date().toISOString(),
+        actorId: 'U2',
+        actor: null,
+        event: { __typename: 'CallParticipantLeftEvent', roomId: 'R1', callId: 'call-1' }
+      });
+    }
+
+    expect(soundMocks.playCallSound).not.toHaveBeenCalled();
   });
 
   it('refreshes projected server state for bearer-auth sessions', async () => {

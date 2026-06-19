@@ -1,4 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const { soundMocks } = vi.hoisted(() => ({
+  soundMocks: {
+    playCallSound: vi.fn(() => Promise.resolve())
+  }
+}));
+
+vi.mock('$lib/audio/callSounds', () => ({
+  playCallSound: soundMocks.playCallSound
+}));
+
 import {
   getVoiceCallJoinErrorMessage,
   VoiceCallJoinError,
@@ -16,6 +27,7 @@ let lastRoom: {
   };
 } | null = null;
 let connectFailure: Error | null = null;
+let connectGate: { promise: Promise<void>; resolve: () => void } | null = null;
 let screenShareFailure: Error | null = null;
 let roomEventHandlers = new Map<string, () => void>();
 let localTrackPublications: Array<{
@@ -45,7 +57,9 @@ vi.mock('livekit-client', () => {
       }),
       setCameraEnabled: vi.fn(async (enabled: boolean) => {
         calls.push(`setCameraEnabled:${enabled}`);
-        localTrackPublications = localTrackPublications.filter((pub) => pub.track.source !== 'camera');
+        localTrackPublications = localTrackPublications.filter(
+          (pub) => pub.track.source !== 'camera'
+        );
         if (enabled) {
           localTrackPublications.push({
             isMuted: false,
@@ -90,6 +104,7 @@ vi.mock('livekit-client', () => {
     });
     connect = vi.fn(async () => {
       calls.push('connect');
+      await connectGate?.promise;
       if (connectFailure) {
         throw connectFailure;
       }
@@ -155,6 +170,20 @@ function createVoiceCallClient() {
   };
 }
 
+function deferredVoid(): { promise: Promise<void>; resolve: () => void } {
+  let resolve!: () => void;
+  const promise = new Promise<void>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
+
+async function flushPromises(times = 5): Promise<void> {
+  for (let i = 0; i < times; i++) {
+    await Promise.resolve();
+  }
+}
+
 describe('VoiceCallState', () => {
   beforeEach(() => {
     calls.length = 0;
@@ -162,6 +191,7 @@ describe('VoiceCallState', () => {
     lastKeyProvider = null;
     lastRoom = null;
     connectFailure = null;
+    connectGate = null;
     screenShareFailure = null;
     roomEventHandlers = new Map();
     localTrackPublications = [];
@@ -171,6 +201,7 @@ describe('VoiceCallState', () => {
     vi.stubGlobal('WritableStream', class MockWritableStream {});
     vi.stubGlobal('RTCRtpScriptTransform', class MockRTCRtpScriptTransform {});
     vi.stubGlobal('crypto', { subtle: {} });
+    soundMocks.playCallSound.mockClear();
   });
 
   afterEach(() => {
@@ -211,6 +242,33 @@ describe('VoiceCallState', () => {
     expect(calls.indexOf('setE2EEEnabled:true')).toBeLessThan(calls.indexOf('connect'));
   });
 
+  it('does not play a join sound without the participant join event', async () => {
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client as never);
+
+    await state.join('wss://livekit.example.test', 'R1');
+
+    expect(soundMocks.playCallSound).not.toHaveBeenCalled();
+  });
+
+  it('plays a deferred current-user join event after connecting successfully', async () => {
+    connectGate = deferredVoid();
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client as never);
+
+    const join = state.join('wss://livekit.example.test', 'R1');
+    await flushPromises();
+
+    expect(state.callTransitionSoundDecision('join', 'R1', 'call-1', true)).toBe('defer');
+    expect(soundMocks.playCallSound).not.toHaveBeenCalled();
+
+    connectGate.resolve();
+    await join;
+
+    expect(soundMocks.playCallSound).toHaveBeenCalledOnce();
+    expect(soundMocks.playCallSound).toHaveBeenCalledWith('join');
+  });
+
   it('fails before recording join intent when encrypted calls are unsupported', async () => {
     vi.stubGlobal('RTCRtpScriptTransform', undefined);
     vi.stubGlobal('RTCRtpSender', class MockRTCRtpSender {});
@@ -231,6 +289,7 @@ describe('VoiceCallState', () => {
     expect(client.mutation).not.toHaveBeenCalled();
     expect(client.query).not.toHaveBeenCalled();
     expect(state.isInAnyCall).toBe(false);
+    expect(soundMocks.playCallSound).not.toHaveBeenCalled();
   });
 
   it('maps signaling failures to an actionable join error message', () => {
@@ -294,12 +353,14 @@ describe('VoiceCallState', () => {
 
     const state = new VoiceCallState(client as never);
     await state.join('wss://livekit.example.test', 'R1');
+    soundMocks.playCallSound.mockClear();
 
     await Promise.all([state.leave(), state.leave()]);
 
     expect(client.mutation).toHaveBeenCalledTimes(2);
     expect(lastRoom?.disconnect).toHaveBeenCalledOnce();
     expect(state.isInAnyCall).toBe(false);
+    expect(soundMocks.playCallSound).not.toHaveBeenCalled();
   });
 
   it('records a compensating leave when LiveKit connect fails after join intent', async () => {
@@ -332,6 +393,7 @@ describe('VoiceCallState', () => {
     expect(client.mutation).toHaveBeenCalledTimes(2);
     expect(client.mutation).toHaveBeenNthCalledWith(2, expect.anything(), { roomId: 'R1' });
     expect(state.isInAnyCall).toBe(false);
+    expect(soundMocks.playCallSound).not.toHaveBeenCalled();
   });
 
   it('disconnects without recording leave when the backend ends the current call', async () => {
@@ -356,16 +418,19 @@ describe('VoiceCallState', () => {
 
     const state = new VoiceCallState(client as never);
     await state.join('wss://livekit.example.test', 'R1');
+    soundMocks.playCallSound.mockClear();
 
     state.handleCallEndedEvent('R1', 'old-call');
     expect(lastRoom?.disconnect).not.toHaveBeenCalled();
     expect(state.isInAnyCall).toBe(true);
+    expect(soundMocks.playCallSound).not.toHaveBeenCalled();
 
     state.handleCallEndedEvent('R1', 'call-1');
 
     expect(lastRoom?.disconnect).toHaveBeenCalledOnce();
     expect(client.mutation).toHaveBeenCalledTimes(1);
     expect(state.isInAnyCall).toBe(false);
+    expect(soundMocks.playCallSound).not.toHaveBeenCalled();
   });
 
   it('disconnects only for the current user participant leave event', async () => {
@@ -390,19 +455,35 @@ describe('VoiceCallState', () => {
 
     const state = new VoiceCallState(client as never);
     await state.join('wss://livekit.example.test', 'R1');
+    soundMocks.playCallSound.mockClear();
 
     state.handleParticipantLeftEvent('R1', 'call-1', 'remote-user', 'local-user');
     expect(lastRoom?.disconnect).not.toHaveBeenCalled();
     expect(state.isInAnyCall).toBe(true);
+    expect(soundMocks.playCallSound).not.toHaveBeenCalled();
 
     state.handleParticipantLeftEvent('R1', 'old-call', 'local-user', 'local-user');
     expect(lastRoom?.disconnect).not.toHaveBeenCalled();
     expect(state.isInAnyCall).toBe(true);
+    expect(soundMocks.playCallSound).not.toHaveBeenCalled();
 
     state.handleParticipantLeftEvent('R1', 'call-1', 'local-user', 'local-user');
     expect(lastRoom?.disconnect).toHaveBeenCalledOnce();
     expect(client.mutation).toHaveBeenCalledTimes(1);
     expect(state.isInAnyCall).toBe(false);
+    expect(soundMocks.playCallSound).not.toHaveBeenCalled();
+    expect(state.callTransitionSoundDecision('leave', 'R1', 'call-1', true)).toBe('play');
+  });
+
+  it('matches only the currently connected call', async () => {
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client as never);
+    await state.join('wss://livekit.example.test', 'R1');
+
+    expect(state.matchesActiveCall('R1', 'call-1')).toBe(true);
+    expect(state.matchesActiveCall('R1', 'old-call')).toBe(false);
+    expect(state.matchesActiveCall('R2', 'call-1')).toBe(false);
+    expect(state.matchesActiveCall('R1', null)).toBe(false);
   });
 
   it('toggles video-only screen sharing through LiveKit', async () => {

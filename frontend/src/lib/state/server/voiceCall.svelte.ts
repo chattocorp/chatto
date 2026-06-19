@@ -20,6 +20,7 @@ import {
 import { graphql } from '$lib/gql';
 import type { Client } from '@urql/svelte';
 import { toast } from '$lib/ui/toast';
+import { playCallSound } from '$lib/audio/callSounds';
 
 export type CallParticipantInfo = {
   identity: string;
@@ -41,6 +42,8 @@ export type AudioLevelInfo = {
   audioLevel: number;
 };
 
+export type CallTransitionSoundDecision = 'play' | 'defer' | 'skip';
+
 /** Metadata embedded in the LiveKit token by the backend. */
 type ParticipantMetadata = {
   login?: string;
@@ -52,6 +55,7 @@ const unsupportedEncryptedCallMessage =
   'This browser does not support encrypted voice calls yet. Try the latest Firefox, Chrome, or Edge.';
 const signalingFailureMessage =
   'Could not reach the voice server. Check your network and try again.';
+const RECENTLY_DISCONNECTED_CALL_SOUND_MS = 5_000;
 
 export class VoiceCallJoinError extends Error {
   readonly userMessage: string;
@@ -140,6 +144,19 @@ export class VoiceCallState {
   // Internal LiveKit room instance
   private room: Room | null = null;
   private activeCallId: string | null = null;
+  private pendingOwnJoinSound:
+    | {
+        roomId: string;
+        callId: string;
+      }
+    | null = null;
+  private recentlyDisconnectedCall:
+    | {
+        roomId: string;
+        callId: string;
+        disconnectedAt: number;
+      }
+    | null = null;
   private joinInFlight: Promise<void> | null = null;
   private joinInFlightRoomId: string | null = null;
   private leaveInFlight: Promise<void> | null = null;
@@ -169,6 +186,48 @@ export class VoiceCallState {
    */
   isInCall(roomId: string): boolean {
     return this.connected && this.roomId === roomId;
+  }
+
+  matchesActiveCall(roomId: string, callId: string | null): boolean {
+    return (
+      this.connected &&
+      this.roomId === roomId &&
+      callId !== null &&
+      this.activeCallId === callId
+    );
+  }
+
+  /**
+   * Whether a durable call transition event should be audible to this client.
+   *
+   * Remote transitions only play while the viewer is actively connected to
+   * the same call. The viewer's own join can arrive before LiveKit finishes
+   * connecting, so it is deferred until connect succeeds. The viewer's own
+   * leave can arrive just after local cleanup, so a short recently-left
+   * window keeps that event audible without leaking sounds to bystanders.
+   */
+  callTransitionSoundDecision(
+    kind: 'join' | 'leave',
+    roomId: string,
+    callId: string | null,
+    actorIsCurrentUser: boolean
+  ): CallTransitionSoundDecision {
+    if (!callId) return 'skip';
+
+    if (this.matchesActiveCall(roomId, callId)) return 'play';
+
+    if (!actorIsCurrentUser) return 'skip';
+
+    if (kind === 'join' && this.roomId === roomId && this.connecting) {
+      this.pendingOwnJoinSound = { roomId, callId };
+      return 'defer';
+    }
+
+    if (kind === 'leave' && this.matchesRecentlyDisconnectedCall(roomId, callId)) {
+      return 'play';
+    }
+
+    return 'skip';
   }
 
   /**
@@ -297,6 +356,9 @@ export class VoiceCallState {
       this.connected = true;
       this.updateParticipants();
       await this.refreshDevices();
+      if (this.consumePendingOwnJoinSound()) {
+        void playCallSound('join');
+      }
     } catch (err) {
       console.error('Failed to join voice call:', summarizeJoinError(err));
       if (joinIntentRecorded) {
@@ -699,6 +761,10 @@ export class VoiceCallState {
   }
 
   private cleanup(): void {
+    const disconnectedRoomId = this.roomId;
+    const disconnectedCallId = this.activeCallId;
+    const wasConnected = this.connected;
+
     if (this.audioLevelInterval) {
       clearInterval(this.audioLevelInterval);
       this.audioLevelInterval = null;
@@ -716,7 +782,15 @@ export class VoiceCallState {
     }
     this.e2eeWorker?.terminate();
     this.e2eeWorker = null;
+    if (wasConnected && disconnectedRoomId && disconnectedCallId) {
+      this.recentlyDisconnectedCall = {
+        roomId: disconnectedRoomId,
+        callId: disconnectedCallId,
+        disconnectedAt: Date.now()
+      };
+    }
     this.activeCallId = null;
+    this.pendingOwnJoinSound = null;
     this.joinInFlight = null;
     this.joinInFlightRoomId = null;
     this.suppressDisconnectToast = false;
@@ -734,6 +808,23 @@ export class VoiceCallState {
     this.videoDevices = [];
     this.selectedVideoDeviceId = null;
     this.audioLevelCache.clear();
+  }
+
+  private consumePendingOwnJoinSound(): boolean {
+    const pending = this.pendingOwnJoinSound;
+    if (!pending) return false;
+    this.pendingOwnJoinSound = null;
+    return this.matchesActiveCall(pending.roomId, pending.callId);
+  }
+
+  private matchesRecentlyDisconnectedCall(roomId: string, callId: string): boolean {
+    const recentlyDisconnectedCall = this.recentlyDisconnectedCall;
+    if (!recentlyDisconnectedCall) return false;
+    if (Date.now() - recentlyDisconnectedCall.disconnectedAt > RECENTLY_DISCONNECTED_CALL_SOUND_MS) {
+      this.recentlyDisconnectedCall = null;
+      return false;
+    }
+    return recentlyDisconnectedCall.roomId === roomId && recentlyDisconnectedCall.callId === callId;
   }
 }
 
