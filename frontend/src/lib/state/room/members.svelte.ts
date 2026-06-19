@@ -140,7 +140,7 @@ export class RoomMembersStore {
       if (loadId !== this.#loadId) return;
       this.members = page.members;
       this.totalCount = page.totalCount;
-      this.hasMore = false;
+      this.hasMore = page.hasMore;
       this.hasLoaded = true;
     } catch (error) {
       if (loadId === this.#loadId) {
@@ -165,7 +165,7 @@ export class RoomMembersStore {
       const nextMembers = page.members.filter((member) => !seen.has(member.id));
       this.members = [...this.members, ...nextMembers];
       this.totalCount = page.totalCount;
-      this.hasMore = false;
+      this.hasMore = page.hasMore;
     } catch (error) {
       if (loadId === this.#loadId) {
         console.error('Failed to load more room members:', error);
@@ -187,7 +187,7 @@ export class RoomMembersStore {
       if (loadId !== this.#loadId) return;
       this.members = page.members;
       this.totalCount = page.totalCount;
-      this.hasMore = false;
+      this.hasMore = page.hasMore;
       this.hasLoaded = true;
     } catch (error) {
       if (loadId === this.#loadId) {
@@ -197,7 +197,7 @@ export class RoomMembersStore {
   }
 
   async searchMembers(search: string, limit = MENTION_MEMBER_SEARCH_LIMIT): Promise<RoomMember[]> {
-    if (this.hasLoaded) return this.filteredLoadedMembers(search, limit);
+    if (this.hasLoaded && !this.hasMore) return this.filteredLoadedMembers(search, limit);
     if (!this.roomId || !this.client) return this.filteredLoadedMembers(search, limit);
     try {
       const page = await this.fetchPage(0, limit, search);
@@ -232,7 +232,16 @@ export class RoomMembersStore {
     let nextOffset = offset;
 
     while (hasMore) {
-      const page = await this.fetchPage(nextOffset, ROOM_MEMBERS_PAGE_SIZE, '');
+      let page: RoomMembersPage;
+      try {
+        page = await this.fetchPage(nextOffset, ROOM_MEMBERS_PAGE_SIZE, '');
+      } catch (error) {
+        if (members.length === 0) {
+          throw error;
+        }
+        return { members, totalCount, hasMore: true };
+      }
+
       members.push(...page.members);
       totalCount = page.totalCount;
       hasMore = page.hasMore;

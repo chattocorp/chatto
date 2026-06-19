@@ -126,6 +126,30 @@ describe('RoomMembersStore', () => {
     }
   });
 
+  it('keeps fetched members when a later eager page fails', async () => {
+    const fakeClient = new FakeGqlClient([
+      pageResult([user('u1', 'alice')], true, 3),
+      { data: null, error: new Error('network failed') },
+      pageResult([user('u3', 'cora')], false, 1)
+    ]);
+    const store = new RoomMembersStore(fakeClient as unknown as GraphQLClient);
+
+    store.setRoom('room-1');
+    await store.loadInitial();
+
+    expect(store.members.map((member) => member.login)).toEqual(['alice']);
+    expect(store.totalCount).toBe(3);
+    expect(store.hasLoaded).toBe(true);
+    expect(store.hasMore).toBe(true);
+
+    store.ensureLoaded();
+    expect(fakeClient.queryMock).toHaveBeenCalledTimes(2);
+
+    const searchResults = await store.searchMembers('cora');
+    expect(searchResults.map((member) => member.login)).toEqual(['cora']);
+    expect(fakeClient.queryMock).toHaveBeenCalledTimes(3);
+  });
+
   it('refresh clears a stale initial loading state when it invalidates an initial load', async () => {
     const initial = deferred<OperationResult>();
     const refresh = deferred<OperationResult>();
