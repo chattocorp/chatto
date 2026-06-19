@@ -1,11 +1,11 @@
 # FDR-022: User Profile
 
 **Status:** Active
-**Last reviewed:** 2026-06-15
+**Last reviewed:** 2026-06-19
 
 ## Overview
 
-A user's profile carries the public identity they present to the rest of the server (login, display name, avatar) plus personal settings (timezone, time format). Most of the profile is self-editable; one field — the login — is throttled to discourage identity-confusion abuse, with an admin escape hatch for legitimate needs.
+A user's profile carries the public identity they present to the rest of the server (login, display name, avatar) plus server-synced personal settings (timezone, time format). Most of the profile is self-editable; one field — the login — is throttled to discourage identity-confusion abuse, with an admin escape hatch for legitimate needs. Browser-local display preferences, such as theme, live outside the profile.
 
 ## Behavior
 
@@ -14,6 +14,7 @@ A user's profile carries the public identity they present to the rest of the ser
 - **Case-only changes** (e.g., `alice` → `Alice`) bypass the cooldown.
 - **Avatar** — users upload an image; the server resizes to 256×256 max and stores it as lossless WebP. The old avatar is deleted after the new one is committed. Users can also delete their avatar (falling back to an initial-letter placeholder).
 - **Settings** — currently timezone (IANA name, e.g., `Europe/Berlin`) and time format (browser default / 12-hour / 24-hour). Stored server-side so they sync across devices. If not set, the frontend uses the browser timezone and locale time-format default.
+- **Display theme** — users can choose System, Light, or Dark. System follows the browser or OS color-scheme preference. The choice is browser-local and applies immediately on that device.
 - **Admin overrides** — operators with the right permissions can update other users' profiles, bypass the login cooldown, clear the cooldown so the user can change again before the 30 days expire, and force-delete an avatar.
 
 ## Design Decisions
@@ -44,9 +45,9 @@ A user's profile carries the public identity they present to the rest of the ser
 
 ### 5. Server-side settings, not browser-local
 
-**Decision:** Timezone and time format live in the user's profile (in `User.settings`), synced server-side.
+**Decision:** Timezone and time format live in the user's profile (in `User.settings`), synced server-side. Display theme is browser-local.
 **Why:** A user signing in from a new browser shouldn't have to re-pick their preferences. Local storage works fine for one device; for multi-device users it's actively worse than server-side.
-**Tradeoff:** Every settings change requires a mutation, but settings change rarely so the cost is negligible.
+**Tradeoff:** Every timezone or time-format change requires a mutation, but settings change rarely so the cost is negligible. Theme can differ per browser, which is appropriate for device-specific light/dark preferences but means it does not sync across devices.
 
 ### 6. Browser timezone fallback when unset
 

@@ -8,6 +8,8 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
 - `spaceId` - Space ID
 - `roomId` - Room ID
 - `messageEventId` - Event ID of the message
+- `serverSegment` - URL segment for the active server
+- `threadRootEventId` - Root event ID for the linked thread
 - `reactions` - Array of reaction summaries
 - `replyCount` - Number of thread replies
 - `threadParticipants` - Thread participant user fragments (for avatars)
@@ -19,6 +21,8 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
 - `onOpenEmojiPicker` - Callback to open the emoji picker
 -->
 <script lang="ts">
+  import { resolve } from '$app/paths';
+  import { on } from 'svelte/events';
   import type { RoomEventViewFragment } from '$lib/gql/graphql';
   import UserAvatar, { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
@@ -43,6 +47,8 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
   let {
     roomId,
     messageEventId,
+    serverSegment,
+    threadRootEventId,
     reactions,
     replyCount = 0,
     threadParticipants,
@@ -56,6 +62,8 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
   }: {
     roomId: string;
     messageEventId: string;
+    serverSegment: string;
+    threadRootEventId?: string | null;
     reactions: ReactionSummary[];
     replyCount?: number;
     threadParticipants?: MessagePostedEvent['threadParticipants'];
@@ -103,20 +111,65 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
       toast.error('Failed to update reaction');
     }
   }
+
+  function openThreadFromLink(e: MouseEvent) {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+      return;
+    }
+
+    e.preventDefault();
+    onOpenThread?.();
+  }
+
+  function stopMessageGesturePropagation(e: Event) {
+    e.stopPropagation();
+  }
+
+  function threadLinkGestureBoundary(el: HTMLAnchorElement) {
+    const removeTouchStart = on(el, 'touchstart', stopMessageGesturePropagation, {
+      capture: true
+    });
+    const removeMouseDown = on(el, 'mousedown', stopMessageGesturePropagation, {
+      capture: true
+    });
+
+    return () => {
+      removeTouchStart();
+      removeMouseDown();
+    };
+  }
 </script>
 
 <div class="mt-1 flex flex-wrap items-center gap-1">
   <!-- Echo "Thread" indicator -->
-  {#if isEchoEvent && onOpenThread}
-    <button class="{baseButtonClass} gap-2 border-transparent px-2 text-xs" onclick={onOpenThread}>
+  {#if isEchoEvent && onOpenThread && threadRootEventId}
+    <a
+      href={resolve('/chat/[serverId]/[roomId]/[threadId]', {
+        serverId: serverSegment,
+        roomId,
+        threadId: threadRootEventId
+      })}
+      class="{baseButtonClass} gap-2 border-transparent px-2 text-xs"
+      onclick={openThreadFromLink}
+      {@attach threadLinkGestureBoundary}
+    >
       <span class="iconify uil--corner-up-right"></span>
       <span>Thread</span>
-    </button>
+    </a>
   {/if}
 
   <!-- Thread reply button -->
-  {#if replyCount > 0 && onOpenThread}
-    <button class="{baseButtonClass} gap-2 border-transparent px-2 text-xs" onclick={onOpenThread}>
+  {#if replyCount > 0 && onOpenThread && threadRootEventId}
+    <a
+      href={resolve('/chat/[serverId]/[roomId]/[threadId]', {
+        serverId: serverSegment,
+        roomId,
+        threadId: threadRootEventId
+      })}
+      class="{baseButtonClass} gap-2 border-transparent px-2 text-xs"
+      onclick={openThreadFromLink}
+      {@attach threadLinkGestureBoundary}
+    >
       <span class="iconify uil--comment-alt-lines"></span>
       {#if threadParticipants && threadParticipants.length > 0}
         <div class="flex -space-x-1.5">
@@ -135,7 +188,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
       {#if hasThreadNotification}
         <UnreadDot />
       {/if}
-    </button>
+    </a>
     {#if onToggleThreadFollow}
       <button
         class={[

@@ -277,10 +277,11 @@ test.describe('Message Threading', () => {
     // The message in the main view should show a thread indicator with "1 reply"
     await expect(page.getByText('1 reply')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
-    // The thread indicator button should contain at least one avatar
-    const threadButton = page.getByRole('button', { name: /1 reply/i });
-    await expect(threadButton).toBeVisible();
-    const avatarContainer = threadButton.locator('div.-space-x-1\\.5');
+    // The thread indicator link should contain at least one avatar.
+    const threadLink = page.getByRole('link', { name: /1 reply/i });
+    await expect(threadLink).toBeVisible();
+    await expect(threadLink).toHaveAttribute('href', /\/chat\/-\/[^/]+\/[^/]+$/);
+    const avatarContainer = threadLink.locator('div.-space-x-1\\.5');
     await expect(avatarContainer).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
     const avatarElement = avatarContainer.locator('[aria-label]').first();
     await expect(avatarElement).toBeVisible();

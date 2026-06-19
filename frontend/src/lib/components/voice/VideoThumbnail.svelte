@@ -17,6 +17,7 @@ resolution to request for sidebar-width tiles.
 - `name` - Participant display name (shown as tooltip)
 - `user` - User object for the avatar overlay (same shape as UserAvatar's `user` prop)
 - `showIdentityOverlay` - Whether to show the avatar overlay
+- `fit` - How the video track should fit the tile. Camera thumbnails default to `cover`; screen shares should use `contain` to avoid cropping shared content.
 -->
 <script lang="ts">
 	import { onDestroy } from 'svelte';
@@ -28,7 +29,8 @@ resolution to request for sidebar-width tiles.
 		track,
 		name,
 		user,
-		showIdentityOverlay = true
+		showIdentityOverlay = true,
+		fit = 'cover'
 	}: {
 		track: Track;
 		name: string;
@@ -40,6 +42,7 @@ resolution to request for sidebar-width tiles.
 			presenceStatus: PresenceStatus;
 		};
 		showIdentityOverlay?: boolean;
+		fit?: 'cover' | 'contain';
 	} = $props();
 
 	let videoEl = $state<HTMLVideoElement | null>(null);
@@ -82,7 +85,7 @@ resolution to request for sidebar-width tiles.
 		bind:this={videoEl}
 		width="640"
 		height="360"
-		class="h-full w-full object-cover"
+		class={['h-full w-full', fit === 'contain' ? 'object-contain' : 'object-cover']}
 		title={name}
 		autoplay
 		playsinline

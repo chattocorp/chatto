@@ -12,6 +12,40 @@ test.describe('User Settings - Display', () => {
     });
   });
 
+  test('can choose a local display theme', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'light' });
+    await createAndLoginTestUser(page);
+    await page.goto(routes.settingsPreferences);
+    await expect(page.getByRole('heading', { name: 'Display' })).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
+
+    const systemOption = page.getByRole('radio', { name: /System/ });
+    const lightOption = page.getByRole('radio', { name: /Light/ });
+    const darkOption = page.getByRole('radio', { name: /Dark/ });
+
+    await expect(systemOption).toHaveAttribute('aria-checked', 'true');
+
+    await darkOption.click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+
+    await page.reload();
+    await expect(darkOption).toHaveAttribute('aria-checked', 'true');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+
+    await lightOption.click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+
+    await systemOption.click();
+    await expect(systemOption).toHaveAttribute('aria-checked', 'true');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.reload();
+    await expect(systemOption).toHaveAttribute('aria-checked', 'true');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  });
+
   test('can set timezone and save', async ({ page }) => {
     await createAndLoginTestUser(page);
     await page.goto(routes.settingsPreferences);

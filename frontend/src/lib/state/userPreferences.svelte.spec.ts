@@ -1,15 +1,69 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { defaultNotificationSoundFilters, defaultSoundId } from '$lib/audio/notificationSounds';
-import { UserPreferencesState } from './userPreferences.svelte';
+import { UserPreferencesState, resolveDisplayTheme } from './userPreferences.svelte';
 
 const STORAGE_KEY = 'chatto:preferences';
 
+function mockSystemTheme(theme: 'light' | 'dark') {
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn((query: string) => ({
+      matches: query === '(prefers-color-scheme: dark)' && theme === 'dark',
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn()
+    }))
+  );
+}
+
 describe('UserPreferencesState', () => {
   beforeEach(() => {
+    vi.unstubAllGlobals();
+    mockSystemTheme('light');
     localStorage.clear();
+    delete document.documentElement.dataset.theme;
+    document.documentElement.style.backgroundColor = '';
   });
 
   describe('initial state', () => {
+    it('uses the system display theme when storage is empty', () => {
+      const state = new UserPreferencesState();
+      expect(state.displayTheme).toBe('system');
+      expect(state.effectiveDisplayTheme).toBe('light');
+    });
+
+    it('resolves the system display theme from prefers-color-scheme', () => {
+      mockSystemTheme('dark');
+      const state = new UserPreferencesState();
+      expect(resolveDisplayTheme(state.displayTheme)).toBe('dark');
+      expect(state.effectiveDisplayTheme).toBe('dark');
+    });
+
+    it.each(['system', 'light', 'dark'] as const)(
+      'hydrates a persisted %s display theme',
+      (displayTheme) => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ displayTheme }));
+        const state = new UserPreferencesState();
+        expect(state.displayTheme).toBe(displayTheme);
+      }
+    );
+
+    it('falls back to system when the stored display theme is invalid', () => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ displayTheme: 'sepia' }));
+      const state = new UserPreferencesState();
+      expect(state.displayTheme).toBe('system');
+    });
+
+    it('hydrates the legacy localStorage.theme value when no preference exists', () => {
+      localStorage.setItem('theme', 'dark');
+      const state = new UserPreferencesState();
+      expect(state.displayTheme).toBe('dark');
+    });
+
     it('uses the default sound when storage is empty', () => {
       const state = new UserPreferencesState();
       expect(state.notificationSound).toBe(defaultSoundId);
@@ -124,6 +178,39 @@ describe('UserPreferencesState', () => {
   });
 
   describe('mutation', () => {
+    it.each([
+      {
+        displayTheme: 'light' as const,
+        effectiveTheme: 'light' as const,
+        background: 'rgb(243, 244, 246)'
+      },
+      {
+        displayTheme: 'dark' as const,
+        effectiveTheme: 'dark' as const,
+        background: 'rgb(23, 23, 23)'
+      },
+      {
+        displayTheme: 'system' as const,
+        effectiveTheme: 'dark' as const,
+        background: 'rgb(23, 23, 23)'
+      }
+    ])(
+      'updates, persists, and applies the $displayTheme display theme',
+      ({ displayTheme, effectiveTheme, background }) => {
+        mockSystemTheme('dark');
+        const state = new UserPreferencesState();
+
+        state.displayTheme = displayTheme;
+
+        expect(state.displayTheme).toBe(displayTheme);
+        expect(document.documentElement.dataset.theme).toBe(effectiveTheme);
+        expect(document.documentElement.style.backgroundColor).toBe(background);
+
+        const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
+        expect(stored.displayTheme).toBe(displayTheme);
+      }
+    );
+
     it('updates and persists the notification sound', () => {
       const state = new UserPreferencesState();
       state.notificationSound = 'pop';

@@ -258,6 +258,9 @@
   const editChannelEchoEventId = $derived(
     isEcho ? event.id : (messageEvent?.channelEchoEventId ?? null)
   );
+  const threadRootEventId = $derived(
+    isEcho ? (messageEvent?.echoFromThreadRootEventId ?? null) : event.id
+  );
   const canReconcileChannelEcho = $derived(
     isAuthor &&
       !!editThreadRootEventId &&
@@ -794,6 +797,8 @@
           <MessageMetaBar
             {roomId}
             messageEventId={event.id}
+            serverSegment={serverIdToSegment(getActiveServer())}
+            {threadRootEventId}
             reactions={msg?.reactions ?? []}
             replyCount={messageEvent?.replyCount}
             threadParticipants={messageEvent?.threadParticipants}

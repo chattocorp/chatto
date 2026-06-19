@@ -14,12 +14,17 @@ import {
 } from '$lib/audio/notificationSounds';
 import { Codecs, globalSlot } from '$lib/storage/slot';
 
+export type DisplayTheme = 'system' | 'light' | 'dark';
+type EffectiveTheme = 'light' | 'dark';
+
 interface Preferences {
+  displayTheme: DisplayTheme;
   notificationSound: NotificationSoundId;
   notificationSoundFilters: NotificationSoundFilters;
 }
 
 const defaultPreferences: Preferences = {
+  displayTheme: 'system',
   notificationSound: defaultSoundId,
   notificationSoundFilters: defaultNotificationSoundFilters
 };
@@ -34,6 +39,47 @@ function clampNumber(value: unknown, min: number, max: number, fallback: number)
   if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
   if (value < min || value > max) return fallback;
   return value;
+}
+
+function isDisplayTheme(value: unknown): value is DisplayTheme {
+  return value === 'system' || value === 'light' || value === 'dark';
+}
+
+function getLegacyDisplayTheme(): DisplayTheme | null {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    const legacy = localStorage.getItem('theme');
+    return isDisplayTheme(legacy) && legacy !== 'system' ? legacy : null;
+  } catch {
+    return null;
+  }
+}
+
+function getStoredDisplayTheme(): DisplayTheme | null {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(slot.key);
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (!isRecord(parsed)) return null;
+    return isDisplayTheme(parsed.displayTheme) ? parsed.displayTheme : null;
+  } catch {
+    return null;
+  }
+}
+
+export function resolveDisplayTheme(theme: DisplayTheme): EffectiveTheme {
+  if (theme === 'light' || theme === 'dark') return theme;
+  if (typeof window === 'undefined') return 'light';
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+export function applyDisplayTheme(theme: DisplayTheme): void {
+  if (typeof document === 'undefined') return;
+  const effective = resolveDisplayTheme(theme);
+  const root = document.documentElement;
+  root.dataset.theme = effective;
+  root.style.backgroundColor = effective === 'dark' ? '#171717' : '#f3f4f6';
 }
 
 function normalizeNotificationSoundFilters(value: unknown): NotificationSoundFilters {
@@ -58,9 +104,12 @@ function loadPreferences(): Preferences {
   // Validate that the stored sound ID is still valid — silently fall back
   // to the default if the user migrated away from a sound we no longer ship.
   const isValidSound = notificationSounds.some((s) => s.id === stored.notificationSound);
+  const displayTheme =
+    getStoredDisplayTheme() ?? getLegacyDisplayTheme() ?? defaultPreferences.displayTheme;
   return {
     ...defaultPreferences,
     ...stored,
+    displayTheme,
     notificationSound: isValidSound ? stored.notificationSound : defaultSoundId,
     notificationSoundFilters: normalizeNotificationSoundFilters(stored.notificationSoundFilters)
   };
@@ -68,6 +117,21 @@ function loadPreferences(): Preferences {
 
 export class UserPreferencesState {
   #prefs = $state<Preferences>(loadPreferences());
+
+  get displayTheme(): DisplayTheme {
+    return this.#prefs.displayTheme;
+  }
+
+  set displayTheme(value: DisplayTheme) {
+    const displayTheme = isDisplayTheme(value) ? value : defaultPreferences.displayTheme;
+    this.#prefs.displayTheme = displayTheme;
+    slot.set(this.#prefs);
+    applyDisplayTheme(displayTheme);
+  }
+
+  get effectiveDisplayTheme(): EffectiveTheme {
+    return resolveDisplayTheme(this.#prefs.displayTheme);
+  }
 
   get notificationSound(): NotificationSoundId {
     return this.#prefs.notificationSound;

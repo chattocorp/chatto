@@ -3,6 +3,7 @@
   import { graphql } from '$lib/gql';
   import { TimeFormat } from '$lib/gql/graphql';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
+  import { userPreferences, type DisplayTheme } from '$lib/state/userPreferences.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { PaneHeader, FormSection } from '$lib/ui';
@@ -169,6 +170,28 @@
     }
   }
 
+  const themeOptions: Array<{
+    value: DisplayTheme;
+    label: string;
+    description: string;
+  }> = [
+    {
+      value: 'system',
+      label: 'System',
+      description: 'Follow your browser or OS appearance'
+    },
+    {
+      value: 'light',
+      label: 'Light',
+      description: 'Use the light interface on this browser'
+    },
+    {
+      value: 'dark',
+      label: 'Dark',
+      description: 'Use the dark interface on this browser'
+    }
+  ];
+
   const timeFormatOptions = [
     {
       value: TimeFormat.Auto,
@@ -188,11 +211,47 @@
   ];
 </script>
 
-<PaneHeader title="Display" subtitle="Choose how dates and times appear" showMobileNav />
+<PaneHeader title="Display" subtitle="Choose how Chatto appears" showMobileNav />
 
 <div class="flex flex-col gap-6 overflow-y-auto p-6">
+  <!-- Theme -->
+  <FormSection title="Theme" maxWidth="max-w-md">
+    <div class="flex flex-col gap-2" role="radiogroup" aria-label="Theme">
+      {#each themeOptions as option (option.value)}
+        {@const isSelected = userPreferences.displayTheme === option.value}
+        <button
+          type="button"
+          role="radio"
+          aria-checked={isSelected}
+          class={[
+            'flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors',
+            isSelected
+              ? 'border-accent bg-accent/10'
+              : 'hover:border-border-highlighted border-border hover:bg-surface-100'
+          ]}
+          onclick={() => (userPreferences.displayTheme = option.value)}
+        >
+          <span
+            class={[
+              'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors',
+              isSelected ? 'border-accent bg-accent' : 'border-muted'
+            ]}
+          >
+            {#if isSelected}
+              <span class="h-2 w-2 rounded-full bg-white"></span>
+            {/if}
+          </span>
+          <div>
+            <div class={isSelected ? 'font-medium' : ''}>{option.label}</div>
+            <div class="text-sm text-muted">{option.description}</div>
+          </div>
+        </button>
+      {/each}
+    </div>
+  </FormSection>
+
   <!-- Timezone -->
-  <FormSection title="Timezone" maxWidth="max-w-md">
+  <FormSection title="Timezone" maxWidth="max-w-md" bordered>
     <p class="mb-3 text-sm text-muted">
       Set your timezone to display timestamps in your local time. Leave empty to use your browser's
       default.

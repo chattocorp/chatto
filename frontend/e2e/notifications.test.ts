@@ -227,10 +227,11 @@ test.describe('Thread Reply Notifications (Cascading Indicators)', () => {
     // 3. Navigate to general room and verify thread has notification indicator
     await chatPage.enterRoom('general');
 
-    // The thread indicator button shows "1 reply" and should have orange dot
-    const threadButton = page.getByRole('button', { name: /1 reply/i });
-    await expect(threadButton).toBeVisible();
-    const threadNotificationDot = threadButton.locator('.bg-warning');
+    // The thread indicator is a native link and should have an orange dot.
+    const threadLink = page.getByRole('link', { name: /1 reply/i });
+    await expect(threadLink).toBeVisible();
+    await expect(threadLink).toHaveAttribute('href', /\/chat\/-\/[^/]+\/[^/]+$/);
+    const threadNotificationDot = threadLink.locator('.bg-warning');
     await expect(threadNotificationDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
     // 4. Open the thread - notification should be dismissed
