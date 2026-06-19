@@ -86,7 +86,6 @@ describe('RoomMembersStore', () => {
     expect(store.members.map((member) => member.login)).toEqual(['alice', 'boris', 'cora']);
     expect(store.filteredMembers.map((member) => member.login)).toEqual(['alice', 'boris', 'cora']);
     expect(store.totalCount).toBe(3);
-    expect(store.hasMore).toBe(false);
     expect(store.hasLoaded).toBe(true);
   });
 
@@ -126,28 +125,27 @@ describe('RoomMembersStore', () => {
     }
   });
 
-  it('keeps fetched members when a later eager page fails', async () => {
+  it('does not expose partial members when a later eager page fails', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const fakeClient = new FakeGqlClient([
       pageResult([user('u1', 'alice')], true, 3),
-      { data: null, error: new Error('network failed') },
-      pageResult([user('u3', 'cora')], false, 1)
+      { data: null, error: new Error('network failed') }
     ]);
     const store = new RoomMembersStore(fakeClient as unknown as GraphQLClient);
 
-    store.setRoom('room-1');
-    await store.loadInitial();
+    try {
+      store.setRoom('room-1');
+      await store.loadInitial();
 
-    expect(store.members.map((member) => member.login)).toEqual(['alice']);
-    expect(store.totalCount).toBe(3);
-    expect(store.hasLoaded).toBe(true);
-    expect(store.hasMore).toBe(true);
-
-    store.ensureLoaded();
-    expect(fakeClient.queryMock).toHaveBeenCalledTimes(2);
-
-    const searchResults = await store.searchMembers('cora');
-    expect(searchResults.map((member) => member.login)).toEqual(['cora']);
-    expect(fakeClient.queryMock).toHaveBeenCalledTimes(3);
+      expect(store.members).toEqual([]);
+      expect(store.totalCount).toBe(0);
+      expect(store.hasLoaded).toBe(true);
+      expect(store.filteredMembers).toEqual([]);
+      expect(await store.searchMembers('alice')).toEqual([]);
+      expect(fakeClient.queryMock).toHaveBeenCalledTimes(2);
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
   });
 
   it('refresh clears a stale initial loading state when it invalidates an initial load', async () => {
@@ -161,7 +159,6 @@ describe('RoomMembersStore', () => {
 
     const refreshLoad = store.refresh();
     expect(store.isInitialLoading).toBe(false);
-    expect(store.isLoadingMore).toBe(false);
 
     refresh.resolve(pageResult([user('u2', 'refresh')]));
     await refreshLoad;
@@ -196,6 +193,27 @@ describe('RoomMembersStore', () => {
     ]);
     expect(store.filteredMembers.map((member) => member.login)).toEqual(['refresh-a', 'refresh-b']);
     expect(store.totalCount).toBe(3);
-    expect(store.hasMore).toBe(false);
+  });
+
+  it('preserves the previous complete snapshot when refresh fails mid-load', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const fakeClient = new FakeGqlClient([
+      pageResult([user('u1', 'initial')], false, 1),
+      pageResult([user('u2', 'refresh-a')], true, 3),
+      { data: null, error: new Error('network failed') }
+    ]);
+    const store = new RoomMembersStore(fakeClient as unknown as GraphQLClient);
+
+    try {
+      store.setRoom('room-1');
+      await store.loadInitial();
+      await store.refresh();
+
+      expect(store.members.map((member) => member.login)).toEqual(['initial']);
+      expect(store.totalCount).toBe(1);
+      expect(store.hasLoaded).toBe(true);
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
   });
 });

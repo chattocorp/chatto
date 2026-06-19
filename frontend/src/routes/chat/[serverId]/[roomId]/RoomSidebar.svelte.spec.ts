@@ -346,8 +346,8 @@ describe('RoomSidebar', () => {
   });
 
   it('shows the exact total count and eagerly loads all member pages', async () => {
-    const firstPage = Array.from({ length: 50 }, (_, index) => member(index + 1));
-    const secondPage = Array.from({ length: 92 }, (_, index) => member(index + 51));
+    const firstPage = Array.from({ length: 100 }, (_, index) => member(index + 1));
+    const secondPage = Array.from({ length: 42 }, (_, index) => member(index + 101));
 
     queryMock
       .mockResolvedValueOnce({
@@ -386,14 +386,14 @@ describe('RoomSidebar', () => {
       expect(queryMock).toHaveBeenCalledWith(expect.anything(), {
         roomId: 'room-1',
         search: null,
-        limit: 50,
+        limit: 100,
         offset: 0
       });
       expect(queryMock).toHaveBeenCalledWith(expect.anything(), {
         roomId: 'room-1',
         search: null,
-        limit: 50,
-        offset: 50
+        limit: 100,
+        offset: 100
       });
     });
 
@@ -764,7 +764,7 @@ describe('RoomSidebar', () => {
       await vi.waitFor(() => {
         expect(queryMock).toHaveBeenCalledWith(expect.anything(), {
           roomId: 'room-1',
-          limit: 50,
+          limit: 100,
           offset: 0
         });
         expect(renderedMemberTitles(container)).toEqual(['View profile of Boris Member']);

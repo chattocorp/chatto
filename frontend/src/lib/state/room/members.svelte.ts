@@ -1,6 +1,6 @@
 import type { Client } from '@urql/svelte';
 import { createContext } from 'svelte';
-import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { SvelteMap } from 'svelte/reactivity';
 import { graphql, useFragment } from '$lib/gql';
 import { isUnsupportedGraphQLArgumentError } from '$lib/gql/compatibility';
 import {
@@ -11,7 +11,7 @@ import {
 import type { EventEnvelope } from '$lib/eventBus.svelte';
 import type { GraphQLClient } from '$lib/state/server/graphqlClient.svelte';
 
-export const ROOM_MEMBERS_PAGE_SIZE = 50;
+export const ROOM_MEMBERS_PAGE_SIZE = 100;
 const MENTION_MEMBER_SEARCH_LIMIT = 10;
 
 /**
@@ -86,15 +86,14 @@ function mapPage(connectionData: {
  * The store uses the paginated GraphQL API internally, but room initialization
  * eagerly fills `members` with the complete room member list. Message rendering,
  * mention highlighting, popovers, and moderation checks all treat this as
- * canonical room context, not as a lazy sidebar page.
+ * canonical room context, not as a lazy sidebar page. Partial page results are
+ * never exposed as canonical state.
  */
 export class RoomMembersStore {
   members = $state.raw<RoomMember[]>([]);
   totalCount = $state(0);
-  hasMore = $state(false);
   hasLoaded = $state(false);
   isInitialLoading = $state(false);
-  isLoadingMore = $state(false);
   searchInput = $state('');
   activeSearch = $state('');
   searchUnsupported = $state(false);
@@ -136,11 +135,10 @@ export class RoomMembersStore {
     const loadId = ++this.#loadId;
     this.isInitialLoading = true;
     try {
-      const page = await this.fetchAllPages(0);
+      const page = await this.fetchAllPages();
       if (loadId !== this.#loadId) return;
       this.members = page.members;
       this.totalCount = page.totalCount;
-      this.hasMore = page.hasMore;
       this.hasLoaded = true;
     } catch (error) {
       if (loadId === this.#loadId) {
@@ -154,40 +152,15 @@ export class RoomMembersStore {
     }
   }
 
-  async loadMore(): Promise<void> {
-    if (this.isLoadingMore || !this.hasMore || !this.roomId || !this.client) return;
-    const loadId = this.#loadId;
-    this.isLoadingMore = true;
-    try {
-      const page = await this.fetchAllPages(this.members.length);
-      if (loadId !== this.#loadId) return;
-      const seen = new SvelteSet(this.members.map((member) => member.id));
-      const nextMembers = page.members.filter((member) => !seen.has(member.id));
-      this.members = [...this.members, ...nextMembers];
-      this.totalCount = page.totalCount;
-      this.hasMore = page.hasMore;
-    } catch (error) {
-      if (loadId === this.#loadId) {
-        console.error('Failed to load more room members:', error);
-      }
-    } finally {
-      if (loadId === this.#loadId) {
-        this.isLoadingMore = false;
-      }
-    }
-  }
-
   async refresh(): Promise<void> {
     if (!this.roomId || !this.client) return;
     const loadId = ++this.#loadId;
     this.isInitialLoading = false;
-    this.isLoadingMore = false;
     try {
-      const page = await this.fetchAllPages(0);
+      const page = await this.fetchAllPages();
       if (loadId !== this.#loadId) return;
       this.members = page.members;
       this.totalCount = page.totalCount;
-      this.hasMore = page.hasMore;
       this.hasLoaded = true;
     } catch (error) {
       if (loadId === this.#loadId) {
@@ -197,15 +170,7 @@ export class RoomMembersStore {
   }
 
   async searchMembers(search: string, limit = MENTION_MEMBER_SEARCH_LIMIT): Promise<RoomMember[]> {
-    if (this.hasLoaded && !this.hasMore) return this.filteredLoadedMembers(search, limit);
-    if (!this.roomId || !this.client) return this.filteredLoadedMembers(search, limit);
-    try {
-      const page = await this.fetchPage(0, limit, search);
-      return page.members;
-    } catch (error) {
-      console.error('Failed to search room members:', error);
-      return this.filteredLoadedMembers(search, limit);
-    }
+    return this.filteredLoadedMembers(search, limit);
   }
 
   ingestServerEvent(serverEvent: EventEnvelope): void {
@@ -225,23 +190,14 @@ export class RoomMembersStore {
     this.presenceVersion++;
   }
 
-  private async fetchAllPages(offset: number): Promise<RoomMembersPage> {
+  private async fetchAllPages(): Promise<RoomMembersPage> {
     const members: RoomMember[] = [];
-    let totalCount = this.totalCount;
+    let totalCount = 0;
     let hasMore = true;
-    let nextOffset = offset;
+    let nextOffset = 0;
 
     while (hasMore) {
-      let page: RoomMembersPage;
-      try {
-        page = await this.fetchPage(nextOffset, ROOM_MEMBERS_PAGE_SIZE, '');
-      } catch (error) {
-        if (members.length === 0) {
-          throw error;
-        }
-        return { members, totalCount, hasMore: true };
-      }
-
+      const page = await this.fetchPage(nextOffset, ROOM_MEMBERS_PAGE_SIZE, '');
       members.push(...page.members);
       totalCount = page.totalCount;
       hasMore = page.hasMore;
@@ -309,10 +265,8 @@ export class RoomMembersStore {
     this.#loadId++;
     this.members = [];
     this.totalCount = 0;
-    this.hasMore = false;
     this.hasLoaded = false;
     this.isInitialLoading = false;
-    this.isLoadingMore = false;
     this.searchInput = '';
     this.activeSearch = '';
     this.searchUnsupported = false;
