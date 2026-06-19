@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/core"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
 )
 
@@ -336,6 +337,65 @@ func TestSubscriptionResolver_MyEvents_DeploymentEvents(t *testing.T) {
 				t.Errorf("Expected room ID %s, got %s", env.testRoom.Id, notifCreated.RoomId)
 			}
 			t.Logf("Successfully received notification created event for mention in room %s", notifCreated.RoomId)
+		}
+	})
+
+	t.Run("receive all-message notification with room routing context", func(t *testing.T) {
+		userB, err := env.core.CreateUser(env.ctx, "system", "all-message-poster", "All Message Poster", "password123")
+		if err != nil {
+			t.Fatalf("Failed to create user B: %v", err)
+		}
+		_, err = env.core.JoinRoom(env.ctx, userB.Id, core.KindChannel, userB.Id, env.testRoom.Id)
+		if err != nil {
+			t.Fatalf("Failed to join room: %v", err)
+		}
+		if err := env.core.SetRoomNotificationLevel(
+			env.ctx,
+			env.testUser.Id,
+			env.testRoom.Id,
+			corev1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES,
+		); err != nil {
+			t.Fatalf("SetRoomNotificationLevel: %v", err)
+		}
+
+		subCtx, cancel := context.WithTimeout(env.authContext(), 10*time.Second)
+		defer cancel()
+
+		eventChan, err := env.resolver.Subscription().MyEvents(subCtx)
+		if err != nil {
+			t.Fatalf("Unexpected error subscribing: %v", err)
+		}
+
+		time.Sleep(200 * time.Millisecond)
+
+		posted, err := env.core.PostMessage(
+			env.ctx,
+			core.KindChannel,
+			env.testRoom.Id,
+			userB.Id,
+			"Plain all-message notification trigger",
+			nil,
+			"",
+			"",
+			nil,
+			false,
+		)
+		if err != nil {
+			t.Fatalf("PostMessage: %v", err)
+		}
+
+		event := testutil.WaitForValue(t, eventChan, 2*time.Second, "all-message notification created event", func(event core.EventEnvelope) bool {
+			return event != nil && core.EventNotificationCreated(event) != nil
+		})
+		notifCreated := core.EventNotificationCreated(event)
+		if notifCreated.NotificationId == "" {
+			t.Error("Expected notification ID to be set")
+		}
+		if notifCreated.RoomId != env.testRoom.Id {
+			t.Errorf("Expected room ID %s, got %s", env.testRoom.Id, notifCreated.RoomId)
+		}
+		if notifCreated.EventId != posted.Id {
+			t.Errorf("Expected event ID %s, got %s", posted.Id, notifCreated.EventId)
 		}
 	})
 }

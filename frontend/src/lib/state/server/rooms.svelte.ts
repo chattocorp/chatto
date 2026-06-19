@@ -214,6 +214,7 @@ export class RoomsStore {
   currentUserId = $state<string | null>(null);
 
   private loadId = 0;
+  private notificationCountsLoadId = 0;
 
   constructor(
     private readonly client: Client,
@@ -272,7 +273,7 @@ export class RoomsStore {
         }))
       ];
       this.roomUnread.initRooms([...visibleChannels, ...visibleDms]);
-      void this.refreshNotificationCounts(thisLoad);
+      void this.refreshNotificationCounts();
 
       if (result.data.server.roomGroups) {
         type SetT = (typeof result.data.server.roomGroups)[number];
@@ -290,10 +291,15 @@ export class RoomsStore {
     this.isInitialLoading = false;
   }
 
-  private async refreshNotificationCounts(loadId: number): Promise<void> {
+  async refreshNotificationCounts(): Promise<void> {
+    const loadId = this.loadId;
+    const notificationCountsLoadId = ++this.notificationCountsLoadId;
+
     try {
       const result = await this.client.query(MyRoomNotificationCountsQuery, {}).toPromise();
-      if (this.loadId !== loadId) return;
+      if (this.loadId !== loadId || this.notificationCountsLoadId !== notificationCountsLoadId) {
+        return;
+      }
 
       if (result.error) {
         if (!isUnsupportedGraphQLFieldError(result.error, 'viewerNotifications')) {
@@ -315,7 +321,9 @@ export class RoomsStore {
         }));
       });
     } catch (err) {
-      console.warn('failed to load room notification counts', err);
+      if (this.loadId === loadId && this.notificationCountsLoadId === notificationCountsLoadId) {
+        console.warn('failed to load room notification counts', err);
+      }
     }
   }
 

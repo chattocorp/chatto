@@ -142,6 +142,52 @@ test.describe('Mention Notifications', () => {
   });
 });
 
+test.describe('All Messages Notifications', () => {
+  test('plain room messages show room and server notification badges for ALL_MESSAGES subscribers', async ({
+    page,
+    chatPage,
+    notificationsPage,
+    browser,
+    serverURL
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+
+    await page.goto(routes.settingsNotifications);
+    await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible();
+
+    const generalNotificationRow = page.getByTestId('room-notification-general');
+    await expect(generalNotificationRow).toBeVisible();
+    await generalNotificationRow.locator('select').selectOption('ALL_MESSAGES');
+    await expect(page.getByText('Room notification level updated')).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
+
+    await chatPage.goto();
+    await chatPage.enterRoom('announcements');
+
+    const generalLink = chatPage.roomList.locator('a', { hasText: '# general' });
+    const roomNotificationBadge = generalLink.getByTestId('room-notification-badge');
+    await expect(roomNotificationBadge).not.toBeVisible();
+
+    await withServerUser(browser!, serverURL, async ({ chatPage, roomPage }) => {
+      await chatPage.enterRoom('general');
+      await roomPage.sendMessage(`plain all-messages notification ${Date.now()}`);
+    });
+
+    await expect(roomNotificationBadge).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+    await expect(roomNotificationBadge).toHaveText('1');
+
+    const notificationBadge = serverNotificationBadge(page);
+    await expect(notificationBadge).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+    await expect(notificationBadge).toHaveText('1');
+
+    await notificationsPage.goto();
+    const notification = notificationsPage.getNotificationBySummary('posted a message');
+    await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+  });
+});
+
 test.describe('Thread Reply Notifications (Cascading Indicators)', () => {
   test('thread reply shows indicators on thread, room, and server', async ({
     page,
