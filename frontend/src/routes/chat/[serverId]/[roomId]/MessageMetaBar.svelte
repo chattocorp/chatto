@@ -22,6 +22,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
 -->
 <script lang="ts">
   import { resolve } from '$app/paths';
+  import { on } from 'svelte/events';
   import type { RoomEventViewFragment } from '$lib/gql/graphql';
   import UserAvatar, { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
@@ -119,6 +120,24 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
     e.preventDefault();
     onOpenThread?.();
   }
+
+  function stopMessageGesturePropagation(e: Event) {
+    e.stopPropagation();
+  }
+
+  function threadLinkGestureBoundary(el: HTMLAnchorElement) {
+    const removeTouchStart = on(el, 'touchstart', stopMessageGesturePropagation, {
+      capture: true
+    });
+    const removeMouseDown = on(el, 'mousedown', stopMessageGesturePropagation, {
+      capture: true
+    });
+
+    return () => {
+      removeTouchStart();
+      removeMouseDown();
+    };
+  }
 </script>
 
 <div class="mt-1 flex flex-wrap items-center gap-1">
@@ -132,6 +151,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
       })}
       class="{baseButtonClass} gap-2 border-transparent px-2 text-xs"
       onclick={openThreadFromLink}
+      {@attach threadLinkGestureBoundary}
     >
       <span class="iconify uil--corner-up-right"></span>
       <span>Thread</span>
@@ -148,6 +168,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
       })}
       class="{baseButtonClass} gap-2 border-transparent px-2 text-xs"
       onclick={openThreadFromLink}
+      {@attach threadLinkGestureBoundary}
     >
       <span class="iconify uil--comment-alt-lines"></span>
       {#if threadParticipants && threadParticipants.length > 0}

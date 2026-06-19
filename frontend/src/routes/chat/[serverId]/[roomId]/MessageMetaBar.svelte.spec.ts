@@ -110,6 +110,31 @@ describe('MessageMetaBar', () => {
     expect(onOpenThread).not.toHaveBeenCalled();
   });
 
+  it('does not bubble press-start gestures to the message row', () => {
+    const { container } = render(MessageMetaBar, {
+      props: {
+        ...baseProps,
+        replyCount: 1
+      }
+    });
+    const touchStart = vi.fn();
+    const mouseDown = vi.fn();
+    container.addEventListener('touchstart', touchStart);
+    container.addEventListener('mousedown', mouseDown);
+
+    const link = q(container, 'a[href="/chat/-/room-1/thread-1"]') as HTMLAnchorElement;
+    const touchEvent = new Event('touchstart', { bubbles: true, cancelable: true });
+    const mouseEvent = new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 });
+
+    expect(link.dispatchEvent(touchEvent)).toBe(true);
+    expect(touchEvent.defaultPrevented).toBe(false);
+    expect(touchStart).not.toHaveBeenCalled();
+
+    expect(link.dispatchEvent(mouseEvent)).toBe(true);
+    expect(mouseEvent.defaultPrevented).toBe(false);
+    expect(mouseDown).not.toHaveBeenCalled();
+  });
+
   it('keeps follow toggles as buttons', () => {
     const { container } = render(MessageMetaBar, {
       props: {
