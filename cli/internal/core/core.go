@@ -974,37 +974,43 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	// wrapped DEK records live in RUNTIME_STATE so normal backups keep encrypted
 	// content together with its wrapped content-key registry, but not the KEKs
 	// needed to unwrap it.
-	encryptionKV, err := createOrUpdateKeyValueWithStoreRetry(ctx, js, jetstream.KeyValueConfig{
-		Bucket:      "ENCRYPTION_KEYS",
-		Description: "KMS key-encryption keys (excluded from backups)",
-		Storage:     jetstream.FileStorage,
-		History:     1,
-		Replicas:    cfg.Replicas,
+	encryptionKV, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.KeyValue, error) {
+		return js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
+			Bucket:      "ENCRYPTION_KEYS",
+			Description: "KMS key-encryption keys (excluded from backups)",
+			Storage:     jetstream.FileStorage,
+			History:     1,
+			Replicas:    cfg.Replicas,
+		})
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ENCRYPTION_KEYS KV bucket: %w", err)
 	}
 
-	runtimeStateKV, err := createOrUpdateKeyValueWithStoreRetry(ctx, js, jetstream.KeyValueConfig{
-		Bucket:         "RUNTIME_STATE",
-		Description:    "Persisted latest-value runtime/user state",
-		Storage:        jetstream.FileStorage,
-		History:        1,
-		Compression:    true,
-		Replicas:       cfg.Replicas,
-		LimitMarkerTTL: 24 * time.Hour,
+	runtimeStateKV, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.KeyValue, error) {
+		return js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
+			Bucket:         "RUNTIME_STATE",
+			Description:    "Persisted latest-value runtime/user state",
+			Storage:        jetstream.FileStorage,
+			History:        1,
+			Compression:    true,
+			Replicas:       cfg.Replicas,
+			LimitMarkerTTL: 24 * time.Hour,
+		})
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create RUNTIME_STATE KV bucket: %w", err)
 	}
 
-	memoryCacheKV, err := createOrUpdateKeyValueWithStoreRetry(ctx, js, jetstream.KeyValueConfig{
-		Bucket:         "MEMORY_CACHE",
-		Description:    "Volatile memory-backed runtime cache state",
-		Storage:        jetstream.MemoryStorage,
-		History:        1,
-		Replicas:       cfg.Replicas,
-		LimitMarkerTTL: PresenceTTL,
+	memoryCacheKV, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.KeyValue, error) {
+		return js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
+			Bucket:         "MEMORY_CACHE",
+			Description:    "Volatile memory-backed runtime cache state",
+			Storage:        jetstream.MemoryStorage,
+			History:        1,
+			Replicas:       cfg.Replicas,
+			LimitMarkerTTL: PresenceTTL,
+		})
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create MEMORY_CACHE KV bucket: %w", err)
@@ -1013,25 +1019,29 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	// Initialize image cache object store (optional, only when enabled)
 	var imageCacheStore jetstream.ObjectStore
 	if cfg.Assets.Cache.Enabled {
-		imageCacheStore, err = js.CreateOrUpdateObjectStore(ctx, jetstream.ObjectStoreConfig{
-			Bucket:      "ASSET_CACHE",
-			Description: "Cached resized images",
-			Storage:     jetstream.FileStorage,
-			Compression: true,
-			TTL:         cfg.Assets.Cache.TTLOrDefault(),
-			Replicas:    cfg.Replicas,
+		imageCacheStore, err = createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.ObjectStore, error) {
+			return js.CreateOrUpdateObjectStore(ctx, jetstream.ObjectStoreConfig{
+				Bucket:      "ASSET_CACHE",
+				Description: "Cached resized images",
+				Storage:     jetstream.FileStorage,
+				Compression: true,
+				TTL:         cfg.Assets.Cache.TTLOrDefault(),
+				Replicas:    cfg.Replicas,
+			})
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to create ASSET_CACHE object store: %w", err)
 		}
 	}
 
-	serverAssets, err := js.CreateOrUpdateObjectStore(ctx, jetstream.ObjectStoreConfig{
-		Bucket:      "SERVER_ASSETS",
-		Description: "Server asset binaries (avatars, branding, link previews, attachments)",
-		Storage:     jetstream.FileStorage,
-		Compression: true,
-		Replicas:    cfg.Replicas,
+	serverAssets, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.ObjectStore, error) {
+		return js.CreateOrUpdateObjectStore(ctx, jetstream.ObjectStoreConfig{
+			Bucket:      "SERVER_ASSETS",
+			Description: "Server asset binaries (avatars, branding, link previews, attachments)",
+			Storage:     jetstream.FileStorage,
+			Compression: true,
+			Replicas:    cfg.Replicas,
+		})
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create SERVER_ASSETS object store: %w", err)
@@ -1041,23 +1051,25 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	// Subjects are evt.{aggregateType}.{aggregateId}.{eventType}; live.evt.> is
 	// the republish target so projections and live subscribers consume
 	// from a single NATS Core path.
-	serverEvtStream, err := js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
-		Name:        "EVT",
-		Description: "Event-sourcing log (ADR-033)",
-		Subjects:    []string{"evt.>"},
-		Storage:     jetstream.FileStorage,
-		Compression: jetstream.S2Compression,
-		Replicas:    cfg.Replicas,
-		// AllowAtomicPublish gates the Nats-Batch-Id / Nats-Batch-Commit
-		// protocol on this stream. Used by Publisher.AppendBatch to
-		// land multi-aggregate cascades (MoveRoomToGroup, DM creation)
-		// adjacently in stream order so projections never observe an
-		// intermediate state that breaks an invariant.
-		AllowAtomicPublish: true,
-		RePublish: &jetstream.RePublish{
-			Source:      "evt.>",
-			Destination: "live.evt.>",
-		},
+	serverEvtStream, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.Stream, error) {
+		return js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
+			Name:        "EVT",
+			Description: "Event-sourcing log (ADR-033)",
+			Subjects:    []string{"evt.>"},
+			Storage:     jetstream.FileStorage,
+			Compression: jetstream.S2Compression,
+			Replicas:    cfg.Replicas,
+			// AllowAtomicPublish gates the Nats-Batch-Id / Nats-Batch-Commit
+			// protocol on this stream. Used by Publisher.AppendBatch to
+			// land multi-aggregate cascades (MoveRoomToGroup, DM creation)
+			// adjacently in stream order so projections never observe an
+			// intermediate state that breaks an invariant.
+			AllowAtomicPublish: true,
+			RePublish: &jetstream.RePublish{
+				Source:      "evt.>",
+				Destination: "live.evt.>",
+			},
+		})
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create EVT stream: %w", err)
@@ -1073,37 +1085,44 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	}, nil
 }
 
-func createOrUpdateKeyValueWithStoreRetry(ctx context.Context, js jetstream.JetStream, cfg jetstream.KeyValueConfig) (jetstream.KeyValue, error) {
-	const attempts = 5
-	var err error
-	for attempt := 0; attempt < attempts; attempt++ {
-		var kv jetstream.KeyValue
-		kv, err = js.CreateOrUpdateKeyValue(ctx, cfg)
+func createJetStreamResourceWithRetry[T any](ctx context.Context, create func(context.Context) (T, error)) (T, error) {
+	const maxAttempts = 3
+
+	var zero T
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		resource, err := create(ctx)
 		if err == nil {
-			return kv, nil
+			return resource, nil
 		}
-		if !isTransientJetStreamStoreCreateError(err) || attempt == attempts-1 {
-			return nil, err
+		if attempt == maxAttempts || !isTransientJetStreamStoreCreateError(err) {
+			return zero, err
 		}
 
-		timer := time.NewTimer(time.Duration(attempt+1) * 25 * time.Millisecond)
+		timer := time.NewTimer(time.Duration(attempt) * 25 * time.Millisecond)
 		select {
 		case <-ctx.Done():
 			timer.Stop()
-			return nil, ctx.Err()
+			return zero, ctx.Err()
 		case <-timer.C:
 		}
 	}
-	return nil, err
+
+	return zero, nil
 }
 
 func isTransientJetStreamStoreCreateError(err error) bool {
-	if err == nil {
+	type apiErrorProvider interface {
+		APIError() *jetstream.APIError
+	}
+
+	var provider apiErrorProvider
+	if !errors.As(err, &provider) {
 		return false
 	}
-	msg := err.Error()
-	return strings.Contains(msg, "err_code=10049") ||
-		strings.Contains(msg, "error creating store for stream")
+	apiErr := provider.APIError()
+	return apiErr != nil &&
+		apiErr.ErrorCode == 10049 &&
+		strings.Contains(apiErr.Description, "error creating store for stream")
 }
 
 // ============================================================================

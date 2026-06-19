@@ -134,6 +134,16 @@ to the user settings page for the active server.
         </button>
         <button
           type="button"
+          class={voiceCallState.isScreenShareEnabled ? compactCallButtonClass : compactCallDangerButtonClass}
+          title={voiceCallState.isScreenShareEnabled ? 'Stop sharing screen' : 'Share screen'}
+          aria-label={voiceCallState.isScreenShareEnabled ? 'Stop sharing screen' : 'Share screen'}
+          data-testid="current-user-call-screen-share"
+          onclick={() => voiceCallState.toggleScreenShare()}
+        >
+          <span class="iconify uil--desktop" aria-hidden="true"></span>
+        </button>
+        <button
+          type="button"
           class={compactCallDangerButtonClass}
           title="Leave call"
           aria-label="Leave call"

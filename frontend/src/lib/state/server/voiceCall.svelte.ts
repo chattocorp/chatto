@@ -3,7 +3,7 @@
  *
  * Per-instance class that wraps livekit-client's Room instance.
  * Handles joining/leaving calls, mute toggle, camera toggle,
- * and audio/video device selection.
+ * screen share toggle, and audio/video device selection.
  */
 
 import {
@@ -20,6 +20,7 @@ import {
 import { graphql } from '$lib/gql';
 import type { Client } from '@urql/svelte';
 import { toast } from '$lib/ui/toast';
+import { playCallSound } from '$lib/audio/callSounds';
 
 export type CallParticipantInfo = {
   identity: string;
@@ -31,6 +32,8 @@ export type CallParticipantInfo = {
   connectionQuality: 'excellent' | 'good' | 'poor' | 'lost' | 'unknown';
   isCameraEnabled: boolean;
   videoTrack: Track | null;
+  isScreenShareEnabled: boolean;
+  screenShareTrack: Track | null;
 };
 
 /** Non-reactive audio level snapshot, read imperatively by the UI at ~60ms. */
@@ -39,11 +42,48 @@ export type AudioLevelInfo = {
   audioLevel: number;
 };
 
+export type CallTransitionSoundDecision = 'play' | 'defer' | 'skip';
+
 /** Metadata embedded in the LiveKit token by the backend. */
 type ParticipantMetadata = {
   login?: string;
   avatarUrl?: string;
 };
+
+const genericJoinFailureMessage = 'Failed to join voice call';
+const unsupportedEncryptedCallMessage =
+  'This browser does not support encrypted voice calls yet. Try the latest Firefox, Chrome, or Edge.';
+const signalingFailureMessage =
+  'Could not reach the voice server. Check your network and try again.';
+const RECENTLY_DISCONNECTED_CALL_SOUND_MS = 5_000;
+
+export class VoiceCallJoinError extends Error {
+  readonly userMessage: string;
+  readonly cause?: unknown;
+
+  constructor(message: string, userMessage: string, cause?: unknown) {
+    super(message);
+    this.name = 'VoiceCallJoinError';
+    this.userMessage = userMessage;
+    this.cause = cause;
+  }
+}
+
+export function getVoiceCallJoinErrorMessage(err: unknown): string {
+  if (err instanceof VoiceCallJoinError) return err.userMessage;
+
+  const message = errorMessage(err);
+  if (
+    /signal connection|serverunreachable|websocket|web socket|abort handler/i.test(message)
+  ) {
+    return signalingFailureMessage;
+  }
+  if (/e2ee|cryptor|encoded transform|insertable stream/i.test(message)) {
+    return unsupportedEncryptedCallMessage;
+  }
+
+  return genericJoinFailureMessage;
+}
 
 const VoiceCallTokenQuery = graphql(`
   query GetVoiceCallToken($roomId: ID!) {
@@ -84,6 +124,7 @@ export class VoiceCallState {
 
   // Video state — camera is always disabled by default
   isCameraEnabled = $state(false);
+  isScreenShareEnabled = $state(false);
 
   // Participants (including local)
   participants = $state<CallParticipantInfo[]>([]);
@@ -103,6 +144,19 @@ export class VoiceCallState {
   // Internal LiveKit room instance
   private room: Room | null = null;
   private activeCallId: string | null = null;
+  private pendingOwnJoinSound:
+    | {
+        roomId: string;
+        callId: string;
+      }
+    | null = null;
+  private recentlyDisconnectedCall:
+    | {
+        roomId: string;
+        callId: string;
+        disconnectedAt: number;
+      }
+    | null = null;
   private joinInFlight: Promise<void> | null = null;
   private joinInFlightRoomId: string | null = null;
   private leaveInFlight: Promise<void> | null = null;
@@ -110,8 +164,7 @@ export class VoiceCallState {
   private audioLevelInterval: ReturnType<typeof setInterval> | null = null;
   private suppressDisconnectToast = false;
 
-  // Non-reactive audio level cache — updated at 60ms by the polling interval,
-  // read imperatively by VoiceCallPanel to drive the speaking ring animation.
+  // Non-reactive audio level cache — updated at 60ms by the polling interval.
   // Deliberately NOT $state to avoid triggering Svelte reactivity at 60Hz.
   // eslint-disable-next-line svelte/prefer-svelte-reactivity -- deliberately non-reactive, polled imperatively at 60Hz
   private audioLevelCache = new Map<string, AudioLevelInfo>();
@@ -133,6 +186,48 @@ export class VoiceCallState {
    */
   isInCall(roomId: string): boolean {
     return this.connected && this.roomId === roomId;
+  }
+
+  matchesActiveCall(roomId: string, callId: string | null): boolean {
+    return (
+      this.connected &&
+      this.roomId === roomId &&
+      callId !== null &&
+      this.activeCallId === callId
+    );
+  }
+
+  /**
+   * Whether a durable call transition event should be audible to this client.
+   *
+   * Remote transitions only play while the viewer is actively connected to
+   * the same call. The viewer's own join can arrive before LiveKit finishes
+   * connecting, so it is deferred until connect succeeds. The viewer's own
+   * leave can arrive just after local cleanup, so a short recently-left
+   * window keeps that event audible without leaking sounds to bystanders.
+   */
+  callTransitionSoundDecision(
+    kind: 'join' | 'leave',
+    roomId: string,
+    callId: string | null,
+    actorIsCurrentUser: boolean
+  ): CallTransitionSoundDecision {
+    if (!callId) return 'skip';
+
+    if (this.matchesActiveCall(roomId, callId)) return 'play';
+
+    if (!actorIsCurrentUser) return 'skip';
+
+    if (kind === 'join' && this.roomId === roomId && this.connecting) {
+      this.pendingOwnJoinSound = { roomId, callId };
+      return 'defer';
+    }
+
+    if (kind === 'leave' && this.matchesRecentlyDisconnectedCall(roomId, callId)) {
+      return 'play';
+    }
+
+    return 'skip';
   }
 
   /**
@@ -180,6 +275,8 @@ export class VoiceCallState {
   }
 
   private async performJoin(livekitUrl: string, roomId: string): Promise<void> {
+    assertLiveKitE2EESupported();
+
     // Leave existing call first
     if (this.connected) {
       await this.leave();
@@ -259,8 +356,11 @@ export class VoiceCallState {
       this.connected = true;
       this.updateParticipants();
       await this.refreshDevices();
+      if (this.consumePendingOwnJoinSound()) {
+        void playCallSound('join');
+      }
     } catch (err) {
-      console.error('Failed to join voice call:', err);
+      console.error('Failed to join voice call:', summarizeJoinError(err));
       if (joinIntentRecorded) {
         await this.recordLeaveIntent(roomId);
       }
@@ -373,6 +473,22 @@ export class VoiceCallState {
     } catch {
       // Permission denied or no camera available — keep current state
       this.isCameraEnabled = false;
+    }
+    this.updateParticipants();
+  }
+
+  /**
+   * Toggle video-only screen/window/tab sharing.
+   */
+  async toggleScreenShare(): Promise<void> {
+    if (!this.room) return;
+
+    const newEnabled = !this.isScreenShareEnabled;
+    try {
+      await this.room.localParticipant.setScreenShareEnabled(newEnabled);
+      this.isScreenShareEnabled = newEnabled;
+    } catch {
+      this.isScreenShareEnabled = newEnabled ? false : this.isScreenShareEnabled;
     }
     this.updateParticipants();
   }
@@ -515,9 +631,16 @@ export class VoiceCallState {
       this.updateParticipants();
     });
 
-    // Poll audio levels at ~60ms for smooth visual feedback.
-    // ActiveSpeakersChanged fires at ~100ms which is slightly too coarse
-    // for buttery equalizer animation.
+    this.room.on(RoomEvent.LocalTrackPublished, () => {
+      this.updateParticipants();
+    });
+
+    this.room.on(RoomEvent.LocalTrackUnpublished, () => {
+      this.updateParticipants();
+    });
+
+    // Keep audio level snapshots fresh for call UI consumers without pushing
+    // 60Hz updates through Svelte's reactive graph.
     this.audioLevelInterval = setInterval(() => {
       this.updateAudioLevels();
     }, 60);
@@ -533,6 +656,8 @@ export class VoiceCallState {
       this.room.localParticipant,
       ...Array.from(this.room.remoteParticipants.values())
     ];
+    this.isCameraEnabled = isParticipantCameraEnabled(this.room.localParticipant);
+    this.isScreenShareEnabled = isParticipantScreenShareEnabled(this.room.localParticipant);
 
     this.participants = allParticipants.map((p) => {
       const md = parseParticipantMetadata(p.metadata);
@@ -545,7 +670,9 @@ export class VoiceCallState {
         isLocal: p === this.room!.localParticipant,
         connectionQuality: p.connectionQuality as CallParticipantInfo['connectionQuality'],
         isCameraEnabled: isParticipantCameraEnabled(p),
-        videoTrack: getParticipantVideoTrack(p)
+        videoTrack: getParticipantCameraTrack(p),
+        isScreenShareEnabled: isParticipantScreenShareEnabled(p),
+        screenShareTrack: getParticipantScreenShareTrack(p)
       };
     });
   }
@@ -553,7 +680,7 @@ export class VoiceCallState {
   /**
    * Update the non-reactive audio level cache. Called at ~60ms.
    * Writes to a plain Map (not $state) so Svelte's reactive graph is
-   * completely untouched — the UI reads this imperatively via getAudioLevel().
+   * completely untouched.
    */
   private updateAudioLevels(): void {
     if (!this.room) return;
@@ -634,6 +761,10 @@ export class VoiceCallState {
   }
 
   private cleanup(): void {
+    const disconnectedRoomId = this.roomId;
+    const disconnectedCallId = this.activeCallId;
+    const wasConnected = this.connected;
+
     if (this.audioLevelInterval) {
       clearInterval(this.audioLevelInterval);
       this.audioLevelInterval = null;
@@ -651,7 +782,15 @@ export class VoiceCallState {
     }
     this.e2eeWorker?.terminate();
     this.e2eeWorker = null;
+    if (wasConnected && disconnectedRoomId && disconnectedCallId) {
+      this.recentlyDisconnectedCall = {
+        roomId: disconnectedRoomId,
+        callId: disconnectedCallId,
+        disconnectedAt: Date.now()
+      };
+    }
     this.activeCallId = null;
+    this.pendingOwnJoinSound = null;
     this.joinInFlight = null;
     this.joinInFlightRoomId = null;
     this.suppressDisconnectToast = false;
@@ -660,6 +799,7 @@ export class VoiceCallState {
     this.roomId = null;
     this.isMuted = false;
     this.isCameraEnabled = false;
+    this.isScreenShareEnabled = false;
     this.participants = [];
     this.audioDevices = [];
     this.selectedDeviceId = null;
@@ -668,6 +808,23 @@ export class VoiceCallState {
     this.videoDevices = [];
     this.selectedVideoDeviceId = null;
     this.audioLevelCache.clear();
+  }
+
+  private consumePendingOwnJoinSound(): boolean {
+    const pending = this.pendingOwnJoinSound;
+    if (!pending) return false;
+    this.pendingOwnJoinSound = null;
+    return this.matchesActiveCall(pending.roomId, pending.callId);
+  }
+
+  private matchesRecentlyDisconnectedCall(roomId: string, callId: string): boolean {
+    const recentlyDisconnectedCall = this.recentlyDisconnectedCall;
+    if (!recentlyDisconnectedCall) return false;
+    if (Date.now() - recentlyDisconnectedCall.disconnectedAt > RECENTLY_DISCONNECTED_CALL_SOUND_MS) {
+      this.recentlyDisconnectedCall = null;
+      return false;
+    }
+    return recentlyDisconnectedCall.roomId === roomId && recentlyDisconnectedCall.callId === callId;
   }
 }
 
@@ -700,11 +857,70 @@ function isParticipantCameraEnabled(participant: Participant): boolean {
   return false;
 }
 
-function getParticipantVideoTrack(participant: Participant): Track | null {
+function getParticipantCameraTrack(participant: Participant): Track | null {
   for (const pub of participant.getTrackPublications()) {
     if (pub.track?.source === Track.Source.Camera && !pub.isMuted) {
       return pub.track;
     }
   }
   return null;
+}
+
+function isParticipantScreenShareEnabled(participant: Participant): boolean {
+  for (const pub of participant.getTrackPublications()) {
+    if (pub.track?.source === Track.Source.ScreenShare) {
+      return !pub.isMuted;
+    }
+  }
+  return false;
+}
+
+function getParticipantScreenShareTrack(participant: Participant): Track | null {
+  for (const pub of participant.getTrackPublications()) {
+    if (pub.track?.source === Track.Source.ScreenShare && !pub.isMuted) {
+      return pub.track;
+    }
+  }
+  return null;
+}
+
+function assertLiveKitE2EESupported(): void {
+  const globals = globalThis as typeof globalThis & Record<string, unknown>;
+  const senderCtor = globals.RTCRtpSender as { prototype?: object } | undefined;
+  const senderProto = senderCtor?.prototype as Record<string, unknown> | undefined;
+  const hasEncodedTransform =
+    typeof globals.RTCRtpScriptTransform === 'function' ||
+    typeof senderProto?.createEncodedStreams === 'function';
+
+  if (
+    typeof globals.Worker !== 'function' ||
+    typeof globals.TransformStream !== 'function' ||
+    typeof globals.ReadableStream !== 'function' ||
+    typeof globals.WritableStream !== 'function' ||
+    !globals.crypto ||
+    typeof globals.crypto !== 'object' ||
+    !('subtle' in globals.crypto) ||
+    !hasEncodedTransform
+  ) {
+    throw new VoiceCallJoinError(
+      'LiveKit E2EE is not supported by this browser',
+      unsupportedEncryptedCallMessage
+    );
+  }
+}
+
+function summarizeJoinError(err: unknown): string {
+  return redactSensitiveUrlParts(errorMessage(err));
+}
+
+function errorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  return String(err);
+}
+
+function redactSensitiveUrlParts(message: string): string {
+  return message
+    .replace(/access_token=([^&\s]+)/gi, 'access_token=<redacted>')
+    .replace(/join_request=([^&\s]+)/gi, 'join_request=<redacted>')
+    .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, '<jwt-redacted>');
 }

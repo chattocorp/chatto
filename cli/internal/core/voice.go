@@ -20,6 +20,11 @@ type VoiceCallToken struct {
 	CallID  string
 }
 
+// VoiceCallTokenTTL gives browser clients enough time for E2EE worker setup,
+// permission prompts, and a signaling retry without making leaked join tokens
+// long-lived.
+const VoiceCallTokenTTL = 5 * time.Minute
+
 // participantMetadata is serialized as JSON and stored in the LiveKit token's
 // metadata field so the frontend can display avatars without extra queries.
 // Also used to parse metadata from LiveKit webhook participant info.
@@ -97,7 +102,7 @@ func GenerateVoiceCallToken(apiKey, apiSecret, roomName, userID, displayName, lo
 	at.SetVideoGrant(grant).
 		SetIdentity(userID).
 		SetName(displayName).
-		SetValidFor(30 * time.Second)
+		SetValidFor(VoiceCallTokenTTL)
 
 	md, err := json.Marshal(participantMetadata{Login: login, AvatarURL: avatarURL})
 	if err != nil {
