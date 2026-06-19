@@ -308,9 +308,9 @@
     <CreateRoom onroomcreated={(roomId) => handleRoomCreated(roomId)} />
   </Dialog>
 {:else if modalType === 'logout'}
-  <Dialog visible title="Sign Out" size="sm" onclose={closeModal}>
+  <Dialog visible title="Sign Out" size="md" onclose={closeModal}>
     {#snippet footer()}
-      <div class="flex justify-end gap-2">
+      <div class="flex flex-wrap justify-end gap-2">
         <Button variant="secondary" onclick={closeModal}>Cancel</Button>
         <Button
           variant="accent"

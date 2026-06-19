@@ -1,8 +1,16 @@
 import type { RegisteredServer } from '$lib/state/server/registry.svelte';
 import { csrfFetch } from './csrf';
 
+export const SIGN_OUT_TIMEOUT_MS = 5000;
+
 function logoutUrl(server: RegisteredServer): string {
 	return new URL('/auth/logout', server.url).toString();
+}
+
+function withSignOutTimeout<T>(request: (signal: AbortSignal) => Promise<T>): Promise<T> {
+	const controller = new AbortController();
+	const timeoutId = setTimeout(() => controller.abort(), SIGN_OUT_TIMEOUT_MS);
+	return request(controller.signal).finally(() => clearTimeout(timeoutId));
 }
 
 /**
@@ -15,16 +23,18 @@ export function signOutServer(server: RegisteredServer, isOriginServer: boolean)
 	const headers = server.token ? { Authorization: `Bearer ${server.token}` } : undefined;
 
 	if (isOriginServer) {
-		return csrfFetch('/auth/logout', {
+		return withSignOutTimeout((signal) => csrfFetch('/auth/logout', {
 			method: 'POST',
-			headers
-		});
+			headers,
+			signal
+		}));
 	}
 
-	return fetch(logoutUrl(server), {
+	return withSignOutTimeout((signal) => fetch(logoutUrl(server), {
 		method: 'POST',
-		headers
-	});
+		headers,
+		signal
+	}));
 }
 
 export async function signOutServers(
