@@ -3,6 +3,13 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.3.6](https://github.com/chattocorp/chatto/compare/v0.3.5...v0.3.6) (2026-06-19)
+
+
+### Performance Improvements
+
+* reduce room timeline projection retention ([#1016](https://github.com/chattocorp/chatto/issues/1016)) ([dd779b7](https://github.com/chattocorp/chatto/commit/dd779b7752fea58c0383fe81cec60a6689a8da35))
+
 ## [0.3.5](https://github.com/chattocorp/chatto/compare/v0.3.4...v0.3.5) (2026-06-19)
 
 
