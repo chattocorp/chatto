@@ -3,6 +3,19 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.3.2](https://github.com/chattocorp/chatto/compare/v0.3.1...v0.3.2) (2026-06-19)
+
+
+### Features
+
+* monitor projection startup duration ([#1004](https://github.com/chattocorp/chatto/issues/1004)) ([3c6083c](https://github.com/chattocorp/chatto/commit/3c6083ca095ea8a3ce6dd86850f97ec3014b64d7))
+
+
+### Bug Fixes
+
+* **frontend:** preserve nested reply quotes ([#1000](https://github.com/chattocorp/chatto/issues/1000)) ([5f97896](https://github.com/chattocorp/chatto/commit/5f978963d1d203c210c3c8d4002da3dd86130560))
+* **graphql:** enforce room move group permissions ([#987](https://github.com/chattocorp/chatto/issues/987)) ([1364b7b](https://github.com/chattocorp/chatto/commit/1364b7b4752a5b13a26752027d19d8cdae4a9764))
+
 ## [0.3.1](https://github.com/chattocorp/chatto/compare/v0.3.0...v0.3.1) (2026-06-18)
 
 
