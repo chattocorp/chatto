@@ -11,6 +11,7 @@
 
 import { createContext } from 'svelte';
 import { SvelteSet } from 'svelte/reactivity';
+import { visit, type DocumentNode } from 'graphql';
 import { graphql, useFragment } from './gql';
 import {
   RoomEventViewFragmentDoc,
@@ -162,10 +163,6 @@ export const MyServerEventsSubscriptionDoc = graphql(`
           roomId
           callId
         }
-        ... on CallEndedEvent {
-          roomId
-          callId
-        }
         # Deployment-wide events.
         ... on ServerUpdatedEvent {
           name
@@ -237,6 +234,24 @@ export const MyServerEventsSubscriptionDoc = graphql(`
     }
   }
 `);
+
+const voiceEventTypeNames = new Set([
+  'CallStartedEvent',
+  'CallParticipantJoinedEvent',
+  'CallParticipantLeftEvent',
+  'CallEndedEvent'
+]);
+
+export const MyServerEventsLegacySubscriptionDoc = visit(
+  MyServerEventsSubscriptionDoc as DocumentNode,
+  {
+    InlineFragment(node) {
+      if (node.typeCondition && voiceEventTypeNames.has(node.typeCondition.name.value)) {
+        return null;
+      }
+    }
+  }
+) as typeof MyServerEventsSubscriptionDoc;
 
 /** Re-export the urql RoomEventView fragment doc so the chat-event handler can
  *  mask subscription payloads when forwarding to room-history stores. */

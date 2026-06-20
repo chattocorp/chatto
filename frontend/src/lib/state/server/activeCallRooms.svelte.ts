@@ -1,7 +1,7 @@
 /**
  * Tracks which rooms have active voice calls and who's in each call.
  *
- * Uses the `activeCallRoomIds` GraphQL query (backed by LiveKit's ListRooms API)
+ * Uses the `activeCallRoomIds` GraphQL query (backed by the call-state projection)
  * as the source of truth. Real-time updates come from room events:
  * - CallParticipantJoinedEvent → add participant to the room
  * - CallParticipantLeftEvent → remove participant; delete room if empty

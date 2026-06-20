@@ -12,7 +12,14 @@
 import { pipe, subscribe as urqlSubscribe, onEnd } from 'wonka';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { EventBusCatchUpReason, EventHandler, EventBus } from '$lib/eventBus.svelte';
-import { MyServerEventsSubscriptionDoc } from '$lib/eventBus.svelte';
+import {
+	MyServerEventsLegacySubscriptionDoc,
+	MyServerEventsSubscriptionDoc
+} from '$lib/eventBus.svelte';
+import {
+	isUnsupportedGraphQLFieldError,
+	isUnsupportedGraphQLTypeError
+} from '$lib/gql/compatibility';
 import type { GraphQLClient } from './graphqlClient.svelte';
 
 const HEARTBEAT_STALL_MS = 75_000;
@@ -31,6 +38,18 @@ function errorDebug(error: unknown) {
 		})),
 		networkError: networkError instanceof Error ? networkError.message : networkError
 	};
+}
+
+function isUnsupportedVoiceEventSubscriptionError(error: unknown): boolean {
+	return (
+		isUnsupportedGraphQLFieldError(error, 'callId') ||
+		[
+			'CallStartedEvent',
+			'CallParticipantJoinedEvent',
+			'CallParticipantLeftEvent',
+			'CallEndedEvent'
+		].some((typeName) => isUnsupportedGraphQLTypeError(error, typeName))
+	);
 }
 
 class EventBusManager {
@@ -70,6 +89,7 @@ class EventBusManager {
 		let dispatchedEventCount = 0;
 		let resubscribeCount = 0;
 		let subscriptionGeneration = 0;
+		let usingLegacySubscription = false;
 		let catchUpRetryTimer: ReturnType<typeof setTimeout> | null = null;
 		// Set while we're tearing down a subscription (either to replace it
 		// or because the bus is stopping). Prevents `onEnd` from firing a
@@ -93,8 +113,11 @@ class EventBusManager {
 				reason,
 				...debugState()
 			});
+			const subscriptionDoc = usingLegacySubscription
+				? MyServerEventsLegacySubscriptionDoc
+				: MyServerEventsSubscriptionDoc;
 			return pipe(
-				client.subscription(MyServerEventsSubscriptionDoc, {}),
+				client.subscription(subscriptionDoc, {}),
 				onEnd(() => {
 					if (teardownInProgress || stopped) return;
 					console.debug(`[eventBus:${serverId}] subscription source ended`, {
@@ -106,6 +129,17 @@ class EventBusManager {
 				}),
 				urqlSubscribe((result) => {
 					if (result.error) {
+						if (
+							!usingLegacySubscription &&
+							isUnsupportedVoiceEventSubscriptionError(result.error)
+						) {
+							usingLegacySubscription = true;
+							console.warn(
+								`[eventBus:${serverId}] voice event subscription fields unsupported; falling back to legacy myEvents subscription`
+							);
+							resubscribe('voice event fragments unsupported', 'subscription-ended');
+							return;
+						}
 						console.debug(`[eventBus:${serverId}] subscription error state`, {
 							generation,
 							state: debugState(),

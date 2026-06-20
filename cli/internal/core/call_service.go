@@ -37,6 +37,7 @@ const (
 
 type liveKitParticipantSnapshot struct {
 	RoomID  string
+	CallID  string
 	UserIDs []string
 }
 
@@ -166,10 +167,15 @@ func liveKitHTTPURL(raw string) (string, error) {
 }
 
 type liveKitRoomClient struct {
-	service   livekit.RoomService
+	service   liveKitRoomService
 	apiKey    string
 	apiSecret string
 	serverID  string
+}
+
+type liveKitRoomService interface {
+	ListRooms(context.Context, *livekit.ListRoomsRequest) (*livekit.ListRoomsResponse, error)
+	ListParticipants(context.Context, *livekit.ListParticipantsRequest) (*livekit.ListParticipantsResponse, error)
 }
 
 func (c *liveKitRoomClient) ListCallParticipants(ctx context.Context) ([]liveKitParticipantSnapshot, error) {
@@ -183,7 +189,7 @@ func (c *liveKitRoomClient) ListCallParticipants(ctx context.Context) ([]liveKit
 		if room == nil || !liveKitRoomBelongsToInstance(room.GetName(), c.serverID) {
 			continue
 		}
-		_, roomID := ParseLiveKitRoomName(room.GetName())
+		_, roomID, callID := ParseLiveKitRoomIdentity(room.GetName())
 		if roomID == "" {
 			continue
 		}
@@ -192,6 +198,10 @@ func (c *liveKitRoomClient) ListCallParticipants(ctx context.Context) ([]liveKit
 			&livekit.ListParticipantsRequest{Room: room.GetName()},
 		)
 		if err != nil {
+			if isLiveKitRoomNotFound(err) {
+				out = append(out, liveKitParticipantSnapshot{RoomID: roomID, CallID: callID})
+				continue
+			}
 			return nil, err
 		}
 		userIDs := make([]string, 0, len(participantsResp.GetParticipants()))
@@ -201,9 +211,14 @@ func (c *liveKitRoomClient) ListCallParticipants(ctx context.Context) ([]liveKit
 			}
 		}
 		sort.Strings(userIDs)
-		out = append(out, liveKitParticipantSnapshot{RoomID: roomID, UserIDs: userIDs})
+		out = append(out, liveKitParticipantSnapshot{RoomID: roomID, CallID: callID, UserIDs: userIDs})
 	}
 	return out, nil
+}
+
+func isLiveKitRoomNotFound(err error) bool {
+	var twerr twirp.Error
+	return errors.As(err, &twerr) && twerr.Code() == twirp.NotFound
 }
 
 func (c *liveKitRoomClient) withVideoGrant(ctx context.Context, grant *lkauth.VideoGrant) context.Context {
@@ -250,18 +265,29 @@ func (s *CallService) GetE2EEKey(ctx context.Context, roomID string) (string, er
 }
 
 func (s *CallService) AppendJoined(ctx context.Context, roomID, userID string, source corev1.CallParticipantEventSource) error {
-	return s.appendParticipantTransition(ctx, roomID, userID, true, source)
+	return s.appendParticipantTransition(ctx, roomID, userID, true, "", source)
 }
 
 func (s *CallService) AppendLeft(ctx context.Context, roomID, userID string, source corev1.CallParticipantEventSource) error {
-	return s.appendParticipantTransition(ctx, roomID, userID, false, source)
+	return s.appendParticipantTransition(ctx, roomID, userID, false, "", source)
 }
 
-func (s *CallService) appendParticipantTransition(ctx context.Context, roomID, userID string, joined bool, source corev1.CallParticipantEventSource) error {
+func (s *CallService) AppendJoinedForCall(ctx context.Context, roomID, userID, expectedCallID string, source corev1.CallParticipantEventSource) error {
+	return s.appendParticipantTransition(ctx, roomID, userID, true, expectedCallID, source)
+}
+
+func (s *CallService) AppendLeftForCall(ctx context.Context, roomID, userID, expectedCallID string, source corev1.CallParticipantEventSource) error {
+	return s.appendParticipantTransition(ctx, roomID, userID, false, expectedCallID, source)
+}
+
+func (s *CallService) appendParticipantTransition(ctx context.Context, roomID, userID string, joined bool, expectedCallID string, source corev1.CallParticipantEventSource) error {
 	aggregate := events.RoomAggregate(roomID)
 	filter := aggregate.AllEventsFilter()
 	for attempt := 0; attempt < callReconcileMaxRetries; attempt++ {
 		snapshot := s.projection.RoomSnapshot(roomID)
+		if expectedCallID != "" && snapshot.Call.CallID != expectedCallID {
+			return nil
+		}
 		if callParticipantTransitionAlreadyApplied(snapshot.Participants, userID, joined) {
 			return nil
 		}
@@ -436,7 +462,7 @@ func (s *CallService) reconciliationConflictResolved(roomID, userID string, join
 }
 
 func (s *CallService) appendReconciliationEvent(ctx context.Context, roomID, userID string, joined bool) error {
-	return s.appendParticipantTransition(ctx, roomID, userID, joined, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION)
+	return s.appendParticipantTransition(ctx, roomID, userID, joined, "", corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION)
 }
 
 func newCallStartedEvent(roomID, userID, callID, keyRef string, source corev1.CallParticipantEventSource) *corev1.Event {
@@ -534,6 +560,9 @@ func (s *CallService) reconcileWithLiveKit(ctx context.Context, cleanupContext f
 	}
 	observedRooms := make(map[string]struct{}, len(snapshots))
 	for _, snapshot := range snapshots {
+		if !s.liveKitSnapshotMatchesActiveCall(snapshot) {
+			continue
+		}
 		observedRooms[snapshot.RoomID] = struct{}{}
 		if err := s.ReconcileRoomParticipants(ctx, snapshot.RoomID, snapshot.UserIDs); err != nil {
 			return err
@@ -547,6 +576,20 @@ func (s *CallService) reconcileWithLiveKit(ctx context.Context, cleanupContext f
 		}
 	}
 	return nil
+}
+
+func (s *CallService) liveKitSnapshotMatchesActiveCall(snapshot liveKitParticipantSnapshot) bool {
+	if snapshot.RoomID == "" {
+		return false
+	}
+	active, ok := s.projection.ActiveCall(snapshot.RoomID)
+	if !ok {
+		return false
+	}
+	if snapshot.CallID == "" {
+		return false
+	}
+	return active.CallID == snapshot.CallID
 }
 
 func (s *CallService) recordLiveKitListFailure(ctx context.Context) (int, error) {

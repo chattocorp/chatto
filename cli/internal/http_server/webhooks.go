@@ -42,7 +42,7 @@ func (s *HTTPServer) handleLiveKitWebhook(c *gin.Context) {
 		c.Status(http.StatusOK)
 		return
 	}
-	spaceID, roomID := core.ParseLiveKitRoomName(event.Room.Name)
+	spaceID, roomID, callID := core.ParseLiveKitRoomIdentity(event.Room.Name)
 	if spaceID == "" || roomID == "" {
 		logger.Warn("Unrecognized LiveKit room name", "name", event.Room.Name)
 		c.Status(http.StatusOK)
@@ -57,11 +57,20 @@ func (s *HTTPServer) handleLiveKitWebhook(c *gin.Context) {
 			break
 		}
 		md := core.ParseParticipantMetadata(event.Participant.Metadata)
+		eventCallID := callID
+		if eventCallID == "" {
+			eventCallID = md.CallID
+		}
+		if eventCallID == "" {
+			logger.Warn("Ignoring LiveKit participant joined without call ID", "room", event.Room.Name)
+			break
+		}
 		if err := s.core.HandleCallParticipantJoined(
 			ctx, spaceID, roomID,
 			event.Participant.Identity,
 			event.Participant.Name,
 			md.Login, md.AvatarURL,
+			eventCallID,
 		); err != nil {
 			logger.Warn("Failed to handle participant joined", "error", err)
 		}
@@ -70,15 +79,29 @@ func (s *HTTPServer) handleLiveKitWebhook(c *gin.Context) {
 		if event.Participant == nil {
 			break
 		}
+		md := core.ParseParticipantMetadata(event.Participant.Metadata)
+		eventCallID := callID
+		if eventCallID == "" {
+			eventCallID = md.CallID
+		}
+		if eventCallID == "" {
+			logger.Warn("Ignoring LiveKit participant left without call ID", "room", event.Room.Name)
+			break
+		}
 		if err := s.core.HandleCallParticipantLeft(
 			ctx, spaceID, roomID,
 			event.Participant.Identity,
+			eventCallID,
 		); err != nil {
 			logger.Warn("Failed to handle participant left", "error", err)
 		}
 
 	case webhook.EventRoomFinished:
-		if err := s.core.HandleCallRoomFinished(ctx, spaceID, roomID); err != nil {
+		if callID == "" {
+			logger.Warn("Ignoring LiveKit room finished without call ID", "room", event.Room.Name)
+			break
+		}
+		if err := s.core.HandleCallRoomFinished(ctx, spaceID, roomID, callID); err != nil {
 			logger.Warn("Failed to handle room finished", "error", err)
 		}
 	}

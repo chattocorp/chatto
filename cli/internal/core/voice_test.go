@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/livekit/protocol/livekit"
+	"github.com/twitchtv/twirp"
 	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/kms"
 	"hmans.de/chatto/internal/lease"
@@ -52,6 +54,32 @@ type recordingCallLogger struct {
 	warnKeyvals []interface{}
 }
 
+type fakeLiveKitRoomService struct {
+	rooms           []string
+	participants    map[string][]string
+	participantErrs map[string]error
+}
+
+func (f fakeLiveKitRoomService) ListRooms(context.Context, *livekit.ListRoomsRequest) (*livekit.ListRoomsResponse, error) {
+	rooms := make([]*livekit.Room, 0, len(f.rooms))
+	for _, name := range f.rooms {
+		rooms = append(rooms, &livekit.Room{Name: name})
+	}
+	return &livekit.ListRoomsResponse{Rooms: rooms}, nil
+}
+
+func (f fakeLiveKitRoomService) ListParticipants(_ context.Context, req *livekit.ListParticipantsRequest) (*livekit.ListParticipantsResponse, error) {
+	if err := f.participantErrs[req.GetRoom()]; err != nil {
+		return nil, err
+	}
+	userIDs := f.participants[req.GetRoom()]
+	participants := make([]*livekit.ParticipantInfo, 0, len(userIDs))
+	for _, userID := range userIDs {
+		participants = append(participants, &livekit.ParticipantInfo{Identity: userID})
+	}
+	return &livekit.ListParticipantsResponse{Participants: participants}, nil
+}
+
 func (l *recordingCallLogger) Debug(interface{}, ...interface{}) {}
 func (l *recordingCallLogger) Info(interface{}, ...interface{})  {}
 func (l *recordingCallLogger) Error(interface{}, ...interface{}) {}
@@ -70,12 +98,22 @@ func loggedValue(keyvals []interface{}, key string) interface{} {
 	return nil
 }
 
+func activeCallIDForTest(t *testing.T, c *ChattoCore, roomID string) string {
+	t.Helper()
+	active, ok := c.CallState.ActiveCall(roomID)
+	if !ok || active.CallID == "" {
+		t.Fatalf("Expected active call for room %s", roomID)
+	}
+	return active.CallID
+}
+
 func TestLiveKitRoomName(t *testing.T) {
 	tests := []struct {
 		name     string
 		serverID string
 		spaceID  string
 		roomID   string
+		callID   string
 		want     string
 	}{
 		{
@@ -90,6 +128,21 @@ func TestLiveKitRoomName(t *testing.T) {
 			spaceID:  "space123",
 			roomID:   "room456",
 			want:     "my-instance.space123_room456",
+		},
+		{
+			name:    "with call ID",
+			spaceID: "space123",
+			roomID:  "room456",
+			callID:  "call789",
+			want:    "space123_room456@call789",
+		},
+		{
+			name:     "with server ID and call ID",
+			serverID: "my-instance",
+			spaceID:  "space123",
+			roomID:   "room456",
+			callID:   "call789",
+			want:     "my-instance.space123_room456@call789",
 		},
 		{
 			name:    "nanoid-style IDs without instance",
@@ -115,9 +168,9 @@ func TestLiveKitRoomName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := LiveKitRoomName(tt.serverID, tt.spaceID, tt.roomID)
+			got := LiveKitRoomName(tt.serverID, tt.spaceID, tt.roomID, tt.callID)
 			if got != tt.want {
-				t.Errorf("LiveKitRoomName(%q, %q, %q) = %q, want %q", tt.serverID, tt.spaceID, tt.roomID, got, tt.want)
+				t.Errorf("LiveKitRoomName(%q, %q, %q, %q) = %q, want %q", tt.serverID, tt.spaceID, tt.roomID, tt.callID, got, tt.want)
 			}
 		})
 	}
@@ -129,6 +182,7 @@ func TestParseLiveKitRoomName(t *testing.T) {
 		lkRoomName  string
 		wantSpaceID string
 		wantRoomID  string
+		wantCallID  string
 	}{
 		{
 			name:        "unprefixed basic",
@@ -153,6 +207,20 @@ func TestParseLiveKitRoomName(t *testing.T) {
 			lkRoomName:  "my-instance.space123_room_with_underscores",
 			wantSpaceID: "space123",
 			wantRoomID:  "room_with_underscores",
+		},
+		{
+			name:        "unprefixed with call ID",
+			lkRoomName:  "space123_room456@call789",
+			wantSpaceID: "space123",
+			wantRoomID:  "room456",
+			wantCallID:  "call789",
+		},
+		{
+			name:        "prefixed with room underscores and call ID",
+			lkRoomName:  "my-instance.space123_room_with_underscores@call789",
+			wantSpaceID: "space123",
+			wantRoomID:  "room_with_underscores",
+			wantCallID:  "call789",
 		},
 		{
 			name:        "empty string",
@@ -180,6 +248,11 @@ func TestParseLiveKitRoomName(t *testing.T) {
 			if gotSpace != tt.wantSpaceID || gotRoom != tt.wantRoomID {
 				t.Errorf("ParseLiveKitRoomName(%q) = (%q, %q), want (%q, %q)",
 					tt.lkRoomName, gotSpace, gotRoom, tt.wantSpaceID, tt.wantRoomID)
+			}
+			gotSpace, gotRoom, gotCall := ParseLiveKitRoomIdentity(tt.lkRoomName)
+			if gotSpace != tt.wantSpaceID || gotRoom != tt.wantRoomID || gotCall != tt.wantCallID {
+				t.Errorf("ParseLiveKitRoomIdentity(%q) = (%q, %q, %q), want (%q, %q, %q)",
+					tt.lkRoomName, gotSpace, gotRoom, gotCall, tt.wantSpaceID, tt.wantRoomID, tt.wantCallID)
 			}
 		})
 	}
@@ -277,8 +350,9 @@ func TestGenerateVoiceCallToken(t *testing.T) {
 	displayName := "Test User"
 	login := "testuser"
 	avatarURL := "https://example.com/avatar.jpg"
+	callID := "call789"
 
-	result, err := GenerateVoiceCallToken(apiKey, apiSecret, roomName, userID, displayName, login, avatarURL, "e2ee-test-key")
+	result, err := GenerateVoiceCallToken(apiKey, apiSecret, roomName, userID, displayName, login, avatarURL, "e2ee-test-key", callID)
 	if err != nil {
 		t.Fatalf("GenerateVoiceCallToken() error = %v", err)
 	}
@@ -290,6 +364,9 @@ func TestGenerateVoiceCallToken(t *testing.T) {
 	}
 	if result.E2EEKey != "e2ee-test-key" {
 		t.Fatalf("E2EEKey = %q, want %q", result.E2EEKey, "e2ee-test-key")
+	}
+	if result.CallID != callID {
+		t.Fatalf("CallID = %q, want %q", result.CallID, callID)
 	}
 
 	// Parse the JWT to verify claims (without full validation since we're using a test secret)
@@ -326,6 +403,9 @@ func TestGenerateVoiceCallToken(t *testing.T) {
 		}
 		if !strings.Contains(md, `"avatarUrl":"https://example.com/avatar.jpg"`) {
 			t.Errorf("Token metadata missing avatarUrl: %s", md)
+		}
+		if !strings.Contains(md, `"callId":"call789"`) {
+			t.Errorf("Token metadata missing callId: %s", md)
 		}
 	} else {
 		t.Error("Token missing metadata claim")
@@ -695,6 +775,46 @@ func TestCallState_RoomFinished(t *testing.T) {
 	}
 }
 
+func TestCallState_StaleLiveKitEventsForOldCallAreIgnored(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	roomID := "room1"
+
+	if err := core.RecordCallParticipantJoined(ctx, KindChannel, roomID, "user1", corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+		t.Fatalf("RecordCallParticipantJoined(first) error = %v", err)
+	}
+	firstCallID := activeCallIDForTest(t, core, roomID)
+	if err := core.RecordCallParticipantLeft(ctx, KindChannel, roomID, "user1", corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+		t.Fatalf("RecordCallParticipantLeft(first) error = %v", err)
+	}
+	if err := core.RecordCallParticipantJoined(ctx, KindChannel, roomID, "user1", corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+		t.Fatalf("RecordCallParticipantJoined(second) error = %v", err)
+	}
+	secondCallID := activeCallIDForTest(t, core, roomID)
+	if firstCallID == secondCallID {
+		t.Fatalf("Expected distinct call IDs, got %q", firstCallID)
+	}
+
+	if err := core.HandleCallParticipantJoined(ctx, "channel", roomID, "user2", "Bob", "bob", "", firstCallID); err != nil {
+		t.Fatalf("stale HandleCallParticipantJoined() error = %v", err)
+	}
+	if err := core.HandleCallParticipantLeft(ctx, "channel", roomID, "user1", firstCallID); err != nil {
+		t.Fatalf("stale HandleCallParticipantLeft() error = %v", err)
+	}
+	if err := core.HandleCallRoomFinished(ctx, "channel", roomID, firstCallID); err != nil {
+		t.Fatalf("stale HandleCallRoomFinished() error = %v", err)
+	}
+
+	participants, _ := core.GetCallParticipants(ctx, "channel", roomID)
+	if len(participants) != 1 || participants[0].UserID != "user1" || participants[0].CallID != secondCallID {
+		t.Fatalf("Expected only user1 in second call, got %#v", participants)
+	}
+	active, ok := core.CallState.ActiveCall(roomID)
+	if !ok || active.CallID != secondCallID {
+		t.Fatalf("Expected active second call %q, got %#v ok=%v", secondCallID, active, ok)
+	}
+}
+
 func TestGetActiveCallRoomIDs(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -834,8 +954,9 @@ func TestCallState_ReconcileWithLiveKitClosesObservedEmptyRoom(t *testing.T) {
 	if err := core.RecordCallParticipantJoined(ctx, KindChannel, roomID, "user1", corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
 		t.Fatalf("RecordCallParticipantJoined() error = %v", err)
 	}
+	callID := activeCallIDForTest(t, core, roomID)
 	core.callService.livekit = fakeLiveKitParticipantLister{
-		snapshots: []liveKitParticipantSnapshot{{RoomID: roomID}},
+		snapshots: []liveKitParticipantSnapshot{{RoomID: roomID, CallID: callID}},
 	}
 	if err := core.callService.ReconcileWithLiveKit(ctx); err != nil {
 		t.Fatalf("ReconcileWithLiveKit() error = %v", err)
@@ -854,6 +975,57 @@ func TestCallState_ReconcileWithLiveKitClosesObservedEmptyRoom(t *testing.T) {
 	}
 	if len(callEvents) != 4 || callEvents[3].GetVoiceCallEnded() == nil {
 		t.Fatalf("Expected observed empty room to append CallEndedEvent, got %d events", len(callEvents))
+	}
+}
+
+func TestCallState_ReconcileWithLiveKitIgnoresRoomWithoutProjectedActiveCall(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	roomID := "room1"
+
+	core.callService.livekit = fakeLiveKitParticipantLister{
+		snapshots: []liveKitParticipantSnapshot{{RoomID: roomID, CallID: "old-call", UserIDs: []string{"user1"}}},
+	}
+	if err := core.callService.ReconcileWithLiveKit(ctx); err != nil {
+		t.Fatalf("ReconcileWithLiveKit() error = %v", err)
+	}
+
+	participants, _ := core.GetCallParticipants(ctx, "channel", roomID)
+	if len(participants) != 0 {
+		t.Fatalf("Expected LiveKit room without projected active call to be ignored, got %#v", participants)
+	}
+	if _, ok := core.CallState.ActiveCall(roomID); ok {
+		t.Fatal("Expected no active call to be created from LiveKit snapshot")
+	}
+}
+
+func TestLiveKitRoomClientListCallParticipantsTreatsRoomNotFoundAsEmpty(t *testing.T) {
+	room1 := LiveKitRoomName("", "channel", "room1", "C1")
+	room2 := LiveKitRoomName("", "channel", "room2", "C2")
+	client := &liveKitRoomClient{
+		service: fakeLiveKitRoomService{
+			rooms:        []string{room1, room2},
+			participants: map[string][]string{room2: []string{"user2"}},
+			participantErrs: map[string]error{
+				room1: twirp.NotFoundError("room not found"),
+			},
+		},
+		apiKey:    "key",
+		apiSecret: "secret",
+	}
+
+	snapshots, err := client.ListCallParticipants(testContext(t))
+	if err != nil {
+		t.Fatalf("ListCallParticipants() error = %v", err)
+	}
+	if len(snapshots) != 2 {
+		t.Fatalf("Expected two snapshots, got %#v", snapshots)
+	}
+	if snapshots[0].RoomID != "room1" || snapshots[0].CallID != "C1" || len(snapshots[0].UserIDs) != 0 {
+		t.Fatalf("First snapshot = %#v, want empty room1 C1 snapshot", snapshots[0])
+	}
+	if snapshots[1].RoomID != "room2" || snapshots[1].CallID != "C2" || len(snapshots[1].UserIDs) != 1 || snapshots[1].UserIDs[0] != "user2" {
+		t.Fatalf("Second snapshot = %#v, want room2 C2 user2 snapshot", snapshots[1])
 	}
 }
 
@@ -1200,6 +1372,7 @@ func TestCallState_ReconcileWithLiveKitSuccessResetsListFailureCounter(t *testin
 	if err := core.RecordCallParticipantJoined(ctx, KindChannel, roomID, "user1", corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
 		t.Fatalf("RecordCallParticipantJoined() error = %v", err)
 	}
+	callID := activeCallIDForTest(t, core, roomID)
 
 	liveKitErr := errors.New("livekit unavailable")
 	core.callService.livekit = fakeLiveKitParticipantLister{err: liveKitErr}
@@ -1210,7 +1383,7 @@ func TestCallState_ReconcileWithLiveKitSuccessResetsListFailureCounter(t *testin
 	}
 
 	core.callService.livekit = fakeLiveKitParticipantLister{
-		snapshots: []liveKitParticipantSnapshot{{RoomID: roomID, UserIDs: []string{"user1"}}},
+		snapshots: []liveKitParticipantSnapshot{{RoomID: roomID, CallID: callID, UserIDs: []string{"user1"}}},
 	}
 	if err := core.callService.ReconcileWithLiveKit(ctx); err != nil {
 		t.Fatalf("ReconcileWithLiveKit(success) error = %v", err)
@@ -1240,6 +1413,7 @@ func TestCallState_ReconcileWithLiveKitSuccessOnAnotherReplicaResetsListFailureC
 	if err := core.RecordCallParticipantJoined(ctx, KindChannel, roomID, "user1", corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
 		t.Fatalf("RecordCallParticipantJoined() error = %v", err)
 	}
+	callID := activeCallIDForTest(t, core, roomID)
 
 	liveKitErr := errors.New("livekit unavailable")
 	failingReplica := NewCallService(
@@ -1257,7 +1431,7 @@ func TestCallState_ReconcileWithLiveKitSuccessOnAnotherReplicaResetsListFailureC
 		core.CallState,
 		core.CallStateProjector,
 		core.encryption.callKeys,
-		fakeLiveKitParticipantLister{snapshots: []liveKitParticipantSnapshot{{RoomID: roomID, UserIDs: []string{"user1"}}}},
+		fakeLiveKitParticipantLister{snapshots: []liveKitParticipantSnapshot{{RoomID: roomID, CallID: callID, UserIDs: []string{"user1"}}}},
 		nil,
 		core.storage.memoryCacheKV,
 		nil,

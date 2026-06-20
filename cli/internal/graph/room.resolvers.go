@@ -445,7 +445,7 @@ func (r *roomResolver) VoiceCallToken(ctx context.Context, obj *corev1.Room) (*c
 		return nil, err
 	}
 
-	roomName := core.LiveKitRoomName(r.livekitConfig.ServerID, core.LegacySpaceIDForRoomKind(core.KindOfRoom(obj)), obj.Id)
+	roomName := core.LiveKitRoomName(r.livekitConfig.ServerID, core.LegacySpaceIDForRoomKind(core.KindOfRoom(obj)), obj.Id, activeCall.CallID)
 	token, err := core.GenerateVoiceCallToken(
 		r.livekitConfig.APIKey,
 		r.livekitConfig.APISecret,
@@ -455,12 +455,11 @@ func (r *roomResolver) VoiceCallToken(ctx context.Context, obj *corev1.Room) (*c
 		user.Login,
 		avatarURL,
 		e2eeKey,
+		activeCall.CallID,
 	)
 	if err != nil {
 		return nil, err
 	}
-	token.CallID = activeCall.CallID
-
 	return token, nil
 }
 

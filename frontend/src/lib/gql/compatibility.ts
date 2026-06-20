@@ -44,3 +44,15 @@ export function isUnsupportedGraphQLInputFieldError(error: unknown, fieldName: s
     needles.some((needle) => message.includes(needle))
   );
 }
+
+export function isUnsupportedGraphQLTypeError(error: unknown, typeName: string): boolean {
+  const needles = [
+    `Unknown type "${typeName}"`,
+    `Unknown type '${typeName}'`,
+    `can never be of type "${typeName}"`,
+    `can never be of type '${typeName}'`
+  ];
+  return graphQLErrorMessages(error).some((message) =>
+    needles.some((needle) => message.includes(needle))
+  );
+}

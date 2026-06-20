@@ -31,6 +31,7 @@ const VoiceCallTokenTTL = 5 * time.Minute
 type participantMetadata struct {
 	Login     string `json:"login"`
 	AvatarURL string `json:"avatarUrl,omitempty"`
+	CallID    string `json:"callId,omitempty"`
 }
 
 // ParseParticipantMetadata parses JSON metadata from a LiveKit participant.
@@ -50,8 +51,11 @@ func ParseParticipantMetadata(metadata string) participantMetadata {
 // When serverID is non-empty, the room name is prefixed with "{serverID}." so the
 // webhook bridge can route events to the correct Chatto server in shared deployments.
 // Authorization: Caller must verify room membership before calling.
-func LiveKitRoomName(serverID, spaceID, roomID string) string {
+func LiveKitRoomName(serverID, spaceID, roomID string, callID ...string) string {
 	base := spaceID + "_" + roomID
+	if len(callID) > 0 && callID[0] != "" {
+		base += "@" + callID[0]
+	}
 	if serverID != "" {
 		return serverID + "." + base
 	}
@@ -62,6 +66,15 @@ func LiveKitRoomName(serverID, spaceID, roomID string) string {
 // Handles both prefixed ("{serverID}.{spaceID}_{roomID}") and unprefixed
 // ("{spaceID}_{roomID}") formats. Returns empty strings if the format is unexpected.
 func ParseLiveKitRoomName(lkRoomName string) (spaceID, roomID string) {
+	spaceID, roomID, _ = ParseLiveKitRoomIdentity(lkRoomName)
+	return spaceID, roomID
+}
+
+// ParseLiveKitRoomIdentity extracts the space ID, room ID, and optional Chatto
+// call ID from a LiveKit room name. New room names append "@{callId}" so LiveKit
+// room_finished events can be tied to one Chatto call session; names without
+// a suffix are accepted for compatibility with older active LiveKit rooms.
+func ParseLiveKitRoomIdentity(lkRoomName string) (spaceID, roomID, callID string) {
 	name := lkRoomName
 
 	// Strip server ID prefix if present (dot separator).
@@ -71,12 +84,17 @@ func ParseLiveKitRoomName(lkRoomName string) (spaceID, roomID string) {
 		name = name[idx+1:]
 	}
 
+	if idx := strings.LastIndexByte(name, '@'); idx >= 0 {
+		callID = name[idx+1:]
+		name = name[:idx]
+	}
+
 	// Split on first underscore: {spaceID}_{roomID}
 	idx := strings.IndexByte(name, '_')
 	if idx < 0 {
-		return "", ""
+		return "", "", ""
 	}
-	return name[:idx], name[idx+1:]
+	return name[:idx], name[idx+1:], callID
 }
 
 // ParseLiveKitRoomServerID extracts just the server ID prefix from a LiveKit room
@@ -93,7 +111,7 @@ func ParseLiveKitRoomServerID(lkRoomName string) string {
 // The login and avatarURL are embedded as JSON metadata so the frontend can
 // render avatars without additional queries.
 // Authorization: Caller must verify room membership before calling.
-func GenerateVoiceCallToken(apiKey, apiSecret, roomName, userID, displayName, login, avatarURL, e2eeKey string) (*VoiceCallToken, error) {
+func GenerateVoiceCallToken(apiKey, apiSecret, roomName, userID, displayName, login, avatarURL, e2eeKey string, callID ...string) (*VoiceCallToken, error) {
 	at := lkauth.NewAccessToken(apiKey, apiSecret)
 	grant := &lkauth.VideoGrant{
 		RoomJoin: true,
@@ -104,7 +122,11 @@ func GenerateVoiceCallToken(apiKey, apiSecret, roomName, userID, displayName, lo
 		SetName(displayName).
 		SetValidFor(VoiceCallTokenTTL)
 
-	md, err := json.Marshal(participantMetadata{Login: login, AvatarURL: avatarURL})
+	var activeCallID string
+	if len(callID) > 0 {
+		activeCallID = callID[0]
+	}
+	md, err := json.Marshal(participantMetadata{Login: login, AvatarURL: avatarURL, CallID: activeCallID})
 	if err != nil {
 		return nil, fmt.Errorf("marshal participant metadata: %w", err)
 	}
@@ -114,31 +136,55 @@ func GenerateVoiceCallToken(apiKey, apiSecret, roomName, userID, displayName, lo
 	if err != nil {
 		return nil, fmt.Errorf("generate LiveKit token: %w", err)
 	}
-	return &VoiceCallToken{Token: token, E2EEKey: e2eeKey}, nil
+	return &VoiceCallToken{Token: token, E2EEKey: e2eeKey, CallID: activeCallID}, nil
 }
 
 // HandleCallParticipantJoined appends a durable LiveKit-observed join fact.
 // Called by the webhook handler when LiveKit reports a participant joined.
-func (c *ChattoCore) HandleCallParticipantJoined(ctx context.Context, spaceID, roomID, userID, displayName, login, avatarURL string) error {
-	return c.RecordCallParticipantJoined(ctx, RoomKindFromLegacySpaceID(spaceID), roomID, userID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT)
+func (c *ChattoCore) HandleCallParticipantJoined(ctx context.Context, spaceID, roomID, userID, displayName, login, avatarURL string, callID ...string) error {
+	expectedCallID := optionalCallID(callID)
+	if c.callService == nil {
+		return fmt.Errorf("call service is not initialized")
+	}
+	return c.callService.AppendJoinedForCall(ctx, roomID, userID, expectedCallID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT)
 }
 
 // HandleCallParticipantLeft appends a durable LiveKit-observed leave fact.
 // Called by the webhook handler when LiveKit reports a participant left.
-func (c *ChattoCore) HandleCallParticipantLeft(ctx context.Context, spaceID, roomID, userID string) error {
-	return c.RecordCallParticipantLeft(ctx, RoomKindFromLegacySpaceID(spaceID), roomID, userID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT)
+func (c *ChattoCore) HandleCallParticipantLeft(ctx context.Context, spaceID, roomID, userID string, callID ...string) error {
+	if c.callService == nil {
+		return fmt.Errorf("call service is not initialized")
+	}
+	return c.callService.AppendLeftForCall(ctx, roomID, userID, optionalCallID(callID), corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT)
 }
 
 // HandleCallRoomFinished appends LiveKit-observed leave facts for any remaining
 // projected participants in the room.
 // Called by the webhook handler when LiveKit reports a room has finished (closed).
-func (c *ChattoCore) HandleCallRoomFinished(ctx context.Context, spaceID, roomID string) error {
+func (c *ChattoCore) HandleCallRoomFinished(ctx context.Context, spaceID, roomID string, callID ...string) error {
+	expectedCallID := optionalCallID(callID)
+	if expectedCallID != "" {
+		active, ok := c.CallState.ActiveCall(roomID)
+		if !ok || active.CallID != expectedCallID {
+			return nil
+		}
+	}
 	for _, p := range c.CallState.Participants(roomID) {
-		if err := c.RecordCallParticipantLeft(ctx, RoomKindFromLegacySpaceID(spaceID), roomID, p.UserID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT); err != nil {
+		if c.callService == nil {
+			return fmt.Errorf("call service is not initialized")
+		}
+		if err := c.callService.AppendLeftForCall(ctx, roomID, p.UserID, expectedCallID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func optionalCallID(callID []string) string {
+	if len(callID) == 0 {
+		return ""
+	}
+	return callID[0]
 }
 
 func (c *ChattoCore) RecordCallParticipantJoined(ctx context.Context, kind RoomKind, roomID, userID string, source corev1.CallParticipantEventSource) error {
