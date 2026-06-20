@@ -196,7 +196,7 @@ describe('Notification settings page', () => {
       'pop',
       defaultNotificationSoundFilters
     );
-    await expect.element(softPopButton).toHaveClass(/border-accent/);
+    await expect.element(softPopButton).toHaveClass(/choice-row-selected/);
   });
 
   it('selects silent mode without previewing a sound', async () => {
@@ -209,7 +209,7 @@ describe('Notification settings page', () => {
 
     expect(userPreferences.notificationSound).toBe('silent');
     expect(mocks.playNotificationSound).not.toHaveBeenCalled();
-    await expect.element(silentButton).toHaveClass(/border-accent/);
+    await expect.element(silentButton).toHaveClass(/choice-row-selected/);
   });
 
   it('shows the push enable path when configured and not subscribed', async () => {
