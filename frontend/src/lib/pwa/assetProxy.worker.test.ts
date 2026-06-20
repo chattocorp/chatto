@@ -8,6 +8,7 @@ import {
 const ORIGIN = 'https://app.example';
 const VIRTUAL_URL = `${ORIGIN}/__chatto/assets/remote/assets/files/asset-1`;
 const VIRTUAL_PATH = '/__chatto/assets/remote/assets/files/asset-1';
+const ORIGIN_VIRTUAL_URL = `${ORIGIN}/__chatto/assets/origin/assets/files/asset-2`;
 
 class MemoryCache {
   readonly entries = new Map<string, Response>();
@@ -166,5 +167,101 @@ describe('service worker asset proxy fetch', () => {
     await fetchVirtualAsset();
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('resyncs server and target mappings after worker state is restarted', async () => {
+    const client = {
+      postMessage: vi.fn((message: unknown, ports: Transferable[]) => {
+        expect(message).toEqual({
+          type: 'chatto-asset-proxy-resync-request',
+          serverId: 'remote',
+          virtualPath: VIRTUAL_PATH
+        });
+        const [port] = ports as MessagePort[];
+        port.postMessage({
+          type: 'chatto-asset-proxy-resync-response',
+          servers: [
+            {
+              id: 'remote',
+              url: 'https://remote.example',
+              token: 'must-not-enter-worker-state'
+            }
+          ],
+          targets: [
+            {
+              serverId: 'remote',
+              virtualPath: VIRTUAL_PATH,
+              targetUrl: 'https://remote.example/assets/files/asset-1?access=resynced-ticket'
+            }
+          ]
+        });
+      })
+    };
+    vi.stubGlobal('self', {
+      location: { origin: ORIGIN },
+      clients: {
+        matchAll: vi.fn(async () => [client])
+      }
+    });
+
+    const fetchMock = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      const headers = new Headers(init?.headers);
+      expect(headers.get('Authorization')).toBeNull();
+      expect(headers.get('X-Chatto-Asset-Proxy')).toBe('1');
+      return new Response('resynced asset', {
+        status: 200,
+        headers: { 'Cache-Control': 'private, max-age=3600' }
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(fetchVirtualAsset().then((response) => response.text())).resolves.toBe(
+      'resynced asset'
+    );
+
+    expect(client.postMessage).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://remote.example/assets/files/asset-1?access=resynced-ticket',
+      expect.objectContaining({ credentials: 'omit' })
+    );
+  });
+
+  it('falls back to same-origin cookie asset fetches without Authorization', async () => {
+    await postWorkerMessage({
+      type: 'chatto-asset-proxy-sync-servers',
+      servers: [
+        {
+          id: 'origin',
+          url: ORIGIN,
+          token: 'must-not-enter-worker-state'
+        }
+      ]
+    });
+
+    const fetchMock = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      const headers = new Headers(init?.headers);
+      expect(headers.get('Authorization')).toBeNull();
+      expect(headers.get('X-Chatto-Asset-Proxy')).toBe('1');
+      expect(init?.credentials).toBe('include');
+      return new Response('origin asset', {
+        status: 200,
+        headers: { 'Cache-Control': 'private, max-age=3600' }
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const proxyRequest = parseAssetProxyRequest(ORIGIN_VIRTUAL_URL, ORIGIN);
+    expect(proxyRequest).not.toBeNull();
+
+    await expect(
+      handleAssetProxyFetch(new Request(ORIGIN_VIRTUAL_URL), proxyRequest!).then((response) =>
+        response.text()
+      )
+    ).resolves.toBe('origin asset');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${ORIGIN}/assets/files/asset-2`,
+      expect.objectContaining({ credentials: 'include' })
+    );
   });
 });
