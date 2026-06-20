@@ -11,6 +11,7 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 
 - **Create** — server admins (or anyone with `room.create` in the target group) create a channel room by giving it a name (1–30 chars, alphanumeric / hyphen / underscore, case-insensitive unique across the server), an optional description, and a room group.
 - **Edit** — `room.manage` holders can change the name, description, and group of an existing room.
+- **Display** — when set, the optional description appears after the channel room name in the desktop room pane header.
 - **Archive** — `room.manage` toggles an `archived` flag on the room. Archived rooms vanish from the sidebar, the Browse Rooms page, and search results, but members stay joined and history is intact. The owner can still navigate to the room directly.
 - **Unarchive** — same permission, flips the flag back. The room reappears in the sidebar and discovery surfaces.
 - **Ban member** — `room.ban-member` holders can ban a user from a channel room with a required reason and optional expiry. The banned user loses room read/write/live access immediately and cannot rejoin until the ban is removed or expires.

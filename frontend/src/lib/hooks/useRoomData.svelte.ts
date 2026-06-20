@@ -6,7 +6,7 @@ import { useConnection } from '$lib/state/server/connection.svelte';
 import { untrack } from 'svelte';
 
 export type RoomData = {
-  room: { id: string; name: string; type: string };
+  room: { id: string; name: string; type: string; description?: string | null };
   spaceName: string | null;
   canPostMessage: boolean;
   canPostInThread: boolean;
@@ -90,6 +90,7 @@ export function useRoomData(getProps: () => { roomId: string }) {
             room(roomId: $roomId) {
               id
               name
+              description
               type
               viewerCanPostMessage
               viewerCanPostInThread

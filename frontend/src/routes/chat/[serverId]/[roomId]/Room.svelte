@@ -196,6 +196,13 @@
     return others.map((p) => getLiveDisplayName(p.id, p.displayName || p.login)).join(', ');
   });
 
+  let roomDescription = $derived.by(() => {
+    if (!room.roomData || room.isDM) return undefined;
+
+    const description = room.roomData.room.description?.trim();
+    return description || undefined;
+  });
+
   // Page title includes space name for regular rooms
   let pageTitle = $derived.by(() => {
     if (!room.roomData) return '';
@@ -461,7 +468,7 @@
       >
         <DropZoneOverlay visible={isDraggingFiles} />
 
-        <PaneHeader {title} loading={!room.roomData}>
+        <PaneHeader {title} subtitle={roomDescription} loading={!room.roomData}>
           {#snippet actions()}
             <RoomSidebarToggle
               mode="mobile"
