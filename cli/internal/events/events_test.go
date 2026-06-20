@@ -1222,6 +1222,90 @@ func TestCompiledSubjectFilterMatchesWithoutAllocations(t *testing.T) {
 	}
 }
 
+func TestStreamSequenceFromReply(t *testing.T) {
+	cases := []struct {
+		name    string
+		reply   string
+		want    uint64
+		wantErr bool
+	}{
+		{
+			name:  "v2 with domain and token",
+			reply: "$JS.ACK.domain.hash-123.stream.cons.100.200.150.123456789.100.token",
+			want:  200,
+		},
+		{
+			name:  "v2 without trailing token",
+			reply: "$JS.ACK.domain.hash-123.stream.cons.100.201.150.123456789.100",
+			want:  201,
+		},
+		{
+			name:  "v2 underscore domain",
+			reply: "$JS.ACK._.hash-123.stream.cons.100.202.150.123456789.100.token",
+			want:  202,
+		},
+		{
+			name:  "v1",
+			reply: "$JS.ACK.stream.cons.100.203.150.123456789.100",
+			want:  203,
+		},
+		{
+			name:    "invalid prefix",
+			reply:   "$ABC.123.stream.cons.100.200.150.123456789.100",
+			wantErr: true,
+		},
+		{
+			name:    "invalid token count",
+			reply:   "$JS.ACK.stream.cons.100.200.150.123456789.100.extra",
+			wantErr: true,
+		},
+		{
+			name:    "non numeric sequence",
+			reply:   "$JS.ACK.stream.cons.100.not-a-seq.150.123456789.100",
+			wantErr: true,
+		},
+		{
+			name:    "empty",
+			reply:   "",
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := streamSequenceFromReply(tc.reply)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("streamSequenceFromReply(%q) error = nil, want error", tc.reply)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("streamSequenceFromReply(%q) error = %v", tc.reply, err)
+			}
+			if got != tc.want {
+				t.Fatalf("streamSequenceFromReply(%q) = %d, want %d", tc.reply, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestStreamSequenceFromReplyDoesNotAllocate(t *testing.T) {
+	reply := "$JS.ACK.domain.hash-123.stream.cons.100.200.150.123456789.100.token"
+	allocs := testing.AllocsPerRun(1000, func() {
+		got, err := streamSequenceFromReply(reply)
+		if err != nil {
+			t.Fatalf("streamSequenceFromReply error = %v", err)
+		}
+		if got != 200 {
+			t.Fatalf("streamSequenceFromReply = %d, want 200", got)
+		}
+	})
+	if allocs != 0 {
+		t.Fatalf("streamSequenceFromReply allocations = %v, want 0", allocs)
+	}
+}
+
 func TestProjectorCachesProjectionSubjects(t *testing.T) {
 	proj := newCountingSubjectsProjection(
 		RoomSubjectFilter(),
