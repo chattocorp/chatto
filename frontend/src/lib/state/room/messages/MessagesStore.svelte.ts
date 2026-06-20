@@ -2,10 +2,7 @@ import { tick } from 'svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { Client } from '@urql/svelte';
 import { useFragment } from '$lib/gql';
-import {
-  RoomEventViewFragmentDoc,
-  type RoomEventViewFragment
-} from '$lib/gql/graphql';
+import { RoomEventViewFragmentDoc, type RoomEventViewFragment } from '$lib/gql/graphql';
 import type { EventEnvelope } from '$lib/eventBus.svelte';
 import type { GraphQLClient } from '$lib/state/server/graphqlClient.svelte';
 import type { JumpToMessageState } from '../composerContext.svelte';
@@ -27,6 +24,7 @@ import {
   threadRepliesConnection,
   unmask
 } from './helpers';
+import type { MessageHistoryClient } from './liveHistory';
 
 type MessageScope = 'room' | 'thread';
 
@@ -72,7 +70,9 @@ export class MessagesStore {
 
   constructor(
     gqlClient: GraphQLClient,
-    private readonly getCurrentUserId: () => string | null
+    private readonly getCurrentUserId: () => string | null,
+    private readonly getMessageHistoryClient: () => MessageHistoryClient | undefined = () =>
+      undefined
   ) {
     this.client = gqlClient.client;
   }
@@ -112,25 +112,41 @@ export class MessagesStore {
     if (existing) return existing;
 
     const roomId = this.roomId;
-    const promise = this.client
-      .query(RefetchOneQuery, { roomId, eventId })
-      .toPromise()
-      .then((result) => {
-        if (result.error) {
-          console.error('MessagesStore: ensureEvent error:', result.error);
-          return;
-        }
+    const history = this.historyClient();
+    const promise = history
+      ? history
+          .single(roomId, eventId)
+          .then((event) => {
+            this.previewEvents.set(
+              key,
+              event ? useFragment(RoomEventViewFragmentDoc, event) : null
+            );
+          })
+          .catch((error: unknown) => {
+            console.error('MessagesStore: ensureEvent failed:', error);
+          })
+          .finally(() => {
+            this.pendingPreviewFetches.delete(key);
+          })
+      : this.client
+          .query(RefetchOneQuery, { roomId, eventId })
+          .toPromise()
+          .then((result) => {
+            if (result.error) {
+              console.error('MessagesStore: ensureEvent error:', result.error);
+              return;
+            }
 
-        const fetched = result.data?.room?.event;
-        const event = fetched ? useFragment(RoomEventViewFragmentDoc, fetched) : null;
-        this.previewEvents.set(key, event ?? null);
-      })
-      .catch((error: unknown) => {
-        console.error('MessagesStore: ensureEvent failed:', error);
-      })
-      .finally(() => {
-        this.pendingPreviewFetches.delete(key);
-      });
+            const fetched = result.data?.room?.event;
+            const event = fetched ? useFragment(RoomEventViewFragmentDoc, fetched) : null;
+            this.previewEvents.set(key, event ?? null);
+          })
+          .catch((error: unknown) => {
+            console.error('MessagesStore: ensureEvent failed:', error);
+          })
+          .finally(() => {
+            this.pendingPreviewFetches.delete(key);
+          });
 
     this.pendingPreviewFetches.set(key, promise);
     return promise;
@@ -148,6 +164,10 @@ export class MessagesStore {
 
   private previewKey(eventId: string): string {
     return eventCacheKey(this.roomId, eventId);
+  }
+
+  private historyClient(): MessageHistoryClient | undefined {
+    return this.getMessageHistoryClient();
   }
 
   setRoom(roomId: string): void {
@@ -184,6 +204,20 @@ export class MessagesStore {
    * handling to the current scope.
    */
   ingestServerEvent(serverEvent: EventEnvelope): void {
+    const livePatch = serverEvent.event;
+    if (livePatch?.__typename === 'MessageReactionsUpdatedEvent') {
+      if (livePatch.roomId === this.roomId) {
+        this.applyReactions(livePatch.messageEventId, livePatch.reactions);
+      }
+      return;
+    }
+    if (livePatch?.__typename === 'MessageAttachmentsUpdatedEvent') {
+      if (livePatch.roomId === this.roomId) {
+        this.applyAttachmentUpdate(livePatch.messageEventId, livePatch);
+      }
+      return;
+    }
+
     // Subscription and historical-query payloads share the same Event
     // envelope. Cast once at the room boundary so downstream code can keep
     // using the RoomEventViewFragment shape it renders with.
@@ -226,24 +260,6 @@ export class MessagesStore {
 
     if (eventData.__typename === 'MessageEditedEvent') {
       this.applyEdit(eventData.messageEventId, eventData);
-      return;
-    }
-
-    if (
-      eventData.__typename === 'ReactionAddedEvent' ||
-      eventData.__typename === 'ReactionRemovedEvent'
-    ) {
-      this.refetchByMessageEventId(eventData.messageEventId);
-      return;
-    }
-
-    if (
-      eventData.__typename === 'AssetProcessingStartedEvent' ||
-      eventData.__typename === 'AssetProcessingSucceededEvent' ||
-      eventData.__typename === 'AssetProcessingFailedEvent'
-    ) {
-      if (!eventData.processingMessageEventId) return;
-      this.refetchByMessageEventId(eventData.processingMessageEventId);
       return;
     }
 
@@ -304,6 +320,14 @@ export class MessagesStore {
   }
 
   private async fetchOlderPage(before: string): Promise<EventConnectionPage | null> {
+    const history = this.historyClient();
+    if (history) {
+      if (this.scope === 'thread') {
+        return history.thread(this.roomId, this.threadRootEventId, PAGE_SIZE, { before });
+      }
+      return history.before(this.roomId, PAGE_SIZE, before);
+    }
+
     if (this.scope === 'thread') {
       const result = await this.client
         .query(ThreadEventsQuery, {
@@ -341,18 +365,21 @@ export class MessagesStore {
 
     jumpState.isLoadingNewer = true;
     try {
-      const result = await this.client
-        .query(RoomAfterQuery, {
-          roomId: this.roomId,
-          limit: PAGE_SIZE,
-          after: this.newestCursor
-        })
-        .toPromise();
+      const history = this.historyClient();
+      const page = history
+        ? await history.after(this.roomId, PAGE_SIZE, this.newestCursor)
+        : await this.client
+            .query(RoomAfterQuery, {
+              roomId: this.roomId,
+              limit: PAGE_SIZE,
+              after: this.newestCursor
+            })
+            .toPromise()
+            .then((result) => result.data?.room?.events ?? null);
 
       // User left jumped mode while in flight — abandon the result.
       if (!jumpState.isJumpedMode) return;
 
-      const page = result.data?.room?.events;
       if (!page) return;
 
       const newer = unmask(page.events);
@@ -382,17 +409,22 @@ export class MessagesStore {
 
     this.isInitialLoading = true;
     try {
-      const result = await this.client
-        .query(RoomAroundQuery, {
-          roomId: this.roomId,
-          eventId,
-          limit: PAGE_SIZE
-        })
-        .toPromise();
+      const history = this.historyClient();
+      const around = history
+        ? await history.around(this.roomId, eventId, PAGE_SIZE)
+        : await this.client
+            .query(RoomAroundQuery, {
+              roomId: this.roomId,
+              eventId,
+              limit: PAGE_SIZE
+            })
+            .toPromise()
+            .then((result) => {
+              if (result.error) console.error('MessagesStore: jumpToMessage failed:', result.error);
+              return result.data?.room?.eventsAround ?? null;
+            });
 
-      const around = result.data?.room?.eventsAround;
-      if (result.error || !around) {
-        if (result.error) console.error('MessagesStore: jumpToMessage failed:', result.error);
+      if (!around) {
         return;
       }
 
@@ -532,12 +564,18 @@ export class MessagesStore {
   }
 
   private async refetchOne(eventId: string): Promise<void> {
+    const history = this.historyClient();
+    if (history) {
+      const fetched = await history.single(this.roomId, eventId);
+      const updated = fetched ? useFragment(RoomEventViewFragmentDoc, fetched) : null;
+      if (!updated) return;
+      const idx = this.events.findIndex((e) => e.id === eventId);
+      if (idx !== -1) this.events[idx] = updated;
+      return;
+    }
+
     const result = await this.client
-      .query(
-        RefetchOneQuery,
-        { roomId: this.roomId, eventId },
-        { requestPolicy: 'network-only' }
-      )
+      .query(RefetchOneQuery, { roomId: this.roomId, eventId }, { requestPolicy: 'network-only' })
       .toPromise();
 
     const fetched = result.data?.room?.event;
@@ -548,16 +586,52 @@ export class MessagesStore {
     if (idx !== -1) this.events[idx] = updated;
   }
 
-  private async refetchByMessageEventId(messageEventId: string): Promise<void> {
-    // Match either the direct event id or an echo whose original points here.
-    for (const e of this.events) {
+  private applyReactions(
+    messageEventId: string,
+    reactions: Extract<
+      NonNullable<RoomEventViewFragment['event']>,
+      { __typename: 'MessagePostedEvent' }
+    >['reactions']
+  ): void {
+    this.patchMessagePosted(messageEventId, (evt) => ({ ...evt, reactions }));
+  }
+
+  private applyAttachmentUpdate(
+    messageEventId: string,
+    update: Extract<
+      NonNullable<EventEnvelope['event']>,
+      { __typename: 'MessageAttachmentsUpdatedEvent' }
+    >
+  ): void {
+    this.patchMessagePosted(messageEventId, (evt) => ({
+      ...evt,
+      attachments: update.attachments,
+      linkPreview: update.linkPreview,
+      updatedAt: update.updatedAt
+    }));
+  }
+
+  private patchMessagePosted(
+    messageEventId: string,
+    patch: (
+      evt: Extract<
+        NonNullable<RoomEventViewFragment['event']>,
+        { __typename: 'MessagePostedEvent' }
+      >
+    ) => Extract<NonNullable<RoomEventViewFragment['event']>, { __typename: 'MessagePostedEvent' }>
+  ): void {
+    for (let i = 0; i < this.events.length; i++) {
+      const e = this.events[i];
       const evt = e.event;
-      if (
-        e.id === messageEventId ||
-        (evt?.__typename === 'MessagePostedEvent' && evt.echoOfEventId === messageEventId)
-      ) {
-        await this.refetchOne(e.id);
-      }
+      if (evt?.__typename !== 'MessagePostedEvent') continue;
+      if (e.id !== messageEventId && evt.echoOfEventId !== messageEventId) continue;
+      this.events[i] = { ...e, event: patch(evt) };
+    }
+
+    const previewKey = this.previewKey(messageEventId);
+    const preview = this.previewEvents.get(previewKey);
+    if (preview?.event?.__typename === 'MessagePostedEvent') {
+      this.previewEvents.set(previewKey, { ...preview, event: patch(preview.event) });
     }
   }
 
@@ -574,10 +648,7 @@ export class MessagesStore {
     const targetIndex = this.events.findIndex((e) => e.id === messageEventId);
     const target = targetIndex === -1 ? null : this.events[targetIndex];
     const targetPayload = target?.event;
-    if (
-      targetPayload?.__typename === 'MessagePostedEvent' &&
-      targetPayload.echoOfEventId
-    ) {
+    if (targetPayload?.__typename === 'MessagePostedEvent' && targetPayload.echoOfEventId) {
       this.events.splice(targetIndex, 1);
       return;
     }
@@ -690,10 +761,7 @@ export class MessagesStore {
     }
   }
 
-  private addEvent(
-    event: RoomEventViewFragment,
-    options: { sortRoom?: boolean } = {}
-  ): boolean {
+  private addEvent(event: RoomEventViewFragment, options: { sortRoom?: boolean } = {}): boolean {
     if (this.seenIds.has(event.id)) return false;
     this.seenIds.add(event.id);
     this.events.push(event);
@@ -813,24 +881,26 @@ export class MessagesStore {
     thisLoad: number,
     existingBeforeFetch: ReadonlySet<string>
   ): Promise<RefreshCurrentWindowResult> {
-    const result = await this.client
-      .query(
-        RoomLatestQuery,
-        {
-          roomId: this.roomId,
-          limit: PAGE_SIZE
-        },
-        { requestPolicy: 'network-only' }
-      )
-      .toPromise();
+    const history = this.historyClient();
+    const page = history
+      ? await history.latest(this.roomId, PAGE_SIZE)
+      : await this.client
+          .query(
+            RoomLatestQuery,
+            {
+              roomId: this.roomId,
+              limit: PAGE_SIZE
+            },
+            { requestPolicy: 'network-only' }
+          )
+          .toPromise()
+          .then((result) => {
+            if (result.error)
+              console.error('MessagesStore: refreshRoomLatest error:', result.error);
+            return result.data?.room?.events ?? null;
+          });
 
     if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false, refreshed: false };
-    if (result.error) {
-      console.error('MessagesStore: refreshRoomLatest error:', result.error);
-      return { hasOlder: false, hasNewer: false, refreshed: false };
-    }
-
-    const page = result.data?.room?.events;
     if (!page) return { hasOlder: false, hasNewer: false, refreshed: false };
     this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch);
     return { hasOlder: page.hasOlder, hasNewer: page.hasNewer, refreshed: true };
@@ -841,25 +911,27 @@ export class MessagesStore {
     anchorEventId: string,
     existingBeforeFetch: ReadonlySet<string>
   ): Promise<RefreshCurrentWindowResult | null> {
-    const result = await this.client
-      .query(
-        RoomAroundQuery,
-        {
-          roomId: this.roomId,
-          eventId: anchorEventId,
-          limit: PAGE_SIZE
-        },
-        { requestPolicy: 'network-only' }
-      )
-      .toPromise();
+    const history = this.historyClient();
+    const page = history
+      ? await history.around(this.roomId, anchorEventId, PAGE_SIZE)
+      : await this.client
+          .query(
+            RoomAroundQuery,
+            {
+              roomId: this.roomId,
+              eventId: anchorEventId,
+              limit: PAGE_SIZE
+            },
+            { requestPolicy: 'network-only' }
+          )
+          .toPromise()
+          .then((result) => {
+            if (result.error)
+              console.error('MessagesStore: refreshRoomAround error:', result.error);
+            return result.data?.room?.eventsAround ?? null;
+          });
 
     if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false, refreshed: false };
-    if (result.error) {
-      console.error('MessagesStore: refreshRoomAround error:', result.error);
-      return null;
-    }
-
-    const page = result.data?.room?.eventsAround;
     if (!page) return null;
     this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch);
     return { hasOlder: page.hasOlder, hasNewer: page.hasNewer, refreshed: true };
@@ -870,6 +942,94 @@ export class MessagesStore {
     existingBeforeFetch: ReadonlySet<string>,
     anchorEventId: string | null
   ): Promise<RefreshCurrentWindowResult> {
+    const history = this.historyClient();
+    const page = history
+      ? anchorEventId
+        ? await history.threadAround(this.roomId, this.threadRootEventId, anchorEventId, PAGE_SIZE)
+        : await history.thread(this.roomId, this.threadRootEventId, PAGE_SIZE)
+      : await this.fetchThreadPageFromGraphQL(anchorEventId);
+
+    if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false, refreshed: false };
+    if (!page) return { hasOlder: false, hasNewer: false, refreshed: false };
+
+    this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch);
+    this.sortThreadEvents();
+    return {
+      hasOlder: page?.hasOlder ?? false,
+      hasNewer: page?.hasNewer ?? false,
+      refreshed: true
+    };
+  }
+
+  private resetAndFetchLatest(): void {
+    const thisLoad = this.startLoad();
+    this.resetState();
+    this.isInitialLoading = true;
+    this.fetchLatest(thisLoad);
+  }
+
+  private fetchLatest(thisLoad: number): void {
+    const history = this.historyClient();
+    const promise = history
+      ? history.latest(this.roomId, PAGE_SIZE)
+      : this.client
+          .query(RoomLatestQuery, {
+            roomId: this.roomId,
+            limit: PAGE_SIZE
+          })
+          .toPromise()
+          .then((result) => {
+            if (result.error) console.error('MessagesStore: fetchLatest error:', result.error);
+            return result.data?.room?.events ?? null;
+          });
+
+    promise
+      .then((page) => {
+        if (this.isStale(thisLoad)) return;
+        if (page) {
+          this.replaceWithFetchedAndUpdateCursors(page);
+          this.hasReachedStart = !page.hasOlder;
+        }
+        this.isInitialLoading = false;
+      })
+      .catch((error: unknown) => {
+        if (this.isStale(thisLoad)) return;
+        console.error('MessagesStore: fetchLatest failed:', error);
+        this.isInitialLoading = false;
+      });
+  }
+
+  private fetchThread(thisLoad: number): void {
+    const history = this.historyClient();
+    const promise = history
+      ? history.thread(this.roomId, this.threadRootEventId, PAGE_SIZE)
+      : this.fetchThreadPageFromGraphQL(null);
+
+    promise
+      .then((page) => {
+        if (this.isStale(thisLoad)) return;
+        if (page) {
+          // Merge with any subscription events that arrived during the
+          // in-flight query (e.g. the user's own reply or a fast cross-user
+          // reply). Overwriting would drop them.
+          this.replaceMergingExisting(page.events);
+          this.sortThreadEvents();
+          this.oldestCursor = page?.startCursor ?? undefined;
+          this.newestCursor = page?.endCursor ?? undefined;
+          this.hasReachedStart = !(page?.hasOlder ?? false);
+        }
+        this.isInitialLoading = false;
+      })
+      .catch((error: unknown) => {
+        if (this.isStale(thisLoad)) return;
+        console.error('MessagesStore: fetchThread failed:', error);
+        this.isInitialLoading = false;
+      });
+  }
+
+  private async fetchThreadPageFromGraphQL(
+    anchorEventId: string | null
+  ): Promise<EventConnectionPage | null> {
     const query = anchorEventId ? ThreadEventsAroundQuery : ThreadEventsQuery;
     const variables = anchorEventId
       ? {
@@ -886,93 +1046,21 @@ export class MessagesStore {
     const result = await this.client
       .query(query, variables, { requestPolicy: 'network-only' })
       .toPromise();
-
-    if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false, refreshed: false };
     if (result.error) {
-      console.error('MessagesStore: refreshThreadWindow error:', result.error);
-      return { hasOlder: false, hasNewer: false, refreshed: false };
+      console.error('MessagesStore: fetchThreadPage error:', result.error);
+      return null;
     }
-
     const root = result.data?.room?.event;
-    if (!root) return { hasOlder: false, hasNewer: false, refreshed: false };
-
+    if (!root) return null;
     const page = threadRepliesConnection(root);
     const replies = page?.events ?? [];
-    this.replaceWithSnapshotAndUpdateCursors(
-      {
-        events: [root, ...replies],
-        startCursor: page?.startCursor,
-        endCursor: page?.endCursor,
-        hasOlder: page?.hasOlder
-      },
-      existingBeforeFetch
-    );
-    this.sortThreadEvents();
-    return { hasOlder: page?.hasOlder ?? false, hasNewer: page?.hasNewer ?? false, refreshed: true };
-  }
-
-  private resetAndFetchLatest(): void {
-    const thisLoad = this.startLoad();
-    this.resetState();
-    this.isInitialLoading = true;
-    this.fetchLatest(thisLoad);
-  }
-
-  private fetchLatest(thisLoad: number): void {
-    this.client
-      .query(RoomLatestQuery, {
-        roomId: this.roomId,
-        limit: PAGE_SIZE
-      })
-      .toPromise()
-      .then((result) => {
-        if (this.isStale(thisLoad)) return;
-        if (result.error) console.error('MessagesStore: fetchLatest error:', result.error);
-        const page = result.data?.room?.events;
-        if (page) {
-          this.replaceWithFetchedAndUpdateCursors(page);
-          this.hasReachedStart = !page.hasOlder;
-        }
-        this.isInitialLoading = false;
-      })
-      .catch((error: unknown) => {
-        if (this.isStale(thisLoad)) return;
-        console.error('MessagesStore: fetchLatest failed:', error);
-        this.isInitialLoading = false;
-      });
-  }
-
-  private fetchThread(thisLoad: number): void {
-    this.client
-      .query(ThreadEventsQuery, {
-        roomId: this.roomId,
-        threadRootEventId: this.threadRootEventId,
-        limit: PAGE_SIZE
-      })
-      .toPromise()
-      .then((result) => {
-        if (this.isStale(thisLoad)) return;
-        if (result.error) console.error('MessagesStore: fetchThread error:', result.error);
-        const root = result.data?.room?.event;
-        if (root) {
-          // Merge with any subscription events that arrived during the
-          // in-flight query (e.g. the user's own reply or a fast cross-user
-          // reply). Overwriting would drop them.
-          const page = threadRepliesConnection(root);
-          const replies = page?.events ?? [];
-          this.replaceMergingExisting([root, ...replies]);
-          this.sortThreadEvents();
-          this.oldestCursor = page?.startCursor ?? undefined;
-          this.newestCursor = page?.endCursor ?? undefined;
-          this.hasReachedStart = !(page?.hasOlder ?? false);
-        }
-        this.isInitialLoading = false;
-      })
-      .catch((error: unknown) => {
-        if (this.isStale(thisLoad)) return;
-        console.error('MessagesStore: fetchThread failed:', error);
-        this.isInitialLoading = false;
-      });
+    return {
+      events: [root, ...replies],
+      startCursor: page?.startCursor,
+      endCursor: page?.endCursor,
+      hasOlder: page?.hasOlder ?? false,
+      hasNewer: page?.hasNewer ?? false
+    };
   }
 
   /**

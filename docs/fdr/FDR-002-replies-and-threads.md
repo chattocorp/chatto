@@ -57,5 +57,5 @@ Chatto messages can link to one another via reply attribution, and they can live
 
 ## Related
 
-- **ADRs:** ADR-011 (message body/event split), ADR-026 (event identity via NanoID), ADR-038 (room-owned thread state)
+- **ADRs:** ADR-011 (message body/event split), ADR-026 (event identity via NanoID), ADR-038 (room-owned thread state), ADR-041 (protobuf client wire protocol)
 - **FDRs:** FDR-003 (Thread Reply Echo)

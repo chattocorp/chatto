@@ -1893,6 +1893,10 @@ func TestAuthRoutes_Register_EmailContainsValidCode(t *testing.T) {
 }
 
 func TestAuthRoutes_TestEmailEndpoint(t *testing.T) {
+	if !testEndpointsEnabled() {
+		t.Skip("test email endpoint requires -tags test_endpoints")
+	}
+
 	ts, client, _, mockMailer := setupTestHTTPServerWithMailer(t)
 
 	// Trigger a registration email

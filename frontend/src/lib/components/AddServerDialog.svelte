@@ -14,6 +14,7 @@ ADR-027 — only user-facing copy says "server".
 -->
 <script lang="ts">
   import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import type { LiveInfo } from '$lib/state/server/registry.svelte';
   import {
     generateCodeChallenge,
     generateCodeVerifier,
@@ -40,6 +41,7 @@ ADR-027 — only user-facing copy says "server".
     description?: string;
     iconUrl?: string | null;
     bannerUrl?: string | null;
+    live?: LiveInfo | null;
   };
 
   type Stage = 'url' | 'preview';
@@ -191,7 +193,8 @@ ADR-027 — only user-facing copy says "server".
         state,
         remoteUrl: probedUrl,
         serverName: probedInfo.name,
-        serverIconUrl: probedInfo.iconUrl ?? null
+        serverIconUrl: probedInfo.iconUrl ?? null,
+        live: probedInfo.live ?? null
       });
 
       const params = new URLSearchParams({

@@ -28,7 +28,9 @@
     type QuoteInsertionContent
   } from '$lib/state/room';
   import { useConnection } from '$lib/state/server/connection.svelte';
+  import { eventBusManager } from '$lib/state/server/eventBus.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { ClientLiveMessageHistoryClient } from '$lib/state/room/messages/liveHistory';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
@@ -96,7 +98,14 @@
   const replyState = composerContext.replyState;
   const jumpState = composerContext.jumpState;
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
-  const roomMessageStore = new MessagesStore(connection(), () => currentUser.user?.id ?? null);
+  const roomMessageStore = new MessagesStore(
+    connection(),
+    () => currentUser.user?.id ?? null,
+    () => {
+      const request = eventBusManager.getBus(getActiveServer())?.request;
+      return request ? new ClientLiveMessageHistoryClient(request) : undefined;
+    }
+  );
 
   onDestroy(() => roomMessageStore.dispose());
 

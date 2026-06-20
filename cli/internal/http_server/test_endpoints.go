@@ -22,6 +22,10 @@ func createMailer(_ config.SMTPConfig) (*email.MockSender, email.Sender) {
 	return mock, mock
 }
 
+func testEndpointsEnabled() bool {
+	return true
+}
+
 // registerTestEndpoints registers test-only HTTP endpoints for development and testing.
 // These endpoints bypass security controls and should NEVER be available in production.
 //

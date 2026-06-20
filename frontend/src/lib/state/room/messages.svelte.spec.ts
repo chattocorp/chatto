@@ -448,7 +448,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
 		store.dispose();
 	});
 
-	it('refetches a loaded message when a replayed reaction event arrives', async () => {
+	it('patches reactions from live updates without refetching', async () => {
 		const fake = new FakeGqlClient([
 			roomEventsResult({
 				events: [threadMessageEvent('m1')],
@@ -456,8 +456,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
 				endCursor: 'seq:1',
 				hasOlder: false,
 				hasNewer: false
-			}),
-			{ room: { event: messageWithReaction('m1', 'heart') } }
+			})
 		]);
 		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
 
@@ -471,17 +470,15 @@ describe('MessagesStore — room lifecycle ownership', () => {
 			actorId: 'u2',
 			actor: null,
 			event: {
-				__typename: 'ReactionAddedEvent',
+				__typename: 'MessageReactionsUpdatedEvent',
 				roomId: 'room-1',
 				messageEventId: 'm1',
-				emoji: 'heart'
+				reactions: [{ emoji: 'heart', count: 1, hasReacted: false, users: [] }]
 			}
 		} as never);
 		await settle();
 
-		expect(fake.queryMock).toHaveBeenCalledOnce();
-		expect(fake.queryMock.mock.calls[0][1]).toEqual({ roomId: 'room-1', eventId: 'm1' });
-		expect(fake.queryMock.mock.calls[0][2]).toEqual({ requestPolicy: 'network-only' });
+		expect(fake.queryMock).not.toHaveBeenCalled();
 		expect(store.rootEvents[0].event).toMatchObject({
 			__typename: 'MessagePostedEvent',
 			reactions: [{ emoji: 'heart', count: 1 }]

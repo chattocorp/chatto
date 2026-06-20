@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
+	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
@@ -14,6 +17,12 @@ import (
 
 type processMetrics struct {
 	activeGraphQLWebSockets atomic.Int64
+	activeClientLiveSockets atomic.Int64
+	clientLiveOpened        atomic.Uint64
+	clientLiveClosed        atomic.Uint64
+	clientLiveErrors        metricCounterSet
+	clientLiveRequests      metricCounterSet
+	clientLiveRequestTime   metricFloatSet
 }
 
 func newProcessMetrics() *processMetrics {
@@ -35,6 +44,106 @@ func (m *processMetrics) activeWebSockets() int64 {
 		return 0
 	}
 	return m.activeGraphQLWebSockets.Load()
+}
+
+func (m *processMetrics) openClientLiveSocket() func() {
+	if m == nil {
+		return func() {}
+	}
+	m.activeClientLiveSockets.Add(1)
+	m.clientLiveOpened.Add(1)
+	var closed atomic.Bool
+	return func() {
+		if closed.CompareAndSwap(false, true) {
+			m.activeClientLiveSockets.Add(-1)
+			m.clientLiveClosed.Add(1)
+		}
+	}
+}
+
+func (m *processMetrics) activeClientLiveWebSockets() int64 {
+	if m == nil {
+		return 0
+	}
+	return m.activeClientLiveSockets.Load()
+}
+
+func (m *processMetrics) recordClientLiveError(code string) {
+	if m == nil {
+		return
+	}
+	m.clientLiveErrors.Add(safeMetricLabel(code))
+}
+
+func (m *processMetrics) recordClientLiveRequest(requestType, outcome string, duration time.Duration) {
+	if m == nil {
+		return
+	}
+	key := safeMetricLabel(requestType) + "\xff" + safeMetricLabel(outcome)
+	m.clientLiveRequests.Add(key)
+	m.clientLiveRequestTime.Add(key, duration.Seconds())
+}
+
+func (m *processMetrics) clientLiveOpenedTotal() uint64 {
+	if m == nil {
+		return 0
+	}
+	return m.clientLiveOpened.Load()
+}
+
+func (m *processMetrics) clientLiveClosedTotal() uint64 {
+	if m == nil {
+		return 0
+	}
+	return m.clientLiveClosed.Load()
+}
+
+type metricCounterSet struct {
+	mu     sync.Mutex
+	values map[string]uint64
+}
+
+func (s *metricCounterSet) Add(key string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.values == nil {
+		s.values = make(map[string]uint64)
+	}
+	s.values[key]++
+}
+
+func (s *metricCounterSet) Snapshot() map[string]uint64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	snapshot := make(map[string]uint64, len(s.values))
+	for key, value := range s.values {
+		snapshot[key] = value
+	}
+	return snapshot
+}
+
+type metricFloatSet struct {
+	mu     sync.Mutex
+	values map[string]float64
+}
+
+func (s *metricFloatSet) Add(key string, value float64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.values == nil {
+		s.values = make(map[string]float64)
+	}
+	s.values[key] += value
+}
+
+func (s *metricFloatSet) Snapshot() map[string]float64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	snapshot := make(map[string]float64, len(s.values))
+	for key, value := range s.values {
+		snapshot[key] = value
+	}
+	return snapshot
 }
 
 func (s *HTTPServer) newMetricsServer() (*http.Server, error) {
@@ -62,6 +171,12 @@ type chattoCollector struct {
 	buildInfo               *prometheus.Desc
 	ready                   *prometheus.Desc
 	webSockets              *prometheus.Desc
+	clientLiveWebSockets    *prometheus.Desc
+	clientLiveOpened        *prometheus.Desc
+	clientLiveClosed        *prometheus.Desc
+	clientLiveRequests      *prometheus.Desc
+	clientLiveRequestTime   *prometheus.Desc
+	clientLiveErrors        *prometheus.Desc
 	myEventsActive          *prometheus.Desc
 	myEventsDelivered       *prometheus.Desc
 	myEventsSlowDisconnects *prometheus.Desc
@@ -105,6 +220,42 @@ func newChattoCollector(server *HTTPServer) *chattoCollector {
 			"chatto_graphql_websocket_connections",
 			"Active GraphQL WebSocket connections in this process.",
 			nil,
+			nil,
+		),
+		clientLiveWebSockets: prometheus.NewDesc(
+			"chatto_client_live_websocket_connections",
+			"Active protobuf client live WebSocket connections in this process.",
+			nil,
+			nil,
+		),
+		clientLiveOpened: prometheus.NewDesc(
+			"chatto_client_live_websocket_opened_total",
+			"Total protobuf client live WebSocket connections opened by this process.",
+			nil,
+			nil,
+		),
+		clientLiveClosed: prometheus.NewDesc(
+			"chatto_client_live_websocket_closed_total",
+			"Total protobuf client live WebSocket connections closed by this process.",
+			nil,
+			nil,
+		),
+		clientLiveRequests: prometheus.NewDesc(
+			"chatto_client_live_requests_total",
+			"Total protobuf client live request/response calls handled by this process.",
+			[]string{"type", "outcome"},
+			nil,
+		),
+		clientLiveRequestTime: prometheus.NewDesc(
+			"chatto_client_live_request_duration_seconds_sum",
+			"Cumulative protobuf client live request/response handling time in seconds.",
+			[]string{"type", "outcome"},
+			nil,
+		),
+		clientLiveErrors: prometheus.NewDesc(
+			"chatto_client_live_errors_total",
+			"Total protobuf client live protocol errors emitted by this process.",
+			[]string{"code"},
 			nil,
 		),
 		myEventsActive: prometheus.NewDesc(
@@ -240,6 +391,12 @@ func (c *chattoCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.buildInfo
 	ch <- c.ready
 	ch <- c.webSockets
+	ch <- c.clientLiveWebSockets
+	ch <- c.clientLiveOpened
+	ch <- c.clientLiveClosed
+	ch <- c.clientLiveRequests
+	ch <- c.clientLiveRequestTime
+	ch <- c.clientLiveErrors
 	ch <- c.myEventsActive
 	ch <- c.myEventsDelivered
 	ch <- c.myEventsSlowDisconnects
@@ -275,7 +432,22 @@ func (c *chattoCollector) Collect(ch chan<- prometheus.Metric) {
 }
 
 func (c *chattoCollector) collectProcessMetrics(ch chan<- prometheus.Metric) {
-	ch <- prometheus.MustNewConstMetric(c.webSockets, prometheus.GaugeValue, float64(c.server.metrics.activeWebSockets()))
+	metrics := c.server.metrics
+	ch <- prometheus.MustNewConstMetric(c.webSockets, prometheus.GaugeValue, float64(metrics.activeWebSockets()))
+	ch <- prometheus.MustNewConstMetric(c.clientLiveWebSockets, prometheus.GaugeValue, float64(metrics.activeClientLiveWebSockets()))
+	ch <- prometheus.MustNewConstMetric(c.clientLiveOpened, prometheus.CounterValue, float64(metrics.clientLiveOpenedTotal()))
+	ch <- prometheus.MustNewConstMetric(c.clientLiveClosed, prometheus.CounterValue, float64(metrics.clientLiveClosedTotal()))
+	for key, value := range metrics.clientLiveRequests.Snapshot() {
+		requestType, outcome := splitMetricPair(key)
+		ch <- prometheus.MustNewConstMetric(c.clientLiveRequests, prometheus.CounterValue, float64(value), requestType, outcome)
+	}
+	for key, value := range metrics.clientLiveRequestTime.Snapshot() {
+		requestType, outcome := splitMetricPair(key)
+		ch <- prometheus.MustNewConstMetric(c.clientLiveRequestTime, prometheus.CounterValue, value, requestType, outcome)
+	}
+	for code, value := range metrics.clientLiveErrors.Snapshot() {
+		ch <- prometheus.MustNewConstMetric(c.clientLiveErrors, prometheus.CounterValue, float64(value), code)
+	}
 }
 
 func (c *chattoCollector) collectNATSMetrics(ch chan<- prometheus.Metric) {
@@ -354,4 +526,37 @@ func boolMetric(v bool) float64 {
 		return 1
 	}
 	return 0
+}
+
+func splitMetricPair(key string) (string, string) {
+	left, right, ok := strings.Cut(key, "\xff")
+	if !ok {
+		return safeMetricLabel(key), "unknown"
+	}
+	return left, right
+}
+
+func safeMetricLabel(value string) string {
+	if value == "" {
+		return "unknown"
+	}
+	var b strings.Builder
+	for _, r := range value {
+		switch {
+		case r >= 'a' && r <= 'z':
+			b.WriteRune(r)
+		case r >= 'A' && r <= 'Z':
+			b.WriteRune(r)
+		case r >= '0' && r <= '9':
+			b.WriteRune(r)
+		case r == '_' || r == '-' || r == '.':
+			b.WriteRune(r)
+		default:
+			b.WriteByte('_')
+		}
+	}
+	if b.Len() == 0 {
+		return "unknown"
+	}
+	return b.String()
 }

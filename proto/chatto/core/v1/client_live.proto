@@ -1,0 +1,148 @@
+syntax = "proto3";
+
+package chatto.core.v1;
+
+import "google/protobuf/timestamp.proto";
+import "chatto/core/v1/event.proto";
+import "chatto/core/v1/live_events.proto";
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
+
+message ClientLiveClientFrame {
+  uint64 request_id = 1;
+
+  oneof payload {
+    ClientLiveHello hello = 10;
+    ClientLiveRequest request = 11;
+    ClientLiveAck ack = 12;
+    ClientLivePong pong = 13;
+  }
+}
+
+message ClientLiveServerFrame {
+  // Monotonic per-WebSocket delivery sequence. Includes hello, responses,
+  // events, heartbeats, pings, and errors.
+  uint64 delivery_sequence = 1;
+
+  // JetStream sequence for durable EVT-derived events. Zero for transient
+  // live events, synthetic heartbeats, and protocol frames.
+  uint64 stream_sequence = 2;
+
+  // Echoes the client request ID for response/error frames.
+  uint64 request_id = 3;
+
+  // Universal event identifier for event frames.
+  string id = 4;
+
+  // Event creation time for event frames.
+  google.protobuf.Timestamp created_at = 5;
+
+  // User or system actor that triggered the event, if any.
+  string actor_id = 6;
+
+  oneof payload {
+    ClientLiveHello hello = 10;
+    // Deprecated: raw durable events are not the browser-facing client API.
+    // Server push and history responses should use LiveEvent/LiveRoomEvent
+    // view messages that are already authorized and hydrated for rendering.
+    Event event = 11 [deprecated = true];
+    LiveEvent live_event = 12;
+    HeartbeatEvent heartbeat = 13;
+    ClientLiveResponse response = 14;
+    ClientLiveError error = 15;
+    ClientLivePing ping = 16;
+  }
+}
+
+message ClientLiveHello {
+  string protocol = 1;
+  string server_version = 2;
+  repeated string capabilities = 3;
+}
+
+message ClientLiveRequest {
+  string type = 1;
+  bytes payload = 2;
+}
+
+message ClientLiveResponse {
+  string type = 1;
+  bytes payload = 2;
+}
+
+message ClientRoomEventsRequest {
+  string room_id = 1;
+  int32 limit = 2;
+  uint64 before_seq = 3;
+  uint64 after_seq = 4;
+}
+
+message ClientRoomEventsAroundRequest {
+  string room_id = 1;
+  string event_id = 2;
+  int32 limit = 3;
+}
+
+message ClientRoomEventRequest {
+  string room_id = 1;
+  string event_id = 2;
+}
+
+message ClientThreadEventsRequest {
+  string room_id = 1;
+  string thread_root_event_id = 2;
+  int32 limit = 3;
+  uint64 before_seq = 4;
+  uint64 after_seq = 5;
+}
+
+message ClientThreadEventsAroundRequest {
+  string room_id = 1;
+  string thread_root_event_id = 2;
+  string anchor_event_id = 3;
+  int32 limit = 4;
+}
+
+message ClientRoomEventItem {
+  LiveRoomEvent event = 1;
+  uint64 stream_sequence = 2;
+}
+
+message ClientRoomEventsPage {
+  repeated ClientRoomEventItem events = 1;
+  uint64 start_cursor_seq = 2;
+  uint64 end_cursor_seq = 3;
+  bool has_older = 4;
+  bool has_newer = 5;
+}
+
+message ClientRoomEventsAroundPage {
+  repeated ClientRoomEventItem events = 1;
+  int32 target_index = 2;
+  uint64 start_cursor_seq = 3;
+  uint64 end_cursor_seq = 4;
+  bool has_older = 5;
+  bool has_newer = 6;
+}
+
+message ClientRoomEventResponse {
+  ClientRoomEventItem event = 1;
+}
+
+message ClientLiveAck {
+  uint64 delivery_sequence = 1;
+}
+
+message ClientLivePing {
+  string nonce = 1;
+}
+
+message ClientLivePong {
+  string nonce = 1;
+}
+
+message ClientLiveError {
+  string code = 1;
+  string message = 2;
+  bool fatal = 3;
+}

@@ -1,8 +1,14 @@
 import type { Client } from '@urql/svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import { graphql } from '$lib/gql';
+import { graphql, useFragment } from '$lib/gql';
 import { isUnsupportedGraphQLFieldError } from '$lib/gql/compatibility';
-import { FitMode, RoomFilesDocument, type RoomFilesQuery } from '$lib/gql/graphql';
+import {
+  FitMode,
+  MessageAttachmentViewFragmentDoc,
+  RoomFilesDocument,
+  type MessageAttachmentViewFragment,
+  type RoomFilesQuery
+} from '$lib/gql/graphql';
 import type { EventEnvelope } from '$lib/eventBus.svelte';
 import type { ExpiringAssetUrl, RefreshedAttachmentUrls } from '$lib/attachments/attachmentUrls';
 import {
@@ -85,6 +91,16 @@ function isVideoAttachment(contentType: string): boolean {
   return contentType.startsWith('video/');
 }
 
+function unmaskAttachments(
+  attachments: readonly ({ __typename?: 'Attachment' } & {
+    ' $fragmentRefs'?: { MessageAttachmentViewFragment: MessageAttachmentViewFragment };
+  })[]
+): RoomFileItem['attachment'][] {
+  return attachments.map((attachment) =>
+    useFragment(MessageAttachmentViewFragmentDoc, attachment)
+  ) as RoomFileItem['attachment'][];
+}
+
 export class RoomFilesStore {
   items = $state.raw<RoomFileItem[]>([]);
   totalCount = $state(0);
@@ -139,16 +155,43 @@ export class RoomFilesStore {
     if (!eventData) return;
     if (eventRoomId(eventData) !== this.roomId) return;
 
-    if (
-      eventData.__typename === 'MessagePostedEvent' ||
-      eventData.__typename === 'MessageEditedEvent' ||
-      eventData.__typename === 'MessageRetractedEvent' ||
-      eventData.__typename === 'AssetProcessingStartedEvent' ||
-      eventData.__typename === 'AssetProcessingSucceededEvent' ||
-      eventData.__typename === 'AssetProcessingFailedEvent' ||
-      eventData.__typename === 'AssetDeletedEvent'
-    ) {
-      void this.refresh();
+    if (eventData.__typename === 'MessagePostedEvent') {
+      this.replaceMessageAttachments(
+        serverEvent.id,
+        eventData.threadRootEventId ?? null,
+        serverEvent.createdAt,
+        unmaskAttachments(eventData.attachments)
+      );
+      return;
+    }
+
+    if (eventData.__typename === 'MessageEditedEvent') {
+      this.replaceMessageAttachments(
+        eventData.messageEventId,
+        this.threadRootForMessage(eventData.messageEventId),
+        this.createdAtForMessage(eventData.messageEventId) ?? serverEvent.createdAt,
+        unmaskAttachments(eventData.attachments)
+      );
+      return;
+    }
+
+    if (eventData.__typename === 'MessageAttachmentsUpdatedEvent') {
+      this.replaceMessageAttachments(
+        eventData.messageEventId,
+        this.threadRootForMessage(eventData.messageEventId),
+        this.createdAtForMessage(eventData.messageEventId) ?? serverEvent.createdAt,
+        unmaskAttachments(eventData.attachments)
+      );
+      return;
+    }
+
+    if (eventData.__typename === 'MessageRetractedEvent') {
+      this.removeMessageAttachments(eventData.messageEventId);
+      return;
+    }
+
+    if (eventData.__typename === 'AssetDeletedEvent') {
+      this.removeAttachment(eventData.assetId);
     }
   }
 
@@ -277,5 +320,45 @@ export class RoomFilesStore {
     this.totalCount = connection.totalCount;
     this.hasMore = connection.hasMore;
     this.isInitialLoading = false;
+  }
+
+  private replaceMessageAttachments(
+    messageEventId: string,
+    threadRootEventId: string | null,
+    createdAt: string,
+    attachments: RoomFileItem['attachment'][]
+  ): void {
+    const previousCount = this.items.filter((item) => item.messageEventId === messageEventId).length;
+    const withoutMessage = this.items.filter((item) => item.messageEventId !== messageEventId);
+    const nextItems = attachments.map((attachment) => ({
+      __typename: 'RoomAttachmentItem' as const,
+      messageEventId,
+      threadRootEventId,
+      createdAt,
+      attachment
+    }));
+    this.items = [...nextItems, ...withoutMessage];
+    this.totalCount = Math.max(0, this.totalCount + nextItems.length - previousCount);
+    this.hasMore = this.hasMore && this.items.length < this.totalCount;
+  }
+
+  private removeMessageAttachments(messageEventId: string): void {
+    const before = this.items.length;
+    this.items = this.items.filter((item) => item.messageEventId !== messageEventId);
+    this.totalCount = Math.max(0, this.totalCount - (before - this.items.length));
+  }
+
+  private removeAttachment(assetId: string): void {
+    const before = this.items.length;
+    this.items = this.items.filter((item) => item.attachment.id !== assetId);
+    this.totalCount = Math.max(0, this.totalCount - (before - this.items.length));
+  }
+
+  private threadRootForMessage(messageEventId: string): string | null {
+    return this.items.find((item) => item.messageEventId === messageEventId)?.threadRootEventId ?? null;
+  }
+
+  private createdAtForMessage(messageEventId: string): string | null {
+    return this.items.find((item) => item.messageEventId === messageEventId)?.createdAt ?? null;
   }
 }

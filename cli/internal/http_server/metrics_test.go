@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"hmans.de/chatto/internal/config"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 func TestMetricsServerExposesPrometheusMetrics(t *testing.T) {
@@ -24,6 +25,11 @@ func TestMetricsServerExposesPrometheusMetrics(t *testing.T) {
 
 	closeWebSocket := s.metrics.openGraphQLWebSocket()
 	defer closeWebSocket()
+	closeClientLive := s.metrics.openClientLiveSocket()
+	defer closeClientLive()
+	s.metrics.recordClientLiveRequest("room.events", "ok", 25)
+	s.metrics.recordClientLiveRequest("room.events", "forbidden", 50)
+	s.metrics.recordClientLiveError("forbidden")
 
 	metricsServer, err := s.newMetricsServer()
 	if err != nil {
@@ -50,6 +56,11 @@ func TestMetricsServerExposesPrometheusMetrics(t *testing.T) {
 	for _, want := range []string{
 		`chatto_build_info{version="test-version"} 1`,
 		`chatto_graphql_websocket_connections 1`,
+		`chatto_client_live_websocket_connections 1`,
+		`chatto_client_live_websocket_opened_total 1`,
+		`chatto_client_live_requests_total{outcome="ok",type="room.events"} 1`,
+		`chatto_client_live_requests_total{outcome="forbidden",type="room.events"} 1`,
+		`chatto_client_live_errors_total{code="forbidden"} 1`,
 		`chatto_nats_connected 0`,
 		`chatto_ready 0`,
 	} {
@@ -126,5 +137,47 @@ func TestProcessMetricsTracksGraphQLWebSockets(t *testing.T) {
 	closeB()
 	if got := metrics.activeWebSockets(); got != 0 {
 		t.Fatalf("activeWebSockets() after close = %d, want 0", got)
+	}
+}
+
+func TestProcessMetricsTracksClientLiveWebSockets(t *testing.T) {
+	metrics := newProcessMetrics()
+	closeA := metrics.openClientLiveSocket()
+	closeB := metrics.openClientLiveSocket()
+
+	if got := metrics.activeClientLiveWebSockets(); got != 2 {
+		t.Fatalf("activeClientLiveWebSockets() = %d, want 2", got)
+	}
+	if got := metrics.clientLiveOpenedTotal(); got != 2 {
+		t.Fatalf("clientLiveOpenedTotal() = %d, want 2", got)
+	}
+
+	closeA()
+	closeA()
+	if got := metrics.activeClientLiveWebSockets(); got != 1 {
+		t.Fatalf("activeClientLiveWebSockets() after idempotent close = %d, want 1", got)
+	}
+	if got := metrics.clientLiveClosedTotal(); got != 1 {
+		t.Fatalf("clientLiveClosedTotal() = %d, want 1", got)
+	}
+
+	closeB()
+	if got := metrics.activeClientLiveWebSockets(); got != 0 {
+		t.Fatalf("activeClientLiveWebSockets() after close = %d, want 0", got)
+	}
+}
+
+func TestClientLiveRequestMetricsClampUnknownRequestTypes(t *testing.T) {
+	metrics := newProcessMetrics()
+	session := newClientLiveSession(&HTTPServer{metrics: metrics}, nil, "user", func() {})
+
+	session.handleClientRequest(t.Context(), 1, &corev1.ClientLiveRequest{Type: "tenant/user/input"})
+
+	requests := metrics.clientLiveRequests.Snapshot()
+	if got := requests["unknown\xffunknown_request"]; got != 1 {
+		t.Fatalf("unknown request metric = %d, want 1; snapshot=%v", got, requests)
+	}
+	if _, ok := requests["tenant_user_input\xffunknown_request"]; ok {
+		t.Fatalf("unexpected high-cardinality request metric in snapshot: %v", requests)
 	}
 }

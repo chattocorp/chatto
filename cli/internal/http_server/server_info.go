@@ -21,6 +21,7 @@ type serverInfoResponse struct {
 	Description      string                   `json:"description,omitempty"`
 	IconURL          string                   `json:"iconUrl,omitempty"`
 	BannerURL        string                   `json:"bannerUrl,omitempty"`
+	Live             *serverInfoLive          `json:"live,omitempty"`
 }
 
 type serverInfoAuthProvider struct {
@@ -28,6 +29,12 @@ type serverInfoAuthProvider struct {
 	Type     string `json:"type"`
 	Label    string `json:"label"`
 	LoginURL string `json:"loginUrl"`
+}
+
+type serverInfoLive struct {
+	URL      string `json:"url"`
+	TokenURL string `json:"tokenUrl"`
+	Protocol string `json:"protocol"`
 }
 
 // setupServerInfoRoutes registers the server discovery endpoint.
@@ -43,7 +50,7 @@ func (s *HTTPServer) setupServerInfoRoutes() {
 func setCORSHeaders(c *gin.Context) {
 	c.Header("Access-Control-Allow-Origin", "*")
 	c.Header("Access-Control-Allow-Methods", "GET, OPTIONS")
-	c.Header("Access-Control-Allow-Headers", "Content-Type")
+	c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type")
 }
 
 // handleServerInfo returns basic server metadata for discovery.
@@ -117,7 +124,16 @@ func (s *HTTPServer) handleServerInfo(c *gin.Context) {
 		Description:      description,
 		IconURL:          iconURL,
 		BannerURL:        bannerURL,
+		Live:             s.serverInfoLive(c),
 	})
+}
+
+func (s *HTTPServer) serverInfoLive(c *gin.Context) *serverInfoLive {
+	return &serverInfoLive{
+		URL:      s.clientLivePublicURL(c),
+		TokenURL: clientLiveTokenURL(),
+		Protocol: clientLiveDiscoveryProtocol(),
+	}
 }
 
 func serverInfoAuthProviders(providers []config.AuthProviderConfig) []serverInfoAuthProvider {

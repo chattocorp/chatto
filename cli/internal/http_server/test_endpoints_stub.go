@@ -14,6 +14,10 @@ func createMailer(smtpConfig config.SMTPConfig) (*email.MockSender, email.Sender
 	return nil, email.NewMailer(smtpConfig)
 }
 
+func testEndpointsEnabled() bool {
+	return false
+}
+
 // registerTestEndpoints is a no-op in production builds.
 // Test endpoints are only available when built with -tags test_endpoints.
 func registerTestEndpoints(_ *gin.RouterGroup, _ *HTTPServer) {

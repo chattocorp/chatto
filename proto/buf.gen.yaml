@@ -9,3 +9,7 @@ plugins:
     out: ../cli/internal/pb
     opt:
       - paths=source_relative
+  - local: ../frontend/node_modules/.bin/protoc-gen-es
+    out: ../frontend/src/lib/pb
+    opt:
+      - target=ts

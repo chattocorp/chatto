@@ -12,6 +12,7 @@ export type MayHaveMissedMessagesReason =
   | 'event-bus-subscription-ended'
   | 'event-bus-ws-reconnected'
   | 'event-bus-heartbeat-stalled'
+  | 'event-bus-protobuf-sparse-event'
   | 'manual-shortcut';
 
 const DEDUPE_MS = 1_000;
@@ -39,6 +40,8 @@ function reasonForEventBusCatchUp(reason: EventBusCatchUpReason): MayHaveMissedM
       return 'event-bus-ws-reconnected';
     case 'heartbeat-stalled':
       return 'event-bus-heartbeat-stalled';
+    case 'protobuf-sparse-event':
+      return 'event-bus-protobuf-sparse-event';
   }
 }
 

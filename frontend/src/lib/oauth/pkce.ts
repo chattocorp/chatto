@@ -3,6 +3,8 @@
  * Implements RFC 7636 with S256 challenge method only.
  */
 
+import type { LiveInfo } from '$lib/state/server/registry.svelte';
+
 const VERIFIER_LENGTH = 64;
 const VERIFIER_CHARSET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
 
@@ -44,6 +46,7 @@ export interface OAuthFlowState {
 	remoteUrl: string;
 	serverName: string;
 	serverIconUrl: string | null;
+	live?: LiveInfo | null;
 }
 
 /** Save OAuth flow state to sessionStorage before redirecting. */

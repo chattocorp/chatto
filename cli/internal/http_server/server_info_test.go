@@ -10,13 +10,19 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
+	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
 )
 
@@ -54,16 +60,26 @@ func setupServerInfoServer(t *testing.T, authConfig config.AuthConfig) *HTTPServ
 	startCoreServices(t, chattoCore)
 
 	router := gin.New()
+	sessionStore := cookie.NewStore([]byte("test-secret-key-32-bytes-long!!"))
+	router.Use(sessions.Sessions("chatto_session", sessionStore))
 	s := &HTTPServer{
 		config: config.ChattoConfig{
 			Auth: authConfig,
+			Webserver: config.WebserverConfig{
+				URL:                 "http://chat.example.test",
+				CookieSigningSecret: "test-secret-key-32-bytes-long!!",
+			},
 		},
 		nc:      nc,
 		router:  router,
 		core:    chattoCore,
 		version: "1.2.3",
+		metrics: newProcessMetrics(),
 	}
+	allowedOrigins := s.buildAllowedOrigins()
+	s.router.Use(s.corsMiddleware(allowedOrigins))
 	s.setupServerInfoRoutes()
+	s.setupLiveRoutes(allowedOrigins)
 
 	return s
 }
@@ -218,6 +234,36 @@ func TestServerInfo(t *testing.T) {
 		if methods := w.Header().Get("Access-Control-Allow-Methods"); methods != "GET, OPTIONS" {
 			t.Errorf("expected Access-Control-Allow-Methods 'GET, OPTIONS', got %q", methods)
 		}
+		if headers := w.Header().Get("Access-Control-Allow-Headers"); headers != "Authorization, Content-Type" {
+			t.Errorf("expected Access-Control-Allow-Headers 'Authorization, Content-Type', got %q", headers)
+		}
+	})
+
+	t.Run("includes Chatto live discovery", func(t *testing.T) {
+		s := setupServerInfoServer(t, config.AuthConfig{})
+
+		req := httptest.NewRequest("GET", "/api/server", nil)
+		req.Host = "chat.example.test"
+		req.Header.Set("X-Forwarded-Proto", "https")
+		w := httptest.NewRecorder()
+		s.router.ServeHTTP(w, req)
+
+		var resp serverInfoResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to parse response: %v", err)
+		}
+		if resp.Live == nil {
+			t.Fatal("expected live discovery metadata")
+		}
+		if resp.Live.URL != "ws://chat.example.test/api/live" {
+			t.Errorf("live.url = %q, want ws://chat.example.test/api/live", resp.Live.URL)
+		}
+		if resp.Live.TokenURL != "/api/live-token" {
+			t.Errorf("live.tokenUrl = %q, want /api/live-token", resp.Live.TokenURL)
+		}
+		if resp.Live.Protocol != clientLiveProtocol {
+			t.Errorf("live.protocol = %q", resp.Live.Protocol)
+		}
 	})
 
 	t.Run("sets Cache-Control header", func(t *testing.T) {
@@ -355,6 +401,259 @@ func TestServerInfo(t *testing.T) {
 		}
 		if maxAge := w.Header().Get("Access-Control-Max-Age"); maxAge != "86400" {
 			t.Errorf("expected Access-Control-Max-Age '86400', got %q", maxAge)
+		}
+	})
+}
+
+func TestClientLiveToken(t *testing.T) {
+	t.Run("requires authenticated bearer token", func(t *testing.T) {
+		s := setupServerInfoServer(t, config.AuthConfig{})
+
+		req := httptest.NewRequest("POST", "/api/live-token", nil)
+		w := httptest.NewRecorder()
+		s.router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401, got %d", w.Code)
+		}
+	})
+
+	t.Run("returns transport credentials for authenticated bearer token", func(t *testing.T) {
+		s := setupServerInfoServer(t, config.AuthConfig{})
+
+		ctx := testContext(t)
+		user, err := s.core.CreateUser(ctx, "system", "client-live-token-user", "Client Live Token User", "password123")
+		if err != nil {
+			t.Fatalf("create user: %v", err)
+		}
+		token, err := s.core.CreateAuthToken(ctx, user.Id)
+		if err != nil {
+			t.Fatalf("create auth token: %v", err)
+		}
+
+		req := httptest.NewRequest("POST", "/api/live-token", nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		w := httptest.NewRecorder()
+		s.router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+		}
+		var resp struct {
+			URL       string    `json:"url"`
+			Ticket    string    `json:"ticket"`
+			Protocol  string    `json:"protocol"`
+			ExpiresAt time.Time `json:"expiresAt"`
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("parse response: %v", err)
+		}
+		if resp.URL != "ws://chat.example.test/api/live" {
+			t.Errorf("url = %q, want ws://chat.example.test/api/live", resp.URL)
+		}
+		if resp.Ticket == "" {
+			t.Fatal("ticket is empty")
+		}
+		if resp.Protocol != clientLiveProtocol {
+			t.Errorf("protocol = %q", resp.Protocol)
+		}
+	})
+
+	t.Run("websocket accepts ticket and sends protobuf hello", func(t *testing.T) {
+		s := setupServerInfoServer(t, config.AuthConfig{})
+		ts := httptest.NewServer(s.router)
+		defer ts.Close()
+
+		ctx := testContext(t)
+		user, err := s.core.CreateUser(ctx, "system", "client-live-ws-user", "Client Live WS User", "password123")
+		if err != nil {
+			t.Fatalf("create user: %v", err)
+		}
+		token, err := s.core.CreateAuthToken(ctx, user.Id)
+		if err != nil {
+			t.Fatalf("create auth token: %v", err)
+		}
+
+		req, err := http.NewRequest(http.MethodPost, ts.URL+"/api/live-token", nil)
+		if err != nil {
+			t.Fatalf("create live token request: %v", err)
+		}
+		req.Header.Set("Authorization", "Bearer "+token)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("live token request: %v", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200, got %d", resp.StatusCode)
+		}
+		var tokenResp struct {
+			Ticket string `json:"ticket"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+			t.Fatalf("parse response: %v", err)
+		}
+
+		wsURL := "ws" + strings.TrimPrefix(ts.URL, "http") + "/api/live?ticket=" + url.QueryEscape(tokenResp.Ticket)
+		conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+		if err != nil {
+			t.Fatalf("dial live websocket: %v", err)
+		}
+		defer conn.Close()
+
+		if err := conn.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
+			t.Fatalf("set read deadline: %v", err)
+		}
+		messageType, payload, err := conn.ReadMessage()
+		if err != nil {
+			t.Fatalf("read hello: %v", err)
+		}
+		if messageType != websocket.BinaryMessage {
+			t.Fatalf("messageType = %d, want binary", messageType)
+		}
+		var frame corev1.ClientLiveServerFrame
+		if err := proto.Unmarshal(payload, &frame); err != nil {
+			t.Fatalf("decode hello: %v", err)
+		}
+		hello := frame.GetHello()
+		if hello == nil {
+			t.Fatalf("expected hello frame, got %T", frame.GetPayload())
+		}
+		if hello.GetProtocol() != clientLiveProtocol {
+			t.Fatalf("protocol = %q", hello.GetProtocol())
+		}
+
+		room, err := s.core.CreateRoom(ctx, user.Id, "channel", "", "client-live-room", "Client Live Room")
+		if err != nil {
+			t.Fatalf("create room: %v", err)
+		}
+		if _, err := s.core.JoinRoom(ctx, user.Id, "channel", user.Id, room.Id); err != nil {
+			t.Fatalf("join room: %v", err)
+		}
+		posted, err := s.core.PostMessage(ctx, "channel", room.Id, user.Id, "hello client live", nil, "", "", nil, false)
+		if err != nil {
+			t.Fatalf("post message: %v", err)
+		}
+
+		deadline := time.Now().Add(5 * time.Second)
+		for {
+			if err := conn.SetReadDeadline(deadline); err != nil {
+				t.Fatalf("set read deadline: %v", err)
+			}
+			messageType, payload, err := conn.ReadMessage()
+			if err != nil {
+				t.Fatalf("read live event: %v", err)
+			}
+			if messageType != websocket.BinaryMessage {
+				t.Fatalf("messageType = %d, want binary", messageType)
+			}
+			var eventFrame corev1.ClientLiveServerFrame
+			if err := proto.Unmarshal(payload, &eventFrame); err != nil {
+				t.Fatalf("decode live event: %v", err)
+			}
+			live := eventFrame.GetLiveEvent()
+			roomEvent := live.GetRoomEvent()
+			if roomEvent == nil || roomEvent.GetMessagePosted() == nil {
+				continue
+			}
+			if roomEvent.GetId() != posted.Id {
+				t.Fatalf("delivered room event id = %q, want %q", roomEvent.GetId(), posted.Id)
+			}
+			if roomEvent.GetMessagePosted().GetBody() != "hello client live" {
+				t.Fatalf("delivered message body = %q", roomEvent.GetMessagePosted().GetBody())
+			}
+			if eventFrame.GetStreamSequence() == 0 {
+				t.Fatal("expected stream sequence on delivered event")
+			}
+			break
+		}
+
+		historyReq, err := proto.Marshal(&corev1.ClientRoomEventsRequest{
+			RoomId: room.Id,
+			Limit:  50,
+		})
+		if err != nil {
+			t.Fatalf("marshal history request: %v", err)
+		}
+		historyFrame, err := proto.Marshal(&corev1.ClientLiveClientFrame{
+			RequestId: 7,
+			Payload: &corev1.ClientLiveClientFrame_Request{
+				Request: &corev1.ClientLiveRequest{
+					Type:    clientLiveRequestRoomEvents,
+					Payload: historyReq,
+				},
+			},
+		})
+		if err != nil {
+			t.Fatalf("marshal history frame: %v", err)
+		}
+		if err := conn.WriteMessage(websocket.BinaryMessage, historyFrame); err != nil {
+			t.Fatalf("write history request: %v", err)
+		}
+
+		deadline = time.Now().Add(5 * time.Second)
+		for {
+			if err := conn.SetReadDeadline(deadline); err != nil {
+				t.Fatalf("set read deadline: %v", err)
+			}
+			messageType, payload, err := conn.ReadMessage()
+			if err != nil {
+				t.Fatalf("read history response: %v", err)
+			}
+			if messageType != websocket.BinaryMessage {
+				t.Fatalf("messageType = %d, want binary", messageType)
+			}
+			var responseFrame corev1.ClientLiveServerFrame
+			if err := proto.Unmarshal(payload, &responseFrame); err != nil {
+				t.Fatalf("decode history frame: %v", err)
+			}
+			if responseFrame.GetRequestId() != 7 {
+				continue
+			}
+			response := responseFrame.GetResponse()
+			if response == nil {
+				t.Fatalf("expected history response, got %T", responseFrame.GetPayload())
+			}
+			if response.GetType() != clientLiveRequestRoomEvents {
+				t.Fatalf("response type = %q, want %q", response.GetType(), clientLiveRequestRoomEvents)
+			}
+			var page corev1.ClientRoomEventsPage
+			if err := proto.Unmarshal(response.GetPayload(), &page); err != nil {
+				t.Fatalf("decode history page: %v", err)
+			}
+			var postedItem *corev1.ClientRoomEventItem
+			for _, item := range page.GetEvents() {
+				if item.GetEvent().GetId() == posted.Id {
+					postedItem = item
+					break
+				}
+			}
+			if postedItem == nil {
+				t.Fatalf("history response did not include posted event %q", posted.Id)
+			}
+			if postedItem.GetStreamSequence() == 0 {
+				t.Fatal("expected stream sequence on history item")
+			}
+			if postedItem.GetEvent().GetMessagePosted().GetBody() != "hello client live" {
+				t.Fatalf("history message body = %q", postedItem.GetEvent().GetMessagePosted().GetBody())
+			}
+			break
+		}
+	})
+
+	t.Run("OPTIONS preflight returns 204 with authorization allowed", func(t *testing.T) {
+		s := setupServerInfoServer(t, config.AuthConfig{})
+
+		req := httptest.NewRequest("OPTIONS", "/api/live-token", nil)
+		req.Header.Set("Origin", "https://app.example.test")
+		w := httptest.NewRecorder()
+		s.router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusNoContent {
+			t.Fatalf("expected 204, got %d", w.Code)
+		}
+		if headers := w.Header().Get("Access-Control-Allow-Headers"); !strings.Contains(headers, "Authorization") {
+			t.Errorf("expected Access-Control-Allow-Headers to include Authorization, got %q", headers)
 		}
 	})
 }

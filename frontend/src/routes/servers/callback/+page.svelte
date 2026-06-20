@@ -90,7 +90,8 @@
           userId: result.user?.id ?? null,
           userLogin: result.user?.login ?? null,
           userDisplayName: result.user?.displayName ?? null,
-          userAvatarUrl: result.user?.avatarUrl ?? null
+          userAvatarUrl: result.user?.avatarUrl ?? null,
+          live: flow.live ?? existing.live ?? null
         });
         serverId = existing.id;
       } else {
@@ -109,6 +110,7 @@
           userLogin: result.user?.login ?? null,
           userDisplayName: result.user?.displayName ?? null,
           userAvatarUrl: result.user?.avatarUrl ?? null,
+          live: flow.live ?? null,
           addedAt: Date.now()
         });
         serverId = id;

@@ -4,8 +4,10 @@
   import { graphql } from '$lib/gql';
   import { useEvent, createTypingIndicator } from '$lib/hooks';
   import { useConnection } from '$lib/state/server/connection.svelte';
+  import { eventBusManager } from '$lib/state/server/eventBus.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { ClientLiveMessageHistoryClient } from '$lib/state/room/messages/liveHistory';
 
   const stores = serverRegistry.getStore(getActiveServer());
   const notificationStore = stores.notifications;
@@ -56,7 +58,11 @@
 
   const store = new MessagesStore(
     connection(),
-    () => currentUser.user?.id ?? null
+    () => currentUser.user?.id ?? null,
+    () => {
+      const request = eventBusManager.getBus(getActiveServer())?.request;
+      return request ? new ClientLiveMessageHistoryClient(request) : undefined;
+    }
   );
   onDestroy(() => store.dispose());
 
@@ -145,11 +151,7 @@
         typingIndicator.removeTypingUser(actorId);
       }
 
-      if (
-        currentUser.user &&
-        actorId !== currentUser.user.id &&
-        appState.isPresent
-      ) {
+      if (currentUser.user && actorId !== currentUser.user.id && appState.isPresent) {
         void markThreadAsRead(threadRootEventId, serverEvent.id);
       }
     }
@@ -305,11 +307,7 @@
   data-testid="thread-pane"
   transition:fly={{ x: 300, duration: 200 }}
 >
-  <PaneHeader
-    title="Thread in #{roomName}"
-    onBack={onClose}
-    backLabel="Back to room"
-  >
+  <PaneHeader title="Thread in #{roomName}" onBack={onClose} backLabel="Back to room">
     {#snippet actions()}
       <HeaderIconButton
         icon={isFollowingThread ? 'uil--bell' : 'uil--bell-slash'}

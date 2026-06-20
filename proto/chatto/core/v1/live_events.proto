@@ -3,7 +3,11 @@ syntax = "proto3";
 package chatto.core.v1;
 
 import "google/protobuf/timestamp.proto";
+import "chatto/core/v1/asset_events.proto";
+import "chatto/core/v1/message_events.proto";
+import "chatto/core/v1/moderation_events.proto";
 import "chatto/core/v1/room_events.proto";
+import "chatto/core/v1/thread_events.proto";
 import "chatto/core/v1/user_events.proto";
 import "chatto/core/v1/user_preferences.proto";
 
@@ -81,7 +85,161 @@ message LiveEvent {
 
     // ----- Session termination -----
     SessionTerminatedEvent session_terminated = 100;
+
+    // ----- Client-facing room read model -----
+    //
+    // These payloads are shaped for the authenticated client and may include
+    // projected/viewer-specific data. They are not persisted domain facts.
+    LiveRoomEvent room_event = 200;
+    LiveMessageReactionsUpdatedEvent message_reactions_updated = 201;
+    LiveMessageAttachmentsUpdatedEvent message_attachments_updated = 202;
   }
+}
+
+// LiveRoomEvent is the client-facing room timeline envelope. Unlike the
+// durable Event envelope, this is a read-model payload: fields may be hydrated
+// from projections and shaped for the authenticated viewer.
+message LiveRoomEvent {
+  string id = 1;
+  google.protobuf.Timestamp created_at = 2;
+  string actor_id = 3;
+  LiveUserView actor = 4;
+  string room_id = 5;
+
+  oneof event {
+    LiveMessagePostedEvent message_posted = 10;
+    LiveMessageEditedEvent message_edited = 11;
+    MessageRetractedEvent message_retracted = 12;
+
+    RoomCreatedEvent room_created = 20;
+    RoomUpdatedEvent room_updated = 21;
+    RoomDeletedEvent room_deleted = 22;
+    RoomArchivedEvent room_archived = 23;
+    RoomUnarchivedEvent room_unarchived = 24;
+    UserJoinedRoomEvent user_joined_room = 25;
+    UserLeftRoomEvent user_left_room = 26;
+    RoomMemberBannedEvent room_member_banned = 27;
+    RoomMemberUnbannedEvent room_member_unbanned = 28;
+    ServerMemberDeletedEvent server_member_deleted = 29;
+
+    ThreadCreatedEvent thread_created = 40;
+
+    CallStartedEvent call_started = 50;
+    CallParticipantJoinedEvent call_participant_joined = 51;
+    CallParticipantLeftEvent call_participant_left = 52;
+    CallEndedEvent call_ended = 53;
+
+    AssetDeletedEvent asset_deleted = 60;
+  }
+}
+
+message LiveMessageEditedEvent {
+  string room_id = 1;
+  string message_event_id = 2;
+  optional string body = 3;
+  repeated LiveAttachmentView attachments = 4;
+  LiveLinkPreviewView link_preview = 5;
+  optional string updated_at = 6;
+}
+
+message LiveMessagePostedEvent {
+  string room_id = 1;
+  optional string body = 2;
+  repeated LiveAttachmentView attachments = 3;
+  LiveLinkPreviewView link_preview = 4;
+
+  optional string updated_at = 5;
+  optional string in_reply_to = 6;
+  optional string thread_root_event_id = 7;
+  optional string echo_of_event_id = 8;
+  optional string echo_from_thread_root_event_id = 9;
+  optional string channel_echo_event_id = 10;
+
+  repeated LiveReactionSummaryView reactions = 11;
+  int32 reply_count = 12;
+  optional google.protobuf.Timestamp last_reply_at = 13;
+  repeated LiveUserView thread_participants = 14;
+  optional bool viewer_is_following_thread = 15;
+}
+
+message LiveMessageReactionsUpdatedEvent {
+  string room_id = 1;
+  string message_event_id = 2;
+  repeated LiveReactionSummaryView reactions = 3;
+}
+
+message LiveMessageAttachmentsUpdatedEvent {
+  string room_id = 1;
+  string message_event_id = 2;
+  repeated LiveAttachmentView attachments = 3;
+  LiveLinkPreviewView link_preview = 4;
+  optional string updated_at = 5;
+}
+
+message LiveUserView {
+  string id = 1;
+  string login = 2;
+  string display_name = 3;
+  bool deleted = 4;
+  string avatar_url = 5;
+  string presence_status = 6;
+}
+
+message LiveReactionUserView {
+  string id = 1;
+  string display_name = 2;
+}
+
+message LiveReactionSummaryView {
+  string emoji = 1;
+  int32 count = 2;
+  bool has_reacted = 3;
+  repeated LiveReactionUserView users = 4;
+}
+
+message LiveAssetURL {
+  string url = 1;
+  google.protobuf.Timestamp expires_at = 2;
+}
+
+message LiveAttachmentView {
+  string id = 1;
+  string filename = 2;
+  string content_type = 3;
+  int32 width = 4;
+  int32 height = 5;
+  LiveAssetURL asset_url = 6;
+  LiveAssetURL thumbnail_asset_url = 7;
+  LiveVideoProcessingView video_processing = 8;
+}
+
+message LiveVideoProcessingView {
+  string status = 1;
+  optional int64 duration_ms = 2;
+  optional int32 width = 3;
+  optional int32 height = 4;
+  LiveAssetURL thumbnail_asset_url = 5;
+  bool source_available = 6;
+  repeated LiveVideoVariantView variants = 7;
+  optional string reason_code = 8;
+}
+
+message LiveVideoVariantView {
+  string quality = 1;
+  int32 width = 2;
+  int32 height = 3;
+  int64 size = 4;
+  LiveAssetURL asset_url = 5;
+}
+
+message LiveLinkPreviewView {
+  string url = 1;
+  string title = 2;
+  string description = 3;
+  string image_url = 4;
+  string site_name = 5;
+  string embed_type = 6;
+  optional string embed_id = 7;
 }
 
 // ============================================================================
