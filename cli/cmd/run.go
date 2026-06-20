@@ -76,6 +76,14 @@ func runServer(configPath string) {
 		printBanner()
 	}
 
+	stopStartupCPUProfile := startStartupCPUProfile(cfg.Diagnostics.StartupCPUProfile)
+	startupCPUProfileStopped := false
+	defer func() {
+		if !startupCPUProfileStopped {
+			stopStartupCPUProfile()
+		}
+	}()
+
 	exitCode := 0
 	defer func() {
 		if exitCode != 0 {
@@ -183,6 +191,8 @@ func runServer(configPath string) {
 		exitCode = 1
 		return
 	}
+	stopStartupCPUProfile()
+	startupCPUProfileStopped = true
 
 	// Seed `announcements` + `general` on first boot of a fresh server.
 	// Idempotent — no-op once any channel room exists.

@@ -93,6 +93,16 @@ Built-in automatic TLS via Let's Encrypt. When enabled, Chatto handles certifica
   HTTP path for Prometheus scrapes.
 </EnvVar>
 
+<EnvVar name="CHATTO_METRICS_PPROF" toml="metrics.pprof" default="false">
+  Expose Go pprof debug endpoints on the metrics listener under `/debug/pprof/`. Keep the metrics listener private and enable this only while profiling.
+</EnvVar>
+
+## Diagnostics
+
+<EnvVar name="CHATTO_DIAGNOSTICS_STARTUP_CPU_PROFILE" toml="diagnostics.startup_cpu_profile">
+  Write a Go CPU profile covering process startup through core boot to this path. Useful for local projection replay benchmarking; disabled when empty.
+</EnvVar>
+
 ## Core
 
 <EnvVar name="CHATTO_CORE_SECRET_KEY" toml="core.secret_key" required>

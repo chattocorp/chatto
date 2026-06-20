@@ -144,6 +144,12 @@ case "user":
 - Use `signal.NotifyContext` for shutdown signals (not manual goroutine + channel)
 - Use `errgroup` to coordinate multiple concurrent blocking services
 
+## Local Profiling
+
+- For startup/projection replay CPU profiles, set `CHATTO_DIAGNOSTICS_STARTUP_CPU_PROFILE=.context/bench/startup.pprof`; Chatto writes a Go CPU profile from early process startup through `ChattoCore.WaitForBoot`.
+- For runtime heap/goroutine/CPU profiles, set `CHATTO_METRICS_ENABLED=true` and `CHATTO_METRICS_PPROF=true`, keep `CHATTO_METRICS_BIND_ADDRESS=127.0.0.1`, then fetch `/debug/pprof/` from the metrics port.
+- Store local benchmark artifacts under `.context/bench/` and inspect them with `go tool pprof`.
+
 ## API Design
 
 - Use GraphQL for all client-facing APIs - avoid REST endpoints for application logic

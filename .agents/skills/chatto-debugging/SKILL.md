@@ -5,6 +5,31 @@ description: "Production debugging tools for NATS streams, KV buckets, and proto
 
 # Debugging
 
+## Local Startup And Heap Profiling
+
+When benchmarking projection startup or runtime memory locally, prefer the
+built-in diagnostics knobs before adding ad hoc instrumentation:
+
+```bash
+CHATTO_METRICS_ENABLED=true \
+CHATTO_METRICS_PPROF=true \
+CHATTO_METRICS_BIND_ADDRESS=127.0.0.1 \
+CHATTO_METRICS_PORT=9090 \
+CHATTO_DIAGNOSTICS_STARTUP_CPU_PROFILE=.context/bench/startup.pprof \
+mise x -- go run -tags bootstrap . run
+```
+
+- `CHATTO_DIAGNOSTICS_STARTUP_CPU_PROFILE` writes a Go CPU profile from early
+  process startup through `ChattoCore.WaitForBoot`, which captures embedded
+  NATS startup and projection replay.
+- `CHATTO_METRICS_PPROF=true` exposes `/debug/pprof/` on the private metrics
+  listener for heap, goroutine, trace, and under-load CPU profiles after boot.
+- Keep benchmark data and profiles under `.context/bench/` so they remain
+  gitignored and easy to compare across runs.
+- Use `go tool pprof -top ./bin/chatto .context/bench/startup.pprof` or
+  `go tool pprof -http=:0 ...` to inspect profiles. For heap profiles, fetch
+  `http://127.0.0.1:9090/debug/pprof/heap` from the metrics port.
+
 ## NATS CLI for Production Debugging
 
 This is the **only supported path** for raw NATS inspection. The GraphQL admin surface intentionally exposes only aggregate operational metrics (`Query.admin.systemInfo` returns connection state and account-level usage totals) — it does not expose stream subjects, KV keys, or per-stream/per-bucket breakdowns. Those leaked structural information (room IDs, user IDs, bucket names) without a use case the `nats` CLI doesn't already cover. If you need to inspect a specific stream or bucket, shell into the host with operator credentials and use the commands below.

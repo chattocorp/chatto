@@ -836,6 +836,7 @@ enabled = true
 bind_address = "0.0.0.0"
 port = 9100
 path = "/internal/metrics"
+pprof = true
 
 [core]
 secret_key = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
@@ -863,10 +864,14 @@ signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddee
 	if got := cfg.Metrics.PathOrDefault(); got != "/internal/metrics" {
 		t.Errorf("Metrics.Path = %q, want /internal/metrics", got)
 	}
+	if !cfg.Metrics.Pprof {
+		t.Fatal("Metrics.Pprof = false, want true")
+	}
 
 	t.Setenv("CHATTO_METRICS_ENABLED", "false")
 	t.Setenv("CHATTO_METRICS_PORT", "9200")
 	t.Setenv("CHATTO_METRICS_PATH", "/metrics")
+	t.Setenv("CHATTO_METRICS_PPROF", "false")
 
 	cfg, err = ReadConfig("")
 	if err != nil {
@@ -880,6 +885,57 @@ signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddee
 	}
 	if got := cfg.Metrics.PathOrDefault(); got != "/metrics" {
 		t.Errorf("Metrics.Path env override = %q, want /metrics", got)
+	}
+	if cfg.Metrics.Pprof {
+		t.Fatal("Metrics.Pprof = true, want env override false")
+	}
+}
+
+func TestReadConfig_DiagnosticsFromTOMLAndEnv(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(originalDir) })
+
+	configContent := `
+[webserver]
+port = 5000
+cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
+[diagnostics]
+startup_cpu_profile = "startup.pprof"
+
+[core]
+secret_key = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+
+[core.assets]
+signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+`
+	if err := os.WriteFile(filepath.Join(tmpDir, "chatto.toml"), []byte(configContent), 0644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := ReadConfig("")
+	if err != nil {
+		t.Fatalf("ReadConfig() failed: %v", err)
+	}
+	if got := cfg.Diagnostics.StartupCPUProfile; got != "startup.pprof" {
+		t.Fatalf("Diagnostics.StartupCPUProfile = %q, want startup.pprof", got)
+	}
+
+	t.Setenv("CHATTO_DIAGNOSTICS_STARTUP_CPU_PROFILE", "env-startup.pprof")
+
+	cfg, err = ReadConfig("")
+	if err != nil {
+		t.Fatalf("ReadConfig() with env override failed: %v", err)
+	}
+	if got := cfg.Diagnostics.StartupCPUProfile; got != "env-startup.pprof" {
+		t.Fatalf("Diagnostics.StartupCPUProfile env override = %q, want env-startup.pprof", got)
 	}
 }
 
