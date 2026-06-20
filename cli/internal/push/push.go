@@ -4,6 +4,8 @@ package push
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -181,6 +183,12 @@ func pushServiceStatusError(prefix string, statusCode int, body string, readErr 
 		return fmt.Errorf("%s %d", prefix, statusCode)
 	}
 	return fmt.Errorf("%s %d: %s", prefix, statusCode, body)
+}
+
+// EndpointLogID returns a stable, opaque identifier for a push endpoint.
+func EndpointLogID(endpoint string) string {
+	hash := sha256.Sum256([]byte(endpoint))
+	return hex.EncodeToString(hash[:8])
 }
 
 // SendToMany sends a push notification to multiple subscriptions.

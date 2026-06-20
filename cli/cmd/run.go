@@ -486,15 +486,15 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 				// Subscription is no longer valid, delete it
 				if err := chattoCore.DeletePushSubscription(ctx, notification.RecipientId, result.Endpoint); err != nil {
 					logger.Warn("Failed to delete expired push subscription",
-						"endpoint", result.Endpoint[:min(50, len(result.Endpoint))],
+						"endpoint_id", push.EndpointLogID(result.Endpoint),
 						"error", err)
 				} else {
 					logger.Debug("Deleted expired push subscription",
-						"endpoint", result.Endpoint[:min(50, len(result.Endpoint))])
+						"endpoint_id", push.EndpointLogID(result.Endpoint))
 				}
 			} else if result.Error != nil {
 				logger.Warn("Failed to send push notification",
-					"endpoint", result.Endpoint[:min(50, len(result.Endpoint))],
+					"endpoint_id", push.EndpointLogID(result.Endpoint),
 					"error", result.Error)
 			} else if result.Success {
 				logger.Debug("Push notification sent",
@@ -537,12 +537,12 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 			if result.Gone {
 				if err := chattoCore.DeletePushSubscription(ctx, userID, result.Endpoint); err != nil {
 					logger.Warn("Failed to delete expired push subscription",
-						"endpoint", result.Endpoint[:min(50, len(result.Endpoint))],
+						"endpoint_id", push.EndpointLogID(result.Endpoint),
 						"error", err)
 				}
 			} else if result.Error != nil {
 				logger.Debug("Failed to send dismiss push",
-					"endpoint", result.Endpoint[:min(50, len(result.Endpoint))],
+					"endpoint_id", push.EndpointLogID(result.Endpoint),
 					"error", result.Error)
 			} else if result.Success {
 				logger.Debug("Dismiss push sent",

@@ -87,9 +87,16 @@ function notifyClientAndWaitForAck(
   });
 }
 
-async function navigateClient(client: NotificationClickClient, url: string): Promise<boolean> {
-  if (typeof client.navigate !== 'function') return false;
-  return Boolean(await client.navigate(url));
+async function focusClient(
+  client: NotificationClickClient,
+  logger?: NotificationClickLogger
+): Promise<void> {
+  if (typeof client.focus !== 'function') return;
+  try {
+    await client.focus();
+  } catch (err) {
+    logger?.warn('[SW] Failed to focus existing window:', err);
+  }
 }
 
 export async function routeNotificationClick(
@@ -111,32 +118,21 @@ export async function routeNotificationClick(
   });
 
   for (const client of clientList) {
-    if (typeof client.focus !== 'function') continue;
-
-    let focusedClient: NotificationClickClient | null = null;
-    try {
-      focusedClient = await client.focus();
-    } catch (err) {
-      options.logger?.warn('[SW] Failed to focus existing window:', err);
+    const acknowledged = await notifyClientAndWaitForAck(client, url, ackOptions);
+    if (acknowledged) {
+      await focusClient(client, options.logger);
+      return 'client';
     }
 
-    if (focusedClient) {
-      const acknowledged = await notifyClientAndWaitForAck(focusedClient, url, ackOptions);
-      if (acknowledged) return 'client';
-
-      try {
-        if (await navigateClient(focusedClient, url)) return 'navigate';
-      } catch (err) {
-        options.logger?.warn('[SW] Failed to navigate focused window:', err);
+    try {
+      const navigatedClient = await client.navigate?.(url);
+      if (navigatedClient) {
+        await focusClient(navigatedClient, options.logger);
+        return 'navigate';
       }
-    }
-
-    try {
-      if (await navigateClient(client, url)) return 'navigate';
     } catch (err) {
       options.logger?.warn('[SW] Failed to navigate existing window:', err);
     }
-    break;
   }
 
   await clients.openWindow(url);

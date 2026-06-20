@@ -14,10 +14,23 @@ Include this component once in the authenticated layout.
   const originId = serverRegistry.originServer?.id ?? '';
   const originServerInfo = originId ? serverRegistry.getStore(originId).serverInfo : undefined;
 
-  $effect(() => {
+  function refreshPushSubscription() {
     if (!originServerInfo?.pushNotificationsEnabled) return;
     if (!originServerInfo.vapidPublicKey) return;
 
     void ensureRegistered(originServerInfo.vapidPublicKey, { prompt: false });
+  }
+
+  $effect(() => {
+    if (!originServerInfo?.pushNotificationsEnabled) return;
+    if (!originServerInfo.vapidPublicKey) return;
+
+    refreshPushSubscription();
+    if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+
+    navigator.serviceWorker.addEventListener('controllerchange', refreshPushSubscription);
+    return () => {
+      navigator.serviceWorker.removeEventListener('controllerchange', refreshPushSubscription);
+    };
   });
 </script>

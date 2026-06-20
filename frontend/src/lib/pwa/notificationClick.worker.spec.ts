@@ -26,15 +26,19 @@ function clientsWith(matches: NotificationClickClient[]) {
 }
 
 describe('routeNotificationClick', () => {
-  it('uses acknowledged SPA routing without navigating the window', async () => {
+  it('uses acknowledged SPA routing, then focuses the window without navigating', async () => {
     const channel = createAcknowledgingMessageChannel();
-    const client: NotificationClickClient = {
-      focus: vi.fn(async () => client),
-      navigate: vi.fn(async () => client),
-      postMessage: vi.fn((_message, transfer) => {
-        const ackPort = transfer?.[0] as { postMessage: (message: unknown) => void };
-        ackPort.postMessage({ type: 'notification-click-ack' });
-      })
+    let client!: NotificationClickClient;
+    const focus = vi.fn(async () => client);
+    const navigate = vi.fn(async () => client);
+    const postMessage = vi.fn((_message, transfer) => {
+      const ackPort = transfer?.[0] as { postMessage: (message: unknown) => void };
+      ackPort.postMessage({ type: 'notification-click-ack' });
+    });
+    client = {
+      focus,
+      navigate,
+      postMessage
     };
     const clients = clientsWith([client]);
 
@@ -43,20 +47,24 @@ describe('routeNotificationClick', () => {
     });
 
     expect(result).toBe('client');
-    expect(client.focus).toHaveBeenCalledOnce();
-    expect(client.postMessage).toHaveBeenCalledWith(
-      { type: 'notification-click', url: TARGET_URL },
-      [channel.port2]
-    );
-    expect(client.navigate).not.toHaveBeenCalled();
+    expect(focus).toHaveBeenCalledOnce();
+    expect(postMessage).toHaveBeenCalledWith({ type: 'notification-click', url: TARGET_URL }, [
+      channel.port2
+    ]);
+    expect(postMessage.mock.invocationCallOrder[0]).toBeLessThan(focus.mock.invocationCallOrder[0]);
+    expect(navigate).not.toHaveBeenCalled();
     expect(clients.openWindow).not.toHaveBeenCalled();
   });
 
-  it('falls back to WindowClient.navigate when the SPA does not acknowledge', async () => {
-    const client: NotificationClickClient = {
-      focus: vi.fn(async () => client),
-      navigate: vi.fn(async () => client),
-      postMessage: vi.fn()
+  it('falls back to WindowClient.navigate before focusing when the SPA does not acknowledge', async () => {
+    let client!: NotificationClickClient;
+    const focus = vi.fn(async () => client);
+    const navigate = vi.fn(async () => client);
+    const postMessage = vi.fn();
+    client = {
+      focus,
+      navigate,
+      postMessage
     };
     const clients = clientsWith([client]);
 
@@ -66,8 +74,40 @@ describe('routeNotificationClick', () => {
     });
 
     expect(result).toBe('navigate');
-    expect(client.postMessage).toHaveBeenCalledOnce();
-    expect(client.navigate).toHaveBeenCalledWith(TARGET_URL);
+    expect(postMessage).toHaveBeenCalledOnce();
+    expect(navigate).toHaveBeenCalledWith(TARGET_URL);
+    expect(focus).toHaveBeenCalledOnce();
+    expect(navigate.mock.invocationCallOrder[0]).toBeLessThan(focus.mock.invocationCallOrder[0]);
+    expect(clients.openWindow).not.toHaveBeenCalled();
+  });
+
+  it('tries later window clients when an earlier client cannot route or navigate', async () => {
+    const staleClient: NotificationClickClient = {
+      focus: vi.fn(async () => staleClient),
+      navigate: vi.fn(async () => null),
+      postMessage: vi.fn()
+    };
+    const activeClient: NotificationClickClient = {
+      focus: vi.fn(async () => activeClient),
+      navigate: vi.fn(async () => activeClient),
+      postMessage: vi.fn((_message, transfer) => {
+        const ackPort = transfer?.[0] as { postMessage: (message: unknown) => void };
+        ackPort.postMessage({ type: 'notification-click-ack' });
+      })
+    };
+    const clients = clientsWith([staleClient, activeClient]);
+
+    const result = await routeNotificationClick(TARGET_URL, ORIGIN, clients, {
+      ackTimeoutMs: 1,
+      createMessageChannel: createAcknowledgingMessageChannel
+    });
+
+    expect(result).toBe('client');
+    expect(staleClient.postMessage).toHaveBeenCalledOnce();
+    expect(staleClient.navigate).toHaveBeenCalledWith(TARGET_URL);
+    expect(staleClient.focus).not.toHaveBeenCalled();
+    expect(activeClient.postMessage).toHaveBeenCalledOnce();
+    expect(activeClient.focus).toHaveBeenCalledOnce();
     expect(clients.openWindow).not.toHaveBeenCalled();
   });
 
@@ -82,6 +122,21 @@ describe('routeNotificationClick', () => {
       includeUncontrolled: true
     });
     expect(clients.openWindow).toHaveBeenCalledWith(TARGET_URL);
+  });
+
+  it('accepts room, thread, and DM notification route URLs', async () => {
+    const routes = [
+      `${ORIGIN}/chat/-/dm-room`,
+      `${ORIGIN}/chat/-/room-1?highlight=event-1`,
+      `${ORIGIN}/chat/-/room-1/thread-root?highlight=reply-event`
+    ];
+
+    for (const url of routes) {
+      const clients = clientsWith([]);
+
+      await expect(routeNotificationClick(url, ORIGIN, clients)).resolves.toBe('open');
+      expect(clients.openWindow).toHaveBeenCalledWith(url);
+    }
   });
 
   it('rejects malformed and cross-origin notification URLs', async () => {

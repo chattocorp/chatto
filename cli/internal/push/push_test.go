@@ -57,6 +57,24 @@ func TestNewSender(t *testing.T) {
 	})
 }
 
+func TestEndpointLogID(t *testing.T) {
+	endpoint := "https://push.example.com/send/private-device-token"
+
+	got := EndpointLogID(endpoint)
+	if got == "" {
+		t.Fatal("EndpointLogID returned empty string")
+	}
+	if len(got) != 16 {
+		t.Fatalf("EndpointLogID length = %d, want 16", len(got))
+	}
+	if got != EndpointLogID(endpoint) {
+		t.Fatal("EndpointLogID should be stable for the same endpoint")
+	}
+	if got == endpoint || strings.Contains(got, "private-device-token") {
+		t.Fatalf("EndpointLogID leaked endpoint material: %q", got)
+	}
+}
+
 func TestPayloadMarshal(t *testing.T) {
 	t.Run("marshals all fields", func(t *testing.T) {
 		payload := &Payload{
