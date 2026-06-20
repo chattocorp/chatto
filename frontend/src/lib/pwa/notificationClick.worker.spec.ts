@@ -28,14 +28,13 @@ function clientsWith(matches: NotificationClickClient[]) {
 describe('routeNotificationClick', () => {
   it('uses acknowledged SPA routing, then focuses the window without navigating', async () => {
     const channel = createAcknowledgingMessageChannel();
-    let client!: NotificationClickClient;
     const focus = vi.fn(async () => client);
     const navigate = vi.fn(async () => client);
     const postMessage = vi.fn((_message, transfer) => {
       const ackPort = transfer?.[0] as { postMessage: (message: unknown) => void };
       ackPort.postMessage({ type: 'notification-click-ack' });
     });
-    client = {
+    const client: NotificationClickClient = {
       focus,
       navigate,
       postMessage
@@ -57,11 +56,10 @@ describe('routeNotificationClick', () => {
   });
 
   it('falls back to WindowClient.navigate before focusing when the SPA does not acknowledge', async () => {
-    let client!: NotificationClickClient;
     const focus = vi.fn(async () => client);
     const navigate = vi.fn(async () => client);
     const postMessage = vi.fn();
-    client = {
+    const client: NotificationClickClient = {
       focus,
       navigate,
       postMessage
