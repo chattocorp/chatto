@@ -7,6 +7,7 @@ import {
   consumePendingRoomSidebarPanel,
   roomSidebarPanelStorageSuffix
 } from '$lib/storage/roomSidebarPanel';
+import type { RoomsListGroup } from '$lib/state/server/rooms.svelte';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -55,7 +56,7 @@ const { mocks } = vi.hoisted(() => ({
       },
       rooms: {
         rooms: [],
-        roomGroups: null,
+        roomGroups: null as RoomsListGroup[] | null,
         isInitialLoading: false,
         currentUserId: 'me',
         markRead: vi.fn(),
