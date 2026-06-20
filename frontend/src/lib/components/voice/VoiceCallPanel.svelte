@@ -288,10 +288,7 @@ Room sidebar panel for voice/video calls.
       <div class="flex min-w-0 items-center gap-2 p-2">
         <UserAvatar user={participant.avatarUser} size="sm" showPresence={false} />
         <span class="min-w-0 flex-1 truncate text-sm font-medium">{participant.displayName}</span>
-        <span class="inline-flex min-w-4 shrink-0 items-center justify-end gap-1.5 text-sm">
-          {#if participant.isMuted}
-            <span class="iconify uil--microphone-slash text-danger" aria-label="Muted"></span>
-          {/if}
+        <span class="inline-flex h-5 min-w-5 shrink-0 items-center justify-end gap-1.5 text-sm">
           <span
             class="iconify uil--volume-up text-muted opacity-0 transition-opacity"
             aria-label="Speaking"
@@ -299,6 +296,13 @@ Room sidebar panel for voice/video calls.
             data-speaking-indicator
             data-testid="call-speaking-indicator"
           ></span>
+          {#if participant.isMuted}
+            <span
+              class="iconify uil--microphone-slash text-danger"
+              aria-label="Muted"
+              data-testid="call-muted-indicator"
+            ></span>
+          {/if}
           {#if hasConnectionWarning(participant)}
             <span
               class="iconify uil--exclamation-triangle"

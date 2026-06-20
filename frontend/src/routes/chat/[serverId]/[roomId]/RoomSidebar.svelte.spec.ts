@@ -540,6 +540,13 @@ describe('RoomSidebar', () => {
     expect(participantCards).toHaveLength(2);
     expect(participantCards[0].className).toContain('participant-card-video');
     expect(participantCards[1].className).toContain('participant-card-compact');
+    const mutedIndicator = q(participantCards[1], '[data-testid="call-muted-indicator"]');
+    const speakingIndicator = q(participantCards[1], '[data-testid="call-speaking-indicator"]');
+    expect(mutedIndicator).toBeTruthy();
+    expect(speakingIndicator).toBeTruthy();
+    expect(
+      speakingIndicator!.compareDocumentPosition(mutedIndicator!) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
 
     (q(container, '[data-testid="call-mute-toggle"]') as HTMLButtonElement).click();
     (q(container, '[data-testid="call-camera-toggle"]') as HTMLButtonElement).click();
