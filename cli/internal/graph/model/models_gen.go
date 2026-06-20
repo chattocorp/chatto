@@ -73,6 +73,8 @@ type AdminQueries struct {
 	ServerConfig *AdminServerConfig `json:"serverConfig"`
 	// Browse the durable event log newest-first for operator diagnostics. `limit` defaults to 50, max 200. `before` is a sequence string; entries returned will have sequence < before.
 	EventLog *EventLogConnection `json:"eventLog"`
+	// List diagnostic event variant labels accepted by eventLog filter suggestions.
+	EventLogEventTypes []string `json:"eventLogEventTypes"`
 	// Fetch a single diagnostic event-log entry by sequence. Returns null if the sequence doesn't exist.
 	EventLogEntry *EventLogEntry `json:"eventLogEntry,omitempty"`
 	// Inspect point-in-time runtime state and rough memory estimates for event-sourced projections.
@@ -370,6 +372,12 @@ type EventLogConnection struct {
 	EndCursor *string `json:"endCursor,omitempty"`
 	// Total messages currently in EVT, serialized as Int64 so large event logs do not overflow GraphQL Int.
 	TotalCount int64 `json:"totalCount"`
+	// Number of retained event-log rows inspected to produce this page.
+	ScannedCount int32 `json:"scannedCount"`
+	// Maximum retained event-log rows this request may inspect.
+	ScanLimit int32 `json:"scanLimit"`
+	// True when filters may have more matches beyond the inspected scan window.
+	ScanLimited bool `json:"scanLimited"`
 }
 
 // One diagnostic entry in the durable event log. Use this for operator inspection, not as a machine-parsed product feed.
@@ -392,6 +400,18 @@ type EventLogEntry struct {
 	CreatedAt *timestamppb.Timestamp `json:"createdAt"`
 	// Raw payload rendered as JSON for human inspection. Do not build clients that depend on this shape.
 	PayloadJSON string `json:"payloadJson"`
+}
+
+// Filters for browsing the diagnostic event log. All supplied filters must match.
+type EventLogFilterInput struct {
+	// Exact diagnostic event variant label, e.g. UserAccountCreatedEvent.
+	EventType *string `json:"eventType,omitempty"`
+	// Exact event actor ID, including synthetic actors such as system:bootstrap.
+	ActorID *string `json:"actorId,omitempty"`
+	// Inclusive lower bound for event creation time.
+	CreatedAtFrom *timestamppb.Timestamp `json:"createdAtFrom,omitempty"`
+	// Inclusive upper bound for event creation time.
+	CreatedAtTo *timestamppb.Timestamp `json:"createdAtTo,omitempty"`
 }
 
 // Input for following a thread.

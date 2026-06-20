@@ -307,7 +307,7 @@ There is no `adminAuditLogEvents` subscription — audit events arrive through `
 
 `Query.admin` returns `AdminQueries`; `Mutation.admin` returns `AdminMutations`. Both return `null` when the caller is unauthenticated; individual nested fields apply their own permissions such as `server.manage`, `admin.view-system`, `admin.view-audit`, `role.manage`, or owner-only gates (see [FDR-021](fdr/FDR-021-admin-dashboard.md)). Admin operations are spread across multiple schema files but all hang off these two types.
 
-Diagnostic fields (`admin.systemInfo`, `admin.eventLog`, `admin.eventLogEntry`, and `admin.projections`) are operator-facing inspection tools. `admin.systemInfo` is owner-only for now; `admin.projections` remains gated by `admin.view-system`. Their field names are part of the GraphQL API, but raw broker/storage strings, payload JSON, metric names, and point-in-time counts are diagnostic values rather than product-domain contracts.
+Diagnostic fields (`admin.systemInfo`, `admin.eventLog`, `admin.eventLogEventTypes`, `admin.eventLogEntry`, and `admin.projections`) are operator-facing inspection tools. `admin.systemInfo` is owner-only for now; `admin.projections` remains gated by `admin.view-system`. Their field names are part of the GraphQL API, but raw broker/storage strings, payload JSON, metric names, and point-in-time counts are diagnostic values rather than product-domain contracts.
 
 | Field                                            | Type      | Description                                                                                  |
 | ------------------------------------------------ | --------- | -------------------------------------------------------------------------------------------- |
@@ -315,7 +315,8 @@ Diagnostic fields (`admin.systemInfo`, `admin.eventLog`, `admin.eventLogEntry`, 
 | `admin.serverConfig`                             | Query     | Server configuration overrides (welcome message, MOTD, blocked usernames, OG description).  |
 | `admin.groupRolePermissions(groupId, roleName)`  | Query     | Explicit grants and denials for a role on a specific room group.                             |
 | `admin.groupUserPermissions(groupId, userId)`    | Query     | Explicit grants and denials for a user on a specific room group.                             |
-| `admin.eventLog(limit, before)`                  | Query     | Diagnostic event-log browser, newest first (`limit` default 50, max 200).                    |
+| `admin.eventLog(limit, before, filter)`          | Query     | Diagnostic event-log browser, newest first (`limit` default 50, max 200). Optional filters match exact event type, exact actor ID, and inclusive created-at bounds; filtered reads report bounded scan metadata (`scannedCount`, `scanLimit`, `scanLimited`). |
+| `admin.eventLogEventTypes`                       | Query     | Durable event-log type labels for filter suggestions.                                        |
 | `admin.eventLogEntry(sequence)`                  | Query     | Diagnostic event-log entry lookup by sequence.                                               |
 | `admin.projections`                              | Query     | Projection lag, rough memory estimates, and diagnostic metric buckets.                       |
 | `admin.updateBlockedUsernames(input)`            | Mutation  | Update the newline-separated blocked-username list.                                          |

@@ -1,7 +1,7 @@
 # FDR-021: Admin Dashboard & System Monitoring
 
 **Status:** Active
-**Last reviewed:** 2026-06-15
+**Last reviewed:** 2026-06-20
 
 ## Overview
 
@@ -13,8 +13,10 @@ The admin section gives owners and admins visibility into the server's operation
 - Admin-capable users enter through the gear icon in the server name pane header. Once inside server-admin, the server sidebar switches from room navigation to the admin section navigation with a Back to Server affordance.
 - **Users page** — paginated list of all server members with login, email, roles, verification status. Admins can edit profiles, assign roles, suspend, or delete users when they hold the relevant permission.
 - **System Info page** — owner-only page showing backing message-broker connection status, storage account limits and current usage, stream/consumer health, projection health (lag, entry counts, and rough memory estimates), and `admin.systemInfo.stats` (user count, channel room count, DM room count).
-- **Audit log page** — chronological diagnostic event-log view for forensic review. The list view uses `admin.eventLog`; the detail view uses `admin.eventLogEntry` to show the raw payload JSON for human inspection.
+- **Audit log page** — chronological diagnostic event-log view for forensic review, grouped by event creation date. The list view uses `admin.eventLog`; the detail view uses `admin.eventLogEntry` to show the raw payload JSON for human inspection.
+- The audit log UI can be filtered by exact event type and exact actor ID. Event type suggestions come from `admin.eventLogEventTypes`; the actor field reuses the server member lookup but still accepts synthetic actor IDs such as `system:bootstrap`. The GraphQL filter also supports inclusive created-at bounds for API callers, but the server-admin page does not expose time-range controls.
 - The audit/event-log GraphQL connection returns `totalCount` as `Int64` because it reflects retained stream message counts, which can exceed GraphQL's 32-bit `Int` range on long-running servers.
+- Filtered audit-log browsing is a bounded diagnostic scan over retained EVT rows, not an indexed analytics query. The connection reports `scannedCount`, `scanLimit`, and `scanLimited` so the UI can tell operators when older matches may exist beyond the inspected window.
 
 ## Design Decisions
 
@@ -48,7 +50,13 @@ The admin section gives owners and admins visibility into the server's operation
 **Why:** Operators need visibility into what the runtime is doing, especially during the 0.1 stabilization lane. At the same time, these values reflect storage and projection implementation details that may evolve as the event-sourcing model settles.
 **Tradeoff:** Third-party admin clients can display diagnostics but should treat raw strings and JSON as best-effort inspection data. If a future integration needs a stable audit export format, it should get a dedicated schema instead of depending on diagnostic payloads.
 
-### 6. Nested `admin` resolver with field-specific capability gates
+### 6. Event-log filters are bounded diagnostic scans
+
+**Decision:** `admin.eventLog(filter:)` supports exact event-type and actor-ID matching plus inclusive created-at bounds, but filtered reads scan at most 5,000 retained EVT rows per request. The server-admin UI currently exposes event-type and actor filters and groups the newest-first table by creation date.
+**Why:** EVT is the source of truth, not an indexed analytics store. The filters make the admin page useful for common investigations without adding a second durable index or allowing one request to walk an unbounded stream.
+**Tradeoff:** A sparse filter on a large server may report `scanLimited: true` before finding every historical match. Operators can narrow the time range or inspect older windows explicitly; a future export/analytics feature should get a dedicated read model.
+
+### 7. Nested `admin` resolver with field-specific capability gates
 
 **Decision:** Admin queries are grouped under a nested `Query.admin` type that returns for authenticated viewers, while sensitive fields check their own capabilities (`server.manage`, `admin.view-users`, `admin.view-system`, `admin.view-audit`, `role.manage`, owner-only diagnostics) before returning data.
 **Why:** The nested shape gives the API one obvious admin-tooling namespace, and the field-level checks let operators delegate user, system, audit, and RBAC-editor visibility independently.
@@ -58,7 +66,7 @@ The admin section gives owners and admins visibility into the server's operation
 
 - `admin.view-users` — gates user-management views, admin-only affordances, and user-sensitive fields such as other users' verified email addresses and login cooldowns. The underlying `server.members` directory query remains authenticated-user visible; see FDR-025.
 - `admin.view-system` — gates `admin.projections`; `admin.systemInfo` is owner-only for now.
-- `admin.view-audit` — gates `admin.eventLog` and `admin.eventLogEntry`.
+- `admin.view-audit` — gates `admin.eventLog`, `admin.eventLogEventTypes`, and `admin.eventLogEntry`.
 - `role.assign` — gates user edits and role changes via the `requireUserAdminTarget` helper.
 
 ## Related
