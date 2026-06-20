@@ -99,7 +99,7 @@ func TestProjectionRunGroupsShareIdenticalSubjectConsumers(t *testing.T) {
 		t.Fatalf("projection run groups = %d, registered projections = %d; want some shared groups", len(groups), len(core.projections))
 	}
 
-	var roomOnly, focusedThreads bool
+	var roomOnly, timelineThreads bool
 	for _, group := range groups {
 		names := make(map[string]bool, len(group.names))
 		for _, name := range group.names {
@@ -108,14 +108,14 @@ func TestProjectionRunGroupsShareIdenticalSubjectConsumers(t *testing.T) {
 		if names["Room Directory"] && names["Call State"] && names["Reactions"] && len(names) == 3 {
 			roomOnly = true
 		}
-		if names["Threads"] && len(names) == 1 {
-			focusedThreads = true
+		if names["Room Timeline"] && names["Threads"] && len(names) == 2 {
+			timelineThreads = true
 		}
 	}
 	if !roomOnly {
 		t.Fatal("room-only projections were not grouped")
 	}
-	if !focusedThreads {
-		t.Fatal("focused threads projection should run in its own group")
+	if !timelineThreads {
+		t.Fatal("room timeline and focused threads projections should share a replay group")
 	}
 }

@@ -307,7 +307,7 @@ func projectionRunGroups(projections []projectionRegistration) []projectionRunGr
 	groups := make([]projectionRunGroup, 0, len(projections))
 
 	for _, projection := range projections {
-		key := projectionSubjectsKey(projection.projector.Subjects())
+		key := projectionSubjectsKey(projection.projector.ReplaySubjects())
 		if index, exists := groupsBySubjects[key]; exists {
 			groups[index].names = append(groups[index].names, projection.name)
 			groups[index].projectors = append(groups[index].projectors, projection.projector)

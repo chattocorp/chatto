@@ -77,6 +77,19 @@ func makeEvent(roomID, userID string) *corev1.Event {
 	}
 }
 
+func makeMessagePostedEvent(roomID, userID string) *corev1.Event {
+	return &corev1.Event{
+		Id:        "EVT-msg-" + roomID + "-" + userID,
+		ActorId:   userID,
+		CreatedAt: timestamppb.Now(),
+		Event: &corev1.Event_MessagePosted{
+			MessagePosted: &corev1.MessagePostedEvent{
+				RoomId: roomID,
+			},
+		},
+	}
+}
+
 // ============================================================================
 // Publisher
 // ============================================================================
@@ -427,6 +440,20 @@ func (p *trackingProjection) Count() int {
 	return len(p.events)
 }
 
+type replayTrackingProjection struct {
+	*trackingProjection
+	replay []string
+}
+
+func newReplayTrackingProjection(subjects []string, replay []string) *replayTrackingProjection {
+	return &replayTrackingProjection{
+		trackingProjection: newTrackingProjection(subjects...),
+		replay:             replay,
+	}
+}
+
+func (p *replayTrackingProjection) ReplaySubjects() []string { return p.replay }
+
 type blockingProjection struct {
 	*trackingProjection
 	entered chan struct{}
@@ -528,6 +555,53 @@ func TestRunProjectors_SharedConsumerAppliesEventsToAllProjectors(t *testing.T) 
 	}
 }
 
+func TestRunProjectors_SharedReplaySkipsNonLogicalSubjects(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+
+	ctx := testContext(t)
+	joined := makeEvent("R1", "U1")
+	joinedSeq, err := pub.Append(ctx, RoomAggregate("R1").SubjectFor(joined), joined)
+	if err != nil {
+		t.Fatalf("Append joined: %v", err)
+	}
+	posted := makeMessagePostedEvent("R1", "U2")
+	postedSeq, err := pub.Append(ctx, RoomAggregate("R1").SubjectFor(posted), posted)
+	if err != nil {
+		t.Fatalf("Append posted: %v", err)
+	}
+
+	broad := newTrackingProjection(RoomSubjectFilter())
+	focused := newReplayTrackingProjection(
+		[]string{RoomEventTypeFilter(EventUserJoinedRoom)},
+		[]string{RoomSubjectFilter()},
+	)
+	broadProjector := NewProjector(js, stream, broad, testLogger())
+	focusedProjector := NewProjector(js, stream, focused, testLogger())
+
+	runCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	go func() { _ = RunProjectors(runCtx, broadProjector, focusedProjector) }()
+
+	waitFor(t, 2*time.Second, func() bool {
+		return broad.Count() == 2 && focused.Count() == 1 && focusedProjector.LastSeq() == postedSeq
+	})
+
+	focused.mu.Lock()
+	gotSeq := focused.seqs[0]
+	focused.mu.Unlock()
+	if gotSeq != joinedSeq {
+		t.Fatalf("focused seq = %d, want joined seq %d", gotSeq, joinedSeq)
+	}
+	status := focusedProjector.Status()
+	if status.StartupMessages != 1 {
+		t.Fatalf("focused startup messages = %d, want 1", status.StartupMessages)
+	}
+	if status.LastSeq != postedSeq {
+		t.Fatalf("focused last seq = %d, want skipped replay tail seq %d", status.LastSeq, postedSeq)
+	}
+}
+
 func TestRunProjectors_RejectsMismatchedSubjects(t *testing.T) {
 	js, stream := setupTestStream(t)
 
@@ -535,8 +609,8 @@ func TestRunProjectors_RejectsMismatchedSubjects(t *testing.T) {
 	projectorB := NewProjector(js, stream, newTrackingProjection(UserSubjectFilter()), testLogger())
 
 	err := RunProjectors(testContext(t), projectorA, projectorB)
-	if err == nil || !strings.Contains(err.Error(), "identical subjects") {
-		t.Fatalf("RunProjectors error = %v, want identical subjects error", err)
+	if err == nil || !strings.Contains(err.Error(), "identical replay subjects") {
+		t.Fatalf("RunProjectors error = %v, want identical replay subjects error", err)
 	}
 }
 

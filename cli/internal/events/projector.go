@@ -89,6 +89,14 @@ type Projection interface {
 	Restore(snapshot []byte) error
 }
 
+// ReplaySubjectProjection can be implemented when a projection's logical
+// consumed subjects are narrower than the physical stream subjects it should
+// replay. This lets related projections share one ordered consumer and one
+// protobuf decode path while waits/admin still report the narrower Subjects.
+type ReplaySubjectProjection interface {
+	ReplaySubjects() []string
+}
+
 // Projector runs the consumer + apply loop for one projection.
 type Projector struct {
 	js     jetstream.JetStream
@@ -205,6 +213,11 @@ func (p *Projector) Started() bool {
 // The returned slice is a copy so callers cannot mutate projection state.
 func (p *Projector) Subjects() []string {
 	return append([]string(nil), p.proj.Subjects()...)
+}
+
+// ReplaySubjects returns the physical stream filters used for replay.
+func (p *Projector) ReplaySubjects() []string {
+	return append([]string(nil), projectionReplaySubjects(p.proj)...)
 }
 
 // AppendAndWait publishes an event for an aggregate and blocks until
@@ -415,6 +428,22 @@ func (p *Projector) currentTarget(ctx context.Context) (projectionTarget, error)
 	return target, nil
 }
 
+func projectionReplaySubjects(proj Projection) []string {
+	if replay, ok := proj.(ReplaySubjectProjection); ok {
+		return replay.ReplaySubjects()
+	}
+	return proj.Subjects()
+}
+
+func projectionConsumesSubject(proj Projection, subject string) bool {
+	for _, filter := range proj.Subjects() {
+		if subjectMatchesFilter(filter, subject) {
+			return true
+		}
+	}
+	return false
+}
+
 // advance updates lastSeq and releases any waiters that have now been
 // reached. Called from the consumer goroutine after each successful Apply.
 func (p *Projector) advance(seq uint64) {
@@ -481,7 +510,7 @@ func (p *Projector) Run(ctx context.Context) error {
 	p.mu.Unlock()
 
 	cons, err := p.stream.OrderedConsumer(ctx, jetstream.OrderedConsumerConfig{
-		FilterSubjects:    p.proj.Subjects(),
+		FilterSubjects:    projectionReplaySubjects(p.proj),
 		DeliverPolicy:     jetstream.DeliverAllPolicy,
 		InactiveThreshold: 30 * time.Second,
 	})
@@ -536,6 +565,12 @@ func (p *Projector) handleMessage(msg jetstream.Msg) {
 	if err != nil {
 		p.logger.Error("Projection message metadata failed", "subject", msg.Subject(), "error", err)
 		p.fail(0, fmt.Errorf("message metadata for subject %q: %w", msg.Subject(), err))
+		return
+	}
+
+	if !projectionConsumesSubject(p.proj, msg.Subject()) {
+		p.advance(meta.Sequence.Stream)
+		p.maybeCompleteStartup(time.Now())
 		return
 	}
 
@@ -633,10 +668,10 @@ func RunProjectors(ctx context.Context, projectors ...*Projector) error {
 		return projectors[0].Run(ctx)
 	}
 
-	subjects := projectors[0].proj.Subjects()
+	subjects := projectors[0].ReplaySubjects()
 	for _, projector := range projectors {
-		if !sameSubjects(subjects, projector.proj.Subjects()) {
-			return fmt.Errorf("shared projectors must use identical subjects: %v != %v", subjects, projector.proj.Subjects())
+		if !sameSubjects(subjects, projector.ReplaySubjects()) {
+			return fmt.Errorf("shared projectors must use identical replay subjects: %v != %v", subjects, projector.ReplaySubjects())
 		}
 	}
 
@@ -651,11 +686,11 @@ func RunProjectors(ctx context.Context, projectors ...*Projector) error {
 		}
 	}
 
-	target, err := projectors[0].currentTarget(ctx)
-	if err != nil {
-		return fmt.Errorf("read projection startup target: %w", err)
-	}
 	for _, projector := range projectors {
+		target, err := projector.currentTarget(ctx)
+		if err != nil {
+			return fmt.Errorf("read projection startup target: %w", err)
+		}
 		projector.setStartupTarget(target.seq)
 	}
 
@@ -736,10 +771,24 @@ func handleSharedProjectorMessage(msg jetstream.Msg, projectors []*Projector, fa
 		return
 	}
 
+	now := time.Now()
+	consumers := make([]*Projector, 0, len(projectors))
+	for _, projector := range projectors {
+		if projectionConsumesSubject(projector.proj, msg.Subject()) {
+			consumers = append(consumers, projector)
+			continue
+		}
+		projector.advance(meta.Sequence.Stream)
+		projector.maybeCompleteStartup(now)
+	}
+	if len(consumers) == 0 {
+		return
+	}
+
 	var event corev1.Event
 	if err := proto.Unmarshal(msg.Data(), &event); err != nil {
 		err = fmt.Errorf("unmarshal event on subject %q: %w", msg.Subject(), err)
-		for _, projector := range projectors {
+		for _, projector := range consumers {
 			projector.logger.Error("Projection decode failed",
 				"subject", msg.Subject(),
 				"seq", meta.Sequence.Stream,
@@ -750,9 +799,8 @@ func handleSharedProjectorMessage(msg jetstream.Msg, projectors []*Projector, fa
 		return
 	}
 
-	now := time.Now()
 	var applyErr error
-	for _, projector := range projectors {
+	for _, projector := range consumers {
 		if err := projector.proj.Apply(&event, meta.Sequence.Stream); err != nil {
 			projector.logger.Error("Projection Apply failed",
 				"subject", msg.Subject(),

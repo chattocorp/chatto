@@ -118,3 +118,11 @@ func TestFocusedProjectionsDoNotUseAggregateNamespaceFilters(t *testing.T) {
 		})
 	}
 }
+
+func TestThreadProjectionReplaySubjectsUseSharedRoomReplay(t *testing.T) {
+	got := NewThreadProjection().ReplaySubjects()
+	want := []string{events.RoomSubjectFilter(), events.UserEventTypeFilter(events.EventUserKeyShredded)}
+	if !slices.Equal(got, want) {
+		t.Fatalf("ReplaySubjects() = %v, want %v", got, want)
+	}
+}

@@ -78,6 +78,14 @@ func (p *ThreadProjection) Subjects() []string {
 	}
 }
 
+// ReplaySubjects keeps Threads on the same physical replay stream as the room
+// timeline projection. A separate multi-filter ordered consumer is slower on
+// current self-host scale than sharing the broad room replay and skipping
+// non-thread events before Apply.
+func (p *ThreadProjection) ReplaySubjects() []string {
+	return []string{events.RoomSubjectFilter(), events.UserEventTypeFilter(events.EventUserKeyShredded)}
+}
+
 // Apply implements events.Projection.
 //
 // Recognised events:
