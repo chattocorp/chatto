@@ -431,8 +431,9 @@ func (s *MyEventsService) filterReadyEVTRoomSubjectEvent(userID string, memberRo
 			memberRooms[roomID] = struct{}{}
 			isMember = true
 		} else if err == nil {
+			wasMember := isMember
 			delete(memberRooms, roomID)
-			isMember = false
+			isMember = wasMember
 		}
 	case *corev1.Event_UserJoinedRoom:
 		joinedUserID := event.ActorId

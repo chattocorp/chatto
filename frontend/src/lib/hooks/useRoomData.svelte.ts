@@ -112,7 +112,9 @@ export function useRoomData(getProps: () => { roomId: string }) {
   // permissions can change any viewerCan* permission for this room.
   // Bump a counter and let the loading effect react.
   let layoutTrigger = $state(0);
-  useActiveRoomLayoutUpdated(() => {
+  useActiveRoomLayoutUpdated((info) => {
+    const { roomId } = getProps();
+    if (info.roomId && info.roomId !== roomId) return;
     layoutTrigger++;
   });
 

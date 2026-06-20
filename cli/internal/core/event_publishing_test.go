@@ -280,6 +280,75 @@ func TestStreamMyEvents_ClosesWhenLiveEVTProjectionReadinessFails(t *testing.T) 
 	}
 }
 
+func TestMyEventsFilter_DeliversUniversalDisableToPriorEffectiveMember(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	actor, err := core.CreateUser(ctx, "system", "universal-disable-actor", "Universal Actor", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser actor: %v", err)
+	}
+	viewer, err := core.CreateUser(ctx, "system", "universal-disable-viewer", "Universal Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, actor.Id, KindChannel, "", "universal-disable-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.SetRoomUniversal(ctx, actor.Id, KindChannel, room.Id, true); err != nil {
+		t.Fatalf("SetRoomUniversal true: %v", err)
+	}
+	if exists, err := core.RoomMembershipExists(ctx, KindChannel, viewer.Id, room.Id); err != nil || !exists {
+		t.Fatalf("RoomMembershipExists before disable = %v, %v; want true, nil", exists, err)
+	}
+	if _, err := core.SetRoomUniversal(ctx, actor.Id, KindChannel, room.Id, false); err != nil {
+		t.Fatalf("SetRoomUniversal false: %v", err)
+	}
+	if exists, err := core.RoomMembershipExists(ctx, KindChannel, viewer.Id, room.Id); err != nil || exists {
+		t.Fatalf("RoomMembershipExists after disable = %v, %v; want false, nil", exists, err)
+	}
+
+	service := NewMyEventsService(core)
+	memberRooms := map[string]struct{}{room.Id: {}}
+	event := &corev1.Event{
+		Id:      NewEventID(),
+		ActorId: actor.Id,
+		Event: &corev1.Event_RoomUniversalChanged{
+			RoomUniversalChanged: &corev1.RoomUniversalChangedEvent{
+				RoomId:    room.Id,
+				Universal: false,
+			},
+		},
+	}
+
+	delivered, ok := service.filterReadyEVTRoomSubjectEvent(viewer.Id, memberRooms, room.Id, event, 123)
+	if !ok || delivered == nil {
+		t.Fatalf("filterReadyEVTRoomSubjectEvent delivered %T/%v, want RoomUniversalChangedEvent", delivered, ok)
+	}
+	if delivered.EVTEvent() != event {
+		t.Fatalf("delivered EVT event = %p, want %p", delivered.EVTEvent(), event)
+	}
+	if delivered.DeliverySeq() != 123 {
+		t.Fatalf("DeliverySeq = %d, want 123", delivered.DeliverySeq())
+	}
+	if _, stillCached := memberRooms[room.Id]; stillCached {
+		t.Fatal("memberRooms still contains room after universal disable")
+	}
+
+	nextEvent := &corev1.Event{
+		Id:      NewEventID(),
+		ActorId: actor.Id,
+		Event: &corev1.Event_RoomUpdated{
+			RoomUpdated: &corev1.RoomUpdatedEvent{RoomId: room.Id},
+		},
+	}
+	delivered, ok = service.filterReadyEVTRoomSubjectEvent(viewer.Id, memberRooms, room.Id, nextEvent, 124)
+	if ok || delivered != nil {
+		t.Fatalf("next room event delivered %T/%v after universal disable, want dropped", delivered, ok)
+	}
+}
+
 func TestStreamMyEvents_DeleteEchoDeliversOnlyEchoRetract(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

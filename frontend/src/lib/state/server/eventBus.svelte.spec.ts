@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import { makeSubject, type Source, type Subject } from 'wonka';
 import type { Client } from '@urql/svelte';
+import { createEventBusHandlerRegistrar } from '$lib/eventBus.svelte';
 import { eventBusManager } from './eventBus.svelte';
 import type { GraphQLClient } from './graphqlClient.svelte';
 
@@ -228,6 +229,30 @@ describe('eventBusManager subscription robustness', () => {
 		});
 
 		expect(handler).not.toHaveBeenCalled();
+	});
+
+	it('treats room universal changes as room layout updates', () => {
+		const fake = new FakeGqlClient();
+		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
+		const handler = vi.fn();
+		const unsubscribe = createEventBusHandlerRegistrar(TEST_SERVER)!.onRoomLayoutUpdated(handler);
+
+		fake.current.next({
+			data: {
+				myEvents: {
+					actorId: 'a',
+					event: {
+						__typename: 'RoomUniversalChangedEvent',
+						roomId: 'room-1',
+						universal: false
+					}
+				}
+			}
+		});
+
+		expect(handler).toHaveBeenCalledWith({ roomId: 'room-1', universal: false });
+
+		unsubscribe();
 	});
 
 	it('does NOT re-subscribe when stopBus is called (teardown guard)', () => {

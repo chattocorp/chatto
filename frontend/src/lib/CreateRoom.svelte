@@ -1,6 +1,7 @@
 <script lang="ts">
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { UNIVERSAL_ROOM_HELP_TEXT } from '$lib/utils/roomCopy';
+  import { isUnsupportedGraphQLInputFieldError } from '$lib/gql/compatibility';
   import { graphql } from './gql';
   import {
     TextInput,
@@ -31,6 +32,24 @@
 
   const form = createFormState(schema, { name: '', description: '', isUniversal: false });
 
+  const CreateRoomMutation = graphql(`
+    mutation CreateRoom($input: CreateRoomInput!) {
+      createRoom(input: $input) {
+        id
+        name
+        description
+      }
+    }
+  `);
+
+  const JoinRoomMutation = graphql(`
+    mutation JoinRoom($input: JoinRoomInput!) {
+      joinRoom(input: $input) {
+        id
+      }
+    }
+  `);
+
   let isLoading = $state(false);
   /** Server-side / network error from the mutations. Validation errors live on form. */
   let submitError = $state('');
@@ -50,27 +69,25 @@
         return;
       }
 
-      const result = await connection()
-        .client.mutation(
-          graphql(`
-            mutation CreateRoom($input: CreateRoomInput!) {
-              createRoom(input: $input) {
-                id
-                name
-                description
-              }
-            }
-          `),
-          {
-            input: {
-              name: values.name.trim(),
-              description: values.description.trim() || undefined,
-              groupId: targetGroupId,
-              isUniversal: values.isUniversal
-            }
-          }
-        )
+      const input = {
+        name: values.name.trim(),
+        description: values.description.trim() || undefined,
+        groupId: targetGroupId
+      };
+      const client = connection().client;
+      let result = await client
+        .mutation(CreateRoomMutation, {
+          input: values.isUniversal ? { ...input, isUniversal: true } : input
+        })
         .toPromise();
+
+      if (
+        values.isUniversal &&
+        result.error &&
+        isUnsupportedGraphQLInputFieldError(result.error, 'isUniversal')
+      ) {
+        result = await client.mutation(CreateRoomMutation, { input }).toPromise();
+      }
 
       if (result.error) {
         submitError = result.error.message;
@@ -80,15 +97,8 @@
 
       const roomId = result.data!.createRoom.id;
 
-      const joinResult = await connection()
-        .client.mutation(
-          graphql(`
-            mutation JoinRoom($input: JoinRoomInput!) {
-              joinRoom(input: $input) { id }
-            }
-          `),
-          { input: { roomId } }
-        )
+      const joinResult = await client
+        .mutation(JoinRoomMutation, { input: { roomId } })
         .toPromise();
 
       if (joinResult.error) {

@@ -166,6 +166,8 @@ export function useActiveRoomLayoutUpdated(handler: (info: RoomLayoutUpdatedInfo
     if (!event.event) return;
     if (event.event.__typename === 'RoomGroupsUpdatedEvent') {
       handler({});
+    } else if (event.event.__typename === 'RoomUniversalChangedEvent') {
+      handler({ roomId: event.event.roomId, universal: event.event.universal });
     }
   };
   useActiveEvent(wrapper);

@@ -103,6 +103,10 @@ export const MyServerEventsSubscriptionDoc = graphql(`
         ... on RoomUnarchivedEvent {
           roomId
         }
+        ... on RoomUniversalChangedEvent {
+          roomId
+          universal
+        }
         ... on ReactionAddedEvent {
           roomId
           messageEventId
@@ -462,10 +466,22 @@ export function onUserSettingsUpdate(handler: (update: UserSettingsUpdate) => vo
   }, handler);
 }
 
-export type RoomLayoutUpdatedInfo = Record<string, never>;
+export type RoomLayoutUpdatedInfo = {
+  roomId?: string;
+  universal?: boolean;
+};
 
 export function onRoomLayoutUpdated(handler: (_info: RoomLayoutUpdatedInfo) => void): () => void {
-  return onTypedEvent('RoomGroupsUpdatedEvent', () => ({}), handler);
+  const unsubscribeGroupsUpdated = onTypedEvent('RoomGroupsUpdatedEvent', () => ({}), handler);
+  const unsubscribeUniversalChanged = onTypedEvent(
+    'RoomUniversalChangedEvent',
+    (_env, e) => ({ roomId: e.roomId, universal: e.universal }),
+    handler
+  );
+  return () => {
+    unsubscribeGroupsUpdated();
+    unsubscribeUniversalChanged();
+  };
 }
 
 export type NotificationLevelChanged = {
@@ -590,7 +606,22 @@ export function createEventBusHandlerRegistrar(serverId: string) {
       }, handler);
     },
     onRoomLayoutUpdated(handler: (info: RoomLayoutUpdatedInfo) => void): () => void {
-      return onTypedEventDirect(bus, 'RoomGroupsUpdatedEvent', () => ({}), handler);
+      const unsubscribeGroupsUpdated = onTypedEventDirect(
+        bus,
+        'RoomGroupsUpdatedEvent',
+        () => ({}),
+        handler
+      );
+      const unsubscribeUniversalChanged = onTypedEventDirect(
+        bus,
+        'RoomUniversalChangedEvent',
+        (_env, e) => ({ roomId: e.roomId, universal: e.universal }),
+        handler
+      );
+      return () => {
+        unsubscribeGroupsUpdated();
+        unsubscribeUniversalChanged();
+      };
     }
   };
 }

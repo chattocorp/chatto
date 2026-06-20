@@ -33,3 +33,14 @@ export function isUnsupportedGraphQLArgumentError(error: unknown, argumentName: 
     needles.some((needle) => message.includes(needle))
   );
 }
+
+export function isUnsupportedGraphQLInputFieldError(error: unknown, fieldName: string): boolean {
+  const needles = [
+    `Field "${fieldName}" is not defined by type`,
+    `Unknown field "${fieldName}"`,
+    `Cannot query field "${fieldName}"`
+  ];
+  return graphQLErrorMessages(error).some((message) =>
+    needles.some((needle) => message.includes(needle))
+  );
+}
