@@ -22,6 +22,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/vektah/gqlparser/v2/ast"
+	"github.com/vektah/gqlparser/v2/gqlerror"
 	"hmans.de/chatto/internal/assets"
 	"hmans.de/chatto/internal/graph"
 	"hmans.de/chatto/internal/graph/auth"
@@ -46,6 +47,7 @@ func (s *HTTPServer) setupGraphQLAPI(allowedOrigins []string) {
 
 	h := handler.New(graph.NewExecutableSchema(config))
 	h.AroundFields(graph.DefaultAuthFieldMiddleware)
+	h.SetErrorPresenter(chattoGraphQLErrorPresenter)
 
 	graphqlLogger := s.logger.WithPrefix("graphql")
 
@@ -236,6 +238,22 @@ func (s *HTTPServer) setupGraphQLAPI(allowedOrigins []string) {
 	s.router.GET("/api/playground", func(c *gin.Context) {
 		p.ServeHTTP(c.Writer, c.Request)
 	})
+}
+
+func chattoGraphQLErrorPresenter(ctx context.Context, err error) *gqlerror.Error {
+	gqlErr := graphql.DefaultErrorPresenter(ctx, err)
+	if gqlErr == nil {
+		return nil
+	}
+
+	if gqlErr.Message == graph.ErrNotAuthenticated.Error() {
+		if gqlErr.Extensions == nil {
+			gqlErr.Extensions = map[string]any{}
+		}
+		gqlErr.Extensions["code"] = "UNAUTHENTICATED"
+	}
+
+	return gqlErr
 }
 
 func limitGraphQLJSONRequestBody(c *gin.Context) bool {

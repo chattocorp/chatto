@@ -168,6 +168,9 @@ func assertGraphQLAuthRequired(t *testing.T, resp *graphqlResponse) {
 	if resp.Errors[0].Message != "authentication required" {
 		t.Fatalf("Expected authentication error, got: %v", resp.Errors)
 	}
+	if resp.Errors[0].Extensions["code"] != "UNAUTHENTICATED" {
+		t.Fatalf("Expected UNAUTHENTICATED error code, got: %v", resp.Errors[0].Extensions)
+	}
 }
 
 // doGraphQL makes a GraphQL request and returns the response
