@@ -454,6 +454,22 @@ func newReplayTrackingProjection(subjects []string, replay []string) *replayTrac
 
 func (p *replayTrackingProjection) ReplaySubjects() []string { return p.replay }
 
+type countingSubjectsProjection struct {
+	*trackingProjection
+	subjectCalls int
+}
+
+func newCountingSubjectsProjection(subs ...string) *countingSubjectsProjection {
+	return &countingSubjectsProjection{
+		trackingProjection: newTrackingProjection(subs...),
+	}
+}
+
+func (p *countingSubjectsProjection) Subjects() []string {
+	p.subjectCalls++
+	return p.trackingProjection.Subjects()
+}
+
 type blockingProjection struct {
 	*trackingProjection
 	entered chan struct{}
@@ -1188,6 +1204,44 @@ func TestSubjectMatchesFilter(t *testing.T) {
 				t.Fatalf("subjectMatchesFilter(%q, %q) = %v, want %v", tc.filter, tc.subject, got, tc.want)
 			}
 		})
+	}
+}
+
+func TestCompiledSubjectFilterMatchesWithoutAllocations(t *testing.T) {
+	matcher := compileSubjectFilter(RoomEventTypeFilter(EventUserJoinedRoom))
+	allocs := testing.AllocsPerRun(1000, func() {
+		if !matcher.matches("evt.room.R1.user_joined") {
+			t.Fatal("expected compiled filter to match")
+		}
+		if matcher.matches("evt.room.R1.message_posted") {
+			t.Fatal("expected compiled filter not to match")
+		}
+	})
+	if allocs != 0 {
+		t.Fatalf("compiled matcher allocations = %v, want 0", allocs)
+	}
+}
+
+func TestProjectorCachesProjectionSubjects(t *testing.T) {
+	proj := newCountingSubjectsProjection(
+		RoomSubjectFilter(),
+		UserEventTypeFilter(EventUserKeyShredded),
+	)
+	projector := NewProjector(nil, nil, proj, testLogger())
+
+	for i := 0; i < 10; i++ {
+		_ = projector.Subjects()
+		_ = projector.ReplaySubjects()
+		if !projector.consumesSubject("evt.room.R1.message_posted") {
+			t.Fatal("expected projector to consume room subject")
+		}
+		if projector.consumesSubject("evt.config.server.server_name_changed") {
+			t.Fatal("expected projector not to consume config subject")
+		}
+	}
+
+	if proj.subjectCalls != 1 {
+		t.Fatalf("Subjects calls = %d, want 1", proj.subjectCalls)
 	}
 }
 
