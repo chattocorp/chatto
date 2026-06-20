@@ -619,7 +619,7 @@ func (p *Projector) handleMessage(msg jetstream.Msg) {
 		return
 	}
 
-	meta, err := msg.Metadata()
+	seq, err := streamSequenceFromMsg(msg)
 	if err != nil {
 		p.logger.Error("Projection message metadata failed", "subject", msg.Subject(), "error", err)
 		p.fail(0, fmt.Errorf("message metadata for subject %q: %w", msg.Subject(), err))
@@ -635,24 +635,24 @@ func (p *Projector) handleMessage(msg jetstream.Msg) {
 		err = fmt.Errorf("unmarshal event on subject %q: %w", msg.Subject(), err)
 		p.logger.Error("Projection decode failed",
 			"subject", msg.Subject(),
-			"seq", meta.Sequence.Stream,
+			"seq", seq,
 			"error", err)
-		p.fail(meta.Sequence.Stream, err)
+		p.fail(seq, err)
 		return
 	}
 
-	if err := p.proj.Apply(&event, meta.Sequence.Stream); err != nil {
+	if err := p.proj.Apply(&event, seq); err != nil {
 		p.logger.Error("Projection Apply failed",
 			"subject", msg.Subject(),
-			"seq", meta.Sequence.Stream,
+			"seq", seq,
 			"event_id", event.GetId(),
 			"error", err)
-		p.fail(meta.Sequence.Stream, err)
+		p.fail(seq, err)
 		return
 	}
 
 	p.countStartupMessage()
-	p.advance(meta.Sequence.Stream)
+	p.advance(seq)
 	p.maybeCompleteStartup(time.Now())
 }
 
@@ -841,7 +841,7 @@ func sameSubjects(a, b []string) bool {
 }
 
 func handleSharedProjectorMessage(msg jetstream.Msg, projectors []*Projector, failedCh chan<- struct{}) {
-	meta, err := msg.Metadata()
+	seq, err := streamSequenceFromMsg(msg)
 	if err != nil {
 		err := fmt.Errorf("message metadata for subject %q: %w", msg.Subject(), err)
 		for _, projector := range projectors {
@@ -870,9 +870,9 @@ func handleSharedProjectorMessage(msg jetstream.Msg, projectors []*Projector, fa
 		for _, projector := range consumers {
 			projector.logger.Error("Projection decode failed",
 				"subject", msg.Subject(),
-				"seq", meta.Sequence.Stream,
+				"seq", seq,
 				"error", err)
-			projector.fail(meta.Sequence.Stream, err)
+			projector.fail(seq, err)
 		}
 		notifySharedProjectorFailure(failedCh)
 		return
@@ -880,25 +880,82 @@ func handleSharedProjectorMessage(msg jetstream.Msg, projectors []*Projector, fa
 
 	var applyErr error
 	for _, projector := range consumers {
-		if err := projector.proj.Apply(&event, meta.Sequence.Stream); err != nil {
+		if err := projector.proj.Apply(&event, seq); err != nil {
 			projector.logger.Error("Projection Apply failed",
 				"subject", msg.Subject(),
-				"seq", meta.Sequence.Stream,
+				"seq", seq,
 				"event_id", event.GetId(),
 				"error", err)
-			projector.fail(meta.Sequence.Stream, err)
+			projector.fail(seq, err)
 			if applyErr == nil {
 				applyErr = err
 			}
 			continue
 		}
 		projector.countStartupMessage()
-		projector.advance(meta.Sequence.Stream)
+		projector.advance(seq)
 		projector.maybeCompleteStartup(now)
 	}
 	if applyErr != nil {
 		notifySharedProjectorFailure(failedCh)
 	}
+}
+
+func streamSequenceFromMsg(msg jetstream.Msg) (uint64, error) {
+	return streamSequenceFromReply(msg.Reply())
+}
+
+func streamSequenceFromReply(reply string) (uint64, error) {
+	const jsAckPrefix = "$JS.ACK."
+	if len(reply) < len(jsAckPrefix) || reply[:len(jsAckPrefix)] != jsAckPrefix {
+		return 0, fmt.Errorf("invalid JetStream ACK reply subject")
+	}
+
+	var v1Start, v1End int
+	var v2Start, v2End int
+	tokenStart := 0
+	tokenIndex := 0
+	for i := 0; i <= len(reply); i++ {
+		if i != len(reply) && reply[i] != '.' {
+			continue
+		}
+		switch tokenIndex {
+		case 5:
+			v1Start, v1End = tokenStart, i
+		case 7:
+			v2Start, v2End = tokenStart, i
+		}
+		tokenIndex++
+		tokenStart = i + 1
+	}
+
+	switch {
+	case tokenIndex == 9:
+		return parseAckSequenceToken(reply[v1Start:v1End])
+	case tokenIndex >= 11:
+		return parseAckSequenceToken(reply[v2Start:v2End])
+	default:
+		return 0, fmt.Errorf("invalid JetStream ACK reply subject")
+	}
+}
+
+func parseAckSequenceToken(token string) (uint64, error) {
+	if token == "" {
+		return 0, fmt.Errorf("invalid JetStream ACK stream sequence")
+	}
+	var n uint64
+	for i := 0; i < len(token); i++ {
+		c := token[i]
+		if c < '0' || c > '9' {
+			return 0, fmt.Errorf("invalid JetStream ACK stream sequence")
+		}
+		digit := uint64(c - '0')
+		if n > (^uint64(0)-digit)/10 {
+			return 0, fmt.Errorf("invalid JetStream ACK stream sequence")
+		}
+		n = n*10 + digit
+	}
+	return n, nil
 }
 
 func notifySharedProjectorFailure(ch chan<- struct{}) {
