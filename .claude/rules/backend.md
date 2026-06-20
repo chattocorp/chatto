@@ -169,7 +169,7 @@ case "user":
 
 ## Known Test Issues
 
-- `cli/internal/http_server` tests that hit `/auth/test/*` or `/webhooks/test/*` endpoints require the `test_endpoints` build tag. Plain `go test ./...` will fail `TestAuthRoutes_TestEmailEndpoint` with a 404 because those routes are compiled out. For targeted runs, use `mise x -- go test -tags test_endpoints ./internal/http_server -run TestX -timeout 30s`; for full backend checkpoints, use `mise test-cli`, which sets the tag for the suite.
+- `cli/internal/http_server` tests that hit `/auth/test/*` or `/webhooks/test/*` endpoints require the `test_endpoints` build tag and should live in `//go:build test_endpoints` files. For targeted endpoint runs, use `mise x -- go test -tags test_endpoints ./internal/http_server -run TestX -timeout 30s`; for full backend checkpoints, use `mise test-cli`, which sets the tag for the suite.
 
 ## Cost Reference
 
