@@ -584,7 +584,7 @@ func TestRunProjectors_SharedReplaySkipsNonLogicalSubjects(t *testing.T) {
 	go func() { _ = RunProjectors(runCtx, broadProjector, focusedProjector) }()
 
 	waitFor(t, 2*time.Second, func() bool {
-		return broad.Count() == 2 && focused.Count() == 1 && focusedProjector.LastSeq() == postedSeq
+		return broad.Count() == 2 && focused.Count() == 1 && broadProjector.LastSeq() == postedSeq
 	})
 
 	focused.mu.Lock()
@@ -597,8 +597,8 @@ func TestRunProjectors_SharedReplaySkipsNonLogicalSubjects(t *testing.T) {
 	if status.StartupMessages != 1 {
 		t.Fatalf("focused startup messages = %d, want 1", status.StartupMessages)
 	}
-	if status.LastSeq != postedSeq {
-		t.Fatalf("focused last seq = %d, want skipped replay tail seq %d", status.LastSeq, postedSeq)
+	if status.LastSeq != joinedSeq {
+		t.Fatalf("focused last seq = %d, want applied joined seq %d", status.LastSeq, joinedSeq)
 	}
 }
 
@@ -612,6 +612,31 @@ func TestRunProjectors_RejectsMismatchedSubjects(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "identical replay subjects") {
 		t.Fatalf("RunProjectors error = %v, want identical replay subjects error", err)
 	}
+}
+
+func TestRunProjectorsOnSubjects_AllowsMixedReplayFilters(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+
+	ctx := testContext(t)
+	event := makeEvent("R1", "U1")
+	seq, err := pub.Append(ctx, RoomAggregate("R1").SubjectFor(event), event)
+	if err != nil {
+		t.Fatalf("Append: %v", err)
+	}
+
+	projA := newReplayTrackingProjection([]string{RoomSubjectFilter()}, []string{RoomSubjectFilter()})
+	projB := newReplayTrackingProjection([]string{RoomSubjectFilter()}, []string{UserSubjectFilter()})
+	projectorA := NewProjector(js, stream, projA, testLogger())
+	projectorB := NewProjector(js, stream, projB, testLogger())
+
+	runCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	go func() { _ = RunProjectorsOnSubjects(runCtx, []string{EventSubjectFilter()}, projectorA, projectorB) }()
+
+	waitFor(t, 2*time.Second, func() bool {
+		return projA.Count() == 1 && projB.Count() == 1 && projectorA.LastSeq() == seq && projectorB.LastSeq() == seq
+	})
 }
 
 func TestRunProjectors_ContinuesFanoutAfterProjectionFailure(t *testing.T) {

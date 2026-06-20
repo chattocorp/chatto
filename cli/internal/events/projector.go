@@ -569,8 +569,6 @@ func (p *Projector) handleMessage(msg jetstream.Msg) {
 	}
 
 	if !projectionConsumesSubject(p.proj, msg.Subject()) {
-		p.advance(meta.Sequence.Stream)
-		p.maybeCompleteStartup(time.Now())
 		return
 	}
 
@@ -651,7 +649,7 @@ func (p *Projector) handleConsumeErr(_ jetstream.ConsumeContext, err error) {
 	p.logger.Warn("Projection consumer error (auto-recovering)", "error", err)
 }
 
-// RunProjectors starts one consumer for projectors with identical subject
+// RunProjectors starts one consumer for projectors with identical replay
 // filters and fans each decoded event out to every projection. Each projector
 // still owns its own lifecycle state, waiters, and failure status.
 func RunProjectors(ctx context.Context, projectors ...*Projector) error {
@@ -672,6 +670,31 @@ func RunProjectors(ctx context.Context, projectors ...*Projector) error {
 	for _, projector := range projectors {
 		if !sameSubjects(subjects, projector.ReplaySubjects()) {
 			return fmt.Errorf("shared projectors must use identical replay subjects: %v != %v", subjects, projector.ReplaySubjects())
+		}
+	}
+
+	return runProjectorsOnSubjects(ctx, subjects, projectors...)
+}
+
+// RunProjectorsOnSubjects starts one consumer for the supplied physical replay
+// filters and fans each decoded event out to projectors whose logical Subjects
+// match the event subject. It is used by ChattoCore to replay the EVT stream
+// once per process while preserving per-projection status and readiness.
+func RunProjectorsOnSubjects(ctx context.Context, replaySubjects []string, projectors ...*Projector) error {
+	if len(replaySubjects) == 0 {
+		return fmt.Errorf("shared projectors require at least one replay subject")
+	}
+	return runProjectorsOnSubjects(ctx, append([]string(nil), replaySubjects...), projectors...)
+}
+
+func runProjectorsOnSubjects(ctx context.Context, subjects []string, projectors ...*Projector) error {
+	if len(projectors) == 0 {
+		<-ctx.Done()
+		return ctx.Err()
+	}
+	for i, projector := range projectors {
+		if projector == nil {
+			return fmt.Errorf("shared projection %d is nil", i)
 		}
 	}
 
@@ -776,10 +799,7 @@ func handleSharedProjectorMessage(msg jetstream.Msg, projectors []*Projector, fa
 	for _, projector := range projectors {
 		if projectionConsumesSubject(projector.proj, msg.Subject()) {
 			consumers = append(consumers, projector)
-			continue
 		}
-		projector.advance(meta.Sequence.Stream)
-		projector.maybeCompleteStartup(now)
 	}
 	if len(consumers) == 0 {
 		return
