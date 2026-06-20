@@ -362,7 +362,7 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(ctx context.Context,
 			return 0, fmt.Errorf("read room OCC tail after conflict: %w", seqErr)
 		}
 		if currentSeq > 0 {
-			if err := c.rooms().waitForTimelineAndThreads(ctx, events.SubjectPosition(roomFilter, currentSeq)); err != nil {
+			if err := c.rooms().waitForTimeline(ctx, events.SubjectPosition(roomFilter, currentSeq)); err != nil {
 				return 0, err
 			}
 		}

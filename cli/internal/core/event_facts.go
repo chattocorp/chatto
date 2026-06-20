@@ -197,6 +197,21 @@ func eventNeedsReactionProjection(event *corev1.Event) bool {
 	}
 }
 
+func eventNeedsThreadProjection(event *corev1.Event) bool {
+	switch event.GetEvent().(type) {
+	case *corev1.Event_ThreadCreated:
+		return true
+	case *corev1.Event_MessagePosted:
+		return event.GetMessagePosted().GetInThread() != ""
+	case *corev1.Event_MessageEdited, *corev1.Event_MessageRetracted:
+		return true
+	case *corev1.Event_UserKeyShredded:
+		return true
+	default:
+		return false
+	}
+}
+
 func eventNeedsRoomDirectoryProjection(event *corev1.Event) bool {
 	switch event.GetEvent().(type) {
 	case *corev1.Event_UserJoinedRoom,

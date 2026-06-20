@@ -908,6 +908,62 @@ func TestRoomTimeline_NonRoomEventsSkipped(t *testing.T) {
 	}
 }
 
+func TestRoomTimeline_IgnoredRoomEventsDoNotRetainIdempotencyIDs(t *testing.T) {
+	p := NewRoomTimelineProjection()
+	ignored := []*corev1.Event{
+		{
+			Id:        "ENV-REACTION",
+			CreatedAt: timestamppb.New(fixedTime(1)),
+			Event: &corev1.Event_ReactionAdded{
+				ReactionAdded: &corev1.ReactionAddedEvent{RoomId: "R1", MessageEventId: "M1", Emoji: "wave"},
+			},
+		},
+		{
+			Id:        "ENV-CALL",
+			CreatedAt: timestamppb.New(fixedTime(2)),
+			Event: &corev1.Event_VoiceCallParticipantJoined{
+				VoiceCallParticipantJoined: &corev1.CallParticipantJoinedEvent{RoomId: "R1", CallId: "C1"},
+			},
+		},
+	}
+
+	applyAll(t, p, ignored)
+	if got := len(p.appliedEventIDs); got != 0 {
+		t.Fatalf("appliedEventIDs after ignored events = %d, want 0", got)
+	}
+	if got := p.RoomEventCount("R1"); got != 0 {
+		t.Fatalf("RoomEventCount after ignored events = %d, want 0", got)
+	}
+	if got := len(p.byEventID); got != 0 {
+		t.Fatalf("byEventID after ignored events = %d, want 0", got)
+	}
+}
+
+func TestRoomTimeline_HandledEventsRemainIdempotent(t *testing.T) {
+	p := NewRoomTimelineProjection()
+	event := &corev1.Event{
+		Id:        "ENV-MESSAGE",
+		ActorId:   "U1",
+		CreatedAt: timestamppb.New(fixedTime(1)),
+		Event: &corev1.Event_MessagePosted{
+			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1"},
+		},
+	}
+
+	if err := p.Apply(event, 1); err != nil {
+		t.Fatalf("Apply first: %v", err)
+	}
+	if err := p.Apply(event, 1); err != nil {
+		t.Fatalf("Apply duplicate: %v", err)
+	}
+	if got := len(p.appliedEventIDs); got != 1 {
+		t.Fatalf("appliedEventIDs after duplicate message = %d, want 1", got)
+	}
+	if got := p.RoomEventCount("R1"); got != 1 {
+		t.Fatalf("RoomEventCount after duplicate message = %d, want 1", got)
+	}
+}
+
 func TestRoomTimeline_SubjectFilter(t *testing.T) {
 	subjects := NewRoomTimelineProjection().Subjects()
 	want := map[string]bool{

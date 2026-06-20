@@ -99,6 +99,7 @@ func TestEventFactsAssetLifecycle(t *testing.T) {
 		liveAsset   bool
 		liveRoomEVT bool
 		reactions   bool
+		threads     bool
 		directory   bool
 		callState   bool
 	}{
@@ -112,6 +113,7 @@ func TestEventFactsAssetLifecycle(t *testing.T) {
 			liveAsset:   false,
 			liveRoomEVT: false,
 			reactions:   false,
+			threads:     false,
 			directory:   false,
 			callState:   false,
 		},
@@ -125,6 +127,7 @@ func TestEventFactsAssetLifecycle(t *testing.T) {
 			liveAsset:   true,
 			liveRoomEVT: true,
 			reactions:   false,
+			threads:     false,
 			directory:   false,
 			callState:   false,
 		},
@@ -137,6 +140,46 @@ func TestEventFactsAssetLifecycle(t *testing.T) {
 			liveAsset:   false,
 			liveRoomEVT: true,
 			reactions:   false,
+			threads:     false,
+			directory:   false,
+			callState:   false,
+		},
+		{
+			name: "thread reply",
+			event: &corev1.Event{Event: &corev1.Event_MessagePosted{
+				MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", InThread: "ROOT"},
+			}},
+			lifecycle:   false,
+			liveAsset:   false,
+			liveRoomEVT: true,
+			reactions:   false,
+			threads:     true,
+			directory:   false,
+			callState:   false,
+		},
+		{
+			name: "message edited",
+			event: &corev1.Event{Event: &corev1.Event_MessageEdited{
+				MessageEdited: &corev1.MessageEditedEvent{RoomId: "R1", EventId: "M1"},
+			}},
+			lifecycle:   false,
+			liveAsset:   false,
+			liveRoomEVT: true,
+			reactions:   false,
+			threads:     true,
+			directory:   false,
+			callState:   false,
+		},
+		{
+			name: "thread created",
+			event: &corev1.Event{Event: &corev1.Event_ThreadCreated{
+				ThreadCreated: &corev1.ThreadCreatedEvent{RoomId: "R1", ThreadRootEventId: "ROOT"},
+			}},
+			lifecycle:   false,
+			liveAsset:   false,
+			liveRoomEVT: true,
+			reactions:   false,
+			threads:     true,
 			directory:   false,
 			callState:   false,
 		},
@@ -149,6 +192,7 @@ func TestEventFactsAssetLifecycle(t *testing.T) {
 			liveAsset:   false,
 			liveRoomEVT: true,
 			reactions:   true,
+			threads:     false,
 			directory:   false,
 			callState:   false,
 		},
@@ -161,6 +205,7 @@ func TestEventFactsAssetLifecycle(t *testing.T) {
 			liveAsset:   false,
 			liveRoomEVT: true,
 			reactions:   false,
+			threads:     false,
 			directory:   true,
 			callState:   false,
 		},
@@ -173,6 +218,7 @@ func TestEventFactsAssetLifecycle(t *testing.T) {
 			liveAsset:   false,
 			liveRoomEVT: true,
 			reactions:   false,
+			threads:     false,
 			directory:   false,
 			callState:   true,
 		},
@@ -193,6 +239,9 @@ func TestEventFactsAssetLifecycle(t *testing.T) {
 			}
 			if got := eventNeedsReactionProjection(tt.event); got != tt.reactions {
 				t.Fatalf("eventNeedsReactionProjection = %v, want %v", got, tt.reactions)
+			}
+			if got := eventNeedsThreadProjection(tt.event); got != tt.threads {
+				t.Fatalf("eventNeedsThreadProjection = %v, want %v", got, tt.threads)
 			}
 			if got := eventNeedsRoomDirectoryProjection(tt.event); got != tt.directory {
 				t.Fatalf("eventNeedsRoomDirectoryProjection = %v, want %v", got, tt.directory)

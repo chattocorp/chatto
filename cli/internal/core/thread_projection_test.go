@@ -299,8 +299,11 @@ func TestThreadProjection_IdempotencyDoesNotIndexIgnoredRoomEvents(t *testing.T)
 func TestThreadProjection_SubjectFilter(t *testing.T) {
 	subjects := NewThreadProjection().Subjects()
 	want := map[string]bool{
-		events.RoomSubjectFilter():                              true,
-		events.UserEventTypeFilter(events.EventUserKeyShredded): true,
+		events.RoomEventTypeFilter(events.EventThreadCreated):    true,
+		events.RoomEventTypeFilter(events.EventMessagePosted):    true,
+		events.RoomEventTypeFilter(events.EventMessageEdited):    true,
+		events.RoomEventTypeFilter(events.EventMessageRetracted): true,
+		events.UserEventTypeFilter(events.EventUserKeyShredded):  true,
 	}
 	if len(subjects) != len(want) {
 		t.Fatalf("expected %d subject filters, got %d", len(want), len(subjects))
@@ -312,5 +315,8 @@ func TestThreadProjection_SubjectFilter(t *testing.T) {
 	}
 	if slices.Contains(subjects, events.UserSubjectFilter()) {
 		t.Errorf("unexpected broad user subject filter %q", events.UserSubjectFilter())
+	}
+	if slices.Contains(subjects, events.RoomSubjectFilter()) {
+		t.Errorf("unexpected broad room subject filter %q", events.RoomSubjectFilter())
 	}
 }

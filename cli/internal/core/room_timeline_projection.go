@@ -114,6 +114,9 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 	if roomID == "" {
 		return nil
 	}
+	if !eventMutatesRoomTimelineProjection(event) {
+		return nil
+	}
 
 	// Idempotency: a re-applied event with the same envelope id is a
 	// no-op. The Projection.Apply contract is "Apply(e,n) twice ==
@@ -151,16 +154,23 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 		return nil
 	}
 
-	entry := &TimelineEntry{StreamSeq: seq, Event: event}
+	var entry *TimelineEntry
 	if shouldIndexRoomTimelineEvent(event) {
+		entry = &TimelineEntry{StreamSeq: seq, Event: event}
 		if eid := event.GetId(); eid != "" {
 			p.byEventID[eid] = entry
 		}
 	}
 	if event.GetMessagePosted() != nil {
+		if entry == nil {
+			entry = &TimelineEntry{StreamSeq: seq, Event: event}
+		}
 		p.messagePostsByRoom[roomID] = append(p.messagePostsByRoom[roomID], entry)
 	}
 	if isVisibleRoomTimelineEntry(event) {
+		if entry == nil {
+			entry = &TimelineEntry{StreamSeq: seq, Event: event}
+		}
 		p.byRoom[roomID] = append(p.byRoom[roomID], entry)
 	}
 
@@ -204,6 +214,19 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 	}
 	p.assets.applyLifecycleEvent(event)
 	return nil
+}
+
+func eventMutatesRoomTimelineProjection(event *corev1.Event) bool {
+	if event == nil {
+		return false
+	}
+	if event.GetMessageBody() != nil || event.GetMessageRetracted() != nil {
+		return true
+	}
+	if isAssetLifecycleEvent(event) {
+		return true
+	}
+	return shouldIndexRoomTimelineEvent(event) || isVisibleRoomTimelineEntry(event)
 }
 
 func (p *RoomTimelineProjection) applyUserKeyShreddedLocked(userID string) {

@@ -219,6 +219,66 @@ func TestRoomServiceWaitForTimelineAndThreads(t *testing.T) {
 	}
 }
 
+func TestRoomServiceWaitForLiveEVTEventSkipsThreadsForReaction(t *testing.T) {
+	harness := newTestEventHarness(t)
+	timeline := NewRoomTimelineProjection()
+	timelineProjector := harness.projector(timeline)
+	startTestProjector(t, timelineProjector)
+	threads := NewThreadProjection()
+	threadsProjector := harness.projector(threads)
+	startTestProjector(t, threadsProjector)
+	reactions := NewReactionProjection()
+	reactionsProjector := harness.projector(reactions)
+	startTestProjector(t, reactionsProjector)
+	service := newRoomService(nil, nil, nil, nil, timeline, timelineProjector, threads, threadsProjector, reactions, reactionsProjector)
+	ctx := testContext(t)
+
+	event := newEvent("U-reactor", &corev1.Event{
+		Event: &corev1.Event_ReactionAdded{
+			ReactionAdded: &corev1.ReactionAddedEvent{RoomId: "R-live-reaction", MessageEventId: "E-message", Emoji: "wave"},
+		},
+	})
+	subject := events.RoomAggregate("R-live-reaction").SubjectFor(event)
+	seq, err := harness.publisher.AppendEventually(ctx, subject, event)
+	if err != nil {
+		t.Fatalf("AppendEventually returned error: %v", err)
+	}
+
+	if err := service.waitForLiveEVTEvent(ctx, events.SubjectPosition(subject, seq), event); err != nil {
+		t.Fatalf("waitForLiveEVTEvent returned error: %v", err)
+	}
+	if !reactions.HasReaction("E-message", "wave", "U-reactor") {
+		t.Fatal("reaction projection did not catch up")
+	}
+}
+
+func TestRoomServiceWaitForLiveEVTEventSkipsThreadsForCall(t *testing.T) {
+	harness := newTestEventHarness(t)
+	timeline := NewRoomTimelineProjection()
+	timelineProjector := harness.projector(timeline)
+	startTestProjector(t, timelineProjector)
+	threads := NewThreadProjection()
+	threadsProjector := harness.projector(threads)
+	startTestProjector(t, threadsProjector)
+	service := newRoomService(nil, nil, nil, nil, timeline, timelineProjector, threads, threadsProjector, nil, nil)
+	ctx := testContext(t)
+
+	event := newEvent("U-caller", &corev1.Event{
+		Event: &corev1.Event_VoiceCallParticipantJoined{
+			VoiceCallParticipantJoined: &corev1.CallParticipantJoinedEvent{RoomId: "R-live-call", CallId: "C1"},
+		},
+	})
+	subject := events.RoomAggregate("R-live-call").SubjectFor(event)
+	seq, err := harness.publisher.AppendEventually(ctx, subject, event)
+	if err != nil {
+		t.Fatalf("AppendEventually returned error: %v", err)
+	}
+
+	if err := service.waitForLiveEVTEvent(ctx, events.SubjectPosition(subject, seq), event); err != nil {
+		t.Fatalf("waitForLiveEVTEvent returned error: %v", err)
+	}
+}
+
 func TestRoomServiceWaitForThreads(t *testing.T) {
 	harness := newTestEventHarness(t)
 	threads := NewThreadProjection()

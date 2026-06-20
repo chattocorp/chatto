@@ -58,6 +58,17 @@ func TestProjectionSubjectPolicy(t *testing.T) {
 			want: []string{events.RoomSubjectFilter()},
 		},
 		{
+			name: "threads use focused room event families plus key shredding",
+			got:  NewThreadProjection().Subjects(),
+			want: []string{
+				events.RoomEventTypeFilter(events.EventThreadCreated),
+				events.RoomEventTypeFilter(events.EventMessagePosted),
+				events.RoomEventTypeFilter(events.EventMessageEdited),
+				events.RoomEventTypeFilter(events.EventMessageRetracted),
+				events.UserEventTypeFilter(events.EventUserKeyShredded),
+			},
+		},
+		{
 			name: "assets use canonical asset namespace plus legacy beta room asset lanes",
 			got:  NewAssetProjection().Subjects(),
 			want: []string{
@@ -96,6 +107,7 @@ func TestProjectionSubjectPolicy(t *testing.T) {
 func TestFocusedProjectionsDoNotUseAggregateNamespaceFilters(t *testing.T) {
 	for name, subjects := range map[string][]string{
 		"content keys": NewContentKeyProjection().Subjects(),
+		"threads":      NewThreadProjection().Subjects(),
 	} {
 		t.Run(name, func(t *testing.T) {
 			for _, broad := range []string{events.RoomSubjectFilter(), events.UserSubjectFilter(), events.ConfigSubjectFilter()} {

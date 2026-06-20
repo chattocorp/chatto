@@ -132,8 +132,13 @@ func (m *RoomService) waitForTimelineAndThreads(ctx context.Context, pos events.
 }
 
 func (m *RoomService) waitForLiveEVTEvent(ctx context.Context, pos events.StreamPosition, event *corev1.Event) error {
-	if err := m.waitForTimelineAndThreads(ctx, pos); err != nil {
+	if err := m.waitForTimeline(ctx, pos); err != nil {
 		return err
+	}
+	if eventNeedsThreadProjection(event) {
+		if err := m.waitForThreads(ctx, pos); err != nil {
+			return err
+		}
 	}
 	if eventNeedsReactionProjection(event) {
 		if err := m.waitForReactions(ctx, pos); err != nil {
