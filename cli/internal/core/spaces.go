@@ -14,19 +14,20 @@ import (
 )
 
 // DefaultGlobalRoom describes a channel that ships with a fresh
-// deployment. Users join explicitly via `joinRoom` (or the room
-// directory's "Join all").
+// deployment. Universal rooms are available to every join-eligible
+// server member without writing explicit memberships.
 type DefaultGlobalRoom struct {
 	Name        string
 	Description string
+	Universal   bool
 }
 
 // DefaultGlobalRooms is the list of channel rooms seeded on a fresh
 // deployment. Each lands in the seed "Lobby" group. Normal rooms inherit the
-// server-tier everyone defaults; the "announcements" room adds a room-tier
-// everyone/message.post denial.
+// server-tier everyone defaults; the "announcements" room is universal and
+// adds a room-tier everyone/message.post denial.
 var DefaultGlobalRooms = []DefaultGlobalRoom{
-	{Name: AnnouncementsRoomName, Description: "Announcements and news"},
+	{Name: AnnouncementsRoomName, Description: "Announcements and news", Universal: true},
 	{Name: "general", Description: "General discussion"},
 }
 
@@ -49,7 +50,7 @@ func (c *ChattoCore) SeedDefaultRooms(ctx context.Context) error {
 	}
 
 	for _, r := range DefaultGlobalRooms {
-		if _, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", r.Name, r.Description); err != nil {
+		if _, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", r.Name, r.Description, WithUniversalRoom(r.Universal)); err != nil {
 			if errors.Is(err, ErrRoomNameExists) {
 				continue
 			}

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"testing"
 )
 
@@ -18,8 +19,10 @@ func TestSeedDefaultRooms(t *testing.T) {
 			t.Fatalf("ListRooms failed: %v", err)
 		}
 		names := map[string]string{}
+		universal := map[string]bool{}
 		for _, r := range rooms {
 			names[r.Name] = r.GroupId
+			universal[r.Name] = r.GetUniversal()
 		}
 		for _, want := range []string{"announcements", "general"} {
 			if _, ok := names[want]; !ok {
@@ -39,6 +42,12 @@ func TestSeedDefaultRooms(t *testing.T) {
 			if gid != lobbyID {
 				t.Errorf("room %q is in group %q, expected Lobby %q", name, gid, lobbyID)
 			}
+		}
+		if !universal[AnnouncementsRoomName] {
+			t.Errorf("%q should be universal after seeding", AnnouncementsRoomName)
+		}
+		if universal["general"] {
+			t.Error("general should not be universal after seeding")
 		}
 	})
 
@@ -82,6 +91,17 @@ func TestSeedDefaultRooms(t *testing.T) {
 		}
 		if !canThread {
 			t.Error("regular member SHOULD be able to post in threads in announcements")
+		}
+
+		member, err := c.RoomMembershipExists(ctx, KindChannel, user.Id, announcementsID)
+		if err != nil {
+			t.Fatalf("RoomMembershipExists failed: %v", err)
+		}
+		if !member {
+			t.Fatal("announcements should grant effective membership to join-eligible members")
+		}
+		if err := c.LeaveRoom(ctx, user.Id, KindChannel, user.Id, announcementsID); !errors.Is(err, ErrCannotLeaveUniversalRoom) {
+			t.Fatalf("expected ErrCannotLeaveUniversalRoom when leaving announcements, got %v", err)
 		}
 	})
 

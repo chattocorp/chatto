@@ -49,6 +49,17 @@ func roomUnarchivedEvent(roomID string) *corev1.Event {
 	}
 }
 
+func roomUniversalChangedEvent(roomID string, universal bool) *corev1.Event {
+	return &corev1.Event{
+		Event: &corev1.Event_RoomUniversalChanged{
+			RoomUniversalChanged: &corev1.RoomUniversalChangedEvent{
+				RoomId:    roomID,
+				Universal: universal,
+			},
+		},
+	}
+}
+
 func roomDeletedEvent(roomID string) *corev1.Event {
 	return &corev1.Event{
 		Event: &corev1.Event_RoomDeleted{
@@ -96,7 +107,15 @@ func TestRoomCatalogProjection_CreateUpdateArchiveDelete(t *testing.T) {
 	got, _ = p.Get("R1")
 	require.False(t, got.Archived)
 
-	require.NoError(t, p.Apply(roomDeletedEvent("R1"), 5))
+	require.NoError(t, p.Apply(roomUniversalChangedEvent("R1", true), 5))
+	got, _ = p.Get("R1")
+	require.True(t, got.Universal)
+
+	require.NoError(t, p.Apply(roomUniversalChangedEvent("R1", false), 6))
+	got, _ = p.Get("R1")
+	require.False(t, got.Universal)
+
+	require.NoError(t, p.Apply(roomDeletedEvent("R1"), 7))
 	_, ok = p.Get("R1")
 	require.False(t, ok)
 	require.Equal(t, 0, p.Count())

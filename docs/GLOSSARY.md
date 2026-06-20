@@ -44,6 +44,8 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **Room** — A channel or DM. Where messages live. Identified by `(serverId, roomId)`.
 
+**Universal room** — Channel room that behaves as joined for every server member currently eligible to join it, without writing per-user membership events. See [FDR-019](fdr/FDR-019-room-lifecycle.md).
+
 **Room Group** — Named collection of rooms within a server, with its own per-group permission overrides. See [ADR-031](adr/ADR-031-room-group-centric-acl.md) and [FDR-017](fdr/FDR-017-room-groups-and-sidebar-layout.md).
 
 **Sidebar Link** — Operator-managed external link shown in the Server Sidebar inside a Room Group, ordered alongside rooms and stored as a durable group aggregate fact. See [FDR-017](fdr/FDR-017-room-groups-and-sidebar-layout.md).

@@ -58,9 +58,11 @@ func TestCreateRoom_Authorization(t *testing.T) {
 
 	t.Run("space admin can create room", func(t *testing.T) {
 		// testUser is the space creator (admin)
+		isUniversal := true
 		room, err := mutation.CreateRoom(env.authContext(), model.CreateRoomInput{
-			Name:    "admin-created-room",
-			GroupID: groupID,
+			Name:        "admin-created-room",
+			GroupID:     groupID,
+			IsUniversal: &isUniversal,
 		})
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
@@ -70,6 +72,9 @@ func TestCreateRoom_Authorization(t *testing.T) {
 		}
 		if room.Name != "admin-created-room" {
 			t.Errorf("expected name 'admin-created-room', got %s", room.Name)
+		}
+		if !room.GetUniversal() {
+			t.Error("expected room to be universal")
 		}
 	})
 
@@ -110,6 +115,54 @@ func TestCreateRoom_Authorization(t *testing.T) {
 		}
 		if room == nil {
 			t.Fatal("expected room, got nil")
+		}
+	})
+}
+
+func TestSetRoomUniversal_Authorization(t *testing.T) {
+	env := setupTestResolver(t)
+	mutation := env.resolver.Mutation()
+
+	room, err := env.core.CreateRoom(env.ctx, env.testUser.Id, core.KindChannel, "", "universal-toggle", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+
+	t.Run("unauthenticated user is rejected", func(t *testing.T) {
+		_, err := mutation.SetRoomUniversal(env.unauthContext(), model.SetRoomUniversalInput{
+			RoomID:      room.Id,
+			IsUniversal: true,
+		})
+		if !errors.Is(err, ErrNotAuthenticated) {
+			t.Errorf("expected ErrNotAuthenticated, got %v", err)
+		}
+	})
+
+	t.Run("regular member cannot change universal state", func(t *testing.T) {
+		member, err := env.core.CreateUser(env.ctx, "system", "member-universal-toggle", "Member", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser: %v", err)
+		}
+
+		_, err = mutation.SetRoomUniversal(env.authContextForUser(member), model.SetRoomUniversalInput{
+			RoomID:      room.Id,
+			IsUniversal: true,
+		})
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Errorf("expected ErrPermissionDenied, got %v", err)
+		}
+	})
+
+	t.Run("space admin can change universal state", func(t *testing.T) {
+		updated, err := mutation.SetRoomUniversal(env.authContext(), model.SetRoomUniversalInput{
+			RoomID:      room.Id,
+			IsUniversal: true,
+		})
+		if err != nil {
+			t.Fatalf("SetRoomUniversal: %v", err)
+		}
+		if !updated.GetUniversal() {
+			t.Error("expected room to be universal")
 		}
 	})
 }

@@ -214,7 +214,7 @@ function roomData(members: RoomMember[], totalCount: number, hasMore: boolean): 
   void totalCount;
   void hasMore;
   return {
-    room: { id: 'room-1', name: 'general', type: 'CHANNEL' },
+    room: { id: 'room-1', name: 'general', type: 'CHANNEL', isUniversal: false },
     spaceName: 'Test Server',
     canPostMessage: true,
     canPostInThread: true,

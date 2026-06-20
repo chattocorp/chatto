@@ -14,6 +14,9 @@ type Mutation {
   "Unarchive a previously archived room. Requires room.manage permission."
   unarchiveRoom(input: UnarchiveRoomInput!): Room!
 
+  "Set whether a channel room is universal. Requires room.manage permission."
+  setRoomUniversal(input: SetRoomUniversalInput!): Room!
+
   """
   Join every room in a group that the caller has `room.join` for and
   hasn't already joined. Returns the IDs of the rooms that were newly
@@ -202,6 +205,11 @@ input CreateRoomInput {
   do not use this input.
   """
   groupId: ID!
+  """
+  Whether the new channel should be universal. Universal rooms behave as joined
+  for every server member who is currently eligible to join them.
+  """
+  isUniversal: Boolean
 }
 
 """
@@ -214,6 +222,16 @@ input UpdateRoomInput {
   name: String!
   "The new description for the room."
   description: String
+}
+
+"""
+Input for changing a channel room's universal membership flag.
+"""
+input SetRoomUniversalInput {
+  "The ID of the room to update."
+  roomId: ID!
+  "The new universal state."
+  isUniversal: Boolean!
 }
 
 """

@@ -46,7 +46,8 @@ function room(id: string, overrides: Partial<AdminRoomInfo> = {}): AdminRoomInfo
     id,
     name: overrides.name ?? id,
     description: overrides.description ?? null,
-    archived: overrides.archived ?? false
+    archived: overrides.archived ?? false,
+    isUniversal: overrides.isUniversal ?? false
   };
 }
 
@@ -156,6 +157,38 @@ describe('AdminRoomLayoutEditor', () => {
     expect(save.disabled).toBe(true);
     save.click();
     await Promise.resolve();
+    expect(updateRoom).not.toHaveBeenCalled();
+  });
+
+  it('edits the Universal flag from the room edit modal, not a row action', async () => {
+    const layout = makeLayout();
+    layout.initialized = true;
+    layout.groups = [group('g1', [room('r1', { name: 'general' })], 'Lobby')];
+    const updateRoom = vi.spyOn(layout, 'updateRoom').mockResolvedValue({ ok: true });
+    const setRoomUniversal = vi
+      .spyOn(layout, 'setRoomUniversal')
+      .mockResolvedValue({ ok: true });
+    const { container } = renderEditor(layout);
+
+    expect(container.querySelector('[title="Make universal room"]')).toBeNull();
+
+    const edit = container.querySelector('[title="Edit room"]');
+    if (!(edit instanceof HTMLButtonElement)) throw new Error('edit button not found');
+    edit.click();
+    flushSync();
+
+    const checkbox = q(container, '#edit-room-universal') as HTMLInputElement;
+    expect(checkbox.checked).toBe(false);
+    checkbox.click();
+    flushSync();
+
+    const save = buttonByText(container, 'Save Changes');
+    expect(save.disabled).toBe(false);
+    save.click();
+
+    await vi.waitFor(() => {
+      expect(setRoomUniversal).toHaveBeenCalledWith('r1', true);
+    });
     expect(updateRoom).not.toHaveBeenCalled();
   });
 });

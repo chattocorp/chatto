@@ -24,6 +24,8 @@ func roomIDOfEvent(event *corev1.Event) string {
 		return e.RoomArchived.GetRoomId()
 	case *corev1.Event_RoomUnarchived:
 		return e.RoomUnarchived.GetRoomId()
+	case *corev1.Event_RoomUniversalChanged:
+		return e.RoomUniversalChanged.GetRoomId()
 	case *corev1.Event_UserJoinedRoom:
 		return e.UserJoinedRoom.GetRoomId()
 	case *corev1.Event_UserLeftRoom:
@@ -135,6 +137,7 @@ func isVisibleRoomTimelineEntry(event *corev1.Event) bool {
 		return e.MessagePosted.GetInThread() == ""
 	case *corev1.Event_MessageEdited, *corev1.Event_MessageRetracted,
 		*corev1.Event_ThreadCreated,
+		*corev1.Event_RoomUniversalChanged,
 		*corev1.Event_RoomMemberBanned, *corev1.Event_RoomMemberUnbanned,
 		*corev1.Event_AssetCreated, *corev1.Event_AssetDeleted,
 		*corev1.Event_AssetProcessingStarted,
@@ -154,6 +157,7 @@ func isDeliverableLiveEVTRoomEvent(event *corev1.Event) bool {
 		*corev1.Event_RoomDeleted,
 		*corev1.Event_RoomArchived,
 		*corev1.Event_RoomUnarchived,
+		*corev1.Event_RoomUniversalChanged,
 		*corev1.Event_UserJoinedRoom,
 		*corev1.Event_UserLeftRoom,
 		*corev1.Event_ThreadCreated,
@@ -222,6 +226,7 @@ func eventNeedsRoomDirectoryProjection(event *corev1.Event) bool {
 		*corev1.Event_RoomUpdated,
 		*corev1.Event_RoomArchived,
 		*corev1.Event_RoomUnarchived,
+		*corev1.Event_RoomUniversalChanged,
 		*corev1.Event_RoomDeleted:
 		return true
 	default:

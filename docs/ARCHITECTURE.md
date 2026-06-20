@@ -113,7 +113,7 @@ Projections are in-memory read models rebuilt from `EVT`. `NewChattoCore` regist
 
 | Runtime area       | Registered projector | Consumes                                                   | Read models / primary readers                                                             |
 | ------------------ | -------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Room directory     | Room Directory       | `evt.room.>`                                               | `RoomCatalogProjection`, `RoomMembershipProjection`, `RoomBanProjection`; room/member queries and room authorization |
+| Room directory     | Room Directory       | `evt.room.>`                                               | `RoomCatalogProjection`, `RoomMembershipProjection`, `RoomBanProjection`; room/member queries, room authorization, and Universal-room effective membership |
 | Room organization  | Room Group Layout    | `evt.group.>`, `evt.layout.>`                              | `RoomGroupProjection`, `RoomLayoutProjection`; sidebar groups, sidebar links, and mixed sidebar item ordering |
 | Room timeline      | Room Timeline        | `evt.room.>`                                               | Visible room timeline, latest message bodies, hidden echoes, current attachment-bearing message index, direct message-post lookup, and message asset references |
 | Assets             | Assets               | `evt.asset.>`, legacy `evt.room.*.asset_*`                 | Asset creation metadata, room scope, processing manifests, derivative graph, deletion state, and legacy room-asset compatibility |
@@ -159,7 +159,7 @@ Note: there is no top-level `me` query — viewer-scoped state hangs off the `vi
 
 | Query                              | Description                                                                            |
 | ---------------------------------- | -------------------------------------------------------------------------------------- |
-| `server.rooms(type?)`              | List rooms visible to the caller. Channel rooms are gated by membership or `room.list`; DM rooms are membership-only. Sidebar clients use `viewerIsMember` and `viewerCanJoinRoom` on `Room` to distinguish joined, joinable, and visible-but-not-joinable channel rows. |
+| `server.rooms(type?)`              | List rooms visible to the caller. Channel rooms are gated by membership or `room.list`; Universal channel rooms count as joined for callers currently eligible to join. DM rooms are membership-only. Sidebar clients use `isUniversal`, `viewerIsMember`, and `viewerCanJoinRoom` on `Room` to distinguish joined, joinable, and visible-but-not-joinable channel rows. |
 | `server.roomGroups`                | Ordered channel-room groups and mixed sidebar items used to render the server sidebar. Group room entries are filtered to rooms visible to the caller. |
 | `room(roomId)`                     | Get a room by ID. Room-scoped reads (`members`, `events`, `event(eventId)`, `eventsAround`, `voiceCallToken`, `viewerCan*` flags, `viewerIsMember`, `viewerNotifications`) live as fields on the returned `Room`; `members(search, limit, offset)` and `viewerNotifications` are offset-paginated. `events` is the visible room timeline. Folded durable facts such as reactions are reflected in projected room reads; the web client refreshes the current room window after wake/reconnect to catch up without a full document reload. |
 
@@ -199,10 +199,11 @@ Admin queries are nested under a single `admin: AdminQueries` field that returns
 
 | Mutation                       | Description                                                                      |
 | ------------------------------ | -------------------------------------------------------------------------------- |
-| `createRoom`                   | Create a new channel room.                                                       |
+| `createRoom`                   | Create a new channel room, optionally Universal.                                 |
 | `updateRoom`                   | Update a room's name / description (`room.manage`).                              |
+| `setRoomUniversal`             | Enable or disable Universal effective membership for a channel room (`room.manage`; DMs rejected). |
 | `archiveRoom` / `unarchiveRoom`| Archive or restore a room (`room.manage`).                                       |
-| `joinRoom` / `leaveRoom`       | Join / leave a room.                                                             |
+| `joinRoom` / `leaveRoom`       | Join / leave a room. Joining a Universal channel succeeds without writing explicit membership; leaving a Universal channel is rejected. |
 | `banRoomMember` / `unbanRoomMember` | Create or remove a room ban (`room.ban-member`; DMs rejected; reasons required for moderation audit). Bans emit a normal leave event, maintain active ban state, and deny rejoin through ordinary join authorization. |
 | `joinGroup`                    | Join every room in a group the caller has `room.join` for. Powers "Join all".    |
 | `markRoomAsRead`               | Mark a room as read; records the last-seen root event ID for unread tracking.    |
@@ -298,7 +299,7 @@ Like `Query.admin`, the `admin: AdminMutations` field returns `null` for unauthe
 
 | Subscription          | Description                                                                                                                                                                                                                                                                                                                                                                                                          |
 | --------------------- | ---- |
-| `myEvents`            | The single subscription. Multiplexes durable room/asset events from `live.evt.>` (messages, reactions, edits, retractions, room lifecycle, asset processing, voice call lifecycle/participant facts) and transient sync signals from `live.sync.>` (typing, mention notifications, video-complete pings, server config/profile/preference invalidation, notifications, thread-follow sync, presence, server membership lifecycle, session termination, heartbeats) into one GraphQL `Event` envelope. Asset lifecycle events are authorized through the room scope recorded on their `AssetCreatedEvent`. The membership set is tracked in real time — joining or leaving a room updates filtering immediately without reconnecting. DM-room events use the same membership gate as channel-room events; there is no separate DM read permission. Subscribing sets the caller's presence to `ONLINE`. The subscription is live-only: missed state is recovered by projected queries, not subscription replay cursors. |
+| `myEvents`            | The single subscription. Multiplexes durable room/asset events from `live.evt.>` (messages, reactions, edits, retractions, room lifecycle, Universal changes, asset processing, voice call lifecycle/participant facts) and transient sync signals from `live.sync.>` (typing, mention notifications, video-complete pings, server config/profile/preference invalidation, notifications, thread-follow sync, presence, server membership lifecycle, session termination, heartbeats) into one GraphQL `Event` envelope. Asset lifecycle events are authorized through the room scope recorded on their `AssetCreatedEvent`. The membership set is tracked in real time — joining, leaving, or changing a room's Universal setting updates filtering immediately without reconnecting. DM-room events use the same membership gate as channel-room events; there is no separate DM read permission. Subscribing sets the caller's presence to `ONLINE`. The subscription is live-only: missed state is recovered by projected queries, not subscription replay cursors. |
 
 There is no `adminAuditLogEvents` subscription — audit events arrive through `myEvents` for users with the relevant admin scope.
 
@@ -355,7 +356,7 @@ auth workflow audit facts.
 **Event-sourced aggregates:**
 
 - `EVT` is the source of truth.
-- Fresh deployments seed current invariants such as default RBAC roles and the default room group. Fresh RBAC seeds include `message.attach` for `everyone`; existing RBAC state is not silently backfilled on boot.
+- Fresh deployments seed current invariants such as default RBAC roles, the default room group, and default channel rooms. The seeded `#announcements` room is Universal; `#general` is a normal channel room. Fresh RBAC seeds include `message.attach` for `everyone`; existing RBAC state is not silently backfilled on boot.
 - Reads come from in-memory projections rebuilt from `EVT`.
 - Room timeline reads use `RoomTimelineProjection`'s visible per-room timeline for initial loads, forward/backward pagination, and around-message windows; `Room.attachments` uses the projection's current attachment-bearing message index so it does not decrypt unrelated message bodies. Folded room facts such as edits, retractions, reactions, and thread replies are handled by derived indexes or sibling projections instead of being retained in the per-room timeline slice. Asset lifecycle facts live in `AssetProjection`, which also consumes legacy beta `evt.room.{roomId}.asset_*` facts. Live `Subscription.myEvents` delivery reads the committed EVT feed, waits for projection readiness, and emits authorized events without exposing folded facts as standalone timeline rows in `Room.events`.
 - Writes append to `EVT` only for durable domain facts; legacy KV/stream data is not maintained as a mirror.
@@ -417,7 +418,7 @@ Both files share `package chatto.core.v1` and generate into the same Go package.
 
 | Category                    | Storage    | Examples                                                    | Purpose                                                        |
 | --------------------------- | ---------- | ----------------------------------------------------------- | -------------------------------------------------------------- |
-| JetStream-stored (room) | Stream     | RoomCreated, MessagePosted, MessageEdited, MessageRetracted, ReactionAdded, ReactionRemoved, UserJoinedRoom, CallStarted, CallParticipantJoined, CallParticipantLeft, CallEnded | Ordering guarantees, historical replay, projection source of truth |
+| JetStream-stored (room) | Stream     | RoomCreated, RoomUniversalChanged, MessagePosted, MessageEdited, MessageRetracted, ReactionAdded, ReactionRemoved, UserJoinedRoom, CallStarted, CallParticipantJoined, CallParticipantLeft, CallEnded | Ordering guarantees, historical replay, projection source of truth |
 | Room live-only              | NATS Core  | UserTyping | Ephemeral room notifications where another store/projection is source of truth |
 | Deployment live (user/config) | NATS Core  | UserCreated, ServerUpdated, MentionNotification, NotificationCreated, PresenceChanged | Cross-tab sync, notifications, server lifecycle |
 
@@ -478,6 +479,7 @@ The aggregate ID is intentionally part of the subject; actor/user and detailed c
 | `evt.room.{roomId}.room_updated`                             | `RoomUpdatedEvent`                                  |
 | `evt.room.{roomId}.room_archived`                            | `RoomArchivedEvent`                                 |
 | `evt.room.{roomId}.room_unarchived`                          | `RoomUnarchivedEvent`                               |
+| `evt.room.{roomId}.room_universal_changed`                   | `RoomUniversalChangedEvent`                         |
 | `evt.room.{roomId}.room_deleted`                             | `RoomDeletedEvent`                                  |
 | `evt.room.{roomId}.user_joined`                              | `UserJoinedRoomEvent`                               |
 | `evt.room.{roomId}.user_left`                                | `UserLeftRoomEvent`                                 |

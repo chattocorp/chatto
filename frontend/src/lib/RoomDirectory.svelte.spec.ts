@@ -14,6 +14,7 @@ const room = (id: string, overrides: Partial<DirectoryRoom> = {}): DirectoryRoom
   name: overrides.name ?? id,
   description: overrides.description ?? null,
   archived: overrides.archived ?? false,
+  isUniversal: overrides.isUniversal ?? false,
   viewerCanJoinRoom: overrides.viewerCanJoinRoom ?? true
 });
 
@@ -21,6 +22,7 @@ const listedRoom = (id: string, overrides: Partial<RoomsListItem> = {}): RoomsLi
   id,
   name: overrides.name ?? id,
   type: overrides.type ?? RoomType.Channel,
+  isUniversal: overrides.isUniversal ?? false,
   hasUnread: overrides.hasUnread ?? false,
   viewerIsMember: overrides.viewerIsMember ?? true,
   viewerCanJoinRoom: overrides.viewerCanJoinRoom ?? true,
@@ -77,6 +79,21 @@ describe('RoomDirectory', () => {
     // so we look for either via textContent.
     expect(container.textContent).toContain('Joined');
     expect(container.textContent).toContain('Join');
+  });
+
+  it('renders universal joined rooms without a leave action', () => {
+    const { container } = render(Harness, {
+      props: {
+        initialRooms: [room('general', { isUniversal: true })],
+        joinedRooms: [joined('general')],
+        roomGroups: null
+      }
+    });
+    flushSync();
+
+    expect(container.textContent).toContain('Universal');
+    expect(container.textContent).not.toContain('Leave');
+    expect(findButton(container, 'Universal')).toBeUndefined();
   });
 
   it('does not treat listable non-member rooms as joined', () => {

@@ -15,6 +15,7 @@ func (*RoomUpdatedEvent) IsEventType()              {}
 func (*RoomDeletedEvent) IsEventType()              {}
 func (*RoomArchivedEvent) IsEventType()             {}
 func (*RoomUnarchivedEvent) IsEventType()           {}
+func (*RoomUniversalChangedEvent) IsEventType()     {}
 func (*UserJoinedRoomEvent) IsEventType()           {}
 func (*UserLeftRoomEvent) IsEventType()             {}
 func (*RoomMemberBannedEvent) IsEventType()         {}

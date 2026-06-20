@@ -16,7 +16,8 @@ function room(id: string, overrides: Partial<AdminRoomInfo> = {}): AdminRoomInfo
     id,
     name: overrides.name ?? id,
     description: overrides.description ?? null,
-    archived: overrides.archived ?? false
+    archived: overrides.archived ?? false,
+    isUniversal: overrides.isUniversal ?? false
   };
 }
 
@@ -349,6 +350,22 @@ describe('AdminRoomLayoutStore — mutations', () => {
     expect(query).toHaveBeenCalledTimes(2);
     expect(store.archivingRoomId).toBeNull();
   });
+
+  it('sets room universal state and refreshes for reconciliation', async () => {
+    const { client, mutation, query } = makeClient({
+      mutations: [{ data: { setRoomUniversal: { id: 'r1', isUniversal: true } } }],
+      queries: [{ data: queryData([group('g1', [room('r1', { isUniversal: true })])]) }]
+    });
+    const store = new AdminRoomLayoutStore(client);
+
+    await expect(store.setRoomUniversal('r1', true)).resolves.toEqual({ ok: true });
+
+    expect((mutation.mock.calls[0] as unknown[])[1]).toEqual({
+      input: { roomId: 'r1', isUniversal: true }
+    });
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(store.universalRoomId).toBeNull();
+  });
 });
 
 describe('AdminRoomLayoutStore — drag sequencing', () => {
@@ -472,7 +489,8 @@ describe('AdminRoomLayoutStore — live events', () => {
       queries: [
         { data: queryData([group('g1', [room('r1', { name: 'fresh' })])]) },
         { data: queryData([group('g1', [room('r1', { archived: true })])]) },
-        { data: queryData([group('g1', [room('r1', { archived: false })])]) }
+        { data: queryData([group('g1', [room('r1', { archived: false })])]) },
+        { data: queryData([group('g1', [room('r1', { isUniversal: true })])]) }
       ]
     });
     const store = new AdminRoomLayoutStore(client);
@@ -483,7 +501,11 @@ describe('AdminRoomLayoutStore — live events', () => {
     await settle();
     expect(store.ingestServerEvent({ event: { __typename: 'RoomUnarchivedEvent' } })).toBe(true);
     await settle();
+    expect(store.ingestServerEvent({ event: { __typename: 'RoomUniversalChangedEvent' } })).toBe(
+      true
+    );
+    await settle();
 
-    expect(query).toHaveBeenCalledTimes(3);
+    expect(query).toHaveBeenCalledTimes(4);
   });
 });

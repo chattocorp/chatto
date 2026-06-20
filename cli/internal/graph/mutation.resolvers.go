@@ -47,7 +47,7 @@ func (r *mutationResolver) CreateRoom(ctx context.Context, input model.CreateRoo
 		return nil, core.ErrPermissionDenied
 	}
 
-	return r.core.CreateRoom(ctx, user.Id, kind, groupID, input.Name, desc)
+	return r.core.CreateRoom(ctx, user.Id, kind, groupID, input.Name, desc, core.WithUniversalRoom(input.IsUniversal != nil && *input.IsUniversal))
 }
 
 // UpdateRoom is the resolver for the updateRoom field.
@@ -119,6 +119,31 @@ func (r *mutationResolver) UnarchiveRoom(ctx context.Context, input model.Unarch
 	}
 
 	return r.core.UnarchiveRoom(ctx, user.Id, kind, input.RoomID)
+}
+
+// SetRoomUniversal is the resolver for the setRoomUniversal field.
+func (r *mutationResolver) SetRoomUniversal(ctx context.Context, input model.SetRoomUniversalInput) (*corev1.Room, error) {
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	kind, err := r.resolveRoomKind(ctx, input.RoomID)
+	if err != nil {
+		return nil, err
+	}
+	if kind == core.KindDM {
+		return nil, fmt.Errorf("DM rooms cannot be universal")
+	}
+
+	can, err := r.core.CanManageAnyRoom(ctx, user.Id)
+	if err != nil {
+		return nil, err
+	}
+	if !can {
+		return nil, core.ErrPermissionDenied
+	}
+
+	return r.core.SetRoomUniversal(ctx, user.Id, kind, input.RoomID, input.IsUniversal)
 }
 
 // JoinGroup is the resolver for the joinGroup field.

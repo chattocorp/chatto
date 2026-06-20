@@ -87,6 +87,11 @@ type Room {
   "Whether this room is archived. Archived rooms are hidden from sidebar and Browse Rooms."
   archived: Boolean!
   """
+  Whether this channel room grants effective membership to every server member
+  who is currently eligible to join it. Always false for DM rooms.
+  """
+  isUniversal: Boolean! @goField(forceResolver: true)
+  """
   Channel rooms belong to exactly one RoomGroup; this field identifies which
   one. DM rooms return null because they do not participate in room-group
   layout or ACLs.

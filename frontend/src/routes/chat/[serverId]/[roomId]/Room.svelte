@@ -322,8 +322,10 @@
 
   // Header action visibility — flat derivations keep the template clean
   let showVoiceCall = $derived(!!room.roomData && !!serverInfo.livekitUrl);
-  // Channel rooms can always be left. DMs are permanent (no leave action).
-  let showLeaveRoom = $derived(!!room.roomData && !room.isDM);
+  // Channel rooms can be left unless membership is granted by Universal policy.
+  let showLeaveRoom = $derived(
+    !!room.roomData && !room.isDM && !room.roomData.room.isUniversal
+  );
   const roomSidebarPanels = new RoomSidebarPanelsState(
     () => getActiveServer(),
     () => roomId

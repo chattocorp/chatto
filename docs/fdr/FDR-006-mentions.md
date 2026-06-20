@@ -1,7 +1,7 @@
 # FDR-006: @Mentions
 
 **Status:** Active
-**Last reviewed:** 2026-06-15
+**Last reviewed:** 2026-06-20
 
 ## Overview
 
@@ -12,8 +12,8 @@ Users can mention users, roles, and room-scoped virtual groups with `@handle` sy
 - Typing `@` followed by at least one character opens the autocomplete popup in the composer.
 - Matching is fuzzy against room-member logins, room-member display names, the virtual handles `all` and `here`, and pingable server role names. Prefix matches rank higher than substring matches.
 - Pressing Enter confirms the highlighted autocomplete result and appends a space. Pressing Tab completes the first match, appends a space, and pressing Tab again cycles to the next candidate.
-- `@username` mentions notify that user if they are a current room member.
-- Pingable `@role` mentions notify current room members who are explicitly assigned that server role.
+- `@username` mentions notify that user if they are a current room member. Universal room implicit members count as room members.
+- Pingable `@role` mentions notify current room members who are explicitly assigned that server role. Universal room implicit members count as room members.
 - `@owner` and `@admin` are ordinary role handles but are not pingable by default, so they do not appear in autocomplete and do not notify unless an operator explicitly enables them.
 - Fresh servers seed the `moderator` role as pingable. It remains an explicit role ping: it reaches users assigned to `moderator`, not admins or owners unless those users also have the `moderator` role.
 - `@all` mentions every current room member, regardless of presence.
@@ -36,7 +36,7 @@ Users can mention users, roles, and room-scoped virtual groups with `@handle` sy
 
 ### 2. Mentions are room-scoped
 
-**Decision:** Mentions only deliver to users who are current members of the room being posted to. Role mentions intersect explicit role membership with room membership, and only roles marked `pingable` resolve as role pings.
+**Decision:** Mentions only deliver to users who are current members of the room being posted to. Room membership means effective membership: explicit membership plus implicit membership in Universal channel rooms for users who are currently eligible to join. Role mentions intersect explicit role membership with room membership, and only roles marked `pingable` resolve as role pings.
 **Why:** Room membership is the visibility boundary for the message. Notifying a non-member would either leak context or create a notification they cannot open.
 **Tradeoff:** A role mention may reach fewer people than the full server role assignment list. Authors who need a broader audience must post in a room that contains that audience.
 

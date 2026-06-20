@@ -29,6 +29,7 @@ union EventType =
   | RoomDeletedEvent
   | RoomArchivedEvent
   | RoomUnarchivedEvent
+  | RoomUniversalChangedEvent
   # Room membership
   | UserJoinedRoomEvent
   | UserLeftRoomEvent
@@ -228,6 +229,16 @@ The room becomes visible again in sidebars and Browse Rooms.
 type RoomUnarchivedEvent {
   "The ID of the unarchived room."
   roomId: ID!
+}
+
+"""
+Event: A room's universal membership setting changed.
+"""
+type RoomUniversalChangedEvent {
+  "The ID of the updated room."
+  roomId: ID!
+  "The room's new universal setting."
+  universal: Boolean!
 }
 
 # ==============================================================================

@@ -10,6 +10,7 @@ type QueryRoom = {
   id: string;
   name: string;
   type: RoomType;
+  isUniversal?: boolean;
   hasUnread: boolean;
   archived: boolean;
   viewerIsMember: boolean;
@@ -68,6 +69,7 @@ function makeRoom(id: string, overrides: Partial<QueryRoom> = {}): QueryRoom {
     id,
     name: overrides.name ?? id,
     type: overrides.type ?? RoomType.Channel,
+    isUniversal: overrides.isUniversal ?? false,
     hasUnread: overrides.hasUnread ?? false,
     archived: overrides.archived ?? false,
     viewerIsMember: overrides.viewerIsMember ?? true,
@@ -167,6 +169,7 @@ describe('RoomsStore - refresh', () => {
       {
         id: 'public',
         type: RoomType.Channel,
+        isUniversal: false,
         viewerIsMember: false,
         viewerCanJoinRoom: true,
         members: []
@@ -174,6 +177,7 @@ describe('RoomsStore - refresh', () => {
       {
         id: 'dm-1',
         type: RoomType.Dm,
+        isUniversal: false,
         viewerIsMember: true,
         members: [{ id: 'U1', displayName: 'Alice' }]
       }
@@ -184,6 +188,15 @@ describe('RoomsStore - refresh', () => {
         items: [{ id: 'room:public', type: 'room', roomId: 'public' }]
       }
     ]);
+  });
+
+  it('maps universal channel rooms from the bootstrap query', async () => {
+    const { client } = makeClient([makeResponse([makeRoom('general', { isUniversal: true })])]);
+    const store = makeStore(client);
+
+    await store.refresh();
+
+    expect(store.rooms).toMatchObject([{ id: 'general', isUniversal: true }]);
   });
 
   it('discards out-of-order responses', async () => {
@@ -423,6 +436,7 @@ describe('RoomsStore - ingestServerEvent', () => {
   it('uses one shared predicate for room state refresh events', () => {
     expect(isRoomStateRefreshEvent('RoomCreatedEvent')).toBe(true);
     expect(isRoomStateRefreshEvent('RoomGroupsUpdatedEvent')).toBe(true);
+    expect(isRoomStateRefreshEvent('RoomUniversalChangedEvent')).toBe(true);
     expect(isRoomStateRefreshEvent('ReactionAddedEvent')).toBe(false);
   });
 

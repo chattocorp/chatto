@@ -38,6 +38,7 @@ type roomCatalogEntry struct {
 	description string
 	kind        corev1.RoomKind
 	archived    bool
+	universal   bool
 }
 
 // NewRoomCatalogProjection returns an empty projection.
@@ -76,6 +77,7 @@ func (p *RoomCatalogProjection) Apply(event *corev1.Event, seq uint64) error {
 			name:        c.GetName(),
 			description: c.GetDescription(),
 			kind:        c.GetKind(),
+			universal:   c.GetUniversal(),
 		}
 	case *corev1.Event_RoomUpdated:
 		u := e.RoomUpdated
@@ -90,6 +92,10 @@ func (p *RoomCatalogProjection) Apply(event *corev1.Event, seq uint64) error {
 	case *corev1.Event_RoomUnarchived:
 		if entry := p.rooms[e.RoomUnarchived.GetRoomId()]; entry != nil {
 			entry.archived = false
+		}
+	case *corev1.Event_RoomUniversalChanged:
+		if entry := p.rooms[e.RoomUniversalChanged.GetRoomId()]; entry != nil {
+			entry.universal = e.RoomUniversalChanged.GetUniversal()
 		}
 	case *corev1.Event_RoomDeleted:
 		delete(p.rooms, e.RoomDeleted.GetRoomId())
@@ -184,6 +190,7 @@ func entryToRoom(id string, entry *roomCatalogEntry) *corev1.Room {
 		Description: entry.description,
 		Archived:    entry.archived,
 		Kind:        entry.kind,
+		Universal:   entry.universal,
 	}
 	// Defensive clone — the proto contains a Mutex internally that
 	// vet would flag if we ever returned the same pointer twice and

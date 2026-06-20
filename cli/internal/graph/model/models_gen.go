@@ -252,6 +252,9 @@ type CreateRoomInput struct {
 	// requires an explicit group; DM rooms are created through the DM APIs and
 	// do not use this input.
 	GroupID string `json:"groupId"`
+	// Whether the new channel should be universal. Universal rooms behave as joined
+	// for every server member who is currently eligible to join them.
+	IsUniversal *bool `json:"isUniversal,omitempty"`
 }
 
 type CreateSidebarLinkInput struct {
@@ -1193,6 +1196,14 @@ type SetRoomNotificationLevelInput struct {
 	RoomID string `json:"roomId"`
 	// The notification level to set.
 	Level NotificationLevel `json:"level"`
+}
+
+// Input for changing a channel room's universal membership flag.
+type SetRoomUniversalInput struct {
+	// The ID of the room to update.
+	RoomID string `json:"roomId"`
+	// The new universal state.
+	IsUniversal bool `json:"isUniversal"`
 }
 
 // Input for setting the server-level notification level.

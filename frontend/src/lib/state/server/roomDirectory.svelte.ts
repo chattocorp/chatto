@@ -1,6 +1,7 @@
 import { SvelteSet } from 'svelte/reactivity';
 import type { Client } from '@urql/svelte';
 import { graphql } from '$lib/gql';
+import { isUnsupportedGraphQLFieldError } from '$lib/gql/compatibility';
 import { isRoomStateRefreshEvent } from './rooms.svelte';
 
 export type DirectoryRoom = {
@@ -8,11 +9,27 @@ export type DirectoryRoom = {
   name: string;
   description?: string | null;
   archived: boolean;
+  isUniversal: boolean;
   viewerCanJoinRoom: boolean;
 };
 
 const RoomsForDirectoryQuery = graphql(`
   query GetServerRoomDirectory {
+    server {
+      rooms(type: CHANNEL) {
+        id
+        name
+        description
+        archived
+        isUniversal
+        viewerCanJoinRoom
+      }
+    }
+  }
+`);
+
+const RoomsForDirectoryCompatibilityQuery = graphql(`
+  query GetServerRoomDirectoryCompatibility {
     server {
       rooms(type: CHANNEL) {
         id
@@ -46,6 +63,10 @@ const JoinGroupFromDirectory = graphql(`
 export type JoinResult = { ok: true; room?: DirectoryRoom } | { ok: false; error: Error };
 export type LeaveResult = { ok: true; room?: DirectoryRoom } | { ok: false; error: Error };
 export type JoinGroupResult = { ok: true; joinedRoomIds: string[] } | { ok: false; error: Error };
+
+function isUniversalRoom(room: object): boolean {
+  return 'isUniversal' in room && room.isUniversal === true;
+}
 
 /**
  * Reactive state for the Browse Rooms directory page.
@@ -93,11 +114,18 @@ export class RoomDirectoryStore {
 
   async refresh(): Promise<void> {
     const thisLoad = ++this.loadId;
-    const result = await this.client.query(RoomsForDirectoryQuery, {}).toPromise();
+    const initialResult = await this.client.query(RoomsForDirectoryQuery, {}).toPromise();
+    const result =
+      initialResult.error && isUnsupportedGraphQLFieldError(initialResult.error, 'isUniversal')
+        ? await this.client.query(RoomsForDirectoryCompatibilityQuery, {}).toPromise()
+        : initialResult;
     if (this.loadId !== thisLoad) return;
 
     if (result.data?.server) {
-      this.allRooms = result.data.server.rooms;
+      this.allRooms = result.data.server.rooms.map((room) => ({
+        ...room,
+        isUniversal: isUniversalRoom(room)
+      }));
       // A successful refresh confirms what was optimistically applied; clear
       // the just-* sets so isJoined() falls back on the authoritative joined
       // membership reported by RoomsStore.

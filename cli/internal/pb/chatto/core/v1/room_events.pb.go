@@ -85,7 +85,10 @@ type RoomCreatedEvent struct {
 	// on the EVT stream — the room-catalog projection needs it to
 	// distinguish DMs (which don't appear in group structures) from
 	// channels.
-	Kind          RoomKind `protobuf:"varint,5,opt,name=kind,proto3,enum=chatto.core.v1.RoomKind" json:"kind,omitempty"`
+	Kind RoomKind `protobuf:"varint,5,opt,name=kind,proto3,enum=chatto.core.v1.RoomKind" json:"kind,omitempty"`
+	// Whether this channel room grants effective membership to every
+	// join-eligible server member. DM rooms must leave this false.
+	Universal     bool `protobuf:"varint,6,opt,name=universal,proto3" json:"universal,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -146,6 +149,13 @@ func (x *RoomCreatedEvent) GetKind() RoomKind {
 		return x.Kind
 	}
 	return RoomKind_ROOM_KIND_UNSPECIFIED
+}
+
+func (x *RoomCreatedEvent) GetUniversal() bool {
+	if x != nil {
+		return x.Universal
+	}
+	return false
 }
 
 type RoomUpdatedEvent struct {
@@ -344,6 +354,62 @@ func (x *RoomUnarchivedEvent) GetRoomId() string {
 	return ""
 }
 
+// RoomUniversalChangedEvent is published when a channel room's universal
+// membership flag changes. It is a single state-carrying configuration event
+// rather than enabled/disabled lifecycle events so replay can apply the latest
+// boolean value directly.
+type RoomUniversalChangedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	Universal     bool                   `protobuf:"varint,2,opt,name=universal,proto3" json:"universal,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomUniversalChangedEvent) Reset() {
+	*x = RoomUniversalChangedEvent{}
+	mi := &file_chatto_core_v1_room_events_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomUniversalChangedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomUniversalChangedEvent) ProtoMessage() {}
+
+func (x *RoomUniversalChangedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_room_events_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomUniversalChangedEvent.ProtoReflect.Descriptor instead.
+func (*RoomUniversalChangedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_room_events_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *RoomUniversalChangedEvent) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *RoomUniversalChangedEvent) GetUniversal() bool {
+	if x != nil {
+		return x.Universal
+	}
+	return false
+}
+
 type UserJoinedRoomEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	RoomId        string                 `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
@@ -353,7 +419,7 @@ type UserJoinedRoomEvent struct {
 
 func (x *UserJoinedRoomEvent) Reset() {
 	*x = UserJoinedRoomEvent{}
-	mi := &file_chatto_core_v1_room_events_proto_msgTypes[5]
+	mi := &file_chatto_core_v1_room_events_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -365,7 +431,7 @@ func (x *UserJoinedRoomEvent) String() string {
 func (*UserJoinedRoomEvent) ProtoMessage() {}
 
 func (x *UserJoinedRoomEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_room_events_proto_msgTypes[5]
+	mi := &file_chatto_core_v1_room_events_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -378,7 +444,7 @@ func (x *UserJoinedRoomEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserJoinedRoomEvent.ProtoReflect.Descriptor instead.
 func (*UserJoinedRoomEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_room_events_proto_rawDescGZIP(), []int{5}
+	return file_chatto_core_v1_room_events_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *UserJoinedRoomEvent) GetRoomId() string {
@@ -397,7 +463,7 @@ type UserLeftRoomEvent struct {
 
 func (x *UserLeftRoomEvent) Reset() {
 	*x = UserLeftRoomEvent{}
-	mi := &file_chatto_core_v1_room_events_proto_msgTypes[6]
+	mi := &file_chatto_core_v1_room_events_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -409,7 +475,7 @@ func (x *UserLeftRoomEvent) String() string {
 func (*UserLeftRoomEvent) ProtoMessage() {}
 
 func (x *UserLeftRoomEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_room_events_proto_msgTypes[6]
+	mi := &file_chatto_core_v1_room_events_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -422,7 +488,7 @@ func (x *UserLeftRoomEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserLeftRoomEvent.ProtoReflect.Descriptor instead.
 func (*UserLeftRoomEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_room_events_proto_rawDescGZIP(), []int{6}
+	return file_chatto_core_v1_room_events_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *UserLeftRoomEvent) GetRoomId() string {
@@ -445,7 +511,7 @@ type ServerMemberDeletedEvent struct {
 
 func (x *ServerMemberDeletedEvent) Reset() {
 	*x = ServerMemberDeletedEvent{}
-	mi := &file_chatto_core_v1_room_events_proto_msgTypes[7]
+	mi := &file_chatto_core_v1_room_events_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -457,7 +523,7 @@ func (x *ServerMemberDeletedEvent) String() string {
 func (*ServerMemberDeletedEvent) ProtoMessage() {}
 
 func (x *ServerMemberDeletedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_room_events_proto_msgTypes[7]
+	mi := &file_chatto_core_v1_room_events_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -470,7 +536,7 @@ func (x *ServerMemberDeletedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerMemberDeletedEvent.ProtoReflect.Descriptor instead.
 func (*ServerMemberDeletedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_room_events_proto_rawDescGZIP(), []int{7}
+	return file_chatto_core_v1_room_events_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ServerMemberDeletedEvent) GetUserId() string {
@@ -496,7 +562,7 @@ type CallParticipantJoinedEvent struct {
 
 func (x *CallParticipantJoinedEvent) Reset() {
 	*x = CallParticipantJoinedEvent{}
-	mi := &file_chatto_core_v1_room_events_proto_msgTypes[8]
+	mi := &file_chatto_core_v1_room_events_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -508,7 +574,7 @@ func (x *CallParticipantJoinedEvent) String() string {
 func (*CallParticipantJoinedEvent) ProtoMessage() {}
 
 func (x *CallParticipantJoinedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_room_events_proto_msgTypes[8]
+	mi := &file_chatto_core_v1_room_events_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -521,7 +587,7 @@ func (x *CallParticipantJoinedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CallParticipantJoinedEvent.ProtoReflect.Descriptor instead.
 func (*CallParticipantJoinedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_room_events_proto_rawDescGZIP(), []int{8}
+	return file_chatto_core_v1_room_events_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *CallParticipantJoinedEvent) GetRoomId() string {
@@ -561,7 +627,7 @@ type CallParticipantLeftEvent struct {
 
 func (x *CallParticipantLeftEvent) Reset() {
 	*x = CallParticipantLeftEvent{}
-	mi := &file_chatto_core_v1_room_events_proto_msgTypes[9]
+	mi := &file_chatto_core_v1_room_events_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -573,7 +639,7 @@ func (x *CallParticipantLeftEvent) String() string {
 func (*CallParticipantLeftEvent) ProtoMessage() {}
 
 func (x *CallParticipantLeftEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_room_events_proto_msgTypes[9]
+	mi := &file_chatto_core_v1_room_events_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -586,7 +652,7 @@ func (x *CallParticipantLeftEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CallParticipantLeftEvent.ProtoReflect.Descriptor instead.
 func (*CallParticipantLeftEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_room_events_proto_rawDescGZIP(), []int{9}
+	return file_chatto_core_v1_room_events_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CallParticipantLeftEvent) GetRoomId() string {
@@ -626,7 +692,7 @@ type CallStartedEvent struct {
 
 func (x *CallStartedEvent) Reset() {
 	*x = CallStartedEvent{}
-	mi := &file_chatto_core_v1_room_events_proto_msgTypes[10]
+	mi := &file_chatto_core_v1_room_events_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -638,7 +704,7 @@ func (x *CallStartedEvent) String() string {
 func (*CallStartedEvent) ProtoMessage() {}
 
 func (x *CallStartedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_room_events_proto_msgTypes[10]
+	mi := &file_chatto_core_v1_room_events_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -651,7 +717,7 @@ func (x *CallStartedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CallStartedEvent.ProtoReflect.Descriptor instead.
 func (*CallStartedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_room_events_proto_rawDescGZIP(), []int{10}
+	return file_chatto_core_v1_room_events_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *CallStartedEvent) GetRoomId() string {
@@ -696,7 +762,7 @@ type CallEndedEvent struct {
 
 func (x *CallEndedEvent) Reset() {
 	*x = CallEndedEvent{}
-	mi := &file_chatto_core_v1_room_events_proto_msgTypes[11]
+	mi := &file_chatto_core_v1_room_events_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -708,7 +774,7 @@ func (x *CallEndedEvent) String() string {
 func (*CallEndedEvent) ProtoMessage() {}
 
 func (x *CallEndedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_room_events_proto_msgTypes[11]
+	mi := &file_chatto_core_v1_room_events_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -721,7 +787,7 @@ func (x *CallEndedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CallEndedEvent.ProtoReflect.Descriptor instead.
 func (*CallEndedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_room_events_proto_rawDescGZIP(), []int{11}
+	return file_chatto_core_v1_room_events_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *CallEndedEvent) GetRoomId() string {
@@ -749,12 +815,13 @@ var File_chatto_core_v1_room_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_room_events_proto_rawDesc = "" +
 	"\n" +
-	" chatto/core/v1/room_events.proto\x12\x0echatto.core.v1\x1a\x1bchatto/core/v1/models.proto\"\x9f\x01\n" +
+	" chatto/core/v1/room_events.proto\x12\x0echatto.core.v1\x1a\x1bchatto/core/v1/models.proto\"\xbd\x01\n" +
 	"\x10RoomCreatedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12,\n" +
-	"\x04kind\x18\x05 \x01(\x0e2\x18.chatto.core.v1.RoomKindR\x04kindJ\x04\b\x01\x10\x02R\bspace_id\"q\n" +
+	"\x04kind\x18\x05 \x01(\x0e2\x18.chatto.core.v1.RoomKindR\x04kind\x12\x1c\n" +
+	"\tuniversal\x18\x06 \x01(\bR\tuniversalJ\x04\b\x01\x10\x02R\bspace_id\"q\n" +
 	"\x10RoomUpdatedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
@@ -764,7 +831,10 @@ const file_chatto_core_v1_room_events_proto_rawDesc = "" +
 	"\x11RoomArchivedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomIdJ\x04\b\x01\x10\x02R\bspace_id\">\n" +
 	"\x13RoomUnarchivedEvent\x12\x17\n" +
-	"\aroom_id\x18\x02 \x01(\tR\x06roomIdJ\x04\b\x01\x10\x02R\bspace_id\">\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomIdJ\x04\b\x01\x10\x02R\bspace_id\"R\n" +
+	"\x19RoomUniversalChangedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x1c\n" +
+	"\tuniversal\x18\x02 \x01(\bR\tuniversal\">\n" +
 	"\x13UserJoinedRoomEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomIdJ\x04\b\x01\x10\x02R\bspace_id\"<\n" +
 	"\x11UserLeftRoomEvent\x12\x17\n" +
@@ -809,7 +879,7 @@ func file_chatto_core_v1_room_events_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_core_v1_room_events_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_core_v1_room_events_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_chatto_core_v1_room_events_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_chatto_core_v1_room_events_proto_goTypes = []any{
 	(CallParticipantEventSource)(0),    // 0: chatto.core.v1.CallParticipantEventSource
 	(*RoomCreatedEvent)(nil),           // 1: chatto.core.v1.RoomCreatedEvent
@@ -817,17 +887,18 @@ var file_chatto_core_v1_room_events_proto_goTypes = []any{
 	(*RoomDeletedEvent)(nil),           // 3: chatto.core.v1.RoomDeletedEvent
 	(*RoomArchivedEvent)(nil),          // 4: chatto.core.v1.RoomArchivedEvent
 	(*RoomUnarchivedEvent)(nil),        // 5: chatto.core.v1.RoomUnarchivedEvent
-	(*UserJoinedRoomEvent)(nil),        // 6: chatto.core.v1.UserJoinedRoomEvent
-	(*UserLeftRoomEvent)(nil),          // 7: chatto.core.v1.UserLeftRoomEvent
-	(*ServerMemberDeletedEvent)(nil),   // 8: chatto.core.v1.ServerMemberDeletedEvent
-	(*CallParticipantJoinedEvent)(nil), // 9: chatto.core.v1.CallParticipantJoinedEvent
-	(*CallParticipantLeftEvent)(nil),   // 10: chatto.core.v1.CallParticipantLeftEvent
-	(*CallStartedEvent)(nil),           // 11: chatto.core.v1.CallStartedEvent
-	(*CallEndedEvent)(nil),             // 12: chatto.core.v1.CallEndedEvent
-	(RoomKind)(0),                      // 13: chatto.core.v1.RoomKind
+	(*RoomUniversalChangedEvent)(nil),  // 6: chatto.core.v1.RoomUniversalChangedEvent
+	(*UserJoinedRoomEvent)(nil),        // 7: chatto.core.v1.UserJoinedRoomEvent
+	(*UserLeftRoomEvent)(nil),          // 8: chatto.core.v1.UserLeftRoomEvent
+	(*ServerMemberDeletedEvent)(nil),   // 9: chatto.core.v1.ServerMemberDeletedEvent
+	(*CallParticipantJoinedEvent)(nil), // 10: chatto.core.v1.CallParticipantJoinedEvent
+	(*CallParticipantLeftEvent)(nil),   // 11: chatto.core.v1.CallParticipantLeftEvent
+	(*CallStartedEvent)(nil),           // 12: chatto.core.v1.CallStartedEvent
+	(*CallEndedEvent)(nil),             // 13: chatto.core.v1.CallEndedEvent
+	(RoomKind)(0),                      // 14: chatto.core.v1.RoomKind
 }
 var file_chatto_core_v1_room_events_proto_depIdxs = []int32{
-	13, // 0: chatto.core.v1.RoomCreatedEvent.kind:type_name -> chatto.core.v1.RoomKind
+	14, // 0: chatto.core.v1.RoomCreatedEvent.kind:type_name -> chatto.core.v1.RoomKind
 	0,  // 1: chatto.core.v1.CallParticipantJoinedEvent.source:type_name -> chatto.core.v1.CallParticipantEventSource
 	0,  // 2: chatto.core.v1.CallParticipantLeftEvent.source:type_name -> chatto.core.v1.CallParticipantEventSource
 	0,  // 3: chatto.core.v1.CallStartedEvent.source:type_name -> chatto.core.v1.CallParticipantEventSource
@@ -851,7 +922,7 @@ func file_chatto_core_v1_room_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_v1_room_events_proto_rawDesc), len(file_chatto_core_v1_room_events_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   12,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -42,6 +42,10 @@ message Room {
   string group_id = 7;
   // Canonical kind discriminator.
   RoomKind kind = 8;
+  // Universal channel rooms grant effective membership to every server member
+  // who is currently eligible to join the room. Explicit memberships are
+  // preserved separately so disabling universal restores the previous state.
+  bool universal = 9;
 }
 
 // User represents a user account

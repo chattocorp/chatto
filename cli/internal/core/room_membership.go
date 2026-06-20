@@ -31,10 +31,24 @@ func (c *ChattoCore) GetRoomMembership(ctx context.Context, kind RoomKind, user_
 // RoomMembershipExists checks if a user is a member of a room.
 // Reads from the RoomMembership projection (ADR-035 phase 5 cutover).
 //
-// Membership is strictly explicit: a user is a member iff the projection
-// has an entry. A user with `room.join` who hasn't joined is not yet a member.
+// Channel rooms marked universal grant effective membership to every server
+// member who is currently eligible to join the room. Explicit memberships
+// remain the durable state; universal membership is derived at read time.
 func (c *ChattoCore) RoomMembershipExists(ctx context.Context, kind RoomKind, user_id, room_id string) (bool, error) {
-	return c.RoomMembership.IsMember(room_id, user_id), nil
+	if c.RoomMembership.IsMember(room_id, user_id) {
+		return true, nil
+	}
+	if kind != KindChannel {
+		return false, nil
+	}
+	room, err := c.GetRoom(ctx, kind, room_id)
+	if err != nil {
+		return false, err
+	}
+	if !room.GetUniversal() {
+		return false, nil
+	}
+	return c.CanJoinRoomAt(ctx, user_id, kind, room_id)
 }
 
 // JoinRoom creates a room membership for a user.
@@ -61,6 +75,9 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 	membership := &corev1.RoomMembership{
 		UserId: user_id,
 		RoomId: room_id,
+	}
+	if kind == KindChannel && room.GetUniversal() {
+		return membership, nil
 	}
 
 	event := newEvent(actorID, &corev1.Event{
@@ -138,14 +155,26 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 //
 // Business rules:
 //   - DM conversations are permanent and cannot be left.
-//   - Global rooms grant implicit membership to every server member and
-//     cannot be left (users can mute them via notification preferences).
+//   - Universal rooms grant effective membership to join-eligible server
+//     members and cannot be left (users can mute them via notification
+//     preferences).
 //
 // ADR-035 phase 6: event-only. Publishes UserLeftRoomEvent, then WaitFor on
 // the projections that serve membership and room history reads.
 func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID string, kind RoomKind, user_id, room_id string) error {
 	if kind == KindDM {
 		return ErrCannotLeaveDMConversation
+	}
+
+	room, err := c.GetRoom(ctx, kind, room_id)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) && !c.RoomMembership.IsMember(room_id, user_id) {
+			return nil
+		}
+		return err
+	}
+	if kind == KindChannel && room.GetUniversal() {
+		return ErrCannotLeaveUniversalRoom
 	}
 
 	if !c.RoomMembership.IsMember(room_id, user_id) {
@@ -181,20 +210,15 @@ func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID string, kind RoomKin
 // Once a RoomKind projection lands (or kind moves into the Room proto so
 // a kind check is local), this can become a single projection read.
 func (c *ChattoCore) GetUserRoomMemberships(ctx context.Context, kind RoomKind, user_id string) ([]*corev1.RoomMembership, error) {
-	roomIDs := c.RoomMembership.Rooms(user_id)
-	out := make([]*corev1.RoomMembership, 0, len(roomIDs))
-	for _, roomID := range roomIDs {
-		// Probe the Room KV at the requested kind. If the room exists
-		// under that kind, include the membership.
-		if _, err := c.GetRoom(ctx, kind, roomID); err != nil {
-			if errors.Is(err, jetstream.ErrKeyNotFound) {
-				continue
-			}
-			return nil, fmt.Errorf("lookup room %s: %w", roomID, err)
-		}
+	rooms, err := c.ListMemberRooms(ctx, kind, user_id, MemberRoomListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*corev1.RoomMembership, 0, len(rooms))
+	for _, room := range rooms {
 		out = append(out, &corev1.RoomMembership{
 			UserId: user_id,
-			RoomId: roomID,
+			RoomId: room.Id,
 		})
 	}
 	return out, nil
@@ -204,12 +228,20 @@ func (c *ChattoCore) GetUserRoomMemberships(ctx context.Context, kind RoomKind, 
 // across every kind. Reads from the RoomMembership projection
 // (ADR-035 phase 5 cutover).
 func (c *ChattoCore) GetAllUserRoomMemberships(ctx context.Context, user_id string) ([]*corev1.RoomMembership, error) {
-	roomIDs := c.RoomMembership.Rooms(user_id)
-	out := make([]*corev1.RoomMembership, 0, len(roomIDs))
-	for _, roomID := range roomIDs {
+	channelRooms, err := c.ListMemberRooms(ctx, KindChannel, user_id, MemberRoomListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	dmRooms, err := c.ListMemberRooms(ctx, KindDM, user_id, MemberRoomListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	rooms := append(channelRooms, dmRooms...)
+	out := make([]*corev1.RoomMembership, 0, len(rooms))
+	for _, room := range rooms {
 		out = append(out, &corev1.RoomMembership{
 			UserId: user_id,
-			RoomId: roomID,
+			RoomId: room.Id,
 		})
 	}
 	return out, nil
@@ -288,14 +320,50 @@ func (c *ChattoCore) deleteUserRoomMembershipsInSpace(ctx context.Context, user_
 // kind is preserved on the signature for symmetry with the rest of the
 // room API; the (roomID, userID) pair is globally unique so kind is
 // irrelevant to the lookup.
-func (c *ChattoCore) GetRoomMembersList(_ context.Context, _ RoomKind, room_id string) ([]*corev1.RoomMembership, error) {
+func (c *ChattoCore) GetRoomMembersList(ctx context.Context, kind RoomKind, room_id string) ([]*corev1.RoomMembership, error) {
 	userIDs := c.RoomMembership.Members(room_id)
+	seen := make(map[string]struct{}, len(userIDs))
 	out := make([]*corev1.RoomMembership, 0, len(userIDs))
+	add := func(uid string) {
+		if uid == "" {
+			return
+		}
+		if _, ok := seen[uid]; ok {
+			return
+		}
+		seen[uid] = struct{}{}
+		out = append(out, &corev1.RoomMembership{UserId: uid, RoomId: room_id})
+	}
 	for _, uid := range userIDs {
-		out = append(out, &corev1.RoomMembership{
-			UserId: uid,
-			RoomId: room_id,
-		})
+		add(uid)
+	}
+
+	if kind == KindChannel {
+		room, err := c.GetRoom(ctx, kind, room_id)
+		if err != nil {
+			return nil, err
+		}
+		if room.GetUniversal() {
+			users, err := c.ListUsers(ctx)
+			if err != nil {
+				return nil, err
+			}
+			for _, user := range users {
+				if user == nil || user.GetId() == "" {
+					continue
+				}
+				if _, explicit := seen[user.GetId()]; explicit {
+					continue
+				}
+				canJoin, err := c.CanJoinRoomAt(ctx, user.GetId(), kind, room_id)
+				if err != nil {
+					return nil, err
+				}
+				if canJoin {
+					add(user.GetId())
+				}
+			}
+		}
 	}
 	return out, nil
 }

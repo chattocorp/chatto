@@ -12,6 +12,7 @@ function makeRoom(id: string, overrides: Partial<DirectoryRoom> = {}): Directory
     name: overrides.name ?? id,
     description: overrides.description ?? null,
     archived: overrides.archived ?? false,
+    isUniversal: overrides.isUniversal ?? false,
     viewerCanJoinRoom: overrides.viewerCanJoinRoom ?? true
   };
 }

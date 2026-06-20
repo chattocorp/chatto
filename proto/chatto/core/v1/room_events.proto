@@ -35,6 +35,9 @@ message RoomCreatedEvent {
   // distinguish DMs (which don't appear in group structures) from
   // channels.
   RoomKind kind = 5;
+  // Whether this channel room grants effective membership to every
+  // join-eligible server member. DM rooms must leave this false.
+  bool universal = 6;
 }
 
 message RoomUpdatedEvent {
@@ -65,6 +68,15 @@ message RoomUnarchivedEvent {
   reserved 1;
   reserved "space_id";
   string room_id = 2;
+}
+
+// RoomUniversalChangedEvent is published when a channel room's universal
+// membership flag changes. It is a single state-carrying configuration event
+// rather than enabled/disabled lifecycle events so replay can apply the latest
+// boolean value directly.
+message RoomUniversalChangedEvent {
+  string room_id = 1;
+  bool universal = 2;
 }
 
 // ============================================================================

@@ -1,5 +1,6 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
+  import { UNIVERSAL_ROOM_HELP_TEXT } from '$lib/utils/roomCopy';
   import Checkbox from './Checkbox.svelte';
 
   const { Story } = defineMeta({
@@ -22,6 +23,15 @@
 
 <Story name="Pre-checked" asChild>
   <Checkbox id="b" bind:checked={b} label="Public room (visible in listings)" />
+</Story>
+
+<Story name="Option with help text" asChild>
+  <Checkbox
+    id="with-description"
+    bind:checked={b}
+    label="Universal room"
+    description={UNIVERSAL_ROOM_HELP_TEXT}
+  />
 </Story>
 
 <Story name="With error" asChild>

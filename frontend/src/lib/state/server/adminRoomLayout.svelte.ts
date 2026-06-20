@@ -1,5 +1,6 @@
 import type { Client } from '@urql/svelte';
 import { graphql } from '$lib/gql';
+import { isUnsupportedGraphQLFieldError } from '$lib/gql/compatibility';
 import { RoomGroupItemType } from '$lib/gql/graphql';
 import { SvelteMap } from 'svelte/reactivity';
 
@@ -7,6 +8,39 @@ const OWN_MUTATION_ECHO_SUPPRESSION_MS = 2000;
 
 const AdminRoomGroupsQuery = graphql(`
   query AdminRoomGroups {
+    server {
+      rooms(type: CHANNEL) {
+        id
+        name
+        description
+        archived
+        isUniversal
+      }
+      roomGroups {
+        id
+        name
+        rooms {
+          id
+        }
+        items {
+          type
+          id
+          room {
+            id
+          }
+          link {
+            id
+            label
+            url
+          }
+        }
+      }
+    }
+  }
+`);
+
+const AdminRoomGroupsCompatibilityQuery = graphql(`
+  query AdminRoomGroupsCompatibility {
     server {
       rooms(type: CHANNEL) {
         id
@@ -147,11 +181,21 @@ const UnarchiveRoomMutation = graphql(`
   }
 `);
 
+const SetRoomUniversalMutation = graphql(`
+  mutation AdminSetRoomUniversal($input: SetRoomUniversalInput!) {
+    setRoomUniversal(input: $input) {
+      id
+      isUniversal
+    }
+  }
+`);
+
 export type AdminRoomInfo = {
   id: string;
   name: string;
   description?: string | null;
   archived: boolean;
+  isUniversal: boolean;
 };
 
 export type AdminSidebarLinkInfo = {
@@ -228,6 +272,10 @@ function errorMessage(error: unknown): string {
     return error.message;
   }
   return String(error);
+}
+
+function isUniversalRoom(room: object): boolean {
+  return 'isUniversal' in room && room.isUniversal === true;
 }
 
 export function buildGroupRoomOrder(groups: AdminRoomGroup[]): GroupRoomOrder {
@@ -427,6 +475,7 @@ export class AdminRoomLayoutStore {
   draggingGroupId = $state<string | null>(null);
   updatingRoom = $state(false);
   archivingRoomId = $state<string | null>(null);
+  universalRoomId = $state<string | null>(null);
 
   #loadId = 0;
   #lastMutationTimestamp = 0;
@@ -447,9 +496,15 @@ export class AdminRoomLayoutStore {
     const thisLoad = ++this.#loadId;
     this.isRefreshing = true;
     try {
-      const result = await this.client
+      const initialResult = await this.client
         .query(AdminRoomGroupsQuery, {}, { requestPolicy: 'network-only' })
         .toPromise();
+      const result =
+        initialResult.error && isUnsupportedGraphQLFieldError(initialResult.error, 'isUniversal')
+          ? await this.client
+              .query(AdminRoomGroupsCompatibilityQuery, {}, { requestPolicy: 'network-only' })
+              .toPromise()
+          : initialResult;
       if (this.#loadId !== thisLoad) return;
 
       if (result.error) {
@@ -470,7 +525,8 @@ export class AdminRoomLayoutStore {
             id: room.id,
             name: room.name,
             description: room.description,
-            archived: room.archived
+            archived: room.archived,
+            isUniversal: isUniversalRoom(room)
           }
         ])
       );
@@ -625,6 +681,25 @@ export class AdminRoomLayoutStore {
     return this.setRoomArchived(roomId, false);
   }
 
+  async setRoomUniversal(roomId: string, isUniversal: boolean): Promise<StoreResult> {
+    this.universalRoomId = roomId;
+    try {
+      const result = await this.client
+        .mutation(SetRoomUniversalMutation, { input: { roomId, isUniversal } })
+        .toPromise();
+
+      if (result.error) {
+        return { ok: false, error: errorMessage(result.error) };
+      }
+
+      this.markMutation();
+      await this.refresh();
+      return { ok: true };
+    } finally {
+      this.universalRoomId = null;
+    }
+  }
+
   handleRoomCreated(): void {
     this.markMutation();
     void this.refresh();
@@ -757,7 +832,8 @@ export class AdminRoomLayoutStore {
     if (
       event.__typename === 'RoomUpdatedEvent' ||
       event.__typename === 'RoomArchivedEvent' ||
-      event.__typename === 'RoomUnarchivedEvent'
+      event.__typename === 'RoomUnarchivedEvent' ||
+      event.__typename === 'RoomUniversalChangedEvent'
     ) {
       return this.ingestRoomMetadataUpdated();
     }

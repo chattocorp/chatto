@@ -22,6 +22,8 @@ require (
 	github.com/gin-contrib/sessions v1.1.0
 	github.com/gin-gonic/gin v1.12.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
+	github.com/gorilla/securecookie v1.1.2
+	github.com/gorilla/sessions v1.4.0
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
 	github.com/johannesboyne/gofakes3 v0.0.0-20250916175020-ebf3e50324d3
 	github.com/livekit/protocol v1.46.4
@@ -103,8 +105,6 @@ require (
 	github.com/google/go-tpm v0.9.8 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/context v1.1.2 // indirect
-	github.com/gorilla/securecookie v1.1.2 // indirect
-	github.com/gorilla/sessions v1.4.0 // indirect
 	github.com/gzuidhof/tygo v0.2.20 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.8 // indirect

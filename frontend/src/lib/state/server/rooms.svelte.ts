@@ -15,6 +15,7 @@ export type RoomsListItem = {
   id: string;
   name: string;
   type: RoomType;
+  isUniversal: boolean;
   hasUnread: boolean;
   viewerIsMember: boolean;
   viewerCanJoinRoom: boolean;
@@ -50,6 +51,69 @@ export type RoomsListGroupItem =
 
 const MyRoomsQuery = graphql(`
   query GetMyServerRooms {
+    viewer {
+      user {
+        id
+      }
+    }
+    server {
+      channelRooms: rooms(type: CHANNEL) {
+        id
+        name
+        type
+        isUniversal
+        hasUnread
+        archived
+        viewerIsMember
+        viewerCanJoinRoom
+        viewerNotificationPreference {
+          level
+          effectiveLevel
+        }
+      }
+      dmRooms: rooms(type: DM) {
+        id
+        name
+        type
+        hasUnread
+        archived
+        viewerIsMember
+        viewerCanJoinRoom
+        viewerNotificationPreference {
+          level
+          effectiveLevel
+        }
+        members(limit: 100) {
+          users {
+            ...UserAvatarUser
+          }
+        }
+      }
+      roomGroups {
+        id
+        name
+        rooms {
+          id
+        }
+        items {
+          type
+          id
+          room {
+            id
+          }
+          link {
+            id
+            label
+            url
+          }
+        }
+      }
+    }
+  }
+`);
+
+const MyRoomsCompatibilityQuery = graphql(`
+  query GetMyServerRoomsCompatibility {
     viewer {
       user {
         id
@@ -132,6 +196,10 @@ function uniqueById<T extends { id: string }>(items: readonly T[] | null | undef
   });
 }
 
+function isUniversalRoom(room: object): boolean {
+  return 'isUniversal' in room && room.isUniversal === true;
+}
+
 function sidebarItemsFromQuery(group: {
   rooms: Array<{ id: string }>;
   items?: Array<{
@@ -180,6 +248,7 @@ const roomStateRefreshEvents = new Set([
   'RoomUpdatedEvent',
   'RoomArchivedEvent',
   'RoomUnarchivedEvent',
+  'RoomUniversalChangedEvent',
   'UserJoinedRoomEvent',
   'UserLeftRoomEvent'
 ]);
@@ -228,7 +297,11 @@ export class RoomsStore {
 
   async refresh(): Promise<void> {
     const thisLoad = ++this.loadId;
-    const result = await this.client.query(MyRoomsQuery, {}).toPromise();
+    const initialResult = await this.client.query(MyRoomsQuery, {}).toPromise();
+    const result =
+      initialResult.error && isUnsupportedGraphQLFieldError(initialResult.error, 'isUniversal')
+        ? await this.client.query(MyRoomsCompatibilityQuery, {}).toPromise()
+        : initialResult;
     if (this.loadId !== thisLoad) return;
 
     if (result.data?.viewer?.user) {
@@ -255,6 +328,7 @@ export class RoomsStore {
           id: r.id,
           name: r.name,
           type: r.type,
+          isUniversal: isUniversalRoom(r),
           hasUnread: r.hasUnread,
           viewerIsMember: r.viewerIsMember,
           viewerCanJoinRoom: r.viewerCanJoinRoom,
@@ -265,6 +339,7 @@ export class RoomsStore {
           id: r.id,
           name: r.name,
           type: r.type,
+          isUniversal: false,
           hasUnread: r.hasUnread,
           viewerIsMember: r.viewerIsMember,
           viewerCanJoinRoom: r.viewerCanJoinRoom,

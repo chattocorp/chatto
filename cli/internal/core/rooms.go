@@ -111,6 +111,31 @@ func ValidateRoomDescription(description string) error {
 // case) is generous for normal workloads.
 const maxRoomNameClaimRetries = 5
 
+type createRoomOptions struct {
+	universal bool
+}
+
+// CreateRoomOption customizes room creation for trusted/internal callers.
+type CreateRoomOption func(*createRoomOptions)
+
+// WithUniversalRoom sets the initial universal membership flag for a channel
+// room. DM rooms reject universal membership at CreateRoom validation time.
+func WithUniversalRoom(universal bool) CreateRoomOption {
+	return func(options *createRoomOptions) {
+		options.universal = universal
+	}
+}
+
+func collectCreateRoomOptions(opts []CreateRoomOption) createRoomOptions {
+	var options createRoomOptions
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&options)
+		}
+	}
+	return options
+}
+
 // CreateRoom creates a new room.
 // Authorization: Caller must verify CanCreateRoom before calling.
 //
@@ -127,12 +152,16 @@ const maxRoomNameClaimRetries = 5
 // mutations from any process (this one or another replica) advance the
 // filter's seq and cause our publish to fail; we re-check uniqueness
 // from the (now-caught-up) projection and retry.
-func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKind, groupID, name, description string) (*corev1.Room, error) {
+func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKind, groupID, name, description string, opts ...CreateRoomOption) (*corev1.Room, error) {
 	if err := ValidateRoomName(name); err != nil {
 		return nil, err
 	}
 	if err := ValidateRoomDescription(description); err != nil {
 		return nil, err
+	}
+	options := collectCreateRoomOptions(opts)
+	if kind == KindDM && options.universal {
+		return nil, fmt.Errorf("DM rooms cannot be universal")
 	}
 
 	if groupID != "" {
@@ -158,6 +187,7 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 		Name:        name,
 		Description: description,
 		GroupId:     groupID,
+		Universal:   options.universal,
 	}
 
 	createdEvent := newEvent(actorID, &corev1.Event{
@@ -167,6 +197,7 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 				Name:        name,
 				Description: description,
 				Kind:        ProtoKindForRoomKind(kind),
+				Universal:   options.universal,
 			},
 		},
 	})
@@ -204,6 +235,40 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 		return nil, err
 	}
 	return room, nil
+}
+
+// SetRoomUniversal updates a channel room's universal membership flag.
+// Authorization: Caller must verify CanManageAnyRoom before calling.
+func (c *ChattoCore) SetRoomUniversal(ctx context.Context, actorID string, kind RoomKind, roomID string, universal bool) (*corev1.Room, error) {
+	if kind == KindDM {
+		return nil, fmt.Errorf("DM rooms cannot be universal")
+	}
+	room, err := c.GetRoom(ctx, kind, roomID)
+	if err != nil {
+		return nil, err
+	}
+	if room.GetUniversal() == universal {
+		return room, nil
+	}
+
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_RoomUniversalChanged{
+			RoomUniversalChanged: &corev1.RoomUniversalChangedEvent{
+				RoomId:    roomID,
+				Universal: universal,
+			},
+		},
+	})
+	pos, err := c.rooms().appendDirectoryEventually(ctx, c.EventPublisher, events.RoomAggregate(roomID), event)
+	if err != nil {
+		return nil, fmt.Errorf("publish RoomUniversalChangedEvent: %w", err)
+	}
+	if err := c.rooms().waitForTimeline(ctx, pos); err != nil {
+		return nil, err
+	}
+
+	c.logger.Info("Room universal flag updated", "kind", kind, "room_id", roomID, "universal", universal)
+	return c.GetRoom(ctx, kind, roomID)
 }
 
 // publishRoomEventWithNameOCC publishes a name-claiming room event
@@ -546,6 +611,7 @@ type MemberRoomListOptions struct {
 // callers layer product policy on top with MemberRoomListOptions.
 func (c *ChattoCore) ListMemberRooms(ctx context.Context, kind RoomKind, userID string, opts MemberRoomListOptions) ([]*corev1.Room, error) {
 	roomIDs := c.RoomMembership.Rooms(userID)
+	seen := make(map[string]struct{}, len(roomIDs))
 
 	type listedRoom struct {
 		room          *corev1.Room
@@ -574,6 +640,42 @@ func (c *ChattoCore) ListMemberRooms(ctx context.Context, kind RoomKind, userID 
 		}
 
 		listed = append(listed, listedRoom{room: room, lastMessageAt: lastMessageAt})
+		seen[room.Id] = struct{}{}
+	}
+
+	if kind == KindChannel {
+		all, err := c.ListRooms(ctx, kind)
+		if err != nil {
+			return nil, err
+		}
+		for _, room := range all {
+			if room == nil || !room.GetUniversal() {
+				continue
+			}
+			if _, ok := seen[room.Id]; ok {
+				continue
+			}
+			canJoin, err := c.CanJoinRoomAt(ctx, userID, kind, room.Id)
+			if err != nil {
+				return nil, err
+			}
+			if !canJoin {
+				continue
+			}
+
+			var lastMessageAt time.Time
+			if opts.RequireLastMessage || opts.SortByLastMessageDesc {
+				lastMessageAt, err = c.GetRoomLastMessageAt(ctx, kind, room.Id)
+				if err != nil {
+					return nil, fmt.Errorf("lookup last message for room %s: %w", room.Id, err)
+				}
+				if opts.RequireLastMessage && lastMessageAt.IsZero() {
+					continue
+				}
+			}
+			listed = append(listed, listedRoom{room: room, lastMessageAt: lastMessageAt})
+			seen[room.Id] = struct{}{}
+		}
 	}
 
 	if opts.SortByLastMessageDesc {

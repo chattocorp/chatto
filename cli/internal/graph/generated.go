@@ -393,6 +393,7 @@ type ComplexityRoot struct {
 		RevokeRole                 func(childComplexity int, input model.RevokeRoleInput) int
 		SendTypingIndicator        func(childComplexity int, input model.SendTypingIndicatorInput) int
 		SetRoomNotificationLevel   func(childComplexity int, input model.SetRoomNotificationLevelInput) int
+		SetRoomUniversal           func(childComplexity int, input model.SetRoomUniversalInput) int
 		SetServerNotificationLevel func(childComplexity int, input model.SetServerNotificationLevelInput) int
 		StartDm                    func(childComplexity int, input model.StartDMInput) int
 		SubscribeToPush            func(childComplexity int, input model.PushSubscriptionInput) int
@@ -630,6 +631,7 @@ type ComplexityRoot struct {
 		GroupID                      func(childComplexity int) int
 		HasUnread                    func(childComplexity int) int
 		Id                           func(childComplexity int) int
+		IsUniversal                  func(childComplexity int) int
 		Members                      func(childComplexity int, search *string, limit *int32, offset *int32) int
 		Name                         func(childComplexity int) int
 		RoomPermissionOverrides      func(childComplexity int) int
@@ -777,6 +779,11 @@ type ComplexityRoot struct {
 
 	RoomUnarchivedEvent struct {
 		RoomId func(childComplexity int) int
+	}
+
+	RoomUniversalChangedEvent struct {
+		RoomId    func(childComplexity int) int
+		Universal func(childComplexity int) int
 	}
 
 	RoomUpdatedEvent struct {
@@ -1134,6 +1141,7 @@ type MutationResolver interface {
 	UpdateRoom(ctx context.Context, input model.UpdateRoomInput) (*corev1.Room, error)
 	ArchiveRoom(ctx context.Context, input model.ArchiveRoomInput) (*corev1.Room, error)
 	UnarchiveRoom(ctx context.Context, input model.UnarchiveRoomInput) (*corev1.Room, error)
+	SetRoomUniversal(ctx context.Context, input model.SetRoomUniversalInput) (*corev1.Room, error)
 	JoinGroup(ctx context.Context, input model.JoinGroupInput) ([]string, error)
 	PostMessage(ctx context.Context, input model.PostMessageInput) (core.EventEnvelope, error)
 	UploadServerLogo(ctx context.Context, input model.UploadServerLogoInput) (*model.Server, error)
@@ -1269,6 +1277,7 @@ type RoomResolver interface {
 	ViewerCanManageRoom(ctx context.Context, obj *corev1.Room) (bool, error)
 	ViewerCanBanRoomMembers(ctx context.Context, obj *corev1.Room) (bool, error)
 
+	IsUniversal(ctx context.Context, obj *corev1.Room) (bool, error)
 	GroupID(ctx context.Context, obj *corev1.Room) (*string, error)
 	Events(ctx context.Context, obj *corev1.Room, limit *int32, before *string, after *string) (*model.RoomEventsConnection, error)
 	Event(ctx context.Context, obj *corev1.Room, eventID string) (core.EventEnvelope, error)
@@ -3030,6 +3039,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetRoomNotificationLevel(childComplexity, args["input"].(model.SetRoomNotificationLevelInput)), true
+	case "Mutation.setRoomUniversal":
+		if e.ComplexityRoot.Mutation.SetRoomUniversal == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setRoomUniversal_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetRoomUniversal(childComplexity, args["input"].(model.SetRoomUniversalInput)), true
 	case "Mutation.setServerNotificationLevel":
 		if e.ComplexityRoot.Mutation.SetServerNotificationLevel == nil {
 			break
@@ -4188,6 +4208,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Room.Id(childComplexity), true
+	case "Room.isUniversal":
+		if e.ComplexityRoot.Room.IsUniversal == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Room.IsUniversal(childComplexity), true
 	case "Room.members":
 		if e.ComplexityRoot.Room.Members == nil {
 			break
@@ -4740,6 +4766,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.RoomUnarchivedEvent.RoomId(childComplexity), true
+
+	case "RoomUniversalChangedEvent.roomId":
+		if e.ComplexityRoot.RoomUniversalChangedEvent.RoomId == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RoomUniversalChangedEvent.RoomId(childComplexity), true
+	case "RoomUniversalChangedEvent.universal":
+		if e.ComplexityRoot.RoomUniversalChangedEvent.Universal == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RoomUniversalChangedEvent.Universal(childComplexity), true
 
 	case "RoomUpdatedEvent.description":
 		if e.ComplexityRoot.RoomUpdatedEvent.Description == nil {
@@ -5794,6 +5833,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputRevokeRoleInput,
 		ec.unmarshalInputSendTypingIndicatorInput,
 		ec.unmarshalInputSetRoomNotificationLevelInput,
+		ec.unmarshalInputSetRoomUniversalInput,
 		ec.unmarshalInputSetServerNotificationLevelInput,
 		ec.unmarshalInputSidebarGroupEntryInput,
 		ec.unmarshalInputStartDMInput,
@@ -6567,6 +6607,8 @@ func (ec *executionContext) childFields_Room(ctx context.Context, field graphql.
 		return ec.fieldContext_Room_viewerCanBanRoomMembers(ctx, field)
 	case "archived":
 		return ec.fieldContext_Room_archived(ctx, field)
+	case "isUniversal":
+		return ec.fieldContext_Room_isUniversal(ctx, field)
 	case "groupId":
 		return ec.fieldContext_Room_groupId(ctx, field)
 	case "events":
@@ -8291,6 +8333,20 @@ func (ec *executionContext) field_Mutation_setRoomNotificationLevel_args(ctx con
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
 		func(ctx context.Context, v any) (model.SetRoomNotificationLevelInput, error) {
 			return ec.unmarshalNSetRoomNotificationLevelInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐSetRoomNotificationLevelInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_setRoomUniversal_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
+		func(ctx context.Context, v any) (model.SetRoomUniversalInput, error) {
+			return ec.unmarshalNSetRoomUniversalInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐSetRoomUniversalInput(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -13543,6 +13599,50 @@ func (ec *executionContext) fieldContext_Mutation_unarchiveRoom(ctx context.Cont
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_unarchiveRoom_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_setRoomUniversal(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_setRoomUniversal(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SetRoomUniversal(ctx, fc.Args["input"].(model.SetRoomUniversalInput))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *corev1.Room) graphql.Marshaler {
+			return ec.marshalNRoom2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐRoom(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_setRoomUniversal(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Room(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setRoomUniversal_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -20465,6 +20565,29 @@ func (ec *executionContext) fieldContext_Room_archived(_ context.Context, field 
 	return graphql.NewScalarFieldContext("Room", field, false, false, errors.New("field of type Boolean does not have child fields"))
 }
 
+func (ec *executionContext) _Room_isUniversal(ctx context.Context, field graphql.CollectedField, obj *corev1.Room) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Room_isUniversal(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Room().IsUniversal(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Room_isUniversal(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Room", field, true, true, errors.New("field of type Boolean does not have child fields"))
+}
+
 func (ec *executionContext) _Room_groupId(ctx context.Context, field graphql.CollectedField, obj *corev1.Room) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -22482,6 +22605,52 @@ func (ec *executionContext) _RoomUnarchivedEvent_roomId(ctx context.Context, fie
 }
 func (ec *executionContext) fieldContext_RoomUnarchivedEvent_roomId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("RoomUnarchivedEvent", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _RoomUniversalChangedEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *corev1.RoomUniversalChangedEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RoomUniversalChangedEvent_roomId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.RoomId, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RoomUniversalChangedEvent_roomId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("RoomUniversalChangedEvent", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _RoomUniversalChangedEvent_universal(ctx context.Context, field graphql.CollectedField, obj *corev1.RoomUniversalChangedEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RoomUniversalChangedEvent_universal(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Universal, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RoomUniversalChangedEvent_universal(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("RoomUniversalChangedEvent", field, false, false, errors.New("field of type Boolean does not have child fields"))
 }
 
 func (ec *executionContext) _RoomUpdatedEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *corev1.RoomUpdatedEvent) (ret graphql.Marshaler) {
@@ -28146,7 +28315,7 @@ func (ec *executionContext) unmarshalInputCreateRoomInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "description", "groupId"}
+	fieldsInOrder := [...]string{"name", "description", "groupId", "isUniversal"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -28174,6 +28343,13 @@ func (ec *executionContext) unmarshalInputCreateRoomInput(ctx context.Context, o
 				return it, err
 			}
 			it.GroupID = data
+		case "isUniversal":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("isUniversal"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.IsUniversal = data
 		}
 	}
 	return it, nil
@@ -29942,6 +30118,43 @@ func (ec *executionContext) unmarshalInputSetRoomNotificationLevelInput(ctx cont
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputSetRoomUniversalInput(ctx context.Context, obj any) (model.SetRoomUniversalInput, error) {
+	var it model.SetRoomUniversalInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"roomId", "isUniversal"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "roomId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("roomId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RoomID = data
+		case "isUniversal":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("isUniversal"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.IsUniversal = data
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputSetServerNotificationLevelInput(ctx context.Context, obj any) (model.SetServerNotificationLevelInput, error) {
 	var it model.SetServerNotificationLevelInput
 	if obj == nil {
@@ -31088,6 +31301,11 @@ func (ec *executionContext) _EventType(ctx context.Context, sel ast.SelectionSet
 			return graphql.Null
 		}
 		return ec._RoomUpdatedEvent(ctx, sel, obj)
+	case *corev1.RoomUniversalChangedEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._RoomUniversalChangedEvent(ctx, sel, obj)
 	case *corev1.RoomUnarchivedEvent:
 		if obj == nil {
 			return graphql.Null
@@ -35133,6 +35351,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "setRoomUniversal":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setRoomUniversal(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "joinGroup":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_joinGroup(ctx, field)
@@ -38434,6 +38659,42 @@ func (ec *executionContext) _Room(ctx context.Context, sel ast.SelectionSet, obj
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "isUniversal":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Room_isUniversal(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "groupId":
 			field := field
 
@@ -40039,6 +40300,50 @@ func (ec *executionContext) _RoomUnarchivedEvent(ctx context.Context, sel ast.Se
 			out.Values[i] = graphql.MarshalString("RoomUnarchivedEvent")
 		case "roomId":
 			out.Values[i] = ec._RoomUnarchivedEvent_roomId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var roomUniversalChangedEventImplementors = []string{"RoomUniversalChangedEvent", "EventType"}
+
+func (ec *executionContext) _RoomUniversalChangedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.RoomUniversalChangedEvent) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, roomUniversalChangedEventImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("RoomUniversalChangedEvent")
+		case "roomId":
+			out.Values[i] = ec._RoomUniversalChangedEvent_roomId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "universal":
+			out.Values[i] = ec._RoomUniversalChangedEvent_universal(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -45756,6 +46061,11 @@ func (ec *executionContext) marshalNServerStats2ᚖhmansᚗdeᚋchattoᚋinterna
 
 func (ec *executionContext) unmarshalNSetRoomNotificationLevelInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐSetRoomNotificationLevelInput(ctx context.Context, v any) (model.SetRoomNotificationLevelInput, error) {
 	res, err := ec.unmarshalInputSetRoomNotificationLevelInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNSetRoomUniversalInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐSetRoomUniversalInput(ctx context.Context, v any) (model.SetRoomUniversalInput, error) {
+	res, err := ec.unmarshalInputSetRoomUniversalInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 

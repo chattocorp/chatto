@@ -418,6 +418,22 @@ func (s *MyEventsService) filterReadyEVTRoomSubjectEvent(userID string, memberRo
 
 	_, isMember := memberRooms[roomID]
 	switch e := event.Event.(type) {
+	case *corev1.Event_RoomCreated:
+		if e.RoomCreated.GetUniversal() {
+			if isEffective, err := s.core.RoomMembershipExists(context.Background(), KindChannel, userID, roomID); err == nil && isEffective {
+				memberRooms[roomID] = struct{}{}
+				isMember = true
+			}
+		}
+	case *corev1.Event_RoomUniversalChanged:
+		isEffective, err := s.core.RoomMembershipExists(context.Background(), KindChannel, userID, roomID)
+		if err == nil && isEffective {
+			memberRooms[roomID] = struct{}{}
+			isMember = true
+		} else if err == nil {
+			delete(memberRooms, roomID)
+			isMember = false
+		}
 	case *corev1.Event_UserJoinedRoom:
 		joinedUserID := event.ActorId
 		if joinedUserID == userID {

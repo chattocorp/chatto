@@ -245,6 +245,17 @@
   @apply disabled:cursor-not-allowed disabled:opacity-60;
 }
 
+@utility checkbox-option {
+  @apply flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-surface/45 px-3 py-3;
+  @apply transition-[background-color,border-color,box-shadow] duration-100;
+  @apply hover:border-input-border hover:bg-surface-100;
+}
+
+@utility checkbox-box {
+  @apply mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border border-input-border bg-input text-transparent;
+  @apply transition-[background-color,border-color,box-shadow,color] duration-100;
+}
+
 /* Form error utility */
 @utility form-error {
   @apply text-sm text-error;

@@ -88,6 +88,11 @@ var (
 	// DM conversations are permanent and cannot be left.
 	ErrCannotLeaveDMConversation = errors.New("cannot leave DM conversations")
 
+	// ErrCannotLeaveUniversalRoom is returned when a user tries to leave a
+	// universal channel room. Universal rooms grant effective membership through
+	// server policy; users can mute them instead.
+	ErrCannotLeaveUniversalRoom = errors.New("cannot leave universal rooms")
+
 	// ErrCannotBanDMRoomMember is returned when a moderator tries to ban
 	// someone from a DM room. DM membership is the privacy boundary and
 	// cannot be moderated like a channel room.

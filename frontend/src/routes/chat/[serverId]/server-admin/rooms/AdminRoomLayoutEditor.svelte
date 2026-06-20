@@ -15,9 +15,10 @@
   import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
   import Dialog from '$lib/ui/Dialog.svelte';
   import FormDialog from '$lib/ui/FormDialog.svelte';
-  import { Button, TextArea, TextInput } from '$lib/ui/form';
+  import { Button, Checkbox, TextArea, TextInput } from '$lib/ui/form';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import { toast } from '$lib/ui/toast';
+  import { UNIVERSAL_ROOM_HELP_TEXT } from '$lib/utils/roomCopy';
   import { flip } from 'svelte/animate';
   import { dndzone, type DndEvent } from 'svelte-dnd-action';
 
@@ -160,6 +161,10 @@
   let editRoomId = $state('');
   let editRoomName = $state('');
   let editRoomDescription = $state('');
+  let editRoomUniversal = $state(false);
+  let editRoomOriginalName = $state('');
+  let editRoomOriginalDescription = $state('');
+  let editRoomOriginalUniversal = $state(false);
 
   let editRoomNameError = $derived.by(() => {
     if (!editRoomName) return undefined;
@@ -175,10 +180,22 @@
     return undefined;
   });
 
-  function openEditRoom(room: { id: string; name: string; description?: string | null }) {
+  let editRoomMetadataChanged = $derived(
+    editRoomName.trim() !== editRoomOriginalName ||
+      editRoomDescription.trim() !== editRoomOriginalDescription
+  );
+  let editRoomUniversalChanged = $derived(editRoomUniversal !== editRoomOriginalUniversal);
+  let editRoomChanged = $derived(editRoomMetadataChanged || editRoomUniversalChanged);
+  let editRoomSaving = $derived(layout.updatingRoom || layout.universalRoomId === editRoomId);
+
+  function openEditRoom(room: RoomInfo) {
     editRoomId = room.id;
     editRoomName = room.name;
     editRoomDescription = room.description ?? '';
+    editRoomUniversal = room.isUniversal;
+    editRoomOriginalName = room.name;
+    editRoomOriginalDescription = room.description ?? '';
+    editRoomOriginalUniversal = room.isUniversal;
     editRoomDialogVisible = true;
   }
 
@@ -186,21 +203,58 @@
     e.preventDefault();
     if (editRoomNameError || !editRoomName.trim()) return;
 
-    const result = await layout.updateRoom(
-      editRoomId,
-      editRoomName.trim(),
-      editRoomDescription.trim() || null
-    );
-
-    if (!result.ok) {
-      toast.error(`Failed to update room: ${result.error}`);
-    } else {
-      toast.success('Room updated');
-      editRoomDialogVisible = false;
+    if (editRoomMetadataChanged) {
+      const result = await layout.updateRoom(
+        editRoomId,
+        editRoomName.trim(),
+        editRoomDescription.trim() || null
+      );
+      if (!result.ok) {
+        toast.error(`Failed to update room: ${result.error}`);
+        return;
+      }
     }
+
+    if (editRoomUniversalChanged) {
+      const result = await layout.setRoomUniversal(editRoomId, editRoomUniversal);
+      if (!result.ok) {
+        toast.error(`Failed to update room: ${result.error}`);
+        return;
+      }
+    }
+
+    toast.success('Room updated');
+    editRoomDialogVisible = false;
   }
 
   // --- Room archiving ---
+
+  let unarchiveConfirmDialogVisible = $state(false);
+  let unarchiveConfirmRoom = $state<{ id: string; name: string } | null>(null);
+
+  function confirmUnarchiveRoom(room: { id: string; name: string }) {
+    unarchiveConfirmRoom = room;
+    unarchiveConfirmDialogVisible = true;
+  }
+
+  async function unarchiveRoom() {
+    if (!unarchiveConfirmRoom) return;
+    const roomId = unarchiveConfirmRoom.id;
+    unarchiveConfirmDialogVisible = false;
+    const result = await layout.unarchiveRoom(roomId);
+
+    if (!result.ok) {
+      toast.error(`Failed to unarchive room: ${result.error}`);
+    } else {
+      toast.success('Room unarchived');
+    }
+    unarchiveConfirmRoom = null;
+  }
+
+  function cancelUnarchive() {
+    unarchiveConfirmDialogVisible = false;
+    unarchiveConfirmRoom = null;
+  }
 
   let archiveConfirmDialogVisible = $state(false);
   let archiveConfirmRoom = $state<{ id: string; name: string } | null>(null);
@@ -228,33 +282,6 @@
   function cancelArchive() {
     archiveConfirmDialogVisible = false;
     archiveConfirmRoom = null;
-  }
-
-  let unarchiveConfirmDialogVisible = $state(false);
-  let unarchiveConfirmRoom = $state<{ id: string; name: string } | null>(null);
-
-  function confirmUnarchiveRoom(room: { id: string; name: string }) {
-    unarchiveConfirmRoom = room;
-    unarchiveConfirmDialogVisible = true;
-  }
-
-  async function unarchiveRoom() {
-    if (!unarchiveConfirmRoom) return;
-    const roomId = unarchiveConfirmRoom.id;
-    unarchiveConfirmDialogVisible = false;
-    const result = await layout.unarchiveRoom(roomId);
-
-    if (!result.ok) {
-      toast.error(`Failed to unarchive room: ${result.error}`);
-    } else {
-      toast.success('Room unarchived');
-    }
-    unarchiveConfirmRoom = null;
-  }
-
-  function cancelUnarchive() {
-    unarchiveConfirmDialogVisible = false;
-    unarchiveConfirmRoom = null;
   }
 
   // --- Permissions navigation ---
@@ -367,10 +394,12 @@
   onclick: () => void;
   disabled?: boolean;
   tone?: 'neutral' | 'warning' | 'danger';
+  pressed?: boolean;
 })}
   <ToggleChip
     tone={opts.tone ?? 'neutral'}
     square
+    pressed={opts.pressed}
     title={opts.title}
     disabled={opts.disabled}
     onclick={(e) => {
@@ -539,16 +568,30 @@
                 >
                   <div class="min-w-0 flex-1">
                     {#if room.kind === 'room'}
-                      <div class="flex min-w-0 items-baseline gap-1">
-                        <span class="text-muted">#</span>
-                        <span class="truncate font-medium">{room.room.name}</span>
-                        {#if room.room.archived}
-                          <Pill tone="muted">Archived</Pill>
-                        {/if}
+                      <div class="flex min-w-0 items-start gap-2">
+                        <span class="mt-0.5 shrink-0 text-muted">#</span>
+                        <div class="min-w-0 flex-1">
+                          <div class="flex min-w-0 items-center gap-2">
+                            <span class="min-w-0 truncate font-medium">{room.room.name}</span>
+                            {#if room.room.isUniversal}
+                              <Pill
+                                tone="accent"
+                                title="Universal room"
+                                class="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5"
+                              >
+                                <span class="iconify uil--globe text-xs" aria-hidden="true"></span>
+                                Universal
+                              </Pill>
+                            {/if}
+                            {#if room.room.archived}
+                              <Pill tone="muted" class="shrink-0 rounded-md px-1.5">Archived</Pill>
+                            {/if}
+                          </div>
+                          {#if room.room.description}
+                            <p class="truncate text-sm text-muted">{room.room.description}</p>
+                          {/if}
+                        </div>
                       </div>
-                      {#if room.room.description}
-                        <p class="truncate text-sm text-muted">{room.room.description}</p>
-                      {/if}
                     {:else}
                       <div class="flex min-w-0 items-baseline gap-1.5">
                         <span class="iconify text-muted uil--external-link-alt"></span>
@@ -591,8 +634,8 @@
   size="sm"
   submitLabel="Save Changes"
   submitLoadingText="Saving..."
-  loading={layout.updatingRoom}
-  disabled={!editRoomName.trim() || !!editRoomNameError}
+  loading={editRoomSaving}
+  disabled={!editRoomName.trim() || !!editRoomNameError || !editRoomChanged}
   onsubmit={handleEditRoomSubmit}
   onclose={() => (editRoomDialogVisible = false)}
 >
@@ -601,7 +644,7 @@
     label="Name"
     bind:value={editRoomName}
     required
-    disabled={layout.updatingRoom}
+    disabled={editRoomSaving}
     error={editRoomNameError}
   />
 
@@ -610,8 +653,16 @@
     label="Description"
     bind:value={editRoomDescription}
     rows={3}
-    disabled={layout.updatingRoom}
+    disabled={editRoomSaving}
     placeholder="Optional description for this room"
+  />
+
+  <Checkbox
+    id="edit-room-universal"
+    bind:checked={editRoomUniversal}
+    disabled={editRoomSaving}
+    label="Universal room"
+    description={UNIVERSAL_ROOM_HELP_TEXT}
   />
 </FormDialog>
 

@@ -1,7 +1,7 @@
 # FDR-019: Room Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-06-15
+**Last reviewed:** 2026-06-20
 
 ## Overview
 
@@ -9,8 +9,11 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 
 ## Behavior
 
-- **Create** — server admins (or anyone with `room.create` in the target group) create a channel room by giving it a name (1–30 chars, alphanumeric / hyphen / underscore, case-insensitive unique across the server), an optional description, and a room group.
-- **Edit** — `room.manage` holders can change the name, description, and group of an existing room.
+- **Create** — server admins (or anyone with `room.create` in the target group) create a channel room by giving it a name (1–30 chars, alphanumeric / hyphen / underscore, case-insensitive unique across the server), an optional description, a room group, and optionally the Universal setting.
+- **Edit** — `room.manage` holders can change the name, description, group, and Universal setting of an existing channel room.
+- **Universal** — a channel room with Universal enabled behaves as joined for every server member who is currently eligible to join it. The system does not fan out `UserJoinedRoomEvent` facts for implicit membership. Existing explicit memberships remain intact, so disabling Universal restores the prior explicit membership set.
+- **Bootstrap defaults** — fresh servers seed `#announcements` as Universal and `#general` as a normal channel room in the default Lobby group.
+- **Join / leave** — joining a Universal room succeeds without writing an explicit membership event. Leaving a Universal room is rejected; users should mute it instead. DMs cannot be Universal.
 - **Archive** — `room.manage` toggles an `archived` flag on the room. Archived rooms vanish from the sidebar, the Browse Rooms page, and search results, but members stay joined and history is intact. The owner can still navigate to the room directly.
 - **Unarchive** — same permission, flips the flag back. The room reappears in the sidebar and discovery surfaces.
 - **Ban member** — `room.ban-member` holders can ban a user from a channel room with a required reason and optional expiry. The banned user loses room read/write/live access immediately and cannot rejoin until the ban is removed or expires.
@@ -73,12 +76,18 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 **Why:** Operators need a way to audit and reverse room-level bans without spelunking the event log or editing RBAC state by hand.
 **Tradeoff:** The first page lists active bans only. Historical moderation audit remains in the durable event log.
 
+### 10. Universal rooms derive membership from join eligibility
+
+**Decision:** Universal is a durable boolean on channel rooms, changed through `RoomUniversalChangedEvent`. Effective membership is explicit membership plus, for Universal channel rooms, every user for whom `room.join` currently resolves allow and no active room ban applies.
+**Why:** Operators often need "everyone can see this channel" behavior without writing per-user membership events for every current and future server member. Deriving membership keeps the event log compact and makes disabling Universal restore the previous explicit membership state.
+**Tradeoff:** Member-derived surfaces such as member lists, mentions, unread state, attachment access, voice calls, and live event delivery must use effective membership rather than the explicit membership projection alone.
+
 ## Permissions
 
 - `room.create` — create a new channel room in a group. Configurable per group.
-- `room.manage` — edit, archive, unarchive, and delete a channel room. Configurable per group and per room.
+- `room.manage` — edit, archive, unarchive, delete, and change Universal state for a channel room. Configurable per group and per room.
 - `room.ban-member` — ban members from a channel room. Configurable per group and per room.
-- `room.join` — gates whether a user can become a member of an unarchived room. Configurable per group and per room.
+- `room.join` — gates whether a user can become an explicit member of an unarchived room and whether a user is an implicit member of a Universal room. Configurable per group and per room.
 
 ## Related
 
