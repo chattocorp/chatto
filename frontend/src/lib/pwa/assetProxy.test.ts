@@ -80,8 +80,7 @@ describe('service worker asset proxy resync', () => {
       servers: [
         {
           id: 'remote',
-          url: 'https://remote.example',
-          token: 'token'
+          url: 'https://remote.example'
         }
       ],
       targets: [
@@ -120,8 +119,7 @@ describe('service worker asset proxy resync', () => {
       servers: [
         {
           id: 'remote',
-          url: 'https://remote.example',
-          token: 'token'
+          url: 'https://remote.example'
         }
       ],
       targets: []

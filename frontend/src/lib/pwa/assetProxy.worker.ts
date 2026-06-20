@@ -85,14 +85,6 @@ export async function handleAssetProxyFetch(
     return new Response('Method not allowed', { status: 405 });
   }
 
-  const cache = await caches.open(ASSET_CACHE_NAME);
-  const cacheKey = assetProxyCacheKey(request.url);
-  const rangeHeader = request.headers.get('Range');
-  if (!rangeHeader) {
-    const cached = await cache.match(cacheKey);
-    if (cached) return cached;
-  }
-
   let server = assetProxyServers.get(proxyRequest.serverId);
   let registered = registeredAssetTargets.get(proxyRequest.virtualPath);
   if (!server || !registered) {
@@ -107,19 +99,22 @@ export async function handleAssetProxyFetch(
     return new Response('Asset target is not registered', { status: 404 });
   }
 
+  const rangeHeader = request.headers.get('Range');
   if (rangeHeader) {
     return Response.redirect(targetUrl, 302);
   }
 
+  const cache = await caches.open(ASSET_CACHE_NAME);
+  const cacheKey = await assetProxyCacheKey(request.url, targetUrl);
+  const cached = await cache.match(cacheKey);
+  if (cached) return cached;
+
   const headers = new Headers();
-  if (server?.token) {
-    headers.set('Authorization', `Bearer ${server.token}`);
-  }
   headers.set('X-Chatto-Asset-Proxy', '1');
 
   const networkResponse = await fetch(targetUrl, {
     headers,
-    credentials: server?.token ? 'omit' : 'include',
+    credentials: sameOrigin(targetUrl, self.location.origin) ? 'include' : 'omit',
     redirect: 'follow'
   });
   const response = new Response(networkResponse.body, {
@@ -128,7 +123,7 @@ export async function handleAssetProxyFetch(
     headers: networkResponse.headers
   });
 
-  if (response.ok && response.status === 200) {
+  if (shouldCacheAssetResponse(response)) {
     await cache.put(cacheKey, response.clone());
     await pruneAssetCache(cache);
   }
@@ -141,8 +136,7 @@ function isAssetProxyServerMessage(value: unknown): value is AssetProxyServer {
   const server = value as Partial<AssetProxyServer>;
   return (
     typeof server.id === 'string' &&
-    typeof server.url === 'string' &&
-    (typeof server.token === 'string' || server.token === null || server.token === undefined)
+    typeof server.url === 'string'
   );
 }
 
@@ -166,8 +160,7 @@ function mergeAssetProxyServers(servers: unknown[]): void {
     if (!isAssetProxyServerMessage(server)) continue;
     assetProxyServers.set(server.id, {
       id: server.id,
-      url: server.url,
-      token: typeof server.token === 'string' ? server.token : null
+      url: server.url
     });
   }
 }
@@ -248,11 +241,36 @@ function buildFallbackAssetTarget(
   }
 }
 
-function assetProxyCacheKey(requestUrl: string): Request {
+async function assetProxyCacheKey(requestUrl: string, targetUrl: string): Promise<Request> {
   const url = new URL(requestUrl);
   url.search = '';
   url.hash = '';
+  url.searchParams.set('__chatto_asset_scope', await sha256Hex(targetUrl));
   return new Request(url.href, { method: 'GET' });
+}
+
+function sameOrigin(value: string, origin: string): boolean {
+  try {
+    return new URL(value).origin === origin;
+  } catch {
+    return false;
+  }
+}
+
+function shouldCacheAssetResponse(response: Response): boolean {
+  if (!response.ok || response.status !== 200) return false;
+
+  const cacheControl = response.headers.get('Cache-Control')?.toLowerCase() ?? '';
+  const directives = cacheControl
+    .split(',')
+    .map((directive) => directive.trim())
+    .filter(Boolean);
+  return !directives.includes('no-store') && !directives.includes('no-cache');
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 async function pruneAssetCache(cache: Cache): Promise<void> {
