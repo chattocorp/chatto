@@ -86,11 +86,11 @@ test.describe('Notification Level - Notifications Settings', () => {
     // Navigate to notification settings
     await page.goto(routes.settingsNotifications);
 
-    // Normal should be selected by default (check for accent border on button)
+    // Normal should be selected by default.
     const normalButton = page.locator('button', { hasText: 'Normal' }).filter({
       hasText: 'Unread markers'
     });
-    await expect(normalButton).toHaveClass(/border-accent/);
+    await expect(normalButton).toHaveClass(/choice-row-selected/);
 
     // Click Muted button
     const mutedButton = page.locator('button', { hasText: 'Muted' }).filter({
@@ -103,8 +103,8 @@ test.describe('Notification Level - Notifications Settings', () => {
       timeout: TIMEOUTS.UI_STANDARD
     });
 
-    // Verify Muted is now selected (has accent border)
-    await expect(mutedButton).toHaveClass(/border-accent/);
+    // Verify Muted is now selected.
+    await expect(mutedButton).toHaveClass(/choice-row-selected/);
 
     // Reload and verify persistence
     await page.reload();
@@ -112,7 +112,7 @@ test.describe('Notification Level - Notifications Settings', () => {
     const mutedButtonReloaded = page.locator('button', { hasText: 'Muted' }).filter({
       hasText: 'No notifications'
     });
-    await expect(mutedButtonReloaded).toHaveClass(/border-accent/);
+    await expect(mutedButtonReloaded).toHaveClass(/choice-row-selected/);
   });
 
   test('can set room notification level via UI', async ({ page, chatPage }) => {

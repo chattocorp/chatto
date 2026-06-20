@@ -98,8 +98,8 @@ test.describe('User Settings - Display', () => {
     // The selected option has a filled radio indicator
     const twentyFourHourButton = page.getByRole('button', { name: '24-hour' });
     await expect(twentyFourHourButton).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
-    // Verify it has the accent/selected styling
-    await expect(twentyFourHourButton).toHaveClass(/border-accent/, {
+    // Verify it has the shared selected-row styling.
+    await expect(twentyFourHourButton).toHaveClass(/choice-row-selected/, {
       timeout: TIMEOUTS.UI_STANDARD
     });
   });
