@@ -43,6 +43,26 @@ func DeletedUserReference(userID string) *corev1.User {
 // Password is optional - pass empty string for OAuth-only users.
 // Note: actorID parameter is retained for future use (e.g., admin-created users) but is not currently used.
 func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, displayName, password string) (*corev1.User, error) {
+	return c.createUserWithKind(ctx, actorID, login, displayName, password, corev1.UserKind_USER_KIND_HUMAN, "")
+}
+
+func (c *ChattoCore) CreateBotUser(ctx context.Context, actorID string, login, displayName, ownerID string) (*corev1.User, error) {
+	if ownerID == "" {
+		return nil, fmt.Errorf("bot owner is required")
+	}
+	return c.createUserWithKind(ctx, actorID, login, displayName, "", corev1.UserKind_USER_KIND_BOT, ownerID)
+}
+
+func (c *ChattoCore) createUserWithKind(ctx context.Context, actorID string, login, displayName, password string, kind corev1.UserKind, botOwnerID string) (*corev1.User, error) {
+	if kind == corev1.UserKind_USER_KIND_UNSPECIFIED {
+		kind = corev1.UserKind_USER_KIND_HUMAN
+	}
+	if kind == corev1.UserKind_USER_KIND_BOT && password != "" {
+		return nil, fmt.Errorf("bot users cannot have passwords")
+	}
+	if kind != corev1.UserKind_USER_KIND_BOT {
+		botOwnerID = ""
+	}
 	// Trim and validate login (preserve original casing)
 	login = strings.TrimSpace(login)
 	if err := ValidateLogin(login); err != nil {
@@ -99,6 +119,8 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 		Login:       login,
 		DisplayName: displayName,
 		CreatedAt:   now,
+		Kind:        kind,
+		BotOwnerId:  botOwnerID,
 	}
 
 	// Create encryption key for this user. Keys are always created so they
@@ -147,6 +169,8 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 	}})
 	accountCreated.CreatedAt = now
 	account := accountCreated.GetUserAccountCreated()
+	account.Kind = kind
+	account.BotOwnerId = botOwnerID
 	account.EncryptedLogin, err = encryptUserPIIStringWithDEK(piiDEK, accountCreated.GetId(), userID, events.EventUserAccountCreated, "login", login)
 	if err != nil {
 		return nil, fmt.Errorf("encrypt login: %w", err)
@@ -385,6 +409,10 @@ func (c *ChattoCore) VerifyPasswordWithAuthGeneration(ctx context.Context, ident
 
 // verifyUserPassword is an internal helper that verifies a password for an already-fetched user.
 func (c *ChattoCore) verifyUserPassword(ctx context.Context, user *corev1.User, password string, dummyHash []byte) (*corev1.User, uint64, error) {
+	if IsBotUser(user) {
+		bcrypt.CompareHashAndPassword(dummyHash, []byte(password))
+		return nil, 0, fmt.Errorf("invalid credentials")
+	}
 	authGeneration, err := c.CurrentAuthGeneration(ctx, user.Id)
 	if err != nil {
 		return nil, 0, err
@@ -965,6 +993,18 @@ func (c *ChattoCore) ValidateAccountDeletionToken(ctx context.Context, token, us
 func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) error {
 	if _, err := c.GetUser(ctx, userID); err != nil {
 		return fmt.Errorf("user not found: %w", err)
+	}
+	ownedBots, err := c.ListBotsOwnedBy(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("list owned bots before user deletion: %w", err)
+	}
+	for _, bot := range ownedBots {
+		if bot.GetId() == userID {
+			continue
+		}
+		if err := c.DeleteUser(ctx, actorID, bot.GetId()); err != nil {
+			return fmt.Errorf("delete owned bot %s before owner deletion: %w", bot.GetId(), err)
+		}
 	}
 
 	// Post-ADR-030 there are two implicit scopes — channel and DM — and

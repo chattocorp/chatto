@@ -134,6 +134,19 @@ Owners and admins are deliberately different:
 
 Use `owners.emails` in `chatto.toml` as the recovery path. The email must be verified before it makes the user an effective owner.
 
+## Bot accounts
+
+Bot accounts are users for permission purposes. They can be assigned roles, receive user-level overrides, post messages, react, join rooms, and appear in member lists according to the same rules as humans. The UI badges them as bots and links them to their human owner.
+
+Creating and managing bots is gated separately:
+
+| Permission   | Meaning |
+| ------------ | ------- |
+| `bot.create` | Create self-owned bot accounts and manage/delete bots you own |
+| `bot.manage` | Manage/delete other users' bot accounts and tokens |
+
+Bots cannot create or manage bot accounts, even if they have those permissions. This keeps automation from creating more automation. When you give a bot a powerful role, you are also trusting its owner, because the owner can create and revoke that bot's API tokens.
+
 ## DM privacy
 
 DMs use the same permission names where they make sense, but Chatto keeps a hard privacy boundary around private conversations. Moderation and room-administration permissions such as `message.manage`, `message.echo`, `room.manage`, `room.list`, and `room.create` are denied in DMs regardless of role grants.

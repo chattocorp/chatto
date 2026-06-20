@@ -20,6 +20,7 @@
     const params = { serverId: seg };
     const adminBase = resolve('/chat/[serverId]/server-admin', params);
     const generalBase = resolve('/chat/[serverId]/server-admin/general', params);
+    const botsBase = adminBase + '/bots';
     const membersBase = resolve('/chat/[serverId]/server-admin/members', params);
     const roomsBase = adminBase + '/rooms';
     const moderationBase = adminBase + '/moderation';
@@ -40,6 +41,10 @@
         chromePermissions.current.canAssignRoles ||
         chromePermissions.current.canManageUserPermissions ||
         serverPerms.current.canAdminViewUsers;
+    }
+
+    if (pathname.startsWith(botsBase)) {
+      return () => serverPerms.current.canCreateBots || serverPerms.current.canManageBots;
     }
 
     // Rooms pages require room.manage permission

@@ -199,6 +199,9 @@ models:
   UserSettings:
     model:
       - hmans.de/chatto/internal/graph/model.UserSettings
+  UserKind:
+    model:
+      - hmans.de/chatto/internal/graph/model.UserKind
   TimeFormat:
     model:
       - hmans.de/chatto/internal/graph/model.TimeFormat

@@ -30,6 +30,8 @@ function makeViewer(overrides: Partial<ViewerData> = {}): ViewerData {
     canAdminManageRoles: false,
     canAdminViewSystem: false,
     canAdminViewAudit: false,
+    canCreateBots: false,
+    canManageBots: false,
     ...overrides
   };
 }

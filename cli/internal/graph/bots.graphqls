@@ -1,0 +1,115 @@
+"""Whether a Chatto user is a human account or a bot account."""
+enum UserKind {
+  """A normal person-operated account."""
+  HUMAN
+  """An automation account that authenticates only with bot API tokens."""
+  BOT
+}
+
+"""Expiry choices for a newly created bot API token."""
+enum BotTokenExpiryPreset {
+  """Expire the token 30 days after creation."""
+  DAYS_30
+  """Expire the token 90 days after creation."""
+  DAYS_90
+  """Expire the token 365 days after creation."""
+  DAYS_365
+  """Never expire the token automatically."""
+  INDEFINITE
+  """Use the `customExpiresAt` timestamp."""
+  CUSTOM
+}
+
+"""Metadata for a named bot API token. The raw token secret is shown only when created."""
+type BotToken {
+  """Stable token metadata ID."""
+  id: ID!
+  """Human-readable token name."""
+  name: String!
+  """The bot account this token authenticates as."""
+  bot: User! @goField(forceResolver: true)
+  """The user who created the token."""
+  createdBy: User @goField(forceResolver: true)
+  """When the token was created."""
+  createdAt: Time!
+  """When the token expires. Null means indefinite."""
+  expiresAt: Time
+  """When the token was most recently used, if known."""
+  lastUsedAt: Time
+  """When the token was revoked, if it has been revoked."""
+  revokedAt: Time
+  """The user who revoked the token, if known."""
+  revokedBy: User @goField(forceResolver: true)
+  """A short machine-readable revocation reason, if known."""
+  revokeReason: String
+}
+
+"""A newly created bot API token with its one-time secret."""
+type CreatedBotToken {
+  """Token metadata."""
+  token: BotToken!
+  """The raw token secret. It is returned only once."""
+  secret: String!
+}
+
+"""Input for creating a bot account owned by the caller."""
+input CreateBotInput {
+  """Unique login for the bot account."""
+  login: String!
+  """Display name for the bot account."""
+  displayName: String!
+}
+
+"""Input for creating a named bot API token."""
+input CreateBotTokenInput {
+  """The bot account to create a token for."""
+  botUserId: ID!
+  """Human-readable token name."""
+  name: String!
+  """Expiry preset selected by the creator."""
+  expiry: BotTokenExpiryPreset!
+  """Custom expiration timestamp. Required when `expiry` is `CUSTOM`."""
+  customExpiresAt: Time
+}
+
+"""Input for revoking a bot API token."""
+input RevokeBotTokenInput {
+  """The bot account that owns the token."""
+  botUserId: ID!
+  """The token metadata ID to revoke."""
+  tokenId: ID!
+}
+
+extend type User {
+  """Whether this account is human-operated or a bot account."""
+  kind: UserKind! @goField(forceResolver: true)
+  """True when this account is a bot."""
+  isBot: Boolean! @goField(forceResolver: true)
+  """The human owner of this bot account. Null for human users."""
+  botOwner: User @goField(forceResolver: true)
+}
+
+extend type Viewer {
+  """Whether the viewer can create and manage their own bot accounts."""
+  canCreateBots: Boolean! @goField(forceResolver: true)
+  """Whether the viewer can manage bot accounts owned by other users."""
+  canManageBots: Boolean! @goField(forceResolver: true)
+}
+
+extend type Query {
+  """List bot accounts the caller owns or can manage."""
+  bots: [User!]! @goField(forceResolver: true)
+  """List named API tokens for a bot the caller can manage."""
+  botTokens(botUserId: ID!): [BotToken!]! @goField(forceResolver: true)
+}
+
+extend type Mutation {
+  """Create a self-owned bot account. Requires `bot.create`."""
+  createBot(input: CreateBotInput!): User! @goField(forceResolver: true)
+  """Delete a bot account and all of its data."""
+  deleteBot(botUserId: ID!): Boolean! @goField(forceResolver: true)
+  """Create a named API token for a bot. The raw secret is returned only once."""
+  createBotToken(input: CreateBotTokenInput!): CreatedBotToken! @goField(forceResolver: true)
+  """Revoke a named API token for a bot."""
+  revokeBotToken(input: RevokeBotTokenInput!): Boolean! @goField(forceResolver: true)
+}

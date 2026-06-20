@@ -6,6 +6,7 @@
 ## Overview
 
 Chatto authenticates users via two parallel mechanisms: opaque bearer tokens for API clients and HTTP-only cookie sessions for same-origin compatibility. The bundled SPA stores bearer tokens for registered servers, including the origin after direct password login or registration, while cookie sessions remain for non-GraphQL auth endpoints and compatibility login flows. Login flows include classic password login, configured external providers, and a bootstrap path for first-boot operator setup.
+Bot accounts use a separate named bot-token credential family covered in FDR-028; they never sign in through human login/session flows.
 
 ## Behavior
 
@@ -16,6 +17,7 @@ Chatto authenticates users via two parallel mechanisms: opaque bearer tokens for
 - **Cookie session** — on successful same-origin auth, the server issues an HTTP-only, SameSite=Lax cookie with a 90-day expiry. The cookie carries an opaque session ID plus the user ID needed to derive the lookup key; the authoritative `CookieSession` protobuf record lives in `RUNTIME_STATE` under `cookie_session.{userId}.{hmac}` with a per-key TTL. The server validates the KV record and resolves the current user from projections per request. The bundled SPA keeps this cookie as a compatibility fallback, but uses a bearer token for GraphQL when one has been issued.
 - **CSRF protection** — cookie-session unsafe non-GraphQL requests must include an `X-CSRF-Token` header matching the readable `chatto_csrf` cookie, and that cookie value must be a server-signed token bound to the authenticated user session generation. Public auth/bootstrap endpoints, test endpoints, webhooks, and OAuth token exchange are exempt. GraphQL requests do not use the double-submit token; same-origin cookie GraphQL calls carry the non-simple `X-REQUEST-TYPE: GraphQL` header as the API request marker. Bearer-only requests are exempt because bearer credentials are not ambient browser cookies.
 - **Bearer token** — every direct authentication endpoint also issues an opaque token (format: `cht_AT` + 14-char NanoID). Registered clients store it in `localStorage` and send it as `Authorization: Bearer …` on HTTP requests and `connectionParams.token` on graphql-ws upgrades. The token record lives in `RUNTIME_STATE` as an HMAC-derived `session.{hmac}` key with a per-key TTL. If bearer-token issuance fails after a cookie session was created, the server revokes the cookie session and fails the auth response rather than leaving the client half-authenticated.
+- **Bot API token** — bot accounts cannot sign in through password, OAuth, human bearer-token issuance, or browser cookie flows. They authenticate to API surfaces with named bot tokens (format: `cht_BT` + NanoID) whose fixed expiry is chosen at issuance and whose metadata lives in `RUNTIME_STATE` under HMAC-derived keys.
 - **WebSocket auth** — bearer-token clients pass the token in `connectionParams`, which is checked at upgrade time. Cookie fallback clients rely on the browser attaching the session cookie to the WebSocket upgrade.
 - **Logout** — from the global header, users choose whether to sign out of the currently selected server or all connected servers. For registered bearer-token sessions, the client sends the token to `/auth/logout` so the server can revoke it and then removes the token locally. Cookie fallback logout deletes the current cookie-session KV record, clears the cookie, and the SPA does a hard reload. Logout requests are best-effort so users can still remove stale or unreachable server registrations locally.
 - **Session refresh** — cookie-session KV TTL cannot be touched in place, so active sessions are rotated near expiry: the server creates a replacement `CookieSession` record with a fresh TTL, updates the browser cookie, and deletes the old record best-effort. Bearer tokens follow a sliding-window TTL — each successful validation rewrites the `RUNTIME_STATE` entry with a fresh per-key TTL.
@@ -102,12 +104,12 @@ Chatto authenticates users via two parallel mechanisms: opaque bearer tokens for
 
 ## Permissions
 
-Authentication itself doesn't have a permission gate (you're either authenticated or not). After authentication, downstream actions are gated by the permissions described in FDR-001.
+Authentication itself doesn't have a permission gate (you're either authenticated or not). Creating and managing bot API tokens is gated by `bot.create` / `bot.manage` (FDR-028). After authentication, downstream actions are gated by the permissions described in FDR-001.
 
 ## Related
 
 - **ADRs:** ADR-017 (cookie-session auth for WebSocket), ADR-024 (opaque bearer tokens for cross-origin auth), ADR-025 (multi-instance client architecture), ADR-036 (runtime state in `RUNTIME_STATE`)
-- **FDRs:** FDR-001 (Roles & Permissions), FDR-018 (Account Lifecycle)
+- **FDRs:** FDR-001 (Roles & Permissions), FDR-018 (Account Lifecycle), FDR-028 (Bot Accounts)
 
 ## Open Questions
 

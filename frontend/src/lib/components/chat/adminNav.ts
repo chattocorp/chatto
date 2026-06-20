@@ -15,6 +15,8 @@ export type AdminNavServerPermissions = {
   canAdminViewRoles: boolean;
   canAdminViewAudit: boolean;
   canAdminViewSystem: boolean;
+  canCreateBots: boolean;
+  canManageBots: boolean;
 };
 
 export type AdminNavItem = {
@@ -50,6 +52,14 @@ export function getAdminNavItems({
       href: resolve('/chat/[serverId]/server-admin/members', { serverId: serverSegment }),
       label: 'Members',
       icon: 'iconify uil--users-alt'
+    });
+  }
+
+  if (server.canCreateBots || server.canManageBots) {
+    items.push({
+      href: resolve('/chat/[serverId]/server-admin/bots', { serverId: serverSegment }),
+      label: 'Bots',
+      icon: 'iconify mdi--robot'
     });
   }
 

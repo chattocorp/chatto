@@ -73,6 +73,14 @@ func (c *ChattoCore) CanStartDM(ctx context.Context, userID string) (bool, error
 	return decision != DecisionDeny, nil
 }
 
+func (c *ChattoCore) CanCreateBot(ctx context.Context, userID string) (bool, error) {
+	return c.HasServerPermission(ctx, userID, PermBotCreate)
+}
+
+func (c *ChattoCore) CanManageBots(ctx context.Context, userID string) (bool, error) {
+	return c.HasServerPermission(ctx, userID, PermBotManage)
+}
+
 // CanDeleteUser checks if an actor can delete a specific user account.
 // Returns true if:
 //   - The actor is deleting their own account and has user.delete-self, OR
@@ -98,6 +106,8 @@ var adminPermissions = []Permission{
 	PermRoomManage,
 	PermRoomMemberBan,
 	PermUserDeleteAny,
+	PermBotCreate,
+	PermBotManage,
 	PermUserManagePermissions,
 	PermAdminUsersView,
 	PermAdminSystemView,

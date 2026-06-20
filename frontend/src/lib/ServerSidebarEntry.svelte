@@ -105,6 +105,8 @@
         canAdminManageRoles
         canAdminViewSystem
         canAdminViewAudit
+        canCreateBots
+        canManageBots
       }
     }
   `);

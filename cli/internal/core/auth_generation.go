@@ -44,6 +44,13 @@ func (c *ChattoCore) CurrentAuthGeneration(ctx context.Context, userID string) (
 // RequireAuthenticationAllowed rejects credential issuance that proved
 // authentication against an older user auth generation.
 func (c *ChattoCore) RequireAuthenticationAllowed(ctx context.Context, userID string, authGeneration uint64) error {
+	user, err := c.GetUser(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if IsBotUser(user) {
+		return ErrAuthenticationRevoked
+	}
 	currentGeneration, err := c.CurrentAuthGeneration(ctx, userID)
 	if err != nil {
 		return err

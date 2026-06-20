@@ -19,6 +19,7 @@ ContextMenu, which handles both modes automatically.
   import type { PresenceStatus } from '$lib/gql/graphql';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
+  import { Pill } from '$lib/ui';
   import { getLiveDisplayName, getLiveLogin } from '$lib/state/userProfiles.svelte';
 
   let {
@@ -37,6 +38,7 @@ ContextMenu, which handles both modes automatically.
       displayName: string;
       avatarUrl?: string | null;
       presenceStatus: PresenceStatus;
+      isBot?: boolean;
     };
     anchorRect?: { top: number; bottom: number; left: number } | null;
     canSendMessage?: boolean;
@@ -70,7 +72,12 @@ ContextMenu, which handles both modes automatically.
     <div class="flex items-center gap-3 p-3">
       <UserAvatar {user} size="md" />
       <div class="min-w-0 flex-1">
-        <div class="truncate font-semibold">{displayName}</div>
+        <div class="flex min-w-0 items-center gap-2">
+          <div class="truncate font-semibold">{displayName}</div>
+          {#if user.isBot}
+            <Pill>Bot</Pill>
+          {/if}
+        </div>
         <div class="truncate text-xs text-muted">@{getLiveLogin(user.id, user.login)}</div>
       </div>
     </div>

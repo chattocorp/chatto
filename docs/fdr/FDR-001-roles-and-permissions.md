@@ -18,6 +18,7 @@ Chatto controls who can do what through role-based access control. Every authent
 - Custom role display names are limited to 80 bytes; descriptions are limited to 500 bytes.
 - Owners are always granted all permissions. An effective owner is either assigned the durable `owner` role or has a verified email listed in `owners.emails` in `chatto.toml`.
 - Owner permissions are virtual rather than persisted defaults: fresh servers do not seed editable owner permission rows, and the admin UI shows owner permissions as read-only green checks.
+- Bot accounts participate in the same role and permission model as human users. Bot-management permissions only govern creating/managing bot accounts; a bot's ordinary actions still depend on its own roles and overrides.
 - GraphQL RBAC editor and inspection queries live under `Query.admin.rbac`. `Query.admin` is an authenticated namespace; the RBAC fields keep their narrower gates such as `role.manage` or `room.manage`.
 - Roles have a `pingable` setting that controls whether `@role` pings notify assigned room members. Fresh servers seed `moderator` as pingable and leave `owner`, `admin`, and `everyone` unpingable.
 - User-initiated RBAC writes carry the authenticated user's ID as the event actor. Synthetic `system` actors are reserved for bootstrap, seeding, resets, migrations, and other non-user maintenance.
@@ -80,6 +81,8 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
 
 - `role.manage` — create, edit, delete roles and the permissions attached to them.
 - `role.assign` — assign roles to users.
+- `bot.create` — create self-owned bot accounts and manage/delete bots owned by the caller.
+- `bot.manage` — manage/delete other users' bot accounts and tokens.
 - `user.manage-permissions` — edit direct per-user permission overrides.
 - `admin.view-users`, `admin.view-system`, `admin.view-audit` — gate specific admin UI sub-views; admin UI entry is derived from concrete capabilities rather than a standalone `admin.access` permission.
 - `message.post` — post root messages in rooms and start DMs. Fresh servers grant this to `everyone` at server scope; announcement rooms add a room-level `everyone` deny.
@@ -90,4 +93,4 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
 ## Related
 
 - **ADRs:** ADR-004 (authorization at API boundary), ADR-027 (instance/space consolidation), ADR-030 (space tier retirement), ADR-031 (room-group-centric ACL), ADR-033 (event-sourced state), ADR-035 (per-aggregate migration), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override)
-- **FDRs:** Every FDR that mentions a permission depends on this one.
+- **FDRs:** Every FDR that mentions a permission depends on this one, including FDR-028 (Bot Accounts).

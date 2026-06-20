@@ -315,13 +315,14 @@ type AssetsConfig struct {
 
 // CoreConfig contains settings for the Chatto core service.
 type CoreConfig struct {
-	SecretKey    string         `toml:"secret_key" env:"CHATTO_CORE_SECRET_KEY" comment:"Server-wide secret for deriving HMAC verifiers for bearer tokens and account-flow credentials. NEVER SHARE THIS!\nIf it changes, existing bearer tokens and pending registration, verification, password reset, account deletion, and OAuth authorization-code credentials become invalid."`
-	Assets       AssetsConfig   `toml:"assets"`
-	AuthTokenTTL time.Duration  `toml:"-" env:"-"` // Set by caller from AuthConfig.TokenTTLOrDefault()
-	EmailOTP     EmailOTPConfig `toml:"-" env:"-"` // Set by caller from AuthConfig.EmailOTP
-	Replicas     int            `toml:"-" env:"-"` // Set by caller from NATSConfig.ReplicasOrDefault()
-	Limits       LimitsConfig   `toml:"-" env:"-"` // Set by caller from ChattoConfig.Limits
-	Owners       OwnersConfig   `toml:"-" env:"-"` // Set by caller from ChattoConfig.Owners — used by core to auto-promote on email verification
+	SecretKey      string         `toml:"secret_key" env:"CHATTO_CORE_SECRET_KEY" comment:"Server-wide secret for deriving HMAC verifiers for bearer tokens and account-flow credentials. NEVER SHARE THIS!\nIf it changes, existing bearer tokens and pending registration, verification, password reset, account deletion, and OAuth authorization-code credentials become invalid."`
+	Assets         AssetsConfig   `toml:"assets"`
+	AuthTokenTTL   time.Duration  `toml:"-" env:"-"` // Set by caller from AuthConfig.TokenTTLOrDefault()
+	BotTokenMaxTTL time.Duration  `toml:"-" env:"-"` // Set by caller from AuthConfig.BotTokenMaxTTLOrZero()
+	EmailOTP       EmailOTPConfig `toml:"-" env:"-"` // Set by caller from AuthConfig.EmailOTP
+	Replicas       int            `toml:"-" env:"-"` // Set by caller from NATSConfig.ReplicasOrDefault()
+	Limits         LimitsConfig   `toml:"-" env:"-"` // Set by caller from ChattoConfig.Limits
+	Owners         OwnersConfig   `toml:"-" env:"-"` // Set by caller from ChattoConfig.Owners — used by core to auto-promote on email verification
 }
 
 const (
@@ -381,6 +382,7 @@ func IsAllowedAuthProviderType(providerType string) bool {
 type AuthConfig struct {
 	DirectRegistration *bool                `toml:"direct_registration" env:"CHATTO_AUTH_DIRECT_REGISTRATION" comment:"Enable direct (email/password) registration. When false, users can only sign in via SSO providers. Default: true."`
 	TokenTTL           Duration             `toml:"token_ttl,commented" env:"CHATTO_AUTH_TOKEN_TTL" comment:"TTL for bearer auth tokens. Supports human-readable durations like '90d', '2160h'. Default: 90d."`
+	BotTokenMaxTTL     Duration             `toml:"bot_token_max_ttl,commented" env:"CHATTO_AUTH_BOT_TOKEN_MAX_TTL" comment:"Maximum TTL for bot API tokens. Set to 0 or leave unset to allow indefinite bot tokens."`
 	EmailOTP           EmailOTPConfig       `toml:"email_otp,commented" comment:"Email OTP guardrails for registration and email verification."`
 	Providers          []AuthProviderConfig `toml:"providers" comment:"External login providers. Configure as repeated [[auth.providers]] tables."`
 }
@@ -431,6 +433,10 @@ func (c *AuthConfig) TokenTTLOrDefault() time.Duration {
 		return 90 * 24 * time.Hour
 	}
 	return c.TokenTTL.Duration()
+}
+
+func (c *AuthConfig) BotTokenMaxTTLOrZero() time.Duration {
+	return c.BotTokenMaxTTL.Duration()
 }
 
 // DirectRegistrationOrDefault returns whether direct (email/password) registration is enabled (default: true).

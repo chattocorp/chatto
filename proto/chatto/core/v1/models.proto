@@ -44,6 +44,13 @@ message Room {
   RoomKind kind = 8;
 }
 
+// UserKind distinguishes human accounts from bot accounts.
+enum UserKind {
+  USER_KIND_UNSPECIFIED = 0;
+  USER_KIND_HUMAN = 1;
+  USER_KIND_BOT = 2;
+}
+
 // User represents a user account
 message User {
   string id = 1;
@@ -52,6 +59,8 @@ message User {
   // Avatar state is projected from AssetCreatedEvent/UserAvatarClearedEvent.
   google.protobuf.Timestamp created_at = 4; // When the user was created (null for users created before this field was added)
   bool deleted = 5; // True for public tombstones representing deleted/unresolvable users.
+  UserKind kind = 6;
+  string bot_owner_id = 7;
 }
 
 // VerifiedEmail represents a single email address that has been verified

@@ -370,6 +370,8 @@ type UserAccountCreatedEvent struct {
 	UserId               string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	EncryptedLogin       *EncryptedUserString   `protobuf:"bytes,10,opt,name=encrypted_login,json=encryptedLogin,proto3" json:"encrypted_login,omitempty"`
 	EncryptedDisplayName *EncryptedUserString   `protobuf:"bytes,11,opt,name=encrypted_display_name,json=encryptedDisplayName,proto3" json:"encrypted_display_name,omitempty"`
+	Kind                 UserKind               `protobuf:"varint,12,opt,name=kind,proto3,enum=chatto.core.v1.UserKind" json:"kind,omitempty"`
+	BotOwnerId           string                 `protobuf:"bytes,13,opt,name=bot_owner_id,json=botOwnerId,proto3" json:"bot_owner_id,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -423,6 +425,20 @@ func (x *UserAccountCreatedEvent) GetEncryptedDisplayName() *EncryptedUserString
 		return x.EncryptedDisplayName
 	}
 	return nil
+}
+
+func (x *UserAccountCreatedEvent) GetKind() UserKind {
+	if x != nil {
+		return x.Kind
+	}
+	return UserKind_USER_KIND_UNSPECIFIED
+}
+
+func (x *UserAccountCreatedEvent) GetBotOwnerId() string {
+	if x != nil {
+		return x.BotOwnerId
+	}
+	return ""
 }
 
 type UserLoginChangedEvent struct {
@@ -1247,12 +1263,15 @@ const file_chatto_core_v1_user_events_proto_rawDesc = "" +
 	"\x13EncryptedUserString\x12'\n" +
 	"\x0fencrypted_value\x18\x01 \x01(\fR\x0eencryptedValue\x12\x14\n" +
 	"\x05nonce\x18\x02 \x01(\fR\x05nonce\x12*\n" +
-	"\x11content_key_epoch\x18\x03 \x01(\x05R\x0fcontentKeyEpoch\"\xdb\x01\n" +
+	"\x11content_key_epoch\x18\x03 \x01(\x05R\x0fcontentKeyEpoch\"\xab\x02\n" +
 	"\x17UserAccountCreatedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12L\n" +
 	"\x0fencrypted_login\x18\n" +
 	" \x01(\v2#.chatto.core.v1.EncryptedUserStringR\x0eencryptedLogin\x12Y\n" +
-	"\x16encrypted_display_name\x18\v \x01(\v2#.chatto.core.v1.EncryptedUserStringR\x14encryptedDisplayName\"~\n" +
+	"\x16encrypted_display_name\x18\v \x01(\v2#.chatto.core.v1.EncryptedUserStringR\x14encryptedDisplayName\x12,\n" +
+	"\x04kind\x18\f \x01(\x0e2\x18.chatto.core.v1.UserKindR\x04kind\x12 \n" +
+	"\fbot_owner_id\x18\r \x01(\tR\n" +
+	"botOwnerId\"~\n" +
 	"\x15UserLoginChangedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12L\n" +
 	"\x0fencrypted_login\x18\n" +
@@ -1348,24 +1367,26 @@ var file_chatto_core_v1_user_events_proto_goTypes = []any{
 	(*UserKeyShreddedEvent)(nil),              // 19: chatto.core.v1.UserKeyShreddedEvent
 	(*UserDEKGeneratedEvent)(nil),             // 20: chatto.core.v1.UserDEKGeneratedEvent
 	(TimeFormat)(0),                           // 21: chatto.core.v1.TimeFormat
-	(*DeprecatedAsset)(nil),                   // 22: chatto.core.v1.DeprecatedAsset
-	(*ServerUserPreferences)(nil),             // 23: chatto.core.v1.ServerUserPreferences
+	(UserKind)(0),                             // 22: chatto.core.v1.UserKind
+	(*DeprecatedAsset)(nil),                   // 23: chatto.core.v1.DeprecatedAsset
+	(*ServerUserPreferences)(nil),             // 24: chatto.core.v1.ServerUserPreferences
 }
 var file_chatto_core_v1_user_events_proto_depIdxs = []int32{
 	21, // 0: chatto.core.v1.ServerUserPreferencesUpdatedEvent.time_format:type_name -> chatto.core.v1.TimeFormat
 	5,  // 1: chatto.core.v1.UserAccountCreatedEvent.encrypted_login:type_name -> chatto.core.v1.EncryptedUserString
 	5,  // 2: chatto.core.v1.UserAccountCreatedEvent.encrypted_display_name:type_name -> chatto.core.v1.EncryptedUserString
-	5,  // 3: chatto.core.v1.UserLoginChangedEvent.encrypted_login:type_name -> chatto.core.v1.EncryptedUserString
-	5,  // 4: chatto.core.v1.UserDisplayNameChangedEvent.encrypted_display_name:type_name -> chatto.core.v1.EncryptedUserString
-	22, // 5: chatto.core.v1.UserAvatarSetEvent.avatar:type_name -> chatto.core.v1.DeprecatedAsset
-	5,  // 6: chatto.core.v1.UserVerifiedEmailAddedEvent.encrypted_email:type_name -> chatto.core.v1.EncryptedUserString
-	23, // 7: chatto.core.v1.UserServerPreferencesChangedEvent.preferences:type_name -> chatto.core.v1.ServerUserPreferences
-	0,  // 8: chatto.core.v1.UserDEKGeneratedEvent.purpose:type_name -> chatto.core.v1.UserDEKPurpose
-	9,  // [9:9] is the sub-list for method output_type
-	9,  // [9:9] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	22, // 3: chatto.core.v1.UserAccountCreatedEvent.kind:type_name -> chatto.core.v1.UserKind
+	5,  // 4: chatto.core.v1.UserLoginChangedEvent.encrypted_login:type_name -> chatto.core.v1.EncryptedUserString
+	5,  // 5: chatto.core.v1.UserDisplayNameChangedEvent.encrypted_display_name:type_name -> chatto.core.v1.EncryptedUserString
+	23, // 6: chatto.core.v1.UserAvatarSetEvent.avatar:type_name -> chatto.core.v1.DeprecatedAsset
+	5,  // 7: chatto.core.v1.UserVerifiedEmailAddedEvent.encrypted_email:type_name -> chatto.core.v1.EncryptedUserString
+	24, // 8: chatto.core.v1.UserServerPreferencesChangedEvent.preferences:type_name -> chatto.core.v1.ServerUserPreferences
+	0,  // 9: chatto.core.v1.UserDEKGeneratedEvent.purpose:type_name -> chatto.core.v1.UserDEKPurpose
+	10, // [10:10] is the sub-list for method output_type
+	10, // [10:10] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_user_events_proto_init() }

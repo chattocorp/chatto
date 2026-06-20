@@ -28,6 +28,8 @@
     login: string;
     displayName: string;
     avatarUrl?: string | null;
+    isBot: boolean;
+    botOwner?: { id: string; login: string; displayName: string } | null;
     roles: string[];
     lastLoginChange?: string | null;
   };
@@ -92,6 +94,12 @@
               login
               displayName
               avatarUrl
+              isBot
+              botOwner {
+                id
+                login
+                displayName
+              }
               roles
             }
           }
@@ -343,8 +351,19 @@
           <div class="flex flex-col gap-2">
             <div>
               <div class="text-sm text-muted">Login</div>
-              <div class="font-medium">@{getLiveLogin(member.id, member.login)}</div>
+              <div class="flex items-center gap-2">
+                <div class="font-medium">@{getLiveLogin(member.id, member.login)}</div>
+                {#if member.isBot}
+                  <Pill>Bot</Pill>
+                {/if}
+              </div>
             </div>
+            {#if member.isBot && member.botOwner}
+              <div>
+                <div class="text-sm text-muted">Bot Owner</div>
+                <div>{member.botOwner.displayName} <span class="text-muted">@{member.botOwner.login}</span></div>
+              </div>
+            {/if}
             <div>
               <div class="text-sm text-muted">Display Name</div>
               <div>{member.displayName}</div>

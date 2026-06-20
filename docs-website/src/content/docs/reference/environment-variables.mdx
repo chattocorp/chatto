@@ -235,6 +235,10 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
   Inactivity TTL for bearer auth tokens. Supports durations like `90d`, `2160h`. Successful validation refreshes the TTL; inactive tokens expire automatically.
 </EnvVar>
 
+<EnvVar name="CHATTO_AUTH_BOT_TOKEN_MAX_TTL" toml="auth.bot_token_max_ttl" default="0">
+  Optional maximum lifetime for bot API tokens. `0` or unset allows indefinite bot tokens; any positive duration disables indefinite tokens and requires 30/90/365-day and custom expirations to fit within the configured maximum.
+</EnvVar>
+
 <EnvVar name="CHATTO_AUTH_EMAIL_OTP_THROTTLING_ENABLED" toml="auth.email_otp.throttling_enabled" default="true">
   Enable throttling for registration and email-verification code delivery and wrong-code attempts. Set to `false` to disable these throttles while keeping OTP TTL enforcement.
 </EnvVar>

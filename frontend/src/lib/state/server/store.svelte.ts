@@ -39,7 +39,9 @@ const EMPTY_PERMISSIONS: ServerPermissions = {
   canAdminViewRoles: false,
   canAdminManageRoles: false,
   canAdminViewSystem: false,
-  canAdminViewAudit: false
+  canAdminViewAudit: false,
+  canCreateBots: false,
+  canManageBots: false
 };
 
 const CATCH_UP_REFRESH_DEDUPE_MS = 1_000;

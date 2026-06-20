@@ -44,6 +44,8 @@ Chatto is a real-time chat application with a GraphQL gateway and NATS/JetStream
 
 This document uses the canonical terms from the [glossary](GLOSSARY.md), especially **Server**, **Room**, **DM**, **Event**, **Projection**, **Subject**, and **Live Event**. The rest of this document focuses on where those concepts live in the current runtime architecture.
 
+Users can be human-operated or bot accounts. Bot accounts use the same user/profile/permission projections as human users, carry an owner user ID, and authenticate only with named bot API tokens.
+
 ## NATS Authentication
 
 Chatto supports embedded NATS for single-process/self-hosted installs and external NATS for clustered deployments. Embedded NATS is configured under `[nats.embedded]`; when the embedded TCP listener is enabled, `ReadConfig` derives matching `[nats.client]` defaults for CLI/admin commands. External NATS connections are configured explicitly via `[nats.client]`.
@@ -147,13 +149,15 @@ The schema is modular: each feature area lives in its own `.graphqls` file and e
 
 Note: there is no top-level `me` query — viewer-scoped state hangs off the `viewer` field (which is extended by several feature files, e.g. `threads.graphqls` adds `viewer.followedThreads`, `notifications.graphqls` adds `viewer.notifications` / `viewer.hasNotifications`). Notification badges use scoped `Server.viewerNotifications` and `Room.viewerNotifications` connections and read their `totalCount`.
 
-**Users** ([`query.graphqls`](../cli/internal/graph/query.graphqls))
+**Users and bots** ([`query.graphqls`](../cli/internal/graph/query.graphqls), [`bots.graphqls`](../cli/internal/graph/bots.graphqls))
 
-| Query                                   | Description                                                            |
-| --------------------------------------- | ---------------------------------------------------------------------- |
-| `user(userId)`                          | Authenticated lookup of a user by ID.                                  |
-| `userByLogin(login)`                    | Authenticated lookup of a user by login (returns null if not found).   |
-| `server.members(search, limit, offset)` | Canonical paginated member directory (authenticated users).             |
+| Query                                   | Description                                                                       |
+| --------------------------------------- | --------------------------------------------------------------------------------- |
+| `user(userId)`                          | Authenticated lookup of a user by ID.                                             |
+| `userByLogin(login)`                    | Authenticated lookup of a user by login (returns null if not found).              |
+| `server.members(search, limit, offset)` | Canonical paginated member directory (authenticated users, including bots).       |
+| `bots`                                  | Bot accounts the caller owns or can manage.                            |
+| `botTokens(botUserId)`                  | Named API-token metadata for a bot the caller can manage.              |
 
 **Rooms** ([`query.graphqls`](../cli/internal/graph/query.graphqls), [`room.graphqls`](../cli/internal/graph/room.graphqls))
 
@@ -647,11 +651,12 @@ survives restart but is not content/domain history. See
 | `password_reset.{hmac}` | Password reset token JSON. Uses per-key 1-hour TTL. |
 | `account_deletion_token.{hmac}` | Account deletion confirmation token JSON. Uses per-key 15-minute TTL. |
 | `session.{hmac}` | Opaque bearer auth token JSON with the user auth generation it was issued against. Uses per-key `auth.token_ttl` (default 90 days); successful validation refreshes the key with a new per-key TTL for sliding-window expiry. Password resets, password changes, and account deletion revoke all older bearer tokens by advancing the user's auth generation through durable user events; scans of `session.*` delete matching records as cleanup. |
+| `bot_token.{hmac}` | Bot API-token JSON with bot user ID, token name, creator, created time, nullable expiry, last-used time, and revocation metadata. Finite tokens use per-key TTL until their fixed expiry; indefinite tokens have no TTL unless revoked or deleted. Validation rejects revoked records and updates last-used metadata without extending fixed expiry. |
 | `grant.{hmac}` | OAuth authorization code JSON with the user auth generation it was issued against. Uses per-key 5-minute TTL and is deleted on exchange attempt. |
 | `link_preview.{urlHash}` | Cached link preview metadata (protobuf `CachedLinkPreview`) keyed by SHA-256 of the normalized URL. Successful previews use per-key 24-hour TTL; failed fetches use per-key 1-hour TTL. |
 | `dek.{contentKeyRef}` | Wrapped purpose-scoped app DEK record (protobuf `UserDataEncryptionKey`). No TTL; shredded on account deletion. |
 
-Token HMAC keys are derived with `[core].secret_key` and the token family as a domain separator. Backups include `RUNTIME_STATE`, so sessions and pending links survive restore only when the same `core.secret_key` is kept; backup archives do not contain raw bearer tokens or raw link/code values. Backups also include wrapped app DEK records, but those records cannot decrypt content without the KEKs in `ENCRYPTION_KEYS` or an external KMS.
+Token HMAC keys are derived with `[core].secret_key` and the token family as a domain separator. Backups include `RUNTIME_STATE`, so sessions and pending links survive restore only when the same `core.secret_key` is kept; backup archives do not contain raw bearer tokens, raw bot API tokens, or raw link/code values. Backups also include wrapped app DEK records, but those records cannot decrypt content without the KEKs in `ENCRYPTION_KEYS` or an external KMS.
 
 **MEMORY_CACHE keys:**
 

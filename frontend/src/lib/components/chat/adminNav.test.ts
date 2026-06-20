@@ -20,6 +20,8 @@ function server(overrides: Partial<AdminNavServerPermissions> = {}): AdminNavSer
     canAdminViewRoles: false,
     canAdminViewAudit: false,
     canAdminViewSystem: false,
+    canCreateBots: false,
+    canManageBots: false,
     ...overrides
   };
 }

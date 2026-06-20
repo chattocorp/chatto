@@ -38,6 +38,14 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **Server** — Top-level Chatto deployment: one process, one NATS account, one membership boundary. Formerly called *Instance* in the codebase. See [ADR-029](adr/ADR-029-instance-to-server-rename.md).
 
+**User** — Account identity visible in Chatto: member directory entries, message authors, mentions, profiles, and permission subjects. Users can be human-operated or bot accounts.
+
+**Bot Account** — Automation user with `kind: BOT`. It appears anywhere a normal user appears, uses normal roles and permissions, has a human owner, and authenticates only through bot API tokens. See [FDR-028](fdr/FDR-028-bot-accounts.md).
+
+**Bot Owner** — Human user responsible for a bot account. The owner can manage the bot's tokens and owned bots are deleted before the owner account is deleted.
+
+**Bot API Token** — Named opaque credential for a bot account, returned once on creation with a `cht_BT...` prefix. Token metadata lives in `RUNTIME_STATE`; raw token secrets are not stored in `EVT`, logs, or GraphQL metadata.
+
 **Space** — Legacy tier between server and room. Being consolidated into the server concept; in most deployments there is exactly one space per server (the *primary space*). See [ADR-027](adr/ADR-027-instance-space-server-consolidation.md).
 
 **Primary Space** — Transitional config-designated "the one space that matters" within a server. Bridge construct used while Instance + Space collapse into Server. See [ADR-027](adr/ADR-027-instance-space-server-consolidation.md).

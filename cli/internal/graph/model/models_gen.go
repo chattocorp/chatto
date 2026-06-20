@@ -159,6 +159,30 @@ type BanRoomMemberInput struct {
 	ExpiresAt *timestamppb.Timestamp `json:"expiresAt,omitempty"`
 }
 
+// Metadata for a named bot API token. The raw token secret is shown only when created.
+type BotToken struct {
+	// Stable token metadata ID.
+	ID string `json:"id"`
+	// Human-readable token name.
+	Name string `json:"name"`
+	// The bot account this token authenticates as.
+	Bot *corev1.User `json:"bot"`
+	// The user who created the token.
+	CreatedBy *corev1.User `json:"createdBy,omitempty"`
+	// When the token was created.
+	CreatedAt *timestamppb.Timestamp `json:"createdAt"`
+	// When the token expires. Null means indefinite.
+	ExpiresAt *timestamppb.Timestamp `json:"expiresAt,omitempty"`
+	// When the token was most recently used, if known.
+	LastUsedAt *timestamppb.Timestamp `json:"lastUsedAt,omitempty"`
+	// When the token was revoked, if it has been revoked.
+	RevokedAt *timestamppb.Timestamp `json:"revokedAt,omitempty"`
+	// The user who revoked the token, if known.
+	RevokedBy *corev1.User `json:"revokedBy,omitempty"`
+	// A short machine-readable revocation reason, if known.
+	RevokeReason *string `json:"revokeReason,omitempty"`
+}
+
 // A participant currently in a voice call.
 type CallParticipant struct {
 	// The user currently participating in the call.
@@ -222,6 +246,26 @@ type ConnectionInfo struct {
 	Rtt string `json:"rtt"`
 }
 
+// Input for creating a bot account owned by the caller.
+type CreateBotInput struct {
+	// Unique login for the bot account.
+	Login string `json:"login"`
+	// Display name for the bot account.
+	DisplayName string `json:"displayName"`
+}
+
+// Input for creating a named bot API token.
+type CreateBotTokenInput struct {
+	// The bot account to create a token for.
+	BotUserID string `json:"botUserId"`
+	// Human-readable token name.
+	Name string `json:"name"`
+	// Expiry preset selected by the creator.
+	Expiry BotTokenExpiryPreset `json:"expiry"`
+	// Custom expiration timestamp. Required when `expiry` is `CUSTOM`.
+	CustomExpiresAt *timestamppb.Timestamp `json:"customExpiresAt,omitempty"`
+}
+
 // Input for creating a new role.
 type CreateRoleInput struct {
 	// Role identifier (lowercase alphanumeric + underscores, max 32 chars).
@@ -261,6 +305,14 @@ type CreateSidebarLinkInput struct {
 	Label string `json:"label"`
 	// Absolute http(s) URL.
 	URL string `json:"url"`
+}
+
+// A newly created bot API token with its one-time secret.
+type CreatedBotToken struct {
+	// Token metadata.
+	Token *BotToken `json:"token"`
+	// The raw token secret. It is returned only once.
+	Secret string `json:"secret"`
 }
 
 // Input for deleting an attachment from a message.
@@ -851,6 +903,14 @@ type ReorderSidebarItemsInGroupInput struct {
 	GroupID string `json:"groupId"`
 	// Mixed room/link entries in the desired display order, first to last.
 	Items []*SidebarGroupEntryInput `json:"items"`
+}
+
+// Input for revoking a bot API token.
+type RevokeBotTokenInput struct {
+	// The bot account that owns the token.
+	BotUserID string `json:"botUserId"`
+	// The token metadata ID to revoke.
+	TokenID string `json:"tokenId"`
 }
 
 // Input for revoking a permission from a role.
@@ -1454,6 +1514,73 @@ type ViewerNotificationPreference struct {
 type VoiceCallIntentInput struct {
 	// The room whose voice call is being joined or left.
 	RoomID string `json:"roomId"`
+}
+
+// Expiry choices for a newly created bot API token.
+type BotTokenExpiryPreset string
+
+const (
+	// Expire the token 30 days after creation.
+	BotTokenExpiryPresetDays30 BotTokenExpiryPreset = "DAYS_30"
+	// Expire the token 90 days after creation.
+	BotTokenExpiryPresetDays90 BotTokenExpiryPreset = "DAYS_90"
+	// Expire the token 365 days after creation.
+	BotTokenExpiryPresetDays365 BotTokenExpiryPreset = "DAYS_365"
+	// Never expire the token automatically.
+	BotTokenExpiryPresetIndefinite BotTokenExpiryPreset = "INDEFINITE"
+	// Use the `customExpiresAt` timestamp.
+	BotTokenExpiryPresetCustom BotTokenExpiryPreset = "CUSTOM"
+)
+
+var AllBotTokenExpiryPreset = []BotTokenExpiryPreset{
+	BotTokenExpiryPresetDays30,
+	BotTokenExpiryPresetDays90,
+	BotTokenExpiryPresetDays365,
+	BotTokenExpiryPresetIndefinite,
+	BotTokenExpiryPresetCustom,
+}
+
+func (e BotTokenExpiryPreset) IsValid() bool {
+	switch e {
+	case BotTokenExpiryPresetDays30, BotTokenExpiryPresetDays90, BotTokenExpiryPresetDays365, BotTokenExpiryPresetIndefinite, BotTokenExpiryPresetCustom:
+		return true
+	}
+	return false
+}
+
+func (e BotTokenExpiryPreset) String() string {
+	return string(e)
+}
+
+func (e *BotTokenExpiryPreset) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = BotTokenExpiryPreset(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid BotTokenExpiryPreset", str)
+	}
+	return nil
+}
+
+func (e BotTokenExpiryPreset) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *BotTokenExpiryPreset) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e BotTokenExpiryPreset) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
 }
 
 // Fit mode for image transformations.

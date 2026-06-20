@@ -98,6 +98,11 @@ func NewAuthToken() string {
 	return "cht_" + newID("AT")
 }
 
+// NewBotToken generates a new bot API token with "cht_BT" prefix.
+func NewBotToken() string {
+	return "cht_" + newID("BT")
+}
+
 // NewCookieSessionID generates a new opaque cookie session ID with "cht_CS" prefix.
 func NewCookieSessionID() string {
 	return "cht_" + newID("CS")

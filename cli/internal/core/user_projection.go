@@ -180,11 +180,20 @@ func (p *UserProjection) applyAccountCreated(eventID string, e *corev1.UserAccou
 		Login:       login,
 		DisplayName: displayName,
 		CreatedAt:   envelopeCreatedAt,
+		Kind:        normalizeUserKind(e.GetKind()),
+		BotOwnerId:  e.GetBotOwnerId(),
 	}
 	u.deleted = false
 	if login != "" {
 		p.loginIndex[strings.ToLower(login)] = e.GetUserId()
 	}
+}
+
+func normalizeUserKind(kind corev1.UserKind) corev1.UserKind {
+	if kind == corev1.UserKind_USER_KIND_BOT {
+		return corev1.UserKind_USER_KIND_BOT
+	}
+	return corev1.UserKind_USER_KIND_HUMAN
 }
 
 func (p *UserProjection) applyLoginChanged(eventID string, e *corev1.UserLoginChangedEvent, envelopeCreatedAt *timestamppb.Timestamp) {

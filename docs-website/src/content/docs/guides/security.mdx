@@ -37,6 +37,12 @@ Browser sessions use signed cookies with the following options:
 
 Session cookies are always signed with `webserver.cookie_signing_secret`. They are additionally **encrypted** if `webserver.cookie_encryption_secret` is set. When the encryption secret is missing, Chatto logs a startup warning — running `chatto init` on a fresh server generates both secrets automatically.
 
+### Bot API tokens
+
+Bot accounts do not use passwords, OAuth, or browser cookie sessions. They authenticate to GraphQL and API upload paths with named bot API tokens whose raw secret is shown only once on creation and starts with `cht_BT`.
+
+Each token has creator-chosen expiry: 30 days, 90 days, 365 days, indefinite, or a custom date. Operators can set `auth.bot_token_max_ttl` to disallow indefinite tokens and cap every preset/custom expiry. Token records live in `RUNTIME_STATE` under HMAC-derived keys with safe metadata such as name, created time, last-used time, expiry, and revocation state; raw token secrets are not written to events, logs, or GraphQL metadata.
+
 ### Email verification
 
 Registration sends a six-digit verification code with a 15-minute TTL. An email address must be verified before it can be used for password reset or for matching against the `owners.emails` config (see [Authorization](#authorization) below). Email lookup is case-insensitive — addresses are normalized and indexed by SHA-256 hash for the lookup bucket.
@@ -158,7 +164,7 @@ Without `--include-keys`, the `ENCRYPTION_KEYS` bucket is deliberately excluded 
 
 - `ENCRYPTION_KEYS` — keeps backup archives unable to decrypt their own message bodies or durable user PII if leaked.
 
-`RUNTIME_STATE` is included in backups so active sessions and pending registration, email-verification, password-reset, account-deletion, and OAuth-code flows can survive a restore. Credential entries in that bucket use HMAC-derived keys, so backup archives do not contain redeemable raw bearer tokens, verification codes, links, or OAuth codes. Restoring with a different `core.secret_key` intentionally invalidates those credentials.
+`RUNTIME_STATE` is included in backups so active sessions and pending registration, email-verification, password-reset, account-deletion, bot-token, and OAuth-code flows can survive a restore. Credential entries in that bucket use HMAC-derived keys, so backup archives do not contain redeemable raw bearer tokens, bot API tokens, links, or OAuth codes. Restoring with a different `core.secret_key` intentionally invalidates those credentials.
 
 Encryption key records can also be exported and imported separately with `chatto keys export` / `chatto keys import`, again age-encrypted. Use this advanced split-backup flow only when you intentionally want data archives and key material stored or retained separately. Restores need the data backup, including the wrapped DEK records in `RUNTIME_STATE`, plus the KEKs from the separate key export to rebuild encrypted profile indexes as well as message bodies. The same passphrase format means a standalone `age` CLI can inspect or re-encrypt any Chatto archive.
 
@@ -223,6 +229,7 @@ For HSTS, CSP, and other policy headers, add them at your reverse proxy.
 | Per-user KEK records                 | `ENCRYPTION_KEYS` (NATS KV)                 | No (export separately) |
 | Wrapped app DEK records              | `RUNTIME_STATE` (`dek.*` protobuf records)  | Yes (unusable without KEKs) |
 | Bearer/session token verifiers      | `RUNTIME_STATE` (HMAC-keyed, with TTL)      | Yes (not raw tokens) |
+| Bot API token metadata              | `RUNTIME_STATE` (HMAC-keyed, fixed expiry)  | Yes (not raw tokens) |
 | Account-flow code/link verifiers    | `RUNTIME_STATE` (HMAC-keyed, with TTL)      | Yes (not raw codes/links) |
 | Core secret key                     | `chatto.toml` (`core.secret_key`)           | n/a            |
 | Cookie signing secret               | `chatto.toml` (`webserver.cookie_signing_secret`) | n/a       |

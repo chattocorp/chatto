@@ -69,6 +69,8 @@ message UserAccountCreatedEvent {
   string user_id = 1;
   EncryptedUserString encrypted_login = 10;
   EncryptedUserString encrypted_display_name = 11;
+  UserKind kind = 12;
+  string bot_owner_id = 13;
 }
 
 message UserLoginChangedEvent {

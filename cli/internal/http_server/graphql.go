@@ -126,7 +126,7 @@ func (s *HTTPServer) setupGraphQLAPI(allowedOrigins []string) {
 			if user == nil {
 				if tokenRaw, ok := initPayload["token"]; ok {
 					if token, ok := tokenRaw.(string); ok && token != "" {
-						userID, err := s.core.ValidateAuthToken(ctx, token)
+						userID, err := s.core.ValidateAPIAuthToken(ctx, token)
 						if err == nil {
 							loadedUser, err := s.core.GetUser(ctx, userID)
 							if err == nil {

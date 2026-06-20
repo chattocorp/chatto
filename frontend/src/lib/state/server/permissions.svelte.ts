@@ -16,6 +16,8 @@ export type ViewerData = {
   canAdminManageRoles: boolean;
   canAdminViewSystem: boolean;
   canAdminViewAudit: boolean;
+  canCreateBots: boolean;
+  canManageBots: boolean;
 };
 
 /**
@@ -36,7 +38,9 @@ const EMPTY_PERMISSIONS: ServerPermissions = {
   canAdminViewRoles: false,
   canAdminManageRoles: false,
   canAdminViewSystem: false,
-  canAdminViewAudit: false
+  canAdminViewAudit: false,
+  canCreateBots: false,
+  canManageBots: false
 };
 
 /**
@@ -74,7 +78,9 @@ const PERMISSION_TO_FIELD: Record<string, keyof ViewerData> = {
   'role.assign': 'canAdminManageUsers',
   'role.manage': 'canAdminManageRoles',
   'admin.view-system': 'canAdminViewSystem',
-  'admin.view-audit': 'canAdminViewAudit'
+  'admin.view-audit': 'canAdminViewAudit',
+  'bot.create': 'canCreateBots',
+  'bot.manage': 'canManageBots'
 };
 
 export function viewerHasPermission(viewer: ViewerData, perm: string): boolean {

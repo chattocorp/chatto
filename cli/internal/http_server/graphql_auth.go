@@ -22,7 +22,7 @@ func (s *HTTPServer) injectUserIntoContext(c *gin.Context) *http.Request {
 	if authHeader := c.GetHeader("Authorization"); authHeader != "" {
 		if token, ok := strings.CutPrefix(authHeader, "Bearer "); ok && strings.TrimSpace(token) != "" {
 			token = strings.TrimSpace(token)
-			userID, err := s.core.ValidateAuthToken(ctx, token)
+			userID, err := s.core.ValidateAPIAuthToken(ctx, token)
 			if err == nil {
 				user, err := s.core.GetUser(ctx, userID)
 				if err == nil {
