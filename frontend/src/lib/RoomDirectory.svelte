@@ -19,7 +19,6 @@ registry.
   import { toast } from '$lib/ui/toast';
   import { Button } from '$lib/ui/form';
   import Dialog from '$lib/ui/Dialog.svelte';
-  import Pill from '$lib/ui/Pill.svelte';
   import type { RoomsStore } from '$lib/state/server/rooms.svelte';
   import type {
     RoomDirectoryStore,
@@ -215,16 +214,6 @@ registry.
         <div class="min-w-0 flex-1">
           <div class="flex min-w-0 items-center gap-2">
             <span class="min-w-0 truncate">{room.name}</span>
-            {#if room.isUniversal}
-              <Pill
-                tone="accent"
-                title="Universal rooms are joined automatically"
-                class="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5"
-              >
-                <span class="iconify uil--globe text-xs" aria-hidden="true"></span>
-                Universal
-              </Pill>
-            {/if}
           </div>
           {#if room.description}
             <div class="truncate text-xs font-normal text-muted/80">{room.description}</div>

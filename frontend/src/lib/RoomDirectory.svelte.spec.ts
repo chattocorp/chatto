@@ -92,6 +92,8 @@ describe('RoomDirectory', () => {
     flushSync();
 
     expect(container.textContent).toContain('Universal');
+    expect(container.textContent?.match(/Universal/g)?.length).toBe(1);
+    expect(container.textContent).not.toContain('Joined');
     expect(container.textContent).not.toContain('Leave');
     expect(findButton(container, 'Universal')).toBeUndefined();
   });
