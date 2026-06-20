@@ -30,7 +30,8 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { graphql } from '$lib/gql';
   import { toast } from '$lib/ui/toast';
-  import { getEmojiByName } from '$lib/emoji';
+  import FloatingTooltip from '$lib/ui/FloatingTooltip.svelte';
+  import { getEmojiByName, getEmojiDisplayName } from '$lib/emoji';
 
   // Extract the MessagePostedEvent type from the union
   type MessagePostedEvent = Extract<
@@ -77,6 +78,12 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
   } = $props();
 
   const connection = useConnection();
+  const reactionTooltipId = `reaction-tooltip-${crypto.randomUUID().slice(0, 8)}`;
+  let tooltipReactionEmoji = $state<string | null>(null);
+  let tooltipAnchor = $state<{ top: number; bottom: number; left: number } | null>(null);
+  const tooltipReaction = $derived(
+    tooltipReactionEmoji ? (reactions.find((r) => r.emoji === tooltipReactionEmoji) ?? null) : null
+  );
 
   const addReactionMutation = graphql(`
     mutation AddReaction($input: AddReactionInput!) {
@@ -99,6 +106,20 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
       return names.join(', ') + ` + ${remaining}`;
     }
     return names.join(', ');
+  }
+
+  function showReactionTooltip(e: MouseEvent | FocusEvent, reaction: ReactionSummary) {
+    if (reaction.users.length === 0) return;
+
+    const button = e.currentTarget as HTMLElement;
+    const rect = button.getBoundingClientRect();
+    tooltipReactionEmoji = reaction.emoji;
+    tooltipAnchor = { top: rect.top, bottom: rect.bottom, left: rect.left };
+  }
+
+  function hideReactionTooltip() {
+    tooltipReactionEmoji = null;
+    tooltipAnchor = null;
   }
 
   async function toggleReaction(reaction: ReactionSummary) {
@@ -207,16 +228,11 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
 
   <!-- Reaction pills -->
   {#each reactions as reaction (reaction.emoji)}
-    <span class="group/reaction relative">
-      {#if reaction.users.length > 0}
-        <span
-          class="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 rounded-md bg-surface-100 px-3 py-2 text-sm whitespace-nowrap text-text opacity-0 shadow-xl transition-opacity group-hover/reaction:opacity-100"
-          role="tooltip"
-        >
-          {formatReactionUsers(reaction.users, reaction.count)}
-        </span>
-      {/if}
-
+    <span
+      role="group"
+      onmouseenter={(e) => showReactionTooltip(e, reaction)}
+      onmouseleave={hideReactionTooltip}
+    >
       <button
         class={[
           baseButtonClass,
@@ -225,7 +241,10 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
           reaction.hasReacted ? 'border-accent/50' : 'border-transparent'
         ]}
         onclick={() => canReact && toggleReaction(reaction)}
+        onfocus={(e) => showReactionTooltip(e, reaction)}
+        onblur={hideReactionTooltip}
         disabled={!canReact}
+        aria-describedby={tooltipReactionEmoji === reaction.emoji ? reactionTooltipId : undefined}
         aria-label="{reaction.hasReacted
           ? 'Remove'
           : 'Add'} {getEmojiByName(reaction.emoji) ?? reaction.emoji} reaction ({reaction.count})"
@@ -248,3 +267,16 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
     </button>
   {/if}
 </div>
+
+<FloatingTooltip
+  open={!!tooltipReaction && !!tooltipAnchor}
+  anchor={tooltipAnchor}
+  id={reactionTooltipId}
+>
+  {#if tooltipReaction}
+    <span class="whitespace-nowrap">
+      <strong class="font-semibold">{getEmojiDisplayName(tooltipReaction.emoji)}</strong>
+      <span> · {formatReactionUsers(tooltipReaction.users, tooltipReaction.count)}</span>
+    </span>
+  {/if}
+</FloatingTooltip>
