@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -104,6 +103,10 @@ type Projector struct {
 	proj   Projection
 	logger Logger
 
+	subjects        []string
+	replaySubjects  []string
+	subjectMatchers []compiledSubjectFilter
+
 	mu        sync.Mutex
 	lastSeq   uint64
 	waiters   []seqWaiter
@@ -151,12 +154,17 @@ type seqWaiter struct {
 // NewProjector binds a projection to a stream. Does not start the consumer
 // — call Run for that.
 func NewProjector(js jetstream.JetStream, stream jetstream.Stream, proj Projection, logger Logger) *Projector {
+	subjects := append([]string(nil), proj.Subjects()...)
+	replaySubjects := append([]string(nil), projectionReplaySubjects(proj, subjects)...)
 	return &Projector{
-		js:       js,
-		stream:   stream,
-		proj:     proj,
-		logger:   logger,
-		failedCh: make(chan struct{}),
+		js:              js,
+		stream:          stream,
+		proj:            proj,
+		logger:          logger,
+		subjects:        subjects,
+		replaySubjects:  replaySubjects,
+		subjectMatchers: compileSubjectFilters(subjects),
+		failedCh:        make(chan struct{}),
 	}
 }
 
@@ -212,12 +220,12 @@ func (p *Projector) Started() bool {
 // Subjects returns the subject filters this projector consumes.
 // The returned slice is a copy so callers cannot mutate projection state.
 func (p *Projector) Subjects() []string {
-	return append([]string(nil), p.proj.Subjects()...)
+	return append([]string(nil), p.subjects...)
 }
 
 // ReplaySubjects returns the physical stream filters used for replay.
 func (p *Projector) ReplaySubjects() []string {
-	return append([]string(nil), projectionReplaySubjects(p.proj)...)
+	return append([]string(nil), p.replaySubjects...)
 }
 
 // AppendAndWait publishes an event for an aggregate and blocks until
@@ -338,14 +346,13 @@ func (p *Projector) waitForSeq(ctx context.Context, seq uint64) error {
 }
 
 func (p *Projector) validateConsumesSubject(subject string) error {
-	subjects := p.proj.Subjects()
-	for _, filter := range subjects {
-		if subjectMatchesFilter(filter, subject) {
+	for i := range p.subjectMatchers {
+		if p.subjectMatchers[i].matches(subject) {
 			return nil
 		}
 	}
 	return fmt.Errorf("%w: subject %q not matched by filters %v",
-		ErrProjectionSubjectNotConsumed, subject, subjects)
+		ErrProjectionSubjectNotConsumed, subject, p.subjects)
 }
 
 func (p *Projector) validateSeqSubject(ctx context.Context, pos StreamPosition) error {
@@ -364,24 +371,75 @@ func (p *Projector) validateSeqSubject(ctx context.Context, pos StreamPosition) 
 }
 
 func subjectMatchesFilter(filter, subject string) bool {
-	if filter == "" || subject == "" {
+	return compileSubjectFilter(filter).matches(subject)
+}
+
+type compiledSubjectFilter struct {
+	raw    string
+	tokens []string
+}
+
+func compileSubjectFilters(filters []string) []compiledSubjectFilter {
+	compiled := make([]compiledSubjectFilter, 0, len(filters))
+	for _, filter := range filters {
+		compiled = append(compiled, compileSubjectFilter(filter))
+	}
+	return compiled
+}
+
+func compileSubjectFilter(filter string) compiledSubjectFilter {
+	return compiledSubjectFilter{
+		raw:    filter,
+		tokens: splitSubjectTokens(filter),
+	}
+}
+
+func splitSubjectTokens(subject string) []string {
+	if subject == "" {
+		return nil
+	}
+	tokenCount := 1
+	for i := 0; i < len(subject); i++ {
+		if subject[i] == '.' {
+			tokenCount++
+		}
+	}
+	tokens := make([]string, 0, tokenCount)
+	start := 0
+	for i := 0; i <= len(subject); i++ {
+		if i == len(subject) || subject[i] == '.' {
+			tokens = append(tokens, subject[start:i])
+			start = i + 1
+		}
+	}
+	return tokens
+}
+
+func (f compiledSubjectFilter) matches(subject string) bool {
+	if f.raw == "" || subject == "" {
 		return false
 	}
-	filterTokens := strings.Split(filter, ".")
-	subjectTokens := strings.Split(subject, ".")
-
-	for i, token := range filterTokens {
+	pos := 0
+	for i, token := range f.tokens {
 		if token == ">" {
-			return i == len(filterTokens)-1 && len(subjectTokens) > i
+			return i == len(f.tokens)-1 && pos < len(subject)
 		}
-		if i >= len(subjectTokens) {
+		if pos > len(subject) {
 			return false
 		}
-		if token != "*" && token != subjectTokens[i] {
+		end := pos
+		for end < len(subject) && subject[end] != '.' {
+			end++
+		}
+		if end == pos {
 			return false
 		}
+		if token != "*" && token != subject[pos:end] {
+			return false
+		}
+		pos = end + 1
 	}
-	return len(subjectTokens) == len(filterTokens)
+	return pos == len(subject)+1
 }
 
 // WaitForCurrent blocks until the projection has applied the latest
@@ -413,7 +471,7 @@ type projectionTarget struct {
 
 func (p *Projector) currentTarget(ctx context.Context) (projectionTarget, error) {
 	var target projectionTarget
-	for _, subject := range p.proj.Subjects() {
+	for _, subject := range p.subjects {
 		msg, err := p.stream.GetLastMsgForSubject(ctx, subject)
 		if err != nil {
 			if errors.Is(err, jetstream.ErrMsgNotFound) {
@@ -428,16 +486,16 @@ func (p *Projector) currentTarget(ctx context.Context) (projectionTarget, error)
 	return target, nil
 }
 
-func projectionReplaySubjects(proj Projection) []string {
+func projectionReplaySubjects(proj Projection, subjects []string) []string {
 	if replay, ok := proj.(ReplaySubjectProjection); ok {
 		return replay.ReplaySubjects()
 	}
-	return proj.Subjects()
+	return subjects
 }
 
-func projectionConsumesSubject(proj Projection, subject string) bool {
-	for _, filter := range proj.Subjects() {
-		if subjectMatchesFilter(filter, subject) {
+func (p *Projector) consumesSubject(subject string) bool {
+	for i := range p.subjectMatchers {
+		if p.subjectMatchers[i].matches(subject) {
 			return true
 		}
 	}
@@ -510,7 +568,7 @@ func (p *Projector) Run(ctx context.Context) error {
 	p.mu.Unlock()
 
 	cons, err := p.stream.OrderedConsumer(ctx, jetstream.OrderedConsumerConfig{
-		FilterSubjects:    projectionReplaySubjects(p.proj),
+		FilterSubjects:    p.replaySubjects,
 		DeliverPolicy:     jetstream.DeliverAllPolicy,
 		InactiveThreshold: 30 * time.Second,
 	})
@@ -568,7 +626,7 @@ func (p *Projector) handleMessage(msg jetstream.Msg) {
 		return
 	}
 
-	if !projectionConsumesSubject(p.proj, msg.Subject()) {
+	if !p.consumesSubject(msg.Subject()) {
 		return
 	}
 
@@ -636,7 +694,7 @@ func (p *Projector) maybeCompleteStartup(now time.Time) {
 			"messages_per_second", rate,
 			"last_seq", lastSeq,
 			"target_seq", targetSeq,
-			"subjects", p.proj.Subjects(),
+			"subjects", p.subjects,
 		)
 	}
 }
@@ -795,9 +853,10 @@ func handleSharedProjectorMessage(msg jetstream.Msg, projectors []*Projector, fa
 	}
 
 	now := time.Now()
-	consumers := make([]*Projector, 0, len(projectors))
+	var consumerBuf [16]*Projector
+	consumers := consumerBuf[:0]
 	for _, projector := range projectors {
-		if projectionConsumesSubject(projector.proj, msg.Subject()) {
+		if projector.consumesSubject(msg.Subject()) {
 			consumers = append(consumers, projector)
 		}
 	}
