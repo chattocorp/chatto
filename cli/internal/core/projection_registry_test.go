@@ -2,6 +2,7 @@ package core
 
 import (
 	"regexp"
+	"slices"
 	"testing"
 )
 
@@ -91,31 +92,29 @@ func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 	}
 }
 
-func TestProjectionRunGroupsShareIdenticalSubjectConsumers(t *testing.T) {
+func TestProjectionRunGroupsUseSingleEVTReplayConsumer(t *testing.T) {
 	core, _ := setupTestCore(t)
 
 	groups := projectionRunGroups(core.projections)
-	if len(groups) >= len(core.projections) {
-		t.Fatalf("projection run groups = %d, registered projections = %d; want some shared groups", len(groups), len(core.projections))
+	if len(groups) != 1 {
+		t.Fatalf("projection run groups = %d, want 1", len(groups))
 	}
 
-	var roomOnly, timelineThreads bool
-	for _, group := range groups {
-		names := make(map[string]bool, len(group.names))
-		for _, name := range group.names {
-			names[name] = true
-		}
-		if names["Room Directory"] && names["Call State"] && names["Reactions"] && len(names) == 3 {
-			roomOnly = true
-		}
-		if names["Room Timeline"] && names["Threads"] && len(names) == 2 {
-			timelineThreads = true
-		}
+	group := groups[0]
+	if !slices.Equal(group.replaySubjects, []string{"evt.>"}) {
+		t.Fatalf("replay subjects = %v, want [evt.>]", group.replaySubjects)
 	}
-	if !roomOnly {
-		t.Fatal("room-only projections were not grouped")
+	if len(group.projectors) != len(core.projections) {
+		t.Fatalf("group projectors = %d, registered projections = %d", len(group.projectors), len(core.projections))
 	}
-	if !timelineThreads {
-		t.Fatal("room timeline and focused threads projections should share a replay group")
+
+	names := make(map[string]bool, len(group.names))
+	for _, name := range group.names {
+		names[name] = true
+	}
+	for _, want := range []string{"Room Timeline", "Threads", "Room Directory", "Reactions", "Call State", "Mentionables"} {
+		if !names[want] {
+			t.Fatalf("single replay group missing %q: %v", want, group.names)
+		}
 	}
 }

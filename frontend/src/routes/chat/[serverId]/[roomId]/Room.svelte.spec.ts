@@ -75,7 +75,13 @@ vi.mock('$lib/navigation', () => ({
 vi.mock('$lib/hooks', () => ({
   useRoomData: () => ({
     roomData: {
-      room: { id: 'room-1', name: 'general', type: 'CHANNEL', isUniversal: false },
+      room: {
+        id: 'room-1',
+        name: 'general',
+        description: 'Room description',
+        type: 'CHANNEL',
+        isUniversal: false
+      },
       spaceName: 'Test Space',
       canPostMessage: true,
       canPostInThread: true,

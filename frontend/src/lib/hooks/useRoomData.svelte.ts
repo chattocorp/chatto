@@ -7,7 +7,13 @@ import { useConnection } from '$lib/state/server/connection.svelte';
 import { untrack } from 'svelte';
 
 export type RoomData = {
-  room: { id: string; name: string; type: string; isUniversal: boolean };
+  room: {
+    id: string;
+    name: string;
+    type: string;
+    description?: string | null;
+    isUniversal: boolean;
+  };
   spaceName: string | null;
   canPostMessage: boolean;
   canPostInThread: boolean;
@@ -36,6 +42,7 @@ const GetRoomQuery = graphql(`
     room(roomId: $roomId) {
       id
       name
+      description
       type
       isUniversal
       viewerCanPostMessage
@@ -61,6 +68,7 @@ const GetRoomCompatibilityQuery = graphql(`
     room(roomId: $roomId) {
       id
       name
+      description
       type
       viewerCanPostMessage
       viewerCanPostInThread
@@ -175,6 +183,7 @@ export function useRoomData(getProps: () => { roomId: string }) {
           room: {
             id: loadedRoom.id,
             name: loadedRoom.name,
+            description: loadedRoom.description,
             type: loadedRoom.type,
             isUniversal: roomIsUniversal(loadedRoom)
           },

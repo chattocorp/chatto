@@ -9,6 +9,10 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { serverIdToSegment } from '$lib/navigation';
+  import {
+    sidebarLinkAnchorAttributes,
+    sidebarLinkTarget
+  } from '$lib/navigation/sidebarLinkTarget';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import CollapsibleGroup from '$lib/ui/CollapsibleGroup.svelte';
@@ -21,7 +25,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   } from '$lib/storage/roomSidebarPanel';
   import { serverStorageKey } from '$lib/storage/serverStorage';
   import { useFragment } from './gql';
-  import { RoomType } from '$lib/gql/graphql';
+  import { PresenceStatus, RoomType, type UserAvatarUserFragment } from '$lib/gql/graphql';
   import UserAvatar, { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
   import NotificationBadge from '$lib/ui/NotificationBadge.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
@@ -33,6 +37,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     type RoomsListGroup,
     type RoomsListGroupItem
   } from '$lib/state/server/rooms.svelte';
+  import type { CallRoomParticipant } from '$lib/state/server/activeCallRooms.svelte';
 
   // No props — RoomList reads everything from the active server's stores.
   // All store references go through `stores` ($derived), so when the active
@@ -41,6 +46,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
   const activeServerId = $derived(getActiveServer());
   const serverSegment = $derived(serverIdToSegment(activeServerId));
+  const activeServer = $derived(serverRegistry.getServer(activeServerId));
+  const activeServerBaseURL = $derived(activeServer?.url ?? null);
   const stores = $derived(serverRegistry.getStore(activeServerId));
   const currentUserState = $derived(stores.currentUser);
   const notificationStore = $derived(stores.notifications);
@@ -123,6 +130,18 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       return room.members.slice(0, 1);
     }
     return others.slice(0, 3);
+  }
+
+  function callParticipantAvatarUser(participant: CallRoomParticipant): UserAvatarUserFragment {
+    return {
+      __typename: 'User',
+      id: participant.userId,
+      login: participant.login,
+      displayName: participant.displayName,
+      deleted: false,
+      avatarUrl: participant.avatarUrl,
+      presenceStatus: PresenceStatus.Offline
+    };
   }
 
   // Whether a room should remain visible while its sidebar group is
@@ -304,29 +323,63 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
 {#snippet activeCallIcon()}
   <span
-    class="sidebar-icon relative text-accent"
+    class="relative sidebar-icon text-accent"
     aria-label="Active call"
     data-testid="room-call-icon"
   >
     <span class="relative inline-flex">
       <span
-        class="pane-header-icon-glyph absolute inset-0 animate-ping opacity-45 uil--phone"
+        class="absolute inset-0 pane-header-icon-glyph animate-ping opacity-45 uil--phone"
         aria-hidden="true"
         data-testid="active-call-pulse-icon"
       ></span>
-      <span
-        class="pane-header-icon-glyph relative text-accent uil--phone"
-        aria-hidden="true"
+      <span class="relative pane-header-icon-glyph text-accent uil--phone" aria-hidden="true"
       ></span>
     </span>
   </span>
+{/snippet}
+
+{#snippet activeCallParticipants(roomId: string)}
+  {@const participants = activeCallRooms.getParticipants(roomId)}
+  {#if participants.length > 0}
+    <div
+      class="hidden shrink-0 items-center -space-x-1 @min-[220px]:flex"
+      aria-label={`${participants.length} participants in call`}
+      data-testid="room-call-participants"
+    >
+      {#each participants.slice(0, 4) as participant, i (participant.userId)}
+        <span
+          class={[
+            'inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full ring-1 ring-background',
+            i === 2 ? 'hidden @min-[280px]:inline-flex' : '',
+            i === 3 ? 'hidden @min-[340px]:inline-flex' : ''
+          ]}
+          data-testid="room-call-participant-avatar"
+        >
+          <UserAvatar
+            user={callParticipantAvatarUser(participant)}
+            size="xs"
+            showPresence={false}
+          />
+        </span>
+      {/each}
+      {#if participants.length > 4}
+        <span
+          class="hidden h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-surface-200 px-1 text-[10px] leading-none font-medium text-muted ring-1 ring-background @min-[380px]:inline-flex"
+          data-testid="room-call-overflow"
+        >
+          +{participants.length - 4}
+        </span>
+      {/if}
+    </div>
+  {/if}
 {/snippet}
 
 {#snippet roomLink(room: RoomsListItem)}
   {@const hasActiveCall = activeCallRooms.has(room.id)}
   {@const isJoined = room.viewerIsMember}
   {@const rowClass = [
-    'sidebar-item group/badges',
+    '@container sidebar-item group/badges',
     room.id === activeRoomId ? 'bg-surface-100' : '',
     room.hasUnread && room.id !== activeRoomId && !notificationLevelStore.isRoomMuted(room.id)
       ? 'font-semibold'
@@ -340,9 +393,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     onclick={(e) => handleRoomLinkClick(e, room)}
     onkeydown={(e) => handleRoomLinkKeydown(e, room)}
   >
-    {#if isJoined && hasActiveCall}
-      {@render activeCallIcon()}
-    {:else if isJoined}
+    {#if isJoined}
       <span class="sidebar-icon text-muted">#</span>
     {:else if room.viewerCanJoinRoom}
       <span class="sidebar-icon text-muted">+</span>
@@ -350,6 +401,10 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       <span class="sidebar-icon iconify text-muted uil--lock"></span>
     {/if}
     <span class="flex-1 truncate">{room.name}</span>
+    {#if isJoined && hasActiveCall}
+      {@render activeCallParticipants(room.id)}
+      {@render activeCallIcon()}
+    {/if}
 
     <!-- Notification Indicator (warning color for mentions and thread replies) -->
     {#if isJoined && room.viewerNotificationCount > 0}
@@ -367,7 +422,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       <UnreadDot color="primary" testid="room-unread-dot" />
       <span class="sr-only">unread messages</span>
     {/if}
-
   </a>
 {/snippet}
 
@@ -376,7 +430,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   <a
     href={resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId: room.id })}
     class={[
-      'group/badges sidebar-item',
+      'group/badges @container sidebar-item',
       room.id === activeRoomId ? 'bg-surface-100' : '',
       room.hasUnread && room.id !== activeRoomId ? 'font-semibold' : ''
     ]}
@@ -384,16 +438,16 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     onclick={(e) => handleRoomLinkClick(e, room)}
     onkeydown={(e) => handleRoomLinkKeydown(e, room)}
   >
-    {#if hasActiveCall}
-      {@render activeCallIcon()}
-    {:else}
-      <div class="flex shrink-0 -space-x-1">
-        {#each dmAvatarParticipants(room) as participant (participant.id)}
-          <UserAvatar user={participant} size="xs" />
-        {/each}
-      </div>
-    {/if}
+    <div class="flex shrink-0 -space-x-1">
+      {#each dmAvatarParticipants(room) as participant (participant.id)}
+        <UserAvatar user={participant} size="xs" />
+      {/each}
+    </div>
     <span class="flex-1 truncate">{dmDisplayName(room)}</span>
+    {#if hasActiveCall}
+      {@render activeCallParticipants(room.id)}
+      {@render activeCallIcon()}
+    {/if}
 
     {#if room.viewerNotificationCount > 0}
       <button
@@ -409,7 +463,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       <UnreadDot color="primary" testid="dm-unread-dot" />
       <span class="sr-only">unread messages</span>
     {/if}
-
   </a>
 {/snippet}
 
@@ -420,14 +473,18 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       {@render roomLink(room)}
     {/if}
   {:else}
-    <button
-      type="button"
-      class="sidebar-item w-full text-left"
-      onclick={() => window.open(item.link.url, '_blank', 'noopener,noreferrer')}
+    {@const target = sidebarLinkTarget(item.link.url, activeServerBaseURL)}
+    <a
+      {...sidebarLinkAnchorAttributes(target)}
+      aria-disabled={!target.valid}
+      class={['sidebar-item w-full text-left', !target.valid && 'cursor-not-allowed opacity-60']}
+      onclick={(event) => {
+        if (!target.valid) event.preventDefault();
+      }}
     >
       <span class="sidebar-icon iconify text-muted uil--external-link-alt"></span>
       <span class="flex-1 truncate">{item.link.label}</span>
-    </button>
+    </a>
   {/if}
 {/snippet}
 

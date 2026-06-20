@@ -113,7 +113,7 @@ input CreateSidebarLinkInput {
   groupId: ID!
   "Display label for the link."
   label: String! @length(max: 80)
-  "Absolute http(s) URL."
+  "Absolute http(s) URL or server-local path starting with /."
   url: String! @length(max: 2048)
 }
 
@@ -122,7 +122,7 @@ input UpdateSidebarLinkInput {
   linkId: ID!
   "Display label for the link."
   label: String! @length(max: 80)
-  "Absolute http(s) URL."
+  "Absolute http(s) URL or server-local path starting with /."
   url: String! @length(max: 2048)
 }
 
@@ -199,16 +199,16 @@ extend type Mutation {
   """
   reorderRoomsInGroup(input: ReorderRoomsInGroupInput!): RoomGroup!
 
-  "Create an external sidebar link inside a room group. Requires `room.manage` in that group."
+  "Create a sidebar link inside a room group. Requires `room.manage` in that group."
   createSidebarLink(input: CreateSidebarLinkInput!): SidebarLink!
 
-  "Update an external sidebar link. Requires `room.manage` in the link's group."
+  "Update a sidebar link. Requires `room.manage` in the link's group."
   updateSidebarLink(input: UpdateSidebarLinkInput!): SidebarLink!
 
-  "Delete an external sidebar link. Requires `room.manage` in the link's group."
+  "Delete a sidebar link. Requires `room.manage` in the link's group."
   deleteSidebarLink(input: DeleteSidebarLinkInput!): Boolean!
 
-  "Move an external sidebar link into another room group. Requires `room.manage` in both source and target groups."
+  "Move a sidebar link into another room group. Requires `room.manage` in both source and target groups."
   moveSidebarLinkToGroup(input: MoveSidebarLinkToGroupInput!): SidebarLink!
 
   """

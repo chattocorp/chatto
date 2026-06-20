@@ -59,6 +59,68 @@ func TestMetricsServerExposesPrometheusMetrics(t *testing.T) {
 	}
 }
 
+func TestMetricsServerPprofDisabledByDefault(t *testing.T) {
+	s := &HTTPServer{
+		config: config.ChattoConfig{
+			Metrics: config.MetricsConfig{
+				Enabled: true,
+			},
+		},
+		metrics: newProcessMetrics(),
+	}
+
+	metricsServer, err := s.newMetricsServer()
+	if err != nil {
+		t.Fatalf("newMetricsServer() error = %v", err)
+	}
+	ts := httptest.NewServer(metricsServer.Handler)
+	t.Cleanup(ts.Close)
+
+	resp, err := http.Get(ts.URL + "/debug/pprof/")
+	if err != nil {
+		t.Fatalf("GET pprof error = %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("GET pprof status = %d, want 404", resp.StatusCode)
+	}
+}
+
+func TestMetricsServerPprofCanBeEnabled(t *testing.T) {
+	s := &HTTPServer{
+		config: config.ChattoConfig{
+			Metrics: config.MetricsConfig{
+				Enabled: true,
+				Pprof:   true,
+			},
+		},
+		metrics: newProcessMetrics(),
+	}
+
+	metricsServer, err := s.newMetricsServer()
+	if err != nil {
+		t.Fatalf("newMetricsServer() error = %v", err)
+	}
+	ts := httptest.NewServer(metricsServer.Handler)
+	t.Cleanup(ts.Close)
+
+	resp, err := http.Get(ts.URL + "/debug/pprof/")
+	if err != nil {
+		t.Fatalf("GET pprof error = %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET pprof status = %d, want 200", resp.StatusCode)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read pprof body: %v", err)
+	}
+	if !strings.Contains(string(body), "Types of profiles available") {
+		t.Fatalf("pprof index did not look like pprof output:\n%s", string(body))
+	}
+}
+
 func TestMetricsServerUsesProjectionKeys(t *testing.T) {
 	var appServer *HTTPServer
 	setupTestHTTPServerWithHook(t, func(s *HTTPServer) {

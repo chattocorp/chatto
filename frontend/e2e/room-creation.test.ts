@@ -14,6 +14,23 @@ test('create room with valid name succeeds', async ({ page, chatPage }) => {
   await chatPage.expectRoomHeaderVisible(roomName);
 });
 
+test('room header shows channel description on desktop', async ({ page, chatPage }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await createAndLoginTestUser(page);
+  await chatPage.goto();
+
+  const description = `Header description ${Date.now()}`;
+  const describedRoom = await chatPage.createRoom(undefined, description);
+
+  await chatPage.expectRoomHeaderVisible(describedRoom);
+  await expect(page.getByText(description, { exact: true })).toBeVisible();
+
+  const plainRoom = await chatPage.createRoom();
+
+  await chatPage.expectRoomHeaderVisible(plainRoom);
+  await expect(page.getByText(description, { exact: true })).not.toBeVisible();
+});
+
 test('create room with empty name has disabled submit button', async ({ page, chatPage }) => {
   await createAndLoginTestUser(page);
   await chatPage.goto();

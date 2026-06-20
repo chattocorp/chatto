@@ -86,6 +86,12 @@ type MetricsConfig struct {
 	BindAddress string `toml:"bind_address,commented" env:"CHATTO_METRICS_BIND_ADDRESS" comment:"Address to bind the metrics listener. Default: 127.0.0.1 (localhost only)."`
 	Port        int    `toml:"port,commented" env:"CHATTO_METRICS_PORT" comment:"Port for the metrics listener. Default: 9090."`
 	Path        string `toml:"path,commented" env:"CHATTO_METRICS_PATH" comment:"HTTP path for Prometheus scrapes. Default: /metrics."`
+	Pprof       bool   `toml:"pprof,commented" env:"CHATTO_METRICS_PPROF" comment:"Expose Go pprof debug endpoints on the metrics listener under /debug/pprof/. Default: false."`
+}
+
+// DiagnosticsConfig controls opt-in local/operator diagnostics.
+type DiagnosticsConfig struct {
+	StartupCPUProfile string `toml:"startup_cpu_profile,commented" env:"CHATTO_DIAGNOSTICS_STARTUP_CPU_PROFILE" comment:"Write a Go CPU profile covering process startup through core boot to this path. Disabled when empty."`
 }
 
 // BindAddressOrDefault returns the metrics bind address, defaulting to localhost.
@@ -758,19 +764,20 @@ type BootstrapServer struct {
 }
 
 type ChattoConfig struct {
-	General   GeneralConfig   `toml:"general"`
-	Owners    OwnersConfig    `toml:"owners" comment:"Email addresses that confer owner status."`
-	Webserver WebserverConfig `toml:"webserver"`
-	Metrics   MetricsConfig   `toml:"metrics,commented" comment:"Process-local Prometheus metrics endpoint."`
-	Core      CoreConfig      `toml:"core" comment:"Core service configuration."`
-	Auth      AuthConfig      `toml:"auth" comment:"Authentication configuration."`
-	Limits    LimitsConfig    `toml:"limits,commented" comment:"Instance-wide resource limits. Use -1 for unlimited."`
-	SMTP      SMTPConfig      `toml:"smtp" comment:"SMTP configuration for transactional emails."`
-	Push      PushConfig      `toml:"push,commented" comment:"Web Push notification configuration."`
-	Video     VideoConfig     `toml:"video,commented" comment:"Video processing configuration. Requires ffmpeg."`
-	LiveKit   LiveKitConfig   `toml:"livekit,commented" comment:"LiveKit voice call configuration."`
-	NATS      NATSConfig      `toml:"nats"`
-	Bootstrap BootstrapConfig `toml:"bootstrap,commented" comment:"Dev/E2E-only: users and spaces auto-created on startup. ONLY honored by builds compiled with the 'bootstrap' build tag; release binaries ignore this section entirely."`
+	General     GeneralConfig     `toml:"general"`
+	Owners      OwnersConfig      `toml:"owners" comment:"Email addresses that confer owner status."`
+	Webserver   WebserverConfig   `toml:"webserver"`
+	Metrics     MetricsConfig     `toml:"metrics,commented" comment:"Process-local Prometheus metrics endpoint."`
+	Diagnostics DiagnosticsConfig `toml:"diagnostics,commented" comment:"Opt-in diagnostics for local benchmarking and operator troubleshooting."`
+	Core        CoreConfig        `toml:"core" comment:"Core service configuration."`
+	Auth        AuthConfig        `toml:"auth" comment:"Authentication configuration."`
+	Limits      LimitsConfig      `toml:"limits,commented" comment:"Instance-wide resource limits. Use -1 for unlimited."`
+	SMTP        SMTPConfig        `toml:"smtp" comment:"SMTP configuration for transactional emails."`
+	Push        PushConfig        `toml:"push,commented" comment:"Web Push notification configuration."`
+	Video       VideoConfig       `toml:"video,commented" comment:"Video processing configuration. Requires ffmpeg."`
+	LiveKit     LiveKitConfig     `toml:"livekit,commented" comment:"LiveKit voice call configuration."`
+	NATS        NATSConfig        `toml:"nats"`
+	Bootstrap   BootstrapConfig   `toml:"bootstrap,commented" comment:"Dev/E2E-only: users and spaces auto-created on startup. ONLY honored by builds compiled with the 'bootstrap' build tag; release binaries ignore this section entirely."`
 }
 
 // ApplyDefaults fills derived config values that are safe to compute from other

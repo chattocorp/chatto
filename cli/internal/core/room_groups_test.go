@@ -622,6 +622,96 @@ func TestSidebarLinkLifecycleAndOrdering(t *testing.T) {
 	}
 }
 
+func TestSidebarLinkURLsAcceptAbsoluteHTTPAndServerLocalPaths(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		createURL  string
+		updateURL  string
+		wantStored string
+	}{
+		{
+			name:       "absolute https",
+			createURL:  "https://example.com/docs",
+			updateURL:  "https://example.com/reference",
+			wantStored: "https://example.com/reference",
+		},
+		{
+			name:       "server local docs path",
+			createURL:  "/docs",
+			updateURL:  "/docs/reference",
+			wantStored: "/docs/reference",
+		},
+		{
+			name:       "server local chat path",
+			createURL:  "/chat/-/room",
+			updateURL:  "/chat/-/room?tab=files",
+			wantStored: "/chat/-/room?tab=files",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			core, _ := setupTestCore(t)
+			ctx := testContext(t)
+			group, err := core.CreateRoomGroup(ctx, "actor", "Links", "")
+			if err != nil {
+				t.Fatalf("CreateRoomGroup: %v", err)
+			}
+
+			link, err := core.CreateSidebarLink(ctx, "actor", group.Id, "Docs", tc.createURL)
+			if err != nil {
+				t.Fatalf("CreateSidebarLink(%q): %v", tc.createURL, err)
+			}
+
+			updated, err := core.UpdateSidebarLink(ctx, "actor", link.Id, "Docs Updated", tc.updateURL)
+			if err != nil {
+				t.Fatalf("UpdateSidebarLink(%q): %v", tc.updateURL, err)
+			}
+			if updated.Url != tc.wantStored {
+				t.Fatalf("updated URL = %q, want %q", updated.Url, tc.wantStored)
+			}
+		})
+	}
+}
+
+func TestSidebarLinkURLsRejectUnsafeOrMalformedTargets(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	group, err := core.CreateRoomGroup(ctx, "actor", "Links", "")
+	if err != nil {
+		t.Fatalf("CreateRoomGroup: %v", err)
+	}
+
+	tooLongPath := "/" + strings.Repeat("a", MaxSidebarLinkURLLength)
+	for _, tc := range []struct {
+		name    string
+		rawURL  string
+		tooLong bool
+	}{
+		{name: "relative without leading slash", rawURL: "docs"},
+		{name: "protocol relative URL", rawURL: "//evil.example"},
+		{name: "backslash host path", rawURL: `/\evil.example/path`},
+		{name: "javascript scheme", rawURL: "javascript:alert(1)"},
+		{name: "mailto scheme", rawURL: "mailto:hello@example.com"},
+		{name: "malformed absolute URL", rawURL: "https://%"},
+		{name: "over length path", rawURL: tooLongPath, tooLong: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := core.CreateSidebarLink(ctx, "actor", group.Id, "Docs", tc.rawURL)
+			if err == nil {
+				t.Fatalf("CreateSidebarLink(%q) succeeded, want error", tc.rawURL)
+			}
+			if tc.tooLong {
+				if !strings.Contains(err.Error(), "cannot exceed") {
+					t.Fatalf("CreateSidebarLink(%q) err = %v, want max length error", tc.rawURL, err)
+				}
+				return
+			}
+			if !errors.Is(err, ErrSidebarLinkURLInvalid) {
+				t.Fatalf("CreateSidebarLink(%q) err = %v, want ErrSidebarLinkURLInvalid", tc.rawURL, err)
+			}
+		})
+	}
+}
+
 func TestMoveSidebarLinkToGroup(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

@@ -7,6 +7,7 @@ import {
   consumePendingRoomSidebarPanel,
   roomSidebarPanelStorageSuffix
 } from '$lib/storage/roomSidebarPanel';
+import type { RoomsListGroup } from '$lib/state/server/rooms.svelte';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -55,7 +56,7 @@ const { mocks } = vi.hoisted(() => ({
       },
       rooms: {
         rooms: [],
-        roomGroups: null,
+        roomGroups: null as RoomsListGroup[] | null,
         isInitialLoading: false,
         currentUserId: 'me',
         markRead: vi.fn(),
@@ -258,7 +259,7 @@ beforeEach(() => {
 });
 
 describe('RoomList', () => {
-  it('replaces DM avatars with the active-call pulse icon twin', async () => {
+  it('renders active-call DM rows with the pulse icon and participant avatars', async () => {
     mocks.activeCallRoomIds.add('dm-with-participants');
     mocks.callParticipants.set('dm-with-participants', [
       {
@@ -275,12 +276,18 @@ describe('RoomList', () => {
     const dmRow = q(container, '[href="/chat/-/dm-with-participants"]');
     const icon = dmRow?.querySelector('[data-testid="room-call-icon"]');
     const pulseIcon = icon?.querySelector('[data-testid="active-call-pulse-icon"]');
+    const children = Array.from(dmRow?.children ?? []);
     expect(icon).not.toBeNull();
     expect(icon?.classList.contains('text-accent')).toBe(true);
     expect(icon?.querySelector('.uil--phone')).not.toBeNull();
     expect(pulseIcon).not.toBeNull();
     expect(pulseIcon?.classList.contains('animate-ping')).toBe(true);
-    expect(dmRow?.querySelector('[data-testid="room-call-badge"]')).toBeNull();
+    expect(dmRow?.querySelector('[data-testid="room-call-participants"]')).not.toBeNull();
+    expect(dmRow?.querySelectorAll('[data-testid="room-call-participant-avatar"]')).toHaveLength(1);
+    expect(children.indexOf(dmRow!.querySelector('[data-testid="room-call-participants"]')!)).toBe(
+      children.indexOf(icon!) - 1
+    );
+    expect(children[0]?.querySelector('[data-testid="room-call-icon"]')).toBeNull();
   });
 
   it('renders the active-call phone icon when participants are not loaded', async () => {
@@ -294,10 +301,10 @@ describe('RoomList', () => {
     expect(icon).not.toBeNull();
     expect(icon?.querySelector('.uil--phone')).not.toBeNull();
     expect(icon?.querySelector('[data-testid="active-call-pulse-icon"]')).not.toBeNull();
-    expect(dmRow?.querySelector('[data-testid="room-call-badge"]')).toBeNull();
+    expect(dmRow?.querySelector('[data-testid="room-call-participants"]')).toBeNull();
   });
 
-  it('replaces channel room icons with the active-call pulse icon twin', async () => {
+  it('renders active-call channel rows with the pulse icon and participant avatars', async () => {
     mocks.activeCallRoomIds.add('channel-1');
     mocks.callParticipants.set('channel-1', [
       {
@@ -314,11 +321,44 @@ describe('RoomList', () => {
     const channelRow = q(container, '[href="/chat/-/channel-1"]');
     const icon = channelRow?.querySelector('[data-testid="room-call-icon"]');
     const pulseIcon = icon?.querySelector('[data-testid="active-call-pulse-icon"]');
+    const leadingIcon = channelRow?.querySelector('.sidebar-icon');
+    const children = Array.from(channelRow?.children ?? []);
     expect(icon).not.toBeNull();
     expect(icon?.querySelector('.uil--phone')).not.toBeNull();
     expect(pulseIcon).not.toBeNull();
     expect(pulseIcon?.classList.contains('animate-ping')).toBe(true);
-    expect(channelRow?.querySelector('[data-testid="room-call-badge"]')).toBeNull();
+    expect(leadingIcon?.textContent).toBe('#');
+    expect(leadingIcon).not.toBe(icon);
+    expect(channelRow?.querySelector('[data-testid="room-call-participants"]')).not.toBeNull();
+    expect(
+      channelRow?.querySelectorAll('[data-testid="room-call-participant-avatar"]')
+    ).toHaveLength(1);
+    expect(
+      children.indexOf(channelRow!.querySelector('[data-testid="room-call-participants"]')!)
+    ).toBe(children.indexOf(icon!) - 1);
+  });
+
+  it('renders a compact overflow count for larger active calls', async () => {
+    mocks.activeCallRoomIds.add('channel-1');
+    mocks.callParticipants.set('channel-1', [
+      { userId: 'teal', login: 'teal', displayName: 'Teal', avatarUrl: null },
+      { userId: 'river', login: 'river', displayName: 'River', avatarUrl: null },
+      { userId: 'sage', login: 'sage', displayName: 'Sage', avatarUrl: null },
+      { userId: 'ash', login: 'ash', displayName: 'Ash', avatarUrl: null },
+      { userId: 'sol', login: 'sol', displayName: 'Sol', avatarUrl: null },
+      { userId: 'moon', login: 'moon', displayName: 'Moon', avatarUrl: null }
+    ]);
+
+    const { container } = render(RoomList);
+
+    await expect.element(q(container, '[href="/chat/-/channel-1"]')).toBeInTheDocument();
+    const channelRow = q(container, '[href="/chat/-/channel-1"]');
+    expect(
+      channelRow?.querySelectorAll('[data-testid="room-call-participant-avatar"]')
+    ).toHaveLength(4);
+    await expect
+      .element(q(channelRow!, '[data-testid="room-call-overflow"]'))
+      .toHaveTextContent('+2');
   });
 
   it('opens the call panel when an active-call room icon is clicked', async () => {
@@ -368,26 +408,29 @@ describe('RoomList', () => {
   it.each([
     ['Enter', 'Enter'],
     ['Space', ' ']
-  ])('opens the call panel on %s when an active-call row has keyboard focus', async (_label, key) => {
-    mocks.activeCallRoomIds.add('channel-1');
+  ])(
+    'opens the call panel on %s when an active-call row has keyboard focus',
+    async (_label, key) => {
+      mocks.activeCallRoomIds.add('channel-1');
 
-    const { container } = render(RoomList);
+      const { container } = render(RoomList);
 
-    await expect.element(q(container, '[href="/chat/-/channel-1"]')).toBeInTheDocument();
-    const channelRow = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
+      await expect.element(q(container, '[href="/chat/-/channel-1"]')).toBeInTheDocument();
+      const channelRow = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
 
-    const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
-    const wasNotCanceled = channelRow.dispatchEvent(event);
+      const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+      const wasNotCanceled = channelRow.dispatchEvent(event);
 
-    expect(wasNotCanceled).toBe(false);
-    await vi.waitFor(() => {
-      expect(mocks.goto).toHaveBeenCalledWith('/chat/-/channel-1');
-    });
-    expect(
-      localStorage.getItem(serverStorageKey('origin', roomSidebarPanelStorageSuffix('channel-1')))
-    ).toBe('call');
-    expect(consumePendingRoomSidebarPanel('origin', 'channel-1')).toBe('call');
-  });
+      expect(wasNotCanceled).toBe(false);
+      await vi.waitFor(() => {
+        expect(mocks.goto).toHaveBeenCalledWith('/chat/-/channel-1');
+      });
+      expect(
+        localStorage.getItem(serverStorageKey('origin', roomSidebarPanelStorageSuffix('channel-1')))
+      ).toBe('call');
+      expect(consumePendingRoomSidebarPanel('origin', 'channel-1')).toBe('call');
+    }
+  );
 
   it('opens a join modal for a faded joinable non-member channel row', async () => {
     const { container } = render(RoomList);
@@ -428,6 +471,87 @@ describe('RoomList', () => {
         viewerCanJoinRoom: false
       }
     });
+  });
+
+  it('renders server-local sidebar links as same-tab anchors resolved against the active server', async () => {
+    mocks.store.rooms.roomGroups = [
+      {
+        id: 'g1',
+        name: 'Links',
+        roomIds: [],
+        items: [
+          {
+            id: 'link:docs',
+            type: 'link',
+            link: { id: 'docs', label: 'Docs', url: '/docs' }
+          }
+        ]
+      }
+    ];
+
+    const { container } = render(RoomList);
+
+    const link = q(container, '[href="https://chat.example.test/docs"]') as HTMLAnchorElement;
+    await expect.element(link).toBeInTheDocument();
+    expect(link.textContent).toContain('Docs');
+    expect(link.getAttribute('target')).toBeNull();
+    expect(link.getAttribute('rel')).toBeNull();
+  });
+
+  it('renders active-server host sidebar links as same-tab anchors', async () => {
+    mocks.store.rooms.roomGroups = [
+      {
+        id: 'g1',
+        name: 'Links',
+        roomIds: [],
+        items: [
+          {
+            id: 'link:admin',
+            type: 'link',
+            link: {
+              id: 'admin',
+              label: 'Admin',
+              url: 'https://chat.example.test/admin'
+            }
+          }
+        ]
+      }
+    ];
+
+    const { container } = render(RoomList);
+
+    const link = q(container, '[href="https://chat.example.test/admin"]') as HTMLAnchorElement;
+    await expect.element(link).toBeInTheDocument();
+    expect(link.getAttribute('target')).toBeNull();
+    expect(link.getAttribute('rel')).toBeNull();
+  });
+
+  it('renders external sidebar links as new-tab anchors', async () => {
+    mocks.store.rooms.roomGroups = [
+      {
+        id: 'g1',
+        name: 'Links',
+        roomIds: [],
+        items: [
+          {
+            id: 'link:external',
+            type: 'link',
+            link: {
+              id: 'external',
+              label: 'External Docs',
+              url: 'https://docs.example.test'
+            }
+          }
+        ]
+      }
+    ];
+
+    const { container } = render(RoomList);
+
+    const link = q(container, '[href="https://docs.example.test/"]') as HTMLAnchorElement;
+    await expect.element(link).toBeInTheDocument();
+    expect(link.getAttribute('target')).toBe('_blank');
+    expect(link.getAttribute('rel')).toBe('noopener noreferrer');
   });
 
   it('resolves a stale channel badge through the room-scoped notification query', async () => {

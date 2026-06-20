@@ -47,7 +47,7 @@ var (
 	ErrSidebarLinkNotFound      = errors.New("sidebar link not found")
 	ErrSidebarLinkSourceChanged = errors.New("sidebar link source group changed")
 	ErrSidebarLinkLabelEmpty    = errors.New("sidebar link label must not be empty")
-	ErrSidebarLinkURLInvalid    = errors.New("sidebar link URL must be an absolute http(s) URL")
+	ErrSidebarLinkURLInvalid    = errors.New("sidebar link URL must be an absolute http(s) URL or server-local path")
 )
 
 // CreateRoomGroup publishes a RoomGroupCreatedEvent and appends the
@@ -148,11 +148,27 @@ func validateSidebarLink(label, rawURL string) (string, string, error) {
 	if err := validateStringMaxLength("sidebar link URL", rawURL, MaxSidebarLinkURLLength); err != nil {
 		return "", "", err
 	}
-	parsed, err := url.Parse(rawURL)
-	if err != nil || !parsed.IsAbs() || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+	if !isValidSidebarLinkURL(rawURL) {
 		return "", "", ErrSidebarLinkURLInvalid
 	}
 	return label, rawURL, nil
+}
+
+func isValidSidebarLinkURL(rawURL string) bool {
+	if strings.HasPrefix(rawURL, "/") {
+		if strings.HasPrefix(rawURL, "//") || strings.Contains(rawURL, "\\") {
+			return false
+		}
+		parsed, err := url.ParseRequestURI(rawURL)
+		return err == nil && parsed != nil && parsed.Scheme == "" && parsed.Host == ""
+	}
+
+	parsed, err := url.Parse(rawURL)
+	return err == nil &&
+		parsed != nil &&
+		parsed.IsAbs() &&
+		parsed.Host != "" &&
+		(parsed.Scheme == "http" || parsed.Scheme == "https")
 }
 
 // GetRoomGroup reads a single group from the RoomGroups projection.

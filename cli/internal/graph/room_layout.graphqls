@@ -12,7 +12,7 @@ type RoomGroup {
   description: String!
   "Ordered list of channel rooms in this room group."
   rooms: [Room!]! @goField(forceResolver: true)
-  "Ordered mixed list of rooms and external links in this room group."
+  "Ordered mixed list of rooms and sidebar links in this room group."
   items: [RoomGroupItem!]! @goField(forceResolver: true)
 }
 
@@ -26,7 +26,7 @@ type SidebarLink {
   id: ID!
   "Display label shown in the server sidebar."
   label: String!
-  "Absolute http(s) URL opened outside Chatto."
+  "Absolute http(s) URL or server-local path starting with /."
   url: String!
 }
 

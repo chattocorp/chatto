@@ -239,7 +239,7 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	for _, group := range projectionRunGroups(c.projections) {
 		group := group
 		g.Go(func() error {
-			if err := events.RunProjectors(gctx, group.projectors...); err != nil {
+			if err := events.RunProjectorsOnSubjects(gctx, group.replaySubjects, group.projectors...); err != nil {
 				if errors.Is(err, context.Canceled) {
 					return err
 				}
@@ -298,33 +298,26 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 }
 
 type projectionRunGroup struct {
-	names      []string
-	projectors []*events.Projector
+	names          []string
+	replaySubjects []string
+	projectors     []*events.Projector
 }
 
 func projectionRunGroups(projections []projectionRegistration) []projectionRunGroup {
-	groupsBySubjects := make(map[string]int, len(projections))
-	groups := make([]projectionRunGroup, 0, len(projections))
-
-	for _, projection := range projections {
-		key := projectionSubjectsKey(projection.projector.ReplaySubjects())
-		if index, exists := groupsBySubjects[key]; exists {
-			groups[index].names = append(groups[index].names, projection.name)
-			groups[index].projectors = append(groups[index].projectors, projection.projector)
-			continue
-		}
-		groupsBySubjects[key] = len(groups)
-		groups = append(groups, projectionRunGroup{
-			names:      []string{projection.name},
-			projectors: []*events.Projector{projection.projector},
-		})
+	if len(projections) == 0 {
+		return nil
 	}
 
-	return groups
-}
-
-func projectionSubjectsKey(subjects []string) string {
-	return strings.Join(subjects, "\x00")
+	group := projectionRunGroup{
+		names:          make([]string, 0, len(projections)),
+		replaySubjects: []string{events.EventSubjectFilter()},
+		projectors:     make([]*events.Projector, 0, len(projections)),
+	}
+	for _, projection := range projections {
+		group.names = append(group.names, projection.name)
+		group.projectors = append(group.projectors, projection.projector)
+	}
+	return []projectionRunGroup{group}
 }
 
 // AllProjectorsStarted reports whether every registered projector

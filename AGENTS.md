@@ -67,8 +67,8 @@ Please update this section as the project evolves, and refer to it when making d
 ### Issues, Commits, and PRs
 
 - Use this project's GitHub Issues for planning work.
-- Use Conventional Commit format in commit messages.
-- Use Conventional Commit format in PR titles. PR bodies should include a bullet list of changes, ideally with links to relevant FDRs, ADRs, and glossary terms.
+- Use Conventional Commit format in commit messages. Where feasible, include a reference to the component affected, eg `fix(api): ...` or `feat(frontend)!: ...`
+- Use the same Conventional Commit format in PR titles. PR bodies should include a bullet list of changes, ideally with links to relevant FDRs, ADRs, and glossary terms.
 - When creating or editing multiline GitHub PR/issue bodies with `gh`, write real Markdown to a file/stdin and use `--body-file`. Do not pass escaped `\n` sequences to `--body`; they render literally. Afterward, verify the stored body with `gh pr view --json body --jq .body` or equivalent before telling the user the PR is ready.
 - Please keep ADRs and FDRs up to date.
 - When the PR closes an issue, please include this information in the PR title or body (e.g. "Fixes #123") so GitHub can link and auto-close them.

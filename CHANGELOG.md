@@ -3,6 +3,24 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.3.8](https://github.com/chattocorp/chatto/compare/v0.3.7...v0.3.8) (2026-06-20)
+
+
+### Bug Fixes
+
+* downgrade invalid session cookie logs ([#1029](https://github.com/chattocorp/chatto/issues/1029)) ([5bbbe88](https://github.com/chattocorp/chatto/commit/5bbbe88a5f34f885266c8afcf66cff6762adc6ca))
+* improve push notification routing ([#1031](https://github.com/chattocorp/chatto/issues/1031)) ([bda7d3d](https://github.com/chattocorp/chatto/commit/bda7d3da31a1e02158fa3cc6646ff4c1d6cb59f8))
+* **sidebar:** server-local sidebar links now open in the same window ([#1041](https://github.com/chattocorp/chatto/issues/1041)) ([b206d56](https://github.com/chattocorp/chatto/commit/b206d56dfde6ecfd9f3e82a32134c8685245a2f4))
+
+
+### Performance Improvements
+
+* add opt-in profiling diagnostics ([#1038](https://github.com/chattocorp/chatto/issues/1038)) ([ca2a2f6](https://github.com/chattocorp/chatto/commit/ca2a2f69efe049e85dc3e18c8c9d2f1a92cd6ad3))
+* fast-path projection stream sequence parsing ([#1042](https://github.com/chattocorp/chatto/issues/1042)) ([ad28708](https://github.com/chattocorp/chatto/commit/ad28708ea90a0e8eb4b69bbb3faf51abf7ee41a5))
+* optimize projection dispatch matching ([#1040](https://github.com/chattocorp/chatto/issues/1040)) ([8f40573](https://github.com/chattocorp/chatto/commit/8f40573bf1d3b7107be3d99ca61c51738f9c1afd))
+* optimize projection replay and memory ([#1032](https://github.com/chattocorp/chatto/issues/1032)) ([f0118ed](https://github.com/chattocorp/chatto/commit/f0118eda47250f1df50a744ab3fb4e9f5774497d))
+* replay projections through shared EVT fanout ([#1035](https://github.com/chattocorp/chatto/issues/1035)) ([15d322d](https://github.com/chattocorp/chatto/commit/15d322db9ab01012129f75911b98e6a83cac0815))
+
 ## [0.3.7](https://github.com/chattocorp/chatto/compare/v0.3.6...v0.3.7) (2026-06-19)
 
 
