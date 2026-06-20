@@ -9,6 +9,10 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { serverIdToSegment } from '$lib/navigation';
+  import {
+    sidebarLinkAnchorAttributes,
+    sidebarLinkTarget
+  } from '$lib/navigation/sidebarLinkTarget';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import CollapsibleGroup from '$lib/ui/CollapsibleGroup.svelte';
@@ -41,6 +45,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
   const activeServerId = $derived(getActiveServer());
   const serverSegment = $derived(serverIdToSegment(activeServerId));
+  const activeServer = $derived(serverRegistry.getServer(activeServerId));
+  const activeServerBaseURL = $derived(activeServer?.url ?? null);
   const stores = $derived(serverRegistry.getStore(activeServerId));
   const currentUserState = $derived(stores.currentUser);
   const notificationStore = $derived(stores.notifications);
@@ -304,19 +310,17 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
 {#snippet activeCallIcon()}
   <span
-    class="sidebar-icon relative text-accent"
+    class="relative sidebar-icon text-accent"
     aria-label="Active call"
     data-testid="room-call-icon"
   >
     <span class="relative inline-flex">
       <span
-        class="pane-header-icon-glyph absolute inset-0 animate-ping opacity-45 uil--phone"
+        class="absolute inset-0 pane-header-icon-glyph animate-ping opacity-45 uil--phone"
         aria-hidden="true"
         data-testid="active-call-pulse-icon"
       ></span>
-      <span
-        class="pane-header-icon-glyph relative text-accent uil--phone"
-        aria-hidden="true"
+      <span class="relative pane-header-icon-glyph text-accent uil--phone" aria-hidden="true"
       ></span>
     </span>
   </span>
@@ -367,7 +371,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       <UnreadDot color="primary" testid="room-unread-dot" />
       <span class="sr-only">unread messages</span>
     {/if}
-
   </a>
 {/snippet}
 
@@ -409,7 +412,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       <UnreadDot color="primary" testid="dm-unread-dot" />
       <span class="sr-only">unread messages</span>
     {/if}
-
   </a>
 {/snippet}
 
@@ -420,14 +422,18 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       {@render roomLink(room)}
     {/if}
   {:else}
-    <button
-      type="button"
-      class="sidebar-item w-full text-left"
-      onclick={() => window.open(item.link.url, '_blank', 'noopener,noreferrer')}
+    {@const target = sidebarLinkTarget(item.link.url, activeServerBaseURL)}
+    <a
+      {...sidebarLinkAnchorAttributes(target)}
+      aria-disabled={!target.valid}
+      class={['sidebar-item w-full text-left', !target.valid && 'cursor-not-allowed opacity-60']}
+      onclick={(event) => {
+        if (!target.valid) event.preventDefault();
+      }}
     >
       <span class="sidebar-icon iconify text-muted uil--external-link-alt"></span>
       <span class="flex-1 truncate">{item.link.label}</span>
-    </button>
+    </a>
   {/if}
 {/snippet}
 

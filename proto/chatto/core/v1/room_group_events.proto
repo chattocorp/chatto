@@ -71,14 +71,14 @@ message SidebarLinkAddedToGroupEvent {
   string group_id = 1;
   string link_id = 2;
   string label = 3;
-  string url = 4;
+  string url = 4; // Absolute http(s) URL or server-local path starting with /
 }
 
 message SidebarLinkUpdatedEvent {
   string group_id = 1;
   string link_id = 2;
   string label = 3;
-  string url = 4;
+  string url = 4; // Absolute http(s) URL or server-local path starting with /
 }
 
 message SidebarLinkRemovedFromGroupEvent {

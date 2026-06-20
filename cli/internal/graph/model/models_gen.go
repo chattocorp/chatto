@@ -259,7 +259,7 @@ type CreateSidebarLinkInput struct {
 	GroupID string `json:"groupId"`
 	// Display label for the link.
 	Label string `json:"label"`
-	// Absolute http(s) URL.
+	// Absolute http(s) URL or server-local path starting with /.
 	URL string `json:"url"`
 }
 
@@ -1400,7 +1400,7 @@ type UpdateSidebarLinkInput struct {
 	LinkID string `json:"linkId"`
 	// Display label for the link.
 	Label string `json:"label"`
-	// Absolute http(s) URL.
+	// Absolute http(s) URL or server-local path starting with /.
 	URL string `json:"url"`
 }
 

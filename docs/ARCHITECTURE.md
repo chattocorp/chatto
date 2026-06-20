@@ -266,7 +266,7 @@ Admin queries are nested under a single `admin: AdminQueries` field that returns
 | `reorderRoomGroups`               | Reorder all room groups (full list, exactly once each).                                      |
 | `reorderRoomsInGroup`             | Reorder rooms within a single group.                                                         |
 | `moveRoomToGroup`                 | Move a room into a different group (`room.manage` in both source and target — see ADR-031). |
-| `createSidebarLink`               | Add an external link to a room group (`room.manage`).                                        |
+| `createSidebarLink`               | Add an external or server-local link to a room group (`room.manage`).                        |
 | `updateSidebarLink`               | Rename or retarget a sidebar link (`room.manage`).                                           |
 | `deleteSidebarLink`               | Remove a sidebar link from its group (`room.manage`).                                        |
 | `moveSidebarLinkToGroup`          | Move a sidebar link into a different group (`room.manage` in both source and target).        |

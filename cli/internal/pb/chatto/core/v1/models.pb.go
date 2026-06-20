@@ -1811,7 +1811,7 @@ type SidebarLink struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`       // NanoID for stable identity across renames/moves
 	Label         string                 `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"` // Display label shown in the server sidebar
-	Url           string                 `protobuf:"bytes,3,opt,name=url,proto3" json:"url,omitempty"`     // Absolute http(s) URL opened outside Chatto
+	Url           string                 `protobuf:"bytes,3,opt,name=url,proto3" json:"url,omitempty"`     // Absolute http(s) URL or server-local path starting with /
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

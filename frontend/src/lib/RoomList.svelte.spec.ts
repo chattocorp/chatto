@@ -363,26 +363,29 @@ describe('RoomList', () => {
   it.each([
     ['Enter', 'Enter'],
     ['Space', ' ']
-  ])('opens the call panel on %s when an active-call row has keyboard focus', async (_label, key) => {
-    mocks.activeCallRoomIds.add('channel-1');
+  ])(
+    'opens the call panel on %s when an active-call row has keyboard focus',
+    async (_label, key) => {
+      mocks.activeCallRoomIds.add('channel-1');
 
-    const { container } = render(RoomList);
+      const { container } = render(RoomList);
 
-    await expect.element(q(container, '[href="/chat/-/channel-1"]')).toBeInTheDocument();
-    const channelRow = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
+      await expect.element(q(container, '[href="/chat/-/channel-1"]')).toBeInTheDocument();
+      const channelRow = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
 
-    const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
-    const wasNotCanceled = channelRow.dispatchEvent(event);
+      const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+      const wasNotCanceled = channelRow.dispatchEvent(event);
 
-    expect(wasNotCanceled).toBe(false);
-    await vi.waitFor(() => {
-      expect(mocks.goto).toHaveBeenCalledWith('/chat/-/channel-1');
-    });
-    expect(
-      localStorage.getItem(serverStorageKey('origin', roomSidebarPanelStorageSuffix('channel-1')))
-    ).toBe('call');
-    expect(consumePendingRoomSidebarPanel('origin', 'channel-1')).toBe('call');
-  });
+      expect(wasNotCanceled).toBe(false);
+      await vi.waitFor(() => {
+        expect(mocks.goto).toHaveBeenCalledWith('/chat/-/channel-1');
+      });
+      expect(
+        localStorage.getItem(serverStorageKey('origin', roomSidebarPanelStorageSuffix('channel-1')))
+      ).toBe('call');
+      expect(consumePendingRoomSidebarPanel('origin', 'channel-1')).toBe('call');
+    }
+  );
 
   it('opens a join modal for a faded joinable non-member channel row', async () => {
     const { container } = render(RoomList);
@@ -423,6 +426,87 @@ describe('RoomList', () => {
         viewerCanJoinRoom: false
       }
     });
+  });
+
+  it('renders server-local sidebar links as same-tab anchors resolved against the active server', async () => {
+    mocks.store.rooms.roomGroups = [
+      {
+        id: 'g1',
+        name: 'Links',
+        roomIds: [],
+        items: [
+          {
+            id: 'link:docs',
+            type: 'link',
+            link: { id: 'docs', label: 'Docs', url: '/docs' }
+          }
+        ]
+      }
+    ];
+
+    const { container } = render(RoomList);
+
+    const link = q(container, '[href="https://chat.example.test/docs"]') as HTMLAnchorElement;
+    await expect.element(link).toBeInTheDocument();
+    expect(link.textContent).toContain('Docs');
+    expect(link.getAttribute('target')).toBeNull();
+    expect(link.getAttribute('rel')).toBeNull();
+  });
+
+  it('renders active-server host sidebar links as same-tab anchors', async () => {
+    mocks.store.rooms.roomGroups = [
+      {
+        id: 'g1',
+        name: 'Links',
+        roomIds: [],
+        items: [
+          {
+            id: 'link:admin',
+            type: 'link',
+            link: {
+              id: 'admin',
+              label: 'Admin',
+              url: 'https://chat.example.test/admin'
+            }
+          }
+        ]
+      }
+    ];
+
+    const { container } = render(RoomList);
+
+    const link = q(container, '[href="https://chat.example.test/admin"]') as HTMLAnchorElement;
+    await expect.element(link).toBeInTheDocument();
+    expect(link.getAttribute('target')).toBeNull();
+    expect(link.getAttribute('rel')).toBeNull();
+  });
+
+  it('renders external sidebar links as new-tab anchors', async () => {
+    mocks.store.rooms.roomGroups = [
+      {
+        id: 'g1',
+        name: 'Links',
+        roomIds: [],
+        items: [
+          {
+            id: 'link:external',
+            type: 'link',
+            link: {
+              id: 'external',
+              label: 'External Docs',
+              url: 'https://docs.example.test'
+            }
+          }
+        ]
+      }
+    ];
+
+    const { container } = render(RoomList);
+
+    const link = q(container, '[href="https://docs.example.test/"]') as HTMLAnchorElement;
+    await expect.element(link).toBeInTheDocument();
+    expect(link.getAttribute('target')).toBe('_blank');
+    expect(link.getAttribute('rel')).toBe('noopener noreferrer');
   });
 
   it('resolves a stale channel badge through the room-scoped notification query', async () => {

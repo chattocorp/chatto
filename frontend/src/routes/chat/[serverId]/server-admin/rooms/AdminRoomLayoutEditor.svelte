@@ -656,7 +656,12 @@
   onclose={() => (linkDialogVisible = false)}
 >
   <TextInput id="sidebar-link-label" label="Label" bind:value={linkLabel} />
-  <TextInput id="sidebar-link-url" label="URL" bind:value={linkUrl} />
+  <TextInput
+    id="sidebar-link-url"
+    label="URL"
+    bind:value={linkUrl}
+    placeholder="https://docs.example.com or /docs"
+  />
 </FormDialog>
 
 {#if deleteGroupConfirmDialogVisible && deleteGroupConfirm}

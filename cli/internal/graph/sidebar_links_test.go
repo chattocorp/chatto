@@ -35,17 +35,24 @@ func TestSidebarLinkMutationsUseGroupRoomManage(t *testing.T) {
 	link, err := mutation.CreateSidebarLink(managerCtx, model.CreateSidebarLinkInput{
 		GroupID: sourceGroupID,
 		Label:   "Docs",
-		URL:     "https://docs.example.com",
+		URL:     "/docs",
 	})
 	if err != nil {
 		t.Fatalf("CreateSidebarLink in managed group: %v", err)
 	}
-	if _, err := mutation.UpdateSidebarLink(managerCtx, model.UpdateSidebarLinkInput{
+	if link.Url != "/docs" {
+		t.Fatalf("created link URL = %q, want /docs", link.Url)
+	}
+	updated, err := mutation.UpdateSidebarLink(managerCtx, model.UpdateSidebarLinkInput{
 		LinkID: link.Id,
 		Label:  "Docs Updated",
-		URL:    "https://docs.example.com/updated",
-	}); err != nil {
+		URL:    "/docs/updated",
+	})
+	if err != nil {
 		t.Fatalf("UpdateSidebarLink in managed group: %v", err)
+	}
+	if updated.Url != "/docs/updated" {
+		t.Fatalf("updated link URL = %q, want /docs/updated", updated.Url)
 	}
 
 	_, err = mutation.MoveSidebarLinkToGroup(managerCtx, model.MoveSidebarLinkToGroupInput{

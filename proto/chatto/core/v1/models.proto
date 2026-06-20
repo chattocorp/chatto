@@ -372,7 +372,7 @@ message RoomLayout {
 message SidebarLink {
   string id = 1;     // NanoID for stable identity across renames/moves
   string label = 2;  // Display label shown in the server sidebar
-  string url = 3;    // Absolute http(s) URL opened outside Chatto
+  string url = 3;    // Absolute http(s) URL or server-local path starting with /
 }
 
 message SidebarGroupEntry {

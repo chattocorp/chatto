@@ -5,7 +5,7 @@
 
 ## Overview
 
-Channel rooms are organized into **room groups** — named, ordered containers that act as both a UI grouping concept (collapsible sections in the sidebar) and the primary permission scope for room-level permissions. Every channel room belongs to exactly one group; DMs sit outside the group system entirely. Groups can also contain sidebar links: operator-managed external links rendered in the same ordered sidebar section as rooms.
+Channel rooms are organized into **room groups** — named, ordered containers that act as both a UI grouping concept (collapsible sections in the sidebar) and the primary permission scope for room-level permissions. Every channel room belongs to exactly one group; DMs sit outside the group system entirely. Groups can also contain sidebar links: operator-managed links rendered in the same ordered sidebar section as rooms.
 
 ## Behavior
 
@@ -14,7 +14,7 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 - Server admins can create, rename, reorder, and delete groups via the admin UI.
 - Group names are limited to 80 bytes; group descriptions are limited to 500 bytes.
 - Every channel room belongs to exactly one group. There's no "uncategorized" branch — room creation requires a group.
-- Sidebar links belong to exactly one group, carry a label and absolute `http`/`https` URL, and are visible to authenticated users who can see the server sidebar.
+- Sidebar links belong to exactly one group, carry a label and either an absolute `http`/`https` URL or a server-local path starting with `/`, and are visible to authenticated users who can see the server sidebar.
 - A freshly bootstrapped server has one group named "Lobby" containing the auto-created `announcements` and `general` rooms. Operators can rename it, reorder it, or replace it like any other group.
 - Deleting a group is rejected while rooms or sidebar links still live in it. Operators move or delete its contents first.
 - Moving a room between groups requires `room.manage` in both the source and the target group (the room's effective ACL changes overnight).
