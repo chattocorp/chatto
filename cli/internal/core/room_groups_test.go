@@ -688,6 +688,7 @@ func TestSidebarLinkURLsRejectUnsafeOrMalformedTargets(t *testing.T) {
 	}{
 		{name: "relative without leading slash", rawURL: "docs"},
 		{name: "protocol relative URL", rawURL: "//evil.example"},
+		{name: "backslash host path", rawURL: `/\evil.example/path`},
 		{name: "javascript scheme", rawURL: "javascript:alert(1)"},
 		{name: "mailto scheme", rawURL: "mailto:hello@example.com"},
 		{name: "malformed absolute URL", rawURL: "https://%"},

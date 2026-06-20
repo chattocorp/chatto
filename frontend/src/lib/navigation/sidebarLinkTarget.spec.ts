@@ -40,7 +40,13 @@ describe('sidebarLinkTarget', () => {
     });
   });
 
-  it.each(['docs', '//evil.example', 'javascript:alert(1)', 'mailto:hello@example.test'])(
+  it.each([
+    'docs',
+    '//evil.example',
+    '/\\evil.example/path',
+    'javascript:alert(1)',
+    'mailto:hello@example.test'
+  ])(
     'treats %s as invalid',
     (rawURL) => {
       expect(sidebarLinkTarget(rawURL, 'https://remote.example.test')).toEqual({

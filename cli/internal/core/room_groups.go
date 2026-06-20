@@ -156,7 +156,7 @@ func validateSidebarLink(label, rawURL string) (string, string, error) {
 
 func isValidSidebarLinkURL(rawURL string) bool {
 	if strings.HasPrefix(rawURL, "/") {
-		if strings.HasPrefix(rawURL, "//") {
+		if strings.HasPrefix(rawURL, "//") || strings.Contains(rawURL, "\\") {
 			return false
 		}
 		parsed, err := url.ParseRequestURI(rawURL)

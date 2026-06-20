@@ -39,7 +39,9 @@ export function sidebarLinkTarget(
   const serverURL = parseServerBaseURL(serverBaseURL);
 
   if (value.startsWith('/')) {
-    if (!serverURL || value.startsWith('//')) return invalidSidebarLinkTarget();
+    if (!serverURL || value.startsWith('//') || value.includes('\\')) {
+      return invalidSidebarLinkTarget();
+    }
     try {
       return { valid: true, href: new URL(value, serverURL).toString() };
     } catch {
