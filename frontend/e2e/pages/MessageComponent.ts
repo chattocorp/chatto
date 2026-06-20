@@ -347,41 +347,28 @@ export class MessageComponent {
     await expect(reactionButton).not.toBeVisible({ timeout: TIMEOUTS.UI_FAST });
   }
 
-  /**
-   * Get the reaction group container for a specific emoji.
-   * The container holds both the button and its tooltip.
-   */
-  private getReactionGroup(emoji: string): Locator {
-    // Find the button, then go up to its parent group container
-    return this.locator
-      .getByRole('button', { name: new RegExp(`${emoji} reaction`) })
-      .locator('..');
+  private getReactionButton(emoji: string): Locator {
+    return this.locator.getByRole('button', { name: new RegExp(`${emoji} reaction`) });
   }
 
   /**
    * Hover over a reaction button and verify the tooltip shows the expected text.
    */
   async expectReactionTooltip(emoji: string, expectedText: string | RegExp): Promise<void> {
-    const group = this.getReactionGroup(emoji);
-    const button = group.getByRole('button');
-    await button.hover();
+    await this.getReactionButton(emoji).hover();
 
-    // Find the tooltip within the same group container (sibling of button)
-    const tooltip = group.getByRole('tooltip');
+    const tooltip = this.page.getByRole('tooltip');
     await expect(tooltip).toBeVisible();
-    await expect(tooltip).toHaveText(expectedText);
+    await expect(tooltip).toContainText(expectedText);
   }
 
   /**
    * Hover over a reaction and verify tooltip contains specific user name(s).
    */
   async expectReactionTooltipContains(emoji: string, userName: string): Promise<void> {
-    const group = this.getReactionGroup(emoji);
-    const button = group.getByRole('button');
-    await button.hover();
+    await this.getReactionButton(emoji).hover();
 
-    // Find the tooltip within the same group container (sibling of button)
-    const tooltip = group.getByRole('tooltip');
+    const tooltip = this.page.getByRole('tooltip');
     await expect(tooltip).toBeVisible();
     await expect(tooltip).toContainText(userName);
   }

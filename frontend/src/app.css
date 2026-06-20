@@ -435,6 +435,11 @@
   @apply bg-surface-100;
 }
 
+/* Simple non-interactive tooltip surface for FloatingTooltip. */
+@utility floating-tooltip {
+  @apply max-w-xs rounded-md border border-text/10 bg-surface-200 px-2.5 py-1.5 text-xs leading-snug text-text shadow-lg;
+}
+
 @layer base {
   html {
     height: 100%;

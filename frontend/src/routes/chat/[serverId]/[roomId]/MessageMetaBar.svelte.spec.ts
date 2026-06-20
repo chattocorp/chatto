@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 import MessageMetaBar from './MessageMetaBar.svelte';
@@ -35,6 +36,26 @@ const baseProps = {
   reactions: [],
   onOpenThread: vi.fn()
 };
+
+function reaction(
+  overrides: Partial<{
+    emoji: string;
+    count: number;
+    hasReacted: boolean;
+    users: { id: string; displayName: string }[];
+  }> = {}
+) {
+  return {
+    emoji: 'thumbsup',
+    count: 2,
+    hasReacted: false,
+    users: [
+      { id: 'user-1', displayName: 'Alice' },
+      { id: 'user-2', displayName: 'Bob' }
+    ],
+    ...overrides
+  };
+}
 
 describe('MessageMetaBar', () => {
   it('renders the reply count badge as a native thread link', async () => {
@@ -149,5 +170,48 @@ describe('MessageMetaBar', () => {
 
     expect(followButton).not.toBeNull();
     expect(followButton?.closest('a')).toBeNull();
+  });
+
+  it('shows reaction tooltips with the readable reaction name and reacting users', () => {
+    const { container } = render(MessageMetaBar, {
+      props: {
+        ...baseProps,
+        reactions: [reaction()]
+      }
+    });
+
+    const wrapper = q(container, 'button[aria-label="Add 👍 reaction (2)"]')!
+      .parentElement as HTMLElement;
+
+    wrapper.dispatchEvent(new MouseEvent('mouseenter'));
+    flushSync();
+
+    const tooltip = q(container, '[role="tooltip"]')!;
+    const reactionName = q(tooltip, 'strong')!;
+
+    expect(tooltip.textContent?.trim()).toBe('Thumbs up · Alice, Bob');
+    expect(reactionName.textContent?.trim()).toBe('Thumbs up');
+    expect(reactionName.classList.contains('font-semibold')).toBe(true);
+  });
+
+  it('keeps the reaction tooltip available when the reaction button is disabled', () => {
+    const { container } = render(MessageMetaBar, {
+      props: {
+        ...baseProps,
+        reactions: [reaction({ emoji: 'heart', count: 1, users: [{ id: 'user-1', displayName: 'Alice' }] })],
+        canReact: false
+      }
+    });
+
+    const button = q(container, 'button[aria-label="Add ❤️ reaction (1)"]')! as HTMLButtonElement;
+    const wrapper = button.parentElement as HTMLElement;
+
+    expect(button.disabled).toBe(true);
+
+    wrapper.dispatchEvent(new MouseEvent('mouseenter'));
+    flushSync();
+
+    const tooltip = q(container, '[role="tooltip"]')!;
+    expect(tooltip.textContent?.trim()).toBe('Heart · Alice');
   });
 });

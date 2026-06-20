@@ -14,8 +14,9 @@ this with their own semantics and styling; reach for them first.
 Positioning modes (exactly one is required):
 
 - **`anchor`** — anchor rect with `{ top, bottom, left }`. The popover
-  is placed below the anchor by default, flipped above if there's no
-  room, and horizontally clamped to the viewport.
+  is placed below the anchor by default, or above when `anchorPlacement`
+  is `"top"`, with fallback to the opposite side if there is no room. It
+  is horizontally clamped to the viewport.
 - **`position`** — viewport point `{ x, y }`, with optional
   `alignRight` / `centerX` flags. Used for cursor-driven menus.
 
@@ -39,6 +40,8 @@ pointer-only).
   let {
     position,
     anchor,
+    anchorPlacement = 'bottom',
+    open = true,
     role,
     ariaLabel,
     id,
@@ -50,6 +53,8 @@ pointer-only).
   }: {
     position?: { x: number; y: number; alignRight?: boolean; centerX?: boolean };
     anchor?: { top: number; bottom: number; left: number } | null;
+    anchorPlacement?: 'top' | 'bottom';
+    open?: boolean;
     role?: string;
     ariaLabel?: string;
     id?: string;
@@ -74,11 +79,20 @@ pointer-only).
     let left: number;
 
     if (anchor) {
-      // Anchor mode: prefer below, fall back above, then pin to bottom.
-      if (anchor.bottom + GAP + height <= window.innerHeight - PADDING) {
-        top = anchor.bottom + GAP;
-      } else if (anchor.top - GAP - height >= PADDING) {
+      const fitsBelow = anchor.bottom + GAP + height <= window.innerHeight - PADDING;
+      const fitsAbove = anchor.top - GAP - height >= PADDING;
+      const preferAbove = anchorPlacement === 'top';
+
+      // Anchor mode: honor preferred side, fall back to the opposite side,
+      // then pin inside the viewport.
+      if (preferAbove && fitsAbove) {
         top = anchor.top - GAP - height;
+      } else if (!preferAbove && fitsBelow) {
+        top = anchor.bottom + GAP;
+      } else if (fitsAbove) {
+        top = anchor.top - GAP - height;
+      } else if (fitsBelow) {
+        top = anchor.bottom + GAP;
       } else {
         top = Math.max(PADDING, window.innerHeight - PADDING - height);
       }
@@ -113,20 +127,43 @@ pointer-only).
     node.style.left = `${left}px`;
   }
 
+  function showAndPosition() {
+    if (!node) return;
+    const wasOpen = node.matches(':popover-open');
+
+    if (!wasOpen) {
+      node.style.visibility = 'hidden';
+      node.showPopover();
+    }
+
+    applyPosition();
+
+    if (!wasOpen) {
+      node.style.visibility = '';
+    }
+  }
+
   // Show on mount + reposition reactively whenever anchor/position changes.
   $effect(() => {
     if (!node) return;
     // Re-read reactive inputs so the effect retriggers when they change.
+    void open;
     void anchor;
+    void anchorPlacement;
     void position;
-    node.showPopover();
-    applyPosition();
+
+    if (!open) {
+      if (node.matches(':popover-open')) node.hidePopover();
+      return;
+    }
+
+    showAndPosition();
   });
 
   // Pointer-based dismissal (deferred one frame so the opening click doesn't
   // immediately close the popover).
   $effect(() => {
-    if (!node || !onclose) return;
+    if (!node || !open || !onclose) return;
     const handlePointerDown = (e: PointerEvent) => {
       if (!node || node.contains(e.target as Node)) return;
       onclose();
@@ -151,7 +188,7 @@ pointer-only).
   bind:this={node}
   {id}
   popover="manual"
-  class={['fixed z-50 m-0', className]}
+  class={['fixed inset-auto z-50 m-0', !open && 'hidden', className]}
   {role}
   aria-label={ariaLabel}
   {onmouseenter}

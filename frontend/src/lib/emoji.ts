@@ -133,6 +133,35 @@ export function emojiToName(emoji: string): string | undefined {
   return emojiToNameMap[emoji];
 }
 
+const EMOJI_DISPLAY_NAME_OVERRIDES: Record<string, string> = {
+  thumbsup: 'Thumbs up',
+  thumbsdown: 'Thumbs down'
+};
+
+/**
+ * Human-readable label for a reaction emoji or shortcode.
+ * @example getEmojiDisplayName('thumbsup') // 'Thumbs up'
+ * @example getEmojiDisplayName('🚀') // 'Rocket'
+ */
+export function getEmojiDisplayName(emojiOrName: string): string {
+  const emoji = getEmojiByName(emojiOrName) ?? emojiOrName;
+  const name = emojiToName(emoji) ?? emojiOrName;
+  const override = EMOJI_DISPLAY_NAME_OVERRIDES[name];
+  if (override) return override;
+
+  const readable = name
+    .replace(/^:+|:+$/g, '')
+    .replace(/[+_-]+/g, ' ')
+    .trim();
+
+  if (!readable) return emojiOrName;
+
+  return readable
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
 /**
  * Emoji categories with representative icons for tab rendering.
  * Order matches the standard Unicode emoji category order.
