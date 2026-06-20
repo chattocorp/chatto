@@ -254,6 +254,26 @@ describe('server admin event log filters', () => {
     expect(mocks.loadMore).toHaveBeenCalledOnce();
   });
 
+  it('requires an explicit action to continue after a capped filtered scan', async () => {
+    mocks.eventLog.scanLimited = true;
+    mocks.eventLog.hasOlder = true;
+    mocks.eventLog.scanLimit = 5000;
+
+    const { container } = render(EventLogPage);
+    await settle();
+
+    expect(container.textContent).toMatch(/may\s+have older matches outside that window/);
+    expect(observers).toHaveLength(0);
+
+    const scanOlder = [...container.querySelectorAll('button')].find((button) =>
+      button.textContent?.includes('Scan older events')
+    ) as HTMLButtonElement;
+    scanOlder.click();
+    await settle();
+
+    expect(mocks.loadMore).toHaveBeenCalledOnce();
+  });
+
   it('updates the URL when applying draft filters', async () => {
     const { container } = render(EventLogPage);
     await settle();

@@ -34,6 +34,7 @@ type eventLogPageResult struct {
 	scannedCount int32
 	scanLimit    int32
 	scanLimited  bool
+	scanCursor   *string
 }
 
 type eventLogMessageReader interface {
@@ -160,6 +161,8 @@ func (r *Resolver) fetchEventLogPage(
 			break
 		}
 		result.scannedCount++
+		scanCursor := strconv.FormatUint(seq, 10)
+		result.scanCursor = &scanCursor
 
 		msg, err := stream.GetMsg(ctx, seq)
 		if err != nil {

@@ -305,6 +305,8 @@ func TestFetchEventLogPage_FilteredScanCap(t *testing.T) {
 	require.Equal(t, int32(filteredEventLogScanLimit), page.scannedCount)
 	require.Equal(t, int32(filteredEventLogScanLimit), page.scanLimit)
 	require.True(t, page.scanLimited)
+	require.NotNil(t, page.scanCursor)
+	require.Equal(t, "101", *page.scanCursor)
 }
 
 func TestEventLogTotalCountUsesWideInteger(t *testing.T) {

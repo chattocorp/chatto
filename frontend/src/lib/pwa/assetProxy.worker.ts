@@ -88,23 +88,27 @@ export async function handleAssetProxyFetch(
   const cache = await caches.open(ASSET_CACHE_NAME);
   const cacheKey = assetProxyCacheKey(request.url);
   const rangeHeader = request.headers.get('Range');
-  if (!rangeHeader) {
-    const cached = await cache.match(cacheKey);
-    if (cached) return cached;
-  }
 
   let server = assetProxyServers.get(proxyRequest.serverId);
-  let registered = registeredAssetTargets.get(proxyRequest.virtualPath);
+  let registered = matchingRegisteredAssetTarget(proxyRequest);
   if (!server || !registered) {
     await requestAssetProxyResync(proxyRequest);
     server = assetProxyServers.get(proxyRequest.serverId);
-    registered = registeredAssetTargets.get(proxyRequest.virtualPath);
+    registered = matchingRegisteredAssetTarget(proxyRequest);
+  }
+  if (!server) {
+    return new Response('Asset target is not registered', { status: 404 });
   }
 
   const targetUrl =
     registered?.targetUrl ?? buildFallbackAssetTarget(server, proxyRequest.assetPath);
   if (!targetUrl) {
     return new Response('Asset target is not registered', { status: 404 });
+  }
+
+  if (!rangeHeader) {
+    const cached = await cache.match(cacheKey);
+    if (cached) return cached;
   }
 
   if (rangeHeader) {
@@ -174,6 +178,12 @@ function mergeAssetProxyServers(servers: unknown[]): void {
 
 function registerAssetProxyTarget(target: AssetProxyTarget): void {
   registeredAssetTargets.set(target.virtualPath, target);
+}
+
+function matchingRegisteredAssetTarget(proxyRequest: AssetProxyRequest): AssetProxyTarget | undefined {
+  const registered = registeredAssetTargets.get(proxyRequest.virtualPath);
+  if (registered?.serverId !== proxyRequest.serverId) return undefined;
+  return registered;
 }
 
 async function requestAssetProxyResync(proxyRequest: AssetProxyRequest): Promise<void> {

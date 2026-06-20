@@ -84,6 +84,50 @@ describe('AdminEventLogStore', () => {
     expect(store.hasOlder).toBe(true);
   });
 
+  it('keeps load-more available when a filtered scan window is capped', async () => {
+    const client = makeClient([
+      {
+        data: {
+          admin: {
+            eventLog: {
+              ...makeFilteredConnection([]),
+              hasOlder: true,
+              endCursor: '101',
+              scanLimited: true
+            }
+          }
+        },
+        error: null
+      },
+      {
+        data: { admin: { eventLog: makeFilteredConnection([makeEntry('90')]) } },
+        error: null
+      }
+    ]);
+    const store = new AdminEventLogStore(client);
+
+    await store.loadFirstPage(filter);
+
+    expect(store.entries).toHaveLength(0);
+    expect(store.scanLimited).toBe(true);
+    expect(store.endCursor).toBe('101');
+    expect(store.hasOlder).toBe(true);
+
+    await store.loadMore();
+
+    expect(client.query).toHaveBeenNthCalledWith(2, expect.anything(), {
+      limit: 50,
+      before: '101',
+      filter: {
+        eventType: 'LoginSucceededEvent',
+        actorId: 'actor-1',
+        createdAtFrom: '2026-01-01T00:00:00.000Z',
+        createdAtTo: '2026-01-02T00:00:00.000Z'
+      }
+    });
+    expect(store.entries[0].sequence).toBe('90');
+  });
+
   it('falls back to the legacy unfiltered query when filters are unsupported', async () => {
     const client = makeClient([
       {

@@ -278,11 +278,17 @@ func (r *adminQueriesResolver) EventLog(ctx context.Context, obj *model.AdminQue
 		ScanLimit:    page.scanLimit,
 		ScanLimited:  page.scanLimited,
 	}
-	if len(page.entries) > 0 {
+	if page.scanLimited {
+		conn.EndCursor = page.scanCursor
+		if page.scanCursor != nil {
+			oldestScanned, _ := strconv.ParseUint(*page.scanCursor, 10, 64)
+			conn.HasOlder = oldestScanned > info.State.FirstSeq
+		}
+	} else if len(page.entries) > 0 {
 		oldestSeq := page.entries[len(page.entries)-1].Sequence
 		conn.EndCursor = &oldestSeq
 		oldest, _ := strconv.ParseUint(oldestSeq, 10, 64)
-		conn.HasOlder = oldest > info.State.FirstSeq && !page.scanLimited
+		conn.HasOlder = oldest > info.State.FirstSeq
 	}
 	return conn, nil
 }

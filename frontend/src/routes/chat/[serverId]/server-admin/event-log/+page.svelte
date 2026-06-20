@@ -122,6 +122,10 @@
     });
   }
 
+  function loadOlderScanWindow() {
+    void eventLog.loadMore();
+  }
+
   function navigateWithFilter(filter: AdminEventLogFilter) {
     const params = new SvelteURLSearchParams();
     if (filter.eventType) params.set('eventType', filter.eventType);
@@ -174,8 +178,22 @@
 
       {#if eventLog.scanLimited}
         <Hint tone="warning">
-          Filtered scan inspected {eventLog.scanLimit.toLocaleString()} retained events and may have older
-          matches outside that window.
+          <span class="flex flex-wrap items-center gap-3">
+            <span>
+              Filtered scan inspected {eventLog.scanLimit.toLocaleString()} retained events and may
+              have older matches outside that window.
+            </span>
+            {#if eventLog.hasOlder}
+              <Button
+                variant="secondary"
+                size="sm"
+                onclick={loadOlderScanWindow}
+                disabled={eventLog.loadingMore}
+              >
+                Scan older events
+              </Button>
+            {/if}
+          </span>
         </Hint>
       {/if}
 
@@ -236,7 +254,7 @@
           items={eventLog.entries}
           columns={5}
           emptyMessage={eventLog.loading ? 'Loading...' : 'No events match these filters.'}
-          hasMore={eventLog.hasOlder && !eventLog.error}
+          hasMore={eventLog.hasOlder && !eventLog.scanLimited && !eventLog.error}
           loadingMore={eventLog.loadingMore}
           onLoadMore={() => eventLog.loadMore()}
           loadMoreRoot={scrollContainer}

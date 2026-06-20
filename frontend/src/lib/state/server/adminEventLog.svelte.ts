@@ -303,7 +303,7 @@ export class AdminEventLogStore {
     this.scannedCount = conn.scannedCount;
     this.scanLimit = conn.scanLimit;
     this.scanLimited = conn.scanLimited;
-    this.hasOlder = conn.hasOlder && !conn.scanLimited;
+    this.hasOlder = conn.hasOlder;
     this.endCursor = conn.endCursor ?? null;
   }
 }
