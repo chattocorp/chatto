@@ -12,7 +12,7 @@
   import { Hint, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
-  import { Button, FormError, TextInput } from '$lib/ui/form';
+  import { Button, Form, FormError, TextInput } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { getAvatarInitials } from '$lib/utils/initials';
   import { getLiveLogin } from '$lib/state/userProfiles.svelte';
@@ -369,10 +369,7 @@
       {#if canAdminManageUsers}
         <!-- Identity (admin) — bypasses the 30-day rename cooldown -->
         <Panel title="Identity" icon="iconify uil--edit">
-          <form class="flex flex-col gap-4" onsubmit={saveIdentity}>
-            {#if identityError}
-              <FormError error={identityError} />
-            {/if}
+          <Form onsubmit={saveIdentity} error={identityError}>
             <TextInput
               id="member-login"
               testid="admin-identity-login"
@@ -388,7 +385,7 @@
               bind:value={editDisplayName}
               disabled={savingIdentity}
             />
-            <div class="flex items-center gap-3">
+            {#snippet footer()}
               <Button
                 type="submit"
                 disabled={!identityModified || savingIdentity}
@@ -405,8 +402,8 @@
               >
                 Reset
               </Button>
-            </div>
-            <div class="flex items-center gap-3 rounded-lg border border-border bg-surface-100 p-3">
+            {/snippet}
+            <div class="flex items-center gap-3 surface-box p-3">
               <div class="flex-1 text-sm text-muted">
                 {#if cooldownActive}
                   Self-rename cooldown active for this user — {formatCooldownRemaining(
@@ -429,7 +426,7 @@
                 Reset cooldown
               </Button>
             </div>
-          </form>
+          </Form>
         </Panel>
       {/if}
 

@@ -85,7 +85,7 @@
           type="button"
           onclick={() => toggle(exp.permission)}
           aria-expanded={isExpanded}
-          class="cursor-pointer rounded px-1 text-muted hover:bg-surface-2"
+          class="cursor-pointer rounded px-1 text-muted hover:bg-surface-100"
           title={isExpanded ? 'Hide trace' : 'Show trace'}
         >
           <span
@@ -99,7 +99,7 @@
     </div>
 
     {#if isExpanded}
-      <div class="col-span-4 border-b border-border/50 bg-surface-2 px-4 py-3 text-xs">
+      <div class="col-span-4 border-b border-border/50 bg-surface-100/70 px-4 py-3 text-xs">
         <div class="mb-2 font-medium text-muted">
           Resolution trace ({exp.trace.length}
           {exp.trace.length === 1 ? 'entry' : 'entries'})

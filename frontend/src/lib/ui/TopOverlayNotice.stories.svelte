@@ -2,10 +2,21 @@
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import TopOverlayNotice from './TopOverlayNotice.svelte';
 
+  const componentDescription = `
+    Use TopOverlayNotice for temporary, high-priority prompts that sit above the current pane
+    content, such as permission prompts. It should remain concise and offer no more than one primary
+    and one secondary action.
+  `.trim();
+
   const { Story } = defineMeta({
     title: 'UI/TopOverlayNotice',
     component: TopOverlayNotice,
-    tags: ['autodocs']
+    tags: ['autodocs'],
+    parameters: {
+      docs: {
+        description: { component: componentDescription }
+      }
+    }
   });
 </script>
 

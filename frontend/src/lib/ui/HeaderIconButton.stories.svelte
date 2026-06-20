@@ -2,10 +2,21 @@
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import HeaderIconButton from './HeaderIconButton.svelte';
 
+  const componentDescription = `
+    Use HeaderIconButton for compact icon-only actions in pane headers and tight toolbars. Provide
+    a clear label for accessibility and prefer the active tone for toggled-on state, not hover-only
+    emphasis.
+  `.trim();
+
   const { Story } = defineMeta({
     title: 'UI/HeaderIconButton',
     component: HeaderIconButton,
-    tags: ['autodocs']
+    tags: ['autodocs'],
+    parameters: {
+      docs: {
+        description: { component: componentDescription }
+      }
+    }
   });
 </script>
 

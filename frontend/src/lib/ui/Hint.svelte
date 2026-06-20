@@ -43,7 +43,7 @@ a page without competing with primary content.
   } = $props();
 
   const toneStyles: Record<Tone, string> = {
-    info: 'bg-surface-2 border-border text-muted',
+    info: 'border-border bg-surface-100/80 text-muted',
     warning: 'border-warning/30 bg-warning/10 text-warning',
     success: 'border-success/30 bg-success/10 text-success',
     danger: 'border-danger/30 bg-danger/10 text-danger'
@@ -61,7 +61,7 @@ a page without competing with primary content.
 
 <div class={['flex items-start gap-3 rounded-lg border p-4', toneStyles[tone]]}>
   {#if resolvedIcon}
-    <span class={['iconify mt-0.5 shrink-0 text-lg', resolvedIcon]}></span>
+    <span class={['mt-0.5 iconify shrink-0 text-lg', resolvedIcon]}></span>
   {/if}
   <div class="flex-1">
     {@render children()}

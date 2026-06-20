@@ -9,6 +9,7 @@ Only renders when the `welcome=true` query parameter is present.
 -->
 <script lang="ts">
   import { page } from '$app/state';
+  import { Hint } from '$lib/ui';
 
   let showWelcome = $state(page.url.searchParams.get('welcome') === 'true');
 
@@ -30,17 +31,19 @@ Only renders when the `welcome=true` query parameter is present.
 </script>
 
 {#if showWelcome}
-  <div
-    class="mb-2 flex items-center justify-between rounded-lg bg-green-500/10 px-4 py-2 text-sm text-green-600 dark:text-green-400"
-  >
-    <span>Welcome to Chatto! Your email has been verified and your account is ready.</span>
-    <button
-      type="button"
-      class="ml-4 hover:text-green-800 dark:hover:text-green-200"
-      onclick={() => (showWelcome = false)}
-      title="Dismiss"
-    >
-      <span class="iconify uil--times"></span>
-    </button>
+  <div class="mb-2">
+    <Hint tone="success">
+      <div class="flex items-start justify-between gap-3">
+        <span>Your email has been verified and your account is ready.</span>
+        <button
+          type="button"
+          class="-m-1 icon-action"
+          onclick={() => (showWelcome = false)}
+          title="Dismiss"
+        >
+          <span class="iconify uil--times"></span>
+        </button>
+      </div>
+    </Hint>
   </div>
 {/if}

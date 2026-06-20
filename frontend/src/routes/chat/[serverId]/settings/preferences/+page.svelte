@@ -223,22 +223,12 @@
           type="button"
           role="radio"
           aria-checked={isSelected}
-          class={[
-            'flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors',
-            isSelected
-              ? 'border-accent bg-accent/10'
-              : 'hover:border-border-highlighted border-border hover:bg-surface-100'
-          ]}
+          class={['choice-row', isSelected && 'choice-row-selected']}
           onclick={() => (userPreferences.displayTheme = option.value)}
         >
-          <span
-            class={[
-              'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors',
-              isSelected ? 'border-accent bg-accent' : 'border-muted'
-            ]}
-          >
+          <span class={['choice-indicator', isSelected && 'choice-indicator-selected']}>
             {#if isSelected}
-              <span class="h-2 w-2 rounded-full bg-white"></span>
+              <span class="choice-indicator-dot"></span>
             {/if}
           </span>
           <div>
@@ -279,7 +269,7 @@
       {#if timezoneSearch}
         <button
           type="button"
-          class="hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2 cursor-pointer rounded p-1 text-muted"
+          class="absolute top-1/2 right-2 icon-action -translate-y-1/2"
           onclick={handleClearTimezone}
           title="Clear timezone (use browser default)"
         >
@@ -301,8 +291,8 @@
               class={[
                 'cursor-pointer px-3 py-1.5 text-sm',
                 i === highlightedIndex
-                  ? 'text-foreground bg-accent/20'
-                  : 'hover:text-foreground text-muted hover:bg-surface-100'
+                  ? 'bg-accent/20 text-text'
+                  : 'text-muted hover:bg-surface-100 hover:text-text'
               ]}
               onmousedown={() => selectTimezone(tz)}
             >
@@ -341,22 +331,12 @@
         {@const isSelected = selectedTimeFormat === option.value}
         <button
           type="button"
-          class={[
-            'flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors',
-            isSelected
-              ? 'border-accent bg-accent/10'
-              : 'hover:border-border-highlighted border-border hover:bg-surface-100'
-          ]}
+          class={['choice-row', isSelected && 'choice-row-selected']}
           onclick={() => (selectedTimeFormat = option.value)}
         >
-          <span
-            class={[
-              'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors',
-              isSelected ? 'border-accent bg-accent' : 'border-muted'
-            ]}
-          >
+          <span class={['choice-indicator', isSelected && 'choice-indicator-selected']}>
             {#if isSelected}
-              <span class="h-2 w-2 rounded-full bg-white"></span>
+              <span class="choice-indicator-dot"></span>
             {/if}
           </span>
           <div>

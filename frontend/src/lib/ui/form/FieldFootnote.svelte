@@ -16,7 +16,7 @@ otherwise the description. Internal — used by FormField and Checkbox.
     id?: string;
     error?: string;
     description?: string;
-    /** Add px-2 to align with the input's interior padding (used by FormField). */
+    /** Add px-2 when helper text deliberately aligns with input text instead of the field edge. */
     indent?: boolean;
   } = $props();
 

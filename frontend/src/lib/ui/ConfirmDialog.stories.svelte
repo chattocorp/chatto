@@ -1,11 +1,22 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
+  import { Button } from '$lib/ui/form';
   import ConfirmDialog from './ConfirmDialog.svelte';
+
+  const componentDescription = `
+    Use ConfirmDialog when a command needs explicit confirmation before continuing. Prefer danger
+    for destructive, warning for disruptive but recoverable, and info for neutral confirmation flows.
+  `.trim();
 
   const { Story } = defineMeta({
     title: 'UI/ConfirmDialog',
     component: ConfirmDialog,
-    tags: ['autodocs']
+    tags: ['autodocs'],
+    parameters: {
+      docs: {
+        description: { component: componentDescription }
+      }
+    }
   });
 </script>
 
@@ -25,8 +36,16 @@
   }
 </script>
 
-<Story name="Danger (default)" asChild>
-  <button class="btn-primary" onclick={() => (dangerVisible = true)}>Open danger dialog</button>
+<Story
+  name="Danger (default)"
+  asChild
+  parameters={{
+    docs: {
+      description: { story: 'Default destructive confirmation with a danger action tone.' }
+    }
+  }}
+>
+  <Button onclick={() => (dangerVisible = true)}>Open danger dialog</Button>
 
   <ConfirmDialog
     bind:visible={dangerVisible}
@@ -40,8 +59,18 @@
   </ConfirmDialog>
 </Story>
 
-<Story name="Warning tone" asChild>
-  <button class="btn-primary" onclick={() => (warningVisible = true)}>Open warning dialog</button>
+<Story
+  name="Warning tone"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story: 'Warning tone fits disruptive actions that are not permanent deletion.'
+      }
+    }
+  }}
+>
+  <Button onclick={() => (warningVisible = true)}>Open warning dialog</Button>
 
   <ConfirmDialog
     bind:visible={warningVisible}
@@ -56,8 +85,16 @@
   </ConfirmDialog>
 </Story>
 
-<Story name="Info tone (non-destructive)" asChild>
-  <button class="btn-primary" onclick={() => (infoVisible = true)}>Open info dialog</button>
+<Story
+  name="Info tone (non-destructive)"
+  asChild
+  parameters={{
+    docs: {
+      description: { story: 'Info tone keeps neutral confirmations from looking destructive.' }
+    }
+  }}
+>
+  <Button onclick={() => (infoVisible = true)}>Open info dialog</Button>
 
   <ConfirmDialog
     bind:visible={infoVisible}
@@ -73,8 +110,18 @@
   </ConfirmDialog>
 </Story>
 
-<Story name="Loading state" asChild>
-  <button class="btn-primary" onclick={() => (loadingVisible = true)}>Open loading dialog</button>
+<Story
+  name="Loading state"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story: 'Loading state keeps the dialog open and disables duplicate confirmation.'
+      }
+    }
+  }}
+>
+  <Button onclick={() => (loadingVisible = true)}>Open loading dialog</Button>
 
   <ConfirmDialog
     bind:visible={loadingVisible}

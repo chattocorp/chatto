@@ -2,10 +2,20 @@
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import TextArea from './TextArea.svelte';
 
+  const componentDescription = `
+    Use TextArea for multi-line prose, descriptions, and notes. Keep short values in TextInput, and
+    use helper text or counters when the field has meaningful constraints.
+  `.trim();
+
   const { Story } = defineMeta({
     title: 'Form/TextArea',
     component: TextArea,
-    tags: ['autodocs']
+    tags: ['autodocs'],
+    parameters: {
+      docs: {
+        description: { component: componentDescription }
+      }
+    }
   });
 </script>
 

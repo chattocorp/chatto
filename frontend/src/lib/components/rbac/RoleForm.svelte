@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Button, Checkbox, TextInput, TextArea } from '$lib/ui/form';
+  import { Button, Checkbox, Form, TextInput, TextArea } from '$lib/ui/form';
 
   let {
     name = $bindable(''),
@@ -56,7 +56,7 @@
   }
 </script>
 
-<form onsubmit={handleSubmit} class="flex flex-col gap-4">
+<Form onsubmit={handleSubmit}>
   {#if nameEditable}
     <TextInput
       id="name"
@@ -106,7 +106,7 @@
     description="Pingable roles appear in @ autocomplete and notify assigned room members."
   />
 
-  <div class="flex gap-2 pt-2">
+  {#snippet footer()}
     <Button
       type="submit"
       variant="primary"
@@ -123,5 +123,5 @@
         Cancel
       </Button>
     {/if}
-  </div>
-</form>
+  {/snippet}
+</Form>

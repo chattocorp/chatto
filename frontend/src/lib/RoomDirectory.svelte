@@ -20,10 +20,7 @@ registry.
   import { Button } from '$lib/ui/form';
   import Dialog from '$lib/ui/Dialog.svelte';
   import type { RoomsStore } from '$lib/state/server/rooms.svelte';
-  import type {
-    RoomDirectoryStore,
-    DirectoryRoom
-  } from '$lib/state/server/roomDirectory.svelte';
+  import type { RoomDirectoryStore, DirectoryRoom } from '$lib/state/server/roomDirectory.svelte';
 
   let {
     directory,
@@ -74,9 +71,7 @@ registry.
   });
 
   const hasLayout = $derived(roomGroups !== null && roomGroups.length > 0);
-  const hasVisibleResults = $derived(
-    hasLayout ? visibleSets.length > 0 : filteredRooms.length > 0
-  );
+  const hasVisibleResults = $derived(hasLayout ? visibleSets.length > 0 : filteredRooms.length > 0);
 
   // --- Actions ---
 
@@ -148,7 +143,6 @@ registry.
       ro.disconnect();
     };
   }
-
 
   function promptLeaveRoom(room: DirectoryRoom) {
     leaveConfirmRoom = room;
@@ -245,18 +239,18 @@ registry.
         title={`Joined #${room.name} — click to leave`}
       >
         {#if leaving}
-          <span class="iconify uil--spinner animate-spin"></span>
+          <span class="iconify animate-spin uil--spinner"></span>
           Leaving
         {:else}
           <span class="iconify uil--check group-hover:hidden"></span>
-          <span class="iconify uil--sign-out-alt hidden group-hover:inline"></span>
+          <span class="iconify hidden uil--sign-out-alt group-hover:inline"></span>
           <span class="group-hover:hidden">Joined</span>
           <span class="hidden group-hover:inline">Leave</span>
         {/if}
       </button>
     {:else if joining}
       <button type="button" class={primarySolid} disabled>
-        <span class="iconify uil--spinner animate-spin"></span>
+        <span class="iconify animate-spin uil--spinner"></span>
         Joining
       </button>
     {:else if room.viewerCanJoinRoom}
@@ -276,10 +270,7 @@ registry.
 {#snippet groupCard(set: { id: string; name: string; roomIds: string[] }, rooms: DirectoryRoom[])}
   {@const joining = directory.joiningGroupIds.has(set.id)}
   {@const canJoinAll = canJoinAllInGroup(rooms)}
-  <div
-    {@attach masonryItem}
-    class="self-start overflow-hidden rounded-xl border border-border bg-background"
-  >
+  <div {@attach masonryItem} class="self-start overflow-hidden panel-shell">
     <div class="flex items-center justify-between gap-4 border-b border-border p-4">
       <h2 class="truncate text-lg font-semibold">{set.name}</h2>
       {#if canJoinAll || joining}
@@ -287,12 +278,12 @@ registry.
              header action lines up vertically with Join / Joined. -->
         <button
           type="button"
-          class="btn btn-accent btn-sm border border-transparent w-28 shrink-0 justify-center transition-none"
+          class="btn-accent btn w-28 shrink-0 justify-center border border-transparent btn-sm transition-none"
           onclick={() => handleJoinGroup(set)}
           disabled={joining}
         >
           {#if joining}
-            <span class="iconify uil--spinner animate-spin"></span>
+            <span class="iconify animate-spin uil--spinner"></span>
             Joining
           {:else}
             <span class="iconify uil--plus-circle"></span>
@@ -315,12 +306,7 @@ registry.
 {/snippet}
 
 <div class="mb-6">
-  <input
-    type="text"
-    placeholder="Search rooms…"
-    bind:value={searchQuery}
-    class="input w-full"
-  />
+  <input type="text" placeholder="Search rooms…" bind:value={searchQuery} class="input w-full" />
 </div>
 
 {#if visibleRooms.length === 0}

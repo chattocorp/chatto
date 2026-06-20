@@ -20,14 +20,9 @@
   } = $props();
 </script>
 
-<div
-  class={[
-    'rounded-xl border border-border bg-background shadow-md',
-    noPadding && 'overflow-hidden'
-  ]}
->
+<div class={['panel-shell panel-shell-raised', noPadding && 'overflow-hidden']}>
   {#if title}
-    <div class="panel-header flex items-center justify-between gap-4 rounded-t-xl p-4">
+    <div class="flex items-center justify-between gap-4 rounded-t-xl panel-header p-4">
       <div class="min-w-0">
         <h2 class="flex items-center gap-2 text-lg font-semibold">
           {#if icon}

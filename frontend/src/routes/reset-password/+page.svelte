@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
+  import { Hint } from '$lib/ui';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { TextInput, FormError, Button, z, validate } from '$lib/ui/form';
 
@@ -67,12 +68,10 @@
   <h1 class="mb-6 text-center text-2xl font-bold">Set New Password</h1>
 
   {#if !token}
-    <div
-      class="rounded-lg bg-red-100 p-4 text-center text-red-800 dark:bg-red-900/30 dark:text-red-200"
-    >
+    <Hint tone="danger">
       <p class="mb-2 font-medium">Invalid reset link</p>
       <p class="text-sm">This link is invalid or has expired.</p>
-    </div>
+    </Hint>
 
     <p class="mt-6 text-center">
       <a href={resolve('/forgot-password')} class="link">Request a new link</a>
@@ -106,7 +105,13 @@
 
       <FormError {error} />
 
-      <Button type="submit" size="lg" disabled={!canSubmit} loading={isLoading} loadingText="Resetting...">
+      <Button
+        type="submit"
+        size="lg"
+        disabled={!canSubmit}
+        loading={isLoading}
+        loadingText="Resetting..."
+      >
         Reset Password
       </Button>
     </form>

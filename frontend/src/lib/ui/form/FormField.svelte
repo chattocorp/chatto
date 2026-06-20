@@ -20,13 +20,9 @@
 </script>
 
 <div class="flex flex-col gap-1.5">
-  <!--
-    Labels and helper text are indented by the input's interior padding
-    so the label baseline aligns with the input's value text.
-  -->
-  <label for={id} class="px-2 text-sm font-medium text-muted">
+  <label for={id} class="text-sm font-medium text-muted">
     {label}{#if required}<span
-        class="iconify uil--asterisk ml-1 align-middle text-[0.7em] text-accent"
+        class="ml-1 iconify align-middle text-[0.7em] text-accent uil--asterisk"
         aria-hidden="true"
         title="Required"
       ></span>{/if}
@@ -34,5 +30,5 @@
 
   {@render children()}
 
-  <FieldFootnote {id} {error} {description} indent />
+  <FieldFootnote {id} {error} {description} />
 </div>

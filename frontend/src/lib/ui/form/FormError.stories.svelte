@@ -2,10 +2,20 @@
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import FormError from './FormError.svelte';
 
+  const componentDescription = `
+    Use FormError for form-level or field-adjacent validation messages that should use the shared
+    error color, spacing, and conditional rendering behavior.
+  `.trim();
+
   const { Story } = defineMeta({
     title: 'Form/FormError',
     component: FormError,
-    tags: ['autodocs']
+    tags: ['autodocs'],
+    parameters: {
+      docs: {
+        description: { component: componentDescription }
+      }
+    }
   });
 </script>
 

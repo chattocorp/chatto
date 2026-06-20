@@ -3,8 +3,8 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { graphql } from '$lib/gql';
-  import { PaneHeader, FormSection, Dialog } from '$lib/ui';
-  import { TextInput, Button, FormError } from '$lib/ui/form';
+  import { PaneHeader, FormSection, Dialog, Hint } from '$lib/ui';
+  import { TextInput, Button, Form } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { dropZone } from '$lib/attachments/dropZone.svelte';
   import DropZoneOverlay from '$lib/attachments/DropZoneOverlay.svelte';
@@ -69,8 +69,8 @@
 
   // Fetch last login change on mount
   $effect(() => {
-    connection().client
-      .query(
+    connection()
+      .client.query(
         graphql(`
           query GetMyLastLoginChange {
             viewer {
@@ -115,8 +115,8 @@
     uploadingAvatar = true;
 
     try {
-      const result = await connection().client
-        .mutation(
+      const result = await connection()
+        .client.mutation(
           graphql(`
             mutation UploadAvatar($input: UploadAvatarInput!) {
               uploadAvatar(input: $input) {
@@ -170,8 +170,8 @@
     deletingAvatar = true;
 
     try {
-      const result = await connection().client
-        .mutation(
+      const result = await connection()
+        .client.mutation(
           graphql(`
             mutation DeleteAvatar($input: DeleteAvatarInput!) {
               deleteAvatar(input: $input) {
@@ -267,8 +267,8 @@
     successMessage = '';
 
     try {
-      const result = await connection().client
-        .mutation(
+      const result = await connection()
+        .client.mutation(
           graphql(`
             mutation UpdateProfile($input: UpdateProfileInput!) {
               updateProfile(input: $input) {
@@ -325,8 +325,16 @@
 <div class="flex flex-col gap-6 overflow-y-auto p-6">
   <!-- Avatar Section -->
   <FormSection title="Avatar" maxWidth="max-w-md">
-    <div class="relative flex items-start gap-6" data-testid="avatar-drop-zone" {@attach avatarDropZone}>
-      <DropZoneOverlay visible={isDraggingAvatar} title="Drop image" subtitle="Upload as your avatar" />
+    <div
+      class="relative flex items-start gap-6"
+      data-testid="avatar-drop-zone"
+      {@attach avatarDropZone}
+    >
+      <DropZoneOverlay
+        visible={isDraggingAvatar}
+        title="Drop image"
+        subtitle="Upload as your avatar"
+      />
       <!-- Avatar Preview -->
       <div
         class="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-200 text-4xl font-black text-muted shadow-md"
@@ -381,7 +389,7 @@
   </FormSection>
 
   <!-- Profile Form -->
-  <form onsubmit={handleSubmit} class="flex max-w-md flex-col gap-4 border-t border-border pt-6">
+  <Form onsubmit={handleSubmit} maxWidth="max-w-md" bordered {error}>
     <TextInput
       label="Display Name"
       bind:value={displayName}
@@ -403,25 +411,17 @@
       </p>
     {/if}
 
-    {#if error}
-      <FormError {error} />
-    {/if}
-
     {#if successMessage}
-      <div
-        class="rounded-lg border border-green-500/20 bg-green-500/10 p-3 text-sm text-green-600 dark:text-green-400"
-      >
-        {successMessage}
-      </div>
+      <Hint tone="success">{successMessage}</Hint>
     {/if}
 
-    <div class="flex gap-2">
+    {#snippet footer()}
       <Button type="submit" disabled={!isModified || isSaving} loading={isSaving}>
         <span class="iconify uil--check"></span>
         Save Changes
       </Button>
-    </div>
-  </form>
+    {/snippet}
+  </Form>
 </div>
 
 <Dialog bind:visible={showLoginConfirm} title="Change Username" size="sm">

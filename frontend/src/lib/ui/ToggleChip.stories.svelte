@@ -2,10 +2,20 @@
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import ToggleChip from './ToggleChip.svelte';
 
+  const componentDescription = `
+    Use ToggleChip for compact binary or mutually exclusive toggles inside dense editors. It is
+    interactive; use Pill for passive labels with similar visual density.
+  `.trim();
+
   const { Story } = defineMeta({
     title: 'UI/ToggleChip',
     component: ToggleChip,
-    tags: ['autodocs']
+    tags: ['autodocs'],
+    parameters: {
+      docs: {
+        description: { component: componentDescription }
+      }
+    }
   });
 </script>
 

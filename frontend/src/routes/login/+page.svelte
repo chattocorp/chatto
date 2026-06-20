@@ -6,9 +6,9 @@
   import { graphql } from '$lib/gql';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
-  import { Divider } from '$lib/ui';
+  import { Divider, Hint } from '$lib/ui';
   import PageTitle from '$lib/ui/PageTitle.svelte';
-  import { TextInput, FormError, Button } from '$lib/ui/form';
+  import { TextInput, FormError, Button, Form } from '$lib/ui/form';
   import AddServerDialog from '$lib/components/AddServerDialog.svelte';
 
   const { data } = $props();
@@ -32,9 +32,7 @@
   // Only applies when there's no redirect param — a redirect means the backend sent
   // us here (e.g. OAuth authorize flow), so the origin probe just hasn't completed yet.
   const isStandalone = $derived(
-    !serverRegistry.originServer &&
-    serverRegistry.originProbed &&
-    data.redirectUrl === '/'
+    !serverRegistry.originServer && serverRegistry.originProbed && data.redirectUrl === '/'
   );
 
   $effect(() => {
@@ -165,7 +163,7 @@
   }
 </script>
 
-<PageTitle title={isStandalone ? "Welcome" : "Sign In"} />
+<PageTitle title={isStandalone ? 'Welcome' : 'Sign In'} />
 
 {#if !data.user}
   {#if isStandalone}
@@ -173,10 +171,15 @@
       <div class="flex flex-col items-center gap-6 text-center">
         <h1 class="text-2xl font-bold">Welcome to Chatto</h1>
         <p class="text-muted">
-          Connect to a Chatto server to get started. You can connect to multiple
-          servers and switch between them.
+          Connect to a Chatto server to get started. You can connect to multiple servers and switch
+          between them.
         </p>
-        <Button variant="accent" size="lg" fullWidth onclick={() => (addServerDialogVisible = true)}>
+        <Button
+          variant="accent"
+          size="lg"
+          fullWidth
+          onclick={() => (addServerDialogVisible = true)}
+        >
           Add Server
         </Button>
       </div>
@@ -186,10 +189,10 @@
       <h1 class="mb-6 text-center text-2xl font-bold">Sign In</h1>
 
       {#if data.passwordResetSuccess}
-        <div
-          class="mb-4 rounded-lg bg-green-100 p-3 text-center text-sm text-green-800 dark:bg-green-900/30 dark:text-green-200"
-        >
-          Password reset successful! Please sign in with your new password.
+        <div class="mb-4">
+          <Hint tone="success">
+            Password reset successful. Please sign in with your new password.
+          </Hint>
         </div>
       {/if}
 
@@ -197,13 +200,8 @@
       {#if authProviders.length > 0}
         <div class="flex flex-col gap-3">
           {#each authProviders as provider (provider.id)}
-            <Button
-              variant="secondary"
-              size="lg"
-              fullWidth
-              href={providerLoginHref(provider)}
-            >
-              <span class={["iconify text-lg", providerIcon(provider.type)]}></span>
+            <Button variant="secondary" size="lg" fullWidth href={providerLoginHref(provider)}>
+              <span class={['iconify text-lg', providerIcon(provider.type)]}></span>
               Continue with {provider.label}
             </Button>
           {/each}
@@ -212,7 +210,7 @@
         </div>
       {/if}
 
-      <form onsubmit={handleSubmit} class="flex flex-col gap-4">
+      <Form onsubmit={handleSubmit}>
         <TextInput
           id="identifier"
           label="Username or Email"
@@ -237,22 +235,26 @@
 
         <FormError {error} />
 
-        <Button type="submit" size="lg" disabled={!canSubmit} loading={isLoading} loadingText="Signing in...">
+        <Button
+          type="submit"
+          size="lg"
+          disabled={!canSubmit}
+          loading={isLoading}
+          loadingText="Signing in..."
+        >
           <span class="iconify mdi--login"></span>
           Sign In
         </Button>
-      </form>
+      </Form>
 
       <div class="mt-4 text-center">
-        <a href={resolve('/forgot-password')} class="text-muted hover:text-primary hover:underline">
-          Forgot password?
-        </a>
+        <a href={resolve('/forgot-password')} class="link"> Forgot password? </a>
       </div>
 
       {#if directRegistrationEnabled}
         <Divider label="or" />
 
-        <a href={resolve('/register')} class="btn-secondary btn-lg block w-full text-center">
+        <a href={resolve('/register')} class="btn-secondary block w-full btn-lg text-center">
           Create Account
         </a>
       {/if}

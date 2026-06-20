@@ -1,8 +1,9 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
+  import { Hint } from '$lib/ui';
   import PageTitle from '$lib/ui/PageTitle.svelte';
-  import { TextInput, FormError, Button, z, validate } from '$lib/ui/form';
+  import { TextInput, FormError, Button, Form, z, validate } from '$lib/ui/form';
 
   let email = $state('');
   let error = $state('');
@@ -53,15 +54,13 @@
   <h1 class="mb-6 text-center text-2xl font-bold">Forgot Password</h1>
 
   {#if submitted}
-    <div
-      class="rounded-lg bg-green-100 p-4 text-center text-green-800 dark:bg-green-900/30 dark:text-green-200"
-    >
+    <Hint tone="success">
       <p class="mb-2 font-medium">Check your email</p>
       <p class="text-sm">
         If that email is registered, you'll receive a password reset link shortly.
       </p>
       <p class="mt-2 text-sm text-muted">Check your spam folder if you don't see it.</p>
-    </div>
+    </Hint>
 
     <p class="mt-6 text-center">
       <a href={resolve('/login')} class="link">← Back to login</a>
@@ -71,7 +70,7 @@
       Enter your email address and we'll send you a link to reset your password.
     </p>
 
-    <form onsubmit={handleSubmit} class="flex flex-col gap-4">
+    <Form onsubmit={handleSubmit}>
       <TextInput
         id="email"
         label="Email"
@@ -86,11 +85,17 @@
 
       <FormError {error} />
 
-      <Button type="submit" size="lg" disabled={!canSubmit} loading={isLoading} loadingText="Sending...">
+      <Button
+        type="submit"
+        size="lg"
+        disabled={!canSubmit}
+        loading={isLoading}
+        loadingText="Sending..."
+      >
         <span class="iconify uil--envelope-send"></span>
         Send Reset Link
       </Button>
-    </form>
+    </Form>
 
     <p class="mt-6 text-center">
       Remember your password?

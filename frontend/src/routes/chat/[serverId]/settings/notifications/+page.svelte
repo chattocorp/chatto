@@ -1,5 +1,6 @@
 <script lang="ts">
   import { PaneHeader, Hint, FormSection } from '$lib/ui';
+  import { Button } from '$lib/ui/form';
   import NotificationLevelSettings from '$lib/components/settings/NotificationLevelSettings.svelte';
   import { userPreferences } from '$lib/state/userPreferences.svelte';
   import {
@@ -140,7 +141,7 @@
       <h3 class="mb-4 text-sm font-semibold text-muted">Push Notifications</h3>
 
       {#if !pushSupported}
-        <div class="rounded-lg border border-border bg-surface-100 px-4 py-3 text-sm text-muted">
+        <div class="surface-box px-4 py-3 text-sm text-muted">
           Push notifications are not supported in this browser.
         </div>
       {:else if pushError}
@@ -158,35 +159,33 @@
             </p>
           </div>
         {:else if pushSubscribed}
-          <div
-            class="rounded-lg border border-accent bg-accent/10 px-4 py-3"
-          >
+          <Hint tone="success">
             <div>
-              <p class="font-medium text-accent">Push notifications enabled</p>
+              <p class="font-medium">Push notifications enabled</p>
               <p class="mt-1 text-sm text-muted">
                 Chatto uses your browser or OS notification permission as the switch. To turn
                 notifications off, disable them for this site in your browser or OS settings.
               </p>
             </div>
-          </div>
+          </Hint>
         {:else}
-          <div
-            class="flex items-center justify-between rounded-lg border border-border bg-surface-100 px-4 py-3"
-          >
+          <div class="flex items-center justify-between surface-box px-4 py-3">
             <div>
               <p class="font-medium">Enable push notifications</p>
               <p class="mt-1 text-sm text-muted">
                 Get notified about new messages even when the browser is closed.
               </p>
             </div>
-            <button
-              type="button"
-              class="cursor-pointer rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
+            <Button
+              variant="accent"
+              size="sm"
               onclick={handleEnablePush}
               disabled={pushLoading}
+              loading={pushLoading}
+              loadingText="Enabling..."
             >
-              {pushLoading ? 'Enabling...' : 'Enable'}
-            </button>
+              Enable
+            </Button>
           </div>
         {/if}
       {/if}
@@ -209,22 +208,12 @@
               {@const isSelected = userPreferences.notificationSound === sound.id}
               <button
                 type="button"
-                class={[
-                  'flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 transition-colors',
-                  isSelected
-                    ? 'border-accent bg-accent/10'
-                    : 'hover:border-border-highlighted border-border hover:bg-surface-100'
-                ]}
+                class={['choice-row', isSelected && 'choice-row-selected']}
                 onclick={() => selectSound(sound.id)}
               >
-                <span
-                  class={[
-                    'flex h-5 w-5 items-center justify-center rounded-full border-2 transition-colors',
-                    isSelected ? 'border-accent bg-accent' : 'border-muted'
-                  ]}
-                >
+                <span class={['choice-indicator', isSelected && 'choice-indicator-selected']}>
                   {#if isSelected}
-                    <span class="h-2 w-2 rounded-full bg-white"></span>
+                    <span class="choice-indicator-dot"></span>
                   {/if}
                 </span>
                 <span class={isSelected ? 'font-medium' : ''}>{sound.name}</span>
@@ -238,21 +227,21 @@
 
   <FormSection title="Sound Shape" maxWidth="max-w-lg" bordered>
     {#snippet actions()}
-      <button
-        type="button"
-        class="cursor-pointer rounded-lg border border-border bg-surface-100 px-3 py-1.5 text-sm transition-colors hover:bg-surface-200 disabled:cursor-not-allowed disabled:opacity-50"
+      <Button
+        variant="secondary"
+        size="sm"
         onclick={previewSelectedSound}
         disabled={userPreferences.notificationSound === 'silent'}
       >
         Preview
-      </button>
-      <button
-        type="button"
-        class="hover:text-foreground cursor-pointer rounded-lg border border-border px-3 py-1.5 text-sm text-muted transition-colors hover:bg-surface-100"
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
         onclick={() => userPreferences.resetNotificationSoundFilters()}
       >
         Reset
-      </button>
+      </Button>
     {/snippet}
 
     <div class="flex flex-col gap-2">

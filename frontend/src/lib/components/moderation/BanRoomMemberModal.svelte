@@ -57,7 +57,7 @@
   onsubmit={handleSubmit}
   onclose={() => onclose?.()}
 >
-  <div class="flex items-center gap-3 rounded-md border border-border bg-surface-100 p-3">
+  <div class="flex items-center gap-3 surface-box p-3">
     <UserAvatar {user} size="md" />
     <div class="min-w-0 flex-1">
       <div class="truncate font-medium text-text">{displayName}</div>

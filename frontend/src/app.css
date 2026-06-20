@@ -142,6 +142,23 @@
   --color-panel-highlight: var(--color-panel-highlight);
 }
 
+/* Panel/card shells - canonical bordered surfaces for admin panels, room
+ * directory group cards, and similar content containers. Pair with
+ * `.panel-header` / `.panel-body` when the container has a distinct header.
+ */
+@utility panel-shell {
+  @apply rounded-xl border border-border bg-background;
+}
+
+@utility panel-shell-raised {
+  @apply shadow-md;
+}
+
+/* Compact framed surface for inline rows inside forms, dialogs, and settings. */
+@utility surface-box {
+  @apply rounded-lg border border-border bg-surface-100;
+}
+
 /* Panel header band — tinted background, hairline divider underneath, and
  * a 1px inset highlight on whatever follows so the divider reads as an
  * engraved ridge rather than a flat rule. The body inset is achieved via
@@ -254,6 +271,29 @@
 @utility checkbox-box {
   @apply mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border border-input-border bg-input text-transparent;
   @apply transition-[background-color,border-color,box-shadow,color] duration-100;
+}
+
+/* Single-choice rows used by settings radio groups. */
+@utility choice-row {
+  @apply flex cursor-pointer items-center gap-3 rounded-lg border border-border px-3 py-2 text-left transition-colors;
+  @apply hover:border-input-border hover:bg-surface-100;
+  @apply disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+@utility choice-row-selected {
+  @apply border-accent bg-accent/10 hover:border-accent hover:bg-accent/10;
+}
+
+@utility choice-indicator {
+  @apply flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-muted transition-colors;
+}
+
+@utility choice-indicator-selected {
+  @apply border-accent bg-accent;
+}
+
+@utility choice-indicator-dot {
+  @apply h-2 w-2 rounded-full bg-white;
 }
 
 /* Form error utility */
@@ -395,6 +435,16 @@
    visual alignment tight, subtle hover/active feedback. */
 @utility app-header-icon {
   @apply -m-2 flex h-11 w-11 cursor-pointer items-center justify-center rounded hover:text-text active:bg-surface-200;
+}
+
+/* Compact inline icon-only action for row/input affordances such as copy,
+ * dismiss, and clear. Larger toolbar icons should use HeaderIconButton or
+ * pane-header-icon-button instead.
+ */
+@utility icon-action {
+  @apply inline-flex cursor-pointer items-center justify-center rounded p-1 text-muted transition-colors;
+  @apply hover:bg-surface-200 hover:text-text;
+  @apply disabled:cursor-not-allowed disabled:opacity-50;
 }
 
 /* Hide scrollbar while maintaining scroll functionality */

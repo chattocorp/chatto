@@ -4,7 +4,7 @@
   import { clearCachedUser } from '$lib/auth/loadAuth';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { Divider } from '$lib/ui';
+  import { Divider, Hint } from '$lib/ui';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { TextInput, FormError, Button, z, validate } from '$lib/ui/form';
 
@@ -98,18 +98,16 @@
   }
 </script>
 
-  <PageTitle title="Complete Registration" />
+<PageTitle title="Complete Registration" />
 
 <AuthLayout>
   <h1 class="mb-6 text-center text-2xl font-bold">Complete Registration</h1>
 
   {#if !token}
-    <div
-      class="rounded-lg bg-red-100 p-4 text-center text-red-800 dark:bg-red-900/30 dark:text-red-200"
-    >
+    <Hint tone="danger">
       <p class="mb-2 font-medium">Invalid registration code</p>
       <p class="text-sm">This registration session is invalid or has expired.</p>
-    </div>
+    </Hint>
 
     <p class="mt-6 text-center">
       <a href={resolve('/register')} class="link">Request a new code</a>
@@ -154,7 +152,13 @@
 
       <FormError {error} />
 
-      <Button type="submit" size="lg" disabled={!canSubmit} loading={isLoading} loadingText="Creating account...">
+      <Button
+        type="submit"
+        size="lg"
+        disabled={!canSubmit}
+        loading={isLoading}
+        loadingText="Creating account..."
+      >
         <span class="iconify uil--user-plus"></span>
         Create Account
       </Button>
@@ -162,8 +166,6 @@
 
     <Divider label="or" />
 
-    <a href={resolve('/login')} class="btn-secondary btn-lg block w-full text-center">
-      Sign In
-    </a>
+    <a href={resolve('/login')} class="btn-secondary block w-full btn-lg text-center"> Sign In </a>
   {/if}
 </AuthLayout>

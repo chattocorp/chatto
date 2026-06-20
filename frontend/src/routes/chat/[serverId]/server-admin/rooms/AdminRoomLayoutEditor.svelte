@@ -490,7 +490,7 @@
           <section
             animate:flip={{ duration: 200 }}
             class={[
-              'overflow-hidden rounded-xl border border-border bg-background shadow-md transition-shadow',
+              'overflow-hidden panel-shell panel-shell-raised transition-shadow',
               layout.draggingGroupId === group.id && 'shadow-lg ring-1 ring-accent/30'
             ]}
           >
@@ -579,7 +579,7 @@
                                 title="Universal room"
                                 class="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5"
                               >
-                                <span class="iconify uil--globe text-xs" aria-hidden="true"></span>
+                                <span class="iconify text-xs uil--globe" aria-hidden="true"></span>
                                 Universal
                               </Pill>
                             {/if}

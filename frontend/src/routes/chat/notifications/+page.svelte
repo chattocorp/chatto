@@ -50,8 +50,7 @@
     // Sort by creation time, newest first
     result.sort(
       (a, b) =>
-        new Date(b.notification.createdAt).getTime() -
-        new Date(a.notification.createdAt).getTime()
+        new Date(b.notification.createdAt).getTime() - new Date(a.notification.createdAt).getTime()
     );
     return result;
   });
@@ -152,13 +151,13 @@
     {#if loading && allNotifications.length === 0}
       <div class="p-6 text-muted">Loading...</div>
     {:else if allNotifications.length === 0}
-      <EmptyState icon="uil--bell-slash" title="No notifications">
-        You're all caught up!
-      </EmptyState>
+      <EmptyState icon="uil--bell-slash" title="No notifications">You're all caught up!</EmptyState>
     {:else}
       <div class="flex flex-col">
         {#each allNotifications as item (item.notification.id)}
-          {@const actor = item.notification.actor ? useFragment(UserAvatarFragment, item.notification.actor) : null}
+          {@const actor = item.notification.actor
+            ? useFragment(UserAvatarFragment, item.notification.actor)
+            : null}
           <div
             class="flex w-full cursor-pointer items-center gap-3 border-b border-border px-4 py-3 transition-colors hover:bg-surface-100"
             role="button"
@@ -175,9 +174,15 @@
               <p class="truncate">{item.notification.summary}</p>
               <p class="text-sm text-muted">
                 <span class="truncate">{item.serverHostname}</span>
-                {#if serverRegistry.getStore(item.serverId).notifications.getLocationString(item.notification)}
+                {#if serverRegistry
+                  .getStore(item.serverId)
+                  .notifications.getLocationString(item.notification)}
                   <span class="mx-1">•</span>
-                  <span class="truncate">{serverRegistry.getStore(item.serverId).notifications.getLocationString(item.notification)}</span>
+                  <span class="truncate"
+                    >{serverRegistry
+                      .getStore(item.serverId)
+                      .notifications.getLocationString(item.notification)}</span
+                  >
                 {/if}
                 <span class="mx-1">•</span>
                 {formatTime(item.notification.createdAt)}
@@ -186,7 +191,7 @@
 
             <button
               type="button"
-              class="hover:text-foreground iconify cursor-pointer rounded p-1 text-muted uil--times hover:bg-surface-200"
+              class="iconify icon-action uil--times"
               title="Dismiss"
               onclick={(e) => handleDismiss(e, item)}
             ></button>

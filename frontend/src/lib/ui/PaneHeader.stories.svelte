@@ -3,10 +3,21 @@
   import PaneHeader from './PaneHeader.svelte';
   import HeaderIconButton from './HeaderIconButton.svelte';
 
+  const componentDescription = `
+    Use PaneHeader for the top bar of a pane, detail view, or narrow workflow. It owns title,
+    subtitle, back affordances, and action alignment so headers stay consistent across chat,
+    settings, and admin surfaces.
+  `.trim();
+
   const { Story } = defineMeta({
     title: 'UI/PaneHeader',
     component: PaneHeader,
-    tags: ['autodocs']
+    tags: ['autodocs'],
+    parameters: {
+      docs: {
+        description: { component: componentDescription }
+      }
+    }
   });
 </script>
 

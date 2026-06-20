@@ -3,10 +3,21 @@
   import { UNIVERSAL_ROOM_HELP_TEXT } from '$lib/utils/roomCopy';
   import Checkbox from './Checkbox.svelte';
 
+  const componentDescription = `
+    Use Checkbox for independent boolean settings. Prefer immediate-save behavior for settings where
+    one checkbox maps to one backend change, and keep supporting text inside the component instead of
+    building custom option rows.
+  `.trim();
+
   const { Story } = defineMeta({
     title: 'Form/Checkbox',
     component: Checkbox,
-    tags: ['autodocs']
+    tags: ['autodocs'],
+    parameters: {
+      docs: {
+        description: { component: componentDescription }
+      }
+    }
   });
 </script>
 
@@ -17,15 +28,42 @@
   let d = $state(false);
 </script>
 
-<Story name="Default" asChild>
+<Story
+  name="Default"
+  asChild
+  parameters={{
+    docs: {
+      description: { story: 'Default boolean option with a visible label.' }
+    }
+  }}
+>
   <Checkbox id="a" bind:checked={a} label="Send me email notifications" />
 </Story>
 
-<Story name="Pre-checked" asChild>
+<Story
+  name="Pre-checked"
+  asChild
+  parameters={{
+    docs: {
+      description: { story: 'Checked state uses the shared accent treatment.' }
+    }
+  }}
+>
   <Checkbox id="b" bind:checked={b} label="Public room (visible in listings)" />
 </Story>
 
-<Story name="Option with help text" asChild>
+<Story
+  name="Option with help text"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story:
+          'Descriptions belong inside the checkbox component when they explain the specific option.'
+      }
+    }
+  }}
+>
   <Checkbox
     id="with-description"
     bind:checked={b}
@@ -34,7 +72,15 @@
   />
 </Story>
 
-<Story name="With error" asChild>
+<Story
+  name="With error"
+  asChild
+  parameters={{
+    docs: {
+      description: { story: 'Errors are attached to the option they block.' }
+    }
+  }}
+>
   <Checkbox
     id="c"
     bind:checked={c}
@@ -47,7 +93,17 @@
   <Checkbox id="d" bind:checked={d} label="Disabled option" disabled />
 </Story>
 
-<Story name="Group" asChild>
+<Story
+  name="Group"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story: 'Use a simple vertical stack when several independent settings belong together.'
+      }
+    }
+  }}
+>
   <div class="flex flex-col gap-2">
     <Checkbox id="g1" bind:checked={a} label="Mentions" />
     <Checkbox id="g2" bind:checked={b} label="Direct messages" />

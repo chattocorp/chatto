@@ -64,11 +64,13 @@
   onsubmit={handleSubmit}
   onclose={() => onclose?.()}
 >
-  <div class="flex items-center gap-3 rounded-md border border-border bg-surface-100 p-3">
+  <div class="flex items-center gap-3 surface-box p-3">
     {#if user}
       <UserAvatar {user} size="md" />
     {:else}
-      <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-200 text-muted">
+      <div
+        class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-200 text-muted"
+      >
         <span class="iconify text-lg uil--user"></span>
       </div>
     {/if}

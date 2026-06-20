@@ -26,7 +26,8 @@
       });
 
       if (response.status === 401) {
-        window.location.href = resolve('/login') + `?redirect=${encodeURIComponent('/oauth/consent')}`;
+        window.location.href =
+          resolve('/login') + `?redirect=${encodeURIComponent('/oauth/consent')}`;
         return;
       }
 
@@ -115,7 +116,9 @@
 <AuthLayout>
   <div class="flex flex-col gap-6">
     <div class="text-center">
-      <div class="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-accent">
+      <div
+        class="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-accent"
+      >
         <span class="iconify text-2xl mdi--shield-check"></span>
       </div>
       <h1 class="text-2xl font-bold">Allow Access?</h1>
@@ -134,19 +137,19 @@
           </p>
         </div>
 
-        <div class="rounded-lg border border-border bg-surface-100 p-4">
+        <div class="surface-box p-4">
           <div class="mb-3 text-sm font-medium">If you allow access:</div>
           <ul class="flex flex-col gap-2 text-sm text-muted">
             <li class="flex gap-2">
-              <span class="iconify mt-0.5 shrink-0 text-accent mdi--check"></span>
+              <span class="mt-0.5 iconify shrink-0 text-accent mdi--check"></span>
               <span>It can see your profile and the server data available to you.</span>
             </li>
             <li class="flex gap-2">
-              <span class="iconify mt-0.5 shrink-0 text-accent mdi--check"></span>
+              <span class="mt-0.5 iconify shrink-0 text-accent mdi--check"></span>
               <span>It can read and send messages as you.</span>
             </li>
             <li class="flex gap-2">
-              <span class="iconify mt-0.5 shrink-0 text-accent mdi--check"></span>
+              <span class="mt-0.5 iconify shrink-0 text-accent mdi--check"></span>
               <span>Chatto will remember this approval for this address.</span>
             </li>
           </ul>

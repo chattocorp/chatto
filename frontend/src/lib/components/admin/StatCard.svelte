@@ -23,7 +23,7 @@
   };
 </script>
 
-<div class="rounded-xl border border-border bg-background p-6">
+<div class="panel-shell p-6">
   <div class="flex items-center gap-4">
     <div class="rounded-lg p-3 {colorClasses[color].bg}">
       <span class="{icon} text-2xl {colorClasses[color].text}"></span>

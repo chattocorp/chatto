@@ -233,23 +233,12 @@ These preferences are server-side and sync across devices.
         <button
           type="button"
           disabled={savingServerLevel}
-          class={[
-            'flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors',
-            isSelected
-              ? 'border-accent bg-accent/10'
-              : 'hover:border-border-highlighted border-border hover:bg-surface-100',
-            savingServerLevel ? 'opacity-50' : ''
-          ]}
+          class={['choice-row', isSelected && 'choice-row-selected']}
           onclick={() => handleServerLevelChange(option.value)}
         >
-          <span
-            class={[
-              'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors',
-              isSelected ? 'border-accent bg-accent' : 'border-muted'
-            ]}
-          >
+          <span class={['choice-indicator', isSelected && 'choice-indicator-selected']}>
             {#if isSelected}
-              <span class="h-2 w-2 rounded-full bg-white"></span>
+              <span class="choice-indicator-dot"></span>
             {/if}
           </span>
           <div>

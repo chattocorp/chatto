@@ -1,12 +1,22 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
+  import { Button, Checkbox, Select, TextArea, TextInput } from '$lib/ui/form';
   import FormDialog from './FormDialog.svelte';
-  import { TextInput, TextArea, Select, Checkbox } from './form';
+
+  const componentDescription = `
+    Use FormDialog for modal forms with a single submit action and cancel/close behavior. It owns
+    the footer action pattern, loading state, disabled state, and top-level form error treatment.
+  `.trim();
 
   const { Story } = defineMeta({
     title: 'UI/FormDialog',
     component: FormDialog,
-    tags: ['autodocs']
+    tags: ['autodocs'],
+    parameters: {
+      docs: {
+        description: { component: componentDescription }
+      }
+    }
   });
 </script>
 
@@ -39,8 +49,19 @@
   }
 </script>
 
-<Story name="Basic" asChild>
-  <button class="btn-primary" onclick={() => (basicVisible = true)}>Create Room…</button>
+<Story
+  name="Basic"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story:
+          'Basic form dialog with description copy, required field state, and generated footer actions.'
+      }
+    }
+  }}
+>
+  <Button onclick={() => (basicVisible = true)}>Create Room...</Button>
 
   <FormDialog
     bind:visible={basicVisible}
@@ -55,17 +76,22 @@
     {/snippet}
 
     <TextInput id="story-room-name" label="Room Name" bind:value={basicName} />
-    <TextArea
-      id="story-room-desc"
-      label="Description (optional)"
-      bind:value={basicDesc}
-      rows={3}
-    />
+    <TextArea id="story-room-desc" label="Description (optional)" bind:value={basicDesc} rows={3} />
   </FormDialog>
 </Story>
 
-<Story name="Loading state" asChild>
-  <button class="btn-primary" onclick={() => (loadingVisible = true)}>Open loading form</button>
+<Story
+  name="Loading state"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story: 'Loading state locks the footer action while async submission is in progress.'
+      }
+    }
+  }}
+>
+  <Button onclick={() => (loadingVisible = true)}>Open loading form</Button>
 
   <FormDialog
     bind:visible={loadingVisible}
@@ -86,8 +112,19 @@
   </FormDialog>
 </Story>
 
-<Story name="Danger submit (typed confirmation)" asChild>
-  <button class="btn-primary" onclick={() => (dangerVisible = true)}>Delete account…</button>
+<Story
+  name="Danger submit (typed confirmation)"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story:
+          'Danger submit uses the dialog footer button tone while the field handles typed confirmation.'
+      }
+    }
+  }}
+>
+  <Button variant="danger" onclick={() => (dangerVisible = true)}>Delete account...</Button>
 
   <FormDialog
     bind:visible={dangerVisible}
@@ -113,8 +150,18 @@
   </FormDialog>
 </Story>
 
-<Story name="Rich form (icons + select + checkbox)" asChild>
-  <button class="btn-primary" onclick={() => (inviteVisible = true)}>Invite member…</button>
+<Story
+  name="Rich form (icons + select + checkbox)"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story: 'A denser form combines shared field primitives without adding custom dialog layout.'
+      }
+    }
+  }}
+>
+  <Button onclick={() => (inviteVisible = true)}>Invite member...</Button>
 
   <FormDialog
     bind:visible={inviteVisible}

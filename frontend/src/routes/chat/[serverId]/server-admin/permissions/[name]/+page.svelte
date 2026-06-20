@@ -245,7 +245,7 @@
           {#if role.isSystem}
             <div>
               <div class="mb-1 text-sm font-medium">Display Name</div>
-              <div class="text-foreground">{role.displayName}</div>
+              <div class="text-text">{role.displayName}</div>
             </div>
             <div>
               <div class="mb-1 text-sm font-medium">Description</div>

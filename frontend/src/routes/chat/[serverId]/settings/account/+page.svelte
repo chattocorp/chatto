@@ -170,27 +170,17 @@
       <FormError {error} />
     {/if}
 
-    <div class="flex justify-end gap-3">
-      <button
-        type="button"
-        class="cursor-pointer rounded-lg bg-surface-200 px-4 py-2 text-sm font-medium text-text hover:bg-surface-300"
-        onclick={closeDeleteModal}
-        disabled={isDeleting}
-      >
-        Cancel
-      </button>
-      <button
-        type="button"
-        class="cursor-pointer rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+    <div class="flex flex-wrap justify-end gap-2">
+      <Button variant="secondary" onclick={closeDeleteModal} disabled={isDeleting}>Cancel</Button>
+      <Button
+        variant="danger"
         onclick={handleDeleteAccount}
         disabled={!canDelete || isDeleting}
+        loading={isDeleting}
+        loadingText="Deleting..."
       >
-        {#if isDeleting}
-          Deleting...
-        {:else}
-          Delete Account
-        {/if}
-      </button>
+        Delete Account
+      </Button>
     </div>
   </div>
 </Dialog>
