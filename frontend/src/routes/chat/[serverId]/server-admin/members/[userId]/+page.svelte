@@ -7,7 +7,7 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { graphql } from '$lib/gql';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
-  import { Panel } from '$lib/components/admin';
+  import { CopyId, Panel } from '$lib/components/admin';
   import { UserPermissionsMatrix } from '$lib/components/rbac';
   import { Hint, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
@@ -15,7 +15,9 @@
   import { Button, FormError, TextInput } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { getAvatarInitials } from '$lib/utils/initials';
+  import { formatDate, formatDateTime } from '$lib/utils/formatTime';
   import { getLiveLogin } from '$lib/state/userProfiles.svelte';
+  import { getUserSettings } from '$lib/state/userSettings.svelte';
   import {
     validateAndNormalizeDisplayName,
     validateAndNormalizeLogin,
@@ -29,6 +31,11 @@
     displayName: string;
     avatarUrl?: string | null;
     roles: string[];
+    createdAt?: string | null;
+    deleted: boolean;
+    hasVerifiedEmail: boolean;
+    verifiedEmails: string[];
+    viewerCanDeleteAccount: boolean;
     lastLoginChange?: string | null;
   };
   type Role = {
@@ -43,6 +50,7 @@
 
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
   const connection = useConnection();
+  const userSettings = getUserSettings();
   const userId = $derived(page.params.userId!);
 
   const serverPerms = getServerPermissions();
@@ -71,10 +79,7 @@
 
     const resp = await connection().client.query(
       graphql(`
-        query SpaceMemberDetails($userId: ID!) {
-          user(userId: $userId) {
-            lastLoginChange
-          }
+        query ServerAdminMemberDetails($userId: ID!) {
           server {
             viewerCanAssignRoles
             viewerCanManageRoles
@@ -93,6 +98,12 @@
               displayName
               avatarUrl
               roles
+              createdAt
+              deleted
+              hasVerifiedEmail
+              verifiedEmails
+              viewerCanDeleteAccount
+              lastLoginChange
             }
           }
         }
@@ -120,8 +131,8 @@
     canManageUserPermissions = resp.data.server.viewerCanManageUserPermissions;
     editLogin = resp.data.server.member?.login ?? '';
     editDisplayName = resp.data.server.member?.displayName ?? '';
-    lastLoginChange = resp.data.user?.lastLoginChange
-      ? new Date(resp.data.user.lastLoginChange)
+    lastLoginChange = resp.data.server.member?.lastLoginChange
+      ? new Date(resp.data.server.member.lastLoginChange)
       : null;
     loading = false;
   }
@@ -247,13 +258,35 @@
 
   // Check if this is the current user
   const isSelf = $derived(currentUser.user?.id === userId);
+  const canViewMemberEmails = $derived(isSelf || serverPerms.current.canAdminViewUsers);
 
   // Sorted server roles (excluding everyone, sorted by position)
-  const sortedSpaceRoles = $derived(
+  const sortedServerRoles = $derived(
     memberServerRoles
       .filter((r) => r !== 'everyone')
       .sort((a, b) => getRolePosition(a) - getRolePosition(b))
   );
+  const serverRoleCount = $derived(sortedServerRoles.length);
+  const cooldownSummary = $derived.by(() => {
+    if (cooldownActive) {
+      return `Self-rename cooldown active for ${formatCooldownRemaining(cooldownRemaining)}.`;
+    }
+    if (lastLoginChange) {
+      return `Last self-rename: ${formatDateTime(lastLoginChange, userSettings)}.`;
+    }
+    return 'No self-rename recorded.';
+  });
+
+  function formatOptionalDate(date: string | null | undefined): string {
+    return date ? formatDate(date, userSettings) : 'Unknown';
+  }
+
+  function emailSummary(user: User): string {
+    if (!canViewMemberEmails) return 'Email visibility unavailable';
+    if (user.verifiedEmails.length > 0) return user.verifiedEmails.join(', ');
+    if (user.hasVerifiedEmail) return 'Verified email on file';
+    return 'No verified email';
+  }
 
   async function toggleRole(roleName: string, currentlyHas: boolean) {
     if (!member) return;
@@ -326,41 +359,84 @@
 
       <!-- User Details -->
       <Panel title="User Details" icon="iconify uil--user">
-        <div class="flex gap-6">
-          {#if member.avatarUrl}
-            <img
-              src={member.avatarUrl}
-              alt={member.displayName}
-              class="h-20 w-20 rounded-full border border-border"
-            />
-          {:else}
-            <div
-              class="flex h-20 w-20 items-center justify-center rounded-full bg-surface-300 text-3xl text-muted"
-            >
-              {getAvatarInitials(member.displayName, member.login)}
+        <div class="flex flex-col gap-6">
+          <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
+            {#if member.avatarUrl}
+              <img
+                src={member.avatarUrl}
+                alt={member.displayName}
+                class="h-20 w-20 rounded-full border border-border object-cover"
+              />
+            {:else}
+              <div
+                class="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-surface-300 text-3xl text-muted"
+              >
+                {getAvatarInitials(member.displayName, member.login)}
+              </div>
+            {/if}
+
+            <div class="min-w-0 flex-1">
+              <div class="flex flex-col gap-1">
+                <h3 class="truncate text-2xl font-semibold">{member.displayName}</h3>
+                <div class="truncate text-muted">@{getLiveLogin(member.id, member.login)}</div>
+              </div>
+
+              <div class="mt-4 flex flex-wrap gap-2">
+                {#if member.deleted}
+                  <Pill tone="danger">Deleted account</Pill>
+                {:else}
+                  <Pill tone="success">Member</Pill>
+                {/if}
+                {#if canViewMemberEmails}
+                  <Pill tone={member.hasVerifiedEmail ? 'success' : 'muted'}>
+                    {member.hasVerifiedEmail ? 'Email verified' : 'Email not verified'}
+                  </Pill>
+                {:else}
+                  <Pill tone="muted">Email hidden</Pill>
+                {/if}
+                <Pill tone={serverRoleCount > 0 ? 'primary' : 'muted'}>
+                  {serverRoleCount}
+                  {serverRoleCount === 1 ? 'server role' : 'server roles'}
+                </Pill>
+                <Pill tone={member.viewerCanDeleteAccount ? 'danger' : 'muted'}>
+                  {member.viewerCanDeleteAccount ? 'Deletion allowed' : 'Deletion protected'}
+                </Pill>
+                <Pill tone={cooldownActive ? 'accent' : 'muted'}>
+                  {cooldownActive ? 'Rename cooldown' : 'Rename available'}
+                </Pill>
+              </div>
             </div>
-          {/if}
-          <div class="flex flex-col gap-2">
-            <div>
-              <div class="text-sm text-muted">Login</div>
-              <div class="font-medium">@{getLiveLogin(member.id, member.login)}</div>
-            </div>
-            <div>
-              <div class="text-sm text-muted">Display Name</div>
-              <div>{member.displayName}</div>
-            </div>
-            <div>
-              <div class="text-sm text-muted">Space Roles</div>
-              <div class="flex flex-wrap gap-1">
-                {#each sortedSpaceRoles as roleName (roleName)}
-                  <Pill>{getRoleDisplayName(roleName)}</Pill>
-                {/each}
-                <Pill>Member</Pill>
+          </div>
+
+          <div class="grid gap-4 md:grid-cols-2">
+            <div class="min-w-0">
+              <div class="text-sm text-muted">User ID</div>
+              <div class="mt-1 min-w-0">
+                <CopyId value={member.id} />
               </div>
             </div>
             <div>
-              <div class="text-sm text-muted">ID</div>
-              <code class="text-xs">{member.id}</code>
+              <div class="text-sm text-muted">Joined</div>
+              <div class="mt-1">{formatOptionalDate(member.createdAt)}</div>
+            </div>
+            <div class="min-w-0">
+              <div class="text-sm text-muted">Verified email</div>
+              <div class="mt-1 truncate" title={emailSummary(member)}>
+                {emailSummary(member)}
+              </div>
+            </div>
+            <div>
+              <div class="text-sm text-muted">Username changes</div>
+              <div class="mt-1">{cooldownSummary}</div>
+            </div>
+            <div class="min-w-0 md:col-span-2">
+              <div class="text-sm text-muted">Server roles</div>
+              <div class="mt-1 flex flex-wrap gap-1">
+                {#each sortedServerRoles as roleName (roleName)}
+                  <Pill tone="primary">{getRoleDisplayName(roleName)}</Pill>
+                {/each}
+                <Pill>Member</Pill>
+              </div>
             </div>
           </div>
         </div>
@@ -437,9 +513,9 @@
       <Panel title="Role Assignments" icon="iconify uil--shield-check">
         <p class="mb-4 text-sm text-muted">
           {#if canAssignRoles}
-            Assign roles to this member. Changes are saved immediately.
+            Assign server roles to this member. Changes are saved immediately.
           {:else}
-            View the roles assigned to this member.
+            View the server roles assigned to this member.
           {/if}
         </p>
 
