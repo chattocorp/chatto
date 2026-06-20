@@ -145,7 +145,7 @@ func (s *HTTPServer) setupRoutes() error {
 
 	// Configure session middleware
 	authKey := []byte(s.config.Webserver.CookieSigningSecret)
-	var sessionStore cookie.Store
+	var sessionStore sessions.Store
 	encKey, err := s.config.Webserver.CookieEncryptionKey()
 	if err != nil {
 		return err
@@ -157,6 +157,7 @@ func (s *HTTPServer) setupRoutes() error {
 		sessionStore = cookie.NewStore(authKey)
 	}
 	sessionStore.Options(cookieSessionOptions(s.config.Auth.TokenTTLOrDefault(), strings.HasPrefix(s.config.Webserver.URL, "https")))
+	sessionStore = newDebugSessionStore(sessionStore, s.logger)
 	s.router.Use(sessions.Sessions("chatto_session", sessionStore))
 
 	// Build allowed origins list once and share between CORS middleware and WebSocket CheckOrigin
