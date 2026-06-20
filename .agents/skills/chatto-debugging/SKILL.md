@@ -29,6 +29,17 @@ mise x -- go run -tags bootstrap . run
 - Use `go tool pprof -top ./bin/chatto .context/bench/startup.pprof` or
   `go tool pprof -http=:0 ...` to inspect profiles. For heap profiles, fetch
   `http://127.0.0.1:9090/debug/pprof/heap` from the metrics port.
+- When a large imported instance is available in `cli/data/`, build comparable
+  binaries for `origin/main` and the branch with `go build -tags bootstrap`,
+  copy `cli/data/` into a fresh `.context/bench/.../data` directory for each
+  run, and alternate runs between revisions. On fast Apple Silicon, absolute
+  startup times can understate Linux cluster costs; use repeated runs, pprof
+  deltas, projection startup metrics, and retained heap profiles to identify
+  the next target.
+- For projection replay work, inspect allocation and CPU profiles before
+  changing code. Past wins came from removing duplicate consumer fanout,
+  duplicate protobuf decode, repeated subject matching, and repeated
+  JetStream metadata parsing while preserving stable stream sequence semantics.
 
 ## NATS CLI for Production Debugging
 

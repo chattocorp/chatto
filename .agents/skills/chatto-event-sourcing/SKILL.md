@@ -96,15 +96,22 @@ Pitfalls:
 
 Projection implementations should be boring and replay-safe:
 
+- Treat projection subject declarations as three separate concepts:
+  - `Subjects()` is the logical consumption and readiness contract used by waits, live delivery, diagnostics, and tests.
+  - `ReplaySubjects()` is an optional physical replay filter and may be broader for shared fanout or legacy compatibility.
+  - OCC scope is a correctness boundary and may intentionally be broader than the event families a projection mutates.
 - `Subjects()` must be intentional and tested in `projection_subjects_test.go`.
+- Broad filters are appropriate for aggregate-owner projections and projections whose snapshots expose an OCC token for the full aggregate tail. Focused event-family filters are appropriate for stable derived indexes that do not make full-tail OCC decisions.
 - `Apply` should tolerate duplicate delivery, replay order within the stream, nil/partial payloads where possible, and historical compatible shapes.
 - Store cloned protobuf messages when retaining them in memory.
 - Keep derived indexes consistent when events remove, replace, tombstone, or supersede prior state.
 - Return cloned/protective values from projection read methods.
+- Let the projector framework own JetStream message metadata. Projection code should use the stream sequence passed into `Apply`; do not parse `msg.Metadata()` or substitute consumer sequence numbers in projection logic.
 - Use stable stream sequence numbers for reconnect replay and delivery cursors.
 - Add admin projection estimates when adding meaningful in-memory indexes.
 
 When a projection consumes legacy lanes, name them as legacy compatibility in comments/docs/tests. New writes should still have one canonical subject family.
+When optimizing projection replay, measure first with the local profiling knobs from the `chatto-debugging` skill; preserve read-your-writes and OCC semantics even if a cheaper consumer/filter shape looks attractive.
 
 ## Read-Your-Writes
 
