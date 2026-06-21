@@ -2588,6 +2588,60 @@ func TestS3Config_Defaults(t *testing.T) {
 	})
 }
 
+func TestS3Config_UsePathStyleForEndpoint(t *testing.T) {
+	boolPtr := func(v bool) *bool { return &v }
+
+	tests := []struct {
+		name string
+		cfg  S3Config
+		want bool
+	}{
+		{
+			name: "defaults to path-style for localhost endpoint",
+			cfg:  S3Config{Endpoint: "localhost:9000"},
+			want: true,
+		},
+		{
+			name: "defaults to path-style for IP endpoint",
+			cfg:  S3Config{Endpoint: "http://127.0.0.1:9000"},
+			want: true,
+		},
+		{
+			name: "defaults to path-style for custom domain endpoint",
+			cfg:  S3Config{Endpoint: "minio.example.com"},
+			want: true,
+		},
+		{
+			name: "defaults to virtual-hosted style for global AWS endpoint",
+			cfg:  S3Config{Endpoint: "s3.amazonaws.com"},
+			want: false,
+		},
+		{
+			name: "defaults to virtual-hosted style for regional AWS endpoint",
+			cfg:  S3Config{Endpoint: "https://s3.us-east-1.amazonaws.com"},
+			want: false,
+		},
+		{
+			name: "explicit false overrides custom endpoint default",
+			cfg:  S3Config{Endpoint: "localhost:9000", PathStyle: boolPtr(false)},
+			want: false,
+		},
+		{
+			name: "explicit true overrides AWS endpoint default",
+			cfg:  S3Config{Endpoint: "s3.amazonaws.com", PathStyle: boolPtr(true)},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.cfg.UsePathStyleForEndpoint(); got != tt.want {
+				t.Errorf("UsePathStyleForEndpoint() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestPushConfig_IsConfigured(t *testing.T) {
 	tests := []struct {
 		name string

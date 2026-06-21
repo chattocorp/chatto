@@ -58,7 +58,7 @@ func newS3Scanner(assets config.AssetsConfig, timeout time.Duration) (*s3Scanner
 		Credentials:  credentials.NewStaticCredentialsProvider(cfg.AccessKeyID, cfg.SecretAccessKey, ""),
 		Region:       region,
 		BaseEndpoint: aws.String(s3EndpointURL(cfg)),
-		UsePathStyle: cfg.PathStyleOrDefault(),
+		UsePathStyle: cfg.UsePathStyleForEndpoint(),
 	})
 	return &s3Scanner{
 		client:     client,

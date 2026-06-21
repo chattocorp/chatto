@@ -21,10 +21,11 @@ import (
 
 // S3Client wraps the AWS S3 client for S3-compatible storage operations.
 type S3Client struct {
-	client     *s3.Client
-	presign    *s3.PresignClient
-	bucket     string
-	pathPrefix string
+	client      *s3.Client
+	presign     *s3.PresignClient
+	bucket      string
+	pathPrefix  string
+	awsEndpoint bool
 }
 
 // NewS3Client creates a new S3 client from configuration.
@@ -48,14 +49,15 @@ func NewS3Client(cfg config.S3Config) (*S3Client, error) {
 		Credentials:  credentials.NewStaticCredentialsProvider(cfg.AccessKeyID, cfg.SecretAccessKey, ""),
 		Region:       region,
 		BaseEndpoint: aws.String(endpoint),
-		UsePathStyle: cfg.PathStyleOrDefault(),
+		UsePathStyle: cfg.UsePathStyleForEndpoint(),
 	})
 
 	return &S3Client{
-		client:     client,
-		presign:    s3.NewPresignClient(client),
-		bucket:     cfg.Bucket,
-		pathPrefix: cfg.PathPrefix,
+		client:      client,
+		presign:     s3.NewPresignClient(client),
+		bucket:      cfg.Bucket,
+		pathPrefix:  cfg.PathPrefix,
+		awsEndpoint: cfg.IsAWSEndpoint(),
 	}, nil
 }
 
@@ -111,7 +113,7 @@ func (s *S3Client) EnsureBucket(ctx context.Context) error {
 	input := &s3.CreateBucketInput{
 		Bucket: aws.String(s.bucket),
 	}
-	if region := s.client.Options().Region; region != "" && region != "us-east-1" && isAWSEndpoint(s.client.Options().BaseEndpoint) {
+	if region := s.client.Options().Region; region != "" && region != "us-east-1" && s.awsEndpoint {
 		input.CreateBucketConfiguration = &types.CreateBucketConfiguration{
 			LocationConstraint: types.BucketLocationConstraint(region),
 		}
@@ -298,14 +300,6 @@ func isNoSuchBucketError(err error) bool {
 	}
 	var respErr *smithyhttp.ResponseError
 	return errors.As(err, &respErr) && respErr.HTTPStatusCode() == 404
-}
-
-func isAWSEndpoint(endpoint *string) bool {
-	if endpoint == nil {
-		return false
-	}
-	host := strings.ToLower(*endpoint)
-	return strings.Contains(host, ".amazonaws.com") || strings.Contains(host, "://s3.amazonaws.com")
 }
 
 // S3 key helpers for organizing assets in S3.

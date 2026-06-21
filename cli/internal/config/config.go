@@ -303,7 +303,7 @@ type S3Config struct {
 	AccessKeyID     string `toml:"access_key_id" env:"CHATTO_CORE_ASSETS_S3_ACCESS_KEY_ID" comment:"S3 access key ID."`
 	SecretAccessKey string `toml:"secret_access_key" env:"CHATTO_CORE_ASSETS_S3_SECRET_ACCESS_KEY" comment:"S3 secret access key. NEVER SHARE THIS!"`
 	UseSSL          *bool  `toml:"use_ssl" env:"CHATTO_CORE_ASSETS_S3_USE_SSL" comment:"Use HTTPS for S3 connections. Default: true."`
-	PathStyle       *bool  `toml:"path_style" env:"CHATTO_CORE_ASSETS_S3_PATH_STYLE" comment:"Use path-style URLs (bucket in path). Required for MinIO and most S3-compatible services. Default: false."`
+	PathStyle       *bool  `toml:"path_style" env:"CHATTO_CORE_ASSETS_S3_PATH_STYLE" comment:"Use path-style URLs (bucket in path). Required for MinIO and most S3-compatible services. Default: auto (virtual-hosted for AWS S3, path-style for custom endpoints)."`
 }
 
 // UseSSLOrDefault returns whether to use SSL, defaulting to true.
@@ -320,6 +320,38 @@ func (c *S3Config) PathStyleOrDefault() bool {
 		return false
 	}
 	return *c.PathStyle
+}
+
+// UsePathStyleForEndpoint returns the AWS SDK addressing mode for this
+// endpoint. When path_style is omitted, AWS S3 endpoints use virtual-hosted
+// addressing while custom endpoints use path-style addressing, matching the
+// old MinIO client's automatic bucket lookup behavior.
+func (c *S3Config) UsePathStyleForEndpoint() bool {
+	if c.PathStyle != nil {
+		return *c.PathStyle
+	}
+	return !c.IsAWSEndpoint()
+}
+
+// IsAWSEndpoint reports whether the configured endpoint looks like an AWS S3
+// endpoint rather than a custom S3-compatible service.
+func (c *S3Config) IsAWSEndpoint() bool {
+	host := strings.TrimSpace(c.Endpoint)
+	if host == "" {
+		return false
+	}
+
+	if u, err := url.Parse(host); err == nil && u.Host != "" {
+		host = u.Hostname()
+	} else if splitHost, _, err := net.SplitHostPort(host); err == nil {
+		host = splitHost
+	}
+
+	host = strings.TrimSuffix(strings.ToLower(host), ".")
+	return host == "s3.amazonaws.com" ||
+		strings.HasSuffix(host, ".amazonaws.com") ||
+		host == "s3.amazonaws.com.cn" ||
+		strings.HasSuffix(host, ".amazonaws.com.cn")
 }
 
 // NormalizedPathPrefix returns PathPrefix with harmless leading/trailing slashes
