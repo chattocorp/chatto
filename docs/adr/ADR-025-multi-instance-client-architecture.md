@@ -20,6 +20,12 @@ The frontend is instance-agnostic by default. It doesn't assume it's served by a
 2. **No `isHome` flag**: The origin instance is identified by comparing `instance.url` to `window.location.origin` at runtime — no stored flag.
 3. **Bearer-first client auth**: The client stores opaque bearer tokens in `localStorage` for every authenticated instance, including the origin when direct login or registration returns a token. Cookie auth remains as an origin-only fallback for compatibility flows that have not yet handed the SPA a bearer token.
 
+Bearer tokens are only handed to API clients that need to authenticate GraphQL,
+WebSocket, or direct HTTP API traffic. The Service Worker asset proxy receives
+server IDs, base URLs, and hidden ticketed asset targets, but not API bearer
+tokens; virtual asset fetches use the asset ticket target and same-origin cookie
+fallback instead.
+
 ### Unified Registry + State
 
 `InstanceRegistry` owns both registration data (`RegisteredInstance[]`) and per-instance state stores (`SvelteMap<string, InstanceStateStore>`). Registration and store creation are atomic — when an instance is added, its store exists immediately. This eliminates the race condition where `$derived` expressions see a registered instance but can't find its store.
@@ -53,6 +59,10 @@ Bearer tokens use NATS KV TTL (default 90 days). Each successful `ValidateAuthTo
 ### Negative
 
 - Registered-instance bearer tokens in `localStorage` are vulnerable to XSS (cookie auth is not)
+- This makes XSS prevention part of the auth boundary. The shipped frontend sets
+  a report-only CSP with Trusted Types reporting so deployments can surface
+  dangerous script and DOM-sink patterns before policy enforcement is viable for
+  the multi-server client.
 - `/api/server` is the only cross-origin endpoint with wildcard CORS — rich data needed pre-registration must go there, not in GraphQL
 - Separately hosted multi-instance frontends must be listed explicitly in each remote server's `webserver.oauth_redirect_origins` or exact `webserver.allowed_origins` before OAuth authorization codes can redirect back to them; wildcard CORS does not imply OAuth redirect trust. `oauth_redirect_origins = ["*"]` exists only as a temporary controlled-alpha escape hatch.
 - Users approve the first OAuth authorization for each trusted client origin; Chatto remembers that consent per user + origin instead of relying on an operator-managed OAuth client registry

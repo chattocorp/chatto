@@ -1,7 +1,7 @@
 # FDR-027: PWA Shell & Service Worker
 
 **Status:** Active
-**Last reviewed:** 2026-06-08
+**Last reviewed:** 2026-06-20
 
 ## Overview
 
@@ -19,9 +19,9 @@ Reconnect catch-up is owned by the foreground web app, not the service worker. W
 - Known shell assets are served cache-first from the versioned cache.
 - Same-origin navigations are network-first, falling back to the cached SPA shell only when the network fails.
 - API, auth, webhook, non-GET, and cross-origin requests are network-only.
-- Same-origin virtual asset requests under `/__chatto/assets/{serverId}/...` are resolved by the worker to the registered server's real asset URL. The worker attaches the server's bearer token for remote servers, asks Chatto to stream originals instead of redirecting to S3 for cacheable full responses, and keeps media `Range` requests network-only.
+- Same-origin virtual asset requests under `/__chatto/assets/{serverId}/...` are resolved by the worker to the registered server's hidden ticketed asset URL. The worker does not receive registered-server API bearer tokens, asks Chatto to stream originals instead of redirecting to S3 for cacheable full responses, and keeps media `Range` requests network-only.
 - If the browser restarts an idle worker while controlled pages stay open, the worker asks those clients to resend registered servers and virtual asset target mappings before treating an uncached virtual asset as unresolved.
-- Successful full virtual asset responses are cached in a private `chatto-assets-v1` browser cache. The app asks the worker to clear this cache on global sign-out and to clear per-server entries when a server is removed.
+- Successful full virtual asset responses are cached in a private `chatto-assets-v1` browser cache when their response headers allow caching. Cache entries include a hash of the resolved target URL so a refreshed asset ticket or replaced authentication context does not reuse bytes fetched under an older target. The app asks the worker to clear this cache on global sign-out and to clear per-server entries when a server is removed.
 - Push notifications continue to display native OS notifications and route notification clicks into the SPA.
 - Push dismiss payloads still close matching visible notifications on the device.
 
@@ -49,7 +49,7 @@ Reconnect catch-up is owned by the foreground web app, not the service worker. W
 
 **Decision:** In controlled browser sessions, the frontend renders stable asset URLs through a same-origin Service Worker namespace (`/__chatto/assets/{serverId}/...`) instead of putting the ticketed remote URL directly in markup.
 **Why:** Remote-server cookies are not reliable for third-party media loads, while ticketed asset URLs are bearer capabilities if copied. The virtual URL is only useful inside a Chatto client that has the server registration and credentials needed to resolve it.
-**Tradeoff:** The worker keeps a hidden mapping from virtual URL to the current ticketed target URL so existing backend transform signing keeps working. If the worker is not controlling the page, the frontend falls back to the direct ticketed URL. Media `Range` requests are redirected to the hidden target URL rather than cached until the backend grows deliberate Range streaming through Chatto.
+**Tradeoff:** The worker keeps a hidden mapping from virtual URL to the current ticketed target URL so existing backend transform signing keeps working. API bearer tokens are deliberately not copied into worker asset state, so remote assets depend on that ticketed target mapping instead of a bearer-token fallback. If the worker is not controlling the page, the frontend falls back to the direct ticketed URL. Media `Range` requests are redirected to the hidden target URL rather than cached until the backend grows deliberate Range streaming through Chatto.
 
 ## Related
 
