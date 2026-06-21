@@ -312,7 +312,11 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     }
     roomsStore.decrementUnreadNotification(roomId);
     void notificationStore.dismiss(notification.id).then((dismissed) => {
-      if (!dismissed) roomsStore.incrementUnreadNotification(roomId);
+      if (!dismissed) {
+        roomsStore.incrementUnreadNotification(roomId);
+        return;
+      }
+      void roomsStore.refreshNotificationCounts();
     });
 
     const path = notificationStore.getCleanPath(getActiveServer(), notification);
