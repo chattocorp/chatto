@@ -7,25 +7,22 @@ import (
 	"os"
 	"os/signal"
 	"strings"
-	"sync"
-	"syscall"
-	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/gin-gonic/gin"
 	"github.com/nats-io/nats-server/v2/server"
-	"github.com/nats-io/nats.go"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/term"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/embedded_nats"
+	"hmans.de/chatto/internal/exporter"
 	"hmans.de/chatto/internal/http_server"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/push"
+	"hmans.de/chatto/internal/runtimeunit"
 	"hmans.de/chatto/internal/video"
-	"hmans.de/chatto/pkg/natsauth"
 )
 
 // devStartupHook is called after core is initialized. Set by build-tagged init().
@@ -94,7 +91,7 @@ func runServer(configPath string) {
 	// Conductor stops foreground run scripts with SIGHUP before escalating.
 	// Chatto has no reload-on-HUP behavior, so treat it as graceful shutdown
 	// alongside the usual terminal and supervisor stop signals.
-	shutdownSignals := []os.Signal{syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM}
+	shutdownSignals := runtimeunit.ShutdownSignals()
 	signalLog := make(chan os.Signal, 1)
 	stopSignalLog := make(chan struct{})
 	signal.Notify(signalLog, shutdownSignals...)
@@ -128,13 +125,13 @@ func runServer(configPath string) {
 	}
 
 	// Connect to NATS
-	nc, err := connectToNATS(ctx, cfg, embeddedNATS)
+	nc, err := runtimeunit.ConnectToNATS(ctx, cfg, embeddedNATS)
 	if err != nil {
 		log.Error("Failed to connect to NATS", "error", err)
 		exitCode = 1
 		return
 	}
-	defer closeNATSConnection(nc)
+	defer runtimeunit.CloseNATSConnection(nc)
 
 	// Create Chatto core
 	cfg.Core.AuthTokenTTL = cfg.Auth.TokenTTLOrDefault()
@@ -208,6 +205,18 @@ func runServer(configPath string) {
 	// Run dev startup hook (auto-bootstrap in dev builds, no-op in prod)
 	devStartupHook(ctx, chattoCore, cfg)
 
+	if cfg.Exporter.Enabled {
+		env, err := runtimeunit.NewEnv(ctx, cfg, nc, log.WithPrefix("exporter"), Version)
+		if err != nil {
+			log.Error("Failed to create exporter environment", "error", err)
+			exitCode = 1
+			return
+		}
+		g.Go(func() error {
+			return runtimeunit.Run(ctx, env, exporter.Unit{})
+		})
+	}
+
 	// Start video processing service if enabled before the HTTP server begins
 	// accepting uploads. The service registers a process-local callback on
 	// core, so no transient NATS worker subject is involved.
@@ -246,140 +255,6 @@ func runServer(configPath string) {
 		log.Error("Server failed", "error", err)
 		exitCode = 1
 	}
-}
-
-func closeNATSConnection(nc *nats.Conn) {
-	if nc == nil {
-		return
-	}
-
-	if nc.IsClosed() {
-		return
-	}
-
-	drained := make(chan struct{})
-	var closeDrained sync.Once
-	previousClosedHandler := nc.ClosedHandler()
-	nc.SetClosedHandler(func(conn *nats.Conn) {
-		if previousClosedHandler != nil {
-			previousClosedHandler(conn)
-		}
-		closeDrained.Do(func() {
-			close(drained)
-		})
-	})
-
-	if err := nc.Drain(); err != nil {
-		log.Warn("Failed to drain NATS connection before close", "error", err)
-		nc.Close()
-		closeDrained.Do(func() {
-			close(drained)
-		})
-		return
-	}
-
-	timeout := nc.Opts.DrainTimeout
-	if timeout <= 0 {
-		timeout = nats.DefaultDrainTimeout
-	}
-
-	// nats.Conn.drainConnection waits up to DrainTimeout for subscriptions,
-	// then does a publish FlushTimeout with a hard-coded 5 second budget.
-	waitTimeout := timeout + 6*time.Second
-	select {
-	case <-drained:
-	case <-time.After(waitTimeout):
-		log.Warn("Timed out waiting for NATS connection drain to complete", "timeout", waitTimeout)
-		nc.Close()
-	}
-}
-
-// connectToNATS establishes a connection to NATS with appropriate options.
-func connectToNATS(ctx context.Context, cfg config.ChattoConfig, embeddedNATS *server.Server) (*nats.Conn, error) {
-	logger := log.WithPrefix("nats")
-
-	var connectOpts []nats.Option
-
-	if embeddedNATS != nil {
-		// Use in-process connection for embedded NATS
-		connectOpts = append(connectOpts, embedded_nats.InProcessConnectOption(embeddedNATS))
-		// Provide token if server has auth enabled
-		if cfg.NATS.Embedded.AuthToken != "" {
-			connectOpts = append(connectOpts, nats.Token(cfg.NATS.Embedded.AuthToken))
-		}
-	} else {
-		// Get auth options for external NATS
-		authOpts, err := natsauth.ConnectOptions(cfg.NATS.Client.NATSAuthConfig())
-		if err != nil {
-			return nil, fmt.Errorf("failed to get NATS auth options: %w", err)
-		}
-		connectOpts = append(connectOpts, authOpts...)
-	}
-
-	// Add resilience options
-	connectOpts = append(connectOpts,
-		nats.MaxReconnects(-1),                   // Unlimited reconnection attempts
-		nats.ReconnectWait(100*time.Millisecond), // Quick initial reconnection
-		nats.ReconnectBufSize(8*1024*1024),       // 8MB buffer for pending messages during reconnect
-		nats.DrainTimeout(5*time.Second),
-		nats.ErrorHandler(func(_ *nats.Conn, sub *nats.Subscription, err error) {
-			if sub != nil {
-				logger.Error("NATS subscription error", "subject", sub.Subject, "error", err)
-			} else {
-				logger.Error("NATS error", "error", err)
-			}
-		}),
-		nats.DisconnectErrHandler(func(_ *nats.Conn, err error) {
-			if err != nil {
-				logger.Warn("NATS disconnected", "error", err)
-			}
-		}),
-		nats.ReconnectHandler(func(nc *nats.Conn) {
-			logger.Info("NATS reconnected", "url", nc.ConnectedUrl())
-		}),
-	)
-
-	// Connect to NATS (URL is ignored for in-process connections)
-	natsURL := cfg.NATS.Client.URL
-	if embeddedNATS != nil {
-		natsURL = nats.DefaultURL // Not used for in-process, but nats.Connect requires a valid URL
-	}
-
-	// Retry initial connection to handle transient failures at startup
-	// (e.g. Kubernetes secret volume mounts not yet propagated).
-	var (
-		nc  *nats.Conn
-		err error
-	)
-	for attempt := range 10 {
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-		nc, err = nats.Connect(natsURL, connectOpts...)
-		if err == nil {
-			break
-		}
-		if attempt < 9 {
-			logger.Warn("Failed to connect to NATS, retrying", "error", err, "attempt", attempt+1)
-			timer := time.NewTimer(2 * time.Second)
-			select {
-			case <-ctx.Done():
-				timer.Stop()
-				return nil, ctx.Err()
-			case <-timer.C:
-			}
-		}
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	if embeddedNATS != nil {
-		logger.Info("Connected to embedded NATS server")
-	} else {
-		logger.Info("Connected to NATS", "url", nc.ConnectedUrl())
-	}
-	return nc, nil
 }
 
 func printBanner() {

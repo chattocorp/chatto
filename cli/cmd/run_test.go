@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"hmans.de/chatto/internal/runtimeunit"
 	"hmans.de/chatto/internal/testutil"
 )
 
@@ -84,7 +85,7 @@ func TestCloseNATSConnectionWaitsForDrainToComplete(t *testing.T) {
 
 	drainReturned := make(chan struct{})
 	go func() {
-		closeNATSConnection(nc)
+		runtimeunit.CloseNATSConnection(nc)
 		close(drainReturned)
 	}()
 

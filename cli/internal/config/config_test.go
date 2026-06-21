@@ -815,6 +815,26 @@ func TestMetricsConfig_Defaults(t *testing.T) {
 	}
 }
 
+func TestExporterConfig_Defaults(t *testing.T) {
+	cfg := ExporterConfig{}
+
+	if got := cfg.BindAddressOrDefault(); got != "127.0.0.1" {
+		t.Errorf("BindAddressOrDefault() = %q, want 127.0.0.1", got)
+	}
+	if got := cfg.PortOrDefault(); got != 9100 {
+		t.Errorf("PortOrDefault() = %d, want 9100", got)
+	}
+	if got := cfg.PathOrDefault(); got != "/metrics" {
+		t.Errorf("PathOrDefault() = %q, want /metrics", got)
+	}
+	if got := cfg.S3RefreshIntervalOrDefault(); got != 15*time.Minute {
+		t.Errorf("S3RefreshIntervalOrDefault() = %s, want 15m", got)
+	}
+	if got := cfg.S3TimeoutOrDefault(); got != 30*time.Second {
+		t.Errorf("S3TimeoutOrDefault() = %s, want 30s", got)
+	}
+}
+
 func TestReadConfig_MetricsFromTOMLAndEnv(t *testing.T) {
 	tmpDir := t.TempDir()
 	originalDir, err := os.Getwd()
@@ -888,6 +908,90 @@ signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddee
 	}
 	if cfg.Metrics.Pprof {
 		t.Fatal("Metrics.Pprof = true, want env override false")
+	}
+}
+
+func TestReadConfig_ExporterFromTOMLAndEnv(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(originalDir) })
+
+	configContent := `
+[webserver]
+port = 5000
+cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
+[exporter]
+enabled = true
+bind_address = "0.0.0.0"
+port = 9200
+path = "/internal/exporter"
+s3_refresh_interval = "30m"
+s3_timeout = "45s"
+
+[core]
+secret_key = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+
+[core.assets]
+signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+`
+	if err := os.WriteFile(filepath.Join(tmpDir, "chatto.toml"), []byte(configContent), 0644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := ReadConfig("")
+	if err != nil {
+		t.Fatalf("ReadConfig() failed: %v", err)
+	}
+	if !cfg.Exporter.Enabled {
+		t.Fatal("Exporter.Enabled = false, want true")
+	}
+	if got := cfg.Exporter.BindAddressOrDefault(); got != "0.0.0.0" {
+		t.Errorf("Exporter.BindAddress = %q, want 0.0.0.0", got)
+	}
+	if got := cfg.Exporter.PortOrDefault(); got != 9200 {
+		t.Errorf("Exporter.Port = %d, want 9200", got)
+	}
+	if got := cfg.Exporter.PathOrDefault(); got != "/internal/exporter" {
+		t.Errorf("Exporter.Path = %q, want /internal/exporter", got)
+	}
+	if got := cfg.Exporter.S3RefreshIntervalOrDefault(); got != 30*time.Minute {
+		t.Errorf("Exporter.S3RefreshInterval = %s, want 30m", got)
+	}
+	if got := cfg.Exporter.S3TimeoutOrDefault(); got != 45*time.Second {
+		t.Errorf("Exporter.S3Timeout = %s, want 45s", got)
+	}
+
+	t.Setenv("CHATTO_EXPORTER_ENABLED", "false")
+	t.Setenv("CHATTO_EXPORTER_PORT", "9300")
+	t.Setenv("CHATTO_EXPORTER_PATH", "/metrics")
+	t.Setenv("CHATTO_EXPORTER_S3_REFRESH_INTERVAL", "5m")
+	t.Setenv("CHATTO_EXPORTER_S3_TIMEOUT", "10s")
+
+	cfg, err = ReadConfig("")
+	if err != nil {
+		t.Fatalf("ReadConfig() with env override failed: %v", err)
+	}
+	if cfg.Exporter.Enabled {
+		t.Fatal("Exporter.Enabled = true, want env override false")
+	}
+	if got := cfg.Exporter.PortOrDefault(); got != 9300 {
+		t.Errorf("Exporter.Port env override = %d, want 9300", got)
+	}
+	if got := cfg.Exporter.PathOrDefault(); got != "/metrics" {
+		t.Errorf("Exporter.Path env override = %q, want /metrics", got)
+	}
+	if got := cfg.Exporter.S3RefreshIntervalOrDefault(); got != 5*time.Minute {
+		t.Errorf("Exporter.S3RefreshInterval env override = %s, want 5m", got)
+	}
+	if got := cfg.Exporter.S3TimeoutOrDefault(); got != 10*time.Second {
+		t.Errorf("Exporter.S3Timeout env override = %s, want 10s", got)
 	}
 }
 
@@ -1692,6 +1796,36 @@ func TestChattoConfig_Validate_Metrics(t *testing.T) {
 				c.Metrics.Path = "/metrics?token=secret"
 			},
 			errorMsg: "metrics.path must not contain query strings or fragments",
+		},
+		{
+			name: "accepts enabled exporter with defaults",
+			modify: func(c *ChattoConfig) {
+				c.Exporter.Enabled = true
+			},
+		},
+		{
+			name: "rejects exporter invalid port",
+			modify: func(c *ChattoConfig) {
+				c.Exporter.Enabled = true
+				c.Exporter.Port = 70000
+			},
+			errorMsg: "exporter.port must be between 0 and 65535",
+		},
+		{
+			name: "rejects exporter relative path",
+			modify: func(c *ChattoConfig) {
+				c.Exporter.Enabled = true
+				c.Exporter.Path = "metrics"
+			},
+			errorMsg: "exporter.path must start with /",
+		},
+		{
+			name: "rejects exporter query string in path",
+			modify: func(c *ChattoConfig) {
+				c.Exporter.Enabled = true
+				c.Exporter.Path = "/metrics?token=secret"
+			},
+			errorMsg: "exporter.path must not contain query strings or fragments",
 		},
 	}
 

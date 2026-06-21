@@ -80,5 +80,5 @@ Fresh servers seed `message.attach` for `everyone` so new deployments keep uploa
 
 ## Related
 
-- **ADRs:** ADR-021 (dual asset storage), ADR-023 (HMAC-signed image transform URLs), ADR-032 (self-describing signed attachment URLs), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-039 (Service Worker virtual asset URLs with ticketed fallback)
+- **ADRs:** ADR-021 (dual asset storage), ADR-023 (HMAC-signed image transform URLs), ADR-032 (self-describing signed attachment URLs), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-039 (Service Worker virtual asset URLs with ticketed fallback), ADR-041 (runtime units for optional processes)
 - **FDRs:** FDR-002 (Replies & Threads), FDR-004 (Message Editing & Deletion)

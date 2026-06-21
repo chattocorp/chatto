@@ -176,7 +176,7 @@ exec tilt up --stream
 """
 
 [tasks.chatto]
-description = "Build and run the bundled Chatto CLI command"
+description = "Build and run the bundled Chatto CLI command with workspace-safe ports"
 depends = ["build-dev-cli"]
 dir = "cli"
 env = {
@@ -188,6 +188,10 @@ env = {
   CHATTO_METRICS_BIND_ADDRESS = "127.0.0.1",
   CHATTO_METRICS_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 2}}",
   CHATTO_METRICS_PATH = "/metrics",
+  CHATTO_EXPORTER_ENABLED = "true",
+  CHATTO_EXPORTER_BIND_ADDRESS = "127.0.0.1",
+  CHATTO_EXPORTER_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 3}}",
+  CHATTO_EXPORTER_PATH = "/metrics",
 }
 run = "exec bin/chatto"
 

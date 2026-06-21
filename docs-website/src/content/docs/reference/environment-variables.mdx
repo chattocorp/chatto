@@ -97,6 +97,34 @@ Built-in automatic TLS via Let's Encrypt. When enabled, Chatto handles certifica
   Expose Go pprof debug endpoints on the metrics listener under `/debug/pprof/`. Keep the metrics listener private and enable this only while profiling.
 </EnvVar>
 
+## Exporter
+
+The exporter exposes deployment-wide Chatto metrics. Run it as `chatto exporter` against external NATS or an exposed embedded NATS TCP listener, or set `exporter.enabled = true` to embed it inside `chatto run` for single-process installs. Clustered deployments should enable the embedded exporter on at most one replica.
+
+<EnvVar name="CHATTO_EXPORTER_ENABLED" toml="exporter.enabled" default="false">
+  Start the deployment-wide Prometheus exporter inside `chatto run`.
+</EnvVar>
+
+<EnvVar name="CHATTO_EXPORTER_BIND_ADDRESS" toml="exporter.bind_address" default="127.0.0.1">
+  Address to bind the exporter listener. Keep this on localhost unless a trusted internal network or sidecar needs direct scrape access.
+</EnvVar>
+
+<EnvVar name="CHATTO_EXPORTER_PORT" toml="exporter.port" default="9100">
+  Port for the exporter listener.
+</EnvVar>
+
+<EnvVar name="CHATTO_EXPORTER_PATH" toml="exporter.path" default="/metrics">
+  HTTP path for Prometheus scrapes.
+</EnvVar>
+
+<EnvVar name="CHATTO_EXPORTER_S3_REFRESH_INTERVAL" toml="exporter.s3_refresh_interval" default="15m">
+  How often to refresh cached S3 bucket size metrics when S3 asset storage is configured.
+</EnvVar>
+
+<EnvVar name="CHATTO_EXPORTER_S3_TIMEOUT" toml="exporter.s3_timeout" default="30s">
+  Timeout for one S3 bucket-size refresh.
+</EnvVar>
+
 ## Diagnostics
 
 <EnvVar name="CHATTO_DIAGNOSTICS_STARTUP_CPU_PROFILE" toml="diagnostics.startup_cpu_profile">
