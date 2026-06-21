@@ -17,6 +17,9 @@ import (
 // ImageURL is the resolver for the imageUrl field on LinkPreview.
 func (r *linkPreviewResolver) ImageURL(ctx context.Context, obj *corev1.LinkPreview, width *int32, height *int32, fit *model.FitMode) (*string, error) {
 	imageAssetId := obj.GetImageAssetId()
+	if obj.GetImageAsset() != nil && obj.GetImageAsset().GetId() != "" {
+		imageAssetId = obj.GetImageAsset().GetId()
+	}
 	if imageAssetId == "" {
 		return nil, nil
 	}

@@ -405,6 +405,12 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	if err := validateLinkPreview(linkPreview); err != nil {
 		return nil, err
 	}
+	if err := c.HydrateLinkPreviewImageAsset(ctx, linkPreview); err != nil {
+		return nil, err
+	}
+	if err := validateLinkPreview(linkPreview); err != nil {
+		return nil, err
+	}
 
 	// Validate that message has either body or attachments.
 	// HasVisibleContent rejects messages with only invisible Unicode characters.
@@ -1166,6 +1172,17 @@ func validateLinkPreview(linkPreview *corev1.LinkPreview) error {
 	}
 	if err := validateStringMaxLength("link preview image asset ID", linkPreview.GetImageAssetId(), MaxLinkPreviewImageAssetIDLength); err != nil {
 		return err
+	}
+	if imageAsset := linkPreview.GetImageAsset(); imageAsset != nil {
+		if err := validateStringMaxLength("link preview image asset ID", imageAsset.GetId(), MaxLinkPreviewImageAssetIDLength); err != nil {
+			return err
+		}
+		if linkPreview.GetImageAssetId() != "" && imageAsset.GetId() != "" && linkPreview.GetImageAssetId() != imageAsset.GetId() {
+			return fmt.Errorf("link preview image asset ID does not match image asset record")
+		}
+		if imageAsset.GetStorage() == nil {
+			return fmt.Errorf("link preview image asset record is missing storage")
+		}
 	}
 	if err := validateStringMaxLength("link preview site name", linkPreview.GetSiteName(), MaxLinkPreviewSiteNameLength); err != nil {
 		return err

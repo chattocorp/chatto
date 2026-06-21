@@ -1,18 +1,18 @@
 ---
 title: S3 Storage
-description: How to configure S3-compatible object storage for file attachments and media.
+description: How to configure S3-compatible object storage for persisted assets.
 ---
 
 import { Aside, Tabs, TabItem, LinkCard } from "@astrojs/starlight/components";
 
-By default, Chatto stores file attachments (images, videos, documents) inside NATS JetStream object stores. This works well for small to medium deployments, but can put pressure on your NATS storage as usage grows.
+By default, Chatto stores persisted assets (attachments, avatars, server branding images, and link-preview images) inside NATS JetStream object stores. This works well for small to medium deployments, but can put pressure on your NATS storage as usage grows.
 
-Switching to an S3-compatible backend offloads file storage to a dedicated object store while keeping all other data (messages, users, rooms) in NATS.
+Switching to an S3-compatible backend offloads persisted asset storage to a dedicated object store while keeping all other data (messages, users, rooms) in NATS.
 
 ## How It Works
 
-- **New uploads** go to S3 when configured
-- **Existing attachments** stored in NATS continue to work — each asset remembers which backend stores its bytes
+- **New persisted assets** go to S3 when configured
+- **Existing assets** stored in NATS continue to work — each asset remembers which backend stores its bytes
 - **URLs don't change** — the storage backend is an internal detail; asset URLs always use the same format
 - **S3 prefixes are movable** — Chatto stores prefix-free asset keys, so you can move objects to a different S3 prefix and update config without rewriting Chatto metadata
 

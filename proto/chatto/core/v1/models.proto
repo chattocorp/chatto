@@ -305,7 +305,8 @@ message LinkPreview {
   string description = 3;
   string site_name = 4;
 
-  // Asset ID for the preview image (stored in instance ObjectStore)
+  // Asset ID for the preview image. Kept for GraphQL/client compatibility;
+  // new previews also carry image_asset with storage metadata.
   optional string image_asset_id = 5;
 
   // Embed type: "generic", "youtube", "vimeo", etc.
@@ -313,6 +314,9 @@ message LinkPreview {
 
   // Embed ID for rich embeds (e.g., YouTube video ID)
   optional string embed_id = 7;
+
+  // Preview image content metadata and storage pointer.
+  AssetRecord image_asset = 8;
 }
 
 // CachedLinkPreview wraps LinkPreview with cache metadata.

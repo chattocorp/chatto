@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -573,15 +574,146 @@ func (c *ChattoCore) GetLinkPreview(ctx context.Context, url string) (*corev1.Li
 	return preview, nil
 }
 
+// HydrateLinkPreviewImageAsset ensures a posted LinkPreview carries the
+// server-issued AssetRecord for its preview image. Clients only send
+// image_asset_id for compatibility; the backend rehydrates the storage pointer
+// from the server-side preview cache or by probing known backends.
+func (c *ChattoCore) HydrateLinkPreviewImageAsset(ctx context.Context, preview *corev1.LinkPreview) error {
+	if preview == nil {
+		return nil
+	}
+
+	imageAsset := preview.GetImageAsset()
+	imageAssetID := preview.GetImageAssetId()
+	if imageAsset != nil {
+		if imageAsset.GetId() == "" {
+			return fmt.Errorf("link preview image asset record is missing id")
+		}
+		if imageAssetID != "" && imageAssetID != imageAsset.GetId() {
+			return fmt.Errorf("link preview image asset id mismatch")
+		}
+		if imageAssetID == "" {
+			id := imageAsset.GetId()
+			preview.ImageAssetId = &id
+		}
+		return nil
+	}
+	if imageAssetID == "" {
+		return nil
+	}
+
+	if cached, err := c.linkPreviewCache.Get(ctx, preview.GetUrl()); err == nil && cached != nil {
+		if cachedAsset := cached.GetImageAsset(); cachedAsset != nil && cachedAsset.GetId() == imageAssetID {
+			preview.ImageAsset = proto.Clone(cachedAsset).(*corev1.AssetRecord)
+			return nil
+		}
+	} else if err != nil && !errors.Is(err, linkpreview.ErrCachedFailure) {
+		c.logger.Debug("Failed to hydrate link preview image asset from cache", "url", preview.GetUrl(), "error", err)
+	}
+
+	asset, err := c.ServerAssetRecordFromAnyBackend(ctx, imageAssetID, "link-preview.webp")
+	if err != nil {
+		return fmt.Errorf("hydrate link preview image asset: %w", err)
+	}
+	preview.ImageAsset = asset
+	return nil
+}
+
 // S3Client returns the S3 client, or nil if S3 is not configured.
 func (c *ChattoCore) S3Client() *S3Client {
 	return c.s3Client
+}
+
+func (c *ChattoCore) storeLinkPreviewImage(ctx context.Context, assetID string, data []byte, contentType string) (*corev1.AssetRecord, error) {
+	asset := &corev1.AssetRecord{
+		Id:          assetID,
+		Filename:    "link-preview.webp",
+		ContentType: contentType,
+		Size:        int64(len(data)),
+	}
+	if c.ShouldUseS3() {
+		s3Key := S3KeyServerAsset(assetID)
+		if _, err := c.s3Client.PutObjectFromBytes(ctx, s3Key, data, contentType); err != nil {
+			return nil, fmt.Errorf("upload link preview image to S3: %w", err)
+		}
+		asset.Storage = &corev1.AssetRecord_S3{S3: &corev1.S3Asset{
+			Key:    assetID,
+			Bucket: proto.String(c.s3Client.Bucket()),
+		}}
+		c.logger.Debug("Stored link preview image in S3", "asset_id", assetID, "size", len(data))
+		return asset, nil
+	}
+
+	meta := jetstream.ObjectMeta{
+		Name: assetID,
+		Headers: map[string][]string{
+			"Content-Type": {contentType},
+		},
+	}
+	info, err := c.storage.serverAssets.Put(ctx, meta, bytes.NewReader(data))
+	if err != nil {
+		return nil, fmt.Errorf("upload link preview image to SERVER_ASSETS: %w", err)
+	}
+	asset.Size = int64(info.Size)
+	asset.Storage = &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: assetID}}
+	c.logger.Debug("Stored link preview image in SERVER_ASSETS", "asset_id", assetID, "size", len(data))
+	return asset, nil
 }
 
 // ServerAssetInfo contains metadata about a server asset.
 type ServerAssetInfo struct {
 	Size        int64
 	ContentType string
+}
+
+// ServerAssetRecordFromAnyBackend builds an AssetRecord by probing the
+// server-asset backends. It is primarily for legacy ID-only server-scoped
+// assets that need to be rehydrated into richer metadata.
+func (c *ChattoCore) ServerAssetRecordFromAnyBackend(ctx context.Context, assetID, filename string) (*corev1.AssetRecord, error) {
+	obj, err := c.storage.serverAssets.Get(ctx, assetID)
+	if err == nil {
+		if closer, ok := obj.(io.Closer); ok {
+			defer closer.Close()
+		}
+		info, _ := obj.Info()
+		contentType := info.Headers.Get("Content-Type")
+		if contentType == "" {
+			contentType = "application/octet-stream"
+		}
+		return &corev1.AssetRecord{
+			Id:          assetID,
+			Filename:    filename,
+			ContentType: contentType,
+			Size:        int64(info.Size),
+			Storage:     &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: assetID}},
+		}, nil
+	}
+
+	if c.s3Client != nil {
+		s3Info, s3Err := c.s3Client.StatObject(ctx, S3KeyServerAsset(assetID))
+		if s3Err == nil {
+			contentType := s3Info.ContentType
+			if contentType == "" {
+				contentType = "application/octet-stream"
+			}
+			return &corev1.AssetRecord{
+				Id:          assetID,
+				Filename:    filename,
+				ContentType: contentType,
+				Size:        s3Info.Size,
+				Storage: &corev1.AssetRecord_S3{S3: &corev1.S3Asset{
+					Key:    assetID,
+					Bucket: proto.String(c.s3Client.Bucket()),
+				}},
+			}, nil
+		}
+		c.logger.Debug("Server asset record not found in either backend",
+			"asset_id", assetID,
+			"nats_error", err,
+			"s3_error", s3Err)
+	}
+
+	return nil, err
 }
 
 // GetServerAssetFromAnyBackend retrieves a server asset by probing both NATS and S3 backends.
@@ -904,7 +1036,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	// Initialize link preview cache and fetcher
 	core.linkPreviewCache = linkpreview.NewCache(storage.runtimeStateKV)
 	assetsConfig := core.AssetsConfig()
-	core.linkPreviewFetcher = linkpreview.NewFetcher(storage.serverAssets, &assetsConfig, NewAssetID)
+	core.linkPreviewFetcher = linkpreview.NewFetcher(&assetsConfig, NewAssetID, core.storeLinkPreviewImage)
 
 	// ensureChannelRoomsAreInAGroup is deferred to core.Run() — it
 	// needs the projectors to be live so its CreateRoomGroup /

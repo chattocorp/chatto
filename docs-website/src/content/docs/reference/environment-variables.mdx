@@ -120,7 +120,7 @@ Built-in automatic TLS via Let's Encrypt. When enabled, Chatto handles certifica
 </EnvVar>
 
 <EnvVar name="CHATTO_CORE_ASSETS_STORAGE_BACKEND" toml="core.assets.storage_backend" default="nats">
-  Storage backend for file attachments. Values: `nats`, `s3`.
+  Storage backend for persisted assets. Values: `nats`, `s3`.
 </EnvVar>
 
 ### S3 Storage
@@ -162,7 +162,7 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
 ### Image Cache
 
 <EnvVar name="CHATTO_CORE_ASSETS_CACHE_ENABLED" toml="core.assets.cache.enabled" default="false">
-  Enable caching for resized images. Reduces CPU usage for repeated thumbnail generation.
+  Enable caching for resized image transforms. Reduces CPU usage for repeated thumbnail generation.
 </EnvVar>
 
 <EnvVar name="CHATTO_CORE_ASSETS_CACHE_TTL" toml="core.assets.cache.ttl" default="7d">
