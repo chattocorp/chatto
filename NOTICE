@@ -29,7 +29,6 @@ Server and CLI Go Components:
 - go-smtp-mock (https://github.com/mocktools/go-smtp-mock) - MIT License
 - go-str2duration (https://github.com/xhit/go-str2duration) - BSD 3-Clause License
 - go-toml (https://github.com/pelletier/go-toml) - MIT License
-- gofakes3 (https://github.com/johannesboyne/gofakes3) - MIT License
 - Goldmark Markdown parser (https://github.com/yuin/goldmark) - MIT License
 - Gorilla securecookie, sessions, and websocket
   (https://github.com/gorilla) - BSD 3-Clause License
@@ -37,7 +36,6 @@ Server and CLI Go Components:
   MIT License
 - imageorient (https://github.com/disintegration/imageorient) - MIT License
 - LiveKit Protocol (https://github.com/livekit/protocol) - Apache License 2.0
-- MinIO Go Client SDK (https://github.com/minio/minio-go) - Apache License 2.0
 - NATS Server, Go client, JSM, and nkeys (https://nats.io/) - Apache License 2.0
 - nativewebp (https://github.com/HugoSmits86/nativewebp) - MIT License
 - opengraph (https://github.com/otiai10/opengraph) - MIT License
@@ -97,10 +95,6 @@ This product includes software developed at CoreOS, Inc. (http://www.coreos.com/
 
 LiveKit Protocol:
 Copyright 2023 LiveKit, Inc.
-
-MinIO Go Client SDK:
-MinIO Cloud Storage, (C) 2014-2020 MinIO, Inc.
-This product includes software developed at MinIO, Inc. (https://min.io/).
 
 AWS SDK for Go:
 AWS SDK for Go

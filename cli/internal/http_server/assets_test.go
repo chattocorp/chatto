@@ -23,12 +23,11 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
-	"github.com/johannesboyne/gofakes3"
-	"github.com/johannesboyne/gofakes3/backend/s3mem"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/email"
 	"hmans.de/chatto/internal/testutil"
+	"hmans.de/chatto/internal/testutil/fakes3"
 	"hmans.de/chatto/pkg/signedurl"
 )
 
@@ -75,16 +74,13 @@ func setupAssetTestServerWithConfig(t *testing.T, useS3 bool) *assetTestEnv {
 		},
 	}
 	if useS3 {
-		backend := s3mem.New()
-		faker := gofakes3.New(backend)
-		s3Server := httptest.NewServer(faker.Server())
-		t.Cleanup(s3Server.Close)
+		s3Server := fakes3.NewServer(t)
 
 		useSSL := false
 		pathStyle := true
 		assetsCfg.StorageBackend = config.StorageBackendS3
 		assetsCfg.S3 = config.S3Config{
-			Endpoint:        s3Server.URL[len("http://"):],
+			Endpoint:        s3Server.EndpointHost(),
 			Bucket:          "test-bucket",
 			AccessKeyID:     "test-key",
 			SecretAccessKey: "test-secret",

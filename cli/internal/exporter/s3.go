@@ -2,19 +2,19 @@ package exporter
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 
 	"hmans.de/chatto/internal/config"
 )
 
 type s3Scanner struct {
-	client     *minio.Client
+	client     *s3.Client
 	bucket     string
 	pathPrefix string
 	timeout    time.Duration
@@ -49,19 +49,17 @@ func newS3Scanner(assets config.AssetsConfig, timeout time.Duration) (*s3Scanner
 	if err := cfg.ValidatePathPrefix(); err != nil {
 		return nil, err
 	}
-	bucketLookup := minio.BucketLookupAuto
-	if cfg.PathStyleOrDefault() {
-		bucketLookup = minio.BucketLookupPath
+
+	region := cfg.Region
+	if region == "" {
+		region = "us-east-1"
 	}
-	client, err := minio.New(cfg.Endpoint, &minio.Options{
-		Creds:        credentials.NewStaticV4(cfg.AccessKeyID, cfg.SecretAccessKey, ""),
-		Secure:       cfg.UseSSLOrDefault(),
-		Region:       cfg.Region,
-		BucketLookup: bucketLookup,
+	client := s3.New(s3.Options{
+		Credentials:  credentials.NewStaticCredentialsProvider(cfg.AccessKeyID, cfg.SecretAccessKey, ""),
+		Region:       region,
+		BaseEndpoint: aws.String(s3EndpointURL(cfg)),
+		UsePathStyle: cfg.PathStyleOrDefault(),
 	})
-	if err != nil {
-		return nil, fmt.Errorf("create S3 client: %w", err)
-	}
 	return &s3Scanner{
 		client:     client,
 		bucket:     cfg.Bucket,
@@ -69,6 +67,16 @@ func newS3Scanner(assets config.AssetsConfig, timeout time.Duration) (*s3Scanner
 		timeout:    timeout,
 		stats:      s3Stats{Configured: true},
 	}, nil
+}
+
+func s3EndpointURL(cfg config.S3Config) string {
+	if strings.HasPrefix(cfg.Endpoint, "http://") || strings.HasPrefix(cfg.Endpoint, "https://") {
+		return cfg.Endpoint
+	}
+	if cfg.UseSSLOrDefault() {
+		return "https://" + cfg.Endpoint
+	}
+	return "http://" + cfg.Endpoint
 }
 
 func listPrefix(pathPrefix string) string {
@@ -141,20 +149,68 @@ func (s *s3Scanner) refresh(parent context.Context) {
 }
 
 func (s *s3Scanner) scan(ctx context.Context, withVersions bool) (objects int64, bytes int64, err error) {
-	opts := minio.ListObjectsOptions{
-		Prefix:       s.pathPrefix,
-		Recursive:    true,
-		WithVersions: withVersions,
+	if withVersions {
+		return s.scanVersions(ctx)
 	}
-	for object := range s.client.ListObjects(ctx, s.bucket, opts) {
-		if object.Err != nil {
-			return 0, 0, object.Err
+
+	input := &s3.ListObjectsV2Input{
+		Bucket: aws.String(s.bucket),
+		Prefix: aws.String(s.pathPrefix),
+	}
+	for {
+		output, err := s.client.ListObjectsV2(ctx, input)
+		if err != nil {
+			return 0, 0, err
 		}
-		if object.Key == "" {
-			continue
+		for _, object := range output.Contents {
+			if aws.ToString(object.Key) == "" {
+				continue
+			}
+			objects++
+			bytes += aws.ToInt64(object.Size)
 		}
-		objects++
-		bytes += object.Size
+		if !aws.ToBool(output.IsTruncated) || output.NextContinuationToken == nil {
+			break
+		}
+		input.ContinuationToken = output.NextContinuationToken
+	}
+	if err := ctx.Err(); err != nil {
+		return 0, 0, err
+	}
+	return objects, bytes, nil
+}
+
+func (s *s3Scanner) scanVersions(ctx context.Context) (objects int64, bytes int64, err error) {
+	input := &s3.ListObjectVersionsInput{
+		Bucket: aws.String(s.bucket),
+		Prefix: aws.String(s.pathPrefix),
+	}
+	for {
+		output, err := s.client.ListObjectVersions(ctx, input)
+		if err != nil {
+			return 0, 0, err
+		}
+		for _, object := range output.Versions {
+			if aws.ToString(object.Key) == "" {
+				continue
+			}
+			objects++
+			bytes += aws.ToInt64(object.Size)
+		}
+		for _, marker := range output.DeleteMarkers {
+			if aws.ToString(marker.Key) == "" {
+				continue
+			}
+			objects++
+		}
+		if !aws.ToBool(output.IsTruncated) {
+			break
+		}
+		if output.NextKeyMarker == nil && output.NextVersionIdMarker == nil {
+			break
+		}
+		input.KeyMarker = output.NextKeyMarker
+		input.VersionIdMarker = output.NextVersionIdMarker
 	}
 	if err := ctx.Err(); err != nil {
 		return 0, 0, err

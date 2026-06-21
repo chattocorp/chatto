@@ -5,39 +5,28 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/johannesboyne/gofakes3"
-	"github.com/johannesboyne/gofakes3/backend/s3mem"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/testutil/fakes3"
 )
 
 // setupFakeS3Server creates an in-memory S3 server for testing.
-func setupFakeS3Server(t *testing.T) (*httptest.Server, string) {
+func setupFakeS3Server(t *testing.T) string {
 	t.Helper()
 
-	backend := s3mem.New()
-	faker := gofakes3.New(backend)
-	server := httptest.NewServer(faker.Server())
-	t.Cleanup(server.Close)
-
-	return server, server.URL
+	return fakes3.NewServer(t).EndpointHost()
 }
 
 // TestS3Client_PutAndGetObject tests uploading and retrieving objects.
 func TestS3Client_PutAndGetObject(t *testing.T) {
-	server, endpoint := setupFakeS3Server(t)
-	defer server.Close()
-
-	// Parse endpoint to get host without protocol
-	endpointHost := endpoint[7:] // Remove "http://"
+	endpointHost := setupFakeS3Server(t)
 
 	// Create S3 client with test config
 	cfg := config.S3Config{
@@ -89,10 +78,7 @@ func TestS3Client_PutAndGetObject(t *testing.T) {
 
 // TestS3Client_DeleteObject tests deleting objects.
 func TestS3Client_DeleteObject(t *testing.T) {
-	server, endpoint := setupFakeS3Server(t)
-	defer server.Close()
-
-	endpointHost := endpoint[7:]
+	endpointHost := setupFakeS3Server(t)
 
 	cfg := config.S3Config{
 		Endpoint:        endpointHost,
@@ -132,10 +118,7 @@ func TestS3Client_DeleteObject(t *testing.T) {
 
 // TestS3Client_StatObject tests getting object metadata without downloading.
 func TestS3Client_StatObject(t *testing.T) {
-	server, endpoint := setupFakeS3Server(t)
-	defer server.Close()
-
-	endpointHost := endpoint[7:]
+	endpointHost := setupFakeS3Server(t)
 
 	cfg := config.S3Config{
 		Endpoint:        endpointHost,
@@ -169,10 +152,7 @@ func TestS3Client_StatObject(t *testing.T) {
 }
 
 func TestS3Client_PathPrefixUsesPhysicalKeyAndReturnsLogicalKey(t *testing.T) {
-	server, endpoint := setupFakeS3Server(t)
-	defer server.Close()
-
-	endpointHost := endpoint[7:]
+	endpointHost := setupFakeS3Server(t)
 	useSSL := false
 	pathStyle := true
 
