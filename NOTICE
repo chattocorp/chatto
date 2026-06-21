@@ -1,28 +1,121 @@
 Chatto
 Copyright 2026 ChattoCorp GmbH
 
-This product includes third-party open source software. Major components
-include:
+This product includes third-party open source software. This notice lists
+direct dependencies, shipped browser assets, and upstream NOTICE text known to
+apply to the Chatto server, CLI, frontend, and documentation website.
 
-- NATS Server and Go client libraries (https://nats.io/) - Apache License 2.0
-- Cobra CLI framework (https://github.com/spf13/cobra) - Apache License 2.0
-- Gin web framework (https://github.com/gin-gonic/gin) - MIT License
-- gqlgen GraphQL framework (https://github.com/99designs/gqlgen) - MIT License
-- CoreOS go-oidc (https://github.com/coreos/go-oidc) - Apache License 2.0
-- LiveKit Protocol and client libraries (https://livekit.io/) - Apache License 2.0
-- MinIO Go Client SDK (https://github.com/minio/minio-go) - Apache License 2.0
+Dependency manifests and lockfiles in this repository remain the authoritative
+set of third-party packages, including transitive dependencies, used to build
+each artifact.
+
+Server and CLI Go Components:
+
+- age (https://filippo.io/age) - BSD 3-Clause License
 - AWS SDK for Go v2 (https://github.com/aws/aws-sdk-go-v2) - Apache License 2.0
-- Svelte and SvelteKit (https://svelte.dev/) - MIT License
-- Vite (https://vite.dev/) - MIT License
-- Tailwind CSS (https://tailwindcss.com/) - MIT License
-- Tiptap and ProseMirror (https://tiptap.dev/, https://prosemirror.net/) - MIT License
-- urql GraphQL client (https://commerce.nearform.com/open-source/urql/) - MIT License
-- markdown-it (https://github.com/markdown-it/markdown-it) - MIT License
-- Astro and Starlight (https://astro.build/) - MIT License
-- Sharp image toolkit (https://sharp.pixelplumbing.com/) - Apache License 2.0
+- caarlos0/env (https://github.com/caarlos0/env) - MIT License
+- Charmbracelet log (https://github.com/charmbracelet/log) - MIT License
+- Cobra CLI framework (https://github.com/spf13/cobra) - Apache License 2.0
+- CoreOS go-oidc (https://github.com/coreos/go-oidc) - Apache License 2.0
+- datasize (https://github.com/c2h5oh/datasize) - MIT License
+- dataloadgen (https://github.com/vikstrous/dataloadgen) - MIT License
+- Gin web framework (https://github.com/gin-gonic/gin) - MIT License
+- gin-contrib/sessions (https://github.com/gin-contrib/sessions) - MIT License
+- gqlgen GraphQL framework (https://github.com/99designs/gqlgen) - MIT License
+- gqlparser (https://github.com/vektah/gqlparser) - MIT License
+- go-jwt (https://github.com/golang-jwt/jwt) - MIT License
+- go-mail (https://github.com/wneessen/go-mail) - MIT License
+- go-nanoid (https://github.com/matoous/go-nanoid) - MIT License
+- go-smtp-mock (https://github.com/mocktools/go-smtp-mock) - MIT License
+- go-str2duration (https://github.com/xhit/go-str2duration) - BSD 3-Clause License
+- go-toml (https://github.com/pelletier/go-toml) - MIT License
+- gofakes3 (https://github.com/johannesboyne/gofakes3) - MIT License
+- Goldmark Markdown parser (https://github.com/yuin/goldmark) - MIT License
+- Gorilla securecookie, sessions, and websocket
+  (https://github.com/gorilla) - BSD 3-Clause License
+- Goth OAuth/OIDC authentication (https://github.com/markbates/goth) -
+  MIT License
+- imageorient (https://github.com/disintegration/imageorient) - MIT License
+- LiveKit Protocol (https://github.com/livekit/protocol) - Apache License 2.0
+- MinIO Go Client SDK (https://github.com/minio/minio-go) - Apache License 2.0
+- NATS Server, Go client, JSM, and nkeys (https://nats.io/) - Apache License 2.0
+- nativewebp (https://github.com/HugoSmits86/nativewebp) - MIT License
+- opengraph (https://github.com/otiai10/opengraph) - MIT License
+- Prometheus Go client (https://github.com/prometheus/client_golang) - Apache License 2.0
+- Testify (https://github.com/stretchr/testify) - MIT License
+- Twirp (https://github.com/twitchtv/twirp) - Apache License 2.0
+- webpush-go (https://github.com/SherClockHolmes/webpush-go) - MIT License
+- Google Go libraries: x/crypto, x/image, x/oauth2, x/sync, x/term,
+  and protobuf (https://go.googlesource.com/) - BSD 3-Clause License
 
-Dependency manifests and lockfiles in this repository contain the authoritative
-set of third-party packages used to build each artifact.
+Frontend and Documentation Components:
+
+- Astro and Starlight (https://astro.build/) - MIT License
+- ESLint packages (https://eslint.org/) - MIT License and Apache License 2.0
+- Fontsource IBM Plex Sans and IBM Plex Mono
+  (https://fontsource.org/fonts/ibm-plex-sans,
+  https://fontsource.org/fonts/ibm-plex-mono) - SIL Open Font License 1.1
+- gemoji (https://github.com/github/gemoji) - MIT License
+- GraphQL and GraphQL Code Generator packages
+  (https://graphql.org/, https://the-guild.dev/graphql/codegen) - MIT License
+- heic2any (https://github.com/alexcorvi/heic2any) - MIT License
+- highlight.js (https://highlightjs.org/) - BSD 3-Clause License
+- Iconify packages (https://iconify.design/) - MIT License
+- linkify-it (https://github.com/markdown-it/linkify-it) - MIT License
+- LiveKit client SDK for JS (https://github.com/livekit/client-sdk-js) -
+  Apache License 2.0
+- lowlight (https://github.com/wooorm/lowlight) - MIT License
+- markdown-it (https://github.com/markdown-it/markdown-it) - MIT License
+- Parcel watcher (https://github.com/parcel-bundler/watcher) - MIT License
+- Playwright (https://playwright.dev/) - Apache License 2.0
+- Prettier and plugins (https://prettier.io/) - MIT License
+- Sharp image toolkit (https://sharp.pixelplumbing.com/) - Apache License 2.0
+- Storybook packages (https://storybook.js.org/) - MIT License
+- Svelte, SvelteKit, Svelte check, and Svelte tooling
+  (https://svelte.dev/) - MIT License
+- svelte-dnd-action (https://github.com/isaacHagoel/svelte-dnd-action) -
+  MIT License
+- Tailwind CSS packages (https://tailwindcss.com/) - MIT License
+- Tiptap and ProseMirror (https://tiptap.dev/, https://prosemirror.net/) -
+  MIT License
+- tlds (https://github.com/segmentio/tlds) - MIT License
+- TypeScript (https://www.typescriptlang.org/) - Apache License 2.0
+- TypeScript ESLint (https://typescript-eslint.io/) - MIT License
+- urql and Wonka (https://commerce.nearform.com/open-source/urql/) -
+  MIT License
+- Vidstack (https://www.vidstack.io/) - MIT License
+- Virtua (https://github.com/inokawa/virtua) - MIT License
+- Vite and Vitest (https://vite.dev/, https://vitest.dev/) - MIT License
+- zod (https://zod.dev/) - MIT License
+
+Upstream NOTICE Text:
+
+CoreOS go-oidc:
+CoreOS Project
+Copyright 2014 CoreOS, Inc
+This product includes software developed at CoreOS, Inc. (http://www.coreos.com/).
+
+LiveKit Protocol:
+Copyright 2023 LiveKit, Inc.
+
+MinIO Go Client SDK:
+MinIO Cloud Storage, (C) 2014-2020 MinIO, Inc.
+This product includes software developed at MinIO, Inc. (https://min.io/).
+
+AWS SDK for Go:
+AWS SDK for Go
+Copyright 2015 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+Copyright 2014-2015 Stripe, Inc.
+
+Prometheus Go client:
+Prometheus instrumentation library for Go applications
+Copyright 2012-2015 The Prometheus Authors
+This product includes software developed at SoundCloud Ltd.
+(http://soundcloud.com/).
+
+Twirp:
+Twirp
+Copyright 2018 Twitch Interactive, Inc. All Rights Reserved.
 
 Trademark Notice:
 The AGPL-3.0 license applies to Chatto's source code. It does not grant
