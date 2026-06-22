@@ -44,6 +44,15 @@ function hostFromGraphQLEndpoint(url: string): string {
 	return url.match(/^[a-z][a-z0-9+.-]*:\/\/([^/?#]+)/i)?.[1] ?? url;
 }
 
+function connectBaseUrlFromGraphQLEndpoint(url: string): string {
+	if (url.startsWith('/')) {
+		const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+		return new URL('/api/connect', origin).toString();
+	}
+	const parsed = new URL(url);
+	return new URL('/api/connect', parsed.origin).toString();
+}
+
 const HOME_URL = '/api/graphql';
 
 export class GraphQLClient {
@@ -75,6 +84,8 @@ export class GraphQLClient {
 	#onlineHandler: (() => void) | null = null;
 	#suspendDetectorInterval: ReturnType<typeof setInterval> | null = null;
 	#host: string;
+	#connectBaseUrl: string;
+	#token: string | null;
 
 	get isConnected() {
 		return this.status === 'connected';
@@ -88,6 +99,14 @@ export class GraphQLClient {
 	/** Show urgent (orange) disconnection indicator after 6 failed reconnection attempts (~30+ seconds) */
 	get showConnectionLostBanner() {
 		return this.#failedAttempts >= 6;
+	}
+
+	get connectBaseUrl(): string {
+		return this.#connectBaseUrl;
+	}
+
+	get bearerToken(): string | null {
+		return this.#token;
 	}
 
 	/** Force-terminate and immediately reconnect the WebSocket. */
@@ -122,6 +141,8 @@ export class GraphQLClient {
 	constructor(config: GraphQLClientConfig) {
 		const { url, wsUrl, token, serverId } = config;
 		this.#host = hostFromGraphQLEndpoint(url);
+		this.#connectBaseUrl = connectBaseUrlFromGraphQLEndpoint(url);
+		this.#token = token;
 
 		// Client pings the server every 15s. The `ping` handler starts a 5s
 		// pong timeout; if the server doesn't respond, we close the socket.

@@ -3,11 +3,13 @@
  */
 
 import { graphql } from '$lib/gql';
+import { getPublicServerInfo, type PublicServerInfo } from '$lib/api/server';
 import type { Client } from '@urql/svelte';
 
 export class ServerInfoState {
   #client: Client;
   #label: string;
+  #getPublicServerInfo: (baseUrl: string) => Promise<PublicServerInfo>;
 
   name = $state('Chatto');
   motd = $state<string | null>(null);
@@ -38,9 +40,10 @@ export class ServerInfoState {
    * errors can be traced back to a specific server. Pass the URL (or any
    * stable identifier) — used purely for diagnostics.
    */
-  constructor(client: Client, label = 'unknown') {
+  constructor(client: Client, label = 'unknown', publicServerInfoLoader = getPublicServerInfo) {
     this.#client = client;
     this.#label = label;
+    this.#getPublicServerInfo = publicServerInfoLoader;
   }
 
   /**
@@ -60,16 +63,28 @@ export class ServerInfoState {
       // Defensive: anything thrown during the query or above .then body.
       // Don't re-throw — failure is isolated to this server.
       this.error = err instanceof Error ? err.message : String(err);
-      console.error(
-        `[server:${this.#label}] failed to load server info`,
-        err
-      );
+      console.error(`[server:${this.#label}] failed to load server info`, err);
     } finally {
       this.loading = false;
     }
   }
 
   async refreshProfile(): Promise<void> {
+    try {
+      const info = await this.#getPublicServerInfo(this.#label);
+      this.error = null;
+      this.name = info.name;
+      this.welcomeMessage = info.welcomeMessage;
+      this.description = info.description;
+      this.iconUrl = info.iconUrl;
+      this.bannerUrl = info.bannerUrl;
+      this.directRegistrationEnabled = info.directRegistrationEnabled;
+      return;
+    } catch {
+      // Older servers do not expose the ConnectRPC API yet. Fall back to the
+      // established GraphQL query so mixed-version clients keep working.
+    }
+
     const resp = await this.#client
       .query(
         graphql(`
@@ -93,10 +108,7 @@ export class ServerInfoState {
 
     if (resp.error) {
       this.error = resp.error.message;
-      console.error(
-        `[server:${this.#label}] failed to load server info`,
-        resp.error
-      );
+      console.error(`[server:${this.#label}] failed to load server info`, resp.error);
       return;
     }
 
@@ -154,5 +166,4 @@ export class ServerInfoState {
       this.messageEditWindowSeconds = resp.data.server.messageEditWindowSeconds;
     }
   }
-
 }

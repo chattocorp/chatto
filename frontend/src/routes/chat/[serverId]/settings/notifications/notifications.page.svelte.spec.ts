@@ -10,6 +10,8 @@ import { defaultNotificationSoundFilters } from '$lib/audio/notificationSounds';
 const mocks = vi.hoisted(() => ({
   query: vi.fn(),
   mutation: vi.fn(),
+  setRoomNotificationLevel: vi.fn(),
+  shouldFallbackToGraphQL: vi.fn(),
   playNotificationSound: vi.fn(),
   notificationLevels: {
     setServerPreference: vi.fn(),
@@ -42,6 +44,11 @@ vi.mock('$lib/notifications/pushNotifications', () => ({
   isSubscribed: mocks.pushNotifications.isSubscribed
 }));
 
+vi.mock('$lib/api/notificationPreferences', () => ({
+  setRoomNotificationLevel: mocks.setRoomNotificationLevel,
+  shouldFallbackToGraphQL: mocks.shouldFallbackToGraphQL
+}));
+
 vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'origin'
 }));
@@ -63,7 +70,9 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
       query: mocks.query,
       mutation: mocks.mutation,
       subscription: vi.fn()
-    }
+    },
+    connectBaseUrl: 'https://origin.test/api/connect',
+    bearerToken: 'origin-token'
   })
 }));
 
@@ -147,6 +156,13 @@ describe('Notification settings page', () => {
       })
     });
     mocks.mutation.mockReset();
+    mocks.setRoomNotificationLevel.mockReset();
+    mocks.setRoomNotificationLevel.mockResolvedValue({
+      level: NotificationLevel.Muted,
+      effectiveLevel: NotificationLevel.Muted
+    });
+    mocks.shouldFallbackToGraphQL.mockReset();
+    mocks.shouldFallbackToGraphQL.mockReturnValue(false);
   });
 
   it('renders notification levels and sound choices from mocked state', async () => {
@@ -210,6 +226,31 @@ describe('Notification settings page', () => {
     expect(userPreferences.notificationSound).toBe('silent');
     expect(mocks.playNotificationSound).not.toHaveBeenCalled();
     await expect.element(silentButton).toHaveClass(/choice-row-selected/);
+  });
+
+  it('updates room notification overrides through ConnectRPC', async () => {
+    const { container } = render(NotificationsPage);
+    await settle();
+
+    const select = q(
+      container,
+      '[data-testid="room-notification-general"] select'
+    ) as HTMLSelectElement;
+    select.value = NotificationLevel.Muted;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    await settle();
+
+    expect(mocks.setRoomNotificationLevel).toHaveBeenCalledWith(
+      { baseUrl: 'https://origin.test/api/connect', bearerToken: 'origin-token' },
+      'room-1',
+      NotificationLevel.Muted
+    );
+    expect(mocks.mutation).not.toHaveBeenCalled();
+    expect(mocks.notificationLevels.setRoomPreference).toHaveBeenLastCalledWith(
+      'room-1',
+      NotificationLevel.Muted,
+      NotificationLevel.Muted
+    );
   });
 
   it('shows the push enable path when configured and not subscribed', async () => {

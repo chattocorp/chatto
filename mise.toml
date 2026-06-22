@@ -3,6 +3,7 @@ actionlint = "latest"
 buf = "latest"
 go = "1.26.2"
 "go:google.golang.org/protobuf/cmd/protoc-gen-go" = "v1.36.11"
+"go:connectrpc.com/connect/cmd/protoc-gen-connect-go" = "v1.20.0"
 goreleaser = "latest"
 node = "22"
 tilt = "latest"
@@ -56,6 +57,12 @@ depends = ["deps-frontend"]
 description = "Generate Go code from protobuf schemas"
 dir = "proto"
 run = "buf generate"
+
+[tasks.codegen-api-frontend]
+description = "Generate frontend TypeScript code from public API protobuf schemas"
+depends = ["setup-frontend"]
+dir = "proto"
+run = "buf generate --template buf.gen.frontend.yaml --path chatto/api/v1"
 
 [tasks.codegen-cli]
 description = "Generate GraphQL code using gqlgen"

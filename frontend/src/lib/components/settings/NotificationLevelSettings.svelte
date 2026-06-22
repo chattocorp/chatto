@@ -13,6 +13,11 @@ These preferences are server-side and sync across devices.
   import { FormSection } from '$lib/ui';
   import { FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
+  import {
+    setRoomNotificationLevel,
+    shouldFallbackToGraphQL,
+    type NotificationPreference
+  } from '$lib/api/notificationPreferences';
 
   const notificationLevelStore = serverRegistry.getStore(getActiveServer()).notificationLevels;
   const connection = useConnection();
@@ -147,28 +152,8 @@ These preferences are server-side and sync across devices.
     savingRoomId = roomId;
 
     try {
-      const result = await connection()
-        .client.mutation(
-          graphql(`
-            mutation SetRoomNotificationLevel($input: SetRoomNotificationLevelInput!) {
-              setRoomNotificationLevel(input: $input) {
-                level
-                effectiveLevel
-              }
-            }
-          `),
-          { input: { roomId, level: newLevel } }
-        )
-        .toPromise();
-
-      if (result.error) {
-        toast.error(result.error.message);
-        return;
-      }
-
-      if (result.data?.setRoomNotificationLevel) {
-        const pref = result.data.setRoomNotificationLevel;
-
+      const pref = await setRoomLevel(roomId, newLevel);
+      if (pref) {
         const idx = rooms.findIndex((r) => r.id === roomId);
         if (idx !== -1) {
           rooms[idx] = { ...rooms[idx], level: pref.level, effectiveLevel: pref.effectiveLevel };
@@ -182,6 +167,45 @@ These preferences are server-side and sync across devices.
     } finally {
       savingRoomId = null;
     }
+  }
+
+  async function setRoomLevel(
+    roomId: string,
+    newLevel: NotificationLevel
+  ): Promise<NotificationPreference | null> {
+    const conn = connection();
+    try {
+      return await setRoomNotificationLevel(
+        { baseUrl: conn.connectBaseUrl, bearerToken: conn.bearerToken },
+        roomId,
+        newLevel
+      );
+    } catch (err) {
+      if (!shouldFallbackToGraphQL(err)) {
+        throw err;
+      }
+    }
+
+    const result = await conn.client
+      .mutation(
+        graphql(`
+            mutation SetRoomNotificationLevel($input: SetRoomNotificationLevelInput!) {
+              setRoomNotificationLevel(input: $input) {
+                level
+                effectiveLevel
+              }
+            }
+          `),
+        { input: { roomId, level: newLevel } }
+      )
+      .toPromise();
+
+    if (result.error) {
+      toast.error(result.error.message);
+      return null;
+    }
+
+    return result.data?.setRoomNotificationLevel ?? null;
   }
 
   const levelOptions: Array<{ value: NotificationLevel; label: string; description: string }> = [

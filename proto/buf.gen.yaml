@@ -9,3 +9,7 @@ plugins:
     out: ../cli/internal/pb
     opt:
       - paths=source_relative
+  - local: protoc-gen-connect-go
+    out: ../cli/internal/pb
+    opt:
+      - paths=source_relative

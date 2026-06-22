@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Client } from '@urql/svelte';
+import type { PublicServerInfo } from '$lib/api/server';
 import { ServerInfoState } from './state.svelte';
 
 /** Build a minimal urql Client mock with controllable query result. */
@@ -19,10 +20,12 @@ function makeClient(result: {
   } as unknown as Client;
 }
 
-function makeClientSequence(results: Array<{
-  data?: unknown;
-  error?: { message: string; networkError?: Error } | null;
-}>): Client {
+function makeClientSequence(
+  results: Array<{
+    data?: unknown;
+    error?: { message: string; networkError?: Error } | null;
+  }>
+): Client {
   return {
     query: vi.fn().mockImplementation(() => {
       const result = results.shift() ?? {};
@@ -49,6 +52,12 @@ function makeRejectingClient(err: Error): Client {
   } as unknown as Client;
 }
 
+function connectUnavailable() {
+  return vi
+    .fn<() => Promise<PublicServerInfo>>()
+    .mockRejectedValue(new Error('connect unavailable'));
+}
+
 describe('ServerInfoState.init()', () => {
   let consoleError: ReturnType<typeof vi.spyOn>;
 
@@ -71,7 +80,7 @@ describe('ServerInfoState.init()', () => {
         }
       }
     });
-    const state = new ServerInfoState(client, 'https://acme.test');
+    const state = new ServerInfoState(client, 'https://acme.test', connectUnavailable());
 
     await state.init();
 
@@ -119,7 +128,7 @@ describe('ServerInfoState.init()', () => {
         }
       }
     ]);
-    const state = new ServerInfoState(client, 'https://acme.test');
+    const state = new ServerInfoState(client, 'https://acme.test', connectUnavailable());
 
     await state.init();
     await state.refreshAuthenticatedSettings();
@@ -149,7 +158,7 @@ describe('ServerInfoState.init()', () => {
         }
       }
     });
-    const state = new ServerInfoState(client, 'https://fresh.test');
+    const state = new ServerInfoState(client, 'https://fresh.test', connectUnavailable());
     state.loading = false;
 
     await state.refreshProfile();
@@ -169,7 +178,7 @@ describe('ServerInfoState.init()', () => {
         networkError: new Error('Failed to fetch')
       }
     });
-    const state = new ServerInfoState(client, 'https://chatto.run');
+    const state = new ServerInfoState(client, 'https://chatto.run', connectUnavailable());
 
     await state.init();
 
@@ -183,7 +192,7 @@ describe('ServerInfoState.init()', () => {
 
   it('logs and sets error when the query promise rejects', async () => {
     const client = makeRejectingClient(new Error('boom'));
-    const state = new ServerInfoState(client, 'https://chatto.run');
+    const state = new ServerInfoState(client, 'https://chatto.run', connectUnavailable());
 
     await state.init();
 
@@ -203,9 +212,48 @@ describe('ServerInfoState.init()', () => {
 
   it('does not throw — failure must be isolated to this server', async () => {
     const client = makeRejectingClient(new Error('boom'));
-    const state = new ServerInfoState(client);
+    const state = new ServerInfoState(client, 'unknown', connectUnavailable());
 
     // Must resolve, not reject.
     await expect(state.init()).resolves.toBeUndefined();
+  });
+
+  it('loads public profile fields through ConnectRPC before falling back to GraphQL', async () => {
+    const client = makeClient({
+      data: {
+        server: {
+          directRegistrationEnabled: true,
+          profile: {
+            name: 'GraphQL fallback',
+            welcomeMessage: null,
+            description: null,
+            logoUrl: null,
+            bannerUrl: null
+          }
+        }
+      }
+    });
+    const loader = vi.fn<() => Promise<PublicServerInfo>>().mockResolvedValue({
+      name: 'Connect Server',
+      directRegistrationEnabled: false,
+      welcomeMessage: 'hello from connect',
+      description: 'protobuf path',
+      iconUrl: 'https://cdn/icon.webp',
+      bannerUrl: 'https://cdn/banner.webp',
+      authProviders: []
+    });
+    const state = new ServerInfoState(client, 'https://connect.test', loader);
+
+    await state.init();
+
+    expect(loader).toHaveBeenCalledWith('https://connect.test');
+    expect(client.query).not.toHaveBeenCalled();
+    expect(state.error).toBeNull();
+    expect(state.name).toBe('Connect Server');
+    expect(state.directRegistrationEnabled).toBe(false);
+    expect(state.welcomeMessage).toBe('hello from connect');
+    expect(state.description).toBe('protobuf path');
+    expect(state.iconUrl).toBe('https://cdn/icon.webp');
+    expect(state.bannerUrl).toBe('https://cdn/banner.webp');
   });
 });

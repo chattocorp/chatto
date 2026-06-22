@@ -3,6 +3,7 @@ module hmans.de/chatto
 go 1.26.0
 
 tool (
+	connectrpc.com/connect/cmd/protoc-gen-connect-go
 	github.com/99designs/gqlgen
 	github.com/gzuidhof/tygo
 	github.com/sanity-io/litter
@@ -10,6 +11,7 @@ tool (
 )
 
 require (
+	connectrpc.com/connect v1.20.0
 	filippo.io/age v1.3.1
 	github.com/99designs/gqlgen v0.17.90
 	github.com/HugoSmits86/nativewebp v1.3.0

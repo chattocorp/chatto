@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+enum NotificationLevel {
+  NOTIFICATION_LEVEL_UNSPECIFIED = 0;
+  NOTIFICATION_LEVEL_DEFAULT = 1;
+  NOTIFICATION_LEVEL_MUTED = 2;
+  NOTIFICATION_LEVEL_NORMAL = 3;
+  NOTIFICATION_LEVEL_ALL_MESSAGES = 4;
+}
+
+message GetRoomNotificationPreferenceResponse {
+  NotificationLevel level = 1;
+  NotificationLevel effective_level = 2;
+}
+
+message SetRoomNotificationLevelResponse {
+  NotificationLevel level = 1;
+  NotificationLevel effective_level = 2;
+}
+
+message GetRoomNotificationPreferenceRequest {
+  string room_id = 1;
+}
+
+message SetRoomNotificationLevelRequest {
+  string room_id = 1;
+  NotificationLevel level = 2;
+}
+
+service NotificationPreferencesService {
+  rpc GetRoomNotificationPreference(GetRoomNotificationPreferenceRequest) returns (GetRoomNotificationPreferenceResponse);
+  rpc SetRoomNotificationLevel(SetRoomNotificationLevelRequest) returns (SetRoomNotificationLevelResponse);
+}

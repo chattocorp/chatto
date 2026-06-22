@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+message AuthProvider {
+  string id = 1;
+  string type = 2;
+  string label = 3;
+  string login_url = 4;
+}
+
+message GetServerRequest {}
+
+message GetServerResponse {
+  string name = 1;
+  string version = 2;
+  repeated string auth_methods = 3;
+  repeated AuthProvider auth_providers = 4;
+  bool registration_open = 5;
+  string authorize_url = 6;
+  string welcome_message = 7;
+  string description = 8;
+  string icon_url = 9;
+  string banner_url = 10;
+}
+
+service ServerService {
+  rpc GetServer(GetServerRequest) returns (GetServerResponse);
+}

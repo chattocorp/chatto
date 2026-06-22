@@ -1,10 +1,10 @@
 # Chatto Architecture
 
-This document is the **inventory**: what currently exists in the system — streams, KV buckets, object stores, subject patterns, key shapes, GraphQL operations. It's the *what's where* reference, not the *why* one.
+This document is the **inventory**: what currently exists in the system — streams, KV buckets, object stores, subject patterns, key shapes, and API operations. It's the *what's where* reference, not the *why* one.
 
 For *why* a particular design decision was made:
 
-- **Cross-cutting architectural choices** (NATS as primary store, GraphQL as the API, per-user encryption, etc.) live in the [Architecture Decision Records](adr/INDEX.md).
+- **Cross-cutting architectural choices** (NATS as primary store, API strategy, per-user encryption, etc.) live in the [Architecture Decision Records](adr/INDEX.md).
 - **Per-feature design** (Roles & Permissions, Direct Messages, Reactions, Notifications, etc.) lives in the [Feature Decision Records](fdr/INDEX.md).
 - **Coding and review conventions** live in `.claude/rules/` at the repo root.
 
@@ -16,6 +16,7 @@ For *why* a particular design decision was made:
 - [Architecture & APIs](#architecture--apis)
 - [Core Services](#core-services)
 - [Projection Inventory](#projection-inventory)
+- [ConnectRPC API Overview](#connectrpc-api-overview)
 - [GraphQL API Overview](#graphql-api-overview)
   - [Queries](#queries)
   - [Mutations](#mutations)
@@ -38,7 +39,7 @@ For *why* a particular design decision was made:
 
 ## Overview
 
-Chatto is a real-time chat application with a GraphQL gateway and NATS/JetStream backend. Durable domain state is event-sourced in the `EVT` stream and served from projections; `RUNTIME_STATE` holds persisted latest-value runtime state such as notifications, push subscriptions, and auth tokens.
+Chatto is a real-time chat application with a GraphQL gateway, an early ConnectRPC public-API proof of concept, and a NATS/JetStream backend. Durable domain state is event-sourced in the `EVT` stream and served from projections; `RUNTIME_STATE` holds persisted latest-value runtime state such as notifications, push subscriptions, and auth tokens.
 
 ### Core Concepts
 
@@ -72,11 +73,12 @@ For connecting to an external NATS cluster:
 
 ## Architecture & APIs
 
-Key files: [`cli/internal/core/core.go`](../cli/internal/core/core.go), [`cli/internal/events/`](../cli/internal/events/), [`cli/internal/runtimeunit/`](../cli/internal/runtimeunit/), [`cli/internal/http_server/metrics.go`](../cli/internal/http_server/metrics.go), [`cli/internal/exporter/`](../cli/internal/exporter/), [`proto/chatto/core/v1/`](../proto/chatto/core/v1/)
+Key files: [`cli/internal/core/core.go`](../cli/internal/core/core.go), [`cli/internal/events/`](../cli/internal/events/), [`cli/internal/runtimeunit/`](../cli/internal/runtimeunit/), [`cli/internal/http_server/connect.go`](../cli/internal/http_server/connect.go), [`cli/internal/http_server/metrics.go`](../cli/internal/http_server/metrics.go), [`cli/internal/exporter/`](../cli/internal/exporter/), [`proto/chatto/core/v1/`](../proto/chatto/core/v1/), [`proto/chatto/api/v1/`](../proto/chatto/api/v1/)
 
 - **NATS**: At the core, Chatto uses a series of NATS JetStream streams, KV buckets and object storage. Data stored in these is defined as Protocol Buffers (see `proto/`).
 - **Core**: The `core` package defines Chatto's domain logic and directly talks to NATS to interact with KV buckets, object stores, and the `EVT` stream. `ChattoCore` remains the compatibility facade, while smaller services own projection readiness and domain-specific write concerns.
 - **Runtime Units**: Optional long-running processes that share Chatto configuration, logging, NATS, and JetStream access implement the `runtimeunit.Unit` interface. A unit can run as a standalone `chatto <unit>` command over `[nats.client]`, or be embedded under `chatto run` when its config section enables that mode. Only `chatto run` starts embedded NATS and boots `ChattoCore`; observer/projection/worker units must open the resources they need without using core boot paths unless they explicitly need the main application runtime.
+- **ConnectRPC**: Early protobuf-first public API proof of concept mounted under `/api/connect`. Public API protos live in `proto/chatto/api/v1/` and generate Go server/client bindings under `cli/internal/pb/chatto/api/v1/` plus TypeScript bindings under `frontend/src/lib/pb/chatto/api/v1/`. The bundled web client uses the current PoC for public server profile metadata with GraphQL fallback for older servers.
 - **GraphQL**: Client-facing API for all operations (auth, management, messaging). Subscriptions over WebSocket for real-time updates. Fields require authentication by default unless marked public in the schema; resolvers call Core methods directly and enforce operation-specific authorization before each call.
 - **Metrics & Diagnostics**: Optional Prometheus-compatible per-process metrics run on a separate internal HTTP listener configured by `[metrics]`. The endpoint exposes Go/process collectors plus Chatto readiness, GraphQL WebSocket counts, `myEvents` stream counters, NATS client counters, projection health/lag gauges, and final projection startup duration/message-count gauges once initial replay completes. Deployment-wide Chatto instance metrics are exposed by the separate `chatto exporter` command, or by `chatto run` when `[exporter].enabled = true`; the exporter reads existing `EVT` and `MEMORY_CACHE` resources without running core boot mutations and can cache S3 bucket-size scans. Go pprof debug endpoints are available on the per-process metrics listener under `/debug/pprof/` only when `[metrics].pprof` / `CHATTO_METRICS_PPROF` is enabled. `[diagnostics].startup_cpu_profile` / `CHATTO_DIAGNOSTICS_STARTUP_CPU_PROFILE` writes a process-startup CPU profile through core boot for local replay benchmarking and operator troubleshooting.
 - **Web Client**: SvelteKit-based SPA that gets compiled and embedded into the Go binary. Talks to GraphQL API over HTTP/WebSocket.
@@ -92,7 +94,7 @@ The core runtime is process-local but must be safe under multiple Chatto replica
 
 | Service                 | Key files                                                                                                                    | Responsibility                                                                                                             |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `ChattoCore`            | [`core.go`](../cli/internal/core/core.go)                                                                                     | Application facade, resource initialization, lifecycle, GraphQL-facing operations                                            |
+| `ChattoCore`            | [`core.go`](../cli/internal/core/core.go)                                                                                     | Application facade, resource initialization, lifecycle, API-facing operations                                                |
 | `MyEventsService`       | [`my_events_service.go`](../cli/internal/core/my_events_service.go)                                                           | `myEvents` live delivery, projection readiness, heartbeats, per-user authorization, and process-local stream counters        |
 | `events.Publisher`     | [`publisher.go`](../cli/internal/events/publisher.go)                                                                        | OCC-only writes to `EVT`, including atomic batches and filter-scoped concurrency guards                                     |
 | `ConfigService`         | [`config_service.go`](../cli/internal/core/config_service.go)                                                                | Semantic server/user config event writes plus `ConfigProjection` readiness                                                  |
@@ -129,6 +131,20 @@ Projections are in-memory read models rebuilt from `EVT`. `NewChattoCore` regist
 | Mentions           | Mentionables         | `evt.>`                                                    | Global mention-handle ownership across users, roles, `@all`, and `@here`                  |
 
 Notes: registered projector keys are used by metrics and automation; registered projector names match the admin projection diagnostics. Composite projections expose nested read models, but only their parent projector is started by `ChattoCore.Run`. The shared replay fanout reduces duplicate replay delivery and protobuf decoding while keeping each projection's status, lag, failure, and read-your-writes waiters independent. `Subjects()` is the logical consumption and readiness contract; optional replay subjects are only the physical consumer filter. Focused logical filters are appropriate for stable derived indexes such as Threads, while broad filters remain intentional for projections whose snapshots expose room-tail OCC positions, such as Reactions and Call State. Threads reports the focused logical subjects above for waits and diagnostics; non-thread room facts are skipped before `Apply`.
+
+## ConnectRPC API Overview
+
+Key files: [`proto/chatto/api/v1/`](../proto/chatto/api/v1/), [`cli/internal/http_server/connect.go`](../cli/internal/http_server/connect.go), [`cli/internal/http_server/connect_notification_preferences.go`](../cli/internal/http_server/connect_notification_preferences.go), [`cli/internal/pb/chatto/api/v1/`](../cli/internal/pb/chatto/api/v1/), [`frontend/src/lib/api/`](../frontend/src/lib/api/)
+
+The ConnectRPC API is an early protobuf-first public API proof of concept mounted under `/api/connect`. Generated service paths are prefixed by that mount, for example `/api/connect/chatto.api.v1.ServerService/GetServer`.
+
+Public API protobufs are intentionally separate from persisted `corev1` EVT protobufs. `ServerInfoState` prefers `ServerService.GetServer` for public profile metadata, then falls back to the established GraphQL query so mixed-version clients can still connect to older servers. `NotificationPreferencesService.SetRoomNotificationLevel` is the authenticated/authorized mutation PoC: Connect requests reuse the same bearer-token-then-cookie auth injection as GraphQL, and the service enforces channel-room membership before writing the room notification preference. Realtime delivery remains on the existing GraphQL/WebSocket API until later migration work.
+
+| Service                          | Method                          | Description                                                                                   |
+| -------------------------------- | ------------------------------- | --------------------------------------------------------------------------------------------- |
+| `ServerService`                  | `GetServer`                     | Public server metadata: name, version, auth methods/providers, registration state, OAuth URL. |
+| `NotificationPreferencesService` | `GetRoomNotificationPreference` | Authenticated room notification preference read; requires channel-room membership.             |
+| `NotificationPreferencesService` | `SetRoomNotificationLevel`      | Authenticated room notification preference mutation; requires channel-room membership.         |
 
 ## GraphQL API Overview
 
