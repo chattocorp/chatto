@@ -122,6 +122,7 @@ export function useRoomData(getProps: () => { roomId: string }) {
   let roomData = $state<RoomData | null | undefined>(undefined);
   let dmData = $state<DMData | null>(null);
   const roomLoadId = { current: 0 };
+  const dmLoadId = { current: 0 };
 
   // Post-PR(b) we tell channel vs DM via `Room.type` (the resolver returns
   // `RoomType.DM` for DM rooms and `CHANNEL` for everything else).
@@ -210,11 +211,14 @@ export function useRoomData(getProps: () => { roomId: string }) {
   // Load DM participants
   $effect(() => {
     if (!isDM) {
+      dmLoadId.current++;
       dmData = null;
       return;
     }
 
     void reconnect.count;
+    const currentRoomId = getProps().roomId;
+    const thisLoadId = ++dmLoadId.current;
 
     connection()
       .client.query(
@@ -237,10 +241,13 @@ export function useRoomData(getProps: () => { roomId: string }) {
             }
           }
         `),
-        { roomId: getProps().roomId }
+        { roomId: currentRoomId }
       )
       .toPromise()
       .then((resp) => {
+        if (dmLoadId.current !== thisLoadId) return;
+        if (resp.data?.room?.id && resp.data.room.id !== currentRoomId) return;
+
         if (!resp.data?.room) {
           dmData = { participants: [], currentUserId: null };
           return;
@@ -251,6 +258,13 @@ export function useRoomData(getProps: () => { roomId: string }) {
           ),
           currentUserId: resp.data.viewer?.user.id ?? null
         };
+      })
+      .catch((err) => {
+        if (dmLoadId.current !== thisLoadId) return;
+        console.warn('[useRoomData] failed to load DM members', {
+          roomId: currentRoomId,
+          error: err
+        });
       });
   });
 
