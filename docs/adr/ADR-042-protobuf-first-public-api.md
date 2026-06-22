@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-22
 
-**Supersedes:** [ADR-003](ADR-003-graphql-as-primary-api.md) for future public API direction. GraphQL remains the current implemented API until the protobuf-first API is built and migrated.
+**Supersedes:** [ADR-003](ADR-003-graphql-as-primary-api.md) for future public API direction. Partially supersedes [ADR-004](ADR-004-authorization-at-api-boundary.md) for new protobuf API work. GraphQL remains the current implemented API until the protobuf-first API is built and migrated.
 
 ## Context
 
@@ -60,6 +60,8 @@ JSON is deferred. Chatto may later expose JSON encodings or generated JSON/HTTP 
 
 Existing HTTP endpoints that are not GraphQL should be reviewed separately during migration. In particular, `/api/server` remains a high-stability discovery surface, and auth, OAuth, uploads, asset delivery, webhooks, and health/metrics endpoints may remain explicit HTTP APIs where that shape is still appropriate.
 
+New protobuf API methods must not duplicate operation-specific authorization in each transport. HTTP ConnectRPC, future RPC-over-WebSocket, and any temporary GraphQL compatibility resolver should call the same internal operation service for the use case. Transports authenticate the caller, decode/encode protocol messages, and map transport-specific errors. Internal services own authorization, validation, domain invariants, OCC/write orchestration, read-your-writes waits, and response shaping for the operation.
+
 ## Consequences
 
 The public API contract moves from GraphQL schema files to protobuf service and message definitions. Field numbers, service names, method names, enum values, oneof shapes, streaming semantics, and error details become long-lived compatibility commitments.
@@ -75,3 +77,5 @@ Separating public API protos from persisted EVT protos prevents storage compatib
 ConnectRPC over HTTP remains the baseline for debuggability, infrastructure compatibility, and non-browser clients. RPC-over-WebSocket is only a latency and connection-count optimization for already-connected clients, so the project can defer its complexity until there is a concrete need.
 
 GraphQL should be retained as a compatibility layer during migration. Removing or deprecating GraphQL requires a separate migration plan, frontend migration, compatibility communication, and release decision.
+
+Moving authorization from GraphQL resolvers into operation services reverses part of ADR-004 for new API work. This is intentional: multiple public transports make resolver-local authorization a drift risk. Lower-level core helpers may still assume trusted callers, but public use cases should get service methods whose names and signatures encode the authorized operation.

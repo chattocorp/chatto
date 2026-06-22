@@ -2,10 +2,8 @@ package http_server
 
 import (
 	"context"
-	"errors"
 
 	"connectrpc.com/connect"
-	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -19,13 +17,13 @@ func (s *notificationPreferencesService) GetRoomNotificationPreference(ctx conte
 	if err != nil {
 		return nil, err
 	}
-	pref, err := s.roomNotificationPreference(ctx, user.Id, req.Msg.RoomId)
+	pref, err := s.server.core.NotificationPreferences().GetRoomNotificationPreference(ctx, user.Id, req.Msg.RoomId)
 	if err != nil {
-		return nil, err
+		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.GetRoomNotificationPreferenceResponse{
-		Level:          pref.level,
-		EffectiveLevel: pref.effectiveLevel,
+		Level:          coreNotificationLevelToAPI(pref.Level),
+		EffectiveLevel: coreNotificationLevelToAPI(pref.EffectiveLevel),
 	}), nil
 }
 
@@ -34,56 +32,15 @@ func (s *notificationPreferencesService) SetRoomNotificationLevel(ctx context.Co
 	if err != nil {
 		return nil, err
 	}
-	roomID := req.Msg.RoomId
-	if err := s.requireRoomMember(ctx, user.Id, roomID); err != nil {
-		return nil, err
-	}
 	level := apiNotificationLevelToCore(req.Msg.Level)
-	if err := s.server.core.SetRoomNotificationLevel(ctx, user.Id, roomID, level); err != nil {
-		return nil, connectError(err)
-	}
-	pref, err := s.roomNotificationPreference(ctx, user.Id, roomID)
+	pref, err := s.server.core.NotificationPreferences().SetRoomNotificationLevel(ctx, user.Id, req.Msg.RoomId, level)
 	if err != nil {
-		return nil, err
+		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.SetRoomNotificationLevelResponse{
-		Level:          pref.level,
-		EffectiveLevel: pref.effectiveLevel,
+		Level:          coreNotificationLevelToAPI(pref.Level),
+		EffectiveLevel: coreNotificationLevelToAPI(pref.EffectiveLevel),
 	}), nil
-}
-
-type apiNotificationPreference struct {
-	level          apiv1.NotificationLevel
-	effectiveLevel apiv1.NotificationLevel
-}
-
-func (s *notificationPreferencesService) roomNotificationPreference(ctx context.Context, userID, roomID string) (*apiNotificationPreference, error) {
-	if err := s.requireRoomMember(ctx, userID, roomID); err != nil {
-		return nil, err
-	}
-	level, err := s.server.core.GetRoomNotificationLevel(ctx, userID, roomID)
-	if err != nil {
-		return nil, connectError(err)
-	}
-	effectiveLevel, err := s.server.core.GetEffectiveNotificationLevel(ctx, userID, roomID)
-	if err != nil {
-		return nil, connectError(err)
-	}
-	return &apiNotificationPreference{
-		level:          coreNotificationLevelToAPI(level),
-		effectiveLevel: coreNotificationLevelToAPI(effectiveLevel),
-	}, nil
-}
-
-func (s *notificationPreferencesService) requireRoomMember(ctx context.Context, userID, roomID string) error {
-	isMember, err := s.server.core.RoomMembershipExists(ctx, core.KindChannel, userID, roomID)
-	if err != nil {
-		return connectError(err)
-	}
-	if !isMember {
-		return connect.NewError(connect.CodePermissionDenied, errors.New("access denied: not a member of this room"))
-	}
-	return nil
 }
 
 func apiNotificationLevelToCore(level apiv1.NotificationLevel) corev1.NotificationLevel {

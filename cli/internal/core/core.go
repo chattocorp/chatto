@@ -41,6 +41,7 @@ type ChattoCore struct {
 	encryption         *encryptionManager
 	configManager      *ConfigManager
 	roomService        *RoomService
+	notificationPrefs  *NotificationPreferencesService
 	userService        *UserService
 	rbacService        *RBACService
 	mentionables       *MentionablesService
