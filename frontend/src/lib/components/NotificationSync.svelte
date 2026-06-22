@@ -16,7 +16,12 @@ Include this component once in the chat layout (unconditionally).
   import { eventBusManager } from '$lib/state/server/eventBus.svelte';
   import { userPreferences } from '$lib/state/userPreferences.svelte';
   import { playNotificationSound } from '$lib/audio/notificationSounds';
-  import { updateBadge, setFlagBadge, clearBadge } from '$lib/notifications/appBadge';
+  import {
+    updateBadge,
+    setFlagBadge,
+    clearBadge,
+    syncServiceWorkerUnreadBadgeState
+  } from '$lib/notifications/appBadge';
   import type { EventHandler } from '$lib/eventBus.svelte';
 
   // Subscribe to notification events on all authenticated instance buses.
@@ -74,7 +79,9 @@ Include this component once in the chat layout (unconditionally).
     serverRegistry.servers.reduce((sum, instance) => {
       const stores = serverRegistry.getStore(instance.id);
       if (!stores.isAuthenticated) return sum;
-      return sum + stores.notifications.count;
+      return (
+        sum + Math.max(stores.notifications.unreadNotificationCount, stores.notifications.count)
+      );
     }, 0)
   );
 
@@ -88,6 +95,8 @@ Include this component once in the chat layout (unconditionally).
 
   // Update PWA dock badge based on aggregated state
   $effect(() => {
+    syncServiceWorkerUnreadBadgeState(hasAnyUnread);
+
     if (totalNotificationCount > 0) {
       updateBadge(totalNotificationCount);
     } else if (hasAnyUnread) {
