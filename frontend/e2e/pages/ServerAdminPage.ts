@@ -579,7 +579,7 @@ export class ServerAdminPage {
    * Assert that a specific user's details are shown.
    */
   async expectMemberLogin(login: string): Promise<void> {
-    const userDetailsPanel = this.page.locator('.rounded-xl').filter({
+    const userDetailsPanel = this.page.locator('.panel-shell').filter({
       has: this.userDetailsPanel
     });
     await expect(userDetailsPanel.getByText(`@${login}`, { exact: true })).toBeVisible();

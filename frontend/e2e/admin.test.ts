@@ -438,21 +438,21 @@ test.describe('Admin Granular Permissions', () => {
 
 test.describe('User Permission Management', () => {
   test('admin can navigate to user management page', async ({ page, adminPage }) => {
-    await createAndLoginAdminUser(page);
+    const adminUser = await createAndLoginAdminUser(page);
 
     // Go to users list
     await adminPage.gotoUsers();
 
     // Click on a user row (the admin user themselves)
-    await adminPage.clickUser('e2eadmin');
+    await adminPage.clickUser(adminUser.login);
 
     // Should see user details
     await adminPage.expectUserManagementVisible();
     // The login should appear in the user profile section
-    const userDetailsPanel = page.locator('.rounded-xl').filter({
+    const userDetailsPanel = page.locator('.panel-shell').filter({
       has: page.getByRole('heading', { name: 'User Details' })
     });
-    await expect(userDetailsPanel.getByText('@e2eadmin', { exact: true })).toBeVisible();
+    await expect(userDetailsPanel.getByText(`@${adminUser.login}`, { exact: true })).toBeVisible();
   });
 
   test('granting a role with admin.view-users gives user admin access', async ({
