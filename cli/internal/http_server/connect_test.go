@@ -130,6 +130,13 @@ func TestConnectNotificationPreferencesService(t *testing.T) {
 		if connect.CodeOf(err) != connect.CodeUnauthenticated {
 			t.Fatalf("SetRoomNotificationLevel err = %v, want unauthenticated", err)
 		}
+
+		_, err = client.GetRoomNotificationPreference(ctx, connect.NewRequest(&apiv1.GetRoomNotificationPreferenceRequest{
+			RoomId: room.Id,
+		}))
+		if connect.CodeOf(err) != connect.CodeUnauthenticated {
+			t.Fatalf("GetRoomNotificationPreference err = %v, want unauthenticated", err)
+		}
 	})
 
 	t.Run("requires room membership", func(t *testing.T) {
@@ -164,6 +171,15 @@ func TestConnectNotificationPreferencesService(t *testing.T) {
 		_, err = client.SetRoomNotificationLevel(ctx, req)
 		if connect.CodeOf(err) != connect.CodePermissionDenied {
 			t.Fatalf("SetRoomNotificationLevel err = %v, want permission denied", err)
+		}
+
+		getReq := connect.NewRequest(&apiv1.GetRoomNotificationPreferenceRequest{
+			RoomId: room.Id,
+		})
+		getReq.Header().Set("Authorization", "Bearer "+token)
+		_, err = client.GetRoomNotificationPreference(ctx, getReq)
+		if connect.CodeOf(err) != connect.CodePermissionDenied {
+			t.Fatalf("GetRoomNotificationPreference err = %v, want permission denied", err)
 		}
 	})
 
