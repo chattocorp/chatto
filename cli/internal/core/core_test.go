@@ -86,6 +86,14 @@ func startCoreServices(t *testing.T, core *ChattoCore) {
 	}
 }
 
+func TestNewChattoCoreInitializesNotificationPreferencesService(t *testing.T) {
+	core, _ := setupTestCore(t)
+
+	if core.NotificationPreferences() == nil {
+		t.Fatal("NotificationPreferences() = nil")
+	}
+}
+
 func eventStreamMsgCount(t *testing.T, core *ChattoCore) uint64 {
 	t.Helper()
 

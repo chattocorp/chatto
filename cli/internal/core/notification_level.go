@@ -188,11 +188,9 @@ type RoomNotificationPreference struct {
 // NotificationPreferences returns the operation-level service for notification
 // preference reads and writes. Transports should use this service rather than
 // calling the lower-level ChattoCore helpers directly so authorization and
-// response semantics stay shared.
+// response semantics stay shared. NewChattoCore initializes this eagerly so
+// concurrent request handlers do not race on first use.
 func (c *ChattoCore) NotificationPreferences() *NotificationPreferencesService {
-	if c.notificationPrefs == nil {
-		c.notificationPrefs = &NotificationPreferencesService{core: c}
-	}
 	return c.notificationPrefs
 }
 
