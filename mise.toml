@@ -16,7 +16,7 @@ _.file = '.env'
 
 [tasks.setup]
 description = "Set up the development environment"
-run = { task = "deps" }
+run = [{ task = "setup-cli" }, { task = "setup-frontend" }]
 
 # =============================================================================
 # Dependencies
@@ -40,6 +40,14 @@ sources = ["pnpm-lock.yaml", "pnpm-workspace.yaml", ".npmrc"]
 description = "Install all dependencies"
 run = { task = "deps-*" }
 
+[tasks.setup-cli]
+description = "Set up the CLI module"
+depends = ["deps-cli", "sync-cli-legal"]
+
+[tasks.setup-frontend]
+description = "Set up the frontend module"
+depends = ["deps-frontend"]
+
 # =============================================================================
 # Code Generation
 # =============================================================================
@@ -51,24 +59,24 @@ run = "buf generate"
 
 [tasks.codegen-cli]
 description = "Generate GraphQL code using gqlgen"
-depends = ["deps-cli", "codegen-proto"]
+depends = ["setup-cli", "codegen-proto"]
 dir = "cli"
 run = "go generate ./..."
 
 [tasks.codegen-frontend]
 description = "Generate Frontend code (e.g. GraphQL types)"
-depends = ["deps-frontend"]
+depends = ["setup-frontend"]
 dir = "frontend"
 run = "pnpm codegen"
 
 [tasks.codegen-emoji]
 description = "Generate Go emoji map from gemoji npm package"
-depends = ["deps-frontend"]
+depends = ["setup-frontend"]
 run = "node tools/gen-emoji-map.mjs"
 
 [tasks.codegen-types]
 description = "Generate TypeScript types from Go using tygo"
-depends = ["deps-cli"]
+depends = ["setup-cli"]
 dir = "cli"
 run = "go tool tygo generate"
 
@@ -80,13 +88,23 @@ run = { task = "codegen-*" }
 # Build
 # =============================================================================
 
+[tasks.sync-cli-legal]
+description = "Copy root legal files into the CLI module for go:embed"
+run = [
+    "mkdir -p cli/cmd/embedded",
+    "cp LICENSE cli/cmd/embedded/LICENSE",
+    "cp NOTICE cli/cmd/embedded/NOTICE",
+]
+sources = ["LICENSE", "NOTICE"]
+outputs = ["cli/cmd/embedded/LICENSE", "cli/cmd/embedded/NOTICE"]
+
 [tasks.build]
 description = "Build the entire project for all architectures"
 run = [{ task = "build-*" }, "ls -lah cli/bin/*"]
 
 [tasks.build-frontend]
 description = "Build the frontend application"
-depends = ["deps-frontend"]
+depends = ["setup-frontend"]
 dir = "frontend"
 run = [
     "pnpm svelte-kit sync",
@@ -115,7 +133,7 @@ outputs = ["build/.mise-build-stamp", "../cli/internal/http_server/.client/.gitk
 
 [tasks.build-dev-cli]
 description = "Build the development CLI application for the current architecture"
-depends = ["deps-cli", "build-frontend"]
+depends = ["setup-cli", "build-frontend"]
 dir = "cli"
 run = "go build -tags bootstrap -o bin/chatto ."
 sources = [
@@ -123,8 +141,8 @@ sources = [
     "go.sum",
     "**/*.go",
     "!**/*_test.go",
-    "cmd/LICENSE",
-    "cmd/NOTICE",
+    "cmd/embedded/LICENSE",
+    "cmd/embedded/NOTICE",
     "internal/graph/*.graphqls",
     "internal/http_server/.client/**/*",
 ]
@@ -132,7 +150,7 @@ outputs = ["bin/chatto"]
 
 [tasks.build-e2e-server]
 description = "Build the E2E test server binary with dev bootstrap and test endpoints enabled"
-depends = ["deps-cli", "build-frontend"]
+depends = ["setup-cli", "build-frontend"]
 dir = "cli"
 # `bootstrap` enables the [bootstrap] section in chatto.toml, which seeds
 # the e2eadmin user the harness logs in as. `test_endpoints` exposes the
@@ -140,27 +158,35 @@ dir = "cli"
 # fixtures. Deliberately scoped — the e2e binary should NOT pull in any
 # future broader dev-only code that might land under a separate tag.
 run = "CGO_ENABLED=0 go build -tags 'bootstrap test_endpoints' -ldflags '-s -w' -o ../frontend/e2e/fixtures/bin/chatto ."
-sources = ["**/*.go", "internal/http_server/.client/**/*"]
+sources = [
+    "**/*.go",
+    "cmd/embedded/LICENSE",
+    "cmd/embedded/NOTICE",
+    "internal/http_server/.client/**/*",
+]
 outputs = ["../frontend/e2e/fixtures/bin/chatto"]
 
 [tasks.storybook]
 description = "Run the Storybook design-system catalog"
-depends = ["deps-frontend"]
+depends = ["setup-frontend"]
 dir = "frontend"
 run = "pnpm storybook"
 
 [tasks.dev-backend]
 description = "Build and run the local development backend"
+depends = ["setup-cli"]
 dir = "cli"
 run = "go build -tags bootstrap -o bin/chatto-dev . && exec ./bin/chatto-dev start"
 
 [tasks.dev-frontend]
 description = "Run the local development frontend"
+depends = ["setup-frontend"]
 dir = "frontend"
 run = "exec ./node_modules/.bin/vite dev"
 
 [tasks.dev-frontend-codegen]
 description = "Run frontend GraphQL codegen in watch mode"
+depends = ["setup-frontend"]
 dir = "frontend"
 run = "exec ./node_modules/.bin/graphql-codegen --watch"
 
@@ -176,7 +202,7 @@ exec tilt up --stream
 """
 
 [tasks.chatto]
-description = "Build and run the bundled Chatto CLI command"
+description = "Build and run the bundled Chatto CLI command with workspace-safe ports"
 depends = ["build-dev-cli"]
 dir = "cli"
 env = {
@@ -188,6 +214,10 @@ env = {
   CHATTO_METRICS_BIND_ADDRESS = "127.0.0.1",
   CHATTO_METRICS_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 2}}",
   CHATTO_METRICS_PATH = "/metrics",
+  CHATTO_EXPORTER_ENABLED = "true",
+  CHATTO_EXPORTER_BIND_ADDRESS = "127.0.0.1",
+  CHATTO_EXPORTER_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 3}}",
+  CHATTO_EXPORTER_PATH = "/metrics",
 }
 run = "exec bin/chatto"
 
@@ -197,21 +227,21 @@ run = "exec bin/chatto"
 
 [tasks.test-cli]
 description = "Run CLI tests"
-depends = ["deps-cli", "build-frontend"]
+depends = ["setup-cli", "build-frontend"]
 dir = "cli"
 run = "go test -p ${CHATTO_GO_TEST_P:-4} -tags test_endpoints ./..."
-sources = ["**/*.go"]
+sources = ["**/*.go", "cmd/embedded/LICENSE", "cmd/embedded/NOTICE"]
 
 [tasks.test-cli-shutdown]
 description = "Run backend process shutdown integration tests"
-depends = ["deps-cli"]
+depends = ["setup-cli"]
 dir = "cli"
 run = "go test -tags integration ./cmd -run TestRunCommandShutsDownOnSignals -count=1 -timeout 2m"
-sources = ["**/*.go"]
+sources = ["**/*.go", "cmd/embedded/LICENSE", "cmd/embedded/NOTICE"]
 
 [tasks.lint-frontend]
 description = "Run TypeScript and ESLint checks on frontend"
-depends = ["deps-frontend"]
+depends = ["setup-frontend"]
 dir = "frontend"
 run = ["pnpm check", "pnpm lint"]
 
@@ -221,13 +251,13 @@ run = [{ task = "lint-*" }]
 
 [tasks.test-frontend]
 description = "Run frontend unit tests"
-depends = ["deps-frontend"]
+depends = ["setup-frontend"]
 dir = "frontend"
 run = "pnpm vitest --run"
 
 [tasks.test-e2e]
 description = "Run E2E tests"
-depends = ["deps-frontend", "build-e2e-server"]
+depends = ["setup-frontend", "build-e2e-server"]
 dir = "frontend"
 run = "pnpm exec playwright test"
 
@@ -249,6 +279,7 @@ run = "bin/chatto run"
 description = "Clean all build artifacts"
 run = [
     "rm -rf cli/bin/*",
+    "rm -rf cli/cmd/embedded",
     "rm -rf cli/internal/http_server/.client",
     "rm -rf frontend/build",
 ]
@@ -256,6 +287,7 @@ run = [
 [tasks.reset-config]
 description = "Delete and reinitialize chatto.toml"
 confirm = "Are you sure you want to re-initialize chatto.toml? This will delete your current configuration."
+depends = ["setup-cli"]
 dir = "cli"
 run = ["rm chatto.toml", "go run . init"]
 

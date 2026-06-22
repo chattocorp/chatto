@@ -1,0 +1,14 @@
+[mcp_servers.chrome-devtools]
+command = "npx"
+args = [
+  "-y",
+  "chrome-devtools-mcp@latest",
+  "--headless",
+  "--isolated",
+]
+
+[mcp_servers.svelte]
+url = "https://mcp.svelte.dev/mcp"
+
+[mcp_servers.mdn]
+url = "https://mcp.mdn.mozilla.net/"

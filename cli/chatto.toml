@@ -17,6 +17,16 @@ bind_address = '127.0.0.1'
 port = 9090
 path = '/metrics'
 
+# Deployment-wide Prometheus exporter. `mise chatto` overrides this port with
+# CONDUCTOR_PORT+3 so multiple Conductor workspaces can run side by side.
+[exporter]
+enabled = true
+bind_address = '127.0.0.1'
+port = 9100
+path = '/metrics'
+# s3_refresh_interval = '15m'
+# s3_timeout = '30s'
+
 [core]
 secret_key = '7f3e0d39031f4ee7e2078aafc785f1969b8f1d4a4ea178a4732cb2096fe7f3bb'
 

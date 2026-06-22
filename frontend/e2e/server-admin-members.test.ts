@@ -2,6 +2,7 @@ import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
 import {
   createAndLoginTestUser,
+  grantPermission,
   logoutCurrentUser,
   loginAsAdminAndUsePrimaryServer,
   type TestUser
@@ -23,7 +24,7 @@ async function usePrimaryServerViaAPI(page: Page, _name?: string): Promise<TestS
  * Creates a second test user with verified email.
  */
 async function createSecondTestUser(page: Page): Promise<TestUser> {
-  const timestamp = Date.now();
+  const timestamp = `${Date.now()}${Math.random().toString(36).slice(2, 6)}`;
   const testUser: TestUser = {
     login: `seconduser${timestamp}`,
     displayName: `Second User ${timestamp}`,
@@ -156,6 +157,42 @@ test.describe('Server Admin Members', () => {
 
       // Should see admin's login
       await expect(page.getByText(`@${admin.login}`)).toBeVisible();
+
+      // The refreshed summary should show server-admin-relevant account facts.
+      await expect(page.getByText('Space Roles')).not.toBeVisible();
+      await expect(page.getByText('Server roles', { exact: true })).toBeVisible();
+      await expect(page.getByText('Joined')).toBeVisible();
+      await expect(page.getByTitle('Copy to clipboard')).toBeVisible();
+      await expect(page.getByText('Email verified')).toBeVisible();
+      await expect(page.getByText(`${admin.login}@example.com`)).toBeVisible();
+      await expect(page.getByText(/Deletion (allowed|protected)/)).toBeVisible();
+    });
+
+    test('role-assignment-only viewer cannot see another member email state', async ({
+      serverAdminPage
+    }) => {
+      const { page } = serverAdminPage;
+
+      // Create an admin, two regular members, and grant only role.assign to
+      // everyone. The viewer can open member details but still lacks
+      // admin.view-users, so email fields must remain hidden.
+      await createAndLoginTestUser(page);
+      const server = await usePrimaryServerViaAPI(page);
+      const target = await createSecondTestUser(page);
+      const viewer = await createSecondTestUser(page);
+      await grantPermission(page, 'everyone', 'role.assign');
+
+      await logoutUser(page);
+      await loginUser(page, viewer.login, viewer.password);
+      await serverAdminPage.gotoMemberDetails(server.id, target.id!);
+
+      await expect(page.getByRole('heading', { name: 'Member Details' })).toBeVisible({
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
+      await expect(page.getByText('Email hidden')).toBeVisible();
+      await expect(page.getByText('Email visibility unavailable')).toBeVisible();
+      await expect(page.getByText(`${target.login}@example.com`)).not.toBeVisible();
+      await expect(page.getByText('No verified email')).not.toBeVisible();
     });
 
     test('member details page shows role assignments', async ({ serverAdminPage }) => {

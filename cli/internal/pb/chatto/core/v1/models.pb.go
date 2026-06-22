@@ -1549,12 +1549,15 @@ type LinkPreview struct {
 	Title       string `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
 	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	SiteName    string `protobuf:"bytes,4,opt,name=site_name,json=siteName,proto3" json:"site_name,omitempty"`
-	// Asset ID for the preview image (stored in instance ObjectStore)
+	// Asset ID for the preview image. Kept for GraphQL/client compatibility;
+	// new previews also carry image_asset with storage metadata.
 	ImageAssetId *string `protobuf:"bytes,5,opt,name=image_asset_id,json=imageAssetId,proto3,oneof" json:"image_asset_id,omitempty"`
 	// Embed type: "generic", "youtube", "vimeo", etc.
 	EmbedType string `protobuf:"bytes,6,opt,name=embed_type,json=embedType,proto3" json:"embed_type,omitempty"`
 	// Embed ID for rich embeds (e.g., YouTube video ID)
-	EmbedId       *string `protobuf:"bytes,7,opt,name=embed_id,json=embedId,proto3,oneof" json:"embed_id,omitempty"`
+	EmbedId *string `protobuf:"bytes,7,opt,name=embed_id,json=embedId,proto3,oneof" json:"embed_id,omitempty"`
+	// Preview image content metadata and storage pointer.
+	ImageAsset    *AssetRecord `protobuf:"bytes,8,opt,name=image_asset,json=imageAsset,proto3" json:"image_asset,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1636,6 +1639,13 @@ func (x *LinkPreview) GetEmbedId() string {
 		return *x.EmbedId
 	}
 	return ""
+}
+
+func (x *LinkPreview) GetImageAsset() *AssetRecord {
+	if x != nil {
+		return x.ImageAsset
+	}
+	return nil
 }
 
 // CachedLinkPreview wraps LinkPreview with cache metadata.
@@ -2330,7 +2340,7 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\x10encryption_nonce\x18\x15 \x01(\fR\x0fencryptionNonce\x12<\n" +
 	"\vattachments\x18\x1e \x03(\v2\x1a.chatto.core.v1.AttachmentR\vattachments\x12\x1b\n" +
 	"\tasset_ids\x18\x1f \x03(\tR\bassetIds\x12>\n" +
-	"\flink_preview\x18( \x01(\v2\x1b.chatto.core.v1.LinkPreviewR\vlinkPreview\"\xfe\x01\n" +
+	"\flink_preview\x18( \x01(\v2\x1b.chatto.core.v1.LinkPreviewR\vlinkPreview\"\xbc\x02\n" +
 	"\vLinkPreview\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12 \n" +
@@ -2339,7 +2349,9 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\x0eimage_asset_id\x18\x05 \x01(\tH\x00R\fimageAssetId\x88\x01\x01\x12\x1d\n" +
 	"\n" +
 	"embed_type\x18\x06 \x01(\tR\tembedType\x12\x1e\n" +
-	"\bembed_id\x18\a \x01(\tH\x01R\aembedId\x88\x01\x01B\x11\n" +
+	"\bembed_id\x18\a \x01(\tH\x01R\aembedId\x88\x01\x01\x12<\n" +
+	"\vimage_asset\x18\b \x01(\v2\x1b.chatto.core.v1.AssetRecordR\n" +
+	"imageAssetB\x11\n" +
 	"\x0f_image_asset_idB\v\n" +
 	"\t_embed_id\"\xca\x01\n" +
 	"\x11CachedLinkPreview\x12\x10\n" +
@@ -2469,20 +2481,21 @@ var file_chatto_core_v1_models_proto_depIdxs = []int32{
 	28, // 14: chatto.core.v1.MessageBody.updated_at:type_name -> google.protobuf.Timestamp
 	18, // 15: chatto.core.v1.MessageBody.attachments:type_name -> chatto.core.v1.Attachment
 	20, // 16: chatto.core.v1.MessageBody.link_preview:type_name -> chatto.core.v1.LinkPreview
-	20, // 17: chatto.core.v1.CachedLinkPreview.preview:type_name -> chatto.core.v1.LinkPreview
-	25, // 18: chatto.core.v1.RoomLayout.legacy_sections:type_name -> chatto.core.v1.RoomGroup
-	3,  // 19: chatto.core.v1.SidebarGroupEntry.kind:type_name -> chatto.core.v1.SidebarGroupEntry.Kind
-	24, // 20: chatto.core.v1.RoomGroup.entries:type_name -> chatto.core.v1.SidebarGroupEntry
-	23, // 21: chatto.core.v1.RoomGroup.sidebar_links:type_name -> chatto.core.v1.SidebarLink
-	2,  // 22: chatto.core.v1.VideoProcessingState.status:type_name -> chatto.core.v1.VideoStatus
-	27, // 23: chatto.core.v1.VideoProcessingState.variants:type_name -> chatto.core.v1.VideoVariant
-	18, // 24: chatto.core.v1.VideoProcessingState.thumbnail_attachment:type_name -> chatto.core.v1.Attachment
-	18, // 25: chatto.core.v1.VideoVariant.attachment:type_name -> chatto.core.v1.Attachment
-	26, // [26:26] is the sub-list for method output_type
-	26, // [26:26] is the sub-list for method input_type
-	26, // [26:26] is the sub-list for extension type_name
-	26, // [26:26] is the sub-list for extension extendee
-	0,  // [0:26] is the sub-list for field type_name
+	12, // 17: chatto.core.v1.LinkPreview.image_asset:type_name -> chatto.core.v1.AssetRecord
+	20, // 18: chatto.core.v1.CachedLinkPreview.preview:type_name -> chatto.core.v1.LinkPreview
+	25, // 19: chatto.core.v1.RoomLayout.legacy_sections:type_name -> chatto.core.v1.RoomGroup
+	3,  // 20: chatto.core.v1.SidebarGroupEntry.kind:type_name -> chatto.core.v1.SidebarGroupEntry.Kind
+	24, // 21: chatto.core.v1.RoomGroup.entries:type_name -> chatto.core.v1.SidebarGroupEntry
+	23, // 22: chatto.core.v1.RoomGroup.sidebar_links:type_name -> chatto.core.v1.SidebarLink
+	2,  // 23: chatto.core.v1.VideoProcessingState.status:type_name -> chatto.core.v1.VideoStatus
+	27, // 24: chatto.core.v1.VideoProcessingState.variants:type_name -> chatto.core.v1.VideoVariant
+	18, // 25: chatto.core.v1.VideoProcessingState.thumbnail_attachment:type_name -> chatto.core.v1.Attachment
+	18, // 26: chatto.core.v1.VideoVariant.attachment:type_name -> chatto.core.v1.Attachment
+	27, // [27:27] is the sub-list for method output_type
+	27, // [27:27] is the sub-list for method input_type
+	27, // [27:27] is the sub-list for extension type_name
+	27, // [27:27] is the sub-list for extension extendee
+	0,  // [0:27] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_models_proto_init() }

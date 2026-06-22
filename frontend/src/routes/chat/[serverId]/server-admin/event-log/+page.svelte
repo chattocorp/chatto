@@ -1,62 +1,83 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { SvelteURLSearchParams } from 'svelte/reactivity';
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { graphql } from '$lib/gql';
-  import type { AdminEventLogQuery } from '$lib/gql/graphql';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import type {
+    AdminEventLogEntry,
+    AdminEventLogFilter
+  } from '$lib/state/server/adminEventLog.svelte';
   import { Panel, DataTable } from '$lib/components/admin';
+  import UserCombobox from '$lib/components/users/UserCombobox.svelte';
   import { Hint, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
+  import { Button, Combobox } from '$lib/ui/form';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import { formatDateTime as formatDateTimeUtil } from '$lib/utils/formatTime';
+  import { formatDateTime as formatDateTimeUtil, formatDayLabel } from '$lib/utils/formatTime';
 
   const userSettings = getUserSettings();
-  const connection = useConnection();
 
-  const EventLogQuery = graphql(`
-    query AdminEventLog($limit: Int, $before: String) {
-      admin {
-        eventLog(limit: $limit, before: $before) {
-          entries {
-            sequence
-            subject
-            aggregateType
-            aggregateId
-            eventType
-            eventId
-            actorId
-            createdAt
-          }
-          hasOlder
-          endCursor
-          totalCount
-        }
-      }
-    }
-  `);
+  const activeServerId = $derived(getActiveServer());
+  const stores = $derived(serverRegistry.getStore(activeServerId));
+  const eventLog = $derived(stores.adminEventLog);
 
-  const pageSize = 50;
-  type EventLogConnection = NonNullable<AdminEventLogQuery['admin']>['eventLog'];
-  type Entry = EventLogConnection['entries'][number];
-
-  let entries = $state<Entry[]>([]);
-  let totalCount = $state('0');
-  let hasOlder = $state(false);
-  let endCursor = $state<string | null>(null);
-  let loading = $state(true);
-  let loadingMore = $state(false);
-  let error = $state<string | null>(null);
-  let requestId = 0;
   let scrollContainer = $state<HTMLDivElement>();
-  let formattedTotalCount = $derived(formatTotalCount(totalCount));
+  let loadedUrlKey = '';
+  let draftEventType = $state('');
+  let draftEventTypeText = $state('');
+  let draftActorId = $state('');
+  let draftActorText = $state('');
 
-  onMount(() => {
-    void loadFirstPage();
+  const activeFilter = $derived(filterFromUrl(page.url));
+  const activeFilterKey = $derived(filterKey(activeFilter));
+  const draftFilter = $derived<AdminEventLogFilter>({
+    eventType: draftEventType.trim(),
+    actorId: draftActorId.trim(),
+    createdAtFrom: '',
+    createdAtTo: ''
   });
+  const draftFilterKey = $derived(filterKey(draftFilter));
+  const hasDraftChanges = $derived(draftFilterKey !== activeFilterKey);
+  const formattedTotalCount = $derived(formatTotalCount(eventLog.totalCount));
+  const loadedUrlAndServerKey = $derived(`${activeServerId}:${activeFilterKey}`);
+  const eventTypeItems = $derived.by(() => {
+    const query = draftEventTypeText.trim().toLowerCase();
+    return eventLog.eventTypes
+      .filter((eventType) => !query || eventType.toLowerCase().includes(query))
+      .slice(0, 30)
+      .map((eventType) => ({ value: eventType, label: eventType }));
+  });
+
+  $effect(() => {
+    const key = loadedUrlAndServerKey;
+    if (key === loadedUrlKey) return;
+
+    loadedUrlKey = key;
+    const filter = activeFilter;
+    draftEventType = filter.eventType;
+    draftEventTypeText = filter.eventType;
+    draftActorId = filter.actorId;
+    draftActorText = filter.actorId;
+    void eventLog.loadEventTypes();
+    void eventLog.loadFirstPage(filter);
+  });
+
+  function filterFromUrl(url: URL): AdminEventLogFilter {
+    return {
+      eventType: url.searchParams.get('eventType') ?? '',
+      actorId: url.searchParams.get('actorId') ?? '',
+      createdAtFrom: '',
+      createdAtTo: ''
+    };
+  }
+
+  function filterKey(filter: AdminEventLogFilter): string {
+    return JSON.stringify(filter);
+  }
 
   function formatTotalCount(count: string): string {
     const numeric = Number(count);
@@ -67,101 +88,69 @@
     return formatDateTimeUtil(iso, userSettings);
   }
 
-  async function queryEventLog(before: string | null) {
-    return connection()
-      .client.query(EventLogQuery, {
-        limit: pageSize,
-        before
-      })
-      .toPromise();
+  function formatDateGroup(iso: string): string {
+    return formatDayLabel(iso, userSettings);
   }
 
-  async function loadFirstPage() {
-    const currentRequest = ++requestId;
-    loading = true;
-    error = null;
-    entries = [];
-    totalCount = '0';
-    hasOlder = false;
-    endCursor = null;
-
-    try {
-      const result = await queryEventLog(null);
-      if (currentRequest !== requestId) return;
-
-      if (result.error) {
-        error = result.error.message;
-        return;
-      }
-
-      const conn = result.data?.admin?.eventLog;
-      if (!conn) {
-        error = 'Event log unavailable (audit permission required)';
-        return;
-      }
-
-      entries = conn.entries;
-      totalCount = String(conn.totalCount);
-      hasOlder = conn.hasOlder;
-      endCursor = conn.endCursor ?? null;
-    } catch (e) {
-      if (currentRequest !== requestId) return;
-      error = e instanceof Error ? e.message : 'Failed to load event log';
-    } finally {
-      if (currentRequest === requestId) {
-        loading = false;
-      }
-    }
+  function dateGroupKey(iso: string): string {
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return 'unknown';
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      timeZone: userSettings.effectiveTimezone
+    });
+    return formatter.format(date);
   }
 
-  async function loadMore() {
-    if (loading || loadingMore || !hasOlder) return;
-
-    const before = endCursor ?? entries[entries.length - 1]?.sequence;
-    if (!before) return;
-
-    const currentRequest = ++requestId;
-    loadingMore = true;
-    error = null;
-
-    try {
-      const result = await queryEventLog(before);
-      if (currentRequest !== requestId) return;
-
-      if (result.error) {
-        error = result.error.message;
-        return;
-      }
-
-      const conn = result.data?.admin?.eventLog;
-      if (!conn) {
-        error = 'Event log unavailable (audit permission required)';
-        return;
-      }
-
-      entries = mergeEntries(entries, conn.entries);
-      totalCount = String(conn.totalCount);
-      hasOlder = conn.hasOlder;
-      endCursor = conn.endCursor ?? null;
-    } catch (e) {
-      if (currentRequest !== requestId) return;
-      error = e instanceof Error ? e.message : 'Failed to load older events';
-    } finally {
-      if (currentRequest === requestId) {
-        loadingMore = false;
-      }
-    }
+  function applyFilters() {
+    if (!hasDraftChanges) return;
+    navigateWithFilter(draftFilter);
   }
 
-  function mergeEntries(existing: Entry[], next: Entry[]): Entry[] {
-    const seen = new Set(existing.map((entry) => entry.sequence));
-    return [...existing, ...next.filter((entry) => !seen.has(entry.sequence))];
+  function clearFilters() {
+    draftEventType = '';
+    draftEventTypeText = '';
+    draftActorId = '';
+    draftActorText = '';
+    navigateWithFilter({
+      eventType: '',
+      actorId: '',
+      createdAtFrom: '',
+      createdAtTo: ''
+    });
   }
 
-  function openEntry(entry: Entry) {
+  function loadOlderScanWindow() {
+    void eventLog.loadMore();
+  }
+
+  function navigateWithFilter(filter: AdminEventLogFilter) {
+    const params = new SvelteURLSearchParams();
+    if (filter.eventType) params.set('eventType', filter.eventType);
+    if (filter.actorId) params.set('actorId', filter.actorId);
+    if (filter.createdAtFrom) params.set('from', filter.createdAtFrom);
+    if (filter.createdAtTo) params.set('to', filter.createdAtTo);
+
+    const query = params.toString();
+    goto(
+      resolve(
+        query
+          ? `/chat/[serverId]/server-admin/event-log?${query}`
+          : '/chat/[serverId]/server-admin/event-log',
+        {
+          serverId: serverIdToSegment(activeServerId)
+        }
+      ),
+      { keepFocus: true, noScroll: true }
+    );
+  }
+
+  function openEntry(entry: AdminEventLogEntry) {
     goto(
       resolve('/chat/[serverId]/server-admin/event-log/[sequence]', {
-        serverId: serverIdToSegment(getActiveServer()),
+        serverId: serverIdToSegment(activeServerId),
         sequence: entry.sequence
       })
     );
@@ -179,24 +168,98 @@
 
   <div class="min-h-0 flex-1 overflow-y-auto" bind:this={scrollContainer}>
     <div class="flex flex-col gap-4 p-6">
-      {#if error}
-        <Hint tone="danger">{error}</Hint>
+      {#if eventLog.error}
+        <Hint tone="danger">{eventLog.error}</Hint>
       {/if}
 
+      {#if eventLog.compatibilityMessage}
+        <Hint tone="warning">{eventLog.compatibilityMessage}</Hint>
+      {/if}
+
+      {#if eventLog.scanLimited}
+        <Hint tone="warning">
+          <span class="flex flex-wrap items-center gap-3">
+            <span>
+              Filtered scan inspected {eventLog.scanLimit.toLocaleString()} retained events and may
+              have older matches outside that window.
+            </span>
+            {#if eventLog.hasOlder}
+              <Button
+                variant="secondary"
+                size="sm"
+                onclick={loadOlderScanWindow}
+                disabled={eventLog.loadingMore}
+              >
+                Scan older events
+              </Button>
+            {/if}
+          </span>
+        </Hint>
+      {/if}
+
+      <Panel title="Filters">
+        <div class="flex flex-col gap-4">
+          <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+            <Combobox
+              id="event-log-event-type"
+              label="Event type"
+              bind:value={draftEventType}
+              bind:text={draftEventTypeText}
+              items={eventTypeItems}
+              getValue={(item) => item.value}
+              getLabel={(item) => item.label}
+              placeholder={eventLog.eventTypesUnsupported
+                ? 'Enter an event type...'
+                : 'Search event types...'}
+              loading={eventLog.eventTypesLoading}
+              emptyMessage="No event types found"
+              clearLabel="Clear event type"
+            />
+
+            <UserCombobox
+              id="event-log-actor"
+              label="Actor"
+              bind:value={draftActorId}
+              bind:text={draftActorText}
+            />
+          </div>
+
+          <div class="flex flex-wrap justify-end gap-2">
+            <Button
+              variant="secondary"
+              onclick={clearFilters}
+              disabled={!eventLog.hasActiveFilter && !hasDraftChanges}
+            >
+              Clear
+            </Button>
+            <Button onclick={applyFilters} disabled={!hasDraftChanges || eventLog.loading}>
+              Apply
+            </Button>
+          </div>
+        </div>
+      </Panel>
+
       <div class="text-sm text-muted">
-        {formattedTotalCount} total event{totalCount === '1' ? '' : 's'} in stream
+        {formattedTotalCount} total event{eventLog.totalCount === '1' ? '' : 's'} in stream
+        {#if eventLog.hasActiveFilter}
+          · inspected {eventLog.scannedCount.toLocaleString()} retained row{eventLog.scannedCount ===
+          1
+            ? ''
+            : 's'}
+        {/if}
       </div>
 
       <Panel noPadding>
         <DataTable
-          items={entries}
+          items={eventLog.entries}
           columns={5}
-          emptyMessage={loading ? 'Loading…' : 'No events recorded yet.'}
-          hasMore={hasOlder && !error}
-          {loadingMore}
-          onLoadMore={loadMore}
+          emptyMessage={eventLog.loading ? 'Loading...' : 'No events match these filters.'}
+          hasMore={eventLog.hasOlder && !eventLog.scanLimited && !eventLog.error}
+          loadingMore={eventLog.loadingMore}
+          onLoadMore={() => eventLog.loadMore()}
           loadMoreRoot={scrollContainer}
           loadingMoreMessage="Loading older events..."
+          getGroupKey={(entry) => dateGroupKey(entry.createdAt)}
           onRowClick={openEntry}
         >
           {#snippet header()}
@@ -220,6 +283,11 @@
               {/if}
             </td>
             <td class="px-4 py-3 font-mono text-xs">{entry.actorId || '—'}</td>
+          {/snippet}
+          {#snippet group(entry)}
+            <div class="text-xs font-medium tracking-wide text-muted uppercase">
+              {formatDateGroup(entry.createdAt)}
+            </div>
           {/snippet}
         </DataTable>
       </Panel>

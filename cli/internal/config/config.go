@@ -89,6 +89,16 @@ type MetricsConfig struct {
 	Pprof       bool   `toml:"pprof,commented" env:"CHATTO_METRICS_PPROF" comment:"Expose Go pprof debug endpoints on the metrics listener under /debug/pprof/. Default: false."`
 }
 
+// ExporterConfig controls deployment-wide Prometheus metrics for a Chatto instance.
+type ExporterConfig struct {
+	Enabled           bool     `toml:"enabled" env:"CHATTO_EXPORTER_ENABLED" comment:"Start the deployment-wide Prometheus exporter from chatto run. Default: false."`
+	BindAddress       string   `toml:"bind_address,commented" env:"CHATTO_EXPORTER_BIND_ADDRESS" comment:"Address to bind the exporter listener. Default: 127.0.0.1 (localhost only)."`
+	Port              int      `toml:"port,commented" env:"CHATTO_EXPORTER_PORT" comment:"Port for the exporter listener. Default: 9100."`
+	Path              string   `toml:"path,commented" env:"CHATTO_EXPORTER_PATH" comment:"HTTP path for Prometheus scrapes. Default: /metrics."`
+	S3RefreshInterval Duration `toml:"s3_refresh_interval,commented" env:"CHATTO_EXPORTER_S3_REFRESH_INTERVAL" comment:"How often to refresh cached S3 bucket size metrics. Default: 15m."`
+	S3Timeout         Duration `toml:"s3_timeout,commented" env:"CHATTO_EXPORTER_S3_TIMEOUT" comment:"Timeout for one S3 bucket-size refresh. Default: 30s."`
+}
+
 // DiagnosticsConfig controls opt-in local/operator diagnostics.
 type DiagnosticsConfig struct {
 	StartupCPUProfile string `toml:"startup_cpu_profile,commented" env:"CHATTO_DIAGNOSTICS_STARTUP_CPU_PROFILE" comment:"Write a Go CPU profile covering process startup through core boot to this path. Disabled when empty."`
@@ -116,6 +126,46 @@ func (c *MetricsConfig) PathOrDefault() string {
 		return "/metrics"
 	}
 	return c.Path
+}
+
+// BindAddressOrDefault returns the exporter bind address, defaulting to localhost.
+func (c *ExporterConfig) BindAddressOrDefault() string {
+	if c.BindAddress == "" {
+		return "127.0.0.1"
+	}
+	return c.BindAddress
+}
+
+// PortOrDefault returns the exporter listener port, defaulting to 9100.
+func (c *ExporterConfig) PortOrDefault() int {
+	if c.Port == 0 {
+		return 9100
+	}
+	return c.Port
+}
+
+// PathOrDefault returns the exporter scrape path, defaulting to /metrics.
+func (c *ExporterConfig) PathOrDefault() string {
+	if c.Path == "" {
+		return "/metrics"
+	}
+	return c.Path
+}
+
+// S3RefreshIntervalOrDefault returns the S3 refresh interval, defaulting to 15 minutes.
+func (c *ExporterConfig) S3RefreshIntervalOrDefault() time.Duration {
+	if c.S3RefreshInterval == 0 {
+		return 15 * time.Minute
+	}
+	return c.S3RefreshInterval.Duration()
+}
+
+// S3TimeoutOrDefault returns the S3 refresh timeout, defaulting to 30 seconds.
+func (c *ExporterConfig) S3TimeoutOrDefault() time.Duration {
+	if c.S3Timeout == 0 {
+		return 30 * time.Second
+	}
+	return c.S3Timeout.Duration()
 }
 
 func validateHexSecret(name, value string, required bool) error {
@@ -253,7 +303,7 @@ type S3Config struct {
 	AccessKeyID     string `toml:"access_key_id" env:"CHATTO_CORE_ASSETS_S3_ACCESS_KEY_ID" comment:"S3 access key ID."`
 	SecretAccessKey string `toml:"secret_access_key" env:"CHATTO_CORE_ASSETS_S3_SECRET_ACCESS_KEY" comment:"S3 secret access key. NEVER SHARE THIS!"`
 	UseSSL          *bool  `toml:"use_ssl" env:"CHATTO_CORE_ASSETS_S3_USE_SSL" comment:"Use HTTPS for S3 connections. Default: true."`
-	PathStyle       *bool  `toml:"path_style" env:"CHATTO_CORE_ASSETS_S3_PATH_STYLE" comment:"Use path-style URLs (bucket in path). Required for MinIO and most S3-compatible services. Default: false."`
+	PathStyle       *bool  `toml:"path_style" env:"CHATTO_CORE_ASSETS_S3_PATH_STYLE" comment:"Use path-style URLs (bucket in path). Required for MinIO and most S3-compatible services. Default: auto (virtual-hosted for AWS S3, path-style for custom endpoints)."`
 }
 
 // UseSSLOrDefault returns whether to use SSL, defaulting to true.
@@ -270,6 +320,38 @@ func (c *S3Config) PathStyleOrDefault() bool {
 		return false
 	}
 	return *c.PathStyle
+}
+
+// UsePathStyleForEndpoint returns the AWS SDK addressing mode for this
+// endpoint. When path_style is omitted, AWS S3 endpoints use virtual-hosted
+// addressing while custom endpoints use path-style addressing, matching the
+// old MinIO client's automatic bucket lookup behavior.
+func (c *S3Config) UsePathStyleForEndpoint() bool {
+	if c.PathStyle != nil {
+		return *c.PathStyle
+	}
+	return !c.IsAWSEndpoint()
+}
+
+// IsAWSEndpoint reports whether the configured endpoint looks like an AWS S3
+// endpoint rather than a custom S3-compatible service.
+func (c *S3Config) IsAWSEndpoint() bool {
+	host := strings.TrimSpace(c.Endpoint)
+	if host == "" {
+		return false
+	}
+
+	if u, err := url.Parse(host); err == nil && u.Host != "" {
+		host = u.Hostname()
+	} else if splitHost, _, err := net.SplitHostPort(host); err == nil {
+		host = splitHost
+	}
+
+	host = strings.TrimSuffix(strings.ToLower(host), ".")
+	return host == "s3.amazonaws.com" ||
+		strings.HasSuffix(host, ".amazonaws.com") ||
+		host == "s3.amazonaws.com.cn" ||
+		strings.HasSuffix(host, ".amazonaws.com.cn")
 }
 
 // NormalizedPathPrefix returns PathPrefix with harmless leading/trailing slashes
@@ -768,6 +850,7 @@ type ChattoConfig struct {
 	Owners      OwnersConfig      `toml:"owners" comment:"Email addresses that confer owner status."`
 	Webserver   WebserverConfig   `toml:"webserver"`
 	Metrics     MetricsConfig     `toml:"metrics,commented" comment:"Process-local Prometheus metrics endpoint."`
+	Exporter    ExporterConfig    `toml:"exporter,commented" comment:"Deployment-wide Prometheus metrics exporter."`
 	Diagnostics DiagnosticsConfig `toml:"diagnostics,commented" comment:"Opt-in diagnostics for local benchmarking and operator troubleshooting."`
 	Core        CoreConfig        `toml:"core" comment:"Core service configuration."`
 	Auth        AuthConfig        `toml:"auth" comment:"Authentication configuration."`
@@ -866,6 +949,24 @@ func (c *ChattoConfig) Validate() error {
 		}
 		if strings.ContainsAny(metricsPath, "?#") {
 			errs = append(errs, "metrics.path must not contain query strings or fragments")
+		}
+	}
+	if c.Exporter.Enabled || c.Exporter.Port != 0 || c.Exporter.Path != "" || c.Exporter.BindAddress != "" || c.Exporter.S3RefreshInterval != 0 || c.Exporter.S3Timeout != 0 {
+		if c.Exporter.Port < 0 || c.Exporter.Port > 65535 {
+			errs = append(errs, "exporter.port must be between 0 and 65535")
+		}
+		exporterPath := c.Exporter.PathOrDefault()
+		if !strings.HasPrefix(exporterPath, "/") {
+			errs = append(errs, "exporter.path must start with /")
+		}
+		if strings.ContainsAny(exporterPath, "?#") {
+			errs = append(errs, "exporter.path must not contain query strings or fragments")
+		}
+		if c.Exporter.S3RefreshInterval.Duration() < 0 {
+			errs = append(errs, "exporter.s3_refresh_interval must not be negative")
+		}
+		if c.Exporter.S3Timeout.Duration() < 0 {
+			errs = append(errs, "exporter.s3_timeout must not be negative")
 		}
 	}
 	if c.NATS.Embedded.Enabled {

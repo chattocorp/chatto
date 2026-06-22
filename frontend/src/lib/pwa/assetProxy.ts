@@ -42,8 +42,7 @@ function postAssetProxyMessage(message: AssetProxyMessage): void {
 function serializeAssetProxyServers(servers: readonly RegisteredServer[]): AssetProxyServer[] {
   return servers.map((server) => ({
     id: server.id,
-    url: server.url,
-    token: server.token
+    url: server.url
   }));
 }
 

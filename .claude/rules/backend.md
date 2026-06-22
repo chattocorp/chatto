@@ -23,6 +23,7 @@ NATS JetStream KV buckets and event streams hold Chatto's persisted state. NATS 
 - `EVT` is the durable source of truth for event-sourced domain state; `RUNTIME_STATE` holds persisted latest-value runtime state
 - IDs: 14-char NanoID via `helpers.NewID()` (~83.4 bits entropy)
 - When adding streams/KV buckets, update `docs/ARCHITECTURE.md` inventory
+- S3 asset storage must keep custom S3-compatible endpoints first-class. When changing S3 client setup, preserve automatic path-style addressing for non-AWS endpoints, avoid AWS-only upload features such as opportunistic checksum trailers unless required, and cover omitted `path_style` configs with integration tests against a custom endpoint.
 
 ## NATS/JetStream Tips
 

@@ -7,14 +7,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// LICENSE is a copy of the root LICENSE (go:embed can't reach outside the module).
+// LICENSE is generated from the root LICENSE before builds.
 //
-//go:embed LICENSE
+//go:embed embedded/LICENSE
 var licenseText string
 
-// NOTICE is a copy of the root NOTICE (go:embed can't reach outside the module).
+// NOTICE is generated from the root NOTICE before builds.
 //
-//go:embed NOTICE
+//go:embed embedded/NOTICE
 var noticeText string
 
 var licenseCmd = &cobra.Command{

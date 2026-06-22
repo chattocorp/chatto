@@ -199,7 +199,7 @@ func (r *adminQueriesResolver) ServerConfig(ctx context.Context, obj *model.Admi
 // EventLog is the resolver for the eventLog field. It requires
 // admin.view-audit so the event-log inspection view is available to auditors
 // specifically rather than every admin-panel viewer.
-func (r *adminQueriesResolver) EventLog(ctx context.Context, obj *model.AdminQueries, limit *int32, before *string) (*model.EventLogConnection, error) {
+func (r *adminQueriesResolver) EventLog(ctx context.Context, obj *model.AdminQueries, limit *int32, before *string, filter *model.EventLogFilterInput) (*model.EventLogConnection, error) {
 	user := auth.ForContext(ctx)
 	if user == nil {
 		return nil, core.ErrNotAuthenticated
@@ -210,6 +210,11 @@ func (r *adminQueriesResolver) EventLog(ctx context.Context, obj *model.AdminQue
 	}
 	if !canView {
 		return nil, core.ErrPermissionDenied
+	}
+
+	normalizedFilter, err := normalizeEventLogFilter(filter)
+	if err != nil {
+		return nil, err
 	}
 
 	stream, err := r.core.EventStreamForDebug(ctx)
@@ -244,32 +249,64 @@ func (r *adminQueriesResolver) EventLog(ctx context.Context, obj *model.AdminQue
 			return nil, fmt.Errorf("invalid before cursor %q: %w", *before, parseErr)
 		}
 		if parsed == 0 {
+			scanLimit := int32(pageSize)
+			if normalizedFilter.active() {
+				scanLimit = filteredEventLogScanLimit
+			}
 			return &model.EventLogConnection{
-				Entries:    []*model.EventLogEntry{},
-				HasOlder:   false,
-				EndCursor:  nil,
-				TotalCount: totalCount,
+				Entries:      []*model.EventLogEntry{},
+				HasOlder:     false,
+				EndCursor:    nil,
+				TotalCount:   totalCount,
+				ScannedCount: 0,
+				ScanLimit:    scanLimit,
+				ScanLimited:  false,
 			}, nil
 		}
 		startSeq = parsed - 1
 	}
 
-	entries, err := r.fetchEventLogPage(ctx, stream, startSeq, info.State.FirstSeq, pageSize)
+	page, err := r.fetchEventLogPage(ctx, stream, startSeq, info.State.FirstSeq, pageSize, normalizedFilter)
 	if err != nil {
 		return nil, err
 	}
 
 	conn := &model.EventLogConnection{
-		Entries:    entries,
-		TotalCount: totalCount,
+		Entries:      page.entries,
+		TotalCount:   totalCount,
+		ScannedCount: page.scannedCount,
+		ScanLimit:    page.scanLimit,
+		ScanLimited:  page.scanLimited,
 	}
-	if len(entries) > 0 {
-		oldestSeq := entries[len(entries)-1].Sequence
+	if page.scanLimited {
+		conn.EndCursor = page.scanCursor
+		if page.scanCursor != nil {
+			oldestScanned, _ := strconv.ParseUint(*page.scanCursor, 10, 64)
+			conn.HasOlder = oldestScanned > info.State.FirstSeq
+		}
+	} else if len(page.entries) > 0 {
+		oldestSeq := page.entries[len(page.entries)-1].Sequence
 		conn.EndCursor = &oldestSeq
 		oldest, _ := strconv.ParseUint(oldestSeq, 10, 64)
 		conn.HasOlder = oldest > info.State.FirstSeq
 	}
 	return conn, nil
+}
+
+// EventLogEventTypes is the resolver for the eventLogEventTypes field.
+func (r *adminQueriesResolver) EventLogEventTypes(ctx context.Context, obj *model.AdminQueries) ([]string, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return nil, core.ErrNotAuthenticated
+	}
+	canView, err := r.core.CanAdminAuditView(ctx, user.Id)
+	if err != nil {
+		return nil, fmt.Errorf("check admin.view-audit: %w", err)
+	}
+	if !canView {
+		return nil, core.ErrPermissionDenied
+	}
+	return durableEventLogEventTypes(), nil
 }
 
 // EventLogEntry is the resolver for the eventLogEntry field. Returns

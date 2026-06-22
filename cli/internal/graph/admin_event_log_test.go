@@ -1,15 +1,18 @@
 package graph
 
 import (
+	"context"
 	"errors"
 	"math"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/events"
@@ -40,11 +43,14 @@ func TestEventLog_BrowseNewestFirst(t *testing.T) {
 	adminQ := env.resolver.AdminQueries()
 	adminCtx := &struct{}{} // parent admin resolver only needs auth context, not obj fields
 
-	conn, err := adminQ.EventLog(ctx, nil, nil, nil)
+	conn, err := adminQ.EventLog(ctx, nil, nil, nil, nil)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.GreaterOrEqual(t, len(conn.Entries), 3)
 	require.GreaterOrEqual(t, int(conn.TotalCount), len(conn.Entries))
+	require.GreaterOrEqual(t, int(conn.ScannedCount), len(conn.Entries))
+	require.Equal(t, int32(defaultEventLogPageSize), conn.ScanLimit)
+	require.False(t, conn.ScanLimited)
 
 	// Newest-first: sequence numbers must descend.
 	for i := 1; i < len(conn.Entries); i++ {
@@ -64,13 +70,13 @@ func TestEventLog_BrowseNewestFirst(t *testing.T) {
 
 	// Pagination via the endCursor: next page is older.
 	limit := int32(2)
-	page1, err := adminQ.EventLog(ctx, nil, &limit, nil)
+	page1, err := adminQ.EventLog(ctx, nil, &limit, nil, nil)
 	require.NoError(t, err)
 	require.Len(t, page1.Entries, 2)
 	require.NotNil(t, page1.EndCursor)
 	require.True(t, page1.HasOlder)
 
-	page2, err := adminQ.EventLog(ctx, nil, &limit, page1.EndCursor)
+	page2, err := adminQ.EventLog(ctx, nil, &limit, page1.EndCursor, nil)
 	require.NoError(t, err)
 	require.NotEmpty(t, page2.Entries)
 	page1Min, _ := strconv.ParseUint(*page1.EndCursor, 10, 64)
@@ -87,7 +93,7 @@ func TestEventLogEntry_LookupBySequence(t *testing.T) {
 	ctx := env.authContext()
 
 	adminQ := env.resolver.AdminQueries()
-	conn, err := adminQ.EventLog(ctx, nil, nil, nil)
+	conn, err := adminQ.EventLog(ctx, nil, nil, nil, nil)
 	require.NoError(t, err)
 	require.NotEmpty(t, conn.Entries, "expected at least one event on EVT for this test")
 
@@ -124,11 +130,14 @@ func TestEventLog_AuthorizationDenied(t *testing.T) {
 
 	adminQ := env.resolver.AdminQueries()
 
-	_, err := adminQ.EventLog(ctx, nil, nil, nil)
+	_, err := adminQ.EventLog(ctx, nil, nil, nil, nil)
 	require.True(t, errors.Is(err, core.ErrPermissionDenied), "EventLog should deny non-auditor, got: %v", err)
 
 	_, err = adminQ.EventLogEntry(ctx, nil, "1")
 	require.True(t, errors.Is(err, core.ErrPermissionDenied), "EventLogEntry should deny non-auditor, got: %v", err)
+
+	_, err = adminQ.EventLogEventTypes(ctx, nil)
+	require.True(t, errors.Is(err, core.ErrPermissionDenied), "EventLogEventTypes should deny non-auditor, got: %v", err)
 }
 
 func TestRBACMutationsUseAuthenticatedActorInEventLog(t *testing.T) {
@@ -163,7 +172,7 @@ func TestRBACMutationsUseAuthenticatedActorInEventLog(t *testing.T) {
 	require.NoError(t, err)
 
 	limit := int32(50)
-	conn, err := env.resolver.AdminQueries().EventLog(ctx, nil, &limit, nil)
+	conn, err := env.resolver.AdminQueries().EventLog(ctx, nil, &limit, nil, nil)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 
@@ -181,6 +190,123 @@ func requireEventLogActor(t *testing.T, entries []*model.EventLogEntry, eventTyp
 		}
 	}
 	t.Fatalf("missing %s entry for actor %s containing %q", eventType, actorID, payloadSubstring)
+}
+
+func TestEventLog_Filters(t *testing.T) {
+	env := setupTestResolver(t)
+	ctx := env.authContext()
+
+	actor := env.createVerifiedUser(t, "event-filter-actor", "Event Filter Actor", "password123")
+	other := env.createVerifiedUser(t, "event-filter-other", "Event Filter Other", "password123")
+
+	_, err := env.core.JoinRoom(ctx, actor.Id, core.KindChannel, actor.Id, env.testRoom.Id)
+	require.NoError(t, err)
+	_, err = env.core.JoinRoom(ctx, other.Id, core.KindChannel, other.Id, env.testRoom.Id)
+	require.NoError(t, err)
+
+	adminQ := env.resolver.AdminQueries()
+	limit := int32(20)
+
+	eventType := "UserJoinedRoomEvent"
+	byType, err := adminQ.EventLog(ctx, nil, &limit, nil, &model.EventLogFilterInput{
+		EventType: &eventType,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, byType.Entries)
+	require.Equal(t, int32(filteredEventLogScanLimit), byType.ScanLimit)
+	require.Greater(t, int(byType.ScannedCount), 0)
+	for _, entry := range byType.Entries {
+		require.Equal(t, eventType, entry.EventType)
+	}
+
+	byActor, err := adminQ.EventLog(ctx, nil, &limit, nil, &model.EventLogFilterInput{
+		ActorID: &actor.Id,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, byActor.Entries)
+	for _, entry := range byActor.Entries {
+		require.Equal(t, actor.Id, entry.ActorID)
+	}
+
+	target := byActor.Entries[0]
+	from := target.CreatedAt
+	to := target.CreatedAt
+	combined, err := adminQ.EventLog(ctx, nil, &limit, nil, &model.EventLogFilterInput{
+		EventType:     &target.EventType,
+		ActorID:       &actor.Id,
+		CreatedAtFrom: from,
+		CreatedAtTo:   to,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, combined.Entries)
+	for _, entry := range combined.Entries {
+		require.Equal(t, target.EventType, entry.EventType)
+		require.Equal(t, actor.Id, entry.ActorID)
+		require.False(t, entry.CreatedAt.AsTime().Before(from.AsTime()))
+		require.False(t, entry.CreatedAt.AsTime().After(to.AsTime()))
+	}
+
+	later := timestamppb.New(time.Now().Add(time.Hour))
+	earlier := timestamppb.New(time.Now())
+	_, err = adminQ.EventLog(ctx, nil, &limit, nil, &model.EventLogFilterInput{
+		CreatedAtFrom: later,
+		CreatedAtTo:   earlier,
+	})
+	require.Error(t, err)
+}
+
+func TestEventLogEventTypes(t *testing.T) {
+	env := setupTestResolver(t)
+	ctx := env.authContext()
+
+	eventTypes, err := env.resolver.AdminQueries().EventLogEventTypes(ctx, nil)
+	require.NoError(t, err)
+	require.Contains(t, eventTypes, "UserJoinedRoomEvent")
+	require.Contains(t, eventTypes, "LoginSucceededEvent")
+	require.Contains(t, eventTypes, "decode-error")
+}
+
+type fakeEventLogStream struct{}
+
+func (fakeEventLogStream) GetMsg(_ context.Context, seq uint64, _ ...jetstream.GetMsgOpt) (*jetstream.RawStreamMsg, error) {
+	event := &corev1.Event{
+		Id:        "event-" + strconv.FormatUint(seq, 10),
+		ActorId:   "actor",
+		CreatedAt: timestamppb.New(time.Unix(int64(seq), 0)),
+		Event: &corev1.Event_MessagePosted{
+			MessagePosted: &corev1.MessagePostedEvent{RoomId: "room"},
+		},
+	}
+	data, err := proto.Marshal(event)
+	if err != nil {
+		return nil, err
+	}
+	return &jetstream.RawStreamMsg{
+		Subject:  events.RoomAggregate("room").Subject(events.EventMessagePosted),
+		Sequence: seq,
+		Data:     data,
+	}, nil
+}
+
+func TestFetchEventLogPage_FilteredScanCap(t *testing.T) {
+	r := &Resolver{}
+	missingType := "NeverMatchesEvent"
+
+	page, err := r.fetchEventLogPage(
+		context.Background(),
+		fakeEventLogStream{},
+		uint64(filteredEventLogScanLimit+100),
+		1,
+		50,
+		normalizedEventLogFilter{eventType: missingType},
+	)
+	require.NoError(t, err)
+	require.Empty(t, page.entries)
+	require.Equal(t, int32(filteredEventLogScanLimit), page.scannedCount)
+	require.Equal(t, int32(filteredEventLogScanLimit), page.scanLimit)
+	require.True(t, page.scanLimited)
+	require.NotNil(t, page.scanCursor)
+	require.Equal(t, "101", *page.scanCursor)
 }
 
 func TestEventLogTotalCountUsesWideInteger(t *testing.T) {

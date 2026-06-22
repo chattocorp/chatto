@@ -40,7 +40,17 @@ const { mocks } = vi.hoisted(() => {
         toPromise: vi.fn().mockResolvedValue({ data: {}, error: null })
       })),
       subscription: vi.fn(),
-      livekitUrl: null as string | null
+      livekitUrl: null as string | null,
+      notifications: {
+        dismissDMNotifications: vi.fn().mockResolvedValue({ byRoom: {} }),
+        dismissMentionNotifications: vi.fn().mockResolvedValue({ byRoom: {} }),
+        dismissRoomReplyNotifications: vi.fn().mockResolvedValue({ byRoom: {} }),
+        dismissRoomMessageNotifications: vi.fn().mockResolvedValue({ byRoom: {} })
+      },
+      rooms: {
+        decrementUnreadNotification: vi.fn(),
+        refreshNotificationCounts: vi.fn().mockResolvedValue(undefined)
+      }
     }
   };
 });
@@ -134,21 +144,14 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
         maxUploadSize: 25 * 1024 * 1024,
         maxVideoUploadSize: 25 * 1024 * 1024
       },
-      notifications: {
-        dismissDMNotifications: vi.fn().mockResolvedValue({ byRoom: {} }),
-        dismissMentionNotifications: vi.fn().mockResolvedValue({ byRoom: {} }),
-        dismissRoomReplyNotifications: vi.fn().mockResolvedValue({ byRoom: {} }),
-        dismissRoomMessageNotifications: vi.fn().mockResolvedValue({ byRoom: {} })
-      },
+      notifications: mocks.notifications,
       pendingHighlights: {
         consume: vi.fn(() => null)
       },
       activeCallRooms: {
         has: vi.fn(() => false)
       },
-      rooms: {
-        decrementUnreadNotification: vi.fn()
-      }
+      rooms: mocks.rooms
     }),
     originServer: { id: 'server-1', url: 'https://chat.example.test' },
     getServer: () => ({ id: 'server-1', url: 'https://chat.example.test' })
@@ -157,6 +160,13 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'server-1'
+}));
+
+vi.mock('$lib/state/globals.svelte', () => ({
+  appState: {
+    isFocused: true,
+    isPresent: true
+  }
 }));
 
 vi.mock('$lib/storage/lastRoom', () => ({
@@ -225,6 +235,11 @@ beforeEach(() => {
   localStorage.clear();
   sessionStorage.clear();
   mocks.livekitUrl = null;
+  mocks.notifications.dismissDMNotifications.mockResolvedValue({ byRoom: {} });
+  mocks.notifications.dismissMentionNotifications.mockResolvedValue({ byRoom: {} });
+  mocks.notifications.dismissRoomReplyNotifications.mockResolvedValue({ byRoom: {} });
+  mocks.notifications.dismissRoomMessageNotifications.mockResolvedValue({ byRoom: {} });
+  mocks.rooms.refreshNotificationCounts.mockResolvedValue(undefined);
   vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true })));
 });
 
@@ -264,5 +279,16 @@ describe('Room local message echo', () => {
 
     await expect.element(q(container, '[data-testid="room-sidebar-mobile-pane"]')).toBeInTheDocument();
     expect(consumePendingRoomSidebarPanel('server-1', 'room-1')).toBeNull();
+  });
+
+  it('refreshes room notification counts after active-room notifications auto-dismiss', async () => {
+    mocks.notifications.dismissMentionNotifications.mockResolvedValue({ byRoom: { 'room-1': 1 } });
+
+    render(Room, { props: { roomId: 'room-1' } });
+
+    await vi.waitFor(() => {
+      expect(mocks.rooms.decrementUnreadNotification).toHaveBeenCalledWith('room-1', 1);
+      expect(mocks.rooms.refreshNotificationCounts).toHaveBeenCalledOnce();
+    });
   });
 });

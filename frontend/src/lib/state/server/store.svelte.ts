@@ -16,6 +16,7 @@ import { ActiveCallRoomsState } from './activeCallRooms.svelte';
 import { RoomsStore } from './rooms.svelte';
 import { RoomDirectoryStore } from './roomDirectory.svelte';
 import { AdminRoomLayoutStore } from './adminRoomLayout.svelte';
+import { AdminEventLogStore } from './adminEventLog.svelte';
 import { eventBusManager } from './eventBus.svelte';
 import type { EventBusCatchUpReason, EventHandler } from '$lib/eventBus.svelte';
 import type { GraphQLClient } from './graphqlClient.svelte';
@@ -58,6 +59,7 @@ export class ServerStateStore {
   readonly rooms: RoomsStore;
   readonly roomDirectory: RoomDirectoryStore;
   readonly adminRoomLayout: AdminRoomLayoutStore;
+  readonly adminEventLog: AdminEventLogStore;
 
   /** Per-server viewer permissions (loaded by ServerSidebarEntry). */
   permissions = $state<ServerPermissions>(EMPTY_PERMISSIONS);
@@ -94,6 +96,7 @@ export class ServerStateStore {
     this.rooms = new RoomsStore(client, this.notificationLevels, this.roomUnread);
     this.roomDirectory = new RoomDirectoryStore(client);
     this.adminRoomLayout = new AdminRoomLayoutStore(client);
+    this.adminEventLog = new AdminEventLogStore(client);
 
     // Self-managed lifecycle for the substores that need fetch / event
     // wiring. Living here (in the per-server bundle) means consumers

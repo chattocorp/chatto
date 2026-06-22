@@ -39,3 +39,13 @@ func TestRootHelpShowsBannerAndNoResetCommand(t *testing.T) {
 		t.Fatalf("root help should not list reset command:\n%s", help)
 	}
 }
+
+func TestRootRegistersExporterCommand(t *testing.T) {
+	cmd, _, err := rootCmd.Find([]string{"exporter", "--help"})
+	if err != nil {
+		t.Fatalf("find exporter command: %v", err)
+	}
+	if cmd == nil || cmd.Use != "exporter" {
+		t.Fatalf("root command did not register exporter, got %#v", cmd)
+	}
+}

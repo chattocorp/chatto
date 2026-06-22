@@ -4,7 +4,6 @@ node_modules
 .DS_Store
 Thumbs.db
 .playwright-mcp
-.codex/
 .conductor/settings.local.toml
 
 # Env
@@ -21,3 +20,4 @@ test-results/
 
 .claude/worktrees/
 .claude/scheduled_tasks.lock
+/cli/cmd/embedded/

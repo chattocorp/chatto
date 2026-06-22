@@ -15,8 +15,41 @@ type Entry = {
 };
 
 const mocks = vi.hoisted(() => ({
-  query: vi.fn(),
-  goto: vi.fn()
+  goto: vi.fn(),
+  loadFirstPage: vi.fn(),
+  loadMore: vi.fn(),
+  loadEventTypes: vi.fn(),
+  currentUrl: new URL('https://chat.example.test/chat/-/server-admin/event-log'),
+  eventLog: {
+    entries: [] as Entry[],
+    totalCount: '0',
+    scannedCount: 0,
+    scanLimit: 50,
+    scanLimited: false,
+    hasOlder: false,
+    endCursor: null as string | null,
+    loading: false,
+    loadingMore: false,
+    error: null as string | null,
+    compatibilityMessage: null as string | null,
+    activeFilter: {
+      eventType: '',
+      actorId: '',
+      createdAtFrom: '',
+      createdAtTo: ''
+    },
+    eventTypes: ['LoginSucceededEvent', 'UserJoinedRoomEvent'],
+    eventTypesLoading: false,
+    eventTypesUnsupported: false,
+    get hasActiveFilter() {
+      return Boolean(
+        this.activeFilter.eventType ||
+        this.activeFilter.actorId ||
+        this.activeFilter.createdAtFrom ||
+        this.activeFilter.createdAtTo
+      );
+    }
+  }
 }));
 
 let originalIntersectionObserver: typeof IntersectionObserver;
@@ -70,6 +103,14 @@ class MockIntersectionObserver implements IntersectionObserver {
   }
 }
 
+vi.mock('$app/state', () => ({
+  page: {
+    get url() {
+      return mocks.currentUrl;
+    }
+  }
+}));
+
 vi.mock('$app/navigation', () => ({
   goto: mocks.goto,
   pushState: vi.fn(),
@@ -77,6 +118,15 @@ vi.mock('$app/navigation', () => ({
   preloadData: vi.fn(),
   invalidate: vi.fn(),
   invalidateAll: vi.fn()
+}));
+
+vi.mock('$app/paths', () => ({
+  resolve: (path: string, params?: Record<string, string>) =>
+    path.replace('[serverId]', params?.serverId ?? '').replace('[sequence]', params?.sequence ?? '')
+}));
+
+vi.mock('$lib/navigation', () => ({
+  serverIdToSegment: () => '-'
 }));
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
@@ -90,19 +140,39 @@ vi.mock('$lib/state/userSettings.svelte', () => ({
   })
 }));
 
+vi.mock('$lib/state/server/registry.svelte', () => ({
+  serverRegistry: {
+    getStore: () => ({
+      adminEventLog: {
+        ...mocks.eventLog,
+        loadFirstPage: mocks.loadFirstPage,
+        loadMore: mocks.loadMore,
+        loadEventTypes: mocks.loadEventTypes
+      }
+    })
+  }
+}));
+
 vi.mock('$lib/state/server/connection.svelte', () => ({
   useConnection: () => () => ({
-    isConnected: true,
-    showConnectionLostBanner: false,
     client: {
-      query: mocks.query,
-      mutation: vi.fn(),
-      subscription: vi.fn()
+      query: vi.fn(() => ({
+        toPromise: vi.fn().mockResolvedValue({
+          data: {
+            server: {
+              members: {
+                users: []
+              }
+            }
+          },
+          error: null
+        })
+      }))
     }
   })
 }));
 
-function entry(sequence: string, eventType: string): Entry {
+function entry(sequence: string, eventType: string, createdAt = '2026-01-01T12:00:00Z'): Entry {
   return {
     sequence,
     subject: `evt.test.${sequence}`,
@@ -111,38 +181,8 @@ function entry(sequence: string, eventType: string): Entry {
     eventType,
     eventId: `event-${sequence}`,
     actorId: `actor-${sequence}`,
-    createdAt: '2026-01-01T12:00:00Z'
+    createdAt
   };
-}
-
-function result(
-  entries: Entry[],
-  totalCount = entries.length,
-  hasOlder = false,
-  endCursor?: string
-) {
-  return {
-    admin: {
-      eventLog: {
-        entries,
-        totalCount,
-        hasOlder,
-        endCursor: endCursor ?? entries.at(-1)?.sequence ?? null
-      }
-    }
-  };
-}
-
-function queueResults(...results: Array<ReturnType<typeof result> | { admin: null }>) {
-  mocks.query.mockImplementation(() => {
-    const data = results.shift();
-    return {
-      toPromise: vi.fn().mockResolvedValue({
-        data,
-        error: null
-      })
-    };
-  });
 }
 
 async function settle() {
@@ -152,56 +192,120 @@ async function settle() {
   flushSync();
 }
 
-describe('server admin event log pagination', () => {
+describe('server admin event log filters', () => {
   beforeEach(() => {
     originalIntersectionObserver = globalThis.IntersectionObserver;
     observers = [];
     globalThis.IntersectionObserver =
       MockIntersectionObserver as unknown as typeof IntersectionObserver;
-    mocks.query.mockReset();
     mocks.goto.mockReset();
+    mocks.loadFirstPage.mockReset();
+    mocks.loadMore.mockReset();
+    mocks.loadEventTypes.mockReset();
+    mocks.currentUrl = new URL('https://chat.example.test/chat/-/server-admin/event-log');
+    mocks.eventLog.entries = [
+      entry('102', 'UserJoinedRoomEvent'),
+      entry('101', 'LoginSucceededEvent')
+    ];
+    mocks.eventLog.totalCount = '2';
+    mocks.eventLog.scannedCount = 2;
+    mocks.eventLog.scanLimit = 50;
+    mocks.eventLog.scanLimited = false;
+    mocks.eventLog.hasOlder = true;
+    mocks.eventLog.loading = false;
+    mocks.eventLog.loadingMore = false;
+    mocks.eventLog.error = null;
+    mocks.eventLog.compatibilityMessage = null;
+    mocks.eventLog.activeFilter = {
+      eventType: '',
+      actorId: '',
+      createdAtFrom: '',
+      createdAtTo: ''
+    };
   });
 
   afterEach(() => {
     globalThis.IntersectionObserver = originalIntersectionObserver;
   });
 
-  it('loads the first cursor page and auto-loads older entries from the table sentinel', async () => {
-    queueResults(
-      result([entry('102', 'user.created'), entry('101', 'room.created')], 3, true, '101'),
-      result([entry('101', 'room.created'), entry('100', 'auth.login')], 3, false, '100')
+  it('loads from URL filters and auto-loads older entries from the table sentinel', async () => {
+    mocks.currentUrl = new URL(
+      'https://chat.example.test/chat/-/server-admin/event-log?eventType=LoginSucceededEvent&actorId=user-1'
     );
 
     const { container } = render(EventLogPage);
     await settle();
 
-    expect(mocks.query).toHaveBeenNthCalledWith(1, expect.anything(), {
-      limit: 50,
-      before: null
+    expect(mocks.loadEventTypes).toHaveBeenCalledOnce();
+    expect(mocks.loadFirstPage).toHaveBeenCalledWith({
+      eventType: 'LoginSucceededEvent',
+      actorId: 'user-1',
+      createdAtFrom: '',
+      createdAtTo: ''
     });
-    expect(container.textContent).toContain('3 total events in stream');
-    expect(container.textContent).toContain('user.created');
-    expect(container.textContent).toContain('room.created');
+    expect(container.textContent).toContain('2 total events in stream');
+    expect(container.textContent).toContain('UserJoinedRoomEvent');
+    expect(container.textContent).toContain('LoginSucceededEvent');
 
     expect(observers).toHaveLength(1);
     observers[0].trigger(true);
     await settle();
 
-    expect(mocks.query).toHaveBeenNthCalledWith(2, expect.anything(), {
-      limit: 50,
-      before: '101'
-    });
-    expect(container.textContent).toContain('auth.login');
-    expect(container.textContent?.match(/room.created/g)).toHaveLength(1);
+    expect(mocks.loadMore).toHaveBeenCalledOnce();
   });
 
-  it('renders the audit permission error when admin data is unavailable', async () => {
-    queueResults({ admin: null });
+  it('requires an explicit action to continue after a capped filtered scan', async () => {
+    mocks.eventLog.scanLimited = true;
+    mocks.eventLog.hasOlder = true;
+    mocks.eventLog.scanLimit = 5000;
 
     const { container } = render(EventLogPage);
     await settle();
 
-    expect(container.textContent).toContain('Event log unavailable (audit permission required)');
+    expect(container.textContent).toMatch(/may\s+have older matches outside that window/);
     expect(observers).toHaveLength(0);
+
+    const scanOlder = [...container.querySelectorAll('button')].find((button) =>
+      button.textContent?.includes('Scan older events')
+    ) as HTMLButtonElement;
+    scanOlder.click();
+    await settle();
+
+    expect(mocks.loadMore).toHaveBeenCalledOnce();
+  });
+
+  it('updates the URL when applying draft filters', async () => {
+    const { container } = render(EventLogPage);
+    await settle();
+
+    const eventTypeInput = container.querySelector('#event-log-event-type') as HTMLInputElement;
+    eventTypeInput.value = 'UserJoinedRoomEvent';
+    eventTypeInput.dispatchEvent(new Event('input', { bubbles: true }));
+    await settle();
+
+    const apply = [...container.querySelectorAll('button')].find((button) =>
+      button.textContent?.includes('Apply')
+    ) as HTMLButtonElement;
+    apply.click();
+    await settle();
+
+    expect(mocks.goto).toHaveBeenCalledWith(
+      '/chat/-/server-admin/event-log?eventType=UserJoinedRoomEvent',
+      { keepFocus: true, noScroll: true }
+    );
+  });
+
+  it('groups event rows by creation date', async () => {
+    mocks.eventLog.entries = [
+      entry('103', 'LoginSucceededEvent', '2026-01-02T12:00:00Z'),
+      entry('102', 'UserJoinedRoomEvent', '2026-01-02T11:00:00Z'),
+      entry('101', 'LoginSucceededEvent', '2026-01-01T12:00:00Z')
+    ];
+
+    const { container } = render(EventLogPage);
+    await settle();
+
+    expect(container.textContent?.match(/Friday, January 2/g)).toHaveLength(1);
+    expect(container.textContent?.match(/Thursday, January 1/g)).toHaveLength(1);
   });
 });

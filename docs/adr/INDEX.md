@@ -48,3 +48,4 @@ For more about ADRs, see [Michael Nygard's article](https://cognitect.com/blog/2
 | [ADR-038](ADR-038-room-owned-thread-state.md) | Room-Owned Thread State | 2026-06-05 |
 | [ADR-039](ADR-039-service-worker-virtual-asset-urls.md) | Service Worker Virtual Asset URLs with Ticketed Fallback | 2026-06-08 |
 | [ADR-040](ADR-040-permission-only-rbac-with-owner-override.md) | Permission-Only RBAC with Owner Override | 2026-06-15 |
+| [ADR-041](ADR-041-runtime-units.md) | Runtime Units for Optional Chatto Processes | 2026-06-21 |

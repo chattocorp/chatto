@@ -61,6 +61,7 @@ Chatto supports embedded NATS for single-process/self-hosted installs and extern
 When using embedded NATS (default), `chatto init` generates:
 - `chatto.toml` with `[nats.embedded]`, in-process NATS enabled, JetStream data directory, and generated `auth_token`
 - A commented `nats.embedded.port` example; uncommenting the port enables a local TCP listener and derived `[nats.client]` connection defaults for CLI/admin commands
+- Standalone NATS-client tools such as `chatto exporter` require either external NATS or the embedded TCP listener. Single-process installs can instead opt into `[exporter].enabled = true` so `chatto run` starts the exporter in-process over its existing NATS connection.
 
 **External NATS Setup:**
 
@@ -71,12 +72,13 @@ For connecting to an external NATS cluster:
 
 ## Architecture & APIs
 
-Key files: [`cli/internal/core/core.go`](../cli/internal/core/core.go), [`cli/internal/events/`](../cli/internal/events/), [`cli/internal/http_server/metrics.go`](../cli/internal/http_server/metrics.go), [`proto/chatto/core/v1/`](../proto/chatto/core/v1/)
+Key files: [`cli/internal/core/core.go`](../cli/internal/core/core.go), [`cli/internal/events/`](../cli/internal/events/), [`cli/internal/runtimeunit/`](../cli/internal/runtimeunit/), [`cli/internal/http_server/metrics.go`](../cli/internal/http_server/metrics.go), [`cli/internal/exporter/`](../cli/internal/exporter/), [`proto/chatto/core/v1/`](../proto/chatto/core/v1/)
 
 - **NATS**: At the core, Chatto uses a series of NATS JetStream streams, KV buckets and object storage. Data stored in these is defined as Protocol Buffers (see `proto/`).
 - **Core**: The `core` package defines Chatto's domain logic and directly talks to NATS to interact with KV buckets, object stores, and the `EVT` stream. `ChattoCore` remains the compatibility facade, while smaller services own projection readiness and domain-specific write concerns.
+- **Runtime Units**: Optional long-running processes that share Chatto configuration, logging, NATS, and JetStream access implement the `runtimeunit.Unit` interface. A unit can run as a standalone `chatto <unit>` command over `[nats.client]`, or be embedded under `chatto run` when its config section enables that mode. Only `chatto run` starts embedded NATS and boots `ChattoCore`; observer/projection/worker units must open the resources they need without using core boot paths unless they explicitly need the main application runtime.
 - **GraphQL**: Client-facing API for all operations (auth, management, messaging). Subscriptions over WebSocket for real-time updates. Fields require authentication by default unless marked public in the schema; resolvers call Core methods directly and enforce operation-specific authorization before each call.
-- **Metrics & Diagnostics**: Optional Prometheus-compatible per-process metrics run on a separate internal HTTP listener configured by `[metrics]`. The endpoint exposes Go/process collectors plus Chatto readiness, GraphQL WebSocket counts, `myEvents` stream counters, NATS client counters, projection health/lag gauges, and final projection startup duration/message-count gauges once initial replay completes. Go pprof debug endpoints are available on the same internal listener under `/debug/pprof/` only when `[metrics].pprof` / `CHATTO_METRICS_PPROF` is enabled. `[diagnostics].startup_cpu_profile` / `CHATTO_DIAGNOSTICS_STARTUP_CPU_PROFILE` writes a process-startup CPU profile through core boot for local replay benchmarking and operator troubleshooting.
+- **Metrics & Diagnostics**: Optional Prometheus-compatible per-process metrics run on a separate internal HTTP listener configured by `[metrics]`. The endpoint exposes Go/process collectors plus Chatto readiness, GraphQL WebSocket counts, `myEvents` stream counters, NATS client counters, projection health/lag gauges, and final projection startup duration/message-count gauges once initial replay completes. Deployment-wide Chatto instance metrics are exposed by the separate `chatto exporter` command, or by `chatto run` when `[exporter].enabled = true`; the exporter reads existing `EVT` and `MEMORY_CACHE` resources without running core boot mutations and can cache S3 bucket-size scans. Go pprof debug endpoints are available on the per-process metrics listener under `/debug/pprof/` only when `[metrics].pprof` / `CHATTO_METRICS_PPROF` is enabled. `[diagnostics].startup_cpu_profile` / `CHATTO_DIAGNOSTICS_STARTUP_CPU_PROFILE` writes a process-startup CPU profile through core boot for local replay benchmarking and operator troubleshooting.
 - **Web Client**: SvelteKit-based SPA that gets compiled and embedded into the Go binary. Talks to GraphQL API over HTTP/WebSocket.
 - **Email**: Optional SMTP integration for transactional emails (verification, password reset). Configured via `[smtp]` in config. The `internal/email` package provides a `Mailer` that returns `ErrSMTPDisabled` when SMTP is not configured, allowing callers to handle gracefully.
 
@@ -307,7 +309,7 @@ There is no `adminAuditLogEvents` subscription — audit events arrive through `
 
 `Query.admin` returns `AdminQueries`; `Mutation.admin` returns `AdminMutations`. Both return `null` when the caller is unauthenticated; individual nested fields apply their own permissions such as `server.manage`, `admin.view-system`, `admin.view-audit`, `role.manage`, or owner-only gates (see [FDR-021](fdr/FDR-021-admin-dashboard.md)). Admin operations are spread across multiple schema files but all hang off these two types.
 
-Diagnostic fields (`admin.systemInfo`, `admin.eventLog`, `admin.eventLogEntry`, and `admin.projections`) are operator-facing inspection tools. `admin.systemInfo` is owner-only for now; `admin.projections` remains gated by `admin.view-system`. Their field names are part of the GraphQL API, but raw broker/storage strings, payload JSON, metric names, and point-in-time counts are diagnostic values rather than product-domain contracts.
+Diagnostic fields (`admin.systemInfo`, `admin.eventLog`, `admin.eventLogEventTypes`, `admin.eventLogEntry`, and `admin.projections`) are operator-facing inspection tools. `admin.systemInfo` is owner-only for now; `admin.projections` remains gated by `admin.view-system`. Their field names are part of the GraphQL API, but raw broker/storage strings, payload JSON, metric names, and point-in-time counts are diagnostic values rather than product-domain contracts.
 
 | Field                                            | Type      | Description                                                                                  |
 | ------------------------------------------------ | --------- | -------------------------------------------------------------------------------------------- |
@@ -315,7 +317,8 @@ Diagnostic fields (`admin.systemInfo`, `admin.eventLog`, `admin.eventLogEntry`, 
 | `admin.serverConfig`                             | Query     | Server configuration overrides (welcome message, MOTD, blocked usernames, OG description).  |
 | `admin.groupRolePermissions(groupId, roleName)`  | Query     | Explicit grants and denials for a role on a specific room group.                             |
 | `admin.groupUserPermissions(groupId, userId)`    | Query     | Explicit grants and denials for a user on a specific room group.                             |
-| `admin.eventLog(limit, before)`                  | Query     | Diagnostic event-log browser, newest first (`limit` default 50, max 200).                    |
+| `admin.eventLog(limit, before, filter)`          | Query     | Diagnostic event-log browser, newest first (`limit` default 50, max 200). Optional filters match exact event type, exact actor ID, and inclusive created-at bounds; filtered reads report bounded scan metadata (`scannedCount`, `scanLimit`, `scanLimited`). |
+| `admin.eventLogEventTypes`                       | Query     | Durable event-log type labels for filter suggestions.                                        |
 | `admin.eventLogEntry(sequence)`                  | Query     | Diagnostic event-log entry lookup by sequence.                                               |
 | `admin.projections`                              | Query     | Projection lag, rough memory estimates, and diagnostic metric buckets.                       |
 | `admin.updateBlockedUsernames(input)`            | Mutation  | Update the newline-separated blocked-username list.                                          |
@@ -332,8 +335,8 @@ Diagnostic fields (`admin.systemInfo`, `admin.eventLog`, `admin.eventLogEntry`, 
 | KV      | `RUNTIME_STATE`               | Persisted latest-value runtime/user state, including pending notifications, push subscriptions, auth/workflow tokens, and wrapped app DEK records |
 | KV      | `MEMORY_CACHE`                | Volatile memory-backed cache state for presence and short-lived leader leases; excluded from backups |
 | KV      | `ENCRYPTION_KEYS`             | KMS key-encryption keys and per-call LiveKit E2EE keys; excluded from backups |
-| Objects | `SERVER_ASSETS`               | Asset binaries (avatars, server branding, link previews, message attachments) |
-| Objects | `ASSET_CACHE`                 | Optional cached image transforms with TTL    |
+| Objects | `SERVER_ASSETS` or S3 bucket  | Persisted asset binaries                    |
+| Objects | `ASSET_CACHE`                 | Optional cached image transforms with TTL   |
 
 See [NATS Resource Inventory](#nats-resource-inventory) for detailed key patterns and subjects.
 
@@ -389,7 +392,7 @@ Key files: [`cli/internal/core/core.go`](../cli/internal/core/core.go), [`cli/in
 | KV bucket    | `RUNTIME_STATE`     | File    | Yes    | Persisted latest-value runtime state, auth/session tokens, notifications, wrapped app DEKs |
 | KV bucket    | `MEMORY_CACHE`      | Memory  | No     | Volatile presence and short-lived leader leases                             |
 | KV bucket    | `ENCRYPTION_KEYS`   | File    | No     | KMS key-encryption keys and per-call LiveKit E2EE keys; excluded from backups |
-| Object store | `SERVER_ASSETS`     | File    | Yes    | Asset binaries for avatars, branding, link previews, attachments, derivatives |
+| Object store | `SERVER_ASSETS`     | File    | Yes    | Default/legacy NATS-backed persisted asset binaries                         |
 | Object store | `ASSET_CACHE`       | File    | No     | Optional TTL cache for transformed image bytes                               |
 | NATS Core    | `live.sync.>`       | None    | No     | Transient `corev1.LiveEvent` pubsub signals                                  |
 | Republish    | `live.evt.>`        | None    | No     | Raw committed `EVT` facts republished by JetStream for server-side live delivery |
@@ -670,7 +673,7 @@ Notes: Memory-based storage (not persisted, not backed up). Presence uses per-ke
 | Bucket                      | Description                                       |
 | --------------------------- | ------------------------------------------------- |
 | `ASSET_CACHE`               | Cached resized images (optional)                  |
-| `SERVER_ASSETS`             | Asset binaries (avatars, server icon/banner, link previews, message attachments) |
+| `SERVER_ASSETS`             | NATS-backed persisted asset binaries              |
 
 **ASSET_CACHE keys:**
 
@@ -683,11 +686,18 @@ Notes: Only created when `[core.assets.cache]` is enabled in config. Uses TTL fo
 
 **SERVER\_ASSETS keys:**
 
-| Key                   | Description                                     |
-| --------------------- | ----------------------------------------------- |
-| `{assetId}`           | User avatars, server branding images, link-preview images, original attachment files, and derivative binaries |
+| Key         | Description                                    |
+| ----------- | ---------------------------------------------- |
+| `{assetId}` | Persisted asset binary by ID when stored in NATS |
 
-Notes: Asset IDs are globally unique (NanoID), so no kind segment is needed. Channel and DM assets share the same flat keyspace. Content-Type and original filename stored in object headers where available. S2 compression enabled. `MediaService` owns binary storage and serving helpers; `AssetService` owns durable lifecycle facts. Asset **metadata** (filename, dimensions, duration, storage pointer, …) is created in `AssetCreatedEvent` on `evt.asset.{assetId}.asset_created`; room scope and ownership context lives on the event (`message`, `derivative`, `user_avatar`, or `server_branding`) rather than inside `Asset`. New message bodies reference message-owned assets by ID. Processing events refer to created asset IDs and are appended under the same `evt.asset.{assetId}.*` aggregate. The asset projection also reads beta-era `evt.room.{roomId}.asset_*` facts so existing 0.1.0 histories continue to replay without a stream rewrite. Message posting asks the process-local video service to spawn video/animated-GIF processing after appending asset creation and processing-started events; there is no transient NATS Core worker subject or `video_processed` live signal. Boot recovery derives missed work from the EVT projections and calls the same local path. Video processing success records thumbnail/variant asset IDs, while each derivative binary is separately declared with `AssetCreatedEvent` and an owner pointing at the original asset. `AssetProcessingFailedEvent.failure_code` records failed/unavailable outcomes. Account deletion follows the projected message asset graph and appends `AssetDeletedEvent` for source assets and derivative children before deleting backing bytes. The asset HTTP handler doesn't look up a separate index bucket; stable asset URLs resolve metadata and room scope from `AssetProjection`, while legacy locator URLs carry the body-or-video-manifest locator in the URL itself (see "Dynamic Image Transformation" below).
+**S3 asset keys:**
+
+| Key                     | Description                                                  |
+| ----------------------- | ------------------------------------------------------------ |
+| `attachments/{assetId}` | Message attachment originals and derivative binaries         |
+| `instance/{assetId}`    | Server-scoped assets: user avatars, server branding images, and link-preview images |
+
+Notes: Asset IDs are globally unique (NanoID), so NATS-backed assets do not need a kind segment. S3 stores logical, prefix-free keys; any configured `path_prefix` is applied only when talking to the S3 backend. Content-Type and original filename stored in object headers where available. S2 compression enabled for `SERVER_ASSETS`. `MediaService` owns binary storage and serving helpers; `AssetService` owns durable lifecycle facts. Asset **metadata** (filename, dimensions, duration, storage pointer, …) is created in `AssetCreatedEvent` on `evt.asset.{assetId}.asset_created`; room scope and ownership context lives on the event (`message`, `derivative`, `user_avatar`, or `server_branding`) rather than inside `Asset`. New message bodies reference message-owned assets by ID. Link preview images are server-scoped persisted assets and are embedded in message bodies as `LinkPreview.image_asset` (`AssetRecord`) so the body records whether the image lives in S3 or `SERVER_ASSETS`; `image_asset_id` remains for compatibility with clients and older stored previews. Processing events refer to created asset IDs and are appended under the same `evt.asset.{assetId}.*` aggregate. The asset projection also reads beta-era `evt.room.{roomId}.asset_*` facts so existing 0.1.0 histories continue to replay without a stream rewrite. Message posting asks the process-local video service to spawn video/animated-GIF processing after appending asset creation and processing-started events; there is no transient NATS Core worker subject or `video_processed` live signal. Boot recovery derives missed work from the EVT projections and calls the same local path. Video processing success records thumbnail/variant asset IDs, while each derivative binary is separately declared with `AssetCreatedEvent` and an owner pointing at the original asset. `AssetProcessingFailedEvent.failure_code` records failed/unavailable outcomes. Account deletion follows the projected message asset graph and appends `AssetDeletedEvent` for source assets and derivative children before deleting backing bytes. The asset HTTP handler doesn't look up a separate index bucket; stable asset URLs resolve metadata and room scope from `AssetProjection`, while legacy locator URLs carry the body-or-video-manifest locator in the URL itself (see "Dynamic Image Transformation" below).
 
 ### Dynamic Image Transformation
 

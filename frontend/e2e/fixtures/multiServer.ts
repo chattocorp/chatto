@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import type { TestInfo } from '@playwright/test';
+import { readFile } from 'fs/promises';
 import { startServer, stopServer, type ServerInfo } from './server';
 
 /**
@@ -188,6 +189,69 @@ export async function postMessageOnRemote(
 		throw new Error(`No event ID returned from remote postMessage: ${JSON.stringify(data)}`);
 	}
 	return id;
+}
+
+/**
+ * Posts a message with one attachment in a room on a remote server. Returns
+ * the new event ID and the stable attachment URL emitted by GraphQL.
+ */
+export async function postMessageAttachmentOnRemote(
+	remoteBaseURL: string,
+	token: string,
+	roomId: string,
+	body: string,
+	filePath: string,
+	fileName: string,
+	contentType: string
+): Promise<{ eventId: string; attachmentUrl: string }> {
+	const fileBytes = await readFile(filePath);
+	const form = new FormData();
+	form.set(
+		'operations',
+		JSON.stringify({
+			query: `
+				mutation RemoteAttachment($roomId: ID!, $body: String!, $file: Upload!) {
+					postMessage(input: { roomId: $roomId, body: $body, attachments: [$file] }) {
+						id
+						event {
+							... on MessagePostedEvent {
+								attachments { id url }
+							}
+						}
+					}
+				}
+			`,
+			variables: { roomId, body, file: null }
+		})
+	);
+	form.set('map', JSON.stringify({ '0': ['variables.file'] }));
+	form.set('0', new Blob([new Uint8Array(fileBytes)], { type: contentType }), fileName);
+
+	const response = await fetch(`${remoteBaseURL}/api/graphql`, {
+		method: 'POST',
+		headers: {
+			'X-REQUEST-TYPE': 'GraphQL',
+			Authorization: `Bearer ${token}`
+		},
+		body: form
+	});
+
+	if (!response.ok) {
+		throw new Error(`Failed to post remote attachment: ${await response.text()}`);
+	}
+
+	const data = await response.json();
+	if (data.errors) {
+		throw new Error(`Remote attachment mutation returned errors: ${JSON.stringify(data.errors)}`);
+	}
+
+	const eventId = data.data?.postMessage?.id;
+	const attachmentUrl = data.data?.postMessage?.event?.attachments?.[0]?.url;
+	if (!eventId || !attachmentUrl) {
+		throw new Error(`No attachment returned from remote postMessage: ${JSON.stringify(data)}`);
+	}
+
+	return { eventId, attachmentUrl };
 }
 
 /**

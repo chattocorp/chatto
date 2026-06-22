@@ -561,9 +561,13 @@ func TestChattoCore_PostMessage_LinkPreviewLengthLimits(t *testing.T) {
 			Title:        strings.Repeat("t", MaxLinkPreviewTitleLength),
 			Description:  strings.Repeat("d", MaxLinkPreviewDescriptionLength),
 			ImageAssetId: &imageAssetID,
-			SiteName:     strings.Repeat("s", MaxLinkPreviewSiteNameLength),
-			EmbedType:    strings.Repeat("e", MaxLinkPreviewEmbedTypeLength),
-			EmbedId:      &embedID,
+			ImageAsset: &corev1.AssetRecord{
+				Id:      imageAssetID,
+				Storage: &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: imageAssetID}},
+			},
+			SiteName:  strings.Repeat("s", MaxLinkPreviewSiteNameLength),
+			EmbedType: strings.Repeat("e", MaxLinkPreviewEmbedTypeLength),
+			EmbedId:   &embedID,
 		}
 		if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "preview", nil, "", "", preview, false); err != nil {
 			t.Fatalf("PostMessage with max-length link preview: %v", err)
