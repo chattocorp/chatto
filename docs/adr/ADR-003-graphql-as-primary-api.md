@@ -2,6 +2,8 @@
 
 **Date:** 2026-03-01
 
+**Status:** Superseded for future public API direction by [ADR-042](ADR-042-protobuf-first-public-api.md). GraphQL remains the current implemented API until the protobuf-first API is built and migrated.
+
 ## Context
 
 Chatto's frontend needs to query structured data (users, spaces, rooms, messages), perform mutations (post message, join room, update settings), and receive real-time updates (new messages, presence changes, typing indicators). The API must support all three patterns efficiently.
