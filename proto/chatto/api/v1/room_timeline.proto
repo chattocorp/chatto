@@ -1,0 +1,155 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "google/protobuf/timestamp.proto";
+
+message RoomTimelineUser {
+  string id = 1;
+  string login = 2;
+  string display_name = 3;
+  bool deleted = 4;
+  string avatar_url = 5;
+}
+
+message RoomTimelineIncludes {
+  map<string, RoomTimelineUser> users = 1;
+}
+
+message RoomTimelineAssetUrl {
+  string url = 1;
+  google.protobuf.Timestamp expires_at = 2;
+}
+
+enum RoomTimelineVideoProcessingStatus {
+  ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_UNSPECIFIED = 0;
+  ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_PROCESSING = 1;
+  ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_COMPLETED = 2;
+  ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_FAILED = 3;
+}
+
+message RoomTimelineVideoVariant {
+  string quality = 1;
+  int32 width = 2;
+  int32 height = 3;
+  int64 size = 4;
+  RoomTimelineAssetUrl asset_url = 5;
+}
+
+message RoomTimelineVideoProcessing {
+  RoomTimelineVideoProcessingStatus status = 1;
+  int64 duration_ms = 2;
+  int32 width = 3;
+  int32 height = 4;
+  bool source_available = 5;
+  string reason_code = 6;
+  RoomTimelineAssetUrl thumbnail_asset_url = 7;
+  repeated RoomTimelineVideoVariant variants = 8;
+}
+
+message RoomTimelineAttachment {
+  string id = 1;
+  string filename = 2;
+  string content_type = 3;
+  int32 width = 4;
+  int32 height = 5;
+  RoomTimelineAssetUrl asset_url = 6;
+  RoomTimelineAssetUrl thumbnail_asset_url = 7;
+  RoomTimelineVideoProcessing video_processing = 8;
+}
+
+message RoomTimelineLinkPreview {
+  string url = 1;
+  string title = 2;
+  string description = 3;
+  string site_name = 4;
+  string image_url = 5;
+  string embed_type = 6;
+  string embed_id = 7;
+}
+
+message RoomTimelineReactionSummary {
+  string emoji = 1;
+  int32 count = 2;
+  bool has_reacted = 3;
+  repeated string user_ids = 4;
+}
+
+message RoomTimelineMessagePosted {
+  string room_id = 1;
+  string body = 2;
+  bool body_present = 3;
+  repeated RoomTimelineAttachment attachments = 4;
+  RoomTimelineLinkPreview link_preview = 5;
+  google.protobuf.Timestamp updated_at = 6;
+  string in_reply_to = 7;
+  string thread_root_event_id = 8;
+  string echo_of_event_id = 9;
+  string echo_from_thread_root_event_id = 10;
+  string channel_echo_event_id = 11;
+  int32 reply_count = 12;
+  google.protobuf.Timestamp last_reply_at = 13;
+  repeated string thread_participant_user_ids = 14;
+  bool viewer_is_following_thread = 15;
+  bool viewer_is_following_thread_present = 16;
+  repeated RoomTimelineReactionSummary reactions = 17;
+}
+
+message RoomTimelineRoomEvent {
+  string room_id = 1;
+}
+
+message RoomTimelineEvent {
+  string id = 1;
+  google.protobuf.Timestamp created_at = 2;
+  string actor_id = 3;
+
+  oneof event {
+    RoomTimelineMessagePosted message_posted = 10;
+    RoomTimelineRoomEvent room_created = 20;
+    RoomTimelineRoomEvent room_updated = 21;
+    RoomTimelineRoomEvent room_deleted = 22;
+    RoomTimelineRoomEvent room_archived = 23;
+    RoomTimelineRoomEvent room_unarchived = 24;
+    RoomTimelineRoomEvent user_joined_room = 30;
+    RoomTimelineRoomEvent user_left_room = 31;
+  }
+}
+
+message RoomTimelinePage {
+  repeated RoomTimelineEvent events = 1;
+  string start_cursor = 2;
+  string end_cursor = 3;
+  bool has_older = 4;
+  bool has_newer = 5;
+  RoomTimelineIncludes includes = 6;
+}
+
+message GetRoomEventsRequest {
+  string room_id = 1;
+  int32 limit = 2;
+  oneof cursor {
+    string before = 3;
+    string after = 4;
+  }
+}
+
+message GetRoomEventsResponse {
+  RoomTimelinePage page = 1;
+}
+
+message GetRoomEventsAroundRequest {
+  string room_id = 1;
+  string event_id = 2;
+  int32 limit = 3;
+}
+
+message GetRoomEventsAroundResponse {
+  RoomTimelinePage page = 1;
+  int32 target_index = 2;
+}
+
+service RoomTimelineService {
+  rpc GetRoomEvents(GetRoomEventsRequest) returns (GetRoomEventsResponse);
+  rpc GetRoomEventsAround(GetRoomEventsAroundRequest) returns (GetRoomEventsAroundResponse);
+}
