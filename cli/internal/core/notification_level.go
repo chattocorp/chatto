@@ -17,6 +17,13 @@ import (
 // user's config aggregate.
 //
 // Inheritance: room-level → server-level → NORMAL (system default).
+//
+// Transitional layering note: the low-level ChattoCore helpers in this file
+// predate the ConnectRPC API and mostly perform projected reads, config writes,
+// effective-level resolution, and live-event publishing. New user-facing
+// transports should enter through NotificationPreferencesService instead, so
+// operation authZ and response shaping do not drift between GraphQL, ConnectRPC,
+// and future transports.
 // ============================================================================
 
 // GetSpaceNotificationLevel returns the user's server-wide notification level.
@@ -81,9 +88,13 @@ func (c *ChattoCore) GetRoomNotificationLevel(_ context.Context, userID, roomID 
 	return c.ServerConfig.NotificationRoomLevel(userID, roomID), nil
 }
 
-// SetRoomNotificationLevel sets the user's notification level for a room.
-// Pass NOTIFICATION_LEVEL_UNSPECIFIED to clear the override.
-// Authorization: Caller must verify access (self-only + room membership in GraphQL layer).
+// SetRoomNotificationLevel sets the user's notification level for a room and
+// publishes the live invalidation event. Pass NOTIFICATION_LEVEL_UNSPECIFIED to
+// clear the override.
+//
+// This is intentionally a lower-level write helper. It does not verify room
+// membership; callers that serve user requests should use
+// NotificationPreferencesService.SetRoomNotificationLevel instead.
 func (c *ChattoCore) SetRoomNotificationLevel(ctx context.Context, userID, roomID string, level corev1.NotificationLevel) error {
 	if c.configManager == nil || c.configManager.service == nil || c.ServerConfig == nil {
 		return fmt.Errorf("config service not configured")
@@ -175,7 +186,7 @@ type RoomNotificationPreference struct {
 }
 
 // NotificationPreferences returns the operation-level service for notification
-// preference reads and writes. Transports should prefer this service over
+// preference reads and writes. Transports should use this service rather than
 // calling the lower-level ChattoCore helpers directly so authorization and
 // response semantics stay shared.
 func (c *ChattoCore) NotificationPreferences() *NotificationPreferencesService {
@@ -186,9 +197,11 @@ func (c *ChattoCore) NotificationPreferences() *NotificationPreferencesService {
 }
 
 // NotificationPreferencesService owns user-facing notification preference
-// operations. The low-level config reads/writes already lived on ChattoCore;
-// this service centralizes the operation authZ and response shaping that used
-// to live in the GraphQL resolver so ConnectRPC and GraphQL share it.
+// operations. It is intentionally thin for now: the low-level config
+// reads/writes already lived on ChattoCore, while membership authZ and response
+// shaping used to live in the GraphQL resolver. This service centralizes that
+// operation policy so ConnectRPC and GraphQL share it during the transition
+// toward service-owned operations.
 type NotificationPreferencesService struct {
 	core *ChattoCore
 }

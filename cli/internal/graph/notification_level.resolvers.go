@@ -48,6 +48,9 @@ func (r *mutationResolver) SetRoomNotificationLevel(ctx context.Context, input m
 	}
 
 	protoLevel := gqlNotificationLevelToProto(input.Level)
+	// The GraphQL resolver used to own the room membership check and effective
+	// response resolution. Keep those in the shared service so this legacy
+	// mutation and the ConnectRPC method enforce the same operation policy.
 	pref, err := r.core.NotificationPreferences().SetRoomNotificationLevel(ctx, user.Id, input.RoomID, protoLevel)
 	if errors.Is(err, core.ErrPermissionDenied) {
 		return nil, fmt.Errorf("access denied: not a member of this room")

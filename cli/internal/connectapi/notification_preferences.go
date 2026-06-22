@@ -17,6 +17,8 @@ func (s *notificationPreferencesService) GetRoomNotificationPreference(ctx conte
 	if err != nil {
 		return nil, err
 	}
+	// Keep ConnectRPC transport code thin: authenticate the request, translate
+	// protobufs/errors, and delegate operation authZ to the core service.
 	pref, err := s.api.core.NotificationPreferences().GetRoomNotificationPreference(ctx, user.Id, req.Msg.RoomId)
 	if err != nil {
 		return nil, connectError(err)
@@ -33,6 +35,8 @@ func (s *notificationPreferencesService) SetRoomNotificationLevel(ctx context.Co
 		return nil, err
 	}
 	level := apiNotificationLevelToCore(req.Msg.Level)
+	// Keep membership checks and response semantics in the shared service so
+	// GraphQL and ConnectRPC cannot drift.
 	pref, err := s.api.core.NotificationPreferences().SetRoomNotificationLevel(ctx, user.Id, req.Msg.RoomId, level)
 	if err != nil {
 		return nil, connectError(err)
