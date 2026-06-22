@@ -24,7 +24,7 @@ This example deploys a clustered Chatto setup with:
 2. Edit `.env` and fill in your values:
 
    ```bash
-   # Generate secrets with:
+   # Generate Chatto and LiveKit secrets with:
    openssl rand -hex 32
    ```
 
@@ -38,7 +38,7 @@ This example deploys a clustered Chatto setup with:
    - `CHATTO_CORE_SECRET_KEY` - Bearer-token and account-flow verifier key
    - `CHATTO_CORE_ASSETS_SIGNING_SECRET` - Asset URL signing
    - `CHATTO_SMTP_*` - Required for direct email/password registration, email verification, and password reset
-   - `CHATTO_LIVEKIT_API_KEY` / `CHATTO_LIVEKIT_API_SECRET` - Must match the keys in `livekit.yaml`
+   - `CHATTO_LIVEKIT_API_KEY` / `CHATTO_LIVEKIT_API_SECRET` - Must match the keys in `livekit.yaml`. LiveKit requires the API secret to be at least 32 characters.
 
 3. Edit `livekit.yaml` and update:
    - The API key/secret pair under `keys:` (must match the `.env` values)
@@ -73,6 +73,16 @@ docker compose down -v
 ```bash
 # Scale to 5 replicas
 docker compose up -d --scale chatto=5
+```
+
+## Inspecting NATS
+
+The Chatto image includes the `nats` CLI and writes a context for the runtime
+NATS connection. Run it as the `chatto` user so the CLI reads the context from
+`/home/chatto`:
+
+```bash
+docker compose exec -u chatto chatto nats stream ls
 ```
 
 ## Updating

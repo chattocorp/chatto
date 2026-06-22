@@ -6,7 +6,7 @@ rtc:
 
 keys:
   # Must match CHATTO_LIVEKIT_API_KEY / CHATTO_LIVEKIT_API_SECRET in .env
-  your-api-key: your-api-secret
+  your-api-key: replace-with-at-least-32-character-livekit-secret
 
 webhook:
   urls:
