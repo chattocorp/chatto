@@ -86,11 +86,14 @@ export async function handleAssetProxyFetch(
   }
 
   let server = assetProxyServers.get(proxyRequest.serverId);
-  let registered = registeredAssetTargets.get(proxyRequest.virtualPath);
+  let registered = matchingRegisteredAssetTarget(proxyRequest);
   if (!server || !registered) {
     await requestAssetProxyResync(proxyRequest);
     server = assetProxyServers.get(proxyRequest.serverId);
-    registered = registeredAssetTargets.get(proxyRequest.virtualPath);
+    registered = matchingRegisteredAssetTarget(proxyRequest);
+  }
+  if (!server) {
+    return new Response('Asset target is not registered', { status: 404 });
   }
 
   const targetUrl =
@@ -167,6 +170,12 @@ function mergeAssetProxyServers(servers: unknown[]): void {
 
 function registerAssetProxyTarget(target: AssetProxyTarget): void {
   registeredAssetTargets.set(target.virtualPath, target);
+}
+
+function matchingRegisteredAssetTarget(proxyRequest: AssetProxyRequest): AssetProxyTarget | undefined {
+  const registered = registeredAssetTargets.get(proxyRequest.virtualPath);
+  if (registered?.serverId !== proxyRequest.serverId) return undefined;
+  return registered;
 }
 
 async function requestAssetProxyResync(proxyRequest: AssetProxyRequest): Promise<void> {

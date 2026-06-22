@@ -6,16 +6,14 @@ import (
 	"image"
 	"image/png"
 	"io"
-	"net/http/httptest"
 	"testing"
 	"time"
 
-	"github.com/johannesboyne/gofakes3"
-	"github.com/johannesboyne/gofakes3/backend/s3mem"
 	"github.com/nats-io/nats.go"
 	"hmans.de/chatto/internal/config"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
+	"hmans.de/chatto/internal/testutil/fakes3"
 	"hmans.de/chatto/pkg/signedurl"
 )
 
@@ -980,13 +978,8 @@ func setupTestCoreWithS3(t *testing.T) (*ChattoCore, *nats.Conn, *S3Client) {
 func setupTestCoreWithS3PathPrefix(t *testing.T, pathPrefix string) (*ChattoCore, *nats.Conn, *S3Client, *S3Client, config.S3Config) {
 	t.Helper()
 
-	// Start fake S3 server
-	backend := s3mem.New()
-	faker := gofakes3.New(backend)
-	s3Server := httptest.NewServer(faker.Server())
-	t.Cleanup(s3Server.Close)
-
-	endpointHost := s3Server.URL[7:] // Remove "http://"
+	s3Server := fakes3.NewServer(t)
+	endpointHost := s3Server.EndpointHost()
 
 	_, nc := testutil.StartSharedNATS(t)
 

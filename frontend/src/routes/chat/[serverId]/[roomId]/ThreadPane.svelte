@@ -237,6 +237,7 @@
       const dismissedForRoom = counts.byRoom[currentRoomId] ?? 0;
       if (dismissedForRoom > 0) {
         stores.rooms.decrementUnreadNotification(currentRoomId, dismissedForRoom);
+        void stores.rooms.refreshNotificationCounts();
       }
     });
   });

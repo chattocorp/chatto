@@ -55,12 +55,12 @@ runs:
         sudo apt-get update -qq
         sudo apt-get install -y -qq ffmpeg
 
-    - name: Install CLI dependencies
+    - name: Set up CLI
       if: inputs.install-cli-deps == 'true'
       shell: bash
-      run: mise deps-cli
+      run: mise setup-cli
 
-    - name: Install Frontend dependencies
+    - name: Set up Frontend
       if: inputs.install-frontend-deps == 'true'
       shell: bash
-      run: mise deps-frontend
+      run: mise setup-frontend

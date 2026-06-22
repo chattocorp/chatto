@@ -449,9 +449,10 @@ test.describe('User Permission Management', () => {
     // Should see user details
     await adminPage.expectUserManagementVisible();
     // The login should appear in the user profile section
-    await expect(
-      page.locator('.font-medium').filter({ hasText: 'e2eadmin' }).first()
-    ).toBeVisible();
+    const userDetailsPanel = page.locator('.rounded-xl').filter({
+      has: page.getByRole('heading', { name: 'User Details' })
+    });
+    await expect(userDetailsPanel.getByText('@e2eadmin', { exact: true })).toBeVisible();
   });
 
   test('granting a role with admin.view-users gives user admin access', async ({

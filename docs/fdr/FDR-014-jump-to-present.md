@@ -52,5 +52,5 @@ When a user is reading older messages in a room — either because they scrolled
 
 ## Related
 
-- **ADRs:** ADR-041 (protobuf client wire protocol)
+- **ADRs:** ADR-042 (protobuf client wire protocol)
 - **FDRs:** FDR-002 (Replies & Threads), FDR-012 (Notifications)

@@ -10,6 +10,8 @@
     emptyMessage = 'No data',
     onRowClick,
     getKey,
+    getGroupKey,
+    group,
     hoverable = true,
     hasMore = false,
     loadingMore = false,
@@ -25,6 +27,8 @@
     emptyMessage?: string;
     onRowClick?: (item: T) => void;
     getKey?: (item: T, index: number) => string | number;
+    getGroupKey?: (item: T, index: number) => string | null | undefined;
+    group?: Snippet<[T]>;
     /**
      * Whether rows highlight on hover. Defaults to `true` for the standard
      * "list of records" treatment; pass `false` for matrix-style tables
@@ -57,6 +61,16 @@
   }
 
   const keyFn = $derived(getKey ?? defaultGetKey);
+
+  function shouldRenderGroup(item: T, index: number): boolean {
+    if (!group || !getGroupKey) return false;
+
+    const current = getGroupKey(item, index);
+    if (!current) return false;
+    if (index === 0) return true;
+
+    return current !== getGroupKey(items[index - 1], index - 1);
+  }
 
   function triggerLoadMore(callback = onLoadMore) {
     if (!hasMore || loadingMore || loadMoreInFlight || !callback) return;
@@ -102,6 +116,13 @@
   </thead>
   <tbody>
     {#each items as item, index (keyFn(item, index))}
+      {#if shouldRenderGroup(item, index)}
+        <tr class="border-b border-border bg-surface-100/80">
+          <td colspan={columns} class="px-4 py-2">
+            {@render group?.(item)}
+          </td>
+        </tr>
+      {/if}
       <tr
         class={[
           'border-b border-border last:border-0',

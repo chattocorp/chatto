@@ -20,3 +20,4 @@ test-results/
 
 .claude/worktrees/
 .claude/scheduled_tasks.lock
+/cli/cmd/embedded/

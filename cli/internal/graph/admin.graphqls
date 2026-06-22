@@ -202,8 +202,20 @@ type EventLogEntry {
   actorId: String!
   "When the event was created (per the event payload, not the stream)."
   createdAt: Time!
-  "Raw payload rendered as JSON for human inspection. Do not build clients that depend on this shape."
+"Raw payload rendered as JSON for human inspection. Do not build clients that depend on this shape."
   payloadJson: String!
+}
+
+"Filters for browsing the diagnostic event log. All supplied filters must match."
+input EventLogFilterInput {
+  "Exact diagnostic event variant label, e.g. UserAccountCreatedEvent."
+  eventType: String
+  "Exact event actor ID, including synthetic actors such as system:bootstrap."
+  actorId: ID
+  "Inclusive lower bound for event creation time."
+  createdAtFrom: Time
+  "Inclusive upper bound for event creation time."
+  createdAtTo: Time
 }
 
 "A page of diagnostic event-log entries, newest first."
@@ -216,11 +228,19 @@ type EventLogConnection {
   endCursor: String
   "Total messages currently in EVT, serialized as Int64 so large event logs do not overflow GraphQL Int."
   totalCount: Int64! @goField(type: "int64")
+  "Number of retained event-log rows inspected to produce this page."
+  scannedCount: Int!
+  "Maximum retained event-log rows this request may inspect."
+  scanLimit: Int!
+  "True when filters may have more matches beyond the inspected scan window."
+  scanLimited: Boolean!
 }
 
 extend type AdminQueries {
   "Browse the durable event log newest-first for operator diagnostics. `limit` defaults to 50, max 200. `before` is a sequence string; entries returned will have sequence < before."
-  eventLog(limit: Int, before: String): EventLogConnection! @goField(forceResolver: true)
+  eventLog(limit: Int, before: String, filter: EventLogFilterInput): EventLogConnection! @goField(forceResolver: true)
+  "List diagnostic event variant labels accepted by eventLog filter suggestions."
+  eventLogEventTypes: [String!]! @goField(forceResolver: true)
   "Fetch a single diagnostic event-log entry by sequence. Returns null if the sequence doesn't exist."
   eventLogEntry(sequence: String!): EventLogEntry @goField(forceResolver: true)
 }

@@ -107,7 +107,7 @@ Authentication itself doesn't have a permission gate (you're either authenticate
 
 ## Related
 
-- **ADRs:** ADR-017 (cookie-session auth for WebSocket), ADR-024 (opaque bearer tokens for cross-origin auth), ADR-025 (multi-instance client architecture), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-041 (protobuf client wire protocol)
+- **ADRs:** ADR-017 (cookie-session auth for WebSocket), ADR-024 (opaque bearer tokens for cross-origin auth), ADR-025 (multi-instance client architecture), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-042 (protobuf client wire protocol)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-018 (Account Lifecycle)
 
 ## Open Questions

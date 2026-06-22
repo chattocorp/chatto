@@ -1,4 +1,4 @@
-# ADR-041: Protobuf Client Wire Protocol for the First-Party App
+# ADR-042: Protobuf Client Wire Protocol for the First-Party App
 
 **Date:** 2026-06-20
 

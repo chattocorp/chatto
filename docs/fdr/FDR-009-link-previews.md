@@ -44,11 +44,11 @@ When a message contains a URL, Chatto can attach a preview card with the page's 
 **Why:** Without these protections, a maliciously crafted URL could make the server fetch internal services. A pre-fetch DNS lookup is bypassable via rebinding; connection-time enforcement is not.
 **Tradeoff:** Some legitimate internal-network use cases (preview an intranet wiki page) don't work. Operators who need that can disable previews entirely.
 
-### 5. Preview images are downloaded, resized, and stored as server assets
+### 5. Preview images are downloaded, resized, and stored as persisted assets
 
-**Decision:** Preview images are fetched once, resized to 1200×630 max, converted to WebP, and stored as assets on the Chatto server.
+**Decision:** Preview images are fetched once, resized to 1200×630 max, converted to WebP, and stored through the configured persisted asset backend (S3 when configured, otherwise NATS `SERVER_ASSETS`). Sent message bodies carry the preview image as `LinkPreview.image_asset` (`AssetRecord`); `image_asset_id` remains as a compatibility field for GraphQL clients and older stored previews.
 **Why:** Hot-linking preview images from third-party sites means broken previews when those sites change URLs, plus a privacy leak (the third party sees every Chatto user's fetch). Storing locally fixes both.
-**Tradeoff:** Per-server storage cost. Acceptable given asset deduplication and the small fixed size cap.
+**Tradeoff:** Per-server storage cost. Acceptable given the small fixed size cap and the fact that posted message previews should not lose images just because a cache expired.
 
 ### 6. Stored preview metadata is bounded
 

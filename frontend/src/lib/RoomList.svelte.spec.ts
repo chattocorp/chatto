@@ -64,7 +64,8 @@ const { mocks } = vi.hoisted(() => ({
         setUnread: vi.fn(),
         clearUnreadNotifications: vi.fn(),
         decrementUnreadNotification: vi.fn(),
-        incrementUnreadNotification: vi.fn()
+        incrementUnreadNotification: vi.fn(),
+        refreshNotificationCounts: vi.fn().mockResolvedValue(undefined)
       },
       pendingHighlights: {
         set: vi.fn()
@@ -256,6 +257,7 @@ beforeEach(() => {
     notification: null
   });
   mocks.store.notifications.getCleanPath.mockReturnValue('/chat/-/room');
+  mocks.store.rooms.refreshNotificationCounts.mockResolvedValue(undefined);
 });
 
 describe('RoomList', () => {
@@ -582,6 +584,7 @@ describe('RoomList', () => {
       );
       expect(mocks.store.rooms.decrementUnreadNotification).toHaveBeenCalledWith('channel-1');
       expect(mocks.store.notifications.dismiss).toHaveBeenCalledWith('mention-1');
+      expect(mocks.store.rooms.refreshNotificationCounts).toHaveBeenCalledOnce();
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-/channel-1/thread-1');
     });
   });
@@ -612,6 +615,7 @@ describe('RoomList', () => {
         'dm-with-participants'
       );
       expect(mocks.store.notifications.dismiss).toHaveBeenCalledWith('dm-1');
+      expect(mocks.store.rooms.refreshNotificationCounts).toHaveBeenCalledOnce();
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-/dm-with-participants');
     });
   });

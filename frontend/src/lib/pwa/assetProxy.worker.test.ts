@@ -102,6 +102,18 @@ describe('service worker asset proxy fetch', () => {
     vi.unstubAllGlobals();
   });
 
+  it('does not serve cached virtual assets without a current server registration', async () => {
+    const cache = await caches.open('chatto-assets-v1');
+    await cache.put(new Request(VIRTUAL_URL), new Response('cached asset'));
+    vi.stubGlobal('fetch', vi.fn());
+
+    const response = await fetchVirtualAsset();
+
+    expect(response.status).toBe(404);
+    await expect(response.text()).resolves.toBe('Asset target is not registered');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it('proxies registered asset targets without attaching bearer Authorization', async () => {
     await syncServer();
     await registerTarget('https://remote.example/assets/files/asset-1?access=ticket-a');

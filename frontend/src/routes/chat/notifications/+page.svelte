@@ -103,6 +103,7 @@
     void store.dismiss(item.notification.id).then((dismissed) => {
       if (dismissed && target.roomId) {
         stores.rooms.decrementUnreadNotification(target.roomId);
+        void stores.rooms.refreshNotificationCounts();
       }
     });
 
@@ -118,6 +119,7 @@
     const dismissed = await stores.notifications.dismiss(item.notification.id);
     if (dismissed && target.roomId) {
       stores.rooms.decrementUnreadNotification(target.roomId);
+      void stores.rooms.refreshNotificationCounts();
     }
   }
 
@@ -131,6 +133,7 @@
         stores.notifications.dismissAll().then((dismissed) => {
           if (hadNotifications || dismissed > 0) {
             stores.rooms.clearAllUnreadNotifications();
+            void stores.rooms.refreshNotificationCounts();
           }
         })
       );

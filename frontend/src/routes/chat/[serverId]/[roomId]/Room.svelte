@@ -241,6 +241,7 @@
       );
       if (dismissedForRoom > 0) {
         stores.rooms.decrementUnreadNotification(currentRoomId, dismissedForRoom);
+        void stores.rooms.refreshNotificationCounts();
       }
     })();
   });
