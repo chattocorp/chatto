@@ -53,5 +53,5 @@ Reconnect catch-up is owned by the foreground web app, not the service worker. W
 
 ## Related
 
-- **ADRs:** ADR-039 (Service Worker virtual asset URLs with ticketed fallback)
+- **ADRs:** ADR-039 (Service Worker virtual asset URLs with ticketed fallback), ADR-043 (client-shell internationalization)
 - **FDRs:** FDR-008 (File Attachments & Video Processing), FDR-012 (Notifications), FDR-013 (Web Push Notifications)

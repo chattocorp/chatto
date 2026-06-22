@@ -1,4 +1,6 @@
 <script lang="ts">
+  import * as m from '$lib/paraglide/messages';
+  import { getLocale, setLocale, type Locale } from '$lib/paraglide/runtime';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { graphql } from '$lib/gql';
   import { TimeFormat } from '$lib/gql/graphql';
@@ -13,6 +15,7 @@
   const userSettings = getUserSettings();
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
   const connection = useConnection();
+  const activeLocale = getLocale();
 
   // All available IANA timezone names
   const allTimezones = Intl.supportedValuesOf('timeZone');
@@ -48,7 +51,18 @@
   const timezoneError = $derived.by(() => {
     if (!timezoneSearch) return undefined;
     if (allTimezones.includes(timezoneSearch)) return undefined;
-    return 'Please select a valid timezone from the list';
+    return m.settings_preferences_timezone_invalid();
+  });
+
+  const selectedTimezoneTime = $derived.by(() => {
+    if (!selectedTimezone) return null;
+
+    return new Date().toLocaleTimeString(activeLocale, {
+      timeZone: selectedTimezone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: userSettings.effectiveHour12
+    });
   });
 
   function handleTimezoneInput(e: Event) {
@@ -77,6 +91,11 @@
     timezoneSearch = '';
     selectedTimezone = null;
     dropdownOpen = false;
+  }
+
+  function handleLocaleSelect(locale: Locale) {
+    if (locale === activeLocale) return;
+    void setLocale(locale);
   }
 
   function handleTimezoneKeydown(e: KeyboardEvent) {
@@ -122,7 +141,7 @@
   async function handleSave() {
     // Validate timezone if set
     if (timezoneSearch && !allTimezones.includes(timezoneSearch)) {
-      error = 'Please select a valid timezone from the list';
+      error = m.settings_preferences_timezone_invalid();
       return;
     }
 
@@ -162,9 +181,9 @@
         userSettings.updateFromData(data);
       }
 
-      toast.success('Display settings saved');
+      toast.success(m.settings_preferences_saved());
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to save display settings';
+      error = err instanceof Error ? err.message : m.settings_preferences_save_failed();
     } finally {
       isSaving = false;
     }
@@ -177,46 +196,68 @@
   }> = [
     {
       value: 'system',
-      label: 'System',
-      description: 'Follow your browser or OS appearance'
+      label: m.settings_preferences_theme_system_label(),
+      description: m.settings_preferences_theme_system_description()
     },
     {
       value: 'light',
-      label: 'Light',
-      description: 'Use the light interface on this browser'
+      label: m.settings_preferences_theme_light_label(),
+      description: m.settings_preferences_theme_light_description()
     },
     {
       value: 'dark',
-      label: 'Dark',
-      description: 'Use the dark interface on this browser'
+      label: m.settings_preferences_theme_dark_label(),
+      description: m.settings_preferences_theme_dark_description()
+    }
+  ];
+
+  const languageOptions: Array<{
+    value: Locale;
+    label: string;
+  }> = [
+    {
+      value: 'en',
+      label: m.settings_preferences_language_english()
+    },
+    {
+      value: 'de',
+      label: m.settings_preferences_language_german()
     }
   ];
 
   const timeFormatOptions = [
     {
       value: TimeFormat.Auto,
-      label: 'Browser default',
-      description: 'Use your browser locale to determine 12h or 24h format'
+      label: m.settings_preferences_time_format_browser_default_label(),
+      description: m.settings_preferences_time_format_browser_default_description()
     },
     {
       value: TimeFormat.TwelveHour,
-      label: '12-hour',
-      description: 'e.g., 2:30 PM'
+      label: m.settings_preferences_time_format_12h_label(),
+      description: m.settings_preferences_time_format_12h_description()
     },
     {
       value: TimeFormat.TwentyFourHour,
-      label: '24-hour',
-      description: 'e.g., 14:30'
+      label: m.settings_preferences_time_format_24h_label(),
+      description: m.settings_preferences_time_format_24h_description()
     }
   ];
 </script>
 
-<PaneHeader title="Display" subtitle="Choose how Chatto appears" showMobileNav />
+<PaneHeader
+  title={m.settings_preferences_title()}
+  subtitle={m.settings_preferences_subtitle()}
+  showMobileNav
+/>
 
 <div class="flex flex-col gap-6 overflow-y-auto p-6">
   <!-- Theme -->
-  <FormSection title="Theme" maxWidth="max-w-md">
-    <div class="flex flex-col gap-2" role="radiogroup" aria-label="Theme">
+  <FormSection title={m.settings_preferences_theme_title()} maxWidth="max-w-md">
+    <div
+      class="flex flex-col gap-2"
+      role="radiogroup"
+      aria-label={m.settings_preferences_theme_title()}
+    >
       {#each themeOptions as option (option.value)}
         {@const isSelected = userPreferences.displayTheme === option.value}
         <button
@@ -240,12 +281,40 @@
     </div>
   </FormSection>
 
+  <!-- Language -->
+  <FormSection title={m.settings_preferences_language_title()} maxWidth="max-w-md" bordered>
+    <p class="mb-3 text-sm text-muted">{m.settings_preferences_language_description()}</p>
+
+    <div
+      class="flex flex-col gap-2"
+      role="radiogroup"
+      aria-label={m.settings_preferences_language_title()}
+    >
+      {#each languageOptions as option (option.value)}
+        {@const isSelected = activeLocale === option.value}
+        <button
+          type="button"
+          role="radio"
+          aria-checked={isSelected}
+          class={['choice-row', isSelected && 'choice-row-selected']}
+          onclick={() => handleLocaleSelect(option.value)}
+        >
+          <span class={['choice-indicator', isSelected && 'choice-indicator-selected']}>
+            {#if isSelected}
+              <span class="choice-indicator-dot"></span>
+            {/if}
+          </span>
+          <div>
+            <div class={isSelected ? 'font-medium' : ''}>{option.label}</div>
+          </div>
+        </button>
+      {/each}
+    </div>
+  </FormSection>
+
   <!-- Timezone -->
-  <FormSection title="Timezone" maxWidth="max-w-md" bordered>
-    <p class="mb-3 text-sm text-muted">
-      Set your timezone to display timestamps in your local time. Leave empty to use your browser's
-      default.
-    </p>
+  <FormSection title={m.settings_preferences_timezone_title()} maxWidth="max-w-md" bordered>
+    <p class="mb-3 text-sm text-muted">{m.settings_preferences_timezone_description()}</p>
 
     <div class="relative">
       <input
@@ -258,7 +327,7 @@
         }}
         onblur={handleTimezoneBlur}
         onkeydown={handleTimezoneKeydown}
-        placeholder="Browser default"
+        placeholder={m.settings_preferences_timezone_browser_default()}
         class="input w-full"
         autocomplete="off"
         role="combobox"
@@ -271,7 +340,7 @@
           type="button"
           class="absolute top-1/2 right-2 icon-action -translate-y-1/2"
           onclick={handleClearTimezone}
-          title="Clear timezone (use browser default)"
+          title={m.settings_preferences_timezone_clear()}
         >
           <span class="iconify uil--times"></span>
         </button>
@@ -301,7 +370,7 @@
           {/each}
           {#if filteredTimezones.length > 50}
             <li class="px-3 py-1.5 text-xs text-muted">
-              {filteredTimezones.length - 50} more — type to narrow results
+              {m.settings_preferences_timezone_more_results({ count: filteredTimezones.length - 50 })}
             </li>
           {/if}
         </ul>
@@ -312,20 +381,15 @@
       <p class="mt-1 text-sm text-danger">{timezoneError}</p>
     {/if}
 
-    {#if selectedTimezone}
+    {#if selectedTimezoneTime}
       <p class="mt-1 text-sm text-muted">
-        Current time there: {new Date().toLocaleTimeString('en-US', {
-          timeZone: selectedTimezone,
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: userSettings.effectiveHour12
-        })}
+        {m.settings_preferences_timezone_current_time({ time: selectedTimezoneTime })}
       </p>
     {/if}
   </FormSection>
 
   <!-- Time Format -->
-  <FormSection title="Time Format" maxWidth="max-w-md" bordered>
+  <FormSection title={m.settings_preferences_time_format_title()} maxWidth="max-w-md" bordered>
     <div class="flex flex-col gap-2">
       {#each timeFormatOptions as option (option.value)}
         {@const isSelected = selectedTimeFormat === option.value}
@@ -361,7 +425,7 @@
       disabled={!isModified || isSaving || !!timezoneError}
       loading={isSaving}
     >
-      Save Display Settings
+      {m.settings_preferences_save_button()}
     </Button>
   </div>
 </div>

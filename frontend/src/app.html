@@ -1,16 +1,12 @@
 <!doctype html>
-<html lang="en" style="color-scheme: light dark">
+<html lang="en" dir="ltr" style="color-scheme: light dark">
   <head>
     <meta charset="utf-8" />
     <script>
-      // Resolve and apply the active theme as early as possible — before CSS
+      // Resolve and apply shell preferences as early as possible — before CSS
       // loads — so:
       //   1. The active token set is in place by first paint (no FOUC).
       //   2. The client-side Display setting works before SvelteKit hydrates.
-      //
-      // Resolution: chatto:preferences.displayTheme ('system' | 'light' |
-      // 'dark') if set, then legacy localStorage.theme ('light' | 'dark'),
-      // otherwise the OS-level prefers-color-scheme.
       (() => {
         const root = document.documentElement;
         const mq = window.matchMedia('(prefers-color-scheme: dark)');
@@ -36,7 +32,7 @@
           }
         }
 
-        function apply() {
+        function applyTheme() {
           const stored = storedPreferenceTheme() ?? legacyTheme() ?? 'system';
           const effective =
             stored === 'light' || stored === 'dark' ? stored : mq.matches ? 'dark' : 'light';
@@ -44,9 +40,29 @@
           // Pre-CSS background hint, mirrors --color-background.
           root.style.backgroundColor = effective === 'dark' ? '#171717' : '#f3f4f6';
         }
-        apply();
+
+        function applyLocale() {
+          const locales = ['en', 'de'];
+          const stored = localStorage.getItem('PARAGLIDE_LOCALE');
+          const browserLanguages =
+            typeof navigator === 'undefined' ? [] : navigator.languages || [navigator.language];
+          const requested = stored ? [stored] : browserLanguages;
+          const locale =
+            requested
+              .filter(Boolean)
+              .map((value) => String(value).toLowerCase())
+              .map((value) => locales.find((locale) => value === locale || value.startsWith(`${locale}-`)))
+              .find(Boolean) ?? 'en';
+
+          root.lang = locale;
+          root.dir = 'ltr';
+        }
+
+        applyTheme();
+        applyLocale();
+
         mq.addEventListener('change', () => {
-          if ((storedPreferenceTheme() ?? legacyTheme() ?? 'system') === 'system') apply();
+          if ((storedPreferenceTheme() ?? legacyTheme() ?? 'system') === 'system') applyTheme();
         });
       })();
     </script>

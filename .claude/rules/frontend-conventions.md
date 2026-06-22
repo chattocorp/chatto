@@ -137,6 +137,17 @@ const emailSchema = z.email({ error: "Please enter a valid email" });
 const emailError = $derived(email ? validate(emailSchema, email) : undefined);
 ```
 
+## Internationalization
+
+Chatto's frontend internationalization policy lives in [`docs/adr/ADR-043-client-shell-internationalization.md`](../../docs/adr/ADR-043-client-shell-internationalization.md). Follow it for all new or modified user-visible frontend text.
+
+- Use Paraglide message functions for product UI strings instead of hardcoded English in Svelte markup or TypeScript helpers.
+- Add or update both `en` and `de` catalog entries when introducing a message key. Provide a best-effort German translation; if the wording is uncertain, mark it clearly for review in the PR rather than omitting the key.
+- Use semantic, stable lower-snake-case keys grouped by feature or UI surface, for example `settings_preferences_title`, `auth_login_submit`, or `room_event_user_joined`. Do not use English sentences as keys.
+- Keep user-authored content as authored. Do not translate server names, room names, display names, message bodies, uploaded filenames, or other user-generated values.
+- Map stable enum values, permission names, event types, and notification levels to localized message functions at the UI boundary.
+- When formatting dates, times, numbers, plurals, and relative labels, use the active app locale. Timezone and 12/24-hour choices still come from the existing user settings.
+
 ## Page Layout
 
 Pages rendered in the main content area must wrap all content in a single flex column container:

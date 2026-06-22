@@ -16,11 +16,15 @@ function metaContent(name: string, mediaFragment: string): string | null {
 function runThemeScript({
   preferences,
   legacyTheme,
-  systemDark
+  systemDark,
+  storedLocale,
+  browserLanguages
 }: {
   preferences?: unknown;
   legacyTheme?: string;
   systemDark: boolean;
+  storedLocale?: string;
+  browserLanguages?: string[];
 }) {
   if (!themeScript) throw new Error('theme script not found');
 
@@ -31,16 +35,27 @@ function runThemeScript({
   if (legacyTheme !== undefined) {
     storage.set('theme', legacyTheme);
   }
+  if (storedLocale !== undefined) {
+    storage.set('PARAGLIDE_LOCALE', storedLocale);
+  }
 
   let dark = systemDark;
   let changeHandler: (() => void) | undefined;
-  const root = { dataset: {} as Record<string, string>, style: {} as Record<string, string> };
+  const root: {
+    dataset: Record<string, string>;
+    style: Record<string, string>;
+    lang?: string;
+    dir?: string;
+  } = { dataset: {}, style: {} };
 
   runInNewContext(themeScript, {
     document: { documentElement: root },
     localStorage: {
       getItem: (key: string) => storage.get(key) ?? null
     },
+    ...(browserLanguages
+      ? { navigator: { languages: browserLanguages, language: browserLanguages[0] } }
+      : {}),
     window: {
       matchMedia: () => ({
         get matches() {
@@ -114,5 +129,32 @@ describe('app.html theme bootstrap', () => {
     });
     explicit.changeSystemTheme('dark');
     expect(explicit.root.dataset.theme).toBe('light');
+  });
+});
+
+describe('app.html locale bootstrap', () => {
+  it('falls back to English when no browser locale is available', () => {
+    const { root } = runThemeScript({ systemDark: false });
+    expect(root.lang).toBe('en');
+    expect(root.dir).toBe('ltr');
+  });
+
+  it('uses the stored Paraglide locale before browser languages', () => {
+    const { root } = runThemeScript({
+      systemDark: false,
+      storedLocale: 'de',
+      browserLanguages: ['en-US']
+    });
+
+    expect(root.lang).toBe('de');
+  });
+
+  it('matches supported browser language variants', () => {
+    const { root } = runThemeScript({
+      systemDark: false,
+      browserLanguages: ['de-AT', 'en-US']
+    });
+
+    expect(root.lang).toBe('de');
   });
 });

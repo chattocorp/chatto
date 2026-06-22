@@ -1,6 +1,7 @@
 <script lang="ts">
   import { afterNavigate, goto } from '$app/navigation';
   import { page } from '$app/state';
+  import * as m from '$lib/paraglide/messages';
   import { onNotificationClick } from '$lib/notifications/pushNotifications';
   import ServerGutter from '$lib/ServerGutter.svelte';
   import ConnectionIndicator from '$lib/components/ConnectionIndicator.svelte';
@@ -214,7 +215,7 @@
             ]}
             style="opacity: {progress}"
             onclick={() => sidebarNav.close()}
-            aria-label="Close sidebar"
+            aria-label={m.common_close_sidebar()}
           ></button>
         {/if}
       {/if}

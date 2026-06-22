@@ -50,3 +50,4 @@ For more about ADRs, see [Michael Nygard's article](https://cognitect.com/blog/2
 | [ADR-040](ADR-040-permission-only-rbac-with-owner-override.md) | Permission-Only RBAC with Owner Override | 2026-06-15 |
 | [ADR-041](ADR-041-runtime-units.md) | Runtime Units for Optional Chatto Processes | 2026-06-21 |
 | [ADR-042](ADR-042-protobuf-first-public-api.md) | Protobuf-First Public API with ConnectRPC and Realtime WebSocket | 2026-06-22 |
+| [ADR-043](ADR-043-client-shell-internationalization.md) | Client-Shell Internationalization | 2026-06-22 |

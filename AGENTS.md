@@ -39,6 +39,7 @@ Please update this section as the project evolves, and refer to it when making d
 - Checkboxes and similar in the Server Admin UI should save their change immediately on click, confirmed through a toast notification.
 - Implement pagination as automatic "load more" (ie. when the edge of the container is reached), not manual/page-based pagination.
 - Use "Save" buttons only for forms with multiple fields that need to be submitted together, and make sure they are disabled until a change is made.
+- New or changed user-visible frontend strings should go through the Paraglide i18n message catalogs, with both English and German entries, following `docs/adr/ADR-043-client-shell-internationalization.md` and `.claude/rules/frontend-conventions.md`.
 - Never silence linter warnings.
 - Avoid Svelte's $effect like the plague. In almost all cases, there are better Svelte tools to do the same thing (eg. $derived, attachments, ...)
 
