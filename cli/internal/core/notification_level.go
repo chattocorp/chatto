@@ -186,8 +186,9 @@ func (c *ChattoCore) NotificationPreferences() *NotificationPreferencesService {
 }
 
 // NotificationPreferencesService owns user-facing notification preference
-// operations. It deliberately keeps transport concerns out, but it does enforce
-// operation authorization before calling lower-level config write helpers.
+// operations. The low-level config reads/writes already lived on ChattoCore;
+// this service centralizes the operation authZ and response shaping that used
+// to live in the GraphQL resolver so ConnectRPC and GraphQL share it.
 type NotificationPreferencesService struct {
 	core *ChattoCore
 }
