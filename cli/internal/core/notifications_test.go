@@ -312,6 +312,11 @@ func TestDismissAllNotifications(t *testing.T) {
 	userID := "dismiss-all-user"
 
 	t.Run("returns 0 when no notifications", func(t *testing.T) {
+		callbacks := make(chan *corev1.Notification, 1)
+		core.OnNotificationDismissed = func(ctx context.Context, userID string, notification *corev1.Notification) {
+			callbacks <- notification
+		}
+
 		count, err := core.DismissAllNotifications(ctx, userID)
 		if err != nil {
 			t.Fatalf("DismissAllNotifications error: %v", err)
@@ -319,16 +324,33 @@ func TestDismissAllNotifications(t *testing.T) {
 		if count != 0 {
 			t.Errorf("Expected 0, got %d", count)
 		}
+
+		select {
+		case notification := <-callbacks:
+			t.Fatalf("Expected no dismiss callback, got notification %s", notification.Id)
+		default:
+		}
 	})
 
-	t.Run("dismisses all notifications for user", func(t *testing.T) {
+	t.Run("dismisses all notifications for user and sends dismiss callbacks", func(t *testing.T) {
+		callbacks := make(chan *corev1.Notification, 3)
+		core.OnNotificationDismissed = func(ctx context.Context, userID string, notification *corev1.Notification) {
+			callbacks <- notification
+		}
+
 		// Create 3 notifications
+		expectedRoomsByID := map[string]string{}
+		roomIDs := []string{"room-a", "room-b", "room-c"}
 		for i := 0; i < 3; i++ {
-			core.CreateNotification(ctx, userID, "actor", &corev1.Notification{
+			created, err := core.CreateNotification(ctx, userID, "actor", &corev1.Notification{
 				Notification: &corev1.Notification_DmMessage{
-					DmMessage: &corev1.DMMessageNotification{RoomId: "room"},
+					DmMessage: &corev1.DMMessageNotification{RoomId: roomIDs[i]},
 				},
 			})
+			if err != nil {
+				t.Fatalf("CreateNotification error: %v", err)
+			}
+			expectedRoomsByID[created.Id] = created.GetDmMessage().RoomId
 		}
 
 		count, err := core.DismissAllNotifications(ctx, userID)
@@ -343,6 +365,33 @@ func TestDismissAllNotifications(t *testing.T) {
 		remaining, _ := core.GetNotifications(ctx, userID)
 		if len(remaining) != 0 {
 			t.Errorf("Expected 0 remaining, got %d", len(remaining))
+		}
+
+		received := map[string]string{}
+		for i := 0; i < 3; i++ {
+			select {
+			case notification := <-callbacks:
+				dm := notification.GetDmMessage()
+				if dm == nil {
+					t.Fatalf("Expected DM notification callback, got %T", notification.Notification)
+				}
+				received[notification.Id] = dm.RoomId
+			case <-time.After(time.Second):
+				t.Fatalf("Timed out waiting for dismiss callback %d", i+1)
+			}
+		}
+		if len(received) != len(expectedRoomsByID) {
+			t.Fatalf("Expected %d callbacks, got %d", len(expectedRoomsByID), len(received))
+		}
+		for id, expectedRoom := range expectedRoomsByID {
+			if received[id] != expectedRoom {
+				t.Errorf("Expected callback for %s with room %s, got %s", id, expectedRoom, received[id])
+			}
+		}
+		select {
+		case notification := <-callbacks:
+			t.Fatalf("Expected no extra dismiss callback, got notification %s", notification.Id)
+		default:
 		}
 	})
 }
