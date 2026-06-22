@@ -12,7 +12,6 @@ const mocks = vi.hoisted(() => ({
   query: vi.fn(),
   mutation: vi.fn(),
   setRoomNotificationLevel: vi.fn(),
-  shouldFallbackToGraphQL: vi.fn(),
   playNotificationSound: vi.fn(),
   notificationLevels: {
     setServerPreference: vi.fn(),
@@ -46,8 +45,7 @@ vi.mock('$lib/notifications/pushNotifications', () => ({
 }));
 
 vi.mock('$lib/api/notificationPreferences', () => ({
-  setRoomNotificationLevel: mocks.setRoomNotificationLevel,
-  shouldFallbackToGraphQL: mocks.shouldFallbackToGraphQL
+  setRoomNotificationLevel: mocks.setRoomNotificationLevel
 }));
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
@@ -162,8 +160,6 @@ describe('Notification settings page', () => {
       level: ApiNotificationLevel.MUTED,
       effectiveLevel: ApiNotificationLevel.MUTED
     });
-    mocks.shouldFallbackToGraphQL.mockReset();
-    mocks.shouldFallbackToGraphQL.mockReturnValue(false);
   });
 
   it('renders notification levels and sound choices from mocked state', async () => {
@@ -251,42 +247,6 @@ describe('Notification settings page', () => {
       'room-1',
       NotificationLevel.Muted,
       NotificationLevel.Muted
-    );
-  });
-
-  it('falls back to GraphQL when ConnectRPC is unavailable on a remote server', async () => {
-    const connectErr = new Error('unimplemented');
-    mocks.setRoomNotificationLevel.mockRejectedValue(connectErr);
-    mocks.shouldFallbackToGraphQL.mockReturnValue(true);
-    mocks.mutation.mockReturnValue({
-      toPromise: vi.fn().mockResolvedValue({
-        data: {
-          setRoomNotificationLevel: {
-            level: NotificationLevel.AllMessages,
-            effectiveLevel: NotificationLevel.AllMessages
-          }
-        },
-        error: null
-      })
-    });
-
-    const { container } = render(NotificationsPage);
-    await settle();
-
-    const select = q(
-      container,
-      '[data-testid="room-notification-general"] select'
-    ) as HTMLSelectElement;
-    select.value = NotificationLevel.AllMessages;
-    select.dispatchEvent(new Event('change', { bubbles: true }));
-    await settle();
-
-    expect(mocks.shouldFallbackToGraphQL).toHaveBeenCalledWith(connectErr);
-    expect(mocks.mutation).toHaveBeenCalled();
-    expect(mocks.notificationLevels.setRoomPreference).toHaveBeenLastCalledWith(
-      'room-1',
-      NotificationLevel.AllMessages,
-      NotificationLevel.AllMessages
     );
   });
 

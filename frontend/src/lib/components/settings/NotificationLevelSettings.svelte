@@ -14,10 +14,7 @@ These preferences are server-side and sync across devices.
   import { FormSection } from '$lib/ui';
   import { FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
-  import {
-    setRoomNotificationLevel,
-    shouldFallbackToGraphQL
-  } from '$lib/api/notificationPreferences';
+  import { setRoomNotificationLevel } from '$lib/api/notificationPreferences';
   import { NotificationLevel as ApiNotificationLevel } from '$lib/pb/chatto/api/v1/notification_preferences_pb';
 
   const notificationLevelStore = serverRegistry.getStore(getActiveServer()).notificationLevels;
@@ -178,44 +175,15 @@ These preferences are server-side and sync across devices.
     newLevel: NotificationLevel
   ): Promise<NotificationPreference> {
     const conn = connection();
-    try {
-      const pref = await setRoomNotificationLevel(
-        { baseUrl: conn.connectBaseUrl, bearerToken: conn.bearerToken },
-        roomId,
-        notificationLevelToAPI(newLevel)
-      );
-      return {
-        level: notificationLevelFromAPI(pref.level),
-        effectiveLevel: notificationLevelFromAPI(pref.effectiveLevel)
-      };
-    } catch (err) {
-      if (!shouldFallbackToGraphQL(err)) {
-        throw err;
-      }
-    }
-
-    const result = await conn.client
-      .mutation(
-        graphql(`
-            mutation SetRoomNotificationLevel($input: SetRoomNotificationLevelInput!) {
-              setRoomNotificationLevel(input: $input) {
-                level
-                effectiveLevel
-              }
-            }
-          `),
-        { input: { roomId, level: newLevel } }
-      )
-      .toPromise();
-
-    if (result.error) {
-      throw new Error(result.error.message);
-    }
-    if (!result.data?.setRoomNotificationLevel) {
-      throw new Error('Failed to update');
-    }
-
-    return result.data.setRoomNotificationLevel;
+    const pref = await setRoomNotificationLevel(
+      { baseUrl: conn.connectBaseUrl, bearerToken: conn.bearerToken },
+      roomId,
+      notificationLevelToAPI(newLevel)
+    );
+    return {
+      level: notificationLevelFromAPI(pref.level),
+      effectiveLevel: notificationLevelFromAPI(pref.effectiveLevel)
+    };
   }
 
   const levelOptions: Array<{ value: NotificationLevel; label: string; description: string }> = [

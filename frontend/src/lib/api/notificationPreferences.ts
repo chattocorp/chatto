@@ -1,4 +1,4 @@
-import { Code, ConnectError, createClient } from '@connectrpc/connect';
+import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import { NotificationPreferencesService } from '$lib/pb/chatto/api/v1/notification_preferences_connect';
 import { NotificationLevel } from '$lib/pb/chatto/api/v1/notification_preferences_pb';
@@ -36,11 +36,4 @@ export async function setRoomNotificationLevel(
     level: response.level,
     effectiveLevel: response.effectiveLevel
   };
-}
-
-export function shouldFallbackToGraphQL(err: unknown): boolean {
-  if (!(err instanceof ConnectError)) {
-    return true;
-  }
-  return err.code === Code.Unimplemented || err.code === Code.Unavailable;
 }
