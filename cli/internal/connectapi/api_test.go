@@ -83,6 +83,37 @@ func TestServerServiceGetServerPublicMetadata(t *testing.T) {
 	}
 }
 
+func TestAbsolutizeAssetURL(t *testing.T) {
+	t.Run("uses configured webserver URL first", func(t *testing.T) {
+		api := New(nil, config.ChattoConfig{
+			Webserver: config.WebserverConfig{URL: "https://configured.example.com/chatto"},
+		}, "test")
+		ctx := WithRequestBaseURL(context.Background(), "https://request.example.com")
+
+		if got, want := api.absolutizeAssetURL(ctx, "/assets/logo.png"), "https://configured.example.com/assets/logo.png"; got != want {
+			t.Fatalf("absolutizeAssetURL = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("falls back to request base URL", func(t *testing.T) {
+		api := New(nil, config.ChattoConfig{}, "test")
+		ctx := WithRequestBaseURL(context.Background(), "https://remote.example.com")
+
+		if got, want := api.absolutizeAssetURL(ctx, "/assets/logo.png"), "https://remote.example.com/assets/logo.png"; got != want {
+			t.Fatalf("absolutizeAssetURL = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("keeps already absolute URLs", func(t *testing.T) {
+		api := New(nil, config.ChattoConfig{}, "test")
+		ctx := WithRequestBaseURL(context.Background(), "https://remote.example.com")
+
+		if got, want := api.absolutizeAssetURL(ctx, "https://cdn.example.com/logo.png"), "https://cdn.example.com/logo.png"; got != want {
+			t.Fatalf("absolutizeAssetURL = %q, want %q", got, want)
+		}
+	})
+}
+
 func TestNotificationLevelMapping(t *testing.T) {
 	tests := []struct {
 		name string

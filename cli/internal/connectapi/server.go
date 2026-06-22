@@ -42,11 +42,11 @@ func (s *serverService) GetServer(ctx context.Context, _ *connect.Request[apiv1.
 	if s.api.core != nil {
 		bw, bh := 1200, 630
 		if u, err := s.api.core.GetServerBannerURL(ctx, &bw, &bh, "cover"); err == nil {
-			response.BannerUrl = s.api.absolutizeAssetURLFromConfig(u)
+			response.BannerUrl = s.api.absolutizeAssetURL(ctx, u)
 		}
 		lw, lh := 256, 256
 		if u, err := s.api.core.GetServerLogoURL(ctx, &lw, &lh, "cover"); err == nil {
-			response.IconUrl = s.api.absolutizeAssetURLFromConfig(u)
+			response.IconUrl = s.api.absolutizeAssetURL(ctx, u)
 		}
 	}
 	return connect.NewResponse(response), nil
@@ -74,16 +74,18 @@ func apiAuthProviders(providers []config.AuthProviderConfig) []*apiv1.AuthProvid
 	return result
 }
 
-func (a *API) absolutizeAssetURLFromConfig(assetURL string) string {
+func (a *API) absolutizeAssetURL(ctx context.Context, assetURL string) string {
 	if assetURL == "" || strings.HasPrefix(assetURL, "http://") || strings.HasPrefix(assetURL, "https://") {
 		return assetURL
 	}
-	if a.config.Webserver.URL == "" {
-		return assetURL
+	if a.config.Webserver.URL != "" {
+		base, err := url.Parse(a.config.Webserver.URL)
+		if err == nil && base.Scheme != "" && base.Host != "" {
+			return base.Scheme + "://" + base.Host + assetURL
+		}
 	}
-	base, err := url.Parse(a.config.Webserver.URL)
-	if err != nil || base.Scheme == "" || base.Host == "" {
-		return assetURL
+	if requestBaseURL := requestBaseURLFromContext(ctx); requestBaseURL != "" {
+		return requestBaseURL + assetURL
 	}
-	return base.Scheme + "://" + base.Host + assetURL
+	return assetURL
 }

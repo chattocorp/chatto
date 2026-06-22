@@ -19,6 +19,18 @@ func (s *HTTPServer) setupConnectAPI() {
 func (s *HTTPServer) mountConnectHandler(servicePath string, serviceHandler http.Handler) {
 	handler := http.StripPrefix(connectAPIPrefix, serviceHandler)
 	s.router.Any(connectAPIPrefix+servicePath+"*connectPath", func(c *gin.Context) {
-		handler.ServeHTTP(c.Writer, s.injectUserIntoContext(c))
+		req := s.injectUserIntoContext(c)
+		req = req.WithContext(connectapi.WithRequestBaseURL(req.Context(), requestBaseURL(c.Request)))
+		handler.ServeHTTP(c.Writer, req)
 	})
+}
+
+func requestBaseURL(r *http.Request) string {
+	scheme := "http"
+	if proto := r.Header.Get("X-Forwarded-Proto"); proto != "" {
+		scheme = proto
+	} else if r.TLS != nil {
+		scheme = "https"
+	}
+	return scheme + "://" + r.Host
 }
