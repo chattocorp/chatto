@@ -17,7 +17,8 @@ These preferences are server-side and sync across devices.
   import { setRoomNotificationLevel } from '$lib/api/notificationPreferences';
   import { NotificationLevel as ApiNotificationLevel } from '$lib/pb/chatto/api/v1/notification_preferences_pb';
 
-  const notificationLevelStore = serverRegistry.getStore(getActiveServer()).notificationLevels;
+  const serverId = getActiveServer();
+  const notificationLevelStore = serverRegistry.getStore(serverId).notificationLevels;
   const connection = useConnection();
 
   let serverLevel = $state<NotificationLevel>(NotificationLevel.Default);
@@ -176,7 +177,7 @@ These preferences are server-side and sync across devices.
   ): Promise<NotificationPreference> {
     const conn = connection();
     const pref = await setRoomNotificationLevel(
-      { baseUrl: conn.connectBaseUrl, bearerToken: conn.bearerToken },
+      { serverId, baseUrl: conn.connectBaseUrl, bearerToken: conn.bearerToken },
       roomId,
       notificationLevelToAPI(newLevel)
     );

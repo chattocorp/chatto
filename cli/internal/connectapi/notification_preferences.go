@@ -2,6 +2,8 @@ package connectapi
 
 import (
 	"context"
+	"errors"
+	"strings"
 
 	"connectrpc.com/connect"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
@@ -16,6 +18,9 @@ func (s *notificationPreferencesService) GetRoomNotificationPreference(ctx conte
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
+	}
+	if strings.TrimSpace(req.Msg.RoomId) == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("room_id is required"))
 	}
 	// Keep ConnectRPC transport code thin: authenticate the request, translate
 	// protobufs/errors, and delegate operation authZ to the core service.
@@ -34,7 +39,13 @@ func (s *notificationPreferencesService) SetRoomNotificationLevel(ctx context.Co
 	if err != nil {
 		return nil, err
 	}
-	level := apiNotificationLevelToCore(req.Msg.Level)
+	if strings.TrimSpace(req.Msg.RoomId) == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("room_id is required"))
+	}
+	level, err := apiNotificationLevelToCore(req.Msg.Level)
+	if err != nil {
+		return nil, err
+	}
 	// Keep membership checks and response semantics in the shared service so
 	// GraphQL and ConnectRPC cannot drift.
 	pref, err := s.api.core.NotificationPreferences().SetRoomNotificationLevel(ctx, user.Id, req.Msg.RoomId, level)
@@ -47,16 +58,18 @@ func (s *notificationPreferencesService) SetRoomNotificationLevel(ctx context.Co
 	}), nil
 }
 
-func apiNotificationLevelToCore(level apiv1.NotificationLevel) corev1.NotificationLevel {
+func apiNotificationLevelToCore(level apiv1.NotificationLevel) (corev1.NotificationLevel, error) {
 	switch level {
+	case apiv1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT:
+		return corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED, nil
 	case apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED:
-		return corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED
+		return corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED, nil
 	case apiv1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL:
-		return corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL
+		return corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL, nil
 	case apiv1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES:
-		return corev1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES
+		return corev1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES, nil
 	default:
-		return corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
+		return corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED, connect.NewError(connect.CodeInvalidArgument, errors.New("notification level must be DEFAULT, MUTED, NORMAL, or ALL_MESSAGES"))
 	}
 }
 

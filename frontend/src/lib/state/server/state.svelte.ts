@@ -79,47 +79,9 @@ export class ServerInfoState {
       this.iconUrl = info.iconUrl;
       this.bannerUrl = info.bannerUrl;
       this.directRegistrationEnabled = info.directRegistrationEnabled;
-      return;
-    } catch {
-      // Older servers do not expose the ConnectRPC API yet. Fall back to the
-      // established GraphQL query so mixed-version clients keep working.
-    }
-
-    const resp = await this.#client
-      .query(
-        graphql(`
-          query GetServerInfo {
-            server {
-              directRegistrationEnabled
-              profile {
-                name
-                welcomeMessage
-                description
-                logoUrl
-                bannerUrl
-              }
-            }
-          }
-        `),
-        {},
-        { requestPolicy: 'network-only' }
-      )
-      .toPromise();
-
-    if (resp.error) {
-      this.error = resp.error.message;
-      console.error(`[server:${this.#label}] failed to load server info`, resp.error);
-      return;
-    }
-
-    if (resp.data?.server) {
-      this.error = null;
-      this.name = resp.data.server.profile.name;
-      this.welcomeMessage = resp.data.server.profile.welcomeMessage ?? null;
-      this.description = resp.data.server.profile.description ?? null;
-      this.iconUrl = resp.data.server.profile.logoUrl ?? null;
-      this.bannerUrl = resp.data.server.profile.bannerUrl ?? null;
-      this.directRegistrationEnabled = resp.data.server.directRegistrationEnabled;
+    } catch (err) {
+      this.error = err instanceof Error ? err.message : String(err);
+      console.error(`[server:${this.#label}] failed to load server info`, err);
     }
   }
 

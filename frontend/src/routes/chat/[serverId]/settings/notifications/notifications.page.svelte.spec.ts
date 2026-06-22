@@ -238,7 +238,11 @@ describe('Notification settings page', () => {
     await settle();
 
     expect(mocks.setRoomNotificationLevel).toHaveBeenCalledWith(
-      { baseUrl: 'https://origin.test/api/connect', bearerToken: 'origin-token' },
+      {
+        serverId: 'origin',
+        baseUrl: 'https://origin.test/api/connect',
+        bearerToken: 'origin-token'
+      },
       'room-1',
       ApiNotificationLevel.MUTED
     );

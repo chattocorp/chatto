@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
@@ -115,22 +116,41 @@ func TestAbsolutizeAssetURL(t *testing.T) {
 }
 
 func TestNotificationLevelMapping(t *testing.T) {
-	tests := []struct {
+	valid := []struct {
 		name string
 		api  apiv1.NotificationLevel
 		core corev1.NotificationLevel
 	}{
 		{"default clears core override", apiv1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT, corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED},
-		{"unspecified clears core override", apiv1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED, corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED},
 		{"muted", apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED, corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED},
 		{"normal", apiv1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL, corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL},
 		{"all messages", apiv1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES, corev1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES},
 	}
 
-	for _, tt := range tests {
+	for _, tt := range valid {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := apiNotificationLevelToCore(tt.api); got != tt.core {
+			got, err := apiNotificationLevelToCore(tt.api)
+			if err != nil {
+				t.Fatalf("apiNotificationLevelToCore(%v) returned error: %v", tt.api, err)
+			}
+			if got != tt.core {
 				t.Fatalf("apiNotificationLevelToCore(%v) = %v, want %v", tt.api, got, tt.core)
+			}
+		})
+	}
+
+	invalid := []struct {
+		name string
+		api  apiv1.NotificationLevel
+	}{
+		{"unspecified is not user intent", apiv1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED},
+		{"unknown enum", apiv1.NotificationLevel(99)},
+	}
+	for _, tt := range invalid {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := apiNotificationLevelToCore(tt.api)
+			if got := connect.CodeOf(err); got != connect.CodeInvalidArgument {
+				t.Fatalf("apiNotificationLevelToCore(%v) error code = %v, want %v", tt.api, got, connect.CodeInvalidArgument)
 			}
 		})
 	}
@@ -149,6 +169,8 @@ func TestConnectErrorMapping(t *testing.T) {
 		{"not authenticated", core.ErrNotAuthenticated, connect.CodeUnauthenticated},
 		{"permission denied", core.ErrPermissionDenied, connect.CodePermissionDenied},
 		{"not room member", core.ErrNotRoomMember, connect.CodePermissionDenied},
+		{"core not found", core.ErrNotFound, connect.CodeNotFound},
+		{"jetstream key not found", jetstream.ErrKeyNotFound, connect.CodeNotFound},
 		{"unknown", errors.New("boom"), connect.CodeInternal},
 	}
 

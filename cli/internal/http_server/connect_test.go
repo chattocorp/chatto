@@ -183,6 +183,59 @@ func TestConnectNotificationPreferencesService(t *testing.T) {
 		}
 	})
 
+	t.Run("rejects invalid room notification requests", func(t *testing.T) {
+		s, ts := setupConnectTestServer(t, config.AuthConfig{})
+		ctx := context.Background()
+		member, err := s.core.CreateUser(ctx, core.SystemActorID, "connect-member", "Connect Member", "password")
+		if err != nil {
+			t.Fatalf("CreateUser: %v", err)
+		}
+		token, err := s.core.CreateAuthToken(ctx, member.Id)
+		if err != nil {
+			t.Fatalf("CreateAuthToken: %v", err)
+		}
+
+		client := apiv1connect.NewNotificationPreferencesServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		req := connect.NewRequest(&apiv1.SetRoomNotificationLevelRequest{
+			RoomId: "",
+			Level:  apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED,
+		})
+		req.Header().Set("Authorization", "Bearer "+token)
+		_, err = client.SetRoomNotificationLevel(ctx, req)
+		if connect.CodeOf(err) != connect.CodeInvalidArgument {
+			t.Fatalf("SetRoomNotificationLevel empty room err = %v, want invalid argument", err)
+		}
+
+		req = connect.NewRequest(&apiv1.SetRoomNotificationLevelRequest{
+			RoomId: "missing-room",
+			Level:  apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED,
+		})
+		req.Header().Set("Authorization", "Bearer "+token)
+		_, err = client.SetRoomNotificationLevel(ctx, req)
+		if connect.CodeOf(err) != connect.CodeNotFound {
+			t.Fatalf("SetRoomNotificationLevel missing room err = %v, want not found", err)
+		}
+
+		req = connect.NewRequest(&apiv1.SetRoomNotificationLevelRequest{
+			RoomId: "missing-room",
+			Level:  apiv1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED,
+		})
+		req.Header().Set("Authorization", "Bearer "+token)
+		_, err = client.SetRoomNotificationLevel(ctx, req)
+		if connect.CodeOf(err) != connect.CodeInvalidArgument {
+			t.Fatalf("SetRoomNotificationLevel unspecified level err = %v, want invalid argument", err)
+		}
+
+		getReq := connect.NewRequest(&apiv1.GetRoomNotificationPreferenceRequest{
+			RoomId: "",
+		})
+		getReq.Header().Set("Authorization", "Bearer "+token)
+		_, err = client.GetRoomNotificationPreference(ctx, getReq)
+		if connect.CodeOf(err) != connect.CodeInvalidArgument {
+			t.Fatalf("GetRoomNotificationPreference empty room err = %v, want invalid argument", err)
+		}
+	})
+
 	t.Run("sets a room notification level for a member", func(t *testing.T) {
 		s, ts := setupConnectTestServer(t, config.AuthConfig{})
 		ctx := context.Background()
