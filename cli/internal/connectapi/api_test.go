@@ -1,6 +1,7 @@
 package connectapi
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"net/http"
@@ -8,14 +9,18 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/graph/auth"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/testutil"
 )
 
 func TestAPIHandlers(t *testing.T) {
@@ -33,6 +38,7 @@ func TestAPIHandlers(t *testing.T) {
 
 	want := []string{
 		"/" + apiv1connect.NotificationPreferencesServiceName + "/",
+		"/" + apiv1connect.RoomTimelineServiceName + "/",
 		"/" + apiv1connect.ServerServiceName + "/",
 	}
 	sort.Strings(want)
@@ -115,6 +121,208 @@ func TestAbsolutizeAssetURL(t *testing.T) {
 	})
 }
 
+func TestRoomTimelineServiceRequiresAuthAndMembership(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+
+	room, err := env.core.CreateRoom(env.ctx, env.viewer.Id, core.KindChannel, "", "timeline-authz", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, env.viewer.Id, core.KindChannel, env.viewer.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom viewer: %v", err)
+	}
+
+	req := connect.NewRequest(&apiv1.GetRoomEventsRequest{RoomId: room.Id})
+	if _, err := env.timeline.GetRoomEvents(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated GetRoomEvents code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
+	}
+
+	outsider, err := env.core.CreateUser(env.ctx, core.SystemActorID, "timeline-outsider", "Timeline Outsider", "password")
+	if err != nil {
+		t.Fatalf("CreateUser outsider: %v", err)
+	}
+	if _, err := env.timeline.GetRoomEvents(auth.WithUser(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("non-member GetRoomEvents code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	}
+}
+
+func TestRoomTimelineServiceGetRoomEventsPaginatesWithOpaqueCursors(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("timeline-pagination")
+
+	m1 := env.post(room.Id, env.viewer.Id, "one", "")
+	m2 := env.post(room.Id, env.viewer.Id, "two", "")
+	m3 := env.post(room.Id, env.viewer.Id, "three", "")
+
+	ctx := auth.WithUser(env.ctx, env.viewer)
+	resp, err := env.timeline.GetRoomEvents(ctx, connect.NewRequest(&apiv1.GetRoomEventsRequest{
+		RoomId: room.Id,
+		Limit:  2,
+	}))
+	if err != nil {
+		t.Fatalf("GetRoomEvents latest: %v", err)
+	}
+	page := resp.Msg.GetPage()
+	if len(page.Events) != 2 {
+		t.Fatalf("latest event count = %d, want 2", len(page.Events))
+	}
+	if got := []string{page.Events[0].Id, page.Events[1].Id}; got[0] != m2.Id || got[1] != m3.Id {
+		t.Fatalf("latest event IDs = %v, want [%s %s]", got, m2.Id, m3.Id)
+	}
+	if !page.HasOlder || page.HasNewer {
+		t.Fatalf("latest page HasOlder/HasNewer = %v/%v, want true/false", page.HasOlder, page.HasNewer)
+	}
+	if !strings.HasPrefix(page.StartCursor, roomTimelineCursorSeqPrefix) || !strings.HasPrefix(page.EndCursor, roomTimelineCursorSeqPrefix) {
+		t.Fatalf("cursors = %q/%q, want seq-prefixed cursors", page.StartCursor, page.EndCursor)
+	}
+
+	olderResp, err := env.timeline.GetRoomEvents(ctx, connect.NewRequest(&apiv1.GetRoomEventsRequest{
+		RoomId: room.Id,
+		Limit:  10,
+		Cursor: &apiv1.GetRoomEventsRequest_Before{Before: page.StartCursor},
+	}))
+	if err != nil {
+		t.Fatalf("GetRoomEvents before: %v", err)
+	}
+	if !timelinePageContains(olderResp.Msg.GetPage(), m1.Id) {
+		t.Fatalf("older page does not contain first message %s", m1.Id)
+	}
+	if olderResp.Msg.GetPage().HasNewer != true {
+		t.Fatalf("older page HasNewer = false, want true")
+	}
+}
+
+func TestRoomTimelineServiceHydratesMessagesWithoutClientNPlusOne(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("timeline-hydration")
+	replier, err := env.core.CreateUser(env.ctx, core.SystemActorID, "timeline-replier", "Timeline Replier", "password")
+	if err != nil {
+		t.Fatalf("CreateUser replier: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, replier.Id, core.KindChannel, replier.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom replier: %v", err)
+	}
+
+	root := env.post(room.Id, env.viewer.Id, "root", "")
+	env.post(room.Id, replier.Id, "reply", root.Id)
+	if _, err := env.core.AddReaction(env.ctx, core.KindChannel, room.Id, root.Id, "thumbsup", env.viewer.Id); err != nil {
+		t.Fatalf("AddReaction viewer: %v", err)
+	}
+	if _, err := env.core.AddReaction(env.ctx, core.KindChannel, room.Id, root.Id, "thumbsup", replier.Id); err != nil {
+		t.Fatalf("AddReaction replier: %v", err)
+	}
+
+	resp, err := env.timeline.GetRoomEvents(auth.WithUser(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetRoomEventsRequest{
+		RoomId: room.Id,
+		Limit:  10,
+	}))
+	if err != nil {
+		t.Fatalf("GetRoomEvents: %v", err)
+	}
+
+	event := timelinePageEvent(resp.Msg.GetPage(), root.Id)
+	if event == nil {
+		t.Fatalf("root message %s not found in page", root.Id)
+	}
+	payload := event.GetMessagePosted()
+	if payload == nil {
+		t.Fatalf("root payload = nil, want message_posted")
+	}
+	if !payload.BodyPresent || payload.Body != "root" {
+		t.Fatalf("message body present/body = %v/%q, want true/root", payload.BodyPresent, payload.Body)
+	}
+	if payload.ReplyCount != 1 {
+		t.Fatalf("reply count = %d, want 1", payload.ReplyCount)
+	}
+	if got := payload.ThreadParticipantUserIds; len(got) != 1 || got[0] != replier.Id {
+		t.Fatalf("thread participants = %v, want [%s]", got, replier.Id)
+	}
+	if len(payload.Reactions) != 1 {
+		t.Fatalf("reaction summaries = %d, want 1", len(payload.Reactions))
+	}
+	reaction := payload.Reactions[0]
+	if reaction.Emoji != "thumbsup" || reaction.Count != 2 || !reaction.HasReacted {
+		t.Fatalf("reaction = %+v, want thumbsup count 2 hasReacted true", reaction)
+	}
+	if resp.Msg.GetPage().Includes.GetUsers()[env.viewer.Id].DisplayName != "Timeline Viewer" {
+		t.Fatalf("viewer include missing or wrong: %+v", resp.Msg.GetPage().Includes.GetUsers()[env.viewer.Id])
+	}
+	if resp.Msg.GetPage().Includes.GetUsers()[replier.Id].DisplayName != "Timeline Replier" {
+		t.Fatalf("replier include missing or wrong: %+v", resp.Msg.GetPage().Includes.GetUsers()[replier.Id])
+	}
+}
+
+func TestRoomTimelineServiceHydratesProcessedVideoAttachments(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("timeline-video")
+
+	original, err := env.core.UploadAttachment(env.ctx, env.viewer.Id, room.Id, "clip.mp4", "video/mp4", bytes.NewReader([]byte("original video")))
+	if err != nil {
+		t.Fatalf("UploadAttachment original: %v", err)
+	}
+	thumbnail, err := env.core.UploadDerivativeAttachment(env.ctx, original.Id, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL, room.Id, "clip.thumbnail", "application/octet-stream", bytes.NewReader([]byte("thumbnail")))
+	if err != nil {
+		t.Fatalf("UploadDerivativeAttachment thumbnail: %v", err)
+	}
+	variant, err := env.core.UploadDerivativeAttachment(env.ctx, original.Id, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT, room.Id, "clip-720p.mp4", "video/mp4", bytes.NewReader([]byte("variant video")))
+	if err != nil {
+		t.Fatalf("UploadDerivativeAttachment variant: %v", err)
+	}
+
+	event, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, env.viewer.Id, "video", []string{original.Id}, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	if err := env.core.RecordAssetProcessed(env.ctx, core.SystemActorID, core.KindChannel, room.Id, event.Id, original.Id, 1234, 1280, 720, thumbnail, []*corev1.VideoVariant{
+		{
+			AttachmentId: variant.Id,
+			Quality:      "720p",
+			Width:        1280,
+			Height:       720,
+			Size:         variant.Size,
+			Attachment:   variant,
+		},
+	}); err != nil {
+		t.Fatalf("RecordAssetProcessed: %v", err)
+	}
+
+	resp, err := env.timeline.GetRoomEvents(auth.WithUser(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetRoomEventsRequest{
+		RoomId: room.Id,
+		Limit:  10,
+	}))
+	if err != nil {
+		t.Fatalf("GetRoomEvents: %v", err)
+	}
+
+	apiEvent := timelinePageEvent(resp.Msg.GetPage(), event.Id)
+	if apiEvent == nil || apiEvent.GetMessagePosted() == nil {
+		t.Fatalf("message event %s not found in page", event.Id)
+	}
+	attachments := apiEvent.GetMessagePosted().GetAttachments()
+	if len(attachments) != 1 {
+		t.Fatalf("attachments = %d, want 1", len(attachments))
+	}
+	processing := attachments[0].GetVideoProcessing()
+	if processing == nil {
+		t.Fatal("videoProcessing = nil, want completed manifest")
+	}
+	if processing.GetStatus() != apiv1.RoomTimelineVideoProcessingStatus_ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_COMPLETED {
+		t.Fatalf("videoProcessing status = %v, want COMPLETED", processing.GetStatus())
+	}
+	if processing.GetDurationMs() != 1234 || processing.GetWidth() != 1280 || processing.GetHeight() != 720 {
+		t.Fatalf("videoProcessing dimensions = %d/%d/%d, want 1234/1280/720", processing.GetDurationMs(), processing.GetWidth(), processing.GetHeight())
+	}
+	if processing.GetThumbnailAssetUrl().GetUrl() == "" {
+		t.Fatal("videoProcessing thumbnail URL is empty")
+	}
+	if len(processing.GetVariants()) != 1 || processing.GetVariants()[0].GetQuality() != "720p" {
+		t.Fatalf("videoProcessing variants = %+v, want one 720p variant", processing.GetVariants())
+	}
+	if processing.GetVariants()[0].GetAssetUrl().GetUrl() == "" {
+		t.Fatal("videoProcessing variant URL is empty")
+	}
+}
+
 func TestNotificationLevelMapping(t *testing.T) {
 	valid := []struct {
 		name string
@@ -181,4 +389,100 @@ func TestConnectErrorMapping(t *testing.T) {
 			}
 		})
 	}
+}
+
+type connectAPITestEnv struct {
+	ctx      context.Context
+	core     *core.ChattoCore
+	nc       *nats.Conn
+	api      *API
+	timeline *roomTimelineService
+	viewer   *corev1.User
+}
+
+func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
+	t.Helper()
+
+	_, nc := testutil.StartSharedNATS(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Cleanup(cancel)
+
+	c, err := core.NewChattoCore(ctx, nc, config.CoreConfig{
+		SecretKey: "test-core-secret",
+		Assets: config.AssetsConfig{
+			SigningSecret: "test-signing-secret",
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewChattoCore: %v", err)
+	}
+	startConnectAPITestCore(t, c)
+
+	viewer, err := c.CreateUser(ctx, core.SystemActorID, "timeline-viewer", "Timeline Viewer", "password")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	api := New(c, config.ChattoConfig{}, "test")
+	return &connectAPITestEnv{
+		ctx:      ctx,
+		core:     c,
+		nc:       nc,
+		api:      api,
+		timeline: &roomTimelineService{api: api},
+		viewer:   viewer,
+	}
+}
+
+func startConnectAPITestCore(t *testing.T, c *core.ChattoCore) {
+	t.Helper()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- c.Run(ctx) }()
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Fatal("core.Run did not stop within timeout")
+		}
+	})
+
+	bootCtx, bootCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer bootCancel()
+	if err := c.WaitForBoot(bootCtx); err != nil {
+		t.Fatalf("WaitForBoot: %v", err)
+	}
+}
+
+func (e *connectAPITestEnv) createJoinedRoom(name string) *corev1.Room {
+	room, err := e.core.CreateRoom(e.ctx, e.viewer.Id, core.KindChannel, "", name, "")
+	if err != nil {
+		panic(err)
+	}
+	if _, err := e.core.JoinRoom(e.ctx, e.viewer.Id, core.KindChannel, e.viewer.Id, room.Id); err != nil {
+		panic(err)
+	}
+	return room
+}
+
+func (e *connectAPITestEnv) post(roomID, actorID, body, inReplyTo string) *corev1.Event {
+	event, err := e.core.PostMessage(e.ctx, core.KindChannel, roomID, actorID, body, nil, inReplyTo, "", nil, false)
+	if err != nil {
+		panic(err)
+	}
+	return event
+}
+
+func timelinePageContains(page *apiv1.RoomTimelinePage, eventID string) bool {
+	return timelinePageEvent(page, eventID) != nil
+}
+
+func timelinePageEvent(page *apiv1.RoomTimelinePage, eventID string) *apiv1.RoomTimelineEvent {
+	for _, event := range page.Events {
+		if event.Id == eventID {
+			return event
+		}
+	}
+	return nil
 }

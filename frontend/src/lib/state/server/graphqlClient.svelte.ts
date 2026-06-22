@@ -86,6 +86,7 @@ export class GraphQLClient {
 	#host: string;
 	#connectBaseUrl: string;
 	#token: string | null;
+	#serverId: string | undefined;
 
 	get isConnected() {
 		return this.status === 'connected';
@@ -107,6 +108,10 @@ export class GraphQLClient {
 
 	get bearerToken(): string | null {
 		return this.#token;
+	}
+
+	get serverId(): string | undefined {
+		return this.#serverId;
 	}
 
 	/** Force-terminate and immediately reconnect the WebSocket. */
@@ -143,6 +148,7 @@ export class GraphQLClient {
 		this.#host = hostFromGraphQLEndpoint(url);
 		this.#connectBaseUrl = connectBaseUrlFromGraphQLEndpoint(url);
 		this.#token = token;
+		this.#serverId = serverId;
 
 		// Client pings the server every 15s. The `ping` handler starts a 5s
 		// pong timeout; if the server doesn't respond, we close the socket.

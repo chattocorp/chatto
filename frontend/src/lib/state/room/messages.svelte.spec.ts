@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import type { Client } from '@urql/svelte';
 import type { GraphQLClient } from '$lib/state/server/graphqlClient.svelte';
+import type { RoomTimelineAPI } from '$lib/api/roomTimeline';
 import { MessagesStore } from './messages.svelte';
 import { JumpToMessageState } from './composerContext.svelte';
 
@@ -191,6 +192,35 @@ function roomEventsResult({
 }
 
 describe('MessagesStore — room lifecycle ownership', () => {
+	it('loads room history through the injected timeline API', async () => {
+		const fake = new FakeGqlClient();
+		const timeline: RoomTimelineAPI = {
+			getRoomEvents: vi.fn(async () => ({
+				events: [threadMessageEvent('m1') as never],
+				startCursor: 'seq:1',
+				endCursor: 'seq:1',
+				hasOlder: false,
+				hasNewer: false
+			})),
+			getRoomEventsAround: vi.fn(async () => ({
+				events: [],
+				startCursor: null,
+				endCursor: null,
+				hasOlder: false,
+				hasNewer: false
+			}))
+		};
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null, timeline);
+
+		store.setRoom('room-1');
+		await settle();
+
+		expect(timeline.getRoomEvents).toHaveBeenCalledWith({ roomId: 'room-1', limit: 50 });
+		expect(fake.queryMock).not.toHaveBeenCalled();
+		expect(store.rootEvents.map((event) => event.id)).toEqual(['m1']);
+		store.dispose();
+	});
+
 	it('does not refetch or clear events when setRoom is called for the current room', async () => {
 		const loaded = threadMessageEvent('m1');
 		const fake = new FakeGqlClient(
