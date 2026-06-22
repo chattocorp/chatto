@@ -1,10 +1,47 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import '../../app.css';
-import MessageContent, { renderMarkdown, rendererReady } from './MessageContent.svelte';
 import { q } from '$lib/test-utils';
 import type { RoomMember } from '$lib/mentions';
 import { PresenceStatus } from '$lib/gql/graphql';
+
+const mocks = vi.hoisted(() => ({
+  goto: vi.fn(),
+  segmentToServerId: vi.fn((segment: string) => (segment === '-' ? 'origin' : null)),
+  store: {
+    currentUser: {
+      user: undefined as { login: string } | undefined
+    }
+  }
+}));
+
+vi.mock('$app/navigation', () => ({
+  goto: mocks.goto
+}));
+
+vi.mock('$lib/navigation', () => ({
+  serverIdToSegment: (serverId: string) => (serverId === 'origin' ? '-' : serverId),
+  segmentToServerId: mocks.segmentToServerId
+}));
+
+vi.mock('$lib/state/activeServer.svelte', () => ({
+  getActiveServer: () => 'origin'
+}));
+
+vi.mock('$lib/state/server/registry.svelte', () => ({
+  serverRegistry: {
+    tryGetStore: () => mocks.store,
+    getServer: (serverId: string) =>
+      serverId === 'origin' ? { id: 'origin', url: window.location.origin } : undefined
+  }
+}));
+
+import MessageContent, { renderMarkdown, rendererReady } from './MessageContent.svelte';
+
+const channelRoomId = 'R123456789abcde';
+const dmRoomId = 'abcdef12345678';
+const messageId = 'Eabc123DEF456gh';
+const threadRootEventId = 'Ethread12345678';
 
 function renderMessage(body: string, members: RoomMember[] = [], roleHandles: string[] = []) {
   return render(MessageContent, { props: { body, members, roleHandles } });
@@ -37,6 +74,19 @@ function computedBorderColorFor(property: string): string {
   element.remove();
   return color;
 }
+
+beforeEach(() => {
+  mocks.goto.mockReset();
+  mocks.segmentToServerId.mockReset();
+  mocks.segmentToServerId.mockImplementation((segment: string) =>
+    segment === '-' ? 'origin' : null
+  );
+  vi.spyOn(window, 'open').mockImplementation(() => null);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('renderMarkdown', () => {
   // Wait for the markdown renderer to initialize before running tests
@@ -147,6 +197,22 @@ describe('renderMarkdown', () => {
 
     it('applies security attributes to bare-domain auto-links', async () => {
       const html = await renderMarkdown('www.example.com');
+      expect(html).toContain('target="_blank"');
+      expect(html).toContain('rel="noopener noreferrer"');
+    });
+
+    it('does not add new-window attributes to allow-listed same-origin chat URLs', async () => {
+      const href = `${window.location.origin}/chat/-/${channelRoomId}`;
+      const html = await renderMarkdown(`[room](${href})`);
+      expect(html).toContain(`href="${href}"`);
+      expect(html).not.toContain('target="_blank"');
+      expect(html).not.toContain('rel="noopener noreferrer"');
+    });
+
+    it('keeps new-window attributes on non-allow-listed same-origin URLs', async () => {
+      const href = `${window.location.origin}/chat/-/settings`;
+      const html = await renderMarkdown(`[settings](${href})`);
+      expect(html).toContain(`href="${href}"`);
       expect(html).toContain('target="_blank"');
       expect(html).toContain('rel="noopener noreferrer"');
     });
@@ -315,6 +381,72 @@ describe('MessageContent component', () => {
     const link = q(container, 'a')!;
     expect(link.getAttribute('target')).toBe('_blank');
     expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+  });
+
+  it('navigates allow-listed room links in the current tab', async () => {
+    const href = `${window.location.origin}/chat/-/${channelRoomId}`;
+    const { container } = renderMessage(`[room](${href})`);
+
+    await expect.poll(() => q(container, 'a')).toBeTruthy();
+    q(container, 'a')!.click();
+
+    expect(mocks.goto).toHaveBeenCalledWith(`/chat/-/${channelRoomId}`);
+    expect(window.open).not.toHaveBeenCalled();
+  });
+
+  it('navigates allow-listed DM room links in the current tab', async () => {
+    const href = `${window.location.origin}/chat/-/${dmRoomId}`;
+    const { container } = renderMessage(`[dm](${href})`);
+
+    await expect.poll(() => q(container, 'a')).toBeTruthy();
+    q(container, 'a')!.click();
+
+    expect(mocks.goto).toHaveBeenCalledWith(`/chat/-/${dmRoomId}`);
+    expect(window.open).not.toHaveBeenCalled();
+  });
+
+  it('navigates allow-listed thread links in the current tab', async () => {
+    const href = `${window.location.origin}/chat/-/${channelRoomId}/${threadRootEventId}`;
+    const { container } = renderMessage(`[thread](${href})`);
+
+    await expect.poll(() => q(container, 'a')).toBeTruthy();
+    q(container, 'a')!.click();
+
+    expect(mocks.goto).toHaveBeenCalledWith(`/chat/-/${channelRoomId}/${threadRootEventId}`);
+    expect(window.open).not.toHaveBeenCalled();
+  });
+
+  it('navigates allow-listed message links through the message resolver route', async () => {
+    const href = `${window.location.origin}/chat/-/${channelRoomId}/m/${messageId}`;
+    const { container } = renderMessage(`[message](${href})`);
+
+    await expect.poll(() => q(container, 'a')).toBeTruthy();
+    q(container, 'a')!.click();
+
+    expect(mocks.goto).toHaveBeenCalledWith(`/chat/-/${channelRoomId}/m/${messageId}`);
+    expect(window.open).not.toHaveBeenCalled();
+  });
+
+  it('opens same-origin non-allow-listed links in a new window', async () => {
+    const href = `${window.location.origin}/chat/-/settings`;
+    const { container } = renderMessage(`[settings](${href})`);
+
+    await expect.poll(() => q(container, 'a')).toBeTruthy();
+    q(container, 'a')!.click();
+
+    expect(mocks.goto).not.toHaveBeenCalled();
+    expect(window.open).toHaveBeenCalledWith(href, '_blank', 'noopener,noreferrer');
+  });
+
+  it('opens external links in a new window', async () => {
+    const href = 'https://example.com/docs';
+    const { container } = renderMessage(`[external](${href})`);
+
+    await expect.poll(() => q(container, 'a')).toBeTruthy();
+    q(container, 'a')!.click();
+
+    expect(mocks.goto).not.toHaveBeenCalled();
+    expect(window.open).toHaveBeenCalledWith(href, '_blank', 'noopener,noreferrer');
   });
 
   it('renders fenced code blocks with highlighted markup and hides raw fences', async () => {

@@ -18,6 +18,44 @@ export interface MessageLink {
   messageId: string;
 }
 
+export type MessageBodyChatLink =
+  | {
+      kind: 'room';
+      serverSegment: string;
+      serverId: string;
+      roomId: string;
+      path: string;
+    }
+  | {
+      kind: 'thread';
+      serverSegment: string;
+      serverId: string;
+      roomId: string;
+      threadRootEventId: string;
+      path: string;
+    }
+  | {
+      kind: 'message';
+      serverSegment: string;
+      serverId: string;
+      roomId: string;
+      messageId: string;
+      path: string;
+    };
+
+export interface MessageBodyChatLinkOptions {
+  origin?: string;
+  resolveServerSegment?: (segment: string) => string | null;
+}
+
+const channelRoomIdPattern = /^R[a-zA-Z0-9]{14}$/;
+const dmRoomIdPattern = /^[a-f0-9]{14}$/;
+const eventIdPattern = /^E[a-zA-Z0-9]{14}$/;
+
+function isMessageRoomId(value: string): boolean {
+  return channelRoomIdPattern.test(value) || dmRoomIdPattern.test(value);
+}
+
 export function buildMessageLinkPath(serverId: string, roomId: string, messageId: string): string {
   return resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
     serverId: serverIdToSegment(serverId),
@@ -57,6 +95,65 @@ export async function copyMessageLinkToClipboard(
   } catch {
     toast.error('Failed to copy link');
   }
+}
+
+/**
+ * Classify message-body URLs that may navigate in the current tab.
+ *
+ * This deliberately allows only same-origin Chatto room, thread, and message
+ * URLs with Chatto-looking IDs. Other same-origin URLs, such as settings or
+ * admin pages, should keep opening out-of-band like external links.
+ */
+export function classifyMessageBodyChatLink(
+  input: string,
+  options: MessageBodyChatLinkOptions = {}
+): MessageBodyChatLink | null {
+  const origin =
+    options.origin ?? (typeof window !== 'undefined' ? window.location.origin : undefined);
+  if (!origin) return null;
+
+  let url: URL;
+  try {
+    url = new URL(input, origin);
+  } catch {
+    return null;
+  }
+
+  if (url.origin !== origin) return null;
+
+  const parts = url.pathname.split('/').filter(Boolean);
+  if (parts[0] !== 'chat') return null;
+  if (parts.length !== 3 && parts.length !== 4 && parts.length !== 5) return null;
+
+  const [, serverSegment, roomId] = parts;
+  if (!serverSegment || !isMessageRoomId(roomId)) return null;
+
+  const resolveServerSegment = options.resolveServerSegment ?? segmentToServerId;
+  const serverId = resolveServerSegment(serverSegment);
+  if (!serverId) return null;
+
+  const path = `${url.pathname}${url.search}${url.hash}`;
+
+  if (parts.length === 3) {
+    return { kind: 'room', serverSegment, serverId, roomId, path };
+  }
+
+  if (parts.length === 4) {
+    const threadRootEventId = parts[3];
+    if (!eventIdPattern.test(threadRootEventId)) return null;
+    return {
+      kind: 'thread',
+      serverSegment,
+      serverId,
+      roomId,
+      threadRootEventId,
+      path
+    };
+  }
+
+  const [, , , marker, messageId] = parts;
+  if (marker !== 'm' || !eventIdPattern.test(messageId)) return null;
+  return { kind: 'message', serverSegment, serverId, roomId, messageId, path };
 }
 
 /**

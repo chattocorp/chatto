@@ -1,6 +1,7 @@
 import MarkdownIt from 'markdown-it';
 import type StateInline from 'markdown-it/lib/rules_inline/state_inline.mjs';
 import tlds from 'tlds';
+import { classifyMessageBodyChatLink } from '$lib/messageLinks';
 
 type CodeHighlightingModule = typeof import('$lib/codeHighlighting');
 
@@ -286,6 +287,7 @@ function initialize(): void {
   md.renderer.rules.link_open = function (tokens, idx, options, env, self) {
     const token = tokens[idx];
     const hrefIndex = token.attrIndex('href');
+    let allowedSameTabChatLink = false;
 
     if (hrefIndex >= 0) {
       const href = token.attrs![hrefIndex][1];
@@ -294,12 +296,17 @@ function initialize(): void {
       if (!href.startsWith('http://') && !href.startsWith('https://')) {
         // Replace dangerous URLs with empty href
         token.attrs![hrefIndex][1] = '#';
+      } else {
+        allowedSameTabChatLink = classifyMessageBodyChatLink(href) !== null;
       }
     }
 
-    // Add security attributes for external links
-    token.attrSet('target', '_blank');
-    token.attrSet('rel', 'noopener noreferrer');
+    // External and non-allow-listed links open out-of-band. Known same-origin
+    // chat routes intentionally keep normal same-tab navigation semantics.
+    if (!allowedSameTabChatLink) {
+      token.attrSet('target', '_blank');
+      token.attrSet('rel', 'noopener noreferrer');
+    }
 
     return defaultLinkRender(tokens, idx, options, env, self);
   };
