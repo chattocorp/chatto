@@ -1,4 +1,4 @@
-package http_server
+package connectapi
 
 import (
 	"context"
@@ -9,15 +9,15 @@ import (
 )
 
 type notificationPreferencesService struct {
-	server *HTTPServer
+	api *API
 }
 
 func (s *notificationPreferencesService) GetRoomNotificationPreference(ctx context.Context, req *connect.Request[apiv1.GetRoomNotificationPreferenceRequest]) (*connect.Response[apiv1.GetRoomNotificationPreferenceResponse], error) {
-	user, err := requireConnectAuth(ctx)
+	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
 	}
-	pref, err := s.server.core.NotificationPreferences().GetRoomNotificationPreference(ctx, user.Id, req.Msg.RoomId)
+	pref, err := s.api.core.NotificationPreferences().GetRoomNotificationPreference(ctx, user.Id, req.Msg.RoomId)
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -28,12 +28,12 @@ func (s *notificationPreferencesService) GetRoomNotificationPreference(ctx conte
 }
 
 func (s *notificationPreferencesService) SetRoomNotificationLevel(ctx context.Context, req *connect.Request[apiv1.SetRoomNotificationLevelRequest]) (*connect.Response[apiv1.SetRoomNotificationLevelResponse], error) {
-	user, err := requireConnectAuth(ctx)
+	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
 	}
 	level := apiNotificationLevelToCore(req.Msg.Level)
-	pref, err := s.server.core.NotificationPreferences().SetRoomNotificationLevel(ctx, user.Id, req.Msg.RoomId, level)
+	pref, err := s.api.core.NotificationPreferences().SetRoomNotificationLevel(ctx, user.Id, req.Msg.RoomId, level)
 	if err != nil {
 		return nil, connectError(err)
 	}
