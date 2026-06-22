@@ -55,10 +55,11 @@ func newS3Scanner(assets config.AssetsConfig, timeout time.Duration) (*s3Scanner
 		region = "us-east-1"
 	}
 	client := s3.New(s3.Options{
-		Credentials:  credentials.NewStaticCredentialsProvider(cfg.AccessKeyID, cfg.SecretAccessKey, ""),
-		Region:       region,
-		BaseEndpoint: aws.String(s3EndpointURL(cfg)),
-		UsePathStyle: cfg.UsePathStyleForEndpoint(),
+		Credentials:                credentials.NewStaticCredentialsProvider(cfg.AccessKeyID, cfg.SecretAccessKey, ""),
+		Region:                     region,
+		BaseEndpoint:               aws.String(s3EndpointURL(cfg)),
+		UsePathStyle:               cfg.UsePathStyleForEndpoint(),
+		RequestChecksumCalculation: aws.RequestChecksumCalculationWhenRequired,
 	})
 	return &s3Scanner{
 		client:     client,

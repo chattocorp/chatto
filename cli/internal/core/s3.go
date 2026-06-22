@@ -46,10 +46,11 @@ func NewS3Client(cfg config.S3Config) (*S3Client, error) {
 	endpoint := s3EndpointURL(cfg)
 
 	client := s3.New(s3.Options{
-		Credentials:  credentials.NewStaticCredentialsProvider(cfg.AccessKeyID, cfg.SecretAccessKey, ""),
-		Region:       region,
-		BaseEndpoint: aws.String(endpoint),
-		UsePathStyle: cfg.UsePathStyleForEndpoint(),
+		Credentials:                credentials.NewStaticCredentialsProvider(cfg.AccessKeyID, cfg.SecretAccessKey, ""),
+		Region:                     region,
+		BaseEndpoint:               aws.String(endpoint),
+		UsePathStyle:               cfg.UsePathStyleForEndpoint(),
+		RequestChecksumCalculation: aws.RequestChecksumCalculationWhenRequired,
 	})
 
 	return &S3Client{

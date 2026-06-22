@@ -60,6 +60,7 @@ func TestS3ScannerScansCurrentAndVersionedObjectsWithPrefix(t *testing.T) {
 	scanner, err := newS3Scanner(assets, time.Second)
 	require.NoError(t, err)
 	require.NotNil(t, scanner)
+	require.Equal(t, aws.RequestChecksumCalculationWhenRequired, scanner.client.Options().RequestChecksumCalculation)
 
 	ctx := context.Background()
 	_, err = scanner.client.CreateBucket(ctx, &s3.CreateBucketInput{
