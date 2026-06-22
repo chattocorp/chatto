@@ -206,20 +206,20 @@ description = "Build and run the bundled Chatto CLI command with workspace-safe 
 depends = ["build-dev-cli"]
 dir = "cli"
 env = {
-  CHATTO_WEBSERVER_PORT = "{{env.CONDUCTOR_PORT | default(value='4000')}}",
-  CHATTO_WEBSERVER_URL = "http://localhost:{{env.CONDUCTOR_PORT | default(value='4000')}}",
-  CHATTO_NATS_EMBEDDED_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 1}}",
-  CHATTO_NATS_CLIENT_URL = "nats://localhost:{{env.CONDUCTOR_PORT | default(value='4000') | int + 1}}",
+  CHATTO_WEBSERVER_PORT = "{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000'))}}",
+  CHATTO_WEBSERVER_URL = "http://localhost:{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000'))}}",
+  CHATTO_NATS_EMBEDDED_PORT = "{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 1}}",
+  CHATTO_NATS_CLIENT_URL = "nats://localhost:{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 1}}",
   CHATTO_METRICS_ENABLED = "true",
   CHATTO_METRICS_BIND_ADDRESS = "127.0.0.1",
-  CHATTO_METRICS_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 2}}",
+  CHATTO_METRICS_PORT = "{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 2}}",
   CHATTO_METRICS_PATH = "/metrics",
   CHATTO_EXPORTER_ENABLED = "true",
   CHATTO_EXPORTER_BIND_ADDRESS = "127.0.0.1",
-  CHATTO_EXPORTER_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 3}}",
+  CHATTO_EXPORTER_PORT = "{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 3}}",
   CHATTO_EXPORTER_PATH = "/metrics",
 }
-run = "exec bin/chatto"
+run = "printf 'Chatto URL: %s\\n' \"$CHATTO_WEBSERVER_URL\" && exec bin/chatto"
 
 # =============================================================================
 # Testing

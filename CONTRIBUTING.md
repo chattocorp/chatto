@@ -18,17 +18,18 @@ machine-specific settings, and private prompts out of tracked files; use local
 settings such as `.conductor/settings.local.toml` or your tool's user-level
 configuration for those.
 
-## Local Development with Conductor
+## Local Development with Conductor or Paseo
 
-[Conductor](https://conductor.build) workspaces build and run the bundled Chatto executable. The `run` script in `.conductor/settings.toml` wires Conductor's assigned `$CONDUCTOR_PORT` and the next port into the env vars read by the executable:
+[Conductor](https://conductor.build) and Paseo workspaces build and run the bundled Chatto executable. The Conductor `run` script in `.conductor/settings.toml` and the Paseo service script in `paseo.json` both delegate to `mise run chatto run`. The mise task uses Conductor's assigned `$CONDUCTOR_PORT`, Paseo's assigned `$PASEO_PORT`, or `4000` outside either tool, then reserves the next ports for bundled services:
 
-| Port              | Process                            |
-| ----------------- | ---------------------------------- |
-| `$CONDUCTOR_PORT` | Chatto webserver (user-facing URL) |
-| `+1`              | Embedded NATS                      |
-| `+2`              | Prometheus metrics                 |
+| Port                             | Process                            |
+| -------------------------------- | ---------------------------------- |
+| `$CONDUCTOR_PORT` / `$PASEO_PORT` | Chatto webserver (user-facing URL) |
+| `+1`                             | Embedded NATS                      |
+| `+2`                             | Prometheus metrics                 |
+| `+3`                             | Deployment-wide exporter metrics   |
 
-The repository-level Conductor settings are shared in `.conductor/settings.toml`. The run command delegates to `mise run chatto run`, which builds the frontend and development CLI, wires the per-workspace ports, and starts `bin/chatto run` without live reloads. Put machine-specific overrides in `.conductor/settings.local.toml`; that file is gitignored and wins over shared settings on your machine. Conductor also reads `.worktreeinclude` to copy gitignored local environment files, such as `.env` and `.env.*`, into new workspaces.
+The repository-level Conductor settings are shared in `.conductor/settings.toml`, and the repository-level Paseo settings are shared in `paseo.json`. Both build the frontend and development CLI, wire per-workspace ports, and start `bin/chatto run` without live reloads. Put machine-specific Conductor overrides in `.conductor/settings.local.toml`; that file is gitignored and wins over shared settings on your machine. Conductor also reads `.worktreeinclude` to copy gitignored local environment files, such as `.env` and `.env.*`, into new workspaces.
 
 ## Developing Outside of Conductor
 
@@ -45,7 +46,7 @@ To run the bundled executable without live reloads using the same port wiring as
 mise run chatto run
 ```
 
-When `CONDUCTOR_PORT` is unset, `mise run chatto run` uses `4000` for Chatto, `4001` for embedded NATS, and `4002` for Prometheus metrics. Pass explicit CLI arguments after the task name, for example `mise chatto version`.
+When both `CONDUCTOR_PORT` and `PASEO_PORT` are unset, `mise run chatto run` uses `4000` for Chatto, `4001` for embedded NATS, `4002` for Prometheus metrics, and `4003` for exporter metrics. Pass explicit CLI arguments after the task name, for example `mise chatto version`.
 
 For the live-reload development stack, use Tilt:
 

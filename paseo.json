@@ -5,7 +5,7 @@
   "scripts": {
     "dev": {
       "type": "service",
-      "command": "mise dev"
+      "command": "mise run chatto run"
     }
   }
 }

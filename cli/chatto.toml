@@ -18,7 +18,7 @@ port = 9090
 path = '/metrics'
 
 # Deployment-wide Prometheus exporter. `mise chatto` overrides this port with
-# CONDUCTOR_PORT+3 so multiple Conductor workspaces can run side by side.
+# the workspace base port + 3 so multiple workspaces can run side by side.
 [exporter]
 enabled = true
 bind_address = '127.0.0.1'
