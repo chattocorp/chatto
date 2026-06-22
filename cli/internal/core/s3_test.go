@@ -76,6 +76,38 @@ func TestS3Client_PutAndGetObject(t *testing.T) {
 	require.Equal(t, testData, content)
 }
 
+func TestS3Client_DefaultsToPathStyleForCustomEndpoint(t *testing.T) {
+	endpointHost := setupFakeS3Server(t)
+	useSSL := false
+
+	cfg := config.S3Config{
+		Endpoint:        endpointHost,
+		Bucket:          "test-bucket",
+		AccessKeyID:     "test-key",
+		SecretAccessKey: "test-secret",
+		UseSSL:          &useSSL,
+	}
+
+	client, err := core.NewS3Client(cfg)
+	require.NoError(t, err)
+	require.NotNil(t, client)
+
+	ctx := context.Background()
+	require.NoError(t, client.EnsureBucket(ctx))
+
+	_, err = client.PutObjectFromBytes(ctx, "default-path-style.txt", []byte("ok"), "text/plain")
+	require.NoError(t, err)
+
+	reader, info, err := client.GetObject(ctx, "default-path-style.txt")
+	require.NoError(t, err)
+	defer reader.Close()
+	require.Equal(t, "default-path-style.txt", info.Key)
+
+	content, err := io.ReadAll(reader)
+	require.NoError(t, err)
+	require.Equal(t, []byte("ok"), content)
+}
+
 // TestS3Client_DeleteObject tests deleting objects.
 func TestS3Client_DeleteObject(t *testing.T) {
 	endpointHost := setupFakeS3Server(t)

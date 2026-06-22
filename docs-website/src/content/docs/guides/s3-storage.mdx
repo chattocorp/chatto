@@ -63,11 +63,11 @@ Chatto creates the bucket automatically on startup if it doesn't exist.
 | `access_key_id` | — | Access key |
 | `secret_access_key` | — | Secret key |
 | `use_ssl` | `true` | Use HTTPS for S3 connections |
-| `path_style` | `false` | Use path-style URLs instead of virtual-hosted. Required for most S3-compatible services (Cloudflare R2, Wasabi, etc.). |
+| `path_style` | `auto` | Override URL addressing. By default, AWS S3 endpoints use virtual-hosted addressing and custom S3-compatible endpoints use path-style addressing. |
 
 ## S3-Compatible Services
 
-Any service that implements the S3 API works with Chatto. Set `path_style = true` for services that don't support virtual-hosted bucket URLs.
+Any service that implements the S3 API works with Chatto. Chatto uses path-style URLs by default for custom S3-compatible endpoints, which works with providers that don't support virtual-hosted bucket URLs.
 
 <Tabs>
 <TabItem label="Cloudflare R2">
@@ -77,7 +77,6 @@ CHATTO_CORE_ASSETS_S3_ENDPOINT=your-account-id.r2.cloudflarestorage.com
 CHATTO_CORE_ASSETS_S3_BUCKET=chatto-assets
 CHATTO_CORE_ASSETS_S3_ACCESS_KEY_ID=your-access-key
 CHATTO_CORE_ASSETS_S3_SECRET_ACCESS_KEY=your-secret-key
-CHATTO_CORE_ASSETS_S3_PATH_STYLE=true
 ```
 </TabItem>
 <TabItem label="Wasabi">
@@ -88,7 +87,6 @@ CHATTO_CORE_ASSETS_S3_BUCKET=chatto-assets
 CHATTO_CORE_ASSETS_S3_REGION=eu-central-1
 CHATTO_CORE_ASSETS_S3_ACCESS_KEY_ID=your-access-key
 CHATTO_CORE_ASSETS_S3_SECRET_ACCESS_KEY=your-secret-key
-CHATTO_CORE_ASSETS_S3_PATH_STYLE=true
 ```
 </TabItem>
 <TabItem label="Backblaze B2">
@@ -99,7 +97,6 @@ CHATTO_CORE_ASSETS_S3_BUCKET=chatto-assets
 CHATTO_CORE_ASSETS_S3_REGION=us-west-004
 CHATTO_CORE_ASSETS_S3_ACCESS_KEY_ID=your-access-key
 CHATTO_CORE_ASSETS_S3_SECRET_ACCESS_KEY=your-secret-key
-CHATTO_CORE_ASSETS_S3_PATH_STYLE=true
 ```
 </TabItem>
 </Tabs>

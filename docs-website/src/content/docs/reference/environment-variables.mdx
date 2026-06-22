@@ -183,8 +183,8 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
   Use HTTPS for S3 connections.
 </EnvVar>
 
-<EnvVar name="CHATTO_CORE_ASSETS_S3_PATH_STYLE" toml="core.assets.s3.path_style" default="false">
-  Use path-style URLs instead of virtual-hosted. Required for most S3-compatible services (Cloudflare R2, Wasabi, Backblaze B2, etc.).
+<EnvVar name="CHATTO_CORE_ASSETS_S3_PATH_STYLE" toml="core.assets.s3.path_style" default="auto">
+  Override S3 URL addressing. By default, Chatto uses virtual-hosted addressing for AWS S3 endpoints and path-style addressing for custom S3-compatible endpoints.
 </EnvVar>
 
 ### Image Cache
