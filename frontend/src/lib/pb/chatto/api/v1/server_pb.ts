@@ -182,3 +182,4 @@ export class GetServerResponse extends Message<GetServerResponse> {
     return proto3.util.equals(GetServerResponse, a, b);
   }
 }
+
