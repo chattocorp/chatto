@@ -98,6 +98,7 @@ export class RoomTimelineUser extends Message<RoomTimelineUser> {
     return proto3.util.equals(RoomTimelineUser, a, b);
   }
 }
+
 /**
  * @generated from message chatto.api.v1.RoomTimelineIncludes
  */
@@ -1062,3 +1063,4 @@ export class GetRoomEventsAroundResponse extends Message<GetRoomEventsAroundResp
     return proto3.util.equals(GetRoomEventsAroundResponse, a, b);
   }
 }
+
