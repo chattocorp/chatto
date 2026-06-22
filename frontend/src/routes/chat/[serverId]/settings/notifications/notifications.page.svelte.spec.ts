@@ -3,6 +3,7 @@ import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import NotificationsPage from './+page.svelte';
 import { NotificationLevel } from '$lib/gql/graphql';
+import { NotificationLevel as ApiNotificationLevel } from '$lib/pb/chatto/api/v1/notification_preferences_pb';
 import { q } from '$lib/test-utils';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
 import { defaultNotificationSoundFilters } from '$lib/audio/notificationSounds';
@@ -11,7 +12,6 @@ const mocks = vi.hoisted(() => ({
   query: vi.fn(),
   mutation: vi.fn(),
   setRoomNotificationLevel: vi.fn(),
-  shouldFallbackToGraphQL: vi.fn(),
   playNotificationSound: vi.fn(),
   notificationLevels: {
     setServerPreference: vi.fn(),
@@ -45,8 +45,7 @@ vi.mock('$lib/notifications/pushNotifications', () => ({
 }));
 
 vi.mock('$lib/api/notificationPreferences', () => ({
-  setRoomNotificationLevel: mocks.setRoomNotificationLevel,
-  shouldFallbackToGraphQL: mocks.shouldFallbackToGraphQL
+  setRoomNotificationLevel: mocks.setRoomNotificationLevel
 }));
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
@@ -158,11 +157,9 @@ describe('Notification settings page', () => {
     mocks.mutation.mockReset();
     mocks.setRoomNotificationLevel.mockReset();
     mocks.setRoomNotificationLevel.mockResolvedValue({
-      level: NotificationLevel.Muted,
-      effectiveLevel: NotificationLevel.Muted
+      level: ApiNotificationLevel.MUTED,
+      effectiveLevel: ApiNotificationLevel.MUTED
     });
-    mocks.shouldFallbackToGraphQL.mockReset();
-    mocks.shouldFallbackToGraphQL.mockReturnValue(false);
   });
 
   it('renders notification levels and sound choices from mocked state', async () => {
@@ -243,7 +240,7 @@ describe('Notification settings page', () => {
     expect(mocks.setRoomNotificationLevel).toHaveBeenCalledWith(
       { baseUrl: 'https://origin.test/api/connect', bearerToken: 'origin-token' },
       'room-1',
-      NotificationLevel.Muted
+      ApiNotificationLevel.MUTED
     );
     expect(mocks.mutation).not.toHaveBeenCalled();
     expect(mocks.notificationLevels.setRoomPreference).toHaveBeenLastCalledWith(

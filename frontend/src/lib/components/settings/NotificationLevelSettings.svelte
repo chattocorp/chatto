@@ -5,6 +5,7 @@ Server-wide and per-room notification level settings for the current user.
 These preferences are server-side and sync across devices.
 -->
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { graphql } from '$lib/gql';
@@ -13,11 +14,8 @@ These preferences are server-side and sync across devices.
   import { FormSection } from '$lib/ui';
   import { FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
-  import {
-    setRoomNotificationLevel,
-    shouldFallbackToGraphQL,
-    type NotificationPreference
-  } from '$lib/api/notificationPreferences';
+  import { setRoomNotificationLevel } from '$lib/api/notificationPreferences';
+  import { NotificationLevel as ApiNotificationLevel } from '$lib/pb/chatto/api/v1/notification_preferences_pb';
 
   const notificationLevelStore = serverRegistry.getStore(getActiveServer()).notificationLevels;
   const connection = useConnection();
@@ -39,8 +37,13 @@ These preferences are server-side and sync across devices.
   let savingServerLevel = $state(false);
   let savingRoomId = $state<string | null>(null);
 
-  $effect(() => {
-    loadPreferences();
+  type NotificationPreference = {
+    level: NotificationLevel;
+    effectiveLevel: NotificationLevel;
+  };
+
+  onMount(() => {
+    void loadPreferences();
   });
 
   async function loadPreferences() {
@@ -153,15 +156,13 @@ These preferences are server-side and sync across devices.
 
     try {
       const pref = await setRoomLevel(roomId, newLevel);
-      if (pref) {
-        const idx = rooms.findIndex((r) => r.id === roomId);
-        if (idx !== -1) {
-          rooms[idx] = { ...rooms[idx], level: pref.level, effectiveLevel: pref.effectiveLevel };
-        }
-
-        notificationLevelStore.setRoomPreference(roomId, pref.level, pref.effectiveLevel);
-        toast.success('Room notification level updated');
+      const idx = rooms.findIndex((r) => r.id === roomId);
+      if (idx !== -1) {
+        rooms[idx] = { ...rooms[idx], level: pref.level, effectiveLevel: pref.effectiveLevel };
       }
+
+      notificationLevelStore.setRoomPreference(roomId, pref.level, pref.effectiveLevel);
+      toast.success('Room notification level updated');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to update');
     } finally {
@@ -172,40 +173,17 @@ These preferences are server-side and sync across devices.
   async function setRoomLevel(
     roomId: string,
     newLevel: NotificationLevel
-  ): Promise<NotificationPreference | null> {
+  ): Promise<NotificationPreference> {
     const conn = connection();
-    try {
-      return await setRoomNotificationLevel(
-        { baseUrl: conn.connectBaseUrl, bearerToken: conn.bearerToken },
-        roomId,
-        newLevel
-      );
-    } catch (err) {
-      if (!shouldFallbackToGraphQL(err)) {
-        throw err;
-      }
-    }
-
-    const result = await conn.client
-      .mutation(
-        graphql(`
-            mutation SetRoomNotificationLevel($input: SetRoomNotificationLevelInput!) {
-              setRoomNotificationLevel(input: $input) {
-                level
-                effectiveLevel
-              }
-            }
-          `),
-        { input: { roomId, level: newLevel } }
-      )
-      .toPromise();
-
-    if (result.error) {
-      toast.error(result.error.message);
-      return null;
-    }
-
-    return result.data?.setRoomNotificationLevel ?? null;
+    const pref = await setRoomNotificationLevel(
+      { baseUrl: conn.connectBaseUrl, bearerToken: conn.bearerToken },
+      roomId,
+      notificationLevelToAPI(newLevel)
+    );
+    return {
+      level: notificationLevelFromAPI(pref.level),
+      effectiveLevel: notificationLevelFromAPI(pref.effectiveLevel)
+    };
   }
 
   const levelOptions: Array<{ value: NotificationLevel; label: string; description: string }> = [
@@ -235,6 +213,35 @@ These preferences are server-side and sync across devices.
 
   function levelLabel(level: NotificationLevel): string {
     return levelOptions.find((o) => o.value === level)?.label ?? level;
+  }
+
+  function notificationLevelToAPI(level: NotificationLevel): ApiNotificationLevel {
+    switch (level) {
+      case NotificationLevel.Muted:
+        return ApiNotificationLevel.MUTED;
+      case NotificationLevel.Normal:
+        return ApiNotificationLevel.NORMAL;
+      case NotificationLevel.AllMessages:
+        return ApiNotificationLevel.ALL_MESSAGES;
+      case NotificationLevel.Default:
+      default:
+        return ApiNotificationLevel.DEFAULT;
+    }
+  }
+
+  function notificationLevelFromAPI(level: ApiNotificationLevel): NotificationLevel {
+    switch (level) {
+      case ApiNotificationLevel.MUTED:
+        return NotificationLevel.Muted;
+      case ApiNotificationLevel.NORMAL:
+        return NotificationLevel.Normal;
+      case ApiNotificationLevel.ALL_MESSAGES:
+        return NotificationLevel.AllMessages;
+      case ApiNotificationLevel.DEFAULT:
+      case ApiNotificationLevel.UNSPECIFIED:
+      default:
+        return NotificationLevel.Default;
+    }
   }
 </script>
 
