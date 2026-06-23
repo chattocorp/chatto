@@ -15,6 +15,7 @@
     formatCooldownRemaining
   } from '$lib/validation';
   import { getAvatarInitials } from '$lib/utils/initials';
+  import * as m from '$lib/i18n/messages';
 
   // Capture the active server's CurrentUserState at init. The settings
   // page is scoped to one server (it lives under `[serverId]/settings`),
@@ -103,12 +104,12 @@
 
   async function uploadAvatarFile(file: File) {
     if (!file.type.startsWith('image/')) {
-      toast.error('Please select an image file');
+      toast.error(m['settings.profile.avatar.invalid_type']());
       return;
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      toast.error('Image must be less than 10MB');
+      toast.error(m['settings.profile.avatar.too_large']());
       return;
     }
 
@@ -143,9 +144,9 @@
         };
       }
 
-      toast.success('Avatar uploaded successfully');
+      toast.success(m['settings.profile.avatar.uploaded']());
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to upload avatar');
+      toast.error(e instanceof Error ? e.message : m['settings.profile.avatar.upload_failed']());
     } finally {
       uploadingAvatar = false;
       if (avatarFileInput) avatarFileInput.value = '';
@@ -198,9 +199,9 @@
         };
       }
 
-      toast.success('Avatar removed');
+      toast.success(m['settings.profile.avatar.removed']());
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to delete avatar');
+      toast.error(e instanceof Error ? e.message : m['settings.profile.avatar.delete_failed']());
     } finally {
       deletingAvatar = false;
     }
@@ -214,7 +215,7 @@
     if (displayNameModified) {
       const validation = validateAndNormalizeDisplayName(displayName);
       if (!validation.valid) {
-        error = validation.error ?? 'Invalid display name';
+        error = validation.error ?? m['settings.profile.display_name.invalid']();
         return;
       }
       normalizedDisplayName = validation.normalized!;
@@ -224,12 +225,14 @@
     let normalizedLogin: string | undefined;
     if (loginModified) {
       if (!canChangeLogin) {
-        error = `You can only change your username once every 30 days. Try again in ${formatCooldownRemaining(cooldownRemaining)}.`;
+        error = m['settings.profile.username.cooldown_error']({
+          remaining: formatCooldownRemaining(cooldownRemaining)
+        });
         return;
       }
       const validation = validateAndNormalizeLogin(login);
       if (!validation.valid) {
-        error = validation.error ?? 'Invalid username';
+        error = validation.error ?? m['settings.profile.username.invalid']();
         return;
       }
       normalizedLogin = validation.normalized!;
@@ -311,20 +314,24 @@
         lastLoginChange = new Date();
       }
 
-      successMessage = 'Profile updated successfully';
+      successMessage = m['settings.profile.saved']();
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to save profile';
+      error = err instanceof Error ? err.message : m['settings.profile.save_failed']();
     } finally {
       isSaving = false;
     }
   }
 </script>
 
-<PaneHeader title="Profile" subtitle="Manage your profile information" showMobileNav />
+<PaneHeader
+  title={m['settings.profile.title']()}
+  subtitle={m['settings.profile.subtitle']()}
+  showMobileNav
+/>
 
 <div class="flex flex-col gap-6 overflow-y-auto p-6">
   <!-- Avatar Section -->
-  <FormSection title="Avatar" maxWidth="max-w-md">
+  <FormSection title={m['settings.profile.avatar.title']()} maxWidth="max-w-md">
     <div
       class="relative flex items-start gap-6"
       data-testid="avatar-drop-zone"
@@ -332,15 +339,19 @@
     >
       <DropZoneOverlay
         visible={isDraggingAvatar}
-        title="Drop image"
-        subtitle="Upload as your avatar"
+        title={m['settings.profile.avatar.drop_title']()}
+        subtitle={m['settings.profile.avatar.drop_subtitle']()}
       />
       <!-- Avatar Preview -->
       <div
         class="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-200 text-4xl font-black text-muted shadow-md"
       >
         {#if avatarUrl}
-          <img src={avatarUrl} alt="Your avatar" class="h-full w-full object-cover" />
+          <img
+            src={avatarUrl}
+            alt={m['settings.profile.avatar.alt']()}
+            class="h-full w-full object-cover"
+          />
         {:else}
           {initials}
         {/if}
@@ -349,7 +360,7 @@
       <!-- Upload Controls -->
       <div class="flex flex-col gap-3">
         <p class="text-sm text-muted">
-          Upload an avatar. Images will be resized to 256x256 pixels.
+          {m['settings.profile.avatar.description']()}
         </p>
         <div class="flex gap-2">
           <input
@@ -363,11 +374,13 @@
             variant="secondary"
             onclick={() => avatarFileInput?.click()}
             loading={uploadingAvatar}
-            loadingText="Uploading..."
+            loadingText={m['settings.profile.avatar.uploading']()}
           >
             <span class="inline-flex items-center gap-2">
               <span class="iconify uil--image-upload"></span>
-              {avatarUrl ? 'Change Avatar' : 'Upload Avatar'}
+              {avatarUrl
+                ? m['settings.profile.avatar.change']()
+                : m['settings.profile.avatar.upload']()}
             </span>
           </Button>
           {#if avatarUrl}
@@ -375,11 +388,11 @@
               variant="ghost"
               onclick={handleAvatarDelete}
               loading={deletingAvatar}
-              loadingText="Removing..."
+              loadingText={m['settings.profile.avatar.removing']()}
             >
               <span class="inline-flex items-center gap-2 text-error">
                 <span class="iconify uil--trash-alt"></span>
-                Remove
+                {m['settings.profile.avatar.remove']()}
               </span>
             </Button>
           {/if}
@@ -391,23 +404,25 @@
   <!-- Profile Form -->
   <Form onsubmit={handleSubmit} maxWidth="max-w-md" bordered {error}>
     <TextInput
-      label="Display Name"
+      label={m['settings.profile.display_name.label']()}
       bind:value={displayName}
-      placeholder="Enter your display name"
+      placeholder={m['settings.profile.display_name.placeholder']()}
       disabled={isSaving}
     />
 
     <TextInput
-      label="Username"
+      label={m['settings.profile.username.label']()}
       bind:value={login}
-      placeholder="Enter your username"
+      placeholder={m['settings.profile.username.placeholder']()}
       disabled={isSaving || !canChangeLogin}
       testid="settings-username"
     />
 
     {#if cooldownLoaded && !canChangeLogin}
       <p class="text-sm text-muted">
-        You can change your username again in {formatCooldownRemaining(cooldownRemaining)}.
+        {m['settings.profile.username.cooldown_notice']({
+          remaining: formatCooldownRemaining(cooldownRemaining)
+        })}
       </p>
     {/if}
 
@@ -418,26 +433,30 @@
     {#snippet footer()}
       <Button type="submit" disabled={!isModified || isSaving} loading={isSaving}>
         <span class="iconify uil--check"></span>
-        Save Changes
+        {m['settings.profile.save_button']()}
       </Button>
     {/snippet}
   </Form>
 </div>
 
-<Dialog bind:visible={showLoginConfirm} title="Change Username" size="sm">
+<Dialog
+  bind:visible={showLoginConfirm}
+  title={m['settings.profile.username.confirm_title']()}
+  size="sm"
+>
   <p class="mb-2">
-    Are you sure you want to change your username to <strong>@{pendingLogin}</strong>?
+    {m['settings.profile.username.confirm_prompt']({ login: pendingLogin ?? '' })}
   </p>
-  <p class="mb-4 text-muted">You can only change your username once every 30 days.</p>
+  <p class="mb-4 text-muted">{m['settings.profile.username.confirm_cooldown']()}</p>
 
   <div class="flex items-center gap-3">
     <Button onclick={confirmLoginChange}>
       <span class="iconify uil--check"></span>
-      Change Username
+      {m['settings.profile.username.confirm_button']()}
     </Button>
     <Button variant="ghost" onclick={() => (showLoginConfirm = false)}>
       <span class="iconify uil--times"></span>
-      Cancel
+      {m['common.cancel']()}
     </Button>
   </div>
 </Dialog>

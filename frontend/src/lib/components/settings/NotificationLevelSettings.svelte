@@ -13,6 +13,7 @@ These preferences are server-side and sync across devices.
   import { FormSection } from '$lib/ui';
   import { FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
+  import * as m from '$lib/i18n/messages';
 
   const notificationLevelStore = serverRegistry.getStore(getActiveServer()).notificationLevels;
   const connection = useConnection();
@@ -98,7 +99,7 @@ These preferences are server-side and sync across devices.
         }
       }
     } catch (e) {
-      error = e instanceof Error ? e.message : 'Failed to load notification preferences';
+      error = e instanceof Error ? e.message : m['settings.notifications.levels.load_failed']();
     } finally {
       loading = false;
     }
@@ -134,10 +135,12 @@ These preferences are server-side and sync across devices.
         notificationLevelStore.setServerPreference(pref.level, pref.effectiveLevel);
 
         await loadPreferences();
-        toast.success('Server notification level updated');
+        toast.success(m['settings.notifications.levels.server_updated']());
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to update');
+      toast.error(
+        e instanceof Error ? e.message : m['settings.notifications.levels.update_failed']()
+      );
     } finally {
       savingServerLevel = false;
     }
@@ -175,39 +178,45 @@ These preferences are server-side and sync across devices.
         }
 
         notificationLevelStore.setRoomPreference(roomId, pref.level, pref.effectiveLevel);
-        toast.success('Room notification level updated');
+        toast.success(m['settings.notifications.levels.room_updated']());
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to update');
+      toast.error(
+        e instanceof Error ? e.message : m['settings.notifications.levels.update_failed']()
+      );
     } finally {
       savingRoomId = null;
     }
   }
 
-  const levelOptions: Array<{ value: NotificationLevel; label: string; description: string }> = [
+  const levelOptions = $derived<
+    Array<{ value: NotificationLevel; label: string; description: string }>
+  >([
     {
       value: NotificationLevel.Default,
-      label: 'Default',
-      description: 'Use the inherited default'
+      label: m['settings.notifications.levels.default.label'](),
+      description: m['settings.notifications.levels.default.description']()
     },
     {
       value: NotificationLevel.Muted,
-      label: 'Muted',
-      description: 'No notifications or unread markers'
+      label: m['settings.notifications.levels.muted.label'](),
+      description: m['settings.notifications.levels.muted.description']()
     },
     {
       value: NotificationLevel.Normal,
-      label: 'Normal',
-      description: 'Unread markers + mentions, DMs, and thread replies'
+      label: m['settings.notifications.levels.normal.label'](),
+      description: m['settings.notifications.levels.normal.description']()
     },
     {
       value: NotificationLevel.AllMessages,
-      label: 'All Messages',
-      description: 'Normal + notification for every new message'
+      label: m['settings.notifications.levels.all_messages.label'](),
+      description: m['settings.notifications.levels.all_messages.description']()
     }
-  ];
+  ]);
 
-  const serverLevelOptions = levelOptions.filter((o) => o.value !== NotificationLevel.Default);
+  const serverLevelOptions = $derived(
+    levelOptions.filter((o) => o.value !== NotificationLevel.Default)
+  );
 
   function levelLabel(level: NotificationLevel): string {
     return levelOptions.find((o) => o.value === level)?.label ?? level;
@@ -215,16 +224,15 @@ These preferences are server-side and sync across devices.
 </script>
 
 {#if loading}
-  <div class="text-muted">Loading...</div>
+  <div class="text-muted">{m['settings.notifications.levels.loading']()}</div>
 {:else if error}
   <div class="max-w-lg">
     <FormError {error} />
   </div>
 {:else}
-  <FormSection title="Server Notification Level" maxWidth="max-w-lg">
+  <FormSection title={m['settings.notifications.levels.server_title']()} maxWidth="max-w-lg">
     <p class="mb-3 text-sm text-muted">
-      Controls how you receive notifications for all rooms in this server. Individual rooms can
-      override this setting.
+      {m['settings.notifications.levels.server_description']()}
     </p>
 
     <div class="flex flex-col gap-2">
@@ -251,10 +259,15 @@ These preferences are server-side and sync across devices.
   </FormSection>
 
   {#if rooms.length > 0}
-    <FormSection title="Room Overrides" maxWidth="max-w-lg" bordered>
+    <FormSection
+      title={m['settings.notifications.levels.room_title']()}
+      maxWidth="max-w-lg"
+      bordered
+    >
       <p class="mb-3 text-sm text-muted">
-        Override the server-level setting for individual rooms. Rooms set to "Default" inherit the
-        server setting ({levelLabel(serverEffectiveLevel)}).
+        {m['settings.notifications.levels.room_description']({
+          level: levelLabel(serverEffectiveLevel)
+        })}
       </p>
 
       <div class="flex flex-col gap-2">
@@ -274,7 +287,9 @@ These preferences are server-side and sync across devices.
               </div>
               {#if room.level !== NotificationLevel.Default}
                 <div class="text-xs text-muted">
-                  Effective: {levelLabel(room.effectiveLevel)}
+                  {m['settings.notifications.levels.effective']({
+                    level: levelLabel(room.effectiveLevel)
+                  })}
                 </div>
               {/if}
             </div>

@@ -20,6 +20,7 @@
   import SidebarNav from '$lib/components/SidebarNav.svelte';
   import MyThreadsNavItem from './MyThreadsNavItem.svelte';
   import { getAdminNavItems } from './adminNav';
+  import * as m from '$lib/i18n/messages';
 
   let { children } = $props();
 
@@ -43,22 +44,22 @@
   const settingsNavItems = $derived([
     {
       href: resolve('/chat/[serverId]/settings', { serverId: serverSegment }),
-      label: 'Profile',
+      label: m['settings.nav.profile'](),
       icon: 'iconify uil--user'
     },
     {
       href: resolve('/chat/[serverId]/settings/preferences', { serverId: serverSegment }),
-      label: 'Display',
+      label: m['settings.nav.display'](),
       icon: 'iconify uil--clock'
     },
     {
       href: resolve('/chat/[serverId]/settings/notifications', { serverId: serverSegment }),
-      label: 'Notifications',
+      label: m['settings.nav.notifications'](),
       icon: 'iconify uil--bell'
     },
     {
       href: resolve('/chat/[serverId]/settings/account', { serverId: serverSegment }),
-      label: 'Account',
+      label: m['settings.nav.account'](),
       icon: 'iconify uil--setting'
     }
   ]);
@@ -255,77 +256,77 @@
 </script>
 
 <ServerEventProvider>
-      <!-- Sidebar -->
-        <ServerSidebar>
-          {#if isSettingsMode}
-            <SidebarNav
-              title="Settings"
-              items={settingsNavItems}
-              backHref={resolve('/chat/[serverId]', { serverId: serverSegment })}
-              backLabel="Back to Server"
-            />
-          {:else if !serverData}
-            <!-- Skeleton sidebar while server data is loading -->
-            <ServerHeader serverName="" loading />
+  <!-- Sidebar -->
+  <ServerSidebar>
+    {#if isSettingsMode}
+      <SidebarNav
+        title={m['settings.nav.title']()}
+        items={settingsNavItems}
+        backHref={resolve('/chat/[serverId]', { serverId: serverSegment })}
+        backLabel={m['settings.nav.back_to_server']()}
+      />
+    {:else if !serverData}
+      <!-- Skeleton sidebar while server data is loading -->
+      <ServerHeader serverName="" loading />
 
-            <ScrollFader top bottom>
-              <div class="p-2">
-                <div class="skeleton h-40 w-full rounded-md"></div>
-              </div>
+      <ScrollFader top bottom>
+        <div class="p-2">
+          <div class="skeleton h-40 w-full rounded-md"></div>
+        </div>
 
-              {#each Array(2) as _, i (i)}
-                <div class="flex items-center gap-2 rounded-md px-4 py-2">
-                  <div class="skeleton h-5 w-5 shrink-0 rounded"></div>
-                  <div class="skeleton h-5 flex-1 rounded"></div>
-                </div>
-              {/each}
-              <hr class="my-2 border-border" />
-              {#each Array(5) as _, i (i)}
-                <div class="flex items-center gap-2 rounded-md px-4 py-2">
-                  <div class="skeleton h-5 w-5 shrink-0 rounded"></div>
-                  <div class="skeleton h-5 flex-1 rounded"></div>
-                </div>
-              {/each}
-            </ScrollFader>
-          {:else if isAdminMode}
-            <SidebarNav
-              title={serverName ?? 'Server'}
-              items={adminNavItems}
-              backHref={resolve('/chat/[serverId]', { serverId: serverSegment })}
-              backLabel="Back to Server"
-              isActive={isAdminNavActive}
-            />
-          {:else}
-            <!-- Server header - fixed at top -->
-            <ServerHeader serverName={serverName ?? ''} {adminHref} />
+        {#each Array(2) as _, i (i)}
+          <div class="flex items-center gap-2 rounded-md px-4 py-2">
+            <div class="skeleton h-5 w-5 shrink-0 rounded"></div>
+            <div class="skeleton h-5 flex-1 rounded"></div>
+          </div>
+        {/each}
+        <hr class="my-2 border-border" />
+        {#each Array(5) as _, i (i)}
+          <div class="flex items-center gap-2 rounded-md px-4 py-2">
+            <div class="skeleton h-5 w-5 shrink-0 rounded"></div>
+            <div class="skeleton h-5 flex-1 rounded"></div>
+          </div>
+        {/each}
+      </ScrollFader>
+    {:else if isAdminMode}
+      <SidebarNav
+        title={serverName ?? 'Server'}
+        items={adminNavItems}
+        backHref={resolve('/chat/[serverId]', { serverId: serverSegment })}
+        backLabel="Back to Server"
+        isActive={isAdminNavActive}
+      />
+    {:else}
+      <!-- Server header - fixed at top -->
+      <ServerHeader serverName={serverName ?? ''} {adminHref} />
 
-            <!-- Scrollable area for room list sidebar -->
-            <ScrollFader top bottom>
-              {#if bannerUrl}
-                <ServerBanner url={bannerUrl} />
-              {/if}
+      <!-- Scrollable area for room list sidebar -->
+      <ScrollFader top bottom>
+        {#if bannerUrl}
+          <ServerBanner url={bannerUrl} />
+        {/if}
 
-              <nav class="sidebar-nav p-2">
-                <a
-                  href={resolve('/chat/[serverId]/overview', { serverId: serverSegment })}
-                  class={['sidebar-item', isHomeActive ? 'bg-surface-100' : '']}
-                >
-                  <span class="sidebar-icon iconify uil--estate"></span>
-                  Overview
-                </a>
-                <MyThreadsNavItem active={isMyThreadsActive} />
-              </nav>
+        <nav class="sidebar-nav p-2">
+          <a
+            href={resolve('/chat/[serverId]/overview', { serverId: serverSegment })}
+            class={['sidebar-item', isHomeActive ? 'bg-surface-100' : '']}
+          >
+            <span class="sidebar-icon iconify uil--estate"></span>
+            Overview
+          </a>
+          <MyThreadsNavItem active={isMyThreadsActive} />
+        </nav>
 
-              <hr class="border-border" />
+        <hr class="border-border" />
 
-              <!-- Room List - always visible to server members (shows rooms user has joined) -->
-              <RoomList />
-            </ScrollFader>
-          {/if}
-        </ServerSidebar>
+        <!-- Room List - always visible to server members (shows rooms user has joined) -->
+        <RoomList />
+      </ScrollFader>
+    {/if}
+  </ServerSidebar>
 
-      <!-- Main content - always renders so room can load in parallel -->
-      <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-        {@render children?.()}
-      </div>
-    </ServerEventProvider>
+  <!-- Main content - always renders so room can load in parallel -->
+  <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+    {@render children?.()}
+  </div>
+</ServerEventProvider>

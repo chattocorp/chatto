@@ -247,7 +247,8 @@ export default defineConfig({
       project: './project.inlang',
       outdir: './src/lib/paraglide',
       strategy: ['localStorage', 'preferredLanguage', 'baseLocale'],
-      emitTsDeclarations: true
+      emitTsDeclarations: true,
+      outputStructure: 'locale-modules'
     }),
     sveltekit(),
     ...(enableGraphqlCodegenClientOptimizer ? [graphqlCodegenClientOptimizer()] : []),
@@ -256,6 +257,9 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
+        manualChunks(id) {
+          if (id.includes('src/lib/paraglide/messages/de.js')) return 'i18n-de';
+        },
         experimentalMinChunkSize: 20_000
       }
     }

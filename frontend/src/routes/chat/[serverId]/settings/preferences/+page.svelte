@@ -1,6 +1,6 @@
 <script lang="ts">
-  import * as m from '$lib/paraglide/messages';
-  import { getLocale, setLocale, type Locale } from '$lib/paraglide/runtime';
+  import * as m from '$lib/i18n/messages';
+  import { getLocale, setLocale, type Locale } from '$lib/i18n/runtime';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { graphql } from '$lib/gql';
   import { TimeFormat } from '$lib/gql/graphql';
@@ -15,7 +15,7 @@
   const userSettings = getUserSettings();
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
   const connection = useConnection();
-  const activeLocale = getLocale();
+  const activeLocale = $derived(getLocale());
 
   // All available IANA timezone names
   const allTimezones = Intl.supportedValuesOf('timeZone');
@@ -51,7 +51,7 @@
   const timezoneError = $derived.by(() => {
     if (!timezoneSearch) return undefined;
     if (allTimezones.includes(timezoneSearch)) return undefined;
-    return m.settings_preferences_timezone_invalid();
+    return m['settings.preferences.timezone.invalid']();
   });
 
   const selectedTimezoneTime = $derived.by(() => {
@@ -141,7 +141,7 @@
   async function handleSave() {
     // Validate timezone if set
     if (timezoneSearch && !allTimezones.includes(timezoneSearch)) {
-      error = m.settings_preferences_timezone_invalid();
+      error = m['settings.preferences.timezone.invalid']();
       return;
     }
 
@@ -181,82 +181,86 @@
         userSettings.updateFromData(data);
       }
 
-      toast.success(m.settings_preferences_saved());
+      toast.success(m['settings.preferences.saved']());
     } catch (err) {
-      error = err instanceof Error ? err.message : m.settings_preferences_save_failed();
+      error = err instanceof Error ? err.message : m['settings.preferences.save_failed']();
     } finally {
       isSaving = false;
     }
   }
 
-  const themeOptions: Array<{
-    value: DisplayTheme;
-    label: string;
-    description: string;
-  }> = [
+  const themeOptions = $derived([
     {
       value: 'system',
-      label: m.settings_preferences_theme_system_label(),
-      description: m.settings_preferences_theme_system_description()
+      label: m['settings.preferences.theme.system.label'](),
+      description: m['settings.preferences.theme.system.description']()
     },
     {
       value: 'light',
-      label: m.settings_preferences_theme_light_label(),
-      description: m.settings_preferences_theme_light_description()
+      label: m['settings.preferences.theme.light.label'](),
+      description: m['settings.preferences.theme.light.description']()
     },
     {
       value: 'dark',
-      label: m.settings_preferences_theme_dark_label(),
-      description: m.settings_preferences_theme_dark_description()
+      label: m['settings.preferences.theme.dark.label'](),
+      description: m['settings.preferences.theme.dark.description']()
     }
-  ];
-
-  const languageOptions: Array<{
-    value: Locale;
+  ] satisfies Array<{
+    value: DisplayTheme;
     label: string;
-  }> = [
+    description: string;
+  }>);
+
+  const languageOptions = $derived([
     {
       value: 'en',
-      label: m.settings_preferences_language_english()
+      label: m['settings.preferences.language.english']()
     },
     {
       value: 'de',
-      label: m.settings_preferences_language_german()
+      label: m['settings.preferences.language.german']()
     }
-  ];
+  ] satisfies Array<{
+    value: Locale;
+    label: string;
+  }>);
 
-  const timeFormatOptions = [
+  const timeFormatOptions = $derived([
     {
       value: TimeFormat.Auto,
-      label: m.settings_preferences_time_format_browser_default_label(),
-      description: m.settings_preferences_time_format_browser_default_description()
+      label: m['settings.preferences.time_format.browser_default.label'](),
+      description: m['settings.preferences.time_format.browser_default.description']()
     },
     {
       value: TimeFormat.TwelveHour,
-      label: m.settings_preferences_time_format_12h_label(),
-      description: m.settings_preferences_time_format_12h_description()
+      label: m['settings.preferences.time_format.12h.label'](),
+      description: m['settings.preferences.time_format.12h.description']()
     },
     {
       value: TimeFormat.TwentyFourHour,
-      label: m.settings_preferences_time_format_24h_label(),
-      description: m.settings_preferences_time_format_24h_description()
+      label: m['settings.preferences.time_format.24h.label'](),
+      description: m['settings.preferences.time_format.24h.description']()
     }
-  ];
+  ] satisfies Array<{
+    value: TimeFormat;
+    label: string;
+    description: string;
+  }>);
 </script>
 
 <PaneHeader
-  title={m.settings_preferences_title()}
-  subtitle={m.settings_preferences_subtitle()}
+  title={m['settings.preferences.title']()}
+  subtitle={m['settings.preferences.subtitle']()}
   showMobileNav
 />
 
 <div class="flex flex-col gap-6 overflow-y-auto p-6">
   <!-- Theme -->
-  <FormSection title={m.settings_preferences_theme_title()} maxWidth="max-w-md">
+  <FormSection title={m['settings.preferences.theme.title']()} maxWidth="max-w-md">
     <div
       class="flex flex-col gap-2"
       role="radiogroup"
-      aria-label={m.settings_preferences_theme_title()}
+      aria-label={m['settings.preferences.theme.title']()}
     >
       {#each themeOptions as option (option.value)}
         {@const isSelected = userPreferences.displayTheme === option.value}
@@ -282,13 +286,13 @@
   </FormSection>
 
   <!-- Language -->
-  <FormSection title={m.settings_preferences_language_title()} maxWidth="max-w-md" bordered>
-    <p class="mb-3 text-sm text-muted">{m.settings_preferences_language_description()}</p>
+  <FormSection title={m['settings.preferences.language.title']()} maxWidth="max-w-md" bordered>
+    <p class="mb-3 text-sm text-muted">{m['settings.preferences.language.description']()}</p>
 
     <div
       class="flex flex-col gap-2"
       role="radiogroup"
-      aria-label={m.settings_preferences_language_title()}
+      aria-label={m['settings.preferences.language.title']()}
     >
       {#each languageOptions as option (option.value)}
         {@const isSelected = activeLocale === option.value}
@@ -313,8 +317,8 @@
   </FormSection>
 
   <!-- Timezone -->
-  <FormSection title={m.settings_preferences_timezone_title()} maxWidth="max-w-md" bordered>
-    <p class="mb-3 text-sm text-muted">{m.settings_preferences_timezone_description()}</p>
+  <FormSection title={m['settings.preferences.timezone.title']()} maxWidth="max-w-md" bordered>
+    <p class="mb-3 text-sm text-muted">{m['settings.preferences.timezone.description']()}</p>
 
     <div class="relative">
       <input
@@ -327,7 +331,7 @@
         }}
         onblur={handleTimezoneBlur}
         onkeydown={handleTimezoneKeydown}
-        placeholder={m.settings_preferences_timezone_browser_default()}
+        placeholder={m['settings.preferences.timezone.browser_default']()}
         class="input w-full"
         autocomplete="off"
         role="combobox"
@@ -340,7 +344,7 @@
           type="button"
           class="absolute top-1/2 right-2 icon-action -translate-y-1/2"
           onclick={handleClearTimezone}
-          title={m.settings_preferences_timezone_clear()}
+          title={m['settings.preferences.timezone.clear']()}
         >
           <span class="iconify uil--times"></span>
         </button>
@@ -370,7 +374,7 @@
           {/each}
           {#if filteredTimezones.length > 50}
             <li class="px-3 py-1.5 text-xs text-muted">
-              {m.settings_preferences_timezone_more_results({ count: filteredTimezones.length - 50 })}
+              {m['settings.preferences.timezone.more_results']({ count: filteredTimezones.length - 50 })}
             </li>
           {/if}
         </ul>
@@ -383,13 +387,13 @@
 
     {#if selectedTimezoneTime}
       <p class="mt-1 text-sm text-muted">
-        {m.settings_preferences_timezone_current_time({ time: selectedTimezoneTime })}
+        {m['settings.preferences.timezone.current_time']({ time: selectedTimezoneTime })}
       </p>
     {/if}
   </FormSection>
 
   <!-- Time Format -->
-  <FormSection title={m.settings_preferences_time_format_title()} maxWidth="max-w-md" bordered>
+  <FormSection title={m['settings.preferences.time_format.title']()} maxWidth="max-w-md" bordered>
     <div class="flex flex-col gap-2">
       {#each timeFormatOptions as option (option.value)}
         {@const isSelected = selectedTimeFormat === option.value}
@@ -425,7 +429,7 @@
       disabled={!isModified || isSaving || !!timezoneError}
       loading={isSaving}
     >
-      {m.settings_preferences_save_button()}
+      {m['settings.preferences.save_button']()}
     </Button>
   </div>
 </div>
