@@ -32,6 +32,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
   import { toast } from '$lib/ui/toast';
   import FloatingTooltip from '$lib/ui/FloatingTooltip.svelte';
   import { getEmojiByName, getEmojiDisplayName } from '$lib/emoji';
+  import * as m from '$lib/i18n/messages';
 
   // Extract the MessagePostedEvent type from the union
   type MessagePostedEvent = Extract<
@@ -78,6 +79,11 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
   } = $props();
 
   const connection = useConnection();
+  const replyCountLabel = $derived(
+    replyCount === 1
+      ? m['room.message.meta.reply_count_one']()
+      : m['room.message.meta.reply_count_many']({ count: replyCount })
+  );
   const reactionTooltipId = `reaction-tooltip-${crypto.randomUUID().slice(0, 8)}`;
   let tooltipReactionEmoji = $state<string | null>(null);
   let tooltipAnchor = $state<{ top: number; bottom: number; left: number } | null>(null);
@@ -175,7 +181,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
       {@attach threadLinkGestureBoundary}
     >
       <span class="iconify uil--corner-up-right"></span>
-      <span>Thread</span>
+      <span>{m['room.message.meta.thread']()}</span>
     </a>
   {/if}
 
@@ -203,8 +209,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
         </div>
       {/if}
       <span>
-        {replyCount}
-        {replyCount === 1 ? 'reply' : 'replies'}
+        {replyCountLabel}
       </span>
       {#if hasThreadNotification}
         <UnreadDot />
@@ -218,7 +223,9 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
           isFollowingThread ? 'text-text' : ''
         ]}
         onclick={onToggleThreadFollow}
-        title={isFollowingThread ? 'Unfollow thread' : 'Follow thread'}
+        title={isFollowingThread
+          ? m['room.message.meta.unfollow_thread']()
+          : m['room.message.meta.follow_thread']()}
       >
         <span class={['iconify text-base', isFollowingThread ? 'uil--bell' : 'uil--bell-slash']}
         ></span>
@@ -245,9 +252,15 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
         onblur={hideReactionTooltip}
         disabled={!canReact}
         aria-describedby={tooltipReactionEmoji === reaction.emoji ? reactionTooltipId : undefined}
-        aria-label="{reaction.hasReacted
-          ? 'Remove'
-          : 'Add'} {getEmojiByName(reaction.emoji) ?? reaction.emoji} reaction ({reaction.count})"
+        aria-label={reaction.hasReacted
+          ? m['room.message.meta.remove_reaction_label']({
+              emoji: getEmojiByName(reaction.emoji) ?? reaction.emoji,
+              count: reaction.count
+            })
+          : m['room.message.meta.add_reaction_label']({
+              emoji: getEmojiByName(reaction.emoji) ?? reaction.emoji,
+              count: reaction.count
+            })}
         aria-pressed={reaction.hasReacted}
       >
         <span aria-hidden="true">{getEmojiByName(reaction.emoji) ?? reaction.emoji}</span>
@@ -261,7 +274,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
     <button
       class="{baseButtonClass} justify-center border-transparent px-1.5"
       onclick={(e) => onOpenEmojiPicker(e)}
-      aria-label="Add reaction"
+      aria-label={m['room.message.actions.add_reaction']()}
     >
       <span class="iconify text-base uil--smile"></span>
     </button>

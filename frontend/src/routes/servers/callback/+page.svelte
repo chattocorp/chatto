@@ -6,6 +6,7 @@
   import { loadAndClearFlowState } from '$lib/oauth/pkce';
   import { serverRegistry, generateServerId } from '$lib/state/server/registry.svelte';
   import { serverIdToSegment } from '$lib/navigation';
+  import * as m from '$lib/i18n/messages';
   import PageTitle from '$lib/ui/PageTitle.svelte';
 
   let status = $state<'loading' | 'error'>('loading');
@@ -20,13 +21,14 @@
     if (errorParam) {
       status = 'error';
       errorMessage =
-        page.url.searchParams.get('error_description') || `Authorization failed: ${errorParam}`;
+        page.url.searchParams.get('error_description') ||
+        m['auth.callback.authorization_failed']({ error: errorParam });
       return;
     }
 
     if (!code) {
       status = 'error';
-      errorMessage = 'No authorization code received.';
+      errorMessage = m['auth.callback.no_code']();
       return;
     }
 
@@ -34,14 +36,14 @@
     const flow = loadAndClearFlowState();
     if (!flow) {
       status = 'error';
-      errorMessage = 'OAuth flow state not found. The session may have expired. Please try again.';
+      errorMessage = m['auth.callback.missing_flow']();
       return;
     }
 
     // Validate state parameter (CSRF protection)
     if (state !== flow.state) {
       status = 'error';
-      errorMessage = 'Invalid state parameter. This may be a CSRF attack.';
+      errorMessage = m['auth.callback.invalid_state']();
       return;
     }
 
@@ -66,13 +68,14 @@
 
       if (!response.ok) {
         status = 'error';
-        errorMessage = result.error_description || result.error || 'Token exchange failed.';
+        errorMessage =
+          result.error_description || result.error || m['auth.callback.token_exchange_failed']();
         return;
       }
 
       if (!result.access_token) {
         status = 'error';
-        errorMessage = 'Server did not return an access token.';
+        errorMessage = m['auth.callback.no_access_token']();
         return;
       }
 
@@ -114,34 +117,33 @@
         serverId = id;
       }
 
-      goto(
-        resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) })
-      );
+      goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) }));
     } catch (err) {
       status = 'error';
       if (err instanceof DOMException && err.name === 'AbortError') {
-        errorMessage = 'Token exchange timed out. Please try again.';
+        errorMessage = m['auth.callback.token_exchange_timeout']();
       } else {
-        errorMessage = err instanceof Error ? err.message : 'Token exchange failed.';
+        errorMessage =
+          err instanceof Error ? err.message : m['auth.callback.token_exchange_failed']();
       }
     }
   });
 </script>
 
-<PageTitle title="Connecting..." />
+<PageTitle title={m['auth.callback.connecting_title']()} />
 
 <div class="flex min-h-0 flex-1 items-center justify-center p-8">
   {#if status === 'loading'}
     <div class="flex flex-col items-center gap-4">
       <span class="iconify animate-spin text-3xl text-muted mdi--loading"></span>
-      <p class="text-muted">Completing authentication...</p>
+      <p class="text-muted">{m['auth.callback.completing']()}</p>
     </div>
   {:else}
     <div class="flex max-w-md flex-col items-center gap-4 text-center">
       <span class="iconify text-4xl text-danger uil--exclamation-triangle"></span>
-      <p class="font-medium">Authentication Failed</p>
+      <p class="font-medium">{m['auth.callback.failed_title']()}</p>
       <p class="text-sm text-muted">{errorMessage}</p>
-      <a href={resolve('/')} class="btn btn-secondary cursor-pointer">Try Again</a>
+      <a href={resolve('/')} class="btn-secondary btn cursor-pointer">{m['common.retry']()}</a>
     </div>
   {/if}
 </div>

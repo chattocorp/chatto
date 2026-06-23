@@ -16,6 +16,7 @@
     createTypingIndicator
   } from '$lib/hooks';
   import { appState } from '$lib/state/globals.svelte';
+  import * as m from '$lib/i18n/messages';
   import {
     createComposerContext,
     createMentionRoles,
@@ -358,9 +359,7 @@
   // Header action visibility — flat derivations keep the template clean
   let showVoiceCall = $derived(!!room.roomData && !!serverInfo.livekitUrl);
   // Channel rooms can be left unless membership is granted by Universal policy.
-  let showLeaveRoom = $derived(
-    !!room.roomData && !room.isDM && !room.roomData.room.isUniversal
-  );
+  let showLeaveRoom = $derived(!!room.roomData && !room.isDM && !room.roomData.room.isUniversal);
   const roomSidebarPanels = new RoomSidebarPanelsState(
     () => getActiveServer(),
     () => roomId
@@ -526,7 +525,7 @@
                     }
                   })}
                 disabled={leavingRoom}
-                title="Leave room"
+                title={m['room.leave.title']()}
               >
                 <span class="pane-header-icon-glyph uil--sign-out-alt" aria-hidden="true"></span>
               </button>
@@ -597,7 +596,7 @@
         <button
           type="button"
           class="absolute inset-0 z-10 bg-transparent lg:hidden"
-          aria-label="Close room extras"
+          aria-label={m['room.close_extras']()}
           onclick={() => roomSidebarPanels.closeMobile()}
         ></button>
         <div

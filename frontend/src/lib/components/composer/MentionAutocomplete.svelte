@@ -17,6 +17,7 @@ Shows matching room members when typing @username in chat input.
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import AutocompletePopup from './AutocompletePopup.svelte';
   import type { MentionRole } from './autocomplete.svelte';
+  import * as m from '$lib/i18n/messages';
 
   type MentionResult =
     | { type: 'user'; handle: string; member: RoomMember; score: number; priority: number }
@@ -49,8 +50,8 @@ Shows matching room members when typing @username in chat input.
     }
 
     for (const target of [
-      { handle: 'all' as const, label: 'All room members' },
-      { handle: 'here' as const, label: 'Members currently here' }
+      { handle: 'all' as const, label: m['composer.mention.all_room_members']() },
+      { handle: 'here' as const, label: m['composer.mention.members_here']() }
     ]) {
       const score = fuzzyMatch(query, target.handle);
       if (score && score > 0) {
@@ -125,7 +126,7 @@ Shows matching room members when typing @username in chat input.
       >
         <span class="iconify h-4 w-4 uil--users-alt"></span>
       </div>
-      <span class="min-w-0 truncate text-sm text-text">Role</span>
+      <span class="min-w-0 truncate text-sm text-text">{m['composer.mention.role']()}</span>
       <span class="min-w-0 truncate text-sm text-muted">@{result.role.name}</span>
     {/if}
   {/snippet}

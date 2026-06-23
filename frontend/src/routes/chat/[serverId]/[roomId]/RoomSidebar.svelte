@@ -13,6 +13,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { graphql } from '$lib/gql';
+  import * as m from '$lib/i18n/messages';
   import { startDMWith } from '$lib/dm/startDM';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
@@ -203,7 +204,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     presentation === 'desktop' ? 'border-l border-border' : 'w-full min-w-0 flex-1 overflow-hidden'
   ]}
   style:width={presentation === 'desktop' ? `${roomSidebarWidth.value}px` : undefined}
-  aria-label="Room extras"
+  aria-label={m['room.sidebar.extras']()}
 >
   {#if presentation === 'desktop'}
     <ResizeHandle
@@ -213,19 +214,23 @@ calls, and similar room-specific panels can plug into the same shell. See the
       onResize={(w) => roomSidebarWidth.set(w)}
       onReset={() => roomSidebarWidth.reset()}
       edge="left"
-      label="Resize room extras pane"
+      label={m['room.sidebar.resize']()}
     />
   {/if}
   <PaneHeader {title} {loading} skeletonButtons={0}>
     {#snippet actions()}
-      <HeaderIconButton icon="uil--times" label="Hide room extras" onclick={() => onClose?.()} />
+      <HeaderIconButton
+        icon="uil--times"
+        label={m['room.sidebar.hide']()}
+        onclick={() => onClose?.()}
+      />
     {/snippet}
   </PaneHeader>
 
   {#if activePanel === 'members'}
-    <nav class="flex flex-1 flex-col overflow-y-auto p-2" aria-label="Members">
+    <nav class="flex flex-1 flex-col overflow-y-auto p-2" aria-label={m['room.sidebar.members']()}>
       <div class="sticky top-0 z-10 bg-background pb-2">
-        <label class="sr-only" for="room-member-search">Search room members</label>
+        <label class="sr-only" for="room-member-search">{m['room.sidebar.search_members']()}</label>
         <div class="relative">
           <span
             class="pointer-events-none absolute top-1/2 left-2 iconify h-4 w-4 -translate-y-1/2 text-muted uil--search"
@@ -236,7 +241,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
             type="search"
             value={membersStore.searchInput}
             oninput={scheduleMemberSearch}
-            placeholder="Search members"
+            placeholder={m['room.sidebar.search_members_placeholder']()}
             class="h-8 w-full rounded-md bg-surface py-1 pr-2 pl-8 text-sm transition-colors outline-none placeholder:text-muted"
           />
         </div>
@@ -256,10 +261,12 @@ calls, and similar room-specific panels can plug into the same shell. See the
         </ul>
       {:else}
         {#if members.length === 0}
-          <div class="px-2 py-8 text-center text-sm text-muted">No members found.</div>
+          <div class="px-2 py-8 text-center text-sm text-muted">
+            {m['room.sidebar.no_members']()}
+          </div>
         {:else if onlineMembers.length > 0}
           <CollapsibleGroup
-            label="Online ({onlineMembers.length})"
+            label={m['room.sidebar.online']({ count: onlineMembers.length })}
             items={onlineMembers}
             item={memberRow}
             persistKey={serverStorageKey(getActiveServer(), 'collapsible:room-members:online')}
@@ -268,7 +275,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
 
         {#if offlineMembers.length > 0}
           <CollapsibleGroup
-            label="Offline ({offlineMembers.length})"
+            label={m['room.sidebar.offline']({ count: offlineMembers.length })}
             items={offlineMembers}
             item={memberRow}
             persistKey={serverStorageKey(getActiveServer(), 'collapsible:room-members:offline')}
@@ -301,7 +308,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
       />
     {:else}
       <div class="flex min-h-0 flex-1 items-center justify-center p-4 text-sm text-muted">
-        No files in this room yet.
+        {m['room.sidebar.no_files']()}
       </div>
     {/if}
   {:else if activePanel === 'call'}
@@ -309,7 +316,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
       <VoiceCallPanel {roomId} {livekitUrl} />
     {:else}
       <div class="flex min-h-0 flex-1 items-center justify-center p-4 text-sm text-muted">
-        Calls are not available on this server.
+        {m['room.sidebar.calls_unavailable']()}
       </div>
     {/if}
   {/if}

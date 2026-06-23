@@ -14,6 +14,7 @@ have not made a browser permission choice yet.
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { TopOverlayNotice } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
+  import * as m from '$lib/i18n/messages';
 
   let { userId }: { userId: string } = $props();
 
@@ -36,10 +37,10 @@ have not made a browser permission choice yet.
   const shouldShow = $derived(
     Boolean(
       originServerInfo?.pushNotificationsEnabled &&
-        vapidKey &&
-        supported &&
-        permission === 'default' &&
-        !dismissed
+      vapidKey &&
+      supported &&
+      permission === 'default' &&
+      !dismissed
     )
   );
 
@@ -57,14 +58,14 @@ have not made a browser permission choice yet.
       permission = getPermission();
 
       if (enabled) {
-        toast.success('Push notifications enabled');
+        toast.success(m['settings.notifications.push_prompt.enabled']());
         return;
       }
 
       if (permission === 'denied') {
-        toast.warning('Push notifications are blocked in your browser or OS settings');
+        toast.warning(m['settings.notifications.push_prompt.blocked']());
       } else {
-        toast.error('Failed to enable push notifications');
+        toast.error(m['settings.notifications.push_prompt.enable_failed']());
       }
     } finally {
       loading = false;
@@ -74,18 +75,20 @@ have not made a browser permission choice yet.
 
 {#if shouldShow}
   <TopOverlayNotice
-    title="Enable push notifications"
-    message="Get notified about DMs, mentions, and replies."
+    title={m['settings.notifications.push_prompt.title']()}
+    message={m['settings.notifications.push_prompt.message']()}
     icon="uil--bell"
     tone="info"
-    loading={loading}
+    {loading}
     primaryAction={{
-      label: loading ? 'Enabling...' : 'Enable',
+      label: loading
+        ? m['settings.notifications.push_prompt.enabling']()
+        : m['settings.notifications.push_prompt.enable'](),
       icon: 'uil--bell',
       onclick: enablePush
     }}
     secondaryAction={{
-      label: 'No thanks',
+      label: m['settings.notifications.push_prompt.dismiss'](),
       onclick: optOut
     }}
   />

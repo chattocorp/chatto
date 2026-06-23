@@ -13,6 +13,7 @@
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button, Checkbox, TextInput, TextArea, FormError } from '$lib/ui/form';
   import { DeleteRoleModal, RolePermissionsMatrix, type Role } from '$lib/components/rbac';
+  import * as m from '$lib/i18n/messages';
 
   type User = { id: string; login: string; displayName: string };
 
@@ -207,26 +208,29 @@
   const canEditPingable = $derived(role?.name !== 'everyone');
 </script>
 
-<PageTitle title={`${role?.displayName ?? 'Edit Role'} | Server Admin`} />
+<PageTitle
+  title={m['admin.common.server_admin_page_title']({
+    title: role?.displayName ?? m['admin.permissions.edit_role_title']()
+  })}
+/>
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
   <PaneHeader
-    title="Edit Role"
-    subtitle={role?.displayName ?? 'Loading...'}
+    title={m['admin.permissions.edit_role_title']()}
+    subtitle={role?.displayName ?? m['common.loading']()}
     backHref={permissionsHref}
-    backLabel="Back to permissions"
+    backLabel={m['admin.permissions.back_to_permissions']()}
     showMobileNav
   />
 
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
     {#if loading}
-      <div class="text-muted">Loading role...</div>
+      <div class="text-muted">{m['admin.permissions.loading_role']()}</div>
     {:else if !role}
-      <div class="text-danger">Role not found</div>
+      <div class="text-danger">{m['admin.permissions.role_not_found']()}</div>
     {:else if !canManageRoles}
       <div class="text-danger">
-        You need the <code class="rounded bg-surface-200 px-1">roles.manage</code> permission to edit
-        roles.
+        {m['admin.permissions.need_manage_edit']()}
       </div>
     {:else}
       {#if error}
@@ -234,56 +238,56 @@
       {/if}
 
       <!-- Role Metadata -->
-      <Panel title="Role Details" icon="iconify uil--info-circle">
+      <Panel title={m['admin.common.role_details']()} icon="iconify uil--info-circle">
         <div class="flex flex-col gap-4">
           <div>
-            <div class="mb-1 text-sm font-medium">Name</div>
+            <div class="mb-1 text-sm font-medium">{m['rbac.role_form.name']()}</div>
             <code class="rounded bg-surface-200 px-2 py-1">{role.name}</code>
-            <p class="mt-1 text-xs text-muted">Role names cannot be changed after creation.</p>
+            <p class="mt-1 text-xs text-muted">{m['rbac.role_form.name_locked']()}</p>
           </div>
 
           {#if role.isSystem}
             <div>
-              <div class="mb-1 text-sm font-medium">Display Name</div>
+              <div class="mb-1 text-sm font-medium">{m['rbac.role_form.display_name']()}</div>
               <div class="text-text">{role.displayName}</div>
             </div>
             <div>
-              <div class="mb-1 text-sm font-medium">Description</div>
+              <div class="mb-1 text-sm font-medium">{m['rbac.role_form.description']()}</div>
               <div class="text-muted">{role.description}</div>
             </div>
-            <p class="text-sm text-muted">System role metadata cannot be modified.</p>
+            <p class="text-sm text-muted">{m['admin.permissions.system_metadata_locked']()}</p>
             <Checkbox
               id="pingable"
               bind:checked={editPingable}
-              label="Allow people to ping this role"
+              label={m['rbac.role_form.pingable']()}
               onchange={savePingable}
               disabled={saving || savingPingable || !canEditPingable}
               description={canEditPingable
-                ? 'Pingable roles appear in @ autocomplete and notify assigned room members.'
-                : 'Use @all for room-wide delivery; everyone is not a role ping handle.'}
+                ? m['rbac.role_form.pingable_description']()
+                : m['admin.permissions.everyone_pingable_description']()}
             />
           {:else}
             <TextInput
               id="displayName"
               testid="role-form-display-name"
-              label="Display Name"
+              label={m['rbac.role_form.display_name']()}
               bind:value={editDisplayName}
             />
             <TextArea
               id="description"
               testid="role-form-description"
-              label="Description"
+              label={m['rbac.role_form.description']()}
               bind:value={editDescription}
             />
             <Checkbox
               id="pingable"
               bind:checked={editPingable}
-              label="Allow people to ping this role"
+              label={m['rbac.role_form.pingable']()}
               onchange={savePingable}
               disabled={saving || savingPingable || !canEditPingable}
               description={canEditPingable
-                ? 'Pingable roles appear in @ autocomplete and notify assigned room members.'
-                : 'Use @all for room-wide delivery; everyone is not a role ping handle.'}
+                ? m['rbac.role_form.pingable_description']()
+                : m['admin.permissions.everyone_pingable_description']()}
             />
             <div class="flex gap-2">
               <Button
@@ -291,18 +295,20 @@
                 disabled={!metadataChanged || saving || savingPingable}
                 onclick={saveMetadata}
               >
-                {saving ? 'Saving...' : 'Save Changes'}
+                {saving ? m['rbac.role_form.saving']() : m['admin.permissions.save_changes']()}
               </Button>
             </div>
 
             <!-- Delete Role -->
             <div class="mt-4 border-t border-border pt-4">
-              <div class="mb-2 text-sm font-medium text-danger">Danger Zone</div>
+              <div class="mb-2 text-sm font-medium text-danger">
+                {m['admin.common.danger_zone']()}
+              </div>
               <p class="mb-3 text-sm text-muted">
-                Deleting this role will remove it from all users who have it assigned.
+                {m['admin.permissions.delete_role_description']()}
               </p>
               <Button variant="danger" onclick={() => (showDeleteConfirm = true)}>
-                Delete Role
+                {m['rbac.delete_role.action']()}
               </Button>
             </div>
           {/if}
@@ -313,26 +319,23 @@
       {#if canManageRoles && role}
         <Hint>
           {#if role.name === 'owner'}
-            Owners are always granted all permissions. The matrix is read-only because owner
-            permissions are not stored as editable grants or denials.
+            {m['admin.permissions.owner_permissions_hint']()}
           {:else}
-            This role's grants and denials across every scope. Combined with the user's other roles
-            at resolution time — use the per-user matrix to see what an individual user ends up
-            with.
+            {m['admin.permissions.role_permissions_hint']()}
           {/if}
         </Hint>
         <RolePermissionsMatrix roleName={role.name} />
       {/if}
 
       <!-- Users with this role -->
-      <Panel title="Users with this Role" icon="iconify uil--users-alt">
+      <Panel title={m['admin.permissions.users_with_role']()} icon="iconify uil--users-alt">
         {#if role?.name === 'everyone'}
-          <p class="text-muted">All server members have the everyone role implicitly.</p>
+          <p class="text-muted">{m['admin.permissions.everyone_implicit']()}</p>
         {:else}
           <UserList
             users={roleUsers}
             clickable={canAssignRoles}
-            emptyMessage="No users have this role"
+            emptyMessage={m['admin.permissions.no_users_with_role']()}
             onUserClick={(user) =>
               goto(
                 resolve('/chat/[serverId]/server-admin/members/[userId]', {

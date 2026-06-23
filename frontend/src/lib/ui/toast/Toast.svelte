@@ -1,4 +1,5 @@
 <script lang="ts">
+  import * as m from '$lib/i18n/messages';
   import type { ToastAction, ToastTone } from './toastState.svelte';
 
   let {
@@ -48,7 +49,7 @@
   onkeydown={handleKeyDown}
   role="button"
   tabindex="0"
-  aria-label="Dismiss notification"
+  aria-label={m['ui.toast.dismiss']()}
 >
   <span class="{icons[tone]} {iconColors[tone]} size-5 shrink-0"></span>
   <span class="flex-1 text-sm text-text">{message}</span>

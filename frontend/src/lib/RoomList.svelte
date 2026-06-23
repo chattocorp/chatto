@@ -9,6 +9,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { serverIdToSegment } from '$lib/navigation';
+  import * as m from '$lib/i18n/messages';
   import {
     sidebarLinkAnchorAttributes,
     sidebarLinkTarget
@@ -328,7 +329,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {#snippet activeCallIcon()}
   <span
     class="relative sidebar-icon text-accent"
-    aria-label="Active call"
+    aria-label={m['room_list.active_call']()}
     data-testid="room-call-icon"
   >
     <span class="relative inline-flex">
@@ -348,7 +349,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   {#if participants.length > 0}
     <div
       class="hidden shrink-0 items-center -space-x-1 @min-[220px]:flex"
-      aria-label={`${participants.length} participants in call`}
+      aria-label={m['room_list.call_participants']({ count: participants.length })}
       data-testid="room-call-participants"
     >
       {#each participants.slice(0, 4) as participant, i (participant.userId)}
@@ -416,15 +417,19 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         type="button"
         onclick={(e) => handleNotificationBadgeClick(e, room.id, false)}
         class="flex h-6 min-w-6 cursor-pointer items-center justify-center notification-dot"
-        aria-label={`Go to ${room.viewerNotificationCount} notifications`}
+        aria-label={m['room_list.go_to_notifications']({
+          count: room.viewerNotificationCount
+        })}
       >
         <NotificationBadge count={room.viewerNotificationCount} testid="room-notification-badge" />
       </button>
-      <span class="sr-only">{room.viewerNotificationCount} notifications</span>
+      <span class="sr-only">
+        {m['room_list.notifications']({ count: room.viewerNotificationCount })}
+      </span>
       <!-- Unread Indicator (subtle) -->
     {:else if isJoined && room.hasUnread && !notificationLevelStore.isRoomMuted(room.id)}
       <UnreadDot color="primary" testid="room-unread-dot" />
-      <span class="sr-only">unread messages</span>
+      <span class="sr-only">{m['room_list.unread_messages']()}</span>
     {/if}
   </a>
 {/snippet}
@@ -458,14 +463,18 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         type="button"
         onclick={(e) => handleNotificationBadgeClick(e, room.id, true)}
         class="flex h-6 min-w-6 cursor-pointer items-center justify-center notification-dot"
-        aria-label={`Go to ${room.viewerNotificationCount} direct message notifications`}
+        aria-label={m['room_list.go_to_dm_notifications']({
+          count: room.viewerNotificationCount
+        })}
       >
         <NotificationBadge count={room.viewerNotificationCount} testid="dm-notification-badge" />
       </button>
-      <span class="sr-only">{room.viewerNotificationCount} new direct messages</span>
+      <span class="sr-only">
+        {m['room_list.new_direct_messages']({ count: room.viewerNotificationCount })}
+      </span>
     {:else if room.hasUnread}
       <UnreadDot color="primary" testid="dm-unread-dot" />
-      <span class="sr-only">unread messages</span>
+      <span class="sr-only">{m['room_list.unread_messages']()}</span>
     {/if}
   </a>
 {/snippet}
@@ -493,12 +502,12 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {/snippet}
 
 {#if channels.length === 0 && dmRooms.length === 0 && !hasSidebarItems && !roomsStore.isInitialLoading}
-  <EmptyState icon="uil--comments" title="No rooms yet">
-    You haven't joined any rooms on this server. Head to the
+  <EmptyState icon="uil--comments" title={m['room_list.empty_title']()}>
+    {m['room_list.empty_prefix']()}
     <a href={resolve('/chat/[serverId]/overview', { serverId: serverSegment })} class="link"
-      >Overview</a
+      >{m['room_list.empty_overview']()}</a
     >
-    to browse the directory and join the ones you're interested in.
+    {m['room_list.empty_suffix']()}
   </EmptyState>
 {:else}
   <nav class="room-list sidebar-nav p-2 md:w-full">
@@ -517,7 +526,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     {:else if sortedRooms.length > 0}
       <!-- No layout configured yet — alphabetical fallback. -->
       <CollapsibleGroup
-        label="Rooms"
+        label={m['common.rooms']()}
         items={sortedRooms}
         item={roomLink}
         persistKey={serverStorageKey(getActiveServer(), 'collapsible:rooms')}

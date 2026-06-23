@@ -6,6 +6,7 @@
   import { graphql } from '$lib/gql';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
+  import * as m from '$lib/i18n/messages';
   import { Divider, Hint } from '$lib/ui';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { TextInput, FormError, Button, Form } from '$lib/ui/form';
@@ -135,12 +136,12 @@
       const result = await response.json();
 
       if (!response.ok) {
-        error = result.error || 'Login failed';
+        error = result.error || m['auth.login.failed']();
         return;
       }
 
       if (typeof result.token !== 'string' || !result.token) {
-        error = 'Login response did not include an auth token';
+        error = m['auth.login.missing_token']();
         return;
       }
 
@@ -156,23 +157,22 @@
         navigateAfterLogin(data.redirectUrl);
       }
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Login failed';
+      error = err instanceof Error ? err.message : m['auth.login.failed']();
     } finally {
       isLoading = false;
     }
   }
 </script>
 
-<PageTitle title={isStandalone ? 'Welcome' : 'Sign In'} />
+<PageTitle title={isStandalone ? m['auth.login.welcome_page_title']() : m['auth.login.title']()} />
 
 {#if !data.user}
   {#if isStandalone}
     <AuthLayout>
       <div class="flex flex-col items-center gap-6 text-center">
-        <h1 class="text-2xl font-bold">Welcome to Chatto</h1>
+        <h1 class="text-2xl font-bold">{m['auth.login.welcome_title']()}</h1>
         <p class="text-muted">
-          Connect to a Chatto server to get started. You can connect to multiple servers and switch
-          between them.
+          {m['auth.login.welcome_description']()}
         </p>
         <Button
           variant="accent"
@@ -180,18 +180,18 @@
           fullWidth
           onclick={() => (addServerDialogVisible = true)}
         >
-          Add Server
+          {m['auth.login.add_server']()}
         </Button>
       </div>
     </AuthLayout>
   {:else}
     <AuthLayout>
-      <h1 class="mb-6 text-center text-2xl font-bold">Sign In</h1>
+      <h1 class="mb-6 text-center text-2xl font-bold">{m['auth.login.title']()}</h1>
 
       {#if data.passwordResetSuccess}
         <div class="mb-4">
           <Hint tone="success">
-            Password reset successful. Please sign in with your new password.
+            {m['auth.login.password_reset_success']()}
           </Hint>
         </div>
       {/if}
@@ -202,20 +202,20 @@
           {#each authProviders as provider (provider.id)}
             <Button variant="secondary" size="lg" fullWidth href={providerLoginHref(provider)}>
               <span class={['iconify text-lg', providerIcon(provider.type)]}></span>
-              Continue with {provider.label}
+              {m['auth.login.continue_with_provider']({ provider: provider.label })}
             </Button>
           {/each}
 
-          <Divider label="or" />
+          <Divider label={m['common.or']()} />
         </div>
       {/if}
 
       <Form onsubmit={handleSubmit}>
         <TextInput
           id="identifier"
-          label="Username or Email"
+          label={m['auth.login.identifier_label']()}
           bind:value={identifier}
-          placeholder="you@example.com"
+          placeholder={m['common.email_placeholder']()}
           disabled={isLoading}
           required
           autocomplete="username"
@@ -224,10 +224,10 @@
 
         <TextInput
           id="password"
-          label="Password"
+          label={m['common.password']()}
           type="password"
           bind:value={password}
-          placeholder="Your password"
+          placeholder={m['common.password_placeholder']()}
           disabled={isLoading}
           required
           autocomplete="current-password"
@@ -240,22 +240,22 @@
           size="lg"
           disabled={!canSubmit}
           loading={isLoading}
-          loadingText="Signing in..."
+          loadingText={m['auth.login.signing_in']()}
         >
           <span class="iconify mdi--login"></span>
-          Sign In
+          {m['common.sign_in']()}
         </Button>
       </Form>
 
       <div class="mt-4 text-center">
-        <a href={resolve('/forgot-password')} class="link"> Forgot password? </a>
+        <a href={resolve('/forgot-password')} class="link">{m['auth.login.forgot_password']()}</a>
       </div>
 
       {#if directRegistrationEnabled}
-        <Divider label="or" />
+        <Divider label={m['common.or']()} />
 
         <a href={resolve('/register')} class="btn-secondary block w-full btn-lg text-center">
-          Create Account
+          {m['common.create_account']()}
         </a>
       {/if}
     </AuthLayout>

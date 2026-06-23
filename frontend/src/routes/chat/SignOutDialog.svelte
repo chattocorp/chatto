@@ -7,11 +7,8 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { clearLastRoom } from '$lib/storage/lastRoom';
   import { notifyLogout } from '$lib/auth/sessionChannel';
-  import {
-    hardRedirectAfterSignOut,
-    signOutServer,
-    signOutServers
-  } from '$lib/auth/signOut';
+  import { hardRedirectAfterSignOut, signOutServer, signOutServers } from '$lib/auth/signOut';
+  import * as m from '$lib/i18n/messages';
   import Dialog from '$lib/ui/Dialog.svelte';
   import { Button } from '$lib/ui/form';
 
@@ -44,9 +41,11 @@
 
   function routeToServerOrRoot(serverId: string | undefined) {
     if (serverId) {
-      goto(resolve('/chat/[serverId]', {
-        serverId: serverIdToSegment(serverId)
-      }));
+      goto(
+        resolve('/chat/[serverId]', {
+          serverId: serverIdToSegment(serverId)
+        })
+      );
       return;
     }
 
@@ -94,10 +93,10 @@
   }
 </script>
 
-<Dialog visible title="Sign Out" size="md" {onclose}>
+<Dialog visible title={m['chat.sign_out.title']()} size="md" {onclose}>
   {#snippet footer()}
     <div class="flex flex-wrap justify-end gap-2">
-      <Button variant="secondary" onclick={onclose}>Cancel</Button>
+      <Button variant="secondary" onclick={onclose}>{m['common.cancel']()}</Button>
       <Button
         variant="accent"
         loading={signingOutCurrent}
@@ -105,7 +104,7 @@
         onclick={handleSignOutCurrentServer}
       >
         <span class="iconify uil--sign-out-alt"></span>
-        Current Server
+        {m['chat.sign_out.current_server']()}
       </Button>
       <Button
         variant="danger"
@@ -114,12 +113,12 @@
         onclick={handleSignOutAllServers}
       >
         <span class="iconify uil--signout"></span>
-        All Servers
+        {m['chat.sign_out.all_servers']()}
       </Button>
     </div>
   {/snippet}
 
   <p class="text-muted">
-    Sign out of only the selected server, or disconnect every server from this client.
+    {m['chat.sign_out.description']()}
   </p>
 </Dialog>

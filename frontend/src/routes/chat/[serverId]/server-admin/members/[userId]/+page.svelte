@@ -18,6 +18,7 @@
   import { formatDate, formatDateTime } from '$lib/utils/formatTime';
   import { getLiveLogin } from '$lib/state/userProfiles.svelte';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
+  import * as m from '$lib/i18n/messages';
   import {
     validateAndNormalizeDisplayName,
     validateAndNormalizeLogin,
@@ -118,7 +119,7 @@
     }
 
     if (!resp.data?.server) {
-      error = 'Server not found';
+      error = m['admin.members.server_not_found']();
       loading = false;
       return;
     }
@@ -315,9 +316,9 @@
     } else {
       const displayName = getRoleDisplayName(roleName);
       if (currentlyHas) {
-        toast.success(`Removed ${displayName} role`);
+        toast.success(m['admin.members.removed_role']({ role: displayName }));
       } else {
-        toast.success(`Assigned ${displayName} role`);
+        toast.success(m['admin.members.assigned_role']({ role: displayName }));
       }
       // Reload to get updated state
       await loadData();
@@ -334,31 +335,35 @@
   });
 </script>
 
-<PageTitle title={`${member?.displayName ?? 'Member'} | Server Admin`} />
+<PageTitle
+  title={m['admin.common.server_admin_page_title']({
+    title: member?.displayName ?? m['admin.members.member_fallback']()
+  })}
+/>
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
   <PaneHeader
-    title="Member Details"
-    subtitle={member?.displayName ?? 'Loading...'}
+    title={m['admin.members.member_details']()}
+    subtitle={member?.displayName ?? m['common.loading']()}
     backHref={resolve('/chat/[serverId]/server-admin/members', {
       serverId: serverIdToSegment(getActiveServer())
     })}
-    backLabel="Back to Members"
+    backLabel={m['admin.members.back_to_members']()}
     showMobileNav
   />
 
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
     {#if loading}
-      <div class="text-muted">Loading member...</div>
+      <div class="text-muted">{m['admin.members.loading_member']()}</div>
     {:else if !member}
-      <Hint tone="danger">Member not found. They may have left the server.</Hint>
+      <Hint tone="danger">{m['admin.members.not_found']()}</Hint>
     {:else}
       {#if error}
         <FormError {error} />
       {/if}
 
       <!-- User Details -->
-      <Panel title="User Details" icon="iconify uil--user">
+      <Panel title={m['admin.members.user_details']()} icon="iconify uil--user">
         <div class="flex flex-col gap-6">
           <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
             {#if member.avatarUrl}
@@ -383,26 +388,33 @@
 
               <div class="mt-4 flex flex-wrap gap-2">
                 {#if member.deleted}
-                  <Pill tone="danger">Deleted account</Pill>
+                  <Pill tone="danger">{m['admin.members.deleted_account']()}</Pill>
                 {:else}
-                  <Pill tone="success">Member</Pill>
+                  <Pill tone="success">{m['admin.members.member']()}</Pill>
                 {/if}
                 {#if canViewMemberEmails}
                   <Pill tone={member.hasVerifiedEmail ? 'success' : 'muted'}>
-                    {member.hasVerifiedEmail ? 'Email verified' : 'Email not verified'}
+                    {member.hasVerifiedEmail
+                      ? m['admin.members.email_verified']()
+                      : m['admin.members.email_not_verified']()}
                   </Pill>
                 {:else}
-                  <Pill tone="muted">Email hidden</Pill>
+                  <Pill tone="muted">{m['admin.members.email_hidden']()}</Pill>
                 {/if}
                 <Pill tone={serverRoleCount > 0 ? 'primary' : 'muted'}>
-                  {serverRoleCount}
-                  {serverRoleCount === 1 ? 'server role' : 'server roles'}
+                  {serverRoleCount === 1
+                    ? m['admin.members.server_role_one']()
+                    : m['admin.members.server_role_many']({ count: serverRoleCount })}
                 </Pill>
                 <Pill tone={member.viewerCanDeleteAccount ? 'danger' : 'muted'}>
-                  {member.viewerCanDeleteAccount ? 'Deletion allowed' : 'Deletion protected'}
+                  {member.viewerCanDeleteAccount
+                    ? m['admin.members.deletion_allowed']()
+                    : m['admin.members.deletion_protected']()}
                 </Pill>
                 <Pill tone={cooldownActive ? 'accent' : 'muted'}>
-                  {cooldownActive ? 'Rename cooldown' : 'Rename available'}
+                  {cooldownActive
+                    ? m['admin.members.rename_cooldown']()
+                    : m['admin.members.rename_available']()}
                 </Pill>
               </div>
             </div>
@@ -410,32 +422,32 @@
 
           <div class="grid gap-4 md:grid-cols-2">
             <div class="min-w-0">
-              <div class="text-sm text-muted">User ID</div>
+              <div class="text-sm text-muted">{m['admin.members.user_id']()}</div>
               <div class="mt-1 min-w-0">
                 <CopyId value={member.id} />
               </div>
             </div>
             <div>
-              <div class="text-sm text-muted">Joined</div>
+              <div class="text-sm text-muted">{m['admin.common.joined']()}</div>
               <div class="mt-1">{formatOptionalDate(member.createdAt)}</div>
             </div>
             <div class="min-w-0">
-              <div class="text-sm text-muted">Verified email</div>
+              <div class="text-sm text-muted">{m['admin.members.verified_email']()}</div>
               <div class="mt-1 truncate" title={emailSummary(member)}>
                 {emailSummary(member)}
               </div>
             </div>
             <div>
-              <div class="text-sm text-muted">Username changes</div>
+              <div class="text-sm text-muted">{m['admin.members.username_changes']()}</div>
               <div class="mt-1">{cooldownSummary}</div>
             </div>
             <div class="min-w-0 md:col-span-2">
-              <div class="text-sm text-muted">Server roles</div>
+              <div class="text-sm text-muted">{m['admin.members.server_roles']()}</div>
               <div class="mt-1 flex flex-wrap gap-1">
                 {#each sortedServerRoles as roleName (roleName)}
                   <Pill tone="primary">{getRoleDisplayName(roleName)}</Pill>
                 {/each}
-                <Pill>Member</Pill>
+                <Pill>{m['admin.members.member']()}</Pill>
               </div>
             </div>
           </div>
@@ -444,20 +456,20 @@
 
       {#if canAdminManageUsers}
         <!-- Identity (admin) — bypasses the 30-day rename cooldown -->
-        <Panel title="Identity" icon="iconify uil--edit">
+        <Panel title={m['admin.members.identity']()} icon="iconify uil--edit">
           <Form onsubmit={saveIdentity} error={identityError}>
             <TextInput
               id="member-login"
               testid="admin-identity-login"
-              label="Username"
+              label={m['common.username']()}
               bind:value={editLogin}
               disabled={savingIdentity}
-              description="Admin renames bypass the 30-day cooldown."
+              description={m['admin.members.admin_rename_description']()}
             />
             <TextInput
               id="member-display-name"
               testid="admin-identity-display-name"
-              label="Display Name"
+              label={m['settings.profile.display_name.label']()}
               bind:value={editDisplayName}
               disabled={savingIdentity}
             />
@@ -466,9 +478,9 @@
                 type="submit"
                 disabled={!identityModified || savingIdentity}
                 loading={savingIdentity}
-                loadingText="Saving..."
+                loadingText={m['rbac.role_form.saving']()}
               >
-                Save
+                {m['rbac.role_form.save']()}
               </Button>
               <Button
                 type="button"
@@ -476,19 +488,21 @@
                 onclick={resetIdentity}
                 disabled={!identityModified || savingIdentity}
               >
-                Reset
+                {m['admin.members.reset']()}
               </Button>
             {/snippet}
             <div class="flex items-center gap-3 surface-box p-3">
               <div class="flex-1 text-sm text-muted">
                 {#if cooldownActive}
-                  Self-rename cooldown active for this user — {formatCooldownRemaining(
-                    cooldownRemaining
-                  )} remaining.
+                  {m['admin.members.cooldown_active']({
+                    remaining: formatCooldownRemaining(cooldownRemaining)
+                  })}
                 {:else if lastLoginChange}
-                  Last self-rename: {lastLoginChange.toLocaleString()}.
+                  {m['admin.members.last_self_rename']({
+                    time: lastLoginChange.toLocaleString()
+                  })}
                 {:else}
-                  User has never changed their username.
+                  {m['admin.members.never_renamed']()}
                 {/if}
               </div>
               <Button
@@ -497,9 +511,9 @@
                 onclick={clearCooldown}
                 disabled={!cooldownActive}
                 loading={clearingCooldown}
-                loadingText="Clearing..."
+                loadingText={m['admin.members.clearing']()}
               >
-                Reset cooldown
+                {m['admin.members.reset_cooldown']()}
               </Button>
             </div>
           </Form>
@@ -507,12 +521,12 @@
       {/if}
 
       <!-- Role Assignments -->
-      <Panel title="Role Assignments" icon="iconify uil--shield-check">
+      <Panel title={m['admin.members.role_assignments']()} icon="iconify uil--shield-check">
         <p class="mb-4 text-sm text-muted">
           {#if canAssignRoles}
-            Assign server roles to this member. Changes are saved immediately.
+            {m['admin.members.assign_roles_description']()}
           {:else}
-            View the server roles assigned to this member.
+            {m['admin.members.view_roles_description']()}
           {/if}
         </p>
 
@@ -525,9 +539,9 @@
               isSelf && (role.name === 'admin' || role.name === 'owner') && has}
             {@const isDisabled = !canAssignRoles || isImplicit || isUpdating || isSelfProtectedRole}
             {@const tooltip = isImplicit
-              ? 'All server members have this role implicitly'
+              ? m['admin.members.implicit_role_tooltip']()
               : isSelfProtectedRole
-                ? `You cannot revoke your own ${role.displayName} role`
+                ? m['admin.members.cannot_revoke_own_role']({ role: role.displayName })
                 : ''}
 
             <div
@@ -557,7 +571,9 @@
                 <div class="flex-1">
                   <div class="font-medium">{role.displayName}</div>
                   {#if isImplicit}
-                    <div class="text-xs text-muted">Implicit for all members</div>
+                    <div class="text-xs text-muted">
+                      {m['admin.members.implicit_all_members']()}
+                    </div>
                   {/if}
                 </div>
               </label>
@@ -569,7 +585,7 @@
                   })}
                   class="shrink-0 text-sm link"
                 >
-                  Edit
+                  {m['admin.members.edit']()}
                 </a>
               {/if}
             </div>

@@ -9,6 +9,7 @@
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import Hint from '$lib/ui/Hint.svelte';
   import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
+  import * as m from '$lib/i18n/messages';
 
   const roomId = $derived(page.params.roomId!);
   const serverSegment = $derived(serverIdToSegment(getActiveServer()));
@@ -29,25 +30,26 @@
 
   const nameQuery = useQuery(RoomNameQuery, () => ({ roomId }));
   const room = $derived(nameQuery.data?.room ?? null);
-  const pageTitle = $derived(room ? `Permissions — #${room.name}` : 'Room permissions');
+  const pageTitle = $derived(
+    room
+      ? m['admin.rooms_admin.permissions_page_title']({ name: `#${room.name}` })
+      : m['admin.rooms_admin.room_permissions_title_fallback']()
+  );
 </script>
 
-<PageTitle title={`${pageTitle} | Server Admin`} />
+<PageTitle title={m['admin.common.server_admin_page_title']({ title: pageTitle })} />
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
   <PaneHeader
     title={room ? `#${room.name}` : ''}
-    subtitle="Per-room override permissions (layered on top of the room's group)"
+    subtitle={m['admin.rooms_admin.room_permissions_subtitle']()}
     {backHref}
-    backLabel="Back to rooms"
+    backLabel={m['admin.rooms_admin.back_to_rooms']()}
     showMobileNav
   />
 
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
-    <Hint>
-      Per-room overrides for this room. Values set here take precedence over the group's
-      and the server-wide defaults.
-    </Hint>
+    <Hint>{m['admin.rooms_admin.room_permissions_hint']()}</Hint>
     <PermissionMatrix {roomId} />
   </div>
 </div>

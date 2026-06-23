@@ -16,6 +16,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
 -->
 <script lang="ts">
   import { pushState } from '$app/navigation';
+  import * as m from '$lib/i18n/messages';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import { toast } from '$lib/ui/toast';
 
@@ -84,13 +85,13 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-  class="group/preview relative w-full max-w-md embed-frame"
+  class="group/preview relative embed-frame w-full max-w-md"
   data-testid="youtube-embed"
   oncontextmenu={handleContextMenu}
 >
   <iframe
     src="https://www.youtube-nocookie.com/embed/{videoId}"
-    title="YouTube video"
+    title={m['preview.youtube_title']()}
     class="aspect-video w-full"
     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
     allowfullscreen
@@ -100,7 +101,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
       type="button"
       onclick={onDismiss}
       class="embed-control-button md:group-hover/preview:opacity-100"
-      aria-label="Dismiss video"
+      aria-label={m['preview.youtube_dismiss']()}
     >
       <span class="iconify text-sm uil--times"></span>
     </button>
@@ -109,7 +110,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
       type="button"
       onclick={openDeleteConfirmation}
       class="embed-control-button md:group-hover/preview:opacity-100"
-      aria-label="Delete video"
+      aria-label={m['preview.youtube_delete']()}
     >
       <span class="iconify text-sm uil--times"></span>
     </button>
@@ -123,11 +124,11 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
       <nav class="sidebar-nav">
         <button class="sidebar-item" onclick={handleOpenLink} role="menuitem">
           <span class="sidebar-icon iconify uil--external-link-alt"></span>
-          Open on YouTube
+          {m['preview.youtube_open']()}
         </button>
         <button class="sidebar-item" onclick={handleCopyUrl} role="menuitem">
           <span class="sidebar-icon iconify uil--copy"></span>
-          Copy URL
+          {m['preview.copy_url']()}
         </button>
         {#if canDelete}
           <button
@@ -136,7 +137,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
             role="menuitem"
           >
             <span class="sidebar-icon iconify uil--trash-alt"></span>
-            Delete embed
+            {m['preview.youtube_delete_embed']()}
           </button>
         {/if}
       </nav>

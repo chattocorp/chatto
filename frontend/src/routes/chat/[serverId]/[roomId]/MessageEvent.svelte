@@ -54,6 +54,7 @@
   import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
   import { shouldHighlightCurrentUserMention } from './messageMentionHighlight';
   import { selectedQuoteTextForMessageBody } from './selectedReplyQuote';
+  import * as m from '$lib/i18n/messages';
 
   // Long-press thresholds in milliseconds
   const HIGHLIGHT_DELAY_MS = 150; // Delay before showing visual feedback (avoids flicker on scroll)
@@ -632,7 +633,7 @@
             })}
             onclick={copyMessageLink}
             oncontextmenu={(e) => e.stopPropagation()}
-            title="Click to copy link to this message"
+            title={m['room.message.meta.copy_link_title']()}
             class="text-xs whitespace-nowrap text-muted opacity-0 group-hover:opacity-100 hover:underline"
           >
             {timestamp}
@@ -702,7 +703,7 @@
               })}
               onclick={copyMessageLink}
               oncontextmenu={(e) => e.stopPropagation()}
-              title="Click to copy link to this message"
+              title={m['room.message.meta.copy_link_title']()}
               class="shrink-0 text-xs leading-none text-muted hover:underline"
             >
               {timestamp}
@@ -719,7 +720,7 @@
             onclick={scrollToReplyTarget}
             onmousedown={(e) => e.stopPropagation()}
           >
-            <span class="shrink-0">in reply to</span>
+            <span class="shrink-0">{m['room.message.meta.in_reply_to']()}</span>
             {#if replyPreview.actor}
               {@const replyCallPresence = activeCallRooms.getParticipantCallPresence(
                 roomId,
@@ -750,7 +751,7 @@
         <!-- Message body - re-enable text selection on desktop (pointer-fine variant) -->
         {#if isDeleted}
           <!-- Message deleted or encryption key removed -->
-          <span class="text-muted/50 italic">This message has been deleted.</span>
+          <span class="text-muted/50 italic">{m['room.message.meta.deleted']()}</span>
         {:else if msg.body}
           <div bind:this={messageBodySelectionRoot} class="pointer-fine:select-text">
             <MessageContent

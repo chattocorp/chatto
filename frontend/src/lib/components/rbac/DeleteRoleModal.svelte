@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Button } from '$lib/ui/form';
   import Dialog from '$lib/ui/Dialog.svelte';
+  import * as m from '$lib/i18n/messages';
 
   let {
     roleDisplayName,
@@ -22,21 +23,23 @@
   }
 </script>
 
-<Dialog {visible} title="Delete Role" size="sm" onclose={handleClose}>
+<Dialog {visible} title={m['rbac.delete_role.title']()} size="sm" onclose={handleClose}>
   <p class="mb-4 text-muted">
-    Are you sure you want to delete the role <strong>{roleDisplayName}</strong>? This will:
+    {m['rbac.delete_role.prompt']({ role: roleDisplayName })}
   </p>
   <ul class="mb-4 list-inside list-disc text-sm text-muted">
-    <li>Remove the role from all users who have it</li>
-    <li>Delete all permission grants for this role</li>
+    <li>{m['rbac.delete_role.remove_from_users']()}</li>
+    <li>{m['rbac.delete_role.delete_grants']()}</li>
   </ul>
-  <p class="text-sm font-medium text-error">This action cannot be undone.</p>
+  <p class="text-sm font-medium text-error">{m['rbac.delete_role.irreversible']()}</p>
 
   {#snippet footer()}
     <div class="flex justify-end gap-3">
-      <Button variant="secondary" onclick={handleClose} disabled={deleting}>Cancel</Button>
+      <Button variant="secondary" onclick={handleClose} disabled={deleting}
+        >{m['common.cancel']()}</Button
+      >
       <Button variant="danger" onclick={onConfirm} disabled={deleting}>
-        {deleting ? 'Deleting...' : 'Delete Role'}
+        {deleting ? m['rbac.delete_role.deleting']() : m['rbac.delete_role.action']()}
       </Button>
     </div>
   {/snippet}

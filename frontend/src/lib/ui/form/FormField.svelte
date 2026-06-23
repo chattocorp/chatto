@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import * as m from '$lib/i18n/messages';
   import FieldFootnote from './FieldFootnote.svelte';
 
   let {
@@ -24,7 +25,7 @@
     {label}{#if required}<span
         class="ml-1 iconify align-middle text-[0.7em] text-accent uil--asterisk"
         aria-hidden="true"
-        title="Required"
+        title={m['ui.form.required']()}
       ></span>{/if}
   </label>
 

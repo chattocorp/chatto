@@ -9,6 +9,7 @@ Only renders when the `welcome=true` query parameter is present.
 -->
 <script lang="ts">
   import { page } from '$app/state';
+  import * as m from '$lib/i18n/messages';
   import { Hint } from '$lib/ui';
 
   let showWelcome = $state(page.url.searchParams.get('welcome') === 'true');
@@ -34,12 +35,12 @@ Only renders when the `welcome=true` query parameter is present.
   <div class="mb-2">
     <Hint tone="success">
       <div class="flex items-start justify-between gap-3">
-        <span>Your email has been verified and your account is ready.</span>
+        <span>{m['welcome.verified']()}</span>
         <button
           type="button"
           class="-m-1 icon-action"
           onclick={() => (showWelcome = false)}
-          title="Dismiss"
+          title={m['common.dismiss']()}
         >
           <span class="iconify uil--times"></span>
         </button>

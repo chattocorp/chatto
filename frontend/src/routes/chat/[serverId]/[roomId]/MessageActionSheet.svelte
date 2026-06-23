@@ -2,6 +2,7 @@
   import { useMessageActions, type MessageActionParams } from '$lib/hooks';
   import { getRecentEmojis } from '$lib/state/recentEmojis.svelte';
   import { getEmojiByName } from '$lib/emoji';
+  import * as m from '$lib/i18n/messages';
 
   let {
     serverId,
@@ -105,7 +106,7 @@
         <button
           class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-xl active:bg-surface-100"
           onclick={() => handleReaction(emoji)}
-          aria-label="React with {emoji}"
+          aria-label={m['room.message.actions.react_with']({ emoji })}
         >
           {emoji}
         </button>
@@ -117,7 +118,7 @@
             onOpenEmojiPicker();
             onClose();
           }}
-          aria-label="More reactions"
+          aria-label={m['room.message.actions.more_reactions']()}
         >
           <span class="iconify uil--smile"></span>
         </button>
@@ -129,27 +130,27 @@
     {#if onReplyInRoom}
       <button class="sidebar-item min-h-11 gap-3 px-3 py-2.5 text-base" onclick={handleReplyInRoom}>
         <span class="sidebar-icon iconify uil--corner-up-left"></span>
-        Reply
+        {m['room.message.actions.reply']()}
       </button>
     {/if}
 
     {#if onReply}
       <button class="sidebar-item min-h-11 gap-3 px-3 py-2.5 text-base" onclick={handleReply}>
         <span class="sidebar-icon iconify uil--comment-alt-lines"></span>
-        Reply in thread
+        {m['room.message.actions.reply_thread']()}
       </button>
     {/if}
 
     {#if canEdit}
       <button class="sidebar-item min-h-11 gap-3 px-3 py-2.5 text-base" onclick={handleEdit}>
         <span class="sidebar-icon iconify uil--pen"></span>
-        Edit
+        {m['room.message.actions.edit_short']()}
       </button>
     {/if}
 
     <button class="sidebar-item min-h-11 gap-3 px-3 py-2.5 text-base" onclick={handleCopyLink}>
       <span class="sidebar-icon iconify uil--copy"></span>
-      Copy link
+      {m['room.message.actions.copy_link']()}
     </button>
 
     {#if canDelete}
@@ -158,7 +159,7 @@
         onclick={handleDelete}
       >
         <span class="sidebar-icon iconify uil--trash-alt"></span>
-        Delete
+        {m['common.delete']()}
       </button>
     {/if}
   </nav>

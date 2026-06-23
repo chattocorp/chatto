@@ -1,6 +1,6 @@
 <script lang="ts">
   import { useConnection } from '$lib/state/server/connection.svelte';
-  import { UNIVERSAL_ROOM_HELP_TEXT } from '$lib/utils/roomCopy';
+  import * as m from '$lib/i18n/messages';
   import { isUnsupportedGraphQLInputFieldError } from '$lib/gql/compatibility';
   import { graphql } from './gql';
   import {
@@ -25,7 +25,7 @@
   const connection = useConnection();
 
   const schema = z.object({
-    name: z.string().trim().min(1, 'Room name is required'),
+    name: z.string().trim().min(1, m['room.create.name_required']()),
     description: z.string(),
     isUniversal: z.boolean()
   });
@@ -65,7 +65,7 @@
     try {
       const targetGroupId = groupId;
       if (!targetGroupId) {
-        submitError = 'Choose a room group before creating a room.';
+        submitError = m['room.create.missing_group']();
         return;
       }
 
@@ -97,9 +97,7 @@
 
       const roomId = result.data!.createRoom.id;
 
-      const joinResult = await client
-        .mutation(JoinRoomMutation, { input: { roomId } })
-        .toPromise();
+      const joinResult = await client.mutation(JoinRoomMutation, { input: { roomId } }).toPromise();
 
       if (joinResult.error) {
         submitError = joinResult.error.message;
@@ -109,7 +107,7 @@
 
       onroomcreated?.(roomId);
     } catch (err) {
-      submitError = err instanceof Error ? err.message : 'Failed to create room';
+      submitError = err instanceof Error ? err.message : m['room.create.failed']();
     } finally {
       isLoading = false;
     }
@@ -119,20 +117,20 @@
 <form onsubmit={handleSubmit} class="space-y-4">
   <TextInput
     id="room-name"
-    label="Room Name"
+    label={m['room.create.name_label']()}
     bind:value={form.values.name}
     error={form.fieldError('name')}
     onkeydown={() => form.touch('name')}
     oninput={clearSubmitError}
-    placeholder="Enter room name"
+    placeholder={m['room.create.name_placeholder']()}
     disabled={isLoading}
   />
 
   <TextArea
     id="room-description"
-    label="Description (optional)"
+    label={m['room.create.description_label']()}
     bind:value={form.values.description}
-    placeholder="What's this room about?"
+    placeholder={m['room.create.description_placeholder']()}
     disabled={isLoading}
     oninput={clearSubmitError}
     rows={3}
@@ -143,8 +141,8 @@
     bind:checked={form.values.isUniversal}
     disabled={isLoading}
     onchange={clearSubmitError}
-    label="Universal room"
-    description={UNIVERSAL_ROOM_HELP_TEXT}
+    label={m['room.create.universal_label']()}
+    description={m['room.create.universal_description']()}
   />
 
   <FormError error={submitError} />
@@ -154,9 +152,9 @@
     size="lg"
     loading={isLoading}
     disabled={!form.isValid}
-    loadingText="Creating..."
+    loadingText={m['room.create.creating']()}
   >
     <span class="iconify uil--plus"></span>
-    Create Room
+    {m['room.create.submit']()}
   </Button>
 </form>

@@ -23,6 +23,7 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
 -->
 <script lang="ts">
   import { useMessageActions, type MessageActionParams } from '$lib/hooks';
+  import * as m from '$lib/i18n/messages';
   import { getRecentEmojis } from '$lib/state/recentEmojis.svelte';
   import { getEmojiByName } from '$lib/emoji';
 
@@ -116,7 +117,7 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
   class:!visible={forceVisible}
   role="toolbar"
   tabindex="-1"
-  aria-label="Message actions"
+  aria-label={m['room.message.actions.toolbar']()}
   onmousedown={(e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -128,7 +129,9 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
         <button
           class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-base hover:bg-surface-100"
           onclick={() => handleReaction(emoji)}
-          aria-label={hasReacted(emoji) ? `Remove ${emoji}` : `React with ${emoji}`}
+          aria-label={hasReacted(emoji)
+            ? m['room.message.actions.remove_reaction']({ emoji })
+            : m['room.message.actions.react_with']({ emoji })}
         >
           {emoji}
         </button>
@@ -137,7 +140,7 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
         <button
           class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted hover:bg-surface-100 hover:text-text"
           onclick={onOpenEmojiPicker}
-          aria-label="More reactions"
+          aria-label={m['room.message.actions.more_reactions']()}
         >
           <span class="iconify text-base uil--smile"></span>
         </button>
@@ -151,7 +154,7 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
         <button
           class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted hover:bg-surface-100 hover:text-text"
           onclick={handleReplyInRoom}
-          aria-label="Reply"
+          aria-label={m['room.message.actions.reply']()}
         >
           <span class="iconify text-base uil--corner-up-left"></span>
         </button>
@@ -161,7 +164,7 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
         <button
           class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted hover:bg-surface-100 hover:text-text"
           onclick={handleReply}
-          aria-label="Reply in thread"
+          aria-label={m['room.message.actions.reply_thread']()}
         >
           <span class="iconify text-base uil--comment-alt-lines"></span>
         </button>
@@ -171,7 +174,7 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
         <button
           class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted hover:bg-surface-100 hover:text-text"
           onclick={handleEdit}
-          aria-label="Edit message"
+          aria-label={m['room.message.actions.edit']()}
         >
           <span class="iconify text-base uil--pen"></span>
         </button>
@@ -181,7 +184,7 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
         <button
           class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted hover:bg-surface-100 hover:text-text"
           onclick={onOpenMenu}
-          aria-label="More actions"
+          aria-label={m['room.message.actions.more']()}
         >
           <span class="iconify text-base uil--ellipsis-v"></span>
         </button>

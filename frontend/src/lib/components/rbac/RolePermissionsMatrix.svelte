@@ -15,6 +15,7 @@ and the deny/clear variants) via `setRolePermission`.
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { graphql } from '$lib/gql';
   import { toast } from '$lib/ui/toast';
+  import * as m from '$lib/i18n/messages';
   import {
     setRolePermission,
     type MutationScope as RoleMutationScope,
@@ -138,9 +139,9 @@ and the deny/clear variants) via `setRolePermission`.
 {/if}
 
 {#if loading}
-  <div class="text-muted">Loading permissions…</div>
+  <div class="text-muted">{m['rbac.permissions.loading']()}</div>
 {:else if !data}
-  <Hint tone="info">No data available.</Hint>
+  <Hint tone="info">{m['rbac.permissions.no_data']()}</Hint>
 {:else}
   <SubjectPermissionsMatrix
     {data}
