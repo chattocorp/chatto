@@ -22,6 +22,7 @@ import {
   type TimeFormat
 } from './gql/graphql';
 import { eventBusManager } from './state/server/eventBus.svelte';
+import type { CustomUserStatus } from './state/userProfiles.svelte';
 
 export const MyServerEventsSubscriptionDoc = graphql(`
   subscription MyServerEvents {
@@ -176,6 +177,17 @@ export const MyServerEventsSubscriptionDoc = graphql(`
           avatarUrl
           login
         }
+        ... on UserCustomStatusSetEvent {
+          userId
+          setCustomStatus: status {
+            emoji
+            text
+            expiresAt
+          }
+        }
+        ... on UserCustomStatusClearedEvent {
+          userId
+        }
         ... on ServerUserPreferencesUpdatedEvent {
           timezone
           timeFormat
@@ -235,18 +247,28 @@ export const MyServerEventsSubscriptionDoc = graphql(`
   }
 `);
 
-const voiceEventTypeNames = new Set([
+const legacySubscriptionEventTypeNames = new Set([
   'CallStartedEvent',
   'CallParticipantJoinedEvent',
   'CallParticipantLeftEvent',
-  'CallEndedEvent'
+  'CallEndedEvent',
+  'UserCustomStatusSetEvent',
+  'UserCustomStatusClearedEvent'
 ]);
 
 export const MyServerEventsLegacySubscriptionDoc = visit(
   MyServerEventsSubscriptionDoc as DocumentNode,
   {
     InlineFragment(node) {
-      if (node.typeCondition && voiceEventTypeNames.has(node.typeCondition.name.value)) {
+      if (
+        node.typeCondition &&
+        legacySubscriptionEventTypeNames.has(node.typeCondition.name.value)
+      ) {
+        return null;
+      }
+    },
+    Field(node) {
+      if (node.name.value === 'customStatus') {
         return null;
       }
     }
@@ -381,8 +403,37 @@ export type UserProfileUpdate = {
 
 export function onUserProfileUpdate(handler: (update: UserProfileUpdate) => void): () => void {
   return onTypedEvent('UserProfileUpdatedEvent', (_env, e) => {
-    return { userId: e.userId, displayName: e.displayName, avatarUrl: e.avatarUrl, login: e.login };
+    return {
+      userId: e.userId,
+      displayName: e.displayName,
+      avatarUrl: e.avatarUrl,
+      login: e.login
+    };
   }, handler);
+}
+
+export type UserCustomStatusUpdate = {
+  userId: string;
+  customStatus: CustomUserStatus | null;
+};
+
+export function onUserCustomStatusUpdate(
+  handler: (update: UserCustomStatusUpdate) => void
+): () => void {
+  const cleanupSet = onTypedEvent(
+    'UserCustomStatusSetEvent',
+    (_env, e) => ({ userId: e.userId, customStatus: e.setCustomStatus }),
+    handler
+  );
+  const cleanupCleared = onTypedEvent(
+    'UserCustomStatusClearedEvent',
+    (_env, e) => ({ userId: e.userId, customStatus: null }),
+    handler
+  );
+  return () => {
+    cleanupSet();
+    cleanupCleared();
+  };
 }
 
 export type MentionNotification = {

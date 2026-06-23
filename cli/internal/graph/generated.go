@@ -208,6 +208,12 @@ type ComplexityRoot struct {
 		Version    func(childComplexity int) int
 	}
 
+	CustomUserStatus struct {
+		Emoji     func(childComplexity int) int
+		ExpiresAt func(childComplexity int) int
+		Text      func(childComplexity int) int
+	}
+
 	DMMessageNotificationItem struct {
 		Actor     func(childComplexity int) int
 		CreatedAt func(childComplexity int) int
@@ -928,6 +934,7 @@ type ComplexityRoot struct {
 	User struct {
 		AvatarURL                   func(childComplexity int, width *int32, height *int32, fit *model.FitMode) int
 		CreatedAt                   func(childComplexity int) int
+		CustomStatus                func(childComplexity int) int
 		Deleted                     func(childComplexity int) int
 		DisplayName                 func(childComplexity int) int
 		HasVerifiedEmail            func(childComplexity int) int
@@ -947,6 +954,15 @@ type ComplexityRoot struct {
 		DisplayName func(childComplexity int) int
 		Login       func(childComplexity int) int
 		UserId      func(childComplexity int) int
+	}
+
+	UserCustomStatusClearedEvent struct {
+		UserId func(childComplexity int) int
+	}
+
+	UserCustomStatusSetEvent struct {
+		Status func(childComplexity int) int
+		UserId func(childComplexity int) int
 	}
 
 	UserDeletedEvent struct {
@@ -1941,6 +1957,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ConnectionInfo.Version(childComplexity), true
+
+	case "CustomUserStatus.emoji":
+		if e.ComplexityRoot.CustomUserStatus.Emoji == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CustomUserStatus.Emoji(childComplexity), true
+	case "CustomUserStatus.expiresAt":
+		if e.ComplexityRoot.CustomUserStatus.ExpiresAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CustomUserStatus.ExpiresAt(childComplexity), true
+	case "CustomUserStatus.text":
+		if e.ComplexityRoot.CustomUserStatus.Text == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CustomUserStatus.Text(childComplexity), true
 
 	case "DMMessageNotificationItem.actor":
 		if e.ComplexityRoot.DMMessageNotificationItem.Actor == nil {
@@ -5392,6 +5427,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.User.CreatedAt(childComplexity), true
+	case "User.customStatus":
+		if e.ComplexityRoot.User.CustomStatus == nil {
+			break
+		}
+
+		return e.ComplexityRoot.User.CustomStatus(childComplexity), true
 	case "User.deleted":
 		if e.ComplexityRoot.User.Deleted == nil {
 			break
@@ -5494,6 +5535,26 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.UserCreatedEvent.UserId(childComplexity), true
+
+	case "UserCustomStatusClearedEvent.userId":
+		if e.ComplexityRoot.UserCustomStatusClearedEvent.UserId == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UserCustomStatusClearedEvent.UserId(childComplexity), true
+
+	case "UserCustomStatusSetEvent.status":
+		if e.ComplexityRoot.UserCustomStatusSetEvent.Status == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UserCustomStatusSetEvent.Status(childComplexity), true
+	case "UserCustomStatusSetEvent.userId":
+		if e.ComplexityRoot.UserCustomStatusSetEvent.UserId == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UserCustomStatusSetEvent.UserId(childComplexity), true
 
 	case "UserDeletedEvent.userId":
 		if e.ComplexityRoot.UserDeletedEvent.UserId == nil {
@@ -6181,6 +6242,18 @@ func (ec *executionContext) childFields_ConnectionInfo(ctx context.Context, fiel
 		return ec.fieldContext_ConnectionInfo_rtt(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type ConnectionInfo", field.Name)
+}
+
+func (ec *executionContext) childFields_CustomUserStatus(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "emoji":
+		return ec.fieldContext_CustomUserStatus_emoji(ctx, field)
+	case "text":
+		return ec.fieldContext_CustomUserStatus_text(ctx, field)
+	case "expiresAt":
+		return ec.fieldContext_CustomUserStatus_expiresAt(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type CustomUserStatus", field.Name)
 }
 
 func (ec *executionContext) childFields_Event(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -7037,6 +7110,8 @@ func (ec *executionContext) childFields_User(ctx context.Context, field graphql.
 		return ec.fieldContext_User_createdAt(ctx, field)
 	case "deleted":
 		return ec.fieldContext_User_deleted(ctx, field)
+	case "customStatus":
+		return ec.fieldContext_User_customStatus(ctx, field)
 	case "avatarUrl":
 		return ec.fieldContext_User_avatarUrl(ctx, field)
 	case "hasVerifiedEmail":
@@ -11338,6 +11413,75 @@ func (ec *executionContext) _ConnectionInfo_rtt(ctx context.Context, field graph
 }
 func (ec *executionContext) fieldContext_ConnectionInfo_rtt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("ConnectionInfo", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _CustomUserStatus_emoji(ctx context.Context, field graphql.CollectedField, obj *corev1.CustomUserStatus) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CustomUserStatus_emoji(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Emoji, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CustomUserStatus_emoji(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CustomUserStatus", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _CustomUserStatus_text(ctx context.Context, field graphql.CollectedField, obj *corev1.CustomUserStatus) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CustomUserStatus_text(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Text, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CustomUserStatus_text(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CustomUserStatus", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _CustomUserStatus_expiresAt(ctx context.Context, field graphql.CollectedField, obj *corev1.CustomUserStatus) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CustomUserStatus_expiresAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ExpiresAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *timestamppb.Timestamp) graphql.Marshaler {
+			return ec.marshalOTime2ᚖgoogleᚗgolangᚗorgᚋprotobufᚋtypesᚋknownᚋtimestamppbᚐTimestamp(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_CustomUserStatus_expiresAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CustomUserStatus", field, false, false, errors.New("field of type Time does not have child fields"))
 }
 
 func (ec *executionContext) _DMMessageNotificationItem_id(ctx context.Context, field graphql.CollectedField, obj *model.DMMessageNotificationItem) (ret graphql.Marshaler) {
@@ -25261,6 +25405,38 @@ func (ec *executionContext) fieldContext_User_deleted(_ context.Context, field g
 	return graphql.NewScalarFieldContext("User", field, false, false, errors.New("field of type Boolean does not have child fields"))
 }
 
+func (ec *executionContext) _User_customStatus(ctx context.Context, field graphql.CollectedField, obj *corev1.User) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_User_customStatus(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CustomStatus, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *corev1.CustomUserStatus) graphql.Marshaler {
+			return ec.marshalOCustomUserStatus2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐCustomUserStatus(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_User_customStatus(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_CustomUserStatus(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _User_avatarUrl(ctx context.Context, field graphql.CollectedField, obj *corev1.User) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -25618,6 +25794,84 @@ func (ec *executionContext) _UserCreatedEvent_displayName(ctx context.Context, f
 }
 func (ec *executionContext) fieldContext_UserCreatedEvent_displayName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("UserCreatedEvent", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _UserCustomStatusClearedEvent_userId(ctx context.Context, field graphql.CollectedField, obj *corev1.UserCustomStatusClearedEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UserCustomStatusClearedEvent_userId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.UserId, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_UserCustomStatusClearedEvent_userId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("UserCustomStatusClearedEvent", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _UserCustomStatusSetEvent_userId(ctx context.Context, field graphql.CollectedField, obj *corev1.UserCustomStatusSetEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UserCustomStatusSetEvent_userId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.UserId, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_UserCustomStatusSetEvent_userId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("UserCustomStatusSetEvent", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _UserCustomStatusSetEvent_status(ctx context.Context, field graphql.CollectedField, obj *corev1.UserCustomStatusSetEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_UserCustomStatusSetEvent_status(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Status, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *corev1.CustomUserStatus) graphql.Marshaler {
+			return ec.marshalNCustomUserStatus2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐCustomUserStatus(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_UserCustomStatusSetEvent_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UserCustomStatusSetEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_CustomUserStatus(ctx, field)
+		},
+	}
+	return fc, nil
 }
 
 func (ec *executionContext) _UserDeletedEvent_userId(ctx context.Context, field graphql.CollectedField, obj *corev1.UserDeletedEvent) (ret graphql.Marshaler) {
@@ -31450,6 +31704,16 @@ func (ec *executionContext) _EventType(ctx context.Context, sel ast.SelectionSet
 			return graphql.Null
 		}
 		return ec._UserDeletedEvent(ctx, sel, obj)
+	case *corev1.UserCustomStatusSetEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._UserCustomStatusSetEvent(ctx, sel, obj)
+	case *corev1.UserCustomStatusClearedEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._UserCustomStatusClearedEvent(ctx, sel, obj)
 	case *corev1.UserCreatedEvent:
 		if obj == nil {
 			return graphql.Null
@@ -33406,6 +33670,52 @@ func (ec *executionContext) _ConnectionInfo(ctx context.Context, sel ast.Selecti
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var customUserStatusImplementors = []string{"CustomUserStatus"}
+
+func (ec *executionContext) _CustomUserStatus(ctx context.Context, sel ast.SelectionSet, obj *corev1.CustomUserStatus) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, customUserStatusImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CustomUserStatus")
+		case "emoji":
+			out.Values[i] = ec._CustomUserStatus_emoji(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "text":
+			out.Values[i] = ec._CustomUserStatus_text(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "expiresAt":
+			out.Values[i] = ec._CustomUserStatus_expiresAt(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -43003,6 +43313,8 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "customStatus":
+			out.Values[i] = ec._User_customStatus(ctx, field, obj)
 		case "avatarUrl":
 			field := field
 
@@ -43400,6 +43712,89 @@ func (ec *executionContext) _UserCreatedEvent(ctx context.Context, sel ast.Selec
 			}
 		case "displayName":
 			out.Values[i] = ec._UserCreatedEvent_displayName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var userCustomStatusClearedEventImplementors = []string{"UserCustomStatusClearedEvent", "EventType"}
+
+func (ec *executionContext) _UserCustomStatusClearedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.UserCustomStatusClearedEvent) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, userCustomStatusClearedEventImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("UserCustomStatusClearedEvent")
+		case "userId":
+			out.Values[i] = ec._UserCustomStatusClearedEvent_userId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var userCustomStatusSetEventImplementors = []string{"UserCustomStatusSetEvent", "EventType"}
+
+func (ec *executionContext) _UserCustomStatusSetEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.UserCustomStatusSetEvent) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, userCustomStatusSetEventImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("UserCustomStatusSetEvent")
+		case "userId":
+			out.Values[i] = ec._UserCustomStatusSetEvent_userId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "status":
+			out.Values[i] = ec._UserCustomStatusSetEvent_status(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -45145,6 +45540,16 @@ func (ec *executionContext) unmarshalNCreateRoomInput2hmansᚗdeᚋchattoᚋinte
 func (ec *executionContext) unmarshalNCreateSidebarLinkInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐCreateSidebarLinkInput(ctx context.Context, v any) (model.CreateSidebarLinkInput, error) {
 	res, err := ec.unmarshalInputCreateSidebarLinkInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNCustomUserStatus2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐCustomUserStatus(ctx context.Context, sel ast.SelectionSet, v *corev1.CustomUserStatus) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CustomUserStatus(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNDeleteAttachmentInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDeleteAttachmentInput(ctx context.Context, v any) (model.DeleteAttachmentInput, error) {
@@ -46893,6 +47298,13 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	_ = ctx
 	res := graphql.MarshalBoolean(*v)
 	return res
+}
+
+func (ec *executionContext) marshalOCustomUserStatus2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐCustomUserStatus(ctx context.Context, sel ast.SelectionSet, v *corev1.CustomUserStatus) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._CustomUserStatus(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOEvent2hmansᚗdeᚋchattoᚋinternalᚋcoreᚐEventEnvelope(ctx context.Context, sel ast.SelectionSet, v core.EventEnvelope) graphql.Marshaler {

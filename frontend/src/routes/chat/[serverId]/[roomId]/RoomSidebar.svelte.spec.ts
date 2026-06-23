@@ -154,6 +154,7 @@ vi.mock('$lib/state/server/permissions.svelte', () => ({
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
+  getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback,
   getLiveDisplayName: (_userId: string, fallback: string) => fallback,
   getLiveLogin: (_userId: string, fallback: string) => fallback
 }));

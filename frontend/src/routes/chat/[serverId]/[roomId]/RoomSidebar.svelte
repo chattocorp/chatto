@@ -15,11 +15,16 @@ calls, and similar room-specific panels can plug into the same shell. See the
   import { graphql } from '$lib/gql';
   import { startDMWith } from '$lib/dm/startDM';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
+  import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
   import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
   import type { PresenceStatus } from '$lib/gql/graphql';
   import type { RoomFilesStore, RoomMember, RoomMembersStore } from '$lib/state/room';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
-  import { getLiveDisplayName, getLiveLogin } from '$lib/state/userProfiles.svelte';
+  import {
+    getLiveCustomStatus,
+    getLiveDisplayName,
+    getLiveLogin
+  } from '$lib/state/userProfiles.svelte';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import CollapsibleGroup from '$lib/ui/CollapsibleGroup.svelte';
@@ -346,9 +351,12 @@ calls, and similar room-specific panels can plug into the same shell. See the
       ? 'Deleted User'
       : `View profile of ${getLiveDisplayName(member.id, member.displayName)}`}
   >
-    <UserAvatar user={member} size="sm" />
-    <div class="min-w-0 flex-1">
-      <div class="truncate">{getLiveDisplayName(member.id, member.displayName)}</div>
+  <UserAvatar user={member} size="sm" />
+  <div class="min-w-0 flex-1">
+      <div class="flex min-w-0 items-center gap-1.5">
+        <span class="min-w-0 truncate">{getLiveDisplayName(member.id, member.displayName)}</span>
+        <UserCustomStatusBadge status={getLiveCustomStatus(member.id, member.customStatus)} />
+      </div>
       <div class="truncate text-xs text-muted">
         @{getLiveLogin(member.id, member.login)}
       </div>

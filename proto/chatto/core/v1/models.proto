@@ -56,6 +56,15 @@ message User {
   // Avatar state is projected from AssetCreatedEvent/UserAvatarClearedEvent.
   google.protobuf.Timestamp created_at = 4; // When the user was created (null for users created before this field was added)
   bool deleted = 5; // True for public tombstones representing deleted/unresolvable users.
+  CustomUserStatus custom_status = 6; // Optional durable user-authored status, hidden after expires_at.
+}
+
+// CustomUserStatus is a durable, public user-authored status that is
+// independent of live online/away presence.
+message CustomUserStatus {
+  string emoji = 1;
+  string text = 2;
+  google.protobuf.Timestamp expires_at = 3;
 }
 
 // VerifiedEmail represents a single email address that has been verified

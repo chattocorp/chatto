@@ -57,16 +57,16 @@ const AuthServerID = "server"
 // string literals.
 const (
 	// Room aggregate
-	EventRoomCreated        = "room_created"
-	EventRoomUpdated        = "room_updated"
-	EventRoomArchived       = "room_archived"
-	EventRoomUnarchived     = "room_unarchived"
+	EventRoomCreated          = "room_created"
+	EventRoomUpdated          = "room_updated"
+	EventRoomArchived         = "room_archived"
+	EventRoomUnarchived       = "room_unarchived"
 	EventRoomUniversalChanged = "room_universal_changed"
-	EventRoomDeleted        = "room_deleted"
-	EventUserJoinedRoom     = "user_joined"
-	EventUserLeftRoom       = "user_left"
-	EventRoomMemberBanned   = "room_member_banned"
-	EventRoomMemberUnbanned = "room_member_unbanned"
+	EventRoomDeleted          = "room_deleted"
+	EventUserJoinedRoom       = "user_joined"
+	EventUserLeftRoom         = "user_left"
+	EventRoomMemberBanned     = "room_member_banned"
+	EventRoomMemberUnbanned   = "room_member_unbanned"
 
 	// Messages (also under the room aggregate — every message event for
 	// a room lives under evt.room.{R}.message_*, so a subscriber on
@@ -147,6 +147,8 @@ const (
 	EventUserAccountDeleted           = "account_deleted"
 	EventUserKeyShredded              = "user_key_shredded"
 	EventUserDEKGenerated             = "dek_generated"
+	EventUserCustomStatusSet          = "custom_status_set"
+	EventUserCustomStatusCleared      = "custom_status_cleared"
 
 	// RBAC aggregate
 	EventRBACRoleCreated            = "role_created"
@@ -334,6 +336,10 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventUserKeyShredded
 	case *corev1.Event_UserDekGenerated:
 		return EventUserDEKGenerated
+	case *corev1.Event_UserCustomStatusSet:
+		return EventUserCustomStatusSet
+	case *corev1.Event_UserCustomStatusCleared:
+		return EventUserCustomStatusCleared
 
 	case *corev1.Event_RbacRoleCreated:
 		return EventRBACRoleCreated

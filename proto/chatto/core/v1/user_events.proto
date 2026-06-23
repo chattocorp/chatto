@@ -2,8 +2,8 @@ syntax = "proto3";
 
 package chatto.core.v1;
 
-import "chatto/core/v1/models.proto";
 import "chatto/core/v1/user_preferences.proto";
+import "chatto/core/v1/models.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 
@@ -11,7 +11,7 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 // USER LIFECYCLE EVENTS (server-scoped)
 //
 // Top-level Event oneof tags owned by this file:
-//   - 700-714: durable user aggregate events on evt.user.{userId}.*
+//   - 700-716: durable user aggregate events on evt.user.{userId}.*
 //   - 1010-1015: live-only user lifecycle and preference broadcasts
 //
 // Keep these tags coordinated with event.proto. Message-internal field numbers
@@ -144,6 +144,15 @@ message UserLoginCooldownClearedEvent {
 }
 
 message UserAccountDeletedEvent {
+  string user_id = 1;
+}
+
+message UserCustomStatusSetEvent {
+  string user_id = 1;
+  CustomUserStatus status = 2;
+}
+
+message UserCustomStatusClearedEvent {
   string user_id = 1;
 }
 

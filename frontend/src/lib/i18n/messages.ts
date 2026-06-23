@@ -127,6 +127,48 @@ const settingsProfileUsernameConfirmCooldown = (): LocalizedString =>
   messages().settings_profile_username_confirm_cooldown(empty());
 const settingsProfileUsernameConfirmButton = (): LocalizedString =>
   messages().settings_profile_username_confirm_button(empty());
+const settingsProfileStatusEmojiLabel = (): LocalizedString =>
+  messages().settings_profile_status_emoji_label(empty());
+const settingsProfileStatusEmojiPlaceholder = (): LocalizedString =>
+  messages().settings_profile_status_emoji_placeholder(empty());
+const settingsProfileStatusTitle = (): LocalizedString =>
+  messages().settings_profile_status_title(empty());
+const settingsProfileStatusEditButton = (): LocalizedString =>
+  messages().settings_profile_status_edit_button(empty());
+const settingsProfileStatusEmojiChoose = (): LocalizedString =>
+  messages().settings_profile_status_emoji_choose(empty());
+const settingsProfileStatusTextLabel = (): LocalizedString =>
+  messages().settings_profile_status_text_label(empty());
+const settingsProfileStatusTextPlaceholder = (): LocalizedString =>
+  messages().settings_profile_status_text_placeholder(empty());
+const settingsProfileStatusExpiresAtLabel = (): LocalizedString =>
+  messages().settings_profile_status_expires_at_label(empty());
+const settingsProfileStatusTemplateLabel = (): LocalizedString =>
+  messages().settings_profile_status_template_label(empty());
+const settingsProfileStatusTemplateOutForLunch = (): LocalizedString =>
+  messages().settings_profile_status_template_out_for_lunch(empty());
+const settingsProfileStatusTemplateVacation = (): LocalizedString =>
+  messages().settings_profile_status_template_vacation(empty());
+const settingsProfileStatusTemplateSick = (): LocalizedString =>
+  messages().settings_profile_status_template_sick(empty());
+const settingsProfileStatusTemplateCustom = (): LocalizedString =>
+  messages().settings_profile_status_template_custom(empty());
+const settingsProfileStatusEmojiRequired = (): LocalizedString =>
+  messages().settings_profile_status_emoji_required(empty());
+const settingsProfileStatusTextRequired = (): LocalizedString =>
+  messages().settings_profile_status_text_required(empty());
+const settingsProfileStatusSaved = (): LocalizedString =>
+  messages().settings_profile_status_saved(empty());
+const settingsProfileStatusSaveFailed = (): LocalizedString =>
+  messages().settings_profile_status_save_failed(empty());
+const settingsProfileStatusCleared = (): LocalizedString =>
+  messages().settings_profile_status_cleared(empty());
+const settingsProfileStatusClearFailed = (): LocalizedString =>
+  messages().settings_profile_status_clear_failed(empty());
+const settingsProfileStatusSaveButton = (): LocalizedString =>
+  messages().settings_profile_status_save_button(empty());
+const settingsProfileStatusClearButton = (): LocalizedString =>
+  messages().settings_profile_status_clear_button(empty());
 const settingsProfileSaved = (): LocalizedString => messages().settings_profile_saved(empty());
 const settingsProfileSaveFailed = (): LocalizedString =>
   messages().settings_profile_save_failed(empty());
@@ -432,6 +474,27 @@ export { settingsProfileUsernameConfirmTitle as 'settings.profile.username.confi
 export { settingsProfileUsernameConfirmPrompt as 'settings.profile.username.confirm_prompt' };
 export { settingsProfileUsernameConfirmCooldown as 'settings.profile.username.confirm_cooldown' };
 export { settingsProfileUsernameConfirmButton as 'settings.profile.username.confirm_button' };
+export { settingsProfileStatusEmojiLabel as 'settings.profile.status.emoji.label' };
+export { settingsProfileStatusEmojiPlaceholder as 'settings.profile.status.emoji.placeholder' };
+export { settingsProfileStatusTitle as 'settings.profile.status.title' };
+export { settingsProfileStatusEditButton as 'settings.profile.status.edit_button' };
+export { settingsProfileStatusEmojiChoose as 'settings.profile.status.emoji.choose' };
+export { settingsProfileStatusTextLabel as 'settings.profile.status.text.label' };
+export { settingsProfileStatusTextPlaceholder as 'settings.profile.status.text.placeholder' };
+export { settingsProfileStatusExpiresAtLabel as 'settings.profile.status.expires_at.label' };
+export { settingsProfileStatusTemplateLabel as 'settings.profile.status.template.label' };
+export { settingsProfileStatusTemplateOutForLunch as 'settings.profile.status.template.out_for_lunch' };
+export { settingsProfileStatusTemplateVacation as 'settings.profile.status.template.vacation' };
+export { settingsProfileStatusTemplateSick as 'settings.profile.status.template.sick' };
+export { settingsProfileStatusTemplateCustom as 'settings.profile.status.template.custom' };
+export { settingsProfileStatusEmojiRequired as 'settings.profile.status.emoji_required' };
+export { settingsProfileStatusTextRequired as 'settings.profile.status.text_required' };
+export { settingsProfileStatusSaved as 'settings.profile.status.saved' };
+export { settingsProfileStatusSaveFailed as 'settings.profile.status.save_failed' };
+export { settingsProfileStatusCleared as 'settings.profile.status.cleared' };
+export { settingsProfileStatusClearFailed as 'settings.profile.status.clear_failed' };
+export { settingsProfileStatusSaveButton as 'settings.profile.status.save_button' };
+export { settingsProfileStatusClearButton as 'settings.profile.status.clear_button' };
 export { settingsProfileSaved as 'settings.profile.saved' };
 export { settingsProfileSaveFailed as 'settings.profile.save_failed' };
 export { settingsProfileSaveButton as 'settings.profile.save_button' };

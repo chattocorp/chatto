@@ -192,6 +192,16 @@ func isDeliverableLiveEVTAssetEvent(event *corev1.Event) bool {
 	}
 }
 
+func isDeliverableLiveEVTUserEvent(event *corev1.Event) bool {
+	switch event.GetEvent().(type) {
+	case *corev1.Event_UserCustomStatusSet,
+		*corev1.Event_UserCustomStatusCleared:
+		return true
+	default:
+		return false
+	}
+}
+
 func eventNeedsReactionProjection(event *corev1.Event) bool {
 	switch event.GetEvent().(type) {
 	case *corev1.Event_ReactionAdded, *corev1.Event_ReactionRemoved:

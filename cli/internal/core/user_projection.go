@@ -102,6 +102,10 @@ func (p *UserProjection) Apply(event *corev1.Event, seq uint64) error {
 		p.applyLoginCooldownStarted(e.UserLoginCooldownStarted, event.GetCreatedAt())
 	case *corev1.Event_UserLoginCooldownCleared:
 		p.applyLoginCooldownCleared(e.UserLoginCooldownCleared)
+	case *corev1.Event_UserCustomStatusSet:
+		p.applyCustomStatusSet(e.UserCustomStatusSet)
+	case *corev1.Event_UserCustomStatusCleared:
+		p.applyCustomStatusCleared(e.UserCustomStatusCleared)
 	case *corev1.Event_UserAccountDeleted:
 		p.applyAccountDeleted(e.UserAccountDeleted, seq)
 	case *corev1.Event_UserKeyShredded:
@@ -355,6 +359,27 @@ func (p *UserProjection) applyLoginCooldownCleared(e *corev1.UserLoginCooldownCl
 	u.loginChanged = time.Time{}
 }
 
+func (p *UserProjection) applyCustomStatusSet(e *corev1.UserCustomStatusSetEvent) {
+	if e == nil || e.GetUserId() == "" || e.GetStatus() == nil {
+		return
+	}
+	u := p.ensureUserLocked(e.GetUserId())
+	if u.user == nil {
+		u.user = &corev1.User{Id: e.GetUserId()}
+	}
+	u.user.CustomStatus = proto.Clone(e.GetStatus()).(*corev1.CustomUserStatus)
+}
+
+func (p *UserProjection) applyCustomStatusCleared(e *corev1.UserCustomStatusClearedEvent) {
+	if e == nil || e.GetUserId() == "" {
+		return
+	}
+	u := p.ensureUserLocked(e.GetUserId())
+	if u.user != nil {
+		u.user.CustomStatus = nil
+	}
+}
+
 func (p *UserProjection) applyAccountDeleted(e *corev1.UserAccountDeletedEvent, seq uint64) {
 	if e == nil || e.GetUserId() == "" {
 		return
@@ -379,6 +404,9 @@ func (p *UserProjection) applyAccountDeleted(e *corev1.UserAccountDeletedEvent, 
 	u.passwordHash = nil
 	u.passwordSetAt = time.Time{}
 	u.preferences = nil
+	if u.user != nil {
+		u.user.CustomStatus = nil
+	}
 	u.verifiedEmail = make(map[string]VerifiedEmail)
 	u.oauthConsent = make(map[string]struct{})
 	u.loginChanged = time.Time{}
@@ -413,6 +441,24 @@ func (p *UserProjection) applyKeyShredded(e *corev1.UserKeyShreddedEvent) {
 	u.loginChanged = time.Time{}
 }
 
+func cloneUserWithActiveStatus(user *corev1.User, now time.Time) *corev1.User {
+	if user == nil {
+		return nil
+	}
+	out := proto.Clone(user).(*corev1.User)
+	if statusExpired(out.GetCustomStatus(), now) {
+		out.CustomStatus = nil
+	}
+	return out
+}
+
+func statusExpired(status *corev1.CustomUserStatus, now time.Time) bool {
+	if status == nil || status.GetExpiresAt() == nil {
+		return false
+	}
+	return !status.GetExpiresAt().AsTime().After(now)
+}
+
 func (p *UserProjection) userPIIString(eventID, userID, eventType, purpose string, encrypted *corev1.EncryptedUserString) (string, bool) {
 	if encrypted == nil {
 		return "", false
@@ -445,7 +491,7 @@ func (p *UserProjection) Get(userID string) (*corev1.User, bool) {
 	if u == nil || u.deleted || u.user == nil {
 		return nil, false
 	}
-	return proto.Clone(u.user).(*corev1.User), true
+	return cloneUserWithActiveStatus(u.user, time.Now()), true
 }
 
 func (p *UserProjection) GetReference(userID string) (*corev1.User, bool) {
@@ -458,7 +504,7 @@ func (p *UserProjection) GetReference(userID string) (*corev1.User, bool) {
 	if u.deleted || u.user == nil || u.user.GetLogin() == "" || u.user.GetDisplayName() == "" {
 		return DeletedUserReference(userID), true
 	}
-	return proto.Clone(u.user).(*corev1.User), true
+	return cloneUserWithActiveStatus(u.user, time.Now()), true
 }
 
 func (p *UserProjection) GetByLogin(login string) (*corev1.User, bool) {
@@ -607,7 +653,7 @@ func (p *UserProjection) Users() []*corev1.User {
 		if u == nil || u.deleted || u.user == nil {
 			continue
 		}
-		out = append(out, proto.Clone(u.user).(*corev1.User))
+		out = append(out, cloneUserWithActiveStatus(u.user, time.Now()))
 	}
 	return out
 }

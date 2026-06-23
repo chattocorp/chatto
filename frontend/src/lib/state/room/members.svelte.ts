@@ -10,6 +10,7 @@ import {
 } from '$lib/gql/graphql';
 import type { EventEnvelope } from '$lib/eventBus.svelte';
 import type { GraphQLClient } from '$lib/state/server/graphqlClient.svelte';
+import type { CustomUserStatus } from '$lib/state/userProfiles.svelte';
 
 export const ROOM_MEMBERS_PAGE_SIZE = 100;
 const MENTION_MEMBER_SEARCH_LIMIT = 10;
@@ -23,6 +24,7 @@ export type RoomMember = {
   displayName: string;
   deleted?: boolean;
   avatarUrl?: string | null;
+  customStatus?: CustomUserStatus | null;
   presenceStatus: PresenceStatus;
 };
 

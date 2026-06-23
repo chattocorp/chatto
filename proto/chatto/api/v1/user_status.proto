@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "google/protobuf/timestamp.proto";
+
+message CustomUserStatus {
+  string emoji = 1;
+  string text = 2;
+  google.protobuf.Timestamp expires_at = 3;
+}
+
+message SetCustomStatusRequest {
+  string emoji = 1;
+  string text = 2;
+  google.protobuf.Timestamp expires_at = 3;
+}
+
+message SetCustomStatusResponse {
+  CustomUserStatus status = 1;
+}
+
+message ClearCustomStatusRequest {}
+
+message ClearCustomStatusResponse {
+  CustomUserStatus status = 1;
+}
+
+service UserStatusService {
+  rpc SetCustomStatus(SetCustomStatusRequest) returns (SetCustomStatusResponse);
+  rpc ClearCustomStatus(ClearCustomStatusRequest) returns (ClearCustomStatusResponse);
+}

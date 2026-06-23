@@ -2,6 +2,7 @@ import {
   onEvent,
   onPresenceChange,
   onUserProfileUpdate,
+  onUserCustomStatusUpdate,
   onUserSettingsUpdate,
   onNotificationLevelChanged,
   onMention,
@@ -13,6 +14,7 @@ import {
   onSessionTerminated,
   type EventHandler,
   type UserProfileUpdate,
+  type UserCustomStatusUpdate,
   type UserSettingsUpdate,
   type NotificationLevelChanged,
   type MentionNotification,
@@ -59,6 +61,14 @@ export function usePresenceChange(handler: (userId: string, status: PresenceStat
  */
 export function useUserProfileUpdate(handler: (update: UserProfileUpdate) => void) {
   $effect(() => onUserProfileUpdate(handler));
+}
+
+/**
+ * Hook to subscribe to user custom status updates.
+ * Must be called during component initialization.
+ */
+export function useUserCustomStatusUpdate(handler: (update: UserCustomStatusUpdate) => void) {
+  $effect(() => onUserCustomStatusUpdate(handler));
 }
 
 /**

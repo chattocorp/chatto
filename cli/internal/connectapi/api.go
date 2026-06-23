@@ -34,9 +34,11 @@ func (a *API) Handlers() []Handler {
 	serverPath, serverHandler := apiv1connect.NewServerServiceHandler(&serverService{api: a})
 	prefsPath, prefsHandler := apiv1connect.NewNotificationPreferencesServiceHandler(&notificationPreferencesService{api: a})
 	timelinePath, timelineHandler := apiv1connect.NewRoomTimelineServiceHandler(&roomTimelineService{api: a})
+	userStatusPath, userStatusHandler := apiv1connect.NewUserStatusServiceHandler(&userStatusService{api: a})
 	return []Handler{
 		{ServicePath: serverPath, Handler: serverHandler},
 		{ServicePath: prefsPath, Handler: prefsHandler},
 		{ServicePath: timelinePath, Handler: timelineHandler},
+		{ServicePath: userStatusPath, Handler: userStatusHandler},
 	}
 }

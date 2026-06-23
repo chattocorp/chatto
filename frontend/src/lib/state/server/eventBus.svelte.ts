@@ -40,14 +40,17 @@ function errorDebug(error: unknown) {
 	};
 }
 
-function isUnsupportedVoiceEventSubscriptionError(error: unknown): boolean {
+function isUnsupportedLiveEventSubscriptionError(error: unknown): boolean {
 	return (
 		isUnsupportedGraphQLFieldError(error, 'callId') ||
+		isUnsupportedGraphQLFieldError(error, 'customStatus') ||
 		[
 			'CallStartedEvent',
 			'CallParticipantJoinedEvent',
 			'CallParticipantLeftEvent',
-			'CallEndedEvent'
+			'CallEndedEvent',
+			'UserCustomStatusSetEvent',
+			'UserCustomStatusClearedEvent'
 		].some((typeName) => isUnsupportedGraphQLTypeError(error, typeName))
 	);
 }
@@ -131,13 +134,13 @@ class EventBusManager {
 					if (result.error) {
 						if (
 							!usingLegacySubscription &&
-							isUnsupportedVoiceEventSubscriptionError(result.error)
+							isUnsupportedLiveEventSubscriptionError(result.error)
 						) {
 							usingLegacySubscription = true;
 							console.warn(
-								`[eventBus:${serverId}] voice event subscription fields unsupported; falling back to legacy myEvents subscription`
+								`[eventBus:${serverId}] live event subscription fields unsupported; falling back to legacy myEvents subscription`
 							);
-							resubscribe('voice event fragments unsupported', 'subscription-ended');
+							resubscribe('live event fragments unsupported', 'subscription-ended');
 							return;
 						}
 						console.debug(`[eventBus:${serverId}] subscription error state`, {

@@ -397,6 +397,20 @@ func (s *MyEventsService) filterLiveEVTEvent(ctx context.Context, userID string,
 		return filtered, ok, false
 	}
 
+	if _, ok := events.ParseUserSubject(msg.Subject); ok {
+		if !isDeliverableLiveEVTUserEvent(event) {
+			return nil, false, false
+		}
+		waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
+		defer cancel()
+		evtSubject := events.SubjectRoot + strings.TrimPrefix(msg.Subject, events.LiveSubjectRoot)
+		if err := s.waitForLiveEVTUserEvent(waitCtx, evtSubject, seq); err != nil {
+			s.core.logger.Warn("Live EVT user projection readiness failed - tearing down stream", "subject", msg.Subject, "sequence", seq, "error", err)
+			return nil, false, true
+		}
+		return NewEVTEventEnvelopeWithDeliverySeq(event, seq), true, false
+	}
+
 	return nil, false, false
 }
 
@@ -491,6 +505,10 @@ func (s *MyEventsService) waitForLiveEVTRoomEvent(ctx context.Context, subject s
 
 func (s *MyEventsService) waitForLiveEVTAssetEvent(ctx context.Context, subject string, seq uint64) error {
 	return s.core.assetLifecycle().waitForAssets(ctx, events.SubjectPosition(subject, seq))
+}
+
+func (s *MyEventsService) waitForLiveEVTUserEvent(ctx context.Context, subject string, seq uint64) error {
+	return s.core.userService.waitForUsers(ctx, events.SubjectPosition(subject, seq))
 }
 
 // isAuthorizedForLiveEvent checks whether a user can receive a non-room

@@ -18,8 +18,14 @@ ContextMenu, which handles both modes automatically.
 <script lang="ts">
   import type { PresenceStatus } from '$lib/gql/graphql';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
+  import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
-  import { getLiveDisplayName, getLiveLogin } from '$lib/state/userProfiles.svelte';
+  import {
+    getLiveCustomStatus,
+    getLiveDisplayName,
+    getLiveLogin,
+    type CustomUserStatus
+  } from '$lib/state/userProfiles.svelte';
 
   let {
     user,
@@ -37,6 +43,7 @@ ContextMenu, which handles both modes automatically.
       displayName: string;
       avatarUrl?: string | null;
       presenceStatus: PresenceStatus;
+      customStatus?: CustomUserStatus | null;
     };
     anchorRect?: { top: number; bottom: number; left: number } | null;
     canSendMessage?: boolean;
@@ -48,6 +55,7 @@ ContextMenu, which handles both modes automatically.
   } = $props();
 
   const displayName = $derived(getLiveDisplayName(user.id, user.displayName || user.login));
+  const customStatus = $derived(getLiveCustomStatus(user.id, user.customStatus));
 
   function handleSendMessage() {
     onSendMessage?.();
@@ -70,7 +78,10 @@ ContextMenu, which handles both modes automatically.
     <div class="flex items-center gap-3 p-3">
       <UserAvatar {user} size="md" />
       <div class="min-w-0 flex-1">
-        <div class="truncate font-semibold">{displayName}</div>
+        <div class="flex min-w-0 items-center gap-1.5 font-semibold">
+          <span class="min-w-0 truncate">{displayName}</span>
+          <UserCustomStatusBadge status={customStatus} showText />
+        </div>
         <div class="truncate text-xs text-muted">@{getLiveLogin(user.id, user.login)}</div>
       </div>
     </div>

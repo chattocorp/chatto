@@ -63,6 +63,8 @@ union EventType =
   | UserCreatedEvent
   | UserDeletedEvent
   | UserProfileUpdatedEvent
+  | UserCustomStatusSetEvent
+  | UserCustomStatusClearedEvent
   | ServerUserPreferencesUpdatedEvent
   | NotificationLevelChangedEvent
   # Server lifecycle
@@ -132,6 +134,26 @@ type UserProfileUpdatedEvent {
   avatarUrl: String @goField(forceResolver: true)
   "The user's current login/username."
   login: String!
+}
+
+"""
+Event: A user's custom status was set or replaced.
+Delivered from the durable EVT user aggregate.
+"""
+type UserCustomStatusSetEvent {
+  "The user whose status changed."
+  userId: ID!
+  "The newly active custom status."
+  status: CustomUserStatus!
+}
+
+"""
+Event: A user's custom status was cleared.
+Delivered from the durable EVT user aggregate.
+"""
+type UserCustomStatusClearedEvent {
+  "The user whose status was cleared."
+  userId: ID!
 }
 
 """

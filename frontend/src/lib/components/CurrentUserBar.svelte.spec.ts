@@ -61,15 +61,24 @@ const { currentUserState, voiceCallState, roomsState } = vi.hoisted(() => ({
   }
 }));
 const navigation = vi.hoisted(() => ({
-  goto: vi.fn()
+  goto: vi.fn(),
+  pushState: vi.fn()
 }));
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'origin'
 }));
 
+vi.mock('$lib/state/server/connection.svelte', () => ({
+  useConnection: () => () => ({
+    connectBaseUrl: 'https://chat.example.test',
+    bearerToken: 'token'
+  })
+}));
+
 vi.mock('$app/navigation', () => ({
-  goto: navigation.goto
+  goto: navigation.goto,
+  pushState: navigation.pushState
 }));
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
@@ -85,6 +94,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
+  getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback,
   getLiveDisplayName: (_userId: string, fallback: string) => fallback
 }));
 
