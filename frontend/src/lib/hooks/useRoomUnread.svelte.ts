@@ -20,9 +20,15 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
   let unreadBeforeTime = $state<string | null>(null);
 
   // The server's most recent read cursor (`lastReadAt`) for this room.
-  // Updated from every markRoomAsRead result; used to anchor the unread
-  // separator the instant the user leaves (see the presence-false edge).
+  // Updated from every markRoomAsRead result; used to capture where the
+  // unread separator should be anchored when the user leaves.
   let lastCursor: string | null = null;
+  // Captured while the app is hidden/unfocused, but intentionally not exposed
+  // to the timeline until the user returns. This lets unread dots update in
+  // the background without repainting the open room's separator while the user
+  // is looking at another app.
+  let pendingAwayAfterTime: string | null = null;
+  let pendingAwayHasEvents = false;
 
   async function markRoomAsRead(targetRoomId: string, upToEventId?: string) {
     roomUnreadStore.setRoomUnread(targetRoomId, false);
@@ -59,9 +65,9 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
    * this hook — notably when the user posts their own message, since
    * PostMessage auto-marks the room read on the server.
    *
-   * Also advances the open-upper-bound separator anchor (set on
-   * presence-false) past the new cursor whenever it lands beyond the
-   * anchor, regardless of presence. Two scenarios both need this:
+   * Also advances open-upper-bound separator anchors past the new cursor
+   * whenever it lands beyond the anchor, regardless of presence. Two scenarios
+   * both need this:
    *
    * 1. Own message lands while away (e.g. posted from another device): the
    *    presence-false anchor was set from a stale cursor; without this the
@@ -73,15 +79,19 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
    *    separator stays stuck at the prior cursor and renders BETWEEN the
    *    user's two own posts (one before bg, one after refocus).
    *
-   * Gating on `unreadBeforeTime === null` keeps the closed (after, before]
-   * window from a fresh room entry intact — that window represents "this
-   * is what you missed last time", and the user posting doesn't change
-   * what they previously hadn't seen.
+   * Gating the visible anchor on `unreadBeforeTime === null` keeps the closed
+   * (after, before] window from a fresh room entry intact — that window
+   * represents "this is what you missed last time", and the user posting
+   * doesn't change what they previously hadn't seen.
    */
   function noteReadCursor(timestamp: string) {
     const ts = Date.parse(timestamp);
     if (lastCursor && ts <= Date.parse(lastCursor)) return;
     lastCursor = timestamp;
+
+    if (pendingAwayAfterTime !== null && ts > Date.parse(pendingAwayAfterTime)) {
+      pendingAwayAfterTime = timestamp;
+    }
 
     if (
       unreadAfterTime !== null &&
@@ -92,10 +102,17 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
     }
   }
 
+  function noteAwayEvent() {
+    if (pendingAwayAfterTime !== null) {
+      pendingAwayHasEvents = true;
+    }
+  }
+
   // Fire markRoomAsRead on every presence-true edge (fresh entry OR
   // refocus/tab-reveal) and on room changes while present. The mutation
-  // result drives the unread separator so a refocus shows what arrived
-  // while the user was away.
+  // result drives the unread separator on room entry; same-room refocus uses
+  // the deferred away anchor so the separator does not appear in the
+  // background before the user returns.
   let lastFiredRoomId = '';
   let wasPresent = false;
 
@@ -104,15 +121,13 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
     const present = appState.isPresent;
 
     if (!present) {
-      // Presence-false edge: anchor the unread separator at the current
-      // read cursor with no upper bound, so messages arriving while the
-      // user is away pile up below the marker in real time — it's already
-      // there the moment the tab comes back on-screen (or right away if
-      // the window is visible but unfocused). The presence-true edge below
-      // refines it on return.
+      // Presence-false edge: capture the current read cursor, but do not
+      // expose it to the rendered timeline yet. Messages can keep streaming
+      // in and sidebar unread dots can light up while the user is away; the
+      // in-room separator appears only on the presence-true edge below.
       if (wasPresent && lastCursor) {
-        unreadAfterTime = lastCursor;
-        unreadBeforeTime = null;
+        pendingAwayAfterTime = lastCursor;
+        pendingAwayHasEvents = false;
       }
       wasPresent = false;
       return;
@@ -126,12 +141,21 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
 
     // On a room change, clear the previous room's separator so it can't
     // flash in the new room while the mutation below is in flight. On a
-    // refocus of the *same* room, leave the existing separator in place —
-    // it was anchored on the presence-false edge and the mutation result
-    // is deliberately ignored below so the marker stays stable.
+    // refocus of the *same* room, reveal any deferred away anchor and leave
+    // the mutation result ignored below so the marker stays stable.
     if (isRoomChange) {
+      pendingAwayAfterTime = null;
+      pendingAwayHasEvents = false;
       unreadAfterTime = null;
       unreadBeforeTime = null;
+    } else if (pendingAwayAfterTime && pendingAwayHasEvents) {
+      unreadAfterTime = pendingAwayAfterTime;
+      unreadBeforeTime = null;
+      pendingAwayAfterTime = null;
+      pendingAwayHasEvents = false;
+    } else {
+      pendingAwayAfterTime = null;
+      pendingAwayHasEvents = false;
     }
 
     markRoomAsRead(roomId).then((result) => {
@@ -139,11 +163,11 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
       if (current.roomId === roomId && result) {
         // Only adopt the server's (previousLastReadAt, lastReadAt] window on
         // a fresh room entry. On a same-room refocus the separator was just
-        // anchored on the presence-false edge against `lastCursor` with an
-        // open upper bound — overwriting it here collapses the window to
-        // empty whenever the server cursor hasn't moved (e.g. only non-
-        // message events like joins/leaves arrived while away), making the
-        // separator vanish on focus and reappear on every blur.
+        // revealed from the deferred away anchor with an open upper bound —
+        // overwriting it here collapses the window to empty whenever the
+        // server cursor hasn't moved (e.g. only non-message events like
+        // joins/leaves arrived while away), making the separator vanish on
+        // focus and reappear on every blur.
         if (isRoomChange && result.previousLastReadAt && result.lastReadAt) {
           unreadAfterTime = result.previousLastReadAt;
           unreadBeforeTime = result.lastReadAt;
@@ -160,6 +184,7 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
       return unreadBeforeTime;
     },
     markRoomAsRead,
-    noteReadCursor
+    noteReadCursor,
+    noteAwayEvent
   };
 }

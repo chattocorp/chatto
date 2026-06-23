@@ -399,7 +399,7 @@ test.describe('Room unread separator', () => {
     );
   });
 
-  test('unread separator appears in real time while the tab is hidden', async ({
+  test('unread separator is deferred until the hidden tab returns', async ({
     page,
     chatPage,
     roomPage,
@@ -432,8 +432,8 @@ test.describe('Room unread separator', () => {
         // No separator yet — User B has read everything.
         await roomPage2.expectNoUnreadSeparator();
 
-        // User B's tab goes to the background. They stay in the room; presence
-        // just drops, which anchors the unread separator at the read cursor.
+        // User B's tab goes to the background. They stay in the room, but the
+        // rendered separator should not change until they return.
         await page2.evaluate(() => {
           Object.defineProperty(document, 'visibilityState', {
             value: 'hidden',
@@ -447,15 +447,16 @@ test.describe('Room unread separator', () => {
         const awayMessage = `Posted while hidden ${Date.now()}`;
         await roomPage.sendMessage(awayMessage);
 
-        // The message streams in over the live subscription, and because the
-        // separator was anchored the moment presence dropped, it shows up
-        // immediately — without User B having to navigate away and back.
+        // The message streams in over the live subscription, but the in-room
+        // separator is deferred so Chatto does not visibly repaint the marker
+        // while the user is away.
         await roomPage2.expectMessageVisible(awayMessage);
-        await roomPage2.expectUnreadSeparator();
+        await expect(async () => {
+          await roomPage2.expectNoUnreadSeparator();
+        }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
 
-        // Re-focusing the tab refines the separator (clamps its upper bound)
-        // but must not blink it out — the anchor already matches the server's
-        // previousLastReadAt, so the marker stays put across the transition.
+        // Re-focusing the tab reveals the deferred separator and keeps it
+        // stable across the mark-read round-trip.
         await page2.evaluate(() => {
           Object.defineProperty(document, 'visibilityState', {
             value: 'visible',
@@ -463,6 +464,58 @@ test.describe('Room unread separator', () => {
             configurable: true
           });
           document.dispatchEvent(new Event('visibilitychange'));
+        });
+
+        await expect(async () => {
+          await roomPage2.expectUnreadSeparator();
+        }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
+      }
+    );
+  });
+
+  test('unread separator is deferred until the blurred window is focused again', async ({
+    page,
+    chatPage,
+    roomPage,
+    browser,
+    serverURL
+  }) => {
+    test.setTimeout(60000); // Multi-user test with real-time events needs more time
+
+    // User A: Create account, post an initial message in general.
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+
+    await chatPage.enterRoom('general');
+    await waitForRoomReady(page, 'general');
+    await roomPage.sendMessage('Initial blur message');
+
+    const generalRoomId = await getRoomIdByName(page, 'general');
+
+    // User B: Stay in general, then switch focus away without hiding the tab.
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: page2, chatPage: chatPage2, roomPage: roomPage2 }) => {
+        await chatPage2.enterRoom('general');
+        await waitForRoomReady(page2, 'general');
+        await roomPage2.expectMessageVisible('Initial blur message');
+        await waitForRoomRead(page2, generalRoomId);
+        await roomPage2.expectNoUnreadSeparator();
+
+        await page2.evaluate(() => {
+          window.dispatchEvent(new Event('blur'));
+        });
+
+        const awayMessage = `Posted while blurred ${Date.now()}`;
+        await roomPage.sendMessage(awayMessage);
+        await roomPage2.expectMessageVisible(awayMessage);
+        await expect(async () => {
+          await roomPage2.expectNoUnreadSeparator();
+        }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
+
+        await page2.evaluate(() => {
+          window.dispatchEvent(new Event('focus'));
         });
 
         await expect(async () => {
@@ -486,11 +539,8 @@ test.describe('Room unread separator', () => {
     // tab was hidden was a non-message room event (join, leave). The server-
     // side read cursor only tracks root messages, so a refocus mutation
     // round-trip returned previousLastReadAt === lastReadAt and the bounded
-    // window collapsed to empty — making the marker disappear on focus and
-    // reappear on every blur.
-    //
-    // The fix in useRoomUnread no longer overwrites bounds on a same-room
-    // refocus; this test exercises the exact path that used to break.
+    // window collapsed to empty. The marker is now deferred until refocus,
+    // and the same-room refocus must not overwrite that deferred anchor.
 
     // User A: Create account, enter general, post the initial message
     // so User B has a real read cursor anchored on a root message.
@@ -515,8 +565,8 @@ test.describe('Room unread separator', () => {
         await waitForRoomRead(page2, generalRoomId);
         await roomPage2.expectNoUnreadSeparator();
 
-        // User B's tab goes hidden — presence drops, anchoring the unread
-        // separator at the server read cursor with an open upper bound.
+        // User B's tab goes hidden. The unread anchor is captured, but the
+        // rendered separator is deferred until User B returns.
         await page2.evaluate(() => {
           Object.defineProperty(document, 'visibilityState', {
             value: 'hidden',
@@ -533,17 +583,19 @@ test.describe('Room unread separator', () => {
         await page.getByRole('dialog').getByRole('button', { name: 'Leave Room' }).click();
 
         // User B (still hidden) receives the leave event over the live
-        // subscription. The separator anchors above it.
+        // subscription, but the separator should not render while hidden.
         await expect(page2.getByText(`${userA.displayName} left the room`)).toBeVisible({
           timeout: TIMEOUTS.REALTIME_EVENT
         });
-        await roomPage2.expectUnreadSeparator();
+        await expect(async () => {
+          await roomPage2.expectNoUnreadSeparator();
+        }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
 
         // User B's tab returns to the foreground. With the bug, this refocus
         // would fire markRoomAsRead which returns previousLastReadAt ===
         // lastReadAt (server cursor never moved), the .then() would overwrite
-        // the bounds with that empty window, and the separator would blink out.
-        // The fix preserves the unfocus-edge anchor on a same-room refocus.
+        // the deferred open-bound anchor with an empty window, and the
+        // separator would blink out.
         await page2.evaluate(() => {
           Object.defineProperty(document, 'visibilityState', {
             value: 'visible',

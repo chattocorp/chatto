@@ -31,6 +31,7 @@ const { mocks } = vi.hoisted(() => {
       pushState: vi.fn(),
       replaceState: vi.fn(),
       noteReadCursor: vi.fn(),
+      noteAwayEvent: vi.fn(),
       markRoomAsRead: vi.fn(),
       resetTypingDebounce: vi.fn(),
       query: vi.fn(() => ({
@@ -110,7 +111,8 @@ vi.mock('$lib/hooks', () => ({
     unreadAfterTime: null,
     unreadBeforeTime: null,
     markRoomAsRead: mocks.markRoomAsRead,
-    noteReadCursor: mocks.noteReadCursor
+    noteReadCursor: mocks.noteReadCursor,
+    noteAwayEvent: mocks.noteAwayEvent
   }),
   useEvent: vi.fn(),
   usePresenceChange: vi.fn(),

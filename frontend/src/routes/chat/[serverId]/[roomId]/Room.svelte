@@ -6,6 +6,7 @@
   import MessageComposer, {
     type MessageComposerApi
   } from '$lib/components/composer/MessageComposer.svelte';
+  import type { EventEnvelope } from '$lib/eventBus.svelte';
   import { graphql } from '$lib/gql';
   import {
     useRoomData,
@@ -292,6 +293,28 @@
     }
   }
 
+  function shouldRevealAwaySeparator(event: EventEnvelope): boolean {
+    const eventData = event.event;
+    if (!eventData) return false;
+    if (event.actorId === currentUser.user?.id) return false;
+
+    switch (eventData.__typename) {
+      case 'MessagePostedEvent':
+        return (
+          eventData.roomId === roomId && (!!eventData.echoOfEventId || !eventData.threadRootEventId)
+        );
+      case 'UserJoinedRoomEvent':
+      case 'UserLeftRoomEvent':
+      case 'RoomUpdatedEvent':
+      case 'RoomDeletedEvent':
+      case 'RoomArchivedEvent':
+      case 'RoomUnarchivedEvent':
+        return eventData.roomId === roomId;
+      default:
+        return false;
+    }
+  }
+
   // Keep the read cursor in sync with incoming root messages:
   // - Other users' messages mark the room read (with explicit event ID, so
   //   the server cursor matches what the client rendered) while the user is
@@ -304,6 +327,10 @@
     roomFilesStore.ingestServerEvent(event);
     roomMembersStore.ingestServerEvent(event);
     if (!event.event) return;
+
+    if (!appState.isPresent && shouldRevealAwaySeparator(event)) {
+      unread.noteAwayEvent();
+    }
 
     if (event.event.__typename === 'MessagePostedEvent' && event.event.roomId === roomId) {
       const actorId = event.actorId;
