@@ -3,6 +3,36 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.0-beta.1](https://github.com/chattocorp/chatto/compare/v0.3.8...v0.4.0-beta.1) (2026-06-23)
+
+
+### Features
+
+* add universal rooms ([#1046](https://github.com/chattocorp/chatto/issues/1046)) ([0b8c5cb](https://github.com/chattocorp/chatto/commit/0b8c5cb839876416a8262260ddc6a051ee0c94ba))
+* **admin:** filter event log ([#1056](https://github.com/chattocorp/chatto/issues/1056)) ([d8bd280](https://github.com/chattocorp/chatto/commit/d8bd28076112e4e2a1488190cb29e9bf0acbc5cc))
+* **api:** add ConnectRPC public API PoC ([#1067](https://github.com/chattocorp/chatto/issues/1067)) ([7aeb8f7](https://github.com/chattocorp/chatto/commit/7aeb8f7fd629da040d2e916600215fe3d02d0f26))
+* **api:** add ConnectRPC room timeline PoC ([#1074](https://github.com/chattocorp/chatto/issues/1074)) ([920fcaa](https://github.com/chattocorp/chatto/commit/920fcaa26ca577ada529e2e1ef19d041d5baa47f))
+* **core:** persist link preview assets via storage backend ([#1060](https://github.com/chattocorp/chatto/issues/1060)) ([005deb1](https://github.com/chattocorp/chatto/commit/005deb1365f1899176cca57f91db8265cf7da009))
+* **exporter:** add deployment-wide prometheus exporter ([#1059](https://github.com/chattocorp/chatto/issues/1059)) ([5aa29c7](https://github.com/chattocorp/chatto/commit/5aa29c747babe5b4dacc12a9a63eef57bcf36ec8))
+* **frontend:** consolidate frontend design system ([#1053](https://github.com/chattocorp/chatto/issues/1053)) ([7fc39ab](https://github.com/chattocorp/chatto/commit/7fc39ab6aebdba74bd8eef56ba05323bf60ad901))
+* **frontend:** improve admin member details ([#1057](https://github.com/chattocorp/chatto/issues/1057)) ([8c8ccce](https://github.com/chattocorp/chatto/commit/8c8cccee5335bf2d10948414a65b2d75a547c30f))
+* **frontend:** show call participants in room sidebar ([#1036](https://github.com/chattocorp/chatto/issues/1036)) ([8cd0858](https://github.com/chattocorp/chatto/commit/8cd085877d44633aa54578abf2d50a62942c0085))
+* **frontend:** show reaction names in popups ([#1044](https://github.com/chattocorp/chatto/issues/1044)) ([e141b74](https://github.com/chattocorp/chatto/commit/e141b7441ca7d8d62252f2a9376ca3f2a768ea9d))
+* **frontend:** show room descriptions in header ([#1037](https://github.com/chattocorp/chatto/issues/1037)) ([44f9c67](https://github.com/chattocorp/chatto/commit/44f9c67c979535584c12838ccc46eaf40a879d6c))
+
+
+### Bug Fixes
+
+* **auth:** add structured unauthenticated GraphQL errors ([#1048](https://github.com/chattocorp/chatto/issues/1048)) ([510c07d](https://github.com/chattocorp/chatto/commit/510c07dd38ad3ccc9e87f515878c96594c72c9dd))
+* **frontend:** align muted call participant icon ([#1050](https://github.com/chattocorp/chatto/issues/1050)) ([68cea04](https://github.com/chattocorp/chatto/commit/68cea040f6129134b50cf1c745274e3f669b3746))
+* **frontend:** harden asset proxy token handling ([#1054](https://github.com/chattocorp/chatto/issues/1054)) ([8797c65](https://github.com/chattocorp/chatto/commit/8797c65aa35b304ac5e77216f783f404865d2928))
+* **frontend:** ignore stale DM member loads when switching rooms ([#1065](https://github.com/chattocorp/chatto/issues/1065)) ([b4264b7](https://github.com/chattocorp/chatto/commit/b4264b77c12b4492b0391597072e20a1809b0316))
+* **frontend:** reconcile notification badge dismissals ([#1058](https://github.com/chattocorp/chatto/issues/1058)) ([13c7a6e](https://github.com/chattocorp/chatto/commit/13c7a6ef51a34f6a99964fcbe167f30fd8e7d304))
+* **frontend:** remove redundant universal room badge ([#1052](https://github.com/chattocorp/chatto/issues/1052)) ([5f6131e](https://github.com/chattocorp/chatto/commit/5f6131ee3fe98e5713a2eb64e2da22f5d5287e68))
+* **frontend:** restrict same-tab message links ([#1068](https://github.com/chattocorp/chatto/issues/1068)) ([d43d23f](https://github.com/chattocorp/chatto/commit/d43d23f70da28a324743673f585085c70f5d89ac))
+* **notifications:** preserve unread badge state across dismissals ([#1069](https://github.com/chattocorp/chatto/issues/1069)) ([03444e3](https://github.com/chattocorp/chatto/commit/03444e39cf171bb87277d6db20fd20d422378a3d))
+* **voice:** scope LiveKit observations to active calls ([#1049](https://github.com/chattocorp/chatto/issues/1049)) ([dcd95c8](https://github.com/chattocorp/chatto/commit/dcd95c8cdd9f964e36eeea73592d2827dcb83c9e))
+
 ## [0.3.8](https://github.com/chattocorp/chatto/compare/v0.3.7...v0.3.8) (2026-06-20)
 
 
