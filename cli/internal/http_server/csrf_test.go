@@ -75,6 +75,9 @@ func setupCSRFTestServer(t *testing.T) (*httptest.Server, *http.Client) {
 	router.POST("/api/graphql", func(c *gin.Context) {
 		c.String(http.StatusOK, "graphql ok")
 	})
+	router.POST(connectAPIPrefix+"/chatto.api.v1.ServerService/GetServer", func(c *gin.Context) {
+		c.String(http.StatusOK, "connect ok")
+	})
 	router.POST("/auth/logout", func(c *gin.Context) {
 		session := sessions.Default(c)
 		session.Clear()
@@ -208,6 +211,22 @@ func TestCSRFMiddleware(t *testing.T) {
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			t.Fatalf("GraphQL request: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			t.Fatalf("status = %d, want 200; body=%s", resp.StatusCode, body)
+		}
+	})
+
+	t.Run("exempts cookie ConnectRPC POST", func(t *testing.T) {
+		server, client := setupCSRFTestServer(t)
+		csrfCookieValue(t, client, server.URL)
+
+		resp, err := client.Post(server.URL+connectAPIPrefix+"/chatto.api.v1.ServerService/GetServer", "application/proto", strings.NewReader(""))
+		if err != nil {
+			t.Fatalf("ConnectRPC request: %v", err)
 		}
 		defer resp.Body.Close()
 

@@ -1,41 +1,9 @@
 name: release-please
 
-# Maintains a rolling release PR on main. As conventional-commit PRs
-# land on main, release-please updates the PR with the aggregated changelog
-# and bumped versions (cli/version.go + frontend/package.json). Merging the
-# Release PR creates the `vX.Y.Z` tag + GitHub release. The tag push then
-# fires ci.yml's `release` job (GoReleaser + frontend image push).
-#
-# Also runs on `release-*` maintenance branches (e.g. `release-0.0.x`) to
-# support backport patches against older versions. release-please keeps a
-# separate Release PR per target branch, and the per-branch manifest tracks
-# its own latest version, so a backport on `release-0.0.x` bumps from the
-# tag reachable on that branch without jumping to main's version.
-#
-# The `main` branch is the active stable release line. Maintenance branches
-# use the same config/manifest files from their own branch, so backports
-# continue to cut patches from that branch's manifest version.
-#
-# Replaces the old `mise bump` flow (goversion + manual tag + push).
-#
-# Requires `RELEASE_PLEASE_PAT`: a fine-grained PAT scoped to chattocorp/chatto
-# with repository permissions:
-#   - Contents:      Read and write
-#   - Pull requests: Read and write
-#   - Metadata:      Read-only (always required)
-# The default GITHUB_TOKEN can't be used because its tag pushes don't
-# trigger downstream workflows — ci.yml's `release` job listens on tag push.
-
 on:
   push:
     branches:
       - main
-      # Maintenance branches like `release-0.0.x`. The leading digit class is
-      # important: a bare `release-*` glob also matches release-please's own
-      # PR branches (`release-please--branches--...`), which causes a runaway
-      # loop — each push to a PR branch re-triggers the workflow with that
-      # branch as `target-branch`, spawning a new nested PR. See incident on
-      # 2026-05-25 (PRs #618–#621).
       - 'release-[0-9]*'
 
 permissions:
@@ -46,9 +14,6 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     env:
-      # Push event's ref_name is the branch (main / release-*).
-      # Captured into env per workflow-injection best practice, even
-      # though it's only used as an action input here (never in `run:`).
       TARGET_BRANCH: ${{ github.ref_name }}
       CONFIG_FILE: .release-please-config.json
       MANIFEST_FILE: .release-please-manifest.json

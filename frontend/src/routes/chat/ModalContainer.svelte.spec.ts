@@ -19,7 +19,9 @@ const { mocks } = vi.hoisted(() => ({
     activeServer: 'origin',
     serverIdParam: '-' as string | undefined,
     servers: [] as Array<{ id: string; url: string; name: string; token: string | null }>,
-    originServer: undefined as { id: string; url: string; name: string; token: string | null } | undefined,
+    originServer: undefined as
+      | { id: string; url: string; name: string; token: string | null }
+      | undefined,
     authenticated: {} as Record<string, boolean>,
     signOutServer: vi.fn(),
     signOutServers: vi.fn(),
@@ -51,13 +53,14 @@ vi.mock('$app/navigation', () => ({
 
 vi.mock('$app/paths', () => ({
   resolve: (path: string, params?: Record<string, string>) =>
-    path
-      .replace('[serverId]', params?.serverId ?? '')
-      .replace('[roomId]', params?.roomId ?? '')
+    path.replace('[serverId]', params?.serverId ?? '').replace('[roomId]', params?.roomId ?? '')
 }));
 
 vi.mock('$lib/navigation', () => ({
-  serverIdToSegment: (serverId: string) => (serverId === 'origin' ? '-' : `${serverId}.example.test`)
+  serverIdToSegment: (serverId: string) =>
+    serverId === 'origin' ? '-' : `${serverId}.example.test`,
+  segmentToServerId: (segment: string) =>
+    segment === '-' ? 'origin' : segment.endsWith('.example.test') ? segment.slice(0, -13) : null
 }));
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
@@ -196,9 +199,9 @@ describe('ModalContainer join room modal', () => {
   it('joins and navigates from a joinable room modal', async () => {
     const { container } = render(ModalContainer);
 
-    await expect.element(q(container, 'dialog')).toHaveTextContent(
-      'Join #general to read and participate in this room.'
-    );
+    await expect
+      .element(q(container, 'dialog'))
+      .toHaveTextContent('Join #general to read and participate in this room.');
     (q(container, 'button[type="submit"]') as HTMLButtonElement).click();
 
     await vi.waitFor(() => {
@@ -232,12 +235,12 @@ describe('ModalContainer join room modal', () => {
 
     const { container } = render(ModalContainer);
 
-    await expect.element(q(container, 'dialog')).toHaveTextContent(
-      'You do not have permission to join this room.'
-    );
-    expect([...container.querySelectorAll('button')].map((button) => button.textContent?.trim())).toEqual([
-      'Got it'
-    ]);
+    await expect
+      .element(q(container, 'dialog'))
+      .toHaveTextContent('You do not have permission to join this room.');
+    expect(
+      [...container.querySelectorAll('button')].map((button) => button.textContent?.trim())
+    ).toEqual(['Got it']);
     (q(container, 'button') as HTMLButtonElement).click();
 
     expect(mocks.joinRoom).not.toHaveBeenCalled();
@@ -250,14 +253,12 @@ describe('ModalContainer sign out modal', () => {
 
     const { container } = render(ModalContainer);
 
-    await expect.element(q(container, 'dialog')).toHaveTextContent(
-      'Sign out of only the selected server'
-    );
-    expect([...container.querySelectorAll('button')].map((button) => button.textContent?.trim())).toEqual([
-      'Cancel',
-      'Current Server',
-      'All Servers'
-    ]);
+    await expect
+      .element(q(container, 'dialog'))
+      .toHaveTextContent('Sign out of only the selected server');
+    expect(
+      [...container.querySelectorAll('button')].map((button) => button.textContent?.trim())
+    ).toEqual(['Cancel', 'Current Server', 'All Servers']);
   });
 
   it('signs out of only the active remote server', async () => {

@@ -9,7 +9,7 @@
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { renderMarkdown as renderMd } from '$lib/markdown';
-  import { parseMessageLink, buildMessageLinkPath } from '$lib/messageLinks';
+  import { classifyMessageBodyChatLink, buildMessageLinkPath } from '$lib/messageLinks';
   import { wrapValidMentions, type RoomMember } from '$lib/mentions';
 
   let {
@@ -85,20 +85,23 @@
       return;
     }
 
-    // Handle link clicks — Chatto message links navigate in-app,
-    // all other links open in the system browser (PWA compatibility).
+    // Handle link clicks. Only allow-listed Chatto chat routes navigate in-app;
+    // other same-origin URLs stay out-of-band to avoid message-link abuse.
     const anchor = target.closest('a');
     if (anchor?.href) {
       event.preventDefault();
 
-      // Internal message link → navigate in-app via SvelteKit
-      const messageLink = parseMessageLink(anchor.href);
-      if (messageLink?.serverId) {
-        goto(buildMessageLinkPath(messageLink.serverId, messageLink.roomId, messageLink.messageId));
+      const chatLink = classifyMessageBodyChatLink(anchor.href);
+      if (chatLink?.kind === 'message') {
+        goto(buildMessageLinkPath(chatLink.serverId, chatLink.roomId, chatLink.messageId));
+        return;
+      }
+      if (chatLink) {
+        goto(chatLink.path);
         return;
       }
 
-      // External link → force opening in system browser.
+      // External or non-allow-listed link → force opening in system browser.
       // target="_blank" alone is ignored by PWAs for same-origin URLs.
       // window.open() with features forces a new browser window.
       window.open(anchor.href, '_blank', 'noopener,noreferrer');

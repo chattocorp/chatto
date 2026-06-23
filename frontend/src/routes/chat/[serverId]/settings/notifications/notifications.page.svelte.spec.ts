@@ -3,6 +3,7 @@ import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import NotificationsPage from './+page.svelte';
 import { NotificationLevel } from '$lib/gql/graphql';
+import { NotificationLevel as ApiNotificationLevel } from '$lib/pb/chatto/api/v1/notification_preferences_pb';
 import { q } from '$lib/test-utils';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
 import { defaultNotificationSoundFilters } from '$lib/audio/notificationSounds';
@@ -10,6 +11,7 @@ import { defaultNotificationSoundFilters } from '$lib/audio/notificationSounds';
 const mocks = vi.hoisted(() => ({
   query: vi.fn(),
   mutation: vi.fn(),
+  setRoomNotificationLevel: vi.fn(),
   playNotificationSound: vi.fn(),
   notificationLevels: {
     setServerPreference: vi.fn(),
@@ -42,6 +44,10 @@ vi.mock('$lib/notifications/pushNotifications', () => ({
   isSubscribed: mocks.pushNotifications.isSubscribed
 }));
 
+vi.mock('$lib/api/notificationPreferences', () => ({
+  setRoomNotificationLevel: mocks.setRoomNotificationLevel
+}));
+
 vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'origin'
 }));
@@ -63,7 +69,9 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
       query: mocks.query,
       mutation: mocks.mutation,
       subscription: vi.fn()
-    }
+    },
+    connectBaseUrl: 'https://origin.test/api/connect',
+    bearerToken: 'origin-token'
   })
 }));
 
@@ -147,6 +155,11 @@ describe('Notification settings page', () => {
       })
     });
     mocks.mutation.mockReset();
+    mocks.setRoomNotificationLevel.mockReset();
+    mocks.setRoomNotificationLevel.mockResolvedValue({
+      level: ApiNotificationLevel.MUTED,
+      effectiveLevel: ApiNotificationLevel.MUTED
+    });
   });
 
   it('renders notification levels and sound choices from mocked state', async () => {
@@ -210,6 +223,35 @@ describe('Notification settings page', () => {
     expect(userPreferences.notificationSound).toBe('silent');
     expect(mocks.playNotificationSound).not.toHaveBeenCalled();
     await expect.element(silentButton).toHaveClass(/choice-row-selected/);
+  });
+
+  it('updates room notification overrides through ConnectRPC', async () => {
+    const { container } = render(NotificationsPage);
+    await settle();
+
+    const select = q(
+      container,
+      '[data-testid="room-notification-general"] select'
+    ) as HTMLSelectElement;
+    select.value = NotificationLevel.Muted;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    await settle();
+
+    expect(mocks.setRoomNotificationLevel).toHaveBeenCalledWith(
+      {
+        serverId: 'origin',
+        baseUrl: 'https://origin.test/api/connect',
+        bearerToken: 'origin-token'
+      },
+      'room-1',
+      ApiNotificationLevel.MUTED
+    );
+    expect(mocks.mutation).not.toHaveBeenCalled();
+    expect(mocks.notificationLevels.setRoomPreference).toHaveBeenLastCalledWith(
+      'room-1',
+      NotificationLevel.Muted,
+      NotificationLevel.Muted
+    );
   });
 
   it('shows the push enable path when configured and not subscribed', async () => {

@@ -74,6 +74,11 @@ func isCSRFExemptUnsafePath(path string) bool {
 	if strings.HasPrefix(path, "/auth/test/") || strings.HasPrefix(path, "/webhooks/") {
 		return true
 	}
+	// ConnectRPC is programmatic API traffic. Browsers cannot submit
+	// application/proto or application/connect+proto via plain HTML forms.
+	if strings.HasPrefix(path, connectAPIPrefix+"/") {
+		return true
+	}
 	switch path {
 	case "/auth/login",
 		"/auth/register",

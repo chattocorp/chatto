@@ -3,6 +3,9 @@
   "release-type": "simple",
   "bump-minor-pre-major": true,
   "bump-patch-for-minor-pre-major": false,
+  "versioning": "prerelease",
+  "prerelease": true,
+  "prerelease-type": "beta.1",
   "include-component-in-tag": false,
   "include-v-in-tag": true,
   "packages": {

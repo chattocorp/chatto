@@ -5,7 +5,23 @@ managed:
     - file_option: go_package_prefix
       value: hmans.de/chatto/internal/pb
 plugins:
-  - local: protoc-gen-go
+  - local: ["go", "tool", "-C", "../cli", "protoc-gen-go"]
     out: ../cli/internal/pb
     opt:
       - paths=source_relative
+  - local: ["go", "tool", "-C", "../cli", "protoc-gen-connect-go"]
+    out: ../cli/internal/pb
+    opt:
+      - paths=source_relative
+  - local: ../frontend/node_modules/.bin/protoc-gen-es
+    out: ../frontend/src/lib/pb
+    opt:
+      - target=ts
+    types:
+      - chatto.api.v1
+  - local: ../frontend/node_modules/.bin/protoc-gen-connect-es
+    out: ../frontend/src/lib/pb
+    opt:
+      - target=ts
+    types:
+      - chatto.api.v1

@@ -1,6 +1,7 @@
 package http_server
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"strings"
@@ -54,14 +55,6 @@ func (s *HTTPServer) handleServerInfo(c *gin.Context) {
 
 	ctx := c.Request.Context()
 
-	// Get server name (defaults to "Chatto")
-	name := "Chatto"
-	if s.core != nil && s.core.ConfigManager() != nil {
-		if n, err := s.core.ConfigManager().GetEffectiveServerName(ctx); err == nil {
-			name = n
-		}
-	}
-
 	// Build compatibility auth methods list. Provider-specific IDs are exposed
 	// through authProviders; authMethods stays method-oriented for older clients.
 	authMethods := s.config.Auth.EnabledProviderMethods()
@@ -107,7 +100,7 @@ func (s *HTTPServer) handleServerInfo(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, serverInfoResponse{
-		Name:             name,
+		Name:             s.effectiveServerName(ctx),
 		Version:          s.version,
 		AuthMethods:      authMethods,
 		AuthProviders:    authProviders,
@@ -118,6 +111,15 @@ func (s *HTTPServer) handleServerInfo(c *gin.Context) {
 		IconURL:          iconURL,
 		BannerURL:        bannerURL,
 	})
+}
+
+func (s *HTTPServer) effectiveServerName(ctx context.Context) string {
+	if s.core != nil && s.core.ConfigManager() != nil {
+		if n, err := s.core.ConfigManager().GetEffectiveServerName(ctx); err == nil {
+			return n
+		}
+	}
+	return "Chatto"
 }
 
 func serverInfoAuthProviders(providers []config.AuthProviderConfig) []serverInfoAuthProvider {
@@ -149,6 +151,20 @@ func absolutizeAssetURL(c *gin.Context, assetURL string) string {
 		scheme = "https"
 	}
 	return scheme + "://" + c.Request.Host + assetURL
+}
+
+func (s *HTTPServer) absolutizeAssetURLFromConfig(assetURL string) string {
+	if assetURL == "" || strings.HasPrefix(assetURL, "http://") || strings.HasPrefix(assetURL, "https://") {
+		return assetURL
+	}
+	if s.config.Webserver.URL == "" {
+		return assetURL
+	}
+	base, err := url.Parse(s.config.Webserver.URL)
+	if err != nil || base.Scheme == "" || base.Host == "" {
+		return assetURL
+	}
+	return base.Scheme + "://" + base.Host + assetURL
 }
 
 // handleServerInfoPreflight responds to CORS preflight requests.

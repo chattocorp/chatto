@@ -5,6 +5,7 @@
 
 import { CurrentUserState } from '$lib/auth/currentUser.svelte';
 import { ServerInfoState } from './state.svelte';
+import type { PublicServerInfo } from '$lib/api/server';
 import type { ServerPermissions, ViewerData } from './permissions.svelte';
 import { NotificationStore } from './notifications.svelte';
 import { RoomUnreadStore } from './roomUnread.svelte';
@@ -78,14 +79,18 @@ export class ServerStateStore {
   #catchUpRefreshInFlight = false;
   #queuedCatchUpRefreshReason: EventBusCatchUpReason | null = null;
 
-  constructor(registered: RegisteredServer, gqlClient: GraphQLClient) {
+  constructor(
+    registered: RegisteredServer,
+    gqlClient: GraphQLClient,
+    publicServerInfoLoader?: (baseUrl: string) => Promise<PublicServerInfo>
+  ) {
     this.serverId = registered.id;
     this.#registered = registered;
     const cookieAuth = this.#cookieAuth;
 
     const client = gqlClient.client;
     this.currentUser = new CurrentUserState(client, cookieAuth);
-    this.serverInfo = new ServerInfoState(client, registered.url);
+    this.serverInfo = new ServerInfoState(client, registered.url, publicServerInfoLoader);
     this.notifications = new NotificationStore(client);
     this.roomUnread = new RoomUnreadStore();
     this.notificationLevels = new NotificationLevelStore();

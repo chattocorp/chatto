@@ -5,6 +5,7 @@ Server-wide and per-room notification level settings for the current user.
 These preferences are server-side and sync across devices.
 -->
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { graphql } from '$lib/gql';
@@ -14,8 +15,11 @@ These preferences are server-side and sync across devices.
   import { FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import * as m from '$lib/i18n/messages';
+  import { setRoomNotificationLevel } from '$lib/api/notificationPreferences';
+  import { NotificationLevel as ApiNotificationLevel } from '$lib/pb/chatto/api/v1/notification_preferences_pb';
 
-  const notificationLevelStore = serverRegistry.getStore(getActiveServer()).notificationLevels;
+  const serverId = getActiveServer();
+  const notificationLevelStore = serverRegistry.getStore(serverId).notificationLevels;
   const connection = useConnection();
 
   let serverLevel = $state<NotificationLevel>(NotificationLevel.Default);
@@ -35,8 +39,13 @@ These preferences are server-side and sync across devices.
   let savingServerLevel = $state(false);
   let savingRoomId = $state<string | null>(null);
 
-  $effect(() => {
-    loadPreferences();
+  type NotificationPreference = {
+    level: NotificationLevel;
+    effectiveLevel: NotificationLevel;
+  };
+
+  onMount(() => {
+    void loadPreferences();
   });
 
   async function loadPreferences() {
@@ -150,36 +159,14 @@ These preferences are server-side and sync across devices.
     savingRoomId = roomId;
 
     try {
-      const result = await connection()
-        .client.mutation(
-          graphql(`
-            mutation SetRoomNotificationLevel($input: SetRoomNotificationLevelInput!) {
-              setRoomNotificationLevel(input: $input) {
-                level
-                effectiveLevel
-              }
-            }
-          `),
-          { input: { roomId, level: newLevel } }
-        )
-        .toPromise();
-
-      if (result.error) {
-        toast.error(result.error.message);
-        return;
+      const pref = await setRoomLevel(roomId, newLevel);
+      const idx = rooms.findIndex((r) => r.id === roomId);
+      if (idx !== -1) {
+        rooms[idx] = { ...rooms[idx], level: pref.level, effectiveLevel: pref.effectiveLevel };
       }
 
-      if (result.data?.setRoomNotificationLevel) {
-        const pref = result.data.setRoomNotificationLevel;
-
-        const idx = rooms.findIndex((r) => r.id === roomId);
-        if (idx !== -1) {
-          rooms[idx] = { ...rooms[idx], level: pref.level, effectiveLevel: pref.effectiveLevel };
-        }
-
-        notificationLevelStore.setRoomPreference(roomId, pref.level, pref.effectiveLevel);
-        toast.success(m['settings.notifications.levels.room_updated']());
-      }
+      notificationLevelStore.setRoomPreference(roomId, pref.level, pref.effectiveLevel);
+      toast.success(m['settings.notifications.levels.room_updated']());
     } catch (e) {
       toast.error(
         e instanceof Error ? e.message : m['settings.notifications.levels.update_failed']()
@@ -214,12 +201,57 @@ These preferences are server-side and sync across devices.
     }
   ]);
 
+  async function setRoomLevel(
+    roomId: string,
+    newLevel: NotificationLevel
+  ): Promise<NotificationPreference> {
+    const conn = connection();
+    const pref = await setRoomNotificationLevel(
+      { serverId, baseUrl: conn.connectBaseUrl, bearerToken: conn.bearerToken },
+      roomId,
+      notificationLevelToAPI(newLevel)
+    );
+    return {
+      level: notificationLevelFromAPI(pref.level),
+      effectiveLevel: notificationLevelFromAPI(pref.effectiveLevel)
+    };
+  }
+
   const serverLevelOptions = $derived(
     levelOptions.filter((o) => o.value !== NotificationLevel.Default)
   );
 
   function levelLabel(level: NotificationLevel): string {
     return levelOptions.find((o) => o.value === level)?.label ?? level;
+  }
+
+  function notificationLevelToAPI(level: NotificationLevel): ApiNotificationLevel {
+    switch (level) {
+      case NotificationLevel.Muted:
+        return ApiNotificationLevel.MUTED;
+      case NotificationLevel.Normal:
+        return ApiNotificationLevel.NORMAL;
+      case NotificationLevel.AllMessages:
+        return ApiNotificationLevel.ALL_MESSAGES;
+      case NotificationLevel.Default:
+      default:
+        return ApiNotificationLevel.DEFAULT;
+    }
+  }
+
+  function notificationLevelFromAPI(level: ApiNotificationLevel): NotificationLevel {
+    switch (level) {
+      case ApiNotificationLevel.MUTED:
+        return NotificationLevel.Muted;
+      case ApiNotificationLevel.NORMAL:
+        return NotificationLevel.Normal;
+      case ApiNotificationLevel.ALL_MESSAGES:
+        return NotificationLevel.AllMessages;
+      case ApiNotificationLevel.DEFAULT:
+      case ApiNotificationLevel.UNSPECIFIED:
+      default:
+        return NotificationLevel.Default;
+    }
   }
 </script>
 

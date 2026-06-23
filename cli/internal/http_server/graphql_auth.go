@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/log"
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/auth"
@@ -36,6 +37,9 @@ func (s *HTTPServer) injectUserIntoContext(c *gin.Context) *http.Request {
 	}
 
 	// 2. Fall back to session cookie (embedded SPA clients)
+	if _, ok := c.Get(sessions.DefaultKey); !ok {
+		return c.Request
+	}
 	userID, sessionID, cookieSession, ok := s.validateCookieSession(c)
 	if !ok {
 		return c.Request

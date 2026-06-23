@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Client } from '@urql/svelte';
+import type { PublicServerInfo } from '$lib/api/server';
 import { ServerInfoState } from './state.svelte';
 
 /** Build a minimal urql Client mock with controllable query result. */
@@ -19,10 +20,12 @@ function makeClient(result: {
   } as unknown as Client;
 }
 
-function makeClientSequence(results: Array<{
-  data?: unknown;
-  error?: { message: string; networkError?: Error } | null;
-}>): Client {
+function makeClientSequence(
+  results: Array<{
+    data?: unknown;
+    error?: { message: string; networkError?: Error } | null;
+  }>
+): Client {
   return {
     query: vi.fn().mockImplementation(() => {
       const result = results.shift() ?? {};
@@ -38,15 +41,17 @@ function makeClientSequence(results: Array<{
   } as unknown as Client;
 }
 
-/** Build a urql Client mock whose query rejects (synchronous throw inside the chain). */
-function makeRejectingClient(err: Error): Client {
+function publicServerInfo(overrides: Partial<PublicServerInfo> = {}): PublicServerInfo {
   return {
-    query: vi.fn().mockReturnValue({
-      toPromise: vi.fn().mockRejectedValue(err)
-    }),
-    mutation: vi.fn(),
-    subscription: vi.fn()
-  } as unknown as Client;
+    name: 'Acme',
+    directRegistrationEnabled: false,
+    welcomeMessage: 'welcome',
+    description: 'a server for acme',
+    iconUrl: 'https://icon',
+    bannerUrl: 'https://banner',
+    authProviders: [],
+    ...overrides
+  };
 }
 
 describe('ServerInfoState.init()', () => {
@@ -56,25 +61,19 @@ describe('ServerInfoState.init()', () => {
     consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
+  afterEach(() => {
+    consoleError.mockRestore();
+  });
+
   it('populates fields and clears loading on success', async () => {
-    const client = makeClient({
-      data: {
-        server: {
-          directRegistrationEnabled: false,
-          profile: {
-            name: 'Acme',
-            welcomeMessage: 'welcome',
-            description: 'a server for acme',
-            logoUrl: 'https://icon',
-            bannerUrl: 'https://banner'
-          }
-        }
-      }
-    });
-    const state = new ServerInfoState(client, 'https://acme.test');
+    const client = makeClient({});
+    const loader = vi.fn<() => Promise<PublicServerInfo>>().mockResolvedValue(publicServerInfo());
+    const state = new ServerInfoState(client, 'https://acme.test', loader);
 
     await state.init();
 
+    expect(loader).toHaveBeenCalledWith('https://acme.test');
+    expect(client.query).not.toHaveBeenCalled();
     expect(state.loading).toBe(false);
     expect(state.error).toBeNull();
     expect(state.name).toBe('Acme');
@@ -88,20 +87,6 @@ describe('ServerInfoState.init()', () => {
 
   it('loads authenticated runtime settings separately', async () => {
     const client = makeClientSequence([
-      {
-        data: {
-          server: {
-            directRegistrationEnabled: false,
-            profile: {
-              name: 'Acme',
-              welcomeMessage: 'welcome',
-              description: 'a server for acme',
-              logoUrl: 'https://icon',
-              bannerUrl: 'https://banner'
-            }
-          }
-        }
-      },
       {
         data: {
           server: {
@@ -119,7 +104,8 @@ describe('ServerInfoState.init()', () => {
         }
       }
     ]);
-    const state = new ServerInfoState(client, 'https://acme.test');
+    const loader = vi.fn<() => Promise<PublicServerInfo>>().mockResolvedValue(publicServerInfo());
+    const state = new ServerInfoState(client, 'https://acme.test', loader);
 
     await state.init();
     await state.refreshAuthenticatedSettings();
@@ -135,26 +121,24 @@ describe('ServerInfoState.init()', () => {
   });
 
   it('refreshes profile fields without toggling initial loading state', async () => {
-    const client = makeClient({
-      data: {
-        server: {
-          directRegistrationEnabled: true,
-          profile: {
-            name: 'Fresh',
-            welcomeMessage: 'fresh welcome',
-            description: 'fresh description',
-            logoUrl: 'https://fresh-icon',
-            bannerUrl: 'https://fresh-banner'
-          }
-        }
-      }
-    });
-    const state = new ServerInfoState(client, 'https://fresh.test');
+    const client = makeClient({});
+    const loader = vi.fn<() => Promise<PublicServerInfo>>().mockResolvedValue(
+      publicServerInfo({
+        name: 'Fresh',
+        directRegistrationEnabled: true,
+        welcomeMessage: 'fresh welcome',
+        description: 'fresh description',
+        iconUrl: 'https://fresh-icon',
+        bannerUrl: 'https://fresh-banner'
+      })
+    );
+    const state = new ServerInfoState(client, 'https://fresh.test', loader);
     state.loading = false;
 
     await state.refreshProfile();
 
     expect(state.loading).toBe(false);
+    expect(client.query).not.toHaveBeenCalled();
     expect(state.name).toBe('Fresh');
     expect(state.welcomeMessage).toBe('fresh welcome');
     expect(state.description).toBe('fresh description');
@@ -162,50 +146,85 @@ describe('ServerInfoState.init()', () => {
     expect(state.bannerUrl).toBe('https://fresh-banner');
   });
 
-  it('logs and sets error when urql returns a network error (CORS/unreachable)', async () => {
-    const client = makeClient({
-      error: {
-        message: '[Network] Failed to fetch',
-        networkError: new Error('Failed to fetch')
-      }
-    });
-    const state = new ServerInfoState(client, 'https://chatto.run');
+  it('logs and sets error when Connect server metadata fails', async () => {
+    const client = makeClient({});
+    const loader = vi
+      .fn<() => Promise<PublicServerInfo>>()
+      .mockRejectedValue(new Error('[Network] Failed to fetch'));
+    const state = new ServerInfoState(client, 'https://chatto.run', loader);
 
     await state.init();
 
     expect(state.loading).toBe(false);
     expect(state.error).toBe('[Network] Failed to fetch');
     expect(state.name).toBe('Chatto'); // default unchanged
+    expect(client.query).not.toHaveBeenCalled();
     expect(consoleError).toHaveBeenCalledTimes(1);
     expect(consoleError.mock.calls[0][0]).toContain('https://chatto.run');
     expect(consoleError.mock.calls[0][0]).toContain('failed to load server info');
   });
 
-  it('logs and sets error when the query promise rejects', async () => {
-    const client = makeRejectingClient(new Error('boom'));
-    const state = new ServerInfoState(client, 'https://chatto.run');
+  it('logs and sets error when the Connect loader rejects', async () => {
+    const client = makeClient({});
+    const loader = vi.fn<() => Promise<PublicServerInfo>>().mockRejectedValue(new Error('boom'));
+    const state = new ServerInfoState(client, 'https://chatto.run', loader);
 
     await state.init();
 
     expect(state.loading).toBe(false);
     expect(state.error).toBe('boom');
-    // The .catch path logs at least once with our scoped message
-    // (there may be additional unhandled-rejection-style logs depending
-    // on the runtime, but our explicit log must be present).
-    const ourCalls = consoleError.mock.calls.filter(
-      (c: unknown[]) =>
-        typeof c[0] === 'string' &&
-        c[0].includes('https://chatto.run') &&
-        c[0].includes('failed to load server info')
-    );
-    expect(ourCalls.length).toBeGreaterThanOrEqual(1);
+    expect(client.query).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    expect(consoleError.mock.calls[0][0]).toContain('https://chatto.run');
+    expect(consoleError.mock.calls[0][0]).toContain('failed to load server info');
   });
 
   it('does not throw — failure must be isolated to this server', async () => {
-    const client = makeRejectingClient(new Error('boom'));
-    const state = new ServerInfoState(client);
+    const client = makeClient({});
+    const loader = vi.fn<() => Promise<PublicServerInfo>>().mockRejectedValue(new Error('boom'));
+    const state = new ServerInfoState(client, 'unknown', loader);
 
     // Must resolve, not reject.
     await expect(state.init()).resolves.toBeUndefined();
+  });
+
+  it('loads public profile fields through ConnectRPC', async () => {
+    const client = makeClient({
+      data: {
+        server: {
+          directRegistrationEnabled: true,
+          profile: {
+            name: 'GraphQL metadata',
+            welcomeMessage: null,
+            description: null,
+            logoUrl: null,
+            bannerUrl: null
+          }
+        }
+      }
+    });
+    const loader = vi.fn<() => Promise<PublicServerInfo>>().mockResolvedValue(
+      publicServerInfo({
+        name: 'Connect Server',
+        directRegistrationEnabled: false,
+        welcomeMessage: 'hello from connect',
+        description: 'protobuf path',
+        iconUrl: 'https://cdn/icon.webp',
+        bannerUrl: 'https://cdn/banner.webp'
+      })
+    );
+    const state = new ServerInfoState(client, 'https://connect.test', loader);
+
+    await state.init();
+
+    expect(loader).toHaveBeenCalledWith('https://connect.test');
+    expect(client.query).not.toHaveBeenCalled();
+    expect(state.error).toBeNull();
+    expect(state.name).toBe('Connect Server');
+    expect(state.directRegistrationEnabled).toBe(false);
+    expect(state.welcomeMessage).toBe('hello from connect');
+    expect(state.description).toBe('protobuf path');
+    expect(state.iconUrl).toBe('https://cdn/icon.webp');
+    expect(state.bannerUrl).toBe('https://cdn/banner.webp');
   });
 });

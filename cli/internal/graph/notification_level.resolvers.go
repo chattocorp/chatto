@@ -7,6 +7,7 @@ package graph
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"hmans.de/chatto/internal/core"
@@ -45,35 +46,22 @@ func (r *mutationResolver) SetRoomNotificationLevel(ctx context.Context, input m
 	if err != nil {
 		return nil, err
 	}
-	kind := core.KindChannel
-
-	// Verify room membership
-	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, input.RoomID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check room membership: %w", err)
-	}
-	if !isMember {
-		return nil, fmt.Errorf("access denied: not a member of this room")
-	}
 
 	protoLevel := gqlNotificationLevelToProto(input.Level)
-	if err := r.core.SetRoomNotificationLevel(ctx, user.Id, input.RoomID, protoLevel); err != nil {
+	// The GraphQL resolver used to own the room membership check and effective
+	// response resolution. Keep those in the shared service so this legacy
+	// mutation and the ConnectRPC method enforce the same operation policy.
+	pref, err := r.core.NotificationPreferences().SetRoomNotificationLevel(ctx, user.Id, input.RoomID, protoLevel)
+	if errors.Is(err, core.ErrPermissionDenied) {
+		return nil, fmt.Errorf("access denied: not a member of this room")
+	}
+	if err != nil {
 		return nil, fmt.Errorf("failed to set room notification level: %w", err)
 	}
 
-	// Resolve effective level for response
-	effectiveLevel, err := r.core.GetEffectiveNotificationLevel(ctx, user.Id, input.RoomID)
-	if err != nil {
-		// Fallback: use the level itself
-		effectiveLevel = protoLevel
-		if effectiveLevel == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
-			effectiveLevel = corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL
-		}
-	}
-
 	return &model.ViewerNotificationPreference{
-		Level:          protoNotificationLevelToGQL(protoLevel),
-		EffectiveLevel: protoNotificationLevelToGQL(effectiveLevel),
+		Level:          protoNotificationLevelToGQL(pref.Level),
+		EffectiveLevel: protoNotificationLevelToGQL(pref.EffectiveLevel),
 	}, nil
 }
 

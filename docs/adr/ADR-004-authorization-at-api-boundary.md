@@ -2,6 +2,8 @@
 
 **Date:** 2026-03-01
 
+**Status:** Partially superseded by [ADR-042](ADR-042-protobuf-first-public-api.md) for new protobuf API work. GraphQL-era resolvers still follow this record unless migrated, but new public transports should share authorization through internal operation services instead of duplicating resolver-local checks.
+
 ## Context
 
 Chatto has two API surfaces that invoke business logic:

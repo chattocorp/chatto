@@ -17,6 +17,13 @@ import (
 // user's config aggregate.
 //
 // Inheritance: room-level → server-level → NORMAL (system default).
+//
+// Transitional layering note: the low-level ChattoCore helpers in this file
+// predate the ConnectRPC API and mostly perform projected reads, config writes,
+// effective-level resolution, and live-event publishing. New user-facing
+// transports should enter through NotificationPreferencesService instead, so
+// operation authZ and response shaping do not drift between GraphQL, ConnectRPC,
+// and future transports.
 // ============================================================================
 
 // GetSpaceNotificationLevel returns the user's server-wide notification level.
@@ -81,9 +88,13 @@ func (c *ChattoCore) GetRoomNotificationLevel(_ context.Context, userID, roomID 
 	return c.ServerConfig.NotificationRoomLevel(userID, roomID), nil
 }
 
-// SetRoomNotificationLevel sets the user's notification level for a room.
-// Pass NOTIFICATION_LEVEL_UNSPECIFIED to clear the override.
-// Authorization: Caller must verify access (self-only + room membership in GraphQL layer).
+// SetRoomNotificationLevel sets the user's notification level for a room and
+// publishes the live invalidation event. Pass NOTIFICATION_LEVEL_UNSPECIFIED to
+// clear the override.
+//
+// This is intentionally a lower-level write helper. It does not verify room
+// membership; callers that serve user requests should use
+// NotificationPreferencesService.SetRoomNotificationLevel instead.
 func (c *ChattoCore) SetRoomNotificationLevel(ctx context.Context, userID, roomID string, level corev1.NotificationLevel) error {
 	if c.configManager == nil || c.configManager.service == nil || c.ServerConfig == nil {
 		return fmt.Errorf("config service not configured")
@@ -172,6 +183,84 @@ type RoomNotificationPreference struct {
 	RoomID         string
 	Level          corev1.NotificationLevel
 	EffectiveLevel corev1.NotificationLevel
+}
+
+// NotificationPreferences returns the operation-level service for notification
+// preference reads and writes. Transports should use this service rather than
+// calling the lower-level ChattoCore helpers directly so authorization and
+// response semantics stay shared. NewChattoCore initializes this eagerly so
+// concurrent request handlers do not race on first use.
+func (c *ChattoCore) NotificationPreferences() *NotificationPreferencesService {
+	return c.notificationPrefs
+}
+
+// NotificationPreferencesService owns user-facing notification preference
+// operations. It is intentionally thin for now: the low-level config
+// reads/writes already lived on ChattoCore, while membership authZ and response
+// shaping used to live in the GraphQL resolver. This service centralizes that
+// operation policy so ConnectRPC and GraphQL share it during the transition
+// toward service-owned operations.
+type NotificationPreferencesService struct {
+	core *ChattoCore
+}
+
+// SetRoomNotificationLevel sets the authenticated actor's notification
+// preference for a channel room and returns the resolved preference after the
+// write. Authorization: actor must be a member of the room.
+func (s *NotificationPreferencesService) SetRoomNotificationLevel(ctx context.Context, actorID, roomID string, level corev1.NotificationLevel) (*RoomNotificationPreference, error) {
+	if err := s.requireAuthenticatedActor(actorID); err != nil {
+		return nil, err
+	}
+	if err := s.requireChannelRoomMember(ctx, actorID, roomID); err != nil {
+		return nil, err
+	}
+	if err := s.core.SetRoomNotificationLevel(ctx, actorID, roomID, level); err != nil {
+		return nil, err
+	}
+	return s.GetRoomNotificationPreference(ctx, actorID, roomID)
+}
+
+// GetRoomNotificationPreference returns the authenticated actor's explicit and
+// effective preference for a channel room. Authorization: actor must be a
+// member of the room.
+func (s *NotificationPreferencesService) GetRoomNotificationPreference(ctx context.Context, actorID, roomID string) (*RoomNotificationPreference, error) {
+	if err := s.requireAuthenticatedActor(actorID); err != nil {
+		return nil, err
+	}
+	if err := s.requireChannelRoomMember(ctx, actorID, roomID); err != nil {
+		return nil, err
+	}
+	level, err := s.core.GetRoomNotificationLevel(ctx, actorID, roomID)
+	if err != nil {
+		return nil, err
+	}
+	effectiveLevel, err := s.core.GetEffectiveNotificationLevel(ctx, actorID, roomID)
+	if err != nil {
+		return nil, err
+	}
+	return &RoomNotificationPreference{
+		RoomID:         roomID,
+		Level:          level,
+		EffectiveLevel: effectiveLevel,
+	}, nil
+}
+
+func (s *NotificationPreferencesService) requireAuthenticatedActor(actorID string) error {
+	if actorID == "" {
+		return ErrNotAuthenticated
+	}
+	return nil
+}
+
+func (s *NotificationPreferencesService) requireChannelRoomMember(ctx context.Context, actorID, roomID string) error {
+	isMember, err := s.core.RoomMembershipExists(ctx, KindChannel, actorID, roomID)
+	if err != nil {
+		return err
+	}
+	if !isMember {
+		return ErrPermissionDenied
+	}
+	return nil
 }
 
 // GetAllRoomNotificationPreferences returns notification preferences for all

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
@@ -193,6 +194,51 @@ func TestChattoCore_SetRoomNotificationLevel(t *testing.T) {
 				t.Errorf("Expected %v, got %v", tt.expected, got)
 			}
 		})
+	}
+}
+
+func TestNotificationPreferencesService_SetRoomNotificationLevelAuthorization(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	member, err := core.CreateUser(ctx, SystemActorID, "notification-member", "Notification Member", "password")
+	if err != nil {
+		t.Fatalf("CreateUser(member): %v", err)
+	}
+	other, err := core.CreateUser(ctx, SystemActorID, "notification-other", "Notification Other", "password")
+	if err != nil {
+		t.Fatalf("CreateUser(other): %v", err)
+	}
+	room, err := core.CreateRoom(ctx, member.Id, KindChannel, "", "notification-service-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, member.Id, KindChannel, member.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom(member): %v", err)
+	}
+
+	service := core.NotificationPreferences()
+
+	if _, err := service.SetRoomNotificationLevel(ctx, "", room.Id, corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED); !errors.Is(err, ErrNotAuthenticated) {
+		t.Fatalf("SetRoomNotificationLevel unauthenticated err = %v, want ErrNotAuthenticated", err)
+	}
+
+	if _, err := service.SetRoomNotificationLevel(ctx, other.Id, room.Id, corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("SetRoomNotificationLevel non-member err = %v, want ErrPermissionDenied", err)
+	}
+
+	pref, err := service.SetRoomNotificationLevel(ctx, member.Id, room.Id, corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED)
+	if err != nil {
+		t.Fatalf("SetRoomNotificationLevel(member): %v", err)
+	}
+	if pref.RoomID != room.Id {
+		t.Fatalf("RoomID = %q, want %q", pref.RoomID, room.Id)
+	}
+	if pref.Level != corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
+		t.Fatalf("Level = %v, want muted", pref.Level)
+	}
+	if pref.EffectiveLevel != corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
+		t.Fatalf("EffectiveLevel = %v, want muted", pref.EffectiveLevel)
 	}
 }
 

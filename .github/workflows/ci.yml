@@ -14,6 +14,25 @@ permissions:
   contents: read
 
 jobs:
+  codegen-proto-drift:
+    runs-on: ubicloud-standard-4
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup environment
+        uses: ./.github/actions/setup
+
+      - name: Regenerate protobuf bindings
+        run: mise codegen-proto
+
+      - name: Check generated protobuf bindings are current
+        run: |
+          if ! git diff --exit-code; then
+            git status --short
+            exit 1
+          fi
+
   test-frontend-unit:
     runs-on: ubicloud-standard-4
     steps:

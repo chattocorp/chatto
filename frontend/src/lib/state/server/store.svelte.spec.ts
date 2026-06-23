@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import { makeSubject, type Source, type Subject } from 'wonka';
 import type { Client } from '@urql/svelte';
+import type { PublicServerInfo } from '$lib/api/server';
 
 const { soundMocks } = vi.hoisted(() => ({
   soundMocks: {
@@ -76,8 +77,22 @@ function deferred<T = void>(): {
 
 const stores: ServerStateStore[] = [];
 
-function makeStore(fake: FakeGqlClient, server: RegisteredServer = registered): ServerStateStore {
-  const store = new ServerStateStore(server, fake as unknown as GraphQLClient);
+function connectUnavailable() {
+  return vi
+    .fn<(baseUrl: string) => Promise<PublicServerInfo>>()
+    .mockRejectedValue(new Error('connect unavailable'));
+}
+
+function makeStore(
+  fake: FakeGqlClient,
+  server: RegisteredServer = registered,
+  publicServerInfoLoader = connectUnavailable()
+): ServerStateStore {
+  const store = new ServerStateStore(
+    server,
+    fake as unknown as GraphQLClient,
+    publicServerInfoLoader
+  );
   stores.push(store);
   return store;
 }
@@ -144,18 +159,6 @@ describe('ServerStateStore live server updates', () => {
       adminRoomLayoutResult(),
       {
         server: {
-          directRegistrationEnabled: false,
-          profile: {
-            name: 'Fresh Name',
-            welcomeMessage: 'Fresh welcome',
-            description: 'Fresh description',
-            logoUrl: 'https://cdn/icon.webp',
-            bannerUrl: 'https://cdn/banner.webp'
-          }
-        }
-      },
-      {
-        server: {
           pushNotificationsEnabled: true,
           vapidPublicKey: 'vapid',
           livekitUrl: 'wss://livekit',
@@ -169,7 +172,17 @@ describe('ServerStateStore live server updates', () => {
         }
       }
     ]);
-    const store = makeStore(fake);
+    const publicServerInfoLoader = vi.fn<(baseUrl: string) => Promise<PublicServerInfo>>();
+    publicServerInfoLoader.mockResolvedValue({
+      name: 'Fresh Name',
+      welcomeMessage: 'Fresh welcome',
+      description: 'Fresh description',
+      iconUrl: 'https://cdn/icon.webp',
+      bannerUrl: 'https://cdn/banner.webp',
+      directRegistrationEnabled: false,
+      authProviders: []
+    });
+    const store = makeStore(fake, registered, publicServerInfoLoader);
     store.currentUser.user = { id: 'U1', login: 'alice', displayName: 'Alice' } as never;
     await flushPromises();
     await Promise.resolve();
@@ -189,10 +202,9 @@ describe('ServerStateStore live server updates', () => {
         event: { __typename: 'ServerUpdatedEvent', name: 'stale' }
       });
     }
-    await Promise.resolve();
-    await Promise.resolve();
+    await vi.waitFor(() => expect(fake.query).toHaveBeenCalledTimes(1));
 
-    expect(fake.query).toHaveBeenCalledTimes(2);
+    expect(publicServerInfoLoader).toHaveBeenCalledWith(registered.url);
     expect(store.serverInfo.name).toBe('Fresh Name');
     expect(store.serverInfo.welcomeMessage).toBe('Fresh welcome');
     expect(store.serverInfo.description).toBe('Fresh description');

@@ -7,6 +7,10 @@ import {
   type RoomEventViewFragment
 } from '$lib/gql/graphql';
 import type { EventEnvelope } from '$lib/eventBus.svelte';
+import {
+  createRoomTimelineAPI,
+  type RoomTimelineAPI
+} from '$lib/api/roomTimeline';
 import type { GraphQLClient } from '$lib/state/server/graphqlClient.svelte';
 import type { JumpToMessageState } from '../composerContext.svelte';
 import {
@@ -44,11 +48,26 @@ function compareEventCreatedAt(a: RoomEventViewFragment, b: RoomEventViewFragmen
   return Date.parse(a.createdAt) - Date.parse(b.createdAt);
 }
 
+function roomTimelineFromGraphQLClient(gqlClient: GraphQLClient): RoomTimelineAPI | null {
+  const candidate = gqlClient as {
+    serverId?: string;
+    connectBaseUrl?: string;
+    bearerToken?: string | null;
+  };
+  if (!candidate.connectBaseUrl) return null;
+  return createRoomTimelineAPI({
+    serverId: candidate.serverId,
+    baseUrl: candidate.connectBaseUrl,
+    bearerToken: candidate.bearerToken ?? null
+  });
+}
+
 /**
  * Message store for both the main room timeline and a single thread pane.
- * The scope-specific methods (`setRoom` / `setThread`) choose which Core
- * GraphQL connection backs the list while the lifecycle, pagination, refetch,
- * and subscription ingestion behavior stays shared.
+ * Room history now uses the protobuf ConnectRPC timeline API when available;
+ * thread history and single-event refetches still use GraphQL during the
+ * migration. Lifecycle, pagination, refetch, and subscription ingestion
+ * behavior stays shared across both scopes.
  */
 export class MessagesStore {
   events = $state<RoomEventViewFragment[]>([]);
@@ -57,6 +76,7 @@ export class MessagesStore {
   hasReachedStart = $state(false);
 
   private readonly client: Client;
+  private readonly roomTimeline: RoomTimelineAPI | null;
   private scope: MessageScope | null = null;
   private threadRootEventId = '';
   private seenIds: SvelteSet<string> = new SvelteSet<string>();
@@ -72,9 +92,11 @@ export class MessagesStore {
 
   constructor(
     gqlClient: GraphQLClient,
-    private readonly getCurrentUserId: () => string | null
+    private readonly getCurrentUserId: () => string | null,
+    roomTimeline?: RoomTimelineAPI | null
   ) {
     this.client = gqlClient.client;
+    this.roomTimeline = roomTimeline ?? roomTimelineFromGraphQLClient(gqlClient);
   }
 
   /** Tear down lifecycle listeners. Idempotent. */
@@ -317,6 +339,14 @@ export class MessagesStore {
       return threadRepliesConnection(result.data?.room?.event);
     }
 
+    if (this.roomTimeline) {
+      return this.roomTimeline.getRoomEvents({
+        roomId: this.roomId,
+        limit: PAGE_SIZE,
+        before
+      });
+    }
+
     const result = await this.client
       .query(RoomBeforeQuery, {
         roomId: this.roomId,
@@ -341,18 +371,17 @@ export class MessagesStore {
 
     jumpState.isLoadingNewer = true;
     try {
-      const result = await this.client
-        .query(RoomAfterQuery, {
-          roomId: this.roomId,
-          limit: PAGE_SIZE,
-          after: this.newestCursor
-        })
-        .toPromise();
+      const page = this.roomTimeline
+        ? await this.roomTimeline.getRoomEvents({
+            roomId: this.roomId,
+            limit: PAGE_SIZE,
+            after: this.newestCursor
+          })
+        : await this.fetchRoomAfterViaGraphQL(this.newestCursor);
 
       // User left jumped mode while in flight — abandon the result.
       if (!jumpState.isJumpedMode) return;
 
-      const page = result.data?.room?.events;
       if (!page) return;
 
       const newer = unmask(page.events);
@@ -382,19 +411,15 @@ export class MessagesStore {
 
     this.isInitialLoading = true;
     try {
-      const result = await this.client
-        .query(RoomAroundQuery, {
-          roomId: this.roomId,
-          eventId,
-          limit: PAGE_SIZE
-        })
-        .toPromise();
+      const around = this.roomTimeline
+        ? await this.roomTimeline.getRoomEventsAround({
+            roomId: this.roomId,
+            eventId,
+            limit: PAGE_SIZE
+          })
+        : await this.fetchRoomAroundViaGraphQL(eventId);
 
-      const around = result.data?.room?.eventsAround;
-      if (result.error || !around) {
-        if (result.error) console.error('MessagesStore: jumpToMessage failed:', result.error);
-        return;
-      }
+      if (!around) return;
 
       const { events: rawEvents, hasOlder, hasNewer, startCursor, endCursor } = around;
       const parsed = unmask(rawEvents);
@@ -813,24 +838,14 @@ export class MessagesStore {
     thisLoad: number,
     existingBeforeFetch: ReadonlySet<string>
   ): Promise<RefreshCurrentWindowResult> {
-    const result = await this.client
-      .query(
-        RoomLatestQuery,
-        {
+    const page = this.roomTimeline
+      ? await this.roomTimeline.getRoomEvents({
           roomId: this.roomId,
           limit: PAGE_SIZE
-        },
-        { requestPolicy: 'network-only' }
-      )
-      .toPromise();
+        })
+      : await this.fetchRoomLatestViaGraphQL({ requestPolicy: 'network-only' });
 
     if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false, refreshed: false };
-    if (result.error) {
-      console.error('MessagesStore: refreshRoomLatest error:', result.error);
-      return { hasOlder: false, hasNewer: false, refreshed: false };
-    }
-
-    const page = result.data?.room?.events;
     if (!page) return { hasOlder: false, hasNewer: false, refreshed: false };
     this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch);
     return { hasOlder: page.hasOlder, hasNewer: page.hasNewer, refreshed: true };
@@ -841,28 +856,78 @@ export class MessagesStore {
     anchorEventId: string,
     existingBeforeFetch: ReadonlySet<string>
   ): Promise<RefreshCurrentWindowResult | null> {
+    const page = this.roomTimeline
+      ? await this.roomTimeline.getRoomEventsAround({
+          roomId: this.roomId,
+          eventId: anchorEventId,
+          limit: PAGE_SIZE
+        })
+      : await this.fetchRoomAroundViaGraphQL(anchorEventId, { requestPolicy: 'network-only' });
+
+    if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false, refreshed: false };
+    if (!page) return null;
+    this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch);
+    return { hasOlder: page.hasOlder, hasNewer: page.hasNewer, refreshed: true };
+  }
+
+  private async fetchRoomLatestViaGraphQL(options?: {
+    requestPolicy: 'network-only';
+  }): Promise<EventConnectionPage | null> {
+    const result = await this.client
+      .query(
+        RoomLatestQuery,
+        {
+          roomId: this.roomId,
+          limit: PAGE_SIZE
+        },
+        options
+      )
+      .toPromise();
+
+    if (result.error) {
+      console.error('MessagesStore: fetchRoomLatestViaGraphQL error:', result.error);
+      return null;
+    }
+    return result.data?.room?.events ?? null;
+  }
+
+  private async fetchRoomAfterViaGraphQL(after: string): Promise<EventConnectionPage | null> {
+    const result = await this.client
+      .query(RoomAfterQuery, {
+        roomId: this.roomId,
+        limit: PAGE_SIZE,
+        after
+      })
+      .toPromise();
+
+    if (result.error) {
+      console.error('MessagesStore: fetchRoomAfterViaGraphQL error:', result.error);
+      return null;
+    }
+    return result.data?.room?.events ?? null;
+  }
+
+  private async fetchRoomAroundViaGraphQL(
+    eventId: string,
+    options?: { requestPolicy: 'network-only' }
+  ): Promise<EventConnectionPage | null> {
     const result = await this.client
       .query(
         RoomAroundQuery,
         {
           roomId: this.roomId,
-          eventId: anchorEventId,
+          eventId,
           limit: PAGE_SIZE
         },
-        { requestPolicy: 'network-only' }
+        options
       )
       .toPromise();
 
-    if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false, refreshed: false };
     if (result.error) {
-      console.error('MessagesStore: refreshRoomAround error:', result.error);
+      console.error('MessagesStore: fetchRoomAroundViaGraphQL error:', result.error);
       return null;
     }
-
-    const page = result.data?.room?.eventsAround;
-    if (!page) return null;
-    this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch);
-    return { hasOlder: page.hasOlder, hasNewer: page.hasNewer, refreshed: true };
+    return result.data?.room?.eventsAround ?? null;
   }
 
   private async refreshThreadWindow(
@@ -919,16 +984,16 @@ export class MessagesStore {
   }
 
   private fetchLatest(thisLoad: number): void {
-    this.client
-      .query(RoomLatestQuery, {
-        roomId: this.roomId,
-        limit: PAGE_SIZE
-      })
-      .toPromise()
-      .then((result) => {
+    const promise = this.roomTimeline
+      ? this.roomTimeline.getRoomEvents({
+          roomId: this.roomId,
+          limit: PAGE_SIZE
+        })
+      : this.fetchRoomLatestViaGraphQL();
+
+    promise
+      .then((page) => {
         if (this.isStale(thisLoad)) return;
-        if (result.error) console.error('MessagesStore: fetchLatest error:', result.error);
-        const page = result.data?.room?.events;
         if (page) {
           this.replaceWithFetchedAndUpdateCursors(page);
           this.hasReachedStart = !page.hasOlder;

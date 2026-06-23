@@ -126,7 +126,8 @@ vi.mock('$app/paths', () => ({
 }));
 
 vi.mock('$lib/navigation', () => ({
-  serverIdToSegment: () => '-'
+  serverIdToSegment: () => '-',
+  segmentToServerId: (segment: string) => (segment === '-' ? 'origin' : null)
 }));
 
 vi.mock('$lib/state/activeServer.svelte', () => ({

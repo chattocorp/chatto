@@ -32,6 +32,15 @@ interface NotificationClickLogger {
   warn: (...args: unknown[]) => void;
 }
 
+export interface BadgeCapableNavigator {
+  setAppBadge?: (contents?: number) => Promise<void>;
+  clearAppBadge?: () => Promise<void>;
+}
+
+export interface NotificationListingRegistration {
+  getNotifications(): Promise<readonly unknown[]>;
+}
+
 export type NotificationClickRouteResult = 'ignored' | 'client' | 'navigate' | 'open';
 
 export interface NotificationClickRouteOptions {
@@ -42,6 +51,25 @@ export interface NotificationClickRouteOptions {
 
 function createDefaultMessageChannel(): NotificationClickMessageChannel {
   return new MessageChannel();
+}
+
+export async function clearBadgeIfNoNotificationsRemain(
+  registration: NotificationListingRegistration,
+  badgeNavigator: BadgeCapableNavigator,
+  options: { preserveFlag?: boolean } = {}
+): Promise<void> {
+  let notifications: readonly unknown[];
+  try {
+    notifications = await registration.getNotifications();
+  } catch {
+    return;
+  }
+  if (notifications.length > 0) return;
+  if (options.preserveFlag) {
+    await (badgeNavigator.setAppBadge?.().catch(() => {}) ?? Promise.resolve());
+  } else {
+    await (badgeNavigator.clearAppBadge?.().catch(() => {}) ?? Promise.resolve());
+  }
 }
 
 function isNotificationClickAck(message: unknown): boolean {

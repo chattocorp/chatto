@@ -36,13 +36,12 @@ vi.mock('$app/navigation', () => ({
 
 vi.mock('$app/paths', () => ({
   resolve: (path: string, params?: Record<string, string>) =>
-    path
-      .replace('[serverId]', params?.serverId ?? '')
-      .replace('[roomId]', params?.roomId ?? '')
+    path.replace('[serverId]', params?.serverId ?? '').replace('[roomId]', params?.roomId ?? '')
 }));
 
 vi.mock('$lib/navigation', () => ({
-  serverIdToSegment: () => '-'
+  serverIdToSegment: () => '-',
+  segmentToServerId: (segment: string) => (segment === '-' ? 'origin' : null)
 }));
 
 vi.mock('$lib/gql', () => ({
@@ -259,7 +258,9 @@ async function waitForDebouncedUserSearch() {
   await new Promise((resolve) => setTimeout(resolve, 250));
   await vi.waitFor(() => {
     expect(
-      mocks.query.mock.calls.some(([document]) => operationName(document) === 'QuickSwitcherMembers')
+      mocks.query.mock.calls.some(
+        ([document]) => operationName(document) === 'QuickSwitcherMembers'
+      )
     ).toBe(true);
   });
 }

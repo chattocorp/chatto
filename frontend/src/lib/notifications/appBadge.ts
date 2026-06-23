@@ -15,6 +15,19 @@ export function isSupported(): boolean {
 }
 
 /**
+ * Share foreground unread badge state with the service worker so its native
+ * notification cleanup does not erase an unread-only dock flag.
+ */
+export function syncServiceWorkerUnreadBadgeState(hasAnyUnread: boolean): void {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+
+  navigator.serviceWorker.controller?.postMessage({
+    type: 'chatto-badge-state',
+    hasAnyUnread
+  });
+}
+
+/**
  * Update the app badge with the given count.
  * Sets a numeric badge if count > 0, clears it otherwise.
  *

@@ -1,7 +1,7 @@
 {
   "name": "chatto-frontend",
   "private": true,
-  "version": "0.3.8",
+  "version": "0.4.0-beta.1",
   "type": "module",
   "packageManager": "pnpm@10.19.0",
   "scripts": {
@@ -22,6 +22,8 @@
     "build-storybook": "storybook build"
   },
   "devDependencies": {
+    "@bufbuild/protoc-gen-es": "^1.10.0",
+    "@connectrpc/protoc-gen-connect-es": "1.7.0",
     "@eslint/compat": "^1.4.1",
     "@eslint/js": "^9.39.4",
     "@fontsource-variable/ibm-plex-sans": "^5.2.8",
@@ -103,6 +105,9 @@
     ]
   },
   "dependencies": {
+    "@bufbuild/protobuf": "^1.10.0",
+    "@connectrpc/connect": "^1.7.0",
+    "@connectrpc/connect-web": "^1.7.0",
     "gemoji": "^8.1.0",
     "heic2any": "^0.0.4",
     "linkify-it": "^5.0.0",

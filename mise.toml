@@ -2,7 +2,6 @@
 actionlint = "latest"
 buf = "latest"
 go = "1.26.2"
-"go:google.golang.org/protobuf/cmd/protoc-gen-go" = "v1.36.11"
 goreleaser = "latest"
 node = "22"
 tilt = "latest"
@@ -53,9 +52,14 @@ depends = ["deps-frontend"]
 # =============================================================================
 
 [tasks.codegen-proto]
-description = "Generate Go code from protobuf schemas"
+description = "Generate Go and frontend code from protobuf schemas"
+depends = ["setup-cli", "setup-frontend"]
 dir = "proto"
 run = "buf generate"
+
+[tasks.codegen-api-frontend]
+description = "Generate frontend TypeScript code from public API protobuf schemas"
+depends = ["codegen-proto"]
 
 [tasks.codegen-cli]
 description = "Generate GraphQL code using gqlgen"
@@ -329,11 +333,3 @@ printf '#!/bin/sh\necho chatto dummy\n' > "$context/chatto"
 chmod +x "$context/chatto"
 docker buildx build --build-arg TARGETARCH=amd64 -f "$context/Dockerfile" "$context"
 """
-
-# =============================================================================
-# Versioning
-# =============================================================================
-# Versions are managed by release-please (.release-please-config.json).
-# Land a conventional-commit PR on main → release-please opens a rolling
-# Release PR → merge it to cut the tag, which triggers ci.yml's release
-# job. No `mise bump` needed.

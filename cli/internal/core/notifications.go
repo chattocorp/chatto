@@ -210,6 +210,21 @@ func (c *ChattoCore) DismissAllNotifications(ctx context.Context, userID string)
 
 	deleted := 0
 	for _, key := range keys {
+		var notif *corev1.Notification
+		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+		if err != nil {
+			if !errors.Is(err, jetstream.ErrKeyNotFound) {
+				c.logger.Warn("Failed to get notification before dismissing", "key", key, "error", err)
+			}
+		} else {
+			var decoded corev1.Notification
+			if err := proto.Unmarshal(entry.Value(), &decoded); err != nil {
+				c.logger.Warn("Failed to unmarshal notification before dismissing", "key", key, "error", err)
+			} else {
+				notif = &decoded
+			}
+		}
+
 		if err := c.storage.runtimeStateKV.Delete(ctx, key); err != nil {
 			if !errors.Is(err, jetstream.ErrKeyNotFound) {
 				c.logger.Warn("Failed to delete notification", "key", key, "error", err)
@@ -223,6 +238,10 @@ func (c *ChattoCore) DismissAllNotifications(ctx context.Context, userID string)
 		keyPrefix := notificationKeyPrefix + userID + "."
 		if notificationID := strings.TrimPrefix(key, keyPrefix); notificationID != key {
 			c.publishNotificationDismissedEvent(ctx, userID, notificationID)
+		}
+
+		if notif != nil && c.OnNotificationDismissed != nil {
+			go c.OnNotificationDismissed(context.WithoutCancel(ctx), userID, notif)
 		}
 	}
 

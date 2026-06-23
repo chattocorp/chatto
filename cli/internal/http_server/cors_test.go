@@ -3,6 +3,7 @@ package http_server
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -138,12 +139,45 @@ func TestCORSMiddleware(t *testing.T) {
 		if methods := w.Header().Get("Access-Control-Allow-Methods"); methods != "GET, POST, OPTIONS" {
 			t.Errorf("expected Access-Control-Allow-Methods 'GET, POST, OPTIONS', got %q", methods)
 		}
-		expectedHeaders := "Authorization, Content-Type, X-CSRF-Token, X-REQUEST-TYPE, Range, If-None-Match, If-Modified-Since, X-Chatto-Asset-Proxy"
+		expectedHeaders := "Authorization, Content-Type, Connect-Protocol-Version, Connect-Timeout-Ms, X-CSRF-Token, X-REQUEST-TYPE, Range, If-None-Match, If-Modified-Since, X-Chatto-Asset-Proxy"
 		if headers := w.Header().Get("Access-Control-Allow-Headers"); headers != expectedHeaders {
 			t.Errorf("expected Access-Control-Allow-Headers %q, got %q", expectedHeaders, headers)
 		}
 		if maxAge := w.Header().Get("Access-Control-Max-Age"); maxAge != "86400" {
 			t.Errorf("expected Access-Control-Max-Age '86400', got %q", maxAge)
+		}
+	})
+
+	t.Run("ConnectRPC bearer preflight from remote origin allows authorization headers without credentials", func(t *testing.T) {
+		s := setupCORSServer(t, config.WebserverConfig{
+			URL: "https://chat.example.com",
+			// AllowedOrigins not set — remote bearer-token clients match the wildcard.
+		})
+
+		req := httptest.NewRequest("OPTIONS", connectAPIPrefix+"/chatto.api.v1.NotificationPreferencesService/SetRoomNotificationLevel", nil)
+		req.Header.Set("Origin", "https://integration.example.com")
+		req.Header.Set("Access-Control-Request-Method", "POST")
+		req.Header.Set("Access-Control-Request-Headers", "authorization, content-type, connect-protocol-version, connect-timeout-ms")
+		w := httptest.NewRecorder()
+		s.router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusNoContent {
+			t.Fatalf("expected 204, got %d", w.Code)
+		}
+		if origin := w.Header().Get("Access-Control-Allow-Origin"); origin != "*" {
+			t.Errorf("expected Access-Control-Allow-Origin '*', got %q", origin)
+		}
+		if creds := w.Header().Get("Access-Control-Allow-Credentials"); creds != "" {
+			t.Errorf("expected no Access-Control-Allow-Credentials for wildcard bearer-token clients, got %q", creds)
+		}
+		if methods := w.Header().Get("Access-Control-Allow-Methods"); methods != "GET, POST, OPTIONS" {
+			t.Errorf("expected Access-Control-Allow-Methods 'GET, POST, OPTIONS', got %q", methods)
+		}
+		headers := w.Header().Get("Access-Control-Allow-Headers")
+		for _, required := range []string{"Authorization", "Content-Type", "Connect-Protocol-Version", "Connect-Timeout-Ms"} {
+			if !strings.Contains(headers, required) {
+				t.Errorf("expected Access-Control-Allow-Headers to include %q, got %q", required, headers)
+			}
 		}
 	})
 
