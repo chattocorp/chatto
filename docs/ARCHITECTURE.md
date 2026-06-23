@@ -17,6 +17,7 @@ For *why* a particular design decision was made:
 - [Core Services](#core-services)
 - [Projection Inventory](#projection-inventory)
 - [ConnectRPC API Overview](#connectrpc-api-overview)
+  - [Endpoint Inventory](#endpoint-inventory)
 - [GraphQL API Overview](#graphql-api-overview)
   - [Queries](#queries)
   - [Mutations](#mutations)
@@ -141,15 +142,19 @@ The ConnectRPC API is an early protobuf-first public API proof of concept mounte
 
 Public API protobufs are intentionally separate from persisted `corev1` EVT protobufs. `ServerInfoState` uses `ServerService.GetServer` for public profile metadata. `NotificationPreferencesService.SetRoomNotificationLevel` is the authenticated/authorized mutation PoC: Connect requests reuse the same bearer-token-then-cookie auth injection as GraphQL, then delegate to the core `NotificationPreferencesService`, which enforces channel-room membership before writing the room notification preference. The GraphQL room notification mutation uses the same core service so transport-specific authorization does not drift. `RoomTimelineService.GetRoomEvents`, `GetRoomEventsAround`, `GetThreadEvents`, and `GetThreadEventsAround` are the read-path PoC: they require room membership, read projection-backed room and thread timelines, and return renderable protobuf timeline rows with hydrated users, message bodies, reactions, thread metadata, link previews, and attachment URLs so browser clients avoid resolver-style N+1 fetching. Realtime delivery remains on the existing GraphQL/WebSocket API until later migration work.
 
-| Service                          | Method                          | Description                                                                                   |
-| -------------------------------- | ------------------------------- | --------------------------------------------------------------------------------------------- |
-| `ServerService`                  | `GetServer`                     | Public server metadata: name, version, auth methods/providers, registration state, OAuth URL. |
-| `NotificationPreferencesService` | `GetRoomNotificationPreference` | Authenticated room notification preference read; requires channel-room membership.             |
-| `NotificationPreferencesService` | `SetRoomNotificationLevel`      | Authenticated room notification preference mutation; requires channel-room membership.         |
-| `RoomTimelineService`            | `GetRoomEvents`                 | Authenticated latest/before/after main-room timeline page with hydrated render data.           |
-| `RoomTimelineService`            | `GetRoomEventsAround`           | Authenticated main-room timeline window centered on a visible target event.                    |
-| `RoomTimelineService`            | `GetThreadEvents`               | Authenticated thread root plus latest/before/after reply page with hydrated render data.       |
-| `RoomTimelineService`            | `GetThreadEventsAround`         | Authenticated thread root plus reply window centered on a root or reply anchor event.          |
+### Endpoint Inventory
+
+ConnectRPC unary RPCs are mounted at these HTTP paths. The service and method names come from `proto/chatto/api/v1/*.proto`; the final route is `connectapi.Prefix` (`/api/connect`) plus the generated Connect service path.
+
+| Endpoint                                                                                     | Service                          | RPC                             | Auth / authorization                                                            | Description                                                                                   |
+| -------------------------------------------------------------------------------------------- | -------------------------------- | ------------------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `/api/connect/chatto.api.v1.ServerService/GetServer`                                         | `ServerService`                  | `GetServer`                     | Public                                                                          | Public server metadata: name, version, auth methods/providers, registration state, OAuth URL. |
+| `/api/connect/chatto.api.v1.NotificationPreferencesService/GetRoomNotificationPreference`     | `NotificationPreferencesService` | `GetRoomNotificationPreference` | Authenticated; requires channel-room membership.                                | Read the viewer's room notification preference and effective level.                            |
+| `/api/connect/chatto.api.v1.NotificationPreferencesService/SetRoomNotificationLevel`          | `NotificationPreferencesService` | `SetRoomNotificationLevel`      | Authenticated; requires channel-room membership.                                | Write the viewer's room notification level through `NotificationPreferencesService`.           |
+| `/api/connect/chatto.api.v1.RoomTimelineService/GetRoomEvents`                                | `RoomTimelineService`            | `GetRoomEvents`                 | Authenticated; requires room membership.                                        | Latest/before/after main-room timeline page with hydrated render data.                         |
+| `/api/connect/chatto.api.v1.RoomTimelineService/GetRoomEventsAround`                          | `RoomTimelineService`            | `GetRoomEventsAround`           | Authenticated; requires room membership.                                        | Main-room timeline window centered on a visible target event.                                  |
+| `/api/connect/chatto.api.v1.RoomTimelineService/GetThreadEvents`                              | `RoomTimelineService`            | `GetThreadEvents`               | Authenticated; requires room membership and a valid non-echo thread root event. | Thread root plus latest/before/after reply page with hydrated render data.                     |
+| `/api/connect/chatto.api.v1.RoomTimelineService/GetThreadEventsAround`                        | `RoomTimelineService`            | `GetThreadEventsAround`         | Authenticated; requires room membership and a valid non-echo thread root event. | Thread root plus reply window centered on a root or reply anchor event.                        |
 
 ## GraphQL API Overview
 

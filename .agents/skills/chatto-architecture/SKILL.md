@@ -17,15 +17,20 @@ ARCHITECTURE.md follows this exact structure. Preserve all sections and their or
 4. **Architecture & APIs** - Layer descriptions (NATS, Core, GraphQL, Web Client, Email)
 5. **Core Services** - Current runtime services and their responsibilities
 6. **Projection Inventory** - Registered projections, subject filters, nested read models, and primary readers
-7. **GraphQL API Overview** - High-level overview of the GraphQL API:
+7. **ConnectRPC API Overview** - Protobuf-first public API inventory:
+   - General description of the `/api/connect` mount and generated service paths
+   - Explicit endpoint inventory table for every public ConnectRPC RPC
+   - Authentication/authorization behavior for each endpoint
+   - Source-of-truth links to API protos, generated handlers, service implementations, and HTTP mounting
+8. **GraphQL API Overview** - High-level overview of the GraphQL API:
    - General description of the API's purpose and design
    - Key queries (spaces, rooms, messages, users, admin)
    - Key mutations (space/room/message CRUD, membership operations)
    - Key subscriptions (real-time events, presence updates)
    - No detailed field documentation - just the most important operations
-8. **Architecture Pattern: Event-Sourced Writes** - Write Path table, Consistency Model
-9. **Roles, Permissions, and Direct Messages** - Pointers to the authoritative FDRs/rules/source files
-10. **NATS Resource Inventory** - Current runtime resources only:
+9. **Architecture Pattern: Event-Sourced Writes** - Write Path table, Consistency Model
+10. **Roles, Permissions, and Direct Messages** - Pointers to the authoritative FDRs/rules/source files
+11. **NATS Resource Inventory** - Current runtime resources only:
    - **Current Resources**: Stream, KV, object-store, live-subject roots
    - **Event Envelopes**: Durable `corev1.Event` vs transient `corev1.LiveEvent`
    - **EVT Subject Patterns**: Current `evt.{aggregateType}.{aggregateId}.{eventType}` families and wildcard filters
@@ -46,15 +51,17 @@ Recommended independent research slices:
 
 1. **GraphQL Schema**: "Find all GraphQL queries, mutations, and subscriptions in `cli/internal/graph/*.graphqls`. List each operation with a one-line description."
 
-2. **RBAC**: "Find all permission constants in `cli/internal/core/permissions.go` and all `Can*` functions in `cli/internal/core/can.go`. Document each permission and what it controls."
+2. **ConnectRPC API**: "Find all services and RPCs in `proto/chatto/api/v1/*.proto`, all generated handlers registered in `cli/internal/connectapi/api.go`, and the HTTP mount in `cli/internal/http_server/connect.go`. List each `/api/connect/{fully.qualified.Service}/{Method}` endpoint with auth/authorization behavior and a one-line description."
 
-3. **Core Services**: "Read `cli/internal/core/core.go`, `cli/internal/core/*_service.go`, and `cli/internal/video/service.go`. List current services with their responsibilities and lifecycle/readiness role."
+3. **RBAC**: "Find all permission constants in `cli/internal/core/permissions.go` and all `Can*` functions in `cli/internal/core/can.go`. Document each permission and what it controls."
 
-4. **Projections**: "Read `NewChattoCore`, all `New*Projection` constructors, `Subjects()` methods, and `projection_subjects_test.go`. List registered projections, nested read models, and subject filters."
+4. **Core Services**: "Read `cli/internal/core/core.go`, `cli/internal/core/*_service.go`, and `cli/internal/video/service.go`. List current services with their responsibilities and lifecycle/readiness role."
 
-5. **Current Storage**: "Find all current `CreateOrUpdateStream`, `CreateOrUpdateKeyValue`, and `CreateOrUpdateObjectStore` calls in `cli/internal/core/`. List current resources and key/object patterns used by runtime code."
+5. **Projections**: "Read `NewChattoCore`, all `New*Projection` constructors, `Subjects()` methods, and `projection_subjects_test.go`. List registered projections, nested read models, and subject filters."
 
-6. **EVT Subjects**: "Read `cli/internal/events/subjects.go`, `proto/chatto/core/v1/event.proto`, and `cli/internal/core/subjects/subjects.go`. List durable EVT subject patterns mapped to concrete protobuf event message types, plus transient `live.sync.>` subjects."
+6. **Current Storage**: "Find all current `CreateOrUpdateStream`, `CreateOrUpdateKeyValue`, and `CreateOrUpdateObjectStore` calls in `cli/internal/core/`. List current resources and key/object patterns used by runtime code."
+
+7. **EVT Subjects**: "Read `cli/internal/events/subjects.go`, `proto/chatto/core/v1/event.proto`, and `cli/internal/core/subjects/subjects.go`. List durable EVT subject patterns mapped to concrete protobuf event message types, plus transient `live.sync.>` subjects."
 
 ### After Parallel Research
 
@@ -87,7 +94,18 @@ Once research completes:
    - Focus on user-facing operations, not internal details
    - Group by domain (spaces, rooms, messages, users, admin)
 
-3. **For RBAC Pointers**:
+3. **For ConnectRPC API Overview**:
+
+   - Read all public API `.proto` files in `proto/chatto/api/v1/`
+   - Read `cli/internal/connectapi/api.go` to verify which generated service handlers are registered
+   - Read `cli/internal/http_server/connect.go` to verify the `/api/connect` mount behavior
+   - Read each implementation file in `cli/internal/connectapi/` to identify auth/authorization behavior and core service delegation
+   - Maintain an explicit `Endpoint Inventory` table in `docs/ARCHITECTURE.md` with one row per mounted RPC
+   - Derive endpoint paths as `/api/connect/{proto package}.{Service}/{Method}` (for example `/api/connect/chatto.api.v1.ServerService/GetServer`)
+   - Include service name, RPC name, auth/authorization notes, and a concise behavior description
+   - Remove rows for unmounted or deleted RPCs, and add rows whenever a new public ConnectRPC method is registered
+
+4. **For RBAC Pointers**:
 
    - Read `cli/internal/core/permissions.go` for all permission constants
    - Read `cli/internal/core/can.go` for all `Can*` functions
@@ -95,19 +113,19 @@ Once research completes:
    - Check `owners.emails` configuration in server setup
    - Keep `docs/ARCHITECTURE.md` as an inventory: link to the authoritative FDRs/rules/source files instead of duplicating the full RBAC model there
 
-4. **For Overview and Glossary Cross-Reference**:
+5. **For Overview and Glossary Cross-Reference**:
 
    - Keep `Core Concepts` as a pointer to `docs/GLOSSARY.md`; do not duplicate term definitions there
    - If architecture changes affect canonical terms such as Server, Room, Event, Projection, Subject, or Live Event, update `docs/GLOSSARY.md` in the same change
    - Keep glossary entries concise; link back to `docs/ARCHITECTURE.md` for detailed architecture
 
-5. **For Core Services and Projections**:
+6. **For Core Services and Projections**:
 
    - Use `NewChattoCore` as the authoritative wiring point for current services and registered projections
    - Use `projection_subjects_test.go` to verify subject filters
    - Document nested read models under their registered parent projection
 
-6. **For NATS Resource Inventory**:
+7. **For NATS Resource Inventory**:
 
    - Find all `CreateOrUpdateStream` calls to list streams
    - Find all `CreateOrUpdateKeyValue` calls to list KV buckets
@@ -118,12 +136,12 @@ Once research completes:
    - Document the naming conventions and variable placeholders
    - Remove detailed entries for resources that are not part of the current runtime architecture
 
-7. **Compare with existing documentation**:
+8. **Compare with existing documentation**:
 
    - Read current `docs/ARCHITECTURE.md`
    - Identify discrepancies between code and documentation
 
-8. **Update documentation**:
+9. **Update documentation**:
 
    - Add new entries to appropriate tables
    - Update existing entries if they've changed
@@ -132,7 +150,7 @@ Once research completes:
    - Keep notes/explanations accurate and concise
    - Add relative links to source files (see below)
 
-9. **Validation checklist**:
+10. **Validation checklist**:
    - All streams in code appear in Streams table
    - All KV buckets in code appear in KV Buckets table
    - All object stores in code appear in Object Store Buckets table
@@ -143,6 +161,9 @@ Once research completes:
    - Durable EVT event tokens in `events/subjects.go` appear in Durable EVT Event Inventory with their concrete protobuf event message type
    - Current `live.sync.>` subjects appear in Transient Live Subjects
    - RBAC section points to the authoritative FDRs/rules/source files
+   - ConnectRPC API Overview has an `Endpoint Inventory` table
+   - Every service/RPC in `proto/chatto/api/v1/*.proto` that is registered by `cli/internal/connectapi/api.go` appears in the ConnectRPC endpoint inventory with its full `/api/connect/...` path
+   - ConnectRPC endpoint auth/authorization notes match the implementation in `cli/internal/connectapi/`
    - Key GraphQL operations are listed
    - Subject/key patterns match actual code usage
    - Detailed legacy/pre-0.1 storage inventories are not reintroduced
