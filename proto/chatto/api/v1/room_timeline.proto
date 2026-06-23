@@ -149,7 +149,35 @@ message GetRoomEventsAroundResponse {
   int32 target_index = 2;
 }
 
+message GetThreadEventsRequest {
+  string room_id = 1;
+  string thread_root_event_id = 2;
+  int32 limit = 3;
+  oneof cursor {
+    string before = 4;
+    string after = 5;
+  }
+}
+
+message GetThreadEventsResponse {
+  RoomTimelinePage page = 1;
+}
+
+message GetThreadEventsAroundRequest {
+  string room_id = 1;
+  string thread_root_event_id = 2;
+  string event_id = 3;
+  int32 limit = 4;
+}
+
+message GetThreadEventsAroundResponse {
+  RoomTimelinePage page = 1;
+  int32 target_index = 2;
+}
+
 service RoomTimelineService {
   rpc GetRoomEvents(GetRoomEventsRequest) returns (GetRoomEventsResponse);
   rpc GetRoomEventsAround(GetRoomEventsAroundRequest) returns (GetRoomEventsAroundResponse);
+  rpc GetThreadEvents(GetThreadEventsRequest) returns (GetThreadEventsResponse);
+  rpc GetThreadEventsAround(GetThreadEventsAroundRequest) returns (GetThreadEventsAroundResponse);
 }

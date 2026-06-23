@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Timestamp } from '@bufbuild/protobuf';
 import {
   RoomTimelineAssetUrl,
@@ -12,7 +12,124 @@ import {
   RoomTimelineVideoProcessingStatus,
   RoomTimelineVideoVariant
 } from '$lib/pb/chatto/api/v1/room_timeline_pb';
-import { roomTimelinePageToEventConnectionPage } from './roomTimeline';
+import { createRoomTimelineAPI, roomTimelinePageToEventConnectionPage } from './roomTimeline';
+
+const mocks = vi.hoisted(() => ({
+  createClient: vi.fn(),
+  createConnectTransport: vi.fn(),
+  handleAuthenticationRequired: vi.fn(),
+  getThreadEvents: vi.fn(),
+  getThreadEventsAround: vi.fn()
+}));
+
+vi.mock('@connectrpc/connect', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@connectrpc/connect')>();
+  return {
+    ...actual,
+    createClient: mocks.createClient
+  };
+});
+
+vi.mock('@connectrpc/connect-web', () => ({
+  createConnectTransport: mocks.createConnectTransport
+}));
+
+vi.mock('$lib/state/server/registry.svelte', () => ({
+  serverRegistry: {
+    handleAuthenticationRequired: mocks.handleAuthenticationRequired
+  }
+}));
+
+describe('createRoomTimelineAPI', () => {
+  beforeEach(() => {
+    mocks.createClient.mockReset();
+    mocks.createConnectTransport.mockReset();
+    mocks.handleAuthenticationRequired.mockReset();
+    mocks.getThreadEvents.mockReset();
+    mocks.getThreadEventsAround.mockReset();
+    mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
+    mocks.createClient.mockReturnValue({
+      getThreadEvents: mocks.getThreadEvents,
+      getThreadEventsAround: mocks.getThreadEventsAround
+    });
+  });
+
+  it('sends thread page requests with bearer auth and opaque cursors', async () => {
+    mocks.getThreadEvents.mockResolvedValue({
+      page: new RoomTimelinePage({
+        startCursor: 'seq:1',
+        endCursor: 'seq:2',
+        hasOlder: false,
+        hasNewer: true
+      })
+    });
+
+    const api = createRoomTimelineAPI({
+      serverId: 'remote',
+      baseUrl: 'https://remote.example.test/api/connect',
+      bearerToken: 'remote-token'
+    });
+
+    const page = await api.getThreadEvents({
+      roomId: 'room-1',
+      threadRootEventId: 'root-1',
+      limit: 50,
+      before: 'seq:10'
+    });
+
+    expect(mocks.createConnectTransport).toHaveBeenCalledWith({
+      baseUrl: 'https://remote.example.test/api/connect',
+      useBinaryFormat: true
+    });
+    expect(mocks.getThreadEvents).toHaveBeenCalledWith(
+      {
+        roomId: 'room-1',
+        threadRootEventId: 'root-1',
+        limit: 50,
+        cursor: { case: 'before', value: 'seq:10' }
+      },
+      {
+        headers: { Authorization: 'Bearer remote-token' }
+      }
+    );
+    expect(page).toMatchObject({
+      startCursor: 'seq:1',
+      endCursor: 'seq:2',
+      hasOlder: false,
+      hasNewer: true
+    });
+  });
+
+  it('sends thread-around requests with the anchor event id', async () => {
+    mocks.getThreadEventsAround.mockResolvedValue({
+      page: new RoomTimelinePage({ hasOlder: true, hasNewer: true })
+    });
+
+    const api = createRoomTimelineAPI({
+      baseUrl: 'https://remote.example.test/api/connect',
+      bearerToken: null
+    });
+
+    await api.getThreadEventsAround({
+      roomId: 'room-1',
+      threadRootEventId: 'root-1',
+      eventId: 'reply-20',
+      limit: 50
+    });
+
+    expect(mocks.getThreadEventsAround).toHaveBeenCalledWith(
+      {
+        roomId: 'room-1',
+        threadRootEventId: 'root-1',
+        eventId: 'reply-20',
+        limit: 50
+      },
+      {
+        headers: undefined
+      }
+    );
+  });
+});
 
 describe('roomTimelinePageToEventConnectionPage', () => {
   it('maps hydrated protobuf room timeline pages into the message render shape', () => {

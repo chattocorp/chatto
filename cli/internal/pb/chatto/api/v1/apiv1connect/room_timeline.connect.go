@@ -39,12 +39,20 @@ const (
 	// RoomTimelineServiceGetRoomEventsAroundProcedure is the fully-qualified name of the
 	// RoomTimelineService's GetRoomEventsAround RPC.
 	RoomTimelineServiceGetRoomEventsAroundProcedure = "/chatto.api.v1.RoomTimelineService/GetRoomEventsAround"
+	// RoomTimelineServiceGetThreadEventsProcedure is the fully-qualified name of the
+	// RoomTimelineService's GetThreadEvents RPC.
+	RoomTimelineServiceGetThreadEventsProcedure = "/chatto.api.v1.RoomTimelineService/GetThreadEvents"
+	// RoomTimelineServiceGetThreadEventsAroundProcedure is the fully-qualified name of the
+	// RoomTimelineService's GetThreadEventsAround RPC.
+	RoomTimelineServiceGetThreadEventsAroundProcedure = "/chatto.api.v1.RoomTimelineService/GetThreadEventsAround"
 )
 
 // RoomTimelineServiceClient is a client for the chatto.api.v1.RoomTimelineService service.
 type RoomTimelineServiceClient interface {
 	GetRoomEvents(context.Context, *connect.Request[v1.GetRoomEventsRequest]) (*connect.Response[v1.GetRoomEventsResponse], error)
 	GetRoomEventsAround(context.Context, *connect.Request[v1.GetRoomEventsAroundRequest]) (*connect.Response[v1.GetRoomEventsAroundResponse], error)
+	GetThreadEvents(context.Context, *connect.Request[v1.GetThreadEventsRequest]) (*connect.Response[v1.GetThreadEventsResponse], error)
+	GetThreadEventsAround(context.Context, *connect.Request[v1.GetThreadEventsAroundRequest]) (*connect.Response[v1.GetThreadEventsAroundResponse], error)
 }
 
 // NewRoomTimelineServiceClient constructs a client for the chatto.api.v1.RoomTimelineService
@@ -70,13 +78,27 @@ func NewRoomTimelineServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(roomTimelineServiceMethods.ByName("GetRoomEventsAround")),
 			connect.WithClientOptions(opts...),
 		),
+		getThreadEvents: connect.NewClient[v1.GetThreadEventsRequest, v1.GetThreadEventsResponse](
+			httpClient,
+			baseURL+RoomTimelineServiceGetThreadEventsProcedure,
+			connect.WithSchema(roomTimelineServiceMethods.ByName("GetThreadEvents")),
+			connect.WithClientOptions(opts...),
+		),
+		getThreadEventsAround: connect.NewClient[v1.GetThreadEventsAroundRequest, v1.GetThreadEventsAroundResponse](
+			httpClient,
+			baseURL+RoomTimelineServiceGetThreadEventsAroundProcedure,
+			connect.WithSchema(roomTimelineServiceMethods.ByName("GetThreadEventsAround")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // roomTimelineServiceClient implements RoomTimelineServiceClient.
 type roomTimelineServiceClient struct {
-	getRoomEvents       *connect.Client[v1.GetRoomEventsRequest, v1.GetRoomEventsResponse]
-	getRoomEventsAround *connect.Client[v1.GetRoomEventsAroundRequest, v1.GetRoomEventsAroundResponse]
+	getRoomEvents         *connect.Client[v1.GetRoomEventsRequest, v1.GetRoomEventsResponse]
+	getRoomEventsAround   *connect.Client[v1.GetRoomEventsAroundRequest, v1.GetRoomEventsAroundResponse]
+	getThreadEvents       *connect.Client[v1.GetThreadEventsRequest, v1.GetThreadEventsResponse]
+	getThreadEventsAround *connect.Client[v1.GetThreadEventsAroundRequest, v1.GetThreadEventsAroundResponse]
 }
 
 // GetRoomEvents calls chatto.api.v1.RoomTimelineService.GetRoomEvents.
@@ -89,10 +111,22 @@ func (c *roomTimelineServiceClient) GetRoomEventsAround(ctx context.Context, req
 	return c.getRoomEventsAround.CallUnary(ctx, req)
 }
 
+// GetThreadEvents calls chatto.api.v1.RoomTimelineService.GetThreadEvents.
+func (c *roomTimelineServiceClient) GetThreadEvents(ctx context.Context, req *connect.Request[v1.GetThreadEventsRequest]) (*connect.Response[v1.GetThreadEventsResponse], error) {
+	return c.getThreadEvents.CallUnary(ctx, req)
+}
+
+// GetThreadEventsAround calls chatto.api.v1.RoomTimelineService.GetThreadEventsAround.
+func (c *roomTimelineServiceClient) GetThreadEventsAround(ctx context.Context, req *connect.Request[v1.GetThreadEventsAroundRequest]) (*connect.Response[v1.GetThreadEventsAroundResponse], error) {
+	return c.getThreadEventsAround.CallUnary(ctx, req)
+}
+
 // RoomTimelineServiceHandler is an implementation of the chatto.api.v1.RoomTimelineService service.
 type RoomTimelineServiceHandler interface {
 	GetRoomEvents(context.Context, *connect.Request[v1.GetRoomEventsRequest]) (*connect.Response[v1.GetRoomEventsResponse], error)
 	GetRoomEventsAround(context.Context, *connect.Request[v1.GetRoomEventsAroundRequest]) (*connect.Response[v1.GetRoomEventsAroundResponse], error)
+	GetThreadEvents(context.Context, *connect.Request[v1.GetThreadEventsRequest]) (*connect.Response[v1.GetThreadEventsResponse], error)
+	GetThreadEventsAround(context.Context, *connect.Request[v1.GetThreadEventsAroundRequest]) (*connect.Response[v1.GetThreadEventsAroundResponse], error)
 }
 
 // NewRoomTimelineServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -114,12 +148,28 @@ func NewRoomTimelineServiceHandler(svc RoomTimelineServiceHandler, opts ...conne
 		connect.WithSchema(roomTimelineServiceMethods.ByName("GetRoomEventsAround")),
 		connect.WithHandlerOptions(opts...),
 	)
+	roomTimelineServiceGetThreadEventsHandler := connect.NewUnaryHandler(
+		RoomTimelineServiceGetThreadEventsProcedure,
+		svc.GetThreadEvents,
+		connect.WithSchema(roomTimelineServiceMethods.ByName("GetThreadEvents")),
+		connect.WithHandlerOptions(opts...),
+	)
+	roomTimelineServiceGetThreadEventsAroundHandler := connect.NewUnaryHandler(
+		RoomTimelineServiceGetThreadEventsAroundProcedure,
+		svc.GetThreadEventsAround,
+		connect.WithSchema(roomTimelineServiceMethods.ByName("GetThreadEventsAround")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/chatto.api.v1.RoomTimelineService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case RoomTimelineServiceGetRoomEventsProcedure:
 			roomTimelineServiceGetRoomEventsHandler.ServeHTTP(w, r)
 		case RoomTimelineServiceGetRoomEventsAroundProcedure:
 			roomTimelineServiceGetRoomEventsAroundHandler.ServeHTTP(w, r)
+		case RoomTimelineServiceGetThreadEventsProcedure:
+			roomTimelineServiceGetThreadEventsHandler.ServeHTTP(w, r)
+		case RoomTimelineServiceGetThreadEventsAroundProcedure:
+			roomTimelineServiceGetThreadEventsAroundHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -135,4 +185,12 @@ func (UnimplementedRoomTimelineServiceHandler) GetRoomEvents(context.Context, *c
 
 func (UnimplementedRoomTimelineServiceHandler) GetRoomEventsAround(context.Context, *connect.Request[v1.GetRoomEventsAroundRequest]) (*connect.Response[v1.GetRoomEventsAroundResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomTimelineService.GetRoomEventsAround is not implemented"))
+}
+
+func (UnimplementedRoomTimelineServiceHandler) GetThreadEvents(context.Context, *connect.Request[v1.GetThreadEventsRequest]) (*connect.Response[v1.GetThreadEventsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomTimelineService.GetThreadEvents is not implemented"))
+}
+
+func (UnimplementedRoomTimelineServiceHandler) GetThreadEventsAround(context.Context, *connect.Request[v1.GetThreadEventsAroundRequest]) (*connect.Response[v1.GetThreadEventsAroundResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomTimelineService.GetThreadEventsAround is not implemented"))
 }
