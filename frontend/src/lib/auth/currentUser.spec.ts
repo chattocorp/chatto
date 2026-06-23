@@ -18,6 +18,8 @@ vi.mock('./loadAuth', () => ({
   clearCachedUser: clearCachedUserMock
 }));
 
+import { CurrentUserState } from './currentUser.svelte';
+
 /**
  * CurrentUserState class structure tests.
  *
@@ -45,13 +47,11 @@ describe('CurrentUserState', () => {
   });
 
   it('exports the class', async () => {
-    const module = await import('./currentUser.svelte');
-    expect(module.CurrentUserState).toBeDefined();
-    expect(typeof module.CurrentUserState).toBe('function');
+    expect(CurrentUserState).toBeDefined();
+    expect(typeof CurrentUserState).toBe('function');
   });
 
   it('does not revoke the server session by default for cookie auth failures', async () => {
-    const { CurrentUserState } = await import('./currentUser.svelte');
     const state = new CurrentUserState({} as never, true);
 
     await state.handleAuthFailure();
@@ -63,7 +63,6 @@ describe('CurrentUserState', () => {
   });
 
   it('revokes the server session when explicitly requested', async () => {
-    const { CurrentUserState } = await import('./currentUser.svelte');
     const state = new CurrentUserState({} as never, true);
 
     await state.handleAuthFailure({ revokeServerSession: true });
