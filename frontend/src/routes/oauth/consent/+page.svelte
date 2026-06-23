@@ -132,9 +132,8 @@
     {:else if request}
       <div class="flex flex-col gap-5">
         <div class="text-center">
-          <p class="text-base leading-relaxed text-muted">
-            {m['auth.oauth.requester_text']({ host: requesterHost })}
-          </p>
+          <p class="text-base leading-relaxed text-muted">{m['auth.oauth.requester_intro']()}</p>
+          <p class="mt-1 text-base font-semibold">{requesterHost}</p>
         </div>
 
         <div class="surface-box p-4">

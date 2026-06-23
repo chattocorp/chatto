@@ -360,7 +360,7 @@
       "submit_failed": "Failed to submit authorization decision.",
       "missing_redirect": "Authorization server did not return a redirect URL.",
       "decision_timeout": "Authorization decision timed out. Please try again.",
-      "requester_text": "{host} is requesting access to your account.",
+      "requester_intro": "The following server is requesting access to your account:",
       "allow_intro": "If you allow access:",
       "allow_profile": "It can see your profile and the server data available to you.",
       "allow_messages": "It can read and send messages as you.",

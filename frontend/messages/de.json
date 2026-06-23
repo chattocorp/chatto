@@ -360,7 +360,7 @@
       "submit_failed": "Autorisierungsentscheidung konnte nicht gesendet werden.",
       "missing_redirect": "Der Autorisierungsserver hat keine Weiterleitungs-URL zurückgegeben.",
       "decision_timeout": "Autorisierungsentscheidung hat zu lange gedauert. Bitte versuche es erneut.",
-      "requester_text": "{host} fordert Zugriff auf dein Konto an.",
+      "requester_intro": "Der folgende Server fordert Zugriff auf dein Konto an:",
       "allow_intro": "Wenn du den Zugriff erlaubst:",
       "allow_profile": "Die App kann dein Profil und die für dich verfügbaren Serverdaten sehen.",
       "allow_messages": "Die App kann Nachrichten als du lesen und senden.",

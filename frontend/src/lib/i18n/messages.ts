@@ -588,9 +588,8 @@ const msg_auth_oauth_missing_redirect = (): LocalizedString =>
   messages().auth_oauth_missing_redirect(empty());
 const msg_auth_oauth_decision_timeout = (): LocalizedString =>
   messages().auth_oauth_decision_timeout(empty());
-const msg_auth_oauth_requester_text = (
-  inputs: Parameters<LocaleMessages['auth_oauth_requester_text']>[0]
-): LocalizedString => messages().auth_oauth_requester_text(inputs);
+const msg_auth_oauth_requester_intro = (): LocalizedString =>
+  messages().auth_oauth_requester_intro(empty());
 const msg_auth_oauth_allow_intro = (): LocalizedString =>
   messages().auth_oauth_allow_intro(empty());
 const msg_auth_oauth_allow_profile = (): LocalizedString =>
@@ -2015,7 +2014,7 @@ export { msg_auth_oauth_request_load_failed as 'auth.oauth.request_load_failed' 
 export { msg_auth_oauth_submit_failed as 'auth.oauth.submit_failed' };
 export { msg_auth_oauth_missing_redirect as 'auth.oauth.missing_redirect' };
 export { msg_auth_oauth_decision_timeout as 'auth.oauth.decision_timeout' };
-export { msg_auth_oauth_requester_text as 'auth.oauth.requester_text' };
+export { msg_auth_oauth_requester_intro as 'auth.oauth.requester_intro' };
 export { msg_auth_oauth_allow_intro as 'auth.oauth.allow_intro' };
 export { msg_auth_oauth_allow_profile as 'auth.oauth.allow_profile' };
 export { msg_auth_oauth_allow_messages as 'auth.oauth.allow_messages' };

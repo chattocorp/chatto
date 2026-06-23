@@ -681,7 +681,7 @@ test.describe('Message Threading', () => {
 
     // The thread pane should NOT show any "N reply/replies" indicator
     // because you're already viewing the thread
-    const threadPane = page.locator('[class*="w-full"]'); // Thread pane has responsive width
+    const threadPane = roomPage.threadPane;
     await expect(threadPane.getByText(/\d+ repl(y|ies)/)).not.toBeVisible();
   });
 
