@@ -24,13 +24,3 @@ export function unmask(raw: readonly RawEvent[]): RoomEventViewFragment[] {
 export function getActorId(actor: RoomEventViewFragment['actor']): string | undefined {
   return actor ? (actor as { id?: string }).id : undefined;
 }
-
-export function threadRepliesConnection(root: {
-  event?: {
-    __typename?: string;
-    threadReplies?: EventConnectionPage;
-  } | null;
-} | null | undefined): EventConnectionPage | null {
-  if (root?.event?.__typename !== 'MessagePostedEvent') return null;
-  return root.event.threadReplies ?? null;
-}

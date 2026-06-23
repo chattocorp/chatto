@@ -133,38 +133,6 @@ function callEvent(
 	};
 }
 
-function threadQueryResult({
-	replies,
-	startCursor,
-	endCursor,
-	hasOlder,
-	hasNewer
-}: {
-	replies: unknown[];
-	startCursor: string | null;
-	endCursor: string | null;
-	hasOlder: boolean;
-	hasNewer: boolean;
-}) {
-	return {
-		room: {
-			event: {
-				...threadMessageEvent('t1'),
-				event: {
-					...threadMessageEvent('t1').event,
-					threadReplies: {
-						events: replies,
-						startCursor,
-						endCursor,
-						hasOlder,
-						hasNewer
-					}
-				}
-			}
-		}
-	};
-}
-
 function roomEventsResult({
 	events,
 	startCursor,
@@ -877,31 +845,34 @@ describe('MessagesStore — room lifecycle ownership', () => {
 	});
 
 	it('soft-refreshes a thread around an anchored reply', async () => {
-		const fake = new FakeGqlClient([
-			threadQueryResult({
-				replies: [
-					threadMessageEvent('r18', 't1'),
-					threadMessageEvent('r19', 't1'),
-					threadMessageEvent('r20', 't1')
+		const fake = new FakeGqlClient();
+		const timeline = fakeTimelineAPI({
+			getThreadEvents: vi.fn(async () => ({
+				events: [
+					threadMessageEvent('t1') as never,
+					threadMessageEvent('r18', 't1') as never,
+					threadMessageEvent('r19', 't1') as never,
+					threadMessageEvent('r20', 't1') as never
 				],
 				startCursor: 'seq:18',
 				endCursor: 'seq:20',
 				hasOlder: true,
 				hasNewer: true
-			}),
-			threadQueryResult({
-				replies: [
-					threadMessageEvent('r19', 't1'),
-					threadMessageWithReaction('r20', 't1', 'thumbsup'),
-					threadMessageEvent('r21', 't1')
+			})),
+			getThreadEventsAround: vi.fn(async () => ({
+				events: [
+					threadMessageEvent('t1') as never,
+					threadMessageEvent('r19', 't1') as never,
+					threadMessageWithReaction('r20', 't1', 'thumbsup') as never,
+					threadMessageEvent('r21', 't1') as never
 				],
 				startCursor: 'seq:19',
 				endCursor: 'seq:21',
 				hasOlder: true,
 				hasNewer: true
-			})
-		]);
-		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+			}))
+		});
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null, timeline);
 
 		store.setThread('room-1', 't1');
 		await settle();
@@ -916,42 +887,45 @@ describe('MessagesStore — room lifecycle ownership', () => {
 			__typename: 'MessagePostedEvent',
 			reactions: [{ emoji: 'thumbsup', count: 1 }]
 		});
-		expect(fake.queryMock.mock.calls[0][1]).toEqual({
+		expect(timeline.getThreadEventsAround).toHaveBeenCalledWith({
 			roomId: 'room-1',
 			threadRootEventId: 't1',
-			anchorEventId: 'r20',
+			eventId: 'r20',
 			limit: 50
 		});
-		expect(fake.queryMock.mock.calls[0][2]).toEqual({ requestPolicy: 'network-only' });
+		expect(fake.queryMock).not.toHaveBeenCalled();
 		store.dispose();
 	});
 
 	it('soft-refreshes a thread around the root anchor without jumping to latest replies', async () => {
-		const fake = new FakeGqlClient([
-			threadQueryResult({
-				replies: [
-					threadMessageEvent('r18', 't1'),
-					threadMessageEvent('r19', 't1'),
-					threadMessageEvent('r20', 't1')
+		const fake = new FakeGqlClient();
+		const timeline = fakeTimelineAPI({
+			getThreadEvents: vi.fn(async () => ({
+				events: [
+					threadMessageEvent('t1') as never,
+					threadMessageEvent('r18', 't1') as never,
+					threadMessageEvent('r19', 't1') as never,
+					threadMessageEvent('r20', 't1') as never
 				],
 				startCursor: 'seq:18',
 				endCursor: 'seq:20',
 				hasOlder: true,
 				hasNewer: false
-			}),
-			threadQueryResult({
-				replies: [
-					threadMessageEvent('r1', 't1'),
-					threadMessageEvent('r2', 't1'),
-					threadMessageEvent('r3', 't1')
+			})),
+			getThreadEventsAround: vi.fn(async () => ({
+				events: [
+					threadMessageEvent('t1') as never,
+					threadMessageEvent('r1', 't1') as never,
+					threadMessageEvent('r2', 't1') as never,
+					threadMessageEvent('r3', 't1') as never
 				],
 				startCursor: 'seq:1',
 				endCursor: 'seq:3',
 				hasOlder: false,
 				hasNewer: true
-			})
-		]);
-		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+			}))
+		});
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null, timeline);
 
 		store.setThread('room-1', 't1');
 		await settle();
@@ -962,13 +936,13 @@ describe('MessagesStore — room lifecycle ownership', () => {
 
 		expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r1', 'r2', 'r3']);
 		expect(store.hasReachedStart).toBe(true);
-		expect(fake.queryMock.mock.calls[0][1]).toEqual({
+		expect(timeline.getThreadEventsAround).toHaveBeenCalledWith({
 			roomId: 'room-1',
 			threadRootEventId: 't1',
-			anchorEventId: 't1',
+			eventId: 't1',
 			limit: 50
 		});
-		expect(fake.queryMock.mock.calls[0][2]).toEqual({ requestPolicy: 'network-only' });
+		expect(fake.queryMock).not.toHaveBeenCalled();
 		store.dispose();
 	});
 
@@ -1055,24 +1029,26 @@ describe('MessagesStore — thread lifecycle ownership', () => {
 	});
 
 	it('does not refetch or clear events when setThread is called for the current thread', async () => {
-		const fake = new FakeGqlClient(
-			threadQueryResult({
-				replies: [threadMessageEvent('r1', 't1')],
+		const fake = new FakeGqlClient();
+		const timeline = fakeTimelineAPI({
+			getThreadEvents: vi.fn(async () => ({
+				events: [threadMessageEvent('t1') as never, threadMessageEvent('r1', 't1') as never],
 				startCursor: null,
 				endCursor: null,
 				hasOlder: false,
 				hasNewer: false
-			})
-		);
-		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+			}))
+		});
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null, timeline);
 
 		store.setThread('room-1', 't1');
 		await settle();
-		fake.queryMock.mockClear();
+		vi.mocked(timeline.getThreadEvents).mockClear();
 
 		store.setThread('room-1', 't1');
 		await settle();
 
+		expect(timeline.getThreadEvents).not.toHaveBeenCalled();
 		expect(fake.queryMock).not.toHaveBeenCalled();
 		expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r1']);
 		expect(store.isInitialLoading).toBe(false);
@@ -1080,16 +1056,17 @@ describe('MessagesStore — thread lifecycle ownership', () => {
 	});
 
 	it('ingests a returned thread reply immediately and dedupes later subscription delivery', async () => {
-		const fake = new FakeGqlClient(
-			threadQueryResult({
-				replies: [],
+		const fake = new FakeGqlClient();
+		const timeline = fakeTimelineAPI({
+			getThreadEvents: vi.fn(async () => ({
+				events: [threadMessageEvent('t1') as never],
 				startCursor: null,
 				endCursor: null,
 				hasOlder: false,
 				hasNewer: false
-			})
-		);
-		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+			}))
+		});
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null, timeline);
 		const returnedReply = threadMessageEvent('r1', 't1');
 
 		store.setThread('room-1', 't1');
@@ -1106,16 +1083,17 @@ describe('MessagesStore — thread lifecycle ownership', () => {
 	});
 
 	it('ignores returned thread replies outside the active thread scope', async () => {
-		const fake = new FakeGqlClient(
-			threadQueryResult({
-				replies: [],
+		const fake = new FakeGqlClient();
+		const timeline = fakeTimelineAPI({
+			getThreadEvents: vi.fn(async () => ({
+				events: [threadMessageEvent('t1') as never],
 				startCursor: null,
 				endCursor: null,
 				hasOlder: false,
 				hasNewer: false
-			})
-		);
-		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+			}))
+		});
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null, timeline);
 		const otherThreadReply = threadMessageEvent('r-other-thread', 'other-thread');
 		const otherRoomReplyBase = threadMessageEvent('r-other-room', 't1');
 		const otherRoomReply = {
@@ -1137,16 +1115,17 @@ describe('MessagesStore — thread lifecycle ownership', () => {
 	});
 
 	it('links and unlinks visible echoes for thread replies from live events', async () => {
-		const fake = new FakeGqlClient(
-			threadQueryResult({
-				replies: [threadMessageEvent('reply1', 't1')],
+		const fake = new FakeGqlClient();
+		const timeline = fakeTimelineAPI({
+			getThreadEvents: vi.fn(async () => ({
+				events: [threadMessageEvent('t1') as never, threadMessageEvent('reply1', 't1') as never],
 				startCursor: 'seq:1',
 				endCursor: 'seq:1',
 				hasOlder: false,
 				hasNewer: false
-			})
-		);
-		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
+			}))
+		});
+		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null, timeline);
 
 		store.setThread('room-1', 't1');
 		await settle();
@@ -1236,53 +1215,6 @@ describe('MessagesStore — thread lifecycle ownership', () => {
 			before: 'seq:51'
 		});
 		expect(fake.queryMock).not.toHaveBeenCalled();
-		expect(store.threadEvents.map((event) => event.id)).toEqual([
-			't1',
-			'r49',
-			'r50',
-			'r51',
-			'r52'
-		]);
-		expect(store.hasReachedStart).toBe(true);
-
-		store.dispose();
-	});
-
-	it('falls back to GraphQL for older reply pages when no timeline API is available', async () => {
-		const fake = new FakeGqlClient([
-			threadQueryResult({
-				replies: [threadMessageEvent('r51', 't1'), threadMessageEvent('r52', 't1')],
-				startCursor: 'seq:51',
-				endCursor: 'seq:52',
-				hasOlder: true,
-				hasNewer: false
-			}),
-			threadQueryResult({
-				replies: [threadMessageEvent('r49', 't1'), threadMessageEvent('r50', 't1')],
-				startCursor: 'seq:49',
-				endCursor: 'seq:50',
-				hasOlder: false,
-				hasNewer: true
-			})
-		]);
-		const store = new MessagesStore(fake as unknown as GraphQLClient, () => null);
-
-		store.setThread('room-1', 't1');
-		await settle();
-
-		expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r51', 'r52']);
-		expect(store.hasReachedStart).toBe(false);
-
-		await store.loadMore();
-		await settle();
-
-		expect(fake.queryMock).toHaveBeenCalledTimes(2);
-		expect(fake.queryMock.mock.calls[1][1]).toMatchObject({
-			roomId: 'room-1',
-			threadRootEventId: 't1',
-			limit: 50,
-			before: 'seq:51'
-		});
 		expect(store.threadEvents.map((event) => event.id)).toEqual([
 			't1',
 			'r49',
