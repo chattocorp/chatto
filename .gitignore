@@ -11,6 +11,7 @@ Thumbs.db
 .env.*
 !.env.example
 !.env.test
+examples/dockercompose/livekit.generated.yaml
 
 # Build output
 /dist/

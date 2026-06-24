@@ -15,36 +15,51 @@ This example deploys a clustered Chatto setup with:
 
 ## Configuration
 
-1. Copy the example environment file:
+1. Generate `.env` and the LiveKit config:
 
    ```bash
-   cp .env.example .env
+   ./init-env.sh chat.example.com admin@example.com
    ```
 
-2. Edit `.env` and fill in your values:
+   Replace `chat.example.com` with your Chatto domain and `admin@example.com`
+   with the email address you will use for the first account.
 
-   ```bash
-   # Generate Chatto and LiveKit secrets with:
-   openssl rand -hex 32
-   ```
+   The script is the recommended setup path. It writes `.env` and
+   `livekit.generated.yaml`, generates strong secrets, and keeps the shared
+   values aligned:
 
-   Key settings:
+   - `NATS_TOKEN` and `CHATTO_NATS_CLIENT_TOKEN`
+   - Chatto cookie, core, and asset signing secrets
+   - `CHATTO_LIVEKIT_API_KEY` / `CHATTO_LIVEKIT_API_SECRET`
+   - The matching LiveKit `keys:` and webhook URL
+
+2. Edit `.env` and review the generated values.
+
+   In most cases, you should only need to change:
+
    - `PUBLIC_URL` - Your domain (e.g., `chat.example.com`)
    - `CHATTO_OWNERS_EMAILS` - Comma-separated verified email addresses that should become Chatto owners. Include the email address you will use for the first account.
-   - `PUID` and `PGID` - Host user and group IDs Chatto should use for files it writes to mounted volumes. Defaults to `1000:1000`.
-   - `NATS_TOKEN` and `CHATTO_NATS_CLIENT_TOKEN` - Must match (shared auth token)
-   - `CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET` - Session cookie signing
-   - `CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET` - Session cookie encryption
-   - `CHATTO_CORE_SECRET_KEY` - Bearer-token and account-flow verifier key
-   - `CHATTO_CORE_ASSETS_SIGNING_SECRET` - Asset URL signing
-   - `CHATTO_SMTP_*` - Required for direct email/password registration, email verification, and password reset
-   - `CHATTO_LIVEKIT_API_KEY` / `CHATTO_LIVEKIT_API_SECRET` - Must match the keys in `livekit.yaml`. LiveKit requires the API secret to be at least 32 characters.
+   - `CHATTO_SMTP_*` - Required for direct email/password registration, email verification, and password reset.
+   - `PUID` and `PGID` - Optional host user/group IDs for files Chatto writes to mounted volumes. Defaults to `1000:1000`.
 
-3. Edit `livekit.yaml` and update:
-   - The API key/secret pair under `keys:` (must match the `.env` values)
-   - The webhook URL to match your `PUBLIC_URL`
+   Leave `LIVEKIT_CONFIG_FILE=./livekit.generated.yaml` unless you deliberately
+   want to maintain `livekit.yaml` by hand.
 
-4. Configure SMTP settings if you use direct email/password registration.
+3. Configure SMTP settings if you use direct email/password registration.
+
+### Manual setup fallback
+
+Use this only if you cannot run `init-env.sh` or need to maintain secrets
+outside this folder:
+
+```bash
+cp .env.example .env
+```
+
+Then edit `.env`, replace every placeholder secret with output from
+`openssl rand -hex 32`, and edit `livekit.yaml` so the API key, API secret, and
+webhook URL match `.env`. LiveKit requires the API secret to be at least 32
+characters.
 
 ## Usage
 
@@ -103,7 +118,7 @@ Data is persisted in Docker volumes:
 
 ## Disabling Voice Calls
 
-If you don't need voice calls, remove the `livekit` service from `compose.yml`, delete the `livekit.yaml` file, and remove the LiveKit environment variables from `.env`.
+If you don't need voice calls, remove the `livekit` service from `compose.yml`, delete the selected LiveKit config (`livekit.generated.yaml` or `livekit.yaml`), and remove the LiveKit environment variables from `.env`.
 
 ## Troubleshooting
 
@@ -117,6 +132,6 @@ If you don't need voice calls, remove the `livekit` service from `compose.yml`, 
 
 **Container startup order issues**: The `depends_on` with `condition: service_healthy` ensures NATS and LiveKit are ready before Chatto starts.
 
-**Voice calls not working**: Ensure the LiveKit API key/secret in `.env` matches the `keys:` section in `livekit.yaml`. Also verify the webhook URL in `livekit.yaml` points to your Chatto instance. Make sure `CHATTO_LIVEKIT_URL` uses the public `wss://livekit.` subdomain (not the internal Docker hostname), since browsers connect to it directly.
+**Voice calls not working**: Ensure the LiveKit API key/secret in `.env` matches the `keys:` section in the selected LiveKit config (`livekit.generated.yaml` or `livekit.yaml`). Also verify the webhook URL points to your Chatto instance. Make sure `CHATTO_LIVEKIT_URL` uses the public `wss://livekit.` subdomain (not the internal Docker hostname), since browsers connect to it directly.
 
 **LiveKit UDP ports**: WebRTC requires UDP ports 50000-50200. Ensure your firewall allows inbound UDP on this range.
