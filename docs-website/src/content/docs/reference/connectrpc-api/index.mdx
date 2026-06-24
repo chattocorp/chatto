@@ -56,7 +56,7 @@ Response containing one room timeline page.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `page` | `RoomTimelinePage` | Loaded timeline page. |
+| `page` | [`RoomTimelinePage`](#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
 
 
 <a id="chatto-api-v1-RoomTimelineService-GetRoomEventsAround"></a>
@@ -94,7 +94,7 @@ Response containing a room timeline window around a specific event.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `page` | `RoomTimelinePage` | Loaded timeline page. |
+| `page` | [`RoomTimelinePage`](#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
 | `target_index` | `int32` | Zero-based index of the anchor event within page.events. |
 
 
@@ -136,7 +136,7 @@ Response containing one thread timeline page.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `page` | `RoomTimelinePage` | Loaded timeline page. |
+| `page` | [`RoomTimelinePage`](#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
 
 
 <a id="chatto-api-v1-RoomTimelineService-GetThreadEventsAround"></a>
@@ -175,7 +175,7 @@ Response containing a thread timeline window around a specific event.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `page` | `RoomTimelinePage` | Loaded timeline page. |
+| `page` | [`RoomTimelinePage`](#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
 | `target_index` | `int32` | Zero-based index of the anchor event within page.events. |
 
 
@@ -218,7 +218,7 @@ existing room-scoped assets.
 | `in_reply_to` | `string` | Event ID this message replies to for attribution. |
 | `also_send_to_channel` | `bool` | True to also echo a thread reply into the main room timeline. |
 | `mention_confirmation_token` | `string` | Short-lived token returned by a prior mention confirmation challenge. |
-| `link_preview` | `MessageLinkPreviewInput` | Link preview selected by the client. |
+| `link_preview` | [`MessageLinkPreviewInput`](#chatto-api-v1-MessageLinkPreviewInput) | Link preview selected by the client. |
 
 
 <a id="chatto-api-v1-PostMessageResponse"></a>
@@ -229,9 +229,9 @@ Result of posting a message.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `result.event` | `RoomTimelineEvent` | Renderable timeline event for the posted message. |
-| `result.mention_confirmation` | `MentionConfirmationChallenge` | Challenge shown when a message would notify many people. |
-| `includes` | `RoomTimelineIncludes` | Related entities needed to render event when a message was posted. |
+| `result.event` | [`RoomTimelineEvent`](#chatto-api-v1-RoomTimelineEvent) | Renderable timeline event for the posted message. |
+| `result.mention_confirmation` | [`MentionConfirmationChallenge`](#chatto-api-v1-MentionConfirmationChallenge) | Challenge shown when a message would notify many people. |
+| `includes` | [`RoomTimelineIncludes`](#chatto-api-v1-RoomTimelineIncludes) | Related entities needed to render event when a message was posted. |
 
 
 <a id="chatto-api-v1-NotificationPreferencesService"></a>
@@ -274,8 +274,8 @@ the server will apply after defaults are resolved.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `level` | `NotificationLevel` | Explicit level stored for the current user and room. |
-| `effective_level` | `NotificationLevel` | Level after applying defaults and inheritance. |
+| `level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Explicit level stored for the current user and room. |
+| `effective_level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Level after applying defaults and inheritance. |
 
 
 <a id="chatto-api-v1-NotificationPreferencesService-SetRoomNotificationLevel"></a>
@@ -298,7 +298,7 @@ Request to update the current user's notification level in one room.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Room whose notification level should be changed for the current user. |
-| `level` | `NotificationLevel` | New explicit notification level. Use NOTIFICATION_LEVEL_DEFAULT to return the room to inherited/default behavior. |
+| `level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | New explicit notification level. Use NOTIFICATION_LEVEL_DEFAULT to return the room to inherited/default behavior. |
 
 
 <a id="chatto-api-v1-SetRoomNotificationLevelResponse"></a>
@@ -312,8 +312,8 @@ issuing a second read request.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `level` | `NotificationLevel` | Explicit level stored for the current user and room. |
-| `effective_level` | `NotificationLevel` | Level after applying defaults and inheritance. |
+| `level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Explicit level stored for the current user and room. |
+| `effective_level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Level after applying defaults and inheritance. |
 
 
 <a id="chatto-api-v1-ReadStateService"></a>
@@ -432,7 +432,7 @@ initial server view.
 | `name` | `string` | Display name of the Chatto server. |
 | `version` | `string` | Server software version. |
 | `auth_methods` | `repeated string` | Enabled legacy authentication method identifiers. |
-| `auth_providers` | `repeated AuthProvider` | Configured login providers. |
+| `auth_providers` | repeated [`AuthProvider`](#chatto-api-v1-AuthProvider) | Configured login providers. |
 | `registration_open` | `bool` | Whether users can create accounts through the public UI. |
 | `authorize_url` | `string` | URL for the legacy authorization flow, when enabled. |
 | `welcome_message` | `string` | Optional welcome message configured by the server administrator. |
@@ -553,7 +553,7 @@ Result of setting the current user's custom status.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `status` | `CustomUserStatus` | Stored custom status after validation and normalization. |
+| `status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Stored custom status after validation and normalization. |
 
 
 <a id="chatto-api-v1-UserStatusService-ClearCustomStatus"></a>
@@ -582,7 +582,7 @@ Result of clearing the current user's custom status.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `status` | `CustomUserStatus` | Current custom status after the operation. Usually absent after a clear. |
+| `status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Current custom status after the operation. Usually absent after a clear. |
 
 
 
@@ -620,9 +620,9 @@ be absent while processing is pending or when the source is unavailable.
 | `content_type` | `string` | MIME content type. |
 | `width` | `int32` | Image or video width in pixels, when known. |
 | `height` | `int32` | Image or video height in pixels, when known. |
-| `asset_url` | `RoomTimelineAssetUrl` | Signed URL for the original asset, when available. |
-| `thumbnail_asset_url` | `RoomTimelineAssetUrl` | Signed URL for a thumbnail image, when available. |
-| `video_processing` | `RoomTimelineVideoProcessing` | Video-specific processing metadata, when this attachment is a video. |
+| `asset_url` | [`RoomTimelineAssetUrl`](#chatto-api-v1-RoomTimelineAssetUrl) | Signed URL for the original asset, when available. |
+| `thumbnail_asset_url` | [`RoomTimelineAssetUrl`](#chatto-api-v1-RoomTimelineAssetUrl) | Signed URL for a thumbnail image, when available. |
+| `video_processing` | [`RoomTimelineVideoProcessing`](#chatto-api-v1-RoomTimelineVideoProcessing) | Video-specific processing metadata, when this attachment is a video. |
 
 
 
@@ -639,14 +639,14 @@ Clients should inspect the event oneof to choose the renderer for the event.
 | `id` | `string` | Stable event ID. |
 | `created_at` | `google.protobuf.Timestamp` | Time when the event was created. |
 | `actor_id` | `string` | User ID of the event actor. |
-| `event.message_posted` | `RoomTimelineMessagePosted` | A message was posted. |
-| `event.room_created` | `RoomTimelineRoomEvent` | The room was created. |
-| `event.room_updated` | `RoomTimelineRoomEvent` | The room metadata was updated. |
-| `event.room_deleted` | `RoomTimelineRoomEvent` | The room was deleted. |
-| `event.room_archived` | `RoomTimelineRoomEvent` | The room was archived. |
-| `event.room_unarchived` | `RoomTimelineRoomEvent` | The room was unarchived. |
-| `event.user_joined_room` | `RoomTimelineRoomEvent` | A user joined the room. |
-| `event.user_left_room` | `RoomTimelineRoomEvent` | A user left the room. |
+| `event.message_posted` | [`RoomTimelineMessagePosted`](#chatto-api-v1-RoomTimelineMessagePosted) | A message was posted. |
+| `event.room_created` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room was created. |
+| `event.room_updated` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room metadata was updated. |
+| `event.room_deleted` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room was deleted. |
+| `event.room_archived` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room was archived. |
+| `event.room_unarchived` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room was unarchived. |
+| `event.user_joined_room` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | A user joined the room. |
+| `event.user_left_room` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | A user left the room. |
 
 
 
@@ -660,7 +660,7 @@ Includes avoid repeating the same user data on every event in a page.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `users` | `map<string, RoomTimelineUser>` | Users keyed by user ID. |
+| `users` | map&lt;`string`, [`RoomTimelineUser`](#chatto-api-v1-RoomTimelineUser)&gt; | Users keyed by user ID. |
 
 
 
@@ -700,8 +700,8 @@ participants, and follow state without additional per-message requests.
 | `room_id` | `string` | Room containing the message. |
 | `body` | `string` | Message body text. |
 | `body_present` | `bool` | True when the original event explicitly carried a body. This lets clients distinguish an empty body from a missing body. |
-| `attachments` | `repeated RoomTimelineAttachment` | Attachments sent with the message. |
-| `link_preview` | `RoomTimelineLinkPreview` | Link preview extracted for the message, when available. |
+| `attachments` | repeated [`RoomTimelineAttachment`](#chatto-api-v1-RoomTimelineAttachment) | Attachments sent with the message. |
+| `link_preview` | [`RoomTimelineLinkPreview`](#chatto-api-v1-RoomTimelineLinkPreview) | Link preview extracted for the message, when available. |
 | `updated_at` | `google.protobuf.Timestamp` | Time when the message was last edited. |
 | `in_reply_to` | `string` | Event ID this message directly replies to, when this is a reply. |
 | `thread_root_event_id` | `string` | Event ID of the root message for the thread this message belongs to. |
@@ -713,7 +713,7 @@ participants, and follow state without additional per-message requests.
 | `thread_participant_user_ids` | `repeated string` | User IDs that have participated in this message's thread. |
 | `viewer_is_following_thread` | `bool` | True when the current user follows this message's thread. |
 | `viewer_is_following_thread_present` | `bool` | True when viewer_is_following_thread was explicitly hydrated. If false, the follow value should be treated as unknown rather than false. |
-| `reactions` | `repeated RoomTimelineReactionSummary` | Reaction summaries for this message. |
+| `reactions` | repeated [`RoomTimelineReactionSummary`](#chatto-api-v1-RoomTimelineReactionSummary) | Reaction summaries for this message. |
 
 
 
@@ -729,12 +729,12 @@ another request can extend the current window.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `events` | `repeated RoomTimelineEvent` | Events in display order. |
+| `events` | repeated [`RoomTimelineEvent`](#chatto-api-v1-RoomTimelineEvent) | Events in display order. |
 | `start_cursor` | `string` | Cursor for the first event in the page. |
 | `end_cursor` | `string` | Cursor for the last event in the page. |
 | `has_older` | `bool` | True when older events are available before start_cursor. |
 | `has_newer` | `bool` | True when newer events are available after end_cursor. |
-| `includes` | `RoomTimelineIncludes` | Related entities needed to render the page. |
+| `includes` | [`RoomTimelineIncludes`](#chatto-api-v1-RoomTimelineIncludes) | Related entities needed to render the page. |
 
 
 
@@ -799,14 +799,14 @@ state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `status` | `RoomTimelineVideoProcessingStatus` | Current processing status. |
+| `status` | [`RoomTimelineVideoProcessingStatus`](#chatto-api-v1-RoomTimelineVideoProcessingStatus) | Current processing status. |
 | `duration_ms` | `int64` | Video duration in milliseconds. |
 | `width` | `int32` | Source video width in pixels. |
 | `height` | `int32` | Source video height in pixels. |
 | `source_available` | `bool` | True when the original source asset is currently available. |
 | `reason_code` | `string` | Stable reason code for a failed or incomplete processing state. |
-| `thumbnail_asset_url` | `RoomTimelineAssetUrl` | Signed URL for the generated thumbnail, when available. |
-| `variants` | `repeated RoomTimelineVideoVariant` | Available transcoded renditions. |
+| `thumbnail_asset_url` | [`RoomTimelineAssetUrl`](#chatto-api-v1-RoomTimelineAssetUrl) | Signed URL for the generated thumbnail, when available. |
+| `variants` | repeated [`RoomTimelineVideoVariant`](#chatto-api-v1-RoomTimelineVideoVariant) | Available transcoded renditions. |
 
 
 
@@ -822,7 +822,7 @@ One transcoded video rendition.
 | `width` | `int32` | Video width in pixels. |
 | `height` | `int32` | Video height in pixels. |
 | `size` | `int64` | Rendition size in bytes. |
-| `asset_url` | `RoomTimelineAssetUrl` | Signed URL for the rendition. |
+| `asset_url` | [`RoomTimelineAssetUrl`](#chatto-api-v1-RoomTimelineAssetUrl) | Signed URL for the rendition. |
 
 
 

@@ -5,26 +5,46 @@
 | Field | Type | Description |
 | --- | --- | --- |
 {{range .Message.Fields -}}
-| `{{if .IsOneof}}{{.OneofDecl}}.{{end}}{{.Name}}` | `{{template "fieldType" (dict "Field" . "Files" $.Files)}}` | {{if (index .Options "deprecated"|default false)}}**Deprecated.** {{end}}{{if .Description}}{{nobr .Description}}{{else}}No field description provided.{{end}}{{if .DefaultValue}} Default: `{{.DefaultValue}}`{{end}} |
+| `{{if .IsOneof}}{{.OneofDecl}}.{{end}}{{.Name}}` | {{template "fieldType" (dict "Field" . "Files" $.Files)}} | {{if (index .Options "deprecated"|default false)}}**Deprecated.** {{end}}{{if .Description}}{{nobr .Description}}{{else}}No field description provided.{{end}}{{if .DefaultValue}} Default: `{{.DefaultValue}}`{{end}} |
 {{end}}
 {{end}}
+{{- end -}}
+{{- define "typeRef" -}}
+{{- $field := .Field -}}
+{{- $label := .Label -}}
+{{- $linked := false -}}
+{{- range .Files}}{{range .Messages -}}
+{{- if eq .FullName $field.FullType -}}
+{{if $label}}{{$label}} {{end}}[`{{$field.LongType}}`](#{{.FullName | anchor}})
+{{- $linked = true -}}
+{{- end -}}
+{{- end}}{{end -}}
+{{- range .Files}}{{range .Enums -}}
+{{- if eq .FullName $field.FullType -}}
+{{if $label}}{{$label}} {{end}}[`{{$field.LongType}}`](#{{.FullName | anchor}})
+{{- $linked = true -}}
+{{- end -}}
+{{- end}}{{end -}}
+{{- if not $linked -}}
+`{{if $label}}{{$label}} {{end}}{{$field.LongType}}`
+{{- end -}}
 {{- end -}}
 {{- define "fieldType" -}}
 {{- $field := .Field -}}
 {{- if $field.IsMap -}}
 {{- $keyType := "unknown" -}}
-{{- $valueType := "unknown" -}}
+{{- $valueField := $field -}}
 {{- range .Files}}{{range .Messages -}}
 {{- if eq .FullName $field.FullType -}}
 {{- range .Fields -}}
 {{- if eq .Name "key" -}}{{- $keyType = .LongType -}}{{- end -}}
-{{- if eq .Name "value" -}}{{- $valueType = .LongType -}}{{- end -}}
+{{- if eq .Name "value" -}}{{- $valueField = . -}}{{- end -}}
 {{- end -}}
 {{- end -}}
 {{- end}}{{end -}}
-map<{{$keyType}}, {{$valueType}}>
+map&lt;`{{$keyType}}`, {{template "typeRef" (dict "Field" $valueField "Files" .Files)}}&gt;
 {{- else -}}
-{{- if $field.Label}}{{$field.Label}} {{end}}{{$field.LongType}}
+{{template "typeRef" (dict "Field" $field "Files" .Files "Label" $field.Label)}}
 {{- end -}}
 {{- end -}}
 ---
