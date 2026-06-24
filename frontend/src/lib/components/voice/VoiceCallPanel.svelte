@@ -169,6 +169,7 @@ Room sidebar panel for voice/video calls.
     return hasActiveCall ? m['voice.join_call']() : m['voice.start_call']();
   });
   const controlButtonClass = 'btn-secondary btn-sm h-9 w-full !px-0';
+  const activeControlButtonClass = 'btn-success btn-sm h-9 w-full !px-0';
   const dangerControlButtonClass = 'btn-danger btn-sm h-9 w-full !px-0';
 
   function hasVideo(participant: DisplayParticipant) {
@@ -406,7 +407,7 @@ Room sidebar panel for voice/video calls.
 
         <button
           type="button"
-          class={voiceCallState.isCameraEnabled ? controlButtonClass : dangerControlButtonClass}
+          class={voiceCallState.isCameraEnabled ? activeControlButtonClass : controlButtonClass}
           title={voiceCallState.isCameraEnabled
             ? m['voice.turn_off_camera']()
             : m['voice.turn_on_camera']()}
@@ -427,7 +428,7 @@ Room sidebar panel for voice/video calls.
 
         <button
           type="button"
-          class={voiceCallState.isMuted ? dangerControlButtonClass : controlButtonClass}
+          class={voiceCallState.isMuted ? controlButtonClass : activeControlButtonClass}
           title={voiceCallState.isMuted ? m['voice.unmute']() : m['voice.mute']()}
           aria-label={voiceCallState.isMuted ? m['voice.unmute']() : m['voice.mute']()}
           data-testid="call-mute-toggle"
@@ -445,8 +446,8 @@ Room sidebar panel for voice/video calls.
         <button
           type="button"
           class={voiceCallState.isScreenShareEnabled
-            ? controlButtonClass
-            : dangerControlButtonClass}
+            ? activeControlButtonClass
+            : controlButtonClass}
           title={voiceCallState.isScreenShareEnabled
             ? m['voice.stop_share_screen']()
             : m['voice.share_screen']()}
