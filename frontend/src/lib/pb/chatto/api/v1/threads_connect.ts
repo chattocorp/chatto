@@ -7,12 +7,17 @@ import { FollowThreadRequest, FollowThreadResponse, UnfollowThreadRequest, Unfol
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
+ * Manages thread follow state for the current user.
+ *
  * @generated from service chatto.api.v1.ThreadService
  */
 export const ThreadService = {
   typeName: "chatto.api.v1.ThreadService",
   methods: {
     /**
+     * Follows a thread for the current user. Followed threads can be surfaced in
+     * clients and can participate in thread notification behavior.
+     *
      * @generated from rpc chatto.api.v1.ThreadService.FollowThread
      */
     followThread: {
@@ -22,6 +27,9 @@ export const ThreadService = {
       kind: MethodKind.Unary,
     },
     /**
+     * Stops following a thread for the current user. The response reports the
+     * resulting follow state so clients can update local UI immediately.
+     *
      * @generated from rpc chatto.api.v1.ThreadService.UnfollowThread
      */
     unfollowThread: {

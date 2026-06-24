@@ -7,15 +7,22 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 
 /**
+ * Request to mark a room timeline as read.
+ *
  * @generated from message chatto.api.v1.MarkRoomAsReadRequest
  */
 export class MarkRoomAsReadRequest extends Message<MarkRoomAsReadRequest> {
   /**
+   * Room whose timeline should be marked read.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * Highest room event ID the current user has read. The event should belong to
+   * the room timeline the client is marking.
+   *
    * @generated from field: string up_to_event_id = 2;
    */
   upToEventId = "";
@@ -50,15 +57,24 @@ export class MarkRoomAsReadRequest extends Message<MarkRoomAsReadRequest> {
 }
 
 /**
+ * Result of marking a room timeline as read.
+ *
+ * Clients can use the previous timestamp to decide whether unread badges or
+ * local notification state need to be reconciled.
+ *
  * @generated from message chatto.api.v1.MarkRoomAsReadResponse
  */
 export class MarkRoomAsReadResponse extends Message<MarkRoomAsReadResponse> {
   /**
+   * New room read timestamp stored for the current user.
+   *
    * @generated from field: google.protobuf.Timestamp last_read_at = 1;
    */
   lastReadAt?: Timestamp;
 
   /**
+   * Previous room read timestamp, when one existed.
+   *
    * @generated from field: google.protobuf.Timestamp previous_last_read_at = 2;
    */
   previousLastReadAt?: Timestamp;
@@ -93,20 +109,29 @@ export class MarkRoomAsReadResponse extends Message<MarkRoomAsReadResponse> {
 }
 
 /**
+ * Request to mark a message thread as read.
+ *
  * @generated from message chatto.api.v1.MarkThreadAsReadRequest
  */
 export class MarkThreadAsReadRequest extends Message<MarkThreadAsReadRequest> {
   /**
+   * Room containing the thread.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * Event ID of the root message for the thread.
+   *
    * @generated from field: string thread_root_event_id = 2;
    */
   threadRootEventId = "";
 
   /**
+   * Highest thread event ID the current user has read. The event should belong
+   * to the thread identified by thread_root_event_id.
+   *
    * @generated from field: string up_to_event_id = 3;
    */
   upToEventId = "";
@@ -142,10 +167,14 @@ export class MarkThreadAsReadRequest extends Message<MarkThreadAsReadRequest> {
 }
 
 /**
+ * Result of marking a message thread as read.
+ *
  * @generated from message chatto.api.v1.MarkThreadAsReadResponse
  */
 export class MarkThreadAsReadResponse extends Message<MarkThreadAsReadResponse> {
   /**
+   * Previous thread read timestamp, when one existed.
+   *
    * @generated from field: google.protobuf.Timestamp previous_read_at = 1;
    */
   previousReadAt?: Timestamp;

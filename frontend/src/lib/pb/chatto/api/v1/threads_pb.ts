@@ -7,15 +7,21 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3 } from "@bufbuild/protobuf";
 
 /**
+ * Request to follow one message thread.
+ *
  * @generated from message chatto.api.v1.FollowThreadRequest
  */
 export class FollowThreadRequest extends Message<FollowThreadRequest> {
   /**
+   * Room containing the thread.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * Event ID of the root message for the thread.
+   *
    * @generated from field: string thread_root_event_id = 2;
    */
   threadRootEventId = "";
@@ -50,10 +56,14 @@ export class FollowThreadRequest extends Message<FollowThreadRequest> {
 }
 
 /**
+ * Result of following a thread.
+ *
  * @generated from message chatto.api.v1.FollowThreadResponse
  */
 export class FollowThreadResponse extends Message<FollowThreadResponse> {
   /**
+   * True when the current user follows the thread after the operation.
+   *
    * @generated from field: bool following = 1;
    */
   following = false;
@@ -87,15 +97,21 @@ export class FollowThreadResponse extends Message<FollowThreadResponse> {
 }
 
 /**
+ * Request to stop following one message thread.
+ *
  * @generated from message chatto.api.v1.UnfollowThreadRequest
  */
 export class UnfollowThreadRequest extends Message<UnfollowThreadRequest> {
   /**
+   * Room containing the thread.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * Event ID of the root message for the thread.
+   *
    * @generated from field: string thread_root_event_id = 2;
    */
   threadRootEventId = "";
@@ -130,10 +146,14 @@ export class UnfollowThreadRequest extends Message<UnfollowThreadRequest> {
 }
 
 /**
+ * Result of unfollowing a thread.
+ *
  * @generated from message chatto.api.v1.UnfollowThreadResponse
  */
 export class UnfollowThreadResponse extends Message<UnfollowThreadResponse> {
   /**
+   * True when the current user follows the thread after the operation.
+   *
    * @generated from field: bool following = 1;
    */
   following = false;

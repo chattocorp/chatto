@@ -7,25 +7,38 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3 } from "@bufbuild/protobuf";
 
 /**
+ * Describes one login provider exposed by the server discovery endpoint.
+ *
+ * Clients can render these providers before a user has authenticated.
+ *
  * @generated from message chatto.api.v1.AuthProvider
  */
 export class AuthProvider extends Message<AuthProvider> {
   /**
+   * Stable provider identifier used by clients when starting login.
+   *
    * @generated from field: string id = 1;
    */
   id = "";
 
   /**
+   * Provider category, such as "password" or "oidc". Clients should treat
+   * unknown provider types as unsupported.
+   *
    * @generated from field: string type = 2;
    */
   type = "";
 
   /**
+   * Human-readable provider label for login UI.
+   *
    * @generated from field: string label = 3;
    */
   label = "";
 
   /**
+   * URL that starts login for this provider.
+   *
    * @generated from field: string login_url = 4;
    */
   loginUrl = "";
@@ -62,6 +75,8 @@ export class AuthProvider extends Message<AuthProvider> {
 }
 
 /**
+ * Request for public server metadata.
+ *
  * @generated from message chatto.api.v1.GetServerRequest
  */
 export class GetServerRequest extends Message<GetServerRequest> {
@@ -93,55 +108,78 @@ export class GetServerRequest extends Message<GetServerRequest> {
 }
 
 /**
+ * Public metadata clients need before they can authenticate or render the
+ * initial server view.
+ *
  * @generated from message chatto.api.v1.GetServerResponse
  */
 export class GetServerResponse extends Message<GetServerResponse> {
   /**
+   * Display name of the Chatto server.
+   *
    * @generated from field: string name = 1;
    */
   name = "";
 
   /**
+   * Server software version.
+   *
    * @generated from field: string version = 2;
    */
   version = "";
 
   /**
+   * Enabled legacy authentication method identifiers.
+   *
    * @generated from field: repeated string auth_methods = 3;
    */
   authMethods: string[] = [];
 
   /**
+   * Configured login providers.
+   *
    * @generated from field: repeated chatto.api.v1.AuthProvider auth_providers = 4;
    */
   authProviders: AuthProvider[] = [];
 
   /**
+   * Whether users can create accounts through the public UI.
+   *
    * @generated from field: bool registration_open = 5;
    */
   registrationOpen = false;
 
   /**
+   * URL for the legacy authorization flow, when enabled.
+   *
    * @generated from field: string authorize_url = 6;
    */
   authorizeUrl = "";
 
   /**
+   * Optional welcome message configured by the server administrator.
+   *
    * @generated from field: string welcome_message = 7;
    */
   welcomeMessage = "";
 
   /**
+   * Optional server description configured by the server administrator.
+   *
    * @generated from field: string description = 8;
    */
   description = "";
 
   /**
+   * Optional server icon URL suitable for branding the server in client UI.
+   *
    * @generated from field: string icon_url = 9;
    */
   iconUrl = "";
 
   /**
+   * Optional server banner URL suitable for larger server branding surfaces.
+   *
    * @generated from field: string banner_url = 10;
    */
   bannerUrl = "";

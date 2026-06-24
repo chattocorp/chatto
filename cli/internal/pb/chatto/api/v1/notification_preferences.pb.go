@@ -21,13 +21,19 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Notification delivery level for a room.
 type NotificationLevel int32
 
 const (
-	NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED  NotificationLevel = 0
-	NotificationLevel_NOTIFICATION_LEVEL_DEFAULT      NotificationLevel = 1
-	NotificationLevel_NOTIFICATION_LEVEL_MUTED        NotificationLevel = 2
-	NotificationLevel_NOTIFICATION_LEVEL_NORMAL       NotificationLevel = 3
+	// The level was not specified.
+	NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED NotificationLevel = 0
+	// Use the inherited default for the room.
+	NotificationLevel_NOTIFICATION_LEVEL_DEFAULT NotificationLevel = 1
+	// Do not notify for this room.
+	NotificationLevel_NOTIFICATION_LEVEL_MUTED NotificationLevel = 2
+	// Notify according to the normal room rules.
+	NotificationLevel_NOTIFICATION_LEVEL_NORMAL NotificationLevel = 3
+	// Notify for every message in the room.
 	NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES NotificationLevel = 4
 )
 
@@ -76,10 +82,16 @@ func (NotificationLevel) EnumDescriptor() ([]byte, []int) {
 	return file_chatto_api_v1_notification_preferences_proto_rawDescGZIP(), []int{0}
 }
 
+// Current notification preference for a room.
+//
+// Clients can show both the stored room-level setting and the effective setting
+// the server will apply after defaults are resolved.
 type GetRoomNotificationPreferenceResponse struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Level          NotificationLevel      `protobuf:"varint,1,opt,name=level,proto3,enum=chatto.api.v1.NotificationLevel" json:"level,omitempty"`
-	EffectiveLevel NotificationLevel      `protobuf:"varint,2,opt,name=effective_level,json=effectiveLevel,proto3,enum=chatto.api.v1.NotificationLevel" json:"effective_level,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Explicit level stored for the current user and room.
+	Level NotificationLevel `protobuf:"varint,1,opt,name=level,proto3,enum=chatto.api.v1.NotificationLevel" json:"level,omitempty"`
+	// Level after applying defaults and inheritance.
+	EffectiveLevel NotificationLevel `protobuf:"varint,2,opt,name=effective_level,json=effectiveLevel,proto3,enum=chatto.api.v1.NotificationLevel" json:"effective_level,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -128,10 +140,16 @@ func (x *GetRoomNotificationPreferenceResponse) GetEffectiveLevel() Notification
 	return NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
 }
 
+// Updated notification preference for a room.
+//
+// The response mirrors the read shape so clients can update local state without
+// issuing a second read request.
 type SetRoomNotificationLevelResponse struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Level          NotificationLevel      `protobuf:"varint,1,opt,name=level,proto3,enum=chatto.api.v1.NotificationLevel" json:"level,omitempty"`
-	EffectiveLevel NotificationLevel      `protobuf:"varint,2,opt,name=effective_level,json=effectiveLevel,proto3,enum=chatto.api.v1.NotificationLevel" json:"effective_level,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Explicit level stored for the current user and room.
+	Level NotificationLevel `protobuf:"varint,1,opt,name=level,proto3,enum=chatto.api.v1.NotificationLevel" json:"level,omitempty"`
+	// Level after applying defaults and inheritance.
+	EffectiveLevel NotificationLevel `protobuf:"varint,2,opt,name=effective_level,json=effectiveLevel,proto3,enum=chatto.api.v1.NotificationLevel" json:"effective_level,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -180,9 +198,11 @@ func (x *SetRoomNotificationLevelResponse) GetEffectiveLevel() NotificationLevel
 	return NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
 }
 
+// Request for the current user's notification preference in one room.
 type GetRoomNotificationPreferenceRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Room whose notification preference should be loaded for the current user.
+	RoomId        string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -224,10 +244,14 @@ func (x *GetRoomNotificationPreferenceRequest) GetRoomId() string {
 	return ""
 }
 
+// Request to update the current user's notification level in one room.
 type SetRoomNotificationLevelRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	Level         NotificationLevel      `protobuf:"varint,2,opt,name=level,proto3,enum=chatto.api.v1.NotificationLevel" json:"level,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Room whose notification level should be changed for the current user.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// New explicit notification level. Use NOTIFICATION_LEVEL_DEFAULT to return
+	// the room to inherited/default behavior.
+	Level         NotificationLevel `protobuf:"varint,2,opt,name=level,proto3,enum=chatto.api.v1.NotificationLevel" json:"level,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

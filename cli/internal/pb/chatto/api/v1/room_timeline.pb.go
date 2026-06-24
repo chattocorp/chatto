@@ -22,13 +22,18 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Processing state for a timeline video attachment.
 type RoomTimelineVideoProcessingStatus int32
 
 const (
+	// The processing status was not specified.
 	RoomTimelineVideoProcessingStatus_ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_UNSPECIFIED RoomTimelineVideoProcessingStatus = 0
-	RoomTimelineVideoProcessingStatus_ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_PROCESSING  RoomTimelineVideoProcessingStatus = 1
-	RoomTimelineVideoProcessingStatus_ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_COMPLETED   RoomTimelineVideoProcessingStatus = 2
-	RoomTimelineVideoProcessingStatus_ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_FAILED      RoomTimelineVideoProcessingStatus = 3
+	// Video processing is still running.
+	RoomTimelineVideoProcessingStatus_ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_PROCESSING RoomTimelineVideoProcessingStatus = 1
+	// Video processing completed successfully.
+	RoomTimelineVideoProcessingStatus_ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_COMPLETED RoomTimelineVideoProcessingStatus = 2
+	// Video processing failed.
+	RoomTimelineVideoProcessingStatus_ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_FAILED RoomTimelineVideoProcessingStatus = 3
 )
 
 // Enum value maps for RoomTimelineVideoProcessingStatus.
@@ -74,13 +79,22 @@ func (RoomTimelineVideoProcessingStatus) EnumDescriptor() ([]byte, []int) {
 	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{0}
 }
 
+// User data included with room timeline events.
+//
+// Timeline events reference users by ID; clients can resolve those IDs through
+// the includes block returned with each page.
 type RoomTimelineUser struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Login         string                 `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`
-	DisplayName   string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	Deleted       bool                   `protobuf:"varint,4,opt,name=deleted,proto3" json:"deleted,omitempty"`
-	AvatarUrl     string                 `protobuf:"bytes,5,opt,name=avatar_url,json=avatarUrl,proto3" json:"avatar_url,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable user ID.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Login name.
+	Login string `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`
+	// Display name, when set.
+	DisplayName string `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	// True when the user account has been deleted.
+	Deleted bool `protobuf:"varint,4,opt,name=deleted,proto3" json:"deleted,omitempty"`
+	// Avatar image URL, when available.
+	AvatarUrl     string `protobuf:"bytes,5,opt,name=avatar_url,json=avatarUrl,proto3" json:"avatar_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -150,8 +164,12 @@ func (x *RoomTimelineUser) GetAvatarUrl() string {
 	return ""
 }
 
+// Related entities included beside timeline events.
+//
+// Includes avoid repeating the same user data on every event in a page.
 type RoomTimelineIncludes struct {
-	state         protoimpl.MessageState       `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Users keyed by user ID.
 	Users         map[string]*RoomTimelineUser `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -194,9 +212,15 @@ func (x *RoomTimelineIncludes) GetUsers() map[string]*RoomTimelineUser {
 	return nil
 }
 
+// Time-limited URL for a room timeline asset.
+//
+// Clients should expect these URLs to expire and refresh the timeline data when
+// an asset URL is no longer usable.
 type RoomTimelineAssetUrl struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Url           string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Signed asset URL.
+	Url string `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	// Time when the signed URL expires.
 	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -246,13 +270,19 @@ func (x *RoomTimelineAssetUrl) GetExpiresAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// One transcoded video rendition.
 type RoomTimelineVideoVariant struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Quality       string                 `protobuf:"bytes,1,opt,name=quality,proto3" json:"quality,omitempty"`
-	Width         int32                  `protobuf:"varint,2,opt,name=width,proto3" json:"width,omitempty"`
-	Height        int32                  `protobuf:"varint,3,opt,name=height,proto3" json:"height,omitempty"`
-	Size          int64                  `protobuf:"varint,4,opt,name=size,proto3" json:"size,omitempty"`
-	AssetUrl      *RoomTimelineAssetUrl  `protobuf:"bytes,5,opt,name=asset_url,json=assetUrl,proto3" json:"asset_url,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Quality label for the rendition.
+	Quality string `protobuf:"bytes,1,opt,name=quality,proto3" json:"quality,omitempty"`
+	// Video width in pixels.
+	Width int32 `protobuf:"varint,2,opt,name=width,proto3" json:"width,omitempty"`
+	// Video height in pixels.
+	Height int32 `protobuf:"varint,3,opt,name=height,proto3" json:"height,omitempty"`
+	// Rendition size in bytes.
+	Size int64 `protobuf:"varint,4,opt,name=size,proto3" json:"size,omitempty"`
+	// Signed URL for the rendition.
+	AssetUrl      *RoomTimelineAssetUrl `protobuf:"bytes,5,opt,name=asset_url,json=assetUrl,proto3" json:"asset_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -322,18 +352,31 @@ func (x *RoomTimelineVideoVariant) GetAssetUrl() *RoomTimelineAssetUrl {
 	return nil
 }
 
+// Processing metadata for a video attachment.
+//
+// Clients can use this object to show upload/transcoding progress and decide
+// whether to play a processed variant, show a thumbnail, or display a failure
+// state.
 type RoomTimelineVideoProcessing struct {
-	state             protoimpl.MessageState            `protogen:"open.v1"`
-	Status            RoomTimelineVideoProcessingStatus `protobuf:"varint,1,opt,name=status,proto3,enum=chatto.api.v1.RoomTimelineVideoProcessingStatus" json:"status,omitempty"`
-	DurationMs        int64                             `protobuf:"varint,2,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
-	Width             int32                             `protobuf:"varint,3,opt,name=width,proto3" json:"width,omitempty"`
-	Height            int32                             `protobuf:"varint,4,opt,name=height,proto3" json:"height,omitempty"`
-	SourceAvailable   bool                              `protobuf:"varint,5,opt,name=source_available,json=sourceAvailable,proto3" json:"source_available,omitempty"`
-	ReasonCode        string                            `protobuf:"bytes,6,opt,name=reason_code,json=reasonCode,proto3" json:"reason_code,omitempty"`
-	ThumbnailAssetUrl *RoomTimelineAssetUrl             `protobuf:"bytes,7,opt,name=thumbnail_asset_url,json=thumbnailAssetUrl,proto3" json:"thumbnail_asset_url,omitempty"`
-	Variants          []*RoomTimelineVideoVariant       `protobuf:"bytes,8,rep,name=variants,proto3" json:"variants,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Current processing status.
+	Status RoomTimelineVideoProcessingStatus `protobuf:"varint,1,opt,name=status,proto3,enum=chatto.api.v1.RoomTimelineVideoProcessingStatus" json:"status,omitempty"`
+	// Video duration in milliseconds.
+	DurationMs int64 `protobuf:"varint,2,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	// Source video width in pixels.
+	Width int32 `protobuf:"varint,3,opt,name=width,proto3" json:"width,omitempty"`
+	// Source video height in pixels.
+	Height int32 `protobuf:"varint,4,opt,name=height,proto3" json:"height,omitempty"`
+	// True when the original source asset is currently available.
+	SourceAvailable bool `protobuf:"varint,5,opt,name=source_available,json=sourceAvailable,proto3" json:"source_available,omitempty"`
+	// Stable reason code for a failed or incomplete processing state.
+	ReasonCode string `protobuf:"bytes,6,opt,name=reason_code,json=reasonCode,proto3" json:"reason_code,omitempty"`
+	// Signed URL for the generated thumbnail, when available.
+	ThumbnailAssetUrl *RoomTimelineAssetUrl `protobuf:"bytes,7,opt,name=thumbnail_asset_url,json=thumbnailAssetUrl,proto3" json:"thumbnail_asset_url,omitempty"`
+	// Available transcoded renditions.
+	Variants      []*RoomTimelineVideoVariant `protobuf:"bytes,8,rep,name=variants,proto3" json:"variants,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RoomTimelineVideoProcessing) Reset() {
@@ -422,18 +465,30 @@ func (x *RoomTimelineVideoProcessing) GetVariants() []*RoomTimelineVideoVariant 
 	return nil
 }
 
+// Attachment metadata included with a posted message.
+//
+// Image and video dimensions are best-effort metadata for layout. Asset URLs can
+// be absent while processing is pending or when the source is unavailable.
 type RoomTimelineAttachment struct {
-	state             protoimpl.MessageState       `protogen:"open.v1"`
-	Id                string                       `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Filename          string                       `protobuf:"bytes,2,opt,name=filename,proto3" json:"filename,omitempty"`
-	ContentType       string                       `protobuf:"bytes,3,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
-	Width             int32                        `protobuf:"varint,4,opt,name=width,proto3" json:"width,omitempty"`
-	Height            int32                        `protobuf:"varint,5,opt,name=height,proto3" json:"height,omitempty"`
-	AssetUrl          *RoomTimelineAssetUrl        `protobuf:"bytes,6,opt,name=asset_url,json=assetUrl,proto3" json:"asset_url,omitempty"`
-	ThumbnailAssetUrl *RoomTimelineAssetUrl        `protobuf:"bytes,7,opt,name=thumbnail_asset_url,json=thumbnailAssetUrl,proto3" json:"thumbnail_asset_url,omitempty"`
-	VideoProcessing   *RoomTimelineVideoProcessing `protobuf:"bytes,8,opt,name=video_processing,json=videoProcessing,proto3" json:"video_processing,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable attachment ID.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Original filename.
+	Filename string `protobuf:"bytes,2,opt,name=filename,proto3" json:"filename,omitempty"`
+	// MIME content type.
+	ContentType string `protobuf:"bytes,3,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	// Image or video width in pixels, when known.
+	Width int32 `protobuf:"varint,4,opt,name=width,proto3" json:"width,omitempty"`
+	// Image or video height in pixels, when known.
+	Height int32 `protobuf:"varint,5,opt,name=height,proto3" json:"height,omitempty"`
+	// Signed URL for the original asset, when available.
+	AssetUrl *RoomTimelineAssetUrl `protobuf:"bytes,6,opt,name=asset_url,json=assetUrl,proto3" json:"asset_url,omitempty"`
+	// Signed URL for a thumbnail image, when available.
+	ThumbnailAssetUrl *RoomTimelineAssetUrl `protobuf:"bytes,7,opt,name=thumbnail_asset_url,json=thumbnailAssetUrl,proto3" json:"thumbnail_asset_url,omitempty"`
+	// Video-specific processing metadata, when this attachment is a video.
+	VideoProcessing *RoomTimelineVideoProcessing `protobuf:"bytes,8,opt,name=video_processing,json=videoProcessing,proto3" json:"video_processing,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *RoomTimelineAttachment) Reset() {
@@ -522,15 +577,26 @@ func (x *RoomTimelineAttachment) GetVideoProcessing() *RoomTimelineVideoProcessi
 	return nil
 }
 
+// Link preview metadata extracted from a message body.
+//
+// Clients should treat all fields as optional because preview extraction depends
+// on the linked site and the embed provider.
 type RoomTimelineLinkPreview struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Url           string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
-	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
-	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	SiteName      string                 `protobuf:"bytes,4,opt,name=site_name,json=siteName,proto3" json:"site_name,omitempty"`
-	ImageUrl      string                 `protobuf:"bytes,5,opt,name=image_url,json=imageUrl,proto3" json:"image_url,omitempty"`
-	EmbedType     string                 `protobuf:"bytes,6,opt,name=embed_type,json=embedType,proto3" json:"embed_type,omitempty"`
-	EmbedId       string                 `protobuf:"bytes,7,opt,name=embed_id,json=embedId,proto3" json:"embed_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Previewed URL.
+	Url string `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	// Page or embed title.
+	Title string `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	// Page or embed description.
+	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	// Site name, when known.
+	SiteName string `protobuf:"bytes,4,opt,name=site_name,json=siteName,proto3" json:"site_name,omitempty"`
+	// Preview image URL, when available.
+	ImageUrl string `protobuf:"bytes,5,opt,name=image_url,json=imageUrl,proto3" json:"image_url,omitempty"`
+	// Embed provider or type, when recognized.
+	EmbedType string `protobuf:"bytes,6,opt,name=embed_type,json=embedType,proto3" json:"embed_type,omitempty"`
+	// Provider-specific embed ID, when recognized.
+	EmbedId       string `protobuf:"bytes,7,opt,name=embed_id,json=embedId,proto3" json:"embed_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -614,12 +680,20 @@ func (x *RoomTimelineLinkPreview) GetEmbedId() string {
 	return ""
 }
 
+// Aggregated reaction state for one emoji on one event.
+//
+// The summary is scoped to the current event and includes whether the current
+// user has reacted with the same emoji.
 type RoomTimelineReactionSummary struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Emoji         string                 `protobuf:"bytes,1,opt,name=emoji,proto3" json:"emoji,omitempty"`
-	Count         int32                  `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
-	HasReacted    bool                   `protobuf:"varint,3,opt,name=has_reacted,json=hasReacted,proto3" json:"has_reacted,omitempty"`
-	UserIds       []string               `protobuf:"bytes,4,rep,name=user_ids,json=userIds,proto3" json:"user_ids,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Emoji or reaction key.
+	Emoji string `protobuf:"bytes,1,opt,name=emoji,proto3" json:"emoji,omitempty"`
+	// Number of users who reacted with this emoji.
+	Count int32 `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
+	// True when the current user reacted with this emoji.
+	HasReacted bool `protobuf:"varint,3,opt,name=has_reacted,json=hasReacted,proto3" json:"has_reacted,omitempty"`
+	// User IDs that reacted with this emoji.
+	UserIds       []string `protobuf:"bytes,4,rep,name=user_ids,json=userIds,proto3" json:"user_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -682,27 +756,52 @@ func (x *RoomTimelineReactionSummary) GetUserIds() []string {
 	return nil
 }
 
+// Payload for a message-posted timeline event.
+//
+// The same shape is used for top-level room messages, thread replies, and thread
+// echo entries. Thread-related fields let clients render reply counts, thread
+// participants, and follow state without additional per-message requests.
 type RoomTimelineMessagePosted struct {
-	state                          protoimpl.MessageState         `protogen:"open.v1"`
-	RoomId                         string                         `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	Body                           string                         `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
-	BodyPresent                    bool                           `protobuf:"varint,3,opt,name=body_present,json=bodyPresent,proto3" json:"body_present,omitempty"`
-	Attachments                    []*RoomTimelineAttachment      `protobuf:"bytes,4,rep,name=attachments,proto3" json:"attachments,omitempty"`
-	LinkPreview                    *RoomTimelineLinkPreview       `protobuf:"bytes,5,opt,name=link_preview,json=linkPreview,proto3" json:"link_preview,omitempty"`
-	UpdatedAt                      *timestamppb.Timestamp         `protobuf:"bytes,6,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	InReplyTo                      string                         `protobuf:"bytes,7,opt,name=in_reply_to,json=inReplyTo,proto3" json:"in_reply_to,omitempty"`
-	ThreadRootEventId              string                         `protobuf:"bytes,8,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
-	EchoOfEventId                  string                         `protobuf:"bytes,9,opt,name=echo_of_event_id,json=echoOfEventId,proto3" json:"echo_of_event_id,omitempty"`
-	EchoFromThreadRootEventId      string                         `protobuf:"bytes,10,opt,name=echo_from_thread_root_event_id,json=echoFromThreadRootEventId,proto3" json:"echo_from_thread_root_event_id,omitempty"`
-	ChannelEchoEventId             string                         `protobuf:"bytes,11,opt,name=channel_echo_event_id,json=channelEchoEventId,proto3" json:"channel_echo_event_id,omitempty"`
-	ReplyCount                     int32                          `protobuf:"varint,12,opt,name=reply_count,json=replyCount,proto3" json:"reply_count,omitempty"`
-	LastReplyAt                    *timestamppb.Timestamp         `protobuf:"bytes,13,opt,name=last_reply_at,json=lastReplyAt,proto3" json:"last_reply_at,omitempty"`
-	ThreadParticipantUserIds       []string                       `protobuf:"bytes,14,rep,name=thread_participant_user_ids,json=threadParticipantUserIds,proto3" json:"thread_participant_user_ids,omitempty"`
-	ViewerIsFollowingThread        bool                           `protobuf:"varint,15,opt,name=viewer_is_following_thread,json=viewerIsFollowingThread,proto3" json:"viewer_is_following_thread,omitempty"`
-	ViewerIsFollowingThreadPresent bool                           `protobuf:"varint,16,opt,name=viewer_is_following_thread_present,json=viewerIsFollowingThreadPresent,proto3" json:"viewer_is_following_thread_present,omitempty"`
-	Reactions                      []*RoomTimelineReactionSummary `protobuf:"bytes,17,rep,name=reactions,proto3" json:"reactions,omitempty"`
-	unknownFields                  protoimpl.UnknownFields
-	sizeCache                      protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Room containing the message.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Message body text.
+	Body string `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
+	// True when the original event explicitly carried a body. This lets clients
+	// distinguish an empty body from a missing body.
+	BodyPresent bool `protobuf:"varint,3,opt,name=body_present,json=bodyPresent,proto3" json:"body_present,omitempty"`
+	// Attachments sent with the message.
+	Attachments []*RoomTimelineAttachment `protobuf:"bytes,4,rep,name=attachments,proto3" json:"attachments,omitempty"`
+	// Link preview extracted for the message, when available.
+	LinkPreview *RoomTimelineLinkPreview `protobuf:"bytes,5,opt,name=link_preview,json=linkPreview,proto3" json:"link_preview,omitempty"`
+	// Time when the message was last edited.
+	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// Event ID this message directly replies to, when this is a reply.
+	InReplyTo string `protobuf:"bytes,7,opt,name=in_reply_to,json=inReplyTo,proto3" json:"in_reply_to,omitempty"`
+	// Event ID of the root message for the thread this message belongs to.
+	ThreadRootEventId string `protobuf:"bytes,8,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	// Event ID this event echoes into the current view, when applicable. Echoes
+	// allow thread activity to appear in another timeline context.
+	EchoOfEventId string `protobuf:"bytes,9,opt,name=echo_of_event_id,json=echoOfEventId,proto3" json:"echo_of_event_id,omitempty"`
+	// Thread root ID of the echoed event, when applicable.
+	EchoFromThreadRootEventId string `protobuf:"bytes,10,opt,name=echo_from_thread_root_event_id,json=echoFromThreadRootEventId,proto3" json:"echo_from_thread_root_event_id,omitempty"`
+	// Channel timeline event ID for a thread echo, when applicable.
+	ChannelEchoEventId string `protobuf:"bytes,11,opt,name=channel_echo_event_id,json=channelEchoEventId,proto3" json:"channel_echo_event_id,omitempty"`
+	// Number of replies in this message's thread.
+	ReplyCount int32 `protobuf:"varint,12,opt,name=reply_count,json=replyCount,proto3" json:"reply_count,omitempty"`
+	// Creation time of the most recent reply in this message's thread.
+	LastReplyAt *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=last_reply_at,json=lastReplyAt,proto3" json:"last_reply_at,omitempty"`
+	// User IDs that have participated in this message's thread.
+	ThreadParticipantUserIds []string `protobuf:"bytes,14,rep,name=thread_participant_user_ids,json=threadParticipantUserIds,proto3" json:"thread_participant_user_ids,omitempty"`
+	// True when the current user follows this message's thread.
+	ViewerIsFollowingThread bool `protobuf:"varint,15,opt,name=viewer_is_following_thread,json=viewerIsFollowingThread,proto3" json:"viewer_is_following_thread,omitempty"`
+	// True when viewer_is_following_thread was explicitly hydrated. If false, the
+	// follow value should be treated as unknown rather than false.
+	ViewerIsFollowingThreadPresent bool `protobuf:"varint,16,opt,name=viewer_is_following_thread_present,json=viewerIsFollowingThreadPresent,proto3" json:"viewer_is_following_thread_present,omitempty"`
+	// Reaction summaries for this message.
+	Reactions     []*RoomTimelineReactionSummary `protobuf:"bytes,17,rep,name=reactions,proto3" json:"reactions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RoomTimelineMessagePosted) Reset() {
@@ -854,9 +953,11 @@ func (x *RoomTimelineMessagePosted) GetReactions() []*RoomTimelineReactionSummar
 	return nil
 }
 
+// Payload for room lifecycle and membership timeline events.
 type RoomTimelineRoomEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Room affected by the event.
+	RoomId        string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -898,11 +999,19 @@ func (x *RoomTimelineRoomEvent) GetRoomId() string {
 	return ""
 }
 
+// One event in a room or thread timeline.
+//
+// Clients should inspect the event oneof to choose the renderer for the event.
 type RoomTimelineEvent struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	Id        string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable event ID.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Time when the event was created.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	ActorId   string                 `protobuf:"bytes,3,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
+	// User ID of the event actor.
+	ActorId string `protobuf:"bytes,3,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
+	// Concrete event payload.
+	//
 	// Types that are valid to be assigned to Event:
 	//
 	//	*RoomTimelineEvent_MessagePosted
@@ -1053,34 +1162,42 @@ type isRoomTimelineEvent_Event interface {
 }
 
 type RoomTimelineEvent_MessagePosted struct {
+	// A message was posted.
 	MessagePosted *RoomTimelineMessagePosted `protobuf:"bytes,10,opt,name=message_posted,json=messagePosted,proto3,oneof"`
 }
 
 type RoomTimelineEvent_RoomCreated struct {
+	// The room was created.
 	RoomCreated *RoomTimelineRoomEvent `protobuf:"bytes,20,opt,name=room_created,json=roomCreated,proto3,oneof"`
 }
 
 type RoomTimelineEvent_RoomUpdated struct {
+	// The room metadata was updated.
 	RoomUpdated *RoomTimelineRoomEvent `protobuf:"bytes,21,opt,name=room_updated,json=roomUpdated,proto3,oneof"`
 }
 
 type RoomTimelineEvent_RoomDeleted struct {
+	// The room was deleted.
 	RoomDeleted *RoomTimelineRoomEvent `protobuf:"bytes,22,opt,name=room_deleted,json=roomDeleted,proto3,oneof"`
 }
 
 type RoomTimelineEvent_RoomArchived struct {
+	// The room was archived.
 	RoomArchived *RoomTimelineRoomEvent `protobuf:"bytes,23,opt,name=room_archived,json=roomArchived,proto3,oneof"`
 }
 
 type RoomTimelineEvent_RoomUnarchived struct {
+	// The room was unarchived.
 	RoomUnarchived *RoomTimelineRoomEvent `protobuf:"bytes,24,opt,name=room_unarchived,json=roomUnarchived,proto3,oneof"`
 }
 
 type RoomTimelineEvent_UserJoinedRoom struct {
+	// A user joined the room.
 	UserJoinedRoom *RoomTimelineRoomEvent `protobuf:"bytes,30,opt,name=user_joined_room,json=userJoinedRoom,proto3,oneof"`
 }
 
 type RoomTimelineEvent_UserLeftRoom struct {
+	// A user left the room.
 	UserLeftRoom *RoomTimelineRoomEvent `protobuf:"bytes,31,opt,name=user_left_room,json=userLeftRoom,proto3,oneof"`
 }
 
@@ -1100,14 +1217,25 @@ func (*RoomTimelineEvent_UserJoinedRoom) isRoomTimelineEvent_Event() {}
 
 func (*RoomTimelineEvent_UserLeftRoom) isRoomTimelineEvent_Event() {}
 
+// Cursor page of room or thread timeline events.
+//
+// Use start_cursor and end_cursor with before/after requests to continue paging
+// in either direction. The has_older and has_newer flags tell clients whether
+// another request can extend the current window.
 type RoomTimelinePage struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Events        []*RoomTimelineEvent   `protobuf:"bytes,1,rep,name=events,proto3" json:"events,omitempty"`
-	StartCursor   string                 `protobuf:"bytes,2,opt,name=start_cursor,json=startCursor,proto3" json:"start_cursor,omitempty"`
-	EndCursor     string                 `protobuf:"bytes,3,opt,name=end_cursor,json=endCursor,proto3" json:"end_cursor,omitempty"`
-	HasOlder      bool                   `protobuf:"varint,4,opt,name=has_older,json=hasOlder,proto3" json:"has_older,omitempty"`
-	HasNewer      bool                   `protobuf:"varint,5,opt,name=has_newer,json=hasNewer,proto3" json:"has_newer,omitempty"`
-	Includes      *RoomTimelineIncludes  `protobuf:"bytes,6,opt,name=includes,proto3" json:"includes,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Events in display order.
+	Events []*RoomTimelineEvent `protobuf:"bytes,1,rep,name=events,proto3" json:"events,omitempty"`
+	// Cursor for the first event in the page.
+	StartCursor string `protobuf:"bytes,2,opt,name=start_cursor,json=startCursor,proto3" json:"start_cursor,omitempty"`
+	// Cursor for the last event in the page.
+	EndCursor string `protobuf:"bytes,3,opt,name=end_cursor,json=endCursor,proto3" json:"end_cursor,omitempty"`
+	// True when older events are available before start_cursor.
+	HasOlder bool `protobuf:"varint,4,opt,name=has_older,json=hasOlder,proto3" json:"has_older,omitempty"`
+	// True when newer events are available after end_cursor.
+	HasNewer bool `protobuf:"varint,5,opt,name=has_newer,json=hasNewer,proto3" json:"has_newer,omitempty"`
+	// Related entities needed to render the page.
+	Includes      *RoomTimelineIncludes `protobuf:"bytes,6,opt,name=includes,proto3" json:"includes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1184,10 +1312,18 @@ func (x *RoomTimelinePage) GetIncludes() *RoomTimelineIncludes {
 	return nil
 }
 
+// Request for a page of room timeline events.
+//
+// Omit the cursor to load the initial page. Set before to page toward older
+// events, or after to page toward newer events.
 type GetRoomEventsRequest struct {
-	state  protoimpl.MessageState `protogen:"open.v1"`
-	RoomId string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	Limit  int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Room whose timeline should be loaded.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Maximum number of events to return. The server may clamp very large limits.
+	Limit int32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	// Cursor direction for paging.
+	//
 	// Types that are valid to be assigned to Cursor:
 	//
 	//	*GetRoomEventsRequest_Before
@@ -1271,10 +1407,12 @@ type isGetRoomEventsRequest_Cursor interface {
 }
 
 type GetRoomEventsRequest_Before struct {
+	// Return events older than this cursor.
 	Before string `protobuf:"bytes,3,opt,name=before,proto3,oneof"`
 }
 
 type GetRoomEventsRequest_After struct {
+	// Return events newer than this cursor.
 	After string `protobuf:"bytes,4,opt,name=after,proto3,oneof"`
 }
 
@@ -1282,9 +1420,11 @@ func (*GetRoomEventsRequest_Before) isGetRoomEventsRequest_Cursor() {}
 
 func (*GetRoomEventsRequest_After) isGetRoomEventsRequest_Cursor() {}
 
+// Response containing one room timeline page.
 type GetRoomEventsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Page          *RoomTimelinePage      `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Loaded timeline page.
+	Page          *RoomTimelinePage `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1326,11 +1466,18 @@ func (x *GetRoomEventsResponse) GetPage() *RoomTimelinePage {
 	return nil
 }
 
+// Request for room timeline events around a specific event.
+//
+// Use this when a client needs to jump to a known event and render enough
+// context around it.
 type GetRoomEventsAroundRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	EventId       string                 `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
-	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Room whose timeline should be loaded.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Anchor event ID that should appear in the returned page.
+	EventId string `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	// Maximum number of events to return around the anchor.
+	Limit         int32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1386,10 +1533,13 @@ func (x *GetRoomEventsAroundRequest) GetLimit() int32 {
 	return 0
 }
 
+// Response containing a room timeline window around a specific event.
 type GetRoomEventsAroundResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Page          *RoomTimelinePage      `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
-	TargetIndex   int32                  `protobuf:"varint,2,opt,name=target_index,json=targetIndex,proto3" json:"target_index,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Loaded timeline page.
+	Page *RoomTimelinePage `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
+	// Zero-based index of the anchor event within page.events.
+	TargetIndex   int32 `protobuf:"varint,2,opt,name=target_index,json=targetIndex,proto3" json:"target_index,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1438,11 +1588,21 @@ func (x *GetRoomEventsAroundResponse) GetTargetIndex() int32 {
 	return 0
 }
 
+// Request for a page of events in one thread.
+//
+// Omit the cursor to load the latest visible part of the thread, including the
+// root message. Set before to page toward older replies, or after to page toward
+// newer replies without repeating the root message.
 type GetThreadEventsRequest struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	RoomId            string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	ThreadRootEventId string                 `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
-	Limit             int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Room containing the thread.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Event ID of the root message for the thread.
+	ThreadRootEventId string `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	// Maximum number of events to return. The server may clamp very large limits.
+	Limit int32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	// Cursor direction for paging.
+	//
 	// Types that are valid to be assigned to Cursor:
 	//
 	//	*GetThreadEventsRequest_Before
@@ -1533,10 +1693,12 @@ type isGetThreadEventsRequest_Cursor interface {
 }
 
 type GetThreadEventsRequest_Before struct {
+	// Return thread events older than this cursor.
 	Before string `protobuf:"bytes,4,opt,name=before,proto3,oneof"`
 }
 
 type GetThreadEventsRequest_After struct {
+	// Return thread events newer than this cursor.
 	After string `protobuf:"bytes,5,opt,name=after,proto3,oneof"`
 }
 
@@ -1544,9 +1706,11 @@ func (*GetThreadEventsRequest_Before) isGetThreadEventsRequest_Cursor() {}
 
 func (*GetThreadEventsRequest_After) isGetThreadEventsRequest_Cursor() {}
 
+// Response containing one thread timeline page.
 type GetThreadEventsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Page          *RoomTimelinePage      `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Loaded timeline page.
+	Page          *RoomTimelinePage `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1588,14 +1752,23 @@ func (x *GetThreadEventsResponse) GetPage() *RoomTimelinePage {
 	return nil
 }
 
+// Request for thread events around a specific event.
+//
+// Use this when a client needs to jump to a known reply and render surrounding
+// thread context.
 type GetThreadEventsAroundRequest struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	RoomId            string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	ThreadRootEventId string                 `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
-	EventId           string                 `protobuf:"bytes,3,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
-	Limit             int32                  `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Room containing the thread.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Event ID of the root message for the thread.
+	ThreadRootEventId string `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	// Anchor event ID inside the thread. The event should belong to the requested
+	// thread.
+	EventId string `protobuf:"bytes,3,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	// Maximum number of events to return around the anchor.
+	Limit         int32 `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetThreadEventsAroundRequest) Reset() {
@@ -1656,10 +1829,13 @@ func (x *GetThreadEventsAroundRequest) GetLimit() int32 {
 	return 0
 }
 
+// Response containing a thread timeline window around a specific event.
 type GetThreadEventsAroundResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Page          *RoomTimelinePage      `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
-	TargetIndex   int32                  `protobuf:"varint,2,opt,name=target_index,json=targetIndex,proto3" json:"target_index,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Loaded timeline page.
+	Page *RoomTimelinePage `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
+	// Zero-based index of the anchor event within page.events.
+	TargetIndex   int32 `protobuf:"varint,2,opt,name=target_index,json=targetIndex,proto3" json:"target_index,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

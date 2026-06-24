@@ -22,10 +22,14 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Request to mark a room timeline as read.
 type MarkRoomAsReadRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	UpToEventId   string                 `protobuf:"bytes,2,opt,name=up_to_event_id,json=upToEventId,proto3" json:"up_to_event_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Room whose timeline should be marked read.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Highest room event ID the current user has read. The event should belong to
+	// the room timeline the client is marking.
+	UpToEventId   string `protobuf:"bytes,2,opt,name=up_to_event_id,json=upToEventId,proto3" json:"up_to_event_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -74,9 +78,15 @@ func (x *MarkRoomAsReadRequest) GetUpToEventId() string {
 	return ""
 }
 
+// Result of marking a room timeline as read.
+//
+// Clients can use the previous timestamp to decide whether unread badges or
+// local notification state need to be reconciled.
 type MarkRoomAsReadResponse struct {
-	state              protoimpl.MessageState `protogen:"open.v1"`
-	LastReadAt         *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=last_read_at,json=lastReadAt,proto3" json:"last_read_at,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// New room read timestamp stored for the current user.
+	LastReadAt *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=last_read_at,json=lastReadAt,proto3" json:"last_read_at,omitempty"`
+	// Previous room read timestamp, when one existed.
 	PreviousLastReadAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=previous_last_read_at,json=previousLastReadAt,proto3" json:"previous_last_read_at,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
@@ -126,13 +136,18 @@ func (x *MarkRoomAsReadResponse) GetPreviousLastReadAt() *timestamppb.Timestamp 
 	return nil
 }
 
+// Request to mark a message thread as read.
 type MarkThreadAsReadRequest struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	RoomId            string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	ThreadRootEventId string                 `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
-	UpToEventId       string                 `protobuf:"bytes,3,opt,name=up_to_event_id,json=upToEventId,proto3" json:"up_to_event_id,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Room containing the thread.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Event ID of the root message for the thread.
+	ThreadRootEventId string `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	// Highest thread event ID the current user has read. The event should belong
+	// to the thread identified by thread_root_event_id.
+	UpToEventId   string `protobuf:"bytes,3,opt,name=up_to_event_id,json=upToEventId,proto3" json:"up_to_event_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *MarkThreadAsReadRequest) Reset() {
@@ -186,8 +201,10 @@ func (x *MarkThreadAsReadRequest) GetUpToEventId() string {
 	return ""
 }
 
+// Result of marking a message thread as read.
 type MarkThreadAsReadResponse struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Previous thread read timestamp, when one existed.
 	PreviousReadAt *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=previous_read_at,json=previousReadAt,proto3" json:"previous_read_at,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache

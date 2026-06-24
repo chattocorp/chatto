@@ -7,30 +7,42 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3 } from "@bufbuild/protobuf";
 
 /**
+ * Notification delivery level for a room.
+ *
  * @generated from enum chatto.api.v1.NotificationLevel
  */
 export enum NotificationLevel {
   /**
+   * The level was not specified.
+   *
    * @generated from enum value: NOTIFICATION_LEVEL_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * Use the inherited default for the room.
+   *
    * @generated from enum value: NOTIFICATION_LEVEL_DEFAULT = 1;
    */
   DEFAULT = 1,
 
   /**
+   * Do not notify for this room.
+   *
    * @generated from enum value: NOTIFICATION_LEVEL_MUTED = 2;
    */
   MUTED = 2,
 
   /**
+   * Notify according to the normal room rules.
+   *
    * @generated from enum value: NOTIFICATION_LEVEL_NORMAL = 3;
    */
   NORMAL = 3,
 
   /**
+   * Notify for every message in the room.
+   *
    * @generated from enum value: NOTIFICATION_LEVEL_ALL_MESSAGES = 4;
    */
   ALL_MESSAGES = 4,
@@ -45,15 +57,24 @@ proto3.util.setEnumType(NotificationLevel, "chatto.api.v1.NotificationLevel", [
 ]);
 
 /**
+ * Current notification preference for a room.
+ *
+ * Clients can show both the stored room-level setting and the effective setting
+ * the server will apply after defaults are resolved.
+ *
  * @generated from message chatto.api.v1.GetRoomNotificationPreferenceResponse
  */
 export class GetRoomNotificationPreferenceResponse extends Message<GetRoomNotificationPreferenceResponse> {
   /**
+   * Explicit level stored for the current user and room.
+   *
    * @generated from field: chatto.api.v1.NotificationLevel level = 1;
    */
   level = NotificationLevel.UNSPECIFIED;
 
   /**
+   * Level after applying defaults and inheritance.
+   *
    * @generated from field: chatto.api.v1.NotificationLevel effective_level = 2;
    */
   effectiveLevel = NotificationLevel.UNSPECIFIED;
@@ -88,15 +109,24 @@ export class GetRoomNotificationPreferenceResponse extends Message<GetRoomNotifi
 }
 
 /**
+ * Updated notification preference for a room.
+ *
+ * The response mirrors the read shape so clients can update local state without
+ * issuing a second read request.
+ *
  * @generated from message chatto.api.v1.SetRoomNotificationLevelResponse
  */
 export class SetRoomNotificationLevelResponse extends Message<SetRoomNotificationLevelResponse> {
   /**
+   * Explicit level stored for the current user and room.
+   *
    * @generated from field: chatto.api.v1.NotificationLevel level = 1;
    */
   level = NotificationLevel.UNSPECIFIED;
 
   /**
+   * Level after applying defaults and inheritance.
+   *
    * @generated from field: chatto.api.v1.NotificationLevel effective_level = 2;
    */
   effectiveLevel = NotificationLevel.UNSPECIFIED;
@@ -131,10 +161,14 @@ export class SetRoomNotificationLevelResponse extends Message<SetRoomNotificatio
 }
 
 /**
+ * Request for the current user's notification preference in one room.
+ *
  * @generated from message chatto.api.v1.GetRoomNotificationPreferenceRequest
  */
 export class GetRoomNotificationPreferenceRequest extends Message<GetRoomNotificationPreferenceRequest> {
   /**
+   * Room whose notification preference should be loaded for the current user.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
@@ -168,15 +202,22 @@ export class GetRoomNotificationPreferenceRequest extends Message<GetRoomNotific
 }
 
 /**
+ * Request to update the current user's notification level in one room.
+ *
  * @generated from message chatto.api.v1.SetRoomNotificationLevelRequest
  */
 export class SetRoomNotificationLevelRequest extends Message<SetRoomNotificationLevelRequest> {
   /**
+   * Room whose notification level should be changed for the current user.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * New explicit notification level. Use NOTIFICATION_LEVEL_DEFAULT to return
+   * the room to inherited/default behavior.
+   *
    * @generated from field: chatto.api.v1.NotificationLevel level = 2;
    */
   level = NotificationLevel.UNSPECIFIED;

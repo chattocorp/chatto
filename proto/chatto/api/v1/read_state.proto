@@ -4,27 +4,49 @@ package chatto.api.v1;
 
 import "google/protobuf/timestamp.proto";
 
+// Request to mark a room timeline as read.
 message MarkRoomAsReadRequest {
+  // Room whose timeline should be marked read.
   string room_id = 1;
+  // Highest room event ID the current user has read. The event should belong to
+  // the room timeline the client is marking.
   string up_to_event_id = 2;
 }
 
+// Result of marking a room timeline as read.
+//
+// Clients can use the previous timestamp to decide whether unread badges or
+// local notification state need to be reconciled.
 message MarkRoomAsReadResponse {
+  // New room read timestamp stored for the current user.
   google.protobuf.Timestamp last_read_at = 1;
+  // Previous room read timestamp, when one existed.
   google.protobuf.Timestamp previous_last_read_at = 2;
 }
 
+// Request to mark a message thread as read.
 message MarkThreadAsReadRequest {
+  // Room containing the thread.
   string room_id = 1;
+  // Event ID of the root message for the thread.
   string thread_root_event_id = 2;
+  // Highest thread event ID the current user has read. The event should belong
+  // to the thread identified by thread_root_event_id.
   string up_to_event_id = 3;
 }
 
+// Result of marking a message thread as read.
 message MarkThreadAsReadResponse {
+  // Previous thread read timestamp, when one existed.
   google.protobuf.Timestamp previous_read_at = 1;
 }
 
+// Updates room and thread read state for the current user.
 service ReadStateService {
+  // Marks a room timeline as read through the supplied event. Clients usually
+  // call this after the user has viewed the latest visible event in the room.
   rpc MarkRoomAsRead(MarkRoomAsReadRequest) returns (MarkRoomAsReadResponse);
+  // Marks a thread timeline as read through the supplied event without changing
+  // the room-level read marker.
   rpc MarkThreadAsRead(MarkThreadAsReadRequest) returns (MarkThreadAsReadResponse);
 }

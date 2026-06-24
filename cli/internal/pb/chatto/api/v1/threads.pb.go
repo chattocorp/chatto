@@ -21,10 +21,13 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Request to follow one message thread.
 type FollowThreadRequest struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	RoomId            string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	ThreadRootEventId string                 `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Room containing the thread.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Event ID of the root message for the thread.
+	ThreadRootEventId string `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -73,9 +76,11 @@ func (x *FollowThreadRequest) GetThreadRootEventId() string {
 	return ""
 }
 
+// Result of following a thread.
 type FollowThreadResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Following     bool                   `protobuf:"varint,1,opt,name=following,proto3" json:"following,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// True when the current user follows the thread after the operation.
+	Following     bool `protobuf:"varint,1,opt,name=following,proto3" json:"following,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -117,10 +122,13 @@ func (x *FollowThreadResponse) GetFollowing() bool {
 	return false
 }
 
+// Request to stop following one message thread.
 type UnfollowThreadRequest struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	RoomId            string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	ThreadRootEventId string                 `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Room containing the thread.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Event ID of the root message for the thread.
+	ThreadRootEventId string `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -169,9 +177,11 @@ func (x *UnfollowThreadRequest) GetThreadRootEventId() string {
 	return ""
 }
 
+// Result of unfollowing a thread.
 type UnfollowThreadResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Following     bool                   `protobuf:"varint,1,opt,name=following,proto3" json:"following,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// True when the current user follows the thread after the operation.
+	Following     bool `protobuf:"varint,1,opt,name=following,proto3" json:"following,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

@@ -7,25 +7,35 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
 
 /**
+ * Processing state for a timeline video attachment.
+ *
  * @generated from enum chatto.api.v1.RoomTimelineVideoProcessingStatus
  */
 export enum RoomTimelineVideoProcessingStatus {
   /**
+   * The processing status was not specified.
+   *
    * @generated from enum value: ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * Video processing is still running.
+   *
    * @generated from enum value: ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_PROCESSING = 1;
    */
   PROCESSING = 1,
 
   /**
+   * Video processing completed successfully.
+   *
    * @generated from enum value: ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_COMPLETED = 2;
    */
   COMPLETED = 2,
 
   /**
+   * Video processing failed.
+   *
    * @generated from enum value: ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_FAILED = 3;
    */
   FAILED = 3,
@@ -39,30 +49,45 @@ proto3.util.setEnumType(RoomTimelineVideoProcessingStatus, "chatto.api.v1.RoomTi
 ]);
 
 /**
+ * User data included with room timeline events.
+ *
+ * Timeline events reference users by ID; clients can resolve those IDs through
+ * the includes block returned with each page.
+ *
  * @generated from message chatto.api.v1.RoomTimelineUser
  */
 export class RoomTimelineUser extends Message<RoomTimelineUser> {
   /**
+   * Stable user ID.
+   *
    * @generated from field: string id = 1;
    */
   id = "";
 
   /**
+   * Login name.
+   *
    * @generated from field: string login = 2;
    */
   login = "";
 
   /**
+   * Display name, when set.
+   *
    * @generated from field: string display_name = 3;
    */
   displayName = "";
 
   /**
+   * True when the user account has been deleted.
+   *
    * @generated from field: bool deleted = 4;
    */
   deleted = false;
 
   /**
+   * Avatar image URL, when available.
+   *
    * @generated from field: string avatar_url = 5;
    */
   avatarUrl = "";
@@ -100,10 +125,16 @@ export class RoomTimelineUser extends Message<RoomTimelineUser> {
 }
 
 /**
+ * Related entities included beside timeline events.
+ *
+ * Includes avoid repeating the same user data on every event in a page.
+ *
  * @generated from message chatto.api.v1.RoomTimelineIncludes
  */
 export class RoomTimelineIncludes extends Message<RoomTimelineIncludes> {
   /**
+   * Users keyed by user ID.
+   *
    * @generated from field: map<string, chatto.api.v1.RoomTimelineUser> users = 1;
    */
   users: { [key: string]: RoomTimelineUser } = {};
@@ -137,15 +168,24 @@ export class RoomTimelineIncludes extends Message<RoomTimelineIncludes> {
 }
 
 /**
+ * Time-limited URL for a room timeline asset.
+ *
+ * Clients should expect these URLs to expire and refresh the timeline data when
+ * an asset URL is no longer usable.
+ *
  * @generated from message chatto.api.v1.RoomTimelineAssetUrl
  */
 export class RoomTimelineAssetUrl extends Message<RoomTimelineAssetUrl> {
   /**
+   * Signed asset URL.
+   *
    * @generated from field: string url = 1;
    */
   url = "";
 
   /**
+   * Time when the signed URL expires.
+   *
    * @generated from field: google.protobuf.Timestamp expires_at = 2;
    */
   expiresAt?: Timestamp;
@@ -180,30 +220,42 @@ export class RoomTimelineAssetUrl extends Message<RoomTimelineAssetUrl> {
 }
 
 /**
+ * One transcoded video rendition.
+ *
  * @generated from message chatto.api.v1.RoomTimelineVideoVariant
  */
 export class RoomTimelineVideoVariant extends Message<RoomTimelineVideoVariant> {
   /**
+   * Quality label for the rendition.
+   *
    * @generated from field: string quality = 1;
    */
   quality = "";
 
   /**
+   * Video width in pixels.
+   *
    * @generated from field: int32 width = 2;
    */
   width = 0;
 
   /**
+   * Video height in pixels.
+   *
    * @generated from field: int32 height = 3;
    */
   height = 0;
 
   /**
+   * Rendition size in bytes.
+   *
    * @generated from field: int64 size = 4;
    */
   size = protoInt64.zero;
 
   /**
+   * Signed URL for the rendition.
+   *
    * @generated from field: chatto.api.v1.RoomTimelineAssetUrl asset_url = 5;
    */
   assetUrl?: RoomTimelineAssetUrl;
@@ -241,45 +293,67 @@ export class RoomTimelineVideoVariant extends Message<RoomTimelineVideoVariant> 
 }
 
 /**
+ * Processing metadata for a video attachment.
+ *
+ * Clients can use this object to show upload/transcoding progress and decide
+ * whether to play a processed variant, show a thumbnail, or display a failure
+ * state.
+ *
  * @generated from message chatto.api.v1.RoomTimelineVideoProcessing
  */
 export class RoomTimelineVideoProcessing extends Message<RoomTimelineVideoProcessing> {
   /**
+   * Current processing status.
+   *
    * @generated from field: chatto.api.v1.RoomTimelineVideoProcessingStatus status = 1;
    */
   status = RoomTimelineVideoProcessingStatus.UNSPECIFIED;
 
   /**
+   * Video duration in milliseconds.
+   *
    * @generated from field: int64 duration_ms = 2;
    */
   durationMs = protoInt64.zero;
 
   /**
+   * Source video width in pixels.
+   *
    * @generated from field: int32 width = 3;
    */
   width = 0;
 
   /**
+   * Source video height in pixels.
+   *
    * @generated from field: int32 height = 4;
    */
   height = 0;
 
   /**
+   * True when the original source asset is currently available.
+   *
    * @generated from field: bool source_available = 5;
    */
   sourceAvailable = false;
 
   /**
+   * Stable reason code for a failed or incomplete processing state.
+   *
    * @generated from field: string reason_code = 6;
    */
   reasonCode = "";
 
   /**
+   * Signed URL for the generated thumbnail, when available.
+   *
    * @generated from field: chatto.api.v1.RoomTimelineAssetUrl thumbnail_asset_url = 7;
    */
   thumbnailAssetUrl?: RoomTimelineAssetUrl;
 
   /**
+   * Available transcoded renditions.
+   *
    * @generated from field: repeated chatto.api.v1.RoomTimelineVideoVariant variants = 8;
    */
   variants: RoomTimelineVideoVariant[] = [];
@@ -320,45 +394,66 @@ export class RoomTimelineVideoProcessing extends Message<RoomTimelineVideoProces
 }
 
 /**
+ * Attachment metadata included with a posted message.
+ *
+ * Image and video dimensions are best-effort metadata for layout. Asset URLs can
+ * be absent while processing is pending or when the source is unavailable.
+ *
  * @generated from message chatto.api.v1.RoomTimelineAttachment
  */
 export class RoomTimelineAttachment extends Message<RoomTimelineAttachment> {
   /**
+   * Stable attachment ID.
+   *
    * @generated from field: string id = 1;
    */
   id = "";
 
   /**
+   * Original filename.
+   *
    * @generated from field: string filename = 2;
    */
   filename = "";
 
   /**
+   * MIME content type.
+   *
    * @generated from field: string content_type = 3;
    */
   contentType = "";
 
   /**
+   * Image or video width in pixels, when known.
+   *
    * @generated from field: int32 width = 4;
    */
   width = 0;
 
   /**
+   * Image or video height in pixels, when known.
+   *
    * @generated from field: int32 height = 5;
    */
   height = 0;
 
   /**
+   * Signed URL for the original asset, when available.
+   *
    * @generated from field: chatto.api.v1.RoomTimelineAssetUrl asset_url = 6;
    */
   assetUrl?: RoomTimelineAssetUrl;
 
   /**
+   * Signed URL for a thumbnail image, when available.
+   *
    * @generated from field: chatto.api.v1.RoomTimelineAssetUrl thumbnail_asset_url = 7;
    */
   thumbnailAssetUrl?: RoomTimelineAssetUrl;
 
   /**
+   * Video-specific processing metadata, when this attachment is a video.
+   *
    * @generated from field: chatto.api.v1.RoomTimelineVideoProcessing video_processing = 8;
    */
   videoProcessing?: RoomTimelineVideoProcessing;
@@ -399,40 +494,59 @@ export class RoomTimelineAttachment extends Message<RoomTimelineAttachment> {
 }
 
 /**
+ * Link preview metadata extracted from a message body.
+ *
+ * Clients should treat all fields as optional because preview extraction depends
+ * on the linked site and the embed provider.
+ *
  * @generated from message chatto.api.v1.RoomTimelineLinkPreview
  */
 export class RoomTimelineLinkPreview extends Message<RoomTimelineLinkPreview> {
   /**
+   * Previewed URL.
+   *
    * @generated from field: string url = 1;
    */
   url = "";
 
   /**
+   * Page or embed title.
+   *
    * @generated from field: string title = 2;
    */
   title = "";
 
   /**
+   * Page or embed description.
+   *
    * @generated from field: string description = 3;
    */
   description = "";
 
   /**
+   * Site name, when known.
+   *
    * @generated from field: string site_name = 4;
    */
   siteName = "";
 
   /**
+   * Preview image URL, when available.
+   *
    * @generated from field: string image_url = 5;
    */
   imageUrl = "";
 
   /**
+   * Embed provider or type, when recognized.
+   *
    * @generated from field: string embed_type = 6;
    */
   embedType = "";
 
   /**
+   * Provider-specific embed ID, when recognized.
+   *
    * @generated from field: string embed_id = 7;
    */
   embedId = "";
@@ -472,25 +586,38 @@ export class RoomTimelineLinkPreview extends Message<RoomTimelineLinkPreview> {
 }
 
 /**
+ * Aggregated reaction state for one emoji on one event.
+ *
+ * The summary is scoped to the current event and includes whether the current
+ * user has reacted with the same emoji.
+ *
  * @generated from message chatto.api.v1.RoomTimelineReactionSummary
  */
 export class RoomTimelineReactionSummary extends Message<RoomTimelineReactionSummary> {
   /**
+   * Emoji or reaction key.
+   *
    * @generated from field: string emoji = 1;
    */
   emoji = "";
 
   /**
+   * Number of users who reacted with this emoji.
+   *
    * @generated from field: int32 count = 2;
    */
   count = 0;
 
   /**
+   * True when the current user reacted with this emoji.
+   *
    * @generated from field: bool has_reacted = 3;
    */
   hasReacted = false;
 
   /**
+   * User IDs that reacted with this emoji.
+   *
    * @generated from field: repeated string user_ids = 4;
    */
   userIds: string[] = [];
@@ -527,90 +654,133 @@ export class RoomTimelineReactionSummary extends Message<RoomTimelineReactionSum
 }
 
 /**
+ * Payload for a message-posted timeline event.
+ *
+ * The same shape is used for top-level room messages, thread replies, and thread
+ * echo entries. Thread-related fields let clients render reply counts, thread
+ * participants, and follow state without additional per-message requests.
+ *
  * @generated from message chatto.api.v1.RoomTimelineMessagePosted
  */
 export class RoomTimelineMessagePosted extends Message<RoomTimelineMessagePosted> {
   /**
+   * Room containing the message.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * Message body text.
+   *
    * @generated from field: string body = 2;
    */
   body = "";
 
   /**
+   * True when the original event explicitly carried a body. This lets clients
+   * distinguish an empty body from a missing body.
+   *
    * @generated from field: bool body_present = 3;
    */
   bodyPresent = false;
 
   /**
+   * Attachments sent with the message.
+   *
    * @generated from field: repeated chatto.api.v1.RoomTimelineAttachment attachments = 4;
    */
   attachments: RoomTimelineAttachment[] = [];
 
   /**
+   * Link preview extracted for the message, when available.
+   *
    * @generated from field: chatto.api.v1.RoomTimelineLinkPreview link_preview = 5;
    */
   linkPreview?: RoomTimelineLinkPreview;
 
   /**
+   * Time when the message was last edited.
+   *
    * @generated from field: google.protobuf.Timestamp updated_at = 6;
    */
   updatedAt?: Timestamp;
 
   /**
+   * Event ID this message directly replies to, when this is a reply.
+   *
    * @generated from field: string in_reply_to = 7;
    */
   inReplyTo = "";
 
   /**
+   * Event ID of the root message for the thread this message belongs to.
+   *
    * @generated from field: string thread_root_event_id = 8;
    */
   threadRootEventId = "";
 
   /**
+   * Event ID this event echoes into the current view, when applicable. Echoes
+   * allow thread activity to appear in another timeline context.
+   *
    * @generated from field: string echo_of_event_id = 9;
    */
   echoOfEventId = "";
 
   /**
+   * Thread root ID of the echoed event, when applicable.
+   *
    * @generated from field: string echo_from_thread_root_event_id = 10;
    */
   echoFromThreadRootEventId = "";
 
   /**
+   * Channel timeline event ID for a thread echo, when applicable.
+   *
    * @generated from field: string channel_echo_event_id = 11;
    */
   channelEchoEventId = "";
 
   /**
+   * Number of replies in this message's thread.
+   *
    * @generated from field: int32 reply_count = 12;
    */
   replyCount = 0;
 
   /**
+   * Creation time of the most recent reply in this message's thread.
+   *
    * @generated from field: google.protobuf.Timestamp last_reply_at = 13;
    */
   lastReplyAt?: Timestamp;
 
   /**
+   * User IDs that have participated in this message's thread.
+   *
    * @generated from field: repeated string thread_participant_user_ids = 14;
    */
   threadParticipantUserIds: string[] = [];
 
   /**
+   * True when the current user follows this message's thread.
+   *
    * @generated from field: bool viewer_is_following_thread = 15;
    */
   viewerIsFollowingThread = false;
 
   /**
+   * True when viewer_is_following_thread was explicitly hydrated. If false, the
+   * follow value should be treated as unknown rather than false.
+   *
    * @generated from field: bool viewer_is_following_thread_present = 16;
    */
   viewerIsFollowingThreadPresent = false;
 
   /**
+   * Reaction summaries for this message.
+   *
    * @generated from field: repeated chatto.api.v1.RoomTimelineReactionSummary reactions = 17;
    */
   reactions: RoomTimelineReactionSummary[] = [];
@@ -660,10 +830,14 @@ export class RoomTimelineMessagePosted extends Message<RoomTimelineMessagePosted
 }
 
 /**
+ * Payload for room lifecycle and membership timeline events.
+ *
  * @generated from message chatto.api.v1.RoomTimelineRoomEvent
  */
 export class RoomTimelineRoomEvent extends Message<RoomTimelineRoomEvent> {
   /**
+   * Room affected by the event.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
@@ -697,71 +871,99 @@ export class RoomTimelineRoomEvent extends Message<RoomTimelineRoomEvent> {
 }
 
 /**
+ * One event in a room or thread timeline.
+ *
+ * Clients should inspect the event oneof to choose the renderer for the event.
+ *
  * @generated from message chatto.api.v1.RoomTimelineEvent
  */
 export class RoomTimelineEvent extends Message<RoomTimelineEvent> {
   /**
+   * Stable event ID.
+   *
    * @generated from field: string id = 1;
    */
   id = "";
 
   /**
+   * Time when the event was created.
+   *
    * @generated from field: google.protobuf.Timestamp created_at = 2;
    */
   createdAt?: Timestamp;
 
   /**
+   * User ID of the event actor.
+   *
    * @generated from field: string actor_id = 3;
    */
   actorId = "";
 
   /**
+   * Concrete event payload.
+   *
    * @generated from oneof chatto.api.v1.RoomTimelineEvent.event
    */
   event: {
     /**
+     * A message was posted.
+     *
      * @generated from field: chatto.api.v1.RoomTimelineMessagePosted message_posted = 10;
      */
     value: RoomTimelineMessagePosted;
     case: "messagePosted";
   } | {
     /**
+     * The room was created.
+     *
      * @generated from field: chatto.api.v1.RoomTimelineRoomEvent room_created = 20;
      */
     value: RoomTimelineRoomEvent;
     case: "roomCreated";
   } | {
     /**
+     * The room metadata was updated.
+     *
      * @generated from field: chatto.api.v1.RoomTimelineRoomEvent room_updated = 21;
      */
     value: RoomTimelineRoomEvent;
     case: "roomUpdated";
   } | {
     /**
+     * The room was deleted.
+     *
      * @generated from field: chatto.api.v1.RoomTimelineRoomEvent room_deleted = 22;
      */
     value: RoomTimelineRoomEvent;
     case: "roomDeleted";
   } | {
     /**
+     * The room was archived.
+     *
      * @generated from field: chatto.api.v1.RoomTimelineRoomEvent room_archived = 23;
      */
     value: RoomTimelineRoomEvent;
     case: "roomArchived";
   } | {
     /**
+     * The room was unarchived.
+     *
      * @generated from field: chatto.api.v1.RoomTimelineRoomEvent room_unarchived = 24;
      */
     value: RoomTimelineRoomEvent;
     case: "roomUnarchived";
   } | {
     /**
+     * A user joined the room.
+     *
      * @generated from field: chatto.api.v1.RoomTimelineRoomEvent user_joined_room = 30;
      */
     value: RoomTimelineRoomEvent;
     case: "userJoinedRoom";
   } | {
     /**
+     * A user left the room.
+     *
      * @generated from field: chatto.api.v1.RoomTimelineRoomEvent user_left_room = 31;
      */
     value: RoomTimelineRoomEvent;
@@ -807,35 +1009,53 @@ export class RoomTimelineEvent extends Message<RoomTimelineEvent> {
 }
 
 /**
+ * Cursor page of room or thread timeline events.
+ *
+ * Use start_cursor and end_cursor with before/after requests to continue paging
+ * in either direction. The has_older and has_newer flags tell clients whether
+ * another request can extend the current window.
+ *
  * @generated from message chatto.api.v1.RoomTimelinePage
  */
 export class RoomTimelinePage extends Message<RoomTimelinePage> {
   /**
+   * Events in display order.
+   *
    * @generated from field: repeated chatto.api.v1.RoomTimelineEvent events = 1;
    */
   events: RoomTimelineEvent[] = [];
 
   /**
+   * Cursor for the first event in the page.
+   *
    * @generated from field: string start_cursor = 2;
    */
   startCursor = "";
 
   /**
+   * Cursor for the last event in the page.
+   *
    * @generated from field: string end_cursor = 3;
    */
   endCursor = "";
 
   /**
+   * True when older events are available before start_cursor.
+   *
    * @generated from field: bool has_older = 4;
    */
   hasOlder = false;
 
   /**
+   * True when newer events are available after end_cursor.
+   *
    * @generated from field: bool has_newer = 5;
    */
   hasNewer = false;
 
   /**
+   * Related entities needed to render the page.
+   *
    * @generated from field: chatto.api.v1.RoomTimelineIncludes includes = 6;
    */
   includes?: RoomTimelineIncludes;
@@ -874,30 +1094,45 @@ export class RoomTimelinePage extends Message<RoomTimelinePage> {
 }
 
 /**
+ * Request for a page of room timeline events.
+ *
+ * Omit the cursor to load the initial page. Set before to page toward older
+ * events, or after to page toward newer events.
+ *
  * @generated from message chatto.api.v1.GetRoomEventsRequest
  */
 export class GetRoomEventsRequest extends Message<GetRoomEventsRequest> {
   /**
+   * Room whose timeline should be loaded.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * Maximum number of events to return. The server may clamp very large limits.
+   *
    * @generated from field: int32 limit = 2;
    */
   limit = 0;
 
   /**
+   * Cursor direction for paging.
+   *
    * @generated from oneof chatto.api.v1.GetRoomEventsRequest.cursor
    */
   cursor: {
     /**
+     * Return events older than this cursor.
+     *
      * @generated from field: string before = 3;
      */
     value: string;
     case: "before";
   } | {
     /**
+     * Return events newer than this cursor.
+     *
      * @generated from field: string after = 4;
      */
     value: string;
@@ -936,10 +1171,14 @@ export class GetRoomEventsRequest extends Message<GetRoomEventsRequest> {
 }
 
 /**
+ * Response containing one room timeline page.
+ *
  * @generated from message chatto.api.v1.GetRoomEventsResponse
  */
 export class GetRoomEventsResponse extends Message<GetRoomEventsResponse> {
   /**
+   * Loaded timeline page.
+   *
    * @generated from field: chatto.api.v1.RoomTimelinePage page = 1;
    */
   page?: RoomTimelinePage;
@@ -973,20 +1212,31 @@ export class GetRoomEventsResponse extends Message<GetRoomEventsResponse> {
 }
 
 /**
+ * Request for room timeline events around a specific event.
+ *
+ * Use this when a client needs to jump to a known event and render enough
+ * context around it.
+ *
  * @generated from message chatto.api.v1.GetRoomEventsAroundRequest
  */
 export class GetRoomEventsAroundRequest extends Message<GetRoomEventsAroundRequest> {
   /**
+   * Room whose timeline should be loaded.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * Anchor event ID that should appear in the returned page.
+   *
    * @generated from field: string event_id = 2;
    */
   eventId = "";
 
   /**
+   * Maximum number of events to return around the anchor.
+   *
    * @generated from field: int32 limit = 3;
    */
   limit = 0;
@@ -1022,15 +1272,21 @@ export class GetRoomEventsAroundRequest extends Message<GetRoomEventsAroundReque
 }
 
 /**
+ * Response containing a room timeline window around a specific event.
+ *
  * @generated from message chatto.api.v1.GetRoomEventsAroundResponse
  */
 export class GetRoomEventsAroundResponse extends Message<GetRoomEventsAroundResponse> {
   /**
+   * Loaded timeline page.
+   *
    * @generated from field: chatto.api.v1.RoomTimelinePage page = 1;
    */
   page?: RoomTimelinePage;
 
   /**
+   * Zero-based index of the anchor event within page.events.
+   *
    * @generated from field: int32 target_index = 2;
    */
   targetIndex = 0;
@@ -1065,35 +1321,53 @@ export class GetRoomEventsAroundResponse extends Message<GetRoomEventsAroundResp
 }
 
 /**
+ * Request for a page of events in one thread.
+ *
+ * Omit the cursor to load the latest visible part of the thread, including the
+ * root message. Set before to page toward older replies, or after to page toward
+ * newer replies without repeating the root message.
+ *
  * @generated from message chatto.api.v1.GetThreadEventsRequest
  */
 export class GetThreadEventsRequest extends Message<GetThreadEventsRequest> {
   /**
+   * Room containing the thread.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * Event ID of the root message for the thread.
+   *
    * @generated from field: string thread_root_event_id = 2;
    */
   threadRootEventId = "";
 
   /**
+   * Maximum number of events to return. The server may clamp very large limits.
+   *
    * @generated from field: int32 limit = 3;
    */
   limit = 0;
 
   /**
+   * Cursor direction for paging.
+   *
    * @generated from oneof chatto.api.v1.GetThreadEventsRequest.cursor
    */
   cursor: {
     /**
+     * Return thread events older than this cursor.
+     *
      * @generated from field: string before = 4;
      */
     value: string;
     case: "before";
   } | {
     /**
+     * Return thread events newer than this cursor.
+     *
      * @generated from field: string after = 5;
      */
     value: string;
@@ -1133,10 +1407,14 @@ export class GetThreadEventsRequest extends Message<GetThreadEventsRequest> {
 }
 
 /**
+ * Response containing one thread timeline page.
+ *
  * @generated from message chatto.api.v1.GetThreadEventsResponse
  */
 export class GetThreadEventsResponse extends Message<GetThreadEventsResponse> {
   /**
+   * Loaded timeline page.
+   *
    * @generated from field: chatto.api.v1.RoomTimelinePage page = 1;
    */
   page?: RoomTimelinePage;
@@ -1170,25 +1448,39 @@ export class GetThreadEventsResponse extends Message<GetThreadEventsResponse> {
 }
 
 /**
+ * Request for thread events around a specific event.
+ *
+ * Use this when a client needs to jump to a known reply and render surrounding
+ * thread context.
+ *
  * @generated from message chatto.api.v1.GetThreadEventsAroundRequest
  */
 export class GetThreadEventsAroundRequest extends Message<GetThreadEventsAroundRequest> {
   /**
+   * Room containing the thread.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * Event ID of the root message for the thread.
+   *
    * @generated from field: string thread_root_event_id = 2;
    */
   threadRootEventId = "";
 
   /**
+   * Anchor event ID inside the thread. The event should belong to the requested
+   * thread.
+   *
    * @generated from field: string event_id = 3;
    */
   eventId = "";
 
   /**
+   * Maximum number of events to return around the anchor.
+   *
    * @generated from field: int32 limit = 4;
    */
   limit = 0;
@@ -1225,15 +1517,21 @@ export class GetThreadEventsAroundRequest extends Message<GetThreadEventsAroundR
 }
 
 /**
+ * Response containing a thread timeline window around a specific event.
+ *
  * @generated from message chatto.api.v1.GetThreadEventsAroundResponse
  */
 export class GetThreadEventsAroundResponse extends Message<GetThreadEventsAroundResponse> {
   /**
+   * Loaded timeline page.
+   *
    * @generated from field: chatto.api.v1.RoomTimelinePage page = 1;
    */
   page?: RoomTimelinePage;
 
   /**
+   * Zero-based index of the anchor event within page.events.
+   *
    * @generated from field: int32 target_index = 2;
    */
   targetIndex = 0;

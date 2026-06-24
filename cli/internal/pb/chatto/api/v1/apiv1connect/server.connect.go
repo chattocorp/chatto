@@ -39,6 +39,9 @@ const (
 
 // ServerServiceClient is a client for the chatto.api.v1.ServerService service.
 type ServerServiceClient interface {
+	// Returns public server metadata, branding, registration status, and login
+	// provider information. This RPC is available before login so clients can
+	// render the first server screen and authentication choices.
 	GetServer(context.Context, *connect.Request[v1.GetServerRequest]) (*connect.Response[v1.GetServerResponse], error)
 }
 
@@ -74,6 +77,9 @@ func (c *serverServiceClient) GetServer(ctx context.Context, req *connect.Reques
 
 // ServerServiceHandler is an implementation of the chatto.api.v1.ServerService service.
 type ServerServiceHandler interface {
+	// Returns public server metadata, branding, registration status, and login
+	// provider information. This RPC is available before login so clients can
+	// render the first server screen and authentication choices.
 	GetServer(context.Context, *connect.Request[v1.GetServerRequest]) (*connect.Response[v1.GetServerResponse], error)
 }
 
