@@ -1,6 +1,6 @@
 ---
-title: API Overview
-description: Generated index of Chatto's public ConnectRPC services.
+title: ConnectRPC API
+description: Generated reference for Chatto's public ConnectRPC services.
 editUrl: false
 ---
 
@@ -14,75 +14,912 @@ Endpoint paths use the Connect convention:
 
 Use this reference when building clients against Chatto's public ConnectRPC API.
 
-## Services
+<a id="chatto-api-v1-RoomTimelineService"></a>
 
-### [RoomTimelineService](room-timeline-service/)
+## RoomTimelineService
 
 Reads room and thread timeline pages.
 
-| Method | Description |
-| --- | --- |
-| [`GetRoomEvents`](room-timeline-service/#getroomevents) | Returns one page of room timeline events, including related user data needed to render the page. |
-| [`GetRoomEventsAround`](room-timeline-service/#getroomeventsaround) | Returns a room timeline window centered around a specific event. Use this to open a permalink, search result, or notification target in context. |
-| [`GetThreadEvents`](room-timeline-service/#getthreadevents) | Returns one page of events in a message thread. Initial pages include the thread root message; cursor pages return replies in the requested direction. |
-| [`GetThreadEventsAround`](room-timeline-service/#getthreadeventsaround) | Returns a thread timeline window centered around a specific event. Use this to open a reply from a notification or search result in context. |
+<a id="chatto-api-v1-RoomTimelineService-GetRoomEvents"></a>
+
+### GetRoomEvents
+
+Returns one page of room timeline events, including related user data needed
+to render the page.
+
+```http
+POST /api/connect/chatto.api.v1.RoomTimelineService/GetRoomEvents
+```
+
+<a id="chatto-api-v1-GetRoomEventsRequest"></a>
+
+#### Input: GetRoomEventsRequest
+
+Request for a page of room timeline events.
+
+Omit the cursor to load the initial page. Set before to page toward older
+events, or after to page toward newer events.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room whose timeline should be loaded. |
+| `limit` | `int32` | Maximum number of events to return. The server may clamp very large limits. |
+| `cursor.before` | `string` | Return events older than this cursor. |
+| `cursor.after` | `string` | Return events newer than this cursor. |
 
 
-### [MessageService](message-service/)
+<a id="chatto-api-v1-GetRoomEventsResponse"></a>
+
+#### Result: GetRoomEventsResponse
+
+Response containing one room timeline page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | `RoomTimelinePage` | Loaded timeline page. |
+
+
+<a id="chatto-api-v1-RoomTimelineService-GetRoomEventsAround"></a>
+
+### GetRoomEventsAround
+
+Returns a room timeline window centered around a specific event. Use this to
+open a permalink, search result, or notification target in context.
+
+```http
+POST /api/connect/chatto.api.v1.RoomTimelineService/GetRoomEventsAround
+```
+
+<a id="chatto-api-v1-GetRoomEventsAroundRequest"></a>
+
+#### Input: GetRoomEventsAroundRequest
+
+Request for room timeline events around a specific event.
+
+Use this when a client needs to jump to a known event and render enough
+context around it.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room whose timeline should be loaded. |
+| `event_id` | `string` | Anchor event ID that should appear in the returned page. |
+| `limit` | `int32` | Maximum number of events to return around the anchor. |
+
+
+<a id="chatto-api-v1-GetRoomEventsAroundResponse"></a>
+
+#### Result: GetRoomEventsAroundResponse
+
+Response containing a room timeline window around a specific event.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | `RoomTimelinePage` | Loaded timeline page. |
+| `target_index` | `int32` | Zero-based index of the anchor event within page.events. |
+
+
+<a id="chatto-api-v1-RoomTimelineService-GetThreadEvents"></a>
+
+### GetThreadEvents
+
+Returns one page of events in a message thread. Initial pages include the
+thread root message; cursor pages return replies in the requested direction.
+
+```http
+POST /api/connect/chatto.api.v1.RoomTimelineService/GetThreadEvents
+```
+
+<a id="chatto-api-v1-GetThreadEventsRequest"></a>
+
+#### Input: GetThreadEventsRequest
+
+Request for a page of events in one thread.
+
+Omit the cursor to load the latest visible part of the thread, including the
+root message. Set before to page toward older replies, or after to page toward
+newer replies without repeating the root message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room containing the thread. |
+| `thread_root_event_id` | `string` | Event ID of the root message for the thread. |
+| `limit` | `int32` | Maximum number of events to return. The server may clamp very large limits. |
+| `cursor.before` | `string` | Return thread events older than this cursor. |
+| `cursor.after` | `string` | Return thread events newer than this cursor. |
+
+
+<a id="chatto-api-v1-GetThreadEventsResponse"></a>
+
+#### Result: GetThreadEventsResponse
+
+Response containing one thread timeline page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | `RoomTimelinePage` | Loaded timeline page. |
+
+
+<a id="chatto-api-v1-RoomTimelineService-GetThreadEventsAround"></a>
+
+### GetThreadEventsAround
+
+Returns a thread timeline window centered around a specific event. Use this
+to open a reply from a notification or search result in context.
+
+```http
+POST /api/connect/chatto.api.v1.RoomTimelineService/GetThreadEventsAround
+```
+
+<a id="chatto-api-v1-GetThreadEventsAroundRequest"></a>
+
+#### Input: GetThreadEventsAroundRequest
+
+Request for thread events around a specific event.
+
+Use this when a client needs to jump to a known reply and render surrounding
+thread context.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room containing the thread. |
+| `thread_root_event_id` | `string` | Event ID of the root message for the thread. |
+| `event_id` | `string` | Anchor event ID inside the thread. The event should belong to the requested thread. |
+| `limit` | `int32` | Maximum number of events to return around the anchor. |
+
+
+<a id="chatto-api-v1-GetThreadEventsAroundResponse"></a>
+
+#### Result: GetThreadEventsAroundResponse
+
+Response containing a thread timeline window around a specific event.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | `RoomTimelinePage` | Loaded timeline page. |
+| `target_index` | `int32` | Zero-based index of the anchor event within page.events. |
+
+
+<a id="chatto-api-v1-MessageService"></a>
+
+## MessageService
 
 Posts messages into room and thread timelines.
 
-| Method | Description |
-| --- | --- |
-| [`PostMessage`](message-service/#postmessage) | Posts a message for the current user. The user must be a room member and must have message.post for room messages or message.post-in-thread for thread replies. Echoing a thread reply also requires message.echo and message.post. |
+<a id="chatto-api-v1-MessageService-PostMessage"></a>
+
+### PostMessage
+
+Posts a message for the current user. The user must be a room member and
+must have message.post for room messages or message.post-in-thread for
+thread replies. Echoing a thread reply also requires message.echo and
+message.post.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/PostMessage
+```
+
+<a id="chatto-api-v1-PostMessageRequest"></a>
+
+#### Input: PostMessageRequest
+
+Request to post a message in a room or thread.
+
+Current browser file uploads still use the legacy GraphQL upload path. This
+request can reference attachment asset IDs that were already declared through
+an upload-capable API, so non-browser clients can compose messages around
+existing room-scoped assets.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room where the message should be posted. |
+| `body` | `string` | Message body text. Required unless attachment_asset_ids is non-empty. |
+| `attachment_asset_ids` | `repeated string` | Existing room-scoped attachment asset IDs to include with the message. |
+| `thread_root_event_id` | `string` | Event ID of the thread root message when posting a thread reply. |
+| `in_reply_to` | `string` | Event ID this message replies to for attribution. |
+| `also_send_to_channel` | `bool` | True to also echo a thread reply into the main room timeline. |
+| `mention_confirmation_token` | `string` | Short-lived token returned by a prior mention confirmation challenge. |
+| `link_preview` | `MessageLinkPreviewInput` | Link preview selected by the client. |
 
 
-### [NotificationPreferencesService](notification-preferences-service/)
+<a id="chatto-api-v1-PostMessageResponse"></a>
+
+#### Result: PostMessageResponse
+
+Result of posting a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `result.event` | `RoomTimelineEvent` | Renderable timeline event for the posted message. |
+| `result.mention_confirmation` | `MentionConfirmationChallenge` | Challenge shown when a message would notify many people. |
+| `includes` | `RoomTimelineIncludes` | Related entities needed to render event when a message was posted. |
+
+
+<a id="chatto-api-v1-NotificationPreferencesService"></a>
+
+## NotificationPreferencesService
 
 Reads and updates per-room notification preferences for the current user.
 
-| Method | Description |
-| --- | --- |
-| [`GetRoomNotificationPreference`](notification-preferences-service/#getroomnotificationpreference) | Returns the current user's explicit and effective notification level for a room. Use this before rendering room notification controls so the UI can distinguish inherited defaults from an explicit room override. |
-| [`SetRoomNotificationLevel`](notification-preferences-service/#setroomnotificationlevel) | Sets the current user's explicit notification level for a room and returns the resulting stored and effective levels. |
+<a id="chatto-api-v1-NotificationPreferencesService-GetRoomNotificationPreference"></a>
+
+### GetRoomNotificationPreference
+
+Returns the current user's explicit and effective notification level for a
+room. Use this before rendering room notification controls so the UI can
+distinguish inherited defaults from an explicit room override.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationPreferencesService/GetRoomNotificationPreference
+```
+
+<a id="chatto-api-v1-GetRoomNotificationPreferenceRequest"></a>
+
+#### Input: GetRoomNotificationPreferenceRequest
+
+Request for the current user's notification preference in one room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room whose notification preference should be loaded for the current user. |
 
 
-### [ReadStateService](read-state-service/)
+<a id="chatto-api-v1-GetRoomNotificationPreferenceResponse"></a>
+
+#### Result: GetRoomNotificationPreferenceResponse
+
+Current notification preference for a room.
+
+Clients can show both the stored room-level setting and the effective setting
+the server will apply after defaults are resolved.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `level` | `NotificationLevel` | Explicit level stored for the current user and room. |
+| `effective_level` | `NotificationLevel` | Level after applying defaults and inheritance. |
+
+
+<a id="chatto-api-v1-NotificationPreferencesService-SetRoomNotificationLevel"></a>
+
+### SetRoomNotificationLevel
+
+Sets the current user's explicit notification level for a room and returns
+the resulting stored and effective levels.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationPreferencesService/SetRoomNotificationLevel
+```
+
+<a id="chatto-api-v1-SetRoomNotificationLevelRequest"></a>
+
+#### Input: SetRoomNotificationLevelRequest
+
+Request to update the current user's notification level in one room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room whose notification level should be changed for the current user. |
+| `level` | `NotificationLevel` | New explicit notification level. Use NOTIFICATION_LEVEL_DEFAULT to return the room to inherited/default behavior. |
+
+
+<a id="chatto-api-v1-SetRoomNotificationLevelResponse"></a>
+
+#### Result: SetRoomNotificationLevelResponse
+
+Updated notification preference for a room.
+
+The response mirrors the read shape so clients can update local state without
+issuing a second read request.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `level` | `NotificationLevel` | Explicit level stored for the current user and room. |
+| `effective_level` | `NotificationLevel` | Level after applying defaults and inheritance. |
+
+
+<a id="chatto-api-v1-ReadStateService"></a>
+
+## ReadStateService
 
 Updates room and thread read state for the current user.
 
-| Method | Description |
-| --- | --- |
-| [`MarkRoomAsRead`](read-state-service/#markroomasread) | Marks a room timeline as read through the supplied event. Clients usually call this after the user has viewed the latest visible event in the room. |
-| [`MarkThreadAsRead`](read-state-service/#markthreadasread) | Marks a thread timeline as read through the supplied event without changing the room-level read marker. |
+<a id="chatto-api-v1-ReadStateService-MarkRoomAsRead"></a>
+
+### MarkRoomAsRead
+
+Marks a room timeline as read through the supplied event. Clients usually
+call this after the user has viewed the latest visible event in the room.
+
+```http
+POST /api/connect/chatto.api.v1.ReadStateService/MarkRoomAsRead
+```
+
+<a id="chatto-api-v1-MarkRoomAsReadRequest"></a>
+
+#### Input: MarkRoomAsReadRequest
+
+Request to mark a room timeline as read.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room whose timeline should be marked read. |
+| `up_to_event_id` | `string` | Highest room event ID the current user has read. The event should belong to the room timeline the client is marking. |
 
 
-### [ServerService](server-service/)
+<a id="chatto-api-v1-MarkRoomAsReadResponse"></a>
+
+#### Result: MarkRoomAsReadResponse
+
+Result of marking a room timeline as read.
+
+Clients can use the previous timestamp to decide whether unread badges or
+local notification state need to be reconciled.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `last_read_at` | `google.protobuf.Timestamp` | New room read timestamp stored for the current user. |
+| `previous_last_read_at` | `google.protobuf.Timestamp` | Previous room read timestamp, when one existed. |
+
+
+<a id="chatto-api-v1-ReadStateService-MarkThreadAsRead"></a>
+
+### MarkThreadAsRead
+
+Marks a thread timeline as read through the supplied event without changing
+the room-level read marker.
+
+```http
+POST /api/connect/chatto.api.v1.ReadStateService/MarkThreadAsRead
+```
+
+<a id="chatto-api-v1-MarkThreadAsReadRequest"></a>
+
+#### Input: MarkThreadAsReadRequest
+
+Request to mark a message thread as read.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room containing the thread. |
+| `thread_root_event_id` | `string` | Event ID of the root message for the thread. |
+| `up_to_event_id` | `string` | Highest thread event ID the current user has read. The event should belong to the thread identified by thread_root_event_id. |
+
+
+<a id="chatto-api-v1-MarkThreadAsReadResponse"></a>
+
+#### Result: MarkThreadAsReadResponse
+
+Result of marking a message thread as read.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `previous_read_at` | `google.protobuf.Timestamp` | Previous thread read timestamp, when one existed. |
+
+
+<a id="chatto-api-v1-ServerService"></a>
+
+## ServerService
 
 Provides public server discovery metadata.
 
-| Method | Description |
-| --- | --- |
-| [`GetServer`](server-service/#getserver) | Returns public server metadata, branding, registration status, and login provider information. This RPC is available before login so clients can render the first server screen and authentication choices. |
+<a id="chatto-api-v1-ServerService-GetServer"></a>
+
+### GetServer
+
+Returns public server metadata, branding, registration status, and login
+provider information. This RPC is available before login so clients can
+render the first server screen and authentication choices.
+
+```http
+POST /api/connect/chatto.api.v1.ServerService/GetServer
+```
+
+<a id="chatto-api-v1-GetServerRequest"></a>
+
+#### Input: GetServerRequest
+
+Request for public server metadata.
 
 
-### [ThreadService](thread-service/)
+<a id="chatto-api-v1-GetServerResponse"></a>
+
+#### Result: GetServerResponse
+
+Public metadata clients need before they can authenticate or render the
+initial server view.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Display name of the Chatto server. |
+| `version` | `string` | Server software version. |
+| `auth_methods` | `repeated string` | Enabled legacy authentication method identifiers. |
+| `auth_providers` | `repeated AuthProvider` | Configured login providers. |
+| `registration_open` | `bool` | Whether users can create accounts through the public UI. |
+| `authorize_url` | `string` | URL for the legacy authorization flow, when enabled. |
+| `welcome_message` | `string` | Optional welcome message configured by the server administrator. |
+| `description` | `string` | Optional server description configured by the server administrator. |
+| `icon_url` | `string` | Optional server icon URL suitable for branding the server in client UI. |
+| `banner_url` | `string` | Optional server banner URL suitable for larger server branding surfaces. |
+
+
+<a id="chatto-api-v1-ThreadService"></a>
+
+## ThreadService
 
 Manages thread follow state for the current user.
 
-| Method | Description |
-| --- | --- |
-| [`FollowThread`](thread-service/#followthread) | Follows a thread for the current user. Followed threads can be surfaced in clients and can participate in thread notification behavior. |
-| [`UnfollowThread`](thread-service/#unfollowthread) | Stops following a thread for the current user. The response reports the resulting follow state so clients can update local UI immediately. |
+<a id="chatto-api-v1-ThreadService-FollowThread"></a>
+
+### FollowThread
+
+Follows a thread for the current user. Followed threads can be surfaced in
+clients and can participate in thread notification behavior.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/FollowThread
+```
+
+<a id="chatto-api-v1-FollowThreadRequest"></a>
+
+#### Input: FollowThreadRequest
+
+Request to follow one message thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room containing the thread. |
+| `thread_root_event_id` | `string` | Event ID of the root message for the thread. |
 
 
-### [UserStatusService](user-status-service/)
+<a id="chatto-api-v1-FollowThreadResponse"></a>
+
+#### Result: FollowThreadResponse
+
+Result of following a thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `following` | `bool` | True when the current user follows the thread after the operation. |
+
+
+<a id="chatto-api-v1-ThreadService-UnfollowThread"></a>
+
+### UnfollowThread
+
+Stops following a thread for the current user. The response reports the
+resulting follow state so clients can update local UI immediately.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/UnfollowThread
+```
+
+<a id="chatto-api-v1-UnfollowThreadRequest"></a>
+
+#### Input: UnfollowThreadRequest
+
+Request to stop following one message thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room containing the thread. |
+| `thread_root_event_id` | `string` | Event ID of the root message for the thread. |
+
+
+<a id="chatto-api-v1-UnfollowThreadResponse"></a>
+
+#### Result: UnfollowThreadResponse
+
+Result of unfollowing a thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `following` | `bool` | True when the current user follows the thread after the operation. |
+
+
+<a id="chatto-api-v1-UserStatusService"></a>
+
+## UserStatusService
 
 Manages the current user's custom profile status.
 
-| Method | Description |
-| --- | --- |
-| [`SetCustomStatus`](user-status-service/#setcustomstatus) | Sets or replaces the current user's custom status. Emoji and text are required, and expires_at must be omitted or in the future. |
-| [`ClearCustomStatus`](user-status-service/#clearcustomstatus) | Clears the current user's custom status. The call is idempotent and returns the resulting empty status state. |
+<a id="chatto-api-v1-UserStatusService-SetCustomStatus"></a>
+
+### SetCustomStatus
+
+Sets or replaces the current user's custom status. Emoji and text are
+required, and expires_at must be omitted or in the future.
+
+```http
+POST /api/connect/chatto.api.v1.UserStatusService/SetCustomStatus
+```
+
+<a id="chatto-api-v1-SetCustomStatusRequest"></a>
+
+#### Input: SetCustomStatusRequest
+
+Request to set or replace the current user's custom status.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `emoji` | `string` | Short emoji marker displayed with the status. |
+| `text` | `string` | User-written status text. |
+| `expires_at` | `google.protobuf.Timestamp` | Optional future time after which clients should stop showing the status. |
+
+
+<a id="chatto-api-v1-SetCustomStatusResponse"></a>
+
+#### Result: SetCustomStatusResponse
+
+Result of setting the current user's custom status.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `status` | `CustomUserStatus` | Stored custom status after validation and normalization. |
+
+
+<a id="chatto-api-v1-UserStatusService-ClearCustomStatus"></a>
+
+### ClearCustomStatus
+
+Clears the current user's custom status. The call is idempotent and returns
+the resulting empty status state.
+
+```http
+POST /api/connect/chatto.api.v1.UserStatusService/ClearCustomStatus
+```
+
+<a id="chatto-api-v1-ClearCustomStatusRequest"></a>
+
+#### Input: ClearCustomStatusRequest
+
+Request to clear the current user's custom status.
+
+
+<a id="chatto-api-v1-ClearCustomStatusResponse"></a>
+
+#### Result: ClearCustomStatusResponse
+
+Result of clearing the current user's custom status.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `status` | `CustomUserStatus` | Current custom status after the operation. Usually absent after a clear. |
+
+
+
+## Supporting Types
+
+<a id="chatto-api-v1-RoomTimelineAssetUrl"></a>
+
+### RoomTimelineAssetUrl
+
+Time-limited URL for a room timeline asset.
+
+Clients should expect these URLs to expire and refresh the timeline data when
+an asset URL is no longer usable.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `url` | `string` | Signed asset URL. |
+| `expires_at` | `google.protobuf.Timestamp` | Time when the signed URL expires. |
+
+
+
+<a id="chatto-api-v1-RoomTimelineAttachment"></a>
+
+### RoomTimelineAttachment
+
+Attachment metadata included with a posted message.
+
+Image and video dimensions are best-effort metadata for layout. Asset URLs can
+be absent while processing is pending or when the source is unavailable.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable attachment ID. |
+| `filename` | `string` | Original filename. |
+| `content_type` | `string` | MIME content type. |
+| `width` | `int32` | Image or video width in pixels, when known. |
+| `height` | `int32` | Image or video height in pixels, when known. |
+| `asset_url` | `RoomTimelineAssetUrl` | Signed URL for the original asset, when available. |
+| `thumbnail_asset_url` | `RoomTimelineAssetUrl` | Signed URL for a thumbnail image, when available. |
+| `video_processing` | `RoomTimelineVideoProcessing` | Video-specific processing metadata, when this attachment is a video. |
+
+
+
+<a id="chatto-api-v1-RoomTimelineEvent"></a>
+
+### RoomTimelineEvent
+
+One event in a room or thread timeline.
+
+Clients should inspect the event oneof to choose the renderer for the event.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable event ID. |
+| `created_at` | `google.protobuf.Timestamp` | Time when the event was created. |
+| `actor_id` | `string` | User ID of the event actor. |
+| `event.message_posted` | `RoomTimelineMessagePosted` | A message was posted. |
+| `event.room_created` | `RoomTimelineRoomEvent` | The room was created. |
+| `event.room_updated` | `RoomTimelineRoomEvent` | The room metadata was updated. |
+| `event.room_deleted` | `RoomTimelineRoomEvent` | The room was deleted. |
+| `event.room_archived` | `RoomTimelineRoomEvent` | The room was archived. |
+| `event.room_unarchived` | `RoomTimelineRoomEvent` | The room was unarchived. |
+| `event.user_joined_room` | `RoomTimelineRoomEvent` | A user joined the room. |
+| `event.user_left_room` | `RoomTimelineRoomEvent` | A user left the room. |
+
+
+
+<a id="chatto-api-v1-RoomTimelineIncludes"></a>
+
+### RoomTimelineIncludes
+
+Related entities included beside timeline events.
+
+Includes avoid repeating the same user data on every event in a page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `users` | `map<string, RoomTimelineUser>` | Users keyed by user ID. |
+
+
+
+<a id="chatto-api-v1-RoomTimelineLinkPreview"></a>
+
+### RoomTimelineLinkPreview
+
+Link preview metadata extracted from a message body.
+
+Clients should treat all fields as optional because preview extraction depends
+on the linked site and the embed provider.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `url` | `string` | Previewed URL. |
+| `title` | `string` | Page or embed title. |
+| `description` | `string` | Page or embed description. |
+| `site_name` | `string` | Site name, when known. |
+| `image_url` | `string` | Preview image URL, when available. |
+| `embed_type` | `string` | Embed provider or type, when recognized. |
+| `embed_id` | `string` | Provider-specific embed ID, when recognized. |
+
+
+
+<a id="chatto-api-v1-RoomTimelineMessagePosted"></a>
+
+### RoomTimelineMessagePosted
+
+Payload for a message-posted timeline event.
+
+The same shape is used for top-level room messages, thread replies, and thread
+echo entries. Thread-related fields let clients render reply counts, thread
+participants, and follow state without additional per-message requests.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room containing the message. |
+| `body` | `string` | Message body text. |
+| `body_present` | `bool` | True when the original event explicitly carried a body. This lets clients distinguish an empty body from a missing body. |
+| `attachments` | `repeated RoomTimelineAttachment` | Attachments sent with the message. |
+| `link_preview` | `RoomTimelineLinkPreview` | Link preview extracted for the message, when available. |
+| `updated_at` | `google.protobuf.Timestamp` | Time when the message was last edited. |
+| `in_reply_to` | `string` | Event ID this message directly replies to, when this is a reply. |
+| `thread_root_event_id` | `string` | Event ID of the root message for the thread this message belongs to. |
+| `echo_of_event_id` | `string` | Event ID this event echoes into the current view, when applicable. Echoes allow thread activity to appear in another timeline context. |
+| `echo_from_thread_root_event_id` | `string` | Thread root ID of the echoed event, when applicable. |
+| `channel_echo_event_id` | `string` | Channel timeline event ID for a thread echo, when applicable. |
+| `reply_count` | `int32` | Number of replies in this message's thread. |
+| `last_reply_at` | `google.protobuf.Timestamp` | Creation time of the most recent reply in this message's thread. |
+| `thread_participant_user_ids` | `repeated string` | User IDs that have participated in this message's thread. |
+| `viewer_is_following_thread` | `bool` | True when the current user follows this message's thread. |
+| `viewer_is_following_thread_present` | `bool` | True when viewer_is_following_thread was explicitly hydrated. If false, the follow value should be treated as unknown rather than false. |
+| `reactions` | `repeated RoomTimelineReactionSummary` | Reaction summaries for this message. |
+
+
+
+<a id="chatto-api-v1-RoomTimelinePage"></a>
+
+### RoomTimelinePage
+
+Cursor page of room or thread timeline events.
+
+Use start_cursor and end_cursor with before/after requests to continue paging
+in either direction. The has_older and has_newer flags tell clients whether
+another request can extend the current window.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `events` | `repeated RoomTimelineEvent` | Events in display order. |
+| `start_cursor` | `string` | Cursor for the first event in the page. |
+| `end_cursor` | `string` | Cursor for the last event in the page. |
+| `has_older` | `bool` | True when older events are available before start_cursor. |
+| `has_newer` | `bool` | True when newer events are available after end_cursor. |
+| `includes` | `RoomTimelineIncludes` | Related entities needed to render the page. |
+
+
+
+<a id="chatto-api-v1-RoomTimelineReactionSummary"></a>
+
+### RoomTimelineReactionSummary
+
+Aggregated reaction state for one emoji on one event.
+
+The summary is scoped to the current event and includes whether the current
+user has reacted with the same emoji.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `emoji` | `string` | Emoji or reaction key. |
+| `count` | `int32` | Number of users who reacted with this emoji. |
+| `has_reacted` | `bool` | True when the current user reacted with this emoji. |
+| `user_ids` | `repeated string` | User IDs that reacted with this emoji. |
+
+
+
+<a id="chatto-api-v1-RoomTimelineRoomEvent"></a>
+
+### RoomTimelineRoomEvent
+
+Payload for room lifecycle and membership timeline events.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room affected by the event. |
+
+
+
+<a id="chatto-api-v1-RoomTimelineUser"></a>
+
+### RoomTimelineUser
+
+User data included with room timeline events.
+
+Timeline events reference users by ID; clients can resolve those IDs through
+the includes block returned with each page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable user ID. |
+| `login` | `string` | Login name. |
+| `display_name` | `string` | Display name, when set. |
+| `deleted` | `bool` | True when the user account has been deleted. |
+| `avatar_url` | `string` | Avatar image URL, when available. |
+
+
+
+<a id="chatto-api-v1-RoomTimelineVideoProcessing"></a>
+
+### RoomTimelineVideoProcessing
+
+Processing metadata for a video attachment.
+
+Clients can use this object to show upload/transcoding progress and decide
+whether to play a processed variant, show a thumbnail, or display a failure
+state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `status` | `RoomTimelineVideoProcessingStatus` | Current processing status. |
+| `duration_ms` | `int64` | Video duration in milliseconds. |
+| `width` | `int32` | Source video width in pixels. |
+| `height` | `int32` | Source video height in pixels. |
+| `source_available` | `bool` | True when the original source asset is currently available. |
+| `reason_code` | `string` | Stable reason code for a failed or incomplete processing state. |
+| `thumbnail_asset_url` | `RoomTimelineAssetUrl` | Signed URL for the generated thumbnail, when available. |
+| `variants` | `repeated RoomTimelineVideoVariant` | Available transcoded renditions. |
+
+
+
+<a id="chatto-api-v1-RoomTimelineVideoVariant"></a>
+
+### RoomTimelineVideoVariant
+
+One transcoded video rendition.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `quality` | `string` | Quality label for the rendition. |
+| `width` | `int32` | Video width in pixels. |
+| `height` | `int32` | Video height in pixels. |
+| `size` | `int64` | Rendition size in bytes. |
+| `asset_url` | `RoomTimelineAssetUrl` | Signed URL for the rendition. |
+
+
+
+<a id="chatto-api-v1-MentionConfirmationChallenge"></a>
+
+### MentionConfirmationChallenge
+
+Large mention confirmation details for a message that was not posted.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `recipient_count` | `int32` | Number of people the message would notify. |
+| `token` | `string` | Short-lived token to send back with the same message after user approval. |
+
+
+
+<a id="chatto-api-v1-MessageLinkPreviewInput"></a>
+
+### MessageLinkPreviewInput
+
+Link preview metadata submitted with a posted message.
+
+The server validates and stores this data with the message body. Clients
+should omit this field when no preview was selected.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `url` | `string` | Previewed URL. |
+| `title` | `string` | Page or embed title. |
+| `description` | `string` | Page or embed description. |
+| `site_name` | `string` | Site name, when known. |
+| `image_asset_id` | `string` | Existing server asset ID for the preview image, when available. |
+| `embed_type` | `string` | Embed provider or type, when recognized. |
+| `embed_id` | `string` | Provider-specific embed ID, when recognized. |
+
+
+
+<a id="chatto-api-v1-AuthProvider"></a>
+
+### AuthProvider
+
+Describes one login provider exposed by the server discovery endpoint.
+
+Clients can render these providers before a user has authenticated.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable provider identifier used by clients when starting login. |
+| `type` | `string` | Provider category, such as "password" or "oidc". Clients should treat unknown provider types as unsupported. |
+| `label` | `string` | Human-readable provider label for login UI. |
+| `login_url` | `string` | URL that starts login for this provider. |
+
+
+
+<a id="chatto-api-v1-CustomUserStatus"></a>
+
+### CustomUserStatus
+
+Custom status shown on a user profile, separate from presence.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `emoji` | `string` | Short emoji marker displayed with the status. |
+| `text` | `string` | User-written status text. |
+| `expires_at` | `google.protobuf.Timestamp` | Optional time after which clients should stop showing the status. |
+
+
+
+
+## Enums
+
+<a id="chatto-api-v1-RoomTimelineVideoProcessingStatus"></a>
+
+### RoomTimelineVideoProcessingStatus
+
+Processing state for a timeline video attachment.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_UNSPECIFIED` | `0` | The processing status was not specified. |
+| `ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_PROCESSING` | `1` | Video processing is still running. |
+| `ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_COMPLETED` | `2` | Video processing completed successfully. |
+| `ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_FAILED` | `3` | Video processing failed. |
+
+
+<a id="chatto-api-v1-NotificationLevel"></a>
+
+### NotificationLevel
+
+Notification delivery level for a room.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `NOTIFICATION_LEVEL_UNSPECIFIED` | `0` | The level was not specified. |
+| `NOTIFICATION_LEVEL_DEFAULT` | `1` | Use the inherited default for the room. |
+| `NOTIFICATION_LEVEL_MUTED` | `2` | Do not notify for this room. |
+| `NOTIFICATION_LEVEL_NORMAL` | `3` | Notify according to the normal room rules. |
+| `NOTIFICATION_LEVEL_ALL_MESSAGES` | `4` | Notify for every message in the room. |
 
 

@@ -44,19 +44,7 @@ export default defineConfig({
         {
           label: "Reference",
           items: [
-            {
-              label: "ConnectRPC API",
-              items: [
-                "reference/connectrpc-api",
-                "reference/connectrpc-api/message-service",
-                "reference/connectrpc-api/notification-preferences-service",
-                "reference/connectrpc-api/read-state-service",
-                "reference/connectrpc-api/room-timeline-service",
-                "reference/connectrpc-api/server-service",
-                "reference/connectrpc-api/thread-service",
-                "reference/connectrpc-api/user-status-service",
-              ],
-            },
+            "reference/connectrpc-api",
             "reference/environment-variables",
           ],
         },
