@@ -40,6 +40,12 @@ plugins:
   - local: ["go", "tool", "-C", "../cli", "protoc-gen-doc"]
     out: ../docs-website/src/content/docs/reference/connectrpc-api
     opt:
+      - ../proto/templates/connectrpc-starlight.md.tmpl,message-service.mdx
+    types:
+      - chatto.api.v1.MessageService
+  - local: ["go", "tool", "-C", "../cli", "protoc-gen-doc"]
+    out: ../docs-website/src/content/docs/reference/connectrpc-api
+    opt:
       - ../proto/templates/connectrpc-starlight.md.tmpl,read-state-service.mdx
     types:
       - chatto.api.v1.ReadStateService

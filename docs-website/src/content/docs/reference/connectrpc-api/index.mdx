@@ -16,6 +16,27 @@ Use this reference when building clients against Chatto's public ConnectRPC API.
 
 ## Services
 
+### [RoomTimelineService](room-timeline-service/)
+
+Reads room and thread timeline pages.
+
+| Method | Description |
+| --- | --- |
+| [`GetRoomEvents`](room-timeline-service/#getroomevents) | Returns one page of room timeline events, including related user data needed to render the page. |
+| [`GetRoomEventsAround`](room-timeline-service/#getroomeventsaround) | Returns a room timeline window centered around a specific event. Use this to open a permalink, search result, or notification target in context. |
+| [`GetThreadEvents`](room-timeline-service/#getthreadevents) | Returns one page of events in a message thread. Initial pages include the thread root message; cursor pages return replies in the requested direction. |
+| [`GetThreadEventsAround`](room-timeline-service/#getthreadeventsaround) | Returns a thread timeline window centered around a specific event. Use this to open a reply from a notification or search result in context. |
+
+
+### [MessageService](message-service/)
+
+Posts messages into room and thread timelines.
+
+| Method | Description |
+| --- | --- |
+| [`PostMessage`](message-service/#postmessage) | Posts a message for the current user. The user must be a room member and must have message.post for room messages or message.post-in-thread for thread replies. Echoing a thread reply also requires message.echo and message.post. |
+
+
 ### [NotificationPreferencesService](notification-preferences-service/)
 
 Reads and updates per-room notification preferences for the current user.
@@ -34,18 +55,6 @@ Updates room and thread read state for the current user.
 | --- | --- |
 | [`MarkRoomAsRead`](read-state-service/#markroomasread) | Marks a room timeline as read through the supplied event. Clients usually call this after the user has viewed the latest visible event in the room. |
 | [`MarkThreadAsRead`](read-state-service/#markthreadasread) | Marks a thread timeline as read through the supplied event without changing the room-level read marker. |
-
-
-### [RoomTimelineService](room-timeline-service/)
-
-Reads room and thread timeline pages.
-
-| Method | Description |
-| --- | --- |
-| [`GetRoomEvents`](room-timeline-service/#getroomevents) | Returns one page of room timeline events, including related user data needed to render the page. |
-| [`GetRoomEventsAround`](room-timeline-service/#getroomeventsaround) | Returns a room timeline window centered around a specific event. Use this to open a permalink, search result, or notification target in context. |
-| [`GetThreadEvents`](room-timeline-service/#getthreadevents) | Returns one page of events in a message thread. Initial pages include the thread root message; cursor pages return replies in the requested direction. |
-| [`GetThreadEventsAround`](room-timeline-service/#getthreadeventsaround) | Returns a thread timeline window centered around a specific event. Use this to open a reply from a notification or search result in context. |
 
 
 ### [ServerService](server-service/)

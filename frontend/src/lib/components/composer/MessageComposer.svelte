@@ -2,6 +2,7 @@
   import { onDestroy, tick, untrack } from 'svelte';
   import { graphql, useFragment } from '$lib/gql';
   import { RoomEventViewFragmentDoc, type RoomEventViewFragment } from '$lib/gql/graphql';
+  import { createMessageAPI } from '$lib/api/messages';
   import * as m from '$lib/i18n/messages';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -501,6 +502,12 @@
 
   type PendingMentionConfirmation = PreparedPost & MentionConfirmation;
 
+  type SendPreparedPostResponse = {
+    event: RoomEventViewFragment | null;
+    error: unknown | null;
+    mentionConfirmation: MentionConfirmation | null;
+  };
+
   let pendingMentionConfirmation = $state<PendingMentionConfirmation | null>(null);
   let mentionConfirmationLoading = $state(false);
 
@@ -537,11 +544,54 @@
     };
   }
 
-  function sendPreparedPost(post: PreparedPost, mentionConfirmationToken: string | null) {
-    return connection().client.mutation(
-      PostMessageMutation,
-      buildPostVariables(post, mentionConfirmationToken)
-    );
+  async function sendPreparedPost(
+    post: PreparedPost,
+    mentionConfirmationToken: string | null
+  ): Promise<SendPreparedPostResponse> {
+    if (post.filesToSend) {
+      const response = await connection().client.mutation(
+        PostMessageMutation,
+        buildPostVariables(post, mentionConfirmationToken)
+      );
+      return {
+        event: response.data?.postMessage
+          ? useFragment(RoomEventViewFragmentDoc, response.data.postMessage)
+          : null,
+        error: response.error ?? null,
+        mentionConfirmation: response.error ? mentionConfirmation(response.error) : null
+      };
+    }
+
+    try {
+      const conn = connection();
+      const result = await createMessageAPI({
+        serverId: conn.serverId,
+        baseUrl: conn.connectBaseUrl,
+        bearerToken: conn.bearerToken
+      }).postMessage({
+        roomId: post.roomId,
+        body: post.bodyToSend,
+        threadRootEventId: post.threadRootEventId,
+        inReplyTo: post.inReplyTo,
+        linkPreview: post.linkPreviewInput,
+        alsoSendToChannel: post.alsoSendToChannel,
+        mentionConfirmationToken
+      });
+
+      if (result.kind === 'mentionConfirmation') {
+        return {
+          event: null,
+          error: null,
+          mentionConfirmation: {
+            recipientCount: result.recipientCount,
+            token: result.token
+          }
+        };
+      }
+      return { event: result.event, error: null, mentionConfirmation: null };
+    } catch (error) {
+      return { event: null, error, mentionConfirmation: null };
+    }
   }
 
   function restorePreparedPost(post: PreparedPost) {
@@ -560,17 +610,10 @@
     restorePreparedPost(post);
   }
 
-  function handlePostSuccess(
-    response: Awaited<ReturnType<typeof sendPreparedPost>>,
-    post: PreparedPost
-  ) {
-    const postedEvent = response.data?.postMessage
-      ? useFragment(RoomEventViewFragmentDoc, response.data.postMessage)
-      : null;
-
+  function handlePostSuccess(response: SendPreparedPostResponse, post: PreparedPost) {
     // Notify parent before scrolling so it can synchronously ingest the
     // returned event and make the target row available.
-    onMessageSent?.(postedEvent);
+    onMessageSent?.(response.event);
 
     // Scroll the enclosing pane to the user's new message. The composer
     // reads `scrollState` from its surrounding ComposerContext, so this
@@ -608,6 +651,8 @@
 
       if (response.error) {
         handlePostFailure(response.error, pendingPost);
+      } else if (response.mentionConfirmation) {
+        pendingMentionConfirmation = { ...pendingPost, ...response.mentionConfirmation };
       } else {
         handlePostSuccess(response, pendingPost);
       }
@@ -649,12 +694,12 @@
     try {
       const response = await sendPreparedPost(preparedPost, null);
 
+      if (response.mentionConfirmation) {
+        pendingMentionConfirmation = { ...preparedPost, ...response.mentionConfirmation };
+        return;
+      }
+
       if (response.error) {
-        const confirmation = mentionConfirmation(response.error);
-        if (confirmation !== null) {
-          pendingMentionConfirmation = { ...preparedPost, ...confirmation };
-          return;
-        }
         handlePostFailure(response.error, preparedPost);
       } else {
         handlePostSuccess(response, preparedPost);

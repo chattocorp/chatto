@@ -257,36 +257,6 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 	// Extract alsoSendToChannel from input (defaults to false)
 	alsoSendToChannel := input.AlsoSendToChannel != nil && *input.AlsoSendToChannel
 
-	mentionConfirmationScope := core.MentionConfirmationScope{
-		UserID:            user.Id,
-		RoomID:            input.RoomID,
-		Kind:              kind,
-		Body:              body,
-		ThreadRootEventID: inThread,
-		AlsoSendToChannel: alsoSendToChannel,
-	}
-	mentionRecipientCountConfirmed := false
-	if body != "" {
-		recipientCount, err := r.core.MentionNotificationRecipientCountForBody(ctx, kind, input.RoomID, user.Id, body)
-		if err != nil {
-			return nil, err
-		}
-		if recipientCount > core.LargeMentionNotificationThreshold {
-			token := ""
-			if input.MentionConfirmationToken != nil {
-				token = *input.MentionConfirmationToken
-			}
-			if err := r.core.ValidateMentionConfirmationToken(token, mentionConfirmationScope); err != nil {
-				nextToken, err := r.core.CreateMentionConfirmationToken(mentionConfirmationScope, recipientCount)
-				if err != nil {
-					return nil, err
-				}
-				return nil, largeMentionConfirmationError(recipientCount, nextToken)
-			}
-			mentionRecipientCountConfirmed = true
-		}
-	}
-
 	// Process file uploads if any (file uploads stay direct via HTTP)
 	var attachments []*corev1.Attachment
 	animatedGIFs := map[string]bool{} // track animated GIFs for video processing
@@ -385,20 +355,13 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 		linkPreview.EmbedId = lp.EmbedID
 	}
 
-	var postMessageOptions []core.PostMessageOption
+	var videoProcessingAssetIDs []string
 	if r.videoConfig.Enabled {
-		var videoProcessingAssetIDs []string
 		for _, att := range attachments {
 			if core.AttachmentNeedsVideoProcessing(att, animatedGIFs[att.Id]) {
 				videoProcessingAssetIDs = append(videoProcessingAssetIDs, att.Id)
 			}
 		}
-		if len(videoProcessingAssetIDs) > 0 {
-			postMessageOptions = append(postMessageOptions, core.WithVideoProcessingAssets(videoProcessingAssetIDs...))
-		}
-	}
-	if mentionRecipientCountConfirmed {
-		postMessageOptions = append(postMessageOptions, core.WithLargeMentionConfirmed())
 	}
 
 	assetIDs := make([]string, 0, len(attachments))
@@ -407,43 +370,33 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 			assetIDs = append(assetIDs, att.GetId())
 		}
 	}
-	event, err := r.core.PostMessage(ctx, kind, input.RoomID, user.Id, body, assetIDs, inThread, inReplyTo, linkPreview, alsoSendToChannel, postMessageOptions...)
+	mentionConfirmationToken := ""
+	if input.MentionConfirmationToken != nil {
+		mentionConfirmationToken = *input.MentionConfirmationToken
+	}
+	result, err := r.core.Messages().PostMessage(ctx, core.MessagePostInput{
+		ActorID:                  user.Id,
+		RoomID:                   input.RoomID,
+		Body:                     body,
+		AttachmentAssetIDs:       assetIDs,
+		VideoProcessingAssetIDs:  videoProcessingAssetIDs,
+		ThreadRootEventID:        inThread,
+		InReplyTo:                inReplyTo,
+		AlsoSendToChannel:        alsoSendToChannel,
+		MentionConfirmationToken: mentionConfirmationToken,
+		LinkPreview:              linkPreview,
+	})
 	if err != nil {
-		if confirmErr, ok := err.(*core.MentionConfirmationRequiredError); ok {
-			token, tokenErr := r.core.CreateMentionConfirmationToken(mentionConfirmationScope, confirmErr.RecipientCount)
-			if tokenErr != nil {
-				return nil, tokenErr
-			}
-			return nil, largeMentionConfirmationError(confirmErr.RecipientCount, token)
-		}
 		return nil, err
 	}
-
-	// Auto-mark room as read since user is viewing it (avoids separate
-	// MarkRoomAsRead call). For root posts, we know the just-published event
-	// is the new last root. For thread replies, we look up the room's current
-	// last root so that posting in a thread also acknowledges any recent
-	// channel activity (preserves prior behavior).
-	var lastRootID string
-	if inThread == "" {
-		lastRootID = event.Id
-	} else {
-		id, _, exists, err := r.core.GetRoomLastEvent(ctx, kind, input.RoomID)
-		if err != nil {
-			r.logger.Warn("Failed to get room last event for auto-mark-read", "error", err)
-		} else if exists {
-			lastRootID = id
-		}
+	if result != nil && result.MentionConfirmation != nil {
+		return nil, largeMentionConfirmationError(result.MentionConfirmation.RecipientCount, result.MentionConfirmation.Token)
 	}
-	if lastRootID != "" {
-		if err := r.core.SetLastReadEventID(ctx, kind, user.Id, input.RoomID, lastRootID); err != nil {
-			r.logger.Warn("Failed to auto-mark room as read", "error", err)
-		} else {
-			r.core.NotifyRoomMarkedAsRead(ctx, user.Id, kind, input.RoomID)
-		}
+	if result == nil || result.Event == nil {
+		return nil, fmt.Errorf("post message returned no event")
 	}
 
-	return core.NewEVTEventEnvelope(event), nil
+	return core.NewEVTEventEnvelope(result.Event), nil
 }
 
 // UploadServerLogo is the resolver for the uploadServerLogo field.

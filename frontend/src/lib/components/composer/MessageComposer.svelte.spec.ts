@@ -45,6 +45,7 @@ const updateMutationData = { updateMessage: true };
 const prepareFilesMock = vi.hoisted(() => vi.fn());
 const mutationMock = vi.hoisted(() => vi.fn());
 const queryMock = vi.hoisted(() => vi.fn());
+const postMessageConnectMock = vi.hoisted(() => vi.fn());
 const roomStateMock = vi.hoisted(() => ({
   members: [] as RoomMember[],
   editState: {
@@ -90,7 +91,16 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
       query: queryMock,
       mutation: mutationMock,
       subscription: vi.fn()
-    }
+    },
+    connectBaseUrl: 'http://localhost/api/connect',
+    bearerToken: null,
+    serverId: 'test-instance'
+  })
+}));
+
+vi.mock('$lib/api/messages', () => ({
+  createMessageAPI: () => ({
+    postMessage: postMessageConnectMock
   })
 }));
 
@@ -319,6 +329,28 @@ describe('MessageComposer', () => {
       if (variables?.input?.eventId)
         return Promise.resolve({ data: updateMutationData, error: null });
       return Promise.resolve({ data: mutationData, error: null });
+    });
+    postMessageConnectMock.mockReset();
+    postMessageConnectMock.mockImplementation(async (input) => {
+      const response = await mutationMock('connectPostMessage', {
+        input: { ...input, attachments: null }
+      });
+      const mentionError = response.error?.graphQLErrors?.find(
+        (error: { extensions?: Record<string, unknown> }) =>
+          error.extensions?.code === 'MENTION_CONFIRMATION_REQUIRED'
+      );
+      if (mentionError) {
+        return {
+          kind: 'mentionConfirmation',
+          recipientCount: mentionError.extensions.recipientCount,
+          token: mentionError.extensions.mentionConfirmationToken
+        };
+      }
+      if (response.error) throw response.error;
+      return {
+        kind: 'event',
+        event: response.data?.postMessage ?? null
+      };
     });
     queryMock.mockReset();
     queryMock.mockResolvedValue({ data: null, error: null });
@@ -2009,7 +2041,7 @@ describe('MessageComposer', () => {
         inReplyTo: 'evt_reply_to',
         alsoSendToChannel: true
       });
-      expect(onCancelReply).toHaveBeenCalledOnce();
+      await vi.waitFor(() => expect(onCancelReply).toHaveBeenCalledOnce());
       expect(onMessageSent).toHaveBeenCalledWith(
         expect.objectContaining({
           id: 'msg_123',
