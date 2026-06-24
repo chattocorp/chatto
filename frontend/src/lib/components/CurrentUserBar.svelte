@@ -223,7 +223,7 @@ to the user settings page for the active server.
         type="button"
         title={m['settings.profile.status.edit_button']()}
         aria-label={m['settings.profile.status.edit_button']()}
-        class="iconify shrink-0 cursor-pointer text-muted uil--edit-alt hover:text-text"
+        class="iconify shrink-0 cursor-pointer text-muted uil--pen hover:text-text"
         data-testid="current-user-edit-status"
         onclick={openStatusEditor}
       ></button>

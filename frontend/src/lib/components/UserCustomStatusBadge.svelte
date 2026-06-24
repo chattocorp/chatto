@@ -33,7 +33,9 @@ independent of presence and hides itself after its expiry timestamp.
     return new Date(status.expiresAt).getTime() > Date.now() ? status : null;
   });
   const displayText = $derived(activeStatus?.text ? formatCustomStatusText(activeStatus.text) : '');
-  const title = $derived(activeStatus ? `${activeStatus.emoji}${displayText ? ` ${displayText}` : ''}` : undefined);
+  const title = $derived(
+    activeStatus ? `${activeStatus.emoji}${displayText ? ` ${displayText}` : ''}` : undefined
+  );
 
   $effect(() => {
     const expiresAt = status?.expiresAt;
@@ -61,7 +63,8 @@ independent of presence and hides itself after its expiry timestamp.
 {#if activeStatus}
   <span
     class={[
-      'inline-flex min-w-0 shrink-0 items-center gap-1 rounded-md bg-surface-200 px-1.5 py-0.5 align-middle text-xs leading-none text-text',
+      'inline-flex min-w-0 shrink-0 items-center align-middle leading-none',
+      showText ? 'gap-1 text-xs text-muted' : 'text-sm',
       className
     ]}
     {title}

@@ -221,7 +221,7 @@
         {/if}
       </span>
       <span class="flex min-w-0 items-center gap-2">
-        <span class="iconify uil--edit-alt" aria-hidden="true"></span>
+        <span class="iconify uil--pen" aria-hidden="true"></span>
         <span class={['min-w-0 truncate', selectedMode === 'custom' && 'font-medium']}>
           {m['settings.profile.status.template.custom']()}
         </span>
