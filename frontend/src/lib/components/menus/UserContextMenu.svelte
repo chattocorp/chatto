@@ -78,11 +78,9 @@ ContextMenu, which handles both modes automatically.
     <div class="flex items-center gap-3 p-3">
       <UserAvatar {user} size="md" />
       <div class="min-w-0 flex-1">
-        <div class="flex min-w-0 items-center gap-1.5 font-semibold">
-          <span class="min-w-0 truncate">{displayName}</span>
-          <UserCustomStatusBadge status={customStatus} showText />
-        </div>
+        <div class="truncate font-semibold">{displayName}</div>
         <div class="truncate text-xs text-muted">@{getLiveLogin(user.id, user.login)}</div>
+        <UserCustomStatusBadge status={customStatus} showText class="mt-1 max-w-full" />
       </div>
     </div>
 

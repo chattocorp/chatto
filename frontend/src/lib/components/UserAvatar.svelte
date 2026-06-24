@@ -10,16 +10,22 @@
       deleted
       avatarUrl(width: 96, height: 96)
       presenceStatus
+      customStatus {
+        emoji
+        text
+        expiresAt
+      }
     }
   `);
 </script>
 
 <script lang="ts">
   import type { UserAvatarUserFragment } from '$lib/gql/graphql';
-  import { getLiveAvatarUrl } from '$lib/state/userProfiles.svelte';
+  import { getLiveAvatarUrl, getLiveCustomStatus } from '$lib/state/userProfiles.svelte';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import { getAvatarInitials } from '$lib/utils/initials';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
+  import UserCustomStatusBadge from './UserCustomStatusBadge.svelte';
 
   type AvatarUser = Omit<UserAvatarUserFragment, 'deleted'> & { deleted?: boolean };
   type Size = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
@@ -48,15 +54,25 @@
     xl: 'h-5 w-5'
   };
 
+  const customStatusBadgeSizeClasses: Record<Size, string> = {
+    xs: 'h-3.5 w-3.5 text-[8px]',
+    sm: 'h-4 w-4 text-[10px]',
+    md: 'h-5 w-5 text-xs',
+    lg: 'h-6 w-6 text-sm',
+    xl: 'h-7 w-7 text-base'
+  };
+
   let {
     user,
     size = 'md',
     showPresence = true,
+    showCustomStatus = true,
     class: className = ''
   }: {
     user: AvatarUser;
     size?: Size;
     showPresence?: boolean;
+    showCustomStatus?: boolean;
     class?: string;
   } = $props();
 
@@ -76,6 +92,10 @@
   // newly-mounted ones like popovers — see the latest presence immediately.
   const presence = $derived(
     user && !user.deleted ? presenceCache.get(user.id, user.presenceStatus) : undefined
+  );
+
+  const customStatus = $derived(
+    user && !user.deleted ? getLiveCustomStatus(user.id, user.customStatus) : null
   );
 
   const badgeColor = $derived(
@@ -125,6 +145,14 @@
         ]} absolute right-0 bottom-0 rounded-full border-2 border-surface {badgeColor}"
         aria-label={presenceLabel}
       ></span>
+    {/if}
+    {#if showCustomStatus && !user.deleted}
+      <UserCustomStatusBadge
+        status={customStatus}
+        class="{customStatusBadgeSizeClasses[
+          size
+        ]} absolute top-0 right-0 justify-center rounded-full border-2 border-surface bg-surface shadow-sm"
+      />
     {/if}
   </div>
 {/if}

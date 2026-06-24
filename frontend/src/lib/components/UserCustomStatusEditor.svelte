@@ -3,6 +3,7 @@
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import { Button, FormField } from '$lib/ui/form';
   import { Hint } from '$lib/ui';
+  import { toast } from '$lib/ui/toast';
   import {
     clearCustomStatus as clearCustomStatusViaAPI,
     setCustomStatus as setCustomStatusViaAPI,
@@ -49,7 +50,6 @@
   let isSaving = $state(false);
   let isClearing = $state(false);
   let error = $state('');
-  let successMessage = $state('');
 
   const isCustom = $derived(selectedMode === 'custom');
   const statusTextInputId = $derived(
@@ -100,7 +100,6 @@
   function selectMode(mode: Mode) {
     selectedMode = mode;
     error = '';
-    successMessage = '';
     if (mode !== 'custom') {
       const templateExpiry = defaultTemplateExpiry(mode);
       statusExpiresAt = templateExpiry ? toDatetimeLocalValue(templateExpiry) : '';
@@ -132,7 +131,6 @@
 
     isSaving = true;
     error = '';
-    successMessage = '';
 
     try {
       const customStatus = await setCustomStatusViaAPI(config, {
@@ -146,7 +144,7 @@
       statusEmoji = customStatus?.emoji ?? statusEmoji;
       statusText = initialText(customStatus);
       statusExpiresAt = toDatetimeLocalValue(customStatus?.expiresAt);
-      successMessage = m['settings.profile.status.saved']();
+      toast.success(m['settings.profile.status.saved']());
       onClose?.();
     } catch (err) {
       error = err instanceof Error ? err.message : m['settings.profile.status.save_failed']();
@@ -158,7 +156,6 @@
   async function clearCustomStatus() {
     isClearing = true;
     error = '';
-    successMessage = '';
 
     try {
       const customStatus = await clearCustomStatusViaAPI(config);
@@ -168,7 +165,7 @@
       statusEmoji = '🌿';
       statusText = '';
       statusExpiresAt = '';
-      successMessage = m['settings.profile.status.cleared']();
+      toast.success(m['settings.profile.status.cleared']());
       onClose?.();
     } catch (err) {
       error = err instanceof Error ? err.message : m['settings.profile.status.clear_failed']();
@@ -269,9 +266,6 @@
 
   {#if error}
     <Hint tone="danger">{error}</Hint>
-  {/if}
-  {#if successMessage && !compact}
-    <Hint tone="success">{successMessage}</Hint>
   {/if}
 
   <div class="flex flex-nowrap items-center justify-end gap-2">

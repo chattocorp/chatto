@@ -13,11 +13,7 @@ to the user settings page for the active server.
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
-  import {
-    getLiveCustomStatus,
-    getLiveDisplayName,
-    type CustomUserStatus
-  } from '$lib/state/userProfiles.svelte';
+  import { getLiveDisplayName, type CustomUserStatus } from '$lib/state/userProfiles.svelte';
   import { RoomType } from '$lib/gql/graphql';
   import {
     roomSidebarPanelStorageSuffix,
@@ -27,7 +23,6 @@ to the user settings page for the active server.
   import { serverStorageKey } from '$lib/storage/serverStorage';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import UserAvatar from './UserAvatar.svelte';
-  import UserCustomStatusBadge from './UserCustomStatusBadge.svelte';
   import UserCustomStatusEditor from './UserCustomStatusEditor.svelte';
 
   const connection = useConnection();
@@ -49,12 +44,6 @@ to the user settings page for the active server.
 
   const login = $derived(activeServerUser?.login ?? '');
   const showLogin = $derived(!!login && login !== displayName);
-  const customStatus = $derived(
-    activeServerUser
-      ? getLiveCustomStatus(activeServerUser.id, activeServerUser.customStatus)
-      : null
-  );
-
   const activeCallRoomId = $derived(
     voiceCallState?.connected && voiceCallState.roomId ? voiceCallState.roomId : null
   );
@@ -214,7 +203,6 @@ to the user settings page for the active server.
       <div class="flex min-w-0 flex-1 flex-col leading-tight">
         <span class="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
           <span class="min-w-0 truncate">{displayName}</span>
-          <UserCustomStatusBadge status={customStatus} />
         </span>
         {#if showLogin}
           <span class="truncate text-xs text-muted">@{login}</span>

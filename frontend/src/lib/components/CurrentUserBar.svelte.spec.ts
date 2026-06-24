@@ -33,6 +33,11 @@ const { currentUserState, voiceCallState, roomsState } = vi.hoisted(() => ({
       displayName: string;
       avatarUrl: string | null;
       presenceStatus: PresenceStatus;
+      customStatus?: {
+        emoji: string;
+        text: string;
+        expiresAt?: string | null;
+      } | null;
       hasVerifiedEmail: boolean;
       settings: null;
     } | null
@@ -108,6 +113,7 @@ describe('CurrentUserBar', () => {
       displayName: 'Alice',
       avatarUrl: null,
       presenceStatus: PresenceStatus.Offline,
+      customStatus: null,
       hasVerifiedEmail: true,
       settings: null
     };
@@ -139,6 +145,24 @@ describe('CurrentUserBar', () => {
     expect(q(container, '[aria-label="Offline"]')).toBeFalsy();
     expect(container.textContent).toContain('Alice');
     expect(container.textContent).toContain('@alice');
+  });
+
+  it('shows the custom status emoji as an avatar badge', () => {
+    currentUserState.user = {
+      ...currentUserState.user!,
+      customStatus: {
+        emoji: '🍜',
+        text: 'chatto:status:out_for_lunch',
+        expiresAt: null
+      }
+    };
+
+    const { container } = render(CurrentUserBarTestHarness);
+
+    expect(q(container, '[aria-label="🍜 Out for lunch"]')).toBeTruthy();
+    expect(q(container, '[data-testid="current-user-identity-card"]')!.textContent).not.toContain(
+      'Out for lunch'
+    );
   });
 
   it('hides call controls when the user is not in a call', () => {
