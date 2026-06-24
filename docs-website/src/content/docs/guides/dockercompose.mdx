@@ -12,15 +12,20 @@ import {
 } from "@astrojs/starlight/components";
 import ArchDiagram from "../../../components/diagrams/DockerComposeDiagram.astro";
 
-This guide walks through deploying Chatto with Docker Compose, including NATS for messaging and persistence, LiveKit for voice and video calls, and Caddy as a reverse proxy with automatic TLS.
+## Introduction
+
+This guide walks through deploying Chatto with Docker Compose, in a more fully-featured setup compared to what we set up in the [Standalone Binary](/guides/binary) guide. Specifically, this includes:
+
+- A separate NATS server for Chatto to connect to (instead of using the embedded server.)
+- A working LiveKit service to power your voice and video calls.
+- A Caddy reverse proxy.
+- Configuration through environment variables instead of `chatto.toml`.
+
+Consider all of these optional; if you don't want to use Caddy, feel free to replace it with something else; if you don't need calls, just leave LiveKit disabled. We do recommend, however, to separate Chatto from NATS at this point because it will make future production use cases (scaling, high availability, zero-downtime deployments) a lot easier.
 
 ## Architecture
 
 <ArchDiagram />
-
-Caddy terminates TLS and proxies traffic to both Chatto and LiveKit's WebSocket signaling endpoint. The `ghcr.io/chattocorp/chatto` image serves the Chatto API and the embedded web UI, so this Compose stack does not need a separate frontend container. LiveKit's WebRTC media traffic (UDP) is exposed directly — it can't be proxied.
-
-Chatto also publishes `ghcr.io/chattocorp/chatto-client` for deployments that host the static web UI separately. Use that image only when you intentionally want a separate frontend origin or infrastructure; the Compose setup below uses the simpler single-image path.
 
 ## Prerequisites
 
@@ -29,10 +34,6 @@ Chatto also publishes `ghcr.io/chattocorp/chatto-client` for deployments that ho
 - A `livekit.*` subdomain pointing to the same server (e.g., `livekit.chat.example.com`)
 - Firewall allowing inbound TCP 80, 443 and UDP 50000-50200
 - SMTP credentials for email/password registration, email verification, and password reset
-  <Aside type="tip">
-    If you don't need voice and video calls, see [Disabling voice and video
-    calls](#disabling-voice-and-video-calls) to simplify the setup.
-  </Aside>
 
 ## Setup
 
@@ -85,28 +86,7 @@ Chatto also publishes `ghcr.io/chattocorp/chatto-client` for deployments that ho
 
 </Steps>
 
-The Chatto container is configured entirely through `.env` in this guide. The image's default config path is `/config/chatto.toml`, but the server can start without that file when the required settings are provided through environment variables.
-
 The image runs Chatto as a non-root user. By default that user is `1000:1000`; set `PUID` and `PGID` in your shell or Compose environment if the files mounted into `/config` or `/data` are owned by a different host user or group. The entrypoint does not recursively change ownership of mounted directories, so make sure writable mounts are owned by the configured IDs.
-
-## Operations
-
-```bash
-# View logs
-docker compose logs -f
-
-# Logs for a specific service
-docker compose logs -f chatto
-
-# Update to latest images
-docker compose pull && docker compose up -d
-
-# Stop everything
-docker compose down
-
-# Stop and delete all data
-docker compose down -v
-```
 
 ## Persistent Data
 
