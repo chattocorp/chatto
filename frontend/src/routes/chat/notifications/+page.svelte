@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation';
   import { PaneHeader, EmptyState } from '$lib/ui';
   import { Button } from '$lib/ui/form';
+  import * as m from '$lib/i18n/messages';
   import type { NotificationItem } from '$lib/state/server/notifications.svelte';
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -83,10 +84,10 @@
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
+    if (diffMins < 1) return m['chat.notifications.time_now']();
+    if (diffMins < 60) return m['chat.notifications.time_minutes']({ count: diffMins });
+    if (diffHours < 24) return m['chat.notifications.time_hours']({ count: diffHours });
+    if (diffDays < 7) return m['chat.notifications.time_days']({ count: diffDays });
 
     return formatDate(date, userSettings);
   }
@@ -142,19 +143,27 @@
 </script>
 
 <div class="flex h-full w-full flex-col">
-  <PaneHeader title="Notifications" subtitle="Here's what's new" showMobileNav>
+  <PaneHeader
+    title={m['chat.notifications.title']()}
+    subtitle={m['chat.notifications.subtitle']()}
+    showMobileNav
+  >
     {#snippet actions()}
       {#if allNotifications.length > 0}
-        <Button variant="ghost" size="sm" onclick={handleClearAll}>Clear all</Button>
+        <Button variant="ghost" size="sm" onclick={handleClearAll}>
+          {m['chat.notifications.clear_all']()}
+        </Button>
       {/if}
     {/snippet}
   </PaneHeader>
 
   <div class="flex flex-1 flex-col overflow-y-auto">
     {#if loading && allNotifications.length === 0}
-      <div class="p-6 text-muted">Loading...</div>
+      <div class="p-6 text-muted">{m['common.loading']()}</div>
     {:else if allNotifications.length === 0}
-      <EmptyState icon="uil--bell-slash" title="No notifications">You're all caught up!</EmptyState>
+      <EmptyState icon="uil--bell-slash" title={m['chat.notifications.empty_title']()}>
+        {m['chat.notifications.empty_body']()}
+      </EmptyState>
     {:else}
       <div class="flex flex-col">
         {#each allNotifications as item (item.notification.id)}
@@ -195,7 +204,7 @@
             <button
               type="button"
               class="iconify icon-action uil--times"
-              title="Dismiss"
+              title={m['common.dismiss']()}
               onclick={(e) => handleDismiss(e, item)}
             ></button>
           </div>

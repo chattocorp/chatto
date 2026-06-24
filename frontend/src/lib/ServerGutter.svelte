@@ -8,6 +8,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
 <script lang="ts">
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import type { ServerPermissions } from '$lib/state/server/permissions.svelte';
+  import * as m from '$lib/i18n/messages';
   import ScrollFader from '$lib/ui/ScrollFader.svelte';
   import ServerSidebarEntry from './ServerSidebarEntry.svelte';
   import AddServerDialog from './components/AddServerDialog.svelte';
@@ -36,10 +37,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
       {#each serverRegistry.servers as server (server.id)}
         {@const store = serverRegistry.tryGetStore(server.id)}
         {#if store?.isAuthenticated}
-          <ServerSidebarEntry
-            serverId={server.id}
-            currentUserId={store.currentUser.user?.id}
-          />
+          <ServerSidebarEntry serverId={server.id} currentUserId={store.currentUser.user?.id} />
         {/if}
       {/each}
     </div>
@@ -50,8 +48,11 @@ is connected to, plus the add-server button pinned to the bottom. See the
     <button
       type="button"
       onclick={() => (addServerDialogVisible = true)}
-      title="Add Server"
-      class={['server-gutter-item cursor-pointer', addServerDialogVisible && 'server-gutter-item-active']}
+      title={m['chat.server_gutter.add_server']()}
+      class={[
+        'server-gutter-item cursor-pointer',
+        addServerDialogVisible && 'server-gutter-item-active'
+      ]}
     >
       <span class="iconify uil--plus"></span>
     </button>

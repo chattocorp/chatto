@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Button, Checkbox, Form, TextInput, TextArea } from '$lib/ui/form';
+  import * as m from '$lib/i18n/messages';
 
   let {
     name = $bindable(''),
@@ -8,9 +9,9 @@
     pingable = $bindable(false),
     nameEditable = true,
     saving = false,
-    submitLabel = 'Save',
+    submitLabel = m['rbac.role_form.save'](),
     submitIcon = 'iconify uil--check',
-    savingLabel = 'Saving...',
+    savingLabel = m['rbac.role_form.saving'](),
     onSubmit,
     onCancel
   }: {
@@ -30,10 +31,10 @@
   let nameError = $derived.by(() => {
     if (!name) return undefined;
     if (name.length > 32) {
-      return 'Name must be 32 characters or less';
+      return m['rbac.role_form.name_too_long']();
     }
     if (!/^[a-z]([a-z0-9-]*[a-z0-9])?$/.test(name)) {
-      return 'Name must use lowercase letters, numbers, and dashes; start with a letter';
+      return m['rbac.role_form.name_invalid']();
     }
     return undefined;
   });
@@ -41,7 +42,7 @@
   let displayNameError = $derived.by(() => {
     if (!displayName) return undefined;
     if (displayName.length > 64) {
-      return 'Display name must be 64 characters or less';
+      return m['rbac.role_form.display_name_too_long']();
     }
     return undefined;
   });
@@ -61,49 +62,49 @@
     <TextInput
       id="name"
       testid="role-form-name"
-      label="Name"
+      label={m['rbac.role_form.name']()}
       bind:value={name}
       required
       disabled={saving}
       error={nameError}
-      placeholder="e.g., moderator"
-      description="Lowercase letters only. Cannot be changed after creation."
+      placeholder={m['rbac.role_form.name_placeholder']()}
+      description={m['rbac.role_form.name_description']()}
     />
   {:else}
     <div>
-      <div class="mb-1 text-sm font-medium">Name</div>
+      <div class="mb-1 text-sm font-medium">{m['rbac.role_form.name']()}</div>
       <code class="rounded bg-surface-200 px-2 py-1">{name}</code>
-      <p class="mt-1 text-xs text-muted">Role names cannot be changed after creation.</p>
+      <p class="mt-1 text-xs text-muted">{m['rbac.role_form.name_locked']()}</p>
     </div>
   {/if}
 
   <TextInput
     id="displayName"
     testid="role-form-display-name"
-    label="Display Name"
+    label={m['rbac.role_form.display_name']()}
     bind:value={displayName}
     required
     disabled={saving}
     error={displayNameError}
-    placeholder="e.g., Moderator"
+    placeholder={m['rbac.role_form.display_name_placeholder']()}
   />
 
   <TextArea
     id="description"
     testid="role-form-description"
-    label="Description"
+    label={m['rbac.role_form.description']()}
     bind:value={description}
     rows={3}
     disabled={saving}
-    placeholder="Optional description for this role"
+    placeholder={m['rbac.role_form.description_placeholder']()}
   />
 
   <Checkbox
     id="pingable"
     bind:checked={pingable}
-    label="Allow people to ping this role"
+    label={m['rbac.role_form.pingable']()}
     disabled={saving}
-    description="Pingable roles appear in @ autocomplete and notify assigned room members."
+    description={m['rbac.role_form.pingable_description']()}
   />
 
   {#snippet footer()}
@@ -120,7 +121,7 @@
     {#if onCancel}
       <Button type="button" variant="secondary" onclick={onCancel} disabled={saving}>
         <span class="iconify uil--times"></span>
-        Cancel
+        {m['common.cancel']()}
       </Button>
     {/if}
   {/snippet}

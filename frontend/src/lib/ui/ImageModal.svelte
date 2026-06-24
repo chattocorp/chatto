@@ -1,5 +1,6 @@
 <script lang="ts">
   /* eslint-disable svelte/no-navigation-without-resolve -- external image URLs */
+  import * as m from '$lib/i18n/messages';
 
   export type ImageItem = {
     id?: string;
@@ -66,7 +67,7 @@
             type="button"
             onclick={() => navigate(-1)}
             class="nav-button"
-            aria-label="Previous image"
+            aria-label={m['ui.image_modal.previous']()}
           >
             <span class="iconify text-2xl uil--angle-left-b"></span>
           </button>
@@ -74,7 +75,7 @@
 
         <img
           src={current.src}
-          alt={current.alt ?? current.filename ?? 'Image'}
+          alt={current.alt ?? current.filename ?? m['ui.image_modal.fallback_alt']()}
           class="max-h-[85vh] max-w-[85vw] object-contain"
         />
 
@@ -83,7 +84,7 @@
             type="button"
             onclick={() => navigate(1)}
             class="nav-button"
-            aria-label="Next image"
+            aria-label={m['ui.image_modal.next']()}
           >
             <span class="iconify text-2xl uil--angle-right-b"></span>
           </button>

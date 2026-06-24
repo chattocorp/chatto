@@ -1,0 +1,9 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "error_page": {
+    "title": "Something went wrong",
+    "description": "An unexpected error occurred while rendering this page.",
+    "unknown": "Unknown error",
+    "home_link": "Go back to the home page"
+  }
+}

@@ -5,6 +5,7 @@
   import { Hint, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
+  import * as m from '$lib/i18n/messages';
 
   const AdminSystemInfoQuery = graphql(`
     query AdminSystemInfo {
@@ -115,7 +116,7 @@
   );
 
   function formatLimit(limit: number, formatter: (n: number) => string = String): string {
-    return limit <= 0 ? 'unlimited' : formatter(limit);
+    return limit <= 0 ? m['admin.system.unlimited']() : formatter(limit);
   }
 
   function consumerFilters(consumer: {
@@ -124,11 +125,11 @@
   }): string[] {
     if (consumer.filterSubjects.length > 0) return consumer.filterSubjects;
     if (consumer.filterSubject) return [consumer.filterSubject];
-    return ['all subjects'];
+    return [m['admin.system.all_subjects']()];
   }
 
   function formatDurationSeconds(seconds: number | null | undefined): string {
-    if (seconds == null) return 'Pending';
+    if (seconds == null) return m['admin.system.pending_state']();
     if (seconds < 0.001) return '<1 ms';
     if (seconds < 1) return `${Math.round(seconds * 1000)} ms`;
     if (seconds < 10) return `${seconds.toFixed(2)} s`;
@@ -140,24 +141,30 @@
   }
 </script>
 
-<PageTitle title="System | Admin" />
+<PageTitle title={m['admin.common.page_title']({ title: m['admin.system.title']() })} />
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-  <PaneHeader title="System" subtitle="NATS, JetStream, and projection health" showMobileNav />
+  <PaneHeader
+    title={m['admin.system.title']()}
+    subtitle={m['admin.system.subtitle']()}
+    showMobileNav
+  />
 
   <div class="min-h-0 flex-1 overflow-y-auto">
     <div class="flex flex-col gap-6 p-6">
       {#if loading}
-        <div class="text-muted">Loading system information...</div>
+        <div class="text-muted">{m['admin.system.loading']()}</div>
       {:else if error}
         <Hint tone="danger">{error}</Hint>
       {:else if systemInfo}
-        <Panel title="Connection" icon="iconify uil--plug">
+        <Panel title={m['admin.system.connection']()} icon="iconify uil--plug">
           <div class="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
             <div>
-              <div class="text-sm text-muted">Status</div>
+              <div class="text-sm text-muted">{m['admin.common.status']()}</div>
               <div class="flex items-center gap-2">
-                {systemInfo.connection.connected ? 'Connected' : 'Disconnected'}
+                {systemInfo.connection.connected
+                  ? m['admin.system.connected']()
+                  : m['admin.system.disconnected']()}
                 <span
                   class={[
                     'h-2 w-2 rounded-full',
@@ -167,19 +174,19 @@
               </div>
             </div>
             <div>
-              <div class="text-sm text-muted">Version</div>
+              <div class="text-sm text-muted">{m['admin.common.version']()}</div>
               <div class="font-mono text-sm">{systemInfo.connection.version}</div>
             </div>
             <div>
-              <div class="text-sm text-muted">RTT</div>
+              <div class="text-sm text-muted">{m['admin.system.rtt']()}</div>
               <div class="font-mono text-sm">{systemInfo.connection.rtt || '-'}</div>
             </div>
             <div>
-              <div class="text-sm text-muted">Max Payload</div>
+              <div class="text-sm text-muted">{m['admin.system.max_payload']()}</div>
               <div class="font-mono text-sm">{formatBytes(systemInfo.connection.maxPayload)}</div>
             </div>
             <div>
-              <div class="text-sm text-muted">Server ID</div>
+              <div class="text-sm text-muted">{m['admin.system.server_id']()}</div>
               <div class="truncate font-mono text-xs" title={systemInfo.connection.serverId}>
                 {systemInfo.connection.serverId.slice(0, 12)}...
               </div>
@@ -190,71 +197,79 @@
         <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
           <StatCard
             value={formatBytes(systemInfo.account.storageUsed)}
-            label="Account Storage"
+            label={m['admin.system.account_storage']()}
             icon="iconify uil--hdd"
             color="primary"
-            subtitle="of {formatLimit(systemInfo.account.storage, formatBytes)}"
+            subtitle={m['admin.system.limit']({
+              limit: formatLimit(systemInfo.account.storage, formatBytes)
+            })}
           />
           <StatCard
             value={formatBytes(systemInfo.account.memoryUsed)}
-            label="Memory"
+            label={m['admin.system.memory']()}
             icon="iconify uil--processor"
             color="success"
-            subtitle="of {formatLimit(systemInfo.account.memory, formatBytes)}"
+            subtitle={m['admin.system.limit']({
+              limit: formatLimit(systemInfo.account.memory, formatBytes)
+            })}
           />
           <StatCard
             value={systemInfo.account.streamsUsed}
-            label="Streams"
+            label={m['admin.system.streams']()}
             icon="iconify uil--exchange"
             color="warning"
-            subtitle="of {formatLimit(systemInfo.account.streams)}"
+            subtitle={m['admin.system.limit']({ limit: formatLimit(systemInfo.account.streams) })}
           />
           <StatCard
             value={systemInfo.account.consumersUsed}
-            label="Consumers"
+            label={m['admin.system.consumers']()}
             icon="iconify uil--users-alt"
             color="danger"
-            subtitle="of {formatLimit(systemInfo.account.consumers)}"
+            subtitle={m['admin.system.limit']({
+              limit: formatLimit(systemInfo.account.consumers)
+            })}
           />
         </div>
 
         <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
           <StatCard
             value={formatNumber(systemInfo.nats.totalMessages)}
-            label="Events"
+            label={m['admin.system.events']()}
             icon="iconify uil--database"
             color="primary"
           />
           <StatCard
             value={formatBytes(systemInfo.nats.totalBytes)}
-            label="Event Bytes"
+            label={m['admin.system.event_bytes']()}
             icon="iconify uil--hdd"
             color="success"
           />
           <StatCard
             value={formatNumber(systemInfo.nats.totalConsumerPending)}
-            label="Consumer Backlog"
+            label={m['admin.system.consumer_backlog']()}
             icon="iconify uil--clock"
             color={systemInfo.nats.totalConsumerPending > 0 ? 'warning' : 'success'}
-            subtitle={`${formatNumber(consumersWithBacklog)} consumer(s) with pending messages`}
+            subtitle={m['admin.system.consumer_backlog_subtitle']({
+              count: formatNumber(consumersWithBacklog)
+            })}
           />
           <StatCard
             value={formatNumber(systemInfo.nats.totalAckPending)}
-            label="Ack Pending"
+            label={m['admin.system.ack_pending']()}
             icon="iconify uil--check-circle"
             color={systemInfo.nats.totalAckPending > 0 ? 'warning' : 'success'}
           />
         </div>
 
-        <Panel title="Streams" icon="iconify uil--exchange" noPadding>
-          <DataTable items={streams} columns={6} emptyMessage="No streams are registered.">
+        <Panel title={m['admin.system.streams']()} icon="iconify uil--exchange" noPadding>
+          <DataTable items={streams} columns={6} emptyMessage={m['admin.system.no_streams']()}>
             {#snippet header()}
-              <th class="px-4 py-3 font-medium">Stream</th>
-              <th class="px-4 py-3 font-medium">Storage</th>
-              <th class="px-4 py-3 font-medium">Messages</th>
-              <th class="px-4 py-3 font-medium">Bytes</th>
-              <th class="px-4 py-3 font-medium">Consumers</th>
-              <th class="px-4 py-3 font-medium">Replicas</th>
+              <th class="px-4 py-3 font-medium">{m['admin.system.stream']()}</th>
+              <th class="px-4 py-3 font-medium">{m['admin.system.storage']()}</th>
+              <th class="px-4 py-3 font-medium">{m['admin.system.messages']()}</th>
+              <th class="px-4 py-3 font-medium">{m['admin.system.bytes']()}</th>
+              <th class="px-4 py-3 font-medium">{m['admin.system.consumers']()}</th>
+              <th class="px-4 py-3 font-medium">{m['admin.system.replicas']()}</th>
             {/snippet}
             {#snippet row(stream)}
               <td class="px-4 py-3">
@@ -286,33 +301,35 @@
           </DataTable>
         </Panel>
 
-        <Panel title="Consumers" icon="iconify uil--users-alt" noPadding>
-          <DataTable items={consumers} columns={7} emptyMessage="No consumers are registered.">
+        <Panel title={m['admin.system.consumers']()} icon="iconify uil--users-alt" noPadding>
+          <DataTable items={consumers} columns={7} emptyMessage={m['admin.system.no_consumers']()}>
             {#snippet header()}
-              <th class="px-4 py-3 font-medium">Consumer</th>
-              <th class="px-4 py-3 font-medium">Mode</th>
-              <th class="px-4 py-3 font-medium">Filters</th>
-              <th class="px-4 py-3 font-medium">Pending</th>
-              <th class="px-4 py-3 font-medium">Ack Pending</th>
-              <th class="px-4 py-3 font-medium">Redelivered</th>
-              <th class="px-4 py-3 font-medium">Acked Through</th>
+              <th class="px-4 py-3 font-medium">{m['admin.system.consumer']()}</th>
+              <th class="px-4 py-3 font-medium">{m['admin.system.mode']()}</th>
+              <th class="px-4 py-3 font-medium">{m['admin.system.filters']()}</th>
+              <th class="px-4 py-3 font-medium">{m['admin.system.pending']()}</th>
+              <th class="px-4 py-3 font-medium">{m['admin.system.ack_pending']()}</th>
+              <th class="px-4 py-3 font-medium">{m['admin.system.redelivered']()}</th>
+              <th class="px-4 py-3 font-medium">{m['admin.system.acked_through']()}</th>
             {/snippet}
             {#snippet row(consumer)}
               <td class="px-4 py-3">
                 <div class="font-medium">{consumer.name}</div>
                 <div class="font-mono text-xs text-muted">{consumer.stream}</div>
                 {#if consumer.durable}
-                  <div class="text-xs text-muted">Durable: {consumer.durable}</div>
+                  <div class="text-xs text-muted">
+                    {m['admin.system.durable']({ name: consumer.durable })}
+                  </div>
                 {/if}
               </td>
               <td class="px-4 py-3">
                 <div class="flex flex-wrap gap-1">
                   <Pill tone={consumer.pullBased ? 'primary' : 'muted'}>
-                    {consumer.pullBased ? 'Pull' : 'Push'}
+                    {consumer.pullBased ? m['admin.system.pull']() : m['admin.system.push']()}
                   </Pill>
                   {#if !consumer.pullBased}
                     <Pill tone={consumer.pushBound ? 'success' : 'danger'}>
-                      {consumer.pushBound ? 'Bound' : 'Unbound'}
+                      {consumer.pushBound ? m['admin.system.bound']() : m['admin.system.unbound']()}
                     </Pill>
                   {/if}
                 </div>
@@ -353,41 +370,45 @@
         <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
           <StatCard
             value={formatNumber(projections.length)}
-            label="Projections"
+            label={m['admin.system.projections']()}
             icon="iconify uil--layers"
             color="primary"
           />
           <StatCard
             value={formatBytes(totalEstimatedBytes)}
-            label="Projection Memory"
+            label={m['admin.system.projection_memory']()}
             icon="iconify uil--processor"
             color="success"
-            subtitle={`${formatNumber(totalEntries)} projected entries`}
+            subtitle={m['admin.system.projection_entries']({ count: formatNumber(totalEntries) })}
           />
           <StatCard
             value={formatNumber(failedProjectionCount)}
-            label="Projection Failures"
+            label={m['admin.system.projection_failures']()}
             icon="iconify uil--exclamation-triangle"
             color={failedProjectionCount > 0 ? 'danger' : 'success'}
           />
           <StatCard
             value={formatNumber(laggingCount)}
-            label="Projection Lag"
+            label={m['admin.system.projection_lag']()}
             icon="iconify uil--clock"
             color={laggingCount > 0 ? 'warning' : 'success'}
           />
         </div>
 
-        <Panel title="Projections" icon="iconify uil--chart-line" noPadding>
-          <DataTable items={projections} columns={7} emptyMessage="No projections are registered.">
+        <Panel title={m['admin.system.projections']()} icon="iconify uil--chart-line" noPadding>
+          <DataTable
+            items={projections}
+            columns={7}
+            emptyMessage={m['admin.system.no_projections']()}
+          >
             {#snippet header()}
-              <th class="px-4 py-3 font-medium">Projection</th>
-              <th class="px-4 py-3 font-medium">State</th>
-              <th class="px-4 py-3 font-medium">Startup</th>
-              <th class="px-4 py-3 font-medium">Applied</th>
-              <th class="px-4 py-3 font-medium">Lag</th>
-              <th class="px-4 py-3 font-medium">Entries</th>
-              <th class="px-4 py-3 font-medium">Memory</th>
+              <th class="px-4 py-3 font-medium">{m['admin.system.projection']()}</th>
+              <th class="px-4 py-3 font-medium">{m['admin.system.state']()}</th>
+              <th class="px-4 py-3 font-medium">{m['admin.system.startup']()}</th>
+              <th class="px-4 py-3 font-medium">{m['admin.system.applied']()}</th>
+              <th class="px-4 py-3 font-medium">{m['admin.system.lag']()}</th>
+              <th class="px-4 py-3 font-medium">{m['admin.system.entries']()}</th>
+              <th class="px-4 py-3 font-medium">{m['admin.system.memory']()}</th>
             {/snippet}
             {#snippet row(projection)}
               <td class="px-4 py-3">
@@ -407,7 +428,11 @@
                   <Pill
                     tone={projection.failed ? 'danger' : projection.started ? 'success' : 'muted'}
                   >
-                    {projection.failed ? 'Failed' : projection.started ? 'Started' : 'Stopped'}
+                    {projection.failed
+                      ? m['admin.system.failed']()
+                      : projection.started
+                        ? m['admin.system.started']()
+                        : m['admin.system.stopped']()}
                   </Pill>
                 </div>
                 {#if projection.failed}
@@ -425,7 +450,9 @@
                 {projection.lastAppliedSequence}
                 <span class="text-muted">/ {projection.matchingStreamSequence}</span>
                 {#if projection.failed}
-                  <div class="text-xs text-danger">failed at {projection.failedSequence}</div>
+                  <div class="text-xs text-danger">
+                    {m['admin.system.failed_at']({ sequence: projection.failedSequence })}
+                  </div>
                 {/if}
               </td>
               <td class="px-4 py-3">

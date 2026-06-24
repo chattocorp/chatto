@@ -31,6 +31,7 @@ under it. Column headers are clickable when `onRoleClick` is provided
   import { getPermissionDescription } from '$lib/permissions';
   import { setRolePermission, type MutationScope } from './permissionMutations';
   import MatrixCell from './MatrixCell.svelte';
+  import * as m from '$lib/i18n/messages';
 
   type State = 'allow' | 'deny' | 'neutral';
 
@@ -300,9 +301,9 @@ under it. Column headers are clickable when `onRoleClick` is provided
 {/if}
 
 {#if loading}
-  <div class="text-muted">Loading permissions…</div>
+  <div class="text-muted">{m['rbac.permissions.loading']()}</div>
 {:else if !data || data.roles.length === 0}
-  <Hint tone="info">No roles applicable at this scope.</Hint>
+  <Hint tone="info">{m['rbac.permissions.no_roles']()}</Hint>
 {:else}
   {@const roles = [...data.roles].sort((a, b) => b.position - a.position)}
   <div class="flex flex-col gap-6">

@@ -1,0 +1,53 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "rbac": {
+    "delete_role": {
+      "title": "Delete Role",
+      "prompt": "Are you sure you want to delete the role {role}? This will:",
+      "remove_from_users": "Remove the role from all users who have it",
+      "delete_grants": "Delete all permission grants for this role",
+      "irreversible": "This action cannot be undone.",
+      "deleting": "Deleting...",
+      "action": "Delete Role"
+    },
+    "role_form": {
+      "save": "Save",
+      "saving": "Saving...",
+      "name": "Name",
+      "name_placeholder": "e.g., moderator",
+      "name_description": "Lowercase letters only. Cannot be changed after creation.",
+      "name_too_long": "Name must be 32 characters or less",
+      "name_invalid": "Name must use lowercase letters, numbers, and dashes; start with a letter",
+      "name_locked": "Role names cannot be changed after creation.",
+      "display_name": "Display Name",
+      "display_name_placeholder": "e.g., Moderator",
+      "display_name_too_long": "Display name must be 64 characters or less",
+      "description": "Description",
+      "description_placeholder": "Optional description for this role",
+      "pingable": "Allow people to ping this role",
+      "pingable_description": "Pingable roles appear in @ autocomplete and notify assigned room members."
+    },
+    "permissions": {
+      "loading": "Loading permissions...",
+      "no_data": "No data available.",
+      "no_roles": "No roles applicable at this scope.",
+      "permission": "Permission",
+      "state": "State",
+      "decided_by": "Decided by",
+      "granted": "Granted",
+      "denied": "Denied",
+      "no_decision": "No decision",
+      "no_role_decided": "No role decided",
+      "hide_trace": "Hide trace",
+      "show_trace": "Show trace",
+      "trace_one": "Resolution trace (1 entry)",
+      "trace_many": "Resolution trace ({count} entries)",
+      "allow": "allow",
+      "deny": "deny",
+      "winning_decision": "(winning decision)",
+      "level_server": "Server",
+      "level_group": "Group",
+      "level_room": "Room"
+    }
+  }
+}

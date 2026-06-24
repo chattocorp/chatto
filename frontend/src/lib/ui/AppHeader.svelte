@@ -7,14 +7,13 @@
   import { renderMarkdown } from '$lib/markdown';
   import { version } from '$app/environment';
   import { sidebarNav, quickSwitcher } from '$lib/state/globals.svelte';
+  import * as m from '$lib/i18n/messages';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
 
   // MOTD follows the active server; the connection-lost icon below stays
   // bound to the origin store since it reflects the SPA host's own connection.
   const motd = $derived(serverRegistry.tryGetStore(getActiveServer())?.serverInfo.motd);
-  const originStore = $derived(
-    serverRegistry.tryGetStore(serverRegistry.originServer?.id ?? '')
-  );
+  const originStore = $derived(serverRegistry.tryGetStore(serverRegistry.originServer?.id ?? ''));
 
   // Aggregate notification count across all servers.
   const totalNotificationCount = $derived(
@@ -40,9 +39,9 @@
       type="button"
       class="app-header-icon"
       onclick={() => sidebarNav.toggle()}
-      aria-label="Toggle sidebar"
+      aria-label={m['ui.toggle_sidebar']()}
       aria-expanded={sidebarNav.isOpen}
-      title="Toggle sidebar"
+      title={m['ui.toggle_sidebar']()}
     >
       <span class="iconify text-xl uil--bars"></span>
     </button>
@@ -50,9 +49,9 @@
     <!-- Notification bell - 44px tap target for mobile accessibility -->
     <a
       href={resolve('/chat/notifications')}
-      aria-label="Notifications"
-      title="Notifications"
-      class="app-header-icon relative"
+      aria-label={m['ui.notifications']()}
+      title={m['ui.notifications']()}
+      class="relative app-header-icon"
     >
       <span class="iconify text-lg uil--bell"></span>
       {#if totalNotificationCount > 0}
@@ -66,8 +65,8 @@
         type="button"
         class="app-header-icon"
         onclick={() => quickSwitcher.open()}
-        aria-label="Open quick switcher"
-        title="Quick switcher (⌘K)"
+        aria-label={m['ui.open_quick_switcher']()}
+        title={m['ui.quick_switcher_shortcut']()}
       >
         <span class="iconify text-lg uil--apps"></span>
       </button>
@@ -79,9 +78,11 @@
       <span
         class={[
           'iconify text-lg uil--wifi-slash',
-          graphqlClientManager.originClient.showConnectionLostBanner ? 'text-warning' : 'animate-pulse'
+          graphqlClientManager.originClient.showConnectionLostBanner
+            ? 'text-warning'
+            : 'animate-pulse'
         ]}
-        title="Real-time updates paused. Reconnecting..."
+        title={m['ui.realtime_paused']()}
       ></span>
     {/if}
   </div>
@@ -114,7 +115,7 @@
         type="button"
         class="iconify cursor-pointer uil--signout hover:text-text"
         onclick={handleSignOut}
-        title="Sign out"
+        title={m['ui.sign_out']()}
       >
       </button>
     {/if}

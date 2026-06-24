@@ -1,9 +1,5 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
-  "common": {
-    "cancel": "Cancel",
-    "close_sidebar": "Close sidebar"
-  },
   "settings": {
     "nav": {
       "title": "Settings",
@@ -124,6 +120,16 @@
         "blocked_error": "Push notifications are blocked in your browser or OS settings.",
         "enable_failed": "Failed to enable push notifications. Please try again.",
         "enable_error": "An error occurred while enabling push notifications"
+      },
+      "push_prompt": {
+        "title": "Enable push notifications",
+        "message": "Get notified about DMs, mentions, and replies.",
+        "enabled": "Push notifications enabled",
+        "blocked": "Push notifications are blocked in your browser or OS settings",
+        "enable_failed": "Failed to enable push notifications",
+        "enabling": "Enabling...",
+        "enable": "Enable",
+        "dismiss": "No thanks"
       },
       "levels": {
         "loading": "Loading...",

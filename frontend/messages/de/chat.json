@@ -1,0 +1,45 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "chat": {
+    "notifications": {
+      "title": "Benachrichtigungen",
+      "subtitle": "Das ist neu",
+      "clear_all": "Alle löschen",
+      "empty_title": "Keine Benachrichtigungen",
+      "empty_body": "Du bist auf dem neuesten Stand!",
+      "time_now": "Gerade eben",
+      "time_minutes": "vor {count} Min.",
+      "time_hours": "vor {count} Std.",
+      "time_days": "vor {count} Tg."
+    },
+    "sign_out": {
+      "title": "Abmelden",
+      "current_server": "Aktueller Server",
+      "all_servers": "Alle Server",
+      "description": "Melde dich nur vom ausgewählten Server ab oder trenne alle Server von diesem Client."
+    },
+    "overview": {
+      "title": "Übersicht"
+    },
+    "server_gutter": {
+      "add_server": "Server hinzufügen"
+    },
+    "threads": {
+      "title": "Meine Threads",
+      "subtitle": "Threads, denen du folgst",
+      "filter_label": "Threads filtern",
+      "filter_all": "Alle",
+      "filter_unread": "Ungelesen",
+      "empty_title": "Keine gefolgten Threads",
+      "empty_body": "Threads, denen du folgst, erscheinen hier. Du folgst automatisch Threads, an denen du teilnimmst.",
+      "no_unread_loaded": "Keine ungelesenen Threads geladen",
+      "all_caught_up": "Alles erledigt",
+      "loaded_count": "{loaded} von {total} gefolgten Threads geladen.",
+      "load_more": "Mehr laden",
+      "no_unread": "Derzeit keine ungelesenen Threads.",
+      "message_missing": "Nachricht nicht mehr verfügbar",
+      "in_room": "in",
+      "in_room_capitalized": "In"
+    }
+  }
+}

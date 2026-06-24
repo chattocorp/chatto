@@ -1,0 +1,45 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "chat": {
+    "notifications": {
+      "title": "Notifications",
+      "subtitle": "Here's what's new",
+      "clear_all": "Clear all",
+      "empty_title": "No notifications",
+      "empty_body": "You're all caught up!",
+      "time_now": "Just now",
+      "time_minutes": "{count}m ago",
+      "time_hours": "{count}h ago",
+      "time_days": "{count}d ago"
+    },
+    "sign_out": {
+      "title": "Sign Out",
+      "current_server": "Current Server",
+      "all_servers": "All Servers",
+      "description": "Sign out of only the selected server, or disconnect every server from this client."
+    },
+    "overview": {
+      "title": "Overview"
+    },
+    "server_gutter": {
+      "add_server": "Add Server"
+    },
+    "threads": {
+      "title": "My Threads",
+      "subtitle": "Threads you're following",
+      "filter_label": "Filter threads",
+      "filter_all": "All",
+      "filter_unread": "Unread",
+      "empty_title": "No followed threads",
+      "empty_body": "Threads you follow will appear here. You automatically follow threads you participate in.",
+      "no_unread_loaded": "No unread threads loaded",
+      "all_caught_up": "All caught up",
+      "loaded_count": "{loaded} of {total} followed threads loaded.",
+      "load_more": "Load more",
+      "no_unread": "No unread threads right now.",
+      "message_missing": "Message no longer available",
+      "in_room": "in",
+      "in_room_capitalized": "In"
+    }
+  }
+}

@@ -10,6 +10,7 @@
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { FormError } from '$lib/ui/form';
   import { RoleForm } from '$lib/components/rbac';
+  import * as m from '$lib/i18n/messages';
 
   const connection = useConnection();
 
@@ -37,7 +38,7 @@
     );
 
     if (resp.error || !resp.data?.server) {
-      error = 'Failed to load instance';
+      error = m['admin.permissions.load_instance_failed']();
       loading = false;
       return;
     }
@@ -91,45 +92,48 @@
   }
 </script>
 
-<PageTitle title="Create Role | Server Admin" />
+<PageTitle
+  title={m['admin.common.server_admin_page_title']({
+    title: m['admin.permissions.create_role_title']()
+  })}
+/>
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
   <PaneHeader
-    title="Create Role"
-    subtitle="Create a new role for this server"
+    title={m['admin.permissions.create_role_title']()}
+    subtitle={m['admin.permissions.create_role_subtitle']()}
     backHref={resolve('/chat/[serverId]/server-admin/permissions', {
       serverId: serverIdToSegment(getActiveServer())
     })}
-    backLabel="Back to permissions"
+    backLabel={m['admin.permissions.back_to_permissions']()}
     showMobileNav
   />
 
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
     {#if loading}
-      <div class="text-muted">Loading...</div>
+      <div class="text-muted">{m['admin.common.loading']()}</div>
     {:else if !canManageRoles}
       <div class="text-danger">
-        You need the <code class="rounded bg-surface-200 px-1">roles.manage</code> permission to create
-        roles.
+        {m['admin.permissions.need_manage_create']()}
       </div>
     {:else}
       {#if error}
         <FormError {error} />
       {/if}
 
-      <Panel title="Role Details" icon="iconify uil--plus-circle">
+      <Panel title={m['admin.common.role_details']()} icon="iconify uil--plus-circle">
         <RoleForm
           bind:name
           bind:displayName
           bind:description
           bind:pingable
           saving={creating}
-          submitLabel="Create Role"
-          savingLabel="Creating..."
+          submitLabel={m['admin.permissions.create_role_action']()}
+          savingLabel={m['admin.permissions.creating_role']()}
           onSubmit={createRole}
         />
         <p class="mt-4 text-sm text-muted">
-          After creating the role, you can assign permissions to it on the edit page.
+          {m['admin.permissions.create_after_hint']()}
         </p>
       </Panel>
     {/if}

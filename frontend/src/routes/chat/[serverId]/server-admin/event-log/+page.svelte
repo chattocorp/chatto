@@ -18,6 +18,7 @@
   import { Button, Combobox } from '$lib/ui/form';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { formatDateTime as formatDateTimeUtil, formatDayLabel } from '$lib/utils/formatTime';
+  import * as m from '$lib/i18n/messages';
 
   const userSettings = getUserSettings();
 
@@ -157,12 +158,12 @@
   }
 </script>
 
-<PageTitle title="Event Log | Admin" />
+<PageTitle title={m['admin.common.page_title']({ title: m['admin.event_log.title']() })} />
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
   <PaneHeader
-    title="Event Log"
-    subtitle="Browse the durable event-sourcing stream (EVT). Read-only — useful for debugging and as a starting point for the audit log."
+    title={m['admin.event_log.title']()}
+    subtitle={m['admin.event_log.subtitle']()}
     showMobileNav
   />
 
@@ -180,8 +181,9 @@
         <Hint tone="warning">
           <span class="flex flex-wrap items-center gap-3">
             <span>
-              Filtered scan inspected {eventLog.scanLimit.toLocaleString()} retained events and may
-              have older matches outside that window.
+              {m['admin.event_log.filtered_scan']({
+                limit: eventLog.scanLimit.toLocaleString()
+              })}
             </span>
             {#if eventLog.hasOlder}
               <Button
@@ -190,30 +192,30 @@
                 onclick={loadOlderScanWindow}
                 disabled={eventLog.loadingMore}
               >
-                Scan older events
+                {m['admin.event_log.scan_older']()}
               </Button>
             {/if}
           </span>
         </Hint>
       {/if}
 
-      <Panel title="Filters">
+      <Panel title={m['admin.event_log.filters']()}>
         <div class="flex flex-col gap-4">
           <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <Combobox
               id="event-log-event-type"
-              label="Event type"
+              label={m['admin.event_log.event_type']()}
               bind:value={draftEventType}
               bind:text={draftEventTypeText}
               items={eventTypeItems}
               getValue={(item) => item.value}
               getLabel={(item) => item.label}
               placeholder={eventLog.eventTypesUnsupported
-                ? 'Enter an event type...'
-                : 'Search event types...'}
+                ? m['admin.event_log.event_type_placeholder']()
+                : m['admin.event_log.event_type_search_placeholder']()}
               loading={eventLog.eventTypesLoading}
-              emptyMessage="No event types found"
-              clearLabel="Clear event type"
+              emptyMessage={m['admin.event_log.no_event_types']()}
+              clearLabel={m['admin.event_log.clear_event_type']()}
             />
 
             <UserCombobox
@@ -230,22 +232,27 @@
               onclick={clearFilters}
               disabled={!eventLog.hasActiveFilter && !hasDraftChanges}
             >
-              Clear
+              {m['admin.event_log.clear']()}
             </Button>
             <Button onclick={applyFilters} disabled={!hasDraftChanges || eventLog.loading}>
-              Apply
+              {m['admin.event_log.apply']()}
             </Button>
           </div>
         </div>
       </Panel>
 
       <div class="text-sm text-muted">
-        {formattedTotalCount} total event{eventLog.totalCount === '1' ? '' : 's'} in stream
+        {eventLog.totalCount === '1'
+          ? m['admin.event_log.total_events_one']({ count: formattedTotalCount })
+          : m['admin.event_log.total_events_many']({ count: formattedTotalCount })}
         {#if eventLog.hasActiveFilter}
-          · inspected {eventLog.scannedCount.toLocaleString()} retained row{eventLog.scannedCount ===
-          1
-            ? ''
-            : 's'}
+          · {eventLog.scannedCount === 1
+            ? m['admin.event_log.inspected_rows_one']({
+                count: eventLog.scannedCount.toLocaleString()
+              })
+            : m['admin.event_log.inspected_rows_many']({
+                count: eventLog.scannedCount.toLocaleString()
+              })}
         {/if}
       </div>
 
@@ -253,21 +260,23 @@
         <DataTable
           items={eventLog.entries}
           columns={5}
-          emptyMessage={eventLog.loading ? 'Loading...' : 'No events match these filters.'}
+          emptyMessage={eventLog.loading
+            ? m['admin.common.loading']()
+            : m['admin.event_log.no_matches']()}
           hasMore={eventLog.hasOlder && !eventLog.scanLimited && !eventLog.error}
           loadingMore={eventLog.loadingMore}
           onLoadMore={() => eventLog.loadMore()}
           loadMoreRoot={scrollContainer}
-          loadingMoreMessage="Loading older events..."
+          loadingMoreMessage={m['admin.event_log.loading_older']()}
           getGroupKey={(entry) => dateGroupKey(entry.createdAt)}
           onRowClick={openEntry}
         >
           {#snippet header()}
-            <th class="px-4 py-3 font-medium">Seq</th>
-            <th class="px-4 py-3 font-medium">Time</th>
-            <th class="px-4 py-3 font-medium">Event</th>
-            <th class="px-4 py-3 font-medium">Aggregate</th>
-            <th class="px-4 py-3 font-medium">Actor</th>
+            <th class="px-4 py-3 font-medium">{m['admin.event_log.seq']()}</th>
+            <th class="px-4 py-3 font-medium">{m['admin.event_log.time']()}</th>
+            <th class="px-4 py-3 font-medium">{m['admin.event_log.event']()}</th>
+            <th class="px-4 py-3 font-medium">{m['admin.event_log.aggregate']()}</th>
+            <th class="px-4 py-3 font-medium">{m['admin.event_log.actor']()}</th>
           {/snippet}
           {#snippet row(entry)}
             <td class="px-4 py-3 font-mono text-sm text-muted">{entry.sequence}</td>

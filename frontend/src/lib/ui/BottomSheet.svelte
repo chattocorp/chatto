@@ -1,4 +1,5 @@
 <script lang="ts">
+  import * as m from '$lib/i18n/messages';
   import type { Snippet } from 'svelte';
   import { panGesture } from '$lib/hooks/panGesture.svelte';
 
@@ -72,7 +73,11 @@
     // Also keep the focus-based guard for the Escape-key path with an input
     // already focused inside the sheet (external keyboard, or stale flag).
     const active = document.activeElement;
-    if (active && dialogEl?.contains(active) && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+    if (
+      active &&
+      dialogEl?.contains(active) &&
+      (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')
+    ) {
       return;
     }
     close();
@@ -142,7 +147,7 @@
       type="button"
       class="flex w-full cursor-pointer touch-none justify-center py-3"
       onclick={close}
-      aria-label="Close"
+      aria-label={m['ui.close']()}
     >
       <div class="h-1 w-10 rounded-full bg-muted/40"></div>
     </button>

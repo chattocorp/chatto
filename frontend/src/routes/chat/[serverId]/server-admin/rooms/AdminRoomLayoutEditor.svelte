@@ -21,6 +21,7 @@
   import { UNIVERSAL_ROOM_HELP_TEXT } from '$lib/utils/roomCopy';
   import { flip } from 'svelte/animate';
   import { dndzone, type DndEvent } from 'svelte-dnd-action';
+  import * as m from '$lib/i18n/messages';
 
   let {
     layout,
@@ -60,21 +61,21 @@
 
     const result = await layout.createGroup(name);
     if (!result.ok) {
-      toast.error(`Failed to create group: ${result.error}`);
+      toast.error(m['admin.rooms_admin.create_group_failed']({ error: result.error }));
       return;
     }
     newGroupName = '';
     createGroupDialogVisible = false;
-    toast.success('Group created');
+    toast.success(m['admin.rooms_admin.group_created']());
   }
 
   async function renameGroup(groupId: string, newName: string) {
     const result = await layout.renameGroup(groupId, newName);
     if (!result.ok) {
-      toast.error(`Failed to rename group: ${result.error}`);
+      toast.error(m['admin.rooms_admin.rename_group_failed']({ error: result.error }));
       return;
     }
-    toast.success('Group renamed');
+    toast.success(m['admin.rooms_admin.group_renamed']());
   }
 
   let deleteGroupConfirmDialogVisible = $state(false);
@@ -92,10 +93,10 @@
     deleteGroupConfirmDialogVisible = false;
     deleteGroupConfirm = null;
     if (!result.ok) {
-      toast.error(`Failed to delete group: ${result.error}`);
+      toast.error(m['admin.rooms_admin.delete_group_failed']({ error: result.error }));
       return;
     }
-    toast.success('Group deleted');
+    toast.success(m['admin.rooms_admin.group_deleted']());
   }
 
   // --- Drag-and-drop handlers ---
@@ -107,13 +108,17 @@
       return;
     }
     if (result.movedCount > 0) {
-      toast.success(result.movedCount === 1 ? 'Item moved' : `${result.movedCount} items moved`);
+      toast.success(
+        result.movedCount === 1
+          ? m['admin.rooms_admin.item_moved_one']()
+          : m['admin.rooms_admin.item_moved_many']({ count: result.movedCount })
+      );
     }
   }
 
   function handleGroupReorderResult(result: GroupReorderResult) {
     if (!result.ok) {
-      toast.error(`Failed to reorder groups: ${result.error}`);
+      toast.error(m['admin.rooms_admin.reorder_groups_failed']({ error: result.error }));
     }
   }
 
@@ -210,7 +215,7 @@
         editRoomDescription.trim() || null
       );
       if (!result.ok) {
-        toast.error(`Failed to update room: ${result.error}`);
+        toast.error(m['admin.rooms_admin.update_room_failed']({ error: result.error }));
         return;
       }
     }
@@ -218,12 +223,12 @@
     if (editRoomUniversalChanged) {
       const result = await layout.setRoomUniversal(editRoomId, editRoomUniversal);
       if (!result.ok) {
-        toast.error(`Failed to update room: ${result.error}`);
+        toast.error(m['admin.rooms_admin.update_room_failed']({ error: result.error }));
         return;
       }
     }
 
-    toast.success('Room updated');
+    toast.success(m['admin.rooms_admin.room_updated']());
     editRoomDialogVisible = false;
   }
 
@@ -244,9 +249,9 @@
     const result = await layout.unarchiveRoom(roomId);
 
     if (!result.ok) {
-      toast.error(`Failed to unarchive room: ${result.error}`);
+      toast.error(m['admin.rooms_admin.unarchive_room_failed']({ error: result.error }));
     } else {
-      toast.success('Room unarchived');
+      toast.success(m['admin.rooms_admin.room_unarchived']());
     }
     unarchiveConfirmRoom = null;
   }
@@ -271,9 +276,9 @@
     const result = await layout.archiveRoom(roomId);
 
     if (!result.ok) {
-      toast.error(`Failed to archive room: ${result.error}`);
+      toast.error(m['admin.rooms_admin.archive_room_failed']({ error: result.error }));
     } else {
-      toast.success('Room archived');
+      toast.success(m['admin.rooms_admin.room_archived']());
     }
 
     archiveConfirmRoom = null;
@@ -317,7 +322,7 @@
   function handleRoomCreated() {
     createRoomDialogVisible = false;
     createRoomGroupId = null;
-    toast.success('Room created');
+    toast.success(m['admin.rooms_admin.room_created']());
     layout.handleRoomCreated();
     onroomcreated?.();
   }
@@ -359,11 +364,13 @@
         : { ok: false as const, error: 'No group selected' };
 
     if (!result.ok) {
-      toast.error(`Failed to save link: ${result.error}`);
+      toast.error(m['admin.rooms_admin.save_link_failed']({ error: result.error }));
       return;
     }
 
-    toast.success(editingLinkId ? 'Link updated' : 'Link created');
+    toast.success(
+      editingLinkId ? m['admin.rooms_admin.link_updated']() : m['admin.rooms_admin.link_created']()
+    );
     linkDialogVisible = false;
   }
 
@@ -381,10 +388,10 @@
     deleteLinkConfirmDialogVisible = false;
     deleteLinkConfirm = null;
     if (!result.ok) {
-      toast.error(`Failed to delete link: ${result.error}`);
+      toast.error(m['admin.rooms_admin.delete_link_failed']({ error: result.error }));
       return;
     }
-    toast.success('Link deleted');
+    toast.success(m['admin.rooms_admin.link_deleted']());
   }
 </script>
 
@@ -416,25 +423,25 @@
     {@const roomInfo = room.room}
     {@render iconButton({
       icon: 'uil--pen',
-      title: 'Edit room',
+      title: m['admin.rooms_admin.edit_room_action'](),
       onclick: () => openEditRoom(roomInfo)
     })}
     {@render iconButton({
       icon: 'uil--shield',
-      title: 'Per-room permission overrides',
+      title: m['admin.rooms_admin.room_permissions_title_fallback'](),
       onclick: () => openRoomPermissions(roomInfo)
     })}
     {#if roomInfo.archived}
       {@render iconButton({
         icon: 'uil--redo',
-        title: 'Unarchive room',
+        title: m['admin.rooms_admin.unarchive_room'](),
         disabled: layout.archivingRoomId === roomInfo.id,
         onclick: () => confirmUnarchiveRoom(roomInfo)
       })}
     {:else}
       {@render iconButton({
         icon: 'uil--archive',
-        title: 'Archive room',
+        title: m['admin.rooms_admin.archive_room'](),
         tone: 'warning',
         disabled: layout.archivingRoomId === roomInfo.id,
         onclick: () => confirmArchiveRoom(roomInfo)
@@ -443,12 +450,12 @@
   {:else}
     {@render iconButton({
       icon: 'uil--pen',
-      title: 'Edit link',
+      title: m['admin.rooms_admin.edit_link'](),
       onclick: () => openEditLink(room.link)
     })}
     {@render iconButton({
       icon: 'uil--trash-alt',
-      title: 'Delete link',
+      title: m['admin.rooms_admin.delete_link'](),
       tone: 'danger',
       onclick: () => confirmDeleteLink(room.link)
     })}
@@ -456,23 +463,24 @@
 {/snippet}
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-  <PaneHeader title="Rooms" subtitle="Create, edit, organize, and archive rooms" showMobileNav />
+  <PaneHeader
+    title={m['admin.rooms_admin.title']()}
+    subtitle={m['admin.rooms_admin.subtitle']()}
+    showMobileNav
+  />
 
   <div class="flex flex-col gap-4 overflow-y-auto p-6">
     {#if layout.loading}
-      <div class="text-muted">Loading rooms...</div>
+      <div class="text-muted">{m['admin.rooms_admin.loading']()}</div>
     {:else if layout.error}
       <Hint tone="danger">{layout.error}</Hint>
     {:else}
       {#if renderGroups.length === 0}
-        <EmptyState icon="uil--layer-group" title="No room groups yet">
-          Create a set to start organizing rooms.
+        <EmptyState icon="uil--layer-group" title={m['admin.rooms_admin.empty_groups']()}>
+          {m['admin.rooms_admin.empty_groups_body']()}
         </EmptyState>
       {:else}
-        <Hint>
-          Drag rooms between groups to organize them. Drag group headers to reorder groups. Archived
-          rooms stay in their set but are hidden from members.
-        </Hint>
+        <Hint>{m['admin.rooms_admin.drag_hint']()}</Hint>
       {/if}
 
       <div
@@ -499,8 +507,8 @@
                 role="button"
                 tabindex="0"
                 class="iconify shrink-0 cursor-grab text-lg text-muted uil--draggabledots hover:text-text"
-                title="Drag to reorder group"
-                aria-label="Drag to reorder group"
+                title={m['admin.rooms_admin.drag_group']()}
+                aria-label={m['admin.rooms_admin.drag_group']()}
               ></span>
 
               <div class="flex min-w-0 flex-1 items-center gap-2">
@@ -511,29 +519,29 @@
               <div class="flex items-center gap-2">
                 <Button variant="secondary" size="sm" onclick={() => openCreateRoom(group)}>
                   <span class="iconify uil--plus"></span>
-                  New Room
+                  {m['admin.rooms_admin.new_room']()}
                 </Button>
                 <Button variant="secondary" size="sm" onclick={() => openCreateLink(group)}>
                   <span class="iconify uil--external-link-alt"></span>
-                  New Link
+                  {m['admin.rooms_admin.new_link']()}
                 </Button>
                 <div class="flex items-center gap-1.5">
                   {@render iconButton({
                     icon: 'uil--pen',
-                    title: 'Rename group',
+                    title: m['admin.rooms_admin.rename_group_action'](),
                     onclick: () => openEditGroup(group)
                   })}
                   {@render iconButton({
                     icon: 'uil--shield',
-                    title: 'Group permissions',
+                    title: m['admin.rooms_admin.group_permissions'](),
                     onclick: () => openGroupPermissions(group)
                   })}
                   {@render iconButton({
                     icon: 'uil--trash-alt',
                     title:
                       group.items.length === 0
-                        ? 'Delete group'
-                        : 'Move all items out of this group before deleting',
+                        ? m['admin.rooms_admin.delete_group']()
+                        : m['admin.rooms_admin.delete_group_blocked'](),
                     tone: 'danger',
                     disabled: group.items.length > 0,
                     onclick: () => confirmDeleteGroup(group)
@@ -576,15 +584,17 @@
                             {#if room.room.isUniversal}
                               <Pill
                                 tone="accent"
-                                title="Universal room"
+                                title={m['admin.rooms_admin.universal_room']()}
                                 class="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5"
                               >
                                 <span class="iconify text-xs uil--globe" aria-hidden="true"></span>
-                                Universal
+                                {m['admin.rooms_admin.universal']()}
                               </Pill>
                             {/if}
                             {#if room.room.archived}
-                              <Pill tone="muted" class="shrink-0 rounded-md px-1.5">Archived</Pill>
+                              <Pill tone="muted" class="shrink-0 rounded-md px-1.5"
+                                >{m['admin.rooms_admin.archived']()}</Pill
+                              >
                             {/if}
                           </div>
                           {#if room.room.description}
@@ -605,7 +615,9 @@
                   </div>
                 </div>
               {:else}
-                <div class="px-3 py-4 text-center text-sm text-muted">Drop rooms here</div>
+                <div class="px-3 py-4 text-center text-sm text-muted">
+                  {m['admin.rooms_admin.drop_rooms']()}
+                </div>
               {/each}
             </div>
           </section>
@@ -615,14 +627,18 @@
       <div class="flex justify-center">
         <Button variant="secondary" onclick={openCreateGroup}>
           <span class="iconify uil--plus"></span>
-          New Group
+          {m['admin.rooms_admin.new_group']()}
         </Button>
       </div>
     {/if}
   </div>
 </div>
 
-<Dialog bind:visible={createRoomDialogVisible} title="Create Room" size="sm">
+<Dialog
+  bind:visible={createRoomDialogVisible}
+  title={m['admin.rooms_admin.create_room']()}
+  size="sm"
+>
   {#if createRoomDialogVisible && createRoomGroupId}
     <CreateRoom groupId={createRoomGroupId} onroomcreated={handleRoomCreated} />
   {/if}
@@ -630,10 +646,10 @@
 
 <FormDialog
   bind:visible={editRoomDialogVisible}
-  title="Edit Room"
+  title={m['admin.rooms_admin.edit_room']()}
   size="sm"
-  submitLabel="Save Changes"
-  submitLoadingText="Saving..."
+  submitLabel={m['admin.permissions.save_changes']()}
+  submitLoadingText={m['rbac.role_form.saving']()}
   loading={editRoomSaving}
   disabled={!editRoomName.trim() || !!editRoomNameError || !editRoomChanged}
   onsubmit={handleEditRoomSubmit}
@@ -641,7 +657,7 @@
 >
   <TextInput
     id="edit-room-name"
-    label="Name"
+    label={m['rbac.role_form.name']()}
     bind:value={editRoomName}
     required
     disabled={editRoomSaving}
@@ -650,27 +666,27 @@
 
   <TextArea
     id="edit-room-description"
-    label="Description"
+    label={m['rbac.role_form.description']()}
     bind:value={editRoomDescription}
     rows={3}
     disabled={editRoomSaving}
-    placeholder="Optional description for this room"
+    placeholder={m['admin.rooms_admin.room_description_placeholder']()}
   />
 
   <Checkbox
     id="edit-room-universal"
     bind:checked={editRoomUniversal}
     disabled={editRoomSaving}
-    label="Universal room"
+    label={m['admin.rooms_admin.universal_room']()}
     description={UNIVERSAL_ROOM_HELP_TEXT}
   />
 </FormDialog>
 
 <FormDialog
   bind:visible={createGroupDialogVisible}
-  title="Create Group"
+  title={m['admin.rooms_admin.create_group']()}
   size="sm"
-  submitLabel="Create Group"
+  submitLabel={m['admin.rooms_admin.create_group']()}
   submitIcon="iconify uil--plus"
   disabled={!newGroupName.trim()}
   onsubmit={handleCreateGroupSubmit}
@@ -678,47 +694,55 @@
 >
   <TextInput
     id="new-group-name"
-    label="Group name"
+    label={m['admin.rooms_admin.group_name']()}
     bind:value={newGroupName}
-    placeholder="e.g., General, Projects, Teams"
+    placeholder={m['admin.rooms_admin.group_name_placeholder']()}
   />
 </FormDialog>
 
 <FormDialog
   bind:visible={editGroupDialogVisible}
-  title="Rename Group"
+  title={m['admin.rooms_admin.rename_group']()}
   size="sm"
-  submitLabel="Save"
+  submitLabel={m['rbac.role_form.save']()}
   disabled={!editGroupName.trim()}
   onsubmit={handleEditGroupSubmit}
   onclose={() => (editGroupDialogVisible = false)}
 >
-  <TextInput id="edit-group-name" label="Group name" bind:value={editGroupName} />
+  <TextInput
+    id="edit-group-name"
+    label={m['admin.rooms_admin.group_name']()}
+    bind:value={editGroupName}
+  />
 </FormDialog>
 
 <FormDialog
   bind:visible={linkDialogVisible}
-  title={editingLinkId ? 'Edit Link' : 'Create Link'}
+  title={editingLinkId ? m['admin.rooms_admin.edit_link']() : m['admin.rooms_admin.create_link']()}
   size="sm"
-  submitLabel={editingLinkId ? 'Save' : 'Create Link'}
+  submitLabel={editingLinkId ? m['rbac.role_form.save']() : m['admin.rooms_admin.create_link']()}
   submitIcon={editingLinkId ? undefined : 'iconify uil--plus'}
   disabled={!linkLabel.trim() || !linkUrl.trim()}
   onsubmit={handleLinkSubmit}
   onclose={() => (linkDialogVisible = false)}
 >
-  <TextInput id="sidebar-link-label" label="Label" bind:value={linkLabel} />
+  <TextInput
+    id="sidebar-link-label"
+    label={m['admin.rooms_admin.label']()}
+    bind:value={linkLabel}
+  />
   <TextInput
     id="sidebar-link-url"
-    label="URL"
+    label={m['admin.rooms_admin.url']()}
     bind:value={linkUrl}
-    placeholder="https://docs.example.com or /docs"
+    placeholder={m['admin.rooms_admin.link_url_placeholder']()}
   />
 </FormDialog>
 
 {#if deleteGroupConfirmDialogVisible && deleteGroupConfirm}
   <ConfirmDialog
-    title="Delete Group"
-    actionLabel="Delete Group"
+    title={m['admin.rooms_admin.delete_group']()}
+    actionLabel={m['admin.rooms_admin.delete_group']()}
     actionIcon="iconify uil--trash-alt"
     onconfirm={deleteGroup}
     onclose={() => {
@@ -726,14 +750,14 @@
       deleteGroupConfirm = null;
     }}
   >
-    Are you sure you want to delete the set <strong>{deleteGroupConfirm.name}</strong>?
+    {m['admin.rooms_admin.delete_group_prompt']({ name: deleteGroupConfirm.name })}
   </ConfirmDialog>
 {/if}
 
 {#if deleteLinkConfirmDialogVisible && deleteLinkConfirm}
   <ConfirmDialog
-    title="Delete Link"
-    actionLabel="Delete Link"
+    title={m['admin.rooms_admin.delete_link']()}
+    actionLabel={m['admin.rooms_admin.delete_link']()}
     actionIcon="iconify uil--trash-alt"
     tone="danger"
     onconfirm={deleteLink}
@@ -742,36 +766,34 @@
       deleteLinkConfirm = null;
     }}
   >
-    Are you sure you want to delete <strong>{deleteLinkConfirm.label}</strong>?
+    {m['admin.rooms_admin.delete_link_prompt']({ label: deleteLinkConfirm.label })}
   </ConfirmDialog>
 {/if}
 
 {#if archiveConfirmDialogVisible && archiveConfirmRoom}
   <ConfirmDialog
-    title="Archive Room"
+    title={m['admin.rooms_admin.archive_room']()}
     tone="warning"
-    actionLabel="Archive Room"
+    actionLabel={m['admin.rooms_admin.archive_room']()}
     actionIcon="iconify uil--archive"
     loading={!!layout.archivingRoomId}
     onconfirm={archiveRoom}
     onclose={cancelArchive}
   >
-    Are you sure you want to archive <strong>#{archiveConfirmRoom.name}</strong>? Members will no
-    longer be able to access this room.
+    {m['admin.rooms_admin.archive_room_prompt']({ room: archiveConfirmRoom.name })}
   </ConfirmDialog>
 {/if}
 
 {#if unarchiveConfirmDialogVisible && unarchiveConfirmRoom}
   <ConfirmDialog
-    title="Unarchive Room"
+    title={m['admin.rooms_admin.unarchive_room']()}
     tone="warning"
-    actionLabel="Unarchive Room"
+    actionLabel={m['admin.rooms_admin.unarchive_room']()}
     actionIcon="iconify uil--redo"
     loading={!!layout.archivingRoomId}
     onconfirm={unarchiveRoom}
     onclose={cancelUnarchive}
   >
-    Are you sure you want to unarchive <strong>#{unarchiveConfirmRoom.name}</strong>? Members will
-    be able to access it again.
+    {m['admin.rooms_admin.unarchive_room_prompt']({ room: unarchiveConfirmRoom.name })}
   </ConfirmDialog>
 {/if}

@@ -1,9 +1,5 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
-  "common": {
-    "cancel": "Abbrechen",
-    "close_sidebar": "Seitenleiste schließen"
-  },
   "settings": {
     "nav": {
       "title": "Einstellungen",
@@ -124,6 +120,16 @@
         "blocked_error": "Push-Benachrichtigungen sind in deinen Browser- oder Betriebssystemeinstellungen blockiert.",
         "enable_failed": "Push-Benachrichtigungen konnten nicht aktiviert werden. Bitte versuche es erneut.",
         "enable_error": "Beim Aktivieren der Push-Benachrichtigungen ist ein Fehler aufgetreten"
+      },
+      "push_prompt": {
+        "title": "Push-Benachrichtigungen aktivieren",
+        "message": "Erhalte Benachrichtigungen über DMs, Erwähnungen und Antworten.",
+        "enabled": "Push-Benachrichtigungen aktiviert",
+        "blocked": "Push-Benachrichtigungen sind in deinem Browser oder Betriebssystem blockiert",
+        "enable_failed": "Push-Benachrichtigungen konnten nicht aktiviert werden",
+        "enabling": "Wird aktiviert...",
+        "enable": "Aktivieren",
+        "dismiss": "Nein danke"
       },
       "levels": {
         "loading": "Wird geladen...",

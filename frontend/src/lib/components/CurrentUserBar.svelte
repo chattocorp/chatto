@@ -9,6 +9,7 @@ to the user settings page for the active server.
   import { resolve } from '$app/paths';
   import { goto } from '$app/navigation';
   import { serverIdToSegment } from '$lib/navigation';
+  import * as m from '$lib/i18n/messages';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
@@ -44,7 +45,9 @@ to the user settings page for the active server.
     voiceCallState?.connected && voiceCallState.roomId ? voiceCallState.roomId : null
   );
   const activeCallRoom = $derived(
-    activeCallRoomId ? (roomsStore?.rooms.find((room) => room.id === activeCallRoomId) ?? null) : null
+    activeCallRoomId
+      ? (roomsStore?.rooms.find((room) => room.id === activeCallRoomId) ?? null)
+      : null
   );
   const activeCallRoomName = $derived.by(() => {
     const room = activeCallRoom;
@@ -97,14 +100,14 @@ to the user settings page for the active server.
           data-testid="current-user-call-link"
           onclick={openActiveCallRoom}
         >
-          <span class="iconify uil--phone shrink-0 animate-pulse text-accent"></span>
+          <span class="iconify shrink-0 animate-pulse text-accent uil--phone"></span>
           <span class="truncate">{activeCallRoomName}</span>
         </button>
         <button
           type="button"
           class={voiceCallState.isMuted ? compactCallDangerButtonClass : compactCallButtonClass}
-          title={voiceCallState.isMuted ? 'Unmute' : 'Mute'}
-          aria-label={voiceCallState.isMuted ? 'Unmute' : 'Mute'}
+          title={voiceCallState.isMuted ? m['voice.unmute']() : m['voice.mute']()}
+          aria-label={voiceCallState.isMuted ? m['voice.unmute']() : m['voice.mute']()}
           data-testid="current-user-call-mute"
           onclick={() => voiceCallState.toggleMute()}
         >
@@ -118,25 +121,34 @@ to the user settings page for the active server.
         </button>
         <button
           type="button"
-          class={voiceCallState.isCameraEnabled ? compactCallButtonClass : compactCallDangerButtonClass}
-          title={voiceCallState.isCameraEnabled ? 'Turn off camera' : 'Turn on camera'}
-          aria-label={voiceCallState.isCameraEnabled ? 'Turn off camera' : 'Turn on camera'}
+          class={voiceCallState.isCameraEnabled
+            ? compactCallButtonClass
+            : compactCallDangerButtonClass}
+          title={voiceCallState.isCameraEnabled
+            ? m['voice.turn_off_camera']()
+            : m['voice.turn_on_camera']()}
+          aria-label={voiceCallState.isCameraEnabled
+            ? m['voice.turn_off_camera']()
+            : m['voice.turn_on_camera']()}
           data-testid="current-user-call-camera"
           onclick={() => voiceCallState.toggleCamera()}
         >
           <span
-            class={[
-              'iconify',
-              voiceCallState.isCameraEnabled ? 'uil--video' : 'uil--video-slash'
-            ]}
+            class={['iconify', voiceCallState.isCameraEnabled ? 'uil--video' : 'uil--video-slash']}
             aria-hidden="true"
           ></span>
         </button>
         <button
           type="button"
-          class={voiceCallState.isScreenShareEnabled ? compactCallButtonClass : compactCallDangerButtonClass}
-          title={voiceCallState.isScreenShareEnabled ? 'Stop sharing screen' : 'Share screen'}
-          aria-label={voiceCallState.isScreenShareEnabled ? 'Stop sharing screen' : 'Share screen'}
+          class={voiceCallState.isScreenShareEnabled
+            ? compactCallButtonClass
+            : compactCallDangerButtonClass}
+          title={voiceCallState.isScreenShareEnabled
+            ? m['voice.stop_share_screen']()
+            : m['voice.share_screen']()}
+          aria-label={voiceCallState.isScreenShareEnabled
+            ? m['voice.stop_share_screen']()
+            : m['voice.share_screen']()}
           data-testid="current-user-call-screen-share"
           onclick={() => voiceCallState.toggleScreenShare()}
         >
@@ -145,8 +157,8 @@ to the user settings page for the active server.
         <button
           type="button"
           class={compactCallDangerButtonClass}
-          title="Leave call"
-          aria-label="Leave call"
+          title={m['voice.leave']()}
+          aria-label={m['voice.leave']()}
           data-testid="current-user-call-leave"
           onclick={() => voiceCallState.leave()}
         >
@@ -168,7 +180,7 @@ to the user settings page for the active server.
       </div>
       <a
         href={resolve('/chat/[serverId]/settings', { serverId: serverSegment })}
-        title="User Settings"
+        title={m['voice.user_settings']()}
         class="iconify shrink-0 cursor-pointer text-muted uil--setting hover:text-text"
       ></a>
     </div>

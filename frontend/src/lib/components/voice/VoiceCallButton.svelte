@@ -17,6 +17,7 @@ States:
 <script lang="ts">
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import * as m from '$lib/i18n/messages';
 
   const stores = serverRegistry.getStore(getActiveServer());
   const voiceCallState = stores.voiceCall;
@@ -46,7 +47,10 @@ States:
 </script>
 
 {#if isConnecting}
-  <span class="group/pane-header-icon-button pane-header-icon-button" title="Connecting...">
+  <span
+    class="group/pane-header-icon-button pane-header-icon-button"
+    title={m['voice.connecting']()}
+  >
     <span class="pane-header-icon-glyph animate-spin uil--spinner" aria-hidden="true"></span>
   </span>
 {:else if !isInThisCall}
@@ -55,7 +59,7 @@ States:
     class="group/pane-header-icon-button pane-header-icon-button"
     onclick={handleJoin}
     disabled={isInAnotherCall}
-    title={isInAnotherCall ? 'Already in another call' : 'Join voice call'}
+    title={isInAnotherCall ? m['voice.already_in_another_call']() : m['voice.join']()}
   >
     <span class="pane-header-icon-glyph uil--phone" aria-hidden="true"></span>
   </button>

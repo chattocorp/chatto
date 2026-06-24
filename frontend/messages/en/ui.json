@@ -1,0 +1,31 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "ui": {
+    "toggle_sidebar": "Toggle sidebar",
+    "notifications": "Notifications",
+    "open_quick_switcher": "Open quick switcher",
+    "quick_switcher_shortcut": "Quick switcher (Cmd+K)",
+    "realtime_paused": "Real-time updates paused. Reconnecting...",
+    "sign_out": "Sign out",
+    "close": "Close",
+    "access_denied": {
+      "title": "Access Denied",
+      "message": "You do not have permission to access this page.",
+      "back": "Return to Chat"
+    },
+    "image_modal": {
+      "previous": "Previous image",
+      "next": "Next image",
+      "fallback_alt": "Image"
+    },
+    "toast": {
+      "dismiss": "Dismiss notification"
+    },
+    "combobox": {
+      "loading": "Loading..."
+    },
+    "form": {
+      "required": "Required"
+    }
+  }
+}

@@ -2,6 +2,7 @@
   import { onDestroy, tick, untrack } from 'svelte';
   import { graphql, useFragment } from '$lib/gql';
   import { RoomEventViewFragmentDoc, type RoomEventViewFragment } from '$lib/gql/graphql';
+  import * as m from '$lib/i18n/messages';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { parseMessageLink } from '$lib/messageLinks';
@@ -179,7 +180,9 @@
 
   // Dynamic placeholder changes between normal and edit mode
   let currentPlaceholder = $derived(
-    isEditing ? 'Editing message...' : (customPlaceholder ?? 'Type a message...')
+    isEditing
+      ? m['composer.editing_placeholder']()
+      : (customPlaceholder ?? m['composer.placeholder']())
   );
 
   // Testid for E2E tests - distinguishes main input from thread reply input
@@ -552,7 +555,7 @@
   }
 
   function handlePostFailure(error: unknown, post: PreparedPost) {
-    toast.error('Failed to send message');
+    toast.error(m['composer.send_failed']());
     console.error('Error posting message:', error);
     restorePreparedPost(post);
   }
@@ -688,7 +691,7 @@
     });
 
     if (response.error) {
-      toast.error(response.error.message || 'Failed to edit message');
+      toast.error(response.error.message || m['composer.edit_failed']());
     } else {
       autocomplete.reset();
       message = '';
@@ -947,7 +950,7 @@
         onclick={() => fileInputElement?.click()}
         disabled={inputDisabled}
         class="flex h-8 w-11 shrink-0 cursor-pointer items-center justify-center rounded text-muted transition-colors duration-100 enabled:hover:text-text disabled:cursor-not-allowed"
-        title="Attach file"
+        title={m['composer.attach_file']()}
       >
         <span class="iconify text-xl uil--image-upload"></span>
       </button>
@@ -989,8 +992,8 @@
         onclick={handleSubmit}
         disabled={!canSubmit}
         class="flex h-8 w-8 cursor-pointer items-center justify-center rounded text-muted transition-colors duration-100 enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
-        aria-label="Send message"
-        title={isRichComposer ? 'Send message (Ctrl/Cmd+Enter)' : 'Send message (Enter)'}
+        aria-label={m['composer.send']()}
+        title={isRichComposer ? m['composer.send_ctrl_enter']() : m['composer.send_enter']()}
       >
         <span class="iconify text-xl uil--telegram-alt"></span>
       </button>
@@ -1006,7 +1009,7 @@
         disabled={inputDisabled}
         class="cursor-pointer accent-primary"
       />
-      Also send to channel
+      {m['composer.also_send_to_channel']()}
     </label>
   {/if}
 
@@ -1017,7 +1020,7 @@
       class="flex items-center justify-between rounded-md bg-surface-200 px-3 py-2 text-sm"
     >
       <span class="min-w-0 truncate text-text">
-        Replying to <strong>{replyDisplayName}</strong>
+        {m['composer.replying_to']()} <strong>{replyDisplayName}</strong>
         {#if replyExcerpt}
           <span class="text-muted"> &mdash; {replyExcerpt}</span>
         {/if}
@@ -1028,7 +1031,8 @@
         onclick={() => onCancelReply?.()}
         class="hidden shrink-0 cursor-pointer items-center gap-1 text-muted transition-colors hover:text-text sm:flex"
       >
-        <kbd class="rounded bg-surface-300 px-1.5 py-0.5 text-xs">Esc</kbd> to cancel
+        <kbd class="rounded bg-surface-300 px-1.5 py-0.5 text-xs">Esc</kbd>
+        {m['composer.esc_to_cancel']()}
       </button>
       <!-- Mobile: visible "Cancel" button -->
       <button
@@ -1036,7 +1040,7 @@
         onclick={() => onCancelReply?.()}
         class="shrink-0 cursor-pointer rounded bg-surface-300 px-2.5 py-1 text-xs font-medium text-text transition-colors hover:bg-surface-highlighted sm:hidden"
       >
-        Cancel
+        {m['common.cancel']()}
       </button>
     </div>
   {/if}
@@ -1044,14 +1048,15 @@
   <!-- Edit mode indicator -->
   {#if isEditing}
     <div class="flex items-center justify-between rounded-md bg-surface-200 px-3 py-2 text-sm">
-      <span class="text-text">Editing message</span>
+      <span class="text-text">{m['composer.editing']()}</span>
       <!-- Desktop: clickable "Esc to cancel" -->
       <button
         type="button"
         onclick={cancelEdit}
         class="hidden cursor-pointer items-center gap-1 text-muted transition-colors hover:text-text sm:flex"
       >
-        <kbd class="rounded bg-surface-300 px-1.5 py-0.5 text-xs">Esc</kbd> to cancel
+        <kbd class="rounded bg-surface-300 px-1.5 py-0.5 text-xs">Esc</kbd>
+        {m['composer.esc_to_cancel']()}
       </button>
       <!-- Mobile: visible "Cancel" button -->
       <button
@@ -1059,7 +1064,7 @@
         onclick={cancelEdit}
         class="cursor-pointer rounded bg-surface-300 px-2.5 py-1 text-xs font-medium text-text transition-colors hover:bg-surface-highlighted sm:hidden"
       >
-        Cancel
+        {m['common.cancel']()}
       </button>
     </div>
   {/if}
@@ -1067,15 +1072,15 @@
 
 {#if pendingMentionConfirmation}
   <ConfirmDialog
-    title={`Notify ${pendingMentionConfirmation.recipientCount} people?`}
+    title={m['composer.notify_title']({ count: pendingMentionConfirmation.recipientCount })}
     tone="warning"
-    actionLabel="Send Anyway"
+    actionLabel={m['composer.send_anyway']()}
     actionIcon="iconify uil--telegram-alt"
     loading={mentionConfirmationLoading}
     onconfirm={confirmMentionSend}
     onclose={cancelMentionConfirmation}
   >
-    This message will notify {pendingMentionConfirmation.recipientCount} people. Send it anyway?
+    {m['composer.notify_body']({ count: pendingMentionConfirmation.recipientCount })}
   </ConfirmDialog>
 {/if}
 

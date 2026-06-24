@@ -2,6 +2,7 @@
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import * as m from '$lib/i18n/messages';
   import RoomDirectory from '$lib/RoomDirectory.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
@@ -16,15 +17,15 @@
   const serverSegment = $derived(serverIdToSegment(getActiveServer()));
 </script>
 
-<PageTitle title="Overview" />
+<PageTitle title={m['chat.overview.title']()} />
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-  <PaneHeader title="Overview" showMobileNav />
+  <PaneHeader title={m['chat.overview.title']()} showMobileNav />
 
   <div class="flex-1 overflow-auto">
     <div class="mx-auto flex max-w-6xl flex-col gap-8 p-6">
       <section class="flex flex-col gap-3">
-        <h2 class="text-lg font-semibold">Rooms</h2>
+        <h2 class="text-lg font-semibold">{m['common.rooms']()}</h2>
         <RoomDirectory {directory} {roomsStore} {serverSegment} />
       </section>
     </div>

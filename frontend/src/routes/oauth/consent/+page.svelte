@@ -3,6 +3,7 @@
   import { resolve } from '$app/paths';
   import { csrfFetch } from '$lib/auth/csrf';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
+  import * as m from '$lib/i18n/messages';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button, FormError } from '$lib/ui/form';
   import { onMount } from 'svelte';
@@ -33,7 +34,7 @@
 
       const result = await response.json();
       if (!response.ok) {
-        error = result.error || 'Authorization request not found.';
+        error = result.error || m['auth.oauth.request_not_found']();
         return;
       }
 
@@ -43,7 +44,7 @@
       };
       const verifiedHost = verifiedRequesterHost(pendingRequest);
       if (!verifiedHost) {
-        error = 'This authorization request could not be verified.';
+        error = m['auth.oauth.unverifiable']();
         return;
       }
 
@@ -51,9 +52,9 @@
       request = pendingRequest;
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
-        error = 'Authorization request timed out. Please try again.';
+        error = m['auth.oauth.request_timeout']();
       } else {
-        error = err instanceof Error ? err.message : 'Failed to load authorization request.';
+        error = err instanceof Error ? err.message : m['auth.oauth.request_load_failed']();
       }
     } finally {
       loading = false;
@@ -90,20 +91,20 @@
       const result = await response.json();
 
       if (!response.ok) {
-        error = result.error || 'Failed to submit authorization decision.';
+        error = result.error || m['auth.oauth.submit_failed']();
         return;
       }
       if (!result.redirectUrl) {
-        error = 'Authorization server did not return a redirect URL.';
+        error = m['auth.oauth.missing_redirect']();
         return;
       }
 
       window.location.href = result.redirectUrl;
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
-        error = 'Authorization decision timed out. Please try again.';
+        error = m['auth.oauth.decision_timeout']();
       } else {
-        error = err instanceof Error ? err.message : 'Failed to submit authorization decision.';
+        error = err instanceof Error ? err.message : m['auth.oauth.submit_failed']();
       }
     } finally {
       submitting = null;
@@ -111,7 +112,7 @@
   }
 </script>
 
-<PageTitle title="Allow Access" />
+<PageTitle title={m['auth.oauth.title']()} />
 
 <AuthLayout>
   <div class="flex flex-col gap-6">
@@ -121,7 +122,7 @@
       >
         <span class="iconify text-2xl mdi--shield-check"></span>
       </div>
-      <h1 class="text-2xl font-bold">Allow Access?</h1>
+      <h1 class="text-2xl font-bold">{m['auth.oauth.heading']()}</h1>
     </div>
 
     {#if loading}
@@ -131,26 +132,24 @@
     {:else if request}
       <div class="flex flex-col gap-5">
         <div class="text-center">
-          <p class="text-base leading-relaxed text-muted">
-            <span class="font-semibold text-primary">{requesterHost}</span> is requesting access to your
-            account.
-          </p>
+          <p class="text-base leading-relaxed text-muted">{m['auth.oauth.requester_intro']()}</p>
+          <p class="mt-1 text-base font-semibold">{requesterHost}</p>
         </div>
 
         <div class="surface-box p-4">
-          <div class="mb-3 text-sm font-medium">If you allow access:</div>
+          <div class="mb-3 text-sm font-medium">{m['auth.oauth.allow_intro']()}</div>
           <ul class="flex flex-col gap-2 text-sm text-muted">
             <li class="flex gap-2">
               <span class="mt-0.5 iconify shrink-0 text-accent mdi--check"></span>
-              <span>It can see your profile and the server data available to you.</span>
+              <span>{m['auth.oauth.allow_profile']()}</span>
             </li>
             <li class="flex gap-2">
               <span class="mt-0.5 iconify shrink-0 text-accent mdi--check"></span>
-              <span>It can read and send messages as you.</span>
+              <span>{m['auth.oauth.allow_messages']()}</span>
             </li>
             <li class="flex gap-2">
               <span class="mt-0.5 iconify shrink-0 text-accent mdi--check"></span>
-              <span>Chatto will remember this approval for this address.</span>
+              <span>{m['auth.oauth.allow_remember']()}</span>
             </li>
           </ul>
         </div>
@@ -162,24 +161,24 @@
             size="lg"
             fullWidth
             loading={submitting === 'approve'}
-            loadingText="Authorizing..."
+            loadingText={m['auth.oauth.authorizing']()}
             disabled={submitting !== null}
             onclick={() => submitConsent('approve')}
           >
             <span class="iconify mdi--check"></span>
-            Allow Access
+            {m['auth.oauth.title']()}
           </Button>
           <Button
             variant="secondary"
             size="lg"
             fullWidth
             loading={submitting === 'deny'}
-            loadingText="Denying..."
+            loadingText={m['auth.oauth.denying']()}
             disabled={submitting !== null}
             onclick={() => submitConsent('deny')}
           >
             <span class="iconify mdi--close"></span>
-            Cancel
+            {m['common.cancel']()}
           </Button>
         </div>
       </div>
@@ -187,7 +186,7 @@
       <div class="flex flex-col gap-4 text-center">
         <FormError {error} />
         <Button variant="secondary" size="lg" fullWidth onclick={() => goto(resolve('/'))}>
-          Return to Chatto
+          {m['auth.oauth.return_home']()}
         </Button>
       </div>
     {/if}

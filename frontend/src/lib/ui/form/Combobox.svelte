@@ -1,6 +1,7 @@
 <script lang="ts" generics="T">
   import type { Snippet } from 'svelte';
   import type { ClassValue } from 'svelte/elements';
+  import * as m from '$lib/i18n/messages';
   import FloatingPopover from '$lib/ui/FloatingPopover.svelte';
   import FormField from './FormField.svelte';
 
@@ -198,7 +199,7 @@
         </button>
       {/each}
     {:else if loading}
-      <div class="px-3 py-2 text-sm text-muted">Loading...</div>
+      <div class="px-3 py-2 text-sm text-muted">{m['ui.combobox.loading']()}</div>
     {:else}
       <div class="px-3 py-2 text-sm text-muted">{emptyMessage}</div>
     {/if}

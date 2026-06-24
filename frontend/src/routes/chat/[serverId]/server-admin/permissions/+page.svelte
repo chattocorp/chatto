@@ -12,6 +12,7 @@
   import { Button } from '$lib/ui/form';
   import { Panel } from '$lib/components/admin';
   import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
+  import * as m from '$lib/i18n/messages';
 
   // Lightweight query just to gate UI on viewerCanManageRoles. The heavy
   // lifting is done by PermissionMatrix's own admin.rbac.rolePermissionTierMatrix query.
@@ -28,7 +29,8 @@
   const gateQuery = useQuery(SpaceRolesGateQuery, () => ({}));
   const canManageRoles = $derived(gateQuery.data?.server?.viewerCanManageRoles ?? false);
   const error = $derived(
-    gateQuery.error ?? (!gateQuery.loading && !gateQuery.data?.server ? 'Server not found' : null)
+    gateQuery.error ??
+      (!gateQuery.loading && !gateQuery.data?.server ? m['admin.members.server_not_found']() : null)
   );
 
   // Role detail pages require admin.manage-roles. Gate the column-header
@@ -46,12 +48,14 @@
   }
 </script>
 
-<PageTitle title="Permissions | Server Admin" />
+<PageTitle
+  title={m['admin.common.server_admin_page_title']({ title: m['admin.permissions.title']() })}
+/>
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
   <PaneHeader
-    title="Permissions"
-    subtitle="Manage server-wide role defaults"
+    title={m['admin.permissions.title']()}
+    subtitle={m['admin.permissions.subtitle']()}
     showMobileNav
   />
 
@@ -60,11 +64,9 @@
       <Hint tone="danger">{error}</Hint>
     {:else}
       {#if canManageRoles}
-        <Panel title="Role Presets">
+        <Panel title={m['admin.permissions.role_presets']()}>
           <p class="mb-4 text-muted">
-            Roles bundle permissions for groups of users — for example a "moderator" role that
-            can moderate messages, or a "dev team" role with access to engineering rooms.
-            Assign roles to members from each user's profile.
+            {m['admin.permissions.role_presets_intro']()}
           </p>
           <Button
             variant="primary"
@@ -73,35 +75,28 @@
               serverId: serverSegment
             })}
           >
-            Create Role
+            {m['admin.permissions.create_role_action']()}
           </Button>
         </Panel>
       {/if}
       <Hint>
         <div class="space-y-2">
           <p>
-            This page is for <strong>server-tier</strong> role permissions: broad defaults that
-            apply across the server.
+            {m['admin.permissions.server_tier_intro']()}
           </p>
           <p>
-            Normal room permissions such as posting, joining, discovery, reactions, and thread
-            replies are granted here by default so new rooms work immediately. Use the
+            {m['admin.permissions.server_tier_rooms_hint']()}
             <a
               href={resolve('/chat/[serverId]/server-admin/rooms', { serverId: serverSegment })}
-              class="link">Rooms</a
-            > page to add room or room-group exceptions when one room should behave differently.
+              class="link">{m['admin.common.rooms']()}</a
+            >
           </p>
           <p>
-            For non-owners, any applicable deny anywhere cancels out grants from every role and
-            tier. Use denies deliberately: denying <code>everyone</code> in a room blocks all
-            non-owner users there. Owners are always granted all permissions.
+            {m['admin.permissions.server_tier_denies_hint']()}
           </p>
         </div>
       </Hint>
-      <PermissionMatrix
-        onRoleClick={openRoleDetail}
-        isRoleClickable={() => canManageRolesFull}
-      />
+      <PermissionMatrix onRoleClick={openRoleDetail} isRoleClickable={() => canManageRolesFull} />
     {/if}
   </div>
 </div>

@@ -6,6 +6,7 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import * as m from '$lib/i18n/messages';
   import SignOutDialog from './SignOutDialog.svelte';
 
   const activeInstanceId = $derived(getActiveServer());
@@ -60,7 +61,7 @@
     leavingRoom = false;
 
     if (result.error) {
-      toast.error('Failed to leave room');
+      toast.error(m['room.leave.failed']());
       console.error('Error leaving room:', result.error);
       closeModal();
       return;
@@ -77,13 +78,17 @@
     joiningRoom = false;
 
     if (!result.ok) {
-      toast.error('Failed to join room');
+      toast.error(m['room.join.failed']());
       console.error('Error joining room:', result.error);
       closeModal();
       return;
     }
 
-    toast.success(result.room ? `Joined #${result.room.name}` : 'Joined room');
+    toast.success(
+      result.room
+        ? m['room.join.success']({ room: result.room.name })
+        : m['room.join.success_generic']()
+    );
     await stores.rooms.refresh();
     goto(resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId }));
   }
@@ -123,10 +128,10 @@
     deletingMessage = false;
 
     if (result.error) {
-      toast.error('Failed to delete message');
+      toast.error(m['room.message.delete_failed']());
       console.error('Error deleting message:', result.error);
     } else {
-      toast.success('Message deleted');
+      toast.success(m['room.message.deleted']());
     }
     closeModal();
   }
@@ -146,7 +151,7 @@
     deletingLinkPreview = false;
 
     if (result.error) {
-      toast.error('Failed to delete link preview');
+      toast.error(m['room.link_preview.delete_failed']());
       console.error('Error deleting link preview:', result.error);
     }
     closeModal();
@@ -167,7 +172,7 @@
     deletingAttachment = false;
 
     if (result.error) {
-      toast.error('Failed to delete attachment');
+      toast.error(m['room.attachment.delete_failed']());
       console.error('Error deleting attachment:', result.error);
     }
     closeModal();
@@ -237,8 +242,8 @@
 </script>
 
 {#if modalType === 'createRoom'}
-  <Dialog visible title="Create a New Room" size="md" onclose={closeModal}>
-    <p class="mb-4 text-muted">Rooms are conversations within your server.</p>
+  <Dialog visible title={m['room.create.title']()} size="md" onclose={closeModal}>
+    <p class="mb-4 text-muted">{m['room.create.description']()}</p>
     <CreateRoom onroomcreated={(roomId) => handleRoomCreated(roomId)} />
   </Dialog>
 {:else if modalType === 'logout'}
@@ -246,85 +251,84 @@
 {:else if modalType === 'joinRoom' && roomId}
   {#if page.state.modal?.viewerCanJoinRoom}
     <ConfirmDialog
-      title="Join Room"
+      title={m['room.join.title']()}
       tone="info"
-      actionLabel="Join Room"
+      actionLabel={m['room.join.action']()}
       actionIcon="iconify uil--plus"
       loading={joiningRoom}
       onconfirm={() => handleJoinRoom(roomId)}
       onclose={closeModal}
     >
-      Join <strong>#{roomName}</strong> to read and participate in this room.
+      {m['room.join.prompt']({ room: roomName ?? '' })}
     </ConfirmDialog>
   {:else}
-    <Dialog visible title="Room Access" size="sm" onclose={closeModal}>
+    <Dialog visible title={m['room.join.access_title']()} size="sm" onclose={closeModal}>
       {#snippet footer()}
         <div class="flex justify-end">
           <Button variant="accent" onclick={closeModal}>
             <span class="iconify uil--check"></span>
-            Got it
+            {m['common.got_it']()}
           </Button>
         </div>
       {/snippet}
 
-      <p class="text-muted">You do not have permission to join this room.</p>
+      <p class="text-muted">{m['room.join.access_denied']()}</p>
     </Dialog>
   {/if}
 {:else if modalType === 'leaveRoom' && roomId}
   <ConfirmDialog
-    title="Leave Room"
-    actionLabel="Leave Room"
+    title={m['room.leave.title']()}
+    actionLabel={m['room.leave.action']()}
     actionIcon="iconify uil--sign-out-alt"
     loading={leavingRoom}
     onconfirm={() => handleLeaveRoom(roomId)}
     onclose={closeModal}
   >
-    Are you sure you want to leave <strong>#{roomName}</strong>? You can rejoin later.
+    {m['room.leave.prompt']({ room: roomName ?? '' })}
   </ConfirmDialog>
 {:else if modalType === 'leaveServer'}
   <ConfirmDialog
-    title="Leave Server"
-    actionLabel="Leave Server"
+    title={m['room.server.leave_title']()}
+    actionLabel={m['room.server.leave_action']()}
     actionIcon="iconify uil--sign-out-alt"
     loading={leavingServer}
     onconfirm={() => handleLeaveServer()}
     onclose={closeModal}
   >
-    Are you sure you want to leave <strong>{spaceName}</strong>? You'll lose access to its rooms,
-    and your client will forget about this server. You can re-add it later from the sidebar.
+    {m['room.server.leave_prompt']({ server: spaceName ?? '' })}
   </ConfirmDialog>
 {:else if modalType === 'deleteMessage' && roomId && eventId}
   <ConfirmDialog
-    title="Delete Message"
-    actionLabel="Delete"
+    title={m['room.message.delete_title']()}
+    actionLabel={m['common.delete']()}
     actionIcon="iconify uil--trash-alt"
     loading={deletingMessage}
     onconfirm={() => handleDeleteMessage(roomId, eventId)}
     onclose={closeModal}
   >
-    Are you sure you want to delete this message? This cannot be undone.
+    {m['room.message.delete_prompt']()}
   </ConfirmDialog>
 {:else if modalType === 'deleteAttachment' && roomId && eventId && attachmentId}
   <ConfirmDialog
-    title="Delete Attachment"
-    actionLabel="Delete"
+    title={m['room.attachment.delete_title']()}
+    actionLabel={m['common.delete']()}
     actionIcon="iconify uil--trash-alt"
     loading={deletingAttachment}
     onconfirm={() => handleDeleteAttachment(roomId, eventId, attachmentId)}
     onclose={closeModal}
   >
-    Are you sure you want to delete this attachment? This cannot be undone.
+    {m['room.attachment.delete_prompt']()}
   </ConfirmDialog>
 {:else if modalType === 'deleteLinkPreview' && roomId && eventId && previewUrl}
   <ConfirmDialog
-    title="Delete Link Preview"
-    actionLabel="Delete"
+    title={m['room.link_preview.delete_title']()}
+    actionLabel={m['common.delete']()}
     actionIcon="iconify uil--trash-alt"
     loading={deletingLinkPreview}
     onconfirm={() => handleDeleteLinkPreview(roomId, eventId, previewUrl)}
     onclose={closeModal}
   >
-    Are you sure you want to remove this link preview? This cannot be undone.
+    {m['room.link_preview.delete_prompt']()}
   </ConfirmDialog>
 {:else if modalType === 'imageViewer' && imageItems.length > 0}
   <ImageModal items={imageItems} index={imageIndex} onclose={closeModal} />
