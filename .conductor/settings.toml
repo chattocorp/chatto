@@ -1,5 +1,9 @@
 "$schema" = "https://conductor.build/schemas/settings.repo.schema.json"
 
+[[preview_urls]]
+name = "Chatto"
+url = "http://localhost:$CONDUCTOR_PORT"
+
 [scripts]
 setup = "mise trust"
 run = "mise run chatto run"
