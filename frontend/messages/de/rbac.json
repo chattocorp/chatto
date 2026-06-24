@@ -1,0 +1,53 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "rbac": {
+    "delete_role": {
+      "title": "Rolle löschen",
+      "prompt": "Bist du sicher, dass du die Rolle {role} löschen möchtest? Dadurch wird:",
+      "remove_from_users": "die Rolle von allen Benutzern entfernt, die sie haben",
+      "delete_grants": "alle Berechtigungsvergaben für diese Rolle gelöscht",
+      "irreversible": "Diese Aktion kann nicht rückgängig gemacht werden.",
+      "deleting": "Wird gelöscht...",
+      "action": "Rolle löschen"
+    },
+    "role_form": {
+      "save": "Speichern",
+      "saving": "Wird gespeichert...",
+      "name": "Name",
+      "name_placeholder": "z. B. moderator",
+      "name_description": "Nur Kleinbuchstaben. Kann nach der Erstellung nicht geändert werden.",
+      "name_too_long": "Der Name darf höchstens 32 Zeichen lang sein",
+      "name_invalid": "Der Name muss Kleinbuchstaben, Zahlen und Bindestriche verwenden und mit einem Buchstaben beginnen",
+      "name_locked": "Rollennamen können nach der Erstellung nicht geändert werden.",
+      "display_name": "Anzeigename",
+      "display_name_placeholder": "z. B. Moderator",
+      "display_name_too_long": "Der Anzeigename darf höchstens 64 Zeichen lang sein",
+      "description": "Beschreibung",
+      "description_placeholder": "Optionale Beschreibung für diese Rolle",
+      "pingable": "Personen dürfen diese Rolle pingen",
+      "pingable_description": "Pingbare Rollen erscheinen in der @-Autovervollständigung und benachrichtigen zugewiesene Raummitglieder."
+    },
+    "permissions": {
+      "loading": "Berechtigungen werden geladen...",
+      "no_data": "Keine Daten verfügbar.",
+      "no_roles": "Keine Rollen für diesen Bereich anwendbar.",
+      "permission": "Berechtigung",
+      "state": "Status",
+      "decided_by": "Entschieden durch",
+      "granted": "Erlaubt",
+      "denied": "Verweigert",
+      "no_decision": "Keine Entscheidung",
+      "no_role_decided": "Keine Rolle hat entschieden",
+      "hide_trace": "Nachverfolgung ausblenden",
+      "show_trace": "Nachverfolgung anzeigen",
+      "trace_one": "Auflösungspfad (1 Eintrag)",
+      "trace_many": "Auflösungspfad ({count} Einträge)",
+      "allow": "erlauben",
+      "deny": "verweigern",
+      "winning_decision": "(entscheidende Entscheidung)",
+      "level_server": "Server",
+      "level_group": "Gruppe",
+      "level_room": "Raum"
+    }
+  }
+}

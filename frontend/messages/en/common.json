@@ -1,0 +1,45 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "common": {
+    "cancel": "Cancel",
+    "close_sidebar": "Close sidebar",
+    "or": "or",
+    "loading": "Loading...",
+    "continue": "Continue",
+    "submit": "Submit",
+    "retry": "Try Again",
+    "dismiss": "Dismiss",
+    "sign_in": "Sign In",
+    "create_account": "Create Account",
+    "email": "Email",
+    "password": "Password",
+    "username": "Username",
+    "confirm_password": "Confirm Password",
+    "new_password": "New Password",
+    "password_placeholder": "Your password",
+    "email_placeholder": "you@example.com",
+    "username_placeholder": "your_username",
+    "password_min_placeholder": "At least 8 characters",
+    "password_confirm_placeholder": "Enter password again",
+    "validation": {
+      "email": "Please enter a valid email address",
+      "password_min": "Must be at least 8 characters",
+      "username_min": "Must be at least 2 characters",
+      "username_max": "Must be at most 32 characters",
+      "username_charset": "Only letters, numbers, dots, dashes, underscores",
+      "username_no_consecutive_periods": "No consecutive periods allowed",
+      "passwords_match": "Passwords do not match",
+      "fix_errors": "Please fix the errors above"
+    },
+    "error": {
+      "network": "Network error. Please try again.",
+      "generic": "Something went wrong"
+    },
+    "delete": "Delete",
+    "got_it": "Got it",
+    "saved": "Saved!",
+    "rooms": "Rooms",
+    "copy_to_clipboard": "Copy to clipboard",
+    "copied_to_clipboard": "Copied to clipboard"
+  }
+}

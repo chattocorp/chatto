@@ -1,0 +1,31 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "ui": {
+    "toggle_sidebar": "Seitenleiste umschalten",
+    "notifications": "Benachrichtigungen",
+    "open_quick_switcher": "Schnellwechsler öffnen",
+    "quick_switcher_shortcut": "Schnellwechsler (Cmd+K)",
+    "realtime_paused": "Echtzeitaktualisierungen pausiert. Verbindung wird wiederhergestellt...",
+    "sign_out": "Abmelden",
+    "close": "Schließen",
+    "access_denied": {
+      "title": "Zugriff verweigert",
+      "message": "Du hast keine Berechtigung, diese Seite aufzurufen.",
+      "back": "Zurück zum Chat"
+    },
+    "image_modal": {
+      "previous": "Vorheriges Bild",
+      "next": "Nächstes Bild",
+      "fallback_alt": "Bild"
+    },
+    "toast": {
+      "dismiss": "Benachrichtigung ausblenden"
+    },
+    "combobox": {
+      "loading": "Wird geladen..."
+    },
+    "form": {
+      "required": "Erforderlich"
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "add_server": {
+    "title": "Server hinzufügen",
+    "sign_in": "Anmelden",
+    "connect": "Verbinden",
+    "redirecting": "Weiterleitung...",
+    "connecting": "Verbindung wird hergestellt...",
+    "start_failed": "Anmeldung konnte nicht gestartet werden.",
+    "description_url": "Chatto ist verteilt - dein Client verbindet sich direkt mit jedem Server. Gib eine URL ein, um einen weiteren hinzuzufügen.",
+    "description_preview": "Du meldest dich gleich auf diesem Server an. Du wirst zur Anmeldeseite weitergeleitet, um dich zu authentifizieren.",
+    "url_label": "Server-URL",
+    "url_placeholder": "chat.example.com"
+  }
+}

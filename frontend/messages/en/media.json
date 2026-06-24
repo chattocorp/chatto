@@ -1,0 +1,9 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "media": {
+    "server_banner_alt": "Server banner",
+    "fullscreen_video": "Fullscreen video",
+    "close_fullscreen_video": "Close fullscreen video",
+    "video_alt": "Video"
+  }
+}

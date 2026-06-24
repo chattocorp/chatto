@@ -8,7 +8,7 @@
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
-    "paraglide": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide --strategy localStorage preferredLanguage baseLocale --emit-ts-declarations --output-structure locale-modules --silent",
+    "paraglide": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide --strategy localStorage preferredLanguage baseLocale --emit-ts-declarations --output-structure locale-modules --silent && node scripts/generate-i18n-facade.mjs",
     "prepare": "svelte-kit sync || echo ''",
     "check": "pnpm run paraglide && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "pnpm run paraglide && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",

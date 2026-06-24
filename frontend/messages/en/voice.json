@@ -1,0 +1,32 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "voice": {
+    "connecting": "Connecting...",
+    "joining": "Joining...",
+    "starting": "Starting...",
+    "already_in_another_call": "Already in another call",
+    "join": "Join voice call",
+    "join_call": "Join call",
+    "start_call": "Start call",
+    "leave": "Leave call",
+    "share_screen": "Share screen",
+    "stop_share_screen": "Stop sharing screen",
+    "user_settings": "User Settings",
+    "speaking": "Speaking",
+    "muted": "Muted",
+    "poor_connection": "Poor connection",
+    "screen_share": "Screen share",
+    "screen_title": "{name}'s screen",
+    "devices": "Devices",
+    "turn_off_camera": "Turn off camera",
+    "turn_on_camera": "Turn on camera",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "microphone": "Microphone",
+    "speaker": "Speaker",
+    "camera": "Camera",
+    "unknown_device": "Unknown device",
+    "no_devices": "No devices found",
+    "participants": "Call participants"
+  }
+}

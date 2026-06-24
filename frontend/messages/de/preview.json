@@ -1,0 +1,14 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "preview": {
+    "dismiss": "Vorschau ausblenden",
+    "delete": "Vorschau löschen",
+    "open_link": "Link öffnen",
+    "copy_url": "URL kopieren",
+    "youtube_title": "YouTube-Video",
+    "youtube_dismiss": "Video ausblenden",
+    "youtube_delete": "Video löschen",
+    "youtube_open": "Auf YouTube öffnen",
+    "youtube_delete_embed": "Einbettung löschen"
+  }
+}

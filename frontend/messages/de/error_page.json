@@ -1,0 +1,9 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "error_page": {
+    "title": "Etwas ist schiefgelaufen",
+    "description": "Beim Rendern dieser Seite ist ein unerwarteter Fehler aufgetreten.",
+    "unknown": "Unbekannter Fehler",
+    "home_link": "Zurück zur Startseite"
+  }
+}
