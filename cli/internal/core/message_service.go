@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -58,7 +57,7 @@ func (s *MessageService) PostMessage(ctx context.Context, input MessagePostInput
 		return nil, ErrNotAuthenticated
 	}
 	if strings.TrimSpace(input.RoomID) == "" {
-		return nil, fmt.Errorf("room_id is required")
+		return nil, invalidArgument("room_id is required")
 	}
 
 	room, err := s.core.FindRoomByID(ctx, input.RoomID)
@@ -105,7 +104,7 @@ func (s *MessageService) PostMessage(ctx context.Context, input MessagePostInput
 
 	if input.AlsoSendToChannel {
 		if input.ThreadRootEventID == "" {
-			return nil, fmt.Errorf("alsoSendToChannel can only be used with thread replies (threadRootEventId must be set)")
+			return nil, invalidArgument("alsoSendToChannel can only be used with thread replies (threadRootEventId must be set)")
 		}
 		can, err := s.core.CanEchoMessage(ctx, input.ActorID, kind, room.Id)
 		if err != nil {
@@ -152,9 +151,10 @@ func (s *MessageService) PostMessage(ctx context.Context, input MessagePostInput
 		}
 	}
 
+	videoProcessingAssetIDs := s.videoProcessingAssetIDsForPost(input)
 	options := make([]PostMessageOption, 0, 2)
-	if len(input.VideoProcessingAssetIDs) > 0 {
-		options = append(options, WithVideoProcessingAssets(input.VideoProcessingAssetIDs...))
+	if len(videoProcessingAssetIDs) > 0 {
+		options = append(options, WithVideoProcessingAssets(videoProcessingAssetIDs...))
 	}
 	if mentionConfirmed {
 		options = append(options, WithLargeMentionConfirmed())
@@ -177,4 +177,39 @@ func (s *MessageService) PostMessage(ctx context.Context, input MessagePostInput
 
 	s.core.NotifyRoomMarkedAsRead(ctx, input.ActorID, kind, room.Id)
 	return &MessagePostResult{Event: event}, nil
+}
+
+func (s *MessageService) videoProcessingAssetIDsForPost(input MessagePostInput) []string {
+	assetIDs := make([]string, 0, len(input.VideoProcessingAssetIDs)+len(input.AttachmentAssetIDs))
+	seen := make(map[string]struct{}, len(input.VideoProcessingAssetIDs)+len(input.AttachmentAssetIDs))
+	add := func(assetID string) {
+		if assetID == "" {
+			return
+		}
+		if _, ok := seen[assetID]; ok {
+			return
+		}
+		seen[assetID] = struct{}{}
+		assetIDs = append(assetIDs, assetID)
+	}
+
+	// Explicit IDs are still needed for upload-byte-derived decisions such as
+	// animated GIF conversion. Transports that only submit attachment asset IDs
+	// can infer ordinary video/* assets from durable asset metadata.
+	for _, assetID := range input.VideoProcessingAssetIDs {
+		add(assetID)
+	}
+	for _, assetID := range input.AttachmentAssetIDs {
+		if _, ok := seen[assetID]; ok || assetID == "" {
+			continue
+		}
+		declared, ok := s.core.assetLifecycle().AssetCreation(assetID)
+		if !ok || declared == nil {
+			continue
+		}
+		if AttachmentNeedsVideoProcessing(attachmentFromAsset(declared.GetAsset()), false) {
+			add(assetID)
+		}
+	}
+	return assetIDs
 }

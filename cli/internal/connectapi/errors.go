@@ -36,7 +36,8 @@ func connectError(err error) error {
 		errors.Is(err, core.ErrCustomStatusTextRequired) ||
 		errors.Is(err, core.ErrCustomStatusEmojiTooLong) ||
 		errors.Is(err, core.ErrCustomStatusTextTooLong) ||
-		errors.Is(err, core.ErrCustomStatusExpiryInPast) {
+		errors.Is(err, core.ErrCustomStatusExpiryInPast) ||
+		errors.Is(err, core.ErrInvalidArgument) {
 		return connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	if errors.Is(err, core.ErrNotFound) ||
@@ -50,5 +51,5 @@ func connectError(err error) error {
 	if errors.Is(err, core.ErrRoomArchived) {
 		return connect.NewError(connect.CodeFailedPrecondition, err)
 	}
-	return connect.NewError(connect.CodeInternal, err)
+	return connect.NewError(connect.CodeInternal, errors.New("internal server error"))
 }

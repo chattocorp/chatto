@@ -417,7 +417,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	hasBody := HasVisibleContent(body)
 	hasAttachments := len(assetIDs) > 0
 	if !hasBody && !hasAttachments {
-		return nil, fmt.Errorf("message must have either body or attachments")
+		return nil, invalidArgument("message must have either body or attachments")
 	}
 
 	// Resolve referenced assets from the projection. Each must already exist
@@ -452,7 +452,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		resolvedAssetIDs = append(resolvedAssetIDs, id)
 	}
 	if !hasBody && len(resolvedAssetIDs) == 0 {
-		return nil, fmt.Errorf("message must have either body or attachments")
+		return nil, invalidArgument("message must have either body or attachments")
 	}
 
 	// Verify room exists and isn't archived
@@ -484,15 +484,15 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			return nil, fmt.Errorf("failed to get thread root message: %w", err)
 		}
 		if rootEvent == nil {
-			return nil, fmt.Errorf("thread root message not found: event ID %s", inThread)
+			return nil, fmt.Errorf("thread root message not found: %w", ErrMessageNotFound)
 		}
 		rootMsg := rootEvent.GetMessagePosted()
 		if rootMsg == nil {
-			return nil, fmt.Errorf("thread root is not a message event: event ID %s", inThread)
+			return nil, invalidArgument("thread root is not a message event")
 		}
 		// Verify it's actually a root message (not itself a thread reply)
 		if rootMsg.InThread != "" {
-			return nil, fmt.Errorf("thread root must be a root message, not a thread reply: event ID %s", inThread)
+			return nil, invalidArgument("thread root must be a root message, not a thread reply")
 		}
 	}
 
@@ -1178,10 +1178,10 @@ func validateLinkPreview(linkPreview *corev1.LinkPreview) error {
 			return err
 		}
 		if linkPreview.GetImageAssetId() != "" && imageAsset.GetId() != "" && linkPreview.GetImageAssetId() != imageAsset.GetId() {
-			return fmt.Errorf("link preview image asset ID does not match image asset record")
+			return invalidArgument("link preview image asset ID does not match image asset record")
 		}
 		if imageAsset.GetStorage() == nil {
-			return fmt.Errorf("link preview image asset record is missing storage")
+			return invalidArgument("link preview image asset record is missing storage")
 		}
 	}
 	if err := validateStringMaxLength("link preview site name", linkPreview.GetSiteName(), MaxLinkPreviewSiteNameLength); err != nil {

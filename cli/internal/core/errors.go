@@ -19,6 +19,11 @@ var (
 	// to perform an operation.
 	ErrPermissionDenied = errors.New("permission denied")
 
+	// ErrInvalidArgument is returned when a caller provides invalid request
+	// input. Wrap this with an InvalidArgumentError when the caller should see a
+	// specific validation message.
+	ErrInvalidArgument = errors.New("invalid argument")
+
 	// ErrNotSpaceMember is returned when a user attempts to access a space
 	// they are not a member of.
 	ErrNotSpaceMember = errors.New("not a member of this space")
@@ -137,6 +142,24 @@ var (
 	// the entire user-provided password contributes to the hash and to bound work.
 	ErrPasswordTooLong = fmt.Errorf("password cannot exceed %d bytes", MaxPasswordLength)
 )
+
+// InvalidArgumentError carries a caller-safe validation message while still
+// matching ErrInvalidArgument through errors.Is.
+type InvalidArgumentError struct {
+	Message string
+}
+
+func (e *InvalidArgumentError) Error() string {
+	return e.Message
+}
+
+func (e *InvalidArgumentError) Is(target error) bool {
+	return target == ErrInvalidArgument
+}
+
+func invalidArgument(message string) error {
+	return &InvalidArgumentError{Message: message}
+}
 
 // Input validation limits.
 // Note: These limits are enforced using len() which counts bytes, not Unicode characters.

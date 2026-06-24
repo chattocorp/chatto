@@ -228,6 +228,8 @@ func TestMessageServicePostMessageValidatesInput(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-post-validation")
 	ctx := auth.WithUser(env.ctx, env.viewer)
+	root := env.post(room.Id, env.viewer.Id, "root", "")
+	reply := env.post(room.Id, env.viewer.Id, "reply", root.Id)
 
 	tests := []struct {
 		name string
@@ -253,6 +255,35 @@ func TestMessageServicePostMessageValidatesInput(t *testing.T) {
 			},
 			code: connect.CodeInvalidArgument,
 		},
+		{
+			name: "missing thread root",
+			req: &apiv1.PostMessageRequest{
+				RoomId:            room.Id,
+				Body:              "reply",
+				ThreadRootEventId: "missing-thread-root",
+			},
+			code: connect.CodeNotFound,
+		},
+		{
+			name: "thread reply as thread root",
+			req: &apiv1.PostMessageRequest{
+				RoomId:            room.Id,
+				Body:              "reply",
+				ThreadRootEventId: reply.Id,
+			},
+			code: connect.CodeInvalidArgument,
+		},
+		{
+			name: "link preview URL too long",
+			req: &apiv1.PostMessageRequest{
+				RoomId: room.Id,
+				Body:   "hello",
+				LinkPreview: &apiv1.MessageLinkPreviewInput{
+					Url: strings.Repeat("x", core.MaxLinkPreviewURLLength+1),
+				},
+			},
+			code: connect.CodeInvalidArgument,
+		},
 	}
 
 	for _, tt := range tests {
@@ -261,6 +292,28 @@ func TestMessageServicePostMessageValidatesInput(t *testing.T) {
 				t.Fatalf("PostMessage code = %v, want %v", connect.CodeOf(err), tt.code)
 			}
 		})
+	}
+}
+
+func TestMessageServicePostMessageInfersVideoProcessingAssetIDs(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("message-post-video")
+
+	original, err := env.core.UploadAttachment(env.ctx, env.viewer.Id, room.Id, "clip.mp4", "video/mp4", bytes.NewReader([]byte("original video")))
+	if err != nil {
+		t.Fatalf("UploadAttachment original: %v", err)
+	}
+
+	if _, err := env.messages.PostMessage(auth.WithUser(env.ctx, env.viewer), connect.NewRequest(&apiv1.PostMessageRequest{
+		RoomId:             room.Id,
+		AttachmentAssetIds: []string{original.Id},
+	})); err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+
+	manifest, ok := env.core.Assets.VideoAttachmentManifest(original.Id)
+	if !ok || manifest.Started == nil {
+		t.Fatalf("VideoAttachmentManifest = %+v, %v; want started", manifest, ok)
 	}
 }
 
@@ -882,6 +935,8 @@ func TestConnectErrorMapping(t *testing.T) {
 		{"message not found", core.ErrMessageNotFound, connect.CodeNotFound},
 		{"jetstream key not found", jetstream.ErrKeyNotFound, connect.CodeNotFound},
 		{"message too long", core.ErrMessageTooLong, connect.CodeInvalidArgument},
+		{"invalid argument", core.ErrInvalidArgument, connect.CodeInvalidArgument},
+		{"string length", &core.StringLengthError{Field: "field", Max: 10}, connect.CodeInvalidArgument},
 		{"room archived", core.ErrRoomArchived, connect.CodeFailedPrecondition},
 		{"unknown", errors.New("boom"), connect.CodeInternal},
 	}
@@ -892,6 +947,10 @@ func TestConnectErrorMapping(t *testing.T) {
 				t.Fatalf("connectError code = %v, want %v", got, tt.code)
 			}
 		})
+	}
+
+	if err := connectError(errors.New("boom")); strings.Contains(err.Error(), "boom") {
+		t.Fatalf("connectError leaked internal error: %v", err)
 	}
 }
 
