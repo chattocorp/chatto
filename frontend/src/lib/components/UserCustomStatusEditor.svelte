@@ -1,7 +1,7 @@
 <script lang="ts">
   import EmojiPicker from '$lib/components/EmojiPicker.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
-  import { Button } from '$lib/ui/form';
+  import { Button, FormField } from '$lib/ui/form';
   import { Hint } from '$lib/ui';
   import {
     clearCustomStatus as clearCustomStatusViaAPI,
@@ -52,6 +52,12 @@
   let successMessage = $state('');
 
   const isCustom = $derived(selectedMode === 'custom');
+  const statusTextInputId = $derived(
+    compact ? 'compact-custom-status-text' : 'settings-custom-status-text'
+  );
+  const expiresAtInputId = $derived(
+    compact ? 'compact-custom-status-expires-at' : 'settings-custom-status-expires-at'
+  );
   const currentExpiresAt = $derived(toDatetimeLocalValue(localStatus?.expiresAt));
   const activeTemplate = $derived(
     selectedMode === 'custom'
@@ -173,63 +179,59 @@
 </script>
 
 <form
-  class={['flex flex-col gap-4', compact ? 'menu-section w-96 max-w-[calc(100vw-2rem)] p-3' : '']}
+  class={['flex flex-col gap-4', compact ? 'w-96 max-w-[calc(100vw-2rem)] menu-section p-3' : '']}
   data-testid="custom-status-editor"
   onsubmit={saveCustomStatus}
 >
-  <div class="flex flex-col gap-2">
-    <span class="text-sm font-medium text-text">{m['settings.profile.status.template.label']()}</span>
-    <div
-      class="flex flex-col gap-2"
-      role="radiogroup"
-      aria-label={m['settings.profile.status.template.label']()}
-    >
-      {#each CUSTOM_STATUS_TEMPLATES as template (template.id)}
-        {@const isSelected = selectedMode === template.id}
-        <button
-          type="button"
-          role="radio"
-          aria-checked={isSelected}
-          class={['choice-row', isSelected && 'choice-row-selected']}
-          onclick={() => selectMode(template.id)}
-        >
-          <span class={['choice-indicator', isSelected && 'choice-indicator-selected']}>
-            {#if isSelected}
-              <span class="choice-indicator-dot"></span>
-            {/if}
-          </span>
-          <span class="flex min-w-0 items-center gap-2">
-            <span aria-hidden="true">{template.emoji}</span>
-            <span class={['min-w-0 truncate', isSelected && 'font-medium']}>{template.label()}</span>
-          </span>
-        </button>
-      {/each}
+  <div
+    class="flex flex-col gap-2"
+    role="radiogroup"
+    aria-label={m['settings.profile.status.template.label']()}
+  >
+    {#each CUSTOM_STATUS_TEMPLATES as template (template.id)}
+      {@const isSelected = selectedMode === template.id}
       <button
         type="button"
         role="radio"
-        aria-checked={selectedMode === 'custom'}
-        class={['choice-row', selectedMode === 'custom' && 'choice-row-selected']}
-        onclick={() => selectMode('custom')}
+        aria-checked={isSelected}
+        class={['choice-row', isSelected && 'choice-row-selected']}
+        onclick={() => selectMode(template.id)}
       >
-        <span class={['choice-indicator', selectedMode === 'custom' && 'choice-indicator-selected']}>
-          {#if selectedMode === 'custom'}
+        <span class={['choice-indicator', isSelected && 'choice-indicator-selected']}>
+          {#if isSelected}
             <span class="choice-indicator-dot"></span>
           {/if}
         </span>
         <span class="flex min-w-0 items-center gap-2">
-          <span class="iconify uil--edit-alt" aria-hidden="true"></span>
-          <span class={['min-w-0 truncate', selectedMode === 'custom' && 'font-medium']}>
-            {m['settings.profile.status.template.custom']()}
-          </span>
+          <span aria-hidden="true">{template.emoji}</span>
+          <span class={['min-w-0 truncate', isSelected && 'font-medium']}>{template.label()}</span>
         </span>
       </button>
-    </div>
+    {/each}
+    <button
+      type="button"
+      role="radio"
+      aria-checked={selectedMode === 'custom'}
+      class={['choice-row', selectedMode === 'custom' && 'choice-row-selected']}
+      onclick={() => selectMode('custom')}
+    >
+      <span class={['choice-indicator', selectedMode === 'custom' && 'choice-indicator-selected']}>
+        {#if selectedMode === 'custom'}
+          <span class="choice-indicator-dot"></span>
+        {/if}
+      </span>
+      <span class="flex min-w-0 items-center gap-2">
+        <span class="iconify uil--edit-alt" aria-hidden="true"></span>
+        <span class={['min-w-0 truncate', selectedMode === 'custom' && 'font-medium']}>
+          {m['settings.profile.status.template.custom']()}
+        </span>
+      </span>
+    </button>
   </div>
 
   {#if isCustom}
-    <label class="flex flex-col gap-1 text-sm">
-      <span class="font-medium text-text">{m['settings.profile.status.text.label']()}</span>
-      <span class="flex min-w-0 items-center gap-2">
+    <FormField id={statusTextInputId} label={m['settings.profile.status.text.label']()}>
+      <div class="flex min-w-0 items-center gap-2">
         <button
           type="button"
           class="btn-secondary h-10 w-10 shrink-0 !px-0 text-xl"
@@ -242,6 +244,7 @@
           <span aria-hidden="true">{statusEmoji || '🙂'}</span>
         </button>
         <input
+          id={statusTextInputId}
           bind:value={statusText}
           placeholder={m['settings.profile.status.text.placeholder']()}
           disabled={isSaving || isClearing}
@@ -249,20 +252,20 @@
           class="input min-w-0 flex-1"
           data-testid="settings-custom-status-text"
         />
-      </span>
-    </label>
+      </div>
+    </FormField>
   {/if}
 
-  <label class="flex flex-col gap-1 text-sm">
-    <span class="font-medium text-text">{m['settings.profile.status.expires_at.label']()}</span>
+  <FormField id={expiresAtInputId} label={m['settings.profile.status.expires_at.label']()}>
     <input
+      id={expiresAtInputId}
       type="datetime-local"
       bind:value={statusExpiresAt}
       disabled={isSaving || isClearing}
       class="input"
       data-testid="settings-custom-status-expires-at"
     />
-  </label>
+  </FormField>
 
   {#if error}
     <Hint tone="danger">{error}</Hint>
@@ -273,7 +276,13 @@
 
   <div class="flex flex-nowrap items-center justify-end gap-2">
     {#if hasActiveStatus}
-      <Button type="button" variant="secondary" size="sm" loading={isClearing} onclick={clearCustomStatus}>
+      <Button
+        type="button"
+        variant="secondary"
+        size="sm"
+        loading={isClearing}
+        onclick={clearCustomStatus}
+      >
         <span class="iconify uil--times"></span>
         {m['settings.profile.status.clear_button']()}
       </Button>

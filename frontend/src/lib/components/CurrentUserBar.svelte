@@ -50,7 +50,9 @@ to the user settings page for the active server.
   const login = $derived(activeServerUser?.login ?? '');
   const showLogin = $derived(!!login && login !== displayName);
   const customStatus = $derived(
-    activeServerUser ? getLiveCustomStatus(activeServerUser.id, activeServerUser.customStatus) : null
+    activeServerUser
+      ? getLiveCustomStatus(activeServerUser.id, activeServerUser.customStatus)
+      : null
   );
 
   const activeCallRoomId = $derived(
@@ -221,7 +223,7 @@ to the user settings page for the active server.
         type="button"
         title={m['settings.profile.status.edit_button']()}
         aria-label={m['settings.profile.status.edit_button']()}
-        class="iconify shrink-0 cursor-pointer text-muted uil--smile hover:text-text"
+        class="iconify shrink-0 cursor-pointer text-muted uil--edit-alt hover:text-text"
         data-testid="current-user-edit-status"
         onclick={openStatusEditor}
       ></button>
