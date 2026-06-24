@@ -383,12 +383,15 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {#snippet roomLink(room: RoomsListItem)}
   {@const hasActiveCall = activeCallRooms.has(room.id)}
   {@const isJoined = room.viewerIsMember}
+  {@const hasUnreadAttention =
+    isJoined &&
+    room.hasUnread &&
+    room.id !== activeRoomId &&
+    !notificationLevelStore.isRoomMuted(room.id)}
   {@const rowClass = [
     '@container sidebar-item group/badges',
     room.id === activeRoomId ? 'bg-surface-100' : '',
-    room.hasUnread && room.id !== activeRoomId && !notificationLevelStore.isRoomMuted(room.id)
-      ? 'font-semibold'
-      : '',
+    hasUnreadAttention ? 'font-semibold text-text-top' : '',
     !isJoined ? 'opacity-60 hover:opacity-85' : ''
   ]}
   <a
@@ -399,7 +402,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     onkeydown={(e) => handleRoomLinkKeydown(e, room)}
   >
     {#if isJoined}
-      <span class="sidebar-icon text-muted">#</span>
+      <span class={['sidebar-icon', hasUnreadAttention ? 'text-text-top' : 'text-muted']}>#</span>
     {:else if room.viewerCanJoinRoom}
       <span class="sidebar-icon text-muted">+</span>
     {:else}
@@ -436,12 +439,13 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
 {#snippet dmLink(room: RoomsListItem)}
   {@const hasActiveCall = activeCallRooms.has(room.id)}
+  {@const hasUnreadAttention = room.hasUnread && room.id !== activeRoomId}
   <a
     href={resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId: room.id })}
     class={[
       'group/badges @container sidebar-item',
       room.id === activeRoomId ? 'bg-surface-100' : '',
-      room.hasUnread && room.id !== activeRoomId ? 'font-semibold' : ''
+      hasUnreadAttention ? 'font-semibold text-text-top' : ''
     ]}
     aria-current={room.id === activeRoomId ? 'page' : undefined}
     onclick={(e) => handleRoomLinkClick(e, room)}

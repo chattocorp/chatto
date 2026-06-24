@@ -236,6 +236,16 @@ function setRoomNotificationCount(roomId: string, count: number) {
   room.viewerNotificationCount = count;
 }
 
+function setRoomUnread(roomId: string, hasUnread: boolean) {
+  const rooms = mocks.store.rooms.rooms as Array<{
+    id: string;
+    hasUnread: boolean;
+  }>;
+  const room = rooms.find((item) => item.id === roomId);
+  if (!room) throw new Error(`Missing mocked room ${roomId}`);
+  room.hasUnread = hasUnread;
+}
+
 beforeEach(() => {
   localStorage.clear();
   sessionStorage.clear();
@@ -473,6 +483,20 @@ describe('RoomList', () => {
         viewerCanJoinRoom: false
       }
     });
+  });
+
+  it('renders unread channel rows and icons in full-contrast text', async () => {
+    setRoomUnread('channel-1', true);
+
+    const { container } = render(RoomList);
+
+    const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
+    await expect.element(row).toBeInTheDocument();
+    const icon = row.querySelector('.sidebar-icon');
+    expect(row.classList.contains('font-semibold')).toBe(true);
+    expect(row.classList.contains('text-text-top')).toBe(true);
+    expect(icon?.classList.contains('text-text-top')).toBe(true);
+    expect(icon?.classList.contains('text-muted')).toBe(false);
   });
 
   it('renders server-local sidebar links as same-tab anchors resolved against the active server', async () => {
