@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "google/protobuf/timestamp.proto";
+
+message MarkRoomAsReadRequest {
+  string room_id = 1;
+  string up_to_event_id = 2;
+}
+
+message MarkRoomAsReadResponse {
+  google.protobuf.Timestamp last_read_at = 1;
+  google.protobuf.Timestamp previous_last_read_at = 2;
+}
+
+message MarkThreadAsReadRequest {
+  string room_id = 1;
+  string thread_root_event_id = 2;
+  string up_to_event_id = 3;
+}
+
+message MarkThreadAsReadResponse {
+  google.protobuf.Timestamp previous_read_at = 1;
+}
+
+service ReadStateService {
+  rpc MarkRoomAsRead(MarkRoomAsReadRequest) returns (MarkRoomAsReadResponse);
+  rpc MarkThreadAsRead(MarkThreadAsReadRequest) returns (MarkThreadAsReadResponse);
+}

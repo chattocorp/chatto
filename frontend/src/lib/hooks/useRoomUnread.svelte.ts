@@ -1,4 +1,4 @@
-import { graphql } from '$lib/gql';
+import { createReadStateAPI } from '$lib/api/readState';
 import { useConnection } from '$lib/state/server/connection.svelte';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -34,21 +34,13 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
     roomUnreadStore.setRoomUnread(targetRoomId, false);
 
     try {
-      const result = await connection()
-        .client.mutation(
-          graphql(`
-            mutation MarkRoomAsRead($input: MarkRoomAsReadInput!) {
-              markRoomAsRead(input: $input) {
-                previousLastReadAt
-                lastReadAt
-              }
-            }
-          `),
-          { input: { roomId: targetRoomId, upToEventId } }
-        )
-        .toPromise();
+      const conn = connection();
+      const data = await createReadStateAPI({
+        serverId: conn.serverId ?? getActiveServer(),
+        baseUrl: conn.connectBaseUrl,
+        bearerToken: conn.bearerToken
+      }).markRoomAsRead({ roomId: targetRoomId, upToEventId });
 
-      const data = result.data?.markRoomAsRead ?? null;
       if (data?.lastReadAt && getProps().roomId === targetRoomId) {
         lastCursor = data.lastReadAt;
       }

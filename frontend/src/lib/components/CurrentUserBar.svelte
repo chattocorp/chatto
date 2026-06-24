@@ -77,6 +77,7 @@ to the user settings page for the active server.
     return `# ${room.name}`;
   });
   const compactCallButtonClass = 'btn-secondary h-7 w-7 shrink-0 !px-0 !py-0 text-xs';
+  const compactCallActiveButtonClass = 'btn-success h-7 w-7 shrink-0 !px-0 !py-0 text-xs';
   const compactCallDangerButtonClass = 'btn-danger h-7 w-7 shrink-0 !px-0 !py-0 text-xs';
   let statusEditorAnchor = $state<{ top: number; bottom: number; left: number } | null>(null);
 
@@ -143,7 +144,7 @@ to the user settings page for the active server.
         </button>
         <button
           type="button"
-          class={voiceCallState.isMuted ? compactCallDangerButtonClass : compactCallButtonClass}
+          class={voiceCallState.isMuted ? compactCallButtonClass : compactCallActiveButtonClass}
           title={voiceCallState.isMuted ? m['voice.unmute']() : m['voice.mute']()}
           aria-label={voiceCallState.isMuted ? m['voice.unmute']() : m['voice.mute']()}
           data-testid="current-user-call-mute"
@@ -160,8 +161,8 @@ to the user settings page for the active server.
         <button
           type="button"
           class={voiceCallState.isCameraEnabled
-            ? compactCallButtonClass
-            : compactCallDangerButtonClass}
+            ? compactCallActiveButtonClass
+            : compactCallButtonClass}
           title={voiceCallState.isCameraEnabled
             ? m['voice.turn_off_camera']()
             : m['voice.turn_on_camera']()}
@@ -179,8 +180,8 @@ to the user settings page for the active server.
         <button
           type="button"
           class={voiceCallState.isScreenShareEnabled
-            ? compactCallButtonClass
-            : compactCallDangerButtonClass}
+            ? compactCallActiveButtonClass
+            : compactCallButtonClass}
           title={voiceCallState.isScreenShareEnabled
             ? m['voice.stop_share_screen']()
             : m['voice.share_screen']()}

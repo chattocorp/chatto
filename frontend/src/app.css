@@ -205,6 +205,12 @@
   @apply hover:from-accent/75 hover:to-accent;
 }
 
+@utility btn-success {
+  @apply btn text-white;
+  @apply bg-gradient-to-br from-success/65 to-success/95 ring-1 ring-success/30;
+  @apply hover:from-success/75 hover:to-success;
+}
+
 @utility btn-secondary {
   /* Quiet surface gradient + neutral ring — distinct from surfaces
      (dialogs, panels) without competing with the saturated variants. */

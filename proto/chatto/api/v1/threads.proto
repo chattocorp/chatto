@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+message FollowThreadRequest {
+  string room_id = 1;
+  string thread_root_event_id = 2;
+}
+
+message FollowThreadResponse {
+  bool following = 1;
+}
+
+message UnfollowThreadRequest {
+  string room_id = 1;
+  string thread_root_event_id = 2;
+}
+
+message UnfollowThreadResponse {
+  bool following = 1;
+}
+
+service ThreadService {
+  rpc FollowThread(FollowThreadRequest) returns (FollowThreadResponse);
+  rpc UnfollowThread(UnfollowThreadRequest) returns (UnfollowThreadResponse);
+}
