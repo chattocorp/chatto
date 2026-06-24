@@ -69,9 +69,11 @@
   // Resolve time-based unread boundary to an event ID for EventList
   let unreadAfterEventId = $derived.by(() => {
     if (unreadAfterTime === null) return null;
+    const currentUserId = currentUser.user?.id ?? null;
     const afterTime = unreadAfterTime.getTime();
     const beforeTime = unreadBeforeTime?.getTime() ?? Infinity;
     for (const event of threadEvents) {
+      if (currentUserId && event.actorId === currentUserId) continue;
       const eventTime = new Date(event.createdAt).getTime();
       if (eventTime > afterTime && eventTime <= beforeTime) {
         return event.id;
@@ -363,6 +365,7 @@
       typingIndicator?.resetDebounce();
       if (event) {
         store.ingestEvent(event);
+        void markThreadAsRead(threadRootEventId, event.id);
       } else {
         void store.refreshCurrentWindow(null);
       }

@@ -1064,3 +1064,206 @@ export class GetRoomEventsAroundResponse extends Message<GetRoomEventsAroundResp
   }
 }
 
+/**
+ * @generated from message chatto.api.v1.GetThreadEventsRequest
+ */
+export class GetThreadEventsRequest extends Message<GetThreadEventsRequest> {
+  /**
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * @generated from field: string thread_root_event_id = 2;
+   */
+  threadRootEventId = "";
+
+  /**
+   * @generated from field: int32 limit = 3;
+   */
+  limit = 0;
+
+  /**
+   * @generated from oneof chatto.api.v1.GetThreadEventsRequest.cursor
+   */
+  cursor: {
+    /**
+     * @generated from field: string before = 4;
+     */
+    value: string;
+    case: "before";
+  } | {
+    /**
+     * @generated from field: string after = 5;
+     */
+    value: string;
+    case: "after";
+  } | { case: undefined; value?: undefined } = { case: undefined };
+
+  constructor(data?: PartialMessage<GetThreadEventsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetThreadEventsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "limit", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 4, name: "before", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "cursor" },
+    { no: 5, name: "after", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "cursor" },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetThreadEventsRequest {
+    return new GetThreadEventsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetThreadEventsRequest {
+    return new GetThreadEventsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetThreadEventsRequest {
+    return new GetThreadEventsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetThreadEventsRequest | PlainMessage<GetThreadEventsRequest> | undefined, b: GetThreadEventsRequest | PlainMessage<GetThreadEventsRequest> | undefined): boolean {
+    return proto3.util.equals(GetThreadEventsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message chatto.api.v1.GetThreadEventsResponse
+ */
+export class GetThreadEventsResponse extends Message<GetThreadEventsResponse> {
+  /**
+   * @generated from field: chatto.api.v1.RoomTimelinePage page = 1;
+   */
+  page?: RoomTimelinePage;
+
+  constructor(data?: PartialMessage<GetThreadEventsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetThreadEventsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "page", kind: "message", T: RoomTimelinePage },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetThreadEventsResponse {
+    return new GetThreadEventsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetThreadEventsResponse {
+    return new GetThreadEventsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetThreadEventsResponse {
+    return new GetThreadEventsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetThreadEventsResponse | PlainMessage<GetThreadEventsResponse> | undefined, b: GetThreadEventsResponse | PlainMessage<GetThreadEventsResponse> | undefined): boolean {
+    return proto3.util.equals(GetThreadEventsResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message chatto.api.v1.GetThreadEventsAroundRequest
+ */
+export class GetThreadEventsAroundRequest extends Message<GetThreadEventsAroundRequest> {
+  /**
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * @generated from field: string thread_root_event_id = 2;
+   */
+  threadRootEventId = "";
+
+  /**
+   * @generated from field: string event_id = 3;
+   */
+  eventId = "";
+
+  /**
+   * @generated from field: int32 limit = 4;
+   */
+  limit = 0;
+
+  constructor(data?: PartialMessage<GetThreadEventsAroundRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetThreadEventsAroundRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "limit", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetThreadEventsAroundRequest {
+    return new GetThreadEventsAroundRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetThreadEventsAroundRequest {
+    return new GetThreadEventsAroundRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetThreadEventsAroundRequest {
+    return new GetThreadEventsAroundRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetThreadEventsAroundRequest | PlainMessage<GetThreadEventsAroundRequest> | undefined, b: GetThreadEventsAroundRequest | PlainMessage<GetThreadEventsAroundRequest> | undefined): boolean {
+    return proto3.util.equals(GetThreadEventsAroundRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message chatto.api.v1.GetThreadEventsAroundResponse
+ */
+export class GetThreadEventsAroundResponse extends Message<GetThreadEventsAroundResponse> {
+  /**
+   * @generated from field: chatto.api.v1.RoomTimelinePage page = 1;
+   */
+  page?: RoomTimelinePage;
+
+  /**
+   * @generated from field: int32 target_index = 2;
+   */
+  targetIndex = 0;
+
+  constructor(data?: PartialMessage<GetThreadEventsAroundResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetThreadEventsAroundResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "page", kind: "message", T: RoomTimelinePage },
+    { no: 2, name: "target_index", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetThreadEventsAroundResponse {
+    return new GetThreadEventsAroundResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetThreadEventsAroundResponse {
+    return new GetThreadEventsAroundResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetThreadEventsAroundResponse {
+    return new GetThreadEventsAroundResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetThreadEventsAroundResponse | PlainMessage<GetThreadEventsAroundResponse> | undefined, b: GetThreadEventsAroundResponse | PlainMessage<GetThreadEventsAroundResponse> | undefined): boolean {
+    return proto3.util.equals(GetThreadEventsAroundResponse, a, b);
+  }
+}
+

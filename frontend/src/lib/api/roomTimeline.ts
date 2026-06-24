@@ -35,6 +35,19 @@ export type RoomTimelineAPI = {
     eventId: string;
     limit: number;
   }): Promise<EventConnectionPage>;
+  getThreadEvents(input: {
+    roomId: string;
+    threadRootEventId: string;
+    limit: number;
+    before?: string;
+    after?: string;
+  }): Promise<EventConnectionPage>;
+  getThreadEventsAround(input: {
+    roomId: string;
+    threadRootEventId: string;
+    eventId: string;
+    limit: number;
+  }): Promise<EventConnectionPage>;
 };
 
 export function createRoomTimelineAPI(config: RoomTimelineAPIConfig): RoomTimelineAPI {
@@ -77,6 +90,38 @@ export function createRoomTimelineAPI(config: RoomTimelineAPIConfig): RoomTimeli
       try {
         const response = await client.getRoomEventsAround(
           { roomId, eventId, limit },
+          { headers: headers() }
+        );
+        if (!response.page) return emptyEventConnectionPage();
+        return roomTimelinePageToEventConnectionPage(response.page);
+      } catch (err) {
+        return handleAuthError(err);
+      }
+    },
+    async getThreadEvents({ roomId, threadRootEventId, limit, before, after }) {
+      try {
+        const response = await client.getThreadEvents(
+          {
+            roomId,
+            threadRootEventId,
+            limit,
+            cursor: before
+              ? { case: 'before', value: before }
+              : after
+                ? { case: 'after', value: after }
+                : { case: undefined }
+          },
+          { headers: headers() }
+        );
+        return roomTimelinePageToEventConnectionPage(response.page ?? new RoomTimelinePage());
+      } catch (err) {
+        return handleAuthError(err);
+      }
+    },
+    async getThreadEventsAround({ roomId, threadRootEventId, eventId, limit }) {
+      try {
+        const response = await client.getThreadEventsAround(
+          { roomId, threadRootEventId, eventId, limit },
           { headers: headers() }
         );
         if (!response.page) return emptyEventConnectionPage();

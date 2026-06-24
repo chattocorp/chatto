@@ -19,16 +19,13 @@ import {
   RoomAfterQuery,
   RoomAroundQuery,
   RoomBeforeQuery,
-  RoomLatestQuery,
-  ThreadEventsAroundQuery,
-  ThreadEventsQuery
+  RoomLatestQuery
 } from './queries';
 import { isRootRoomEvent, isThreadEvent } from './filters';
 import {
   type EventConnectionPage,
   type RawEvent,
   getActorId,
-  threadRepliesConnection,
   unmask
 } from './helpers';
 
@@ -65,9 +62,9 @@ function roomTimelineFromGraphQLClient(gqlClient: GraphQLClient): RoomTimelineAP
 /**
  * Message store for both the main room timeline and a single thread pane.
  * Room history now uses the protobuf ConnectRPC timeline API when available;
- * thread history and single-event refetches still use GraphQL during the
- * migration. Lifecycle, pagination, refetch, and subscription ingestion
- * behavior stays shared across both scopes.
+ * thread history requires that path. Single-event refetches still use GraphQL
+ * during the migration. Lifecycle, pagination, refetch, and subscription
+ * ingestion behavior stays shared across both scopes.
  */
 export class MessagesStore {
   events = $state<RoomEventViewFragment[]>([]);
@@ -327,16 +324,12 @@ export class MessagesStore {
 
   private async fetchOlderPage(before: string): Promise<EventConnectionPage | null> {
     if (this.scope === 'thread') {
-      const result = await this.client
-        .query(ThreadEventsQuery, {
-          roomId: this.roomId,
-          threadRootEventId: this.threadRootEventId,
-          limit: PAGE_SIZE,
-          before
-        })
-        .toPromise();
-
-      return threadRepliesConnection(result.data?.room?.event);
+      return this.requireRoomTimeline().getThreadEvents({
+        roomId: this.roomId,
+        threadRootEventId: this.threadRootEventId,
+        limit: PAGE_SIZE,
+        before
+      });
     }
 
     if (this.roomTimeline) {
@@ -935,45 +928,23 @@ export class MessagesStore {
     existingBeforeFetch: ReadonlySet<string>,
     anchorEventId: string | null
   ): Promise<RefreshCurrentWindowResult> {
-    const query = anchorEventId ? ThreadEventsAroundQuery : ThreadEventsQuery;
-    const variables = anchorEventId
-      ? {
+    const timeline = this.requireRoomTimeline();
+    const page = anchorEventId
+      ? await timeline.getThreadEventsAround({
           roomId: this.roomId,
           threadRootEventId: this.threadRootEventId,
-          anchorEventId,
+          eventId: anchorEventId,
           limit: PAGE_SIZE
-        }
-      : {
+        })
+      : await timeline.getThreadEvents({
           roomId: this.roomId,
           threadRootEventId: this.threadRootEventId,
           limit: PAGE_SIZE
-        };
-    const result = await this.client
-      .query(query, variables, { requestPolicy: 'network-only' })
-      .toPromise();
-
+        });
     if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false, refreshed: false };
-    if (result.error) {
-      console.error('MessagesStore: refreshThreadWindow error:', result.error);
-      return { hasOlder: false, hasNewer: false, refreshed: false };
-    }
-
-    const root = result.data?.room?.event;
-    if (!root) return { hasOlder: false, hasNewer: false, refreshed: false };
-
-    const page = threadRepliesConnection(root);
-    const replies = page?.events ?? [];
-    this.replaceWithSnapshotAndUpdateCursors(
-      {
-        events: [root, ...replies],
-        startCursor: page?.startCursor,
-        endCursor: page?.endCursor,
-        hasOlder: page?.hasOlder
-      },
-      existingBeforeFetch
-    );
+    this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch);
     this.sortThreadEvents();
-    return { hasOlder: page?.hasOlder ?? false, hasNewer: page?.hasNewer ?? false, refreshed: true };
+    return { hasOlder: page.hasOlder, hasNewer: page.hasNewer, refreshed: true };
   }
 
   private resetAndFetchLatest(): void {
@@ -1008,29 +979,23 @@ export class MessagesStore {
   }
 
   private fetchThread(thisLoad: number): void {
-    this.client
-      .query(ThreadEventsQuery, {
-        roomId: this.roomId,
-        threadRootEventId: this.threadRootEventId,
-        limit: PAGE_SIZE
-      })
-      .toPromise()
-      .then((result) => {
+    const promise = this.requireRoomTimeline().getThreadEvents({
+      roomId: this.roomId,
+      threadRootEventId: this.threadRootEventId,
+      limit: PAGE_SIZE
+    });
+
+    promise
+      .then((page) => {
         if (this.isStale(thisLoad)) return;
-        if (result.error) console.error('MessagesStore: fetchThread error:', result.error);
-        const root = result.data?.room?.event;
-        if (root) {
-          // Merge with any subscription events that arrived during the
-          // in-flight query (e.g. the user's own reply or a fast cross-user
-          // reply). Overwriting would drop them.
-          const page = threadRepliesConnection(root);
-          const replies = page?.events ?? [];
-          this.replaceMergingExisting([root, ...replies]);
-          this.sortThreadEvents();
-          this.oldestCursor = page?.startCursor ?? undefined;
-          this.newestCursor = page?.endCursor ?? undefined;
-          this.hasReachedStart = !(page?.hasOlder ?? false);
-        }
+        // Merge with any subscription events that arrived during the
+        // in-flight query (e.g. the user's own reply or a fast cross-user
+        // reply). Overwriting would drop them.
+        this.replaceMergingExisting(page.events);
+        this.sortThreadEvents();
+        this.oldestCursor = page.startCursor ?? undefined;
+        this.newestCursor = page.endCursor ?? undefined;
+        this.hasReachedStart = !page.hasOlder;
         this.isInitialLoading = false;
       })
       .catch((error: unknown) => {
@@ -1038,6 +1003,13 @@ export class MessagesStore {
         console.error('MessagesStore: fetchThread failed:', error);
         this.isInitialLoading = false;
       });
+  }
+
+  private requireRoomTimeline(): RoomTimelineAPI {
+    if (!this.roomTimeline) {
+      throw new Error('MessagesStore: thread history requires the ConnectRPC timeline API');
+    }
+    return this.roomTimeline;
   }
 
   /**
