@@ -54,12 +54,12 @@
     xl: 'h-5 w-5'
   };
 
-  const customStatusBadgeSizeClasses: Record<Size, string> = {
-    xs: 'h-3.5 w-3.5 text-[8px]',
-    sm: 'h-4 w-4 text-[10px]',
-    md: 'h-5 w-5 text-xs',
-    lg: 'h-6 w-6 text-sm',
-    xl: 'h-7 w-7 text-base'
+  const customStatusTextSizeClasses: Record<Size, string> = {
+    xs: 'text-[10px]',
+    sm: 'text-xs',
+    md: 'text-sm',
+    lg: 'text-base',
+    xl: 'text-lg'
   };
 
   let {
@@ -149,9 +149,9 @@
     {#if showCustomStatus && !user.deleted}
       <UserCustomStatusBadge
         status={customStatus}
-        class="{customStatusBadgeSizeClasses[
+        class="{customStatusTextSizeClasses[
           size
-        ]} absolute top-0 right-0 justify-center rounded-full border-2 border-surface bg-surface shadow-sm"
+        ]} pointer-events-none absolute top-0 right-0 translate-x-1/4 -translate-y-1/4 [text-shadow:0_1px_2px_rgb(0_0_0_/_0.9),0_0_1px_rgb(0_0_0_/_0.95)]"
       />
     {/if}
   </div>
