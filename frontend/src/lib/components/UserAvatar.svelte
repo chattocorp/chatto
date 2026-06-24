@@ -48,10 +48,10 @@
 
   const badgeSizeClasses: Record<Size, string> = {
     xs: 'h-2 w-2',
-    sm: 'h-3 w-3',
-    md: 'h-3.5 w-3.5',
-    lg: 'h-4 w-4',
-    xl: 'h-5 w-5'
+    sm: 'h-2.5 w-2.5',
+    md: 'h-3 w-3',
+    lg: 'h-3.5 w-3.5',
+    xl: 'h-4 w-4'
   };
 
   const customStatusTextSizeClasses: Record<Size, string> = {
@@ -142,7 +142,7 @@
       <span
         class="{badgeSizeClasses[
           size
-        ]} absolute right-0 bottom-0 rounded-full border-2 border-surface {badgeColor}"
+        ]} absolute right-0 bottom-0 translate-x-1/4 translate-y-1/4 rounded-full border-2 border-surface {badgeColor}"
         aria-label={presenceLabel}
       ></span>
     {/if}
