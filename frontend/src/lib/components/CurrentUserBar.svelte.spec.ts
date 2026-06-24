@@ -153,10 +153,26 @@ describe('CurrentUserBar', () => {
     expect(link.textContent).toContain('# general');
     link.click();
 
-    (q(container, '[data-testid="current-user-call-mute"]') as HTMLButtonElement).click();
-    (q(container, '[data-testid="current-user-call-camera"]') as HTMLButtonElement).click();
-    (q(container, '[data-testid="current-user-call-screen-share"]') as HTMLButtonElement).click();
-    (q(container, '[data-testid="current-user-call-leave"]') as HTMLButtonElement).click();
+    const muteButton = q(container, '[data-testid="current-user-call-mute"]') as HTMLButtonElement;
+    const cameraButton = q(
+      container,
+      '[data-testid="current-user-call-camera"]'
+    ) as HTMLButtonElement;
+    const screenShareButton = q(
+      container,
+      '[data-testid="current-user-call-screen-share"]'
+    ) as HTMLButtonElement;
+    const leaveButton = q(container, '[data-testid="current-user-call-leave"]') as HTMLButtonElement;
+
+    expect(muteButton.className).toContain('btn-success');
+    expect(cameraButton.className).toContain('btn-secondary');
+    expect(screenShareButton.className).toContain('btn-secondary');
+    expect(leaveButton.className).toContain('btn-danger');
+
+    muteButton.click();
+    cameraButton.click();
+    screenShareButton.click();
+    leaveButton.click();
 
     expect(navigation.goto).toHaveBeenCalledWith('/chat/-/room-1');
     expect(getRoomSidebarPanelState('origin', 'room-1')).toBe('call');
@@ -171,6 +187,29 @@ describe('CurrentUserBar', () => {
     expect(voiceCallState.toggleScreenShare).toHaveBeenCalledOnce();
     expect(voiceCallState.leave).toHaveBeenCalledOnce();
     window.removeEventListener('storage', listener);
+  });
+
+  it('uses green only for active compact call media controls', () => {
+    voiceCallState.connected = true;
+    voiceCallState.roomId = 'room-1';
+    voiceCallState.isMuted = true;
+    voiceCallState.isCameraEnabled = true;
+    voiceCallState.isScreenShareEnabled = true;
+
+    const { container } = render(CurrentUserBarTestHarness);
+
+    expect(q(container, '[data-testid="current-user-call-mute"]')!.className).toContain(
+      'btn-secondary'
+    );
+    expect(q(container, '[data-testid="current-user-call-camera"]')!.className).toContain(
+      'btn-success'
+    );
+    expect(q(container, '[data-testid="current-user-call-screen-share"]')!.className).toContain(
+      'btn-success'
+    );
+    expect(q(container, '[data-testid="current-user-call-leave"]')!.className).toContain(
+      'btn-danger'
+    );
   });
 
   it('uses the DM participant label for active direct-message calls', () => {

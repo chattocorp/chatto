@@ -548,16 +548,62 @@ describe('RoomSidebar', () => {
       speakingIndicator!.compareDocumentPosition(mutedIndicator!) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
 
-    (q(container, '[data-testid="call-mute-toggle"]') as HTMLButtonElement).click();
-    (q(container, '[data-testid="call-camera-toggle"]') as HTMLButtonElement).click();
-    (q(container, '[data-testid="call-screen-share-toggle"]') as HTMLButtonElement).click();
-    (q(container, '[data-testid="call-leave-button"]') as HTMLButtonElement).click();
+    const deviceButton = q(
+      container,
+      '[data-testid="call-device-menu-button"]'
+    ) as HTMLButtonElement;
+    const muteButton = q(container, '[data-testid="call-mute-toggle"]') as HTMLButtonElement;
+    const cameraButton = q(container, '[data-testid="call-camera-toggle"]') as HTMLButtonElement;
+    const screenShareButton = q(
+      container,
+      '[data-testid="call-screen-share-toggle"]'
+    ) as HTMLButtonElement;
+    const leaveButton = q(container, '[data-testid="call-leave-button"]') as HTMLButtonElement;
+
+    expect(deviceButton.className).toContain('btn-secondary');
+    expect(muteButton.className).toContain('btn-success');
+    expect(cameraButton.className).toContain('btn-secondary');
+    expect(screenShareButton.className).toContain('btn-secondary');
+    expect(leaveButton.className).toContain('btn-danger');
+
+    muteButton.click();
+    cameraButton.click();
+    screenShareButton.click();
+    leaveButton.click();
     await tick();
 
     expect(callStore.voiceCall.toggleMute).toHaveBeenCalledOnce();
     expect(callStore.voiceCall.toggleCamera).toHaveBeenCalledOnce();
     expect(callStore.voiceCall.toggleScreenShare).toHaveBeenCalledOnce();
     expect(callStore.voiceCall.leave).toHaveBeenCalledOnce();
+  });
+
+  it('uses green only for active call media controls', async () => {
+    callStore.voiceCall.connected = true;
+    callStore.voiceCall.isInAnyCall = true;
+    callStore.voiceCall.roomId = 'room-1';
+    callStore.voiceCall.isMuted = true;
+    callStore.voiceCall.isCameraEnabled = true;
+    callStore.voiceCall.isScreenShareEnabled = true;
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        roomData: roomData([], 0, false),
+        activePanel: 'call',
+        livekitUrl: 'wss://livekit.example.test'
+      }
+    });
+
+    expect(q(container, '[data-testid="call-mute-toggle"]')!.className).toContain(
+      'btn-secondary'
+    );
+    expect(q(container, '[data-testid="call-camera-toggle"]')!.className).toContain(
+      'btn-success'
+    );
+    expect(q(container, '[data-testid="call-screen-share-toggle"]')!.className).toContain(
+      'btn-success'
+    );
+    expect(q(container, '[data-testid="call-leave-button"]')!.className).toContain('btn-danger');
   });
 
   it('shows a neutral speaking indicator for active speakers', async () => {
