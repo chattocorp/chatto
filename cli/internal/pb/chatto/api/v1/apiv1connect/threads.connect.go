@@ -43,7 +43,11 @@ const (
 
 // ThreadServiceClient is a client for the chatto.api.v1.ThreadService service.
 type ThreadServiceClient interface {
+	// Follows a thread for the current user. Followed threads can be surfaced in
+	// clients and can participate in thread notification behavior.
 	FollowThread(context.Context, *connect.Request[v1.FollowThreadRequest]) (*connect.Response[v1.FollowThreadResponse], error)
+	// Stops following a thread for the current user. The response reports the
+	// resulting follow state so clients can update local UI immediately.
 	UnfollowThread(context.Context, *connect.Request[v1.UnfollowThreadRequest]) (*connect.Response[v1.UnfollowThreadResponse], error)
 }
 
@@ -91,7 +95,11 @@ func (c *threadServiceClient) UnfollowThread(ctx context.Context, req *connect.R
 
 // ThreadServiceHandler is an implementation of the chatto.api.v1.ThreadService service.
 type ThreadServiceHandler interface {
+	// Follows a thread for the current user. Followed threads can be surfaced in
+	// clients and can participate in thread notification behavior.
 	FollowThread(context.Context, *connect.Request[v1.FollowThreadRequest]) (*connect.Response[v1.FollowThreadResponse], error)
+	// Stops following a thread for the current user. The response reports the
+	// resulting follow state so clients can update local UI immediately.
 	UnfollowThread(context.Context, *connect.Request[v1.UnfollowThreadRequest]) (*connect.Response[v1.UnfollowThreadResponse], error)
 }
 

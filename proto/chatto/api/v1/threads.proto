@@ -2,25 +2,40 @@ syntax = "proto3";
 
 package chatto.api.v1;
 
+// Request to follow one message thread.
 message FollowThreadRequest {
+  // Room containing the thread.
   string room_id = 1;
+  // Event ID of the root message for the thread.
   string thread_root_event_id = 2;
 }
 
+// Result of following a thread.
 message FollowThreadResponse {
+  // True when the current user follows the thread after the operation.
   bool following = 1;
 }
 
+// Request to stop following one message thread.
 message UnfollowThreadRequest {
+  // Room containing the thread.
   string room_id = 1;
+  // Event ID of the root message for the thread.
   string thread_root_event_id = 2;
 }
 
+// Result of unfollowing a thread.
 message UnfollowThreadResponse {
+  // True when the current user follows the thread after the operation.
   bool following = 1;
 }
 
+// Manages thread follow state for the current user.
 service ThreadService {
+  // Follows a thread for the current user. Followed threads can be surfaced in
+  // clients and can participate in thread notification behavior.
   rpc FollowThread(FollowThreadRequest) returns (FollowThreadResponse);
+  // Stops following a thread for the current user. The response reports the
+  // resulting follow state so clients can update local UI immediately.
   rpc UnfollowThread(UnfollowThreadRequest) returns (UnfollowThreadResponse);
 }

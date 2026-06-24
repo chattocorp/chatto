@@ -21,12 +21,20 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Describes one login provider exposed by the server discovery endpoint.
+//
+// Clients can render these providers before a user has authenticated.
 type AuthProvider struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
-	Label         string                 `protobuf:"bytes,3,opt,name=label,proto3" json:"label,omitempty"`
-	LoginUrl      string                 `protobuf:"bytes,4,opt,name=login_url,json=loginUrl,proto3" json:"login_url,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable provider identifier used by clients when starting login.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Provider category, such as "password" or "oidc". Clients should treat
+	// unknown provider types as unsupported.
+	Type string `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	// Human-readable provider label for login UI.
+	Label string `protobuf:"bytes,3,opt,name=label,proto3" json:"label,omitempty"`
+	// URL that starts login for this provider.
+	LoginUrl      string `protobuf:"bytes,4,opt,name=login_url,json=loginUrl,proto3" json:"login_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -89,6 +97,7 @@ func (x *AuthProvider) GetLoginUrl() string {
 	return ""
 }
 
+// Request for public server metadata.
 type GetServerRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -125,20 +134,32 @@ func (*GetServerRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_server_proto_rawDescGZIP(), []int{1}
 }
 
+// Public metadata clients need before they can authenticate or render the
+// initial server view.
 type GetServerResponse struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Name             string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Version          string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
-	AuthMethods      []string               `protobuf:"bytes,3,rep,name=auth_methods,json=authMethods,proto3" json:"auth_methods,omitempty"`
-	AuthProviders    []*AuthProvider        `protobuf:"bytes,4,rep,name=auth_providers,json=authProviders,proto3" json:"auth_providers,omitempty"`
-	RegistrationOpen bool                   `protobuf:"varint,5,opt,name=registration_open,json=registrationOpen,proto3" json:"registration_open,omitempty"`
-	AuthorizeUrl     string                 `protobuf:"bytes,6,opt,name=authorize_url,json=authorizeUrl,proto3" json:"authorize_url,omitempty"`
-	WelcomeMessage   string                 `protobuf:"bytes,7,opt,name=welcome_message,json=welcomeMessage,proto3" json:"welcome_message,omitempty"`
-	Description      string                 `protobuf:"bytes,8,opt,name=description,proto3" json:"description,omitempty"`
-	IconUrl          string                 `protobuf:"bytes,9,opt,name=icon_url,json=iconUrl,proto3" json:"icon_url,omitempty"`
-	BannerUrl        string                 `protobuf:"bytes,10,opt,name=banner_url,json=bannerUrl,proto3" json:"banner_url,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Display name of the Chatto server.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Server software version.
+	Version string `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	// Enabled legacy authentication method identifiers.
+	AuthMethods []string `protobuf:"bytes,3,rep,name=auth_methods,json=authMethods,proto3" json:"auth_methods,omitempty"`
+	// Configured login providers.
+	AuthProviders []*AuthProvider `protobuf:"bytes,4,rep,name=auth_providers,json=authProviders,proto3" json:"auth_providers,omitempty"`
+	// Whether users can create accounts through the public UI.
+	RegistrationOpen bool `protobuf:"varint,5,opt,name=registration_open,json=registrationOpen,proto3" json:"registration_open,omitempty"`
+	// URL for the legacy authorization flow, when enabled.
+	AuthorizeUrl string `protobuf:"bytes,6,opt,name=authorize_url,json=authorizeUrl,proto3" json:"authorize_url,omitempty"`
+	// Optional welcome message configured by the server administrator.
+	WelcomeMessage string `protobuf:"bytes,7,opt,name=welcome_message,json=welcomeMessage,proto3" json:"welcome_message,omitempty"`
+	// Optional server description configured by the server administrator.
+	Description string `protobuf:"bytes,8,opt,name=description,proto3" json:"description,omitempty"`
+	// Optional server icon URL suitable for branding the server in client UI.
+	IconUrl string `protobuf:"bytes,9,opt,name=icon_url,json=iconUrl,proto3" json:"icon_url,omitempty"`
+	// Optional server banner URL suitable for larger server branding surfaces.
+	BannerUrl     string `protobuf:"bytes,10,opt,name=banner_url,json=bannerUrl,proto3" json:"banner_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetServerResponse) Reset() {

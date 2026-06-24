@@ -45,7 +45,12 @@ const (
 // NotificationPreferencesServiceClient is a client for the
 // chatto.api.v1.NotificationPreferencesService service.
 type NotificationPreferencesServiceClient interface {
+	// Returns the current user's explicit and effective notification level for a
+	// room. Use this before rendering room notification controls so the UI can
+	// distinguish inherited defaults from an explicit room override.
 	GetRoomNotificationPreference(context.Context, *connect.Request[v1.GetRoomNotificationPreferenceRequest]) (*connect.Response[v1.GetRoomNotificationPreferenceResponse], error)
+	// Sets the current user's explicit notification level for a room and returns
+	// the resulting stored and effective levels.
 	SetRoomNotificationLevel(context.Context, *connect.Request[v1.SetRoomNotificationLevelRequest]) (*connect.Response[v1.SetRoomNotificationLevelResponse], error)
 }
 
@@ -97,7 +102,12 @@ func (c *notificationPreferencesServiceClient) SetRoomNotificationLevel(ctx cont
 // NotificationPreferencesServiceHandler is an implementation of the
 // chatto.api.v1.NotificationPreferencesService service.
 type NotificationPreferencesServiceHandler interface {
+	// Returns the current user's explicit and effective notification level for a
+	// room. Use this before rendering room notification controls so the UI can
+	// distinguish inherited defaults from an explicit room override.
 	GetRoomNotificationPreference(context.Context, *connect.Request[v1.GetRoomNotificationPreferenceRequest]) (*connect.Response[v1.GetRoomNotificationPreferenceResponse], error)
+	// Sets the current user's explicit notification level for a room and returns
+	// the resulting stored and effective levels.
 	SetRoomNotificationLevel(context.Context, *connect.Request[v1.SetRoomNotificationLevelRequest]) (*connect.Response[v1.SetRoomNotificationLevelResponse], error)
 }
 

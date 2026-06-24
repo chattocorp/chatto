@@ -49,9 +49,17 @@ const (
 
 // RoomTimelineServiceClient is a client for the chatto.api.v1.RoomTimelineService service.
 type RoomTimelineServiceClient interface {
+	// Returns one page of room timeline events, including related user data needed
+	// to render the page.
 	GetRoomEvents(context.Context, *connect.Request[v1.GetRoomEventsRequest]) (*connect.Response[v1.GetRoomEventsResponse], error)
+	// Returns a room timeline window centered around a specific event. Use this to
+	// open a permalink, search result, or notification target in context.
 	GetRoomEventsAround(context.Context, *connect.Request[v1.GetRoomEventsAroundRequest]) (*connect.Response[v1.GetRoomEventsAroundResponse], error)
+	// Returns one page of events in a message thread. Initial pages include the
+	// thread root message; cursor pages return replies in the requested direction.
 	GetThreadEvents(context.Context, *connect.Request[v1.GetThreadEventsRequest]) (*connect.Response[v1.GetThreadEventsResponse], error)
+	// Returns a thread timeline window centered around a specific event. Use this
+	// to open a reply from a notification or search result in context.
 	GetThreadEventsAround(context.Context, *connect.Request[v1.GetThreadEventsAroundRequest]) (*connect.Response[v1.GetThreadEventsAroundResponse], error)
 }
 
@@ -123,9 +131,17 @@ func (c *roomTimelineServiceClient) GetThreadEventsAround(ctx context.Context, r
 
 // RoomTimelineServiceHandler is an implementation of the chatto.api.v1.RoomTimelineService service.
 type RoomTimelineServiceHandler interface {
+	// Returns one page of room timeline events, including related user data needed
+	// to render the page.
 	GetRoomEvents(context.Context, *connect.Request[v1.GetRoomEventsRequest]) (*connect.Response[v1.GetRoomEventsResponse], error)
+	// Returns a room timeline window centered around a specific event. Use this to
+	// open a permalink, search result, or notification target in context.
 	GetRoomEventsAround(context.Context, *connect.Request[v1.GetRoomEventsAroundRequest]) (*connect.Response[v1.GetRoomEventsAroundResponse], error)
+	// Returns one page of events in a message thread. Initial pages include the
+	// thread root message; cursor pages return replies in the requested direction.
 	GetThreadEvents(context.Context, *connect.Request[v1.GetThreadEventsRequest]) (*connect.Response[v1.GetThreadEventsResponse], error)
+	// Returns a thread timeline window centered around a specific event. Use this
+	// to open a reply from a notification or search result in context.
 	GetThreadEventsAround(context.Context, *connect.Request[v1.GetThreadEventsAroundRequest]) (*connect.Response[v1.GetThreadEventsAroundResponse], error)
 }
 

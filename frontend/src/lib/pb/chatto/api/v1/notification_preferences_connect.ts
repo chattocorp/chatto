@@ -7,12 +7,18 @@ import { GetRoomNotificationPreferenceRequest, GetRoomNotificationPreferenceResp
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
+ * Reads and updates per-room notification preferences for the current user.
+ *
  * @generated from service chatto.api.v1.NotificationPreferencesService
  */
 export const NotificationPreferencesService = {
   typeName: "chatto.api.v1.NotificationPreferencesService",
   methods: {
     /**
+     * Returns the current user's explicit and effective notification level for a
+     * room. Use this before rendering room notification controls so the UI can
+     * distinguish inherited defaults from an explicit room override.
+     *
      * @generated from rpc chatto.api.v1.NotificationPreferencesService.GetRoomNotificationPreference
      */
     getRoomNotificationPreference: {
@@ -22,6 +28,9 @@ export const NotificationPreferencesService = {
       kind: MethodKind.Unary,
     },
     /**
+     * Sets the current user's explicit notification level for a room and returns
+     * the resulting stored and effective levels.
+     *
      * @generated from rpc chatto.api.v1.NotificationPreferencesService.SetRoomNotificationLevel
      */
     setRoomNotificationLevel: {

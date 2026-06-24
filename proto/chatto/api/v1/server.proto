@@ -2,28 +2,53 @@ syntax = "proto3";
 
 package chatto.api.v1;
 
+// Describes one login provider exposed by the server discovery endpoint.
+//
+// Clients can render these providers before a user has authenticated.
 message AuthProvider {
+  // Stable provider identifier used by clients when starting login.
   string id = 1;
+  // Provider category, such as "password" or "oidc". Clients should treat
+  // unknown provider types as unsupported.
   string type = 2;
+  // Human-readable provider label for login UI.
   string label = 3;
+  // URL that starts login for this provider.
   string login_url = 4;
 }
 
+// Request for public server metadata.
 message GetServerRequest {}
 
+// Public metadata clients need before they can authenticate or render the
+// initial server view.
 message GetServerResponse {
+  // Display name of the Chatto server.
   string name = 1;
+  // Server software version.
   string version = 2;
+  // Enabled legacy authentication method identifiers.
   repeated string auth_methods = 3;
+  // Configured login providers.
   repeated AuthProvider auth_providers = 4;
+  // Whether users can create accounts through the public UI.
   bool registration_open = 5;
+  // URL for the legacy authorization flow, when enabled.
   string authorize_url = 6;
+  // Optional welcome message configured by the server administrator.
   string welcome_message = 7;
+  // Optional server description configured by the server administrator.
   string description = 8;
+  // Optional server icon URL suitable for branding the server in client UI.
   string icon_url = 9;
+  // Optional server banner URL suitable for larger server branding surfaces.
   string banner_url = 10;
 }
 
+// Provides public server discovery metadata.
 service ServerService {
+  // Returns public server metadata, branding, registration status, and login
+  // provider information. This RPC is available before login so clients can
+  // render the first server screen and authentication choices.
   rpc GetServer(GetServerRequest) returns (GetServerResponse);
 }

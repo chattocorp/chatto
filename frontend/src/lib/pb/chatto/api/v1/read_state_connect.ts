@@ -7,12 +7,17 @@ import { MarkRoomAsReadRequest, MarkRoomAsReadResponse, MarkThreadAsReadRequest,
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
+ * Updates room and thread read state for the current user.
+ *
  * @generated from service chatto.api.v1.ReadStateService
  */
 export const ReadStateService = {
   typeName: "chatto.api.v1.ReadStateService",
   methods: {
     /**
+     * Marks a room timeline as read through the supplied event. Clients usually
+     * call this after the user has viewed the latest visible event in the room.
+     *
      * @generated from rpc chatto.api.v1.ReadStateService.MarkRoomAsRead
      */
     markRoomAsRead: {
@@ -22,6 +27,9 @@ export const ReadStateService = {
       kind: MethodKind.Unary,
     },
     /**
+     * Marks a thread timeline as read through the supplied event without changing
+     * the room-level read marker.
+     *
      * @generated from rpc chatto.api.v1.ReadStateService.MarkThreadAsRead
      */
     markThreadAsRead: {

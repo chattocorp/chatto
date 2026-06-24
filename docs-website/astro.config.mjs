@@ -4,6 +4,9 @@ import starlight from "@astrojs/starlight";
 
 // https://astro.build/config
 export default defineConfig({
+  redirects: {
+    "/getting-started/overview": "/getting-started/quick-start",
+  },
   integrations: [
     starlight({
       title: "Chatto",
@@ -40,7 +43,20 @@ export default defineConfig({
         },
         {
           label: "Reference",
-          items: [{ autogenerate: { directory: "reference" } }],
+          items: [
+            {
+              label: "ConnectRPC API",
+              items: [
+                "reference/connectrpc-api",
+                "reference/connectrpc-api/notification-preferences-service",
+                "reference/connectrpc-api/read-state-service",
+                "reference/connectrpc-api/room-timeline-service",
+                "reference/connectrpc-api/server-service",
+                "reference/connectrpc-api/thread-service",
+              ],
+            },
+            "reference/environment-variables",
+          ],
         },
       ],
     }),

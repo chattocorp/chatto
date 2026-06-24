@@ -7,12 +7,17 @@ import { GetRoomEventsAroundRequest, GetRoomEventsAroundResponse, GetRoomEventsR
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
+ * Reads room and thread timeline pages.
+ *
  * @generated from service chatto.api.v1.RoomTimelineService
  */
 export const RoomTimelineService = {
   typeName: "chatto.api.v1.RoomTimelineService",
   methods: {
     /**
+     * Returns one page of room timeline events, including related user data needed
+     * to render the page.
+     *
      * @generated from rpc chatto.api.v1.RoomTimelineService.GetRoomEvents
      */
     getRoomEvents: {
@@ -22,6 +27,9 @@ export const RoomTimelineService = {
       kind: MethodKind.Unary,
     },
     /**
+     * Returns a room timeline window centered around a specific event. Use this to
+     * open a permalink, search result, or notification target in context.
+     *
      * @generated from rpc chatto.api.v1.RoomTimelineService.GetRoomEventsAround
      */
     getRoomEventsAround: {
@@ -31,6 +39,9 @@ export const RoomTimelineService = {
       kind: MethodKind.Unary,
     },
     /**
+     * Returns one page of events in a message thread. Initial pages include the
+     * thread root message; cursor pages return replies in the requested direction.
+     *
      * @generated from rpc chatto.api.v1.RoomTimelineService.GetThreadEvents
      */
     getThreadEvents: {
@@ -40,6 +51,9 @@ export const RoomTimelineService = {
       kind: MethodKind.Unary,
     },
     /**
+     * Returns a thread timeline window centered around a specific event. Use this
+     * to open a reply from a notification or search result in context.
+     *
      * @generated from rpc chatto.api.v1.RoomTimelineService.GetThreadEventsAround
      */
     getThreadEventsAround: {
