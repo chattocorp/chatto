@@ -48,6 +48,7 @@ export class MarkRoomAsReadRequest extends Message<MarkRoomAsReadRequest> {
     return proto3.util.equals(MarkRoomAsReadRequest, a, b);
   }
 }
+
 /**
  * @generated from message chatto.api.v1.MarkRoomAsReadResponse
  */
@@ -176,3 +177,4 @@ export class MarkThreadAsReadResponse extends Message<MarkThreadAsReadResponse> 
     return proto3.util.equals(MarkThreadAsReadResponse, a, b);
   }
 }
+
