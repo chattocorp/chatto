@@ -62,6 +62,7 @@ export class CustomUserStatus extends Message<CustomUserStatus> {
     return proto3.util.equals(CustomUserStatus, a, b);
   }
 }
+
 /**
  * Request to set or replace the current user's custom status.
  *
@@ -233,3 +234,4 @@ export class ClearCustomStatusResponse extends Message<ClearCustomStatusResponse
     return proto3.util.equals(ClearCustomStatusResponse, a, b);
   }
 }
+

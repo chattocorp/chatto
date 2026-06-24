@@ -98,6 +98,7 @@ export class MessageLinkPreviewInput extends Message<MessageLinkPreviewInput> {
     return proto3.util.equals(MessageLinkPreviewInput, a, b);
   }
 }
+
 /**
  * Request to post a message in a room or thread.
  *
@@ -312,3 +313,4 @@ export class PostMessageResponse extends Message<PostMessageResponse> {
     return proto3.util.equals(PostMessageResponse, a, b);
   }
 }
+
