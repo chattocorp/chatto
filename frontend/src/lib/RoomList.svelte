@@ -391,7 +391,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   {@const rowClass = [
     '@container sidebar-item group/badges',
     room.id === activeRoomId ? 'bg-surface-100' : '',
-    hasUnreadAttention ? 'font-semibold text-text-top' : '',
+    hasUnreadAttention ? 'font-semibold text-text-top hover:!text-text-top' : '',
     !isJoined ? 'opacity-60 hover:opacity-85' : ''
   ]}
   <a
@@ -445,7 +445,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     class={[
       'group/badges @container sidebar-item',
       room.id === activeRoomId ? 'bg-surface-100' : '',
-      hasUnreadAttention ? 'font-semibold text-text-top' : ''
+      hasUnreadAttention ? 'font-semibold text-text-top hover:!text-text-top' : ''
     ]}
     aria-current={room.id === activeRoomId ? 'page' : undefined}
     onclick={(e) => handleRoomLinkClick(e, room)}

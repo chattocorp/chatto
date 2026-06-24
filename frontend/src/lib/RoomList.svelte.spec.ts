@@ -495,6 +495,7 @@ describe('RoomList', () => {
     const icon = row.querySelector('.sidebar-icon');
     expect(row.classList.contains('font-semibold')).toBe(true);
     expect(row.classList.contains('text-text-top')).toBe(true);
+    expect(row.classList.contains('hover:!text-text-top')).toBe(true);
     expect(icon?.classList.contains('text-text-top')).toBe(true);
     expect(icon?.classList.contains('text-muted')).toBe(false);
   });
