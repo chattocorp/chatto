@@ -1,0 +1,29 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "composer": {
+    "attach_file": "Attach file",
+    "send": "Send message",
+    "send_enter": "Send message (Enter)",
+    "send_ctrl_enter": "Send message (Ctrl/Cmd+Enter)",
+    "also_send_to_channel": "Also send to channel",
+    "replying_to": "Replying to",
+    "esc_to_cancel": "to cancel",
+    "editing": "Editing message",
+    "notify_title": "Notify {count} people?",
+    "send_anyway": "Send Anyway",
+    "notify_body": "This message will notify {count} people. Send it anyway?",
+    "link_url": "Link URL",
+    "open_link": "Open link",
+    "remove_link": "Remove link",
+    "code_language": "Code language",
+    "placeholder": "Type a message...",
+    "editing_placeholder": "Editing message...",
+    "send_failed": "Failed to send message",
+    "edit_failed": "Failed to edit message",
+    "mention": {
+      "all_room_members": "All room members",
+      "members_here": "Members currently here",
+      "role": "Role"
+    }
+  }
+}

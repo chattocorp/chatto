@@ -4,6 +4,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { Panel, DataTable, CopyId } from '$lib/components/admin';
+  import * as m from '$lib/i18n/messages';
 
   type User = {
     id: string;
@@ -13,12 +14,11 @@
     verifiedEmails?: string[];
   };
 
-
   let {
     users,
     loading = false,
     clickable = true,
-    emptyMessage = 'No users found',
+    emptyMessage = m['admin.users.empty'](),
     onUserClick
   }: {
     users: User[];
@@ -44,7 +44,7 @@
 </script>
 
 {#if loading}
-  <div class="text-muted">Loading users...</div>
+  <div class="text-muted">{m['admin.users.loading']()}</div>
 {:else}
   <Panel noPadding>
     <DataTable
@@ -54,10 +54,10 @@
       onRowClick={clickable ? handleRowClick : undefined}
     >
       {#snippet header()}
-        <th class="px-4 py-3 font-medium">Login</th>
-        <th class="px-4 py-3 font-medium">Display Name</th>
-        <th class="px-4 py-3 font-medium">Email</th>
-        <th class="px-4 py-3 font-medium">ID</th>
+        <th class="px-4 py-3 font-medium">{m['admin.users.login']()}</th>
+        <th class="px-4 py-3 font-medium">{m['admin.users.display_name']()}</th>
+        <th class="px-4 py-3 font-medium">{m['admin.users.email']()}</th>
+        <th class="px-4 py-3 font-medium">{m['admin.users.id']()}</th>
       {/snippet}
       {#snippet row(user: User)}
         <td class="px-4 py-3 font-medium">{user.login}</td>
@@ -78,5 +78,5 @@
     </DataTable>
   </Panel>
 
-  <div class="text-sm text-muted">{users.length} user(s) total</div>
+  <div class="text-sm text-muted">{m['admin.users.total']({ count: users.length })}</div>
 {/if}

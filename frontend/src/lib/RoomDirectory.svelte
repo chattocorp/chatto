@@ -17,6 +17,7 @@ registry.
 <script lang="ts">
   import { resolve } from '$app/paths';
   import { toast } from '$lib/ui/toast';
+  import * as m from '$lib/i18n/messages';
   import { Button } from '$lib/ui/form';
   import Dialog from '$lib/ui/Dialog.svelte';
   import type { RoomsStore } from '$lib/state/server/rooms.svelte';
@@ -78,9 +79,13 @@ registry.
   async function handleJoin(roomId: string) {
     const result = await directory.joinRoom(roomId);
     if (result.ok) {
-      toast.success(result.room ? `Joined #${result.room.name}` : 'Joined room');
+      toast.success(
+        result.room
+          ? m['room.join.success']({ room: result.room.name })
+          : m['room.join.success_generic']()
+      );
     } else {
-      toast.error('Failed to join room');
+      toast.error(m['room.join.failed']());
       console.error('Error joining room:', result.error);
     }
   }
@@ -89,14 +94,19 @@ registry.
     const result = await directory.joinGroup(group.id);
     if (result.ok) {
       if (result.joinedRoomIds.length === 0) {
-        toast.success(`Already in every room in ${group.name}`);
+        toast.success(m['room.directory.already_in_group']({ group: group.name }));
       } else {
         toast.success(
-          `Joined ${result.joinedRoomIds.length} room${result.joinedRoomIds.length === 1 ? '' : 's'} in ${group.name}`
+          result.joinedRoomIds.length === 1
+            ? m['room.directory.joined_group_one']({ group: group.name })
+            : m['room.directory.joined_group_many']({
+                count: result.joinedRoomIds.length,
+                group: group.name
+              })
         );
       }
     } else {
-      toast.error('Failed to join group');
+      toast.error(m['room.directory.join_group_failed']());
       console.error('Error joining group:', result.error);
     }
   }
@@ -157,9 +167,13 @@ registry.
 
     const result = await directory.leaveRoom(roomId);
     if (result.ok) {
-      toast.success(result.room ? `Left #${result.room.name}` : 'Left room');
+      toast.success(
+        result.room
+          ? m['room.directory.left']({ room: result.room.name })
+          : m['room.directory.left_generic']()
+      );
     } else {
-      toast.error('Failed to leave room');
+      toast.error(m['room.leave.failed']());
       console.error('Error leaving room:', result.error);
     }
   }
@@ -226,9 +240,9 @@ registry.
     {/if}
 
     {#if joined && room.isUniversal}
-      <span class={universalSoft} title="Universal rooms are joined automatically">
+      <span class={universalSoft} title={m['room.directory.universal_title']()}>
         <span class="iconify uil--globe"></span>
-        Universal
+        {m['room.directory.universal']()}
       </span>
     {:else if joined}
       <button
@@ -236,32 +250,32 @@ registry.
         class="group {joinedGhost}"
         onclick={() => promptLeaveRoom(room)}
         disabled={leaving}
-        title={`Joined #${room.name} — click to leave`}
+        title={m['room.directory.joined_title']({ room: room.name })}
       >
         {#if leaving}
           <span class="iconify animate-spin uil--spinner"></span>
-          Leaving
+          {m['room.directory.leaving']()}
         {:else}
           <span class="iconify uil--check group-hover:hidden"></span>
           <span class="iconify hidden uil--sign-out-alt group-hover:inline"></span>
-          <span class="group-hover:hidden">Joined</span>
-          <span class="hidden group-hover:inline">Leave</span>
+          <span class="group-hover:hidden">{m['room.directory.joined']()}</span>
+          <span class="hidden group-hover:inline">{m['room.directory.leave']()}</span>
         {/if}
       </button>
     {:else if joining}
       <button type="button" class={primarySolid} disabled>
         <span class="iconify animate-spin uil--spinner"></span>
-        Joining
+        {m['room.directory.joining']()}
       </button>
     {:else if room.viewerCanJoinRoom}
       <button type="button" class={primarySolid} onclick={() => handleJoin(room.id)}>
         <span class="iconify uil--plus"></span>
-        Join
+        {m['room.directory.join']()}
       </button>
     {:else}
-      <span class={restrictedSoft} title="You don't have permission to join this room">
+      <span class={restrictedSoft} title={m['room.directory.restricted_title']()}>
         <span class="iconify uil--lock"></span>
-        Restricted
+        {m['room.directory.restricted']()}
       </span>
     {/if}
   </li>
@@ -284,10 +298,10 @@ registry.
         >
           {#if joining}
             <span class="iconify animate-spin uil--spinner"></span>
-            Joining
+            {m['room.directory.joining']()}
           {:else}
             <span class="iconify uil--plus-circle"></span>
-            Join all
+            {m['room.directory.join_all']()}
           {/if}
         </button>
       {/if}
@@ -306,13 +320,18 @@ registry.
 {/snippet}
 
 <div class="mb-6">
-  <input type="text" placeholder="Search rooms…" bind:value={searchQuery} class="input w-full" />
+  <input
+    type="text"
+    placeholder={m['room.directory.search_placeholder']()}
+    bind:value={searchQuery}
+    class="input w-full"
+  />
 </div>
 
 {#if visibleRooms.length === 0}
-  <p class="text-muted">No rooms in this server yet.</p>
+  <p class="text-muted">{m['room.directory.empty']()}</p>
 {:else if !hasVisibleResults}
-  <p class="text-muted">No rooms match your filter.</p>
+  <p class="text-muted">{m['room.directory.no_results']()}</p>
 {:else if hasLayout}
   <!-- Row-major masonry via JS row-spans. Each card is measured by the
        `masonryItem` attachment, which sets `grid-row: span N` to fit
@@ -333,19 +352,21 @@ registry.
     style="grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr)); grid-auto-rows: 8px; grid-auto-flow: row dense;"
   >
     {@render groupCard(
-      { id: 'all', name: 'Rooms', roomIds: filteredRooms.map((r) => r.id) },
+      { id: 'all', name: m['common.rooms'](), roomIds: filteredRooms.map((r) => r.id) },
       filteredRooms
     )}
   </div>
 {/if}
 
-<Dialog bind:visible={leaveConfirmVisible} title="Leave Room" size="sm">
+<Dialog bind:visible={leaveConfirmVisible} title={m['room.leave.title']()} size="sm">
   <p class="mb-4">
-    Are you sure you want to leave <strong>#{leaveConfirmRoom?.name}</strong>?
+    {m['room.directory.leave_confirm']({ room: leaveConfirmRoom?.name ?? '' })}
   </p>
 
   <div class="flex items-center gap-3">
-    <Button variant="danger" onclick={confirmLeaveRoom}>Leave Room</Button>
-    <Button variant="ghost" onclick={() => (leaveConfirmVisible = false)}>Cancel</Button>
+    <Button variant="danger" onclick={confirmLeaveRoom}>{m['room.leave.action']()}</Button>
+    <Button variant="ghost" onclick={() => (leaveConfirmVisible = false)}>
+      {m['common.cancel']()}
+    </Button>
   </div>
 </Dialog>

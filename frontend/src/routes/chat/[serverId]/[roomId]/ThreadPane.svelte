@@ -6,6 +6,7 @@
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import * as m from '$lib/i18n/messages';
 
   const stores = serverRegistry.getStore(getActiveServer());
   const notificationStore = stores.notifications;
@@ -54,10 +55,7 @@
   const members = $derived(getRoomMembers());
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
 
-  const store = new MessagesStore(
-    connection(),
-    () => currentUser.user?.id ?? null
-  );
+  const store = new MessagesStore(connection(), () => currentUser.user?.id ?? null);
   onDestroy(() => store.dispose());
 
   let threadEvents = $derived(store.threadEvents);
@@ -145,11 +143,7 @@
         typingIndicator.removeTypingUser(actorId);
       }
 
-      if (
-        currentUser.user &&
-        actorId !== currentUser.user.id &&
-        appState.isPresent
-      ) {
+      if (currentUser.user && actorId !== currentUser.user.id && appState.isPresent) {
         void markThreadAsRead(threadRootEventId, serverEvent.id);
       }
     }
@@ -307,18 +301,18 @@
   transition:fly={{ x: 300, duration: 200 }}
 >
   <PaneHeader
-    title="Thread in #{roomName}"
+    title={m['room.thread.title']({ room: roomName })}
     onBack={onClose}
-    backLabel="Back to room"
+    backLabel={m['room.thread.back_to_room']()}
   >
     {#snippet actions()}
       <HeaderIconButton
         icon={isFollowingThread ? 'uil--bell' : 'uil--bell-slash'}
-        label={isFollowingThread ? 'Unfollow thread' : 'Follow thread'}
+        label={isFollowingThread ? m['room.thread.unfollow']() : m['room.thread.follow']()}
         tone={isFollowingThread ? 'active' : 'default'}
         onclick={toggleThreadFollow}
       />
-      <HeaderIconButton icon="uil--times" label="Close thread" onclick={onClose} />
+      <HeaderIconButton icon="uil--times" label={m['room.thread.close']()} onclick={onClose} />
     {/snippet}
   </PaneHeader>
 
@@ -337,7 +331,7 @@
     {updateCounter}
     enableLastEditableFinder={true}
     isLoading={store.isInitialLoading}
-    emptyMessage="Thread not found"
+    emptyMessage={m['room.thread.not_found']()}
     {unreadAfterEventId}
     typingUserIds={typingIndicator.userIds}
     typingMembers={members}
@@ -355,7 +349,7 @@
     replyDisplayName={replyState.actorDisplayName || undefined}
     replyExcerpt={replyState.excerpt || undefined}
     onCancelReply={() => replyState.cancelReply()}
-    placeholder="Reply in thread..."
+    placeholder={m['room.thread.reply_placeholder']()}
     {canPost}
     {canAttach}
     showAlsoSendToChannel={canEchoMessage}

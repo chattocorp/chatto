@@ -1,5 +1,6 @@
 <script lang="ts">
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
+  import * as m from '$lib/i18n/messages';
 
   let { url }: { url: string } = $props();
 </script>
@@ -8,7 +9,7 @@
   <div class="relative aspect-[1200/630] max-h-32 w-full overflow-hidden rounded-lg bg-surface-100">
     <SkeletonImg
       src={url}
-      alt="Server banner"
+      alt={m['media.server_banner_alt']()}
       class="absolute inset-0 h-full w-full rounded-lg object-cover shadow-lg"
     />
   </div>

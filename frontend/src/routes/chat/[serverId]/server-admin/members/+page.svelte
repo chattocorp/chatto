@@ -14,6 +14,7 @@
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { formatDate as formatDateUtil } from '$lib/utils/formatTime';
+  import * as m from '$lib/i18n/messages';
 
   const userSettings = getUserSettings();
   const connection = useConnection();
@@ -110,7 +111,7 @@
       }
 
       if (!result.data?.server) {
-        error = 'Server not found';
+        error = m['admin.members.server_not_found']();
         return;
       }
 
@@ -121,7 +122,7 @@
       hasMore = members.hasMore;
     } catch (e) {
       if (currentRequest !== requestId) return;
-      error = e instanceof Error ? e.message : 'Failed to load members';
+      error = e instanceof Error ? e.message : m['admin.members.load_failed']();
     } finally {
       if (currentRequest === requestId) {
         loading = false;
@@ -148,7 +149,7 @@
       }
 
       if (!result.data?.server) {
-        error = 'Server not found';
+        error = m['admin.members.server_not_found']();
         return;
       }
 
@@ -160,7 +161,7 @@
       hasMore = members.hasMore;
     } catch (e) {
       if (currentRequest !== requestId) return;
-      error = e instanceof Error ? e.message : 'Failed to load more members';
+      error = e instanceof Error ? e.message : m['admin.members.load_more_failed']();
     } finally {
       if (currentRequest === requestId) {
         loadingMore = false;
@@ -186,12 +187,12 @@
   }
 </script>
 
-<PageTitle title="Members | Admin" />
+<PageTitle title={m['admin.common.page_title']({ title: m['admin.members.title']() })} />
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
   <PaneHeader
-    title="Members"
-    subtitle="View and manage server members and their roles"
+    title={m['admin.members.title']()}
+    subtitle={m['admin.members.subtitle']()}
     showMobileNav
   />
 
@@ -200,15 +201,15 @@
       <!-- Search input -->
       <div class="max-w-md">
         <TextInput
-          label="Search members"
-          placeholder="Search by login or display name..."
+          label={m['admin.members.search']()}
+          placeholder={m['admin.members.search_placeholder']()}
           bind:value={searchInput}
           oninput={scheduleSearch}
         />
       </div>
 
       {#if loading && users.length === 0}
-        <div class="text-muted">Loading members...</div>
+        <div class="text-muted">{m['admin.members.loading']()}</div>
       {:else}
         {#if error}
           <Hint tone="danger">{error}</Hint>
@@ -218,12 +219,12 @@
           <DataTable
             items={users}
             columns={4}
-            emptyMessage="No members found"
+            emptyMessage={m['admin.members.empty']()}
             hasMore={hasMore && !error}
             {loadingMore}
             onLoadMore={loadMore}
             loadMoreRoot={scrollContainer}
-            loadingMoreMessage="Loading more members..."
+            loadingMoreMessage={m['admin.members.loading_more']()}
             onRowClick={(user) =>
               goto(
                 resolve('/chat/[serverId]/server-admin/members/[userId]', {
@@ -233,10 +234,10 @@
               )}
           >
             {#snippet header()}
-              <th class="px-4 py-3 font-medium">User</th>
-              <th class="px-4 py-3 font-medium">Login</th>
-              <th class="px-4 py-3 font-medium">Joined</th>
-              <th class="px-4 py-3 font-medium">Roles</th>
+              <th class="px-4 py-3 font-medium">{m['admin.common.user']()}</th>
+              <th class="px-4 py-3 font-medium">{m['admin.users.login']()}</th>
+              <th class="px-4 py-3 font-medium">{m['admin.common.joined']()}</th>
+              <th class="px-4 py-3 font-medium">{m['admin.common.roles']()}</th>
             {/snippet}
             {#snippet row(user)}
               <td class="px-4 py-3">
@@ -268,7 +269,7 @@
 
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div class="text-sm text-muted">
-            Showing {users.length} of {totalCount} member(s)
+            {m['admin.members.showing']({ shown: users.length, total: totalCount })}
           </div>
         </div>
       {/if}

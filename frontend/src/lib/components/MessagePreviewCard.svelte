@@ -66,6 +66,7 @@ unknown instance) the component renders nothing.
   import { resolve } from '$app/paths';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import { serverIdToSegment } from '$lib/navigation';
+  import * as m from '$lib/i18n/messages';
   import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import {
@@ -136,9 +137,7 @@ unknown instance) the component renders nothing.
       : attachment.thumbnailAssetUrl;
     if (!thumbnailAssetUrl) return null;
     const salt = thumbnailRetrySalts.get(attachment.id);
-    return salt
-      ? withAssetUrlRetryParam(thumbnailAssetUrl.url, salt)
-      : thumbnailAssetUrl.url;
+    return salt ? withAssetUrlRetryParam(thumbnailAssetUrl.url, salt) : thumbnailAssetUrl.url;
   }
 
   $effect(() => {
@@ -234,8 +233,7 @@ unknown instance) the component renders nothing.
         (attachment) =>
           assetUrlNeedsRefresh(attachment.thumbnailAssetUrl) ||
           assetUrlNeedsRefresh(attachment.videoThumbnailAssetUrl)
-      ) ??
-      false
+      ) ?? false
     );
   }
 
@@ -275,8 +273,7 @@ unknown instance) the component renders nothing.
             if (!freshThumbnail && !freshVideoThumbnail) return attachment;
 
             const thumbnailAssetUrl = freshThumbnail ?? attachment.thumbnailAssetUrl;
-            const videoThumbnailAssetUrl =
-              freshVideoThumbnail ?? attachment.videoThumbnailAssetUrl;
+            const videoThumbnailAssetUrl = freshVideoThumbnail ?? attachment.videoThumbnailAssetUrl;
             const displayThumbnailAssetUrl = attachment.contentType.startsWith('video/')
               ? (videoThumbnailAssetUrl ?? thumbnailAssetUrl)
               : thumbnailAssetUrl;
@@ -388,7 +385,7 @@ unknown instance) the component renders nothing.
     tabindex="0"
     aria-label={`Open linked message${displayName ? ` from ${displayName}` : ''}`}
     data-testid="message-preview-card"
-    class="group/preview relative flex w-full max-w-[min(42rem,100%)] cursor-pointer flex-col embed-frame"
+    class="group/preview relative embed-frame flex w-full max-w-[min(42rem,100%)] cursor-pointer flex-col"
     onclick={openPreview}
     onkeydown={handlePreviewKeydown}
   >
@@ -410,7 +407,9 @@ unknown instance) the component renders nothing.
               <UserAvatar user={preview.actor} size="xs" showPresence={false} />
               <span class="truncate text-sm font-medium">{displayName}</span>
             {:else}
-              <span class="truncate text-sm font-medium text-muted">Deleted user</span>
+              <span class="truncate text-sm font-medium text-muted">
+                {m['message_preview.deleted_user']()}
+              </span>
             {/if}
           </div>
         </div>
@@ -442,7 +441,9 @@ unknown instance) the component renders nothing.
           {#each preview.attachments.slice(0, 4) as attachment (attachment.id)}
             {@const thumbnailUrl = previewThumbnailUrl(attachment)}
             {#if thumbnailUrl}
-              <div class="relative h-12 w-12 shrink-0 overflow-hidden rounded-sm border border-border">
+              <div
+                class="relative h-12 w-12 shrink-0 overflow-hidden rounded-sm border border-border"
+              >
                 <img
                   src={thumbnailUrl}
                   alt={attachment.filename}
@@ -455,7 +456,7 @@ unknown instance) the component renders nothing.
                     aria-hidden="true"
                   >
                     <span
-                      class="iconify uil--play flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-sm shadow-sm"
+                      class="iconify flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-sm shadow-sm uil--play"
                     ></span>
                   </span>
                 {/if}
@@ -466,7 +467,7 @@ unknown instance) the component renders nothing.
               >
                 {#if attachment.contentType.startsWith('video/')}
                   <span
-                    class="iconify uil--play flex h-6 w-6 items-center justify-center rounded-full bg-black/45 text-sm text-white shadow-sm"
+                    class="iconify flex h-6 w-6 items-center justify-center rounded-full bg-black/45 text-sm text-white shadow-sm uil--play"
                     aria-hidden="true"
                   ></span>
                 {:else}
@@ -482,7 +483,9 @@ unknown instance) the component renders nothing.
             <span class="text-xs text-muted">
               {preview.attachments.length === 1
                 ? attachmentLabel(preview.attachments[0].contentType)
-                : `${preview.attachments.length} attachments`}
+                : m['message_preview.attachments_count']({
+                    count: preview.attachments.length
+                  })}
             </span>
           {/if}
         </div>
@@ -497,7 +500,7 @@ unknown instance) the component renders nothing.
           onDismiss?.();
         }}
         class="embed-control-button md:group-hover/preview:opacity-100"
-        aria-label="Dismiss preview"
+        aria-label={m['preview.dismiss']()}
       >
         <span class="iconify text-sm uil--times"></span>
       </button>

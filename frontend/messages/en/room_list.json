@@ -1,0 +1,16 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "room_list": {
+    "active_call": "Active call",
+    "call_participants": "{count} participants in call",
+    "go_to_notifications": "Go to {count} notifications",
+    "notifications": "{count} notifications",
+    "unread_messages": "unread messages",
+    "go_to_dm_notifications": "Go to {count} direct message notifications",
+    "new_direct_messages": "{count} new direct messages",
+    "empty_title": "No rooms yet",
+    "empty_prefix": "You haven't joined any rooms on this server. Head to the",
+    "empty_overview": "Overview",
+    "empty_suffix": "to browse the directory and join the ones you're interested in."
+  }
+}

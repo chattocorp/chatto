@@ -31,6 +31,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     ensureCodeLanguagesLoaded,
     lowlight
   } from '$lib/codeHighlighting';
+  import * as m from '$lib/i18n/messages';
   import type { QuoteInsertionContent, SelectedQuoteBlock } from '$lib/state/room';
 
   const markdownLinkInputRegex = /(^|\s)\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)$/;
@@ -1172,8 +1173,8 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     <div class="flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-muted">
       <div class="flex min-w-0 items-center gap-1">
         <input
-          aria-label="Link URL"
-          title="Link URL"
+          aria-label={m['composer.link_url']()}
+          title={m['composer.link_url']()}
           value={linkHrefDraft}
           disabled={!editable}
           oninput={(event) => (linkHrefDraft = event.currentTarget.value)}
@@ -1188,8 +1189,8 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
         />
         <button
           type="button"
-          aria-label="Open link"
-          title="Open link"
+          aria-label={m['composer.open_link']()}
+          title={m['composer.open_link']()}
           disabled={!activeLinkHref}
           onclick={openActiveLink}
           class="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-muted hover:bg-surface-300 hover:text-text"
@@ -1198,8 +1199,8 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
         </button>
         <button
           type="button"
-          aria-label="Remove link"
-          title="Remove link"
+          aria-label={m['composer.remove_link']()}
+          title={m['composer.remove_link']()}
           disabled={!editable}
           onclick={removeLink}
           class="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-muted hover:bg-surface-300 hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
@@ -1227,8 +1228,8 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
         <span>{activeCodeBlockLanguageLabel}</span>
         <span class="iconify size-3 uil--angle-down"></span>
         <select
-          aria-label="Code language"
-          title="Code language"
+          aria-label={m['composer.code_language']()}
+          title={m['composer.code_language']()}
           value={activeCodeBlockLanguage}
           disabled={!editable}
           onchange={(event) => setCodeBlockLanguage(event.currentTarget.value)}

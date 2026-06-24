@@ -4,6 +4,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
+  import * as m from '$lib/i18n/messages';
 
   import { graphql } from '$lib/gql';
   import { Panel } from '$lib/components/admin';
@@ -46,8 +47,8 @@
   // Validation
   let nameError = $derived.by(() => {
     if (!name) return undefined;
-    if (name.trim() === '') return 'Name cannot be empty';
-    if (name !== name.trim()) return 'Name cannot have leading or trailing whitespace';
+    if (name.trim() === '') return m['server_settings.name_empty']();
+    if (name !== name.trim()) return m['server_settings.name_trim']();
     return undefined;
   });
 
@@ -57,8 +58,8 @@
     error = null;
 
     try {
-      const result = await connection().client
-        .query(
+      const result = await connection()
+        .client.query(
           graphql(`
             query ServerSettingsModal {
               server {
@@ -79,18 +80,18 @@
         .toPromise();
 
       if (result.error) {
-        error = 'Failed to load instance';
+        error = m['server_settings.load_failed']();
         return;
       }
 
       if (!result.data?.server) {
-        error = 'Server not found';
+        error = m['server_settings.not_found']();
         return;
       }
 
       canManage = result.data.server.viewerCanManageServer;
       if (!canManage) {
-        toast.error('You do not have permission to manage this instance');
+        toast.error(m['server_settings.manage_denied']());
         goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(getActiveServer()) }));
         return;
       }
@@ -103,7 +104,7 @@
       logoUrl = result.data.server.profile.logoUrl ?? null;
       bannerUrl = result.data.server.profile.bannerUrl ?? null;
     } catch (_e) {
-      error = 'Failed to load instance';
+      error = m['server_settings.load_failed']();
     } finally {
       loading = false;
     }
@@ -123,8 +124,8 @@
     error = null;
 
     try {
-      const result = await connection().client
-        .mutation(
+      const result = await connection()
+        .client.mutation(
           graphql(`
             mutation UpdateServerSettingsModal($input: UpdateServerConfigInput!) {
               updateServerConfig(input: $input) {
@@ -147,7 +148,7 @@
         .toPromise();
 
       if (result.error) {
-        error = 'Failed to save changes';
+        error = m['server_settings.save_failed']();
         return;
       }
 
@@ -156,7 +157,7 @@
         setTimeout(() => (saveSuccess = false), 3000);
       }
     } catch (_e) {
-      error = 'Failed to save changes';
+      error = m['server_settings.save_failed']();
     } finally {
       saving = false;
     }
@@ -164,20 +165,20 @@
 
   async function uploadLogoFile(file: File) {
     if (!file.type.startsWith('image/')) {
-      toast.error('Please select an image file');
+      toast.error(m['server_settings.invalid_image']());
       return;
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      toast.error('Image must be less than 10MB');
+      toast.error(m['server_settings.image_too_large']());
       return;
     }
 
     uploadingLogo = true;
 
     try {
-      const result = await connection().client
-        .mutation(
+      const result = await connection()
+        .client.mutation(
           graphql(`
             mutation UploadInstanceLogo($input: UploadServerLogoInput!) {
               uploadServerLogo(input: $input) {
@@ -196,9 +197,9 @@
       }
 
       logoUrl = result.data?.uploadServerLogo.profile.logoUrl ?? null;
-      toast.success('Logo uploaded successfully');
+      toast.success(m['server_settings.logo_uploaded']());
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to upload logo');
+      toast.error(e instanceof Error ? e.message : m['server_settings.logo_upload_failed']());
     } finally {
       uploadingLogo = false;
       if (logoFileInput) logoFileInput.value = '';
@@ -223,8 +224,8 @@
     deletingLogo = true;
 
     try {
-      const result = await connection().client
-        .mutation(
+      const result = await connection()
+        .client.mutation(
           graphql(`
             mutation DeleteInstanceLogo {
               deleteServerLogo {
@@ -243,9 +244,9 @@
       }
 
       logoUrl = null;
-      toast.success('Logo removed');
+      toast.success(m['server_settings.logo_removed']());
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to delete logo');
+      toast.error(e instanceof Error ? e.message : m['server_settings.logo_delete_failed']());
     } finally {
       deletingLogo = false;
     }
@@ -253,20 +254,20 @@
 
   async function uploadBannerFile(file: File) {
     if (!file.type.startsWith('image/')) {
-      toast.error('Please select an image file');
+      toast.error(m['server_settings.invalid_image']());
       return;
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      toast.error('Image must be less than 10MB');
+      toast.error(m['server_settings.image_too_large']());
       return;
     }
 
     uploadingBanner = true;
 
     try {
-      const result = await connection().client
-        .mutation(
+      const result = await connection()
+        .client.mutation(
           graphql(`
             mutation UploadInstanceBanner($input: UploadServerBannerInput!) {
               uploadServerBanner(input: $input) {
@@ -285,9 +286,9 @@
       }
 
       bannerUrl = result.data?.uploadServerBanner.profile.bannerUrl ?? null;
-      toast.success('Banner uploaded successfully');
+      toast.success(m['server_settings.banner_uploaded']());
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to upload banner');
+      toast.error(e instanceof Error ? e.message : m['server_settings.banner_upload_failed']());
     } finally {
       uploadingBanner = false;
       if (bannerFileInput) bannerFileInput.value = '';
@@ -312,8 +313,8 @@
     deletingBanner = true;
 
     try {
-      const result = await connection().client
-        .mutation(
+      const result = await connection()
+        .client.mutation(
           graphql(`
             mutation DeleteInstanceBanner {
               deleteServerBanner {
@@ -332,9 +333,9 @@
       }
 
       bannerUrl = null;
-      toast.success('Banner removed');
+      toast.success(m['server_settings.banner_removed']());
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to delete banner');
+      toast.error(e instanceof Error ? e.message : m['server_settings.banner_delete_failed']());
     } finally {
       deletingBanner = false;
     }
@@ -342,17 +343,17 @@
 </script>
 
 {#if loading}
-  <div class="text-muted">Loading...</div>
+  <div class="text-muted">{m['server_settings.loading']()}</div>
 {:else if error}
   <div class="text-danger">{error}</div>
 {:else if loaded}
   <div class="flex flex-col gap-6">
     <!-- Server Details Form -->
-    <Panel title="General" icon="iconify uil--edit">
+    <Panel title={m['server_settings.general']()} icon="iconify uil--edit">
       <form onsubmit={handleSave} class="flex flex-col gap-4">
         <TextInput
           id="name"
-          label="Name"
+          label={m['server_settings.name_label']()}
           bind:value={name}
           required
           disabled={saving}
@@ -361,28 +362,28 @@
 
         <TextArea
           id="description"
-          label="Description"
+          label={m['server_settings.description_label']()}
           bind:value={description}
           disabled={saving}
           rows={2}
-          description="Shown on the welcome screen and used as the description for link previews."
+          description={m['server_settings.description_help']()}
         />
 
         <TextInput
           id="motd"
-          label="Message of the Day"
+          label={m['server_settings.motd_label']()}
           bind:value={motd}
           disabled={saving}
-          description="Single-line message displayed in the chat header. Supports markdown."
+          description={m['server_settings.motd_help']()}
         />
 
         <TextArea
           id="welcome-message"
-          label="Welcome Message"
+          label={m['server_settings.welcome_message_label']()}
           bind:value={welcomeMessage}
           rows={3}
           disabled={saving}
-          description="Shown on the login page. Supports markdown."
+          description={m['server_settings.welcome_message_help']()}
         />
 
         <div class="flex items-center gap-3">
@@ -390,28 +391,40 @@
             type="submit"
             loading={saving}
             disabled={!name.trim() || !!nameError}
-            loadingText="Saving..."
+            loadingText={m['server_settings.saving']()}
           >
             <span class="iconify uil--check"></span>
-            Save Changes
+            {m['server_settings.save_button']()}
           </Button>
           {#if saveSuccess}
-            <span class="text-sm text-green-600">Saved!</span>
+            <span class="text-sm text-green-600">{m['common.saved']()}</span>
           {/if}
         </div>
       </form>
     </Panel>
 
     <!-- Logo Section -->
-    <Panel title="Logo" icon="iconify uil--image">
-      <div class="relative flex items-start gap-6" data-testid="logo-drop-zone" {@attach logoDropZone}>
-        <DropZoneOverlay visible={isDraggingLogo} title="Drop image" subtitle="Upload as instance logo" />
+    <Panel title={m['server_settings.logo']()} icon="iconify uil--image">
+      <div
+        class="relative flex items-start gap-6"
+        data-testid="logo-drop-zone"
+        {@attach logoDropZone}
+      >
+        <DropZoneOverlay
+          visible={isDraggingLogo}
+          title={m['server_settings.drop_image']()}
+          subtitle={m['server_settings.logo_drop_subtitle']()}
+        />
         <!-- Logo Preview -->
         <div
           class="flex h-24 w-24 items-center justify-center overflow-hidden rounded-xl bg-surface-200 text-5xl font-black text-muted shadow-md"
         >
           {#if logoUrl}
-            <img src={logoUrl} alt="Server logo" class="h-full w-full object-cover" />
+            <img
+              src={logoUrl}
+              alt={m['server_settings.logo_alt']()}
+              class="h-full w-full object-cover"
+            />
           {:else}
             {name?.[0]?.toUpperCase() || '?'}
           {/if}
@@ -420,7 +433,7 @@
         <!-- Upload Controls -->
         <div class="flex flex-col gap-3">
           <p class="text-sm text-muted">
-            Upload a logo for your instance. Images will be resized to 512×512 pixels.
+            {m['server_settings.logo_description']()}
           </p>
           <div class="flex gap-2">
             <input
@@ -434,11 +447,11 @@
               variant="secondary"
               onclick={() => logoFileInput?.click()}
               loading={uploadingLogo}
-              loadingText="Uploading..."
+              loadingText={m['server_settings.uploading']()}
             >
               <span class="inline-flex items-center gap-2">
                 <span class="iconify uil--image-upload"></span>
-                {logoUrl ? 'Change Logo' : 'Upload Logo'}
+                {logoUrl ? m['server_settings.logo_change']() : m['server_settings.logo_upload']()}
               </span>
             </Button>
             {#if logoUrl}
@@ -446,11 +459,11 @@
                 variant="ghost"
                 onclick={handleLogoDelete}
                 loading={deletingLogo}
-                loadingText="Removing..."
+                loadingText={m['server_settings.removing']()}
               >
                 <span class="inline-flex items-center gap-2 text-error">
                   <span class="iconify uil--trash-alt"></span>
-                  Remove
+                  {m['server_settings.remove']()}
                 </span>
               </Button>
             {/if}
@@ -460,28 +473,39 @@
     </Panel>
 
     <!-- Banner Section -->
-    <Panel title="Banner" icon="iconify uil--scenery">
-      <div class="relative flex flex-col gap-4" data-testid="banner-drop-zone" {@attach bannerDropZone}>
-        <DropZoneOverlay visible={isDraggingBanner} title="Drop image" subtitle="Upload as instance banner" />
+    <Panel title={m['server_settings.banner']()} icon="iconify uil--scenery">
+      <div
+        class="relative flex flex-col gap-4"
+        data-testid="banner-drop-zone"
+        {@attach bannerDropZone}
+      >
+        <DropZoneOverlay
+          visible={isDraggingBanner}
+          title={m['server_settings.drop_image']()}
+          subtitle={m['server_settings.banner_drop_subtitle']()}
+        />
         <!-- Banner Preview — capped width so the OG-aspect 1200×630 doesn't
              swallow the panel on wide layouts. -->
         {#if bannerUrl}
           <div class="w-full max-w-md overflow-hidden rounded-lg bg-surface-200 shadow-md">
-            <img src={bannerUrl} alt="Server banner" class="aspect-[1200/630] w-full object-cover" />
+            <img
+              src={bannerUrl}
+              alt={m['server_settings.banner_alt']()}
+              class="aspect-[1200/630] w-full object-cover"
+            />
           </div>
         {:else}
           <div
             class="flex aspect-[1200/630] w-full max-w-md items-center justify-center rounded-lg border-2 border-dashed border-border bg-surface-100 text-muted"
           >
-            <span class="text-sm">No banner set</span>
+            <span class="text-sm">{m['server_settings.no_banner']()}</span>
           </div>
         {/if}
 
         <!-- Upload Controls -->
         <div class="flex flex-col gap-3">
           <p class="text-sm text-muted">
-            Upload a banner for your instance. The banner doubles as the link-preview image — images
-            are resized to 1200×630 pixels (the standard OpenGraph aspect ratio).
+            {m['server_settings.banner_description']()}
           </p>
           <div class="flex gap-2">
             <input
@@ -495,11 +519,13 @@
               variant="secondary"
               onclick={() => bannerFileInput?.click()}
               loading={uploadingBanner}
-              loadingText="Uploading..."
+              loadingText={m['server_settings.uploading']()}
             >
               <span class="inline-flex items-center gap-2">
                 <span class="iconify uil--image-upload"></span>
-                {bannerUrl ? 'Change Banner' : 'Upload Banner'}
+                {bannerUrl
+                  ? m['server_settings.banner_change']()
+                  : m['server_settings.banner_upload']()}
               </span>
             </Button>
             {#if bannerUrl}
@@ -507,11 +533,11 @@
                 variant="ghost"
                 onclick={handleBannerDelete}
                 loading={deletingBanner}
-                loadingText="Removing..."
+                loadingText={m['server_settings.removing']()}
               >
                 <span class="inline-flex items-center gap-2 text-error">
                   <span class="iconify uil--trash-alt"></span>
-                  Remove
+                  {m['server_settings.remove']()}
                 </span>
               </Button>
             {/if}

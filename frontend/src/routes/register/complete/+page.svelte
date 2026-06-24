@@ -3,6 +3,7 @@
   import { resolve } from '$app/paths';
   import { clearCachedUser } from '$lib/auth/loadAuth';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
+  import * as m from '$lib/i18n/messages';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { Divider, Hint } from '$lib/ui';
   import PageTitle from '$lib/ui/PageTitle.svelte';
@@ -21,17 +22,19 @@
   // Validation schemas
   const loginSchema = z
     .string()
-    .min(2, 'Must be at least 2 characters')
-    .max(32, 'Must be at most 32 characters')
-    .regex(/^[a-zA-Z0-9._-]+$/, 'Only letters, numbers, dots, dashes, underscores')
-    .refine((val) => !val.includes('..'), 'No consecutive periods allowed');
-  const passwordSchema = z.string().min(8, 'Must be at least 8 characters');
+    .min(2, m['common.validation.username_min']())
+    .max(32, m['common.validation.username_max']())
+    .regex(/^[a-zA-Z0-9._-]+$/, m['common.validation.username_charset']())
+    .refine((val) => !val.includes('..'), m['common.validation.username_no_consecutive_periods']());
+  const passwordSchema = z.string().min(8, m['common.validation.password_min']());
 
   // Field-level errors (only show after user has typed something)
   const loginError = $derived(login ? validate(loginSchema, login) : undefined);
   const passwordError = $derived(password ? validate(passwordSchema, password) : undefined);
   const confirmError = $derived(
-    confirmPassword && password !== confirmPassword ? 'Passwords do not match' : undefined
+    confirmPassword && password !== confirmPassword
+      ? m['common.validation.passwords_match']()
+      : undefined
   );
 
   const canSubmit = $derived(
@@ -41,7 +44,7 @@
   async function handleSubmit(e: Event) {
     e.preventDefault();
     if (!token || loginError || passwordError || confirmError) {
-      error = loginError || passwordError || confirmError || 'Please fix the errors above';
+      error = loginError || passwordError || confirmError || m['common.validation.fix_errors']();
       return;
     }
 
@@ -64,12 +67,12 @@
       const data = await response.json();
 
       if (!response.ok) {
-        error = data.error || 'Registration failed';
+        error = data.error || m['auth.register.failed']();
         return;
       }
 
       if (typeof data.token !== 'string' || !data.token) {
-        error = 'Registration response did not include an auth token';
+        error = m['auth.register.missing_token']();
         return;
       }
 
@@ -91,34 +94,36 @@
         goto(resolve('/'), { replaceState: true });
       }
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Registration failed';
+      error = err instanceof Error ? err.message : m['auth.register.failed']();
     } finally {
       isLoading = false;
     }
   }
 </script>
 
-<PageTitle title="Complete Registration" />
+<PageTitle title={m['auth.register.complete_title']()} />
 
 <AuthLayout>
-  <h1 class="mb-6 text-center text-2xl font-bold">Complete Registration</h1>
+  <h1 class="mb-6 text-center text-2xl font-bold">{m['auth.register.complete_title']()}</h1>
 
   {#if !token}
     <Hint tone="danger">
-      <p class="mb-2 font-medium">Invalid registration code</p>
-      <p class="text-sm">This registration session is invalid or has expired.</p>
+      <p class="mb-2 font-medium">{m['auth.register.complete.invalid_title']()}</p>
+      <p class="text-sm">{m['auth.register.complete.invalid_text']()}</p>
     </Hint>
 
     <p class="mt-6 text-center">
-      <a href={resolve('/register')} class="link">Request a new code</a>
+      <a href={resolve('/register')} class="link">
+        {m['auth.register.complete.request_new_code']()}
+      </a>
     </p>
   {:else}
     <form onsubmit={handleSubmit} class="flex flex-col gap-4">
       <TextInput
         id="login"
-        label="Username"
+        label={m['common.username']()}
         bind:value={login}
-        placeholder="your_username"
+        placeholder={m['common.username_placeholder']()}
         disabled={isLoading}
         required
         autocomplete="username"
@@ -127,10 +132,10 @@
 
       <TextInput
         id="password"
-        label="Password"
+        label={m['common.password']()}
         type="password"
         bind:value={password}
-        placeholder="At least 8 characters"
+        placeholder={m['common.password_min_placeholder']()}
         disabled={isLoading}
         required
         minlength={8}
@@ -140,10 +145,10 @@
 
       <TextInput
         id="confirmPassword"
-        label="Confirm Password"
+        label={m['common.confirm_password']()}
         type="password"
         bind:value={confirmPassword}
-        placeholder="Enter password again"
+        placeholder={m['common.password_confirm_placeholder']()}
         disabled={isLoading}
         required
         autocomplete="new-password"
@@ -157,15 +162,17 @@
         size="lg"
         disabled={!canSubmit}
         loading={isLoading}
-        loadingText="Creating account..."
+        loadingText={m['auth.register.creating']()}
       >
         <span class="iconify uil--user-plus"></span>
-        Create Account
+        {m['common.create_account']()}
       </Button>
     </form>
 
-    <Divider label="or" />
+    <Divider label={m['common.or']()} />
 
-    <a href={resolve('/login')} class="btn-secondary block w-full btn-lg text-center"> Sign In </a>
+    <a href={resolve('/login')} class="btn-secondary block w-full btn-lg text-center">
+      {m['common.sign_in']()}
+    </a>
   {/if}
 </AuthLayout>

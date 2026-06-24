@@ -54,6 +54,7 @@
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import { pushState } from '$app/navigation';
   import { useConnection } from '$lib/state/server/connection.svelte';
+  import * as m from '$lib/i18n/messages';
   import { toast } from '$lib/ui/toast';
   import {
     assetUrlNeedsRefresh,
@@ -186,7 +187,9 @@
   }
 
   const nextAssetUrlRefreshAt = $derived.by(() => {
-    return earliestAssetUrlRefreshAt(attachments.flatMap((attachment) => attachmentAssetUrls(attachment)));
+    return earliestAssetUrlRefreshAt(
+      attachments.flatMap((attachment) => attachmentAssetUrls(attachment))
+    );
   });
 
   $effect(() => {
@@ -229,7 +232,10 @@
     refreshPromise = refreshUrlsForMessage()
       .then((freshUrls) => {
         if (freshUrls.size > 0) {
-          refreshedAttachmentUrls = mergeRefreshedAttachmentUrls(refreshedAttachmentUrls, freshUrls);
+          refreshedAttachmentUrls = mergeRefreshedAttachmentUrls(
+            refreshedAttachmentUrls,
+            freshUrls
+          );
         }
         return freshUrls;
       })
@@ -344,8 +350,8 @@
               type="button"
               onclick={(e) => openDeleteConfirmation(attachment, e)}
               class="embed-control-button md:group-hover/attachment:opacity-100"
-              aria-label="Delete attachment"
-              title="Delete attachment"
+              aria-label={m['room.attachment.delete_label']()}
+              title={m['room.attachment.delete_label']()}
             >
               <span class="iconify text-sm uil--times"></span>
             </button>
@@ -359,9 +365,9 @@
         <button
           type="button"
           onclick={() => openImageModal(attachment)}
-          aria-label="View {attachment.filename}"
+          aria-label={m['room.attachment.view_label']({ filename: attachment.filename })}
           class={[
-            'group/attachment relative block min-w-0 cursor-pointer embed-frame',
+            'group/attachment relative embed-frame block min-w-0 cursor-pointer',
             !size && 'max-h-64'
           ]}
           style={size
@@ -374,10 +380,7 @@
             alt={attachment.filename}
             class={['object-cover', size ? 'h-full w-full' : 'max-h-64 w-auto']}
             onerror={() =>
-              refreshAfterAssetError(
-                attachment,
-                attachment.thumbnailUrl ? 'thumbnail' : 'asset'
-              )}
+              refreshAfterAssetError(attachment, attachment.thumbnailUrl ? 'thumbnail' : 'asset')}
           />
           {#if canDeleteAttachment}
             <span
@@ -388,8 +391,8 @@
                 if (e.key === 'Enter' || e.key === ' ') openDeleteConfirmation(attachment, e);
               }}
               class="embed-control-button md:group-hover/attachment:opacity-100"
-              aria-label="Delete attachment"
-              title="Delete attachment"
+              aria-label={m['room.attachment.delete_label']()}
+              title={m['room.attachment.delete_label']()}
             >
               <span class="iconify text-sm uil--times"></span>
             </span>
@@ -412,8 +415,8 @@
               type="button"
               onclick={(e) => openDeleteConfirmation(attachment, e)}
               class="embed-control-button z-10 md:group-hover/attachment:opacity-100"
-              aria-label="Delete attachment"
-              title="Delete attachment"
+              aria-label={m['room.attachment.delete_label']()}
+              title={m['room.attachment.delete_label']()}
             >
               <span class="iconify text-sm uil--times"></span>
             </button>
@@ -439,7 +442,7 @@
         </div>
       {:else if attachment.contentType.startsWith('audio/')}
         <div class="group/attachment relative min-w-0">
-          <div class="flex items-center gap-3 px-3 py-2 embed-frame">
+          <div class="embed-frame flex items-center gap-3 px-3 py-2">
             <audio
               controls
               preload="metadata"
@@ -457,19 +460,19 @@
               type="button"
               onclick={(e) => openDeleteConfirmation(attachment, e)}
               class="embed-control-button md:group-hover/attachment:opacity-100"
-              aria-label="Delete attachment"
-              title="Delete attachment"
+              aria-label={m['room.attachment.delete_label']()}
+              title={m['room.attachment.delete_label']()}
             >
               <span class="iconify text-sm uil--times"></span>
             </button>
           {/if}
         </div>
       {:else}
-        <div class="group/attachment relative block embed-frame">
+        <div class="group/attachment relative embed-frame block">
           <button
             type="button"
             onclick={() => openDownload(attachment)}
-            aria-label="Download {attachment.filename}"
+            aria-label={m['room.attachment.download_label']({ filename: attachment.filename })}
             class="block w-full cursor-pointer text-left"
           >
             <div class="flex h-16 items-center gap-2 px-3">
@@ -495,8 +498,8 @@
               type="button"
               onclick={(e) => openDeleteConfirmation(attachment, e)}
               class="embed-control-button md:group-hover/attachment:opacity-100"
-              aria-label="Delete attachment"
-              title="Delete attachment"
+              aria-label={m['room.attachment.delete_label']()}
+              title={m['room.attachment.delete_label']()}
             >
               <span class="iconify text-sm uil--times"></span>
             </button>

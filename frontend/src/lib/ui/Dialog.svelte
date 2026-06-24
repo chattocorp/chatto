@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import * as m from '$lib/i18n/messages';
   import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
 
   let {
@@ -116,7 +117,12 @@
     const content = dialogEl?.firstElementChild as HTMLElement | null;
     if (!content) return;
     const rect = content.getBoundingClientRect();
-    if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+    if (
+      e.clientX < rect.left ||
+      e.clientX > rect.right ||
+      e.clientY < rect.top ||
+      e.clientY > rect.bottom
+    ) {
       close();
     }
   }}
@@ -153,7 +159,7 @@
             type="button"
             onclick={close}
             class="-m-1 shrink-0 cursor-pointer rounded p-1 text-text/50 transition-colors hover:text-text"
-            aria-label="Close"
+            aria-label={m['ui.close']()}
           >
             <span class="iconify text-xl uil--times"></span>
           </button>

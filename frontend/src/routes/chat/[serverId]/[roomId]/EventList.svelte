@@ -2,6 +2,7 @@
   import { tick, untrack } from 'svelte';
   import { fade } from 'svelte/transition';
   import { Virtualizer, type VirtualizerHandle } from 'virtua/svelte';
+  import * as m from '$lib/i18n/messages';
   import type { RoomEventViewFragment } from '$lib/gql/graphql';
   import type {
     MessagesStore,
@@ -835,7 +836,7 @@
           <span class="text-muted">{firstVisibleDate}</span>
           <span class="text-muted/40">|</span>
         {/if}
-        <span>Jump to Present</span>
+        <span>{m['room.jump_to_present']()}</span>
         <span class="iconify uil--arrow-down"></span>
       </div>
     </button>
@@ -851,7 +852,7 @@
           <span class="text-muted">{firstVisibleDate}</span>
           <span class="text-muted/40">|</span>
         {/if}
-        <span>{hasNewMessages ? 'New messages' : 'Jump to Present'}</span>
+        <span>{hasNewMessages ? m['room.unread_separator']() : m['room.jump_to_present']()}</span>
         <span class="iconify uil--arrow-down"></span>
       </div>
     </button>

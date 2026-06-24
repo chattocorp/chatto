@@ -16,6 +16,7 @@
   import { getGradientForName } from '$lib/utils/gradients';
   import { recentQuickSwitcher } from '$lib/state/recentQuickSwitcher.svelte';
   import { quickSwitcher } from '$lib/state/globals.svelte';
+  import * as m from '$lib/i18n/messages';
   import { toast } from '$lib/ui/toast';
 
   type ServerLogo = { name: string; logoUrl?: string | null };
@@ -480,13 +481,13 @@
 
   // --- Kind labels ---
 
-  const kindLabels: Record<ResultItem['kind'], string> = {
-    destination: 'Go to',
-    server: 'Server',
-    room: 'Room',
-    dm: 'DM',
-    user: 'User'
-  };
+  const kindLabels = $derived<Record<ResultItem['kind'], string>>({
+    destination: m['quick_switcher.kind.destination'](),
+    server: m['quick_switcher.kind.server'](),
+    room: m['quick_switcher.kind.room'](),
+    dm: m['quick_switcher.kind.dm'](),
+    user: m['quick_switcher.kind.user']()
+  });
 
   function isRecent(item: ResultItem): boolean {
     const url = itemUrl(item);
@@ -504,7 +505,7 @@
     // Transition from recent to non-recent section
     if (!itemIsRecent && (index === 0 || prevIsRecent)) return kindLabels[item.kind];
     // First item or kind change within non-recent section
-    if (itemIsRecent && (index === 0 || !prevIsRecent)) return 'Recent';
+    if (itemIsRecent && (index === 0 || !prevIsRecent)) return m['quick_switcher.recent']();
     if (!itemIsRecent && prev && prev.kind !== item.kind) return kindLabels[item.kind];
     return null;
   }
@@ -550,7 +551,7 @@
             oninput={handleQueryInput}
             onkeydown={handleKeydown}
             type="text"
-            placeholder="Go to server, room, or conversation..."
+            placeholder={m['quick_switcher.placeholder']()}
             class="flex-1 bg-transparent text-text outline-none placeholder:text-muted"
           />
           {#if loading || userSearchLoading}
@@ -564,7 +565,7 @@
       <div class="max-h-80 overflow-y-auto menu-section">
         <nav class="sidebar-nav">
           {#if filtered.length === 0 && !loading && !userSearchLoading}
-            <p class="px-3 py-6 text-center text-muted">No results</p>
+            <p class="px-3 py-6 text-center text-muted">{m['quick_switcher.no_results']()}</p>
           {:else}
             {#each filtered as item, i (`${item.serverId}:${item.kind}:${item.id}`)}
               {@const header = showGroupHeader(i)}

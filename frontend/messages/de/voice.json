@@ -1,0 +1,32 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "voice": {
+    "connecting": "Verbindung wird hergestellt...",
+    "joining": "Beitritt läuft...",
+    "starting": "Anruf wird gestartet...",
+    "already_in_another_call": "Bereits in einem anderen Anruf",
+    "join": "Sprachanruf beitreten",
+    "join_call": "Anruf beitreten",
+    "start_call": "Anruf starten",
+    "leave": "Anruf verlassen",
+    "share_screen": "Bildschirm teilen",
+    "stop_share_screen": "Bildschirmfreigabe beenden",
+    "user_settings": "Benutzereinstellungen",
+    "speaking": "Spricht",
+    "muted": "Stummgeschaltet",
+    "poor_connection": "Schlechte Verbindung",
+    "screen_share": "Bildschirmfreigabe",
+    "screen_title": "Bildschirm von {name}",
+    "devices": "Geräte",
+    "turn_off_camera": "Kamera ausschalten",
+    "turn_on_camera": "Kamera einschalten",
+    "mute": "Stummschalten",
+    "unmute": "Stummschaltung aufheben",
+    "microphone": "Mikrofon",
+    "speaker": "Lautsprecher",
+    "camera": "Kamera",
+    "unknown_device": "Unbekanntes Gerät",
+    "no_devices": "Keine Geräte gefunden",
+    "participants": "Anrufteilnehmende"
+  }
+}

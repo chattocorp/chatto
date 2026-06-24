@@ -20,6 +20,7 @@ Rendered inside a ContextMenu when right-clicking a message.
 -->
 <script lang="ts">
   import { useMessageActions, type MessageActionParams } from '$lib/hooks';
+  import * as m from '$lib/i18n/messages';
   import { getRecentEmojis } from '$lib/state/recentEmojis.svelte';
   import { getEmojiByName } from '$lib/emoji';
 
@@ -124,7 +125,7 @@ Rendered inside a ContextMenu when right-clicking a message.
         <button
           class="flex h-8 w-8 cursor-pointer items-center justify-center rounded text-base hover:bg-surface-100"
           onclick={() => handleReaction(emoji)}
-          aria-label="React with {emoji}"
+          aria-label={m['room.message.actions.react_with']({ emoji })}
           role="menuitem"
         >
           {emoji}
@@ -137,7 +138,7 @@ Rendered inside a ContextMenu when right-clicking a message.
             onOpenEmojiPicker();
             onClose();
           }}
-          aria-label="More reactions"
+          aria-label={m['room.message.actions.more_reactions']()}
           role="menuitem"
         >
           <span class="iconify text-lg uil--smile"></span>
@@ -152,27 +153,27 @@ Rendered inside a ContextMenu when right-clicking a message.
     {#if onReplyInRoom}
       <button class="sidebar-item" onclick={handleReplyInRoom} role="menuitem">
         <span class="sidebar-icon iconify uil--corner-up-left"></span>
-        Reply
+        {m['room.message.actions.reply']()}
       </button>
     {/if}
 
     {#if onReply}
       <button class="sidebar-item" onclick={handleReply} role="menuitem">
         <span class="sidebar-icon iconify uil--comment-alt-lines"></span>
-        Reply in thread
+        {m['room.message.actions.reply_thread']()}
       </button>
     {/if}
 
     {#if canEdit}
       <button class="sidebar-item" onclick={handleEdit} role="menuitem">
         <span class="sidebar-icon iconify uil--pen"></span>
-        Edit
+        {m['room.message.actions.edit_short']()}
       </button>
     {/if}
 
     <button class="sidebar-item" onclick={handleCopyLink} role="menuitem">
       <span class="sidebar-icon iconify uil--copy"></span>
-      Copy link
+      {m['room.message.actions.copy_link']()}
     </button>
 
     {#if canDelete}
@@ -182,7 +183,7 @@ Rendered inside a ContextMenu when right-clicking a message.
         role="menuitem"
       >
         <span class="sidebar-icon iconify uil--trash-alt"></span>
-        Delete
+        {m['common.delete']()}
       </button>
     {/if}
   </nav>

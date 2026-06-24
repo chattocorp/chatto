@@ -6,6 +6,7 @@
   import { TextArea, Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { Panel } from '$lib/components/admin';
+  import * as m from '$lib/i18n/messages';
 
   const defaultBlockedUsernames = 'root\nadmin\nsuperuser\nop\noperator\nsupport';
 
@@ -44,7 +45,7 @@
       onCompleted: (data) => {
         if (data.admin) {
           blockedUsernames = data.admin.updateBlockedUsernames;
-          toast.success('Settings saved');
+          toast.success(m['admin.security.settings_saved']());
         }
       },
       onError: (err) => toast.error(err)
@@ -59,29 +60,35 @@
   }
 </script>
 
-<PageTitle title="Security | Server Admin" />
+<PageTitle
+  title={m['admin.common.server_admin_page_title']({ title: m['admin.security.title']() })}
+/>
 
-<PaneHeader title="Security" subtitle="Sign-up restrictions and account protection" showMobileNav />
+<PaneHeader
+  title={m['admin.security.title']()}
+  subtitle={m['admin.security.subtitle']()}
+  showMobileNav
+/>
 
 <div class="flex flex-col gap-6 overflow-y-auto p-6">
-  <Panel title="Blocked Usernames" icon="iconify uil--shield-exclamation">
+  <Panel title={m['admin.security.blocked_usernames']()} icon="iconify uil--shield-exclamation">
     {#if configQuery.loading}
-      <div class="text-muted">Loading...</div>
+      <div class="text-muted">{m['admin.common.loading']()}</div>
     {:else}
       <form onsubmit={save} class="flex flex-col gap-4">
         <TextArea
-          label="Blocked Usernames"
+          label={m['admin.security.blocked_usernames']()}
           id="blocked-usernames"
           bind:value={blockedUsernames}
           rows={6}
           disabled={saving}
-          description="One per line. Users cannot register with these names."
+          description={m['admin.security.blocked_usernames_description']()}
         />
 
         <div class="flex items-center gap-3">
           <Button type="submit" disabled={saving} loading={saving}>
             <span class="iconify uil--check"></span>
-            Save
+            {m['rbac.role_form.save']()}
           </Button>
         </div>
       </form>

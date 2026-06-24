@@ -35,6 +35,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
   import { useFragment } from '$lib/gql/fragment-masking';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import { pushState } from '$app/navigation';
+  import * as m from '$lib/i18n/messages';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import { toast } from '$lib/ui/toast';
   import YouTubeEmbed from './YouTubeEmbed.svelte';
@@ -116,7 +117,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
     target="_blank"
     rel="noopener noreferrer"
     data-testid="link-preview-card"
-    class="group/preview relative flex w-full max-w-md flex-col embed-frame"
+    class="group/preview relative embed-frame flex w-full max-w-md flex-col"
     oncontextmenu={handleContextMenu}
   >
     {#if preview.imageUrl}
@@ -150,7 +151,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
           onDismiss?.();
         }}
         class="embed-control-button md:group-hover/preview:opacity-100"
-        aria-label="Dismiss preview"
+        aria-label={m['preview.dismiss']()}
       >
         <span class="iconify text-sm uil--times"></span>
       </button>
@@ -163,7 +164,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
           openDeleteConfirmation();
         }}
         class="embed-control-button md:group-hover/preview:opacity-100"
-        aria-label="Delete preview"
+        aria-label={m['preview.delete']()}
       >
         <span class="iconify text-sm uil--times"></span>
       </button>
@@ -177,11 +178,11 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
         <nav class="sidebar-nav">
           <button class="sidebar-item" onclick={handleOpenLink} role="menuitem">
             <span class="sidebar-icon iconify uil--external-link-alt"></span>
-            Open link
+            {m['preview.open_link']()}
           </button>
           <button class="sidebar-item" onclick={handleCopyUrl} role="menuitem">
             <span class="sidebar-icon iconify uil--copy"></span>
-            Copy URL
+            {m['preview.copy_url']()}
           </button>
           {#if canDelete}
             <button
@@ -190,7 +191,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
               role="menuitem"
             >
               <span class="sidebar-icon iconify uil--trash-alt"></span>
-              Delete preview
+              {m['preview.delete']()}
             </button>
           {/if}
         </nav>

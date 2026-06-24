@@ -14,6 +14,7 @@ ADR-027 — only user-facing copy says "server".
 -->
 <script lang="ts">
   import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import * as m from '$lib/i18n/messages';
   import {
     generateCodeChallenge,
     generateCodeVerifier,
@@ -128,9 +129,7 @@ ADR-027 — only user-facing copy says "server".
       return;
     }
 
-    const existing = serverRegistry.servers.find(
-      (i) => i.url.toLowerCase() === url.toLowerCase()
-    );
+    const existing = serverRegistry.servers.find((i) => i.url.toLowerCase() === url.toLowerCase());
     if (existing && (existing.token || existing.userId)) {
       formError = 'This server is already connected.';
       return;
@@ -205,7 +204,7 @@ ADR-027 — only user-facing copy says "server".
       window.location.href = `${probedUrl}${probedInfo.authorizeUrl}?${params}`;
     } catch (err) {
       connecting = false;
-      formError = err instanceof Error ? err.message : 'Failed to start sign-in.';
+      formError = err instanceof Error ? err.message : m['add_server.start_failed']();
     }
   }
 
@@ -214,16 +213,20 @@ ADR-027 — only user-facing copy says "server".
   // server told us") but never inside our own action buttons — interpolating
   // it there would let a hostile server inject impersonation copy ("Sign
   // in to YourBank Login") into trusted UI chrome.
-  const submitLabel = $derived(stage === 'preview' ? 'Sign in' : 'Connect');
+  const submitLabel = $derived(
+    stage === 'preview' ? m['add_server.sign_in']() : m['add_server.connect']()
+  );
   const submitIcon = $derived(stage === 'preview' ? 'iconify mdi--login' : 'iconify uil--link');
-  const submitLoadingText = $derived(stage === 'preview' ? 'Redirecting…' : 'Connecting…');
+  const submitLoadingText = $derived(
+    stage === 'preview' ? m['add_server.redirecting']() : m['add_server.connecting']()
+  );
   const loading = $derived(probing || connecting);
   const disabled = $derived(stage === 'url' && !serverUrl.trim());
 </script>
 
 <FormDialog
   bind:visible
-  title="Add Server"
+  title={m['add_server.title']()}
   {submitLabel}
   {submitIcon}
   {submitLoadingText}
@@ -235,20 +238,18 @@ ADR-027 — only user-facing copy says "server".
 >
   {#snippet description()}
     {#if stage === 'url'}
-      Chatto is distributed — your client connects to each server directly.
-      Enter a URL to add another.
+      {m['add_server.description_url']()}
     {:else if probedInfo}
-      You're about to sign in on this server. You'll be sent to its
-      sign-in page to authenticate.
+      {m['add_server.description_preview']()}
     {/if}
   {/snippet}
 
   {#if stage === 'url'}
     <TextInput
       id="add-server-url"
-      label="Server URL"
+      label={m['add_server.url_label']()}
       bind:value={serverUrl}
-      placeholder="chat.example.com"
+      placeholder={m['add_server.url_placeholder']()}
       leadingIcon="uil--globe"
       disabled={probing}
       required
@@ -257,11 +258,7 @@ ADR-027 — only user-facing copy says "server".
   {:else if probedInfo}
     <div class="overflow-hidden rounded-lg border border-border bg-surface-100">
       {#if probedInfo.bannerUrl}
-        <img
-          src={probedInfo.bannerUrl}
-          alt=""
-          class="aspect-[1200/630] w-full object-cover"
-        />
+        <img src={probedInfo.bannerUrl} alt="" class="aspect-[1200/630] w-full object-cover" />
       {/if}
       <div class="flex items-start gap-3 p-4">
         <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-surface-200">

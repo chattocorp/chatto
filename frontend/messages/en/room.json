@@ -1,0 +1,136 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "room": {
+    "create": {
+      "title": "Create a New Room",
+      "description": "Rooms are conversations within your server.",
+      "name_placeholder": "Enter room name",
+      "description_placeholder": "What's this room about?",
+      "name_label": "Room Name",
+      "description_label": "Description (optional)",
+      "universal_label": "Universal room",
+      "universal_description": "All server members (given the permission) automatically are members of this room.",
+      "name_required": "Room name is required",
+      "missing_group": "Choose a room group before creating a room.",
+      "failed": "Failed to create room",
+      "creating": "Creating...",
+      "submit": "Create Room"
+    },
+    "join": {
+      "title": "Join Room",
+      "action": "Join Room",
+      "prompt": "Join #{room} to read and participate in this room.",
+      "success": "Joined #{room}",
+      "success_generic": "Joined room",
+      "failed": "Failed to join room",
+      "access_title": "Room Access",
+      "access_denied": "You do not have permission to join this room."
+    },
+    "leave": {
+      "title": "Leave Room",
+      "action": "Leave Room",
+      "prompt": "Are you sure you want to leave #{room}? You can rejoin later.",
+      "failed": "Failed to leave room"
+    },
+    "directory": {
+      "universal_title": "Universal rooms are joined automatically",
+      "joined": "Joined",
+      "leave": "Leave",
+      "restricted_title": "You don't have permission to join this room",
+      "search_placeholder": "Search rooms...",
+      "empty": "No rooms in this server yet.",
+      "no_results": "No rooms match your filter.",
+      "universal": "Universal",
+      "joined_title": "Joined #{room} - click to leave",
+      "leaving": "Leaving",
+      "joining": "Joining",
+      "join": "Join",
+      "restricted": "Restricted",
+      "join_all": "Join all",
+      "already_in_group": "Already in every room in {group}",
+      "joined_group_one": "Joined 1 room in {group}",
+      "joined_group_many": "Joined {count} rooms in {group}",
+      "join_group_failed": "Failed to join group",
+      "left": "Left #{room}",
+      "left_generic": "Left room",
+      "leave_confirm": "Are you sure you want to leave #{room}?"
+    },
+    "server": {
+      "leave_title": "Leave Server",
+      "leave_action": "Leave Server",
+      "leave_prompt": "Are you sure you want to leave {server}? You'll lose access to its rooms, and your client will forget about this server. You can re-add it later from the sidebar."
+    },
+    "message": {
+      "delete_title": "Delete Message",
+      "delete_prompt": "Are you sure you want to delete this message? This cannot be undone.",
+      "delete_failed": "Failed to delete message",
+      "deleted": "Message deleted",
+      "actions": {
+        "toolbar": "Message actions",
+        "react_with": "React with {emoji}",
+        "remove_reaction": "Remove {emoji}",
+        "add_reaction": "Add reaction",
+        "more_reactions": "More reactions",
+        "reply": "Reply",
+        "reply_thread": "Reply in thread",
+        "edit": "Edit message",
+        "more": "More actions",
+        "edit_short": "Edit",
+        "copy_link": "Copy link"
+      },
+      "meta": {
+        "thread": "Thread",
+        "reply_count_one": "1 reply",
+        "reply_count_many": "{count} replies",
+        "follow_thread": "Follow thread",
+        "unfollow_thread": "Unfollow thread",
+        "add_reaction_label": "Add {emoji} reaction ({count})",
+        "remove_reaction_label": "Remove {emoji} reaction ({count})",
+        "copy_link_title": "Click to copy link to this message",
+        "in_reply_to": "in reply to",
+        "deleted": "This message has been deleted."
+      }
+    },
+    "attachment": {
+      "delete_title": "Delete Attachment",
+      "delete_prompt": "Are you sure you want to delete this attachment? This cannot be undone.",
+      "delete_label": "Delete attachment",
+      "delete_failed": "Failed to delete attachment",
+      "view_label": "View {filename}",
+      "download_label": "Download {filename}"
+    },
+    "link_preview": {
+      "delete_title": "Delete Link Preview",
+      "delete_prompt": "Are you sure you want to remove this link preview? This cannot be undone.",
+      "delete_failed": "Failed to delete link preview"
+    },
+    "sidebar": {
+      "extras": "Room extras",
+      "resize": "Resize room extras pane",
+      "hide": "Hide room extras",
+      "members": "Members",
+      "search_members": "Search room members",
+      "search_members_placeholder": "Search members",
+      "no_members": "No members found.",
+      "online": "Online ({count})",
+      "offline": "Offline ({count})",
+      "no_files": "No files in this room yet.",
+      "files": "Files",
+      "jump_to_file": "Jump to {filename}",
+      "loading_files": "Loading files...",
+      "calls_unavailable": "Calls are not available on this server."
+    },
+    "thread": {
+      "title": "Thread in #{room}",
+      "back_to_room": "Back to room",
+      "follow": "Follow thread",
+      "unfollow": "Unfollow thread",
+      "close": "Close thread",
+      "not_found": "Thread not found",
+      "reply_placeholder": "Reply in thread..."
+    },
+    "jump_to_present": "Jump to Present",
+    "unread_separator": "New messages",
+    "close_extras": "Close room extras"
+  }
+}

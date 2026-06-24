@@ -5,6 +5,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
+  import * as m from '$lib/i18n/messages';
 
   import { graphql } from '$lib/gql';
   import { useFragment } from '$lib/gql/fragment-masking';
@@ -197,24 +198,28 @@
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
+    if (diffMins < 1) return m['chat.notifications.time_now']();
+    if (diffMins < 60) return m['chat.notifications.time_minutes']({ count: diffMins });
+    if (diffHours < 24) return m['chat.notifications.time_hours']({ count: diffHours });
+    if (diffDays < 7) return m['chat.notifications.time_days']({ count: diffDays });
 
     return formatDate(date, userSettings);
   }
 </script>
 
-<PageTitle title="My Threads" />
+<PageTitle title={m['chat.threads.title']()} />
 
 <div class="flex h-full w-full flex-col">
-  <PaneHeader title="My Threads" subtitle="Threads you're following" showMobileNav>
+  <PaneHeader
+    title={m['chat.threads.title']()}
+    subtitle={m['chat.threads.subtitle']()}
+    showMobileNav
+  >
     {#snippet actions()}
       <div
         class="flex rounded-md border border-border text-sm"
         role="radiogroup"
-        aria-label="Filter threads"
+        aria-label={m['chat.threads.filter_label']()}
       >
         <button
           class={[
@@ -223,7 +228,7 @@
           ]}
           onclick={() => setFilter('all')}
           role="radio"
-          aria-checked={filter === 'all'}>All</button
+          aria-checked={filter === 'all'}>{m['chat.threads.filter_all']()}</button
         >
         <button
           class={[
@@ -232,7 +237,7 @@
           ]}
           onclick={() => setFilter('unread')}
           role="radio"
-          aria-checked={filter === 'unread'}>Unread</button
+          aria-checked={filter === 'unread'}>{m['chat.threads.filter_unread']()}</button
         >
       </div>
     {/snippet}
@@ -240,34 +245,36 @@
 
   <div class="flex flex-1 flex-col overflow-y-auto">
     {#if loading && threads.length === 0}
-      <div class="p-6 text-muted">Loading...</div>
+      <div class="p-6 text-muted">{m['common.loading']()}</div>
     {:else if error}
       <div class="m-6">
         <Hint tone="danger">{error}</Hint>
       </div>
     {:else if threads.length === 0}
-      <EmptyState icon="uil--comment-lines" title="No followed threads">
-        Threads you follow will appear here. You automatically follow threads you participate in.
+      <EmptyState icon="uil--comment-lines" title={m['chat.threads.empty_title']()}>
+        {m['chat.threads.empty_body']()}
       </EmptyState>
     {:else if filteredThreads.length === 0}
       <EmptyState
         icon="uil--comment-check"
-        title={hasMore ? 'No unread threads loaded' : 'All caught up'}
+        title={hasMore ? m['chat.threads.no_unread_loaded']() : m['chat.threads.all_caught_up']()}
       >
         {#if hasMore}
           <div class="flex flex-col items-center gap-3">
-            <span>{threads.length} of {totalCount} followed threads loaded.</span>
+            <span>
+              {m['chat.threads.loaded_count']({ loaded: threads.length, total: totalCount })}
+            </span>
             <Button
               variant="secondary"
               size="sm"
               loading={loadingMore}
               onclick={() => loadThreads({ append: true })}
             >
-              Load more
+              {m['chat.threads.load_more']()}
             </Button>
           </div>
         {:else}
-          No unread threads right now.
+          {m['chat.threads.no_unread']()}
         {/if}
       </EmptyState>
     {:else}
@@ -279,7 +286,9 @@
               <div class="w-11 shrink-0"></div>
               <div class="text-muted">
                 <span
-                  >{#if thread.lastReplyAt}{formatRelativeTime(thread.lastReplyAt)}, in{:else}In{/if}
+                  >{#if thread.lastReplyAt}{formatRelativeTime(thread.lastReplyAt)}, {m[
+                      'chat.threads.in_room'
+                    ]()}{:else}{m['chat.threads.in_room_capitalized']()}{/if}
                   #{thread.roomName}:</span
                 >
               </div>
@@ -301,7 +310,7 @@
                 />
               {:else}
                 <div class="px-2 md:mx-2">
-                  <p class="text-sm text-muted">Message no longer available</p>
+                  <p class="text-sm text-muted">{m['chat.threads.message_missing']()}</p>
                 </div>
               {/if}
             </div>
@@ -314,7 +323,7 @@
               loading={loadingMore}
               onclick={() => loadThreads({ append: true })}
             >
-              Load more
+              {m['chat.threads.load_more']()}
             </Button>
           </div>
         {/if}
