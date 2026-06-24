@@ -52,6 +52,13 @@ func (c *ChattoCore) CreateNotification(
 	recipientID, actorID string,
 	notification *corev1.Notification,
 ) (*corev1.Notification, error) {
+	if c.suppressesNotificationsForPresence(ctx, recipientID) {
+		c.logger.Debug("Notification suppressed by recipient presence",
+			"recipient_id", recipientID,
+			"type", notificationTypeName(notification))
+		return nil, nil
+	}
+
 	notificationID := NewNotificationID()
 	now := time.Now()
 
@@ -88,6 +95,16 @@ func (c *ChattoCore) CreateNotification(
 		"type", notificationTypeName(notification))
 
 	return notification, nil
+}
+
+func (c *ChattoCore) suppressesNotificationsForPresence(ctx context.Context, userID string) bool {
+	status, err := c.GetUserPresence(ctx, userID)
+	if err != nil {
+		c.logger.Warn("Failed to get presence for notification suppression",
+			"user_id", userID, "error", err)
+		return false
+	}
+	return status == PresenceStatusDoNotDisturb
 }
 
 // GetNotifications returns all notifications for a user, ordered by creation time (newest first).

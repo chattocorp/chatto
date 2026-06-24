@@ -3,6 +3,9 @@ package core
 import (
 	"errors"
 	"testing"
+	"time"
+
+	"hmans.de/chatto/internal/core/subjects"
 )
 
 func TestExtractMentionUsernames(t *testing.T) {
@@ -519,7 +522,7 @@ func TestChattoCore_LargeMentionConfirmation(t *testing.T) {
 }
 
 func TestChattoCore_MentionCreatesNotificationWithoutMentionStatus(t *testing.T) {
-	core, _ := setupTestCore(t)
+	core, nc := setupTestCore(t)
 	ctx := testContext(t)
 
 	mentioned, err := core.CreateUser(ctx, "system", "mentioneduser", "Mentioned User", "password123")
@@ -551,6 +554,32 @@ func TestChattoCore_MentionCreatesNotificationWithoutMentionStatus(t *testing.T)
 	}
 	if len(notifications) != 1 || notifications[0].GetMention() == nil {
 		t.Fatalf("expected one mention notification, got %#v", notifications)
+	}
+
+	if err := core.SetPresence(ctx, mentioned.Id, PresenceStatusDoNotDisturb); err != nil {
+		t.Fatalf("SetPresence DND: %v", err)
+	}
+	sub, err := nc.SubscribeSync(subjects.LiveSyncUserEvent(mentioned.Id, "mentioned"))
+	if err != nil {
+		t.Fatalf("SubscribeSync mentioned: %v", err)
+	}
+	defer sub.Unsubscribe()
+	if err := nc.Flush(); err != nil {
+		t.Fatalf("Flush subscription: %v", err)
+	}
+
+	if _, err := core.PostMessage(ctx, KindChannel, room.Id, mentioner.Id, "dnd hello @mentioneduser", nil, "", "", nil, false); err != nil {
+		t.Fatalf("PostMessage DND: %v", err)
+	}
+	if _, err := sub.NextMsg(200 * time.Millisecond); err == nil {
+		t.Fatalf("expected no live mention notification while DND")
+	}
+	notifications, err = core.GetNotifications(ctx, mentioned.Id)
+	if err != nil {
+		t.Fatalf("GetNotifications after DND: %v", err)
+	}
+	if len(notifications) != 1 {
+		t.Fatalf("notifications after DND mention = %d, want original 1", len(notifications))
 	}
 }
 

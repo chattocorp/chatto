@@ -19,7 +19,7 @@ func (r *mutationResolver) UpdateMyPresence(ctx context.Context, input model.Upd
 		return false, err
 	}
 
-	if err := r.core.SetPresence(ctx, user.Id, string(input.Status)); err != nil {
+	if err := r.core.SetPresenceWithOptions(ctx, user.Id, string(input.Status), true); err != nil {
 		return false, err
 	}
 	return true, nil

@@ -41,6 +41,14 @@ func NewMyEventsService(core *ChattoCore) *MyEventsService {
 	return &MyEventsService{core: core}
 }
 
+// StreamMyEventsOptions controls compatibility behavior for a myEvents stream.
+type StreamMyEventsOptions struct {
+	// ReportPresence preserves the legacy behavior where opening myEvents marks
+	// the user online and refreshes the current presence value. New clients that
+	// report presence through ConnectRPC set this to false.
+	ReportPresence bool
+}
+
 func (c *ChattoCore) myEvents() *MyEventsService {
 	if c.myEventsService == nil {
 		c.myEventsService = NewMyEventsService(c)
@@ -103,10 +111,15 @@ func (s *MyEventsService) Metrics() MyEventsMetrics {
 // The returned channel closes when the context is cancelled or when a
 // SessionTerminatedEvent is delivered to the user.
 func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan EventEnvelope, error) {
-	return c.myEvents().StreamMyEvents(ctx, userID)
+	return c.StreamMyEventsWithOptions(ctx, userID, StreamMyEventsOptions{ReportPresence: true})
 }
 
-func (s *MyEventsService) StreamMyEvents(ctx context.Context, userID string) (<-chan EventEnvelope, error) {
+// StreamMyEventsWithOptions creates a myEvents stream with explicit compatibility options.
+func (c *ChattoCore) StreamMyEventsWithOptions(ctx context.Context, userID string, options StreamMyEventsOptions) (<-chan EventEnvelope, error) {
+	return c.myEvents().StreamMyEvents(ctx, userID, options)
+}
+
+func (s *MyEventsService) StreamMyEvents(ctx context.Context, userID string, options StreamMyEventsOptions) (<-chan EventEnvelope, error) {
 	c := s.core
 
 	// memberRooms is the per-subscription visibility cache: the user receives
@@ -148,13 +161,20 @@ func (s *MyEventsService) StreamMyEvents(ctx context.Context, userID string) (<-
 	go func() {
 		c.logger.Debug("Server event stream started", "user_id", userID, "member_rooms", len(memberRooms))
 
-		// Subscribing implies the user is online; refresh on a ticker so the KV
-		// TTL doesn't expire while the connection is open.
-		if err := c.SetPresence(ctx, userID, PresenceStatusOnline); err != nil {
-			c.logger.Warn("Failed to set initial presence", "error", err, "user_id", userID)
+		var presenceTicker *time.Ticker
+		var presenceTickerC <-chan time.Time
+		if options.ReportPresence {
+			// Legacy behavior: subscribing implies the user is online; refresh on
+			// a ticker so the KV TTL doesn't expire while the connection is open.
+			if err := c.SetPresence(ctx, userID, PresenceStatusOnline); err != nil {
+				c.logger.Warn("Failed to set initial presence", "error", err, "user_id", userID)
+			}
+			presenceTicker = time.NewTicker(PresenceRefreshInterval)
+			presenceTickerC = presenceTicker.C
 		}
-		presenceTicker := time.NewTicker(PresenceRefreshInterval)
-		defer presenceTicker.Stop()
+		if presenceTicker != nil {
+			defer presenceTicker.Stop()
+		}
 
 		heartbeatTicker := time.NewTicker(25 * time.Second)
 		defer heartbeatTicker.Stop()
@@ -202,7 +222,7 @@ func (s *MyEventsService) StreamMyEvents(ctx context.Context, userID string) (<-
 					"user_id", userID, "dropped", dropped)
 				return
 
-			case <-presenceTicker.C:
+			case <-presenceTickerC:
 				if err := c.refreshPresence(ctx, userID); err != nil {
 					s.presenceFailures.Add(1)
 					c.logger.Warn("Failed to refresh presence", "error", err, "user_id", userID)

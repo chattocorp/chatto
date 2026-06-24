@@ -46,8 +46,8 @@
         "confirm_cooldown": "You can only change your username once every 30 days.",
         "confirm_button": "Change Username"
       },
-      "status": {
-        "title": "Custom Status",
+    "status": {
+      "title": "Custom Status",
         "edit_button": "Edit status",
         "emoji": {
           "label": "Status emoji",
@@ -74,10 +74,18 @@
         "save_failed": "Failed to save status",
         "cleared": "Status cleared",
         "clear_failed": "Failed to clear status",
-        "save_button": "Save Status",
-        "clear_button": "Clear Status"
-      },
-      "saved": "Profile updated successfully",
+      "save_button": "Save Status",
+      "clear_button": "Clear Status"
+    },
+    "presence": {
+      "button": "Presence: {status}",
+      "title": "Presence",
+      "auto": "Online",
+      "away": "Away",
+      "do_not_disturb": "Do Not Disturb",
+      "invisible": "Look offline"
+    },
+    "saved": "Profile updated successfully",
       "save_failed": "Failed to save profile",
       "save_button": "Save Changes"
     },

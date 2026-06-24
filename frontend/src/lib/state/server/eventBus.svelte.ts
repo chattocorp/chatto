@@ -62,6 +62,7 @@ class EventBusManager {
 	#buses = new SvelteMap<string, EventBus>();
 	#subscriptions = new Map<string, { unsubscribe: () => void }>();
 	#cleanups = new Map<string, () => void>();
+	#paused = false;
 
 	/**
 	 * Start an event bus for the given server. Creates the subscription and
@@ -77,6 +78,9 @@ class EventBusManager {
 	 * @returns Cleanup function that stops the bus.
 	 */
 	startBus(serverId: string, gqlClient: GraphQLClient): () => void {
+		if (this.#paused) {
+			return () => {};
+		}
 		if (this.#buses.has(serverId)) {
 			// Already running — return a no-op cleanup (the real cleanup is from
 			// the original startBus call)
@@ -321,6 +325,17 @@ class EventBusManager {
 		for (const serverId of [...this.#buses.keys()]) {
 			this.stopBus(serverId);
 		}
+	}
+
+	/** Stop all event streams and block new starts until resumeAll() is called. */
+	pauseAll(): void {
+		this.#paused = true;
+		this.stopAll();
+	}
+
+	/** Allow event streams to be started again. Callers decide which buses to restart. */
+	resumeAll(): void {
+		this.#paused = false;
 	}
 }
 

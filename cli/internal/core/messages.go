@@ -780,7 +780,7 @@ func (c *ChattoCore) notifyAllMessageSubscribers(ctx context.Context, kind RoomK
 			continue
 		}
 
-		_, err = c.CreateNotification(ctx, memberID, authorID, &corev1.Notification{
+		created, err := c.CreateNotification(ctx, memberID, authorID, &corev1.Notification{
 			Notification: &corev1.Notification_RoomMessage{
 				RoomMessage: &corev1.RoomMessageNotification{
 					RoomId:  roomID,
@@ -792,7 +792,7 @@ func (c *ChattoCore) notifyAllMessageSubscribers(ctx context.Context, kind RoomK
 			c.logger.Warn("Failed to create all-message notification",
 				"recipient_id", memberID, "author_id", authorID,
 				"kind", kind, "room_id", roomID, "error", err)
-		} else {
+		} else if created != nil {
 			notifiedCount++
 		}
 	}

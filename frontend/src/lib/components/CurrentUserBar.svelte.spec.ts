@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 import { PresenceStatus } from '$lib/gql/graphql';
+import { presencePreference } from '$lib/state/presencePreference.svelte';
 import {
   consumePendingRoomSidebarPanel,
   getRoomSidebarPanelState,
@@ -117,6 +118,8 @@ describe('CurrentUserBar', () => {
       hasVerifiedEmail: true,
       settings: null
     };
+    presencePreference.mode = 'auto';
+    presencePreference.effectiveStatus = PresenceStatus.Online;
     voiceCallState.connected = false;
     voiceCallState.roomId = null;
     voiceCallState.isMuted = false;
@@ -145,6 +148,16 @@ describe('CurrentUserBar', () => {
     expect(q(container, '[aria-label="Offline"]')).toBeFalsy();
     expect(container.textContent).toContain('Alice');
     expect(container.textContent).toContain('@alice');
+  });
+
+  it('opens the presence mode menu', async () => {
+    const { container } = render(CurrentUserBarTestHarness);
+
+    (q(container, '[data-testid="current-user-presence-menu"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain('Do Not Disturb');
+      expect(container.textContent).toContain('Look offline');
+    });
   });
 
   it('shows the custom status emoji as an avatar badge', () => {

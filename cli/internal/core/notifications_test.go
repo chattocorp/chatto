@@ -158,6 +158,36 @@ func TestCreateNotification(t *testing.T) {
 			t.Errorf("EventId = %q, want all-messages-event", event.EventId)
 		}
 	})
+
+	t.Run("suppresses notifications for do not disturb recipients", func(t *testing.T) {
+		dndRecipientID := "dnd-recipient-user"
+		if err := core.SetPresence(ctx, dndRecipientID, PresenceStatusDoNotDisturb); err != nil {
+			t.Fatalf("SetPresence: %v", err)
+		}
+
+		created, err := core.CreateNotification(ctx, dndRecipientID, actorID, &corev1.Notification{
+			Notification: &corev1.Notification_Mention{
+				Mention: &corev1.MentionNotification{
+					RoomId:  "dnd-room",
+					EventId: "dnd-event",
+				},
+			},
+		})
+		if err != nil {
+			t.Fatalf("CreateNotification error: %v", err)
+		}
+		if created != nil {
+			t.Fatalf("created notification = %+v, want nil", created)
+		}
+
+		notifs, err := core.GetNotifications(ctx, dndRecipientID)
+		if err != nil {
+			t.Fatalf("GetNotifications: %v", err)
+		}
+		if len(notifs) != 0 {
+			t.Fatalf("notifications = %d, want 0", len(notifs))
+		}
+	})
 }
 
 func TestGetNotifications(t *testing.T) {

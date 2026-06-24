@@ -77,6 +77,14 @@
         "save_button": "Status speichern",
         "clear_button": "Status löschen"
       },
+      "presence": {
+        "button": "Präsenz: {status}",
+        "title": "Präsenz",
+        "auto": "Online",
+        "away": "Abwesend",
+        "do_not_disturb": "Nicht stören",
+        "invisible": "Offline anzeigen"
+      },
       "saved": "Profil erfolgreich aktualisiert",
       "save_failed": "Profil konnte nicht gespeichert werden",
       "save_button": "Änderungen speichern"

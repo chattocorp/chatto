@@ -22,6 +22,7 @@
   import { useServerRegistry } from '$lib/state/server/useServerRegistry.svelte';
   import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
   import { eventBusManager } from '$lib/state/server/eventBus.svelte';
+  import { shouldPauseLiveEventsForStoredPresence } from '$lib/presenceTracking';
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
   import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
   import { UserSettingsState, setUserSettings } from '$lib/state/userSettings.svelte';
@@ -55,16 +56,24 @@
   // to expose it via Svelte context, and any descendant calling
   // `useEvent` ends up subscribing to nothing (real-time updates
   // for cross-instance unread tracking get silently dropped).
-  for (const server of serverRegistry.servers) {
-    const store = serverRegistry.tryGetStore(server.id);
-    if (store?.isAuthenticated) {
-      eventBusManager.startBus(
-        server.id,
-        graphqlClientManager.getClient(server.id)
-      );
+  if (shouldPauseLiveEventsForStoredPresence()) {
+    eventBusManager.pauseAll();
+  } else {
+    for (const server of serverRegistry.servers) {
+      const store = serverRegistry.tryGetStore(server.id);
+      if (store?.isAuthenticated) {
+        eventBusManager.startBus(
+          server.id,
+          graphqlClientManager.getClient(server.id)
+        );
+      }
     }
   }
   $effect(() => {
+    if (shouldPauseLiveEventsForStoredPresence()) {
+      eventBusManager.pauseAll();
+      return;
+    }
     for (const server of serverRegistry.servers) {
       const store = serverRegistry.tryGetStore(server.id);
       if (store?.isAuthenticated) {

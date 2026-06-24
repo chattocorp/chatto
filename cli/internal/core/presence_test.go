@@ -232,6 +232,51 @@ func TestChattoCore_SetAndGetPresence(t *testing.T) {
 	}
 }
 
+func TestChattoCore_ManualPresenceBeatsAutomaticReports(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	userID := "test-user-manual-presence"
+
+	if err := core.SetPresenceWithOptions(ctx, userID, PresenceStatusDoNotDisturb, true); err != nil {
+		t.Fatalf("SetPresenceWithOptions DND: %v", err)
+	}
+	if err := core.SetPresence(ctx, userID, PresenceStatusOnline); err != nil {
+		t.Fatalf("automatic SetPresence online: %v", err)
+	}
+	status, err := core.GetUserPresence(ctx, userID)
+	if err != nil {
+		t.Fatalf("GetUserPresence after automatic online: %v", err)
+	}
+	if status != PresenceStatusDoNotDisturb {
+		t.Fatalf("automatic online overwrote manual DND: got %q", status)
+	}
+
+	if err := core.SetPresenceWithOptions(ctx, userID, PresenceStatusOnline, true); err != nil {
+		t.Fatalf("explicit SetPresenceWithOptions online: %v", err)
+	}
+	status, err = core.GetUserPresence(ctx, userID)
+	if err != nil {
+		t.Fatalf("GetUserPresence after explicit online: %v", err)
+	}
+	if status != PresenceStatusOnline {
+		t.Fatalf("explicit online did not clear manual DND: got %q", status)
+	}
+
+	if err := core.SetPresenceWithOptions(ctx, userID, PresenceStatusAway, true); err != nil {
+		t.Fatalf("SetPresenceWithOptions away: %v", err)
+	}
+	if err := core.SetPresence(ctx, userID, PresenceStatusOnline); err != nil {
+		t.Fatalf("automatic SetPresence online after away: %v", err)
+	}
+	status, err = core.GetUserPresence(ctx, userID)
+	if err != nil {
+		t.Fatalf("GetUserPresence after automatic online for away: %v", err)
+	}
+	if status != PresenceStatusAway {
+		t.Fatalf("automatic online overwrote manual away: got %q", status)
+	}
+}
+
 func TestChattoCore_PresenceDelete(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

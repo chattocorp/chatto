@@ -49,6 +49,7 @@ export default defineConfig({
               items: [
                 "reference/connectrpc-api",
                 "reference/connectrpc-api/notification-preferences-service",
+                "reference/connectrpc-api/presence-service",
                 "reference/connectrpc-api/read-state-service",
                 "reference/connectrpc-api/room-timeline-service",
                 "reference/connectrpc-api/server-service",

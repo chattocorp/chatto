@@ -294,7 +294,7 @@ func (c *ChattoCore) notifyThreadFollowers(ctx context.Context, kind RoomKind, r
 
 		// Create persistent notification (for bell icon and notification center)
 		// This also publishes NotificationCreatedEvent for real-time updates
-		_, err = c.CreateNotification(ctx, followerID, replyAuthorID, &corev1.Notification{
+		created, err := c.CreateNotification(ctx, followerID, replyAuthorID, &corev1.Notification{
 			Notification: &corev1.Notification_Reply{
 				Reply: &corev1.ReplyNotification{
 					RoomId:      roomID,
@@ -311,7 +311,7 @@ func (c *ChattoCore) notifyThreadFollowers(ctx context.Context, kind RoomKind, r
 				"kind", kind,
 				"room_id", roomID,
 				"error", err)
-		} else {
+		} else if created != nil {
 			notifiedCount++
 		}
 	}
@@ -368,7 +368,7 @@ func (c *ChattoCore) notifyInReplyToAuthor(ctx context.Context, kind RoomKind, r
 	}
 
 	// Create persistent notification (for bell icon and notification center)
-	_, err = c.CreateNotification(ctx, originalAuthorID, replyAuthorID, &corev1.Notification{
+	created, err := c.CreateNotification(ctx, originalAuthorID, replyAuthorID, &corev1.Notification{
 		Notification: &corev1.Notification_Reply{
 			Reply: &corev1.ReplyNotification{
 				RoomId:      roomID,
@@ -385,6 +385,9 @@ func (c *ChattoCore) notifyInReplyToAuthor(ctx context.Context, kind RoomKind, r
 			"kind", kind,
 			"room_id", roomID,
 			"error", err)
+		return ""
+	}
+	if created == nil {
 		return ""
 	}
 

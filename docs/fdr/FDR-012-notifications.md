@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Active
-**Last reviewed:** 2026-06-12
+**Last reviewed:** 2026-06-24
 
 ## Overview
 
@@ -17,6 +17,7 @@ Chatto has a persistent notification system surfaced through a bell icon and not
 - A notification sound plays and the badge updates in real time as new notifications arrive.
 - Users can choose and locally shape the notification sound on each browser with volume, tone, and effect controls.
 - Sidebar orange dots for mentions, replies, DMs, and all-message subscriptions derive from pending notification records.
+- A recipient's Do Not Disturb presence suppresses new persistent notifications, live notification sync events, notification sounds, sidebar notification dots for those events, and push notifications while it is active.
 
 ## Notification Levels
 
@@ -89,6 +90,12 @@ Per space and per room, the user picks one of four levels:
 **Decision:** Notification sound selection and sound-shaping controls are stored in browser-local preferences.
 **Why:** They are playback-device preferences, not server behavior. Keeping them local matches the existing sound picker and avoids adding durable compatibility surface for an annoyance/subtlety control.
 **Tradeoff:** A user who signs in on a new browser reconfigures sound taste there. Server-synced display settings remain separate.
+
+### 10. Do Not Disturb suppresses notification creation
+
+**Decision:** Do Not Disturb is checked at notification creation time. While the recipient has live DND presence, Chatto does not create the persistent notification and does not publish mention/DM/live notification sync events or push callbacks for that notification.
+**Why:** DND means "do not interrupt me now", so suppression must happen before any persistent or realtime attention surface exists. Keeping it in the notification creation path also makes push behavior inherit the same gate.
+**Tradeoff:** Notifications that would have arrived during DND are not queued for later delivery. This keeps DND quiet and avoids a delayed notification burst when the user returns.
 
 ## Permissions
 

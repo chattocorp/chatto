@@ -38,6 +38,7 @@ func New(core *core.ChattoCore, config config.ChattoConfig, version string) *API
 
 func (a *API) Handlers() []Handler {
 	serverPath, serverHandler := apiv1connect.NewServerServiceHandler(&serverService{api: a})
+	presencePath, presenceHandler := apiv1connect.NewPresenceServiceHandler(&presenceService{api: a})
 	prefsPath, prefsHandler := apiv1connect.NewNotificationPreferencesServiceHandler(&notificationPreferencesService{api: a})
 	readStatePath, readStateHandler := apiv1connect.NewReadStateServiceHandler(&readStateService{api: a})
 	timelinePath, timelineHandler := apiv1connect.NewRoomTimelineServiceHandler(&roomTimelineService{api: a})
@@ -45,6 +46,7 @@ func (a *API) Handlers() []Handler {
 	threadPath, threadHandler := apiv1connect.NewThreadServiceHandler(&threadService{api: a})
 	return []Handler{
 		{ServicePath: serverPath, Handler: serverHandler},
+		{ServicePath: presencePath, Handler: presenceHandler},
 		{ServicePath: prefsPath, Handler: prefsHandler},
 		{ServicePath: readStatePath, Handler: readStateHandler},
 		{ServicePath: timelinePath, Handler: timelineHandler},

@@ -153,17 +153,38 @@
 
   // Initialize presence tracking (idle detection → AWAY, active → ONLINE).
   // This works across all instances, not just origin.
-  initPresenceTracking(
+  const stopPresenceTracking = initPresenceTracking(
     () =>
-      serverRegistry.servers.map(
-        (i) => graphqlClientManager.getClient(i.id).client
-      ),
+      serverRegistry.servers
+        .filter((server) => serverRegistry.tryGetStore(server.id)?.isAuthenticated)
+        .map((server) => {
+          const client = graphqlClientManager.getClient(server.id);
+          return {
+            serverId: server.id,
+            baseUrl: client.connectBaseUrl,
+            bearerToken: client.bearerToken
+          };
+        }),
     (status) => {
       if (currentUserState.user) {
         presenceCache.update(currentUserState.user.id, status);
       }
+    },
+    {
+      onPauseLiveEvents: () => {
+        eventBusManager.pauseAll();
+      },
+      onResumeLiveEvents: () => {
+        eventBusManager.resumeAll();
+        for (const server of serverRegistry.servers) {
+          if (serverRegistry.tryGetStore(server.id)?.isAuthenticated) {
+            eventBusManager.startBus(server.id, graphqlClientManager.getClient(server.id));
+          }
+        }
+      }
     }
   );
+  onDestroy(stopPresenceTracking);
 </script>
 
 <ReturnUrlHandler />

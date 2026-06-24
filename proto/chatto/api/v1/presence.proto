@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+// Live presence status a client can report for the current user.
+//
+// Offline is not a reportable status. Clients that want the user to appear
+// offline should stop reporting presence and let the server's live presence
+// record expire.
+enum PresenceStatus {
+  // No presence status was specified.
+  PRESENCE_STATUS_UNSPECIFIED = 0;
+  // The user is actively available.
+  PRESENCE_STATUS_ONLINE = 1;
+  // The user is connected but away or idle.
+  PRESENCE_STATUS_AWAY = 2;
+  // The user does not want notifications while this live status is active.
+  PRESENCE_STATUS_DO_NOT_DISTURB = 3;
+}
+
+// Request to report the current user's live presence status.
+message ReportPresenceRequest {
+  // Live status to report for the authenticated user.
+  PresenceStatus status = 1;
+  // True when this report comes from a deliberate user selection rather than
+  // automatic idle/refresh reporting. Automatic reports do not overwrite an
+  // active manually selected Away or Do Not Disturb status from another client.
+  bool user_selected = 2;
+}
+
+// Result of reporting live presence.
+message ReportPresenceResponse {
+  // Status accepted and stored by the server.
+  PresenceStatus status = 1;
+}
+
+// Lets clients report the authenticated user's current live presence.
+service PresenceService {
+  // Reports the current user's live presence status. This state is transient:
+  // clients should refresh it periodically while visible, and should stop
+  // calling this RPC when the user chooses to appear offline.
+  rpc ReportPresence(ReportPresenceRequest) returns (ReportPresenceResponse);
+}

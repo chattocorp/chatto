@@ -10,6 +10,7 @@ import (
 	"fmt"
 
 	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/graph/auth"
 )
 
 // MyEvents is the resolver for the myEvents field.
@@ -23,7 +24,9 @@ func (r *subscriptionResolver) MyEvents(ctx context.Context) (<-chan core.EventE
 		return nil, err
 	}
 
-	events, err := r.core.StreamMyEvents(ctx, user.Id)
+	events, err := r.core.StreamMyEventsWithOptions(ctx, user.Id, core.StreamMyEventsOptions{
+		ReportPresence: !auth.UsesConnectPresenceReporting(ctx),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("subscribe events: %w", err)
 	}

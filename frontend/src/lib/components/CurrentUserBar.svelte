@@ -14,7 +14,9 @@ to the user settings page for the active server.
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { getLiveDisplayName, type CustomUserStatus } from '$lib/state/userProfiles.svelte';
-  import { RoomType } from '$lib/gql/graphql';
+  import { setPresenceMode } from '$lib/presenceTracking';
+  import { presencePreference, type PresenceMode } from '$lib/state/presencePreference.svelte';
+  import { PresenceStatus, RoomType } from '$lib/gql/graphql';
   import {
     roomSidebarPanelStorageSuffix,
     setPendingRoomSidebarPanel,
@@ -68,7 +70,19 @@ to the user settings page for the active server.
   const compactCallButtonClass = 'btn-secondary h-7 w-7 shrink-0 !px-0 !py-0 text-xs';
   const compactCallActiveButtonClass = 'btn-success h-7 w-7 shrink-0 !px-0 !py-0 text-xs';
   const compactCallDangerButtonClass = 'btn-danger h-7 w-7 shrink-0 !px-0 !py-0 text-xs';
+  const presenceModes: PresenceMode[] = ['auto', 'away', 'doNotDisturb', 'invisible'];
+  const presenceLabel = $derived.by(() => presenceModeLabel(presencePreference.mode));
+  const presenceDotClass = $derived(
+    presencePreference.effectiveStatus === PresenceStatus.Online
+      ? 'bg-green-500'
+      : presencePreference.effectiveStatus === PresenceStatus.Away
+        ? 'bg-yellow-500'
+        : presencePreference.effectiveStatus === PresenceStatus.DoNotDisturb
+          ? 'bg-red-500'
+          : 'bg-gray-400'
+  );
   let statusEditorAnchor = $state<{ top: number; bottom: number; left: number } | null>(null);
+  let presenceMenuAnchor = $state<{ top: number; bottom: number; left: number } | null>(null);
 
   function customStatusAPIConfig() {
     const conn = connection();
@@ -82,6 +96,29 @@ to the user settings page for the active server.
   function openStatusEditor(event: MouseEvent) {
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
     statusEditorAnchor = { top: rect.top, bottom: rect.bottom, left: rect.left };
+  }
+
+  function openPresenceMenu(event: MouseEvent) {
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    presenceMenuAnchor = { top: rect.top, bottom: rect.bottom, left: rect.left };
+  }
+
+  function presenceModeLabel(mode: PresenceMode): string {
+    switch (mode) {
+      case 'away':
+        return m['settings.profile.presence.away']();
+      case 'doNotDisturb':
+        return m['settings.profile.presence.do_not_disturb']();
+      case 'invisible':
+        return m['settings.profile.presence.invisible']();
+      default:
+        return m['settings.profile.presence.auto']();
+    }
+  }
+
+  function choosePresenceMode(mode: PresenceMode) {
+    setPresenceMode(mode);
+    presenceMenuAnchor = null;
   }
 
   function updateCurrentCustomStatus(status: CustomUserStatus | null) {
@@ -210,6 +247,16 @@ to the user settings page for the active server.
       </div>
       <button
         type="button"
+        title={m['settings.profile.presence.button']({ status: presenceLabel })}
+        aria-label={m['settings.profile.presence.button']({ status: presenceLabel })}
+        class="grid h-7 w-7 shrink-0 cursor-pointer place-items-center rounded-md hover:bg-surface-100"
+        data-testid="current-user-presence-menu"
+        onclick={openPresenceMenu}
+      >
+        <span class={`h-3 w-3 rounded-full ${presenceDotClass}`} aria-hidden="true"></span>
+      </button>
+      <button
+        type="button"
         title={m['settings.profile.status.edit_button']()}
         aria-label={m['settings.profile.status.edit_button']()}
         class="iconify shrink-0 cursor-pointer text-muted uil--pen hover:text-text"
@@ -223,6 +270,49 @@ to the user settings page for the active server.
       ></a>
     </div>
   </div>
+{/if}
+
+{#if presenceMenuAnchor && activeServerUser}
+  <ContextMenu
+    anchor={presenceMenuAnchor}
+    role="menu"
+    ariaLabel={m['settings.profile.presence.title']()}
+    class="w-56"
+    onclose={() => (presenceMenuAnchor = null)}
+  >
+    <div class="menu-section p-1">
+      {#each presenceModes as mode (mode)}
+        <button
+          type="button"
+          class={[
+            'sidebar-item w-full gap-3 text-left',
+            presencePreference.mode === mode ? 'bg-surface-100' : ''
+          ]}
+          role="menuitemradio"
+          aria-checked={presencePreference.mode === mode}
+          onclick={() => choosePresenceMode(mode)}
+        >
+          <span
+            class={[
+              'h-2.5 w-2.5 rounded-full',
+              mode === 'auto'
+                ? 'bg-green-500'
+                : mode === 'away'
+                  ? 'bg-yellow-500'
+                  : mode === 'doNotDisturb'
+                    ? 'bg-red-500'
+                    : 'bg-gray-400'
+            ]}
+            aria-hidden="true"
+          ></span>
+          <span class="min-w-0 truncate">{presenceModeLabel(mode)}</span>
+          {#if presencePreference.mode === mode}
+            <span class="iconify ml-auto shrink-0 uil--check" aria-hidden="true"></span>
+          {/if}
+        </button>
+      {/each}
+    </div>
+  </ContextMenu>
 {/if}
 
 {#if statusEditorAnchor && activeServerUser}

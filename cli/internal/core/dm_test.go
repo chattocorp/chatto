@@ -817,6 +817,47 @@ func TestDMNotifications(t *testing.T) {
 		}
 	})
 
+	t.Run("DM message does not notify do not disturb participants", func(t *testing.T) {
+		if err := core.SetPresence(ctx, user2.Id, PresenceStatusDoNotDisturb); err != nil {
+			t.Fatalf("SetPresence DND: %v", err)
+		}
+		before, err := core.GetNotifications(ctx, user2.Id)
+		if err != nil {
+			t.Fatalf("GetNotifications before DND DM: %v", err)
+		}
+
+		notificationReceived := make(chan bool, 1)
+		sub, err := nc.Subscribe(subjects.LiveSyncUserEvent(user2.Id, "dm_message"), func(msg *nats.Msg) {
+			notificationReceived <- true
+		})
+		if err != nil {
+			t.Fatalf("Failed to subscribe: %v", err)
+		}
+		defer sub.Unsubscribe()
+		if err := nc.Flush(); err != nil {
+			t.Fatalf("Flush subscription: %v", err)
+		}
+
+		_, err = core.PostMessage(ctx, KindDM, room.Id, user1.Id, "DND DM notification message", nil, "", "", nil, false)
+		if err != nil {
+			t.Fatalf("Failed to post DND message: %v", err)
+		}
+
+		select {
+		case <-notificationReceived:
+			t.Error("Expected no DM live notification for DND user")
+		case <-time.After(200 * time.Millisecond):
+		}
+
+		after, err := core.GetNotifications(ctx, user2.Id)
+		if err != nil {
+			t.Fatalf("GetNotifications after DND DM: %v", err)
+		}
+		if len(after) != len(before) {
+			t.Fatalf("notifications after DND DM = %d, want %d", len(after), len(before))
+		}
+	})
+
 	t.Run("DM message does not notify sender", func(t *testing.T) {
 		// Subscribe to user1's notification subject (the sender)
 		notificationReceived := make(chan bool, 1)

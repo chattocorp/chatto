@@ -112,8 +112,16 @@ func (s *PresenceService) GetUserPresence(ctx context.Context, userID string) (s
 // SetPresence writes/refreshes a user's live presence in MEMORY_CACHE.
 // Authorization: Caller must verify the user is authenticated before calling.
 func (s *PresenceService) SetPresence(ctx context.Context, userID string, status string) error {
+	return s.SetPresenceWithOptions(ctx, userID, status, false)
+}
+
+// SetPresenceWithOptions writes/refreshes a user's live presence in MEMORY_CACHE.
+// manuallySet marks explicit user-selected Away/DND so automatic reports from
+// other clients do not overwrite the user's chosen availability.
+func (s *PresenceService) SetPresenceWithOptions(ctx context.Context, userID string, status string, manuallySet bool) error {
 	presence := &corev1.UserPresence{
-		Status: presenceStatusFromString(status),
+		Status:      presenceStatusFromString(status),
+		ManuallySet: manuallySet && status != PresenceStatusOnline,
 	}
 
 	data, err := proto.Marshal(presence)
@@ -121,7 +129,7 @@ func (s *PresenceService) SetPresence(ctx context.Context, userID string, status
 		return fmt.Errorf("failed to marshal presence: %w", err)
 	}
 
-	return s.writePresence(ctx, presenceKey(userID), data)
+	return s.writePresence(ctx, presenceKey(userID), data, manuallySet)
 }
 
 // refreshPresence reads the current presence value from KV and re-puts it
@@ -157,7 +165,7 @@ func (s *PresenceService) refreshPresence(ctx context.Context, userID string) er
 	return nil
 }
 
-func (s *PresenceService) writePresence(ctx context.Context, key string, data []byte) error {
+func (s *PresenceService) writePresence(ctx context.Context, key string, data []byte, forceOverwrite bool) error {
 	for attempt := 0; attempt < maxPresenceWriteRetries; attempt++ {
 		entry, err := s.memoryCacheKV.Get(ctx, key)
 		if err != nil {
@@ -171,6 +179,10 @@ func (s *PresenceService) writePresence(ctx context.Context, key string, data []
 			return fmt.Errorf("failed to read presence: %w", err)
 		}
 
+		if !forceOverwrite && shouldIgnoreAutomaticPresenceWrite(entry.Value(), data) {
+			return nil
+		}
+
 		_, err = s.putPresenceWithTTL(ctx, key, data, entry.Revision())
 		if err == nil {
 			return nil
@@ -182,6 +194,21 @@ func (s *PresenceService) writePresence(ctx context.Context, key string, data []
 	}
 
 	return fmt.Errorf("presence update failed after %d retries", maxPresenceWriteRetries)
+}
+
+func shouldIgnoreAutomaticPresenceWrite(existingData, incomingData []byte) bool {
+	var existing corev1.UserPresence
+	if err := proto.Unmarshal(existingData, &existing); err != nil {
+		return false
+	}
+	if !existing.ManuallySet {
+		return false
+	}
+	var incoming corev1.UserPresence
+	if err := proto.Unmarshal(incomingData, &incoming); err != nil {
+		return false
+	}
+	return !incoming.ManuallySet
 }
 
 func (s *PresenceService) putPresenceWithTTL(ctx context.Context, key string, data []byte, revision uint64) (uint64, error) {
@@ -208,6 +235,10 @@ func (c *ChattoCore) GetUserPresence(ctx context.Context, userID string) (string
 // Authorization: Caller must verify the user is authenticated before calling.
 func (c *ChattoCore) SetPresence(ctx context.Context, userID string, status string) error {
 	return c.presenceService.SetPresence(ctx, userID, status)
+}
+
+func (c *ChattoCore) SetPresenceWithOptions(ctx context.Context, userID string, status string, manuallySet bool) error {
+	return c.presenceService.SetPresenceWithOptions(ctx, userID, status, manuallySet)
 }
 
 func (c *ChattoCore) refreshPresence(ctx context.Context, userID string) error {

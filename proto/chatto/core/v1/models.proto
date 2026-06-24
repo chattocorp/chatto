@@ -182,6 +182,7 @@ enum UserPresenceStatus {
 // Stored under presence.{userId} in MEMORY_CACHE.
 message UserPresence {
   UserPresenceStatus status = 1;
+  bool manually_set = 2;
 }
 
 // PresenceChange represents a change in a user's presence status.

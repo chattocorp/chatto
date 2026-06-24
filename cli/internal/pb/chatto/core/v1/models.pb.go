@@ -1157,6 +1157,7 @@ func (x *Role) GetPingable() bool {
 type UserPresence struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Status        UserPresenceStatus     `protobuf:"varint,1,opt,name=status,proto3,enum=chatto.core.v1.UserPresenceStatus" json:"status,omitempty"`
+	ManuallySet   bool                   `protobuf:"varint,2,opt,name=manually_set,json=manuallySet,proto3" json:"manually_set,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1196,6 +1197,13 @@ func (x *UserPresence) GetStatus() UserPresenceStatus {
 		return x.Status
 	}
 	return UserPresenceStatus_USER_PRESENCE_STATUS_UNSPECIFIED
+}
+
+func (x *UserPresence) GetManuallySet() bool {
+	if x != nil {
+		return x.ManuallySet
+	}
+	return false
 }
 
 // PresenceChange represents a change in a user's presence status.
@@ -2379,9 +2387,10 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x1a\n" +
 	"\bposition\x18\x04 \x01(\x05R\bposition\x12\x1a\n" +
-	"\bpingable\x18\x05 \x01(\bR\bpingable\"J\n" +
+	"\bpingable\x18\x05 \x01(\bR\bpingable\"m\n" +
 	"\fUserPresence\x12:\n" +
-	"\x06status\x18\x01 \x01(\x0e2\".chatto.core.v1.UserPresenceStatusR\x06status\"A\n" +
+	"\x06status\x18\x01 \x01(\x0e2\".chatto.core.v1.UserPresenceStatusR\x06status\x12!\n" +
+	"\fmanually_set\x18\x02 \x01(\bR\vmanuallySet\"A\n" +
 	"\x0ePresenceChange\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\"\xbe\x01\n" +

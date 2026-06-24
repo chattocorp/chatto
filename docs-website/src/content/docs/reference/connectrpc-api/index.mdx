@@ -26,6 +26,15 @@ Reads and updates per-room notification preferences for the current user.
 | [`SetRoomNotificationLevel`](notification-preferences-service/#setroomnotificationlevel) | Sets the current user's explicit notification level for a room and returns the resulting stored and effective levels. |
 
 
+### [PresenceService](presence-service/)
+
+Lets clients report the authenticated user's current live presence.
+
+| Method | Description |
+| --- | --- |
+| [`ReportPresence`](presence-service/#reportpresence) | Reports the current user's live presence status. This state is transient: clients should refresh it periodically while visible, and should stop calling this RPC when the user chooses to appear offline. |
+
+
 ### [ReadStateService](read-state-service/)
 
 Updates room and thread read state for the current user.
