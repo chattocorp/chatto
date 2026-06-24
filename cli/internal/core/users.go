@@ -42,12 +42,22 @@ func DeletedUserReference(userID string) *corev1.User {
 	}
 }
 
-// CreateUser creates a new user.
+func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, displayName, password string) (*corev1.User, error) {
+	return c.createUser(ctx, "", login, displayName, password)
+}
+
+// CreateUserAs creates a user and attributes the durable user events to actorID.
+// Use this for trusted administrative paths; user/self-service creation should
+// keep calling CreateUser so its historical event attribution remains unchanged.
+func (c *ChattoCore) CreateUserAs(ctx context.Context, actorID string, login, displayName, password string) (*corev1.User, error) {
+	return c.createUser(ctx, actorID, login, displayName, password)
+}
+
+// createUser creates a new user.
 // Uses the mentionables projection plus stream-wide OCC to prevent user/role
 // handle collisions across replicas.
 // Password is optional - pass empty string for OAuth-only users.
-// Note: actorID parameter is retained for future use (e.g., admin-created users) but is not currently used.
-func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, displayName, password string) (*corev1.User, error) {
+func (c *ChattoCore) createUser(ctx context.Context, eventActorID string, login, displayName, password string) (*corev1.User, error) {
 	// Trim and validate login (preserve original casing)
 	login = strings.TrimSpace(login)
 	if err := ValidateLogin(login); err != nil {
@@ -97,6 +107,9 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 
 	// Generate user ID upfront
 	userID := NewUserID()
+	if eventActorID == "" {
+		eventActorID = userID
+	}
 
 	now := timestamppb.Now()
 	user := &corev1.User{
@@ -139,15 +152,15 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 
 	piiDEK := &userDEK{epoch: 1, purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, key: piiDEKBytes}
 	agg := events.UserAggregate(userID)
-	messageDEKEvent := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserDekGenerated{
+	messageDEKEvent := newEvent(eventActorID, &corev1.Event{Event: &corev1.Event_UserDekGenerated{
 		UserDekGenerated: wrappedMessageDEK,
 	}})
 	messageDEKEvent.CreatedAt = now
-	piiDEKEvent := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserDekGenerated{
+	piiDEKEvent := newEvent(eventActorID, &corev1.Event{Event: &corev1.Event_UserDekGenerated{
 		UserDekGenerated: wrappedPIIDEK,
 	}})
 	piiDEKEvent.CreatedAt = now
-	accountCreated := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserAccountCreated{
+	accountCreated := newEvent(eventActorID, &corev1.Event{Event: &corev1.Event_UserAccountCreated{
 		UserAccountCreated: &corev1.UserAccountCreatedEvent{UserId: userID},
 	}})
 	accountCreated.CreatedAt = now
@@ -176,7 +189,7 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 		if err != nil {
 			return nil, fmt.Errorf("failed to hash password: %w", err)
 		}
-		passwordChanged := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserPasswordHashChanged{
+		passwordChanged := newEvent(eventActorID, &corev1.Event{Event: &corev1.Event_UserPasswordHashChanged{
 			UserPasswordHashChanged: &corev1.UserPasswordHashChangedEvent{
 				UserId:       userID,
 				PasswordHash: hashedPassword,
@@ -200,10 +213,7 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 		return nil, err
 	}
 
-	// Create and publish audit event (best-effort)
-	// UserCreated goes to INSTANCE stream
-	// The actor is the newly created user (not the caller/system)
-	event := newLiveEvent(userID, &corev1.LiveEvent{
+	event := newLiveEvent(eventActorID, &corev1.LiveEvent{
 		Event: &corev1.LiveEvent_UserCreated{
 			UserCreated: &corev1.UserCreatedEvent{
 				UserId:      userID,
@@ -243,6 +253,22 @@ func (c *ChattoCore) CreateVerifiedUser(ctx context.Context, actorID, login, dis
 	}
 
 	if err := c.AddVerifiedEmailDirect(ctx, user.Id, email); err != nil {
+		c.rollbackUserCreation(ctx, user)
+		return nil, fmt.Errorf("failed to verify email for new user: %w", err)
+	}
+
+	return user, nil
+}
+
+// CreateVerifiedUserAs creates a user with an already-verified email and
+// attributes the durable user events to actorID.
+func (c *ChattoCore) CreateVerifiedUserAs(ctx context.Context, actorID, login, displayName, password, email string) (*corev1.User, error) {
+	user, err := c.CreateUserAs(ctx, actorID, login, displayName, password)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := c.AddVerifiedEmailDirectAs(ctx, actorID, user.Id, email); err != nil {
 		c.rollbackUserCreation(ctx, user)
 		return nil, fmt.Errorf("failed to verify email for new user: %w", err)
 	}
@@ -319,6 +345,12 @@ func (c *ChattoCore) GetUserByLogin(ctx context.Context, login string) (*corev1.
 // SetPasswordHash hashes and stores a password for a user.
 // Password hashes are stored separately from user profile data in the user event stream.
 func (c *ChattoCore) SetPasswordHash(ctx context.Context, userID string, password string) error {
+	return c.SetPasswordHashAs(ctx, userID, userID, password)
+}
+
+// SetPasswordHashAs hashes and stores a password for a user, attributing the
+// durable password-change event to actorID.
+func (c *ChattoCore) SetPasswordHashAs(ctx context.Context, actorID, userID string, password string) error {
 	// Validate password strength
 	if err := ValidatePassword(password); err != nil {
 		return err
@@ -336,7 +368,7 @@ func (c *ChattoCore) SetPasswordHash(ctx context.Context, userID string, passwor
 		return fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserPasswordHashChanged{
+	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserPasswordHashChanged{
 		UserPasswordHashChanged: &corev1.UserPasswordHashChangedEvent{
 			UserId:       userID,
 			PasswordHash: hashedPassword,
@@ -683,6 +715,10 @@ func (c *ChattoCore) CheckLoginExists(ctx context.Context, login string) (bool, 
 // UpdateUserDisplayName updates a user's display name.
 // Authorization: Caller should verify the actor is the user being updated.
 func (c *ChattoCore) UpdateUserDisplayName(ctx context.Context, userID, displayName string) (*corev1.User, error) {
+	return c.updateUserDisplayNameAs(ctx, userID, userID, displayName)
+}
+
+func (c *ChattoCore) updateUserDisplayNameAs(ctx context.Context, actorID, userID, displayName string) (*corev1.User, error) {
 	// Normalize and validate display name
 	displayName = NormalizeDisplayName(displayName)
 	if displayName == "" {
@@ -701,7 +737,7 @@ func (c *ChattoCore) UpdateUserDisplayName(ctx context.Context, userID, displayN
 		return nil, fmt.Errorf("user not found: %w", err)
 	}
 
-	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserDisplayNameChanged{
+	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserDisplayNameChanged{
 		UserDisplayNameChanged: &corev1.UserDisplayNameChangedEvent{
 			UserId: userID,
 		},
@@ -729,7 +765,14 @@ func (c *ChattoCore) UpdateUserDisplayName(ctx context.Context, userID, displayN
 // for audit clarity in logs.
 // Authorization: Caller must verify admin privileges.
 func (c *ChattoCore) AdminUpdateUserDisplayName(ctx context.Context, userID, displayName string) (*corev1.User, error) {
-	user, err := c.UpdateUserDisplayName(ctx, userID, displayName)
+	return c.AdminUpdateUserDisplayNameAs(ctx, SystemActorID, userID, displayName)
+}
+
+// AdminUpdateUserDisplayNameAs updates a user's display name as an admin action
+// and attributes the durable profile-change event to actorID.
+// Authorization: Caller must verify admin privileges.
+func (c *ChattoCore) AdminUpdateUserDisplayNameAs(ctx context.Context, actorID, userID, displayName string) (*corev1.User, error) {
+	user, err := c.updateUserDisplayNameAs(ctx, actorID, userID, displayName)
 	if err != nil {
 		return nil, err
 	}
@@ -749,7 +792,7 @@ func userLoginChangedAtKey(userID string) string {
 // UpdateUserLogin changes a user's login/username with 30-day cooldown enforcement.
 // Authorization: Caller should verify the actor is the user being updated.
 func (c *ChattoCore) UpdateUserLogin(ctx context.Context, userID, newLogin string) (*corev1.User, error) {
-	return c.applyLoginChange(ctx, userID, newLogin, true)
+	return c.applyLoginChange(ctx, userID, userID, newLogin, true)
 }
 
 // AdminUpdateUserLogin changes a user's login/username, bypassing the cooldown
@@ -757,7 +800,14 @@ func (c *ChattoCore) UpdateUserLogin(ctx context.Context, userID, newLogin strin
 // rename allowance they had prior to the admin edit.
 // Authorization: Caller must verify admin privileges.
 func (c *ChattoCore) AdminUpdateUserLogin(ctx context.Context, userID, newLogin string) (*corev1.User, error) {
-	user, err := c.applyLoginChange(ctx, userID, newLogin, false)
+	return c.AdminUpdateUserLoginAs(ctx, SystemActorID, userID, newLogin)
+}
+
+// AdminUpdateUserLoginAs changes a user's login/username as an admin action,
+// attributing the durable login-change event to actorID.
+// Authorization: Caller must verify admin privileges.
+func (c *ChattoCore) AdminUpdateUserLoginAs(ctx context.Context, actorID, userID, newLogin string) (*corev1.User, error) {
+	user, err := c.applyLoginChange(ctx, actorID, userID, newLogin, false)
 	if err != nil {
 		return nil, err
 	}
@@ -768,7 +818,7 @@ func (c *ChattoCore) AdminUpdateUserLogin(ctx context.Context, userID, newLogin 
 // applyLoginChange performs the actual login change. When enforceCooldown is
 // true, the 30-day cooldown is checked before changing and a new timestamp is
 // recorded after a successful change.
-func (c *ChattoCore) applyLoginChange(ctx context.Context, userID, newLogin string, enforceCooldown bool) (*corev1.User, error) {
+func (c *ChattoCore) applyLoginChange(ctx context.Context, actorID, userID, newLogin string, enforceCooldown bool) (*corev1.User, error) {
 	// Trim and validate (preserve original casing)
 	newLogin = strings.TrimSpace(newLogin)
 	if err := ValidateLogin(newLogin); err != nil {
@@ -811,7 +861,7 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, userID, newLogin stri
 		}
 	}
 
-	loginChanged := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserLoginChanged{
+	loginChanged := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserLoginChanged{
 		UserLoginChanged: &corev1.UserLoginChangedEvent{
 			UserId: userID,
 		},
@@ -827,7 +877,7 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, userID, newLogin stri
 		Event:   loginChanged,
 	}}
 	if enforceCooldown && !caseOnly {
-		cooldownStarted := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserLoginCooldownStarted{
+		cooldownStarted := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserLoginCooldownStarted{
 			UserLoginCooldownStarted: &corev1.UserLoginCooldownStartedEvent{UserId: userID},
 		}})
 		cooldownStarted.CreatedAt = loginChanged.GetCreatedAt()

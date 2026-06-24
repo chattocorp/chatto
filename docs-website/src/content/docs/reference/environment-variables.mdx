@@ -97,6 +97,18 @@ Built-in automatic TLS via Let's Encrypt. When enabled, Chatto handles certifica
   Expose Go pprof debug endpoints on the metrics listener under `/debug/pprof/`. Keep the metrics listener private and enable this only while profiling.
 </EnvVar>
 
+## Management
+
+The management API is a private Unix-socket API used by local operator CLI commands such as `chatto user create`, `chatto user update`, and `chatto user password`. It is separate from the public web/API listener and is not exposed over CORS or browser cookies.
+
+<EnvVar name="CHATTO_MANAGEMENT_ENABLED" toml="management.enabled" default="true">
+  Start the private local management API inside `chatto run`.
+</EnvVar>
+
+<EnvVar name="CHATTO_MANAGEMENT_SOCKET_PATH" toml="management.socket_path" default=".chatto/admin.sock">
+  Unix socket path for the private management API. Relative config-file paths resolve relative to the `chatto.toml` directory. The server creates the parent directory with private permissions and binds the socket with mode `0600`; existing parent directories must not be accessible by group or other users.
+</EnvVar>
+
 ## Exporter
 
 The exporter exposes deployment-wide Chatto metrics. Run it as `chatto exporter` against external NATS or an exposed embedded NATS TCP listener, or set `exporter.enabled = true` to embed it inside `chatto run` for single-process installs. Clustered deployments should enable the embedded exporter on at most one replica.

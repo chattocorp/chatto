@@ -85,6 +85,18 @@ By the end of this section, your deployment directory will look like this:
 
 </Steps>
 
+## Local User Administration
+
+`chatto run` starts a private management socket at `.chatto/admin.sock` by default. Relative socket paths in `chatto.toml` resolve relative to that config file's directory, and the socket parent directory must be private to the server user. Local operator commands use that socket to ask the running Chatto process to perform user-management writes, so they do not expose administrative methods on the public web/API listener and do not write directly to NATS.
+
+```bash
+./chatto user create -c chatto.toml --login alice --display-name "Alice" --prompt-password
+./chatto user update -c chatto.toml alice --display-name "Alice Liddell"
+./chatto user password -c chatto.toml alice
+```
+
+Run these commands on the server host as a user that can access the socket, or use SSH/`sudo`/systemd service permissions to cross that local boundary intentionally.
+
 ## Running as a systemd Service
 
 For production use on Linux, create a systemd unit to manage the process:

@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+package chatto.management.v1;
+
+// A user record returned by private management-plane user administration calls.
+message ManagedUser {
+  // Stable Chatto user ID.
+  string id = 1;
+  // Login name used for mentions and password sign-in.
+  string login = 2;
+  // Display name shown in clients.
+  string display_name = 3;
+}
+
+// Identifies a user for management operations.
+message UserSelector {
+  oneof selector {
+    // Stable Chatto user ID.
+    string user_id = 1;
+    // Login name. Matching is case-insensitive.
+    string login = 2;
+  }
+}
+
+// Request to create a user from the private management plane.
+message CreateUserRequest {
+  // Login name for the new user.
+  string login = 1;
+  // Display name for the new user. Defaults to login when omitted.
+  string display_name = 2;
+  // Optional initial password. When omitted, the account has no password.
+  string password = 3;
+  // Optional email address to add as already verified.
+  string verified_email = 4;
+}
+
+// Result of creating a user.
+message CreateUserResponse {
+  // Created user.
+  ManagedUser user = 1;
+}
+
+// Request to update a user's login and/or display name.
+message UpdateUserRequest {
+  // User to update.
+  UserSelector user = 1;
+  // New login. Leave empty to keep the current login.
+  string login = 2;
+  // New display name. Leave empty to keep the current display name.
+  string display_name = 3;
+}
+
+// Result of updating a user.
+message UpdateUserResponse {
+  // Updated user.
+  ManagedUser user = 1;
+}
+
+// Request to set a user's password.
+message SetUserPasswordRequest {
+  // User whose password should be replaced.
+  UserSelector user = 1;
+  // New plaintext password. The server validates and hashes it before storage.
+  string password = 2;
+}
+
+// Result of setting a user's password.
+message SetUserPasswordResponse {
+  // User whose password was updated.
+  ManagedUser user = 1;
+}
+
+// Private management-plane service for operator user administration.
+service UserAdminService {
+  // Creates a user through the running Chatto process.
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+  // Updates a user's login and/or display name.
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
+  // Replaces a user's password and revokes existing runtime credentials.
+  rpc SetUserPassword(SetUserPasswordRequest) returns (SetUserPasswordResponse);
+}

@@ -768,6 +768,24 @@ func TestWebserverConfig_EffectivePort(t *testing.T) {
 	}
 }
 
+func TestManagementConfigDefaults(t *testing.T) {
+	var cfg ManagementConfig
+	if !cfg.EnabledOrDefault() {
+		t.Fatal("EnabledOrDefault() = false, want true")
+	}
+	if got := cfg.SocketPathOrDefault(); got != ".chatto/admin.sock" {
+		t.Fatalf("SocketPathOrDefault() = %q, want .chatto/admin.sock", got)
+	}
+
+	disabled := ManagementConfig{Enabled: boolPtr(false), SocketPath: "/tmp/chatto.sock"}
+	if disabled.EnabledOrDefault() {
+		t.Fatal("disabled EnabledOrDefault() = true, want false")
+	}
+	if got := disabled.SocketPathOrDefault(); got != "/tmp/chatto.sock" {
+		t.Fatalf("custom SocketPathOrDefault() = %q, want /tmp/chatto.sock", got)
+	}
+}
+
 func TestWebserverConfig_WebSocketCompressionEnabled(t *testing.T) {
 	tests := []struct {
 		name        string
