@@ -156,7 +156,7 @@ export function roomTimelinePageToEventConnectionPage(page: RoomTimelinePage): E
   };
 }
 
-function roomTimelineEventToRawEvent(
+export function roomTimelineEventToRawEvent(
   event: RoomTimelineEvent,
   users: Record<string, RoomTimelineUser>
 ): RawEvent | null {

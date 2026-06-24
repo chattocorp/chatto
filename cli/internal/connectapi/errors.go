@@ -44,5 +44,11 @@ func connectError(err error) error {
 		errors.Is(err, jetstream.ErrKeyNotFound) {
 		return connect.NewError(connect.CodeNotFound, err)
 	}
+	if errors.Is(err, core.ErrMessageTooLong) {
+		return connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if errors.Is(err, core.ErrRoomArchived) {
+		return connect.NewError(connect.CodeFailedPrecondition, err)
+	}
 	return connect.NewError(connect.CodeInternal, err)
 }

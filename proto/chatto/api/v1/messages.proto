@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "chatto/api/v1/room_timeline.proto";
+
+// Link preview metadata submitted with a posted message.
+//
+// The server validates and stores this data with the message body. Clients
+// should omit this field when no preview was selected.
+message MessageLinkPreviewInput {
+  // Previewed URL.
+  string url = 1;
+  // Page or embed title.
+  string title = 2;
+  // Page or embed description.
+  string description = 3;
+  // Site name, when known.
+  string site_name = 4;
+  // Existing server asset ID for the preview image, when available.
+  string image_asset_id = 5;
+  // Embed provider or type, when recognized.
+  string embed_type = 6;
+  // Provider-specific embed ID, when recognized.
+  string embed_id = 7;
+}
+
+// Request to post a message in a room or thread.
+//
+// Current browser file uploads still use the legacy GraphQL upload path. This
+// request can reference attachment asset IDs that were already declared through
+// an upload-capable API, so non-browser clients can compose messages around
+// existing room-scoped assets.
+message PostMessageRequest {
+  // Room where the message should be posted.
+  string room_id = 1;
+  // Message body text. Required unless attachment_asset_ids is non-empty.
+  string body = 2;
+  // Existing room-scoped attachment asset IDs to include with the message.
+  repeated string attachment_asset_ids = 3;
+  // Event ID of the thread root message when posting a thread reply.
+  string thread_root_event_id = 4;
+  // Event ID this message replies to for attribution.
+  string in_reply_to = 5;
+  // True to also echo a thread reply into the main room timeline.
+  bool also_send_to_channel = 6;
+  // Short-lived token returned by a prior mention confirmation challenge.
+  string mention_confirmation_token = 7;
+  // Link preview selected by the client.
+  MessageLinkPreviewInput link_preview = 8;
+}
+
+// Large mention confirmation details for a message that was not posted.
+message MentionConfirmationChallenge {
+  // Number of people the message would notify.
+  int32 recipient_count = 1;
+  // Short-lived token to send back with the same message after user approval.
+  string token = 2;
+}
+
+// Result of posting a message.
+message PostMessageResponse {
+  oneof result {
+    // Renderable timeline event for the posted message.
+    RoomTimelineEvent event = 1;
+    // Challenge shown when a message would notify many people.
+    MentionConfirmationChallenge mention_confirmation = 2;
+  }
+  // Related entities needed to render event when a message was posted.
+  RoomTimelineIncludes includes = 3;
+}
+
+// Posts messages into room and thread timelines.
+service MessageService {
+  // Posts a message for the current user. The user must be a room member and
+  // must have message.post for room messages or message.post-in-thread for
+  // thread replies. Echoing a thread reply also requires message.echo and
+  // message.post.
+  rpc PostMessage(PostMessageRequest) returns (PostMessageResponse);
+}

@@ -38,6 +38,7 @@ func TestAPIHandlers(t *testing.T) {
 	sort.Strings(paths)
 
 	want := []string{
+		"/" + apiv1connect.MessageServiceName + "/",
 		"/" + apiv1connect.NotificationPreferencesServiceName + "/",
 		"/" + apiv1connect.PresenceServiceName + "/",
 		"/" + apiv1connect.ReadStateServiceName + "/",
@@ -260,6 +261,101 @@ func TestRoomTimelineServiceRequiresAuthAndMembership(t *testing.T) {
 	}
 	if _, err := env.timeline.GetRoomEvents(auth.WithUser(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("non-member GetRoomEvents code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	}
+}
+
+func TestMessageServicePostMessageRequiresAuthMembershipAndPermission(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("message-post-authz")
+	req := connect.NewRequest(&apiv1.PostMessageRequest{
+		RoomId: room.Id,
+		Body:   "hello",
+	})
+
+	if _, err := env.messages.PostMessage(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated PostMessage code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
+	}
+
+	outsider, err := env.core.CreateUser(env.ctx, core.SystemActorID, "message-outsider", "Message Outsider", "password")
+	if err != nil {
+		t.Fatalf("CreateUser outsider: %v", err)
+	}
+	if _, err := env.messages.PostMessage(auth.WithUser(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("non-member PostMessage code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	}
+
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessagePost); err != nil {
+		t.Fatalf("DenyRoomPermission: %v", err)
+	}
+	if _, err := env.messages.PostMessage(auth.WithUser(env.ctx, env.viewer), req); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("denied PostMessage code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	}
+}
+
+func TestMessageServicePostMessageValidatesInput(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("message-post-validation")
+	ctx := auth.WithUser(env.ctx, env.viewer)
+
+	tests := []struct {
+		name string
+		req  *apiv1.PostMessageRequest
+		code connect.Code
+	}{
+		{
+			name: "missing room",
+			req:  &apiv1.PostMessageRequest{Body: "hello"},
+			code: connect.CodeInvalidArgument,
+		},
+		{
+			name: "empty body and no attachments",
+			req:  &apiv1.PostMessageRequest{RoomId: room.Id, Body: "   "},
+			code: connect.CodeInvalidArgument,
+		},
+		{
+			name: "channel echo outside thread",
+			req: &apiv1.PostMessageRequest{
+				RoomId:            room.Id,
+				Body:              "hello",
+				AlsoSendToChannel: true,
+			},
+			code: connect.CodeInvalidArgument,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := env.messages.PostMessage(ctx, connect.NewRequest(tt.req)); connect.CodeOf(err) != tt.code {
+				t.Fatalf("PostMessage code = %v, want %v", connect.CodeOf(err), tt.code)
+			}
+		})
+	}
+}
+
+func TestMessageServicePostMessageReturnsRenderableTimelineEvent(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("message-post-success")
+
+	resp, err := env.messages.PostMessage(auth.WithUser(env.ctx, env.viewer), connect.NewRequest(&apiv1.PostMessageRequest{
+		RoomId: room.Id,
+		Body:   "hello over connect",
+	}))
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	event := resp.Msg.GetEvent()
+	if event == nil {
+		t.Fatalf("PostMessage event = nil, response = %+v", resp.Msg)
+	}
+	message := event.GetMessagePosted()
+	if message == nil {
+		t.Fatalf("PostMessage payload = %T, want message_posted", event.GetEvent())
+	}
+	if message.Body != "hello over connect" || !message.BodyPresent {
+		t.Fatalf("message body = %q present=%v, want posted body", message.Body, message.BodyPresent)
+	}
+	if got := resp.Msg.GetIncludes().GetUsers()[env.viewer.Id]; got == nil || got.DisplayName != env.viewer.DisplayName {
+		t.Fatalf("included viewer = %+v, want %q", got, env.viewer.DisplayName)
 	}
 }
 
@@ -853,6 +949,8 @@ func TestConnectErrorMapping(t *testing.T) {
 		{"core not found", core.ErrNotFound, connect.CodeNotFound},
 		{"message not found", core.ErrMessageNotFound, connect.CodeNotFound},
 		{"jetstream key not found", jetstream.ErrKeyNotFound, connect.CodeNotFound},
+		{"message too long", core.ErrMessageTooLong, connect.CodeInvalidArgument},
+		{"room archived", core.ErrRoomArchived, connect.CodeFailedPrecondition},
 		{"unknown", errors.New("boom"), connect.CodeInternal},
 	}
 
@@ -870,6 +968,7 @@ type connectAPITestEnv struct {
 	core      *core.ChattoCore
 	nc        *nats.Conn
 	api       *API
+	messages  *messageService
 	readState *readStateService
 	presence  *presenceService
 	timeline  *roomTimelineService
@@ -906,6 +1005,7 @@ func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
 		core:      c,
 		nc:        nc,
 		api:       api,
+		messages:  &messageService{api: api},
 		readState: &readStateService{api: api},
 		presence:  &presenceService{api: api},
 		timeline:  &roomTimelineService{api: api},

@@ -41,6 +41,7 @@ type ChattoCore struct {
 	encryption         *encryptionManager
 	configManager      *ConfigManager
 	roomService        *RoomService
+	messageService     *MessageService
 	notificationPrefs  *NotificationPreferencesService
 	userService        *UserService
 	rbacService        *RBACService
@@ -1026,6 +1027,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	core.mediaService = NewMediaService(core)
 	core.callService = NewCallService(eventPublisher, callState, callStateProjector, encMgr.callKeys, nil, callReconcileLease, storage.memoryCacheKV, logger.WithPrefix("core.CallService"))
 	core.assetService = NewAssetService(core)
+	core.messageService = &MessageService{core: core}
 	core.notificationPrefs = &NotificationPreferencesService{core: core}
 
 	if err := core.seedDefaultRBAC(ctx); err != nil {
