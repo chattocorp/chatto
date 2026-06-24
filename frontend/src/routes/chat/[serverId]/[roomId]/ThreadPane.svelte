@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { fly } from 'svelte/transition';
-  import { graphql } from '$lib/gql';
+  import { createReadStateAPI } from '$lib/api/readState';
+  import { createThreadAPI } from '$lib/api/threads';
   import { useEvent, createTypingIndicator } from '$lib/hooks';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -186,28 +187,23 @@
     }
   });
 
-  const followThreadMutation = graphql(`
-    mutation FollowThreadFromPane($input: FollowThreadInput!) {
-      followThread(input: $input)
-    }
-  `);
-
-  const unfollowThreadMutation = graphql(`
-    mutation UnfollowThreadFromPane($input: UnfollowThreadInput!) {
-      unfollowThread(input: $input)
-    }
-  `);
-
   async function toggleThreadFollow() {
     const wasFollowing = isFollowingThread;
     isFollowingThread = !wasFollowing;
 
-    const mutation = wasFollowing ? unfollowThreadMutation : followThreadMutation;
-    const result = await connection().client.mutation(mutation, {
-      input: { roomId, threadRootEventId }
-    });
-
-    if (result.error) {
+    try {
+      const conn = connection();
+      const api = createThreadAPI({
+        serverId: conn.serverId ?? getActiveServer(),
+        baseUrl: conn.connectBaseUrl,
+        bearerToken: conn.bearerToken
+      });
+      if (wasFollowing) {
+        await api.unfollowThread({ roomId, threadRootEventId });
+      } else {
+        await api.followThread({ roomId, threadRootEventId });
+      }
+    } catch {
       isFollowingThread = wasFollowing;
     }
   }
@@ -237,23 +233,17 @@
   });
 
   async function markThreadAsRead(currentThreadId: string, upToEventId?: string) {
-    const result = await connection()
-      .client.mutation(
-        graphql(`
-          mutation MarkThreadAsRead($input: MarkThreadAsReadInput!) {
-            markThreadAsRead(input: $input) {
-              previousReadAt
-            }
-          }
-        `),
-        { input: { roomId, threadRootEventId: currentThreadId, upToEventId } }
-      )
-      .toPromise();
-
-    if (result.error) {
-      console.error('Failed to mark thread as read:', result.error);
+    try {
+      const conn = connection();
+      return await createReadStateAPI({
+        serverId: conn.serverId ?? getActiveServer(),
+        baseUrl: conn.connectBaseUrl,
+        bearerToken: conn.bearerToken
+      }).markThreadAsRead({ roomId, threadRootEventId: currentThreadId, upToEventId });
+    } catch (err) {
+      console.error('Failed to mark thread as read:', err);
+      return null;
     }
-    return result.data?.markThreadAsRead ?? null;
   }
 
   // Fire mark-thread-as-read on every presence-true edge (fresh open or

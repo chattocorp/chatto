@@ -54,6 +54,7 @@
   import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
   import { shouldHighlightCurrentUserMention } from './messageMentionHighlight';
   import { selectedQuoteTextForMessageBody } from './selectedReplyQuote';
+  import { createThreadAPI } from '$lib/api/threads';
   import * as m from '$lib/i18n/messages';
 
   // Long-press thresholds in milliseconds
@@ -315,29 +316,24 @@
     }
   });
 
-  const followThreadMutation = graphql(`
-    mutation FollowThread($input: FollowThreadInput!) {
-      followThread(input: $input)
-    }
-  `);
-
-  const unfollowThreadMutation = graphql(`
-    mutation UnfollowThread($input: UnfollowThreadInput!) {
-      unfollowThread(input: $input)
-    }
-  `);
-
   async function toggleThreadFollow(e: MouseEvent) {
     e.stopPropagation();
     const wasFollowing = isFollowingThread;
     isFollowingThread = !wasFollowing;
 
-    const mutation = wasFollowing ? unfollowThreadMutation : followThreadMutation;
-    const result = await connection().client.mutation(mutation, {
-      input: { roomId, threadRootEventId: event.id }
-    });
-
-    if (result.error) {
+    try {
+      const conn = connection();
+      const api = createThreadAPI({
+        serverId: conn.serverId ?? getActiveServer(),
+        baseUrl: conn.connectBaseUrl,
+        bearerToken: conn.bearerToken
+      });
+      if (wasFollowing) {
+        await api.unfollowThread({ roomId, threadRootEventId: event.id });
+      } else {
+        await api.followThread({ roomId, threadRootEventId: event.id });
+      }
+    } catch {
       isFollowingThread = wasFollowing;
     }
   }

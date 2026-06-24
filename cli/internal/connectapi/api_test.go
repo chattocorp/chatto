@@ -38,8 +38,10 @@ func TestAPIHandlers(t *testing.T) {
 
 	want := []string{
 		"/" + apiv1connect.NotificationPreferencesServiceName + "/",
+		"/" + apiv1connect.ReadStateServiceName + "/",
 		"/" + apiv1connect.RoomTimelineServiceName + "/",
 		"/" + apiv1connect.ServerServiceName + "/",
+		"/" + apiv1connect.ThreadServiceName + "/",
 	}
 	sort.Strings(want)
 	if strings.Join(paths, ",") != strings.Join(want, ",") {
@@ -455,6 +457,230 @@ func TestRoomTimelineServiceHydratesProcessedVideoAttachments(t *testing.T) {
 	}
 }
 
+func TestReadStateServiceRequiresAuthAndMembership(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("read-state-authz")
+
+	req := connect.NewRequest(&apiv1.MarkRoomAsReadRequest{RoomId: room.Id})
+	if _, err := env.readState.MarkRoomAsRead(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated MarkRoomAsRead code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
+	}
+
+	outsider, err := env.core.CreateUser(env.ctx, core.SystemActorID, "read-state-outsider", "Read State Outsider", "password")
+	if err != nil {
+		t.Fatalf("CreateUser outsider: %v", err)
+	}
+	if _, err := env.readState.MarkRoomAsRead(auth.WithUser(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("non-member MarkRoomAsRead code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	}
+}
+
+func TestReadStateServiceMarkRoomAsReadAnchorsAndDoesNotRegress(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("read-state-room")
+
+	reader, err := env.core.CreateUser(env.ctx, core.SystemActorID, "read-state-reader", "Read State Reader", "password")
+	if err != nil {
+		t.Fatalf("CreateUser reader: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, reader.Id, core.KindChannel, reader.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom reader: %v", err)
+	}
+
+	e1 := env.post(room.Id, env.viewer.Id, "one", "")
+	if err := env.core.SetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id, e1.Id); err != nil {
+		t.Fatalf("seed read marker: %v", err)
+	}
+	e2 := env.post(room.Id, env.viewer.Id, "two", "")
+	e3 := env.post(room.Id, env.viewer.Id, "three", "")
+
+	ctx := auth.WithUser(env.ctx, reader)
+	resp, err := env.readState.MarkRoomAsRead(ctx, connect.NewRequest(&apiv1.MarkRoomAsReadRequest{
+		RoomId:      room.Id,
+		UpToEventId: e2.Id,
+	}))
+	if err != nil {
+		t.Fatalf("MarkRoomAsRead e2: %v", err)
+	}
+	if resp.Msg.LastReadAt == nil || resp.Msg.PreviousLastReadAt == nil {
+		t.Fatalf("timestamps = last %v previous %v, want both set", resp.Msg.LastReadAt, resp.Msg.PreviousLastReadAt)
+	}
+	if got, err := env.core.GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id); err != nil || got != e2.Id {
+		t.Fatalf("marker after e2 = %q, %v; want %s", got, err, e2.Id)
+	}
+
+	if _, err := env.readState.MarkRoomAsRead(ctx, connect.NewRequest(&apiv1.MarkRoomAsReadRequest{
+		RoomId:      room.Id,
+		UpToEventId: e1.Id,
+	})); err != nil {
+		t.Fatalf("MarkRoomAsRead stale e1: %v", err)
+	}
+	if got, err := env.core.GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id); err != nil || got != e2.Id {
+		t.Fatalf("marker after stale e1 = %q, %v; want %s", got, err, e2.Id)
+	}
+
+	reply := env.post(room.Id, env.viewer.Id, "reply", e2.Id)
+	if _, err := env.readState.MarkRoomAsRead(ctx, connect.NewRequest(&apiv1.MarkRoomAsReadRequest{
+		RoomId:      room.Id,
+		UpToEventId: reply.Id,
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("MarkRoomAsRead reply anchor code = %v, want %v", connect.CodeOf(err), connect.CodeInvalidArgument)
+	}
+	if got, err := env.core.GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id); err != nil || got != e2.Id {
+		t.Fatalf("marker after reply anchor = %q, %v; want %s", got, err, e2.Id)
+	}
+
+	if _, err := env.readState.MarkRoomAsRead(ctx, connect.NewRequest(&apiv1.MarkRoomAsReadRequest{
+		RoomId:      room.Id,
+		UpToEventId: "missing-event",
+	})); err != nil {
+		t.Fatalf("MarkRoomAsRead missing event fallback: %v", err)
+	}
+	if got, err := env.core.GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id); err != nil || got != e3.Id {
+		t.Fatalf("marker after missing event fallback = %q, %v; want %s", got, err, e3.Id)
+	}
+}
+
+func TestReadStateServiceMarkThreadAsReadAnchorsAndDoesNotRegress(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("read-state-thread")
+
+	reader, err := env.core.CreateUser(env.ctx, core.SystemActorID, "read-state-thread-reader", "Read State Thread Reader", "password")
+	if err != nil {
+		t.Fatalf("CreateUser reader: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, reader.Id, core.KindChannel, reader.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom reader: %v", err)
+	}
+
+	root := env.post(room.Id, env.viewer.Id, "root", "")
+	reply1 := env.post(room.Id, env.viewer.Id, "reply one", root.Id)
+	reply2 := env.post(room.Id, env.viewer.Id, "reply two", root.Id)
+
+	ctx := auth.WithUser(env.ctx, reader)
+	resp, err := env.readState.MarkThreadAsRead(ctx, connect.NewRequest(&apiv1.MarkThreadAsReadRequest{
+		RoomId:            room.Id,
+		ThreadRootEventId: root.Id,
+		UpToEventId:       reply2.Id,
+	}))
+	if err != nil {
+		t.Fatalf("MarkThreadAsRead reply2: %v", err)
+	}
+	if resp.Msg.PreviousReadAt != nil {
+		t.Fatalf("first previous read at = %v, want nil", resp.Msg.PreviousReadAt)
+	}
+	marker2, err := env.core.GetThreadLastOpened(env.ctx, core.KindChannel, reader.Id, room.Id, root.Id)
+	if err != nil {
+		t.Fatalf("GetThreadLastOpened after reply2: %v", err)
+	}
+
+	resp, err = env.readState.MarkThreadAsRead(ctx, connect.NewRequest(&apiv1.MarkThreadAsReadRequest{
+		RoomId:            room.Id,
+		ThreadRootEventId: root.Id,
+		UpToEventId:       reply1.Id,
+	}))
+	if err != nil {
+		t.Fatalf("MarkThreadAsRead stale reply1: %v", err)
+	}
+	if resp.Msg.PreviousReadAt == nil {
+		t.Fatalf("second previous read at = nil, want previous marker")
+	}
+	markerAfter, err := env.core.GetThreadLastOpened(env.ctx, core.KindChannel, reader.Id, room.Id, root.Id)
+	if err != nil {
+		t.Fatalf("GetThreadLastOpened after stale reply1: %v", err)
+	}
+	if !markerAfter.Equal(marker2) {
+		t.Fatalf("thread marker regressed from %v to %v", marker2, markerAfter)
+	}
+
+	otherRoot := env.post(room.Id, env.viewer.Id, "other root", "")
+	otherReply := env.post(room.Id, env.viewer.Id, "other reply", otherRoot.Id)
+	if _, err := env.readState.MarkThreadAsRead(ctx, connect.NewRequest(&apiv1.MarkThreadAsReadRequest{
+		RoomId:            room.Id,
+		ThreadRootEventId: root.Id,
+		UpToEventId:       otherReply.Id,
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("MarkThreadAsRead cross-thread anchor code = %v, want %v", connect.CodeOf(err), connect.CodeInvalidArgument)
+	}
+	markerAfterInvalid, err := env.core.GetThreadLastOpened(env.ctx, core.KindChannel, reader.Id, room.Id, root.Id)
+	if err != nil {
+		t.Fatalf("GetThreadLastOpened after invalid anchor: %v", err)
+	}
+	if !markerAfterInvalid.Equal(marker2) {
+		t.Fatalf("thread marker changed after invalid anchor from %v to %v", marker2, markerAfterInvalid)
+	}
+}
+
+func TestThreadServiceRequiresMembershipAndTogglesFollowState(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("thread-follow")
+	root := env.post(room.Id, env.viewer.Id, "root", "")
+	reply := env.post(room.Id, env.viewer.Id, "reply", root.Id)
+
+	req := connect.NewRequest(&apiv1.FollowThreadRequest{
+		RoomId:            room.Id,
+		ThreadRootEventId: root.Id,
+	})
+	if _, err := env.threads.FollowThread(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated FollowThread code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
+	}
+
+	outsider, err := env.core.CreateUser(env.ctx, core.SystemActorID, "thread-follow-outsider", "Thread Follow Outsider", "password")
+	if err != nil {
+		t.Fatalf("CreateUser outsider: %v", err)
+	}
+	if _, err := env.threads.FollowThread(auth.WithUser(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("non-member FollowThread code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	}
+
+	ctx := auth.WithUser(env.ctx, env.viewer)
+	if _, err := env.threads.FollowThread(ctx, connect.NewRequest(&apiv1.FollowThreadRequest{
+		RoomId:            room.Id,
+		ThreadRootEventId: "missing-root",
+	})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("missing root FollowThread code = %v, want %v", connect.CodeOf(err), connect.CodeNotFound)
+	}
+	if _, err := env.threads.FollowThread(ctx, connect.NewRequest(&apiv1.FollowThreadRequest{
+		RoomId:            room.Id,
+		ThreadRootEventId: reply.Id,
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("reply root FollowThread code = %v, want %v", connect.CodeOf(err), connect.CodeInvalidArgument)
+	}
+
+	followResp, err := env.threads.FollowThread(ctx, req)
+	if err != nil {
+		t.Fatalf("FollowThread: %v", err)
+	}
+	if !followResp.Msg.Following {
+		t.Fatalf("FollowThread following = false, want true")
+	}
+	isFollowing, err := env.core.IsFollowingThread(env.ctx, core.KindChannel, env.viewer.Id, room.Id, root.Id)
+	if err != nil {
+		t.Fatalf("IsFollowingThread after follow: %v", err)
+	}
+	if !isFollowing {
+		t.Fatalf("core follow state = false, want true")
+	}
+
+	unfollowResp, err := env.threads.UnfollowThread(ctx, connect.NewRequest(&apiv1.UnfollowThreadRequest{
+		RoomId:            room.Id,
+		ThreadRootEventId: root.Id,
+	}))
+	if err != nil {
+		t.Fatalf("UnfollowThread: %v", err)
+	}
+	if unfollowResp.Msg.Following {
+		t.Fatalf("UnfollowThread following = true, want false")
+	}
+	isFollowing, err = env.core.IsFollowingThread(env.ctx, core.KindChannel, env.viewer.Id, room.Id, root.Id)
+	if err != nil {
+		t.Fatalf("IsFollowingThread after unfollow: %v", err)
+	}
+	if isFollowing {
+		t.Fatalf("core follow state = true, want false")
+	}
+}
+
 func TestNotificationLevelMapping(t *testing.T) {
 	valid := []struct {
 		name string
@@ -525,12 +751,14 @@ func TestConnectErrorMapping(t *testing.T) {
 }
 
 type connectAPITestEnv struct {
-	ctx      context.Context
-	core     *core.ChattoCore
-	nc       *nats.Conn
-	api      *API
-	timeline *roomTimelineService
-	viewer   *corev1.User
+	ctx       context.Context
+	core      *core.ChattoCore
+	nc        *nats.Conn
+	api       *API
+	readState *readStateService
+	timeline  *roomTimelineService
+	threads   *threadService
+	viewer    *corev1.User
 }
 
 func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
@@ -557,12 +785,14 @@ func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
 	}
 	api := New(c, config.ChattoConfig{}, "test")
 	return &connectAPITestEnv{
-		ctx:      ctx,
-		core:     c,
-		nc:       nc,
-		api:      api,
-		timeline: &roomTimelineService{api: api},
-		viewer:   viewer,
+		ctx:       ctx,
+		core:      c,
+		nc:        nc,
+		api:       api,
+		readState: &readStateService{api: api},
+		timeline:  &roomTimelineService{api: api},
+		threads:   &threadService{api: api},
+		viewer:    viewer,
 	}
 }
 
