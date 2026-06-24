@@ -17,6 +17,10 @@ func (e *StringLengthError) Error() string {
 	return fmt.Sprintf("%s cannot exceed %d bytes", e.Field, e.Max)
 }
 
+func (e *StringLengthError) Is(target error) bool {
+	return target == ErrInvalidArgument
+}
+
 func validateStringMaxLength(field, value string, max int) error {
 	if len(value) > max {
 		return &StringLengthError{Field: field, Max: max}
