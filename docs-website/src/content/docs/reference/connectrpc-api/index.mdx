@@ -67,3 +67,13 @@ Manages thread follow state for the current user.
 | [`UnfollowThread`](thread-service/#unfollowthread) | Stops following a thread for the current user. The response reports the resulting follow state so clients can update local UI immediately. |
 
 
+### [UserStatusService](user-status-service/)
+
+Manages the current user's custom profile status.
+
+| Method | Description |
+| --- | --- |
+| [`SetCustomStatus`](user-status-service/#setcustomstatus) | Sets or replaces the current user's custom status. Emoji and text are required, and expires_at must be omitted or in the future. |
+| [`ClearCustomStatus`](user-status-service/#clearcustomstatus) | Clears the current user's custom status. The call is idempotent and returns the resulting empty status state. |
+
+

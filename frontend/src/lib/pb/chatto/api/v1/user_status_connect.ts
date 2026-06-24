@@ -7,12 +7,17 @@ import { ClearCustomStatusRequest, ClearCustomStatusResponse, SetCustomStatusReq
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
+ * Manages the current user's custom profile status.
+ *
  * @generated from service chatto.api.v1.UserStatusService
  */
 export const UserStatusService = {
   typeName: "chatto.api.v1.UserStatusService",
   methods: {
     /**
+     * Sets or replaces the current user's custom status. Emoji and text are
+     * required, and expires_at must be omitted or in the future.
+     *
      * @generated from rpc chatto.api.v1.UserStatusService.SetCustomStatus
      */
     setCustomStatus: {
@@ -22,6 +27,9 @@ export const UserStatusService = {
       kind: MethodKind.Unary,
     },
     /**
+     * Clears the current user's custom status. The call is idempotent and returns
+     * the resulting empty status state.
+     *
      * @generated from rpc chatto.api.v1.UserStatusService.ClearCustomStatus
      */
     clearCustomStatus: {

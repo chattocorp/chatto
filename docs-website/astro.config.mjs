@@ -53,6 +53,7 @@ export default defineConfig({
                 "reference/connectrpc-api/room-timeline-service",
                 "reference/connectrpc-api/server-service",
                 "reference/connectrpc-api/thread-service",
+                "reference/connectrpc-api/user-status-service",
               ],
             },
             "reference/environment-variables",

@@ -7,20 +7,28 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 
 /**
+ * Custom status shown on a user profile, separate from presence.
+ *
  * @generated from message chatto.api.v1.CustomUserStatus
  */
 export class CustomUserStatus extends Message<CustomUserStatus> {
   /**
+   * Short emoji marker displayed with the status.
+   *
    * @generated from field: string emoji = 1;
    */
   emoji = "";
 
   /**
+   * User-written status text.
+   *
    * @generated from field: string text = 2;
    */
   text = "";
 
   /**
+   * Optional time after which clients should stop showing the status.
+   *
    * @generated from field: google.protobuf.Timestamp expires_at = 3;
    */
   expiresAt?: Timestamp;
@@ -56,20 +64,28 @@ export class CustomUserStatus extends Message<CustomUserStatus> {
 }
 
 /**
+ * Request to set or replace the current user's custom status.
+ *
  * @generated from message chatto.api.v1.SetCustomStatusRequest
  */
 export class SetCustomStatusRequest extends Message<SetCustomStatusRequest> {
   /**
+   * Short emoji marker displayed with the status.
+   *
    * @generated from field: string emoji = 1;
    */
   emoji = "";
 
   /**
+   * User-written status text.
+   *
    * @generated from field: string text = 2;
    */
   text = "";
 
   /**
+   * Optional future time after which clients should stop showing the status.
+   *
    * @generated from field: google.protobuf.Timestamp expires_at = 3;
    */
   expiresAt?: Timestamp;
@@ -105,10 +121,14 @@ export class SetCustomStatusRequest extends Message<SetCustomStatusRequest> {
 }
 
 /**
+ * Result of setting the current user's custom status.
+ *
  * @generated from message chatto.api.v1.SetCustomStatusResponse
  */
 export class SetCustomStatusResponse extends Message<SetCustomStatusResponse> {
   /**
+   * Stored custom status after validation and normalization.
+   *
    * @generated from field: chatto.api.v1.CustomUserStatus status = 1;
    */
   status?: CustomUserStatus;
@@ -142,6 +162,8 @@ export class SetCustomStatusResponse extends Message<SetCustomStatusResponse> {
 }
 
 /**
+ * Request to clear the current user's custom status.
+ *
  * @generated from message chatto.api.v1.ClearCustomStatusRequest
  */
 export class ClearCustomStatusRequest extends Message<ClearCustomStatusRequest> {
@@ -173,10 +195,14 @@ export class ClearCustomStatusRequest extends Message<ClearCustomStatusRequest> 
 }
 
 /**
+ * Result of clearing the current user's custom status.
+ *
  * @generated from message chatto.api.v1.ClearCustomStatusResponse
  */
 export class ClearCustomStatusResponse extends Message<ClearCustomStatusResponse> {
   /**
+   * Current custom status after the operation. Usually absent after a clear.
+   *
    * @generated from field: chatto.api.v1.CustomUserStatus status = 1;
    */
   status?: CustomUserStatus;

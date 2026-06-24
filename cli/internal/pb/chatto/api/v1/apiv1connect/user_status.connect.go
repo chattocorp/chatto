@@ -43,7 +43,11 @@ const (
 
 // UserStatusServiceClient is a client for the chatto.api.v1.UserStatusService service.
 type UserStatusServiceClient interface {
+	// Sets or replaces the current user's custom status. Emoji and text are
+	// required, and expires_at must be omitted or in the future.
 	SetCustomStatus(context.Context, *connect.Request[v1.SetCustomStatusRequest]) (*connect.Response[v1.SetCustomStatusResponse], error)
+	// Clears the current user's custom status. The call is idempotent and returns
+	// the resulting empty status state.
 	ClearCustomStatus(context.Context, *connect.Request[v1.ClearCustomStatusRequest]) (*connect.Response[v1.ClearCustomStatusResponse], error)
 }
 
@@ -91,7 +95,11 @@ func (c *userStatusServiceClient) ClearCustomStatus(ctx context.Context, req *co
 
 // UserStatusServiceHandler is an implementation of the chatto.api.v1.UserStatusService service.
 type UserStatusServiceHandler interface {
+	// Sets or replaces the current user's custom status. Emoji and text are
+	// required, and expires_at must be omitted or in the future.
 	SetCustomStatus(context.Context, *connect.Request[v1.SetCustomStatusRequest]) (*connect.Response[v1.SetCustomStatusResponse], error)
+	// Clears the current user's custom status. The call is idempotent and returns
+	// the resulting empty status state.
 	ClearCustomStatus(context.Context, *connect.Request[v1.ClearCustomStatusRequest]) (*connect.Response[v1.ClearCustomStatusResponse], error)
 }
 

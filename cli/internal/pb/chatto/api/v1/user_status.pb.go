@@ -22,10 +22,14 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Custom status shown on a user profile, separate from presence.
 type CustomUserStatus struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Emoji         string                 `protobuf:"bytes,1,opt,name=emoji,proto3" json:"emoji,omitempty"`
-	Text          string                 `protobuf:"bytes,2,opt,name=text,proto3" json:"text,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Short emoji marker displayed with the status.
+	Emoji string `protobuf:"bytes,1,opt,name=emoji,proto3" json:"emoji,omitempty"`
+	// User-written status text.
+	Text string `protobuf:"bytes,2,opt,name=text,proto3" json:"text,omitempty"`
+	// Optional time after which clients should stop showing the status.
 	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -82,10 +86,14 @@ func (x *CustomUserStatus) GetExpiresAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// Request to set or replace the current user's custom status.
 type SetCustomStatusRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Emoji         string                 `protobuf:"bytes,1,opt,name=emoji,proto3" json:"emoji,omitempty"`
-	Text          string                 `protobuf:"bytes,2,opt,name=text,proto3" json:"text,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Short emoji marker displayed with the status.
+	Emoji string `protobuf:"bytes,1,opt,name=emoji,proto3" json:"emoji,omitempty"`
+	// User-written status text.
+	Text string `protobuf:"bytes,2,opt,name=text,proto3" json:"text,omitempty"`
+	// Optional future time after which clients should stop showing the status.
 	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -142,9 +150,11 @@ func (x *SetCustomStatusRequest) GetExpiresAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// Result of setting the current user's custom status.
 type SetCustomStatusResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Status        *CustomUserStatus      `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stored custom status after validation and normalization.
+	Status        *CustomUserStatus `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -186,6 +196,7 @@ func (x *SetCustomStatusResponse) GetStatus() *CustomUserStatus {
 	return nil
 }
 
+// Request to clear the current user's custom status.
 type ClearCustomStatusRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -222,9 +233,11 @@ func (*ClearCustomStatusRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_user_status_proto_rawDescGZIP(), []int{3}
 }
 
+// Result of clearing the current user's custom status.
 type ClearCustomStatusResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Status        *CustomUserStatus      `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Current custom status after the operation. Usually absent after a clear.
+	Status        *CustomUserStatus `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

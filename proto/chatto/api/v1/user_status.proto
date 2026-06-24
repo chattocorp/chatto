@@ -4,29 +4,47 @@ package chatto.api.v1;
 
 import "google/protobuf/timestamp.proto";
 
+// Custom status shown on a user profile, separate from presence.
 message CustomUserStatus {
+  // Short emoji marker displayed with the status.
   string emoji = 1;
+  // User-written status text.
   string text = 2;
+  // Optional time after which clients should stop showing the status.
   google.protobuf.Timestamp expires_at = 3;
 }
 
+// Request to set or replace the current user's custom status.
 message SetCustomStatusRequest {
+  // Short emoji marker displayed with the status.
   string emoji = 1;
+  // User-written status text.
   string text = 2;
+  // Optional future time after which clients should stop showing the status.
   google.protobuf.Timestamp expires_at = 3;
 }
 
+// Result of setting the current user's custom status.
 message SetCustomStatusResponse {
+  // Stored custom status after validation and normalization.
   CustomUserStatus status = 1;
 }
 
+// Request to clear the current user's custom status.
 message ClearCustomStatusRequest {}
 
+// Result of clearing the current user's custom status.
 message ClearCustomStatusResponse {
+  // Current custom status after the operation. Usually absent after a clear.
   CustomUserStatus status = 1;
 }
 
+// Manages the current user's custom profile status.
 service UserStatusService {
+  // Sets or replaces the current user's custom status. Emoji and text are
+  // required, and expires_at must be omitted or in the future.
   rpc SetCustomStatus(SetCustomStatusRequest) returns (SetCustomStatusResponse);
+  // Clears the current user's custom status. The call is idempotent and returns
+  // the resulting empty status state.
   rpc ClearCustomStatus(ClearCustomStatusRequest) returns (ClearCustomStatusResponse);
 }

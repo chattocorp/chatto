@@ -61,3 +61,9 @@ plugins:
       - ../proto/templates/connectrpc-starlight.md.tmpl,thread-service.mdx
     types:
       - chatto.api.v1.ThreadService
+  - local: ["go", "tool", "-C", "../cli", "protoc-gen-doc"]
+    out: ../docs-website/src/content/docs/reference/connectrpc-api
+    opt:
+      - ../proto/templates/connectrpc-starlight.md.tmpl,user-status-service.mdx
+    types:
+      - chatto.api.v1.UserStatusService
