@@ -61,6 +61,7 @@
     lg: 'text-base',
     xl: 'text-lg'
   };
+  const customStatusBadgeSizes = new Set<Size>(['md', 'lg', 'xl']);
 
   let {
     user,
@@ -96,6 +97,9 @@
 
   const customStatus = $derived(
     user && !user.deleted ? getLiveCustomStatus(user.id, user.customStatus) : null
+  );
+  const showCustomStatusBadge = $derived(
+    showCustomStatus && customStatusBadgeSizes.has(size) && !user.deleted
   );
 
   const badgeColor = $derived(
@@ -146,7 +150,7 @@
         aria-label={presenceLabel}
       ></span>
     {/if}
-    {#if showCustomStatus && !user.deleted}
+    {#if showCustomStatusBadge}
       <UserCustomStatusBadge
         status={customStatus}
         class="{customStatusTextSizeClasses[
