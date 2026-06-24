@@ -42,6 +42,7 @@ Server and CLI Go Components:
 - nativewebp (https://github.com/HugoSmits86/nativewebp) - MIT License
 - opengraph (https://github.com/otiai10/opengraph) - MIT License
 - Prometheus Go client (https://github.com/prometheus/client_golang) - Apache License 2.0
+- protoc-gen-doc (https://github.com/pseudomuto/protoc-gen-doc) - MIT License
 - Testify (https://github.com/stretchr/testify) - MIT License
 - Twirp (https://github.com/twitchtv/twirp) - Apache License 2.0
 - webpush-go (https://github.com/SherClockHolmes/webpush-go) - MIT License

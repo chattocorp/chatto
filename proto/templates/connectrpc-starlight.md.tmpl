@@ -1,13 +1,31 @@
 {{- define "messageDetails" -}}
-{{if .Description}}{{.Description}}{{else}}No message description provided.{{end}}
+{{if .Message.Description}}{{.Message.Description}}{{else}}No message description provided.{{end}}
 
-{{if .HasFields -}}
+{{if .Message.HasFields -}}
 | Field | Type | Description |
 | --- | --- | --- |
-{{range .Fields -}}
-| `{{if .IsOneof}}{{.OneofDecl}}.{{end}}{{.Name}}` | `{{if .IsMap}}map{{else}}{{if .Label}}{{.Label}} {{end}}{{.LongType}}{{end}}` | {{if (index .Options "deprecated"|default false)}}**Deprecated.** {{end}}{{if .Description}}{{nobr .Description}}{{else}}No field description provided.{{end}}{{if .DefaultValue}} Default: `{{.DefaultValue}}`{{end}} |
+{{range .Message.Fields -}}
+| `{{if .IsOneof}}{{.OneofDecl}}.{{end}}{{.Name}}` | `{{template "fieldType" (dict "Field" . "Files" $.Files)}}` | {{if (index .Options "deprecated"|default false)}}**Deprecated.** {{end}}{{if .Description}}{{nobr .Description}}{{else}}No field description provided.{{end}}{{if .DefaultValue}} Default: `{{.DefaultValue}}`{{end}} |
 {{end}}
 {{end}}
+{{- end -}}
+{{- define "fieldType" -}}
+{{- $field := .Field -}}
+{{- if $field.IsMap -}}
+{{- $keyType := "unknown" -}}
+{{- $valueType := "unknown" -}}
+{{- range .Files}}{{range .Messages -}}
+{{- if eq .FullName $field.FullType -}}
+{{- range .Fields -}}
+{{- if eq .Name "key" -}}{{- $keyType = .LongType -}}{{- end -}}
+{{- if eq .Name "value" -}}{{- $valueType = .LongType -}}{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end}}{{end -}}
+map<{{$keyType}}, {{$valueType}}>
+{{- else -}}
+{{- if $field.Label}}{{$field.Label}} {{end}}{{$field.LongType}}
+{{- end -}}
 {{- end -}}
 {{- $title := "ConnectRPC API" -}}
 {{- $description := "Generated reference for Chatto's public ConnectRPC services." -}}
@@ -52,7 +70,7 @@ POST /api/connect/{{$service.FullName}}/{{.Name}}
 
 ##### Input: {{.LongName}}
 
-{{template "messageDetails" .}}
+{{template "messageDetails" (dict "Message" . "Files" $.Files)}}
 {{end}}{{end}}{{end -}}
 
 {{range $.Files}}{{range .Messages}}{{if eq .FullName $method.ResponseFullType -}}
@@ -60,7 +78,7 @@ POST /api/connect/{{$service.FullName}}/{{.Name}}
 
 ##### Result: {{.LongName}}
 
-{{template "messageDetails" .}}
+{{template "messageDetails" (dict "Message" . "Files" $.Files)}}
 {{end}}{{end}}{{end -}}
 
 {{end}}{{end}}{{end -}}
@@ -79,7 +97,7 @@ POST /api/connect/{{$service.FullName}}/{{.Name}}
 
 #### {{.LongName}}
 
-{{template "messageDetails" .}}
+{{template "messageDetails" (dict "Message" . "Files" $.Files)}}
 
 {{end}}{{end}}{{end -}}
 {{end -}}
