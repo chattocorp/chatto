@@ -252,6 +252,138 @@ func TestRoomTimelineServiceHydratesMessagesWithoutClientNPlusOne(t *testing.T) 
 	}
 }
 
+func TestRoomTimelineServiceGetThreadEventsIncludesRootAndPaginatesReplies(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("timeline-thread")
+
+	root := env.post(room.Id, env.viewer.Id, "root", "")
+	reply1 := env.post(room.Id, env.viewer.Id, "reply one", root.Id)
+	reply2 := env.post(room.Id, env.viewer.Id, "reply two", root.Id)
+	reply3 := env.post(room.Id, env.viewer.Id, "reply three", root.Id)
+
+	ctx := auth.WithUser(env.ctx, env.viewer)
+	resp, err := env.timeline.GetThreadEvents(ctx, connect.NewRequest(&apiv1.GetThreadEventsRequest{
+		RoomId:            room.Id,
+		ThreadRootEventId: root.Id,
+		Limit:             2,
+	}))
+	if err != nil {
+		t.Fatalf("GetThreadEvents latest: %v", err)
+	}
+	page := resp.Msg.GetPage()
+	gotIDs := timelinePageEventIDs(page)
+	wantIDs := []string{root.Id, reply2.Id, reply3.Id}
+	if strings.Join(gotIDs, ",") != strings.Join(wantIDs, ",") {
+		t.Fatalf("thread latest event IDs = %v, want %v", gotIDs, wantIDs)
+	}
+	if !page.HasOlder || page.HasNewer {
+		t.Fatalf("thread latest HasOlder/HasNewer = %v/%v, want true/false", page.HasOlder, page.HasNewer)
+	}
+	if page.StartCursor == "" || page.EndCursor == "" {
+		t.Fatalf("thread reply cursors are empty, want reply-window cursors")
+	}
+
+	olderResp, err := env.timeline.GetThreadEvents(ctx, connect.NewRequest(&apiv1.GetThreadEventsRequest{
+		RoomId:            room.Id,
+		ThreadRootEventId: root.Id,
+		Limit:             10,
+		Cursor:            &apiv1.GetThreadEventsRequest_Before{Before: page.StartCursor},
+	}))
+	if err != nil {
+		t.Fatalf("GetThreadEvents before: %v", err)
+	}
+	olderIDs := timelinePageEventIDs(olderResp.Msg.GetPage())
+	wantOlderIDs := []string{reply1.Id}
+	if strings.Join(olderIDs, ",") != strings.Join(wantOlderIDs, ",") {
+		t.Fatalf("thread older event IDs = %v, want %v", olderIDs, wantOlderIDs)
+	}
+	if olderResp.Msg.GetPage().HasOlder {
+		t.Fatalf("older thread page HasOlder = true, want false")
+	}
+}
+
+func TestRoomTimelineServiceGetThreadEventsAroundRootAndReply(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("timeline-thread-around")
+
+	root := env.post(room.Id, env.viewer.Id, "root", "")
+	reply1 := env.post(room.Id, env.viewer.Id, "reply one", root.Id)
+	reply2 := env.post(room.Id, env.viewer.Id, "reply two", root.Id)
+	reply3 := env.post(room.Id, env.viewer.Id, "reply three", root.Id)
+
+	ctx := auth.WithUser(env.ctx, env.viewer)
+	rootResp, err := env.timeline.GetThreadEventsAround(ctx, connect.NewRequest(&apiv1.GetThreadEventsAroundRequest{
+		RoomId:            room.Id,
+		ThreadRootEventId: root.Id,
+		EventId:           root.Id,
+		Limit:             2,
+	}))
+	if err != nil {
+		t.Fatalf("GetThreadEventsAround root: %v", err)
+	}
+	rootIDs := timelinePageEventIDs(rootResp.Msg.GetPage())
+	wantRootIDs := []string{root.Id, reply1.Id, reply2.Id}
+	if strings.Join(rootIDs, ",") != strings.Join(wantRootIDs, ",") {
+		t.Fatalf("root-anchored thread IDs = %v, want %v", rootIDs, wantRootIDs)
+	}
+	if rootResp.Msg.TargetIndex != 0 {
+		t.Fatalf("root target index = %d, want 0", rootResp.Msg.TargetIndex)
+	}
+	if rootResp.Msg.GetPage().HasOlder || !rootResp.Msg.GetPage().HasNewer {
+		t.Fatalf("root-anchored HasOlder/HasNewer = %v/%v, want false/true", rootResp.Msg.GetPage().HasOlder, rootResp.Msg.GetPage().HasNewer)
+	}
+
+	replyResp, err := env.timeline.GetThreadEventsAround(ctx, connect.NewRequest(&apiv1.GetThreadEventsAroundRequest{
+		RoomId:            room.Id,
+		ThreadRootEventId: root.Id,
+		EventId:           reply2.Id,
+		Limit:             3,
+	}))
+	if err != nil {
+		t.Fatalf("GetThreadEventsAround reply: %v", err)
+	}
+	replyIDs := timelinePageEventIDs(replyResp.Msg.GetPage())
+	wantReplyIDs := []string{root.Id, reply1.Id, reply2.Id, reply3.Id}
+	if strings.Join(replyIDs, ",") != strings.Join(wantReplyIDs, ",") {
+		t.Fatalf("reply-anchored thread IDs = %v, want %v", replyIDs, wantReplyIDs)
+	}
+	if replyResp.Msg.TargetIndex != 2 {
+		t.Fatalf("reply target index = %d, want 2", replyResp.Msg.TargetIndex)
+	}
+
+	_, err = env.timeline.GetThreadEventsAround(ctx, connect.NewRequest(&apiv1.GetThreadEventsAroundRequest{
+		RoomId:            room.Id,
+		ThreadRootEventId: root.Id,
+		EventId:           "missing-anchor",
+		Limit:             3,
+	}))
+	if got := connect.CodeOf(err); got != connect.CodeNotFound {
+		t.Fatalf("missing anchor code = %v, want %v", got, connect.CodeNotFound)
+	}
+}
+
+func TestRoomTimelineServiceGetThreadEventsRequiresMembership(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("timeline-thread-authz")
+	root := env.post(room.Id, env.viewer.Id, "root", "")
+
+	req := connect.NewRequest(&apiv1.GetThreadEventsRequest{
+		RoomId:            room.Id,
+		ThreadRootEventId: root.Id,
+	})
+	if _, err := env.timeline.GetThreadEvents(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated GetThreadEvents code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
+	}
+
+	outsider, err := env.core.CreateUser(env.ctx, core.SystemActorID, "thread-outsider", "Thread Outsider", "password")
+	if err != nil {
+		t.Fatalf("CreateUser outsider: %v", err)
+	}
+	if _, err := env.timeline.GetThreadEvents(auth.WithUser(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("non-member GetThreadEvents code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	}
+}
+
 func TestRoomTimelineServiceHydratesProcessedVideoAttachments(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("timeline-video")
@@ -378,6 +510,7 @@ func TestConnectErrorMapping(t *testing.T) {
 		{"permission denied", core.ErrPermissionDenied, connect.CodePermissionDenied},
 		{"not room member", core.ErrNotRoomMember, connect.CodePermissionDenied},
 		{"core not found", core.ErrNotFound, connect.CodeNotFound},
+		{"message not found", core.ErrMessageNotFound, connect.CodeNotFound},
 		{"jetstream key not found", jetstream.ErrKeyNotFound, connect.CodeNotFound},
 		{"unknown", errors.New("boom"), connect.CodeInternal},
 	}
@@ -485,4 +618,12 @@ func timelinePageEvent(page *apiv1.RoomTimelinePage, eventID string) *apiv1.Room
 		}
 	}
 	return nil
+}
+
+func timelinePageEventIDs(page *apiv1.RoomTimelinePage) []string {
+	ids := make([]string, 0, len(page.Events))
+	for _, event := range page.Events {
+		ids = append(ids, event.Id)
+	}
+	return ids
 }

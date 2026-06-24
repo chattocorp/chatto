@@ -32,7 +32,9 @@ func connectError(err error) error {
 	if errors.Is(err, core.ErrPermissionDenied) || errors.Is(err, core.ErrNotRoomMember) {
 		return connect.NewError(connect.CodePermissionDenied, err)
 	}
-	if errors.Is(err, core.ErrNotFound) || errors.Is(err, jetstream.ErrKeyNotFound) {
+	if errors.Is(err, core.ErrNotFound) ||
+		errors.Is(err, core.ErrMessageNotFound) ||
+		errors.Is(err, jetstream.ErrKeyNotFound) {
 		return connect.NewError(connect.CodeNotFound, err)
 	}
 	return connect.NewError(connect.CodeInternal, err)

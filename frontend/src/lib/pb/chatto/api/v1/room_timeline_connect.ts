@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetRoomEventsAroundRequest, GetRoomEventsAroundResponse, GetRoomEventsRequest, GetRoomEventsResponse } from "./room_timeline_pb.js";
+import { GetRoomEventsAroundRequest, GetRoomEventsAroundResponse, GetRoomEventsRequest, GetRoomEventsResponse, GetThreadEventsAroundRequest, GetThreadEventsAroundResponse, GetThreadEventsRequest, GetThreadEventsResponse } from "./room_timeline_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -28,6 +28,24 @@ export const RoomTimelineService = {
       name: "GetRoomEventsAround",
       I: GetRoomEventsAroundRequest,
       O: GetRoomEventsAroundResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc chatto.api.v1.RoomTimelineService.GetThreadEvents
+     */
+    getThreadEvents: {
+      name: "GetThreadEvents",
+      I: GetThreadEventsRequest,
+      O: GetThreadEventsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc chatto.api.v1.RoomTimelineService.GetThreadEventsAround
+     */
+    getThreadEventsAround: {
+      name: "GetThreadEventsAround",
+      I: GetThreadEventsAroundRequest,
+      O: GetThreadEventsAroundResponse,
       kind: MethodKind.Unary,
     },
   }
