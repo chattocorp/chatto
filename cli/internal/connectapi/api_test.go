@@ -350,6 +350,16 @@ func TestRoomTimelineServiceGetThreadEventsAroundRootAndReply(t *testing.T) {
 	if replyResp.Msg.TargetIndex != 2 {
 		t.Fatalf("reply target index = %d, want 2", replyResp.Msg.TargetIndex)
 	}
+
+	_, err = env.timeline.GetThreadEventsAround(ctx, connect.NewRequest(&apiv1.GetThreadEventsAroundRequest{
+		RoomId:            room.Id,
+		ThreadRootEventId: root.Id,
+		EventId:           "missing-anchor",
+		Limit:             3,
+	}))
+	if got := connect.CodeOf(err); got != connect.CodeNotFound {
+		t.Fatalf("missing anchor code = %v, want %v", got, connect.CodeNotFound)
+	}
 }
 
 func TestRoomTimelineServiceGetThreadEventsRequiresMembership(t *testing.T) {
@@ -500,6 +510,7 @@ func TestConnectErrorMapping(t *testing.T) {
 		{"permission denied", core.ErrPermissionDenied, connect.CodePermissionDenied},
 		{"not room member", core.ErrNotRoomMember, connect.CodePermissionDenied},
 		{"core not found", core.ErrNotFound, connect.CodeNotFound},
+		{"message not found", core.ErrMessageNotFound, connect.CodeNotFound},
 		{"jetstream key not found", jetstream.ErrKeyNotFound, connect.CodeNotFound},
 		{"unknown", errors.New("boom"), connect.CodeInternal},
 	}
