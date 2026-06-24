@@ -64,6 +64,7 @@ Please update this section as the project evolves, and refer to it when making d
 
 - Please keep ADRs, FDRs, and other documentation (glossary, docs-website, architecture inventory) up to date.
 - Keep `NOTICE` up to date when adding, removing, or materially changing third-party dependencies or shipped assets, especially dependencies embedded in the CLI/server binary or bundled into frontend/docs builds.
+- When changing public `.proto` files or ConnectRPC services, run `mise codegen-proto` after rebasing onto the current target branch and commit all generated outputs, including Go/TypeScript protobuf bindings and docs-website ConnectRPC reference pages. New public services also need an entry in `proto/buf.gen.yaml` for their generated service page and in the docs sidebar (`docs-website/astro.config.mjs`), otherwise CI can pass before merge but fail on `main` once generator changes from another PR are present.
 - When changing core services, projections, EVT events or subjects, NATS resources, or GraphQL operations, use the `chatto-architecture` skill and update `docs/ARCHITECTURE.md`.
 - When introducing, renaming, or clarifying canonical vocabulary, use the `glossary` skill and update `docs/GLOSSARY.md`.
 - Before pushing a branch for a PR, make sure it is named something descriptive of the change.

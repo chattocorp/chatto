@@ -230,7 +230,7 @@ func (x SidebarGroupEntry_Kind) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use SidebarGroupEntry_Kind.Descriptor instead.
 func (SidebarGroupEntry_Kind) EnumDescriptor() ([]byte, []int) {
-	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{20, 0}
+	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{21, 0}
 }
 
 // Room represents a chat room on the server.
@@ -340,8 +340,9 @@ type User struct {
 	Login       string                 `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"` // Unique login identifier
 	DisplayName string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	// Avatar state is projected from AssetCreatedEvent/UserAvatarClearedEvent.
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"` // When the user was created (null for users created before this field was added)
-	Deleted       bool                   `protobuf:"varint,5,opt,name=deleted,proto3" json:"deleted,omitempty"`                     // True for public tombstones representing deleted/unresolvable users.
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`          // When the user was created (null for users created before this field was added)
+	Deleted       bool                   `protobuf:"varint,5,opt,name=deleted,proto3" json:"deleted,omitempty"`                              // True for public tombstones representing deleted/unresolvable users.
+	CustomStatus  *CustomUserStatus      `protobuf:"bytes,6,opt,name=custom_status,json=customStatus,proto3" json:"custom_status,omitempty"` // Optional durable user-authored status, hidden after expires_at.
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -411,6 +412,75 @@ func (x *User) GetDeleted() bool {
 	return false
 }
 
+func (x *User) GetCustomStatus() *CustomUserStatus {
+	if x != nil {
+		return x.CustomStatus
+	}
+	return nil
+}
+
+// CustomUserStatus is a durable, public user-authored status that is
+// independent of live online/away presence.
+type CustomUserStatus struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Emoji         string                 `protobuf:"bytes,1,opt,name=emoji,proto3" json:"emoji,omitempty"`
+	Text          string                 `protobuf:"bytes,2,opt,name=text,proto3" json:"text,omitempty"`
+	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CustomUserStatus) Reset() {
+	*x = CustomUserStatus{}
+	mi := &file_chatto_core_v1_models_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CustomUserStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CustomUserStatus) ProtoMessage() {}
+
+func (x *CustomUserStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_models_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CustomUserStatus.ProtoReflect.Descriptor instead.
+func (*CustomUserStatus) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *CustomUserStatus) GetEmoji() string {
+	if x != nil {
+		return x.Emoji
+	}
+	return ""
+}
+
+func (x *CustomUserStatus) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *CustomUserStatus) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
 // VerifiedEmail represents a single email address that has been verified
 // for a user. Stored in the INSTANCE KV bucket with key
 // "verified_emails.{userId}.{sha256(lowercase(email))}", one entry per
@@ -427,7 +497,7 @@ type VerifiedEmail struct {
 
 func (x *VerifiedEmail) Reset() {
 	*x = VerifiedEmail{}
-	mi := &file_chatto_core_v1_models_proto_msgTypes[2]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -439,7 +509,7 @@ func (x *VerifiedEmail) String() string {
 func (*VerifiedEmail) ProtoMessage() {}
 
 func (x *VerifiedEmail) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_models_proto_msgTypes[2]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -452,7 +522,7 @@ func (x *VerifiedEmail) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VerifiedEmail.ProtoReflect.Descriptor instead.
 func (*VerifiedEmail) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{2}
+	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *VerifiedEmail) GetEmail() string {
@@ -482,7 +552,7 @@ type AuditRequestMetadata struct {
 
 func (x *AuditRequestMetadata) Reset() {
 	*x = AuditRequestMetadata{}
-	mi := &file_chatto_core_v1_models_proto_msgTypes[3]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -494,7 +564,7 @@ func (x *AuditRequestMetadata) String() string {
 func (*AuditRequestMetadata) ProtoMessage() {}
 
 func (x *AuditRequestMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_models_proto_msgTypes[3]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -507,7 +577,7 @@ func (x *AuditRequestMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuditRequestMetadata.ProtoReflect.Descriptor instead.
 func (*AuditRequestMetadata) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{3}
+	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *AuditRequestMetadata) GetUserAgent() string {
@@ -541,7 +611,7 @@ type CookieSession struct {
 
 func (x *CookieSession) Reset() {
 	*x = CookieSession{}
-	mi := &file_chatto_core_v1_models_proto_msgTypes[4]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -553,7 +623,7 @@ func (x *CookieSession) String() string {
 func (*CookieSession) ProtoMessage() {}
 
 func (x *CookieSession) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_models_proto_msgTypes[4]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -566,7 +636,7 @@ func (x *CookieSession) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CookieSession.ProtoReflect.Descriptor instead.
 func (*CookieSession) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{4}
+	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *CookieSession) GetUserId() string {
@@ -630,7 +700,7 @@ type DeprecatedAsset struct {
 
 func (x *DeprecatedAsset) Reset() {
 	*x = DeprecatedAsset{}
-	mi := &file_chatto_core_v1_models_proto_msgTypes[5]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -642,7 +712,7 @@ func (x *DeprecatedAsset) String() string {
 func (*DeprecatedAsset) ProtoMessage() {}
 
 func (x *DeprecatedAsset) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_models_proto_msgTypes[5]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -655,7 +725,7 @@ func (x *DeprecatedAsset) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeprecatedAsset.ProtoReflect.Descriptor instead.
 func (*DeprecatedAsset) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{5}
+	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *DeprecatedAsset) GetAsset() isDeprecatedAsset_Asset {
@@ -709,7 +779,7 @@ type S3Asset struct {
 
 func (x *S3Asset) Reset() {
 	*x = S3Asset{}
-	mi := &file_chatto_core_v1_models_proto_msgTypes[6]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -721,7 +791,7 @@ func (x *S3Asset) String() string {
 func (*S3Asset) ProtoMessage() {}
 
 func (x *S3Asset) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_models_proto_msgTypes[6]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -734,7 +804,7 @@ func (x *S3Asset) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use S3Asset.ProtoReflect.Descriptor instead.
 func (*S3Asset) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{6}
+	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *S3Asset) GetKey() string {
@@ -760,7 +830,7 @@ type NATSAsset struct {
 
 func (x *NATSAsset) Reset() {
 	*x = NATSAsset{}
-	mi := &file_chatto_core_v1_models_proto_msgTypes[7]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -772,7 +842,7 @@ func (x *NATSAsset) String() string {
 func (*NATSAsset) ProtoMessage() {}
 
 func (x *NATSAsset) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_models_proto_msgTypes[7]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -785,7 +855,7 @@ func (x *NATSAsset) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NATSAsset.ProtoReflect.Descriptor instead.
 func (*NATSAsset) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{7}
+	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *NATSAsset) GetKey() string {
@@ -828,7 +898,7 @@ type AssetRecord struct {
 
 func (x *AssetRecord) Reset() {
 	*x = AssetRecord{}
-	mi := &file_chatto_core_v1_models_proto_msgTypes[8]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -840,7 +910,7 @@ func (x *AssetRecord) String() string {
 func (*AssetRecord) ProtoMessage() {}
 
 func (x *AssetRecord) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_models_proto_msgTypes[8]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -853,7 +923,7 @@ func (x *AssetRecord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssetRecord.ProtoReflect.Descriptor instead.
 func (*AssetRecord) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{8}
+	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *AssetRecord) GetId() string {
@@ -963,7 +1033,7 @@ type RoomMembership struct {
 
 func (x *RoomMembership) Reset() {
 	*x = RoomMembership{}
-	mi := &file_chatto_core_v1_models_proto_msgTypes[9]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -975,7 +1045,7 @@ func (x *RoomMembership) String() string {
 func (*RoomMembership) ProtoMessage() {}
 
 func (x *RoomMembership) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_models_proto_msgTypes[9]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -988,7 +1058,7 @@ func (x *RoomMembership) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoomMembership.ProtoReflect.Descriptor instead.
 func (*RoomMembership) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{9}
+	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *RoomMembership) GetUserId() string {
@@ -1019,7 +1089,7 @@ type Role struct {
 
 func (x *Role) Reset() {
 	*x = Role{}
-	mi := &file_chatto_core_v1_models_proto_msgTypes[10]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1031,7 +1101,7 @@ func (x *Role) String() string {
 func (*Role) ProtoMessage() {}
 
 func (x *Role) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_models_proto_msgTypes[10]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1044,7 +1114,7 @@ func (x *Role) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Role.ProtoReflect.Descriptor instead.
 func (*Role) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{10}
+	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *Role) GetName() string {
@@ -1093,7 +1163,7 @@ type UserPresence struct {
 
 func (x *UserPresence) Reset() {
 	*x = UserPresence{}
-	mi := &file_chatto_core_v1_models_proto_msgTypes[11]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1105,7 +1175,7 @@ func (x *UserPresence) String() string {
 func (*UserPresence) ProtoMessage() {}
 
 func (x *UserPresence) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_models_proto_msgTypes[11]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1118,7 +1188,7 @@ func (x *UserPresence) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserPresence.ProtoReflect.Descriptor instead.
 func (*UserPresence) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{11}
+	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *UserPresence) GetStatus() UserPresenceStatus {
@@ -1140,7 +1210,7 @@ type PresenceChange struct {
 
 func (x *PresenceChange) Reset() {
 	*x = PresenceChange{}
-	mi := &file_chatto_core_v1_models_proto_msgTypes[12]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1152,7 +1222,7 @@ func (x *PresenceChange) String() string {
 func (*PresenceChange) ProtoMessage() {}
 
 func (x *PresenceChange) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_models_proto_msgTypes[12]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1165,7 +1235,7 @@ func (x *PresenceChange) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PresenceChange.ProtoReflect.Descriptor instead.
 func (*PresenceChange) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{12}
+	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *PresenceChange) GetUserId() string {
@@ -1201,7 +1271,7 @@ type ThreadMetadata struct {
 
 func (x *ThreadMetadata) Reset() {
 	*x = ThreadMetadata{}
-	mi := &file_chatto_core_v1_models_proto_msgTypes[13]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1213,7 +1283,7 @@ func (x *ThreadMetadata) String() string {
 func (*ThreadMetadata) ProtoMessage() {}
 
 func (x *ThreadMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_models_proto_msgTypes[13]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1226,7 +1296,7 @@ func (x *ThreadMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ThreadMetadata.ProtoReflect.Descriptor instead.
 func (*ThreadMetadata) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{13}
+	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ThreadMetadata) GetRootEventId() string {
@@ -1295,7 +1365,7 @@ type Attachment struct {
 
 func (x *Attachment) Reset() {
 	*x = Attachment{}
-	mi := &file_chatto_core_v1_models_proto_msgTypes[14]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1307,7 +1377,7 @@ func (x *Attachment) String() string {
 func (*Attachment) ProtoMessage() {}
 
 func (x *Attachment) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_models_proto_msgTypes[14]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1320,7 +1390,7 @@ func (x *Attachment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Attachment.ProtoReflect.Descriptor instead.
 func (*Attachment) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{14}
+	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *Attachment) GetId() string {
@@ -1435,7 +1505,7 @@ type MessageBody struct {
 
 func (x *MessageBody) Reset() {
 	*x = MessageBody{}
-	mi := &file_chatto_core_v1_models_proto_msgTypes[15]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1447,7 +1517,7 @@ func (x *MessageBody) String() string {
 func (*MessageBody) ProtoMessage() {}
 
 func (x *MessageBody) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_models_proto_msgTypes[15]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1460,7 +1530,7 @@ func (x *MessageBody) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MessageBody.ProtoReflect.Descriptor instead.
 func (*MessageBody) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{15}
+	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *MessageBody) GetAuthorId() string {
@@ -1564,7 +1634,7 @@ type LinkPreview struct {
 
 func (x *LinkPreview) Reset() {
 	*x = LinkPreview{}
-	mi := &file_chatto_core_v1_models_proto_msgTypes[16]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1576,7 +1646,7 @@ func (x *LinkPreview) String() string {
 func (*LinkPreview) ProtoMessage() {}
 
 func (x *LinkPreview) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_models_proto_msgTypes[16]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1589,7 +1659,7 @@ func (x *LinkPreview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LinkPreview.ProtoReflect.Descriptor instead.
 func (*LinkPreview) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{16}
+	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *LinkPreview) GetUrl() string {
@@ -1668,7 +1738,7 @@ type CachedLinkPreview struct {
 
 func (x *CachedLinkPreview) Reset() {
 	*x = CachedLinkPreview{}
-	mi := &file_chatto_core_v1_models_proto_msgTypes[17]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1680,7 +1750,7 @@ func (x *CachedLinkPreview) String() string {
 func (*CachedLinkPreview) ProtoMessage() {}
 
 func (x *CachedLinkPreview) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_models_proto_msgTypes[17]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1693,7 +1763,7 @@ func (x *CachedLinkPreview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CachedLinkPreview.ProtoReflect.Descriptor instead.
 func (*CachedLinkPreview) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{17}
+	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *CachedLinkPreview) GetUrl() string {
@@ -1773,7 +1843,7 @@ type RoomLayout struct {
 
 func (x *RoomLayout) Reset() {
 	*x = RoomLayout{}
-	mi := &file_chatto_core_v1_models_proto_msgTypes[18]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1785,7 +1855,7 @@ func (x *RoomLayout) String() string {
 func (*RoomLayout) ProtoMessage() {}
 
 func (x *RoomLayout) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_models_proto_msgTypes[18]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1798,7 +1868,7 @@ func (x *RoomLayout) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoomLayout.ProtoReflect.Descriptor instead.
 func (*RoomLayout) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{18}
+	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{19}
 }
 
 // Deprecated: Marked as deprecated in chatto/core/v1/models.proto.
@@ -1839,7 +1909,7 @@ type SidebarLink struct {
 
 func (x *SidebarLink) Reset() {
 	*x = SidebarLink{}
-	mi := &file_chatto_core_v1_models_proto_msgTypes[19]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1851,7 +1921,7 @@ func (x *SidebarLink) String() string {
 func (*SidebarLink) ProtoMessage() {}
 
 func (x *SidebarLink) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_models_proto_msgTypes[19]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1864,7 +1934,7 @@ func (x *SidebarLink) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SidebarLink.ProtoReflect.Descriptor instead.
 func (*SidebarLink) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{19}
+	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *SidebarLink) GetId() string {
@@ -1898,7 +1968,7 @@ type SidebarGroupEntry struct {
 
 func (x *SidebarGroupEntry) Reset() {
 	*x = SidebarGroupEntry{}
-	mi := &file_chatto_core_v1_models_proto_msgTypes[20]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1910,7 +1980,7 @@ func (x *SidebarGroupEntry) String() string {
 func (*SidebarGroupEntry) ProtoMessage() {}
 
 func (x *SidebarGroupEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_models_proto_msgTypes[20]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1923,7 +1993,7 @@ func (x *SidebarGroupEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SidebarGroupEntry.ProtoReflect.Descriptor instead.
 func (*SidebarGroupEntry) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{20}
+	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *SidebarGroupEntry) GetKind() SidebarGroupEntry_Kind {
@@ -1958,7 +2028,7 @@ type RoomGroup struct {
 
 func (x *RoomGroup) Reset() {
 	*x = RoomGroup{}
-	mi := &file_chatto_core_v1_models_proto_msgTypes[21]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1970,7 +2040,7 @@ func (x *RoomGroup) String() string {
 func (*RoomGroup) ProtoMessage() {}
 
 func (x *RoomGroup) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_models_proto_msgTypes[21]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1983,7 +2053,7 @@ func (x *RoomGroup) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoomGroup.ProtoReflect.Descriptor instead.
 func (*RoomGroup) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{21}
+	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *RoomGroup) GetId() string {
@@ -2058,7 +2128,7 @@ type VideoProcessingState struct {
 
 func (x *VideoProcessingState) Reset() {
 	*x = VideoProcessingState{}
-	mi := &file_chatto_core_v1_models_proto_msgTypes[22]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2070,7 +2140,7 @@ func (x *VideoProcessingState) String() string {
 func (*VideoProcessingState) ProtoMessage() {}
 
 func (x *VideoProcessingState) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_models_proto_msgTypes[22]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2083,7 +2153,7 @@ func (x *VideoProcessingState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VideoProcessingState.ProtoReflect.Descriptor instead.
 func (*VideoProcessingState) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{22}
+	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *VideoProcessingState) GetStatus() VideoStatus {
@@ -2164,7 +2234,7 @@ type VideoVariant struct {
 
 func (x *VideoVariant) Reset() {
 	*x = VideoVariant{}
-	mi := &file_chatto_core_v1_models_proto_msgTypes[23]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2176,7 +2246,7 @@ func (x *VideoVariant) String() string {
 func (*VideoVariant) ProtoMessage() {}
 
 func (x *VideoVariant) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_models_proto_msgTypes[23]
+	mi := &file_chatto_core_v1_models_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2189,7 +2259,7 @@ func (x *VideoVariant) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VideoVariant.ProtoReflect.Descriptor instead.
 func (*VideoVariant) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{23}
+	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *VideoVariant) GetAttachmentId() string {
@@ -2246,14 +2316,20 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\barchived\x18\x05 \x01(\bR\barchived\x12\x19\n" +
 	"\bgroup_id\x18\a \x01(\tR\agroupId\x12,\n" +
 	"\x04kind\x18\b \x01(\x0e2\x18.chatto.core.v1.RoomKindR\x04kind\x12\x1c\n" +
-	"\tuniversal\x18\t \x01(\bR\tuniversalJ\x04\b\x02\x10\x03J\x04\b\x06\x10\aR\bspace_idR\tauto_join\"\xa4\x01\n" +
+	"\tuniversal\x18\t \x01(\bR\tuniversalJ\x04\b\x02\x10\x03J\x04\b\x06\x10\aR\bspace_idR\tauto_join\"\xeb\x01\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x129\n" +
 	"\n" +
 	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x18\n" +
-	"\adeleted\x18\x05 \x01(\bR\adeleted\"b\n" +
+	"\adeleted\x18\x05 \x01(\bR\adeleted\x12E\n" +
+	"\rcustom_status\x18\x06 \x01(\v2 .chatto.core.v1.CustomUserStatusR\fcustomStatus\"w\n" +
+	"\x10CustomUserStatus\x12\x14\n" +
+	"\x05emoji\x18\x01 \x01(\tR\x05emoji\x12\x12\n" +
+	"\x04text\x18\x02 \x01(\tR\x04text\x129\n" +
+	"\n" +
+	"expires_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"b\n" +
 	"\rVerifiedEmail\x12\x14\n" +
 	"\x05email\x18\x01 \x01(\tR\x05email\x12;\n" +
 	"\vverified_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
@@ -2431,7 +2507,7 @@ func file_chatto_core_v1_models_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_core_v1_models_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_chatto_core_v1_models_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
+var file_chatto_core_v1_models_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_chatto_core_v1_models_proto_goTypes = []any{
 	(RoomKind)(0),                 // 0: chatto.core.v1.RoomKind
 	(UserPresenceStatus)(0),       // 1: chatto.core.v1.UserPresenceStatus
@@ -2439,63 +2515,66 @@ var file_chatto_core_v1_models_proto_goTypes = []any{
 	(SidebarGroupEntry_Kind)(0),   // 3: chatto.core.v1.SidebarGroupEntry.Kind
 	(*Room)(nil),                  // 4: chatto.core.v1.Room
 	(*User)(nil),                  // 5: chatto.core.v1.User
-	(*VerifiedEmail)(nil),         // 6: chatto.core.v1.VerifiedEmail
-	(*AuditRequestMetadata)(nil),  // 7: chatto.core.v1.AuditRequestMetadata
-	(*CookieSession)(nil),         // 8: chatto.core.v1.CookieSession
-	(*DeprecatedAsset)(nil),       // 9: chatto.core.v1.DeprecatedAsset
-	(*S3Asset)(nil),               // 10: chatto.core.v1.S3Asset
-	(*NATSAsset)(nil),             // 11: chatto.core.v1.NATSAsset
-	(*AssetRecord)(nil),           // 12: chatto.core.v1.AssetRecord
-	(*RoomMembership)(nil),        // 13: chatto.core.v1.RoomMembership
-	(*Role)(nil),                  // 14: chatto.core.v1.Role
-	(*UserPresence)(nil),          // 15: chatto.core.v1.UserPresence
-	(*PresenceChange)(nil),        // 16: chatto.core.v1.PresenceChange
-	(*ThreadMetadata)(nil),        // 17: chatto.core.v1.ThreadMetadata
-	(*Attachment)(nil),            // 18: chatto.core.v1.Attachment
-	(*MessageBody)(nil),           // 19: chatto.core.v1.MessageBody
-	(*LinkPreview)(nil),           // 20: chatto.core.v1.LinkPreview
-	(*CachedLinkPreview)(nil),     // 21: chatto.core.v1.CachedLinkPreview
-	(*RoomLayout)(nil),            // 22: chatto.core.v1.RoomLayout
-	(*SidebarLink)(nil),           // 23: chatto.core.v1.SidebarLink
-	(*SidebarGroupEntry)(nil),     // 24: chatto.core.v1.SidebarGroupEntry
-	(*RoomGroup)(nil),             // 25: chatto.core.v1.RoomGroup
-	(*VideoProcessingState)(nil),  // 26: chatto.core.v1.VideoProcessingState
-	(*VideoVariant)(nil),          // 27: chatto.core.v1.VideoVariant
-	(*timestamppb.Timestamp)(nil), // 28: google.protobuf.Timestamp
+	(*CustomUserStatus)(nil),      // 6: chatto.core.v1.CustomUserStatus
+	(*VerifiedEmail)(nil),         // 7: chatto.core.v1.VerifiedEmail
+	(*AuditRequestMetadata)(nil),  // 8: chatto.core.v1.AuditRequestMetadata
+	(*CookieSession)(nil),         // 9: chatto.core.v1.CookieSession
+	(*DeprecatedAsset)(nil),       // 10: chatto.core.v1.DeprecatedAsset
+	(*S3Asset)(nil),               // 11: chatto.core.v1.S3Asset
+	(*NATSAsset)(nil),             // 12: chatto.core.v1.NATSAsset
+	(*AssetRecord)(nil),           // 13: chatto.core.v1.AssetRecord
+	(*RoomMembership)(nil),        // 14: chatto.core.v1.RoomMembership
+	(*Role)(nil),                  // 15: chatto.core.v1.Role
+	(*UserPresence)(nil),          // 16: chatto.core.v1.UserPresence
+	(*PresenceChange)(nil),        // 17: chatto.core.v1.PresenceChange
+	(*ThreadMetadata)(nil),        // 18: chatto.core.v1.ThreadMetadata
+	(*Attachment)(nil),            // 19: chatto.core.v1.Attachment
+	(*MessageBody)(nil),           // 20: chatto.core.v1.MessageBody
+	(*LinkPreview)(nil),           // 21: chatto.core.v1.LinkPreview
+	(*CachedLinkPreview)(nil),     // 22: chatto.core.v1.CachedLinkPreview
+	(*RoomLayout)(nil),            // 23: chatto.core.v1.RoomLayout
+	(*SidebarLink)(nil),           // 24: chatto.core.v1.SidebarLink
+	(*SidebarGroupEntry)(nil),     // 25: chatto.core.v1.SidebarGroupEntry
+	(*RoomGroup)(nil),             // 26: chatto.core.v1.RoomGroup
+	(*VideoProcessingState)(nil),  // 27: chatto.core.v1.VideoProcessingState
+	(*VideoVariant)(nil),          // 28: chatto.core.v1.VideoVariant
+	(*timestamppb.Timestamp)(nil), // 29: google.protobuf.Timestamp
 }
 var file_chatto_core_v1_models_proto_depIdxs = []int32{
 	0,  // 0: chatto.core.v1.Room.kind:type_name -> chatto.core.v1.RoomKind
-	28, // 1: chatto.core.v1.User.created_at:type_name -> google.protobuf.Timestamp
-	28, // 2: chatto.core.v1.VerifiedEmail.verified_at:type_name -> google.protobuf.Timestamp
-	28, // 3: chatto.core.v1.CookieSession.created_at:type_name -> google.protobuf.Timestamp
-	28, // 4: chatto.core.v1.CookieSession.expires_at:type_name -> google.protobuf.Timestamp
-	7,  // 5: chatto.core.v1.CookieSession.request:type_name -> chatto.core.v1.AuditRequestMetadata
-	11, // 6: chatto.core.v1.DeprecatedAsset.nats:type_name -> chatto.core.v1.NATSAsset
-	10, // 7: chatto.core.v1.DeprecatedAsset.s3:type_name -> chatto.core.v1.S3Asset
-	11, // 8: chatto.core.v1.AssetRecord.nats:type_name -> chatto.core.v1.NATSAsset
-	10, // 9: chatto.core.v1.AssetRecord.s3:type_name -> chatto.core.v1.S3Asset
-	1,  // 10: chatto.core.v1.UserPresence.status:type_name -> chatto.core.v1.UserPresenceStatus
-	28, // 11: chatto.core.v1.ThreadMetadata.last_reply_at:type_name -> google.protobuf.Timestamp
-	9,  // 12: chatto.core.v1.Attachment.storage:type_name -> chatto.core.v1.DeprecatedAsset
-	28, // 13: chatto.core.v1.MessageBody.created_at:type_name -> google.protobuf.Timestamp
-	28, // 14: chatto.core.v1.MessageBody.updated_at:type_name -> google.protobuf.Timestamp
-	18, // 15: chatto.core.v1.MessageBody.attachments:type_name -> chatto.core.v1.Attachment
-	20, // 16: chatto.core.v1.MessageBody.link_preview:type_name -> chatto.core.v1.LinkPreview
-	12, // 17: chatto.core.v1.LinkPreview.image_asset:type_name -> chatto.core.v1.AssetRecord
-	20, // 18: chatto.core.v1.CachedLinkPreview.preview:type_name -> chatto.core.v1.LinkPreview
-	25, // 19: chatto.core.v1.RoomLayout.legacy_sections:type_name -> chatto.core.v1.RoomGroup
-	3,  // 20: chatto.core.v1.SidebarGroupEntry.kind:type_name -> chatto.core.v1.SidebarGroupEntry.Kind
-	24, // 21: chatto.core.v1.RoomGroup.entries:type_name -> chatto.core.v1.SidebarGroupEntry
-	23, // 22: chatto.core.v1.RoomGroup.sidebar_links:type_name -> chatto.core.v1.SidebarLink
-	2,  // 23: chatto.core.v1.VideoProcessingState.status:type_name -> chatto.core.v1.VideoStatus
-	27, // 24: chatto.core.v1.VideoProcessingState.variants:type_name -> chatto.core.v1.VideoVariant
-	18, // 25: chatto.core.v1.VideoProcessingState.thumbnail_attachment:type_name -> chatto.core.v1.Attachment
-	18, // 26: chatto.core.v1.VideoVariant.attachment:type_name -> chatto.core.v1.Attachment
-	27, // [27:27] is the sub-list for method output_type
-	27, // [27:27] is the sub-list for method input_type
-	27, // [27:27] is the sub-list for extension type_name
-	27, // [27:27] is the sub-list for extension extendee
-	0,  // [0:27] is the sub-list for field type_name
+	29, // 1: chatto.core.v1.User.created_at:type_name -> google.protobuf.Timestamp
+	6,  // 2: chatto.core.v1.User.custom_status:type_name -> chatto.core.v1.CustomUserStatus
+	29, // 3: chatto.core.v1.CustomUserStatus.expires_at:type_name -> google.protobuf.Timestamp
+	29, // 4: chatto.core.v1.VerifiedEmail.verified_at:type_name -> google.protobuf.Timestamp
+	29, // 5: chatto.core.v1.CookieSession.created_at:type_name -> google.protobuf.Timestamp
+	29, // 6: chatto.core.v1.CookieSession.expires_at:type_name -> google.protobuf.Timestamp
+	8,  // 7: chatto.core.v1.CookieSession.request:type_name -> chatto.core.v1.AuditRequestMetadata
+	12, // 8: chatto.core.v1.DeprecatedAsset.nats:type_name -> chatto.core.v1.NATSAsset
+	11, // 9: chatto.core.v1.DeprecatedAsset.s3:type_name -> chatto.core.v1.S3Asset
+	12, // 10: chatto.core.v1.AssetRecord.nats:type_name -> chatto.core.v1.NATSAsset
+	11, // 11: chatto.core.v1.AssetRecord.s3:type_name -> chatto.core.v1.S3Asset
+	1,  // 12: chatto.core.v1.UserPresence.status:type_name -> chatto.core.v1.UserPresenceStatus
+	29, // 13: chatto.core.v1.ThreadMetadata.last_reply_at:type_name -> google.protobuf.Timestamp
+	10, // 14: chatto.core.v1.Attachment.storage:type_name -> chatto.core.v1.DeprecatedAsset
+	29, // 15: chatto.core.v1.MessageBody.created_at:type_name -> google.protobuf.Timestamp
+	29, // 16: chatto.core.v1.MessageBody.updated_at:type_name -> google.protobuf.Timestamp
+	19, // 17: chatto.core.v1.MessageBody.attachments:type_name -> chatto.core.v1.Attachment
+	21, // 18: chatto.core.v1.MessageBody.link_preview:type_name -> chatto.core.v1.LinkPreview
+	13, // 19: chatto.core.v1.LinkPreview.image_asset:type_name -> chatto.core.v1.AssetRecord
+	21, // 20: chatto.core.v1.CachedLinkPreview.preview:type_name -> chatto.core.v1.LinkPreview
+	26, // 21: chatto.core.v1.RoomLayout.legacy_sections:type_name -> chatto.core.v1.RoomGroup
+	3,  // 22: chatto.core.v1.SidebarGroupEntry.kind:type_name -> chatto.core.v1.SidebarGroupEntry.Kind
+	25, // 23: chatto.core.v1.RoomGroup.entries:type_name -> chatto.core.v1.SidebarGroupEntry
+	24, // 24: chatto.core.v1.RoomGroup.sidebar_links:type_name -> chatto.core.v1.SidebarLink
+	2,  // 25: chatto.core.v1.VideoProcessingState.status:type_name -> chatto.core.v1.VideoStatus
+	28, // 26: chatto.core.v1.VideoProcessingState.variants:type_name -> chatto.core.v1.VideoVariant
+	19, // 27: chatto.core.v1.VideoProcessingState.thumbnail_attachment:type_name -> chatto.core.v1.Attachment
+	19, // 28: chatto.core.v1.VideoVariant.attachment:type_name -> chatto.core.v1.Attachment
+	29, // [29:29] is the sub-list for method output_type
+	29, // [29:29] is the sub-list for method input_type
+	29, // [29:29] is the sub-list for extension type_name
+	29, // [29:29] is the sub-list for extension extendee
+	0,  // [0:29] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_models_proto_init() }
@@ -2503,23 +2582,23 @@ func file_chatto_core_v1_models_proto_init() {
 	if File_chatto_core_v1_models_proto != nil {
 		return
 	}
-	file_chatto_core_v1_models_proto_msgTypes[5].OneofWrappers = []any{
+	file_chatto_core_v1_models_proto_msgTypes[6].OneofWrappers = []any{
 		(*DeprecatedAsset_Nats)(nil),
 		(*DeprecatedAsset_S3)(nil),
 	}
-	file_chatto_core_v1_models_proto_msgTypes[6].OneofWrappers = []any{}
-	file_chatto_core_v1_models_proto_msgTypes[8].OneofWrappers = []any{
+	file_chatto_core_v1_models_proto_msgTypes[7].OneofWrappers = []any{}
+	file_chatto_core_v1_models_proto_msgTypes[9].OneofWrappers = []any{
 		(*AssetRecord_Nats)(nil),
 		(*AssetRecord_S3)(nil),
 	}
-	file_chatto_core_v1_models_proto_msgTypes[16].OneofWrappers = []any{}
+	file_chatto_core_v1_models_proto_msgTypes[17].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_v1_models_proto_rawDesc), len(file_chatto_core_v1_models_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   24,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

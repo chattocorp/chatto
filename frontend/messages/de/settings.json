@@ -46,6 +46,37 @@
         "confirm_cooldown": "Du kannst deinen Benutzernamen nur einmal alle 30 Tage ändern.",
         "confirm_button": "Benutzernamen ändern"
       },
+      "status": {
+        "title": "Eigener Status",
+        "edit_button": "Status bearbeiten",
+        "emoji": {
+          "label": "Status-Emoji",
+          "placeholder": "🌿",
+          "choose": "Emoji wählen"
+        },
+        "text": {
+          "label": "Statustext",
+          "placeholder": "Im Fokusmodus"
+        },
+        "expires_at": {
+          "label": "Automatisch löschen am"
+        },
+        "template": {
+          "label": "Vorlage",
+          "out_for_lunch": "Mittagspause",
+          "vacation": "Im Urlaub",
+          "sick": "Krank",
+          "custom": "Benutzerdefiniert"
+        },
+        "emoji_required": "Wähle ein Emoji für deinen Status",
+        "text_required": "Gib einen Statustext ein",
+        "saved": "Status aktualisiert",
+        "save_failed": "Status konnte nicht gespeichert werden",
+        "cleared": "Status gelöscht",
+        "clear_failed": "Status konnte nicht gelöscht werden",
+        "save_button": "Status speichern",
+        "clear_button": "Status löschen"
+      },
       "saved": "Profil erfolgreich aktualisiert",
       "save_failed": "Profil konnte nicht gespeichert werden",
       "save_button": "Änderungen speichern"

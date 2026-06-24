@@ -222,6 +222,19 @@ func TestEventFactsAssetLifecycle(t *testing.T) {
 			directory:   false,
 			callState:   true,
 		},
+		{
+			name: "custom user status set",
+			event: &corev1.Event{Event: &corev1.Event_UserCustomStatusSet{
+				UserCustomStatusSet: &corev1.UserCustomStatusSetEvent{UserId: "U1", Status: &corev1.CustomUserStatus{Emoji: "🌿"}},
+			}},
+			lifecycle:   false,
+			liveAsset:   false,
+			liveRoomEVT: false,
+			reactions:   false,
+			threads:     false,
+			directory:   false,
+			callState:   false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -248,6 +261,43 @@ func TestEventFactsAssetLifecycle(t *testing.T) {
 			}
 			if got := eventNeedsCallStateProjection(tt.event); got != tt.callState {
 				t.Fatalf("eventNeedsCallStateProjection = %v, want %v", got, tt.callState)
+			}
+		})
+	}
+}
+
+func TestEventFactsUserLiveEVT(t *testing.T) {
+	tests := []struct {
+		name  string
+		event *corev1.Event
+		want  bool
+	}{
+		{
+			name: "custom status set",
+			event: &corev1.Event{Event: &corev1.Event_UserCustomStatusSet{
+				UserCustomStatusSet: &corev1.UserCustomStatusSetEvent{UserId: "U1", Status: &corev1.CustomUserStatus{Emoji: "🌿"}},
+			}},
+			want: true,
+		},
+		{
+			name: "custom status cleared",
+			event: &corev1.Event{Event: &corev1.Event_UserCustomStatusCleared{
+				UserCustomStatusCleared: &corev1.UserCustomStatusClearedEvent{UserId: "U1"},
+			}},
+			want: true,
+		},
+		{
+			name: "login change is not delivered",
+			event: &corev1.Event{Event: &corev1.Event_UserLoginChanged{
+				UserLoginChanged: &corev1.UserLoginChangedEvent{UserId: "U1"},
+			}},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isDeliverableLiveEVTUserEvent(tt.event); got != tt.want {
+				t.Fatalf("isDeliverableLiveEVTUserEvent = %v, want %v", got, tt.want)
 			}
 		})
 	}

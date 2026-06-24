@@ -5,6 +5,8 @@
   import { graphql } from '$lib/gql';
   import { PaneHeader, FormSection, Dialog, Hint } from '$lib/ui';
   import { TextInput, Button, Form } from '$lib/ui/form';
+  import UserCustomStatusEditor from '$lib/components/UserCustomStatusEditor.svelte';
+  import type { CustomUserStatus } from '$lib/state/userProfiles.svelte';
   import { toast } from '$lib/ui/toast';
   import { dropZone } from '$lib/attachments/dropZone.svelte';
   import DropZoneOverlay from '$lib/attachments/DropZoneOverlay.svelte';
@@ -63,7 +65,6 @@
   const displayNameModified = $derived(displayName !== currentUser.user?.displayName);
   const loginModified = $derived(login !== currentUser.user?.login);
   const isModified = $derived(displayNameModified || loginModified);
-
   // Cooldown
   const cooldownRemaining = $derived(getLoginChangeCooldownRemaining(lastLoginChange));
   const canChangeLogin = $derived(cooldownRemaining === 0);
@@ -101,6 +102,24 @@
       successMessage = '';
     }
   });
+
+  function customStatusAPIConfig() {
+    const conn = connection();
+    return {
+      serverId: getActiveServer(),
+      baseUrl: conn.connectBaseUrl,
+      bearerToken: conn.bearerToken
+    };
+  }
+
+  function updateCurrentCustomStatus(customStatus: CustomUserStatus | null) {
+    if (currentUser.user) {
+      currentUser.user = {
+        ...currentUser.user,
+        customStatus
+      };
+    }
+  }
 
   async function uploadAvatarFile(file: File) {
     if (!file.type.startsWith('image/')) {
@@ -321,6 +340,7 @@
       isSaving = false;
     }
   }
+
 </script>
 
 <PaneHeader
@@ -437,6 +457,14 @@
       </Button>
     {/snippet}
   </Form>
+
+  <FormSection title={m['settings.profile.status.title']()} maxWidth="max-w-md" bordered>
+    <UserCustomStatusEditor
+      status={currentUser.user?.customStatus}
+      config={customStatusAPIConfig()}
+      onChange={updateCurrentCustomStatus}
+    />
+  </FormSection>
 </div>
 
 <Dialog

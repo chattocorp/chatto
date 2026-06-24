@@ -43,6 +43,8 @@ func (*CallEndedEvent) IsEventType()                {}
 func (*UserCreatedEvent) IsEventType()                  {}
 func (*UserDeletedEvent) IsEventType()                  {}
 func (*UserProfileUpdatedEvent) IsEventType()           {}
+func (*UserCustomStatusSetEvent) IsEventType()          {}
+func (*UserCustomStatusClearedEvent) IsEventType()      {}
 func (*ServerUserPreferencesUpdatedEvent) IsEventType() {}
 func (*NotificationLevelChangedEvent) IsEventType()     {}
 func (*ThreadFollowChangedEvent) IsEventType()          {}

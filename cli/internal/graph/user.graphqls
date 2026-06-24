@@ -12,6 +12,8 @@ type User {
   createdAt: Time
   "Whether this user is a public tombstone for a deleted or unresolvable account."
   deleted: Boolean!
+  "The user's active custom status, independent of online/away presence."
+  customStatus: CustomUserStatus
   "URL to the user's avatar image. Pass width, height, and fit for a resized thumbnail."
   avatarUrl(width: Int, height: Int, fit: FitMode): String @goField(forceResolver: true)
   "Whether this user has at least one verified email address."
@@ -37,4 +39,16 @@ type User {
   viewerCanDeleteAccount: Boolean! @goField(forceResolver: true)
   "When the user last changed their login/username. Null if never changed. Visible to the user themselves and to server admins."
   lastLoginChange: Time @goField(forceResolver: true)
+}
+
+"""
+A public, user-authored status displayed next to the user's name.
+"""
+type CustomUserStatus {
+  "Emoji displayed next to the user's name."
+  emoji: String!
+  "Short status text displayed alongside the emoji or as hover text."
+  text: String!
+  "When the status should stop being displayed. Null means no automatic expiry."
+  expiresAt: Time
 }

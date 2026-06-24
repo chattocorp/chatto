@@ -42,6 +42,7 @@ func (a *API) Handlers() []Handler {
 	prefsPath, prefsHandler := apiv1connect.NewNotificationPreferencesServiceHandler(&notificationPreferencesService{api: a})
 	readStatePath, readStateHandler := apiv1connect.NewReadStateServiceHandler(&readStateService{api: a})
 	timelinePath, timelineHandler := apiv1connect.NewRoomTimelineServiceHandler(&roomTimelineService{api: a})
+	userStatusPath, userStatusHandler := apiv1connect.NewUserStatusServiceHandler(&userStatusService{api: a})
 	threadPath, threadHandler := apiv1connect.NewThreadServiceHandler(&threadService{api: a})
 	return []Handler{
 		{ServicePath: messagePath, Handler: messageHandler},
@@ -49,6 +50,7 @@ func (a *API) Handlers() []Handler {
 		{ServicePath: prefsPath, Handler: prefsHandler},
 		{ServicePath: readStatePath, Handler: readStateHandler},
 		{ServicePath: timelinePath, Handler: timelineHandler},
+		{ServicePath: userStatusPath, Handler: userStatusHandler},
 		{ServicePath: threadPath, Handler: threadHandler},
 	}
 }

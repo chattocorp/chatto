@@ -10,16 +10,22 @@
       deleted
       avatarUrl(width: 96, height: 96)
       presenceStatus
+      customStatus {
+        emoji
+        text
+        expiresAt
+      }
     }
   `);
 </script>
 
 <script lang="ts">
   import type { UserAvatarUserFragment } from '$lib/gql/graphql';
-  import { getLiveAvatarUrl } from '$lib/state/userProfiles.svelte';
+  import { getLiveAvatarUrl, getLiveCustomStatus } from '$lib/state/userProfiles.svelte';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import { getAvatarInitials } from '$lib/utils/initials';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
+  import UserCustomStatusBadge from './UserCustomStatusBadge.svelte';
 
   type AvatarUser = Omit<UserAvatarUserFragment, 'deleted'> & { deleted?: boolean };
   type Size = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
@@ -42,21 +48,32 @@
 
   const badgeSizeClasses: Record<Size, string> = {
     xs: 'h-2 w-2',
-    sm: 'h-3 w-3',
-    md: 'h-3.5 w-3.5',
-    lg: 'h-4 w-4',
-    xl: 'h-5 w-5'
+    sm: 'h-2.5 w-2.5',
+    md: 'h-3 w-3',
+    lg: 'h-3.5 w-3.5',
+    xl: 'h-4 w-4'
   };
+
+  const customStatusTextSizeClasses: Record<Size, string> = {
+    xs: 'text-[10px]',
+    sm: 'text-xs',
+    md: 'text-sm',
+    lg: 'text-base',
+    xl: 'text-lg'
+  };
+  const customStatusBadgeSizes = new Set<Size>(['md', 'lg', 'xl']);
 
   let {
     user,
     size = 'md',
     showPresence = true,
+    showCustomStatus = true,
     class: className = ''
   }: {
     user: AvatarUser;
     size?: Size;
     showPresence?: boolean;
+    showCustomStatus?: boolean;
     class?: string;
   } = $props();
 
@@ -76,6 +93,13 @@
   // newly-mounted ones like popovers — see the latest presence immediately.
   const presence = $derived(
     user && !user.deleted ? presenceCache.get(user.id, user.presenceStatus) : undefined
+  );
+
+  const customStatus = $derived(
+    user && !user.deleted ? getLiveCustomStatus(user.id, user.customStatus) : null
+  );
+  const showCustomStatusBadge = $derived(
+    showCustomStatus && customStatusBadgeSizes.has(size) && !user.deleted
   );
 
   const badgeColor = $derived(
@@ -122,9 +146,17 @@
       <span
         class="{badgeSizeClasses[
           size
-        ]} absolute right-0 bottom-0 rounded-full border-2 border-surface {badgeColor}"
+        ]} absolute right-0 bottom-0 translate-x-1/4 translate-y-1/4 rounded-full border-2 border-surface {badgeColor}"
         aria-label={presenceLabel}
       ></span>
+    {/if}
+    {#if showCustomStatusBadge}
+      <UserCustomStatusBadge
+        status={customStatus}
+        class="{customStatusTextSizeClasses[
+          size
+        ]} pointer-events-none absolute top-0 right-0 translate-x-1/4 -translate-y-1/4 [text-shadow:0_1px_2px_rgb(0_0_0_/_0.9),0_0_1px_rgb(0_0_0_/_0.95)]"
+      />
     {/if}
   </div>
 {/if}

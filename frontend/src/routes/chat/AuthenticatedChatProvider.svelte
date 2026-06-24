@@ -10,9 +10,14 @@
   import { eventBusManager } from '$lib/state/server/eventBus.svelte';
   import {
     useUserProfileUpdate,
+    useUserCustomStatusUpdate,
     useUserSettingsUpdate,
     useSessionTerminated
   } from '$lib/hooks';
+  import {
+    scheduleCustomStatusExpiry,
+    type CustomUserStatus
+  } from '$lib/state/userProfiles.svelte';
   import { initSessionChannel } from '$lib/auth/sessionChannel';
   import { initPresenceTracking } from '$lib/presenceTracking';
   import ReturnUrlHandler from '$lib/components/ReturnUrlHandler.svelte';
@@ -29,7 +34,16 @@
   }: {
     user: CurrentUser;
     userSettings: UserSettingsState;
-    profileCache: { update: (userId: string, displayName: string, avatarUrl: string | null, login: string) => void };
+    profileCache: {
+      update: (
+        userId: string,
+        displayName: string,
+        avatarUrl: string | null,
+        login: string,
+        customStatus?: CustomUserStatus | null
+      ) => void;
+      updateStatus: (userId: string, customStatus: CustomUserStatus | null) => void;
+    };
     presenceCache: PresenceCache;
     children: Snippet;
   } = $props();
@@ -60,6 +74,25 @@
   // svelte-ignore state_referenced_locally
   userSettings.updateFromData(user.settings);
 
+  $effect(() => {
+    const status = currentUserState.user?.customStatus;
+    const currentUserId = currentUserState.user?.id;
+    if (!status?.expiresAt || !currentUserId) return;
+
+    return scheduleCustomStatusExpiry(status, () => {
+      if (
+        currentUserState.user?.id === currentUserId &&
+        currentUserState.user.customStatus?.expiresAt === status.expiresAt
+      ) {
+        currentUserState.user = {
+          ...currentUserState.user,
+          customStatus: null
+        };
+        profileCache.updateStatus(currentUserId, null);
+      }
+    });
+  });
+
   // Start (idempotent) and expose the origin server's event bus via Svelte
   // context so the on* hooks below can use it. Root +layout.svelte's $effect
   // also starts buses for every authenticated server, but the user state may
@@ -75,7 +108,30 @@
 
     // Subscribe to profile update events and populate the cache
     useUserProfileUpdate((update) => {
-      profileCache.update(update.userId, update.displayName, update.avatarUrl, update.login);
+      profileCache.update(
+        update.userId,
+        update.displayName,
+        update.avatarUrl,
+        update.login
+      );
+      if (currentUserState.user?.id === update.userId) {
+        currentUserState.user = {
+          ...currentUserState.user,
+          displayName: update.displayName,
+          avatarUrl: update.avatarUrl,
+          login: update.login
+        };
+      }
+    });
+
+    useUserCustomStatusUpdate((update) => {
+      profileCache.updateStatus(update.userId, update.customStatus);
+      if (currentUserState.user?.id === update.userId) {
+        currentUserState.user = {
+          ...currentUserState.user,
+          customStatus: update.customStatus
+        };
+      }
     });
 
     // Subscribe to settings update events for multi-tab sync

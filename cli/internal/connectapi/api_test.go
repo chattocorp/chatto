@@ -14,6 +14,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/auth"
@@ -43,6 +44,7 @@ func TestAPIHandlers(t *testing.T) {
 		"/" + apiv1connect.RoomTimelineServiceName + "/",
 		"/" + apiv1connect.ServerServiceName + "/",
 		"/" + apiv1connect.ThreadServiceName + "/",
+		"/" + apiv1connect.UserStatusServiceName + "/",
 	}
 	sort.Strings(want)
 	if strings.Join(paths, ",") != strings.Join(want, ",") {
@@ -90,6 +92,51 @@ func TestServerServiceGetServerPublicMetadata(t *testing.T) {
 	}
 	if provider.LoginUrl != "/auth/providers/hub%20provider" {
 		t.Fatalf("provider LoginUrl = %q, want escaped provider path", provider.LoginUrl)
+	}
+}
+
+func TestUserStatusServiceSetAndClearCustomStatus(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ctx := auth.WithUser(env.ctx, env.viewer)
+	expiresAt := timestamppb.New(time.Now().Add(time.Hour).UTC())
+
+	setResp, err := env.status.SetCustomStatus(ctx, connect.NewRequest(&apiv1.SetCustomStatusRequest{
+		Emoji:     "🌿",
+		Text:      "In focus mode",
+		ExpiresAt: expiresAt,
+	}))
+	if err != nil {
+		t.Fatalf("SetCustomStatus: %v", err)
+	}
+	if got := setResp.Msg.GetStatus(); got.GetEmoji() != "🌿" || got.GetText() != "In focus mode" {
+		t.Fatalf("status = %+v, want focus status", got)
+	}
+	if got := setResp.Msg.GetStatus().GetExpiresAt(); got == nil || !got.AsTime().Equal(expiresAt.AsTime()) {
+		t.Fatalf("ExpiresAt = %v, want %v", got, expiresAt)
+	}
+
+	stored, err := env.core.GetUser(ctx, env.viewer.Id)
+	if err != nil {
+		t.Fatalf("GetUser: %v", err)
+	}
+	if stored.GetCustomStatus().GetEmoji() != "🌿" {
+		t.Fatalf("stored CustomStatus = %+v, want set status", stored.GetCustomStatus())
+	}
+
+	_, err = env.status.SetCustomStatus(ctx, connect.NewRequest(&apiv1.SetCustomStatusRequest{
+		Emoji: "🌿",
+		Text:  "   ",
+	}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("SetCustomStatus blank text error = %v, want InvalidArgument", err)
+	}
+
+	clearResp, err := env.status.ClearCustomStatus(ctx, connect.NewRequest(&apiv1.ClearCustomStatusRequest{}))
+	if err != nil {
+		t.Fatalf("ClearCustomStatus: %v", err)
+	}
+	if clearResp.Msg.GetStatus() != nil {
+		t.Fatalf("cleared status = %+v, want nil", clearResp.Msg.GetStatus())
 	}
 }
 
@@ -856,6 +903,7 @@ type connectAPITestEnv struct {
 	messages  *messageService
 	readState *readStateService
 	timeline  *roomTimelineService
+	status    *userStatusService
 	threads   *threadService
 	viewer    *corev1.User
 }
@@ -891,6 +939,7 @@ func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
 		messages:  &messageService{api: api},
 		readState: &readStateService{api: api},
 		timeline:  &roomTimelineService{api: api},
+		status:    &userStatusService{api: api},
 		threads:   &threadService{api: api},
 		viewer:    viewer,
 	}

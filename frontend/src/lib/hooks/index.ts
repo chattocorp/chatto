@@ -10,6 +10,7 @@ export {
   usePresenceChange,
   useActiveEvent,
   useUserProfileUpdate,
+  useUserCustomStatusUpdate,
   useUserSettingsUpdate,
   useNotificationLevelChanged,
   useMention,

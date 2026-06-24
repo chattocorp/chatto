@@ -101,6 +101,12 @@ func unwrapEVTEvent(event *corev1.Event) any {
 	case *corev1.Event_AssetProcessingFailed:
 		return e.AssetProcessingFailed
 
+	// ---- User profile/status ----
+	case *corev1.Event_UserCustomStatusSet:
+		return e.UserCustomStatusSet
+	case *corev1.Event_UserCustomStatusCleared:
+		return e.UserCustomStatusCleared
+
 	default:
 		return nil
 	}

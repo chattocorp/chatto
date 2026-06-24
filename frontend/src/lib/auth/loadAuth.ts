@@ -22,6 +22,11 @@ export const LoadCurrentUserDocument = graphql(`
         login
         displayName
         avatarUrl
+        customStatus {
+          emoji
+          text
+          expiresAt
+        }
         presenceStatus
         hasVerifiedEmail
         settings {

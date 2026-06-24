@@ -356,9 +356,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     <UserAvatar user={member} size="sm" />
     <div class="min-w-0 flex-1">
       <div class="truncate">{getLiveDisplayName(member.id, member.displayName)}</div>
-      <div class="truncate text-xs text-muted">
-        @{getLiveLogin(member.id, member.login)}
-      </div>
+      <div class="truncate text-xs text-muted">@{getLiveLogin(member.id, member.login)}</div>
     </div>
   </button>
 {/snippet}

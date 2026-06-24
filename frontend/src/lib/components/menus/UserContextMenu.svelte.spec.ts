@@ -11,7 +11,8 @@ vi.mock('$lib/utils/isTouchDevice', () => ({
 vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveDisplayName: (_userId: string, fallback: string) => fallback,
   getLiveLogin: (_userId: string, fallback: string) => fallback,
-  getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback
+  getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
+  getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback
 }));
 
 vi.mock('$lib/state/presenceCache.svelte', () => ({
@@ -25,7 +26,8 @@ const user = {
   login: 'alice',
   displayName: 'Alice Example',
   avatarUrl: null,
-  presenceStatus: PresenceStatus.Online
+  presenceStatus: PresenceStatus.Online,
+  customStatus: null
 };
 
 let originalShowPopover: typeof HTMLElement.prototype.showPopover;
@@ -59,6 +61,26 @@ describe('UserContextMenu', () => {
     await expect.element(q(container, '[role="dialog"]')).toBeInTheDocument();
     expect(container.textContent).toContain('Alice Example');
     expect(container.textContent).toContain('@alice');
+  });
+
+  it('renders custom status as its own profile line', async () => {
+    const { container } = renderMenu({
+      user: {
+        ...user,
+        customStatus: {
+          emoji: '🍜',
+          text: 'chatto:status:out_for_lunch',
+          expiresAt: null
+        }
+      }
+    });
+
+    await expect.element(q(container, '[role="dialog"]')).toBeInTheDocument();
+    expect(
+      container.querySelector('[role="dialog"] .flex-1 > .font-semibold')?.textContent
+    ).toBe('Alice Example');
+    expect(q(container, '[aria-label="🍜 Out for lunch"]')).toBeTruthy();
+    expect(container.textContent).toContain('Out for lunch');
   });
 
   it('shows Send Message only when allowed', async () => {

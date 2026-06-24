@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/kms"
 )
 
@@ -1216,6 +1217,56 @@ func TestChattoCore_GetLastLoginChange(t *testing.T) {
 			t.Errorf("Expected timestamp between %v and %v, got %v", before, after, lastChange)
 		}
 	})
+}
+
+func TestChattoCore_SetAndClearUserCustomStatus(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "statususer", "Status User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser failed: %v", err)
+	}
+	expiresAt := time.Now().Add(time.Hour).UTC()
+
+	updated, err := core.SetUserCustomStatus(ctx, user.Id, "🌿", "In focus mode", &expiresAt)
+	if err != nil {
+		t.Fatalf("SetUserCustomStatus failed: %v", err)
+	}
+	if got := updated.GetCustomStatus().GetEmoji(); got != "🌿" {
+		t.Fatalf("custom status emoji = %q, want 🌿", got)
+	}
+	if got := updated.GetCustomStatus().GetText(); got != "In focus mode" {
+		t.Fatalf("custom status text = %q, want In focus mode", got)
+	}
+
+	if _, err := core.SetUserCustomStatus(ctx, user.Id, "🌿", "   ", nil); !errors.Is(err, ErrCustomStatusTextRequired) {
+		t.Fatalf("SetUserCustomStatus blank text error = %v, want ErrCustomStatusTextRequired", err)
+	}
+
+	statusEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserCustomStatusSet))
+	if err != nil {
+		t.Fatalf("SubjectEvents custom status set failed: %v", err)
+	}
+	if len(statusEvents) != 1 {
+		t.Fatalf("custom status set events = %d, want 1", len(statusEvents))
+	}
+
+	cleared, err := core.ClearUserCustomStatus(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("ClearUserCustomStatus failed: %v", err)
+	}
+	if cleared.GetCustomStatus() != nil {
+		t.Fatalf("custom status after clear = %#v, want nil", cleared.GetCustomStatus())
+	}
+
+	clearEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserCustomStatusCleared))
+	if err != nil {
+		t.Fatalf("SubjectEvents custom status cleared failed: %v", err)
+	}
+	if len(clearEvents) != 1 {
+		t.Fatalf("custom status cleared events = %d, want 1", len(clearEvents))
+	}
 }
 
 // createTestImage creates a test PNG image with the specified dimensions.

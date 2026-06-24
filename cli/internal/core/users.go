@@ -29,6 +29,11 @@ import (
 
 const DeletedUserDisplayName = "Deleted User"
 
+const (
+	MaxCustomStatusEmojiLength = 16
+	MaxCustomStatusTextLength  = 100
+)
+
 func DeletedUserReference(userID string) *corev1.User {
 	return &corev1.User{
 		Id:          userID,
@@ -664,6 +669,12 @@ var ErrLoginAlreadyTaken = fmt.Errorf("login name is already taken")
 // ErrUsernameBlocked is returned when the login name is in the blocked list.
 var ErrUsernameBlocked = fmt.Errorf("this username is not available")
 
+var ErrCustomStatusEmojiRequired = fmt.Errorf("custom status emoji is required")
+var ErrCustomStatusTextRequired = fmt.Errorf("custom status text is required")
+var ErrCustomStatusEmojiTooLong = fmt.Errorf("custom status emoji is too long")
+var ErrCustomStatusTextTooLong = fmt.Errorf("custom status text is too long")
+var ErrCustomStatusExpiryInPast = fmt.Errorf("custom status expiry must be in the future")
+
 // CheckLoginExists checks if a login name is already taken.
 func (c *ChattoCore) CheckLoginExists(ctx context.Context, login string) (bool, error) {
 	return c.Users.LoginExists(login), nil
@@ -868,6 +879,69 @@ func (c *ChattoCore) ClearLoginChangeCooldown(ctx context.Context, userID string
 	c.logger.Info("Cleared user login change cooldown", "id", userID)
 	c.publishUserProfileUpdate(ctx, userID)
 	return nil
+}
+
+// SetUserCustomStatus stores or replaces a user's durable custom status.
+// Expiry is modeled on the event itself; readers hide expired statuses without
+// writing auxiliary runtime state.
+func (c *ChattoCore) SetUserCustomStatus(ctx context.Context, userID, emoji, text string, expiresAt *time.Time) (*corev1.User, error) {
+	emoji = strings.TrimSpace(emoji)
+	text = strings.TrimSpace(text)
+	if emoji == "" {
+		return nil, ErrCustomStatusEmojiRequired
+	}
+	if text == "" {
+		return nil, ErrCustomStatusTextRequired
+	}
+	if utf8.RuneCountInString(emoji) > MaxCustomStatusEmojiLength {
+		return nil, ErrCustomStatusEmojiTooLong
+	}
+	if utf8.RuneCountInString(text) > MaxCustomStatusTextLength {
+		return nil, ErrCustomStatusTextTooLong
+	}
+	if expiresAt != nil && !expiresAt.After(time.Now()) {
+		return nil, ErrCustomStatusExpiryInPast
+	}
+	if _, err := c.GetUser(ctx, userID); err != nil {
+		return nil, fmt.Errorf("user not found: %w", err)
+	}
+
+	status := &corev1.CustomUserStatus{
+		Emoji: emoji,
+		Text:  text,
+	}
+	if expiresAt != nil {
+		status.ExpiresAt = timestamppb.New(*expiresAt)
+	}
+
+	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserCustomStatusSet{
+		UserCustomStatusSet: &corev1.UserCustomStatusSetEvent{
+			UserId: userID,
+			Status: status,
+		},
+	}})
+	if _, err := c.appendUserEvent(ctx, userID, event, "", nil); err != nil {
+		return nil, fmt.Errorf("failed to store custom status: %w", err)
+	}
+
+	return c.GetUser(ctx, userID)
+}
+
+// ClearUserCustomStatus removes a user's durable custom status. It is
+// idempotent and still records a clear event for explicit user action history.
+func (c *ChattoCore) ClearUserCustomStatus(ctx context.Context, userID string) (*corev1.User, error) {
+	if _, err := c.GetUser(ctx, userID); err != nil {
+		return nil, fmt.Errorf("user not found: %w", err)
+	}
+
+	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserCustomStatusCleared{
+		UserCustomStatusCleared: &corev1.UserCustomStatusClearedEvent{UserId: userID},
+	}})
+	if _, err := c.appendUserEvent(ctx, userID, event, "", nil); err != nil {
+		return nil, fmt.Errorf("failed to clear custom status: %w", err)
+	}
+
+	return c.GetUser(ctx, userID)
 }
 
 // ============================================================================

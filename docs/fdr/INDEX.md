@@ -20,7 +20,7 @@ See [`.claude/skills/fdr/SKILL.md`](../../.claude/skills/fdr/SKILL.md) for the F
 | [FDR-008](FDR-008-file-attachments-and-video.md) | File Attachments & Video Processing | Active | 2026-06-17 |
 | [FDR-009](FDR-009-link-previews.md) | Link Previews | Active | 2026-06-06 |
 | [FDR-010](FDR-010-typing-indicators.md) | Typing Indicators | Active | 2026-05-19 |
-| [FDR-011](FDR-011-user-presence.md) | User Presence | Active | 2026-05-19 |
+| [FDR-011](FDR-011-user-presence.md) | User Presence | Active | 2026-06-23 |
 | [FDR-012](FDR-012-notifications.md) | Notifications | Active | 2026-06-12 |
 | [FDR-013](FDR-013-web-push-notifications.md) | Web Push Notifications | Active | 2026-06-17 |
 | [FDR-014](FDR-014-jump-to-present.md) | Jump to Present | Active | 2026-05-19 |
@@ -31,7 +31,7 @@ See [`.claude/skills/fdr/SKILL.md`](../../.claude/skills/fdr/SKILL.md) for the F
 | [FDR-019](FDR-019-room-lifecycle.md) | Room Lifecycle | Active | 2026-06-15 |
 | [FDR-020](FDR-020-server-branding-and-configuration.md) | Server Branding & Configuration | Active | 2026-06-06 |
 | [FDR-021](FDR-021-admin-dashboard.md) | Admin Dashboard & System Monitoring | Active | 2026-06-15 |
-| [FDR-022](FDR-022-user-profile.md) | User Profile | Active | 2026-06-19 |
+| [FDR-022](FDR-022-user-profile.md) | User Profile | Active | 2026-06-23 |
 | [FDR-023](FDR-023-authentication-and-sessions.md) | Authentication & Sessions | Active | 2026-06-19 |
 | [FDR-024](FDR-024-permission-inspection-tool.md) | Permission Inspection Tool | Active | 2026-06-15 |
 | [FDR-025](FDR-025-user-search-and-member-directory.md) | User Search & Member Directory | Active | 2026-05-19 |

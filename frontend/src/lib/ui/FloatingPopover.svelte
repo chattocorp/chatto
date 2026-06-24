@@ -20,9 +20,9 @@ Positioning modes (exactly one is required):
 - **`position`** — viewport point `{ x, y }`, with optional
   `alignRight` / `centerX` flags. Used for cursor-driven menus.
 
-When `anchor` or `position` change, the popover repositions reactively
-— callers wanting "follow the trigger on scroll" can simply update the
-prop on scroll.
+When `anchor`, `position`, or the popover's rendered size change, the
+popover repositions reactively — callers wanting "follow the trigger on
+scroll" can simply update the prop on scroll.
 
 If `onclose` is provided, the popover dismisses itself when the user
 clicks/taps outside or scrolls a container that isn't part of it. The
@@ -158,6 +158,14 @@ pointer-only).
     }
 
     showAndPosition();
+  });
+
+  // Reposition when child content changes size after the popover has opened.
+  $effect(() => {
+    if (!node || !open) return;
+    const observer = new ResizeObserver(() => applyPosition());
+    observer.observe(node);
+    return () => observer.disconnect();
   });
 
   // Pointer-based dismissal (deferred one frame so the opening click doesn't

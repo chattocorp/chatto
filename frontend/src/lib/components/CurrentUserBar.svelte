@@ -12,7 +12,8 @@ to the user settings page for the active server.
   import * as m from '$lib/i18n/messages';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
+  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { getLiveDisplayName, type CustomUserStatus } from '$lib/state/userProfiles.svelte';
   import { RoomType } from '$lib/gql/graphql';
   import {
     roomSidebarPanelStorageSuffix,
@@ -20,8 +21,11 @@ to the user settings page for the active server.
     setRoomSidebarPanel
   } from '$lib/storage/roomSidebarPanel';
   import { serverStorageKey } from '$lib/storage/serverStorage';
+  import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import UserAvatar from './UserAvatar.svelte';
+  import UserCustomStatusEditor from './UserCustomStatusEditor.svelte';
 
+  const connection = useConnection();
   const activeServerId = $derived(getActiveServer());
   const serverSegment = $derived(serverIdToSegment(activeServerId));
   const activeStore = $derived(serverRegistry.tryGetStore(activeServerId));
@@ -40,7 +44,6 @@ to the user settings page for the active server.
 
   const login = $derived(activeServerUser?.login ?? '');
   const showLogin = $derived(!!login && login !== displayName);
-
   const activeCallRoomId = $derived(
     voiceCallState?.connected && voiceCallState.roomId ? voiceCallState.roomId : null
   );
@@ -65,6 +68,30 @@ to the user settings page for the active server.
   const compactCallButtonClass = 'btn-secondary h-7 w-7 shrink-0 !px-0 !py-0 text-xs';
   const compactCallActiveButtonClass = 'btn-success h-7 w-7 shrink-0 !px-0 !py-0 text-xs';
   const compactCallDangerButtonClass = 'btn-danger h-7 w-7 shrink-0 !px-0 !py-0 text-xs';
+  let statusEditorAnchor = $state<{ top: number; bottom: number; left: number } | null>(null);
+
+  function customStatusAPIConfig() {
+    const conn = connection();
+    return {
+      serverId: activeServerId,
+      baseUrl: conn.connectBaseUrl,
+      bearerToken: conn.bearerToken
+    };
+  }
+
+  function openStatusEditor(event: MouseEvent) {
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    statusEditorAnchor = { top: rect.top, bottom: rect.bottom, left: rect.left };
+  }
+
+  function updateCurrentCustomStatus(status: CustomUserStatus | null) {
+    const store = activeStore;
+    if (!store?.currentUser.user) return;
+    store.currentUser.user = {
+      ...store.currentUser.user,
+      customStatus: status
+    };
+  }
 
   function openActiveCallRoom(): void {
     const roomId = activeCallRoomId;
@@ -174,11 +201,21 @@ to the user settings page for the active server.
     >
       <UserAvatar user={activeServerUser} size="md" />
       <div class="flex min-w-0 flex-1 flex-col leading-tight">
-        <span class="truncate text-sm font-semibold">{displayName}</span>
+        <span class="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
+          <span class="min-w-0 truncate">{displayName}</span>
+        </span>
         {#if showLogin}
           <span class="truncate text-xs text-muted">@{login}</span>
         {/if}
       </div>
+      <button
+        type="button"
+        title={m['settings.profile.status.edit_button']()}
+        aria-label={m['settings.profile.status.edit_button']()}
+        class="iconify shrink-0 cursor-pointer text-muted uil--pen hover:text-text"
+        data-testid="current-user-edit-status"
+        onclick={openStatusEditor}
+      ></button>
       <a
         href={resolve('/chat/[serverId]/settings', { serverId: serverSegment })}
         title={m['voice.user_settings']()}
@@ -186,4 +223,22 @@ to the user settings page for the active server.
       ></a>
     </div>
   </div>
+{/if}
+
+{#if statusEditorAnchor && activeServerUser}
+  <ContextMenu
+    anchor={statusEditorAnchor}
+    role="dialog"
+    ariaLabel={m['settings.profile.status.edit_button']()}
+    class="w-auto"
+    onclose={() => (statusEditorAnchor = null)}
+  >
+    <UserCustomStatusEditor
+      status={activeServerUser.customStatus}
+      config={customStatusAPIConfig()}
+      compact
+      onChange={updateCurrentCustomStatus}
+      onClose={() => (statusEditorAnchor = null)}
+    />
+  </ContextMenu>
 {/if}

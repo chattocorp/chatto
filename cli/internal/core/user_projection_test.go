@@ -152,6 +152,66 @@ func TestUserProjection_LoginCooldownUsesEnvelopeTime(t *testing.T) {
 	require.True(t, p.LoginChangedAt("U1").IsZero())
 }
 
+func TestUserProjection_CustomStatusSetClearAndExpiry(t *testing.T) {
+	p, contentKey := newEncryptedUserProjection(t, "U1")
+	createdAt := time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC)
+	future := time.Now().Add(time.Hour)
+	past := time.Now().Add(-time.Hour)
+
+	require.NoError(t, p.Apply(userEvent("E1", createdAt, accountCreated(t, contentKey, "E1", "U1", "Alice", "Alice A.")), 2))
+	require.NoError(t, p.Apply(&corev1.Event{
+		Id: "E2",
+		Event: &corev1.Event_UserCustomStatusSet{UserCustomStatusSet: &corev1.UserCustomStatusSetEvent{
+			UserId: "U1",
+			Status: &corev1.CustomUserStatus{
+				Emoji:     "🌿",
+				Text:      "In focus mode",
+				ExpiresAt: timestamppb.New(future),
+			},
+		}},
+	}, 3))
+
+	got, ok := p.Get("U1")
+	require.True(t, ok)
+	require.Equal(t, "🌿", got.GetCustomStatus().GetEmoji())
+	require.Equal(t, "In focus mode", got.GetCustomStatus().GetText())
+
+	require.NoError(t, p.Apply(&corev1.Event{
+		Id: "E3",
+		Event: &corev1.Event_UserCustomStatusSet{UserCustomStatusSet: &corev1.UserCustomStatusSetEvent{
+			UserId: "U1",
+			Status: &corev1.CustomUserStatus{
+				Emoji:     "☕",
+				Text:      "Coffee",
+				ExpiresAt: timestamppb.New(past),
+			},
+		}},
+	}, 4))
+
+	got, ok = p.Get("U1")
+	require.True(t, ok)
+	require.Nil(t, got.GetCustomStatus())
+
+	require.NoError(t, p.Apply(&corev1.Event{
+		Id: "E4",
+		Event: &corev1.Event_UserCustomStatusSet{UserCustomStatusSet: &corev1.UserCustomStatusSetEvent{
+			UserId: "U1",
+			Status: &corev1.CustomUserStatus{
+				Emoji: "✅",
+				Text:  "Back",
+			},
+		}},
+	}, 5))
+	require.NoError(t, p.Apply(&corev1.Event{
+		Id:    "E5",
+		Event: &corev1.Event_UserCustomStatusCleared{UserCustomStatusCleared: &corev1.UserCustomStatusClearedEvent{UserId: "U1"}},
+	}, 6))
+
+	got, ok = p.Get("U1")
+	require.True(t, ok)
+	require.Nil(t, got.GetCustomStatus())
+}
+
 func TestUserProjection_VerifiedEmailAvatarOIDCAndDelete(t *testing.T) {
 	p, contentKey := newEncryptedUserProjection(t, "U1")
 	createdAt := time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC)

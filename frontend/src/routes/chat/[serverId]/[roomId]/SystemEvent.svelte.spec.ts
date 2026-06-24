@@ -5,7 +5,8 @@ import SystemEvent from './SystemEvent.svelte';
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveDisplayName: (_userId: string, fallback: string) => fallback,
-  getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback
+  getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
+  getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback
 }));
 
 vi.mock('$lib/state/presenceCache.svelte', () => ({

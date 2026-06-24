@@ -1,11 +1,11 @@
 # FDR-022: User Profile
 
 **Status:** Active
-**Last reviewed:** 2026-06-19
+**Last reviewed:** 2026-06-23
 
 ## Overview
 
-A user's profile carries the public identity they present to the rest of the server (login, display name, avatar) plus server-synced personal settings (timezone, time format). Most of the profile is self-editable; one field — the login — is throttled to discourage identity-confusion abuse, with an admin escape hatch for legitimate needs. Browser-local display preferences, such as theme, live outside the profile.
+A user's profile carries the public identity they present to the rest of the server (login, display name, avatar, custom status) plus server-synced personal settings (timezone, time format). Most of the profile is self-editable; one field — the login — is throttled to discourage identity-confusion abuse, with an admin escape hatch for legitimate needs. Browser-local display preferences, such as theme, live outside the profile.
 
 ## Behavior
 
@@ -13,6 +13,9 @@ A user's profile carries the public identity they present to the rest of the ser
 - **Login (username)** — editable by the user with a 30-day cooldown between changes. Each successful change records a timestamp; subsequent changes within the window are rejected with a clear error message.
 - **Case-only changes** (e.g., `alice` → `Alice`) bypass the cooldown.
 - **Avatar** — users upload an image; the server resizes to 256×256 max and stores it as lossless WebP. The old avatar is deleted after the new one is committed. Users can also delete their avatar (falling back to an initial-letter placeholder).
+- **Custom status** — users can set an emoji plus short text. The emoji is shown next to their name; the text is shown alongside it where space allows and as hover/accessible text in compact places.
+- **Custom status templates** — the web client offers preset statuses for lunch, vacation, and sick leave plus a custom mode. Presets store reserved text tokens in the same free-form status text field so each client can render the label in its active language. Custom mode stores the user's literal text.
+- **Custom status expiry** — users can optionally choose an expiry date and time. After that instant, projected reads and the web client hide the status automatically. Users can also clear it manually.
 - **Settings** — currently timezone (IANA name, e.g., `Europe/Berlin`) and time format (browser default / 12-hour / 24-hour). Stored server-side so they sync across devices. If not set, the frontend uses the browser timezone and locale time-format default.
 - **Display theme** — users can choose System, Light, or Dark. System follows the browser or OS color-scheme preference. The choice is browser-local and applies immediately on that device.
 - **Admin overrides** — operators with the right permissions can update other users' profiles, bypass the login cooldown, clear the cooldown so the user can change again before the 30 days expire, and force-delete an avatar.
@@ -61,13 +64,31 @@ A user's profile carries the public identity they present to the rest of the ser
 **Why:** Chatto's simplified RBAC model is permission-based for everyone except effective owners, who are protected by the owner override rather than target-rank gates.
 **Tradeoff:** A user with `role.assign` can edit any target user's profile.
 
+### 8. Custom status is durable profile metadata, not presence
+
+**Decision:** Custom statuses are stored as user-aggregate EVT facts (`custom_status_set` / `custom_status_cleared`) and projected into `User.customStatus`. The status is independent of online/away/DND presence and does not affect notification routing.
+**Why:** The product meaning is user-authored profile context ("working on X", "back after lunch"), not a current connection-state hint. Persisting it in EVT makes it replayable, backup-safe, and consistent across replicas and devices while keeping presence ephemeral.
+**Tradeoff:** An expired status remains in historical EVT facts. Projections and clients hide it after `expiresAt`; clearing is a separate explicit fact rather than a background rewrite or KV delete.
+
+### 9. Custom status writes use the protobuf-first API
+
+**Decision:** The web client writes custom status through `UserStatusService` on the ConnectRPC `/api/connect` surface. GraphQL still exposes projected profile fields and realtime `myEvents` payloads while the subscription system remains GraphQL-backed.
+**Why:** New API surface should move toward the protobuf-first path without forcing the whole remaining profile UI off GraphQL at once.
+**Tradeoff:** For now this feature crosses both APIs: ConnectRPC for writes, GraphQL for projected reads/live delivery.
+
+### 10. Status templates are client-side reserved text tokens
+
+**Decision:** Built-in templates use the same persisted `CustomUserStatus` shape as custom statuses. The emoji is stored normally, while the text field stores a reserved token such as `chatto:status:out_for_lunch`. Clients that understand the token render a localized label; unknown/custom text is rendered literally.
+**Why:** This keeps the durable EVT model simple and preserves the "any emoji plus any text" API while allowing built-in statuses to be localized for each viewer.
+**Tradeoff:** Older clients that do not know the reserved tokens may display the raw token. This is acceptable during early development and avoids a protobuf shape change solely for UI presets.
+
 ## Permissions
 
-- Self-edit (display name, avatar, settings, own login subject to cooldown) — no explicit permission; just authentication.
+- Self-edit (display name, avatar, custom status, settings, own login subject to cooldown) — no explicit permission; just authentication.
 - Cross-user edit — `role.assign` (via `requireUserAdminTarget`).
 - Clear another user's login cooldown — same gate.
 
 ## Related
 
 - **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-021 (dual asset storage), ADR-043 (client-shell internationalization)
-- **FDRs:** FDR-001 (Roles & Permissions), FDR-008 (File Attachments & Video Processing), FDR-018 (Account Lifecycle)
+- **FDRs:** FDR-001 (Roles & Permissions), FDR-008 (File Attachments & Video Processing), FDR-011 (User Presence), FDR-018 (Account Lifecycle)
