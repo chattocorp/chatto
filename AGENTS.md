@@ -4,7 +4,7 @@
 
 Please refer to this repository's README.md for general information.
 
-This codebase keeps agent-relevant context in six places. Read the one that fits your task:
+This codebase keeps agent-relevant context in seven places. Read the one that fits your task:
 
 - **`.claude/rules/**`** — always-on coding, testing, and review conventions, mostly path-scoped (`frontend.md` and `frontend-conventions.md` for SvelteKit work, `backend.md` for Go, `testing-frontend.md` / `testing-backend.md` for tests, `authorization.md` for permission changes, etc.). Start here for "how do we do things in this repo?"
 - **`.agents/skills/**`** — opt-in agent skills for repeated workflows. Use the matching skill when a task names one or clearly fits its workflow: `chatto-architecture` for `docs/ARCHITECTURE.md`, `glossary` for `docs/GLOSSARY.md`, and `svelte-core-bestpractices` together with the Svelte MCP tools when writing, editing, or reviewing Svelte components and modules.
@@ -12,6 +12,7 @@ This codebase keeps agent-relevant context in six places. Read the one that fits
 - **`docs/adr/INDEX.md`** — **Architecture** Decision Records. Cross-cutting choices like "NATS as primary data store" or "per-user encryption keys with crypto-shredding". Read when touching architectural seams.
 - **`docs/ARCHITECTURE.md`** — current-version inventory of what exists: core services, projections, EVT events and subject patterns, streams, KV buckets, object stores, key shapes, and GraphQL operations. Use when you need to know *what's where*, not *why*, and keep it current rather than reintroducing historical storage inventories.
 - **`docs/GLOSSARY.md`** — canonical one-line definitions of Chatto-specific terms (Server, Space, Event, Subject, Projection, OCC, etc.). Skim when you encounter a word you don't recognize, and update it when introducing or renaming shared concepts.
+- **`proto/AGENTS.md`** — required protobuf-specific guidance. Read this before editing `.proto` files, generated protobuf outputs, ConnectRPC schemas, or protobuf comments that feed the public API reference.
 
 ### Project Status
 
@@ -29,6 +30,7 @@ Please update this section as the project evolves, and refer to it when making d
 - Where feasible, write code comments that explain intent.
 - Make sure the code is well-tested, and that tests are easy to understand and maintain.
 - We're very likely migrating our API surface away from GraphQL to a combination of ConnectRPC and a custom wire protocol that pushes protobufs to the client. When writing new API surface, please add to the new setup, not GraphQL.
+- **Important:** before working on protobufs, ConnectRPC schemas, or generated API reference comments, read `proto/AGENTS.md`. Nested `AGENTS.md` files may not be loaded automatically, so this root file is the reminder.
 
 ### Specific Rules for Frontend Code
 
