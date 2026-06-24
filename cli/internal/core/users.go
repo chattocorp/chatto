@@ -598,10 +598,10 @@ func (c *ChattoCore) publishUserProfileUpdate(ctx context.Context, userID string
 	event := newLiveEvent(userID, &corev1.LiveEvent{
 		Event: &corev1.LiveEvent_UserProfileUpdated{
 			UserProfileUpdated: &corev1.UserProfileUpdatedEvent{
-				UserId:       userID,
-				DisplayName:  user.DisplayName,
-				AvatarUrl:    avatarURL,
-				Login:        user.Login,
+				UserId:      userID,
+				DisplayName: user.DisplayName,
+				AvatarUrl:   avatarURL,
+				Login:       user.Login,
 			},
 		},
 	})
@@ -670,6 +670,7 @@ var ErrLoginAlreadyTaken = fmt.Errorf("login name is already taken")
 var ErrUsernameBlocked = fmt.Errorf("this username is not available")
 
 var ErrCustomStatusEmojiRequired = fmt.Errorf("custom status emoji is required")
+var ErrCustomStatusTextRequired = fmt.Errorf("custom status text is required")
 var ErrCustomStatusEmojiTooLong = fmt.Errorf("custom status emoji is too long")
 var ErrCustomStatusTextTooLong = fmt.Errorf("custom status text is too long")
 var ErrCustomStatusExpiryInPast = fmt.Errorf("custom status expiry must be in the future")
@@ -888,6 +889,9 @@ func (c *ChattoCore) SetUserCustomStatus(ctx context.Context, userID, emoji, tex
 	text = strings.TrimSpace(text)
 	if emoji == "" {
 		return nil, ErrCustomStatusEmojiRequired
+	}
+	if text == "" {
+		return nil, ErrCustomStatusTextRequired
 	}
 	if utf8.RuneCountInString(emoji) > MaxCustomStatusEmojiLength {
 		return nil, ErrCustomStatusEmojiTooLong

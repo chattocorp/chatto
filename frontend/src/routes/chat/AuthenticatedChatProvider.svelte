@@ -14,7 +14,10 @@
     useUserSettingsUpdate,
     useSessionTerminated
   } from '$lib/hooks';
-  import type { CustomUserStatus } from '$lib/state/userProfiles.svelte';
+  import {
+    scheduleCustomStatusExpiry,
+    type CustomUserStatus
+  } from '$lib/state/userProfiles.svelte';
   import { initSessionChannel } from '$lib/auth/sessionChannel';
   import { initPresenceTracking } from '$lib/presenceTracking';
   import ReturnUrlHandler from '$lib/components/ReturnUrlHandler.svelte';
@@ -70,6 +73,25 @@
   // Initialize user settings from the user's settings data
   // svelte-ignore state_referenced_locally
   userSettings.updateFromData(user.settings);
+
+  $effect(() => {
+    const status = currentUserState.user?.customStatus;
+    const currentUserId = currentUserState.user?.id;
+    if (!status?.expiresAt || !currentUserId) return;
+
+    return scheduleCustomStatusExpiry(status, () => {
+      if (
+        currentUserState.user?.id === currentUserId &&
+        currentUserState.user.customStatus?.expiresAt === status.expiresAt
+      ) {
+        currentUserState.user = {
+          ...currentUserState.user,
+          customStatus: null
+        };
+        profileCache.updateStatus(currentUserId, null);
+      }
+    });
+  });
 
   // Start (idempotent) and expose the origin server's event bus via Svelte
   // context so the on* hooks below can use it. Root +layout.svelte's $effect

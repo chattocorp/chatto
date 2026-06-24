@@ -122,6 +122,14 @@ func TestUserStatusServiceSetAndClearCustomStatus(t *testing.T) {
 		t.Fatalf("stored CustomStatus = %+v, want set status", stored.GetCustomStatus())
 	}
 
+	_, err = env.status.SetCustomStatus(ctx, connect.NewRequest(&apiv1.SetCustomStatusRequest{
+		Emoji: "🌿",
+		Text:  "   ",
+	}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("SetCustomStatus blank text error = %v, want InvalidArgument", err)
+	}
+
 	clearResp, err := env.status.ClearCustomStatus(ctx, connect.NewRequest(&apiv1.ClearCustomStatusRequest{}))
 	if err != nil {
 		t.Fatalf("ClearCustomStatus: %v", err)

@@ -1240,6 +1240,10 @@ func TestChattoCore_SetAndClearUserCustomStatus(t *testing.T) {
 		t.Fatalf("custom status text = %q, want In focus mode", got)
 	}
 
+	if _, err := core.SetUserCustomStatus(ctx, user.Id, "🌿", "   ", nil); !errors.Is(err, ErrCustomStatusTextRequired) {
+		t.Fatalf("SetUserCustomStatus blank text error = %v, want ErrCustomStatusTextRequired", err)
+	}
+
 	statusEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserCustomStatusSet))
 	if err != nil {
 		t.Fatalf("SubjectEvents custom status set failed: %v", err)

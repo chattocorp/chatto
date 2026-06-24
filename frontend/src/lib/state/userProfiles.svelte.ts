@@ -24,13 +24,51 @@ type ProfileUpdate = {
 };
 
 const [getCache, setCache] = createContext<{ current: SvelteMap<string, ProfileUpdate> }>();
-const expiryTimers = new SvelteMap<string, ReturnType<typeof setTimeout>>();
+const expiryCleanups = new SvelteMap<string, () => void>();
 const MAX_TIMEOUT_DELAY_MS = 2_147_483_647;
 
-function isStatusActive(status: CustomUserStatus | null | undefined): status is CustomUserStatus {
+export function isCustomStatusActive(
+  status: CustomUserStatus | null | undefined
+): status is CustomUserStatus {
   if (!status) return false;
   if (!status.expiresAt) return true;
-  return new Date(status.expiresAt).getTime() > Date.now();
+  return Date.parse(status.expiresAt) > Date.now();
+}
+
+export function scheduleCustomStatusExpiry(
+  status: CustomUserStatus | null | undefined,
+  onExpire: () => void
+): () => void {
+  const expiresAt = status?.expiresAt;
+  if (!expiresAt) return () => {};
+
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  let cancelled = false;
+
+  const schedule = (fromTimer = false) => {
+    if (cancelled) return;
+    const expiresAtMs = Date.parse(expiresAt);
+    if (Number.isNaN(expiresAtMs)) return;
+    const delay = expiresAtMs - Date.now();
+    if (delay <= 0) {
+      if (fromTimer) {
+        onExpire();
+      } else {
+        timeout = setTimeout(() => {
+          if (!cancelled) onExpire();
+        }, 0);
+      }
+      return;
+    }
+    timeout = setTimeout(() => schedule(true), Math.min(delay, MAX_TIMEOUT_DELAY_MS));
+  };
+
+  schedule();
+
+  return () => {
+    cancelled = true;
+    if (timeout) clearTimeout(timeout);
+  };
 }
 
 function scheduleExpiry(
@@ -38,36 +76,22 @@ function scheduleExpiry(
   status: CustomUserStatus | null | undefined,
   cache: SvelteMap<string, ProfileUpdate>
 ) {
-  const existing = expiryTimers.get(userId);
+  const existing = expiryCleanups.get(userId);
   if (existing) {
-    clearTimeout(existing);
-    expiryTimers.delete(userId);
+    existing();
+    expiryCleanups.delete(userId);
   }
   if (!status?.expiresAt) return;
-
-  const expiresAtMs = new Date(status.expiresAt).getTime();
-  if (Number.isNaN(expiresAtMs)) return;
-  const delay = expiresAtMs - Date.now();
-  if (delay <= 0) {
+  const cleanup = scheduleCustomStatusExpiry(status, () => {
     const current = cache.get(userId);
-    if (current) cache.set(userId, { ...current, customStatus: null });
-    return;
-  }
-
-  const timeoutDelay = Math.min(delay, MAX_TIMEOUT_DELAY_MS);
-  expiryTimers.set(
+    if (current?.customStatus?.expiresAt === status?.expiresAt) {
+      cache.set(userId, { ...current, customStatus: null });
+    }
+    expiryCleanups.delete(userId);
+  });
+  expiryCleanups.set(
     userId,
-    setTimeout(() => {
-      const current = cache.get(userId);
-      expiryTimers.delete(userId);
-      if (current?.customStatus?.expiresAt === status.expiresAt) {
-        if (expiresAtMs <= Date.now()) {
-          cache.set(userId, { ...current, customStatus: null });
-        } else {
-          scheduleExpiry(userId, status, cache);
-        }
-      }
-    }, timeoutDelay)
+    cleanup
   );
 }
 
@@ -149,5 +173,5 @@ export function getLiveCustomStatus(
   const cache = getCache();
   const update = cache.current.get(userId);
   const status = update && 'customStatus' in update ? update.customStatus : fallback;
-  return isStatusActive(status) ? status : null;
+  return isCustomStatusActive(status) ? status : null;
 }
