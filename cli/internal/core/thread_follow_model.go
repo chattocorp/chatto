@@ -2,20 +2,20 @@ package core
 
 import "context"
 
-// ThreadFollows returns the operation-level service for user-facing thread
+// ThreadFollows returns the operation-level model for user-facing thread
 // follow state changes.
-func (c *ChattoCore) ThreadFollows() *ThreadFollowService {
+func (c *ChattoCore) ThreadFollows() *ThreadFollowModel {
 	return c.threadFollows
 }
 
-// ThreadFollowService owns public thread follow/unfollow mutations. It keeps
+// ThreadFollowModel owns public thread follow/unfollow mutations. It keeps
 // membership and thread-root validation alongside the operation, while the
 // lower-level KV helpers remain available for trusted/internal call sites.
-type ThreadFollowService struct {
+type ThreadFollowModel struct {
 	core *ChattoCore
 }
 
-func (s *ThreadFollowService) FollowThread(ctx context.Context, actorID, roomID, threadRootEventID string) error {
+func (s *ThreadFollowModel) FollowThread(ctx context.Context, actorID, roomID, threadRootEventID string) error {
 	room, kind, err := s.core.requireRoomMember(ctx, actorID, roomID)
 	if err != nil {
 		return err
@@ -26,7 +26,7 @@ func (s *ThreadFollowService) FollowThread(ctx context.Context, actorID, roomID,
 	return s.core.FollowThread(ctx, kind, actorID, room.Id, threadRootEventID)
 }
 
-func (s *ThreadFollowService) UnfollowThread(ctx context.Context, actorID, roomID, threadRootEventID string) error {
+func (s *ThreadFollowModel) UnfollowThread(ctx context.Context, actorID, roomID, threadRootEventID string) error {
 	room, kind, err := s.core.requireRoomMember(ctx, actorID, roomID)
 	if err != nil {
 		return err

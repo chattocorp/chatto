@@ -135,7 +135,7 @@ func (c *ChattoCore) generateInitialUserDEK(ctx context.Context, userID string, 
 		if err != nil {
 			return nil, fmt.Errorf("read DEK OCC filter seq: %w", err)
 		}
-		if err := c.userService.waitForContentKeysCurrent(ctx, userID); err != nil {
+		if err := c.userModel.waitForContentKeysCurrent(ctx, userID); err != nil {
 			return nil, err
 		}
 		if event, ok := c.ContentKeys.Active(userID, purpose); ok {
@@ -161,7 +161,7 @@ func (c *ChattoCore) generateInitialUserDEK(ctx context.Context, userID string, 
 
 		seq, err := c.EventPublisher.AppendAtFilter(ctx, subject, event, filter, filterSeq)
 		if err == nil {
-			if err := c.userService.waitForContentKeys(ctx, events.SubjectPosition(subject, seq)); err != nil {
+			if err := c.userModel.waitForContentKeys(ctx, events.SubjectPosition(subject, seq)); err != nil {
 				return nil, fmt.Errorf("wait for DEK projection: %w", err)
 			}
 			return &userDEK{epoch: 1, purpose: purpose, key: key}, nil

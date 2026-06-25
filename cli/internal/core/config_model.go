@@ -11,18 +11,18 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// ConfigService owns semantic configuration/preference event writes.
-type ConfigService struct {
+// ConfigModel owns semantic configuration/preference event writes.
+type ConfigModel struct {
 	publisher  *events.Publisher
 	projector  *events.Projector
 	projection *ConfigProjection
 }
 
-func NewConfigService(publisher *events.Publisher, projector *events.Projector, projection *ConfigProjection) *ConfigService {
-	return &ConfigService{publisher: publisher, projector: projector, projection: projection}
+func NewConfigModel(publisher *events.Publisher, projector *events.Projector, projection *ConfigProjection) *ConfigModel {
+	return &ConfigModel{publisher: publisher, projector: projector, projection: projection}
 }
 
-func (s *ConfigService) prepareSubject(ctx context.Context, subject string) (events.Aggregate, string, uint64, error) {
+func (s *ConfigModel) prepareSubject(ctx context.Context, subject string) (events.Aggregate, string, uint64, error) {
 	if s.publisher == nil || s.projector == nil {
 		return events.Aggregate{}, "", 0, fmt.Errorf("config service: event publisher/projector not configured")
 	}
@@ -43,7 +43,7 @@ func (s *ConfigService) prepareSubject(ctx context.Context, subject string) (eve
 	return agg, filter, expectedSeq, nil
 }
 
-func (s *ConfigService) appendEventsAt(ctx context.Context, agg events.Aggregate, filter string, expectedSeq uint64, evs []*corev1.Event) error {
+func (s *ConfigModel) appendEventsAt(ctx context.Context, agg events.Aggregate, filter string, expectedSeq uint64, evs []*corev1.Event) error {
 	if len(evs) == 0 {
 		return nil
 	}
@@ -73,7 +73,7 @@ func (s *ConfigService) appendEventsAt(ctx context.Context, agg events.Aggregate
 	return nil
 }
 
-func (s *ConfigService) updateSubject(
+func (s *ConfigModel) updateSubject(
 	ctx context.Context,
 	subject string,
 	build func(agg events.Aggregate, filter string, expectedSeq uint64) ([]*corev1.Event, error),
@@ -104,7 +104,7 @@ func (s *ConfigService) updateSubject(
 	return ErrConfigConflict
 }
 
-func (s *ConfigService) waitFor(ctx context.Context, pos events.StreamPosition) error {
+func (s *ConfigModel) waitFor(ctx context.Context, pos events.StreamPosition) error {
 	return waitForPositionAll(ctx, pos, waitForProjection("config", s.projector))
 }
 

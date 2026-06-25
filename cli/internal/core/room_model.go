@@ -8,13 +8,13 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// RoomService owns the room-derived projections and their projectors.
+// RoomModel owns the room-derived projections and their projectors.
 //
 // ChattoCore is still the compatibility facade for most room APIs, but room
 // write paths should use this type for projection readiness instead of naming
 // individual projector fields. That keeps the "which projections must catch
 // up?" knowledge with the room read models.
-type RoomService struct {
+type RoomModel struct {
 	directory          *RoomDirectoryProjection
 	directoryProjector *events.Projector
 
@@ -31,7 +31,7 @@ type RoomService struct {
 	reactionsProjector *events.Projector
 }
 
-func newRoomService(
+func newRoomModel(
 	directory *RoomDirectoryProjection,
 	directoryProjector *events.Projector,
 	groupLayout *RoomGroupLayoutProjection,
@@ -42,8 +42,8 @@ func newRoomService(
 	threadsProjector *events.Projector,
 	reactions *ReactionProjection,
 	reactionsProjector *events.Projector,
-) *RoomService {
-	return &RoomService{
+) *RoomModel {
+	return &RoomModel{
 		directory:            directory,
 		directoryProjector:   directoryProjector,
 		groupLayout:          groupLayout,
@@ -57,9 +57,9 @@ func newRoomService(
 	}
 }
 
-func (c *ChattoCore) rooms() *RoomService {
-	if c.roomService == nil {
-		c.roomService = newRoomService(
+func (c *ChattoCore) rooms() *RoomModel {
+	if c.roomModel == nil {
+		c.roomModel = newRoomModel(
 			c.RoomDirectory,
 			c.RoomDirectoryProjector,
 			c.RoomGroupLayout,
@@ -72,18 +72,18 @@ func (c *ChattoCore) rooms() *RoomService {
 			c.ReactionsProjector,
 		)
 	}
-	return c.roomService
+	return c.roomModel
 }
 
-func (m *RoomService) waitForDirectory(ctx context.Context, pos events.StreamPosition) error {
+func (m *RoomModel) waitForDirectory(ctx context.Context, pos events.StreamPosition) error {
 	return waitForPositionAll(ctx, pos, waitForProjection("room directory", m.directoryProjector))
 }
 
-func (m *RoomService) waitForGroupLayout(ctx context.Context, pos events.StreamPosition) error {
+func (m *RoomModel) waitForGroupLayout(ctx context.Context, pos events.StreamPosition) error {
 	return waitForPositionAll(ctx, pos, waitForProjection("room group layout", m.groupLayoutProjector))
 }
 
-func (m *RoomService) waitForGroupLayoutCurrent(ctx context.Context, publisher *events.Publisher) error {
+func (m *RoomModel) waitForGroupLayoutCurrent(ctx context.Context, publisher *events.Publisher) error {
 	pos, err := publisher.LastSubjectPosition(ctx, events.GroupSubjectFilter())
 	if err != nil {
 		return err
@@ -94,19 +94,19 @@ func (m *RoomService) waitForGroupLayoutCurrent(ctx context.Context, publisher *
 	return m.waitForGroupLayout(ctx, pos)
 }
 
-func (m *RoomService) waitForTimeline(ctx context.Context, pos events.StreamPosition) error {
+func (m *RoomModel) waitForTimeline(ctx context.Context, pos events.StreamPosition) error {
 	return waitForPositionAll(ctx, pos, waitForProjection("room timeline", m.timelineProjector))
 }
 
-func (m *RoomService) waitForThreads(ctx context.Context, pos events.StreamPosition) error {
+func (m *RoomModel) waitForThreads(ctx context.Context, pos events.StreamPosition) error {
 	return waitForPositionAll(ctx, pos, waitForProjection("threads", m.threadsProjector))
 }
 
-func (m *RoomService) waitForReactions(ctx context.Context, pos events.StreamPosition) error {
+func (m *RoomModel) waitForReactions(ctx context.Context, pos events.StreamPosition) error {
 	return waitForPositionAll(ctx, pos, waitForProjection("reactions", m.reactionsProjector))
 }
 
-func (m *RoomService) waitForReactionsCurrent(ctx context.Context, publisher *events.Publisher, roomID string) error {
+func (m *RoomModel) waitForReactionsCurrent(ctx context.Context, publisher *events.Publisher, roomID string) error {
 	pos, err := publisher.LastSubjectPosition(ctx, events.RoomAggregate(roomID).AllEventsFilter())
 	if err != nil {
 		return err
@@ -117,21 +117,21 @@ func (m *RoomService) waitForReactionsCurrent(ctx context.Context, publisher *ev
 	return m.waitForReactions(ctx, pos)
 }
 
-func (m *RoomService) waitForDirectoryAndTimeline(ctx context.Context, pos events.StreamPosition) error {
+func (m *RoomModel) waitForDirectoryAndTimeline(ctx context.Context, pos events.StreamPosition) error {
 	return waitForPositionAll(ctx, pos,
 		waitForProjection("room directory", m.directoryProjector),
 		waitForProjection("room timeline", m.timelineProjector),
 	)
 }
 
-func (m *RoomService) waitForTimelineAndThreads(ctx context.Context, pos events.StreamPosition) error {
+func (m *RoomModel) waitForTimelineAndThreads(ctx context.Context, pos events.StreamPosition) error {
 	return waitForPositionAll(ctx, pos,
 		waitForProjection("room timeline", m.timelineProjector),
 		waitForProjection("threads", m.threadsProjector),
 	)
 }
 
-func (m *RoomService) waitForLiveEVTEvent(ctx context.Context, pos events.StreamPosition, event *corev1.Event) error {
+func (m *RoomModel) waitForLiveEVTEvent(ctx context.Context, pos events.StreamPosition, event *corev1.Event) error {
 	if err := m.waitForTimeline(ctx, pos); err != nil {
 		return err
 	}
@@ -153,23 +153,23 @@ func (m *RoomService) waitForLiveEVTEvent(ctx context.Context, pos events.Stream
 	return nil
 }
 
-func (m *RoomService) room(roomID string) (*corev1.Room, bool) {
+func (m *RoomModel) room(roomID string) (*corev1.Room, bool) {
 	return m.directory.Catalog.Get(roomID)
 }
 
-func (m *RoomService) roomsByKind(kind corev1.RoomKind) []*corev1.Room {
+func (m *RoomModel) roomsByKind(kind corev1.RoomKind) []*corev1.Room {
 	return m.directory.Catalog.AllByKind(kind)
 }
 
-func (m *RoomService) roomIDByName(name string) string {
+func (m *RoomModel) roomIDByName(name string) string {
 	return m.directory.Catalog.FindByName(name)
 }
 
-func (m *RoomService) nameClaimSnapshot(name string) RoomNameClaimSnapshot {
+func (m *RoomModel) nameClaimSnapshot(name string) RoomNameClaimSnapshot {
 	return m.directory.Catalog.NameClaimSnapshot(name)
 }
 
-func (m *RoomService) waitForDirectoryCurrent(ctx context.Context, publisher *events.Publisher) error {
+func (m *RoomModel) waitForDirectoryCurrent(ctx context.Context, publisher *events.Publisher) error {
 	pos, err := publisher.LastSubjectPosition(ctx, events.RoomSubjectFilter())
 	if err != nil {
 		return err
@@ -180,115 +180,115 @@ func (m *RoomService) waitForDirectoryCurrent(ctx context.Context, publisher *ev
 	return m.waitForDirectory(ctx, pos)
 }
 
-func (m *RoomService) activeRoomBan(roomID, userID string, now time.Time) (RoomBan, bool) {
+func (m *RoomModel) activeRoomBan(roomID, userID string, now time.Time) (RoomBan, bool) {
 	return m.directory.Bans.ActiveBan(roomID, userID, now)
 }
 
-func (m *RoomService) activeRoomBans(roomID string, now time.Time) []RoomBan {
+func (m *RoomModel) activeRoomBans(roomID string, now time.Time) []RoomBan {
 	return m.directory.Bans.ActiveRoomBans(roomID, now)
 }
 
-func (m *RoomService) activeBans(now time.Time) []RoomBan {
+func (m *RoomModel) activeBans(now time.Time) []RoomBan {
 	return m.directory.Bans.ActiveBans(now)
 }
 
-func (m *RoomService) isRoomBanActive(roomID, userID string, now time.Time) bool {
+func (m *RoomModel) isRoomBanActive(roomID, userID string, now time.Time) bool {
 	return m.directory.Bans.IsActive(roomID, userID, now)
 }
 
-func (m *RoomService) timelineEntry(eventID string) (*TimelineEntry, bool) {
+func (m *RoomModel) timelineEntry(eventID string) (*TimelineEntry, bool) {
 	return m.timeline.Get(eventID)
 }
 
-func (m *RoomService) latestBody(eventID string) (*corev1.MessageBody, bool, bool) {
+func (m *RoomModel) latestBody(eventID string) (*corev1.MessageBody, bool, bool) {
 	return m.timeline.LatestBody(eventID)
 }
 
-func (m *RoomService) currentRoomAttachmentMessages(roomID string) []projectedRoomAttachmentMessage {
+func (m *RoomModel) currentRoomAttachmentMessages(roomID string) []projectedRoomAttachmentMessage {
 	return m.timeline.CurrentRoomAttachmentMessages(roomID)
 }
 
-func (m *RoomService) isEcho(eventID string) bool {
+func (m *RoomModel) isEcho(eventID string) bool {
 	return m.timeline.IsEcho(eventID)
 }
 
-func (m *RoomService) isHiddenEcho(eventID string) bool {
+func (m *RoomModel) isHiddenEcho(eventID string) bool {
 	return m.timeline.IsHiddenEcho(eventID)
 }
 
-func (m *RoomService) linkedEventIDs(eventID string) []string {
+func (m *RoomModel) linkedEventIDs(eventID string) []string {
 	return m.timeline.LinkedEventIDs(eventID)
 }
 
-func (m *RoomService) bodyEventSeqs(eventID string) ([]uint64, uint64, bool) {
+func (m *RoomModel) bodyEventSeqs(eventID string) ([]uint64, uint64, bool) {
 	return m.timeline.BodyEventSeqs(eventID)
 }
 
-func (m *RoomService) obsoleteBodyEventSeqs(eventID string) []uint64 {
+func (m *RoomModel) obsoleteBodyEventSeqs(eventID string) []uint64 {
 	return m.timeline.ObsoleteBodyEventSeqs(eventID)
 }
 
-func (m *RoomService) allObsoleteBodyEventSeqs() []uint64 {
+func (m *RoomModel) allObsoleteBodyEventSeqs() []uint64 {
 	return m.timeline.AllObsoleteBodyEventSeqs()
 }
 
-func (m *RoomService) messageTombstoned(eventID string) bool {
+func (m *RoomModel) messageTombstoned(eventID string) bool {
 	return m.timeline.MessageTombstoned(eventID)
 }
 
-func (m *RoomService) lastVisibleRoomEntry(roomID string, visible func(*corev1.Event) bool) (*TimelineEntry, bool) {
+func (m *RoomModel) lastVisibleRoomEntry(roomID string, visible func(*corev1.Event) bool) (*TimelineEntry, bool) {
 	return m.timeline.LastVisibleRoomEntry(roomID, visible)
 }
 
-func (m *RoomService) lastRoomMessageEntry(roomID string) (*TimelineEntry, bool) {
+func (m *RoomModel) lastRoomMessageEntry(roomID string) (*TimelineEntry, bool) {
 	return m.timeline.LastRoomMessageEntry(roomID)
 }
 
-func (m *RoomService) visibleRoomTimeline(roomID string, limit int, beforeStreamSeq uint64, visible func(*corev1.Event) bool) []*TimelineEntry {
+func (m *RoomModel) visibleRoomTimeline(roomID string, limit int, beforeStreamSeq uint64, visible func(*corev1.Event) bool) []*TimelineEntry {
 	return m.timeline.VisibleRoomTimeline(roomID, limit, beforeStreamSeq, visible)
 }
 
-func (m *RoomService) roomEventCount(roomID string) int {
+func (m *RoomModel) roomEventCount(roomID string) int {
 	return m.timeline.RoomEventCount(roomID)
 }
 
-func (m *RoomService) visibleRoomTimelineAfter(roomID string, limit int, afterStreamSeq uint64, visible func(*corev1.Event) bool) []*TimelineEntry {
+func (m *RoomModel) visibleRoomTimelineAfter(roomID string, limit int, afterStreamSeq uint64, visible func(*corev1.Event) bool) []*TimelineEntry {
 	return m.timeline.VisibleRoomTimelineAfter(roomID, limit, afterStreamSeq, visible)
 }
 
-func (m *RoomService) visibleRoomTimelineAround(roomID, eventID string, limit int) ([]*TimelineEntry, int, bool, bool, bool) {
+func (m *RoomModel) visibleRoomTimelineAround(roomID, eventID string, limit int) ([]*TimelineEntry, int, bool, bool, bool) {
 	return m.timeline.VisibleRoomTimelineAround(roomID, eventID, limit)
 }
 
-func (m *RoomService) threadExists(rootEventID string) bool {
+func (m *RoomModel) threadExists(rootEventID string) bool {
 	return m.threads.ThreadExists(rootEventID)
 }
 
-func (m *RoomService) threadEvents(rootEventID string) []*TimelineEntry {
+func (m *RoomModel) threadEvents(rootEventID string) []*TimelineEntry {
 	return m.threads.ThreadEvents(rootEventID)
 }
 
-func (m *RoomService) threadMetadata(rootEventID string) *ThreadMetadata {
+func (m *RoomModel) threadMetadata(rootEventID string) *ThreadMetadata {
 	return m.threads.ThreadMetadata(rootEventID)
 }
 
-func (m *RoomService) reactionsForMessage(messageEventID string) []ReactionSummary {
+func (m *RoomModel) reactionsForMessage(messageEventID string) []ReactionSummary {
 	return m.reactions.Reactions(messageEventID)
 }
 
-func (m *RoomService) reactionsBatch(eventIDs []string) map[string][]ReactionSummary {
+func (m *RoomModel) reactionsBatch(eventIDs []string) map[string][]ReactionSummary {
 	return m.reactions.ReactionsBatch(eventIDs)
 }
 
-func (m *RoomService) hasReaction(messageEventID, emoji, userID string) bool {
+func (m *RoomModel) hasReaction(messageEventID, emoji, userID string) bool {
 	return m.reactions.HasReaction(messageEventID, emoji, userID)
 }
 
-func (m *RoomService) reactionMutationSnapshot(roomID, messageEventID, emoji, userID string) ReactionMutationSnapshot {
+func (m *RoomModel) reactionMutationSnapshot(roomID, messageEventID, emoji, userID string) ReactionMutationSnapshot {
 	return m.reactions.ReactionMutationSnapshot(roomID, messageEventID, emoji, userID)
 }
 
-func (m *RoomService) appendDirectoryEventually(ctx context.Context, pub *events.Publisher, agg events.Aggregate, event *corev1.Event) (events.StreamPosition, error) {
+func (m *RoomModel) appendDirectoryEventually(ctx context.Context, pub *events.Publisher, agg events.Aggregate, event *corev1.Event) (events.StreamPosition, error) {
 	subject := agg.SubjectFor(event)
 	seq, err := pub.AppendEventually(ctx, subject, event)
 	if err != nil {
@@ -301,7 +301,7 @@ func (m *RoomService) appendDirectoryEventually(ctx context.Context, pub *events
 	return pos, nil
 }
 
-func (m *RoomService) appendGroupLayout(ctx context.Context, pub *events.Publisher, agg events.Aggregate, event *corev1.Event) (events.StreamPosition, error) {
+func (m *RoomModel) appendGroupLayout(ctx context.Context, pub *events.Publisher, agg events.Aggregate, event *corev1.Event) (events.StreamPosition, error) {
 	subject := agg.SubjectFor(event)
 	seq, err := pub.Append(ctx, subject, event)
 	if err != nil {
@@ -314,7 +314,7 @@ func (m *RoomService) appendGroupLayout(ctx context.Context, pub *events.Publish
 	return pos, nil
 }
 
-func (m *RoomService) appendGroupLayoutEventually(ctx context.Context, pub *events.Publisher, agg events.Aggregate, event *corev1.Event) (events.StreamPosition, error) {
+func (m *RoomModel) appendGroupLayoutEventually(ctx context.Context, pub *events.Publisher, agg events.Aggregate, event *corev1.Event) (events.StreamPosition, error) {
 	subject := agg.SubjectFor(event)
 	seq, err := pub.AppendEventually(ctx, subject, event)
 	if err != nil {
@@ -327,7 +327,7 @@ func (m *RoomService) appendGroupLayoutEventually(ctx context.Context, pub *even
 	return pos, nil
 }
 
-func (m *RoomService) appendTimelineEventually(ctx context.Context, pub *events.Publisher, agg events.Aggregate, event *corev1.Event) (events.StreamPosition, error) {
+func (m *RoomModel) appendTimelineEventually(ctx context.Context, pub *events.Publisher, agg events.Aggregate, event *corev1.Event) (events.StreamPosition, error) {
 	subject := agg.SubjectFor(event)
 	seq, err := pub.AppendEventually(ctx, subject, event)
 	if err != nil {

@@ -60,7 +60,7 @@ JSON is deferred. Chatto may later expose JSON encodings or generated JSON/HTTP 
 
 Existing HTTP endpoints that are not GraphQL should be reviewed separately during migration. In particular, `/api/server` remains a high-stability discovery surface, and auth, OAuth, uploads, asset delivery, webhooks, and health/metrics endpoints may remain explicit HTTP APIs where that shape is still appropriate.
 
-New protobuf API methods must not duplicate operation-specific authorization in each transport. HTTP ConnectRPC, future RPC-over-WebSocket, and any temporary GraphQL compatibility resolver should call the same internal operation service for the use case. Transports authenticate the caller, decode/encode protocol messages, and map transport-specific errors. Internal services own authorization, validation, domain invariants, OCC/write orchestration, read-your-writes waits, and response shaping for the operation.
+New protobuf API methods must not duplicate operation-specific authorization in each transport. HTTP ConnectRPC, future RPC-over-WebSocket, and any temporary GraphQL compatibility resolver should call the same internal operation model for the use case. Transports authenticate the caller, decode/encode protocol messages, and map transport-specific errors. Internal models own authorization, validation, domain invariants, OCC/write orchestration, read-your-writes waits, and response shaping for the operation.
 
 ## Consequences
 
@@ -78,4 +78,4 @@ ConnectRPC over HTTP remains the baseline for debuggability, infrastructure comp
 
 GraphQL should be retained as a compatibility layer during migration. Removing or deprecating GraphQL requires a separate migration plan, frontend migration, compatibility communication, and release decision.
 
-Moving authorization from GraphQL resolvers into operation services reverses part of ADR-004 for new API work. This is intentional: multiple public transports make resolver-local authorization a drift risk. Lower-level core helpers may still assume trusted callers, but public use cases should get service methods whose names and signatures encode the authorized operation.
+Moving authorization from GraphQL resolvers into operation models reverses part of ADR-004 for new API work. This is intentional: multiple public transports make resolver-local authorization a drift risk. Lower-level core helpers may still assume trusted callers, but public use cases should get model methods whose names and signatures encode the authorized operation.

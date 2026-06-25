@@ -11,7 +11,7 @@ import (
 // for RoomTimelineProjection. It keeps old evt.room.*.asset_* histories
 // replayable and tracks message-owned asset references from message bodies.
 //
-// New runtime reads should prefer AssetProjection through AssetService. This
+// New runtime reads should prefer AssetProjection through AssetModel. This
 // index exists so RoomTimelineProjection can still route historical room-lane
 // asset events and recover message-owned video work without mixing that logic
 // into the chat timeline indexes.

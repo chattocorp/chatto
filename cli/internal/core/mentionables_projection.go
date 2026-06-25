@@ -273,20 +273,20 @@ type MentionableAvailability struct {
 	OwnerID   string
 }
 
-type MentionablesService struct {
+type MentionablesModel struct {
 	projection *MentionablesProjection
 	projector  *events.Projector
 }
 
-func newMentionablesService(projection *MentionablesProjection, projector *events.Projector) *MentionablesService {
-	return &MentionablesService{projection: projection, projector: projector}
+func newMentionablesModel(projection *MentionablesProjection, projector *events.Projector) *MentionablesModel {
+	return &MentionablesModel{projection: projection, projector: projector}
 }
 
-func (s *MentionablesService) waitFor(ctx context.Context, pos events.StreamPosition) error {
+func (s *MentionablesModel) waitFor(ctx context.Context, pos events.StreamPosition) error {
 	return s.projector.WaitFor(ctx, pos)
 }
 
-func (s *MentionablesService) Availability(handle string, allowedOwner *mentionableOwner) MentionableAvailability {
+func (s *MentionablesModel) Availability(handle string, allowedOwner *mentionableOwner) MentionableAvailability {
 	return s.projection.Availability(handle, allowedOwner)
 }
 

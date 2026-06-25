@@ -5,11 +5,11 @@ import (
 	"testing"
 )
 
-func TestReactionService_AddAndRemoveReaction(t *testing.T) {
+func TestReactionModel_AddAndRemoveReaction(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, room, eventID := setupReactionTest(t, core, ctx)
-	service := core.ReactionsService()
+	service := core.ReactionModel()
 
 	added, err := service.AddReaction(ctx, ReactionMutationInput{
 		ActorID:        user.Id,
@@ -64,11 +64,11 @@ func TestReactionService_AddAndRemoveReaction(t *testing.T) {
 	}
 }
 
-func TestReactionService_AuthorizationAndValidation(t *testing.T) {
+func TestReactionModel_AuthorizationAndValidation(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, room, eventID := setupReactionTest(t, core, ctx)
-	service := core.ReactionsService()
+	service := core.ReactionModel()
 
 	t.Run("requires actor", func(t *testing.T) {
 		_, err := service.AddReaction(ctx, ReactionMutationInput{

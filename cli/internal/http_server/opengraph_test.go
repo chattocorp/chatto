@@ -123,17 +123,17 @@ func TestOpenGraphMetaGenerateTags(t *testing.T) {
 
 func TestRoutePatternMatching(t *testing.T) {
 	tests := []struct {
-		path              string
+		path            string
 		expectServerSeg string
-		expectSpaceID     string
+		expectSpaceID   string
 	}{
 		{"/chat/-/abc123", "-", "abc123"},
 		{"/chat/-/abc123/rooms", "-", "abc123"},
 		{"/chat/-/abc123/rooms/general", "-", "abc123"},
 		{"/chat/myinstance/my-space_123", "myinstance", "my-space_123"},
 		{"/chat/other.host.com/S12345", "other.host.com", "S12345"},
-		{"/chat/abc123", "", ""},  // missing instance segment — no match
-		{"/join/xyz789", "", ""},  // /join/* removed — no longer matched
+		{"/chat/abc123", "", ""}, // missing instance segment — no match
+		{"/join/xyz789", "", ""}, // /join/* removed — no longer matched
 		{"/login", "", ""},
 		{"/register", "", ""},
 		{"/", "", ""},
@@ -180,4 +180,3 @@ func TestIsSpecialRoute(t *testing.T) {
 		})
 	}
 }
-

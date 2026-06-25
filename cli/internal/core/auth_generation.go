@@ -97,11 +97,11 @@ func (c *ChattoCore) ValidateRuntimeCredential(ctx context.Context, credential R
 }
 
 func (c *ChattoCore) waitForUserAuthGenerationCurrent(ctx context.Context, userID string) error {
-	if c.userService == nil {
+	if c.userModel == nil {
 		return nil
 	}
 	agg := events.UserAggregate(userID)
-	if err := c.userService.waitForUsersCurrent(ctx, "user auth generation",
+	if err := c.userModel.waitForUsersCurrent(ctx, "user auth generation",
 		agg.Subject(events.EventUserPasswordHashChanged),
 		agg.Subject(events.EventUserAccountDeleted),
 	); err != nil {

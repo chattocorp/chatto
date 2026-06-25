@@ -9,7 +9,7 @@ import (
 )
 
 // Caller is the authenticated identity available to ConnectRPC handlers.
-// Keep this intentionally narrow: operation services should receive only the
+// Keep this intentionally narrow: operation models should receive only the
 // actor identity they need, not the full user profile resolved at the HTTP edge.
 type Caller struct {
 	UserID string

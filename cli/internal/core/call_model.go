@@ -45,7 +45,7 @@ type liveKitParticipantLister interface {
 	ListCallParticipants(ctx context.Context) ([]liveKitParticipantSnapshot, error)
 }
 
-type CallService struct {
+type CallModel struct {
 	publisher      *events.Publisher
 	projection     *CallStateProjection
 	projector      *events.Projector
@@ -99,7 +99,7 @@ func (e *liveKitListFailureError) Unwrap() error {
 	return e.err
 }
 
-func NewCallService(
+func NewCallModel(
 	publisher *events.Publisher,
 	projection *CallStateProjection,
 	projector *events.Projector,
@@ -108,8 +108,8 @@ func NewCallService(
 	reconcileLease *lease.Lease,
 	memoryCacheKV jetstream.KeyValue,
 	logger events.Logger,
-) *CallService {
-	return &CallService{
+) *CallModel {
+	return &CallModel{
 		publisher:      publisher,
 		projection:     projection,
 		projector:      projector,
@@ -122,14 +122,14 @@ func NewCallService(
 }
 
 func (c *ChattoCore) EnableLiveKitCallReconciliation(cfg config.LiveKitConfig) error {
-	if c.callService == nil {
-		return fmt.Errorf("call service is not initialized")
+	if c.callModel == nil {
+		return fmt.Errorf("call model is not initialized")
 	}
 	lister, err := newLiveKitParticipantLister(cfg)
 	if err != nil {
 		return err
 	}
-	c.callService.livekit = lister
+	c.callModel.livekit = lister
 	return nil
 }
 
@@ -249,7 +249,7 @@ func liveKitRoomBelongsToInstance(roomName, serverID string) bool {
 	return roomServerID == serverID
 }
 
-func (s *CallService) GetE2EEKey(ctx context.Context, roomID string) (string, error) {
+func (s *CallModel) GetE2EEKey(ctx context.Context, roomID string) (string, error) {
 	if s.callKeys == nil {
 		return "", fmt.Errorf("call key store is not initialized")
 	}
@@ -264,23 +264,23 @@ func (s *CallService) GetE2EEKey(ctx context.Context, roomID string) (string, er
 	return key, nil
 }
 
-func (s *CallService) AppendJoined(ctx context.Context, roomID, userID string, source corev1.CallParticipantEventSource) error {
+func (s *CallModel) AppendJoined(ctx context.Context, roomID, userID string, source corev1.CallParticipantEventSource) error {
 	return s.appendParticipantTransition(ctx, roomID, userID, true, "", source)
 }
 
-func (s *CallService) AppendLeft(ctx context.Context, roomID, userID string, source corev1.CallParticipantEventSource) error {
+func (s *CallModel) AppendLeft(ctx context.Context, roomID, userID string, source corev1.CallParticipantEventSource) error {
 	return s.appendParticipantTransition(ctx, roomID, userID, false, "", source)
 }
 
-func (s *CallService) AppendJoinedForCall(ctx context.Context, roomID, userID, expectedCallID string, source corev1.CallParticipantEventSource) error {
+func (s *CallModel) AppendJoinedForCall(ctx context.Context, roomID, userID, expectedCallID string, source corev1.CallParticipantEventSource) error {
 	return s.appendParticipantTransition(ctx, roomID, userID, true, expectedCallID, source)
 }
 
-func (s *CallService) AppendLeftForCall(ctx context.Context, roomID, userID, expectedCallID string, source corev1.CallParticipantEventSource) error {
+func (s *CallModel) AppendLeftForCall(ctx context.Context, roomID, userID, expectedCallID string, source corev1.CallParticipantEventSource) error {
 	return s.appendParticipantTransition(ctx, roomID, userID, false, expectedCallID, source)
 }
 
-func (s *CallService) appendParticipantTransition(ctx context.Context, roomID, userID string, joined bool, expectedCallID string, source corev1.CallParticipantEventSource) error {
+func (s *CallModel) appendParticipantTransition(ctx context.Context, roomID, userID string, joined bool, expectedCallID string, source corev1.CallParticipantEventSource) error {
 	aggregate := events.RoomAggregate(roomID)
 	filter := aggregate.AllEventsFilter()
 	for attempt := 0; attempt < callReconcileMaxRetries; attempt++ {
@@ -330,7 +330,7 @@ func (s *CallService) appendParticipantTransition(ctx context.Context, roomID, u
 	return fmt.Errorf("append call participant transition after %d attempts: %w", callReconcileMaxRetries, events.ErrConflict)
 }
 
-func (s *CallService) callTransitionBatch(ctx context.Context, aggregate events.Aggregate, snapshot CallRoomSnapshot, roomID, userID string, joined bool, source corev1.CallParticipantEventSource) ([]events.BatchEntry, string, string, error) {
+func (s *CallModel) callTransitionBatch(ctx context.Context, aggregate events.Aggregate, snapshot CallRoomSnapshot, roomID, userID string, joined bool, source corev1.CallParticipantEventSource) ([]events.BatchEntry, string, string, error) {
 	if joined {
 		callID := snapshot.Call.CallID
 		if callID == "" {
@@ -397,7 +397,7 @@ func (s *CallService) callTransitionBatch(ctx context.Context, aggregate events.
 	return entries, endedKeyRef, "", nil
 }
 
-func (s *CallService) waitForLatestRoomTransition(ctx context.Context, filter string) error {
+func (s *CallModel) waitForLatestRoomTransition(ctx context.Context, filter string) error {
 	tail, err := s.publisher.LastSubjectPosition(ctx, filter)
 	if err != nil {
 		return err
@@ -423,13 +423,13 @@ func callParticipantByUser(active []CallParticipant, userID string) (CallPartici
 	return CallParticipant{}, false
 }
 
-func (s *CallService) ReconcileRoomParticipants(ctx context.Context, roomID string, observedUserIDs []string) error {
+func (s *CallModel) ReconcileRoomParticipants(ctx context.Context, roomID string, observedUserIDs []string) error {
 	return s.reconcileRoomParticipants(ctx, roomID, observedUserIDs, s.appendReconciliationEvent)
 }
 
 type appendReconciliationEventFunc func(context.Context, string, string, bool) error
 
-func (s *CallService) reconcileRoomParticipants(ctx context.Context, roomID string, observedUserIDs []string, appendEvent appendReconciliationEventFunc) error {
+func (s *CallModel) reconcileRoomParticipants(ctx context.Context, roomID string, observedUserIDs []string, appendEvent appendReconciliationEventFunc) error {
 	observed := make(map[string]struct{}, len(observedUserIDs))
 	for _, userID := range observedUserIDs {
 		if userID != "" {
@@ -457,11 +457,11 @@ func (s *CallService) reconcileRoomParticipants(ctx context.Context, roomID stri
 	return nil
 }
 
-func (s *CallService) reconciliationConflictResolved(roomID, userID string, joined bool, err error) bool {
+func (s *CallModel) reconciliationConflictResolved(roomID, userID string, joined bool, err error) bool {
 	return errors.Is(err, events.ErrConflict) && s.reconciliationMismatchResolved(roomID, userID, joined)
 }
 
-func (s *CallService) appendReconciliationEvent(ctx context.Context, roomID, userID string, joined bool) error {
+func (s *CallModel) appendReconciliationEvent(ctx context.Context, roomID, userID string, joined bool) error {
 	return s.appendParticipantTransition(ctx, roomID, userID, joined, "", corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION)
 }
 
@@ -513,7 +513,7 @@ func newCallParticipantEvent(roomID, userID, callID string, joined bool, source 
 	})
 }
 
-func (s *CallService) reconciliationMismatchResolved(roomID, userID string, joined bool) bool {
+func (s *CallModel) reconciliationMismatchResolved(roomID, userID string, joined bool) bool {
 	active := s.projection.Participants(roomID)
 	for _, participant := range active {
 		if participant.UserID == userID {
@@ -523,13 +523,13 @@ func (s *CallService) reconciliationMismatchResolved(roomID, userID string, join
 	return !joined
 }
 
-func (s *CallService) ReconcileWithLiveKit(ctx context.Context) error {
+func (s *CallModel) ReconcileWithLiveKit(ctx context.Context) error {
 	return s.reconcileWithLiveKit(ctx, func() (context.Context, context.CancelFunc) {
 		return context.WithCancel(ctx)
 	})
 }
 
-func (s *CallService) reconcileWithLiveKit(ctx context.Context, cleanupContext func() (context.Context, context.CancelFunc)) error {
+func (s *CallModel) reconcileWithLiveKit(ctx context.Context, cleanupContext func() (context.Context, context.CancelFunc)) error {
 	if s.livekit == nil {
 		return nil
 	}
@@ -578,7 +578,7 @@ func (s *CallService) reconcileWithLiveKit(ctx context.Context, cleanupContext f
 	return nil
 }
 
-func (s *CallService) liveKitSnapshotMatchesActiveCall(snapshot liveKitParticipantSnapshot) bool {
+func (s *CallModel) liveKitSnapshotMatchesActiveCall(snapshot liveKitParticipantSnapshot) bool {
 	if snapshot.RoomID == "" {
 		return false
 	}
@@ -592,7 +592,7 @@ func (s *CallService) liveKitSnapshotMatchesActiveCall(snapshot liveKitParticipa
 	return active.CallID == snapshot.CallID
 }
 
-func (s *CallService) recordLiveKitListFailure(ctx context.Context) (int, error) {
+func (s *CallModel) recordLiveKitListFailure(ctx context.Context) (int, error) {
 	if s.memoryCacheKV == nil {
 		return 0, fmt.Errorf("memory cache KV is not configured")
 	}
@@ -641,7 +641,7 @@ func (s *CallService) recordLiveKitListFailure(ctx context.Context) (int, error)
 	return 0, fmt.Errorf("LiveKit listing failure counter update failed after %d attempts", callReconcileMaxRetries)
 }
 
-func (s *CallService) resetLiveKitListFailures(ctx context.Context) error {
+func (s *CallModel) resetLiveKitListFailures(ctx context.Context) error {
 	if s.memoryCacheKV == nil {
 		return nil
 	}
@@ -651,7 +651,7 @@ func (s *CallService) resetLiveKitListFailures(ctx context.Context) error {
 	return nil
 }
 
-func (s *CallService) endActiveCallsAfterLiveKitFailure(ctx context.Context) liveKitFailureCleanupSummary {
+func (s *CallModel) endActiveCallsAfterLiveKitFailure(ctx context.Context) liveKitFailureCleanupSummary {
 	summary := liveKitFailureCleanupSummary{}
 	var cleanupErr error
 	roomIDs := s.projection.ActiveRoomIDs()
@@ -668,7 +668,7 @@ func (s *CallService) endActiveCallsAfterLiveKitFailure(ctx context.Context) liv
 	return summary
 }
 
-func (s *CallService) Run(ctx context.Context) error {
+func (s *CallModel) Run(ctx context.Context) error {
 	if s.livekit == nil {
 		<-ctx.Done()
 		return ctx.Err()
@@ -679,7 +679,7 @@ func (s *CallService) Run(ctx context.Context) error {
 	return s.runReconciliationLoop(ctx)
 }
 
-func (s *CallService) runReconciliationLoop(ctx context.Context) error {
+func (s *CallModel) runReconciliationLoop(ctx context.Context) error {
 	if err := s.reconcileBestEffort(ctx); err != nil {
 		return err
 	}
@@ -698,7 +698,7 @@ func (s *CallService) runReconciliationLoop(ctx context.Context) error {
 	}
 }
 
-func (s *CallService) reconcileBestEffort(ctx context.Context) error {
+func (s *CallModel) reconcileBestEffort(ctx context.Context) error {
 	reconcileCtx, cancel := context.WithTimeout(ctx, callReconcileAPITimeout)
 	defer cancel()
 	if err := s.reconcileWithLiveKit(reconcileCtx, func() (context.Context, context.CancelFunc) {

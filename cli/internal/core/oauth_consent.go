@@ -20,8 +20,8 @@ func (c *ChattoCore) HasOAuthConsent(ctx context.Context, userID, redirectOrigin
 	if origin == "" {
 		return false, nil
 	}
-	if c.userService != nil {
-		if err := c.userService.waitForUsersCurrent(ctx, "OAuth consent", events.UserAggregate(userID).AllEventsFilter()); err != nil {
+	if c.userModel != nil {
+		if err := c.userModel.waitForUsersCurrent(ctx, "OAuth consent", events.UserAggregate(userID).AllEventsFilter()); err != nil {
 			return false, err
 		}
 	}

@@ -6,16 +6,16 @@ import (
 	"strings"
 )
 
-// RoomTimelineReads returns the operation-level service for user-facing room
+// RoomTimelineReads returns the operation-level model for user-facing room
 // and thread timeline reads.
-func (c *ChattoCore) RoomTimelineReads() *RoomTimelineReadService {
+func (c *ChattoCore) RoomTimelineReads() *RoomTimelineReadModel {
 	return c.roomTimelineReads
 }
 
-// RoomTimelineReadService owns public timeline read authorization and target
+// RoomTimelineReadModel owns public timeline read authorization and target
 // validation. It returns core event pages; transports remain responsible for
 // cursor encoding and public DTO hydration.
-type RoomTimelineReadService struct {
+type RoomTimelineReadModel struct {
 	core *ChattoCore
 }
 
@@ -60,7 +60,7 @@ type ThreadTimelineAroundResult struct {
 	TargetIndex int
 }
 
-func (s *RoomTimelineReadService) GetRoomEvents(ctx context.Context, input RoomTimelineEventsInput) (*RoomTimelineEventsResult, error) {
+func (s *RoomTimelineReadModel) GetRoomEvents(ctx context.Context, input RoomTimelineEventsInput) (*RoomTimelineEventsResult, error) {
 	room, kind, err := s.core.requireRoomMember(ctx, input.ActorID, input.RoomID)
 	if err != nil {
 		return nil, err
@@ -81,7 +81,7 @@ func (s *RoomTimelineReadService) GetRoomEvents(ctx context.Context, input RoomT
 	return &RoomTimelineEventsResult{Kind: kind, Page: page}, nil
 }
 
-func (s *RoomTimelineReadService) GetRoomEventsAround(ctx context.Context, actorID, roomID, eventID string, limit int) (*RoomTimelineAroundResult, error) {
+func (s *RoomTimelineReadModel) GetRoomEventsAround(ctx context.Context, actorID, roomID, eventID string, limit int) (*RoomTimelineAroundResult, error) {
 	room, kind, err := s.core.requireRoomMember(ctx, actorID, roomID)
 	if err != nil {
 		return nil, err
@@ -97,7 +97,7 @@ func (s *RoomTimelineReadService) GetRoomEventsAround(ctx context.Context, actor
 	return &RoomTimelineAroundResult{Kind: kind, Result: result}, nil
 }
 
-func (s *RoomTimelineReadService) GetThreadEvents(ctx context.Context, input ThreadTimelineEventsInput) (*ThreadTimelineEventsResult, error) {
+func (s *RoomTimelineReadModel) GetThreadEvents(ctx context.Context, input ThreadTimelineEventsInput) (*ThreadTimelineEventsResult, error) {
 	room, kind, err := s.core.requireRoomMember(ctx, input.ActorID, input.RoomID)
 	if err != nil {
 		return nil, err
@@ -130,7 +130,7 @@ func (s *RoomTimelineReadService) GetThreadEvents(ctx context.Context, input Thr
 	}, nil
 }
 
-func (s *RoomTimelineReadService) GetThreadEventsAround(ctx context.Context, actorID, roomID, threadRootEventID, eventID string, limit int) (*ThreadTimelineAroundResult, error) {
+func (s *RoomTimelineReadModel) GetThreadEventsAround(ctx context.Context, actorID, roomID, threadRootEventID, eventID string, limit int) (*ThreadTimelineAroundResult, error) {
 	room, kind, err := s.core.requireRoomMember(ctx, actorID, roomID)
 	if err != nil {
 		return nil, err
@@ -155,7 +155,7 @@ func (s *RoomTimelineReadService) GetThreadEventsAround(ctx context.Context, act
 	}, nil
 }
 
-func (s *RoomTimelineReadService) threadRootEvent(ctx context.Context, kind RoomKind, roomID, threadRootEventID string) (*RoomEvent, error) {
+func (s *RoomTimelineReadModel) threadRootEvent(ctx context.Context, kind RoomKind, roomID, threadRootEventID string) (*RoomEvent, error) {
 	event, err := s.core.requireThreadRoot(ctx, kind, roomID, threadRootEventID)
 	if err != nil {
 		return nil, err

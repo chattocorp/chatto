@@ -876,7 +876,7 @@ func TestCallState_ReconciliationCorrectsProjection(t *testing.T) {
 	ctx := testContext(t)
 	roomID := "room1"
 
-	if err := core.callService.ReconcileRoomParticipants(ctx, roomID, []string{"user1"}); err != nil {
+	if err := core.callModel.ReconcileRoomParticipants(ctx, roomID, []string{"user1"}); err != nil {
 		t.Fatalf("ReconcileRoomParticipants(join) error = %v", err)
 	}
 	participants, _ := core.GetCallParticipants(ctx, "channel", roomID)
@@ -887,7 +887,7 @@ func TestCallState_ReconciliationCorrectsProjection(t *testing.T) {
 		t.Fatalf("Source = %v, want RECONCILIATION", participants[0].Source)
 	}
 
-	if err := core.callService.ReconcileRoomParticipants(ctx, roomID, nil); err != nil {
+	if err := core.callModel.ReconcileRoomParticipants(ctx, roomID, nil); err != nil {
 		t.Fatalf("ReconcileRoomParticipants(leave) error = %v", err)
 	}
 	participants, _ = core.GetCallParticipants(ctx, "channel", roomID)
@@ -913,8 +913,8 @@ func TestCallState_ReconcileWithLiveKitClosesRoomMissingFromLiveKit(t *testing.T
 		t.Fatalf("Expected started event with key ref")
 	}
 
-	core.callService.livekit = fakeLiveKitParticipantLister{}
-	if err := core.callService.ReconcileWithLiveKit(ctx); err != nil {
+	core.callModel.livekit = fakeLiveKitParticipantLister{}
+	if err := core.callModel.ReconcileWithLiveKit(ctx); err != nil {
 		t.Fatalf("ReconcileWithLiveKit() error = %v", err)
 	}
 
@@ -955,10 +955,10 @@ func TestCallState_ReconcileWithLiveKitClosesObservedEmptyRoom(t *testing.T) {
 		t.Fatalf("RecordCallParticipantJoined() error = %v", err)
 	}
 	callID := activeCallIDForTest(t, core, roomID)
-	core.callService.livekit = fakeLiveKitParticipantLister{
+	core.callModel.livekit = fakeLiveKitParticipantLister{
 		snapshots: []liveKitParticipantSnapshot{{RoomID: roomID, CallID: callID}},
 	}
-	if err := core.callService.ReconcileWithLiveKit(ctx); err != nil {
+	if err := core.callModel.ReconcileWithLiveKit(ctx); err != nil {
 		t.Fatalf("ReconcileWithLiveKit() error = %v", err)
 	}
 
@@ -983,10 +983,10 @@ func TestCallState_ReconcileWithLiveKitIgnoresRoomWithoutProjectedActiveCall(t *
 	ctx := testContext(t)
 	roomID := "room1"
 
-	core.callService.livekit = fakeLiveKitParticipantLister{
+	core.callModel.livekit = fakeLiveKitParticipantLister{
 		snapshots: []liveKitParticipantSnapshot{{RoomID: roomID, CallID: "old-call", UserIDs: []string{"user1"}}},
 	}
-	if err := core.callService.ReconcileWithLiveKit(ctx); err != nil {
+	if err := core.callModel.ReconcileWithLiveKit(ctx); err != nil {
 		t.Fatalf("ReconcileWithLiveKit() error = %v", err)
 	}
 
@@ -1047,9 +1047,9 @@ func TestCallState_ReconcileWithLiveKitErrorDefersActiveCallCleanupBeforeThresho
 	}
 
 	liveKitErr := errors.New("livekit unavailable")
-	core.callService.livekit = fakeLiveKitParticipantLister{err: liveKitErr}
+	core.callModel.livekit = fakeLiveKitParticipantLister{err: liveKitErr}
 	for i := 1; i < callReconcileListFailureThreshold; i++ {
-		err = core.callService.ReconcileWithLiveKit(ctx)
+		err = core.callModel.ReconcileWithLiveKit(ctx)
 		if !errors.Is(err, liveKitErr) {
 			t.Fatalf("ReconcileWithLiveKit(%d) error = %v, want %v", i, err, liveKitErr)
 		}
@@ -1089,9 +1089,9 @@ func TestCallState_ReconcileWithLiveKitErrorEndsActiveCallsAtThreshold(t *testin
 	}
 
 	liveKitErr := errors.New("livekit unavailable")
-	core.callService.livekit = fakeLiveKitParticipantLister{err: liveKitErr}
+	core.callModel.livekit = fakeLiveKitParticipantLister{err: liveKitErr}
 	for i := 1; i <= callReconcileListFailureThreshold; i++ {
-		err = core.callService.ReconcileWithLiveKit(ctx)
+		err = core.callModel.ReconcileWithLiveKit(ctx)
 		if !errors.Is(err, liveKitErr) {
 			t.Fatalf("ReconcileWithLiveKit(%d) error = %v, want %v", i, err, liveKitErr)
 		}
@@ -1143,10 +1143,10 @@ func TestCallState_ReconcileWithLiveKitErrorEndsAllActiveRoomsAtThreshold(t *tes
 	}
 
 	liveKitErr := errors.New("livekit unavailable")
-	core.callService.livekit = fakeLiveKitParticipantLister{err: liveKitErr}
+	core.callModel.livekit = fakeLiveKitParticipantLister{err: liveKitErr}
 	var err error
 	for i := 1; i <= callReconcileListFailureThreshold; i++ {
-		err = core.callService.ReconcileWithLiveKit(ctx)
+		err = core.callModel.ReconcileWithLiveKit(ctx)
 		if !errors.Is(err, liveKitErr) {
 			t.Fatalf("ReconcileWithLiveKit(%d) error = %v, want %v", i, err, liveKitErr)
 		}
@@ -1182,11 +1182,11 @@ func TestCallState_ReconcileWithLiveKitTimeoutUsesFreshCleanupContext(t *testing
 	listCtx, cancelList := context.WithCancel(ctx)
 	cancelList()
 	cleanupContextCreated := false
-	core.callService.livekit = fakeLiveKitParticipantLister{err: context.DeadlineExceeded}
+	core.callModel.livekit = fakeLiveKitParticipantLister{err: context.DeadlineExceeded}
 
 	var err error
 	for i := 1; i <= callReconcileListFailureThreshold; i++ {
-		err = core.callService.reconcileWithLiveKit(listCtx, func() (context.Context, context.CancelFunc) {
+		err = core.callModel.reconcileWithLiveKit(listCtx, func() (context.Context, context.CancelFunc) {
 			cleanupContextCreated = true
 			return context.WithCancel(ctx)
 		})
@@ -1224,11 +1224,11 @@ func TestCallState_ReconcileBestEffortLogsDeferredLiveKitFailure(t *testing.T) {
 
 	liveKitErr := errors.New("livekit unavailable")
 	logger := &recordingCallLogger{}
-	core.callService.livekit = fakeLiveKitParticipantLister{err: liveKitErr}
-	core.callService.reconcileLease = nil
-	core.callService.logger = logger
+	core.callModel.livekit = fakeLiveKitParticipantLister{err: liveKitErr}
+	core.callModel.reconcileLease = nil
+	core.callModel.logger = logger
 
-	core.callService.reconcileBestEffort(ctx)
+	core.callModel.reconcileBestEffort(ctx)
 
 	if logger.warnMessage != "LiveKit listing failed; active-call cleanup deferred" {
 		t.Fatalf("Warn message = %q", logger.warnMessage)
@@ -1254,11 +1254,11 @@ func TestCallState_ReconcileBestEffortKeepsLeaseOnDeferredLiveKitFailure(t *test
 
 	liveKitErr := errors.New("livekit unavailable")
 	logger := &recordingCallLogger{}
-	core.callService.livekit = fakeLiveKitParticipantLister{err: liveKitErr}
-	core.callService.reconcileLease = &lease.Lease{}
-	core.callService.logger = logger
+	core.callModel.livekit = fakeLiveKitParticipantLister{err: liveKitErr}
+	core.callModel.reconcileLease = &lease.Lease{}
+	core.callModel.logger = logger
 
-	err := core.callService.reconcileBestEffort(ctx)
+	err := core.callModel.reconcileBestEffort(ctx)
 	if err != nil {
 		t.Fatalf("reconcileBestEffort() error = %v", err)
 	}
@@ -1292,11 +1292,11 @@ func TestCallState_ReconcileBestEffortLogsLiveKitFailureCleanupSummaryAtThreshol
 
 	liveKitErr := errors.New("livekit unavailable")
 	logger := &recordingCallLogger{}
-	core.callService.livekit = fakeLiveKitParticipantLister{err: liveKitErr}
-	core.callService.logger = logger
+	core.callModel.livekit = fakeLiveKitParticipantLister{err: liveKitErr}
+	core.callModel.logger = logger
 
 	for i := 1; i <= callReconcileListFailureThreshold; i++ {
-		core.callService.reconcileBestEffort(ctx)
+		core.callModel.reconcileBestEffort(ctx)
 	}
 
 	if logger.warnMessage != "LiveKit listing failed; threshold reached and ended projected active calls" {
@@ -1332,15 +1332,15 @@ func TestCallState_ReconcileWithLiveKitErrorReportsCleanupFailure(t *testing.T) 
 	}
 	liveKitErr := errors.New("livekit unavailable")
 	shredErr := errors.New("kms shred unavailable")
-	core.callService.livekit = fakeLiveKitParticipantLister{err: liveKitErr}
-	core.callService.callKeys = failingShredCallKeyStore{
+	core.callModel.livekit = fakeLiveKitParticipantLister{err: liveKitErr}
+	core.callModel.callKeys = failingShredCallKeyStore{
 		delegate: core.encryption.callKeys,
 		err:      shredErr,
 	}
 
 	var err error
 	for i := 1; i <= callReconcileListFailureThreshold; i++ {
-		err = core.callService.ReconcileWithLiveKit(ctx)
+		err = core.callModel.ReconcileWithLiveKit(ctx)
 		if !errors.Is(err, liveKitErr) {
 			t.Fatalf("ReconcileWithLiveKit(%d) error = %v, want LiveKit error", i, err)
 		}
@@ -1375,23 +1375,23 @@ func TestCallState_ReconcileWithLiveKitSuccessResetsListFailureCounter(t *testin
 	callID := activeCallIDForTest(t, core, roomID)
 
 	liveKitErr := errors.New("livekit unavailable")
-	core.callService.livekit = fakeLiveKitParticipantLister{err: liveKitErr}
+	core.callModel.livekit = fakeLiveKitParticipantLister{err: liveKitErr}
 	for i := 1; i < callReconcileListFailureThreshold; i++ {
-		if err := core.callService.ReconcileWithLiveKit(ctx); !errors.Is(err, liveKitErr) {
+		if err := core.callModel.ReconcileWithLiveKit(ctx); !errors.Is(err, liveKitErr) {
 			t.Fatalf("ReconcileWithLiveKit(failure %d) error = %v, want %v", i, err, liveKitErr)
 		}
 	}
 
-	core.callService.livekit = fakeLiveKitParticipantLister{
+	core.callModel.livekit = fakeLiveKitParticipantLister{
 		snapshots: []liveKitParticipantSnapshot{{RoomID: roomID, CallID: callID, UserIDs: []string{"user1"}}},
 	}
-	if err := core.callService.ReconcileWithLiveKit(ctx); err != nil {
+	if err := core.callModel.ReconcileWithLiveKit(ctx); err != nil {
 		t.Fatalf("ReconcileWithLiveKit(success) error = %v", err)
 	}
 
-	core.callService.livekit = fakeLiveKitParticipantLister{err: liveKitErr}
+	core.callModel.livekit = fakeLiveKitParticipantLister{err: liveKitErr}
 	for i := 1; i < callReconcileListFailureThreshold; i++ {
-		if err := core.callService.ReconcileWithLiveKit(ctx); !errors.Is(err, liveKitErr) {
+		if err := core.callModel.ReconcileWithLiveKit(ctx); !errors.Is(err, liveKitErr) {
 			t.Fatalf("ReconcileWithLiveKit(second failure %d) error = %v, want %v", i, err, liveKitErr)
 		}
 	}
@@ -1416,7 +1416,7 @@ func TestCallState_ReconcileWithLiveKitSuccessOnAnotherReplicaResetsListFailureC
 	callID := activeCallIDForTest(t, core, roomID)
 
 	liveKitErr := errors.New("livekit unavailable")
-	failingReplica := NewCallService(
+	failingReplica := NewCallModel(
 		core.EventPublisher,
 		core.CallState,
 		core.CallStateProjector,
@@ -1426,7 +1426,7 @@ func TestCallState_ReconcileWithLiveKitSuccessOnAnotherReplicaResetsListFailureC
 		core.storage.memoryCacheKV,
 		nil,
 	)
-	successfulReplica := NewCallService(
+	successfulReplica := NewCallModel(
 		core.EventPublisher,
 		core.CallState,
 		core.CallStateProjector,
@@ -1476,7 +1476,7 @@ func TestCallState_CallEndedCommitsWhenKeyShredFails(t *testing.T) {
 	}
 
 	shredErr := errors.New("kms shred unavailable")
-	core.callService.callKeys = failingShredCallKeyStore{
+	core.callModel.callKeys = failingShredCallKeyStore{
 		delegate: core.encryption.callKeys,
 		err:      shredErr,
 	}
@@ -1513,7 +1513,7 @@ func TestCallState_ReconciliationRechecksAfterConflict(t *testing.T) {
 	roomID := "room1"
 	calls := 0
 
-	err := core.callService.reconcileRoomParticipants(ctx, roomID, []string{"user1"}, func(ctx context.Context, roomID, userID string, joined bool) error {
+	err := core.callModel.reconcileRoomParticipants(ctx, roomID, []string{"user1"}, func(ctx context.Context, roomID, userID string, joined bool) error {
 		calls++
 		if calls != 1 {
 			t.Fatalf("appendEvent called %d times, want 1", calls)
@@ -1521,7 +1521,7 @@ func TestCallState_ReconciliationRechecksAfterConflict(t *testing.T) {
 		if !joined {
 			t.Fatal("Expected reconciliation to append a join correction")
 		}
-		if err := core.callService.AppendJoined(ctx, roomID, userID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION); err != nil {
+		if err := core.callModel.AppendJoined(ctx, roomID, userID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION); err != nil {
 			t.Fatalf("AppendJoined() error = %v", err)
 		}
 		return events.ErrConflict

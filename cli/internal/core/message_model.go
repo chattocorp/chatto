@@ -21,7 +21,7 @@ type MessagePostInput struct {
 	LinkPreview              *corev1.LinkPreview
 }
 
-// MessagePostResult is returned by MessageService.PostMessage. Exactly one of
+// MessagePostResult is returned by MessageModel.PostMessage. Exactly one of
 // Event or MentionConfirmation is set.
 type MessagePostResult struct {
 	Event               *corev1.Event
@@ -34,17 +34,17 @@ type MentionConfirmationChallenge struct {
 	Token          string
 }
 
-// Messages returns the operation-level service for message reads/writes that
+// Messages returns the operation-level model for message reads/writes that
 // need shared public-API authorization and response semantics.
-func (c *ChattoCore) Messages() *MessageService {
-	return c.messageService
+func (c *ChattoCore) Messages() *MessageModel {
+	return c.messageModel
 }
 
-// MessageService owns user-facing message operations. Lower-level ChattoCore
-// helpers still perform the event-sourced write, while this service centralizes
+// MessageModel owns user-facing message operations. Lower-level ChattoCore
+// helpers still perform the event-sourced write, while this model centralizes
 // authZ, mention confirmation, and post-write sync behavior for public
 // transports during the GraphQL-to-ConnectRPC migration.
-type MessageService struct {
+type MessageModel struct {
 	core *ChattoCore
 }
 
@@ -52,7 +52,7 @@ type MessageService struct {
 // or a mention confirmation challenge. Authorization: actor must be a room
 // member and must have message.post or message.post-in-thread, plus
 // message.echo/message.post when echoing a thread reply.
-func (s *MessageService) PostMessage(ctx context.Context, input MessagePostInput) (*MessagePostResult, error) {
+func (s *MessageModel) PostMessage(ctx context.Context, input MessagePostInput) (*MessagePostResult, error) {
 	if strings.TrimSpace(input.ActorID) == "" {
 		return nil, ErrNotAuthenticated
 	}
@@ -185,7 +185,7 @@ func (s *MessageService) PostMessage(ctx context.Context, input MessagePostInput
 	return &MessagePostResult{Event: event}, nil
 }
 
-func (s *MessageService) videoProcessingAssetIDsForPost(input MessagePostInput) []string {
+func (s *MessageModel) videoProcessingAssetIDsForPost(input MessagePostInput) []string {
 	assetIDs := make([]string, 0, len(input.VideoProcessingAssetIDs)+len(input.AttachmentAssetIDs))
 	seen := make(map[string]struct{}, len(input.VideoProcessingAssetIDs)+len(input.AttachmentAssetIDs))
 	add := func(assetID string) {

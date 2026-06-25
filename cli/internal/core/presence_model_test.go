@@ -11,7 +11,7 @@ import (
 	"hmans.de/chatto/internal/testutil"
 )
 
-func newTestPresenceService(t *testing.T) (*PresenceService, jetstream.KeyValue, *log.Logger) {
+func newTestPresenceModel(t *testing.T) (*PresenceModel, jetstream.KeyValue, *log.Logger) {
 	t.Helper()
 	_, nc := testutil.StartNATS(t)
 	js, err := jetstream.New(nc)
@@ -26,12 +26,12 @@ func newTestPresenceService(t *testing.T) (*PresenceService, jetstream.KeyValue,
 	if err != nil {
 		t.Fatalf("CreateOrUpdateKeyValue: %v", err)
 	}
-	logger := testServiceLogger()
-	return NewPresenceService(js, memoryCacheKV, logger), memoryCacheKV, logger
+	logger := testCoreLogger()
+	return NewPresenceModel(js, memoryCacheKV, logger), memoryCacheKV, logger
 }
 
-func TestNewPresenceServiceWiresDependencies(t *testing.T) {
-	service, memoryCacheKV, logger := newTestPresenceService(t)
+func TestNewPresenceModelWiresDependencies(t *testing.T) {
+	service, memoryCacheKV, logger := newTestPresenceModel(t)
 
 	if service.js == nil {
 		t.Fatal("JetStream handle was not wired")
@@ -47,8 +47,8 @@ func TestNewPresenceServiceWiresDependencies(t *testing.T) {
 	}
 }
 
-func TestPresenceServiceSetAndGetPresence(t *testing.T) {
-	service, _, _ := newTestPresenceService(t)
+func TestPresenceModelSetAndGetPresence(t *testing.T) {
+	service, _, _ := newTestPresenceModel(t)
 	ctx := testContext(t)
 
 	if got, err := service.GetUserPresence(ctx, "U-service"); err != nil || got != PresenceStatusOffline {
@@ -74,8 +74,8 @@ func TestPresenceServiceSetAndGetPresence(t *testing.T) {
 	}
 }
 
-func TestPresenceServiceSetPresenceStatusMapping(t *testing.T) {
-	service, _, _ := newTestPresenceService(t)
+func TestPresenceModelSetPresenceStatusMapping(t *testing.T) {
+	service, _, _ := newTestPresenceModel(t)
 	ctx := testContext(t)
 
 	tests := []struct {
@@ -106,8 +106,8 @@ func TestPresenceServiceSetPresenceStatusMapping(t *testing.T) {
 	}
 }
 
-func TestPresenceServiceGetUserPresenceTreatsDeletesAndCorruptValuesAsOffline(t *testing.T) {
-	service, kv, _ := newTestPresenceService(t)
+func TestPresenceModelGetUserPresenceTreatsDeletesAndCorruptValuesAsOffline(t *testing.T) {
+	service, kv, _ := newTestPresenceModel(t)
 	ctx := testContext(t)
 
 	if err := service.SetPresence(ctx, "U-delete", PresenceStatusOnline); err != nil {
@@ -128,8 +128,8 @@ func TestPresenceServiceGetUserPresenceTreatsDeletesAndCorruptValuesAsOffline(t 
 	}
 }
 
-func TestPresenceServiceRefreshMissingEntrySetsOnline(t *testing.T) {
-	service, _, _ := newTestPresenceService(t)
+func TestPresenceModelRefreshMissingEntrySetsOnline(t *testing.T) {
+	service, _, _ := newTestPresenceModel(t)
 	ctx := testContext(t)
 
 	if err := service.refreshPresence(ctx, "U-missing"); err != nil {
@@ -140,7 +140,7 @@ func TestPresenceServiceRefreshMissingEntrySetsOnline(t *testing.T) {
 	}
 }
 
-func TestPresenceServiceKeyHelpers(t *testing.T) {
+func TestPresenceModelKeyHelpers(t *testing.T) {
 	if got := presenceKey("U-key"); got != "presence.U-key" {
 		t.Fatalf("presenceKey = %q, want %q", got, "presence.U-key")
 	}
@@ -167,9 +167,9 @@ func TestPresenceServiceKeyHelpers(t *testing.T) {
 	}
 }
 
-func TestPresenceServiceChattoCoreFacades(t *testing.T) {
-	service, _, _ := newTestPresenceService(t)
-	core := &ChattoCore{presenceService: service}
+func TestPresenceModelChattoCoreFacades(t *testing.T) {
+	service, _, _ := newTestPresenceModel(t)
+	core := &ChattoCore{presenceModel: service}
 	ctx := testContext(t)
 
 	if err := core.SetPresence(ctx, "U-facade", PresenceStatusAway); err != nil {
@@ -186,8 +186,8 @@ func TestPresenceServiceChattoCoreFacades(t *testing.T) {
 	}
 }
 
-func TestPresenceServiceSubscribeAndUnsubscribe(t *testing.T) {
-	service, kv, _ := newTestPresenceService(t)
+func TestPresenceModelSubscribeAndUnsubscribe(t *testing.T) {
+	service, kv, _ := newTestPresenceModel(t)
 	ctx := testContext(t)
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
