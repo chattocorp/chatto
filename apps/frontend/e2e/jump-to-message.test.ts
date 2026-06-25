@@ -80,8 +80,8 @@ async function clickReplyAttributionJump(page: Page, replyBody: string): Promise
     .getByTestId('reply-attribution');
 
   // The nested author button opens the user popover and stops propagation.
-  // Click the left edge of the attribution container, where the "in reply to"
-  // label lives, so the container's jump handler receives the event.
+  // Click the left edge of the attribution container so the container's jump
+  // handler receives the event.
   await replyAttribution.click({ position: { x: 8, y: 8 } });
 }
 
@@ -191,8 +191,9 @@ test.describe('jump to message', () => {
     // interaction is covered above; this test focuses on returning to present.
     await gotoMessageAndWaitForTarget(page, roomId, targetEventId, targetBody);
 
-    // Click "Jump to Present"
-    await page.getByTestId('jump-to-present').click();
+    // The floating button can sit over a moving scroll layer, so avoid pointer
+    // interception from timeline content while still exercising the click handler.
+    await page.getByTestId('jump-to-present').evaluate((button: HTMLElement) => button.click());
 
     // Should return to the latest messages
     await expect(page.getByText(`JTP filler 60 - ${timestamp}`)).toBeVisible({

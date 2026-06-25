@@ -663,7 +663,60 @@
 
       <!-- Message content column -->
       <div class="min-w-0 flex-1 space-y-1">
-        <!-- Author, timestamp, and reply attribution -->
+        {#if replyPreview}
+          {@const replyJumpText =
+            replyPreview.body ??
+            (replyPreview.actor
+              ? m['room.message.meta.reply_preview_fallback']()
+              : replyPreview.name)}
+          {@const replyJumpLabel = `${m['room.message.meta.in_reply_to']()} ${replyJumpText}`}
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <div
+            data-testid="reply-attribution"
+            aria-label={m['room.message.meta.in_reply_to']()}
+            title={m['room.message.meta.in_reply_to']()}
+            class="group/reply flex min-w-0 cursor-pointer items-center gap-1.5 py-0.5 text-xs leading-none text-muted"
+            onclick={scrollToReplyTarget}
+            onmousedown={(e) => e.stopPropagation()}
+          >
+            <span
+              aria-hidden="true"
+              class="group-hover/reply:border-surface-400 h-3 w-5 shrink-0 rounded-tl-md border-t-2 border-l-2 border-surface-300/70 transition-colors"
+            ></span>
+            {#if replyPreview.actor}
+              {@const replyCallPresence = activeCallRooms.getParticipantCallPresence(
+                roomId,
+                replyPreview.actor.id
+              )}
+              <button
+                type="button"
+                data-testid="reply-attribution-author"
+                class="inline-flex max-w-[45%] min-w-0 shrink-0 cursor-pointer items-center gap-1 hover:underline"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  showPopoverForReplyAuthor(e);
+                }}
+              >
+                <UserAvatar user={replyPreview.actor} size="xs" />
+                <strong class="truncate font-medium">{replyPreview.name}</strong>
+                {@render callPresenceIcon(replyCallPresence)}
+              </button>
+            {:else if replyPreview.body}
+              <strong class="max-w-[45%] shrink-0 truncate font-medium">{replyPreview.name}</strong>
+            {/if}
+            <button
+              type="button"
+              class="min-w-0 flex-1 cursor-pointer truncate text-left opacity-75 hover:text-text"
+              aria-label={replyJumpLabel}
+              title={replyJumpLabel}
+            >
+              {replyJumpText}
+            </button>
+          </div>
+        {/if}
+
+        <!-- Author and timestamp -->
         {#if !compact}
           <div class="flex min-w-0 items-center gap-2">
             {#if actor}
@@ -697,43 +750,6 @@
             >
               {timestamp}
             </a>
-          </div>
-        {/if}
-
-        {#if replyPreview}
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <!-- svelte-ignore a11y_click_events_have_key_events -->
-          <div
-            data-testid="reply-attribution"
-            class="flex min-w-0 cursor-pointer items-center gap-1 text-xs leading-none text-muted hover:text-text"
-            onclick={scrollToReplyTarget}
-            onmousedown={(e) => e.stopPropagation()}
-          >
-            <span class="shrink-0">{m['room.message.meta.in_reply_to']()}</span>
-            {#if replyPreview.actor}
-              {@const replyCallPresence = activeCallRooms.getParticipantCallPresence(
-                roomId,
-                replyPreview.actor.id
-              )}
-              <button
-                type="button"
-                data-testid="reply-attribution-author"
-                class="flex shrink-0 cursor-pointer items-center gap-1 hover:underline"
-                onclick={(e) => {
-                  e.stopPropagation();
-                  showPopoverForReplyAuthor(e);
-                }}
-              >
-                <UserAvatar user={replyPreview.actor} size="xs" />
-                <strong class="font-medium">{replyPreview.name}</strong>
-                {@render callPresenceIcon(replyCallPresence)}
-              </button>
-            {:else}
-              <strong class="shrink-0 font-medium">{replyPreview.name}</strong>
-            {/if}
-            {#if replyPreview.body}
-              <span class="min-w-0 truncate opacity-70">{replyPreview.body}</span>
-            {/if}
           </div>
         {/if}
 

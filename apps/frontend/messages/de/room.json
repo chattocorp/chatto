@@ -88,6 +88,7 @@
         "remove_reaction_label": "{emoji}-Reaktion entfernen ({count})",
         "copy_link_title": "Klicken, um den Link zu dieser Nachricht zu kopieren",
         "in_reply_to": "als Antwort auf",
+        "reply_preview_fallback": "Nachricht",
         "deleted": "Diese Nachricht wurde gelöscht."
       }
     },

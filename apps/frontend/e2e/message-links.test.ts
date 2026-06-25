@@ -184,7 +184,7 @@ test.describe('Message links', () => {
     const replyAttribution = page
       .locator('[role="article"]', { hasText: replyBody })
       .getByTestId('reply-attribution');
-    await replyAttribution.getByText('in reply to').click();
+    await replyAttribution.click({ position: { x: 8, y: 8 } });
 
     // The old target should be visible after jump
     await expect(page.locator('p', { hasText: targetBody })).toBeVisible({

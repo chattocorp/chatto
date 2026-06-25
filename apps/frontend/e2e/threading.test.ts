@@ -66,10 +66,32 @@ async function selectTextInside(locator: Locator, selectedText: string): Promise
   }, selectedText);
 }
 
+async function insertTextAtComposerEnd(page: Page, composer: Locator, text: string): Promise<void> {
+  await composer.evaluate((root) => {
+    const trailingParagraph =
+      Array.from(root.children)
+        .reverse()
+        .find((child): child is HTMLParagraphElement => child instanceof HTMLParagraphElement) ??
+      root;
+    const range = document.createRange();
+    range.selectNodeContents(trailingParagraph);
+    range.collapse(false);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    (root as HTMLElement).focus();
+  });
+  await page.keyboard.insertText(text);
+}
+
 async function getIdsFromUrl(page: Page): Promise<{ spaceId: string; roomId: string }> {
   const match = page.url().match(/\/chat\/-\/([^/]+)/);
   if (!match) throw new Error(`Could not extract roomId from URL: ${page.url()}`);
   return { spaceId: 'server', roomId: match[1] };
+}
+
+async function clickReplyAttributionJump(attribution: Locator): Promise<void> {
+  await attribution.click({ position: { x: 8, y: 8 } });
 }
 
 /**
@@ -360,7 +382,7 @@ test.describe('Message Threading', () => {
     });
 
     const replyBody = `Room quote reply ${timestamp}`;
-    await page.keyboard.type(replyBody);
+    await insertTextAtComposerEnd(page, roomPage.messageInput, replyBody);
     await roomPage.messageInput.press('Control+Enter');
 
     const reply = roomPage.getMessage(replyBody);
@@ -394,7 +416,7 @@ test.describe('Message Threading', () => {
     });
 
     const replyBody = `Thread quote reply ${timestamp}`;
-    await page.keyboard.type(replyBody);
+    await insertTextAtComposerEnd(page, roomPage.threadReplyInput, replyBody);
     await roomPage.threadReplyInput.press('Control+Enter');
 
     const reply = roomPage.getThreadMessage(replyBody);
@@ -1399,12 +1421,12 @@ test.describe('Message Threading', () => {
     // Target should NOT be visible (outside the loaded message window)
     await expect(page.locator('p', { hasText: targetBody })).not.toBeVisible();
 
-    // Click the "in reply to" text specifically to avoid the nested author button,
-    // which has stopPropagation and opens a user popover instead of jumping.
+    // Click the attribution connector to avoid the nested author button, which has
+    // stopPropagation and opens a user popover instead of jumping.
     const attribution = page
       .locator('[role="article"]', { hasText: replyBody })
       .getByTestId('reply-attribution');
-    await attribution.getByText('in reply to').click();
+    await clickReplyAttributionJump(attribution);
 
     // Target message should now be visible (fetched via roomEventsAround and scrolled into view)
     await expect(page.locator('p', { hasText: targetBody })).toBeVisible({

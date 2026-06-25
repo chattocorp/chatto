@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { withBootstrapAdminRequest, withServerUser } from './fixtures/serverUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
@@ -11,6 +11,10 @@ async function getIdsFromUrl(page: Page): Promise<{ spaceId: string; roomId: str
   const match = page.url().match(/\/chat\/-\/([^/]+)/);
   if (!match) throw new Error(`Could not extract roomId from URL: ${page.url()}`);
   return { spaceId: 'server', roomId: match[1] };
+}
+
+async function clickReplyAttributionJump(attribution: Locator): Promise<void> {
+  await attribution.click({ position: { x: 8, y: 8 } });
 }
 
 /** Post a message via API and return its event ID. */
@@ -769,15 +773,13 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       const echoArticle = page.locator('[role="article"]', { hasText: echoReplyBody });
       const attribution = echoArticle.getByTestId('reply-attribution');
       await expect(attribution).toBeVisible();
-      await expect(attribution.getByText('in reply to')).toBeVisible();
     });
 
     await test.step('Click reply attribution and verify thread opens with target visible', async () => {
       const echoArticle = page.locator('[role="article"]', { hasText: echoReplyBody });
       const attribution = echoArticle.getByTestId('reply-attribution');
 
-      // Click "in reply to" (not the author button which has stopPropagation)
-      await attribution.getByText('in reply to').click();
+      await clickReplyAttributionJump(attribution);
 
       // Thread pane should open
       await expect(page.getByTestId('thread-pane')).toBeVisible({
@@ -1041,7 +1043,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     await test.step('Click echo #1 reply attribution (reply to root) — should highlight root', async () => {
       const echo1Article = page.locator('[role="article"]', { hasText: echo1Body });
       const attribution1 = echo1Article.getByTestId('reply-attribution');
-      await attribution1.getByText('in reply to').click();
+      await clickReplyAttributionJump(attribution1);
 
       // Thread pane should open
       await expect(page.getByTestId('thread-pane')).toBeVisible({
@@ -1063,7 +1065,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     await test.step('Click echo #2 reply attribution (reply to non-root) — should highlight target', async () => {
       const echo2Article = page.locator('[role="article"]', { hasText: echo2Body });
       const attribution2 = echo2Article.getByTestId('reply-attribution');
-      await attribution2.getByText('in reply to').click();
+      await clickReplyAttributionJump(attribution2);
 
       // Thread pane should open
       await expect(page.getByTestId('thread-pane')).toBeVisible({
@@ -1139,7 +1141,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     await test.step('Click echo reply attribution — should highlight target in cached thread', async () => {
       const echoArticle = page.locator('[role="article"]', { hasText: echoBody });
       const attribution = echoArticle.getByTestId('reply-attribution');
-      await attribution.getByText('in reply to').click();
+      await clickReplyAttributionJump(attribution);
 
       // Thread pane should open
       await expect(page.getByTestId('thread-pane')).toBeVisible({
@@ -1226,7 +1228,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
         .locator('[role="article"]', { hasText: replyBody });
       const attribution = replyArticle.getByTestId('reply-attribution');
       await expect(attribution).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-      await attribution.getByText('in reply to').click();
+      await clickReplyAttributionJump(attribution);
 
       // Target message should be highlighted
       const targetEvent = page
@@ -1320,7 +1322,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     await test.step('Click echo reply attribution — should highlight target in thread', async () => {
       const echoArticle = page.locator('[role="article"]', { hasText: echoBody });
       const attribution = echoArticle.getByTestId('reply-attribution');
-      await attribution.getByText('in reply to').click();
+      await clickReplyAttributionJump(attribution);
 
       // Thread pane should open
       await expect(page.getByTestId('thread-pane')).toBeVisible({
