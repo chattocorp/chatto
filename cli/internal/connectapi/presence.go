@@ -14,7 +14,7 @@ type presenceService struct {
 }
 
 func (s *presenceService) ReportPresence(ctx context.Context, req *connect.Request[apiv1.ReportPresenceRequest]) (*connect.Response[apiv1.ReportPresenceResponse], error) {
-	user, err := requireAuth(ctx)
+	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -23,10 +23,10 @@ func (s *presenceService) ReportPresence(ctx context.Context, req *connect.Reque
 	if err != nil {
 		return nil, err
 	}
-	if err := s.api.core.SetPresenceWithOptions(ctx, user.Id, status, req.Msg.UserSelected); err != nil {
+	if err := s.api.core.SetPresenceWithOptions(ctx, caller.UserID, status, req.Msg.UserSelected); err != nil {
 		return nil, connectError(err)
 	}
-	storedStatus, err := s.api.core.GetUserPresence(ctx, user.Id)
+	storedStatus, err := s.api.core.GetUserPresence(ctx, caller.UserID)
 	if err != nil {
 		return nil, connectError(err)
 	}

@@ -14,7 +14,7 @@ type notificationPreferencesService struct {
 }
 
 func (s *notificationPreferencesService) GetRoomNotificationPreference(ctx context.Context, req *connect.Request[apiv1.GetRoomNotificationPreferenceRequest]) (*connect.Response[apiv1.GetRoomNotificationPreferenceResponse], error) {
-	user, err := requireAuth(ctx)
+	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -22,7 +22,7 @@ func (s *notificationPreferencesService) GetRoomNotificationPreference(ctx conte
 		return nil, invalidArgument("room_id is required")
 	}
 
-	pref, err := s.api.core.NotificationPreferences().GetRoomNotificationPreference(ctx, user.Id, req.Msg.RoomId)
+	pref, err := s.api.core.NotificationPreferences().GetRoomNotificationPreference(ctx, caller.UserID, req.Msg.RoomId)
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -33,7 +33,7 @@ func (s *notificationPreferencesService) GetRoomNotificationPreference(ctx conte
 }
 
 func (s *notificationPreferencesService) SetRoomNotificationLevel(ctx context.Context, req *connect.Request[apiv1.SetRoomNotificationLevelRequest]) (*connect.Response[apiv1.SetRoomNotificationLevelResponse], error) {
-	user, err := requireAuth(ctx)
+	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +45,7 @@ func (s *notificationPreferencesService) SetRoomNotificationLevel(ctx context.Co
 		return nil, err
 	}
 
-	pref, err := s.api.core.NotificationPreferences().SetRoomNotificationLevel(ctx, user.Id, req.Msg.RoomId, level)
+	pref, err := s.api.core.NotificationPreferences().SetRoomNotificationLevel(ctx, caller.UserID, req.Msg.RoomId, level)
 	if err != nil {
 		return nil, connectError(err)
 	}

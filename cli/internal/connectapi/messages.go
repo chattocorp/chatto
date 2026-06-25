@@ -15,13 +15,13 @@ type messageService struct {
 }
 
 func (s *messageService) PostMessage(ctx context.Context, req *connect.Request[apiv1.PostMessageRequest]) (*connect.Response[apiv1.PostMessageResponse], error) {
-	user, err := requireAuth(ctx)
+	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	result, err := s.api.core.Messages().PostMessage(ctx, core.MessagePostInput{
-		ActorID:                  user.Id,
+		ActorID:                  caller.UserID,
 		RoomID:                   req.Msg.RoomId,
 		Body:                     req.Msg.Body,
 		AttachmentAssetIDs:       append([]string(nil), req.Msg.AttachmentAssetIds...),
@@ -56,7 +56,7 @@ func (s *messageService) PostMessage(ctx context.Context, req *connect.Request[a
 	if room, err := s.api.core.FindRoomByID(ctx, roomID); err == nil && room != nil {
 		kind = core.KindOfRoom(room)
 	}
-	apiEvent, includes, err := s.hydratePostedEvent(ctx, user.Id, kind, result.Event)
+	apiEvent, includes, err := s.hydratePostedEvent(ctx, caller.UserID, kind, result.Event)
 	if err != nil {
 		return nil, connectError(err)
 	}

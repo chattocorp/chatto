@@ -21,7 +21,7 @@ type roomTimelineService struct {
 }
 
 func (s *roomTimelineService) GetRoomEvents(ctx context.Context, req *connect.Request[apiv1.GetRoomEventsRequest]) (*connect.Response[apiv1.GetRoomEventsResponse], error) {
-	user, err := requireAuth(ctx)
+	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -31,7 +31,7 @@ func (s *roomTimelineService) GetRoomEvents(ctx context.Context, req *connect.Re
 	}
 
 	input := core.RoomTimelineEventsInput{
-		ActorID:   user.Id,
+		ActorID:   caller.UserID,
 		RoomID:    req.Msg.RoomId,
 		Limit:     int(req.Msg.Limit),
 		AfterSeq:  afterSeq,
@@ -44,7 +44,7 @@ func (s *roomTimelineService) GetRoomEvents(ctx context.Context, req *connect.Re
 	}
 
 	page := result.Page
-	resp, err := s.buildPage(ctx, user.Id, result.Kind, page.Events, page.HasOlder, page.HasNewer)
+	resp, err := s.buildPage(ctx, caller.UserID, result.Kind, page.Events, page.HasOlder, page.HasNewer)
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -54,16 +54,16 @@ func (s *roomTimelineService) GetRoomEvents(ctx context.Context, req *connect.Re
 }
 
 func (s *roomTimelineService) GetRoomEventsAround(ctx context.Context, req *connect.Request[apiv1.GetRoomEventsAroundRequest]) (*connect.Response[apiv1.GetRoomEventsAroundResponse], error) {
-	user, err := requireAuth(ctx)
+	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
 	}
-	result, err := s.api.core.RoomTimelineReads().GetRoomEventsAround(ctx, user.Id, req.Msg.RoomId, req.Msg.EventId, int(req.Msg.Limit))
+	result, err := s.api.core.RoomTimelineReads().GetRoomEventsAround(ctx, caller.UserID, req.Msg.RoomId, req.Msg.EventId, int(req.Msg.Limit))
 	if err != nil {
 		return nil, connectError(err)
 	}
 	around := result.Result
-	page, err := s.buildPage(ctx, user.Id, result.Kind, around.Events, around.HasOlder, around.HasNewer)
+	page, err := s.buildPage(ctx, caller.UserID, result.Kind, around.Events, around.HasOlder, around.HasNewer)
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -79,7 +79,7 @@ func (s *roomTimelineService) GetRoomEventsAround(ctx context.Context, req *conn
 }
 
 func (s *roomTimelineService) GetThreadEvents(ctx context.Context, req *connect.Request[apiv1.GetThreadEventsRequest]) (*connect.Response[apiv1.GetThreadEventsResponse], error) {
-	user, err := requireAuth(ctx)
+	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +89,7 @@ func (s *roomTimelineService) GetThreadEvents(ctx context.Context, req *connect.
 	}
 
 	input := core.ThreadTimelineEventsInput{
-		ActorID:           user.Id,
+		ActorID:           caller.UserID,
 		RoomID:            req.Msg.RoomId,
 		ThreadRootEventID: req.Msg.ThreadRootEventId,
 		Limit:             int(req.Msg.Limit),
@@ -102,7 +102,7 @@ func (s *roomTimelineService) GetThreadEvents(ctx context.Context, req *connect.
 		return nil, connectError(err)
 	}
 
-	page, err := s.buildThreadPage(ctx, user.Id, result.Kind, result.Root, result.Replies, result.IncludeRoot)
+	page, err := s.buildThreadPage(ctx, caller.UserID, result.Kind, result.Root, result.Replies, result.IncludeRoot)
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -110,15 +110,15 @@ func (s *roomTimelineService) GetThreadEvents(ctx context.Context, req *connect.
 }
 
 func (s *roomTimelineService) GetThreadEventsAround(ctx context.Context, req *connect.Request[apiv1.GetThreadEventsAroundRequest]) (*connect.Response[apiv1.GetThreadEventsAroundResponse], error) {
-	user, err := requireAuth(ctx)
+	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
 	}
-	result, err := s.api.core.RoomTimelineReads().GetThreadEventsAround(ctx, user.Id, req.Msg.RoomId, req.Msg.ThreadRootEventId, req.Msg.EventId, int(req.Msg.Limit))
+	result, err := s.api.core.RoomTimelineReads().GetThreadEventsAround(ctx, caller.UserID, req.Msg.RoomId, req.Msg.ThreadRootEventId, req.Msg.EventId, int(req.Msg.Limit))
 	if err != nil {
 		return nil, connectError(err)
 	}
-	page, err := s.buildThreadPage(ctx, user.Id, result.Kind, result.Root, result.Replies, true)
+	page, err := s.buildThreadPage(ctx, caller.UserID, result.Kind, result.Root, result.Replies, true)
 	if err != nil {
 		return nil, connectError(err)
 	}

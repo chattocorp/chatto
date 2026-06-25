@@ -13,12 +13,12 @@ type readStateService struct {
 }
 
 func (s *readStateService) MarkRoomAsRead(ctx context.Context, req *connect.Request[apiv1.MarkRoomAsReadRequest]) (*connect.Response[apiv1.MarkRoomAsReadResponse], error) {
-	user, err := requireAuth(ctx)
+	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	result, err := s.api.core.ReadState().MarkRoomAsRead(ctx, user.Id, req.Msg.RoomId, req.Msg.UpToEventId)
+	result, err := s.api.core.ReadState().MarkRoomAsRead(ctx, caller.UserID, req.Msg.RoomId, req.Msg.UpToEventId)
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -34,12 +34,12 @@ func (s *readStateService) MarkRoomAsRead(ctx context.Context, req *connect.Requ
 }
 
 func (s *readStateService) MarkThreadAsRead(ctx context.Context, req *connect.Request[apiv1.MarkThreadAsReadRequest]) (*connect.Response[apiv1.MarkThreadAsReadResponse], error) {
-	user, err := requireAuth(ctx)
+	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	result, err := s.api.core.ReadState().MarkThreadAsRead(ctx, user.Id, req.Msg.RoomId, req.Msg.ThreadRootEventId, req.Msg.UpToEventId)
+	result, err := s.api.core.ReadState().MarkThreadAsRead(ctx, caller.UserID, req.Msg.RoomId, req.Msg.ThreadRootEventId, req.Msg.UpToEventId)
 	if err != nil {
 		return nil, connectError(err)
 	}
