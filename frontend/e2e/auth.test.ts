@@ -144,6 +144,40 @@ test.describe('Authentication', () => {
     await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
   });
 
+  test('authenticated users are redirected away from /login', async ({ page }) => {
+    await createAndLoginTestUser(page);
+
+    await page.goto('/login');
+
+    await page.waitForURL((url) => url.pathname.startsWith('/chat'));
+    await expect(page.getByRole('heading', { name: 'Sign In' })).not.toBeVisible();
+  });
+
+  test('authenticated users are redirected away from /register', async ({ page }) => {
+    await createAndLoginTestUser(page);
+
+    await page.goto('/register');
+
+    await page.waitForURL((url) => url.pathname.startsWith('/chat'));
+    await expect(page.getByRole('heading', { name: 'Create Account' })).not.toBeVisible();
+  });
+
+  test('authenticated OAuth login redirects continue to backend target', async ({ page }) => {
+    await createAndLoginTestUser(page);
+
+    await page.goto(`/login?redirect=${encodeURIComponent('/oauth/authorize?client_id=e2e')}`);
+
+    await page.waitForURL((url) => url.pathname === '/oauth/authorize');
+  });
+
+  test('authenticated root redirect preserves welcome confirmation', async ({ page }) => {
+    await createAndLoginTestUser(page);
+
+    await page.goto('/?welcome=true');
+
+    await expect(page.getByText('Your email has been verified and your account is ready.')).toBeVisible();
+  });
+
   test.describe('Registration Form (Step 1 — Email)', () => {
     test('shows email form on /register', async ({ authPage }) => {
       await authPage.gotoRegister();

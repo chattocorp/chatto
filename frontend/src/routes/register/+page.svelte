@@ -214,7 +214,8 @@
 
       const returnUrl = sessionStorage.getItem('returnUrl');
       if (returnUrl) {
-        sessionStorage.removeItem('returnUrl');
+        // Keep the marker until the authenticated chat shell sees it; otherwise
+        // the chat landing redirect can win before the return URL settles.
         // eslint-disable-next-line svelte/no-navigation-without-resolve -- dynamic return URL from sessionStorage
         goto(returnUrl);
       } else {

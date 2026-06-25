@@ -129,7 +129,8 @@
 
       const returnUrl = sessionStorage.getItem('returnUrl');
       if (returnUrl) {
-        sessionStorage.removeItem('returnUrl');
+        // Keep the marker until the authenticated chat shell sees it; otherwise
+        // the chat landing redirect can win before the return URL settles.
         navigateAfterLogin(returnUrl);
       } else {
         navigateAfterLogin(data.redirectUrl);
