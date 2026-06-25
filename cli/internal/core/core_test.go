@@ -92,6 +92,9 @@ func TestNewChattoCoreInitializesOperationServices(t *testing.T) {
 	if core.NotificationPreferences() == nil {
 		t.Fatal("NotificationPreferences() = nil")
 	}
+	if core.RoomTimelineReads() == nil {
+		t.Fatal("RoomTimelineReads() = nil")
+	}
 	if core.ReadState() == nil {
 		t.Fatal("ReadState() = nil")
 	}
