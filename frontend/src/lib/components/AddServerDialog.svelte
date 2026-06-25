@@ -53,21 +53,20 @@ ADR-027 — only user-facing copy says "server".
   let probing = $state(false);
   let connecting = $state(false);
 
-  // Reset everything whenever the dialog is closed so reopening starts
-  // fresh — the component is mounted persistently by its callers (sidebar,
-  // instances page, login), so without this the previous URL and any prior
-  // error/preview would still be present on the next open.
-  $effect(() => {
-    if (!visible) {
-      stage = 'url';
-      serverUrl = '';
-      probedUrl = '';
-      probedInfo = null;
-      formError = '';
-      probing = false;
-      connecting = false;
-    }
-  });
+  function reset() {
+    stage = 'url';
+    serverUrl = '';
+    probedUrl = '';
+    probedInfo = null;
+    formError = '';
+    probing = false;
+    connecting = false;
+  }
+
+  function handleClose() {
+    reset();
+    onclose();
+  }
 
   function normalizeUrl(url: string): string {
     let u = url.trim().replace(/\/+$/, '');
@@ -234,7 +233,7 @@ ADR-027 — only user-facing copy says "server".
   {disabled}
   error={formError}
   onsubmit={stage === 'url' ? handleProbe : handleConnect}
-  {onclose}
+  onclose={handleClose}
 >
   {#snippet description()}
     {#if stage === 'url'}

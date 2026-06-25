@@ -40,12 +40,9 @@ configurable selection keys, and customizable item rendering via snippets.
     item
   }: Props = $props();
 
-  let selectedIndex = $state(0);
-
-  // Reset selection when items change
-  $effect(() => {
+  let selectedIndex = $derived.by(() => {
     void items;
-    selectedIndex = 0;
+    return 0;
   });
 
   export function handleKeyDown(event: KeyboardEvent): boolean {
