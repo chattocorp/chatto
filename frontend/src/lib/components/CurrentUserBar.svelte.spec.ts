@@ -163,6 +163,22 @@ describe('CurrentUserBar', () => {
     expect(q(container, '[data-testid="current-user-edit-status"]')).toBeFalsy();
   });
 
+  it('closes the presence menu after choosing a presence mode', async () => {
+    const { container } = render(CurrentUserBarTestHarness);
+
+    (q(container, '[data-testid="current-user-presence-menu"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain('Away');
+    });
+
+    (q(container, '[role="menuitemradio"][aria-checked="false"]') as HTMLButtonElement).click();
+
+    await vi.waitFor(() => {
+      expect(container.textContent).not.toContain('Do Not Disturb');
+    });
+    expect(presencePreference.mode).toBe('away');
+  });
+
   it('opens the custom status dialog from the status menu', async () => {
     currentUserState.user = {
       ...currentUserState.user!,

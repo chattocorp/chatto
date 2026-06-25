@@ -34,12 +34,14 @@
     status,
     config,
     compact = false,
+    sheet = false,
     onChange,
     onClose
   }: {
     status?: CustomUserStatus | null;
     config: CustomUserStatusAPIConfig;
     compact?: boolean;
+    sheet?: boolean;
     onChange?: (status: CustomUserStatus | null) => void;
     onClose?: () => void;
   } = $props();
@@ -461,8 +463,17 @@
     {/if}
   </form>
 {:else}
-  <form class="flex flex-col gap-4" data-testid="custom-status-editor" onsubmit={saveCustomStatus}>
-    <div class="flex min-w-0 items-center gap-2 rounded-md border border-border bg-background p-2">
+  <form
+    class={['flex flex-col', sheet ? 'gap-2' : 'gap-4']}
+    data-testid="custom-status-editor"
+    onsubmit={saveCustomStatus}
+  >
+    <div
+      class={[
+        'flex min-w-0 items-center gap-2 p-2',
+        sheet ? 'menu-section' : 'rounded-md border border-border bg-background'
+      ]}
+    >
       <button
         type="button"
         class="grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded-md text-lg hover:bg-surface-100 disabled:cursor-not-allowed disabled:opacity-60"
@@ -499,8 +510,12 @@
       {/if}
     </div>
 
-    <div class="flex flex-col gap-1.5">
-      <div class="text-sm font-semibold text-muted">
+    <div class={sheet ? 'flex flex-col gap-1 menu-section p-1' : 'flex flex-col gap-1.5'}>
+      <div
+        class={sheet
+          ? 'px-2 py-1 text-xs font-semibold text-muted'
+          : 'text-sm font-semibold text-muted'}
+      >
         {m['settings.profile.status.suggestions']()}
       </div>
       <div class="grid gap-1">
@@ -520,42 +535,46 @@
       </div>
     </div>
 
-    <FormField id={expiresAtInputId} label={m['settings.profile.status.expires_at.label']()}>
-      <select
-        id={expiresAtInputId}
-        bind:value={expiryPreset}
-        disabled={isSaving || isClearing}
-        class="input"
-        data-testid="settings-custom-status-expiry-preset"
-        onchange={updateExpiryFromPreset}
-      >
-        {#each expiryOptions as option (option.value)}
-          <option value={option.value}>{option.label}</option>
-        {/each}
-      </select>
-    </FormField>
-
-    {#if expiryPreset === 'custom'}
-      <FormField
-        id={`${expiresAtInputId}-custom`}
-        label={m['settings.profile.status.expiry.custom_date']()}
-      >
-        <input
-          id={`${expiresAtInputId}-custom`}
-          type="datetime-local"
-          bind:value={statusExpiresAt}
+    <div class={sheet ? 'menu-section p-2' : ''}>
+      <FormField id={expiresAtInputId} label={m['settings.profile.status.expires_at.label']()}>
+        <select
+          id={expiresAtInputId}
+          bind:value={expiryPreset}
           disabled={isSaving || isClearing}
           class="input"
-          data-testid="settings-custom-status-expires-at"
-        />
+          data-testid="settings-custom-status-expiry-preset"
+          onchange={updateExpiryFromPreset}
+        >
+          {#each expiryOptions as option (option.value)}
+            <option value={option.value}>{option.label}</option>
+          {/each}
+        </select>
       </FormField>
+    </div>
+
+    {#if expiryPreset === 'custom'}
+      <div class={sheet ? 'menu-section p-2' : ''}>
+        <FormField
+          id={`${expiresAtInputId}-custom`}
+          label={m['settings.profile.status.expiry.custom_date']()}
+        >
+          <input
+            id={`${expiresAtInputId}-custom`}
+            type="datetime-local"
+            bind:value={statusExpiresAt}
+            disabled={isSaving || isClearing}
+            class="input"
+            data-testid="settings-custom-status-expires-at"
+          />
+        </FormField>
+      </div>
     {/if}
 
     {#if error}
       <Hint tone="danger">{error}</Hint>
     {/if}
 
-    <div class="flex flex-wrap items-center justify-end gap-2">
+    <div class={['flex flex-wrap items-center justify-end gap-2', sheet && 'menu-section p-2']}>
       {#if hasActiveStatus}
         <Button
           type="button"

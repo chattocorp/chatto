@@ -131,6 +131,7 @@ to the user settings page for the active server.
 
   function choosePresenceMode(mode: PresenceMode) {
     setPresenceMode(mode);
+    statusMenuAnchor = null;
   }
 
   function openCustomStatusDialog() {
@@ -168,11 +169,12 @@ to the user settings page for the active server.
   }
 </script>
 
-{#snippet customStatusEditor()}
+{#snippet customStatusEditor(sheet = false)}
   {#if activeServerUser}
     <UserCustomStatusEditor
       status={activeServerUser.customStatus}
       config={customStatusAPIConfig()}
+      {sheet}
       onChange={updateCurrentCustomStatus}
       onClose={() => (customStatusDialogVisible = false)}
     />
@@ -361,21 +363,21 @@ to the user settings page for the active server.
       bind:visible={customStatusDialogVisible}
       onclose={() => (customStatusDialogVisible = false)}
     >
-      <div class="max-h-[78vh] overflow-y-auto pb-2 text-text">
-        <header class="mb-4 flex items-start justify-between gap-3">
-          <h2 class="text-xl font-semibold text-text">
+      <div class="flex max-h-[78vh] flex-col gap-2 overflow-y-auto pb-2 text-text">
+        <header class="flex items-center justify-between gap-3 menu-section px-3 py-2">
+          <h2 class="text-base font-semibold text-text">
             {m['settings.profile.status.dialog_title']()}
           </h2>
           <button
             type="button"
             onclick={() => (customStatusDialogVisible = false)}
-            class="-m-1 shrink-0 cursor-pointer rounded p-1 text-text/50 transition-colors hover:text-text"
+            class="-m-1 grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded-md text-text/50 transition-colors hover:bg-surface-100 hover:text-text"
             aria-label={m['ui.close']()}
           >
             <span class="iconify text-xl uil--times"></span>
           </button>
         </header>
-        {@render customStatusEditor()}
+        {@render customStatusEditor(true)}
       </div>
     </BottomSheet>
   {:else}
