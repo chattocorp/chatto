@@ -22,7 +22,7 @@ See [`.claude/skills/fdr/SKILL.md`](../../.claude/skills/fdr/SKILL.md) for the F
 | [FDR-010](FDR-010-typing-indicators.md) | Typing Indicators | Active | 2026-05-19 |
 | [FDR-011](FDR-011-user-presence.md) | User Presence | Active | 2026-06-23 |
 | [FDR-012](FDR-012-notifications.md) | Notifications | Active | 2026-06-12 |
-| [FDR-013](FDR-013-web-push-notifications.md) | Web Push Notifications | Active | 2026-06-17 |
+| [FDR-013](FDR-013-web-push-notifications.md) | Web Push Notifications | Active | 2026-06-25 |
 | [FDR-014](FDR-014-jump-to-present.md) | Jump to Present | Active | 2026-05-19 |
 | [FDR-015](FDR-015-quick-switcher.md) | Quick Switcher (Cmd-K) | Active | 2026-05-31 |
 | [FDR-016](FDR-016-voice-calls.md) | Voice Calls | Active | 2026-06-15 |
