@@ -5,13 +5,14 @@ type serviceRegistration struct {
 	name string
 }
 
-// ServiceMetadata is stable metadata for a core runtime service.
+// ServiceMetadata is stable metadata for a core service exposed in operator
+// metrics.
 type ServiceMetadata struct {
 	Key  string
 	Name string
 }
 
-// ServiceMetadata returns the core runtime services registered by this process.
+// ServiceMetadata returns the core service inventory registered by this process.
 func (c *ChattoCore) ServiceMetadata() []ServiceMetadata {
 	out := make([]ServiceMetadata, 0, len(c.services))
 	for _, service := range c.services {
