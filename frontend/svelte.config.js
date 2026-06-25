@@ -2,6 +2,8 @@ import adapter from '@sveltejs/adapter-static';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 import { execSync } from 'node:child_process';
 
+const precompress = process.env.CHATTO_FRONTEND_PRECOMPRESS === '1';
+
 function buildVersionName() {
   if (process.env.npm_package_version) return process.env.npm_package_version;
 
@@ -20,7 +22,7 @@ const config = {
   kit: {
     adapter: adapter({
       fallback: '200.html',
-      precompress: true
+      precompress
     }),
     version: {
       // Use package version when run through package scripts, or the current

@@ -255,6 +255,7 @@ export default defineConfig({
     devtoolsJson()
   ],
   build: {
+    reportCompressedSize: false,
     rollupOptions: {
       output: {
         manualChunks(id) {
