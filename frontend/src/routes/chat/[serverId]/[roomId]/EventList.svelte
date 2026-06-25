@@ -130,6 +130,13 @@
   let lastSeenNewestId = $state<string | null>(null);
   let firstVisibleDate = $state<string | null>(null);
 
+  function setShouldScrollToBottom(value: boolean) {
+    shouldScrollToBottom = value;
+    if (value) {
+      hasNewMessages = false;
+    }
+  }
+
   // Track previous scroll offset for direction detection
   let previousOffset = $state<number | null>(null);
 
@@ -192,8 +199,7 @@
     void roomId;
 
     initialScrollDone = false;
-    shouldScrollToBottom = true;
-    hasNewMessages = false;
+    setShouldScrollToBottom(true);
     lastSeenNewestId = null;
     previousOffset = null;
   });
@@ -203,7 +209,7 @@
   let prevJumpedMode: boolean | undefined;
   $effect(() => {
     if (prevJumpedMode && !isJumpedMode) {
-      shouldScrollToBottom = true;
+      setShouldScrollToBottom(true);
     }
     prevJumpedMode = isJumpedMode;
   });
@@ -224,13 +230,6 @@
     lastSeenNewestId = newestId;
   });
 
-  // Clear new messages indicator when scrolling back to bottom
-  $effect(() => {
-    if (shouldScrollToBottom) {
-      hasNewMessages = false;
-    }
-  });
-
   // Watch for scroll-to-bottom requests from MessageComposer (after posting a message).
   // Clears scrollUpLock since posting a message is explicit user intent to see the bottom.
   // Uses scrollContainer.scrollTop instead of scrollToIndex because the user may have
@@ -240,7 +239,7 @@
     if (!scrollState || alwaysScrollToBottom) return;
     const counter = scrollState.scrollRequestCounter;
     if (counter > 0) {
-      shouldScrollToBottom = true;
+      setShouldScrollToBottom(true);
       scrollUpLock = false;
       if (scrollUpLockTimer) {
         clearTimeout(scrollUpLockTimer);
@@ -268,7 +267,7 @@
     if (targetIdx === -1) return;
 
     // Disable auto-scroll so it doesn't race with the jump scroll.
-    shouldScrollToBottom = false;
+    setShouldScrollToBottom(false);
     // Mark initial scroll as done so pending initial loading state cannot obscure the jump.
     initialScrollDone = true;
 
@@ -291,7 +290,7 @@
           virtualizerHandle.getScrollOffset() -
           virtualizerHandle.getViewportSize();
         if (dist < 50) {
-          shouldScrollToBottom = true;
+          setShouldScrollToBottom(true);
         }
       }, 200);
 
@@ -393,8 +392,7 @@
 
   // Scroll to bottom when clicking the new messages indicator
   function scrollToBottom() {
-    shouldScrollToBottom = true;
-    hasNewMessages = false;
+    setShouldScrollToBottom(true);
     if (virtualizerHandle) {
       safeScrollToIndex(virtualItems.length - 1, { align: 'end' });
       scrollFader?.refresh();
@@ -516,7 +514,7 @@
       await new Promise((resolve) => requestAnimationFrame(resolve));
 
       if (wasAtBottom) {
-        shouldScrollToBottom = true;
+        setShouldScrollToBottom(true);
         initialScrollDone = true;
         startScrollCorrection();
         scrollContainer?.scrollTo({ top: scrollContainer.scrollHeight });
@@ -573,7 +571,7 @@
       virtualizerHandle.getScrollSize() -
       virtualizerHandle.getScrollOffset() -
       virtualizerHandle.getViewportSize();
-    if (dist > 50) shouldScrollToBottom = false;
+    if (dist > 50) setShouldScrollToBottom(false);
   });
 
   let forwardLoadInFlight = false;
@@ -581,8 +579,7 @@
   function exitJumpedModeAtPresent(bottomDistance: number): boolean {
     if (!isJumpedMode || !hasReachedEnd || bottomDistance >= 50 || !onReachedPresent) return false;
 
-    shouldScrollToBottom = true;
-    hasNewMessages = false;
+    setShouldScrollToBottom(true);
     console.debug('[room-refresh] reached present after forward pagination', {
       roomId,
       bottomDistance,
@@ -624,7 +621,7 @@
     if (!alwaysScrollToBottom) {
       // Re-enable auto-scroll if we're at the bottom (and not locked)
       if (distanceFromBottom < 10 && !scrollUpLock) {
-        shouldScrollToBottom = true;
+        setShouldScrollToBottom(true);
       }
       // Disable auto-scroll if user scrolled up (and clearly not near the bottom).
       // Gated on a recent wheel/touchmove signal so virtua's internal scroll
@@ -639,7 +636,7 @@
         offset < previousOffset - 10 &&
         distanceFromBottom > 20
       ) {
-        shouldScrollToBottom = false;
+        setShouldScrollToBottom(false);
         pendingScrollCorrection = false;
         if (scrollCorrectionTimer) {
           clearTimeout(scrollCorrectionTimer);

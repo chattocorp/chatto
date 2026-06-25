@@ -4,7 +4,7 @@ import { pushState } from '$app/navigation';
 import { getComposerContext } from '$lib/state/room';
 import { emojiToName } from '$lib/emoji';
 import { copyMessageLinkToClipboard } from '$lib/messageLinks';
-import { graphql } from '$lib/gql';
+import { createReactionAPI } from '$lib/api/reactions';
 
 export type MessageActionParams = {
   serverId: string;
@@ -18,18 +18,6 @@ export type MessageActionParams = {
   canAddChannelEcho?: boolean;
 };
 
-const AddReactionFromActionsDocument = graphql(`
-  mutation AddReactionFromActions($input: AddReactionInput!) {
-    addReaction(input: $input)
-  }
-`);
-
-const RemoveReactionFromActionsDocument = graphql(`
-  mutation RemoveReactionFromActions($input: RemoveReactionInput!) {
-    removeReaction(input: $input)
-  }
-`);
-
 /**
  * Shared message action handlers for context menu and action sheet.
  * Must be called during component initialization (uses getEditState context).
@@ -42,14 +30,18 @@ export function useMessageActions() {
     const name = emojiToName(emoji);
     if (!name) return;
 
-    const result = await connection().client.mutation(AddReactionFromActionsDocument, {
-      input: {
+    try {
+      const conn = connection();
+      await createReactionAPI({
+        serverId: conn.serverId ?? params.serverId,
+        baseUrl: conn.connectBaseUrl,
+        bearerToken: conn.bearerToken
+      }).addReaction({
         roomId: params.roomId,
         messageEventId: params.messageEventId,
         emoji: name
-      }
-    });
-    if (result.error) {
+      });
+    } catch {
       toast.error('Failed to add reaction');
     }
   }
@@ -58,14 +50,18 @@ export function useMessageActions() {
     const name = emojiToName(emoji);
     if (!name) return;
 
-    const result = await connection().client.mutation(RemoveReactionFromActionsDocument, {
-      input: {
+    try {
+      const conn = connection();
+      await createReactionAPI({
+        serverId: conn.serverId ?? params.serverId,
+        baseUrl: conn.connectBaseUrl,
+        bearerToken: conn.bearerToken
+      }).removeReaction({
         roomId: params.roomId,
         messageEventId: params.messageEventId,
         emoji: name
-      }
-    });
-    if (result.error) {
+      });
+    } catch {
       toast.error('Failed to remove reaction');
     }
   }

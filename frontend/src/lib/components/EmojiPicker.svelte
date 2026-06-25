@@ -11,7 +11,6 @@ Uses the same section styling as MessageContextMenu (rounded-md bg-background se
 - `onClose` - Callback to dismiss the picker (Escape key)
 -->
 <script lang="ts">
-  import { tick } from 'svelte';
   import * as m from '$lib/i18n/messages';
   import { searchEmojis, EMOJI_BY_CATEGORY } from '$lib/emoji';
   import { isTouchDevice } from '$lib/utils/isTouchDevice';
@@ -28,7 +27,6 @@ Uses the same section styling as MessageContextMenu (rounded-md bg-background se
   } = $props();
 
   let query = $state('');
-  let searchInput: HTMLInputElement | undefined = $state();
   const isTouch = isTouchDevice();
 
   const recentStore = $derived(getRecentEmojis(serverId));
@@ -37,11 +35,9 @@ Uses the same section styling as MessageContextMenu (rounded-md bg-background se
   const searchResults = $derived(query.trim() ? searchEmojis(query.trim(), 50) : []);
   const isSearching = $derived(query.trim().length > 0);
 
-  $effect(() => {
-    if (!isTouch && searchInput) {
-      tick().then(() => searchInput?.focus());
-    }
-  });
+  function focusSearchInput(node: HTMLInputElement) {
+    if (!isTouch) queueMicrotask(() => node.focus());
+  }
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') {
@@ -65,7 +61,7 @@ Uses the same section styling as MessageContextMenu (rounded-md bg-background se
   <!-- Search section -->
   <div class="menu-section p-2 md:p-1">
     <input
-      bind:this={searchInput}
+      {@attach focusSearchInput}
       bind:value={query}
       type="text"
       placeholder={m['emoji.search_placeholder']()}

@@ -126,21 +126,17 @@
       (editState.channelEchoEventId !== null || editState.canAddChannelEcho)
   );
 
-  // Element ref for ResizeObserver
-  let composerEl = $state<HTMLDivElement>();
-
   // When the composer resizes (editor grows/shrinks, attachments added/removed),
   // scroll to bottom if sticky. This replaces the synchronous scrollToBottomIfSticky()
   // that was lost when the old textarea's autoResize() was removed during TipTap migration.
-  $effect(() => {
-    if (!composerEl || !scrollState) return;
-
+  function observeComposerResize(node: HTMLDivElement) {
+    if (!scrollState) return;
     const observer = new ResizeObserver(() => {
       scrollState.scrollToBottomIfSticky();
     });
-    observer.observe(composerEl);
+    observer.observe(node);
     return () => observer.disconnect();
-  });
+  }
 
   const DRAFT_KEY = $derived(draftKey(roomId, inThread));
   let message = $state('');
@@ -225,7 +221,13 @@
 
   // Load draft from sessionStorage when room changes
   // Using sessionStorage (not localStorage) so drafts are tab-specific
+  let autocompleteResetRoomId = '';
   $effect(() => {
+    if (autocompleteResetRoomId !== roomId) {
+      autocompleteResetRoomId = roomId;
+      autocomplete.resetForRoom();
+    }
+
     if (isEditing) {
       draftState.switchKey(DRAFT_KEY);
       attachments.restore([]);
@@ -361,12 +363,6 @@
     if (editorApi && !inputDisabled) {
       tick().then(() => editorApi?.focus());
     }
-  });
-
-  // Close autocomplete popups when switching rooms
-  $effect(() => {
-    void roomId;
-    autocomplete.resetForRoom();
   });
 
   // Handle emoji selection from autocomplete
@@ -882,7 +878,7 @@
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-  bind:this={composerEl}
+  {@attach observeComposerResize}
   class="flex flex-col gap-2 p-2"
   onclick={(e) => {
     if (!(e.target as HTMLElement).closest('button, a, input, label, select, .tiptap')) {

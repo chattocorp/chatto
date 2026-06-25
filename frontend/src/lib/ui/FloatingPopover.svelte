@@ -70,11 +70,11 @@ pointer-only).
     children: Snippet;
   } = $props();
 
-  let node = $state<HTMLDivElement>();
+  let node: HTMLDivElement | undefined;
 
-  function applyPosition() {
-    if (!node) return;
-    const { height, width } = node.getBoundingClientRect();
+  function applyPosition(popover = node) {
+    if (!popover) return;
+    const { height, width } = popover.getBoundingClientRect();
     let top: number;
     let left: number;
 
@@ -123,29 +123,28 @@ pointer-only).
       return;
     }
 
-    node.style.top = `${top}px`;
-    node.style.left = `${left}px`;
+    popover.style.top = `${top}px`;
+    popover.style.left = `${left}px`;
   }
 
-  function showAndPosition() {
-    if (!node) return;
-    const wasOpen = node.matches(':popover-open');
+  function showAndPosition(popover: HTMLDivElement) {
+    const wasOpen = popover.matches(':popover-open');
 
     if (!wasOpen) {
-      node.style.visibility = 'hidden';
-      node.showPopover();
+      popover.style.visibility = 'hidden';
+      popover.showPopover();
     }
 
-    applyPosition();
+    applyPosition(popover);
 
     if (!wasOpen) {
-      node.style.visibility = '';
+      popover.style.visibility = '';
     }
   }
 
   // Show on mount + reposition reactively whenever anchor/position changes.
-  $effect(() => {
-    if (!node) return;
+  function syncPopover(popover: HTMLDivElement) {
+    node = popover;
     // Re-read reactive inputs so the effect retriggers when they change.
     void open;
     void anchor;
@@ -153,31 +152,31 @@ pointer-only).
     void position;
 
     if (!open) {
-      if (node.matches(':popover-open')) node.hidePopover();
+      if (popover.matches(':popover-open')) popover.hidePopover();
       return;
     }
 
-    showAndPosition();
-  });
+    showAndPosition(popover);
+  }
 
   // Reposition when child content changes size after the popover has opened.
-  $effect(() => {
-    if (!node || !open) return;
-    const observer = new ResizeObserver(() => applyPosition());
-    observer.observe(node);
+  function observePopoverSize(popover: HTMLDivElement) {
+    if (!open) return;
+    const observer = new ResizeObserver(() => applyPosition(popover));
+    observer.observe(popover);
     return () => observer.disconnect();
-  });
+  }
 
   // Pointer-based dismissal (deferred one frame so the opening click doesn't
   // immediately close the popover).
-  $effect(() => {
-    if (!node || !open || !onclose) return;
+  function closeOnOutsideInteraction(popover: HTMLDivElement) {
+    if (!open || !onclose) return;
     const handlePointerDown = (e: PointerEvent) => {
-      if (!node || node.contains(e.target as Node)) return;
+      if (popover.contains(e.target as Node)) return;
       onclose();
     };
     const handleScroll = (e: Event) => {
-      if (!node || node.contains(e.target as Node)) return;
+      if (popover.contains(e.target as Node)) return;
       onclose();
     };
     const frame = requestAnimationFrame(() => {
@@ -189,11 +188,13 @@ pointer-only).
       document.removeEventListener('pointerdown', handlePointerDown);
       window.removeEventListener('scroll', handleScroll, { capture: true });
     };
-  });
+  }
 </script>
 
 <div
-  bind:this={node}
+  {@attach syncPopover}
+  {@attach observePopoverSize}
+  {@attach closeOnOutsideInteraction}
   {id}
   popover="manual"
   class={['fixed inset-auto z-50 m-0', !open && 'hidden', className]}

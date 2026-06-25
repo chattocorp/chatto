@@ -93,13 +93,10 @@
       });
   });
 
-  // Clear messages when the user modifies inputs
-  $effect(() => {
-    if (displayNameModified || loginModified) {
-      error = '';
-      successMessage = '';
-    }
-  });
+  function clearProfileMessages() {
+    error = '';
+    successMessage = '';
+  }
 
   async function uploadAvatarFile(file: File) {
     if (!file.type.startsWith('image/')) {
@@ -407,6 +404,7 @@
       bind:value={displayName}
       placeholder={m['settings.profile.display_name.placeholder']()}
       disabled={isSaving}
+      oninput={clearProfileMessages}
     />
 
     <TextInput
@@ -415,6 +413,7 @@
       placeholder={m['settings.profile.username.placeholder']()}
       disabled={isSaving || !canChangeLogin}
       testid="settings-username"
+      oninput={clearProfileMessages}
     />
 
     {#if cooldownLoaded && !canChangeLogin}

@@ -45,18 +45,27 @@ handles viewport-clamped positioning.
   let anchorRect = $state<{ top: number; bottom: number; left: number } | null>(null);
   const tooltipId = `help-tooltip-${crypto.randomUUID().slice(0, 8)}`;
 
+  function setOpen(value: boolean) {
+    open = value;
+    if (value) {
+      updateAnchor();
+    } else {
+      anchorRect = null;
+    }
+  }
+
   function showHover() {
-    if (!pinned) open = true;
+    if (!pinned) setOpen(true);
   }
   function hideHover() {
-    if (!pinned) open = false;
+    if (!pinned) setOpen(false);
   }
   function toggle(e: MouseEvent) {
     // Stop propagation so the document click listener doesn't immediately
     // unpin a freshly-pinned popover.
     e.stopPropagation();
     pinned = !pinned;
-    open = pinned;
+    setOpen(pinned);
   }
 
   function updateAnchor() {
@@ -65,45 +74,39 @@ handles viewport-clamped positioning.
     anchorRect = { top: r.top, bottom: r.bottom, left: r.left };
   }
 
-  // Keep the anchor following the trigger while open. FloatingPopover
-  // re-positions reactively when `anchorRect` updates.
-  $effect(() => {
-    if (!open) {
-      anchorRect = null;
-      return;
-    }
-    updateAnchor();
-    const onScrollOrResize = () => updateAnchor();
-    window.addEventListener('scroll', onScrollOrResize, true);
-    window.addEventListener('resize', onScrollOrResize);
+  function attachTrigger(node: HTMLButtonElement) {
+    trigger = node;
     return () => {
-      window.removeEventListener('scroll', onScrollOrResize, true);
-      window.removeEventListener('resize', onScrollOrResize);
+      if (trigger === node) trigger = undefined;
     };
-  });
+  }
 
-  // Escape closes a pinned popover. Pointer-outside dismissal is handled
-  // by FloatingPopover via the `onclose` callback below.
-  $effect(() => {
+  function handleViewportChange() {
+    if (open) updateAnchor();
+  }
+
+  function handleDocumentKeydown(e: KeyboardEvent) {
     if (!pinned) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        pinned = false;
-        open = false;
-      }
+    if (e.key === 'Escape') {
+      pinned = false;
+      setOpen(false);
     }
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  });
+  }
 
   function handleOutsideDismiss() {
     pinned = false;
-    open = false;
+    setOpen(false);
   }
 </script>
 
+<!-- Keep the anchor following the trigger while open. FloatingPopover re-positions reactively when `anchorRect` updates. -->
+<svelte:window onscrollcapture={handleViewportChange} onresize={handleViewportChange} />
+
+<!-- Escape closes a pinned popover. Pointer-outside dismissal is handled by FloatingPopover via the `onclose` callback below. -->
+<svelte:document onkeydown={handleDocumentKeydown} />
+
 <button
-  bind:this={trigger}
+  {@attach attachTrigger}
   type="button"
   aria-label={label}
   aria-describedby={open ? tooltipId : undefined}
@@ -122,10 +125,10 @@ handles viewport-clamped positioning.
     anchor={anchorRect}
     role="tooltip"
     id={tooltipId}
-    class="menu max-w-xs"
+    class="max-w-xs menu"
     onclose={pinned ? handleOutsideDismiss : undefined}
   >
-    <div class="menu-section whitespace-normal px-3 py-2 text-xs">
+    <div class="menu-section px-3 py-2 text-xs whitespace-normal">
       {@render children()}
     </div>
   </FloatingPopover>

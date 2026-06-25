@@ -22,11 +22,9 @@
   let current = $derived(items[index]);
   let hasMultiple = $derived(items.length > 1);
 
-  let dialogEl: HTMLDialogElement | undefined = $state();
-
-  $effect(() => {
-    dialogEl?.showModal();
-  });
+  function showDialog(node: HTMLDialogElement) {
+    node.showModal();
+  }
 
   function close() {
     onclose();
@@ -51,11 +49,11 @@
 </script>
 
 <dialog
-  bind:this={dialogEl}
+  {@attach showDialog}
   onclose={close}
   onkeydown={handleKeydown}
   onclick={(e) => {
-    if (e.target === dialogEl) close();
+    if (e.target === e.currentTarget) close();
   }}
   class="fixed inset-0 m-0 flex h-dvh max-h-dvh w-dvw max-w-dvw items-center justify-center border-none bg-black/80 p-0 backdrop:bg-transparent"
 >

@@ -44,8 +44,8 @@
   let userSearchLoading = $state(false);
   let allItems = $state.raw<ResultItem[]>([]);
   let userItems = $state.raw<ResultItem[]>([]);
-  let dialogEl: HTMLDialogElement | undefined = $state();
-  let inputEl: HTMLInputElement | undefined = $state();
+  let dialogEl: HTMLDialogElement | undefined;
+  let inputEl: HTMLInputElement | undefined;
   let userSearchTimer: ReturnType<typeof setTimeout> | undefined;
   let userSearchRequestId = 0;
 
@@ -365,7 +365,8 @@
 
   // --- Visibility ---
 
-  $effect(() => {
+  function syncQuickSwitcherDialog(node: HTMLDialogElement) {
+    dialogEl = node;
     const visible = quickSwitcher.visible;
 
     untrack(() => {
@@ -375,7 +376,7 @@
         allItems = [];
         userItems = [];
         scheduleUserSearch('');
-        dialogEl?.showModal();
+        if (!node.open) node.showModal();
         requestAnimationFrame(() => inputEl?.focus());
         loadAll();
       } else {
@@ -383,10 +384,14 @@
         userItems = [];
         userSearchLoading = false;
         userSearchRequestId++;
-        dialogEl?.close();
+        if (node.open) node.close();
       }
     });
-  });
+  }
+
+  function registerInput(node: HTMLInputElement) {
+    inputEl = node;
+  }
 
   // --- Navigation ---
 
@@ -545,7 +550,7 @@
 
 <!-- Outer wrapper replicates ContextMenu.svelte's container exactly -->
 <dialog
-  bind:this={dialogEl}
+  {@attach syncQuickSwitcherDialog}
   onclose={() => quickSwitcher.close()}
   onkeydown={(e) => {
     if (e.key === 'Escape') e.stopPropagation();
@@ -568,7 +573,7 @@
         <div class="flex items-center gap-2 px-3 py-1.5">
           <span class="sidebar-icon iconify text-muted uil--search"></span>
           <input
-            bind:this={inputEl}
+            {@attach registerInput}
             bind:value={query}
             oninput={handleQueryInput}
             onkeydown={handleKeydown}
