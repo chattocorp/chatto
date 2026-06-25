@@ -222,7 +222,11 @@ func (c *ChattoCore) VerifyEmailCode(ctx context.Context, userID, email, code st
 // Idempotent: rewriting the same (user, email) pair just overwrites the
 // existing entry with identical content.
 func (c *ChattoCore) addVerifiedEmail(ctx context.Context, userID, email string) error {
-	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserVerifiedEmailAdded{
+	return c.addVerifiedEmailAs(ctx, userID, userID, email)
+}
+
+func (c *ChattoCore) addVerifiedEmailAs(ctx context.Context, actorID, userID, email string) error {
+	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserVerifiedEmailAdded{
 		UserVerifiedEmailAdded: &corev1.UserVerifiedEmailAddedEvent{
 			UserId: userID,
 		},
@@ -349,4 +353,10 @@ func (c *ChattoCore) applyConfigOwners(ctx context.Context) error {
 // Used for OAuth flows where the email is already verified by the provider.
 func (c *ChattoCore) AddVerifiedEmailDirect(ctx context.Context, userID, email string) error {
 	return c.addVerifiedEmail(ctx, userID, email)
+}
+
+// AddVerifiedEmailDirectAs adds an already-verified email and attributes the
+// durable verified-email event to actorID.
+func (c *ChattoCore) AddVerifiedEmailDirectAs(ctx context.Context, actorID, userID, email string) error {
+	return c.addVerifiedEmailAs(ctx, actorID, userID, email)
 }

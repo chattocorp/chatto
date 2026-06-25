@@ -52,6 +52,28 @@ It is also strongly recommended that you:
 - review the `[video]` section if you want to support video uploads
 - review the `[livekit]` section if you want to support voice and video calls (requires LiveKit)
 
+## Local User Administration
+
+`chatto run` starts a private management socket at `.chatto/admin.sock` by default. Relative socket paths in `chatto.toml` resolve relative to that config file's directory. Local operator commands use that socket to ask the running Chatto process to perform user-management writes, so they do not expose administrative methods on the public web/API listener and do not write directly to NATS.
+
+```bash
+./chatto user create -c chatto.toml --login alice --display-name "Alice" --prompt-password
+./chatto user update -c chatto.toml alice --display-name "Alice Liddell"
+./chatto user password -c chatto.toml alice
+```
+
+Run these commands on the server host as a user that can access the socket, or use SSH/`sudo`/systemd service permissions to cross that local boundary intentionally. Treat the socket like an administrator credential: do not place it in `/tmp`, do not mount it into untrusted containers, and do not run Chatto from a shared working directory.
+
+By default the socket is owner-only (`management.socket_mode = "0600"`). The socket parent directory must be owned by the server user and inaccessible to group/other users. If you need a shared local operator group, configure it explicitly:
+
+```toml
+[management]
+socket_mode = "0660"
+socket_group = "chatto-operators"
+```
+
+For group mode, pre-create the socket parent directory with the server user as owner, `chatto-operators` as group, group execute permission, no group write permission, and no permissions for other users.
+
 ## Running as a systemd Service
 
 For production use on Linux, create a systemd unit to manage the process:

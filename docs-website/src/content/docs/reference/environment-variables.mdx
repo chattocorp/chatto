@@ -97,6 +97,26 @@ Built-in automatic TLS via Let's Encrypt. When enabled, Chatto handles certifica
   Expose Go pprof debug endpoints on the metrics listener under `/debug/pprof/`. Keep the metrics listener private and enable this only while profiling.
 </EnvVar>
 
+## Management
+
+The management API is a private Unix-socket API used by local operator CLI commands such as `chatto user create`, `chatto user update`, and `chatto user password`. It is separate from the public web/API listener and is not exposed over CORS or browser cookies.
+
+<EnvVar name="CHATTO_MANAGEMENT_ENABLED" toml="management.enabled" default="true">
+  Start the private local management API inside `chatto run`.
+</EnvVar>
+
+<EnvVar name="CHATTO_MANAGEMENT_SOCKET_PATH" toml="management.socket_path" default=".chatto/admin.sock">
+  Unix socket path for the private management API. Relative config-file paths resolve relative to the `chatto.toml` directory. The server creates the parent directory with private permissions. Existing parent directories must be owned by the server user and must not be accessible by other users.
+</EnvVar>
+
+<EnvVar name="CHATTO_MANAGEMENT_SOCKET_MODE" toml="management.socket_mode" default="0600">
+  Unix socket permission mode for the private management API. Use `0600` for owner-only access. Use `0660` only with an explicit `management.socket_group`.
+</EnvVar>
+
+<EnvVar name="CHATTO_MANAGEMENT_SOCKET_GROUP" toml="management.socket_group">
+  Expected Unix group for the management socket parent directory when `management.socket_mode = "0660"`. The parent directory must be owned by the server user, have this group, be group-executable, not be group-writable, and not be accessible by other users.
+</EnvVar>
+
 ## Exporter
 
 The exporter exposes deployment-wide Chatto metrics. Run it as `chatto exporter` against external NATS or an exposed embedded NATS TCP listener, or set `exporter.enabled = true` to embed it inside `chatto run` for single-process installs. Clustered deployments should enable the embedded exporter on at most one replica.

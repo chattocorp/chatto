@@ -40,6 +40,11 @@ client_secret = ''
 [video]
 enabled = true
 
+[management]
+# E2E tests do not exercise the local operator socket. Disable it so each
+# per-test server can run from this shared fixture directory.
+enabled = false
+
 [nats.embedded]
 # Enable embedded NATS server.
 enabled = true

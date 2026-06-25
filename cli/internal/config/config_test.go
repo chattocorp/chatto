@@ -768,6 +768,77 @@ func TestWebserverConfig_EffectivePort(t *testing.T) {
 	}
 }
 
+func TestManagementConfigDefaults(t *testing.T) {
+	var cfg ManagementConfig
+	if !cfg.EnabledOrDefault() {
+		t.Fatal("EnabledOrDefault() = false, want true")
+	}
+	if got := cfg.SocketPathOrDefault(); got != ".chatto/admin.sock" {
+		t.Fatalf("SocketPathOrDefault() = %q, want .chatto/admin.sock", got)
+	}
+	if got := cfg.SocketModeOrDefault(); got != "0600" {
+		t.Fatalf("SocketModeOrDefault() = %q, want 0600", got)
+	}
+	if got, err := cfg.SocketFileMode(); err != nil || got != 0600 {
+		t.Fatalf("SocketFileMode() = %o, %v; want 0600, nil", got, err)
+	}
+
+	disabled := ManagementConfig{Enabled: boolPtr(false), SocketPath: "/tmp/chatto.sock", SocketMode: "0660", SocketGroup: "operators"}
+	if disabled.EnabledOrDefault() {
+		t.Fatal("disabled EnabledOrDefault() = true, want false")
+	}
+	if got := disabled.SocketPathOrDefault(); got != "/tmp/chatto.sock" {
+		t.Fatalf("custom SocketPathOrDefault() = %q, want /tmp/chatto.sock", got)
+	}
+	if got, err := disabled.SocketFileMode(); err != nil || got != 0660 {
+		t.Fatalf("custom SocketFileMode() = %o, %v; want 0660, nil", got, err)
+	}
+}
+
+func TestChattoConfig_Validate_Management(t *testing.T) {
+	tests := []struct {
+		name      string
+		manage    ManagementConfig
+		wantError string
+	}{
+		{
+			name:   "default management config is valid",
+			manage: ManagementConfig{},
+		},
+		{
+			name:      "group socket requires explicit group",
+			manage:    ManagementConfig{SocketMode: "0660"},
+			wantError: "management.socket_group is required",
+		},
+		{
+			name:   "group socket with explicit group is valid",
+			manage: ManagementConfig{SocketMode: "0660", SocketGroup: "operators"},
+		},
+		{
+			name:      "invalid socket mode fails",
+			manage:    ManagementConfig{SocketMode: "0640"},
+			wantError: "management.socket_mode must be 0600 or 0660",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := validTestConfig()
+			cfg.Management = tt.manage
+			err := cfg.Validate()
+			if tt.wantError == "" {
+				if err != nil {
+					t.Fatalf("Validate() unexpected error = %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tt.wantError) {
+				t.Fatalf("Validate() error = %v, want to contain %q", err, tt.wantError)
+			}
+		})
+	}
+}
+
 func TestWebserverConfig_WebSocketCompressionEnabled(t *testing.T) {
 	tests := []struct {
 		name        string

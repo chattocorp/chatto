@@ -19,6 +19,7 @@ import (
 	"hmans.de/chatto/internal/embedded_nats"
 	"hmans.de/chatto/internal/exporter"
 	"hmans.de/chatto/internal/http_server"
+	"hmans.de/chatto/internal/managementserver"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/push"
 	"hmans.de/chatto/internal/runtimeunit"
@@ -230,6 +231,21 @@ func runServer(configPath string) {
 				return videoSvc.Run(ctx)
 			})
 		}
+	}
+
+	if cfg.Management.EnabledOrDefault() {
+		managementConfig := cfg.Management
+		socketPath, err := resolveManagementSocketRelativeToConfig(configPath, managementConfig.SocketPathOrDefault())
+		if err != nil {
+			log.Error("Failed to resolve management socket path", "error", err)
+			exitCode = 1
+			return
+		}
+		managementConfig.SocketPath = socketPath
+		managementServer := managementserver.New(managementConfig, chattoCore)
+		g.Go(func() error {
+			return managementServer.Run(ctx)
+		})
 	}
 
 	// Create and run HTTP server

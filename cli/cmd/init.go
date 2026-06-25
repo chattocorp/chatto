@@ -96,6 +96,10 @@ var initCmd = &cobra.Command{
 				CookieSigningSecret:    sessionSecretString,
 				CookieEncryptionSecret: cookieEncryptionSecretString,
 			},
+			Management: config.ManagementConfig{
+				SocketPath: ".chatto/admin.sock",
+				SocketMode: "0600",
+			},
 			Core: config.CoreConfig{
 				SecretKey: coreSecretString,
 				Assets: config.AssetsConfig{

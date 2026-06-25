@@ -89,6 +89,53 @@ type MetricsConfig struct {
 	Pprof       bool   `toml:"pprof,commented" env:"CHATTO_METRICS_PPROF" comment:"Expose Go pprof debug endpoints on the metrics listener under /debug/pprof/. Default: false."`
 }
 
+// ManagementConfig controls the private operator management plane.
+type ManagementConfig struct {
+	Enabled     *bool  `toml:"enabled,commented" env:"CHATTO_MANAGEMENT_ENABLED" comment:"Enable the private local management API used by chatto user commands. Default: true."`
+	SocketPath  string `toml:"socket_path,commented" env:"CHATTO_MANAGEMENT_SOCKET_PATH" comment:"Unix socket path for the private management API. Default: .chatto/admin.sock."`
+	SocketMode  string `toml:"socket_mode,commented" env:"CHATTO_MANAGEMENT_SOCKET_MODE" comment:"Unix socket permission mode. Use 0600 for owner-only access, or 0660 with socket_group for explicit operator group access. Default: 0600."`
+	SocketGroup string `toml:"socket_group,commented" env:"CHATTO_MANAGEMENT_SOCKET_GROUP" comment:"Expected Unix group for the management socket directory when socket_mode is 0660. Required for group-access sockets."`
+}
+
+const defaultManagementSocketPath = ".chatto/admin.sock"
+const defaultManagementSocketMode = "0600"
+
+// EnabledOrDefault returns whether the private management API should start.
+func (c *ManagementConfig) EnabledOrDefault() bool {
+	if c.Enabled == nil {
+		return true
+	}
+	return *c.Enabled
+}
+
+// SocketPathOrDefault returns the configured Unix socket path.
+func (c *ManagementConfig) SocketPathOrDefault() string {
+	if strings.TrimSpace(c.SocketPath) == "" {
+		return defaultManagementSocketPath
+	}
+	return c.SocketPath
+}
+
+// SocketModeOrDefault returns the configured Unix socket mode string.
+func (c *ManagementConfig) SocketModeOrDefault() string {
+	if strings.TrimSpace(c.SocketMode) == "" {
+		return defaultManagementSocketMode
+	}
+	return strings.TrimSpace(c.SocketMode)
+}
+
+// SocketFileMode returns the configured Unix socket mode.
+func (c *ManagementConfig) SocketFileMode() (os.FileMode, error) {
+	switch c.SocketModeOrDefault() {
+	case "0600", "600":
+		return 0600, nil
+	case "0660", "660":
+		return 0660, nil
+	default:
+		return 0, fmt.Errorf("management.socket_mode must be 0600 or 0660")
+	}
+}
+
 // ExporterConfig controls deployment-wide Prometheus metrics for a Chatto instance.
 type ExporterConfig struct {
 	Enabled           bool     `toml:"enabled" env:"CHATTO_EXPORTER_ENABLED" comment:"Start the deployment-wide Prometheus exporter from chatto run. Default: false."`
@@ -850,6 +897,7 @@ type ChattoConfig struct {
 	Owners      OwnersConfig      `toml:"owners" comment:"Email addresses that confer owner status."`
 	Webserver   WebserverConfig   `toml:"webserver"`
 	Metrics     MetricsConfig     `toml:"metrics,commented" comment:"Process-local Prometheus metrics endpoint."`
+	Management  ManagementConfig  `toml:"management,commented" comment:"Private local management API for operator CLI commands."`
 	Exporter    ExporterConfig    `toml:"exporter,commented" comment:"Deployment-wide Prometheus metrics exporter."`
 	Diagnostics DiagnosticsConfig `toml:"diagnostics,commented" comment:"Opt-in diagnostics for local benchmarking and operator troubleshooting."`
 	Core        CoreConfig        `toml:"core" comment:"Core service configuration."`
@@ -949,6 +997,17 @@ func (c *ChattoConfig) Validate() error {
 		}
 		if strings.ContainsAny(metricsPath, "?#") {
 			errs = append(errs, "metrics.path must not contain query strings or fragments")
+		}
+	}
+	if c.Management.EnabledOrDefault() {
+		if strings.TrimSpace(c.Management.SocketPathOrDefault()) == "" {
+			errs = append(errs, "management.socket_path is required when management is enabled")
+		}
+		socketMode, err := c.Management.SocketFileMode()
+		if err != nil {
+			errs = append(errs, err.Error())
+		} else if socketMode == 0660 && strings.TrimSpace(c.Management.SocketGroup) == "" {
+			errs = append(errs, "management.socket_group is required when management.socket_mode is 0660")
 		}
 	}
 	if c.Exporter.Enabled || c.Exporter.Port != 0 || c.Exporter.Path != "" || c.Exporter.BindAddress != "" || c.Exporter.S3RefreshInterval != 0 || c.Exporter.S3Timeout != 0 {
