@@ -435,36 +435,51 @@ func (c *ChattoCore) SetThreadLastReadEventID(ctx context.Context, kind RoomKind
 	bucket := c.storage.runtimeStateKV
 	key := threadLastOpenedKey(userID, roomID, threadRootEventID)
 
-	var previousTime time.Time
-	entry, err := bucket.Get(ctx, key)
-	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
-		return time.Time{}, fmt.Errorf("failed to get previous thread last opened: %w", err)
-	}
-	if err == nil {
-		previousTime, err = c.threadReadMarkerTime(ctx, kind, roomID, entry.Value())
-		if err != nil {
-			return time.Time{}, err
-		}
-	}
-
 	nextTime, err := c.GetEventTimestamp(ctx, kind, roomID, eventID)
 	if err != nil {
 		return time.Time{}, err
 	}
-	if nextTime.IsZero() {
+
+	for attempt := 0; attempt < maxReadMarkerUpdateRetries; attempt++ {
+		var previousTime time.Time
+		entry, err := bucket.Get(ctx, key)
+		if err != nil {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
+				if nextTime.IsZero() {
+					return time.Time{}, nil
+				}
+				if _, err := bucket.Create(ctx, key, []byte(eventID)); err != nil {
+					if errors.Is(err, jetstream.ErrKeyExists) {
+						continue
+					}
+					return time.Time{}, fmt.Errorf("failed to create thread last opened: %w", err)
+				}
+				c.logger.Debug("Set thread last read event", "user_id", userID, "room_id", roomID, "thread_root_event_id", threadRootEventID, "previous", previousTime, "event_id", eventID)
+				return previousTime, nil
+			}
+			return time.Time{}, fmt.Errorf("failed to get previous thread last opened: %w", err)
+		}
+
+		previousTime, err = c.threadReadMarkerTime(ctx, kind, roomID, entry.Value())
+		if err != nil {
+			return time.Time{}, err
+		}
+		if nextTime.IsZero() || !nextTime.After(previousTime) {
+			return previousTime, nil
+		}
+
+		if _, err := bucket.Update(ctx, key, []byte(eventID), entry.Revision()); err != nil {
+			if errors.Is(err, jetstream.ErrKeyExists) {
+				continue
+			}
+			return time.Time{}, fmt.Errorf("failed to set thread last opened: %w", err)
+		}
+
+		c.logger.Debug("Set thread last read event", "user_id", userID, "room_id", roomID, "thread_root_event_id", threadRootEventID, "previous", previousTime, "event_id", eventID)
 		return previousTime, nil
 	}
 
-	if !nextTime.After(previousTime) {
-		return previousTime, nil
-	}
-
-	if _, err = bucket.Put(ctx, key, []byte(eventID)); err != nil {
-		return time.Time{}, fmt.Errorf("failed to set thread last opened: %w", err)
-	}
-
-	c.logger.Debug("Set thread last read event", "user_id", userID, "room_id", roomID, "thread_root_event_id", threadRootEventID, "previous", previousTime, "event_id", eventID)
-	return previousTime, nil
+	return time.Time{}, fmt.Errorf("thread read marker update failed after %d retries", maxReadMarkerUpdateRetries)
 }
 
 // SetThreadLastOpenedAt is retained for timestamp-based callers/tests. It
@@ -474,29 +489,49 @@ func (c *ChattoCore) SetThreadLastOpenedAt(ctx context.Context, kind RoomKind, u
 	bucket := c.storage.runtimeStateKV
 	key := threadLastOpenedKey(userID, roomID, threadRootEventID)
 
-	var previousTime time.Time
-	entry, err := bucket.Get(ctx, key)
-	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
-		return time.Time{}, fmt.Errorf("failed to get previous thread last opened: %w", err)
-	}
-	if err == nil {
+	for attempt := 0; attempt < maxReadMarkerUpdateRetries; attempt++ {
+		var previousTime time.Time
+		entry, err := bucket.Get(ctx, key)
+		if err != nil {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
+				if ts.IsZero() {
+					return time.Time{}, nil
+				}
+				buf := make([]byte, 8)
+				binary.BigEndian.PutUint64(buf, uint64(ts.UnixNano()))
+				if _, err := bucket.Create(ctx, key, buf); err != nil {
+					if errors.Is(err, jetstream.ErrKeyExists) {
+						continue
+					}
+					return time.Time{}, fmt.Errorf("failed to create thread last opened: %w", err)
+				}
+				c.logger.Debug("Set legacy thread last opened timestamp", "user_id", userID, "room_id", roomID, "thread_root_event_id", threadRootEventID, "previous", previousTime, "at", ts)
+				return previousTime, nil
+			}
+			return time.Time{}, fmt.Errorf("failed to get previous thread last opened: %w", err)
+		}
+
 		previousTime, err = c.threadReadMarkerTime(ctx, kind, roomID, entry.Value())
 		if err != nil {
 			return time.Time{}, err
 		}
-	}
+		if !ts.After(previousTime) {
+			return previousTime, nil
+		}
 
-	if !ts.After(previousTime) {
+		buf := make([]byte, 8)
+		binary.BigEndian.PutUint64(buf, uint64(ts.UnixNano()))
+		if _, err := bucket.Update(ctx, key, buf, entry.Revision()); err != nil {
+			if errors.Is(err, jetstream.ErrKeyExists) {
+				continue
+			}
+			return time.Time{}, fmt.Errorf("failed to set thread last opened: %w", err)
+		}
+		c.logger.Debug("Set legacy thread last opened timestamp", "user_id", userID, "room_id", roomID, "thread_root_event_id", threadRootEventID, "previous", previousTime, "at", ts)
 		return previousTime, nil
 	}
 
-	buf := make([]byte, 8)
-	binary.BigEndian.PutUint64(buf, uint64(ts.UnixNano()))
-	if _, err = bucket.Put(ctx, key, buf); err != nil {
-		return time.Time{}, fmt.Errorf("failed to set thread last opened: %w", err)
-	}
-	c.logger.Debug("Set legacy thread last opened timestamp", "user_id", userID, "room_id", roomID, "thread_root_event_id", threadRootEventID, "previous", previousTime, "at", ts)
-	return previousTime, nil
+	return time.Time{}, fmt.Errorf("thread read marker update failed after %d retries", maxReadMarkerUpdateRetries)
 }
 
 // SetThreadLastOpened records the latest current reply in the thread as read.
