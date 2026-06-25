@@ -17,12 +17,21 @@ const Prefix = "/api/connect"
 // defaults to unlimited reads, so keep this explicit for every public handler.
 const MaxRequestMessageBytes = 1 << 20 // 1 MiB
 
-// Handler is one generated Connect service handler and its generated service
-// path. The HTTP server owns the actual route mounting and auth injection.
+// AuthPolicy describes whether the HTTP edge should require authentication
+// before forwarding a request to a generated Connect handler.
+type AuthPolicy string
+
+const (
+	AuthPolicyPublic            AuthPolicy = "public"
+	AuthPolicyAuthenticatedUser AuthPolicy = "authenticated_user"
+)
+
+// Handler is one generated Connect service handler, its generated service path,
+// and the auth policy the HTTP server must enforce before serving it.
 type Handler struct {
-	ServicePath  string
-	Handler      http.Handler
-	RequiresAuth bool
+	ServicePath string
+	Handler     http.Handler
+	AuthPolicy  AuthPolicy
 }
 
 // API owns Chatto's ConnectRPC service implementations. It deliberately has no
@@ -58,12 +67,12 @@ func (a *API) Handlers() []Handler {
 	userStatusPath, userStatusHandler := apiv1connect.NewUserStatusServiceHandler(&userStatusService{api: a}, options...)
 	threadPath, threadHandler := apiv1connect.NewThreadServiceHandler(&threadService{api: a}, options...)
 	return []Handler{
-		{ServicePath: messagePath, Handler: messageHandler, RequiresAuth: true},
-		{ServicePath: serverPath, Handler: serverHandler},
-		{ServicePath: prefsPath, Handler: prefsHandler, RequiresAuth: true},
-		{ServicePath: readStatePath, Handler: readStateHandler, RequiresAuth: true},
-		{ServicePath: timelinePath, Handler: timelineHandler, RequiresAuth: true},
-		{ServicePath: userStatusPath, Handler: userStatusHandler, RequiresAuth: true},
-		{ServicePath: threadPath, Handler: threadHandler, RequiresAuth: true},
+		{ServicePath: messagePath, Handler: messageHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: serverPath, Handler: serverHandler, AuthPolicy: AuthPolicyPublic},
+		{ServicePath: prefsPath, Handler: prefsHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: readStatePath, Handler: readStateHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: timelinePath, Handler: timelineHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: userStatusPath, Handler: userStatusHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: threadPath, Handler: threadHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 	}
 }

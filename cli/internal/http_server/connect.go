@@ -17,8 +17,12 @@ func (s *HTTPServer) setupConnectAPI() {
 	authMiddleware := authn.NewMiddleware(authenticateConnectRequest, connectapi.HandlerOptions()...)
 	for _, handler := range api.Handlers() {
 		serviceHandler := handler.Handler
-		if handler.RequiresAuth {
+		switch handler.AuthPolicy {
+		case connectapi.AuthPolicyPublic:
+		case connectapi.AuthPolicyAuthenticatedUser:
 			serviceHandler = authMiddleware.Wrap(serviceHandler)
+		default:
+			panic("unknown ConnectRPC auth policy for " + handler.ServicePath)
 		}
 		s.mountConnectHandler(handler.ServicePath, serviceHandler)
 	}
@@ -38,7 +42,7 @@ func authenticateConnectRequest(ctx context.Context, _ *http.Request) (any, erro
 	if user == nil {
 		return nil, authn.Errorf("authentication required")
 	}
-	return user, nil
+	return connectapi.Caller{UserID: user.Id}, nil
 }
 
 func requestBaseURL(r *http.Request) string {

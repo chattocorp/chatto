@@ -11,13 +11,13 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/authn"
 	"connectrpc.com/connect"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/graph/auth"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -50,6 +50,62 @@ func TestAPIHandlers(t *testing.T) {
 	if strings.Join(paths, ",") != strings.Join(want, ",") {
 		t.Fatalf("handler paths = %v, want %v", paths, want)
 	}
+}
+
+func TestAPIHandlerAuthPolicies(t *testing.T) {
+	api := New(nil, config.ChattoConfig{}, "test")
+	got := make(map[string]AuthPolicy)
+	for _, handler := range api.Handlers() {
+		if _, exists := got[handler.ServicePath]; exists {
+			t.Fatalf("duplicate handler path %q", handler.ServicePath)
+		}
+		got[handler.ServicePath] = handler.AuthPolicy
+	}
+
+	want := map[string]AuthPolicy{
+		"/" + apiv1connect.MessageServiceName + "/":                 AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.NotificationPreferencesServiceName + "/": AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.ReadStateServiceName + "/":               AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.RoomTimelineServiceName + "/":            AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.ServerServiceName + "/":                  AuthPolicyPublic,
+		"/" + apiv1connect.ThreadServiceName + "/":                  AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.UserStatusServiceName + "/":              AuthPolicyAuthenticatedUser,
+	}
+	if len(got) != len(want) {
+		t.Fatalf("auth policy count = %d, want %d (%v)", len(got), len(want), got)
+	}
+	for servicePath, wantPolicy := range want {
+		if gotPolicy := got[servicePath]; gotPolicy != wantPolicy {
+			t.Fatalf("auth policy for %s = %q, want %q", servicePath, gotPolicy, wantPolicy)
+		}
+	}
+}
+
+func TestRequireCaller(t *testing.T) {
+	t.Run("rejects missing authn info", func(t *testing.T) {
+		_, err := requireCaller(context.Background())
+		requireConnectCode(t, err, connect.CodeUnauthenticated)
+	})
+
+	t.Run("rejects wrong authn info type", func(t *testing.T) {
+		_, err := requireCaller(authn.SetInfo(context.Background(), "user-id"))
+		requireConnectCode(t, err, connect.CodeUnauthenticated)
+	})
+
+	t.Run("rejects empty caller user id", func(t *testing.T) {
+		_, err := requireCaller(authn.SetInfo(context.Background(), Caller{}))
+		requireConnectCode(t, err, connect.CodeUnauthenticated)
+	})
+
+	t.Run("returns typed caller", func(t *testing.T) {
+		caller, err := requireCaller(authn.SetInfo(context.Background(), Caller{UserID: "user-123"}))
+		if err != nil {
+			t.Fatalf("requireCaller: %v", err)
+		}
+		if caller.UserID != "user-123" {
+			t.Fatalf("UserID = %q, want user-123", caller.UserID)
+		}
+	})
 }
 
 func TestPrivateHandlersRequireAuth(t *testing.T) {
@@ -114,7 +170,7 @@ func TestServerServiceGetServerPublicMetadata(t *testing.T) {
 
 func TestUserStatusServiceSetAndClearCustomStatus(t *testing.T) {
 	env := newConnectAPITestEnv(t)
-	ctx := auth.WithUser(env.ctx, env.viewer)
+	ctx := withCaller(env.ctx, env.viewer)
 	expiresAt := timestamppb.New(time.Now().Add(time.Hour).UTC())
 
 	setResp, err := env.status.SetCustomStatus(ctx, connect.NewRequest(&apiv1.SetCustomStatusRequest{
@@ -208,7 +264,7 @@ func TestRoomTimelineServiceRequiresAuthAndMembership(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser outsider: %v", err)
 	}
-	if _, err := env.timeline.GetRoomEvents(auth.WithUser(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
+	if _, err := env.timeline.GetRoomEvents(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("non-member GetRoomEvents code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
 	}
 }
@@ -229,14 +285,14 @@ func TestMessageServicePostMessageRequiresAuthMembershipAndPermission(t *testing
 	if err != nil {
 		t.Fatalf("CreateUser outsider: %v", err)
 	}
-	if _, err := env.messages.PostMessage(auth.WithUser(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
+	if _, err := env.messages.PostMessage(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("non-member PostMessage code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
 	}
 
 	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessagePost); err != nil {
 		t.Fatalf("DenyRoomPermission: %v", err)
 	}
-	if _, err := env.messages.PostMessage(auth.WithUser(env.ctx, env.viewer), req); connect.CodeOf(err) != connect.CodePermissionDenied {
+	if _, err := env.messages.PostMessage(withCaller(env.ctx, env.viewer), req); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("denied PostMessage code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
 	}
 }
@@ -244,7 +300,7 @@ func TestMessageServicePostMessageRequiresAuthMembershipAndPermission(t *testing
 func TestMessageServicePostMessageValidatesInput(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-post-validation")
-	ctx := auth.WithUser(env.ctx, env.viewer)
+	ctx := withCaller(env.ctx, env.viewer)
 	root := env.post(room.Id, env.viewer.Id, "root", "")
 	reply := env.post(room.Id, env.viewer.Id, "reply", root.Id)
 
@@ -321,7 +377,7 @@ func TestMessageServicePostMessageInfersVideoProcessingAssetIDs(t *testing.T) {
 		t.Fatalf("UploadAttachment original: %v", err)
 	}
 
-	if _, err := env.messages.PostMessage(auth.WithUser(env.ctx, env.viewer), connect.NewRequest(&apiv1.PostMessageRequest{
+	if _, err := env.messages.PostMessage(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.PostMessageRequest{
 		RoomId:             room.Id,
 		AttachmentAssetIds: []string{original.Id},
 	})); err != nil {
@@ -338,7 +394,7 @@ func TestMessageServicePostMessageReturnsRenderableTimelineEvent(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-post-success")
 
-	resp, err := env.messages.PostMessage(auth.WithUser(env.ctx, env.viewer), connect.NewRequest(&apiv1.PostMessageRequest{
+	resp, err := env.messages.PostMessage(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.PostMessageRequest{
 		RoomId: room.Id,
 		Body:   "hello over connect",
 	}))
@@ -369,7 +425,7 @@ func TestRoomTimelineServiceGetRoomEventsPaginatesWithOpaqueCursors(t *testing.T
 	m2 := env.post(room.Id, env.viewer.Id, "two", "")
 	m3 := env.post(room.Id, env.viewer.Id, "three", "")
 
-	ctx := auth.WithUser(env.ctx, env.viewer)
+	ctx := withCaller(env.ctx, env.viewer)
 	resp, err := env.timeline.GetRoomEvents(ctx, connect.NewRequest(&apiv1.GetRoomEventsRequest{
 		RoomId: room.Id,
 		Limit:  2,
@@ -427,7 +483,7 @@ func TestRoomTimelineServiceHydratesMessagesWithoutClientNPlusOne(t *testing.T) 
 		t.Fatalf("AddReaction replier: %v", err)
 	}
 
-	resp, err := env.timeline.GetRoomEvents(auth.WithUser(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetRoomEventsRequest{
+	resp, err := env.timeline.GetRoomEvents(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetRoomEventsRequest{
 		RoomId: room.Id,
 		Limit:  10,
 	}))
@@ -476,7 +532,7 @@ func TestRoomTimelineServiceGetThreadEventsIncludesRootAndPaginatesReplies(t *te
 	reply2 := env.post(room.Id, env.viewer.Id, "reply two", root.Id)
 	reply3 := env.post(room.Id, env.viewer.Id, "reply three", root.Id)
 
-	ctx := auth.WithUser(env.ctx, env.viewer)
+	ctx := withCaller(env.ctx, env.viewer)
 	resp, err := env.timeline.GetThreadEvents(ctx, connect.NewRequest(&apiv1.GetThreadEventsRequest{
 		RoomId:            room.Id,
 		ThreadRootEventId: root.Id,
@@ -526,7 +582,7 @@ func TestRoomTimelineServiceGetThreadEventsAroundRootAndReply(t *testing.T) {
 	reply2 := env.post(room.Id, env.viewer.Id, "reply two", root.Id)
 	reply3 := env.post(room.Id, env.viewer.Id, "reply three", root.Id)
 
-	ctx := auth.WithUser(env.ctx, env.viewer)
+	ctx := withCaller(env.ctx, env.viewer)
 	rootResp, err := env.timeline.GetThreadEventsAround(ctx, connect.NewRequest(&apiv1.GetThreadEventsAroundRequest{
 		RoomId:            room.Id,
 		ThreadRootEventId: root.Id,
@@ -594,7 +650,7 @@ func TestRoomTimelineServiceGetThreadEventsRequiresMembership(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser outsider: %v", err)
 	}
-	if _, err := env.timeline.GetThreadEvents(auth.WithUser(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
+	if _, err := env.timeline.GetThreadEvents(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("non-member GetThreadEvents code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
 	}
 }
@@ -633,7 +689,7 @@ func TestRoomTimelineServiceHydratesProcessedVideoAttachments(t *testing.T) {
 		t.Fatalf("RecordAssetProcessed: %v", err)
 	}
 
-	resp, err := env.timeline.GetRoomEvents(auth.WithUser(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetRoomEventsRequest{
+	resp, err := env.timeline.GetRoomEvents(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetRoomEventsRequest{
 		RoomId: room.Id,
 		Limit:  10,
 	}))
@@ -810,7 +866,7 @@ func TestReadStateServiceRequiresAuthAndMembership(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser outsider: %v", err)
 	}
-	if _, err := env.readState.MarkRoomAsRead(auth.WithUser(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
+	if _, err := env.readState.MarkRoomAsRead(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("non-member MarkRoomAsRead code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
 	}
 }
@@ -834,7 +890,7 @@ func TestReadStateServiceMarkRoomAsReadAnchorsAndDoesNotRegress(t *testing.T) {
 	e2 := env.post(room.Id, env.viewer.Id, "two", "")
 	e3 := env.post(room.Id, env.viewer.Id, "three", "")
 
-	ctx := auth.WithUser(env.ctx, reader)
+	ctx := withCaller(env.ctx, reader)
 	resp, err := env.readState.MarkRoomAsRead(ctx, connect.NewRequest(&apiv1.MarkRoomAsReadRequest{
 		RoomId:      room.Id,
 		UpToEventId: e2.Id,
@@ -910,7 +966,7 @@ func TestReadStateServiceMarkRoomAsReadRejectsMissingAnchorWithoutLazyMarker(t *
 		t.Fatalf("reader marker before request = %q exists=%v err=%v, want absent", marker, exists, err)
 	}
 
-	ctx := auth.WithUser(env.ctx, reader)
+	ctx := withCaller(env.ctx, reader)
 	if _, err := env.readState.MarkRoomAsRead(ctx, connect.NewRequest(&apiv1.MarkRoomAsReadRequest{
 		RoomId:      room.Id,
 		UpToEventId: "missing-event",
@@ -955,7 +1011,7 @@ func TestReadStateServiceMarkThreadAsReadAnchorsAndDoesNotRegress(t *testing.T) 
 	reply1 := env.post(room.Id, env.viewer.Id, "reply one", root.Id)
 	reply2 := env.post(room.Id, env.viewer.Id, "reply two", root.Id)
 
-	ctx := auth.WithUser(env.ctx, reader)
+	ctx := withCaller(env.ctx, reader)
 	resp, err := env.readState.MarkThreadAsRead(ctx, connect.NewRequest(&apiv1.MarkThreadAsReadRequest{
 		RoomId:            room.Id,
 		ThreadRootEventId: root.Id,
@@ -1042,11 +1098,11 @@ func TestThreadServiceRequiresMembershipAndTogglesFollowState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser outsider: %v", err)
 	}
-	if _, err := env.threads.FollowThread(auth.WithUser(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
+	if _, err := env.threads.FollowThread(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("non-member FollowThread code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
 	}
 
-	ctx := auth.WithUser(env.ctx, env.viewer)
+	ctx := withCaller(env.ctx, env.viewer)
 	if _, err := env.threads.FollowThread(ctx, connect.NewRequest(&apiv1.FollowThreadRequest{
 		RoomId:            room.Id,
 		ThreadRootEventId: "missing-root",
@@ -1176,6 +1232,10 @@ func requireConnectCode(t testing.TB, err error, want connect.Code) {
 	if got := connect.CodeOf(err); got != want {
 		t.Fatalf("connect code = %v, want %v (err = %v)", got, want, err)
 	}
+}
+
+func withCaller(ctx context.Context, user *corev1.User) context.Context {
+	return authn.SetInfo(ctx, Caller{UserID: user.Id})
 }
 
 type connectAPITestEnv struct {

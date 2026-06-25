@@ -1,23 +1,12 @@
 package connectapi
 
 import (
-	"context"
 	"errors"
 
 	"connectrpc.com/connect"
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/graph/auth"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
-
-func requireAuth(ctx context.Context) (*corev1.User, error) {
-	user := auth.ForContext(ctx)
-	if user == nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("authentication required"))
-	}
-	return user, nil
-}
 
 func connectError(err error) error {
 	if err == nil {

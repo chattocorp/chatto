@@ -15,7 +15,7 @@ type userStatusService struct {
 }
 
 func (s *userStatusService) SetCustomStatus(ctx context.Context, req *connect.Request[apiv1.SetCustomStatusRequest]) (*connect.Response[apiv1.SetCustomStatusResponse], error) {
-	user, err := requireAuth(ctx)
+	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -24,7 +24,7 @@ func (s *userStatusService) SetCustomStatus(ctx context.Context, req *connect.Re
 		return nil, err
 	}
 
-	updated, err := s.api.core.SetUserCustomStatus(ctx, user.Id, req.Msg.Emoji, req.Msg.Text, expiresAt)
+	updated, err := s.api.core.SetUserCustomStatus(ctx, caller.UserID, req.Msg.Emoji, req.Msg.Text, expiresAt)
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -35,11 +35,11 @@ func (s *userStatusService) SetCustomStatus(ctx context.Context, req *connect.Re
 }
 
 func (s *userStatusService) ClearCustomStatus(ctx context.Context, _ *connect.Request[apiv1.ClearCustomStatusRequest]) (*connect.Response[apiv1.ClearCustomStatusResponse], error) {
-	user, err := requireAuth(ctx)
+	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
 	}
-	updated, err := s.api.core.ClearUserCustomStatus(ctx, user.Id)
+	updated, err := s.api.core.ClearUserCustomStatus(ctx, caller.UserID)
 	if err != nil {
 		return nil, connectError(err)
 	}

@@ -14,6 +14,7 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
+	graphauth "hmans.de/chatto/internal/graph/auth"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -226,6 +227,43 @@ func TestConnectAPIValidatesRequiredRequestFields(t *testing.T) {
 		authorize(req)
 		_, err := client.UnfollowThread(ctx, req)
 		requireInvalidArgument(t, err)
+	})
+}
+
+func TestConnectAPIAuthenticatesBeforeValidation(t *testing.T) {
+	_, ts := setupConnectTestServer(t, config.AuthConfig{})
+
+	client := apiv1connect.NewMessageServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+	_, err := client.PostMessage(context.Background(), connect.NewRequest(&apiv1.PostMessageRequest{}))
+	if connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("PostMessage err = %v, want unauthenticated", err)
+	}
+}
+
+func TestAuthenticateConnectRequest(t *testing.T) {
+	t.Run("rejects missing injected user", func(t *testing.T) {
+		_, err := authenticateConnectRequest(context.Background(), nil)
+		if connect.CodeOf(err) != connect.CodeUnauthenticated {
+			t.Fatalf("authenticateConnectRequest err = %v, want unauthenticated", err)
+		}
+	})
+
+	t.Run("returns narrow Connect caller", func(t *testing.T) {
+		info, err := authenticateConnectRequest(graphauth.WithUser(context.Background(), &corev1.User{
+			Id:          "user-123",
+			Login:       "should-not-leak",
+			DisplayName: "Should Not Leak",
+		}), nil)
+		if err != nil {
+			t.Fatalf("authenticateConnectRequest: %v", err)
+		}
+		caller, ok := info.(connectapi.Caller)
+		if !ok {
+			t.Fatalf("auth info type = %T, want connectapi.Caller", info)
+		}
+		if caller != (connectapi.Caller{UserID: "user-123"}) {
+			t.Fatalf("caller = %+v, want user id only", caller)
+		}
 	})
 }
 
