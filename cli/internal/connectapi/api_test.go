@@ -653,6 +653,28 @@ func TestRoomTimelineServiceHydratesProcessedVideoAttachments(t *testing.T) {
 	}
 }
 
+func TestRoomTimelineHydratorRejectsUnsupportedEvents(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	h := &timelineHydrator{
+		api:      env.api,
+		ctx:      env.ctx,
+		viewerID: env.viewer.Id,
+		kind:     core.KindChannel,
+		userIDs:  make(map[string]struct{}),
+	}
+
+	_, err := h.event(&core.RoomEvent{Event: &corev1.Event{
+		Id:      "Eunsupported",
+		ActorId: env.viewer.Id,
+		Event: &corev1.Event_RoomUniversalChanged{
+			RoomUniversalChanged: &corev1.RoomUniversalChangedEvent{RoomId: "Runsupported"},
+		},
+	}})
+	if err == nil || !strings.Contains(err.Error(), "unsupported room timeline event") {
+		t.Fatalf("unsupported event error = %v, want unsupported room timeline event", err)
+	}
+}
+
 func TestReadStateServiceRequiresAuthAndMembership(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("read-state-authz")
@@ -862,6 +884,21 @@ func TestReadStateServiceMarkThreadAsReadAnchorsAndDoesNotRegress(t *testing.T) 
 	}
 	if !markerAfterInvalid.Equal(marker2) {
 		t.Fatalf("thread marker changed after invalid anchor from %v to %v", marker2, markerAfterInvalid)
+	}
+
+	if _, err := env.readState.MarkThreadAsRead(ctx, connect.NewRequest(&apiv1.MarkThreadAsReadRequest{
+		RoomId:            room.Id,
+		ThreadRootEventId: root.Id,
+		UpToEventId:       "missing-event",
+	})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("MarkThreadAsRead missing anchor code = %v, want %v", connect.CodeOf(err), connect.CodeNotFound)
+	}
+	markerAfterMissing, err := env.core.GetThreadLastOpened(env.ctx, core.KindChannel, reader.Id, room.Id, root.Id)
+	if err != nil {
+		t.Fatalf("GetThreadLastOpened after missing anchor: %v", err)
+	}
+	if !markerAfterMissing.Equal(marker2) {
+		t.Fatalf("thread marker changed after missing anchor from %v to %v", marker2, markerAfterMissing)
 	}
 }
 

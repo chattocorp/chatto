@@ -254,7 +254,7 @@ func (h *timelineHydrator) event(event *core.RoomEvent) (*apiv1.RoomTimelineEven
 	case *corev1.Event_UserLeftRoom:
 		apiEvent.Event = &apiv1.RoomTimelineEvent_UserLeftRoom{UserLeftRoom: roomEvent(payload.UserLeftRoom.GetRoomId())}
 	default:
-		return nil, nil
+		return nil, fmt.Errorf("unsupported room timeline event %T", payload)
 	}
 
 	return apiEvent, nil

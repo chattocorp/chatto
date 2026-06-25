@@ -77,6 +77,14 @@ func TestEventFactsRoomIDAndVisibility(t *testing.T) {
 			roomID:  "R1",
 			visible: false,
 		},
+		{
+			name: "unlisted event variant is hidden by default",
+			event: &corev1.Event{Event: &corev1.Event_RoomGroupCreated{
+				RoomGroupCreated: &corev1.RoomGroupCreatedEvent{GroupId: "G1"},
+			}},
+			roomID:  "",
+			visible: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -159,7 +159,7 @@ func (s *ReadStateService) threadReadAnchor(ctx context.Context, kind RoomKind, 
 		return "", err
 	}
 	if event == nil {
-		return "", nil
+		return "", fmt.Errorf("up_to_event_id event not found: %w", ErrNotFound)
 	}
 	message := event.GetMessagePosted()
 	if message == nil {
