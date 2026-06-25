@@ -89,19 +89,15 @@
 		}
 	});
 
-	let playerEl = $state<HTMLElement | null>(null);
-
 	// Intercept Vidstack's fullscreen request — the <media-player> lives inside
 	// virtua's virtualized list, so native fullscreen would cause virtua to
 	// unmount the DOM node. Instead, open our CSS overlay outside the list.
-	$effect(() => {
-		if (!playerEl) return;
-
+	function interceptFullscreenRequest(node: HTMLElement) {
 		function handleFullscreenRequest(e: Event) {
 			e.preventDefault();
 			if (!selectedVariant) return;
 
-			const video = playerEl?.querySelector('video');
+			const video = node.querySelector('video');
 			if (video) video.pause();
 
 			fullscreenVideo.open(
@@ -121,12 +117,11 @@
 		}
 
 		// Use capture phase so we intercept before Vidstack's internal handler.
-		playerEl.addEventListener('media-enter-fullscreen-request', handleFullscreenRequest, true);
+		node.addEventListener('media-enter-fullscreen-request', handleFullscreenRequest, true);
 		return () => {
-			playerEl?.removeEventListener('media-enter-fullscreen-request', handleFullscreenRequest, true);
+			node.removeEventListener('media-enter-fullscreen-request', handleFullscreenRequest, true);
 		};
-	});
-
+	}
 </script>
 
 {#if status === 'COMPLETED' && selectedVariant && autoLoop}
@@ -153,7 +148,7 @@
 		style="width: {displaySize.width}px; max-width: 100%;"
 	>
 		<media-player
-			bind:this={playerEl}
+			{@attach interceptFullscreenRequest}
 			src={videoSrc}
 			playsinline
 			onerror={onMediaError}

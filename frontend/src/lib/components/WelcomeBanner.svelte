@@ -12,27 +12,25 @@ Only renders when the `welcome=true` query parameter is present.
   import * as m from '$lib/i18n/messages';
   import { Hint } from '$lib/ui';
 
-  let showWelcome = $state(page.url.searchParams.get('welcome') === 'true' || page.state.welcome === true);
+  let showWelcome = $state(
+    page.url.searchParams.get('welcome') === 'true' || page.state.welcome === true
+  );
 
-  // Clear the welcome param from URL after showing
-  $effect(() => {
-    if (showWelcome) {
-      // Remove the query param from URL without navigation
-      const url = new URL(window.location.href);
-      url.searchParams.delete('welcome');
-      window.history.replaceState({}, '', url.toString());
+  function mountWelcomeBanner() {
+    // Remove the query param from URL without navigation.
+    const url = new URL(window.location.href);
+    url.searchParams.delete('welcome');
+    window.history.replaceState({}, '', url.toString());
 
-      // Auto-dismiss after 5 seconds
-      const timer = setTimeout(() => {
-        showWelcome = false;
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  });
+    const timer = setTimeout(() => {
+      showWelcome = false;
+    }, 5000);
+    return () => clearTimeout(timer);
+  }
 </script>
 
 {#if showWelcome}
-  <div class="mb-2">
+  <div class="mb-2" {@attach mountWelcomeBanner}>
     <Hint tone="success">
       <div class="flex items-start justify-between gap-3">
         <span>{m['welcome.verified']()}</span>

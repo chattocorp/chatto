@@ -221,7 +221,13 @@
 
   // Load draft from sessionStorage when room changes
   // Using sessionStorage (not localStorage) so drafts are tab-specific
+  let autocompleteResetRoomId = '';
   $effect(() => {
+    if (autocompleteResetRoomId !== roomId) {
+      autocompleteResetRoomId = roomId;
+      autocomplete.resetForRoom();
+    }
+
     if (isEditing) {
       draftState.switchKey(DRAFT_KEY);
       attachments.restore([]);
@@ -357,12 +363,6 @@
     if (editorApi && !inputDisabled) {
       tick().then(() => editorApi?.focus());
     }
-  });
-
-  // Close autocomplete popups when switching rooms
-  $effect(() => {
-    void roomId;
-    autocomplete.resetForRoom();
   });
 
   // Handle emoji selection from autocomplete

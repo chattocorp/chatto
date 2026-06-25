@@ -26,15 +26,11 @@
     elementsReady = true;
   });
 
-  let playerEl = $state<HTMLElement | null>(null);
-
   // Seek to captured playback position once the player can play
-  $effect(() => {
-    if (!playerEl || !fullscreenVideo.isOpen) return;
-
+  function attachPlayer(node: HTMLElement) {
     function handleCanPlay() {
       if (fullscreenVideo.startTime > 0) {
-        const video = playerEl?.querySelector('video');
+        const video = node.querySelector('video');
         if (video) video.currentTime = fullscreenVideo.startTime;
       }
     }
@@ -43,14 +39,14 @@
       e.preventDefault();
     }
 
-    playerEl.addEventListener('can-play', handleCanPlay, { once: true });
+    node.addEventListener('can-play', handleCanPlay, { once: true });
     // Use capture phase so we intercept before Vidstack's internal handler.
-    playerEl.addEventListener('media-enter-fullscreen-request', blockFullscreen, true);
+    node.addEventListener('media-enter-fullscreen-request', blockFullscreen, true);
     return () => {
-      playerEl?.removeEventListener('can-play', handleCanPlay);
-      playerEl?.removeEventListener('media-enter-fullscreen-request', blockFullscreen, true);
+      node.removeEventListener('can-play', handleCanPlay);
+      node.removeEventListener('media-enter-fullscreen-request', blockFullscreen, true);
     };
-  });
+  }
 
   function close() {
     if (document.fullscreenElement) {
@@ -85,7 +81,7 @@
     </button>
 
     <media-player
-      bind:this={playerEl}
+      {@attach attachPlayer}
       src={{ src: fullscreenVideo.src, type: 'video/mp4' }}
       autoplay
       playsinline
