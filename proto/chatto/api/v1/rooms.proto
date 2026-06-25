@@ -1,0 +1,208 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+// Kind of room represented by the public API.
+enum RoomKind {
+  // The room kind was not specified.
+  ROOM_KIND_UNSPECIFIED = 0;
+  // A regular channel governed by server and room permissions.
+  ROOM_KIND_CHANNEL = 1;
+  // A direct-message conversation between members.
+  ROOM_KIND_DM = 2;
+}
+
+// Public room metadata returned by room commands.
+message Room {
+  // Stable room ID.
+  string id = 1;
+  // Room kind.
+  RoomKind kind = 2;
+  // Room name. Direct-message rooms may have an empty name because clients
+  // derive their display label from participants.
+  string name = 3;
+  // Optional room description.
+  string description = 4;
+  // True when the room is archived and hidden from active room lists.
+  bool archived = 5;
+  // Room group ID for channel rooms. Empty for direct-message rooms.
+  string group_id = 6;
+  // True when a channel grants effective membership to eligible server members.
+  bool universal = 7;
+}
+
+// Request to create a channel room.
+message CreateRoomRequest {
+  // Required. Name of the new channel room.
+  string name = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 30
+  }];
+  // Optional room description.
+  string description = 2 [(buf.validate.field).string.max_len = 500];
+  // Required. Room group that should contain the new channel.
+  string group_id = 3 [(buf.validate.field).string.min_len = 1];
+  // Whether the new channel should grant effective membership to eligible
+  // server members.
+  bool universal = 4;
+}
+
+// Result of creating a room.
+message CreateRoomResponse {
+  // Created room.
+  Room room = 1;
+}
+
+// Request to update a room's editable metadata.
+message UpdateRoomRequest {
+  // Required. Room to update.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required. New room name.
+  string name = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 30
+  }];
+  // Optional new room description.
+  string description = 3 [(buf.validate.field).string.max_len = 500];
+}
+
+// Result of updating a room.
+message UpdateRoomResponse {
+  // Updated room.
+  Room room = 1;
+}
+
+// Request to archive a room.
+message ArchiveRoomRequest {
+  // Required. Room to archive.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of archiving a room.
+message ArchiveRoomResponse {
+  // Archived room.
+  Room room = 1;
+}
+
+// Request to unarchive a room.
+message UnarchiveRoomRequest {
+  // Required. Room to unarchive.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of unarchiving a room.
+message UnarchiveRoomResponse {
+  // Unarchived room.
+  Room room = 1;
+}
+
+// Request to change a channel room's universal membership flag.
+message SetRoomUniversalRequest {
+  // Required. Channel room to update.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // New universal membership state.
+  bool universal = 2;
+}
+
+// Result of changing a channel room's universal membership flag.
+message SetRoomUniversalResponse {
+  // Updated room.
+  Room room = 1;
+}
+
+// Request to join a room as the current user.
+message JoinRoomRequest {
+  // Required. Room to join.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of joining a room.
+message JoinRoomResponse {
+  // Joined room.
+  Room room = 1;
+}
+
+// Request to leave a room as the current user.
+message LeaveRoomRequest {
+  // Required. Room to leave.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of leaving a room.
+message LeaveRoomResponse {
+  // True when the current user is no longer an explicit member after the call.
+  bool left = 1;
+}
+
+// Request to ban a member from a channel room.
+message BanRoomMemberRequest {
+  // Required. Channel room to ban the user from.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required. User to ban from the room.
+  string user_id = 2 [(buf.validate.field).string.min_len = 1];
+  // Required moderator-entered reason stored for audit.
+  string reason = 3 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 1000
+  }];
+  // Optional future time when the ban expires.
+  google.protobuf.Timestamp expires_at = 4;
+}
+
+// Result of banning a room member.
+message BanRoomMemberResponse {
+  // True when the ban operation completed.
+  bool banned = 1;
+}
+
+// Request to remove a channel room ban.
+message UnbanRoomMemberRequest {
+  // Required. Channel room to unban the user from.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required. User to unban.
+  string user_id = 2 [(buf.validate.field).string.min_len = 1];
+  // Required moderator-entered reason stored for audit.
+  string reason = 3 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 1000
+  }];
+}
+
+// Result of removing a room ban.
+message UnbanRoomMemberResponse {
+  // True when the unban operation completed.
+  bool unbanned = 1;
+}
+
+// Manages channel room lifecycle and room membership for the current user.
+service RoomService {
+  // Creates a new channel room in a room group. The caller must be allowed to
+  // create rooms in the target group.
+  rpc CreateRoom(CreateRoomRequest) returns (CreateRoomResponse);
+  // Updates a room's name and description. The caller must be allowed to manage
+  // rooms.
+  rpc UpdateRoom(UpdateRoomRequest) returns (UpdateRoomResponse);
+  // Archives a room so it is hidden from active room lists. The caller must be
+  // allowed to manage rooms.
+  rpc ArchiveRoom(ArchiveRoomRequest) returns (ArchiveRoomResponse);
+  // Restores an archived room to active room lists. The caller must be allowed
+  // to manage rooms.
+  rpc UnarchiveRoom(UnarchiveRoomRequest) returns (UnarchiveRoomResponse);
+  // Changes whether a channel room grants effective membership to eligible
+  // server members. Direct-message rooms cannot be universal.
+  rpc SetRoomUniversal(SetRoomUniversalRequest) returns (SetRoomUniversalResponse);
+  // Joins the room as the current user when room permissions allow it.
+  rpc JoinRoom(JoinRoomRequest) returns (JoinRoomResponse);
+  // Leaves the room as the current user. Direct-message and universal rooms
+  // cannot be left.
+  rpc LeaveRoom(LeaveRoomRequest) returns (LeaveRoomResponse);
+  // Bans a member from a channel room. Direct-message rooms cannot be moderated
+  // this way, and the target must currently be a room member.
+  rpc BanRoomMember(BanRoomMemberRequest) returns (BanRoomMemberResponse);
+  // Removes an active channel room ban. Calling this when no active ban exists
+  // is allowed and still returns success.
+  rpc UnbanRoomMember(UnbanRoomMemberRequest) returns (UnbanRoomMemberResponse);
+}
