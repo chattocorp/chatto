@@ -1146,7 +1146,7 @@ describe('MessageComposer', () => {
       );
     });
 
-    it('keeps edit mode on rich keyboard behavior', async () => {
+    it('sends a plain text edit with Enter', async () => {
       roomStateMock.editState.eventId = 'evt_edit';
       roomStateMock.editState.originalBody = 'original body';
       const { container } = renderMessageComposer(
@@ -1155,9 +1155,33 @@ describe('MessageComposer', () => {
       );
       const editor = await findEditor(container);
 
-      await vi.waitFor(() => expect(container.textContent).toMatch(/(?:Cmd|Ctrl)\+Return to Send/));
+      await vi.waitFor(() => expect(editor.textContent).toBe('original body'));
+      expect(container.textContent).not.toMatch(/(?:Cmd|Ctrl)\+Return to Send/);
       await pressEditorKey(editor, 'Enter');
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        eventId: 'evt_edit',
+        body: 'original body'
+      });
+    });
+
+    it('can force rich keyboard behavior while editing plain text', async () => {
+      roomStateMock.editState.eventId = 'evt_edit';
+      roomStateMock.editState.originalBody = 'original body';
+      const { container } = renderMessageComposer(
+        { roomId: 'room_456' },
+        new Map([['$$_urql', mockClient]])
+      );
+      const editor = await findEditor(container);
+
+      await vi.waitFor(() => expect(editor.textContent).toBe('original body'));
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
       expect(mutationMock).not.toHaveBeenCalled();
+      await vi.waitFor(() => expect(editor.querySelectorAll(':scope > p')).toHaveLength(2));
+      await vi.waitFor(() =>
+        expect(container.textContent).toMatch(/(?:Return|Enter) again to Send/)
+      );
 
       await pressEditorKey(editor, 'Enter', { ctrlKey: true });
 
