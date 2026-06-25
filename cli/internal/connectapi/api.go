@@ -17,6 +17,10 @@ import (
 // Prefix is the HTTP mount point for Chatto's ConnectRPC public API.
 const Prefix = "/api/connect"
 
+// MaxRequestMessageBytes caps individual inbound protobuf messages. ConnectRPC
+// defaults to unlimited reads, so keep this explicit for every public handler.
+const MaxRequestMessageBytes = 1 << 20 // 1 MiB
+
 // Handler is one generated Connect service handler and its generated service
 // path. The HTTP server owns the actual route mounting and auth injection.
 type Handler struct {
@@ -37,13 +41,16 @@ func New(core *core.ChattoCore, config config.ChattoConfig, version string) *API
 }
 
 func (a *API) Handlers() []Handler {
-	serverPath, serverHandler := apiv1connect.NewServerServiceHandler(&serverService{api: a})
-	messagePath, messageHandler := apiv1connect.NewMessageServiceHandler(&messageService{api: a})
-	prefsPath, prefsHandler := apiv1connect.NewNotificationPreferencesServiceHandler(&notificationPreferencesService{api: a})
-	readStatePath, readStateHandler := apiv1connect.NewReadStateServiceHandler(&readStateService{api: a})
-	timelinePath, timelineHandler := apiv1connect.NewRoomTimelineServiceHandler(&roomTimelineService{api: a})
-	userStatusPath, userStatusHandler := apiv1connect.NewUserStatusServiceHandler(&userStatusService{api: a})
-	threadPath, threadHandler := apiv1connect.NewThreadServiceHandler(&threadService{api: a})
+	options := []connect.HandlerOption{
+		connect.WithReadMaxBytes(MaxRequestMessageBytes),
+	}
+	serverPath, serverHandler := apiv1connect.NewServerServiceHandler(&serverService{api: a}, options...)
+	messagePath, messageHandler := apiv1connect.NewMessageServiceHandler(&messageService{api: a}, options...)
+	prefsPath, prefsHandler := apiv1connect.NewNotificationPreferencesServiceHandler(&notificationPreferencesService{api: a}, options...)
+	readStatePath, readStateHandler := apiv1connect.NewReadStateServiceHandler(&readStateService{api: a}, options...)
+	timelinePath, timelineHandler := apiv1connect.NewRoomTimelineServiceHandler(&roomTimelineService{api: a}, options...)
+	userStatusPath, userStatusHandler := apiv1connect.NewUserStatusServiceHandler(&userStatusService{api: a}, options...)
+	threadPath, threadHandler := apiv1connect.NewThreadServiceHandler(&threadService{api: a}, options...)
 	return []Handler{
 		{ServicePath: messagePath, Handler: messageHandler},
 		{ServicePath: serverPath, Handler: serverHandler},
