@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "buf/validate/validate.proto";
+
+// Request to add the current user's reaction to a message.
+message AddReactionRequest {
+  // Required. Room containing the message event.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required. Event ID of the message being reacted to.
+  string message_event_id = 2 [(buf.validate.field).string.min_len = 1];
+  // Required. Emoji shortcode name, such as "thumbsup" or "heart".
+  string emoji = 3 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of adding a reaction.
+message AddReactionResponse {
+  // True when the reaction was newly added, false when it already existed.
+  bool added = 1;
+}
+
+// Request to remove the current user's reaction from a message.
+message RemoveReactionRequest {
+  // Required. Room containing the message event.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required. Event ID of the message whose reaction should be removed.
+  string message_event_id = 2 [(buf.validate.field).string.min_len = 1];
+  // Required. Emoji shortcode name, such as "thumbsup" or "heart".
+  string emoji = 3 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of removing a reaction.
+message RemoveReactionResponse {
+  // True when the reaction was removed, false when it did not exist.
+  bool removed = 1;
+}
+
+// Manages message reactions for the current user.
+service ReactionService {
+  // Adds a reaction to a message. The user must be a room member and have
+  // message.react in the target room.
+  rpc AddReaction(AddReactionRequest) returns (AddReactionResponse);
+  // Removes a reaction from a message. The user must be a room member and have
+  // message.react in the target room.
+  rpc RemoveReaction(RemoveReactionRequest) returns (RemoveReactionResponse);
+}

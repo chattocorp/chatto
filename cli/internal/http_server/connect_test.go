@@ -178,6 +178,39 @@ func TestConnectAPIValidatesRequiredRequestFields(t *testing.T) {
 		requireInvalidArgument(t, err)
 	})
 
+	t.Run("reaction room id", func(t *testing.T) {
+		client := apiv1connect.NewReactionServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		req := connect.NewRequest(&apiv1.AddReactionRequest{
+			MessageEventId: "event",
+			Emoji:          "thumbsup",
+		})
+		authorize(req)
+		_, err := client.AddReaction(ctx, req)
+		requireInvalidArgument(t, err)
+	})
+
+	t.Run("reaction message event id", func(t *testing.T) {
+		client := apiv1connect.NewReactionServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		req := connect.NewRequest(&apiv1.AddReactionRequest{
+			RoomId: "room",
+			Emoji:  "thumbsup",
+		})
+		authorize(req)
+		_, err := client.AddReaction(ctx, req)
+		requireInvalidArgument(t, err)
+	})
+
+	t.Run("reaction emoji", func(t *testing.T) {
+		client := apiv1connect.NewReactionServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		req := connect.NewRequest(&apiv1.RemoveReactionRequest{
+			RoomId:         "room",
+			MessageEventId: "event",
+		})
+		authorize(req)
+		_, err := client.RemoveReaction(ctx, req)
+		requireInvalidArgument(t, err)
+	})
+
 	t.Run("timeline room id", func(t *testing.T) {
 		client := apiv1connect.NewRoomTimelineServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
 		req := connect.NewRequest(&apiv1.GetRoomEventsRequest{})

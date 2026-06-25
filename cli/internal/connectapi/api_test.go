@@ -41,6 +41,7 @@ func TestAPIHandlers(t *testing.T) {
 		"/" + apiv1connect.MessageServiceName + "/",
 		"/" + apiv1connect.NotificationPreferencesServiceName + "/",
 		"/" + apiv1connect.ReadStateServiceName + "/",
+		"/" + apiv1connect.ReactionServiceName + "/",
 		"/" + apiv1connect.RoomTimelineServiceName + "/",
 		"/" + apiv1connect.ServerServiceName + "/",
 		"/" + apiv1connect.ThreadServiceName + "/",
@@ -66,6 +67,7 @@ func TestAPIHandlerAuthPolicies(t *testing.T) {
 		"/" + apiv1connect.MessageServiceName + "/":                 AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.NotificationPreferencesServiceName + "/": AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.ReadStateServiceName + "/":               AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.ReactionServiceName + "/":                AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.RoomTimelineServiceName + "/":            AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.ServerServiceName + "/":                  AuthPolicyPublic,
 		"/" + apiv1connect.ThreadServiceName + "/":                  AuthPolicyAuthenticatedUser,
@@ -294,6 +296,100 @@ func TestMessageServicePostMessageRequiresAuthMembershipAndPermission(t *testing
 	}
 	if _, err := env.messages.PostMessage(withCaller(env.ctx, env.viewer), req); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("denied PostMessage code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	}
+}
+
+func TestReactionServiceAddAndRemoveRequiresAuthMembershipAndPermission(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("reaction-authz")
+	event := env.post(room.Id, env.viewer.Id, "react to me", "")
+	req := connect.NewRequest(&apiv1.AddReactionRequest{
+		RoomId:         room.Id,
+		MessageEventId: event.Id,
+		Emoji:          "thumbsup",
+	})
+
+	if _, err := env.reactions.AddReaction(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated AddReaction code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
+	}
+
+	outsider, err := env.core.CreateUser(env.ctx, core.SystemActorID, "reaction-outsider", "Reaction Outsider", "password")
+	if err != nil {
+		t.Fatalf("CreateUser outsider: %v", err)
+	}
+	if _, err := env.reactions.AddReaction(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("non-member AddReaction code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	}
+
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessageReact); err != nil {
+		t.Fatalf("DenyRoomPermission: %v", err)
+	}
+	if _, err := env.reactions.AddReaction(withCaller(env.ctx, env.viewer), req); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("denied AddReaction code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	}
+}
+
+func TestReactionServiceAddAndRemoveResponseSemantics(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("reaction-response")
+	event := env.post(room.Id, env.viewer.Id, "react to me", "")
+	ctx := withCaller(env.ctx, env.viewer)
+
+	addReq := connect.NewRequest(&apiv1.AddReactionRequest{
+		RoomId:         room.Id,
+		MessageEventId: event.Id,
+		Emoji:          "thumbsup",
+	})
+	addResp, err := env.reactions.AddReaction(ctx, addReq)
+	if err != nil {
+		t.Fatalf("AddReaction: %v", err)
+	}
+	if !addResp.Msg.Added {
+		t.Fatal("AddReaction Added = false, want true")
+	}
+
+	addResp, err = env.reactions.AddReaction(ctx, addReq)
+	if err != nil {
+		t.Fatalf("duplicate AddReaction: %v", err)
+	}
+	if addResp.Msg.Added {
+		t.Fatal("duplicate AddReaction Added = true, want false")
+	}
+
+	removeReq := connect.NewRequest(&apiv1.RemoveReactionRequest{
+		RoomId:         room.Id,
+		MessageEventId: event.Id,
+		Emoji:          "thumbsup",
+	})
+	removeResp, err := env.reactions.RemoveReaction(ctx, removeReq)
+	if err != nil {
+		t.Fatalf("RemoveReaction: %v", err)
+	}
+	if !removeResp.Msg.Removed {
+		t.Fatal("RemoveReaction Removed = false, want true")
+	}
+
+	removeResp, err = env.reactions.RemoveReaction(ctx, removeReq)
+	if err != nil {
+		t.Fatalf("duplicate RemoveReaction: %v", err)
+	}
+	if removeResp.Msg.Removed {
+		t.Fatal("duplicate RemoveReaction Removed = true, want false")
+	}
+}
+
+func TestReactionServiceValidatesEmoji(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("reaction-validation")
+	event := env.post(room.Id, env.viewer.Id, "react to me", "")
+
+	_, err := env.reactions.AddReaction(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.AddReactionRequest{
+		RoomId:         room.Id,
+		MessageEventId: event.Id,
+		Emoji:          "totally_bogus",
+	}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("invalid emoji AddReaction code = %v, want %v", connect.CodeOf(err), connect.CodeInvalidArgument)
 	}
 }
 
@@ -1245,6 +1341,7 @@ type connectAPITestEnv struct {
 	api       *API
 	messages  *messageService
 	readState *readStateService
+	reactions *reactionService
 	timeline  *roomTimelineService
 	status    *userStatusService
 	threads   *threadService
@@ -1281,6 +1378,7 @@ func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
 		api:       api,
 		messages:  &messageService{api: api},
 		readState: &readStateService{api: api},
+		reactions: &reactionService{api: api},
 		timeline:  &roomTimelineService{api: api},
 		status:    &userStatusService{api: api},
 		threads:   &threadService{api: api},

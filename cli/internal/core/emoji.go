@@ -1,7 +1,5 @@
 package core
 
-import "fmt"
-
 // IsValidEmojiName checks if a name is a known emoji shortcode.
 // Uses the generated emojiNameToUnicode map (from gemoji).
 func IsValidEmojiName(name string) bool {
@@ -15,5 +13,5 @@ func resolveEmojiInput(input string) (string, error) {
 	if IsValidEmojiName(input) {
 		return input, nil
 	}
-	return "", fmt.Errorf("unsupported emoji: %s", input)
+	return "", invalidArgument("unsupported emoji")
 }

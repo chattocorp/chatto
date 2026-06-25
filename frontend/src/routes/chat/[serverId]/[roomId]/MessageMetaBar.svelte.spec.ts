@@ -5,15 +5,13 @@ import { q } from '$lib/test-utils';
 import MessageMetaBar from './MessageMetaBar.svelte';
 
 vi.mock('$app/paths', () => ({
+  assets: '',
+  base: '',
   resolve: (path: string, params?: Record<string, string>) =>
     path
       .replace('[serverId]', params?.serverId ?? '')
       .replace('[roomId]', params?.roomId ?? '')
       .replace('[threadId]', params?.threadId ?? '')
-}));
-
-vi.mock('$lib/gql', () => ({
-  graphql: (source: string) => source
 }));
 
 vi.mock('$lib/gql/fragment-masking', () => ({

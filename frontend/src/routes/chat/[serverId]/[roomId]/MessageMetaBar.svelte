@@ -28,10 +28,10 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
   import { useFragment } from '$lib/gql/fragment-masking';
   import { useConnection } from '$lib/state/server/connection.svelte';
-  import { graphql } from '$lib/gql';
   import { toast } from '$lib/ui/toast';
   import FloatingTooltip from '$lib/ui/FloatingTooltip.svelte';
   import { getEmojiByName, getEmojiDisplayName } from '$lib/emoji';
+  import { createReactionAPI } from '$lib/api/reactions';
   import * as m from '$lib/i18n/messages';
 
   // Extract the MessagePostedEvent type from the union
@@ -91,18 +91,6 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
     tooltipReactionEmoji ? (reactions.find((r) => r.emoji === tooltipReactionEmoji) ?? null) : null
   );
 
-  const addReactionMutation = graphql(`
-    mutation AddReaction($input: AddReactionInput!) {
-      addReaction(input: $input)
-    }
-  `);
-
-  const removeReactionMutation = graphql(`
-    mutation RemoveReaction($input: RemoveReactionInput!) {
-      removeReaction(input: $input)
-    }
-  `);
-
   function formatReactionUsers(users: { displayName: string }[], count: number): string {
     const maxDisplay = 5;
     const names = users.slice(0, maxDisplay).map((u) => u.displayName);
@@ -129,12 +117,20 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
   }
 
   async function toggleReaction(reaction: ReactionSummary) {
-    const input = { roomId, messageEventId, emoji: reaction.emoji };
-    const result = reaction.hasReacted
-      ? await connection().client.mutation(removeReactionMutation, { input })
-      : await connection().client.mutation(addReactionMutation, { input });
-
-    if (result.error) {
+    try {
+      const conn = connection();
+      const api = createReactionAPI({
+        serverId: conn.serverId ?? serverSegment,
+        baseUrl: conn.connectBaseUrl,
+        bearerToken: conn.bearerToken
+      });
+      const input = { roomId, messageEventId, emoji: reaction.emoji };
+      if (reaction.hasReacted) {
+        await api.removeReaction(input);
+      } else {
+        await api.addReaction(input);
+      }
+    } catch {
       toast.error('Failed to update reaction');
     }
   }

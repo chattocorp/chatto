@@ -1,7 +1,7 @@
 # FDR-005: Reactions
 
 **Status:** Active
-**Last reviewed:** 2026-06-13
+**Last reviewed:** 2026-06-25
 
 ## Overview
 
@@ -35,9 +35,9 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
 **Why:** Reactions are durable room facts. Keeping them in the room stream makes add/remove ordering explicit, gives replayable state, removes the old KV bucket from the hot read/write path, and lets duplicate add/remove decisions retry safely under multi-replica contention.
 **Tradeoff:** The first projection version keeps all current reaction state in RAM and consumes more room facts than it derives. That is simple and correct; bounded or demand-loaded projections can follow once the rest of the event-sourcing architecture is in place and real access patterns are measured.
 
-### 4. GraphQL exposes reactor names as a bounded preview
+### 4. Public APIs expose reactor names as a bounded preview
 
-**Decision:** `ReactionSummary.count` is the total current count, while `ReactionSummary.users(first:)` returns a bounded preview of reacting users (default 3, max 10). The message UI asks for five preview users and renders any remaining count as overflow.
+**Decision:** `ReactionSummary.count` is the total current count, while bounded reactor previews expose only a small set of reacting users. GraphQL keeps `ReactionSummary.users(first:)` as the legacy projected read shape; ConnectRPC room timeline responses expose hydrated reaction summaries with the same bounded preview semantics. Reaction writes use ConnectRPC `ReactionService.AddReaction` and `RemoveReaction` in the web client, while GraphQL mutations remain as a compatibility path and call the same core operation service.
 **Why:** Reaction pills need a quick hover tooltip, not an unbounded user directory embedded in every message event. Keeping the full count separate preserves the main signal while preventing popular reactions from inflating timeline payloads.
 **Tradeoff:** Clients that need a complete reactor list will need a future dedicated paginated query instead of overloading the message timeline shape.
 
@@ -59,5 +59,5 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
 
 ## Related
 
-- **ADRs:** ADR-026 (event identity via NanoID), ADR-033 (event-sourced state with projections), ADR-034 (single event stream), ADR-035 (per-aggregate migration)
+- **ADRs:** ADR-026 (event identity via NanoID), ADR-033 (event-sourced state with projections), ADR-034 (single event stream), ADR-035 (per-aggregate migration), ADR-042 (protobuf-first public API), ADR-044 (ConnectRPC service conventions)
 - **FDRs:** FDR-003 (Thread Reply Echo)

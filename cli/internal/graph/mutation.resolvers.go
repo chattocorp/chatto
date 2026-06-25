@@ -776,30 +776,12 @@ func (r *mutationResolver) AddReaction(ctx context.Context, input model.AddReact
 	if err != nil {
 		return false, err
 	}
-	kind, err := r.resolveRoomKind(ctx, input.RoomID)
-	if err != nil {
-		return false, err
-	}
-
-	// Authorization: check room membership
-	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, input.RoomID)
-	if err != nil {
-		return false, err
-	}
-	if !isMember {
-		return false, core.ErrNotRoomMember
-	}
-
-	// Authorization: check message.react permission at room level
-	can, err := r.core.CanReactToMessage(ctx, user.Id, kind, input.RoomID)
-	if err != nil {
-		return false, err
-	}
-	if !can {
-		return false, core.ErrPermissionDenied
-	}
-
-	return r.core.AddReaction(ctx, kind, input.RoomID, input.MessageEventID, input.Emoji, user.Id)
+	return r.core.ReactionsService().AddReaction(ctx, core.ReactionMutationInput{
+		ActorID:        user.Id,
+		RoomID:         input.RoomID,
+		MessageEventID: input.MessageEventID,
+		Emoji:          input.Emoji,
+	})
 }
 
 // RemoveReaction is the resolver for the removeReaction field.
@@ -808,30 +790,12 @@ func (r *mutationResolver) RemoveReaction(ctx context.Context, input model.Remov
 	if err != nil {
 		return false, err
 	}
-	kind, err := r.resolveRoomKind(ctx, input.RoomID)
-	if err != nil {
-		return false, err
-	}
-
-	// Authorization: check room membership
-	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, input.RoomID)
-	if err != nil {
-		return false, err
-	}
-	if !isMember {
-		return false, core.ErrNotRoomMember
-	}
-
-	// Authorization: check message.react permission at room level
-	can, err := r.core.CanReactToMessage(ctx, user.Id, kind, input.RoomID)
-	if err != nil {
-		return false, err
-	}
-	if !can {
-		return false, core.ErrPermissionDenied
-	}
-
-	return r.core.RemoveReaction(ctx, kind, input.RoomID, input.MessageEventID, input.Emoji, user.Id)
+	return r.core.ReactionsService().RemoveReaction(ctx, core.ReactionMutationInput{
+		ActorID:        user.Id,
+		RoomID:         input.RoomID,
+		MessageEventID: input.MessageEventID,
+		Emoji:          input.Emoji,
+	})
 }
 
 // SendTypingIndicator is the resolver for the sendTypingIndicator field.

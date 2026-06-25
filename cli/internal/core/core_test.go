@@ -101,6 +101,9 @@ func TestNewChattoCoreInitializesOperationServices(t *testing.T) {
 	if core.ThreadFollows() == nil {
 		t.Fatal("ThreadFollows() = nil")
 	}
+	if core.ReactionsService() == nil {
+		t.Fatal("ReactionsService() = nil")
+	}
 }
 
 func eventStreamMsgCount(t *testing.T, core *ChattoCore) uint64 {

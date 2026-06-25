@@ -316,6 +316,82 @@ issuing a second read request.
 | `effective_level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Level after applying defaults and inheritance. |
 
 
+<a id="chatto-api-v1-ReactionService"></a>
+
+## ReactionService
+
+Manages message reactions for the current user.
+
+<a id="chatto-api-v1-ReactionService-AddReaction"></a>
+
+### AddReaction
+
+Adds a reaction to a message. The user must be a room member and have
+message.react in the target room.
+
+```http
+POST /api/connect/chatto.api.v1.ReactionService/AddReaction
+```
+
+<a id="chatto-api-v1-AddReactionRequest"></a>
+
+#### Input: AddReactionRequest
+
+Request to add the current user's reaction to a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message event. |
+| `message_event_id` | `string` | Required. Event ID of the message being reacted to. |
+| `emoji` | `string` | Required. Emoji shortcode name, such as "thumbsup" or "heart". |
+
+
+<a id="chatto-api-v1-AddReactionResponse"></a>
+
+#### Result: AddReactionResponse
+
+Result of adding a reaction.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `added` | `bool` | True when the reaction was newly added, false when it already existed. |
+
+
+<a id="chatto-api-v1-ReactionService-RemoveReaction"></a>
+
+### RemoveReaction
+
+Removes a reaction from a message. The user must be a room member and have
+message.react in the target room.
+
+```http
+POST /api/connect/chatto.api.v1.ReactionService/RemoveReaction
+```
+
+<a id="chatto-api-v1-RemoveReactionRequest"></a>
+
+#### Input: RemoveReactionRequest
+
+Request to remove the current user's reaction from a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message event. |
+| `message_event_id` | `string` | Required. Event ID of the message whose reaction should be removed. |
+| `emoji` | `string` | Required. Emoji shortcode name, such as "thumbsup" or "heart". |
+
+
+<a id="chatto-api-v1-RemoveReactionResponse"></a>
+
+#### Result: RemoveReactionResponse
+
+Result of removing a reaction.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `removed` | `bool` | True when the reaction was removed, false when it did not exist. |
+
+
 <a id="chatto-api-v1-ReadStateService"></a>
 
 ## ReadStateService

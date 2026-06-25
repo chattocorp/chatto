@@ -63,6 +63,7 @@ func (a *API) Handlers() []Handler {
 	messagePath, messageHandler := apiv1connect.NewMessageServiceHandler(&messageService{api: a}, options...)
 	prefsPath, prefsHandler := apiv1connect.NewNotificationPreferencesServiceHandler(&notificationPreferencesService{api: a}, options...)
 	readStatePath, readStateHandler := apiv1connect.NewReadStateServiceHandler(&readStateService{api: a}, options...)
+	reactionPath, reactionHandler := apiv1connect.NewReactionServiceHandler(&reactionService{api: a}, options...)
 	timelinePath, timelineHandler := apiv1connect.NewRoomTimelineServiceHandler(&roomTimelineService{api: a}, options...)
 	userStatusPath, userStatusHandler := apiv1connect.NewUserStatusServiceHandler(&userStatusService{api: a}, options...)
 	threadPath, threadHandler := apiv1connect.NewThreadServiceHandler(&threadService{api: a}, options...)
@@ -71,6 +72,7 @@ func (a *API) Handlers() []Handler {
 		{ServicePath: serverPath, Handler: serverHandler, AuthPolicy: AuthPolicyPublic},
 		{ServicePath: prefsPath, Handler: prefsHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: readStatePath, Handler: readStateHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: reactionPath, Handler: reactionHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: timelinePath, Handler: timelineHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: userStatusPath, Handler: userStatusHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: threadPath, Handler: threadHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
