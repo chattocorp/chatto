@@ -27,8 +27,9 @@ type MarkRoomAsReadRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Room whose timeline should be marked read.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Highest room event ID the current user has read. The event should belong to
-	// the room timeline the client is marking.
+	// Highest room event ID the current user has read. When set, the event must
+	// exist as a root event in the room timeline. Leave empty to mark through the
+	// room's current latest root event.
 	UpToEventId   string `protobuf:"bytes,2,opt,name=up_to_event_id,json=upToEventId,proto3" json:"up_to_event_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

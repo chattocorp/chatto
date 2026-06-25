@@ -15,8 +15,10 @@ export const ReadStateService = {
   typeName: "chatto.api.v1.ReadStateService",
   methods: {
     /**
-     * Marks a room timeline as read through the supplied event. Clients usually
-     * call this after the user has viewed the latest visible event in the room.
+     * Marks a room timeline as read through the supplied event. If no event is
+     * supplied, the server marks through the room's latest root event. Clients
+     * usually call this after the user has viewed the latest visible event in the
+     * room.
      *
      * @generated from rpc chatto.api.v1.ReadStateService.MarkRoomAsRead
      */

@@ -115,7 +115,7 @@ func (a *API) roomReadAnchor(ctx context.Context, room *corev1.Room, eventID str
 		return "", time.Time{}, false, connectError(err)
 	}
 	if event == nil {
-		return "", time.Time{}, false, nil
+		return "", time.Time{}, false, connect.NewError(connect.CodeNotFound, errors.New("up_to_event_id event not found"))
 	}
 	message := event.GetMessagePosted()
 	if message == nil || message.GetInThread() != "" || message.GetEchoOfEventId() != "" {

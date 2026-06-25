@@ -129,6 +129,19 @@ func (c *ChattoCore) GetLastReadEventID(ctx context.Context, kind RoomKind, user
 	return lastID, nil
 }
 
+// PeekLastReadEventID returns the stored read marker for a room without lazy
+// initialization. exists is false when no marker has been written yet.
+func (c *ChattoCore) PeekLastReadEventID(ctx context.Context, userID, roomID string) (eventID string, exists bool, err error) {
+	entry, err := c.storage.runtimeStateKV.Get(ctx, roomReadEventKey(userID, roomID))
+	if err == nil {
+		return string(entry.Value()), true, nil
+	}
+	if errors.Is(err, jetstream.ErrKeyNotFound) {
+		return "", false, nil
+	}
+	return "", false, fmt.Errorf("failed to get read marker: %w", err)
+}
+
 // SetLastReadEventID stores the user's last-read root-message event ID.
 //
 // Callers MUST pass either a root message event ID or the empty string. Thread

@@ -326,8 +326,10 @@ Updates room and thread read state for the current user.
 
 ### MarkRoomAsRead
 
-Marks a room timeline as read through the supplied event. Clients usually
-call this after the user has viewed the latest visible event in the room.
+Marks a room timeline as read through the supplied event. If no event is
+supplied, the server marks through the room's latest root event. Clients
+usually call this after the user has viewed the latest visible event in the
+room.
 
 ```http
 POST /api/connect/chatto.api.v1.ReadStateService/MarkRoomAsRead
@@ -342,7 +344,7 @@ Request to mark a room timeline as read.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Room whose timeline should be marked read. |
-| `up_to_event_id` | `string` | Highest room event ID the current user has read. The event should belong to the room timeline the client is marking. |
+| `up_to_event_id` | `string` | Highest room event ID the current user has read. When set, the event must exist as a root event in the room timeline. Leave empty to mark through the room's current latest root event. |
 
 
 <a id="chatto-api-v1-MarkRoomAsReadResponse"></a>
