@@ -221,6 +221,7 @@ export const MyServerEventsSubscriptionDoc = graphql(`
           roomId
           eventId
           inReplyToId
+          silent
         }
         ... on NotificationDismissedEvent {
           notificationId

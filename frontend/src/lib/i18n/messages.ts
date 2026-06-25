@@ -135,6 +135,8 @@ const msg_settings_profile_username_confirm_prompt = (
 const msg_settings_profile_username_confirm_cooldown = (): LocalizedString => messages().settings_profile_username_confirm_cooldown(empty());
 const msg_settings_profile_username_confirm_button = (): LocalizedString => messages().settings_profile_username_confirm_button(empty());
 const msg_settings_profile_status_title = (): LocalizedString => messages().settings_profile_status_title(empty());
+const msg_settings_profile_status_dialog_title = (): LocalizedString => messages().settings_profile_status_dialog_title(empty());
+const msg_settings_profile_status_set_custom_status = (): LocalizedString => messages().settings_profile_status_set_custom_status(empty());
 const msg_settings_profile_status_edit_button = (): LocalizedString => messages().settings_profile_status_edit_button(empty());
 const msg_settings_profile_status_emoji_label = (): LocalizedString => messages().settings_profile_status_emoji_label(empty());
 const msg_settings_profile_status_emoji_placeholder = (): LocalizedString => messages().settings_profile_status_emoji_placeholder(empty());
@@ -142,7 +144,17 @@ const msg_settings_profile_status_emoji_choose = (): LocalizedString => messages
 const msg_settings_profile_status_text_label = (): LocalizedString => messages().settings_profile_status_text_label(empty());
 const msg_settings_profile_status_text_placeholder = (): LocalizedString => messages().settings_profile_status_text_placeholder(empty());
 const msg_settings_profile_status_expires_at_label = (): LocalizedString => messages().settings_profile_status_expires_at_label(empty());
+const msg_settings_profile_status_expiry_today = (): LocalizedString => messages().settings_profile_status_expiry_today(empty());
+const msg_settings_profile_status_expiry_thirty_minutes = (): LocalizedString => messages().settings_profile_status_expiry_thirty_minutes(empty());
+const msg_settings_profile_status_expiry_one_hour = (): LocalizedString => messages().settings_profile_status_expiry_one_hour(empty());
+const msg_settings_profile_status_expiry_four_hours = (): LocalizedString => messages().settings_profile_status_expiry_four_hours(empty());
+const msg_settings_profile_status_expiry_tomorrow = (): LocalizedString => messages().settings_profile_status_expiry_tomorrow(empty());
+const msg_settings_profile_status_expiry_never = (): LocalizedString => messages().settings_profile_status_expiry_never(empty());
+const msg_settings_profile_status_expiry_custom = (): LocalizedString => messages().settings_profile_status_expiry_custom(empty());
+const msg_settings_profile_status_expiry_custom_date = (): LocalizedString => messages().settings_profile_status_expiry_custom_date(empty());
+const msg_settings_profile_status_suggestions = (): LocalizedString => messages().settings_profile_status_suggestions(empty());
 const msg_settings_profile_status_template_label = (): LocalizedString => messages().settings_profile_status_template_label(empty());
+const msg_settings_profile_status_template_none = (): LocalizedString => messages().settings_profile_status_template_none(empty());
 const msg_settings_profile_status_template_out_for_lunch = (): LocalizedString => messages().settings_profile_status_template_out_for_lunch(empty());
 const msg_settings_profile_status_template_vacation = (): LocalizedString => messages().settings_profile_status_template_vacation(empty());
 const msg_settings_profile_status_template_sick = (): LocalizedString => messages().settings_profile_status_template_sick(empty());
@@ -155,6 +167,14 @@ const msg_settings_profile_status_cleared = (): LocalizedString => messages().se
 const msg_settings_profile_status_clear_failed = (): LocalizedString => messages().settings_profile_status_clear_failed(empty());
 const msg_settings_profile_status_save_button = (): LocalizedString => messages().settings_profile_status_save_button(empty());
 const msg_settings_profile_status_clear_button = (): LocalizedString => messages().settings_profile_status_clear_button(empty());
+const msg_settings_profile_presence_button = (
+  inputs: Parameters<LocaleMessages['settings_profile_presence_button']>[0]
+): LocalizedString => messages().settings_profile_presence_button(inputs);
+const msg_settings_profile_presence_title = (): LocalizedString => messages().settings_profile_presence_title(empty());
+const msg_settings_profile_presence_auto = (): LocalizedString => messages().settings_profile_presence_auto(empty());
+const msg_settings_profile_presence_away = (): LocalizedString => messages().settings_profile_presence_away(empty());
+const msg_settings_profile_presence_do_not_disturb = (): LocalizedString => messages().settings_profile_presence_do_not_disturb(empty());
+const msg_settings_profile_presence_invisible = (): LocalizedString => messages().settings_profile_presence_invisible(empty());
 const msg_settings_profile_saved = (): LocalizedString => messages().settings_profile_saved(empty());
 const msg_settings_profile_save_failed = (): LocalizedString => messages().settings_profile_save_failed(empty());
 const msg_settings_profile_save_button = (): LocalizedString => messages().settings_profile_save_button(empty());
@@ -1219,6 +1239,8 @@ export { msg_settings_profile_username_confirm_prompt as 'settings.profile.usern
 export { msg_settings_profile_username_confirm_cooldown as 'settings.profile.username.confirm_cooldown' };
 export { msg_settings_profile_username_confirm_button as 'settings.profile.username.confirm_button' };
 export { msg_settings_profile_status_title as 'settings.profile.status.title' };
+export { msg_settings_profile_status_dialog_title as 'settings.profile.status.dialog_title' };
+export { msg_settings_profile_status_set_custom_status as 'settings.profile.status.set_custom_status' };
 export { msg_settings_profile_status_edit_button as 'settings.profile.status.edit_button' };
 export { msg_settings_profile_status_emoji_label as 'settings.profile.status.emoji.label' };
 export { msg_settings_profile_status_emoji_placeholder as 'settings.profile.status.emoji.placeholder' };
@@ -1226,7 +1248,17 @@ export { msg_settings_profile_status_emoji_choose as 'settings.profile.status.em
 export { msg_settings_profile_status_text_label as 'settings.profile.status.text.label' };
 export { msg_settings_profile_status_text_placeholder as 'settings.profile.status.text.placeholder' };
 export { msg_settings_profile_status_expires_at_label as 'settings.profile.status.expires_at.label' };
+export { msg_settings_profile_status_expiry_today as 'settings.profile.status.expiry.today' };
+export { msg_settings_profile_status_expiry_thirty_minutes as 'settings.profile.status.expiry.thirty_minutes' };
+export { msg_settings_profile_status_expiry_one_hour as 'settings.profile.status.expiry.one_hour' };
+export { msg_settings_profile_status_expiry_four_hours as 'settings.profile.status.expiry.four_hours' };
+export { msg_settings_profile_status_expiry_tomorrow as 'settings.profile.status.expiry.tomorrow' };
+export { msg_settings_profile_status_expiry_never as 'settings.profile.status.expiry.never' };
+export { msg_settings_profile_status_expiry_custom as 'settings.profile.status.expiry.custom' };
+export { msg_settings_profile_status_expiry_custom_date as 'settings.profile.status.expiry.custom_date' };
+export { msg_settings_profile_status_suggestions as 'settings.profile.status.suggestions' };
 export { msg_settings_profile_status_template_label as 'settings.profile.status.template.label' };
+export { msg_settings_profile_status_template_none as 'settings.profile.status.template.none' };
 export { msg_settings_profile_status_template_out_for_lunch as 'settings.profile.status.template.out_for_lunch' };
 export { msg_settings_profile_status_template_vacation as 'settings.profile.status.template.vacation' };
 export { msg_settings_profile_status_template_sick as 'settings.profile.status.template.sick' };
@@ -1239,6 +1271,12 @@ export { msg_settings_profile_status_cleared as 'settings.profile.status.cleared
 export { msg_settings_profile_status_clear_failed as 'settings.profile.status.clear_failed' };
 export { msg_settings_profile_status_save_button as 'settings.profile.status.save_button' };
 export { msg_settings_profile_status_clear_button as 'settings.profile.status.clear_button' };
+export { msg_settings_profile_presence_button as 'settings.profile.presence.button' };
+export { msg_settings_profile_presence_title as 'settings.profile.presence.title' };
+export { msg_settings_profile_presence_auto as 'settings.profile.presence.auto' };
+export { msg_settings_profile_presence_away as 'settings.profile.presence.away' };
+export { msg_settings_profile_presence_do_not_disturb as 'settings.profile.presence.do_not_disturb' };
+export { msg_settings_profile_presence_invisible as 'settings.profile.presence.invisible' };
 export { msg_settings_profile_saved as 'settings.profile.saved' };
 export { msg_settings_profile_save_failed as 'settings.profile.save_failed' };
 export { msg_settings_profile_save_button as 'settings.profile.save_button' };

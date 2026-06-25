@@ -269,6 +269,30 @@ func (c *ChattoCore) notifyDMParticipants(ctx context.Context, roomID, senderID,
 		} else if level == corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
 			continue
 		}
+		// Create persistent notification (for bell icon and notification center)
+		// This also publishes NotificationCreatedEvent for real-time updates
+		created, createErr := c.CreateNotification(ctx, participantID, senderID, &corev1.Notification{
+			Notification: &corev1.Notification_DmMessage{
+				DmMessage: &corev1.DMMessageNotification{
+					RoomId:  roomID,
+					EventId: eventID,
+				},
+			},
+		})
+		if createErr != nil {
+			c.logger.Warn("Failed to create DM notification",
+				"participant_id", participantID,
+				"sender_id", senderID,
+				"room_id", roomID,
+				"error", createErr)
+			continue
+		}
+		if created == nil {
+			continue
+		}
+		if c.suppressesNotificationAlertsForPresence(ctx, participantID) {
+			continue
+		}
 
 		// Publish live DM notification event for unread indicator real-time update
 		event := newLiveEvent(senderID, &corev1.LiveEvent{
@@ -287,27 +311,9 @@ func (c *ChattoCore) notifyDMParticipants(ctx context.Context, roomID, senderID,
 				"error", err)
 		}
 
-		// Create persistent notification (for bell icon and notification center)
-		// This also publishes NotificationCreatedEvent for real-time updates
-		_, createErr := c.CreateNotification(ctx, participantID, senderID, &corev1.Notification{
-			Notification: &corev1.Notification_DmMessage{
-				DmMessage: &corev1.DMMessageNotification{
-					RoomId:  roomID,
-					EventId: eventID,
-				},
-			},
-		})
-		if createErr != nil {
-			c.logger.Warn("Failed to create DM notification",
-				"participant_id", participantID,
-				"sender_id", senderID,
-				"room_id", roomID,
-				"error", err)
-		} else {
-			c.logger.Debug("Created DM notification",
-				"participant_id", participantID,
-				"sender_id", senderID,
-				"room_id", roomID)
-		}
+		c.logger.Debug("Created DM notification",
+			"participant_id", participantID,
+			"sender_id", senderID,
+			"room_id", roomID)
 	}
 }

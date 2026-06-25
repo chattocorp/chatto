@@ -163,7 +163,10 @@ export class GraphQLClient {
 			// `terminate()` is a no-op and the only recovery is to recreate
 			// the client. See the RETRY_WAIT_MS comment.
 			shouldRetry: () => true,
-			...(token ? { connectionParams: () => ({ token }) } : {}),
+			connectionParams: () => ({
+				...(token ? { token } : {}),
+				presenceReporting: 'connect'
+			}),
 			retryWait: async (retries) => {
 				// Track failed attempts for UI display (banner shows after 6 failures)
 				this.#failedAttempts = retries;

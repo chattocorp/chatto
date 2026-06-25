@@ -397,6 +397,32 @@ func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, kind RoomKind, ro
 		} else if level == corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
 			continue
 		}
+		// Create persistent notification (for bell icon and notification center)
+		// This also publishes NotificationCreatedEvent for real-time updates
+		created, createErr := c.CreateNotification(ctx, mentionedUserID, authorID, &corev1.Notification{
+			Notification: &corev1.Notification_Mention{
+				Mention: &corev1.MentionNotification{
+					RoomId:   roomID,
+					EventId:  eventID,
+					InThread: inThread,
+				},
+			},
+		})
+		if createErr != nil {
+			c.logger.Warn("Failed to create mention notification",
+				"mentioned_user_id", mentionedUserID,
+				"author_id", authorID,
+				"kind", kind,
+				"room_id", roomID,
+				"error", createErr)
+			continue
+		}
+		if created == nil {
+			continue
+		}
+		if c.suppressesNotificationAlertsForPresence(ctx, mentionedUserID) {
+			continue
+		}
 
 		// Publish live mention event for room-level indicator real-time update
 		// (Space/room/user names are resolved by GraphQL resolvers)
@@ -415,30 +441,10 @@ func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, kind RoomKind, ro
 				"error", err)
 		}
 
-		// Create persistent notification (for bell icon and notification center)
-		// This also publishes NotificationCreatedEvent for real-time updates
-		_, createErr := c.CreateNotification(ctx, mentionedUserID, authorID, &corev1.Notification{
-			Notification: &corev1.Notification_Mention{
-				Mention: &corev1.MentionNotification{
-					RoomId:   roomID,
-					EventId:  eventID,
-					InThread: inThread,
-				},
-			},
-		})
-		if createErr != nil {
-			c.logger.Warn("Failed to create mention notification",
-				"mentioned_user_id", mentionedUserID,
-				"author_id", authorID,
-				"kind", kind,
-				"room_id", roomID,
-				"error", createErr)
-		} else {
-			c.logger.Debug("Created mention notification",
-				"mentioned_user_id", mentionedUserID,
-				"author_id", authorID,
-				"kind", kind,
-				"room_id", roomID)
-		}
+		c.logger.Debug("Created mention notification",
+			"mentioned_user_id", mentionedUserID,
+			"author_id", authorID,
+			"kind", kind,
+			"room_id", roomID)
 	}
 }

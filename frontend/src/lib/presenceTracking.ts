@@ -1,143 +1,283 @@
-import type { Client } from '@urql/svelte';
-import { graphql } from './gql';
-import { PresenceStatus, PresenceStatusInput } from './gql/graphql';
+import { createPresenceAPI, APIPresenceStatus, type PresenceAPIConfig } from '$lib/api/presence';
+import { PresenceStatus } from '$lib/gql/graphql';
+import { presencePreference, type PresenceMode } from '$lib/state/presencePreference.svelte';
 
-const UpdateMyPresenceDoc = graphql(`
-  mutation UpdateMyPresence($input: UpdateMyPresenceInput!) {
-    updateMyPresence(input: $input)
-  }
-`);
-
-const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes of inactivity → AWAY
-const HIDDEN_DELAY_MS = 10_000; // 10 seconds after tab hidden → AWAY
+const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+const HIDDEN_DELAY_MS = 10_000;
 const NOISY_ACTIVITY_THROTTLE_MS = 1_000;
+const PRESENCE_REFRESH_MS = 30_000;
+const PRESENCE_MODE_STORAGE_KEY = 'chatto.presence.mode';
 
 type ActivityState = 'active' | 'idle' | 'hidden';
 
-// Module-level singleton to prevent duplicate tracking
+export type PresenceReporterConfig = PresenceAPIConfig;
+
+export type PresenceTrackingOptions = {
+	onPauseLiveEvents?: () => void;
+	onResumeLiveEvents?: () => void;
+};
+
 let initialized = false;
+let applyModeFromUI: ((mode: PresenceMode) => void) | null = null;
 
-function presenceInputToStatus(status: PresenceStatusInput): PresenceStatus {
-  switch (status) {
-    case PresenceStatusInput.Online:
-      return PresenceStatus.Online;
-    case PresenceStatusInput.Away:
-      return PresenceStatus.Away;
-    case PresenceStatusInput.DoNotDisturb:
-      return PresenceStatus.DoNotDisturb;
-  }
+function apiStatusToPresenceStatus(status: APIPresenceStatus): PresenceStatus {
+	switch (status) {
+		case APIPresenceStatus.AWAY:
+			return PresenceStatus.Away;
+		case APIPresenceStatus.DO_NOT_DISTURB:
+			return PresenceStatus.DoNotDisturb;
+		default:
+			return PresenceStatus.Online;
+	}
 }
 
-/**
- * Initialize presence tracking. Uses idle detection and page visibility
- * to automatically report ONLINE/AWAY status via the updateMyPresence mutation.
- *
- * Broadcasts presence to all clients returned by getClients (all registered instances).
- *
- * Singleton — multiple calls are safe (subsequent calls are no-ops).
- * Call in the chat layout after the GraphQL client is available.
- */
+function presenceStatusToAPIStatus(status: PresenceStatus): APIPresenceStatus {
+	switch (status) {
+		case PresenceStatus.Away:
+			return APIPresenceStatus.AWAY;
+		case PresenceStatus.DoNotDisturb:
+			return APIPresenceStatus.DO_NOT_DISTURB;
+		default:
+			return APIPresenceStatus.ONLINE;
+	}
+}
+
+function modeToExplicitStatus(mode: PresenceMode): PresenceStatus | null {
+	switch (mode) {
+		case 'away':
+			return PresenceStatus.Away;
+		case 'doNotDisturb':
+			return PresenceStatus.DoNotDisturb;
+		case 'invisible':
+			return PresenceStatus.Offline;
+		default:
+			return null;
+	}
+}
+
+function readStoredMode(): PresenceMode {
+	if (typeof localStorage === 'undefined') return 'auto';
+	const stored = localStorage.getItem(PRESENCE_MODE_STORAGE_KEY);
+	if (
+		stored === 'auto' ||
+		stored === 'away' ||
+		stored === 'doNotDisturb' ||
+		stored === 'invisible'
+	) {
+		return stored;
+	}
+	return 'auto';
+}
+
+export function shouldPauseLiveEventsForStoredPresence(): boolean {
+	return readStoredMode() === 'invisible';
+}
+
+function storeMode(mode: PresenceMode) {
+	if (typeof localStorage === 'undefined') return;
+	localStorage.setItem(PRESENCE_MODE_STORAGE_KEY, mode);
+}
+
+export function setPresenceMode(mode: PresenceMode) {
+	storeMode(mode);
+	presencePreference.mode = mode;
+	applyModeFromUI?.(mode);
+}
+
 export function initPresenceTracking(
-  getClients: () => Client[],
-  onStatusChange?: (status: PresenceStatus) => void
+	getReporters: () => PresenceReporterConfig[],
+	onStatusChange?: (status: PresenceStatus) => void,
+	options: PresenceTrackingOptions = {}
 ): () => void {
-  if (initialized) return () => {};
-  initialized = true;
+	if (initialized) return () => {};
+	initialized = true;
 
-  let currentState: ActivityState = 'active';
-  let idleTimer: ReturnType<typeof setTimeout> | null = null;
-  let hiddenTimer: ReturnType<typeof setTimeout> | null = null;
-  let lastTimerResetAt = 0;
+	let currentMode = readStoredMode();
+	let currentState: ActivityState = document.visibilityState === 'hidden' ? 'hidden' : 'active';
+	let currentVisibleStatus: PresenceStatus | null = null;
+	let idleTimer: ReturnType<typeof setTimeout> | null = null;
+	let hiddenTimer: ReturnType<typeof setTimeout> | null = null;
+	let refreshTimer: ReturnType<typeof setInterval> | null = null;
+	let lastTimerResetAt = 0;
+	let reportRevision = 0;
 
-  function setPresenceStatus(status: PresenceStatusInput) {
-    onStatusChange?.(presenceInputToStatus(status));
-    for (const client of getClients()) {
-      client
-        .mutation(UpdateMyPresenceDoc, { input: { status } })
-        .toPromise()
-        .catch(() => {});
-    }
-  }
+	presencePreference.mode = currentMode;
 
-  function resetIdleTimer() {
-    if (idleTimer) clearTimeout(idleTimer);
-    lastTimerResetAt = Date.now();
-    idleTimer = setTimeout(() => transition('idle'), IDLE_TIMEOUT_MS);
-  }
+	function emitLocalStatus(status: PresenceStatus) {
+		presencePreference.effectiveStatus = status;
+		onStatusChange?.(status);
+	}
 
-  function transition(newState: ActivityState) {
-    if (newState === currentState) return;
-    currentState = newState;
+	function applyAcceptedStatus(accepted: APIPresenceStatus, revision: number) {
+		if (revision !== reportRevision || currentMode === 'invisible') return;
+		const acceptedStatus = apiStatusToPresenceStatus(accepted);
+		currentVisibleStatus = acceptedStatus;
+		if (presencePreference.effectiveStatus !== acceptedStatus) {
+			emitLocalStatus(acceptedStatus);
+		}
+	}
 
-    if (newState === 'active') {
-      setPresenceStatus(PresenceStatusInput.Online);
-      resetIdleTimer();
-    } else {
-      // idle or hidden
-      setPresenceStatus(PresenceStatusInput.Away);
-    }
-  }
+	function sendPresenceReport(status: PresenceStatus, userSelected: boolean, revision: number) {
+		for (const config of getReporters()) {
+			createPresenceAPI(config)
+				.reportPresence(presenceStatusToAPIStatus(status), userSelected)
+				.then((accepted) => applyAcceptedStatus(accepted, revision))
+				.catch(() => {});
+		}
+	}
 
-  function onActivity(noisy = false) {
-    if (currentState !== 'active') {
-      transition('active');
-      return;
-    }
+	function reportStatus(status: PresenceStatus, userSelected = false) {
+		const revision = ++reportRevision;
+		currentVisibleStatus = status;
+		emitLocalStatus(status);
+		sendPresenceReport(status, userSelected, revision);
+	}
 
-    if (!noisy || Date.now() - lastTimerResetAt >= NOISY_ACTIVITY_THROTTLE_MS) {
-      resetIdleTimer();
-    }
-  }
+	function clearRefreshTimer() {
+		if (refreshTimer) {
+			clearInterval(refreshTimer);
+			refreshTimer = null;
+		}
+	}
 
-  function onQuietActivity() {
-    onActivity(false);
-  }
+	function ensureRefreshTimer() {
+		if (refreshTimer) return;
+		refreshTimer = setInterval(() => {
+			if (currentMode === 'invisible' || currentVisibleStatus === null) return;
+			const userSelected = currentMode !== 'auto';
+			sendPresenceReport(currentVisibleStatus, userSelected, ++reportRevision);
+		}, PRESENCE_REFRESH_MS);
+	}
 
-  function onNoisyActivity() {
-    onActivity(true);
-  }
+	function resetIdleTimer() {
+		if (idleTimer) clearTimeout(idleTimer);
+		lastTimerResetAt = Date.now();
+		idleTimer = setTimeout(() => transition('idle'), IDLE_TIMEOUT_MS);
+	}
 
-  const quietActivityEvents = ['pointerdown', 'keydown', 'touchstart'] as const;
-  const noisyActivityEvents = ['pointermove', 'wheel', 'scroll'] as const;
+	function statusForAutoState(state: ActivityState): PresenceStatus {
+		return state === 'active' ? PresenceStatus.Online : PresenceStatus.Away;
+	}
 
-  for (const event of quietActivityEvents) {
-    document.addEventListener(event, onQuietActivity, { passive: true });
-  }
-  for (const event of noisyActivityEvents) {
-    document.addEventListener(event, onNoisyActivity, { passive: true });
-  }
+	function applyMode(mode: PresenceMode, persist = false) {
+		currentMode = mode;
+		presencePreference.mode = mode;
+		if (persist) storeMode(mode);
 
-  // Page visibility change
-  function onVisibilityChange() {
-    if (document.visibilityState === 'hidden') {
-      // Brief delay before reporting AWAY — handles quick tab switches
-      hiddenTimer = setTimeout(() => transition('hidden'), HIDDEN_DELAY_MS);
-    } else {
-      if (hiddenTimer) {
-        clearTimeout(hiddenTimer);
-        hiddenTimer = null;
-      }
-      transition('active');
-    }
-  }
+		if (mode === 'invisible') {
+			clearRefreshTimer();
+			reportRevision++;
+			currentVisibleStatus = null;
+			emitLocalStatus(PresenceStatus.Offline);
+			options.onPauseLiveEvents?.();
+			return;
+		}
 
-  document.addEventListener('visibilitychange', onVisibilityChange);
-  window.addEventListener('focus', onQuietActivity);
+		options.onResumeLiveEvents?.();
+		if (mode === 'auto') {
+			currentState = document.visibilityState === 'hidden' ? 'hidden' : 'active';
+			reportStatus(statusForAutoState(currentState), persist);
+			ensureRefreshTimer();
+			resetIdleTimer();
+			return;
+		}
 
-  // Start idle timer
-  resetIdleTimer();
+		const explicitStatus = modeToExplicitStatus(mode);
+		reportStatus(explicitStatus ?? statusForAutoState(currentState), true);
+		ensureRefreshTimer();
+	}
 
-  return () => {
-    for (const event of quietActivityEvents) {
-      document.removeEventListener(event, onQuietActivity);
-    }
-    for (const event of noisyActivityEvents) {
-      document.removeEventListener(event, onNoisyActivity);
-    }
-    document.removeEventListener('visibilitychange', onVisibilityChange);
-    window.removeEventListener('focus', onQuietActivity);
-    if (idleTimer) clearTimeout(idleTimer);
-    if (hiddenTimer) clearTimeout(hiddenTimer);
-    initialized = false;
-  };
+	applyModeFromUI = (mode) => applyMode(mode, true);
+
+	function transition(newState: ActivityState) {
+		if (newState === currentState) return;
+		currentState = newState;
+		if (currentMode !== 'auto') return;
+		reportStatus(statusForAutoState(newState));
+		if (newState === 'active') resetIdleTimer();
+	}
+
+	function onActivity(noisy = false) {
+		if (currentMode !== 'auto') return;
+
+		if (currentState !== 'active') {
+			transition('active');
+			return;
+		}
+
+		if (!noisy || Date.now() - lastTimerResetAt >= NOISY_ACTIVITY_THROTTLE_MS) {
+			resetIdleTimer();
+		}
+	}
+
+	function onQuietActivity() {
+		onActivity(false);
+	}
+
+	function onNoisyActivity() {
+		onActivity(true);
+	}
+
+	const quietActivityEvents = ['pointerdown', 'keydown', 'touchstart'] as const;
+	const noisyActivityEvents = ['pointermove', 'wheel', 'scroll'] as const;
+
+	for (const event of quietActivityEvents) {
+		document.addEventListener(event, onQuietActivity, { passive: true });
+	}
+	for (const event of noisyActivityEvents) {
+		document.addEventListener(event, onNoisyActivity, { passive: true });
+	}
+
+	function onVisibilityChange() {
+		if (document.visibilityState === 'hidden') {
+			hiddenTimer = setTimeout(() => transition('hidden'), HIDDEN_DELAY_MS);
+		} else {
+			if (hiddenTimer) {
+				clearTimeout(hiddenTimer);
+				hiddenTimer = null;
+			}
+			transition('active');
+		}
+	}
+
+	function onStorage(event: StorageEvent) {
+		if (event.key !== PRESENCE_MODE_STORAGE_KEY || event.newValue === null) return;
+		if (
+			event.newValue === 'auto' ||
+			event.newValue === 'away' ||
+			event.newValue === 'doNotDisturb' ||
+			event.newValue === 'invisible'
+		) {
+			applyMode(event.newValue);
+		}
+	}
+
+	document.addEventListener('visibilitychange', onVisibilityChange);
+	window.addEventListener('focus', onQuietActivity);
+	window.addEventListener('storage', onStorage);
+
+	resetIdleTimer();
+	applyMode(currentMode);
+
+	return () => {
+		for (const event of quietActivityEvents) {
+			document.removeEventListener(event, onQuietActivity);
+		}
+		for (const event of noisyActivityEvents) {
+			document.removeEventListener(event, onNoisyActivity);
+		}
+		document.removeEventListener('visibilitychange', onVisibilityChange);
+		window.removeEventListener('focus', onQuietActivity);
+		window.removeEventListener('storage', onStorage);
+		if (idleTimer) clearTimeout(idleTimer);
+		if (hiddenTimer) clearTimeout(hiddenTimer);
+		clearRefreshTimer();
+		if (applyModeFromUI) applyModeFromUI = null;
+		initialized = false;
+	};
 }
+
+export const __presenceTrackingTest = {
+	PRESENCE_MODE_STORAGE_KEY,
+	apiStatusToPresenceStatus
+};

@@ -2,6 +2,7 @@
   import type { Snippet } from 'svelte';
   import type { CurrentUser } from '$lib/auth/loadAuth';
   import NotificationSync from '$lib/components/NotificationSync.svelte';
+  import { shouldPauseLiveEventsForStoredPresence } from '$lib/presenceTracking';
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
   import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
   import { eventBusManager } from '$lib/state/server/eventBus.svelte';
@@ -24,13 +25,15 @@
   const presenceCache = createPresenceCache();
 
   function startAuthenticatedBuses() {
+    if (shouldPauseLiveEventsForStoredPresence()) {
+      eventBusManager.pauseAll();
+      return;
+    }
+
     for (const server of serverRegistry.servers) {
       const store = serverRegistry.tryGetStore(server.id);
       if (store?.isAuthenticated) {
-        eventBusManager.startBus(
-          server.id,
-          graphqlClientManager.getClient(server.id)
-        );
+        eventBusManager.startBus(server.id, graphqlClientManager.getClient(server.id));
       }
     }
   }
@@ -46,11 +49,6 @@
 
 <NotificationSync />
 
-<AuthenticatedChatProvider
-  {user}
-  {userSettings}
-  {profileCache}
-  {presenceCache}
->
+<AuthenticatedChatProvider {user} {userSettings} {profileCache} {presenceCache}>
   {@render children()}
 </AuthenticatedChatProvider>

@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"google.golang.org/protobuf/proto"
+
 	"hmans.de/chatto/internal/core/subjects"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -814,6 +816,62 @@ func TestDMNotifications(t *testing.T) {
 			// Success - notification received
 		case <-time.After(2 * time.Second):
 			t.Error("Expected to receive DM notification for user2")
+		}
+	})
+
+	t.Run("DM message creates silent notification for do not disturb participants", func(t *testing.T) {
+		if err := core.SetPresence(ctx, user2.Id, PresenceStatusDoNotDisturb); err != nil {
+			t.Fatalf("SetPresence DND: %v", err)
+		}
+		before, err := core.GetNotifications(ctx, user2.Id)
+		if err != nil {
+			t.Fatalf("GetNotifications before DND DM: %v", err)
+		}
+
+		sub, err := nc.SubscribeSync(subjects.LiveSyncUserEvent(user2.Id, "notification_created"))
+		if err != nil {
+			t.Fatalf("Failed to subscribe: %v", err)
+		}
+		defer sub.Unsubscribe()
+		dmSub, err := nc.SubscribeSync(subjects.LiveSyncUserEvent(user2.Id, "dm_message"))
+		if err != nil {
+			t.Fatalf("Failed to subscribe to dm_message: %v", err)
+		}
+		defer dmSub.Unsubscribe()
+		if err := nc.Flush(); err != nil {
+			t.Fatalf("Flush subscription: %v", err)
+		}
+
+		_, err = core.PostMessage(ctx, KindDM, room.Id, user1.Id, "DND DM notification message", nil, "", "", nil, false)
+		if err != nil {
+			t.Fatalf("Failed to post DND message: %v", err)
+		}
+
+		msg, err := sub.NextMsg(2 * time.Second)
+		if err != nil {
+			t.Fatalf("waiting for DND notification_created live event: %v", err)
+		}
+		var live corev1.LiveEvent
+		if err := proto.Unmarshal(msg.Data, &live); err != nil {
+			t.Fatalf("unmarshal live event: %v", err)
+		}
+		event := live.GetNotificationCreated()
+		if event == nil {
+			t.Fatalf("expected NotificationCreatedEvent, got %T", live.Event)
+		}
+		if !event.Silent {
+			t.Fatal("NotificationCreatedEvent.Silent = false, want true")
+		}
+		if _, err := dmSub.NextMsg(200 * time.Millisecond); err == nil {
+			t.Fatal("expected no legacy live DM notification while DND")
+		}
+
+		after, err := core.GetNotifications(ctx, user2.Id)
+		if err != nil {
+			t.Fatalf("GetNotifications after DND DM: %v", err)
+		}
+		if len(after) != len(before)+1 {
+			t.Fatalf("notifications after DND DM = %d, want %d", len(after), len(before)+1)
 		}
 	})
 

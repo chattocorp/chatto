@@ -66,6 +66,7 @@ describe('eventBusManager subscription robustness', () => {
 	});
 
 	afterEach(() => {
+		eventBusManager.resumeAll();
 		eventBusManager.stopBus(TEST_SERVER);
 		consoleError.mockRestore();
 		consoleWarn.mockRestore();
@@ -266,6 +267,24 @@ describe('eventBusManager subscription robustness', () => {
 		// onEnd → resubscribe without the guard. With the guard, no new
 		// subscription is started.
 		expect(fake.subscribeCalls).toBe(1);
+	});
+
+	it('pauseAll stops active buses and blocks later startBus calls until resumeAll', () => {
+		const fake = new FakeGqlClient();
+		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
+		expect(fake.subscribeCalls).toBe(1);
+
+		eventBusManager.pauseAll();
+		expect(eventBusManager.getBus(TEST_SERVER)).toBeUndefined();
+
+		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
+		expect(fake.subscribeCalls).toBe(1);
+		expect(eventBusManager.getBus(TEST_SERVER)).toBeUndefined();
+
+		eventBusManager.resumeAll();
+		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
+		expect(fake.subscribeCalls).toBe(2);
+		expect(eventBusManager.getBus(TEST_SERVER)).toBeDefined();
 	});
 
 });

@@ -404,7 +404,7 @@ unknown instance) the component renders nothing.
           {/if}
           <div class="flex min-w-0 items-center gap-2">
             {#if preview.actor}
-              <UserAvatar user={preview.actor} size="xs" showPresence={false} />
+              <UserAvatar user={preview.actor} size="xs" />
               <span class="truncate text-sm font-medium">{displayName}</span>
             {:else}
               <span class="truncate text-sm font-medium text-muted">

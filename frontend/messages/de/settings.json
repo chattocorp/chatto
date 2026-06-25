@@ -48,6 +48,8 @@
       },
       "status": {
         "title": "Eigener Status",
+        "dialog_title": "Status setzen",
+        "set_custom_status": "Eigenen Status setzen",
         "edit_button": "Status bearbeiten",
         "emoji": {
           "label": "Status-Emoji",
@@ -61,8 +63,20 @@
         "expires_at": {
           "label": "Automatisch löschen am"
         },
+        "expiry": {
+          "today": "Heute",
+          "thirty_minutes": "30 Minuten",
+          "one_hour": "1 Stunde",
+          "four_hours": "4 Stunden",
+          "tomorrow": "Morgen",
+          "never": "Nicht löschen",
+          "custom": "Benutzerdefiniert",
+          "custom_date": "Eigene Löschzeit"
+        },
+        "suggestions": "Vorschläge",
         "template": {
           "label": "Vorlage",
+          "none": "Kein Status",
           "out_for_lunch": "Mittagspause",
           "vacation": "Im Urlaub",
           "sick": "Krank",
@@ -76,6 +90,14 @@
         "clear_failed": "Status konnte nicht gelöscht werden",
         "save_button": "Status speichern",
         "clear_button": "Status löschen"
+      },
+      "presence": {
+        "button": "Präsenz: {status}",
+        "title": "Präsenz",
+        "auto": "Online",
+        "away": "Abwesend",
+        "do_not_disturb": "Nicht stören",
+        "invisible": "Offline anzeigen"
       },
       "saved": "Profil erfolgreich aktualisiert",
       "save_failed": "Profil konnte nicht gespeichert werden",

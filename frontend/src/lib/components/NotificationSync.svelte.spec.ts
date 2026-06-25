@@ -124,13 +124,31 @@ describe('NotificationSync', () => {
       notificationId: 'n1',
       roomId: 'room-1',
       eventId: 'event-1',
-      inReplyToId: null
+      inReplyToId: null,
+      silent: false
     });
 
     expect(mocks.store.notifications.addNotification).toHaveBeenCalledOnce();
     expect(mocks.store.rooms.refreshNotificationCounts).toHaveBeenCalledOnce();
     expect(mocks.store.rooms.incrementUnreadNotification).not.toHaveBeenCalled();
     expect(mocks.playNotificationSound).toHaveBeenCalledOnce();
+  });
+
+  it('reconciles silent notification creation without playing a sound', async () => {
+    await renderAndWaitForSubscription();
+
+    dispatch({
+      __typename: 'NotificationCreatedEvent',
+      notificationId: 'n1',
+      roomId: 'room-1',
+      eventId: 'event-1',
+      inReplyToId: null,
+      silent: true
+    });
+
+    expect(mocks.store.notifications.addNotification).toHaveBeenCalledOnce();
+    expect(mocks.store.rooms.refreshNotificationCounts).toHaveBeenCalledOnce();
+    expect(mocks.playNotificationSound).not.toHaveBeenCalled();
   });
 
   it('reconciles counts when a cached notification is dismissed elsewhere', async () => {

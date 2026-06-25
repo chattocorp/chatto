@@ -648,7 +648,6 @@
             <UserAvatar
               user={actor}
               size="md"
-              showPresence={false}
               class="!h-11 !w-11 shadow-md ring-1 ring-surface-200/30"
             />
           </button>
@@ -725,7 +724,7 @@
                   showPopoverForReplyAuthor(e);
                 }}
               >
-                <UserAvatar user={replyPreview.actor} size="xs" showPresence={false} />
+                <UserAvatar user={replyPreview.actor} size="xs" />
                 <strong class="font-medium">{replyPreview.name}</strong>
                 {@render callPresenceIcon(replyCallPresence)}
               </button>

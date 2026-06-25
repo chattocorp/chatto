@@ -48,6 +48,8 @@
       },
       "status": {
         "title": "Custom Status",
+        "dialog_title": "Set a status",
+        "set_custom_status": "Set custom status",
         "edit_button": "Edit status",
         "emoji": {
           "label": "Status emoji",
@@ -61,8 +63,20 @@
         "expires_at": {
           "label": "Clear automatically at"
         },
+        "expiry": {
+          "today": "Today",
+          "thirty_minutes": "30 minutes",
+          "one_hour": "1 hour",
+          "four_hours": "4 hours",
+          "tomorrow": "Tomorrow",
+          "never": "Don't clear",
+          "custom": "Custom",
+          "custom_date": "Custom clear time"
+        },
+        "suggestions": "Suggestions",
         "template": {
           "label": "Template",
+          "none": "No status",
           "out_for_lunch": "Out for lunch",
           "vacation": "Vacation",
           "sick": "Sick",
@@ -76,6 +90,14 @@
         "clear_failed": "Failed to clear status",
         "save_button": "Save Status",
         "clear_button": "Clear Status"
+      },
+      "presence": {
+        "button": "Presence: {status}",
+        "title": "Presence",
+        "auto": "Online",
+        "away": "Away",
+        "do_not_disturb": "Do Not Disturb",
+        "invisible": "Look offline"
       },
       "saved": "Profile updated successfully",
       "save_failed": "Failed to save profile",

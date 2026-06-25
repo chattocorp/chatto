@@ -139,6 +139,13 @@ export class RoomPage {
   }
 
   /**
+   * Get the inner colored presence dot for a member avatar.
+   */
+  getMemberPresenceDot(name: string): Locator {
+    return this.getMember(name).locator('span[aria-label] > span.rounded-full');
+  }
+
+  /**
    * Wait for the message input (TipTap editor) to be editable.
    * TipTap starts with contenteditable="false" and switches to "true" once initialized.
    */

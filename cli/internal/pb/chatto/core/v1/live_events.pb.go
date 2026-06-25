@@ -848,9 +848,12 @@ type NotificationCreatedEvent struct {
 	// The notification ID
 	NotificationId string `protobuf:"bytes,1,opt,name=notification_id,json=notificationId,proto3" json:"notification_id,omitempty"`
 	// Navigation context (optional fields for routing)
-	RoomId        string `protobuf:"bytes,3,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	EventId       string `protobuf:"bytes,4,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
-	InReplyToId   string `protobuf:"bytes,5,opt,name=in_reply_to_id,json=inReplyToId,proto3" json:"in_reply_to_id,omitempty"`
+	RoomId      string `protobuf:"bytes,3,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	EventId     string `protobuf:"bytes,4,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	InReplyToId string `protobuf:"bytes,5,opt,name=in_reply_to_id,json=inReplyToId,proto3" json:"in_reply_to_id,omitempty"`
+	// True when clients should update notification state without playing a local
+	// alert sound. Used for Do Not Disturb delivery.
+	Silent        bool `protobuf:"varint,6,opt,name=silent,proto3" json:"silent,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -911,6 +914,13 @@ func (x *NotificationCreatedEvent) GetInReplyToId() string {
 		return x.InReplyToId
 	}
 	return ""
+}
+
+func (x *NotificationCreatedEvent) GetSilent() bool {
+	if x != nil {
+		return x.Silent
+	}
+	return false
 }
 
 // Published when a notification is dismissed by the user.
@@ -1267,12 +1277,13 @@ const file_chatto_core_v1_live_events_proto_rawDesc = "" +
 	"\x14mentioned_by_user_id\x18\x03 \x01(\tR\x11mentionedByUserIdJ\x04\b\x01\x10\x02R\bspace_id\"Y\n" +
 	"!NewDirectMessageNotificationEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x1b\n" +
-	"\tsender_id\x18\x02 \x01(\tR\bsenderId\"\xac\x01\n" +
+	"\tsender_id\x18\x02 \x01(\tR\bsenderId\"\xc4\x01\n" +
 	"\x18NotificationCreatedEvent\x12'\n" +
 	"\x0fnotification_id\x18\x01 \x01(\tR\x0enotificationId\x12\x17\n" +
 	"\aroom_id\x18\x03 \x01(\tR\x06roomId\x12\x19\n" +
 	"\bevent_id\x18\x04 \x01(\tR\aeventId\x12#\n" +
-	"\x0ein_reply_to_id\x18\x05 \x01(\tR\vinReplyToIdJ\x04\b\x02\x10\x03R\bspace_id\"E\n" +
+	"\x0ein_reply_to_id\x18\x05 \x01(\tR\vinReplyToId\x12\x16\n" +
+	"\x06silent\x18\x06 \x01(\bR\x06silentJ\x04\b\x02\x10\x03R\bspace_id\"E\n" +
 	"\x1aNotificationDismissedEvent\x12'\n" +
 	"\x0fnotification_id\x18\x01 \x01(\tR\x0enotificationId\"\x97\x01\n" +
 	"\x18ThreadFollowChangedEvent\x12\x17\n" +

@@ -52,7 +52,7 @@
     <!-- Avatar column (w-11 matches MessageEvent avatar width) -->
     <div class="flex w-11 shrink-0 items-center justify-center">
       {#if subject.user}
-        <UserAvatar user={subject.user} size="xs" showPresence={false} />
+        <UserAvatar user={subject.user} size="xs" />
       {:else}
         <!-- Deleted user placeholder -->
         <div

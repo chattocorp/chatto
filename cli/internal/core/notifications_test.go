@@ -157,6 +157,78 @@ func TestCreateNotification(t *testing.T) {
 		if event.EventId != "all-messages-event" {
 			t.Errorf("EventId = %q, want all-messages-event", event.EventId)
 		}
+		if event.Silent {
+			t.Fatal("NotificationCreatedEvent.Silent = true, want false")
+		}
+	})
+
+	t.Run("creates silent notifications for do not disturb recipients", func(t *testing.T) {
+		dndRecipientID := "dnd-recipient-user"
+		if err := core.SetPresence(ctx, dndRecipientID, PresenceStatusDoNotDisturb); err != nil {
+			t.Fatalf("SetPresence: %v", err)
+		}
+		pushCalls := make(chan *corev1.Notification, 1)
+		core.OnNotificationCreated = func(ctx context.Context, notification *corev1.Notification) {
+			pushCalls <- notification
+		}
+		t.Cleanup(func() {
+			core.OnNotificationCreated = nil
+		})
+
+		subject := subjects.LiveSyncUserEvent(dndRecipientID, "notification_created")
+		sub, err := nc.SubscribeSync(subject)
+		if err != nil {
+			t.Fatalf("SubscribeSync(%s): %v", subject, err)
+		}
+		defer sub.Unsubscribe()
+		if err := nc.Flush(); err != nil {
+			t.Fatalf("Flush subscription: %v", err)
+		}
+
+		created, err := core.CreateNotification(ctx, dndRecipientID, actorID, &corev1.Notification{
+			Notification: &corev1.Notification_Mention{
+				Mention: &corev1.MentionNotification{
+					RoomId:  "dnd-room",
+					EventId: "dnd-event",
+				},
+			},
+		})
+		if err != nil {
+			t.Fatalf("CreateNotification error: %v", err)
+		}
+		if created == nil {
+			t.Fatal("created notification = nil, want stored silent notification")
+		}
+
+		notifs, err := core.GetNotifications(ctx, dndRecipientID)
+		if err != nil {
+			t.Fatalf("GetNotifications: %v", err)
+		}
+		if len(notifs) != 1 {
+			t.Fatalf("notifications = %d, want 1", len(notifs))
+		}
+
+		msg, err := sub.NextMsg(2 * time.Second)
+		if err != nil {
+			t.Fatalf("waiting for notification_created live event: %v", err)
+		}
+		var live corev1.LiveEvent
+		if err := proto.Unmarshal(msg.Data, &live); err != nil {
+			t.Fatalf("unmarshal live event: %v", err)
+		}
+		event := live.GetNotificationCreated()
+		if event == nil {
+			t.Fatalf("expected NotificationCreatedEvent, got %T", live.Event)
+		}
+		if !event.Silent {
+			t.Fatal("NotificationCreatedEvent.Silent = false, want true")
+		}
+
+		select {
+		case notification := <-pushCalls:
+			t.Fatalf("push callback called with %+v, want no push for DND", notification)
+		case <-time.After(50 * time.Millisecond):
+		}
 	})
 }
 

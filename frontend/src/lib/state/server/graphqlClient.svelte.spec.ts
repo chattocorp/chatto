@@ -166,17 +166,21 @@ describe('GraphQLClient', () => {
 		new GraphQLClient(
 			makeConfig({ url: 'https://remote.example.com/api/graphql', token: 'my-token' })
 		);
-		expect(createWSClient).toHaveBeenCalledWith(
-			expect.objectContaining({
-				connectionParams: expect.any(Function)
-			})
-		);
+		const wsCall = vi.mocked(createWSClient).mock.calls[0][0];
+		expect(wsCall.connectionParams).toEqual(expect.any(Function));
+		expect((wsCall.connectionParams as () => Record<string, unknown>)()).toEqual({
+			token: 'my-token',
+			presenceReporting: 'connect'
+		});
 	});
 
-	it('does not set connectionParams when token is null', () => {
+	it('sets Connect presence reporting connectionParams when token is null', () => {
 		new GraphQLClient(makeConfig({ token: null }));
 		const wsCall = vi.mocked(createWSClient).mock.calls[0][0];
-		expect(wsCall.connectionParams).toBeUndefined();
+		expect(wsCall.connectionParams).toEqual(expect.any(Function));
+		expect((wsCall.connectionParams as () => Record<string, unknown>)()).toEqual({
+			presenceReporting: 'connect'
+		});
 	});
 
 	it('starts with status "connecting"', () => {

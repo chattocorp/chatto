@@ -290,7 +290,7 @@ Room sidebar panel for voice/video calls.
       onclick={(e) => showUserMenu(participant, e)}
     >
       <div class="flex min-w-0 items-center gap-2 p-2">
-        <UserAvatar user={participant.avatarUser} size="sm" showPresence={false} />
+        <UserAvatar user={participant.avatarUser} size="sm" />
         <span class="min-w-0 flex-1 truncate text-sm font-medium">{participant.displayName}</span>
         <span class="inline-flex h-5 min-w-5 shrink-0 items-center justify-end gap-1.5 text-sm">
           <span
@@ -341,7 +341,7 @@ Room sidebar panel for voice/video calls.
       onclick={(e) => showUserMenu(participant, e)}
     >
       <div class="flex min-w-0 items-center gap-2 p-2">
-        <UserAvatar user={participant.avatarUser} size="sm" showPresence={false} />
+        <UserAvatar user={participant.avatarUser} size="sm" />
         <span class="min-w-0 flex-1 truncate text-sm font-medium">{participant.displayName}</span>
       </div>
 
@@ -368,7 +368,7 @@ Room sidebar panel for voice/video calls.
     onclick={(e) => showUserMenu(participant, e)}
   >
     <div class="flex min-w-0 items-center gap-2 p-2">
-      <UserAvatar user={participant.avatarUser} size="sm" showPresence={false} />
+      <UserAvatar user={participant.avatarUser} size="sm" />
       <span class="min-w-0 flex-1 truncate text-sm font-medium">
         {m['voice.screen_title']({ name: participant.displayName })}
       </span>

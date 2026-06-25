@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 import { PresenceStatus } from '$lib/gql/graphql';
+import { presencePreference } from '$lib/state/presencePreference.svelte';
 import {
   consumePendingRoomSidebarPanel,
   getRoomSidebarPanelState,
@@ -117,6 +118,8 @@ describe('CurrentUserBar', () => {
       hasVerifiedEmail: true,
       settings: null
     };
+    presencePreference.mode = 'auto';
+    presencePreference.effectiveStatus = PresenceStatus.Online;
     voiceCallState.connected = false;
     voiceCallState.roomId = null;
     voiceCallState.isMuted = false;
@@ -141,13 +144,42 @@ describe('CurrentUserBar', () => {
   it('uses the seeded presence cache instead of the first-login offline fallback', () => {
     const { container } = render(CurrentUserBarTestHarness);
 
-    expect(q(container, '[aria-label="Online"]')).toBeTruthy();
+    expect(q(container, '[aria-label="Presence: Online"]')).toBeTruthy();
     expect(q(container, '[aria-label="Offline"]')).toBeFalsy();
     expect(container.textContent).toContain('Alice');
     expect(container.textContent).toContain('@alice');
   });
 
-  it('shows the custom status emoji as an avatar badge', () => {
+  it('opens the combined presence menu with a custom status action from the avatar status dot', async () => {
+    const { container } = render(CurrentUserBarTestHarness);
+
+    (q(container, '[data-testid="current-user-presence-menu"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain('Do Not Disturb');
+      expect(container.textContent).toContain('Look offline');
+      expect(container.textContent).toContain('Set custom status');
+      expect(q(container, '[data-testid="custom-status-editor"]')).toBeFalsy();
+    });
+    expect(q(container, '[data-testid="current-user-edit-status"]')).toBeFalsy();
+  });
+
+  it('closes the presence menu after choosing a presence mode', async () => {
+    const { container } = render(CurrentUserBarTestHarness);
+
+    (q(container, '[data-testid="current-user-presence-menu"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain('Away');
+    });
+
+    (q(container, '[role="menuitemradio"][aria-checked="false"]') as HTMLButtonElement).click();
+
+    await vi.waitFor(() => {
+      expect(container.textContent).not.toContain('Do Not Disturb');
+    });
+    expect(presencePreference.mode).toBe('away');
+  });
+
+  it('opens the custom status dialog from the status menu', async () => {
     currentUserState.user = {
       ...currentUserState.user!,
       customStatus: {
@@ -159,7 +191,37 @@ describe('CurrentUserBar', () => {
 
     const { container } = render(CurrentUserBarTestHarness);
 
-    expect(q(container, '[aria-label="🍜 Out for lunch"]')).toBeTruthy();
+    (q(container, '[data-testid="current-user-presence-menu"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => {
+      expect(q(container, '[data-testid="current-user-custom-status-action"]')).toBeTruthy();
+    });
+
+    (
+      q(container, '[data-testid="current-user-custom-status-action"]') as HTMLButtonElement
+    ).click();
+
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain('Set a status');
+      expect(container.textContent).toContain('Suggestions');
+      expect(container.textContent).toContain('Clear Status');
+      expect(q(container, '[data-testid="custom-status-editor"]')).toBeTruthy();
+    });
+  });
+
+  it('shows the custom status emoji next to the display name, not on the avatar', () => {
+    currentUserState.user = {
+      ...currentUserState.user!,
+      customStatus: {
+        emoji: '🍜',
+        text: 'chatto:status:out_for_lunch',
+        expiresAt: null
+      }
+    };
+
+    const { container } = render(CurrentUserBarTestHarness);
+
+    expect(container.querySelectorAll('[aria-label="🍜 Out for lunch"]')).toHaveLength(1);
+    expect(q(container, '[data-testid="current-user-identity-card"]')!.textContent).toContain('🍜');
     expect(q(container, '[data-testid="current-user-identity-card"]')!.textContent).not.toContain(
       'Out for lunch'
     );
@@ -196,7 +258,10 @@ describe('CurrentUserBar', () => {
       container,
       '[data-testid="current-user-call-screen-share"]'
     ) as HTMLButtonElement;
-    const leaveButton = q(container, '[data-testid="current-user-call-leave"]') as HTMLButtonElement;
+    const leaveButton = q(
+      container,
+      '[data-testid="current-user-call-leave"]'
+    ) as HTMLButtonElement;
 
     expect(muteButton.className).toContain('btn-success');
     expect(cameraButton.className).toContain('btn-secondary');

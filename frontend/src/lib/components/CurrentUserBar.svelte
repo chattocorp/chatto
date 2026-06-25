@@ -14,15 +14,21 @@ to the user settings page for the active server.
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { getLiveDisplayName, type CustomUserStatus } from '$lib/state/userProfiles.svelte';
-  import { RoomType } from '$lib/gql/graphql';
+  import { setPresenceMode } from '$lib/presenceTracking';
+  import { presencePreference, type PresenceMode } from '$lib/state/presencePreference.svelte';
+  import { PresenceStatus, RoomType } from '$lib/gql/graphql';
   import {
     roomSidebarPanelStorageSuffix,
     setPendingRoomSidebarPanel,
     setRoomSidebarPanel
   } from '$lib/storage/roomSidebarPanel';
   import { serverStorageKey } from '$lib/storage/serverStorage';
+  import { isTouchDevice } from '$lib/utils/isTouchDevice';
+  import BottomSheet from '$lib/ui/BottomSheet.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
+  import Dialog from '$lib/ui/Dialog.svelte';
   import UserAvatar from './UserAvatar.svelte';
+  import UserCustomStatusBadge from './UserCustomStatusBadge.svelte';
   import UserCustomStatusEditor from './UserCustomStatusEditor.svelte';
 
   const connection = useConnection();
@@ -68,7 +74,20 @@ to the user settings page for the active server.
   const compactCallButtonClass = 'btn-secondary h-7 w-7 shrink-0 !px-0 !py-0 text-xs';
   const compactCallActiveButtonClass = 'btn-success h-7 w-7 shrink-0 !px-0 !py-0 text-xs';
   const compactCallDangerButtonClass = 'btn-danger h-7 w-7 shrink-0 !px-0 !py-0 text-xs';
-  let statusEditorAnchor = $state<{ top: number; bottom: number; left: number } | null>(null);
+  const isTouch = isTouchDevice();
+  const presenceModes: PresenceMode[] = ['auto', 'away', 'doNotDisturb', 'invisible'];
+  const presenceLabel = $derived.by(() => presenceModeLabel(presencePreference.mode));
+  const presenceDotClass = $derived(
+    presencePreference.effectiveStatus === PresenceStatus.Online
+      ? 'bg-green-500'
+      : presencePreference.effectiveStatus === PresenceStatus.Away
+        ? 'bg-yellow-500'
+        : presencePreference.effectiveStatus === PresenceStatus.DoNotDisturb
+          ? 'bg-red-500'
+          : 'bg-gray-400'
+  );
+  let statusMenuAnchor = $state<{ top: number; bottom: number; left: number } | null>(null);
+  let customStatusDialogVisible = $state(false);
 
   function customStatusAPIConfig() {
     const conn = connection();
@@ -79,9 +98,45 @@ to the user settings page for the active server.
     };
   }
 
-  function openStatusEditor(event: MouseEvent) {
+  function openStatusMenu(event: MouseEvent) {
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    statusEditorAnchor = { top: rect.top, bottom: rect.bottom, left: rect.left };
+    statusMenuAnchor = { top: rect.top, bottom: rect.bottom, left: rect.left };
+  }
+
+  function presenceModeLabel(mode: PresenceMode): string {
+    switch (mode) {
+      case 'away':
+        return m['settings.profile.presence.away']();
+      case 'doNotDisturb':
+        return m['settings.profile.presence.do_not_disturb']();
+      case 'invisible':
+        return m['settings.profile.presence.invisible']();
+      default:
+        return m['settings.profile.presence.auto']();
+    }
+  }
+
+  function presenceModeDotClass(mode: PresenceMode): string {
+    switch (mode) {
+      case 'away':
+        return 'bg-yellow-500';
+      case 'doNotDisturb':
+        return 'bg-red-500';
+      case 'invisible':
+        return 'bg-gray-400';
+      default:
+        return 'bg-green-500';
+    }
+  }
+
+  function choosePresenceMode(mode: PresenceMode) {
+    setPresenceMode(mode);
+    statusMenuAnchor = null;
+  }
+
+  function openCustomStatusDialog() {
+    statusMenuAnchor = null;
+    customStatusDialogVisible = true;
   }
 
   function updateCurrentCustomStatus(status: CustomUserStatus | null) {
@@ -113,6 +168,18 @@ to the user settings page for the active server.
     );
   }
 </script>
+
+{#snippet customStatusEditor(sheet = false)}
+  {#if activeServerUser}
+    <UserCustomStatusEditor
+      status={activeServerUser.customStatus}
+      config={customStatusAPIConfig()}
+      {sheet}
+      onChange={updateCurrentCustomStatus}
+      onClose={() => (customStatusDialogVisible = false)}
+    />
+  {/if}
+{/snippet}
 
 {#if activeServerUser}
   <div class="flex shrink-0 flex-col gap-1 p-2">
@@ -199,23 +266,31 @@ to the user settings page for the active server.
       class="flex items-center gap-3 rounded-xl bg-surface py-1 pr-3 pl-1"
       data-testid="current-user-identity-card"
     >
-      <UserAvatar user={activeServerUser} size="md" />
+      <button
+        type="button"
+        title={m['settings.profile.presence.button']({ status: presenceLabel })}
+        aria-label={m['settings.profile.presence.button']({ status: presenceLabel })}
+        class="relative shrink-0 cursor-pointer rounded-full"
+        data-testid="current-user-presence-menu"
+        onclick={openStatusMenu}
+      >
+        <UserAvatar user={activeServerUser} size="md" />
+        <span
+          class="absolute right-0 bottom-0 grid h-4 w-4 translate-x-1/4 translate-y-1/4 place-items-center rounded-full border-2 border-surface bg-surface"
+          aria-hidden="true"
+        >
+          <span class={['h-2.5 w-2.5 rounded-full', presenceDotClass]}></span>
+        </span>
+      </button>
       <div class="flex min-w-0 flex-1 flex-col leading-tight">
         <span class="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
           <span class="min-w-0 truncate">{displayName}</span>
+          <UserCustomStatusBadge status={activeServerUser.customStatus} class="text-xs" />
         </span>
         {#if showLogin}
           <span class="truncate text-xs text-muted">@{login}</span>
         {/if}
       </div>
-      <button
-        type="button"
-        title={m['settings.profile.status.edit_button']()}
-        aria-label={m['settings.profile.status.edit_button']()}
-        class="iconify shrink-0 cursor-pointer text-muted uil--pen hover:text-text"
-        data-testid="current-user-edit-status"
-        onclick={openStatusEditor}
-      ></button>
       <a
         href={resolve('/chat/[serverId]/settings', { serverId: serverSegment })}
         title={m['voice.user_settings']()}
@@ -225,20 +300,94 @@ to the user settings page for the active server.
   </div>
 {/if}
 
-{#if statusEditorAnchor && activeServerUser}
+{#if statusMenuAnchor && activeServerUser}
   <ContextMenu
-    anchor={statusEditorAnchor}
+    anchor={statusMenuAnchor}
     role="dialog"
     ariaLabel={m['settings.profile.status.edit_button']()}
-    class="w-auto"
-    onclose={() => (statusEditorAnchor = null)}
+    class="w-80 max-w-[calc(100vw-2rem)]"
+    onclose={() => (statusMenuAnchor = null)}
   >
-    <UserCustomStatusEditor
-      status={activeServerUser.customStatus}
-      config={customStatusAPIConfig()}
-      compact
-      onChange={updateCurrentCustomStatus}
-      onClose={() => (statusEditorAnchor = null)}
-    />
+    <div class="flex w-full flex-col gap-1">
+      <div class="menu-section p-1">
+        <div class="px-2 py-1 text-xs font-semibold text-muted">
+          {m['settings.profile.presence.title']()}
+        </div>
+        {#each presenceModes as mode (mode)}
+          <button
+            type="button"
+            class={[
+              'sidebar-item w-full gap-3 text-left',
+              presencePreference.mode === mode ? 'bg-surface-100' : ''
+            ]}
+            role="menuitemradio"
+            aria-checked={presencePreference.mode === mode}
+            onclick={() => choosePresenceMode(mode)}
+          >
+            <span class="grid w-5 shrink-0 place-items-center" aria-hidden="true">
+              <span class={['h-2.5 w-2.5 rounded-full', presenceModeDotClass(mode)]}></span>
+            </span>
+            <span class="min-w-0 truncate">{presenceModeLabel(mode)}</span>
+            {#if presencePreference.mode === mode}
+              <span class="ml-auto iconify shrink-0 uil--check" aria-hidden="true"></span>
+            {/if}
+          </button>
+        {/each}
+      </div>
+      <div class="menu-section p-1">
+        <button
+          type="button"
+          class="sidebar-item w-full gap-3 text-left"
+          data-testid="current-user-custom-status-action"
+          onclick={openCustomStatusDialog}
+        >
+          <span class="grid w-5 shrink-0 place-items-center" aria-hidden="true">
+            {#if activeServerUser.customStatus}
+              {activeServerUser.customStatus.emoji}
+            {:else}
+              <span class="iconify text-muted uil--comment-alt-edit"></span>
+            {/if}
+          </span>
+          <span class="min-w-0 truncate">
+            {m['settings.profile.status.set_custom_status']()}
+          </span>
+        </button>
+      </div>
+    </div>
   </ContextMenu>
+{/if}
+
+{#if activeServerUser}
+  {#if isTouch}
+    <BottomSheet
+      bind:visible={customStatusDialogVisible}
+      onclose={() => (customStatusDialogVisible = false)}
+    >
+      <div class="flex max-h-[78vh] flex-col gap-2 overflow-y-auto pb-2 text-text">
+        <header class="flex items-center justify-between gap-3 menu-section px-3 py-2">
+          <h2 class="text-base font-semibold text-text">
+            {m['settings.profile.status.dialog_title']()}
+          </h2>
+          <button
+            type="button"
+            onclick={() => (customStatusDialogVisible = false)}
+            class="-m-1 grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded-md text-text/50 transition-colors hover:bg-surface-100 hover:text-text"
+            aria-label={m['ui.close']()}
+          >
+            <span class="iconify text-xl uil--times"></span>
+          </button>
+        </header>
+        {@render customStatusEditor(true)}
+      </div>
+    </BottomSheet>
+  {:else}
+    <Dialog
+      bind:visible={customStatusDialogVisible}
+      title={m['settings.profile.status.dialog_title']()}
+      size="md"
+      onclose={() => (customStatusDialogVisible = false)}
+    >
+      {@render customStatusEditor()}
+    </Dialog>
+  {/if}
 {/if}

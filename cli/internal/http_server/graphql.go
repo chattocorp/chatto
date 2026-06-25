@@ -144,6 +144,12 @@ func (s *HTTPServer) setupGraphQLAPI(allowedOrigins []string) {
 			if user != nil {
 				s.logger.Debug("WebSocket connection authenticated", "userId", user.Id)
 			}
+			usesConnectPresenceReporting := false
+			if raw, ok := initPayload["presenceReporting"]; ok {
+				if mode, ok := raw.(string); ok && mode == "connect" {
+					usesConnectPresenceReporting = true
+				}
+			}
 
 			// Create a fresh context for the WebSocket connection WITHOUT dataloaders.
 			// The HTTP handler at /api/graphql injects dataloaders for the upgrade request,
@@ -157,6 +163,9 @@ func (s *HTTPServer) setupGraphQLAPI(allowedOrigins []string) {
 			newCtx := context.Background()
 			if user != nil {
 				newCtx = auth.WithUser(newCtx, user)
+			}
+			if usesConnectPresenceReporting {
+				newCtx = auth.WithConnectPresenceReporting(newCtx)
 			}
 
 			// Return version in the connection_ack payload so the frontend can

@@ -52,6 +52,8 @@ func (c *ChattoCore) CreateNotification(
 	recipientID, actorID string,
 	notification *corev1.Notification,
 ) (*corev1.Notification, error) {
+	silent := c.suppressesNotificationAlertsForPresence(ctx, recipientID)
+
 	notificationID := NewNotificationID()
 	now := time.Now()
 
@@ -74,20 +76,31 @@ func (c *ChattoCore) CreateNotification(
 	}
 
 	// Publish sync event to recipient for real-time delivery
-	c.publishNotificationCreatedEvent(ctx, notification)
+	c.publishNotificationCreatedEvent(ctx, notification, silent)
 
 	// Call the notification callback for push notifications (if set)
 	// Run asynchronously to avoid blocking notification creation if push is slow
-	if c.OnNotificationCreated != nil {
+	if c.OnNotificationCreated != nil && !silent {
 		go c.OnNotificationCreated(context.WithoutCancel(ctx), notification)
 	}
 
 	c.logger.Debug("Notification created",
 		"notification_id", notificationID,
 		"recipient_id", recipientID,
-		"type", notificationTypeName(notification))
+		"type", notificationTypeName(notification),
+		"silent", silent)
 
 	return notification, nil
+}
+
+func (c *ChattoCore) suppressesNotificationAlertsForPresence(ctx context.Context, userID string) bool {
+	status, err := c.GetUserPresence(ctx, userID)
+	if err != nil {
+		c.logger.Warn("Failed to get presence for notification suppression",
+			"user_id", userID, "error", err)
+		return false
+	}
+	return status == PresenceStatusDoNotDisturb
 }
 
 // GetNotifications returns all notifications for a user, ordered by creation time (newest first).
@@ -296,7 +309,7 @@ func (c *ChattoCore) GetNotificationCount(ctx context.Context, userID string) (i
 // ============================================================================
 
 // publishNotificationCreatedEvent publishes a live event for cross-device sync.
-func (c *ChattoCore) publishNotificationCreatedEvent(ctx context.Context, notif *corev1.Notification) {
+func (c *ChattoCore) publishNotificationCreatedEvent(ctx context.Context, notif *corev1.Notification, silent bool) {
 	// Extract navigation context from the notification payload
 	var roomID, eventID, inReplyToID string
 	switch n := notif.Notification.(type) {
@@ -322,6 +335,7 @@ func (c *ChattoCore) publishNotificationCreatedEvent(ctx context.Context, notif 
 				RoomId:         roomID,
 				EventId:        eventID,
 				InReplyToId:    inReplyToID,
+				Silent:         silent,
 			},
 		},
 	})

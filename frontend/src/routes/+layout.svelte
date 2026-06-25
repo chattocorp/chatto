@@ -12,10 +12,7 @@
   import UpdateNotifier from '$lib/components/UpdateNotifier.svelte';
   import { usePageTitle, usePinchZoomPrevention, useVisualViewport } from '$lib/hooks';
   import { SIDEBAR_PANEL_WIDTH_PX, sidebarSwipe } from '$lib/hooks/useSidebarSwipe.svelte';
-  import {
-    installAssetProxyResyncHandler,
-    syncAssetProxyServers
-  } from '$lib/pwa/assetProxy';
+  import { installAssetProxyResyncHandler, syncAssetProxyServers } from '$lib/pwa/assetProxy';
   import { sidebarNav } from '$lib/state/globals.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useServerRegistry } from '$lib/state/server/useServerRegistry.svelte';
@@ -75,30 +72,6 @@
   const getFullTitle = usePageTitle();
   const fullTitle = $derived(getFullTitle());
 </script>
-
-<style>
-  /*
-    Mobile sidebar animation — slide via transform, plus a delayed visibility
-    swap so the off-screen panel is reported as `visibility: hidden` (not just
-    visually hidden by transform) once the close animation finishes. This
-    matters for accessibility tooling and Playwright's `toBeVisible()`.
-
-    Open  → transform animates 200ms, visibility flips to `visible` immediately.
-    Close → transform animates 200ms, visibility flips to `hidden` AFTER 200ms.
-  */
-  @media (max-width: 767px) {
-    :global(.sidebar-mobile-anim) {
-      transition:
-        transform 200ms ease-out,
-        visibility 0s linear 200ms;
-    }
-    :global(.sidebar-mobile-anim:not(.invisible)) {
-      transition:
-        transform 200ms ease-out,
-        visibility 0s linear 0s;
-    }
-  }
-</style>
 
 <GlobalKeyboardShortcuts />
 <IdleTracker />
@@ -188,3 +161,27 @@
 {/if}
 
 <ToastContainer />
+
+<style>
+  /*
+    Mobile sidebar animation — slide via transform, plus a delayed visibility
+    swap so the off-screen panel is reported as `visibility: hidden` (not just
+    visually hidden by transform) once the close animation finishes. This
+    matters for accessibility tooling and Playwright's `toBeVisible()`.
+
+    Open  → transform animates 200ms, visibility flips to `visible` immediately.
+    Close → transform animates 200ms, visibility flips to `hidden` AFTER 200ms.
+  */
+  @media (max-width: 767px) {
+    :global(.sidebar-mobile-anim) {
+      transition:
+        transform 200ms ease-out,
+        visibility 0s linear 200ms;
+    }
+    :global(.sidebar-mobile-anim:not(.invisible)) {
+      transition:
+        transform 200ms ease-out,
+        visibility 0s linear 0s;
+    }
+  }
+</style>

@@ -199,7 +199,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
           {#each threadParticipants.slice(0, 3) as participant, i (i)}
             {@const p = useFragment(UserAvatarFragment, participant)}
             {#if p}
-              <UserAvatar user={p} size="xs" showPresence={false} />
+              <UserAvatar user={p} size="xs" />
             {/if}
           {/each}
         </div>

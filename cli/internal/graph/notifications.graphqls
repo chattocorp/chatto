@@ -129,6 +129,8 @@ type NotificationCreatedEvent {
   eventId: ID @goField(forceResolver: true)
   "Event ID of message being replied to (for reply notifications)"
   inReplyToId: ID @goField(forceResolver: true)
+  "Whether clients should update notification state without playing an alert sound."
+  silent: Boolean!
 }
 
 """
