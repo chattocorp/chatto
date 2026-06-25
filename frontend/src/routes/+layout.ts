@@ -1,17 +1,22 @@
-import { loadCurrentUser, type CurrentUser } from '$lib/auth/loadAuth';
+import { loadCurrentUser } from '$lib/auth/loadAuth';
+import { getPublicServerInfo } from '$lib/api/server';
 import { preloadActiveLocaleMessages } from '$lib/i18n/messages';
 import type { LayoutLoad } from './$types';
 
 // SPA mode - no server-side rendering
 export const ssr = false;
 
-export const load: LayoutLoad = async () => {
+export const load: LayoutLoad = async ({ url }) => {
   await preloadActiveLocaleMessages();
 
-  // loadCurrentUser handles !browser case internally
-  const user = await loadCurrentUser();
-  return { user };
-};
+  const [serverInfo, user] = await Promise.all([
+    getPublicServerInfo(url.origin).catch(() => null),
+    loadCurrentUser()
+  ]);
 
-// Re-export for child routes to use in their types
-export type { CurrentUser };
+  return {
+    serverInfo,
+    serverInfoLoaded: true,
+    user
+  };
+};

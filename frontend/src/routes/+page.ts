@@ -1,8 +1,7 @@
+import { redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 
-export const load: PageLoad = ({ url }) => {
-  // Pass through welcome query param if present.
-  return {
-    welcome: url.searchParams.get('welcome') === 'true'
-  };
+export const load: PageLoad = async ({ parent }) => {
+  const { user } = await parent();
+  redirect(302, user ? '/chat' : '/login');
 };

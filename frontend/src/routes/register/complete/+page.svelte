@@ -1,11 +1,11 @@
 <script lang="ts">
   import { goto, invalidateAll } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { clearCachedUser } from '$lib/auth/loadAuth';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import * as m from '$lib/i18n/messages';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { Divider, Hint } from '$lib/ui';
+  import type { AuthenticatedUserSummary } from '$lib/state/server/registry.svelte';
+  import Divider from '$lib/ui/Divider.svelte';
+  import Hint from '$lib/ui/Hint.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { TextInput, FormError, Button, z, validate } from '$lib/ui/form';
 
@@ -40,6 +40,18 @@
   const canSubmit = $derived(
     token && login && password && confirmPassword && !loginError && !passwordError && !confirmError
   );
+
+  async function authenticateOrigin(
+    token: string,
+    user: AuthenticatedUserSummary | null
+  ): Promise<void> {
+    const [{ serverRegistry }, { clearCachedUser }] = await Promise.all([
+      import('$lib/state/server/registry.svelte'),
+      import('$lib/auth/loadAuth')
+    ]);
+    serverRegistry.authenticateOrigin(token, user);
+    clearCachedUser();
+  }
 
   async function handleSubmit(e: Event) {
     e.preventDefault();
@@ -76,10 +88,7 @@
         return;
       }
 
-      serverRegistry.authenticateOrigin(data.token, data.user ?? null);
-
-      // Clear auth cache and invalidate to force load functions to refetch
-      clearCachedUser();
+      await authenticateOrigin(data.token, data.user ?? null);
       await invalidateAll();
 
       // Check for a return URL (saved when redirected from a protected route)

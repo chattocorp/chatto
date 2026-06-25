@@ -4,78 +4,37 @@
   import * as m from '$lib/i18n/messages';
   import { onNotificationClick } from '$lib/notifications/pushNotifications';
   import ServerGutter from '$lib/ServerGutter.svelte';
+  import { setAuthServerInfo } from '$lib/components/authServerInfo';
   import ConnectionIndicator from '$lib/components/ConnectionIndicator.svelte';
   import ConnectionProvider from '$lib/components/ConnectionProvider.svelte';
   import GlobalKeyboardShortcuts from '$lib/components/GlobalKeyboardShortcuts.svelte';
   import IdleTracker from '$lib/components/IdleTracker.svelte';
-  import NotificationSync from '$lib/components/NotificationSync.svelte';
   import UpdateNotifier from '$lib/components/UpdateNotifier.svelte';
-  import FullscreenVideoOverlay from '$lib/components/chat/FullscreenVideoOverlay.svelte';
   import { usePageTitle, usePinchZoomPrevention, useVisualViewport } from '$lib/hooks';
+  import { SIDEBAR_PANEL_WIDTH_PX, sidebarSwipe } from '$lib/hooks/useSidebarSwipe.svelte';
   import {
     installAssetProxyResyncHandler,
     syncAssetProxyServers
   } from '$lib/pwa/assetProxy';
-  import { SIDEBAR_PANEL_WIDTH_PX, sidebarSwipe } from '$lib/hooks/useSidebarSwipe.svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useServerRegistry } from '$lib/state/server/useServerRegistry.svelte';
-  import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
-  import { eventBusManager } from '$lib/state/server/eventBus.svelte';
-  import { createPresenceCache } from '$lib/state/presenceCache.svelte';
-  import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
-  import { UserSettingsState, setUserSettings } from '$lib/state/userSettings.svelte';
-  import { AppHeader, Frame } from '$lib/ui';
   import { ToastContainer } from '$lib/ui/toast';
+  import { AppHeader, Frame } from '$lib/ui';
   import '../app.css';
-  import AuthenticatedChatProvider from './chat/AuthenticatedChatProvider.svelte';
-  import ModalContainer from './chat/ModalContainer.svelte';
 
   let { data, children } = $props();
+  let modalContainerModule: Promise<typeof import('./chat/ModalContainer.svelte')> | null = null;
 
-  // Global initialization
+  function loadModalContainer() {
+    modalContainerModule ??= import('./chat/ModalContainer.svelte');
+    return modalContainerModule;
+  }
+
+  setAuthServerInfo(() => data.serverInfo);
   useServerRegistry(() => data.user);
   useVisualViewport();
   usePinchZoomPrevention();
-
-  const userSettings = new UserSettingsState();
-  setUserSettings(userSettings);
-
-  const profileCache = createUserProfileCache();
-  const presenceCache = createPresenceCache();
-
-  // Start event buses for every authenticated instance (origin or remote).
-  // startBus is idempotent; cleanup is handled by removeServer.
-  //
-  // We do this synchronously during script init AND in a $effect, because
-  // child route layouts (e.g. /chat/[serverId]/+layout.svelte) call
-  // `provideEventBus(serverId)` at their own script init time —
-  // which runs after THIS script but before any $effect on this component.
-  // Without the sync pass, the bus isn't available when those children try
-  // to expose it via Svelte context, and any descendant calling
-  // `useEvent` ends up subscribing to nothing (real-time updates
-  // for cross-instance unread tracking get silently dropped).
-  for (const server of serverRegistry.servers) {
-    const store = serverRegistry.tryGetStore(server.id);
-    if (store?.isAuthenticated) {
-      eventBusManager.startBus(
-        server.id,
-        graphqlClientManager.getClient(server.id)
-      );
-    }
-  }
-  $effect(() => {
-    for (const server of serverRegistry.servers) {
-      const store = serverRegistry.tryGetStore(server.id);
-      if (store?.isAuthenticated) {
-        // startBus is idempotent — no-op if already started above.
-        eventBusManager.startBus(
-          server.id,
-          graphqlClientManager.getClient(server.id)
-        );
-      }
-    }
-  });
 
   $effect(() => {
     if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) {
@@ -108,18 +67,13 @@
     })
   );
 
-  // Sidebar
   $effect(() => sidebarNav.initViewportTracking());
   afterNavigate(() => {
     if (sidebarNav.isMobile) sidebarNav.close();
   });
 
-  // Page title
   const getFullTitle = usePageTitle();
   const fullTitle = $derived(getFullTitle());
-
-  // Route detection
-  const isSetupRoute = $derived(page.url.pathname.startsWith('/setup'));
 </script>
 
 <style>
@@ -149,34 +103,14 @@
 <GlobalKeyboardShortcuts />
 <IdleTracker />
 <UpdateNotifier />
-<NotificationSync />
 
 <svelte:head>
   <title>{fullTitle}</title>
 </svelte:head>
 
-{#if isSetupRoute}
-  <div class="flex h-full flex-col overscroll-y-contain pt-[env(safe-area-inset-top,0px)]">
-    {@render children?.()}
-  </div>
-{:else}
-  <ConnectionProvider>
-    {#if data.user && serverRegistry.originServer}
-      {#key data.user.id}
-        <AuthenticatedChatProvider
-          user={data.user}
-          {userSettings}
-          {profileCache}
-          {presenceCache}
-        >
-          {@render frame()}
-        </AuthenticatedChatProvider>
-      {/key}
-    {:else}
-      {@render frame()}
-    {/if}
-  </ConnectionProvider>
-{/if}
+<ConnectionProvider>
+  {@render frame()}
+</ConnectionProvider>
 
 {#snippet frame()}
   {@const progress = sidebarNav.isMobile ? sidebarNav.progress : 1}
@@ -245,9 +179,12 @@
       </div>
     </Frame>
   </div>
-
-  <ModalContainer />
-  <FullscreenVideoOverlay />
 {/snippet}
+
+{#if page.state.modal}
+  {#await loadModalContainer() then { default: ModalContainer }}
+    <ModalContainer />
+  {/await}
+{/if}
 
 <ToastContainer />
