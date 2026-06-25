@@ -42,7 +42,7 @@ events, or after to page toward newer events.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | Room whose timeline should be loaded. |
+| `room_id` | `string` | Required. Room whose timeline should be loaded. |
 | `limit` | `int32` | Maximum number of events to return. The server may clamp very large limits. |
 | `cursor.before` | `string` | Return events older than this cursor. |
 | `cursor.after` | `string` | Return events newer than this cursor. |
@@ -81,8 +81,8 @@ context around it.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | Room whose timeline should be loaded. |
-| `event_id` | `string` | Anchor event ID that should appear in the returned page. |
+| `room_id` | `string` | Required. Room whose timeline should be loaded. |
+| `event_id` | `string` | Required. Anchor event ID that should appear in the returned page. |
 | `limit` | `int32` | Maximum number of events to return around the anchor. |
 
 
@@ -121,8 +121,8 @@ newer replies without repeating the root message.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | Room containing the thread. |
-| `thread_root_event_id` | `string` | Event ID of the root message for the thread. |
+| `room_id` | `string` | Required. Room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
 | `limit` | `int32` | Maximum number of events to return. The server may clamp very large limits. |
 | `cursor.before` | `string` | Return thread events older than this cursor. |
 | `cursor.after` | `string` | Return thread events newer than this cursor. |
@@ -161,9 +161,9 @@ thread context.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | Room containing the thread. |
-| `thread_root_event_id` | `string` | Event ID of the root message for the thread. |
-| `event_id` | `string` | Anchor event ID inside the thread. The event should belong to the requested thread. |
+| `room_id` | `string` | Required. Room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
+| `event_id` | `string` | Required. Anchor event ID inside the thread. The event should belong to the requested thread. |
 | `limit` | `int32` | Maximum number of events to return around the anchor. |
 
 
@@ -211,7 +211,7 @@ existing room-scoped assets.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | Room where the message should be posted. |
+| `room_id` | `string` | Required. Room where the message should be posted. |
 | `body` | `string` | Message body text. Required unless attachment_asset_ids is non-empty. |
 | `attachment_asset_ids` | `repeated string` | Existing room-scoped attachment asset IDs to include with the message. |
 | `thread_root_event_id` | `string` | Event ID of the thread root message when posting a thread reply. |
@@ -260,7 +260,7 @@ Request for the current user's notification preference in one room.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | Room whose notification preference should be loaded for the current user. |
+| `room_id` | `string` | Required. Room whose notification preference should be loaded for the current user. |
 
 
 <a id="chatto-api-v1-GetRoomNotificationPreferenceResponse"></a>
@@ -297,8 +297,8 @@ Request to update the current user's notification level in one room.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | Room whose notification level should be changed for the current user. |
-| `level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | New explicit notification level. Use NOTIFICATION_LEVEL_DEFAULT to return the room to inherited/default behavior. |
+| `room_id` | `string` | Required. Room whose notification level should be changed for the current user. |
+| `level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Required. New explicit notification level. Use NOTIFICATION_LEVEL_DEFAULT to return the room to inherited/default behavior. |
 
 
 <a id="chatto-api-v1-SetRoomNotificationLevelResponse"></a>
@@ -343,7 +343,7 @@ Request to mark a room timeline as read.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | Room whose timeline should be marked read. |
+| `room_id` | `string` | Required. Room whose timeline should be marked read. |
 | `up_to_event_id` | `string` | Highest room event ID the current user has read. When set, the event must exist as a root event in the room timeline. Leave empty to mark through the room's current latest root event. |
 
 
@@ -381,8 +381,8 @@ Request to mark a message thread as read.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | Room containing the thread. |
-| `thread_root_event_id` | `string` | Event ID of the root message for the thread. |
+| `room_id` | `string` | Required. Room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
 | `up_to_event_id` | `string` | Highest thread event ID the current user has read. The event should belong to the thread identified by thread_root_event_id. |
 
 
@@ -468,8 +468,8 @@ Request to follow one message thread.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | Room containing the thread. |
-| `thread_root_event_id` | `string` | Event ID of the root message for the thread. |
+| `room_id` | `string` | Required. Room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
 
 
 <a id="chatto-api-v1-FollowThreadResponse"></a>
@@ -502,8 +502,8 @@ Request to stop following one message thread.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | Room containing the thread. |
-| `thread_root_event_id` | `string` | Event ID of the root message for the thread. |
+| `room_id` | `string` | Required. Room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
 
 
 <a id="chatto-api-v1-UnfollowThreadResponse"></a>

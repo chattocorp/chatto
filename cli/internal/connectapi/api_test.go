@@ -62,7 +62,10 @@ func TestPrivateHandlersRequireAuth(t *testing.T) {
 	t.Cleanup(ts.Close)
 
 	client := apiv1connect.NewMessageServiceClient(ts.Client(), ts.URL)
-	_, err := client.PostMessage(context.Background(), connect.NewRequest(&apiv1.PostMessageRequest{}))
+	_, err := client.PostMessage(context.Background(), connect.NewRequest(&apiv1.PostMessageRequest{
+		RoomId: "room",
+		Body:   "hello",
+	}))
 	requireConnectCode(t, err, connect.CodeUnauthenticated)
 }
 

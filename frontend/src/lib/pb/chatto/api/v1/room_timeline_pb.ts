@@ -1086,7 +1086,7 @@ export class RoomTimelinePage extends Message<RoomTimelinePage> {
  */
 export class GetRoomEventsRequest extends Message<GetRoomEventsRequest> {
   /**
-   * Room whose timeline should be loaded.
+   * Required. Room whose timeline should be loaded.
    *
    * @generated from field: string room_id = 1;
    */
@@ -1204,14 +1204,14 @@ export class GetRoomEventsResponse extends Message<GetRoomEventsResponse> {
  */
 export class GetRoomEventsAroundRequest extends Message<GetRoomEventsAroundRequest> {
   /**
-   * Room whose timeline should be loaded.
+   * Required. Room whose timeline should be loaded.
    *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
-   * Anchor event ID that should appear in the returned page.
+   * Required. Anchor event ID that should appear in the returned page.
    *
    * @generated from field: string event_id = 2;
    */
@@ -1314,14 +1314,14 @@ export class GetRoomEventsAroundResponse extends Message<GetRoomEventsAroundResp
  */
 export class GetThreadEventsRequest extends Message<GetThreadEventsRequest> {
   /**
-   * Room containing the thread.
+   * Required. Room containing the thread.
    *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
-   * Event ID of the root message for the thread.
+   * Required. Event ID of the root message for the thread.
    *
    * @generated from field: string thread_root_event_id = 2;
    */
@@ -1440,22 +1440,22 @@ export class GetThreadEventsResponse extends Message<GetThreadEventsResponse> {
  */
 export class GetThreadEventsAroundRequest extends Message<GetThreadEventsAroundRequest> {
   /**
-   * Room containing the thread.
+   * Required. Room containing the thread.
    *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
-   * Event ID of the root message for the thread.
+   * Required. Event ID of the root message for the thread.
    *
    * @generated from field: string thread_root_event_id = 2;
    */
   threadRootEventId = "";
 
   /**
-   * Anchor event ID inside the thread. The event should belong to the requested
-   * thread.
+   * Required. Anchor event ID inside the thread. The event should belong to the
+   * requested thread.
    *
    * @generated from field: string event_id = 3;
    */

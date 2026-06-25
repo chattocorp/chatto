@@ -12,7 +12,10 @@ tool (
 )
 
 require (
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260415201107-50325440f8f2.1
+	connectrpc.com/authn v0.2.0
 	connectrpc.com/connect v1.20.0
+	connectrpc.com/validate v0.6.0
 	filippo.io/age v1.3.1
 	github.com/99designs/gqlgen v0.17.90
 	github.com/HugoSmits86/nativewebp v1.3.0
@@ -60,7 +63,6 @@ require (
 )
 
 require (
-	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260415201107-50325440f8f2.1 // indirect
 	buf.build/go/protovalidate v1.2.0 // indirect
 	buf.build/go/protoyaml v0.7.0 // indirect
 	cel.dev/expr v0.25.2 // indirect

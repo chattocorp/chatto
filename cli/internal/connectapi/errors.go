@@ -53,3 +53,7 @@ func connectError(err error) error {
 	}
 	return connect.NewError(connect.CodeInternal, errors.New("internal server error"))
 }
+
+func invalidArgument(message string) error {
+	return connect.NewError(connect.CodeInvalidArgument, errors.New(message))
+}

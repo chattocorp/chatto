@@ -108,16 +108,125 @@ func TestConnectServerServiceGetServer(t *testing.T) {
 }
 
 func TestConnectAPIRejectsOversizedRequestMessages(t *testing.T) {
-	_, ts := setupConnectTestServer(t, config.AuthConfig{})
+	s, ts := setupConnectTestServer(t, config.AuthConfig{})
+	ctx := context.Background()
+	user, err := s.core.CreateUser(ctx, core.SystemActorID, "connect-oversized", "Connect Oversized", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	token, err := s.core.CreateAuthToken(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
 
 	client := apiv1connect.NewMessageServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-	_, err := client.PostMessage(context.Background(), connect.NewRequest(&apiv1.PostMessageRequest{
+	req := connect.NewRequest(&apiv1.PostMessageRequest{
 		RoomId: "oversized-room",
 		Body:   strings.Repeat("a", connectapi.MaxRequestMessageBytes),
-	}))
+	})
+	req.Header().Set("Authorization", "Bearer "+token)
+	_, err = client.PostMessage(ctx, req)
 	if connect.CodeOf(err) != connect.CodeResourceExhausted {
 		t.Fatalf("PostMessage oversized err = %v, want resource exhausted", err)
 	}
+}
+
+func TestConnectAPIValidatesRequiredRequestFields(t *testing.T) {
+	s, ts := setupConnectTestServer(t, config.AuthConfig{})
+	ctx := context.Background()
+	user, err := s.core.CreateUser(ctx, core.SystemActorID, "connect-validation", "Connect Validation", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	token, err := s.core.CreateAuthToken(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
+
+	authorize := func(req interface{ Header() http.Header }) {
+		req.Header().Set("Authorization", "Bearer "+token)
+	}
+	requireInvalidArgument := func(t *testing.T, err error) {
+		t.Helper()
+		if connect.CodeOf(err) != connect.CodeInvalidArgument {
+			t.Fatalf("err = %v, want invalid argument", err)
+		}
+	}
+
+	t.Run("message room id", func(t *testing.T) {
+		client := apiv1connect.NewMessageServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		req := connect.NewRequest(&apiv1.PostMessageRequest{Body: "hello"})
+		authorize(req)
+		_, err := client.PostMessage(ctx, req)
+		requireInvalidArgument(t, err)
+	})
+
+	t.Run("read state room id", func(t *testing.T) {
+		client := apiv1connect.NewReadStateServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		req := connect.NewRequest(&apiv1.MarkRoomAsReadRequest{})
+		authorize(req)
+		_, err := client.MarkRoomAsRead(ctx, req)
+		requireInvalidArgument(t, err)
+	})
+
+	t.Run("read state thread root id", func(t *testing.T) {
+		client := apiv1connect.NewReadStateServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		req := connect.NewRequest(&apiv1.MarkThreadAsReadRequest{RoomId: "room"})
+		authorize(req)
+		_, err := client.MarkThreadAsRead(ctx, req)
+		requireInvalidArgument(t, err)
+	})
+
+	t.Run("timeline room id", func(t *testing.T) {
+		client := apiv1connect.NewRoomTimelineServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		req := connect.NewRequest(&apiv1.GetRoomEventsRequest{})
+		authorize(req)
+		_, err := client.GetRoomEvents(ctx, req)
+		requireInvalidArgument(t, err)
+	})
+
+	t.Run("timeline event id", func(t *testing.T) {
+		client := apiv1connect.NewRoomTimelineServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		req := connect.NewRequest(&apiv1.GetRoomEventsAroundRequest{RoomId: "room"})
+		authorize(req)
+		_, err := client.GetRoomEventsAround(ctx, req)
+		requireInvalidArgument(t, err)
+	})
+
+	t.Run("thread timeline root id", func(t *testing.T) {
+		client := apiv1connect.NewRoomTimelineServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		req := connect.NewRequest(&apiv1.GetThreadEventsRequest{RoomId: "room"})
+		authorize(req)
+		_, err := client.GetThreadEvents(ctx, req)
+		requireInvalidArgument(t, err)
+	})
+
+	t.Run("thread timeline event id", func(t *testing.T) {
+		client := apiv1connect.NewRoomTimelineServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		req := connect.NewRequest(&apiv1.GetThreadEventsAroundRequest{
+			RoomId:            "room",
+			ThreadRootEventId: "root",
+		})
+		authorize(req)
+		_, err := client.GetThreadEventsAround(ctx, req)
+		requireInvalidArgument(t, err)
+	})
+
+	t.Run("thread follow room id", func(t *testing.T) {
+		client := apiv1connect.NewThreadServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		req := connect.NewRequest(&apiv1.FollowThreadRequest{ThreadRootEventId: "root"})
+		authorize(req)
+		_, err := client.FollowThread(ctx, req)
+		requireInvalidArgument(t, err)
+	})
+
+	t.Run("thread unfollow root id", func(t *testing.T) {
+		client := apiv1connect.NewThreadServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		req := connect.NewRequest(&apiv1.UnfollowThreadRequest{RoomId: "room"})
+		authorize(req)
+		_, err := client.UnfollowThread(ctx, req)
+		requireInvalidArgument(t, err)
+	})
 }
 
 func TestConnectNotificationPreferencesService(t *testing.T) {

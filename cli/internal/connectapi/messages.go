@@ -15,52 +15,55 @@ type messageService struct {
 }
 
 func (s *messageService) PostMessage(ctx context.Context, req *connect.Request[apiv1.PostMessageRequest]) (*connect.Response[apiv1.PostMessageResponse], error) {
-	return handleAuthedUnary(ctx, func(ctx context.Context, user authenticatedUser) (*apiv1.PostMessageResponse, error) {
-		result, err := s.api.core.Messages().PostMessage(ctx, core.MessagePostInput{
-			ActorID:                  user.Id,
-			RoomID:                   req.Msg.RoomId,
-			Body:                     req.Msg.Body,
-			AttachmentAssetIDs:       append([]string(nil), req.Msg.AttachmentAssetIds...),
-			ThreadRootEventID:        req.Msg.ThreadRootEventId,
-			InReplyTo:                req.Msg.InReplyTo,
-			AlsoSendToChannel:        req.Msg.AlsoSendToChannel,
-			MentionConfirmationToken: req.Msg.MentionConfirmationToken,
-			LinkPreview:              apiMessageLinkPreviewToCore(req.Msg.LinkPreview),
-		})
-		if err != nil {
-			return nil, err
-		}
-		if result == nil {
-			return nil, connect.NewError(connect.CodeInternal, errors.New("message post returned no result"))
-		}
-		if challenge := result.MentionConfirmation; challenge != nil {
-			return &apiv1.PostMessageResponse{
-				Result: &apiv1.PostMessageResponse_MentionConfirmation{
-					MentionConfirmation: &apiv1.MentionConfirmationChallenge{
-						RecipientCount: int32(challenge.RecipientCount),
-						Token:          challenge.Token,
-					},
-				},
-			}, nil
-		}
-		if result.Event == nil {
-			return nil, connect.NewError(connect.CodeInternal, errors.New("message post returned no event"))
-		}
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
 
-		roomID := result.Event.GetMessagePosted().GetRoomId()
-		kind := core.KindChannel
-		if room, err := s.api.core.FindRoomByID(ctx, roomID); err == nil && room != nil {
-			kind = core.KindOfRoom(room)
-		}
-		apiEvent, includes, err := s.hydratePostedEvent(ctx, user.Id, kind, result.Event)
-		if err != nil {
-			return nil, err
-		}
-		return &apiv1.PostMessageResponse{
-			Result:   &apiv1.PostMessageResponse_Event{Event: apiEvent},
-			Includes: includes,
-		}, nil
+	result, err := s.api.core.Messages().PostMessage(ctx, core.MessagePostInput{
+		ActorID:                  user.Id,
+		RoomID:                   req.Msg.RoomId,
+		Body:                     req.Msg.Body,
+		AttachmentAssetIDs:       append([]string(nil), req.Msg.AttachmentAssetIds...),
+		ThreadRootEventID:        req.Msg.ThreadRootEventId,
+		InReplyTo:                req.Msg.InReplyTo,
+		AlsoSendToChannel:        req.Msg.AlsoSendToChannel,
+		MentionConfirmationToken: req.Msg.MentionConfirmationToken,
+		LinkPreview:              apiMessageLinkPreviewToCore(req.Msg.LinkPreview),
 	})
+	if err != nil {
+		return nil, connectError(err)
+	}
+	if result == nil {
+		return nil, connect.NewError(connect.CodeInternal, errors.New("message post returned no result"))
+	}
+	if challenge := result.MentionConfirmation; challenge != nil {
+		return connect.NewResponse(&apiv1.PostMessageResponse{
+			Result: &apiv1.PostMessageResponse_MentionConfirmation{
+				MentionConfirmation: &apiv1.MentionConfirmationChallenge{
+					RecipientCount: int32(challenge.RecipientCount),
+					Token:          challenge.Token,
+				},
+			},
+		}), nil
+	}
+	if result.Event == nil {
+		return nil, connect.NewError(connect.CodeInternal, errors.New("message post returned no event"))
+	}
+
+	roomID := result.Event.GetMessagePosted().GetRoomId()
+	kind := core.KindChannel
+	if room, err := s.api.core.FindRoomByID(ctx, roomID); err == nil && room != nil {
+		kind = core.KindOfRoom(room)
+	}
+	apiEvent, includes, err := s.hydratePostedEvent(ctx, user.Id, kind, result.Event)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.PostMessageResponse{
+		Result:   &apiv1.PostMessageResponse_Event{Event: apiEvent},
+		Includes: includes,
+	}), nil
 }
 
 func (s *messageService) hydratePostedEvent(ctx context.Context, viewerID string, kind core.RoomKind, event *corev1.Event) (*apiv1.RoomTimelineEvent, *apiv1.RoomTimelineIncludes, error) {

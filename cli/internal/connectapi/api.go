@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"connectrpc.com/connect"
+	"connectrpc.com/validate"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
@@ -19,8 +20,9 @@ const MaxRequestMessageBytes = 1 << 20 // 1 MiB
 // Handler is one generated Connect service handler and its generated service
 // path. The HTTP server owns the actual route mounting and auth injection.
 type Handler struct {
-	ServicePath string
-	Handler     http.Handler
+	ServicePath  string
+	Handler      http.Handler
+	RequiresAuth bool
 }
 
 // API owns Chatto's ConnectRPC service implementations. It deliberately has no
@@ -35,27 +37,33 @@ func New(core *core.ChattoCore, config config.ChattoConfig, version string) *API
 	return &API{core: core, config: config, version: version}
 }
 
-func (a *API) Handlers() []Handler {
-	options := []connect.HandlerOption{
+// HandlerOptions returns the common Connect handler options used for Chatto's
+// public API. HTTP middleware that writes Connect errors should use the same
+// options so errors are encoded consistently with the generated handlers.
+func HandlerOptions() []connect.HandlerOption {
+	return []connect.HandlerOption{
 		connect.WithReadMaxBytes(MaxRequestMessageBytes),
+		connect.WithInterceptors(validate.NewInterceptor()),
 	}
-	privateOptions := append([]connect.HandlerOption{}, options...)
-	privateOptions = append(privateOptions, connect.WithInterceptors(requireAuthedUnaryInterceptor()))
+}
+
+func (a *API) Handlers() []Handler {
+	options := HandlerOptions()
 
 	serverPath, serverHandler := apiv1connect.NewServerServiceHandler(&serverService{api: a}, options...)
-	messagePath, messageHandler := apiv1connect.NewMessageServiceHandler(&messageService{api: a}, privateOptions...)
-	prefsPath, prefsHandler := apiv1connect.NewNotificationPreferencesServiceHandler(&notificationPreferencesService{api: a}, privateOptions...)
-	readStatePath, readStateHandler := apiv1connect.NewReadStateServiceHandler(&readStateService{api: a}, privateOptions...)
-	timelinePath, timelineHandler := apiv1connect.NewRoomTimelineServiceHandler(&roomTimelineService{api: a}, privateOptions...)
-	userStatusPath, userStatusHandler := apiv1connect.NewUserStatusServiceHandler(&userStatusService{api: a}, privateOptions...)
-	threadPath, threadHandler := apiv1connect.NewThreadServiceHandler(&threadService{api: a}, privateOptions...)
+	messagePath, messageHandler := apiv1connect.NewMessageServiceHandler(&messageService{api: a}, options...)
+	prefsPath, prefsHandler := apiv1connect.NewNotificationPreferencesServiceHandler(&notificationPreferencesService{api: a}, options...)
+	readStatePath, readStateHandler := apiv1connect.NewReadStateServiceHandler(&readStateService{api: a}, options...)
+	timelinePath, timelineHandler := apiv1connect.NewRoomTimelineServiceHandler(&roomTimelineService{api: a}, options...)
+	userStatusPath, userStatusHandler := apiv1connect.NewUserStatusServiceHandler(&userStatusService{api: a}, options...)
+	threadPath, threadHandler := apiv1connect.NewThreadServiceHandler(&threadService{api: a}, options...)
 	return []Handler{
-		{ServicePath: messagePath, Handler: messageHandler},
+		{ServicePath: messagePath, Handler: messageHandler, RequiresAuth: true},
 		{ServicePath: serverPath, Handler: serverHandler},
-		{ServicePath: prefsPath, Handler: prefsHandler},
-		{ServicePath: readStatePath, Handler: readStateHandler},
-		{ServicePath: timelinePath, Handler: timelineHandler},
-		{ServicePath: userStatusPath, Handler: userStatusHandler},
-		{ServicePath: threadPath, Handler: threadHandler},
+		{ServicePath: prefsPath, Handler: prefsHandler, RequiresAuth: true},
+		{ServicePath: readStatePath, Handler: readStateHandler, RequiresAuth: true},
+		{ServicePath: timelinePath, Handler: timelineHandler, RequiresAuth: true},
+		{ServicePath: userStatusPath, Handler: userStatusHandler, RequiresAuth: true},
+		{ServicePath: threadPath, Handler: threadHandler, RequiresAuth: true},
 	}
 }

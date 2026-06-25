@@ -7,6 +7,7 @@
 package apiv1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -1299,7 +1300,7 @@ func (x *RoomTimelinePage) GetIncludes() *RoomTimelineIncludes {
 // events, or after to page toward newer events.
 type GetRoomEventsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Room whose timeline should be loaded.
+	// Required. Room whose timeline should be loaded.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Maximum number of events to return. The server may clamp very large limits.
 	Limit int32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
@@ -1453,9 +1454,9 @@ func (x *GetRoomEventsResponse) GetPage() *RoomTimelinePage {
 // context around it.
 type GetRoomEventsAroundRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Room whose timeline should be loaded.
+	// Required. Room whose timeline should be loaded.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Anchor event ID that should appear in the returned page.
+	// Required. Anchor event ID that should appear in the returned page.
 	EventId string `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
 	// Maximum number of events to return around the anchor.
 	Limit         int32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
@@ -1576,9 +1577,9 @@ func (x *GetRoomEventsAroundResponse) GetTargetIndex() int32 {
 // newer replies without repeating the root message.
 type GetThreadEventsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Room containing the thread.
+	// Required. Room containing the thread.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Event ID of the root message for the thread.
+	// Required. Event ID of the root message for the thread.
 	ThreadRootEventId string `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
 	// Maximum number of events to return. The server may clamp very large limits.
 	Limit int32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
@@ -1739,12 +1740,12 @@ func (x *GetThreadEventsResponse) GetPage() *RoomTimelinePage {
 // thread context.
 type GetThreadEventsAroundRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Room containing the thread.
+	// Required. Room containing the thread.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Event ID of the root message for the thread.
+	// Required. Event ID of the root message for the thread.
 	ThreadRootEventId string `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
-	// Anchor event ID inside the thread. The event should belong to the requested
-	// thread.
+	// Required. Anchor event ID inside the thread. The event should belong to the
+	// requested thread.
 	EventId string `protobuf:"bytes,3,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
 	// Maximum number of events to return around the anchor.
 	Limit         int32 `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`
@@ -1869,7 +1870,7 @@ var File_chatto_api_v1_room_timeline_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_room_timeline_proto_rawDesc = "" +
 	"\n" +
-	"!chatto/api/v1/room_timeline.proto\x12\rchatto.api.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x94\x01\n" +
+	"!chatto/api/v1/room_timeline.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x94\x01\n" +
 	"\x10RoomTimelineUser\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
@@ -1973,35 +1974,35 @@ const file_chatto_api_v1_room_timeline_proto_rawDesc = "" +
 	"end_cursor\x18\x03 \x01(\tR\tendCursor\x12\x1b\n" +
 	"\thas_older\x18\x04 \x01(\bR\bhasOlder\x12\x1b\n" +
 	"\thas_newer\x18\x05 \x01(\bR\bhasNewer\x12?\n" +
-	"\bincludes\x18\x06 \x01(\v2#.chatto.api.v1.RoomTimelineIncludesR\bincludes\"\x81\x01\n" +
-	"\x14GetRoomEventsRequest\x12\x17\n" +
-	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x14\n" +
+	"\bincludes\x18\x06 \x01(\v2#.chatto.api.v1.RoomTimelineIncludesR\bincludes\"\x8a\x01\n" +
+	"\x14GetRoomEventsRequest\x12 \n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x18\n" +
 	"\x06before\x18\x03 \x01(\tH\x00R\x06before\x12\x16\n" +
 	"\x05after\x18\x04 \x01(\tH\x00R\x05afterB\b\n" +
 	"\x06cursor\"L\n" +
 	"\x15GetRoomEventsResponse\x123\n" +
-	"\x04page\x18\x01 \x01(\v2\x1f.chatto.api.v1.RoomTimelinePageR\x04page\"f\n" +
-	"\x1aGetRoomEventsAroundRequest\x12\x17\n" +
-	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
-	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12\x14\n" +
+	"\x04page\x18\x01 \x01(\v2\x1f.chatto.api.v1.RoomTimelinePageR\x04page\"x\n" +
+	"\x1aGetRoomEventsAroundRequest\x12 \n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\"\n" +
+	"\bevent_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aeventId\x12\x14\n" +
 	"\x05limit\x18\x03 \x01(\x05R\x05limit\"u\n" +
 	"\x1bGetRoomEventsAroundResponse\x123\n" +
 	"\x04page\x18\x01 \x01(\v2\x1f.chatto.api.v1.RoomTimelinePageR\x04page\x12!\n" +
-	"\ftarget_index\x18\x02 \x01(\x05R\vtargetIndex\"\xb4\x01\n" +
-	"\x16GetThreadEventsRequest\x12\x17\n" +
-	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
-	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\x12\x14\n" +
+	"\ftarget_index\x18\x02 \x01(\x05R\vtargetIndex\"\xc6\x01\n" +
+	"\x16GetThreadEventsRequest\x12 \n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x128\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x11threadRootEventId\x12\x14\n" +
 	"\x05limit\x18\x03 \x01(\x05R\x05limit\x12\x18\n" +
 	"\x06before\x18\x04 \x01(\tH\x00R\x06before\x12\x16\n" +
 	"\x05after\x18\x05 \x01(\tH\x00R\x05afterB\b\n" +
 	"\x06cursor\"N\n" +
 	"\x17GetThreadEventsResponse\x123\n" +
-	"\x04page\x18\x01 \x01(\v2\x1f.chatto.api.v1.RoomTimelinePageR\x04page\"\x99\x01\n" +
-	"\x1cGetThreadEventsAroundRequest\x12\x17\n" +
-	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
-	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\x12\x19\n" +
-	"\bevent_id\x18\x03 \x01(\tR\aeventId\x12\x14\n" +
+	"\x04page\x18\x01 \x01(\v2\x1f.chatto.api.v1.RoomTimelinePageR\x04page\"\xb4\x01\n" +
+	"\x1cGetThreadEventsAroundRequest\x12 \n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x128\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x11threadRootEventId\x12\"\n" +
+	"\bevent_id\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aeventId\x12\x14\n" +
 	"\x05limit\x18\x04 \x01(\x05R\x05limit\"w\n" +
 	"\x1dGetThreadEventsAroundResponse\x123\n" +
 	"\x04page\x18\x01 \x01(\v2\x1f.chatto.api.v1.RoomTimelinePageR\x04page\x12!\n" +

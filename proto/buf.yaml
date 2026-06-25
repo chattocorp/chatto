@@ -7,4 +7,5 @@ lint:
 breaking:
   use:
     - FILE
-deps: []
+deps:
+  - buf.build/bufbuild/protovalidate

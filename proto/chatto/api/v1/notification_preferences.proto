@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package chatto.api.v1;
 
+import "buf/validate/validate.proto";
+
 // Notification delivery level for a room.
 enum NotificationLevel {
   // The level was not specified.
@@ -40,17 +42,20 @@ message SetRoomNotificationLevelResponse {
 
 // Request for the current user's notification preference in one room.
 message GetRoomNotificationPreferenceRequest {
-  // Room whose notification preference should be loaded for the current user.
-  string room_id = 1;
+  // Required. Room whose notification preference should be loaded for the current user.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
 }
 
 // Request to update the current user's notification level in one room.
 message SetRoomNotificationLevelRequest {
-  // Room whose notification level should be changed for the current user.
-  string room_id = 1;
-  // New explicit notification level. Use NOTIFICATION_LEVEL_DEFAULT to return
-  // the room to inherited/default behavior.
-  NotificationLevel level = 2;
+  // Required. Room whose notification level should be changed for the current user.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required. New explicit notification level. Use NOTIFICATION_LEVEL_DEFAULT
+  // to return the room to inherited/default behavior.
+  NotificationLevel level = 2 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
 }
 
 // Reads and updates per-room notification preferences for the current user.

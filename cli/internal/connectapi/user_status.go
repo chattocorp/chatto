@@ -15,34 +15,38 @@ type userStatusService struct {
 }
 
 func (s *userStatusService) SetCustomStatus(ctx context.Context, req *connect.Request[apiv1.SetCustomStatusRequest]) (*connect.Response[apiv1.SetCustomStatusResponse], error) {
-	return handleAuthedUnary(ctx, func(ctx context.Context, user authenticatedUser) (*apiv1.SetCustomStatusResponse, error) {
-		expiresAt, err := apiTimestampToTime(req.Msg.ExpiresAt)
-		if err != nil {
-			return nil, err
-		}
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	expiresAt, err := apiTimestampToTime(req.Msg.ExpiresAt)
+	if err != nil {
+		return nil, err
+	}
 
-		updated, err := s.api.core.SetUserCustomStatus(ctx, user.Id, req.Msg.Emoji, req.Msg.Text, expiresAt)
-		if err != nil {
-			return nil, err
-		}
+	updated, err := s.api.core.SetUserCustomStatus(ctx, user.Id, req.Msg.Emoji, req.Msg.Text, expiresAt)
+	if err != nil {
+		return nil, connectError(err)
+	}
 
-		return &apiv1.SetCustomStatusResponse{
-			Status: coreCustomStatusToAPI(updated.GetCustomStatus()),
-		}, nil
-	})
+	return connect.NewResponse(&apiv1.SetCustomStatusResponse{
+		Status: coreCustomStatusToAPI(updated.GetCustomStatus()),
+	}), nil
 }
 
 func (s *userStatusService) ClearCustomStatus(ctx context.Context, _ *connect.Request[apiv1.ClearCustomStatusRequest]) (*connect.Response[apiv1.ClearCustomStatusResponse], error) {
-	return handleAuthedUnary(ctx, func(ctx context.Context, user authenticatedUser) (*apiv1.ClearCustomStatusResponse, error) {
-		updated, err := s.api.core.ClearUserCustomStatus(ctx, user.Id)
-		if err != nil {
-			return nil, err
-		}
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	updated, err := s.api.core.ClearUserCustomStatus(ctx, user.Id)
+	if err != nil {
+		return nil, connectError(err)
+	}
 
-		return &apiv1.ClearCustomStatusResponse{
-			Status: coreCustomStatusToAPI(updated.GetCustomStatus()),
-		}, nil
-	})
+	return connect.NewResponse(&apiv1.ClearCustomStatusResponse{
+		Status: coreCustomStatusToAPI(updated.GetCustomStatus()),
+	}), nil
 }
 
 func apiTimestampToTime(ts *timestamppb.Timestamp) (*time.Time, error) {

@@ -14,43 +14,45 @@ type notificationPreferencesService struct {
 }
 
 func (s *notificationPreferencesService) GetRoomNotificationPreference(ctx context.Context, req *connect.Request[apiv1.GetRoomNotificationPreferenceRequest]) (*connect.Response[apiv1.GetRoomNotificationPreferenceResponse], error) {
-	return handleAuthedUnary(ctx, func(ctx context.Context, user authenticatedUser) (*apiv1.GetRoomNotificationPreferenceResponse, error) {
-		if strings.TrimSpace(req.Msg.RoomId) == "" {
-			return nil, invalidArgument("room_id is required")
-		}
-		// Keep ConnectRPC transport code thin: authenticate the request, translate
-		// protobufs/errors, and delegate operation authZ to the core service.
-		pref, err := s.api.core.NotificationPreferences().GetRoomNotificationPreference(ctx, user.Id, req.Msg.RoomId)
-		if err != nil {
-			return nil, err
-		}
-		return &apiv1.GetRoomNotificationPreferenceResponse{
-			Level:          coreNotificationLevelToAPI(pref.Level),
-			EffectiveLevel: coreNotificationLevelToAPI(pref.EffectiveLevel),
-		}, nil
-	})
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(req.Msg.RoomId) == "" {
+		return nil, invalidArgument("room_id is required")
+	}
+
+	pref, err := s.api.core.NotificationPreferences().GetRoomNotificationPreference(ctx, user.Id, req.Msg.RoomId)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.GetRoomNotificationPreferenceResponse{
+		Level:          coreNotificationLevelToAPI(pref.Level),
+		EffectiveLevel: coreNotificationLevelToAPI(pref.EffectiveLevel),
+	}), nil
 }
 
 func (s *notificationPreferencesService) SetRoomNotificationLevel(ctx context.Context, req *connect.Request[apiv1.SetRoomNotificationLevelRequest]) (*connect.Response[apiv1.SetRoomNotificationLevelResponse], error) {
-	return handleAuthedUnary(ctx, func(ctx context.Context, user authenticatedUser) (*apiv1.SetRoomNotificationLevelResponse, error) {
-		if strings.TrimSpace(req.Msg.RoomId) == "" {
-			return nil, invalidArgument("room_id is required")
-		}
-		level, err := apiNotificationLevelToCore(req.Msg.Level)
-		if err != nil {
-			return nil, err
-		}
-		// Keep membership checks and response semantics in the shared service so
-		// GraphQL and ConnectRPC cannot drift.
-		pref, err := s.api.core.NotificationPreferences().SetRoomNotificationLevel(ctx, user.Id, req.Msg.RoomId, level)
-		if err != nil {
-			return nil, err
-		}
-		return &apiv1.SetRoomNotificationLevelResponse{
-			Level:          coreNotificationLevelToAPI(pref.Level),
-			EffectiveLevel: coreNotificationLevelToAPI(pref.EffectiveLevel),
-		}, nil
-	})
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(req.Msg.RoomId) == "" {
+		return nil, invalidArgument("room_id is required")
+	}
+	level, err := apiNotificationLevelToCore(req.Msg.Level)
+	if err != nil {
+		return nil, err
+	}
+
+	pref, err := s.api.core.NotificationPreferences().SetRoomNotificationLevel(ctx, user.Id, req.Msg.RoomId, level)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.SetRoomNotificationLevelResponse{
+		Level:          coreNotificationLevelToAPI(pref.Level),
+		EffectiveLevel: coreNotificationLevelToAPI(pref.EffectiveLevel),
+	}), nil
 }
 
 func apiNotificationLevelToCore(level apiv1.NotificationLevel) (corev1.NotificationLevel, error) {
