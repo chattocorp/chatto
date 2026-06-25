@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { APIPresenceStatus } from '$lib/api/presence';
 import { PresenceStatus } from '$lib/gql/graphql';
+import { presencePreference } from '$lib/state/presencePreference.svelte';
 import { initPresenceTracking, setPresenceMode } from './presenceTracking';
 
 type ReportPresence = (
@@ -114,6 +115,34 @@ describe('initPresenceTracking', () => {
 
 		expect(sentStatuses()).not.toContain(APIPresenceStatus.AWAY);
 		expect(onStatusChange).not.toHaveBeenCalledWith(PresenceStatus.Away);
+	});
+
+	it('reconciles local status to the server-accepted presence', async () => {
+		mocks.reportPresence.mockImplementation((status, userSelected) =>
+			Promise.resolve(
+				status === APIPresenceStatus.ONLINE && !userSelected
+					? APIPresenceStatus.DO_NOT_DISTURB
+					: status
+			)
+		);
+
+		startTracking();
+
+		expect(sentStatuses()).toEqual([APIPresenceStatus.ONLINE]);
+		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.Online);
+
+		await Promise.resolve();
+
+		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.DoNotDisturb);
+		expect(presencePreference.effectiveStatus).toBe(PresenceStatus.DoNotDisturb);
+
+		vi.advanceTimersByTime(30_000);
+
+		expect(sentStatuses()).toEqual([
+			APIPresenceStatus.ONLINE,
+			APIPresenceStatus.DO_NOT_DISTURB
+		]);
+		expect(sentUserSelectedFlags()).toEqual([false, false]);
 	});
 
 	it('returns online when broad activity resumes after idle', () => {

@@ -99,6 +99,7 @@ export function initPresenceTracking(
 	let hiddenTimer: ReturnType<typeof setTimeout> | null = null;
 	let refreshTimer: ReturnType<typeof setInterval> | null = null;
 	let lastTimerResetAt = 0;
+	let reportRevision = 0;
 
 	presencePreference.mode = currentMode;
 
@@ -107,14 +108,29 @@ export function initPresenceTracking(
 		onStatusChange?.(status);
 	}
 
-	function reportStatus(status: PresenceStatus, userSelected = false) {
-		currentVisibleStatus = status;
-		emitLocalStatus(status);
+	function applyAcceptedStatus(accepted: APIPresenceStatus, revision: number) {
+		if (revision !== reportRevision || currentMode === 'invisible') return;
+		const acceptedStatus = apiStatusToPresenceStatus(accepted);
+		currentVisibleStatus = acceptedStatus;
+		if (presencePreference.effectiveStatus !== acceptedStatus) {
+			emitLocalStatus(acceptedStatus);
+		}
+	}
+
+	function sendPresenceReport(status: PresenceStatus, userSelected: boolean, revision: number) {
 		for (const config of getReporters()) {
 			createPresenceAPI(config)
 				.reportPresence(presenceStatusToAPIStatus(status), userSelected)
+				.then((accepted) => applyAcceptedStatus(accepted, revision))
 				.catch(() => {});
 		}
+	}
+
+	function reportStatus(status: PresenceStatus, userSelected = false) {
+		const revision = ++reportRevision;
+		currentVisibleStatus = status;
+		emitLocalStatus(status);
+		sendPresenceReport(status, userSelected, revision);
 	}
 
 	function clearRefreshTimer() {
@@ -129,11 +145,7 @@ export function initPresenceTracking(
 		refreshTimer = setInterval(() => {
 			if (currentMode === 'invisible' || currentVisibleStatus === null) return;
 			const userSelected = currentMode !== 'auto';
-			for (const config of getReporters()) {
-				createPresenceAPI(config)
-					.reportPresence(presenceStatusToAPIStatus(currentVisibleStatus), userSelected)
-					.catch(() => {});
-			}
+			sendPresenceReport(currentVisibleStatus, userSelected, ++reportRevision);
 		}, PRESENCE_REFRESH_MS);
 	}
 
@@ -154,6 +166,7 @@ export function initPresenceTracking(
 
 		if (mode === 'invisible') {
 			clearRefreshTimer();
+			reportRevision++;
 			currentVisibleStatus = null;
 			emitLocalStatus(PresenceStatus.Offline);
 			options.onPauseLiveEvents?.();
