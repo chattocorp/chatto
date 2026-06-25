@@ -359,9 +359,6 @@ func (c *ChattoCore) mentionNotificationRecipientCount(ctx context.Context, room
 		if level == corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
 			continue
 		}
-		if c.suppressesNotificationsForPresence(ctx, mentionedUserID) {
-			continue
-		}
 		count++
 	}
 	return count, nil
@@ -421,6 +418,9 @@ func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, kind RoomKind, ro
 			continue
 		}
 		if created == nil {
+			continue
+		}
+		if c.suppressesNotificationAlertsForPresence(ctx, mentionedUserID) {
 			continue
 		}
 

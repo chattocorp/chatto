@@ -5,7 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
 	"hmans.de/chatto/internal/core/subjects"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 func TestExtractMentionUsernames(t *testing.T) {
@@ -559,11 +562,16 @@ func TestChattoCore_MentionCreatesNotificationWithoutMentionStatus(t *testing.T)
 	if err := core.SetPresence(ctx, mentioned.Id, PresenceStatusDoNotDisturb); err != nil {
 		t.Fatalf("SetPresence DND: %v", err)
 	}
-	sub, err := nc.SubscribeSync(subjects.LiveSyncUserEvent(mentioned.Id, "mentioned"))
+	sub, err := nc.SubscribeSync(subjects.LiveSyncUserEvent(mentioned.Id, "notification_created"))
+	if err != nil {
+		t.Fatalf("SubscribeSync notification_created: %v", err)
+	}
+	defer sub.Unsubscribe()
+	mentionSub, err := nc.SubscribeSync(subjects.LiveSyncUserEvent(mentioned.Id, "mentioned"))
 	if err != nil {
 		t.Fatalf("SubscribeSync mentioned: %v", err)
 	}
-	defer sub.Unsubscribe()
+	defer mentionSub.Unsubscribe()
 	if err := nc.Flush(); err != nil {
 		t.Fatalf("Flush subscription: %v", err)
 	}
@@ -571,15 +579,30 @@ func TestChattoCore_MentionCreatesNotificationWithoutMentionStatus(t *testing.T)
 	if _, err := core.PostMessage(ctx, KindChannel, room.Id, mentioner.Id, "dnd hello @mentioneduser", nil, "", "", nil, false); err != nil {
 		t.Fatalf("PostMessage DND: %v", err)
 	}
-	if _, err := sub.NextMsg(200 * time.Millisecond); err == nil {
-		t.Fatalf("expected no live mention notification while DND")
+	msg, err := sub.NextMsg(2 * time.Second)
+	if err != nil {
+		t.Fatalf("waiting for DND notification_created live event: %v", err)
+	}
+	var live corev1.LiveEvent
+	if err := proto.Unmarshal(msg.Data, &live); err != nil {
+		t.Fatalf("unmarshal live event: %v", err)
+	}
+	event := live.GetNotificationCreated()
+	if event == nil {
+		t.Fatalf("expected NotificationCreatedEvent, got %T", live.Event)
+	}
+	if !event.Silent {
+		t.Fatal("NotificationCreatedEvent.Silent = false, want true")
+	}
+	if _, err := mentionSub.NextMsg(200 * time.Millisecond); err == nil {
+		t.Fatal("expected no legacy live mention notification while DND")
 	}
 	notifications, err = core.GetNotifications(ctx, mentioned.Id)
 	if err != nil {
 		t.Fatalf("GetNotifications after DND: %v", err)
 	}
-	if len(notifications) != 1 {
-		t.Fatalf("notifications after DND mention = %d, want original 1", len(notifications))
+	if len(notifications) != 2 {
+		t.Fatalf("notifications after DND mention = %d, want 2", len(notifications))
 	}
 }
 

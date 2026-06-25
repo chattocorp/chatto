@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Active
-**Last reviewed:** 2026-06-24
+**Last reviewed:** 2026-06-25
 
 ## Overview
 
@@ -17,7 +17,7 @@ Chatto has a persistent notification system surfaced through a bell icon and not
 - A notification sound plays and the badge updates in real time as new notifications arrive.
 - Users can choose and locally shape the notification sound on each browser with volume, tone, and effect controls.
 - Sidebar orange dots for mentions, replies, DMs, and all-message subscriptions derive from pending notification records.
-- A recipient's Do Not Disturb presence suppresses new persistent notifications, live notification sync events, notification sounds, sidebar notification dots for those events, and push notifications while it is active.
+- A recipient's Do Not Disturb presence still stores new notifications and updates counts, but those creation events are silent: no notification sound and no web push while DND is active.
 
 ## Notification Levels
 
@@ -91,11 +91,11 @@ Per space and per room, the user picks one of four levels:
 **Why:** They are playback-device preferences, not server behavior. Keeping them local matches the existing sound picker and avoids adding durable compatibility surface for an annoyance/subtlety control.
 **Tradeoff:** A user who signs in on a new browser reconfigures sound taste there. Server-synced display settings remain separate.
 
-### 10. Do Not Disturb suppresses notification creation
+### 10. Do Not Disturb silences alert delivery
 
-**Decision:** Do Not Disturb is checked at notification creation time. While the recipient has live DND presence, Chatto does not create the persistent notification and does not publish mention/DM/live notification sync events or push callbacks for that notification.
-**Why:** DND means "do not interrupt me now", so suppression must happen before any persistent or realtime attention surface exists. Keeping it in the notification creation path also makes push behavior inherit the same gate.
-**Tradeoff:** Notifications that would have arrived during DND are not queued for later delivery. This keeps DND quiet and avoids a delayed notification burst when the user returns.
+**Decision:** Do Not Disturb is checked at notification creation time. While the recipient has live DND presence, Chatto still creates the persistent notification and publishes a silent live sync event, but it suppresses legacy attention live events, notification sounds, and web push delivery.
+**Why:** DND means "do not interrupt me now", not "discard things I should review later". Storing the notification preserves missed activity in the notification center and sidebar counts, while the silent marker lets clients update state without making noise.
+**Tradeoff:** A user may see badge/sidebar changes while actively viewing Chatto in DND. That is less disruptive than sound or push, and it avoids losing important mentions or DMs.
 
 ## Permissions
 

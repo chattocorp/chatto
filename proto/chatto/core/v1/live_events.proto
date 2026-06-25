@@ -199,6 +199,10 @@ message NotificationCreatedEvent {
   string room_id = 3;
   string event_id = 4;
   string in_reply_to_id = 5;
+
+  // True when clients should update notification state without playing a local
+  // alert sound. Used for Do Not Disturb delivery.
+  bool silent = 6;
 }
 
 // Published when a notification is dismissed by the user.

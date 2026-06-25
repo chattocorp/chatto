@@ -478,6 +478,7 @@ type ComplexityRoot struct {
 		InReplyToID    func(childComplexity int) int
 		NotificationId func(childComplexity int) int
 		RoomId         func(childComplexity int) int
+		Silent         func(childComplexity int) int
 	}
 
 	NotificationDismissedEvent struct {
@@ -3568,6 +3569,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.NotificationCreatedEvent.RoomId(childComplexity), true
+	case "NotificationCreatedEvent.silent":
+		if e.ComplexityRoot.NotificationCreatedEvent.Silent == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NotificationCreatedEvent.Silent(childComplexity), true
 
 	case "NotificationDismissedEvent.notificationId":
 		if e.ComplexityRoot.NotificationDismissedEvent.NotificationId == nil {
@@ -17834,6 +17841,29 @@ func (ec *executionContext) _NotificationCreatedEvent_inReplyToId(ctx context.Co
 }
 func (ec *executionContext) fieldContext_NotificationCreatedEvent_inReplyToId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("NotificationCreatedEvent", field, true, true, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _NotificationCreatedEvent_silent(ctx context.Context, field graphql.CollectedField, obj *corev1.NotificationCreatedEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_NotificationCreatedEvent_silent(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Silent, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_NotificationCreatedEvent_silent(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("NotificationCreatedEvent", field, false, false, errors.New("field of type Boolean does not have child fields"))
 }
 
 func (ec *executionContext) _NotificationDismissedEvent_notificationId(ctx context.Context, field graphql.CollectedField, obj *corev1.NotificationDismissedEvent) (ret graphql.Marshaler) {
@@ -36873,6 +36903,11 @@ func (ec *executionContext) _NotificationCreatedEvent(ctx context.Context, sel a
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "silent":
+			out.Values[i] = ec._NotificationCreatedEvent_silent(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

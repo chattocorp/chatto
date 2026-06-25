@@ -1,7 +1,7 @@
 # FDR-011: User Presence
 
 **Status:** Active
-**Last reviewed:** 2026-06-24
+**Last reviewed:** 2026-06-25
 
 ## Overview
 
@@ -14,7 +14,7 @@ Every user has a presence status visible to others as a colored dot on their ava
 - If the browser tab is hidden for 10 seconds, the client also transitions to Away (debounced to avoid flashing during quick tab switches).
 - Any interaction returns the user to Online only while automatic mode is active.
 - Users can explicitly set Away. Explicit Away does not auto-return to Online on activity.
-- Users can set Do Not Disturb for their current live server presence. While DND is active, the server suppresses notifications for that user (see FDR-012). Presence state is not persisted as server-side user/account state.
+- Users can set Do Not Disturb for their current live server presence. While DND is active, new notifications are still recorded for that user, but notification sounds and web push are suppressed (see FDR-012). Presence state is not persisted as server-side user/account state.
 - Explicit Away and Do Not Disturb are marked as manually selected in the live presence record. Automatic Online/Away reports from other clients do not overwrite that manual state; an explicit Online selection clears it.
 - Users can choose "Look offline" locally. The client does not report an Offline status; it stops reporting presence to the server and pauses live event subscriptions so the existing presence record expires normally.
 - Disconnecting (closing the tab, network drop) does not send an active Offline signal. After 60 seconds without a heartbeat refresh, the presence entry expires and the user appears Offline.
@@ -48,7 +48,7 @@ Every user has a presence status visible to others as a colored dot on their ava
 
 ### 5. DND is live user state
 
-**Decision:** Do Not Disturb is a live presence status for the user, not durable account state. It expires with presence and is not backed up or replayed from EVT. While present, it suppresses persistent notifications, live notification sync events, and push notifications. Durable custom statuses live separately as user profile metadata (FDR-022).
+**Decision:** Do Not Disturb is a live presence status for the user, not durable account state. It expires with presence and is not backed up or replayed from EVT. While present, it silences notification sounds and web push delivery without dropping the underlying notification records. Durable custom statuses live separately as user profile metadata (FDR-022).
 **Why:** Presence controls notification routing and "right now" UI hints. Persisting it as domain/account history would overstate its meaning, while custom statuses communicate user-authored profile context without changing availability.
 **Tradeoff:** The UI has two adjacent concepts: live presence dot and durable custom status. They deliberately answer different questions.
 

@@ -46,10 +46,12 @@ Include this component once in the chat layout (unconditionally).
             notificationStore.addNotification(),
             stores.rooms.refreshNotificationCounts()
           ]);
-          playNotificationSound(
-            userPreferences.notificationSound,
-            userPreferences.notificationSoundFilters
-          );
+          if (!event.event.silent) {
+            playNotificationSound(
+              userPreferences.notificationSound,
+              userPreferences.notificationSoundFilters
+            );
+          }
         }
 
         if (event.event.__typename === 'NotificationDismissedEvent') {

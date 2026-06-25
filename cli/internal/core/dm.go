@@ -290,6 +290,9 @@ func (c *ChattoCore) notifyDMParticipants(ctx context.Context, roomID, senderID,
 		if created == nil {
 			continue
 		}
+		if c.suppressesNotificationAlertsForPresence(ctx, participantID) {
+			continue
+		}
 
 		// Publish live DM notification event for unread indicator real-time update
 		event := newLiveEvent(senderID, &corev1.LiveEvent{
