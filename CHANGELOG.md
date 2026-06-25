@@ -3,6 +3,39 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.0-beta.3](https://github.com/chattocorp/chatto/compare/v0.4.0-beta.2...v0.4.0-beta.3) (2026-06-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* **api:** use optional timeline presence fields ([#1110](https://github.com/chattocorp/chatto/issues/1110))
+
+### Features
+
+* **api:** migrate reactions to ConnectRPC ([#1128](https://github.com/chattocorp/chatto/issues/1128)) ([161f51c](https://github.com/chattocorp/chatto/commit/161f51ccb4cc0cd3b1b098d1b5aa41c3f4405c8d))
+* **api:** use optional timeline presence fields ([#1110](https://github.com/chattocorp/chatto/issues/1110)) ([5c1406f](https://github.com/chattocorp/chatto/commit/5c1406f0a28502be869964c87561c0e107c81446))
+* **presence:** add user-controlled presence modes ([#1095](https://github.com/chattocorp/chatto/issues/1095)) ([9e8f696](https://github.com/chattocorp/chatto/commit/9e8f696df7dc2489c639479f01eb7269ba13a922))
+
+
+### Bug Fixes
+
+* **api:** make ConnectRPC plumbing idiomatic ([#1123](https://github.com/chattocorp/chatto/issues/1123)) ([338f573](https://github.com/chattocorp/chatto/commit/338f57315cf611518ff4570434ee7faae1ccab7d))
+* **api:** tighten ConnectRPC caller auth ([#1126](https://github.com/chattocorp/chatto/issues/1126)) ([bb8c10d](https://github.com/chattocorp/chatto/commit/bb8c10df48a2c7e8a9a94164ee66d24d0517ac31))
+* **connectapi:** harden timeline and thread read handling ([#1117](https://github.com/chattocorp/chatto/issues/1117)) ([ba027fe](https://github.com/chattocorp/chatto/commit/ba027fe3b7727620307bc4936633effe8abd255d))
+* **connectrpc:** cap request message size ([#1102](https://github.com/chattocorp/chatto/issues/1102)) ([a773531](https://github.com/chattocorp/chatto/commit/a773531e687de72645ee78b1aa09f07f9d61ef61))
+* **connectrpc:** reject missing read anchors ([#1109](https://github.com/chattocorp/chatto/issues/1109)) ([f2f68b9](https://github.com/chattocorp/chatto/commit/f2f68b96fca00c177975600f1e9f38f2787a3c4b))
+* **core:** complete service inventory metrics ([#1130](https://github.com/chattocorp/chatto/issues/1130)) ([9bc89f3](https://github.com/chattocorp/chatto/commit/9bc89f3e116df73330be22484b13a999419b12ed))
+* **core:** prevent read marker regressions ([#1107](https://github.com/chattocorp/chatto/issues/1107)) ([cb81d58](https://github.com/chattocorp/chatto/commit/cb81d583f9c789319790109624af5ad8d112d680))
+* **frontend:** clarify remote push notification support ([#1105](https://github.com/chattocorp/chatto/issues/1105)) ([bfdbdea](https://github.com/chattocorp/chatto/commit/bfdbdea4050d529ba060f5931009d74026a8631f))
+* **frontend:** submit simple message edits with enter ([#1129](https://github.com/chattocorp/chatto/issues/1129)) ([f5651b4](https://github.com/chattocorp/chatto/commit/f5651b4413b70aaa954d3bdb7c553df21e7c42ca))
+* **frontend:** sync room thread follow bell state ([#1121](https://github.com/chattocorp/chatto/issues/1121)) ([4048f23](https://github.com/chattocorp/chatto/commit/4048f23256f87e417509fb887d2919c59bad5a38))
+
+
+### Performance Improvements
+
+* **build:** improve frontend and CLI cache reuse ([#1106](https://github.com/chattocorp/chatto/issues/1106)) ([f22da3a](https://github.com/chattocorp/chatto/commit/f22da3adcd5a8affe8b15715cd02569baddad2e7))
+* **frontend:** split chat code from app chrome ([#1103](https://github.com/chattocorp/chatto/issues/1103)) ([4a4a4de](https://github.com/chattocorp/chatto/commit/4a4a4de0747e73d37183bc3fde89f6d0f45c8890))
+
 ## [0.4.0-beta.2](https://github.com/chattocorp/chatto/compare/v0.4.0-beta.1...v0.4.0-beta.2) (2026-06-24)
 
 
