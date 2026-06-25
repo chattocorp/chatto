@@ -43,6 +43,7 @@ func TestAPIHandlers(t *testing.T) {
 		"/" + apiv1connect.PresenceServiceName + "/",
 		"/" + apiv1connect.ReadStateServiceName + "/",
 		"/" + apiv1connect.ReactionServiceName + "/",
+		"/" + apiv1connect.RoomDirectoryServiceName + "/",
 		"/" + apiv1connect.RoomServiceName + "/",
 		"/" + apiv1connect.RoomTimelineServiceName + "/",
 		"/" + apiv1connect.ServerServiceName + "/",
@@ -71,6 +72,7 @@ func TestAPIHandlerAuthPolicies(t *testing.T) {
 		"/" + apiv1connect.PresenceServiceName + "/":                AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.ReadStateServiceName + "/":               AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.ReactionServiceName + "/":                AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.RoomDirectoryServiceName + "/":           AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.RoomServiceName + "/":                    AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.RoomTimelineServiceName + "/":            AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.ServerServiceName + "/":                  AuthPolicyPublic,
@@ -536,6 +538,289 @@ func TestConnectServicesRejectDMOutsiders(t *testing.T) {
 		Level:  apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED,
 	}))
 	checkInaccessible("SetRoomNotificationLevel", err)
+}
+
+func TestRoomDirectoryServiceListRoomsVisibilityAndDMs(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+
+	caller, err := env.core.CreateUser(env.ctx, core.SystemActorID, "directory-caller", "Directory Caller", "password")
+	if err != nil {
+		t.Fatalf("CreateUser caller: %v", err)
+	}
+	participant, err := env.core.CreateUser(env.ctx, core.SystemActorID, "directory-dm-participant", "Directory DM Participant", "password")
+	if err != nil {
+		t.Fatalf("CreateUser participant: %v", err)
+	}
+
+	visible, err := env.core.CreateRoom(env.ctx, env.viewer.Id, core.KindChannel, "", "directory-visible", "")
+	if err != nil {
+		t.Fatalf("CreateRoom visible: %v", err)
+	}
+	hidden, err := env.core.CreateRoom(env.ctx, env.viewer.Id, core.KindChannel, "", "directory-hidden", "")
+	if err != nil {
+		t.Fatalf("CreateRoom hidden: %v", err)
+	}
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, hidden.Id, core.RoleEveryone, core.PermRoomList); err != nil {
+		t.Fatalf("DenyRoomPermission hidden list: %v", err)
+	}
+
+	dm, _, err := env.core.FindOrCreateDM(env.ctx, caller.Id, []string{participant.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	dmResp, err := env.directory.ListRooms(withCaller(env.ctx, caller), connect.NewRequest(&apiv1.ListRoomsRequest{
+		Scope: apiv1.RoomDirectoryScope_ROOM_DIRECTORY_SCOPE_DMS,
+	}))
+	if err != nil {
+		t.Fatalf("ListRooms empty DMs: %v", err)
+	}
+	if len(dmResp.Msg.GetRooms()) != 0 {
+		t.Fatalf("empty DM list len = %d, want 0", len(dmResp.Msg.GetRooms()))
+	}
+	if _, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, caller.Id, "hello DM", nil, "", "", nil, false); err != nil {
+		t.Fatalf("PostMessage DM: %v", err)
+	}
+
+	resp, err := env.directory.ListRooms(withCaller(env.ctx, caller), connect.NewRequest(&apiv1.ListRoomsRequest{}))
+	if err != nil {
+		t.Fatalf("ListRooms: %v", err)
+	}
+	rooms := directoryRoomsByID(resp.Msg.GetRooms())
+	if _, ok := rooms[visible.Id]; !ok {
+		t.Fatalf("visible room %s missing from directory response", visible.Id)
+	}
+	if _, ok := rooms[hidden.Id]; ok {
+		t.Fatalf("hidden room %s appeared in directory response", hidden.Id)
+	}
+	dmRoom := rooms[dm.Id]
+	if dmRoom == nil {
+		t.Fatalf("DM room %s missing after first message", dm.Id)
+	}
+	if dmRoom.GetRoom().GetKind() != apiv1.RoomKind_ROOM_KIND_DM {
+		t.Fatalf("DM kind = %v, want DM", dmRoom.GetRoom().GetKind())
+	}
+	if !dmRoom.GetViewerState().GetIsMember() {
+		t.Fatalf("DM viewer state IsMember = false, want true")
+	}
+	if !dmRoom.GetViewerState().GetCanListRoom() {
+		t.Fatalf("DM viewer state CanListRoom = false, want true")
+	}
+	if dmRoom.GetViewerState().GetCanJoinRoom() || dmRoom.GetViewerState().GetCanManageRoom() || dmRoom.GetViewerState().GetCanBanRoomMembers() {
+		t.Fatalf("DM viewer state exposes channel-only actions: %+v", dmRoom.GetViewerState())
+	}
+
+	outsider, err := env.core.CreateUser(env.ctx, core.SystemActorID, "directory-dm-outsider", "Directory DM Outsider", "password")
+	if err != nil {
+		t.Fatalf("CreateUser outsider: %v", err)
+	}
+	if _, err := env.directory.GetRoom(withCaller(env.ctx, outsider), connect.NewRequest(&apiv1.GetRoomRequest{
+		RoomId: dm.Id,
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("outsider GetRoom DM code = %v, want permission denied", connect.CodeOf(err))
+	}
+}
+
+func TestRoomDirectoryServiceViewerStateMatchesWritePreconditions(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+
+	caller, err := env.core.CreateUser(env.ctx, core.SystemActorID, "directory-state-caller", "Directory State Caller", "password")
+	if err != nil {
+		t.Fatalf("CreateUser caller: %v", err)
+	}
+	visible, err := env.core.CreateRoom(env.ctx, env.viewer.Id, core.KindChannel, "", "directory-state-visible", "")
+	if err != nil {
+		t.Fatalf("CreateRoom visible: %v", err)
+	}
+	memberArchived, err := env.core.CreateRoom(env.ctx, env.viewer.Id, core.KindChannel, "", "directory-state-archived", "")
+	if err != nil {
+		t.Fatalf("CreateRoom archived: %v", err)
+	}
+	for _, room := range []*corev1.Room{visible, memberArchived} {
+		for _, perm := range []core.Permission{
+			core.PermRoomJoin,
+			core.PermMessagePost,
+			core.PermMessagePostInThread,
+			core.PermMessageAttach,
+			core.PermMessageReact,
+			core.PermMessageEcho,
+			core.PermMessageManage,
+		} {
+			if err := env.core.GrantRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, perm); err != nil {
+				t.Fatalf("GrantRoomPermission %s %s: %v", room.Id, perm, err)
+			}
+		}
+	}
+	if _, err := env.core.JoinRoom(env.ctx, caller.Id, core.KindChannel, caller.Id, memberArchived.Id); err != nil {
+		t.Fatalf("JoinRoom archived target: %v", err)
+	}
+	if _, err := env.core.ArchiveRoom(env.ctx, env.viewer.Id, core.KindChannel, memberArchived.Id); err != nil {
+		t.Fatalf("ArchiveRoom: %v", err)
+	}
+
+	resp, err := env.directory.ListRooms(withCaller(env.ctx, caller), connect.NewRequest(&apiv1.ListRoomsRequest{
+		Scope: apiv1.RoomDirectoryScope_ROOM_DIRECTORY_SCOPE_CHANNELS,
+	}))
+	if err != nil {
+		t.Fatalf("ListRooms: %v", err)
+	}
+	rooms := directoryRoomsByID(resp.Msg.GetRooms())
+	visibleRoom := rooms[visible.Id]
+	if visibleRoom == nil {
+		t.Fatalf("visible room %s missing from directory response", visible.Id)
+	}
+	visibleState := visibleRoom.GetViewerState()
+	if visibleState.GetIsMember() {
+		t.Fatalf("visible room IsMember = true, want false")
+	}
+	if !visibleState.GetCanJoinRoom() {
+		t.Fatalf("visible non-member CanJoinRoom = false, want true")
+	}
+	if visibleState.GetCanPostMessage() ||
+		visibleState.GetCanPostInThread() ||
+		visibleState.GetCanAttach() ||
+		visibleState.GetCanReact() ||
+		visibleState.GetCanEchoMessage() ||
+		visibleState.GetCanManageOthersMessage() {
+		t.Fatalf("visible non-member exposes member-only actions: %+v", visibleState)
+	}
+	if _, ok := rooms[memberArchived.Id]; ok {
+		t.Fatalf("archived room %s appeared in directory response", memberArchived.Id)
+	}
+
+	archivedResp, err := env.directory.GetRoom(withCaller(env.ctx, caller), connect.NewRequest(&apiv1.GetRoomRequest{
+		RoomId: memberArchived.Id,
+	}))
+	if err != nil {
+		t.Fatalf("GetRoom archived: %v", err)
+	}
+	archivedState := archivedResp.Msg.GetRoom().GetViewerState()
+	if !archivedState.GetIsMember() {
+		t.Fatalf("archived room IsMember = false, want true")
+	}
+	if archivedState.GetCanJoinRoom() ||
+		archivedState.GetCanPostMessage() ||
+		archivedState.GetCanPostInThread() ||
+		archivedState.GetCanAttach() ||
+		archivedState.GetCanReact() ||
+		archivedState.GetCanEchoMessage() {
+		t.Fatalf("archived room exposes unavailable actions: %+v", archivedState)
+	}
+	if !archivedState.GetCanManageOthersMessage() {
+		t.Fatalf("archived room CanManageOthersMessage = false, want true")
+	}
+}
+
+func TestRoomDirectoryServiceListRoomGroupsFiltersHiddenRoomsAndKeepsLinks(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+
+	caller, err := env.core.CreateUser(env.ctx, core.SystemActorID, "directory-group-caller", "Directory Group Caller", "password")
+	if err != nil {
+		t.Fatalf("CreateUser caller: %v", err)
+	}
+	groupID := env.defaultRoomGroupID(t)
+	visible, err := env.core.CreateRoom(env.ctx, env.viewer.Id, core.KindChannel, groupID, "directory-group-visible", "")
+	if err != nil {
+		t.Fatalf("CreateRoom visible: %v", err)
+	}
+	hidden, err := env.core.CreateRoom(env.ctx, env.viewer.Id, core.KindChannel, groupID, "directory-group-hidden", "")
+	if err != nil {
+		t.Fatalf("CreateRoom hidden: %v", err)
+	}
+	archived, err := env.core.CreateRoom(env.ctx, env.viewer.Id, core.KindChannel, groupID, "directory-group-archived", "")
+	if err != nil {
+		t.Fatalf("CreateRoom archived: %v", err)
+	}
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, hidden.Id, core.RoleEveryone, core.PermRoomList); err != nil {
+		t.Fatalf("DenyRoomPermission hidden list: %v", err)
+	}
+	if _, err := env.core.ArchiveRoom(env.ctx, env.viewer.Id, core.KindChannel, archived.Id); err != nil {
+		t.Fatalf("ArchiveRoom: %v", err)
+	}
+	link, err := env.core.CreateSidebarLink(env.ctx, env.viewer.Id, groupID, "Docs", "/docs")
+	if err != nil {
+		t.Fatalf("CreateSidebarLink: %v", err)
+	}
+
+	resp, err := env.directory.ListRoomGroups(withCaller(env.ctx, caller), connect.NewRequest(&apiv1.ListRoomGroupsRequest{}))
+	if err != nil {
+		t.Fatalf("ListRoomGroups: %v", err)
+	}
+	group := findDirectoryGroup(resp.Msg.GetGroups(), groupID)
+	if group == nil {
+		t.Fatalf("group %s missing from response", groupID)
+	}
+	groupRooms := directoryRoomsByID(group.GetRooms())
+	if _, ok := groupRooms[visible.Id]; !ok {
+		t.Fatalf("visible room %s missing from group rooms", visible.Id)
+	}
+	if _, ok := groupRooms[hidden.Id]; ok {
+		t.Fatalf("hidden room %s appeared in group rooms", hidden.Id)
+	}
+	if _, ok := groupRooms[archived.Id]; ok {
+		t.Fatalf("archived room %s appeared in group rooms", archived.Id)
+	}
+	if !roomGroupItemsContainRoom(group.GetItems(), visible.Id) {
+		t.Fatalf("visible room %s missing from group items", visible.Id)
+	}
+	if roomGroupItemsContainRoom(group.GetItems(), hidden.Id) {
+		t.Fatalf("hidden room %s appeared in group items", hidden.Id)
+	}
+	if roomGroupItemsContainRoom(group.GetItems(), archived.Id) {
+		t.Fatalf("archived room %s appeared in group items", archived.Id)
+	}
+	if !roomGroupItemsContainSidebarLink(group.GetItems(), link.Id) {
+		t.Fatalf("sidebar link %s missing from group items", link.Id)
+	}
+}
+
+func TestRoomDirectoryServiceJoinGroup(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+
+	caller, err := env.core.CreateUser(env.ctx, core.SystemActorID, "directory-join-caller", "Directory Join Caller", "password")
+	if err != nil {
+		t.Fatalf("CreateUser caller: %v", err)
+	}
+	group, err := env.core.CreateRoomGroup(env.ctx, env.viewer.Id, "Directory Join", "")
+	if err != nil {
+		t.Fatalf("CreateRoomGroup: %v", err)
+	}
+	openRoom, err := env.core.CreateRoom(env.ctx, env.viewer.Id, core.KindChannel, group.Id, "directory-join-open", "")
+	if err != nil {
+		t.Fatalf("CreateRoom open: %v", err)
+	}
+	restricted, err := env.core.CreateRoom(env.ctx, env.viewer.Id, core.KindChannel, group.Id, "directory-join-restricted", "")
+	if err != nil {
+		t.Fatalf("CreateRoom restricted: %v", err)
+	}
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, restricted.Id, core.RoleEveryone, core.PermRoomJoin); err != nil {
+		t.Fatalf("DenyRoomPermission restricted join: %v", err)
+	}
+	archived, err := env.core.CreateRoom(env.ctx, env.viewer.Id, core.KindChannel, group.Id, "directory-join-archived", "")
+	if err != nil {
+		t.Fatalf("CreateRoom archived: %v", err)
+	}
+	if _, err := env.core.ArchiveRoom(env.ctx, env.viewer.Id, core.KindChannel, archived.Id); err != nil {
+		t.Fatalf("ArchiveRoom: %v", err)
+	}
+
+	resp, err := env.directory.JoinGroup(withCaller(env.ctx, caller), connect.NewRequest(&apiv1.JoinGroupRequest{
+		GroupId: group.Id,
+	}))
+	if err != nil {
+		t.Fatalf("JoinGroup: %v", err)
+	}
+	if got, want := strings.Join(resp.Msg.GetJoinedRoomIds(), ","), openRoom.Id; got != want {
+		t.Fatalf("joined room ids = %q, want %q", got, want)
+	}
+	if isMember, err := env.core.RoomMembershipExists(env.ctx, core.KindChannel, caller.Id, openRoom.Id); err != nil || !isMember {
+		t.Fatalf("open membership = %v, %v; want true, nil", isMember, err)
+	}
+	if isMember, err := env.core.RoomMembershipExists(env.ctx, core.KindChannel, caller.Id, restricted.Id); err != nil || isMember {
+		t.Fatalf("restricted membership = %v, %v; want false, nil", isMember, err)
+	}
+	if isMember, err := env.core.RoomMembershipExists(env.ctx, core.KindChannel, caller.Id, archived.Id); err != nil || isMember {
+		t.Fatalf("archived membership = %v, %v; want false, nil", isMember, err)
+	}
 }
 
 func TestUserStatusServiceSetAndClearCustomStatus(t *testing.T) {
@@ -1774,6 +2059,7 @@ type connectAPITestEnv struct {
 	core      *core.ChattoCore
 	nc        *nats.Conn
 	api       *API
+	directory *roomDirectoryService
 	messages  *messageService
 	prefs     *notificationPreferencesService
 	readState *readStateService
@@ -1814,6 +2100,7 @@ func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
 		core:      c,
 		nc:        nc,
 		api:       api,
+		directory: &roomDirectoryService{api: api},
 		messages:  &messageService{api: api},
 		prefs:     &notificationPreferencesService{api: api},
 		readState: &readStateService{api: api},
@@ -1899,4 +2186,44 @@ func timelinePageEventIDs(page *apiv1.RoomTimelinePage) []string {
 		ids = append(ids, event.Id)
 	}
 	return ids
+}
+
+func directoryRoomsByID(rooms []*apiv1.DirectoryRoom) map[string]*apiv1.DirectoryRoom {
+	result := make(map[string]*apiv1.DirectoryRoom, len(rooms))
+	for _, room := range rooms {
+		if room == nil || room.GetRoom() == nil {
+			continue
+		}
+		result[room.GetRoom().GetId()] = room
+	}
+	return result
+}
+
+func findDirectoryGroup(groups []*apiv1.RoomGroup, groupID string) *apiv1.RoomGroup {
+	for _, group := range groups {
+		if group.GetId() == groupID {
+			return group
+		}
+	}
+	return nil
+}
+
+func roomGroupItemsContainRoom(items []*apiv1.RoomGroupItem, roomID string) bool {
+	for _, item := range items {
+		room := item.GetRoom()
+		if room != nil && room.GetRoom().GetId() == roomID {
+			return true
+		}
+	}
+	return false
+}
+
+func roomGroupItemsContainSidebarLink(items []*apiv1.RoomGroupItem, linkID string) bool {
+	for _, item := range items {
+		link := item.GetSidebarLink()
+		if link != nil && link.GetId() == linkID {
+			return true
+		}
+	}
+	return false
 }

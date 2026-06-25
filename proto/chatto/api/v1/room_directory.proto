@@ -1,0 +1,152 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "buf/validate/validate.proto";
+import "chatto/api/v1/rooms.proto";
+
+// Room kinds to include in directory responses.
+enum RoomDirectoryScope {
+  // Include both visible channel rooms and the caller's active DM rooms.
+  ROOM_DIRECTORY_SCOPE_UNSPECIFIED = 0;
+  // Include both visible channel rooms and the caller's active DM rooms.
+  ROOM_DIRECTORY_SCOPE_ALL = 1;
+  // Include visible channel rooms only.
+  ROOM_DIRECTORY_SCOPE_CHANNELS = 2;
+  // Include the caller's active DM rooms only.
+  ROOM_DIRECTORY_SCOPE_DMS = 3;
+}
+
+// Viewer-specific state for one room.
+//
+// These fields let clients render navigation rows and room action menus without
+// issuing per-room permission checks.
+message RoomViewerState {
+  // True when the current user is an effective room member.
+  bool is_member = 1;
+  // True when the room has unread root messages for the current user.
+  bool has_unread = 2;
+  // True when the room can appear in directory surfaces for the current user.
+  bool can_list_room = 3;
+  // True when the current user can join this room.
+  bool can_join_room = 4;
+  // True when the current user can post new root messages.
+  bool can_post_message = 5;
+  // True when the current user can post thread replies.
+  bool can_post_in_thread = 6;
+  // True when the current user can attach files to messages.
+  bool can_attach = 7;
+  // True when the current user can add and remove reactions.
+  bool can_react = 8;
+  // True when the current user can echo thread replies to the main room.
+  bool can_echo_message = 9;
+  // True when the current user can edit or delete other users' messages.
+  bool can_manage_others_message = 10;
+  // True when the current user can configure this room.
+  bool can_manage_room = 11;
+  // True when the current user can ban members from this room.
+  bool can_ban_room_members = 12;
+}
+
+// Room metadata plus viewer-specific state.
+message DirectoryRoom {
+  // Public room metadata.
+  Room room = 1;
+  // State and permissions resolved for the current user.
+  RoomViewerState viewer_state = 2;
+}
+
+// Sidebar link metadata for room group navigation.
+message SidebarLink {
+  // Stable sidebar link ID.
+  string id = 1;
+  // Display label.
+  string label = 2;
+  // Absolute http(s) URL or server-local path.
+  string url = 3;
+}
+
+// One ordered item in a room group.
+message RoomGroupItem {
+  oneof item {
+    // Visible room entry.
+    DirectoryRoom room = 1;
+    // Sidebar link entry.
+    SidebarLink sidebar_link = 2;
+  }
+}
+
+// Ordered group of channel rooms and sidebar links.
+message RoomGroup {
+  // Stable room group ID.
+  string id = 1;
+  // Display name.
+  string name = 2;
+  // Operator-facing description, when set.
+  string description = 3;
+  // Visible channel rooms in this group order.
+  repeated DirectoryRoom rooms = 4;
+  // Mixed room/sidebar-link entries in sidebar order.
+  repeated RoomGroupItem items = 5;
+}
+
+// Request for rooms visible to the current user.
+message ListRoomsRequest {
+  // Which room kinds to include. Defaults to all.
+  RoomDirectoryScope scope = 1 [(buf.validate.field).enum.defined_only = true];
+}
+
+// Visible rooms for the current user.
+message ListRoomsResponse {
+  // Rooms matching the requested scope.
+  repeated DirectoryRoom rooms = 1;
+}
+
+// Request for ordered room groups visible to the current user.
+message ListRoomGroupsRequest {}
+
+// Ordered room groups visible to the current user.
+message ListRoomGroupsResponse {
+  // Channel room groups in sidebar order.
+  repeated RoomGroup groups = 1;
+}
+
+// Request for one room visible to the current user.
+message GetRoomRequest {
+  // Required. Room to resolve.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Room visible to the current user.
+message GetRoomResponse {
+  // Resolved room and viewer state.
+  DirectoryRoom room = 1;
+}
+
+// Request to join all joinable rooms in one room group.
+message JoinGroupRequest {
+  // Required. Room group whose rooms should be joined.
+  string group_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of joining all joinable rooms in one room group.
+message JoinGroupResponse {
+  // Room IDs that transitioned from not joined to joined.
+  repeated string joined_room_ids = 1;
+}
+
+// Reads room directory data and performs directory-adjacent commands.
+service RoomDirectoryService {
+  // Lists rooms visible to the current user. Channel rooms are non-archived
+  // rooms visible through membership or room.list. DM rooms are membership-only
+  // and empty DM conversations are omitted.
+  rpc ListRooms(ListRoomsRequest) returns (ListRoomsResponse);
+  // Lists ordered channel room groups and sidebar items visible to the current
+  // user. Archived and hidden room entries are omitted from group results.
+  rpc ListRoomGroups(ListRoomGroupsRequest) returns (ListRoomGroupsResponse);
+  // Returns one visible room by ID. DM rooms require membership.
+  rpc GetRoom(GetRoomRequest) returns (GetRoomResponse);
+  // Joins every unarchived room in a group that the current user can join.
+  // Already-joined and non-joinable rooms are skipped.
+  rpc JoinGroup(JoinGroupRequest) returns (JoinGroupResponse);
+}

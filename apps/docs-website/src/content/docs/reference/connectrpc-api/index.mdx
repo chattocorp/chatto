@@ -827,6 +827,140 @@ Result of removing a room ban.
 | `unbanned` | `bool` | True when the unban operation completed. |
 
 
+<a id="chatto-api-v1-RoomDirectoryService"></a>
+
+## RoomDirectoryService
+
+Reads room directory data and performs directory-adjacent commands.
+
+<a id="chatto-api-v1-RoomDirectoryService-ListRooms"></a>
+
+### ListRooms
+
+Lists rooms visible to the current user. Channel rooms are non-archived
+rooms visible through membership or room.list. DM rooms are membership-only
+and empty DM conversations are omitted.
+
+```http
+POST /api/connect/chatto.api.v1.RoomDirectoryService/ListRooms
+```
+
+<a id="chatto-api-v1-ListRoomsRequest"></a>
+
+#### Input: ListRoomsRequest
+
+Request for rooms visible to the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `scope` | [`RoomDirectoryScope`](#chatto-api-v1-RoomDirectoryScope) | Which room kinds to include. Defaults to all. |
+
+
+<a id="chatto-api-v1-ListRoomsResponse"></a>
+
+#### Result: ListRoomsResponse
+
+Visible rooms for the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `rooms` | repeated [`DirectoryRoom`](#chatto-api-v1-DirectoryRoom) | Rooms matching the requested scope. |
+
+
+<a id="chatto-api-v1-RoomDirectoryService-ListRoomGroups"></a>
+
+### ListRoomGroups
+
+Lists ordered channel room groups and sidebar items visible to the current
+user. Archived and hidden room entries are omitted from group results.
+
+```http
+POST /api/connect/chatto.api.v1.RoomDirectoryService/ListRoomGroups
+```
+
+<a id="chatto-api-v1-ListRoomGroupsRequest"></a>
+
+#### Input: ListRoomGroupsRequest
+
+Request for ordered room groups visible to the current user.
+
+
+<a id="chatto-api-v1-ListRoomGroupsResponse"></a>
+
+#### Result: ListRoomGroupsResponse
+
+Ordered room groups visible to the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `groups` | repeated [`RoomGroup`](#chatto-api-v1-RoomGroup) | Channel room groups in sidebar order. |
+
+
+<a id="chatto-api-v1-RoomDirectoryService-GetRoom"></a>
+
+### GetRoom
+
+Returns one visible room by ID. DM rooms require membership.
+
+```http
+POST /api/connect/chatto.api.v1.RoomDirectoryService/GetRoom
+```
+
+<a id="chatto-api-v1-GetRoomRequest"></a>
+
+#### Input: GetRoomRequest
+
+Request for one room visible to the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room to resolve. |
+
+
+<a id="chatto-api-v1-GetRoomResponse"></a>
+
+#### Result: GetRoomResponse
+
+Room visible to the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`DirectoryRoom`](#chatto-api-v1-DirectoryRoom) | Resolved room and viewer state. |
+
+
+<a id="chatto-api-v1-RoomDirectoryService-JoinGroup"></a>
+
+### JoinGroup
+
+Joins every unarchived room in a group that the current user can join.
+Already-joined and non-joinable rooms are skipped.
+
+```http
+POST /api/connect/chatto.api.v1.RoomDirectoryService/JoinGroup
+```
+
+<a id="chatto-api-v1-JoinGroupRequest"></a>
+
+#### Input: JoinGroupRequest
+
+Request to join all joinable rooms in one room group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group_id` | `string` | Required. Room group whose rooms should be joined. |
+
+
+<a id="chatto-api-v1-JoinGroupResponse"></a>
+
+#### Result: JoinGroupResponse
+
+Result of joining all joinable rooms in one room group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `joined_room_ids` | `repeated string` | Room IDs that transitioned from not joined to joined. |
+
+
 <a id="chatto-api-v1-ServerService"></a>
 
 ## ServerService
@@ -1308,6 +1442,88 @@ Public room metadata returned by room commands.
 
 
 
+<a id="chatto-api-v1-DirectoryRoom"></a>
+
+### DirectoryRoom
+
+Room metadata plus viewer-specific state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`Room`](#chatto-api-v1-Room) | Public room metadata. |
+| `viewer_state` | [`RoomViewerState`](#chatto-api-v1-RoomViewerState) | State and permissions resolved for the current user. |
+
+
+
+<a id="chatto-api-v1-RoomGroup"></a>
+
+### RoomGroup
+
+Ordered group of channel rooms and sidebar links.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable room group ID. |
+| `name` | `string` | Display name. |
+| `description` | `string` | Operator-facing description, when set. |
+| `rooms` | repeated [`DirectoryRoom`](#chatto-api-v1-DirectoryRoom) | Visible channel rooms in this group order. |
+| `items` | repeated [`RoomGroupItem`](#chatto-api-v1-RoomGroupItem) | Mixed room/sidebar-link entries in sidebar order. |
+
+
+
+<a id="chatto-api-v1-RoomGroupItem"></a>
+
+### RoomGroupItem
+
+One ordered item in a room group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `item.room` | [`DirectoryRoom`](#chatto-api-v1-DirectoryRoom) | Visible room entry. |
+| `item.sidebar_link` | [`SidebarLink`](#chatto-api-v1-SidebarLink) | Sidebar link entry. |
+
+
+
+<a id="chatto-api-v1-RoomViewerState"></a>
+
+### RoomViewerState
+
+Viewer-specific state for one room.
+
+These fields let clients render navigation rows and room action menus without
+issuing per-room permission checks.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `is_member` | `bool` | True when the current user is an effective room member. |
+| `has_unread` | `bool` | True when the room has unread root messages for the current user. |
+| `can_list_room` | `bool` | True when the room can appear in directory surfaces for the current user. |
+| `can_join_room` | `bool` | True when the current user can join this room. |
+| `can_post_message` | `bool` | True when the current user can post new root messages. |
+| `can_post_in_thread` | `bool` | True when the current user can post thread replies. |
+| `can_attach` | `bool` | True when the current user can attach files to messages. |
+| `can_react` | `bool` | True when the current user can add and remove reactions. |
+| `can_echo_message` | `bool` | True when the current user can echo thread replies to the main room. |
+| `can_manage_others_message` | `bool` | True when the current user can edit or delete other users' messages. |
+| `can_manage_room` | `bool` | True when the current user can configure this room. |
+| `can_ban_room_members` | `bool` | True when the current user can ban members from this room. |
+
+
+
+<a id="chatto-api-v1-SidebarLink"></a>
+
+### SidebarLink
+
+Sidebar link metadata for room group navigation.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable sidebar link ID. |
+| `label` | `string` | Display label. |
+| `url` | `string` | Absolute http(s) URL or server-local path. |
+
+
+
 <a id="chatto-api-v1-AuthProvider"></a>
 
 ### AuthProvider
@@ -1400,5 +1616,19 @@ Kind of room represented by the public API.
 | `ROOM_KIND_UNSPECIFIED` | `0` | The room kind was not specified. |
 | `ROOM_KIND_CHANNEL` | `1` | A regular channel governed by server and room permissions. |
 | `ROOM_KIND_DM` | `2` | A direct-message conversation between members. |
+
+
+<a id="chatto-api-v1-RoomDirectoryScope"></a>
+
+### RoomDirectoryScope
+
+Room kinds to include in directory responses.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ROOM_DIRECTORY_SCOPE_UNSPECIFIED` | `0` | Include both visible channel rooms and the caller's active DM rooms. |
+| `ROOM_DIRECTORY_SCOPE_ALL` | `1` | Include both visible channel rooms and the caller's active DM rooms. |
+| `ROOM_DIRECTORY_SCOPE_CHANNELS` | `2` | Include visible channel rooms only. |
+| `ROOM_DIRECTORY_SCOPE_DMS` | `3` | Include the caller's active DM rooms only. |
 
 

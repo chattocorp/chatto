@@ -34,6 +34,8 @@ func connectError(err error) error {
 		return connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	if errors.Is(err, core.ErrNotFound) ||
+		errors.Is(err, core.ErrRoomGroupNotFound) ||
+		errors.Is(err, core.ErrSidebarLinkNotFound) ||
 		errors.Is(err, core.ErrMessageNotFound) ||
 		errors.Is(err, jetstream.ErrKeyNotFound) {
 		return connect.NewError(connect.CodeNotFound, err)

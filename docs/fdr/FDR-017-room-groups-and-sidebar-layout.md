@@ -10,6 +10,7 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 ## Behavior
 
 - The sidebar shows `room.list`-visible channel rooms and sidebar links grouped under their group's name in operator-defined order. Groups can be collapsed/expanded.
+- ConnectRPC `RoomDirectoryService.ListRoomGroups` exposes the same ordered sidebar structure for protobuf-first clients, filtering room entries to non-archived channel rooms visible to the viewer and preserving sidebar links.
 - Joined channel rooms behave as normal navigation entries. Listable channel rooms the viewer has not joined yet are shown slightly faded; selecting a joinable room asks for confirmation before joining, while selecting a non-joinable room explains that access is not currently available.
 - Server admins can create, rename, reorder, and delete groups via the admin UI.
 - Group names are limited to 80 bytes; group descriptions are limited to 500 bytes.
@@ -70,6 +71,12 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 **Decision:** Channel-room sidebar entries are based on `room.list` visibility and room-group layout, while membership only changes the row's presentation and action.
 **Why:** Operators configure the sidebar through room groups. Showing all listable rooms makes that layout the user's map of the server, and lets users discover rooms before joining them.
 **Tradeoff:** The sidebar can show rooms the viewer cannot enter yet. Those rows need clear affordances so discovery does not look like broken navigation.
+
+### 9. Room directory reads are available over ConnectRPC
+
+**Decision:** `RoomDirectoryService` is the protobuf-first read surface for room navigation: non-archived visible room lists, ordered room groups, mixed sidebar items, per-room viewer capability state, and the group join-all command.
+**Why:** The room lifecycle commands moved to ConnectRPC first, but clients still needed GraphQL for the room/sidebar data around those commands. Keeping the directory read model in ConnectRPC lets clients render navigation and action affordances without resolver-style per-room GraphQL fields.
+**Tradeoff:** The service repeats the existing GraphQL visibility contract instead of replacing GraphQL immediately. Both surfaces must stay aligned until the bundled web client fully migrates.
 
 ## Permissions
 
