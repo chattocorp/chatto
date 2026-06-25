@@ -46,12 +46,20 @@
     xl: 'text-xl'
   };
 
-  const badgeSizeClasses: Record<Size, string> = {
-    xs: 'h-2 w-2',
+  const presenceRingSizeClasses: Record<Size, string> = {
+    xs: 'h-3 w-3',
+    sm: 'h-4 w-4',
+    md: 'h-4 w-4',
+    lg: 'h-5 w-5',
+    xl: 'h-5 w-5'
+  };
+
+  const presenceDotSizeClasses: Record<Size, string> = {
+    xs: 'h-1.5 w-1.5',
     sm: 'h-2.5 w-2.5',
-    md: 'h-3 w-3',
-    lg: 'h-3.5 w-3.5',
-    xl: 'h-4 w-4'
+    md: 'h-2.5 w-2.5',
+    lg: 'h-3 w-3',
+    xl: 'h-3.5 w-3.5'
   };
 
   const customStatusTextSizeClasses: Record<Size, string> = {
@@ -140,11 +148,13 @@
     {/if}
     {#if showPresence && !user.deleted}
       <span
-        class="{badgeSizeClasses[
+        class="{presenceRingSizeClasses[
           size
-        ]} absolute right-0 bottom-0 translate-x-1/4 translate-y-1/4 rounded-full border-2 border-surface {badgeColor}"
+        ]} absolute right-0 bottom-0 grid translate-x-1/4 translate-y-1/4 place-items-center rounded-full border-2 border-surface bg-surface"
         aria-label={presenceLabel}
-      ></span>
+      >
+        <span class="{presenceDotSizeClasses[size]} rounded-full {badgeColor}"></span>
+      </span>
     {/if}
     {#if showCustomStatusBadge}
       <UserCustomStatusBadge
