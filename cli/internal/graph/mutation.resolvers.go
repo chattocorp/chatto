@@ -633,21 +633,13 @@ func (r *mutationResolver) MarkRoomAsRead(ctx context.Context, input model.MarkR
 	}
 
 	if hasLast {
-		// Advance-only: don't regress the marker if the client passed a
-		// stale upToEventId (e.g. another tab/device is further ahead).
-		shouldWrite := true
-		if previousEventID != "" && previousEventID != lastEventID {
-			prevTime, perr := r.core.GetEventTimestamp(ctx, kind, input.RoomID, previousEventID)
-			if perr == nil && !prevTime.IsZero() && !lastTime.After(prevTime) {
-				shouldWrite = false
-				lastEventID = previousEventID
-				lastTime = prevTime
-			}
+		advance, err := r.core.AdvanceLastReadEventID(ctx, kind, user.Id, input.RoomID, lastEventID)
+		if err != nil {
+			return nil, err
 		}
-		if shouldWrite {
-			if err := r.core.SetLastReadEventID(ctx, kind, user.Id, input.RoomID, lastEventID); err != nil {
-				return nil, err
-			}
+		if advance.CurrentEventID != "" {
+			lastEventID = advance.CurrentEventID
+			lastTime = advance.CurrentTime
 		}
 	}
 

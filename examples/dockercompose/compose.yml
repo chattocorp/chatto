@@ -20,7 +20,7 @@ services:
     expose:
       - "7880"  # WebSocket signaling (proxied through Caddy)
     volumes:
-      - ./livekit.yaml:/etc/livekit.yaml:ro
+      - ${LIVEKIT_CONFIG_FILE:-./livekit.yaml}:/etc/livekit.yaml:ro
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:7880"]
       interval: 5s

@@ -1,7 +1,7 @@
 # FDR-013: Web Push Notifications
 
 **Status:** Active
-**Last reviewed:** 2026-06-17
+**Last reviewed:** 2026-06-25
 
 ## Overview
 
@@ -13,6 +13,7 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 - If push is configured and supported, signed-in users who have not made a browser permission choice see a small top-overlay prompt offering to enable push or opt out of future prompts on that device.
 - On granting permission, the browser creates a subscription using the server's VAPID public key. The subscription details (endpoint URL, keys) are sent to the server and stored.
 - When a signed-in user opens Chatto and browser notification permission is already granted, Chatto refreshes the server's copy of the current browser subscription without prompting again.
+- In multi-server mode, native Web Push controls are shown only for the server that served the installed app. Remote servers can still update in-app notification badges and sounds while Chatto is open, but they do not offer direct browser push registration from another server's app origin.
 - Stored subscription fields are bounded: endpoint 4,096 bytes, public key 256 bytes, auth secret 128 bytes, and user agent 512 bytes.
 - A user can have multiple devices subscribed simultaneously — every device receives every push.
 - Push payloads include a title, a truncated message preview (max 100 chars, broken at word boundaries), and a navigation URL.
@@ -65,6 +66,12 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 **Decision:** The enable-push prompt is device-local and can be dismissed without changing server-side notification settings.
 **Why:** Whether push is useful depends on the device. Dismissing the prompt on a desktop browser should not suppress the prompt on an iOS PWA where push may be more valuable.
 **Tradeoff:** The same user may see the prompt again on another browser or device. That is intentional; each device has its own push subscription and OS permission.
+
+### 8. Origin-bound native push registration
+
+**Decision:** Direct browser push registration is offered only for the Chatto server that served the installed web app.
+**Why:** A browser push subscription belongs to a service worker origin and is created with a single application server key. Registering arbitrary remote servers from another server's app origin would imply cross-origin routing and VAPID-key behavior that Chatto has not designed yet.
+**Tradeoff:** Users connected to remote servers do not get native OS notifications for those servers through this app origin. They still get realtime in-app badges and notification sounds while Chatto is open, and remote-native push can be revisited with an explicit relay or shared-key design.
 
 ## Permissions
 

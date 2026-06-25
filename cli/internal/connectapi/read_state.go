@@ -50,19 +50,13 @@ func (s *readStateService) MarkRoomAsRead(ctx context.Context, req *connect.Requ
 	}
 
 	if hasLast {
-		shouldWrite := true
-		if previousEventID != "" && previousEventID != lastEventID {
-			prevTime, perr := s.api.core.GetEventTimestamp(ctx, kind, room.Id, previousEventID)
-			if perr == nil && !prevTime.IsZero() && !lastTime.After(prevTime) {
-				shouldWrite = false
-				lastEventID = previousEventID
-				lastTime = prevTime
-			}
+		advance, err := s.api.core.AdvanceLastReadEventID(ctx, kind, user.Id, room.Id, lastEventID)
+		if err != nil {
+			return nil, connectError(err)
 		}
-		if shouldWrite {
-			if err := s.api.core.SetLastReadEventID(ctx, kind, user.Id, room.Id, lastEventID); err != nil {
-				return nil, connectError(err)
-			}
+		if advance.CurrentEventID != "" {
+			lastEventID = advance.CurrentEventID
+			lastTime = advance.CurrentTime
 		}
 	}
 

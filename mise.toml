@@ -139,7 +139,7 @@ outputs = ["build/.mise-build-stamp", "../cli/internal/http_server/.client/.gitk
 description = "Build the development CLI application for the current architecture"
 depends = ["setup-cli", "build-frontend"]
 dir = "cli"
-run = "go build -tags bootstrap -o bin/chatto ."
+run = "go build -trimpath -tags bootstrap -o bin/chatto ."
 sources = [
     "go.mod",
     "go.sum",
@@ -161,7 +161,7 @@ dir = "cli"
 # test-only HTTP endpoints (e.g. /auth/test/create-user) used by per-test
 # fixtures. Deliberately scoped — the e2e binary should NOT pull in any
 # future broader dev-only code that might land under a separate tag.
-run = "CGO_ENABLED=0 go build -tags 'bootstrap test_endpoints' -ldflags '-s -w' -o ../frontend/e2e/fixtures/bin/chatto ."
+run = "CGO_ENABLED=0 go build -trimpath -tags 'bootstrap test_endpoints' -ldflags '-s -w' -o ../frontend/e2e/fixtures/bin/chatto ."
 sources = [
     "**/*.go",
     "cmd/embedded/LICENSE",
@@ -180,7 +180,7 @@ run = "pnpm storybook"
 description = "Build and run the local development backend"
 depends = ["setup-cli"]
 dir = "cli"
-run = "go build -tags bootstrap -o bin/chatto-dev . && exec ./bin/chatto-dev start"
+run = "go build -trimpath -tags bootstrap -o bin/chatto-dev . && exec ./bin/chatto-dev start"
 
 [tasks.dev-frontend]
 description = "Run the local development frontend"
@@ -233,14 +233,14 @@ run = "printf 'Chatto URL: %s\\n' \"$CHATTO_WEBSERVER_URL\" && exec bin/chatto"
 description = "Run CLI tests"
 depends = ["setup-cli", "build-frontend"]
 dir = "cli"
-run = "go test -p ${CHATTO_GO_TEST_P:-4} -tags test_endpoints ./..."
+run = "go test -trimpath -p ${CHATTO_GO_TEST_P:-4} -tags test_endpoints ./..."
 sources = ["**/*.go", "cmd/embedded/LICENSE", "cmd/embedded/NOTICE"]
 
 [tasks.test-cli-shutdown]
 description = "Run backend process shutdown integration tests"
 depends = ["setup-cli"]
 dir = "cli"
-run = "go test -tags integration ./cmd -run TestRunCommandShutsDownOnSignals -count=1 -timeout 2m"
+run = "go test -trimpath -tags integration ./cmd -run TestRunCommandShutsDownOnSignals -count=1 -timeout 2m"
 sources = ["**/*.go", "cmd/embedded/LICENSE", "cmd/embedded/NOTICE"]
 
 [tasks.lint-frontend]

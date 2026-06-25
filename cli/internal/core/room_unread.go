@@ -27,6 +27,18 @@ import (
 // room's current last root event on first read — the "caught up at deploy
 // time" semantic.
 
+const maxReadMarkerUpdateRetries = 5
+
+// LastReadEventIDAdvance describes the result of an advance-only room read
+// marker update.
+type LastReadEventIDAdvance struct {
+	PreviousEventID string
+	PreviousTime    time.Time
+	CurrentEventID  string
+	CurrentTime     time.Time
+	Updated         bool
+}
+
 // NotifyRoomMarkedAsRead publishes a live event to notify the user that they marked
 // a room as read. This enables real-time updates to space unread indicators.
 // This is best-effort - failures are logged but don't affect the mark-as-read operation.
@@ -129,6 +141,87 @@ func (c *ChattoCore) SetLastReadEventID(ctx context.Context, kind RoomKind, user
 	}
 	c.logger.Debug("Set last read event", "user_id", userID, "room_id", roomID, "event_id", eventID)
 	return nil
+}
+
+// AdvanceLastReadEventID stores eventID as the user's room read marker only if
+// it is newer than the marker already in RUNTIME_STATE. The compare-and-write
+// loop uses KV revisions so concurrent replicas cannot move the marker
+// backwards after seeing stale state.
+func (c *ChattoCore) AdvanceLastReadEventID(ctx context.Context, kind RoomKind, userID, roomID, eventID string) (*LastReadEventIDAdvance, error) {
+	nextTime, err := c.GetEventTimestamp(ctx, kind, roomID, eventID)
+	if err != nil {
+		return nil, err
+	}
+
+	bucket := c.storage.runtimeStateKV
+	key := roomReadEventKey(userID, roomID)
+
+	for attempt := 0; attempt < maxReadMarkerUpdateRetries; attempt++ {
+		entry, err := bucket.Get(ctx, key)
+		if err != nil {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
+				if eventID != "" && nextTime.IsZero() {
+					return &LastReadEventIDAdvance{}, nil
+				}
+				if _, err := bucket.Create(ctx, key, []byte(eventID)); err != nil {
+					if errors.Is(err, jetstream.ErrKeyExists) {
+						continue
+					}
+					return nil, fmt.Errorf("failed to create read marker: %w", err)
+				}
+				c.logger.Debug("Advanced last read event", "user_id", userID, "room_id", roomID, "event_id", eventID)
+				return &LastReadEventIDAdvance{
+					CurrentEventID: eventID,
+					CurrentTime:    nextTime,
+					Updated:        true,
+				}, nil
+			}
+			return nil, fmt.Errorf("failed to get read marker: %w", err)
+		}
+
+		previousEventID := string(entry.Value())
+		previousTime, err := c.GetEventTimestamp(ctx, kind, roomID, previousEventID)
+		if err != nil {
+			return nil, err
+		}
+		result := &LastReadEventIDAdvance{
+			PreviousEventID: previousEventID,
+			PreviousTime:    previousTime,
+			CurrentEventID:  previousEventID,
+			CurrentTime:     previousTime,
+		}
+
+		if !shouldAdvanceReadMarker(previousEventID, previousTime, eventID, nextTime) {
+			return result, nil
+		}
+
+		if _, err := bucket.Update(ctx, key, []byte(eventID), entry.Revision()); err != nil {
+			if errors.Is(err, jetstream.ErrKeyExists) {
+				continue
+			}
+			return nil, fmt.Errorf("failed to advance read marker: %w", err)
+		}
+		result.CurrentEventID = eventID
+		result.CurrentTime = nextTime
+		result.Updated = true
+		c.logger.Debug("Advanced last read event", "user_id", userID, "room_id", roomID, "previous_event_id", previousEventID, "event_id", eventID)
+		return result, nil
+	}
+
+	return nil, fmt.Errorf("read marker update failed after %d retries", maxReadMarkerUpdateRetries)
+}
+
+func shouldAdvanceReadMarker(currentEventID string, currentTime time.Time, nextEventID string, nextTime time.Time) bool {
+	if currentEventID == nextEventID {
+		return false
+	}
+	if nextEventID == "" || nextTime.IsZero() {
+		return currentEventID == ""
+	}
+	if currentEventID == "" || currentTime.IsZero() {
+		return true
+	}
+	return nextTime.After(currentTime)
 }
 
 // GetEventTimestamp returns the proto-level `created_at` timestamp for a

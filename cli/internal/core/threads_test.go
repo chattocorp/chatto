@@ -1638,6 +1638,70 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 	})
 }
 
+func TestChattoCore_SetThreadLastReadEventIDDoesNotRegress(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
+	user, _ := core.CreateUser(ctx, "system", "threadreader", "threadreader", "password123")
+	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+
+	root, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Root message", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage root: %v", err)
+	}
+	reply1, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "First reply", nil, root.Id, "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage reply1: %v", err)
+	}
+	reply2, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Second reply", nil, root.Id, "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage reply2: %v", err)
+	}
+	if reply2.GetCreatedAt().AsTime().IsZero() {
+		t.Fatal("reply2 created_at is zero")
+	}
+
+	marker2, err := core.GetThreadLastOpened(ctx, KindChannel, user.Id, room.Id, root.Id)
+	if err != nil {
+		t.Fatalf("GetThreadLastOpened after reply2: %v", err)
+	}
+	if marker2.IsZero() {
+		t.Fatal("thread marker after reply2 is zero")
+	}
+
+	previous, err := core.SetThreadLastReadEventID(ctx, KindChannel, user.Id, room.Id, root.Id, reply1.Id)
+	if err != nil {
+		t.Fatalf("SetThreadLastReadEventID stale reply1: %v", err)
+	}
+	if !previous.Equal(marker2) {
+		t.Fatalf("previous marker = %v, want %v", previous, marker2)
+	}
+	markerAfter, err := core.GetThreadLastOpened(ctx, KindChannel, user.Id, room.Id, root.Id)
+	if err != nil {
+		t.Fatalf("GetThreadLastOpened after stale reply1: %v", err)
+	}
+	if !markerAfter.Equal(marker2) {
+		t.Fatalf("thread marker regressed from %v to %v", marker2, markerAfter)
+	}
+
+	reply1Time := reply1.GetCreatedAt().AsTime()
+	previous, err = core.SetThreadLastOpenedAt(ctx, KindChannel, user.Id, room.Id, root.Id, reply1Time)
+	if err != nil {
+		t.Fatalf("SetThreadLastOpenedAt stale reply1 time: %v", err)
+	}
+	if !previous.Equal(marker2) {
+		t.Fatalf("previous legacy marker = %v, want %v", previous, marker2)
+	}
+	markerAfterLegacy, err := core.GetThreadLastOpened(ctx, KindChannel, user.Id, room.Id, root.Id)
+	if err != nil {
+		t.Fatalf("GetThreadLastOpened after stale legacy timestamp: %v", err)
+	}
+	if !markerAfterLegacy.Equal(marker2) {
+		t.Fatalf("thread marker regressed through legacy setter from %v to %v", marker2, markerAfterLegacy)
+	}
+}
+
 func eventIDsForTest(events []*RoomEvent) []string {
 	ids := make([]string, 0, len(events))
 	for _, event := range events {

@@ -3,70 +3,31 @@ title: Quick Start
 description: Get Chatto running in under five minutes.
 ---
 
-import { Aside, Steps } from "@astrojs/starlight/components";
+import {
+  Aside,
+  CardGrid,
+  LinkCard,
+  Steps,
+} from "@astrojs/starlight/components";
 
 ## Introduction
 
-Everything you need to get your own Chatto server started is bundled into a single `chatto` binary. Depending on where and how you want to host it,
-there's also a Docker image available. For production-style examples, see the deployment guides for Docker Compose, the standalone binary, and high-availability setups.
+Alright, here's some stuff you should know before diving in. Please do not skip this part! You will have a significantly easier time setting up Chatto:
 
-## Using Docker
+- Chatto is extremely compact; it's **just a single binary** (or Docker image) that you spin up to get a functional chat server.
+- It can be configured through a **config file** (`chatto.toml`) or through **environment variables**.
+- You can let Chatto store uploaded files, or **configure an S3 compatible object store**.
+- Voice and video calls are powered by [LiveKit](https://github.com/livekit/livekit), which you will **need to deploy separately** (but don't worry, we'll guide you through it.) LiveKit is **fully optional**; if you don't need call functionality, you can safely skip it.
 
-<Aside type="caution">
-  This Docker command-line setup is recommended only for quickly testing Chatto locally. If you want to deploy Chatto on a server, use the [Docker Compose guide](/guides/dockercompose/) instead.
-</Aside>
+We've saved the most important fact for last. Read it thoroughly, then read it again, because if you don't, you _will_ eventually lose your data:
 
-You're on the Quick Start page, so let's start quickly. The `ghcr.io/chattocorp/chatto` image contains the Chatto server and the embedded web UI. It keeps configuration in `/config/chatto.toml` and embedded NATS data in `/data`, so persist both paths across container restarts.
+- **Chatto does not use a database**. Instead, it persists its data in something called [NATS](https://nats.io/). For simple single-process deployments, Chatto can **run an embedded NATS server**; but if you want to move to multiple processes (either for scaling, redundancy, or zero-downtime updates), you will need to set up and run a separate NATS server. (This is also very easy, and we'll guide you through it. Also, you can move from one setup to the other easily, so it's not a big decision you need to make beforehand.)
 
-Create a local directory for the first run so the generated config and data are easy to inspect.
+That's it. For now. Let's dive in.
 
-<Steps>
+## Try Chatto
 
-1. **Create a project directory with configuration and data folders:**
-
-   ```bash
-   mkdir -p chatto/config chatto/data
-   cd chatto
-   ```
-
-2. **Run `chatto init` to create the configuration file:**
-
-   ```bash
-   docker run --rm \
-     -e PUID="$(id -u)" \
-     -e PGID="$(id -g)" \
-     -v ./config:/config \
-     -v ./data:/data \
-     ghcr.io/chattocorp/chatto:latest \
-     init -c /config/chatto.toml
-   ```
-
-   The Docker image's entrypoint runs the bundled `chatto` binary, so `init -c /config/chatto.toml` is the container equivalent of running `chatto init -c /config/chatto.toml`. This writes `chatto.toml` with generated secrets into `config/`. In the Docker image, the generated embedded NATS data directory resolves to the `/data` mount.
-
-   `PUID` and `PGID` keep generated files owned by your host user when bind-mounting local directories. If you omit them, the image defaults to `1000:1000`.
-
-   The config file is optional. Every `chatto.toml` setting can also be provided through environment variables, which is how the Docker Compose guide configures Chatto.
-
-3. **Review the generated config:**
-
-   Open `config/chatto.toml` in your editor and review the generated values before starting Chatto. The local Quick Start defaults work as-is, but this is where you can change settings such as `webserver.url`, owner emails, SMTP, storage, or login providers.
-
-4. **Start the server:**
-
-   ```bash
-   docker run --name chatto --rm -p 4000:4000 \
-     -e PUID="$(id -u)" \
-     -e PGID="$(id -g)" \
-     -v ./config:/config \
-     -v ./data:/data \
-     ghcr.io/chattocorp/chatto:latest
-   ```
-
-5. **Open your browser** to [http://localhost:4000](http://localhost:4000).
-
-</Steps>
-
-## From Binary
+The quickest and easiest way to give Chatto a try is to just download the executable and run it. Setting up a proper production environment can be a little more involved (depending on your requirements), but if you just want to test the waters, this will get you up and running within minutes.
 
 <Steps>
 
@@ -76,9 +37,11 @@ Create a local directory for the first run so the generated config and data are 
    brew install chattocorp/tap/chatto
    ```
 
-   You can also download the binary manually from [GitHub Releases](https://github.com/chattocorp/chatto/releases).
+   If you don't have Homebrew, just download the binary for your platform from [GitHub Releases](https://github.com/chattocorp/chatto/releases). Support for more package managers will be added with time!
 
 2. **Generate a configuration file:**
+
+   Move to an empty directory and have Chatto generate a configuration file:
 
    ```bash
    chatto init
@@ -86,14 +49,38 @@ Create a local directory for the first run so the generated config and data are 
 
    This creates a `chatto.toml` with random secrets for cookie signing, cookie encryption, runtime-token verifiers, asset signing, and NATS authentication.
 
+   **Take a minute to review this file.** It's already a working configuration, but you may want to customize some things. You will _definitely_ want to provide SMTP credentials.
+
 3. **Start the server:**
 
    ```bash
    chatto run
    ```
 
-4. **Open your browser** to [http://localhost:4000](http://localhost:4000).
+4. **Open your browser** to [http://localhost:4000](http://localhost:4000) (or whatever port you configured in the configuration file.)
 
 </Steps>
 
-The generated `chatto.toml` includes random secrets, embedded NATS storage, authentication defaults, and commented examples for external NATS and login providers. The embedded NATS TCP listener is commented out by default. Leave it that way for the simplest single-process setup; uncomment `nats.embedded.port` when you need CLI tools such as `chatto backup` or `chatto keys export` to connect to the running embedded NATS server.
+The generated `chatto.toml` contains a sane set of defaults to get you started. After getting to know your new Chatto server for a little bit, it is **strongly recommended** to review and fine-tune this file, especially if you're interested in support for video uploads, push notifications, SSO, or voice and video calls.
+
+## Next Steps
+
+You will probably want to deploy Chatto in a manner that makes it reachable from the Internet, possibly from a VPS, a Kubernetes cluster, or similar; please move on to our Deployment guides section that will guide you through various different setups.
+
+<CardGrid>
+  <LinkCard
+    title="Docker Compose"
+    href="/guides/dockercompose/"
+    description="Recommended self-hosting setup with Chatto, NATS, LiveKit, and Caddy."
+  />
+  <LinkCard
+    title="Standalone Binary"
+    href="/guides/binary/"
+    description="Run Chatto directly as a single binary with embedded NATS."
+  />
+  <LinkCard
+    title="Kubernetes"
+    href="/guides/kubernetes/"
+    description="Current Kubernetes guidance and requirements for scaled deployments."
+  />
+</CardGrid>

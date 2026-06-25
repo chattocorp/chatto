@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
@@ -104,6 +105,19 @@ func TestConnectServerServiceGetServer(t *testing.T) {
 			t.Fatalf("Name = %q, want Chatto", msg.Name)
 		}
 	})
+}
+
+func TestConnectAPIRejectsOversizedRequestMessages(t *testing.T) {
+	_, ts := setupConnectTestServer(t, config.AuthConfig{})
+
+	client := apiv1connect.NewMessageServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+	_, err := client.PostMessage(context.Background(), connect.NewRequest(&apiv1.PostMessageRequest{
+		RoomId: "oversized-room",
+		Body:   strings.Repeat("a", connectapi.MaxRequestMessageBytes),
+	}))
+	if connect.CodeOf(err) != connect.CodeResourceExhausted {
+		t.Fatalf("PostMessage oversized err = %v, want resource exhausted", err)
+	}
 }
 
 func TestConnectNotificationPreferencesService(t *testing.T) {

@@ -21,7 +21,9 @@
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import * as m from '$lib/i18n/messages';
 
-  const serverInfo = serverRegistry.getStore(getActiveServer()).serverInfo;
+  const activeServerId = $derived(getActiveServer());
+  const serverInfo = $derived(serverRegistry.getStore(activeServerId).serverInfo);
+  const isOriginServer = $derived(serverRegistry.isOriginServer(activeServerId));
 
   function selectSound(soundId: NotificationSoundId) {
     userPreferences.notificationSound = soundId;
@@ -158,6 +160,8 @@
 
   // Push notifications state
   let pushEnabled = $derived(serverInfo.pushNotificationsEnabled);
+  let showOriginPushControls = $derived(pushEnabled && isOriginServer);
+  let showRemotePushNotice = $derived(pushEnabled && !isOriginServer);
   let pushSupported = isPushSupported();
   let pushPermission = $state<NotificationPermission | null>(getPermission());
   let pushSubscribed = $state(false);
@@ -166,7 +170,7 @@
 
   // Check push subscription status on mount
   $effect(() => {
-    if (pushEnabled && pushSupported) {
+    if (showOriginPushControls && pushSupported) {
       pushPermission = getPermission();
       checkPushSubscription().then((subscribed) => {
         pushSubscribed = subscribed;
@@ -213,7 +217,21 @@
   <NotificationLevelSettings />
 
   <!-- Push Notifications Section (only show if enabled on server) -->
-  {#if pushEnabled}
+  {#if showRemotePushNotice}
+    <div class="max-w-lg">
+      <h3 class="mb-4 text-sm font-semibold text-muted">
+        {m['settings.notifications.push.title']()}
+      </h3>
+      <Hint tone="info">
+        <div>
+          <p class="font-medium">{m['settings.notifications.push.remote_title']()}</p>
+          <p class="mt-1 text-sm text-muted">
+            {m['settings.notifications.push.remote_description']()}
+          </p>
+        </div>
+      </Hint>
+    </div>
+  {:else if showOriginPushControls}
     <div class="max-w-lg">
       <h3 class="mb-4 text-sm font-semibold text-muted">
         {m['settings.notifications.push.title']()}

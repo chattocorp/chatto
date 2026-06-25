@@ -3,6 +3,27 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.0-beta.2](https://github.com/chattocorp/chatto/compare/v0.4.0-beta.1...v0.4.0-beta.2) (2026-06-24)
+
+
+### Features
+
+* **api:** port message posting to ConnectRPC ([#1093](https://github.com/chattocorp/chatto/issues/1093)) ([011018b](https://github.com/chattocorp/chatto/commit/011018bab165ba29e310f2e527a6dae9648899e2))
+* **api:** port read state and thread follow to ConnectRPC ([#1087](https://github.com/chattocorp/chatto/issues/1087)) ([f2128d6](https://github.com/chattocorp/chatto/commit/f2128d60d6d1706217f06566102788900619e053))
+* **connectrpc:** port thread history reads ([#1083](https://github.com/chattocorp/chatto/issues/1083)) ([4b81b4d](https://github.com/chattocorp/chatto/commit/4b81b4dbf78e879cdf2b10060f3777f6d2071dc3))
+* **frontend:** add Paraglide-based client-shell i18n ([#1077](https://github.com/chattocorp/chatto/issues/1077)) ([1a4ab07](https://github.com/chattocorp/chatto/commit/1a4ab07211482af1236b3921607fd2deb8746f4f))
+* **frontend:** move UI strings into i18n catalogs ([#1084](https://github.com/chattocorp/chatto/issues/1084)) ([d310382](https://github.com/chattocorp/chatto/commit/d310382e0795007da388e0514ac7d2056e961898))
+* **profile:** add custom user statuses ([#1081](https://github.com/chattocorp/chatto/issues/1081)) ([1d1d7d2](https://github.com/chattocorp/chatto/commit/1d1d7d214a28b9c9eb38c50522e44b943d7e5cb5))
+
+
+### Bug Fixes
+
+* **api:** include user status in generated docs ([#1092](https://github.com/chattocorp/chatto/issues/1092)) ([52521fa](https://github.com/chattocorp/chatto/commit/52521fa5eeff94d9bebffabb010a6eb4b5e9de78))
+* **connectapi:** harden message post migration ([#1097](https://github.com/chattocorp/chatto/issues/1097)) ([b15fb14](https://github.com/chattocorp/chatto/commit/b15fb14c2ee708915ab79255f6a86aab3c4cc764))
+* **frontend:** align call control button colors ([#1085](https://github.com/chattocorp/chatto/issues/1085)) ([4b7f37e](https://github.com/chattocorp/chatto/commit/4b7f37e87d1bcfe8b388f59aa1ae70b7e3aff5ea))
+* **frontend:** defer unread separator until return to the room ([#1079](https://github.com/chattocorp/chatto/issues/1079)) ([9535694](https://github.com/chattocorp/chatto/commit/95356945a66376560017888ef0291295f6d13f1e))
+* **frontend:** improve unread channel contrast ([#1089](https://github.com/chattocorp/chatto/issues/1089)) ([74247b4](https://github.com/chattocorp/chatto/commit/74247b42833d07c33a2950dc357cf5c4b06a3f66))
+
 ## [0.4.0-beta.1](https://github.com/chattocorp/chatto/compare/v0.3.8...v0.4.0-beta.1) (2026-06-23)
 
 

@@ -52,6 +52,8 @@ jobs:
 
       - name: Build frontend assets for CLI image
         run: mise build-frontend
+        env:
+          CHATTO_FRONTEND_PRECOMPRESS: "1"
 
       - name: Prepare Docker context
         run: |
@@ -65,7 +67,7 @@ jobs:
 
           (
             cd cli
-            CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o "$context/chatto" .
+            CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o "$context/chatto" .
           )
 
       - name: Build and push Chatto image

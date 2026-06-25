@@ -3,20 +3,30 @@ title: Standalone Binary
 description: How to deploy Chatto as a standalone binary.
 ---
 
-import { Steps, Aside, FileTree, LinkCard, CardGrid } from "@astrojs/starlight/components";
+import {
+  Steps,
+  Aside,
+  FileTree,
+  LinkCard,
+  CardGrid,
+} from "@astrojs/starlight/components";
 import ArchDiagram from "../../../components/diagrams/BinaryDiagram.astro";
 
 <Aside type="caution">
-  For production deployments, [Docker Compose](/guides/dockercompose/) is the recommended approach. It handles service orchestration, automatic restarts, and makes it easy to add LiveKit for voice and video calls. The standalone binary approach described here is best suited for development, testing, or minimal single-server setups.
+  While it is totally possible to host Chatto just using the binary (it will
+  even terminate TLS for you if you want!), it is heavily recommended to make
+  use of the provided Docker image through [Docker
+  Compose](/guides/dockercompose/), [Kubernetes](/guides/kubernetes/), or
+  another container runtime of your choice.
 </Aside>
 
-Chatto ships as a single binary with an embedded NATS server and built-in Let's Encrypt TLS. No reverse proxy, no external database — just one process serving everything.
+Chatto ships as a single binary with an embedded NATS server and built-in Let's Encrypt TLS. No reverse proxy, no external database — just one process serving everything. Alternatively, spin it up on any port and use your existing reverse proxy to wire things up and terminate TLS.
 
 ## Architecture
 
 <ArchDiagram />
 
-The Chatto binary includes an embedded NATS server with JetStream for storage. All chat data is stored in the `./data/` directory. The built-in TLS support handles certificate provisioning and renewal automatically via Let's Encrypt.
+The Chatto binary includes an embedded NATS server with JetStream for storage. It expects a `chatto.toml` configuration file (you can generate one using `chatto init`), and stores all data in a `./data/` directory.
 
 ## Prerequisites
 
@@ -26,64 +36,21 @@ The Chatto binary includes an embedded NATS server with JetStream for storage. A
 
 ## Setup
 
-By the end of this section, your deployment directory will look like this:
+Please refer to the [Quick Start](/getting-started/quick-start/) guide for details on initializing your `chatto.toml` configuration file.
 
-<FileTree>
-- chatto (binary)
-- chatto.toml
-- data/ (created automatically)
-- .chatto/certs/ (created automatically)
-</FileTree>
+For production use, please review the file and **at least**:
 
-<Steps>
+- configure SMTP credentials
+- set `webserver.url` to your public URL
+- review `webserver.tls` if you want Chatto to terminate TLS
 
-1. **Create `chatto.toml`**
+It is also strongly recommended that you:
 
-   ```toml
-   [webserver]
-   url = "https://chat.example.com"
-   cookie_signing_secret = "<generate-me>"
-   cookie_encryption_secret = "<generate-me>"
-
-   [webserver.tls]
-   enabled = true
-   domain = "chat.example.com"
-   email = "admin@example.com"
-
-   [core]
-   secret_key = "<generate-me>"
-
-   [core.assets]
-   signing_secret = "<generate-me>"
-   ```
-
-   Replace all `<generate-me>` values with output from `openssl rand -hex 32`.
-
-   When TLS is enabled and no port is specified, Chatto defaults to port 443 for HTTPS and port 80 for ACME challenges.
-
-2. **Grant port binding privileges**
-
-   Ports 80 and 443 require elevated privileges on Linux. Instead of running as root, grant the binary the `CAP_NET_BIND_SERVICE` capability:
-
-   ```bash
-   sudo setcap cap_net_bind_service=ep ./chatto
-   ```
-
-   <Aside>
-     This capability is tied to the binary file itself. You'll need to re-run this command after updating the Chatto binary.
-   </Aside>
-
-   On macOS, `setcap` is not available. Use `sudo` to run the binary, or run on higher ports behind a reverse proxy.
-
-3. **Start Chatto**
-
-   ```bash
-   ./chatto run -c chatto.toml
-   ```
-
-   Chatto will start the embedded NATS server, obtain a TLS certificate from Let's Encrypt, and begin serving on port 443. Visit `https://chat.example.com` to create your first account.
-
-</Steps>
+- review the `[core.assets.s3]` section if you want to use an external object store for uploaded files (optinal, but recommended; you can enable this later if you wish)
+- make a decision to either enable `auth.direct_registration` or configure at least one SSO provider (you can use both together!)
+- review the `[push]` section if you want to support native push notifications
+- review the `[video]` section if you want to support video uploads
+- review the `[livekit]` section if you want to support voice and video calls (requires LiveKit)
 
 ## Running as a systemd Service
 
@@ -115,29 +82,10 @@ sudo systemctl enable --now chatto
 ```
 
 <Aside type="tip">
-  Using `AmbientCapabilities=CAP_NET_BIND_SERVICE` in the unit file grants the capability at runtime, so you don't need to `setcap` the binary separately. This is the preferred approach when using systemd.
-</Aside>
-
-## Persistent Data
-
-All data is stored by the embedded NATS server in the `data/` directory (configurable via `CHATTO_NATS_EMBEDDED_DATA_DIR`). Back up this directory regularly.
-
-TLS certificates are cached in `.chatto/certs/` (configurable via `CHATTO_WEBSERVER_TLS_CACHE_DIR`). These are automatically re-fetched if deleted, but caching avoids unnecessary Let's Encrypt requests.
-
-## Using Higher Ports
-
-If you can't use ports 80/443 (e.g., another service already binds them), configure higher ports:
-
-```toml
-[webserver]
-port = 8443
-
-[webserver.tls]
-http_port = 8080
-```
-
-<Aside type="caution">
-  Let's Encrypt HTTP-01 validation requires port 80 to be publicly reachable. If you use a different HTTP port, you'll need to redirect external port 80 to your configured `http_port` (e.g., via `iptables` or a load balancer).
+  Using `AmbientCapabilities=CAP_NET_BIND_SERVICE` in the unit file grants the
+  capability at runtime, so you don't need to `setcap` the binary separately.
+  This is the preferred approach when using systemd. You only need these when
+  running Chatto on a port lower than 1024.
 </Aside>
 
 ## Adding Voice and Video Calls
@@ -148,7 +96,19 @@ The standalone binary doesn't include LiveKit. To add voice and video calls, you
 2. **Run LiveKit separately** — install and run a [LiveKit server](https://docs.livekit.io/home/self-hosting/local/) alongside Chatto, then configure the LiveKit environment variables.
 
 <CardGrid>
-  <LinkCard title="Docker Compose" href="/guides/dockercompose/" description="Recommended production deployment with LiveKit and Caddy." />
-  <LinkCard title="Environment Variables" href="/reference/environment-variables/" description="Full reference for all configuration options." />
-  <LinkCard title="Backup & Restore" href="/guides/backup-restore/" description="How to back up and restore your Chatto data." />
+  <LinkCard
+    title="Docker Compose"
+    href="/guides/dockercompose/"
+    description="Recommended production deployment with LiveKit and Caddy."
+  />
+  <LinkCard
+    title="Environment Variables"
+    href="/reference/environment-variables/"
+    description="Full reference for all configuration options."
+  />
+  <LinkCard
+    title="Backup & Restore"
+    href="/guides/backup-restore/"
+    description="How to back up and restore your Chatto data."
+  />
 </CardGrid>

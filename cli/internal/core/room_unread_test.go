@@ -96,6 +96,60 @@ func TestChattoCore_LastReadEventID(t *testing.T) {
 	}
 }
 
+func TestChattoCore_AdvanceLastReadEventIDDoesNotRegress(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
+	poster, _ := core.CreateUser(ctx, "system", "poster", "poster", "password123")
+	reader, _ := core.CreateUser(ctx, "system", "reader", "reader", "password123")
+	core.JoinRoom(ctx, poster.Id, KindChannel, poster.Id, room.Id)
+
+	first, err := core.PostMessage(ctx, KindChannel, room.Id, poster.Id, "First message", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage first: %v", err)
+	}
+	second, err := core.PostMessage(ctx, KindChannel, room.Id, poster.Id, "Second message", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage second: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, reader.Id, KindChannel, reader.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom reader: %v", err)
+	}
+
+	advance, err := core.AdvanceLastReadEventID(ctx, KindChannel, reader.Id, room.Id, first.Id)
+	if err != nil {
+		t.Fatalf("AdvanceLastReadEventID stale first: %v", err)
+	}
+	if advance.Updated {
+		t.Fatal("AdvanceLastReadEventID updated stale marker, want no update")
+	}
+	if advance.CurrentEventID != second.Id {
+		t.Fatalf("CurrentEventID = %q, want %q", advance.CurrentEventID, second.Id)
+	}
+	got, err := core.GetLastReadEventID(ctx, KindChannel, reader.Id, room.Id)
+	if err != nil {
+		t.Fatalf("GetLastReadEventID after stale advance: %v", err)
+	}
+	if got != second.Id {
+		t.Fatalf("last read marker regressed to %q, want %q", got, second.Id)
+	}
+
+	if err := core.SetLastReadEventID(ctx, KindChannel, reader.Id, room.Id, "Edoesnotexist"); err != nil {
+		t.Fatalf("SetLastReadEventID stale marker: %v", err)
+	}
+	advance, err = core.AdvanceLastReadEventID(ctx, KindChannel, reader.Id, room.Id, first.Id)
+	if err != nil {
+		t.Fatalf("AdvanceLastReadEventID stale recovery: %v", err)
+	}
+	if !advance.Updated {
+		t.Fatal("AdvanceLastReadEventID did not repair stale marker")
+	}
+	if advance.CurrentEventID != first.Id {
+		t.Fatalf("CurrentEventID after stale recovery = %q, want %q", advance.CurrentEventID, first.Id)
+	}
+}
+
 // TestChattoCore_LastReadEventID_LazyInitCaughtUp verifies that a user with
 // no read marker yet (e.g. a pre-existing user encountering this code path
 // for the first time post-deploy) is lazy-initialized as caught up to the
