@@ -298,28 +298,29 @@
   const isRootMessage = $derived(!isEcho && messageEvent?.threadRootEventId == null);
   const hasReplies = $derived(isRootMessage && (messageEvent?.replyCount ?? 0) > 0);
 
-  // Thread follow state — managed as plain $state.
-  // Seed once per message identity, then update only via mutations / live events.
-  let isFollowingThread = $state(false);
-  let _followSeededForEvent = '';
+  // Overridable derived state: backing event data is the default, while
+  // mutations/live events can update the row immediately.
+  let isFollowingThread = $derived(messageEvent?.viewerIsFollowingThread ?? false);
 
-  $effect(() => {
+  function setThreadFollowState(value: boolean) {
     if (!event) return;
-    const id = event.id;
-    const value = messageEvent?.viewerIsFollowingThread ?? false;
-    if (_followSeededForEvent !== id) {
-      _followSeededForEvent = id;
-      isFollowingThread = value;
-    } else if (value && !isFollowingThread) {
-      // Sync auto-follow (false→true only, preserves optimistic unfollows)
-      isFollowingThread = true;
-    }
-  });
+    isFollowingThread = value;
+    messageStore?.setThreadRootFollowState(event.id, value);
+  }
+
+  function syncThreadFollowEvents() {
+    return onThreadFollowChanged((update) => {
+      if (update.roomId === roomId && update.threadRootEventId === event.id) {
+        setThreadFollowState(update.isFollowing);
+      }
+    });
+  }
 
   async function toggleThreadFollow(e: MouseEvent) {
     e.stopPropagation();
     const wasFollowing = isFollowingThread;
-    isFollowingThread = !wasFollowing;
+    const nextFollowing = !wasFollowing;
+    setThreadFollowState(nextFollowing);
 
     try {
       const conn = connection();
@@ -333,19 +334,11 @@
       } else {
         await api.followThread({ roomId, threadRootEventId: event.id });
       }
+      setThreadFollowState(nextFollowing);
     } catch {
-      isFollowingThread = wasFollowing;
+      setThreadFollowState(wasFollowing);
     }
   }
-
-  // Sync thread follow state from live events (auto-follow on reply, cross-tab sync).
-  $effect(() =>
-    onThreadFollowChanged((update) => {
-      if (update.threadRootEventId === event.id) {
-        isFollowingThread = update.isFollowing;
-      }
-    })
-  );
 
   // Check if message has attachments
   const hasAttachments = $derived((msg?.attachments?.length ?? 0) > 0);
@@ -602,6 +595,7 @@
     ]}
     role="article"
     data-event-id={event.id}
+    {@attach syncThreadFollowEvents}
   >
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div

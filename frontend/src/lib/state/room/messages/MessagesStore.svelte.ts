@@ -119,6 +119,24 @@ export class MessagesStore {
     );
   }
 
+  /** Update the viewer's thread follow state on a known thread root event. */
+  setThreadRootFollowState(threadRootEventId: string, isFollowing: boolean): void {
+    const idx = this.events.findIndex((e) => e.id === threadRootEventId);
+    if (idx === -1) return;
+
+    const rootEvent = this.events[idx];
+    if (rootEvent.event?.__typename !== 'MessagePostedEvent') return;
+    if (rootEvent.event.viewerIsFollowingThread === isFollowing) return;
+
+    this.events[idx] = {
+      ...rootEvent,
+      event: {
+        ...rootEvent.event,
+        viewerIsFollowingThread: isFollowing
+      }
+    };
+  }
+
   /** Fetch an off-window event for previews. Transient errors are not cached. */
   ensureEvent(eventId: string): Promise<void> | undefined {
     if (!this.roomId) return undefined;
