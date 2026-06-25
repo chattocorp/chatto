@@ -10,10 +10,10 @@
 
   const serverPerms = getServerPermissions();
 
-  // Unauthenticated → redirect immediately (no $effect needed)
+  // Unauthenticated → let root decide whether to show login or standalone chrome.
   // svelte-ignore state_referenced_locally
   if (!data.user) {
-    goto(resolve('/login'), { replaceState: true });
+    goto(resolve('/'), { replaceState: true });
   }
 
   // Authenticated → use $effect to wait for reactive state (instances, permissions)
@@ -29,7 +29,7 @@
     const homeId = serverRegistry.originServer?.id ?? '';
     if (!homeId) return;
 
-    const lastPos = resolveLastPosition(homeId);
+    const lastPos = data.welcome ? null : resolveLastPosition(homeId);
     if (lastPos) {
       // eslint-disable-next-line svelte/no-navigation-without-resolve -- lastPos from resolveLastPosition() is already resolved
       goto(lastPos, { replaceState: true });
@@ -43,7 +43,8 @@
     // Issue #330 / ADR-027: with auto-join, every authenticated user is in
     // the server, so /chat/spaces is no longer the right default landing.
     goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(homeId) }), {
-      replaceState: true
+      replaceState: true,
+      state: data.welcome ? { welcome: true } : {}
     });
   });
 </script>

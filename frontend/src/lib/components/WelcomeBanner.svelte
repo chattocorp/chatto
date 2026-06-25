@@ -12,7 +12,7 @@ Only renders when the `welcome=true` query parameter is present.
   import * as m from '$lib/i18n/messages';
   import { Hint } from '$lib/ui';
 
-  let showWelcome = $state(page.url.searchParams.get('welcome') === 'true');
+  let showWelcome = $state(page.url.searchParams.get('welcome') === 'true' || page.state.welcome === true);
 
   // Clear the welcome param from URL after showing
   $effect(() => {
