@@ -30,6 +30,29 @@ test.describe('Up arrow to edit last message', () => {
     await expect(roomPage.composer).toHaveText(originalMessage);
   });
 
+  test('pressing Enter commits a simple up-arrow edit', async ({ page, chatPage, roomPage }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+
+    const originalMessage = `Simple up edit ${Date.now()}`;
+    await roomPage.sendMessage(originalMessage);
+
+    await roomPage.messageInput.clear();
+    await roomPage.messageInput.focus();
+    await roomPage.pressUpArrow();
+    await roomPage.expectEditModeActive();
+
+    const editedMessage = `Simple up edit saved ${Date.now()}`;
+    await roomPage.messageInput.fill(editedMessage);
+    await expect(page.getByText(/(?:Cmd|Ctrl)\+Return to Send/)).not.toBeVisible();
+
+    await roomPage.messageInput.press('Enter');
+    await roomPage.expectEditModeInactive();
+    await roomPage.expectMessageVisible(editedMessage);
+    await roomPage.expectMessageNotVisible(originalMessage);
+  });
+
   test('pressing up arrow with text in input does NOT start editing', async ({
     page,
     chatPage,
@@ -477,7 +500,7 @@ test.describe('Message editing', () => {
       await page.keyboard.press(docEnd);
       await page.keyboard.type('x');
       await page.keyboard.press('Backspace');
-      await roomPage.composer.press('Control+Enter');
+      await roomPage.composer.press('Enter');
       await roomPage.expectEditModeInactive();
       return snapshot;
     };

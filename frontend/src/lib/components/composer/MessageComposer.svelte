@@ -332,7 +332,7 @@
   let editorNextEnterWillSend = $state(false);
   let manualRichMode = $state(false);
   let editorHasRichStructure = $state(false);
-  let isRichComposer = $derived(isEditing || manualRichMode || editorHasRichStructure);
+  let isRichComposer = $derived(manualRichMode || editorHasRichStructure);
   let nextEnterWillSend = $derived(canSubmit && isRichComposer && editorNextEnterWillSend);
   let submitHint = $derived(
     shortcutHints && isRichComposer

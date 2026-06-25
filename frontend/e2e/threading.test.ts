@@ -234,7 +234,7 @@ test.describe('Message Threading', () => {
         await roomPage.expectThreadEditModeActive();
         const editedReply = `Edited reply ${Date.now()}`;
         await roomPage.threadReplyInput.fill(editedReply);
-        await roomPage.threadReplyInput.press('Control+Enter');
+        await roomPage.threadReplyInput.press('Enter');
 
         // User B should see the new content and the (edited) marker.
         await expect(roomPage2.threadPane.getByText(editedReply)).toBeVisible({

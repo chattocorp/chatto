@@ -439,7 +439,7 @@ export class RoomPage {
    */
   async completeEdit(newText: string): Promise<void> {
     await this.composer.fill(newText);
-    await this.composer.press('Control+Enter');
+    await this.composer.press('Enter');
     await expect(this.editingIndicator).not.toBeVisible({ timeout: TIMEOUTS.UI_FAST });
   }
 
@@ -691,7 +691,7 @@ export class RoomPage {
    */
   async completeThreadEdit(newText: string): Promise<void> {
     await this.threadReplyInput.fill(newText);
-    await this.threadReplyInput.press('Control+Enter');
+    await this.threadReplyInput.press('Enter');
     await expect(this.threadEditingIndicator).not.toBeVisible({ timeout: TIMEOUTS.UI_FAST });
   }
 
