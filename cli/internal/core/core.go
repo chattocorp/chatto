@@ -43,6 +43,8 @@ type ChattoCore struct {
 	roomService        *RoomService
 	messageService     *MessageService
 	notificationPrefs  *NotificationPreferencesService
+	readStateService   *ReadStateService
+	threadFollows      *ThreadFollowService
 	userService        *UserService
 	rbacService        *RBACService
 	mentionables       *MentionablesService
@@ -1029,6 +1031,8 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	core.assetService = NewAssetService(core)
 	core.messageService = &MessageService{core: core}
 	core.notificationPrefs = &NotificationPreferencesService{core: core}
+	core.readStateService = &ReadStateService{core: core}
+	core.threadFollows = &ThreadFollowService{core: core}
 
 	if err := core.seedDefaultRBAC(ctx); err != nil {
 		return nil, fmt.Errorf("failed to seed default RBAC: %w", err)

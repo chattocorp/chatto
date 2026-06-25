@@ -1,6 +1,6 @@
 # Authorization Model
 
-This document describes the authorization requirements and policies for Chatto's GraphQL API.
+This document describes the authorization requirements and policies for Chatto's public APIs and core operation services.
 
 ## Core Principles
 
@@ -13,18 +13,23 @@ This document describes the authorization requirements and policies for Chatto's
 
 ## Authorization Architecture
 
-Authorization is enforced at the **API boundary**, not in core:
+Legacy GraphQL resolvers enforce authorization at the API boundary, but new
+public transports should authenticate at the edge and pass the actor ID into a
+core operation service. That operation service owns authorization and domain
+validation before it calls lower-level core helpers.
 
 | Layer | Responsibility |
 |-------|----------------|
-| **GraphQL** | User-facing API. Checks authorization via `Can*` functions before calling core. |
-| **Core** | Pure business logic. Assumes caller is authorized. Documents requirements in comments. |
+| **GraphQL** | Legacy user-facing API. Checks authorization via `Can*` functions before calling lower-level core helpers unless it has been moved onto a shared operation service. |
+| **ConnectRPC / protobuf APIs** | User-facing API. Authenticates the request and passes the actor ID to a core operation service. |
+| **Core operation services** | User-facing operation policy. Checks authorization, validates operation-specific anchors/targets, and then calls lower-level core helpers. |
+| **Lower-level core helpers** | Durable state mechanics. Trusted/internal callers may use them directly and must satisfy the documented authorization preconditions. |
 | **NATS** | Extension/internal API. Trusted context, calls core directly. |
 
 **Why this design:**
-- Core functions are reusable from trusted contexts (NATS handlers, background jobs)
-- No redundant permission checks when core calls other core functions
-- Clear separation: GraphQL handles user authorization, core handles business logic
+- Public transports share one authorization path as GraphQL migrates to ConnectRPC
+- Trusted lower-level helpers remain reusable from NATS handlers and background jobs
+- API edges stay focused on authentication, request decoding, and response/error mapping
 - Audit logging can be added orthogonally without coupling to authorization
 
 ## Permission System
