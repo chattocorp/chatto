@@ -6,8 +6,8 @@ func TestServiceRegistryUsesStableKeys(t *testing.T) {
 	core, _ := setupTestCore(t)
 
 	services := core.ServiceMetadata()
-	if len(services) != 13 {
-		t.Fatalf("registered services = %d, want 13", len(services))
+	if len(services) != 19 {
+		t.Fatalf("registered services = %d, want 19", len(services))
 	}
 
 	keys := make(map[string]string, len(services))
@@ -33,19 +33,25 @@ func TestServiceRegistryUsesStableKeys(t *testing.T) {
 	}
 
 	for key, name := range map[string]string{
-		"chatto_core":          "Chatto Core",
-		"event_publisher":      "Event Publisher",
-		"config_service":       "Config Service",
-		"config_manager":       "Config Manager",
-		"room_service":         "Room Service",
-		"user_service":         "User Service",
-		"rbac_service":         "RBAC Service",
-		"mentionables_service": "Mentionables Service",
-		"presence_service":     "Presence Service",
-		"my_events_service":    "My Events Service",
-		"call_service":         "Call Service",
-		"media_service":        "Media Service",
-		"asset_service":        "Asset Service",
+		"chatto_core":                      "Chatto Core",
+		"event_publisher":                  "Event Publisher",
+		"config_service":                   "Config Service",
+		"config_manager":                   "Config Manager",
+		"notification_preferences_service": "Notification Preferences Service",
+		"message_service":                  "Message Service",
+		"reaction_service":                 "Reaction Service",
+		"room_timeline_read_service":       "Room Timeline Read Service",
+		"read_state_service":               "Read State Service",
+		"thread_follow_service":            "Thread Follow Service",
+		"room_service":                     "Room Service",
+		"user_service":                     "User Service",
+		"rbac_service":                     "RBAC Service",
+		"mentionables_service":             "Mentionables Service",
+		"presence_service":                 "Presence Service",
+		"my_events_service":                "My Events Service",
+		"call_service":                     "Call Service",
+		"media_service":                    "Media Service",
+		"asset_service":                    "Asset Service",
 	} {
 		if got, ok := keys[key]; !ok || got != name {
 			t.Fatalf("service registration %q = %q, %v; want %q, true", key, got, ok, name)

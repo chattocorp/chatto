@@ -91,7 +91,7 @@ Key files: [`cli/internal/core/core.go`](../cli/internal/core/core.go), [`cli/in
 
 The core runtime is process-local but must be safe under multiple Chatto replicas connected to the same NATS account. Correctness comes from JetStream/KV atomicity and projection catch-up, not in-process serialization.
 
-`ChattoCore` keeps a small runtime service registry with stable machine-readable keys such as `config_manager` and `my_events_service`. Per-process metrics use these keys as labels; display names remain operator-facing text only.
+`ChattoCore` keeps a core service inventory with stable machine-readable keys such as `config_manager`, `message_service`, and `my_events_service`. Per-process metrics use these keys as labels; display names remain operator-facing text only.
 
 | Service                          | Key files                                                                                                                                                   | Responsibility                                                                                                                                |
 | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
