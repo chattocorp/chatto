@@ -2,12 +2,13 @@ syntax = "proto3";
 
 package chatto.api.v1;
 
+import "buf/validate/validate.proto";
 import "google/protobuf/timestamp.proto";
 
 // Request to mark a room timeline as read.
 message MarkRoomAsReadRequest {
-  // Room whose timeline should be marked read.
-  string room_id = 1;
+  // Required. Room whose timeline should be marked read.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
   // Highest room event ID the current user has read. When set, the event must
   // exist as a root event in the room timeline. Leave empty to mark through the
   // room's current latest root event.
@@ -27,10 +28,10 @@ message MarkRoomAsReadResponse {
 
 // Request to mark a message thread as read.
 message MarkThreadAsReadRequest {
-  // Room containing the thread.
-  string room_id = 1;
-  // Event ID of the root message for the thread.
-  string thread_root_event_id = 2;
+  // Required. Room containing the thread.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required. Event ID of the root message for the thread.
+  string thread_root_event_id = 2 [(buf.validate.field).string.min_len = 1];
   // Highest thread event ID the current user has read. The event should belong
   // to the thread identified by thread_root_event_id.
   string up_to_event_id = 3;

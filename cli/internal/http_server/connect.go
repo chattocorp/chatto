@@ -1,18 +1,26 @@
 package http_server
 
 import (
+	"context"
 	"net/http"
 
+	"connectrpc.com/authn"
 	"github.com/gin-gonic/gin"
 	"hmans.de/chatto/internal/connectapi"
+	graphauth "hmans.de/chatto/internal/graph/auth"
 )
 
 const connectAPIPrefix = connectapi.Prefix
 
 func (s *HTTPServer) setupConnectAPI() {
 	api := connectapi.New(s.core, s.config, s.version)
+	authMiddleware := authn.NewMiddleware(authenticateConnectRequest, connectapi.HandlerOptions()...)
 	for _, handler := range api.Handlers() {
-		s.mountConnectHandler(handler.ServicePath, handler.Handler)
+		serviceHandler := handler.Handler
+		if handler.RequiresAuth {
+			serviceHandler = authMiddleware.Wrap(serviceHandler)
+		}
+		s.mountConnectHandler(handler.ServicePath, serviceHandler)
 	}
 }
 
@@ -23,6 +31,14 @@ func (s *HTTPServer) mountConnectHandler(servicePath string, serviceHandler http
 		req = req.WithContext(connectapi.WithRequestBaseURL(req.Context(), requestBaseURL(c.Request)))
 		handler.ServeHTTP(c.Writer, req)
 	})
+}
+
+func authenticateConnectRequest(ctx context.Context, _ *http.Request) (any, error) {
+	user := graphauth.ForContext(ctx)
+	if user == nil {
+		return nil, authn.Errorf("authentication required")
+	}
+	return user, nil
 }
 
 func requestBaseURL(r *http.Request) string {

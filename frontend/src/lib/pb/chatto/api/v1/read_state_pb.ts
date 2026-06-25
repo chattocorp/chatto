@@ -13,7 +13,7 @@ import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
  */
 export class MarkRoomAsReadRequest extends Message<MarkRoomAsReadRequest> {
   /**
-   * Room whose timeline should be marked read.
+   * Required. Room whose timeline should be marked read.
    *
    * @generated from field: string room_id = 1;
    */
@@ -116,14 +116,14 @@ export class MarkRoomAsReadResponse extends Message<MarkRoomAsReadResponse> {
  */
 export class MarkThreadAsReadRequest extends Message<MarkThreadAsReadRequest> {
   /**
-   * Room containing the thread.
+   * Required. Room containing the thread.
    *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
-   * Event ID of the root message for the thread.
+   * Required. Event ID of the root message for the thread.
    *
    * @generated from field: string thread_root_event_id = 2;
    */

@@ -7,6 +7,7 @@
 package apiv1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -201,7 +202,7 @@ func (x *SetRoomNotificationLevelResponse) GetEffectiveLevel() NotificationLevel
 // Request for the current user's notification preference in one room.
 type GetRoomNotificationPreferenceRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Room whose notification preference should be loaded for the current user.
+	// Required. Room whose notification preference should be loaded for the current user.
 	RoomId        string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -247,10 +248,10 @@ func (x *GetRoomNotificationPreferenceRequest) GetRoomId() string {
 // Request to update the current user's notification level in one room.
 type SetRoomNotificationLevelRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Room whose notification level should be changed for the current user.
+	// Required. Room whose notification level should be changed for the current user.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// New explicit notification level. Use NOTIFICATION_LEVEL_DEFAULT to return
-	// the room to inherited/default behavior.
+	// Required. New explicit notification level. Use NOTIFICATION_LEVEL_DEFAULT
+	// to return the room to inherited/default behavior.
 	Level         NotificationLevel `protobuf:"varint,2,opt,name=level,proto3,enum=chatto.api.v1.NotificationLevel" json:"level,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -304,18 +305,19 @@ var File_chatto_api_v1_notification_preferences_proto protoreflect.FileDescripto
 
 const file_chatto_api_v1_notification_preferences_proto_rawDesc = "" +
 	"\n" +
-	",chatto/api/v1/notification_preferences.proto\x12\rchatto.api.v1\"\xaa\x01\n" +
+	",chatto/api/v1/notification_preferences.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"\xaa\x01\n" +
 	"%GetRoomNotificationPreferenceResponse\x126\n" +
 	"\x05level\x18\x01 \x01(\x0e2 .chatto.api.v1.NotificationLevelR\x05level\x12I\n" +
 	"\x0feffective_level\x18\x02 \x01(\x0e2 .chatto.api.v1.NotificationLevelR\x0eeffectiveLevel\"\xa5\x01\n" +
 	" SetRoomNotificationLevelResponse\x126\n" +
 	"\x05level\x18\x01 \x01(\x0e2 .chatto.api.v1.NotificationLevelR\x05level\x12I\n" +
-	"\x0feffective_level\x18\x02 \x01(\x0e2 .chatto.api.v1.NotificationLevelR\x0eeffectiveLevel\"?\n" +
-	"$GetRoomNotificationPreferenceRequest\x12\x17\n" +
-	"\aroom_id\x18\x01 \x01(\tR\x06roomId\"r\n" +
-	"\x1fSetRoomNotificationLevelRequest\x12\x17\n" +
-	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x126\n" +
-	"\x05level\x18\x02 \x01(\x0e2 .chatto.api.v1.NotificationLevelR\x05level*\xb9\x01\n" +
+	"\x0feffective_level\x18\x02 \x01(\x0e2 .chatto.api.v1.NotificationLevelR\x0eeffectiveLevel\"H\n" +
+	"$GetRoomNotificationPreferenceRequest\x12 \n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\"\x87\x01\n" +
+	"\x1fSetRoomNotificationLevelRequest\x12 \n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12B\n" +
+	"\x05level\x18\x02 \x01(\x0e2 .chatto.api.v1.NotificationLevelB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x05level*\xb9\x01\n" +
 	"\x11NotificationLevel\x12\"\n" +
 	"\x1eNOTIFICATION_LEVEL_UNSPECIFIED\x10\x00\x12\x1e\n" +
 	"\x1aNOTIFICATION_LEVEL_DEFAULT\x10\x01\x12\x1c\n" +

@@ -29,5 +29,5 @@ Enforce authentication and authorization at the **API boundary**, not in core bu
 - **Testability**: Core unit tests focus on business logic without needing to set up permission fixtures. Authorization is tested separately at the resolver level.
 - **Clear responsibility**: Reading a resolver tells you exactly what permissions are required. Reading a core function tells you what it does. Concerns are separated.
 - **Lower authentication drift**: New GraphQL fields are private by default, so anonymous access must be explicitly opted into at the schema boundary.
-- **Risk of forgetting authorization checks**: A new GraphQL resolver that calls core without checking permissions would bypass operation-specific authorization. Mitigated by code review, resolver helper conventions, and the authorization reference table in `authorization.md`.
+- **Risk of forgetting authorization checks**: A new GraphQL resolver that calls core without checking permissions would bypass operation-specific authorization. Mitigated by code review, resolver helper conventions, and the authorization reference table in `cli/AGENTS.md`.
 - **Audit logging can be added orthogonally**: Since authorization happens at the boundary, audit logging doesn't need to be coupled to business logic.

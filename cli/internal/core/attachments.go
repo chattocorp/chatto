@@ -712,13 +712,13 @@ const ServerAssetSignResource = "server"
 // AttachmentURLTTL is how long an attachment URL stays valid after it's
 // signed. Short on purpose: the signed locator is a standalone capability
 // (no session/bearer check at the asset endpoint — see ADR-032 and
-// authorization.md), so a leaked URL grants access for the full TTL. We
+// cli/AGENTS.md), so a leaked URL grants access for the full TTL. We
 // keep it just long enough for an in-flight render to complete; the
 // frontend regenerates URLs by re-resolving GraphQL when needed.
 //
 // We treat this as a stopgap for cross-origin remote-server <img>
 // loading rather than a real cross-origin auth design. See the
-// "Attachment URL Authorization" section of authorization.md for the
+// "Attachment URL Authorization" section of cli/AGENTS.md for the
 // trade-off in detail.
 const AttachmentURLTTL = 5 * time.Minute
 

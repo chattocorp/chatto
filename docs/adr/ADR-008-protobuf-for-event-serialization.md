@@ -25,7 +25,7 @@ Use Protocol Buffers (proto3) for all JetStream event serialization. Proto defin
 - **Compact storage**: Protobuf is significantly smaller than JSON for structured data. With thousands of messages per room, this reduces JetStream storage costs.
 - **Fast serialization**: Proto marshal/unmarshal is faster than JSON encode/decode, which matters for high-throughput message delivery.
 - **Schema evolution via field numbers**: New fields can be added without breaking existing data. Old binaries skip unknown fields. This is critical since stored events must remain readable across upgrades.
-- **Proto changes are breaking changes**: Modifying proto definitions affects wire format compatibility. Changes to `proto/` are treated as significant breaking changes (see `current-status.md`).
-- **Not human-readable**: Debugging stream contents requires `protoc --decode_raw` or similar tooling. The `debugging.md` rules document the workflow for inspecting raw stream data.
+- **Proto changes are breaking changes**: Modifying proto definitions affects wire format compatibility. Changes to `proto/` are treated as significant breaking changes according to the project status in `AGENTS.md`.
+- **Not human-readable**: Debugging stream contents requires `protoc --decode_raw` or similar tooling. The `chatto-debugging` skill documents the workflow for inspecting raw stream data.
 - **Codegen step required**: Any schema change requires running `mise codegen` to regenerate Go types. Forgetting this causes build failures.
 - **GraphQL bridge**: Proto types map to GraphQL types via gqlgen. The `graphql.go` files contain the interface implementations that bridge proto oneofs to GraphQL unions.

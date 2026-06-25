@@ -59,6 +59,12 @@ func (s *MessageService) PostMessage(ctx context.Context, input MessagePostInput
 	if strings.TrimSpace(input.RoomID) == "" {
 		return nil, invalidArgument("room_id is required")
 	}
+	if !HasVisibleContent(input.Body) && len(input.AttachmentAssetIDs) == 0 {
+		return nil, invalidArgument("message must have either body or attachments")
+	}
+	if input.AlsoSendToChannel && strings.TrimSpace(input.ThreadRootEventID) == "" {
+		return nil, invalidArgument("also_send_to_channel requires thread_root_event_id")
+	}
 
 	room, err := s.core.FindRoomByID(ctx, input.RoomID)
 	if err != nil {

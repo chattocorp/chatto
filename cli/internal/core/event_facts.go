@@ -135,6 +135,14 @@ func isVisibleRoomTimelineEntry(event *corev1.Event) bool {
 	switch e := event.GetEvent().(type) {
 	case *corev1.Event_MessagePosted:
 		return e.MessagePosted.GetInThread() == ""
+	case *corev1.Event_RoomCreated,
+		*corev1.Event_RoomUpdated,
+		*corev1.Event_RoomDeleted,
+		*corev1.Event_RoomArchived,
+		*corev1.Event_RoomUnarchived,
+		*corev1.Event_UserJoinedRoom,
+		*corev1.Event_UserLeftRoom:
+		return true
 	case *corev1.Event_MessageEdited, *corev1.Event_MessageRetracted,
 		*corev1.Event_ThreadCreated,
 		*corev1.Event_RoomUniversalChanged,
@@ -147,7 +155,13 @@ func isVisibleRoomTimelineEntry(event *corev1.Event) bool {
 		*corev1.Event_VoiceCallParticipantLeft, *corev1.Event_VoiceCallEnded:
 		return false
 	}
-	return true
+	return false
+}
+
+// IsVisibleRoomTimelineEntry reports whether an event should surface in the
+// public room timeline.
+func IsVisibleRoomTimelineEntry(event *corev1.Event) bool {
+	return isVisibleRoomTimelineEntry(event)
 }
 
 func isDeliverableLiveEVTRoomEvent(event *corev1.Event) bool {

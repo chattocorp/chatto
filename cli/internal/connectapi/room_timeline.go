@@ -21,34 +21,30 @@ type roomTimelineService struct {
 }
 
 func (s *roomTimelineService) GetRoomEvents(ctx context.Context, req *connect.Request[apiv1.GetRoomEventsRequest]) (*connect.Response[apiv1.GetRoomEventsResponse], error) {
-	user, room, err := s.requireRoomMember(ctx, req.Msg.RoomId)
+	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
 	}
-	kind := core.KindOfRoom(room)
-
-	var page *core.RoomEventsResult
-	switch cursor := req.Msg.Cursor.(type) {
-	case *apiv1.GetRoomEventsRequest_After:
-		seq, err := parseRoomTimelineCursor(cursor.After)
-		if err != nil {
-			return nil, err
-		}
-		page, err = s.api.core.GetRoomEventsAfter(ctx, kind, room.Id, seq, int(req.Msg.Limit))
-	case *apiv1.GetRoomEventsRequest_Before:
-		seq, err := parseRoomTimelineCursor(cursor.Before)
-		if err != nil {
-			return nil, err
-		}
-		page, err = s.api.core.GetRoomEvents(ctx, kind, room.Id, int(req.Msg.Limit), &seq)
-	default:
-		page, err = s.api.core.GetRoomEvents(ctx, kind, room.Id, int(req.Msg.Limit), nil)
+	afterSeq, beforeSeq, err := roomTimelineCursorBounds(req.Msg.Cursor)
+	if err != nil {
+		return nil, err
 	}
+
+	input := core.RoomTimelineEventsInput{
+		ActorID:   user.Id,
+		RoomID:    req.Msg.RoomId,
+		Limit:     int(req.Msg.Limit),
+		AfterSeq:  afterSeq,
+		BeforeSeq: beforeSeq,
+	}
+
+	result, err := s.api.core.RoomTimelineReads().GetRoomEvents(ctx, input)
 	if err != nil {
 		return nil, connectError(err)
 	}
 
-	resp, err := s.buildPage(ctx, user.Id, kind, page.Events, page.HasOlder, page.HasNewer)
+	page := result.Page
+	resp, err := s.buildPage(ctx, user.Id, result.Kind, page.Events, page.HasOlder, page.HasNewer)
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -58,70 +54,55 @@ func (s *roomTimelineService) GetRoomEvents(ctx context.Context, req *connect.Re
 }
 
 func (s *roomTimelineService) GetRoomEventsAround(ctx context.Context, req *connect.Request[apiv1.GetRoomEventsAroundRequest]) (*connect.Response[apiv1.GetRoomEventsAroundResponse], error) {
-	user, room, err := s.requireRoomMember(ctx, req.Msg.RoomId)
+	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if strings.TrimSpace(req.Msg.EventId) == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("event_id is required"))
-	}
-	kind := core.KindOfRoom(room)
-
-	result, err := s.api.core.GetRoomEventsAround(ctx, kind, room.Id, req.Msg.EventId, int(req.Msg.Limit))
+	result, err := s.api.core.RoomTimelineReads().GetRoomEventsAround(ctx, user.Id, req.Msg.RoomId, req.Msg.EventId, int(req.Msg.Limit))
 	if err != nil {
 		return nil, connectError(err)
 	}
-	page, err := s.buildPage(ctx, user.Id, kind, result.Events, result.HasOlder, result.HasNewer)
+	around := result.Result
+	page, err := s.buildPage(ctx, user.Id, result.Kind, around.Events, around.HasOlder, around.HasNewer)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	if len(result.Events) > 0 {
-		page.StartCursor = formatRoomTimelineCursor(result.Events[0].Sequence)
-		page.EndCursor = formatRoomTimelineCursor(result.Events[len(result.Events)-1].Sequence)
+	if len(around.Events) > 0 {
+		page.StartCursor = formatRoomTimelineCursor(around.Events[0].Sequence)
+		page.EndCursor = formatRoomTimelineCursor(around.Events[len(around.Events)-1].Sequence)
 	}
 
 	return connect.NewResponse(&apiv1.GetRoomEventsAroundResponse{
 		Page:        page,
-		TargetIndex: int32(result.TargetIndex),
+		TargetIndex: int32(around.TargetIndex),
 	}), nil
 }
 
 func (s *roomTimelineService) GetThreadEvents(ctx context.Context, req *connect.Request[apiv1.GetThreadEventsRequest]) (*connect.Response[apiv1.GetThreadEventsResponse], error) {
-	user, room, err := s.requireRoomMember(ctx, req.Msg.RoomId)
+	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
 	}
-	root, err := s.threadRootEvent(ctx, room, req.Msg.ThreadRootEventId)
+	afterSeq, beforeSeq, err := roomTimelineCursorBounds(req.Msg.Cursor)
 	if err != nil {
 		return nil, err
 	}
-	kind := core.KindOfRoom(room)
 
-	var replies *core.RoomEventsResult
-	includeRoot := true
-	switch cursor := req.Msg.Cursor.(type) {
-	case *apiv1.GetThreadEventsRequest_After:
-		includeRoot = false
-		seq, err := parseRoomTimelineCursor(cursor.After)
-		if err != nil {
-			return nil, err
-		}
-		replies, err = s.api.core.GetThreadReplyEvents(ctx, kind, room.Id, root.Event.Id, int(req.Msg.Limit), nil, &seq)
-	case *apiv1.GetThreadEventsRequest_Before:
-		includeRoot = false
-		seq, err := parseRoomTimelineCursor(cursor.Before)
-		if err != nil {
-			return nil, err
-		}
-		replies, err = s.api.core.GetThreadReplyEvents(ctx, kind, room.Id, root.Event.Id, int(req.Msg.Limit), &seq, nil)
-	default:
-		replies, err = s.api.core.GetThreadReplyEvents(ctx, kind, room.Id, root.Event.Id, int(req.Msg.Limit), nil, nil)
+	input := core.ThreadTimelineEventsInput{
+		ActorID:           user.Id,
+		RoomID:            req.Msg.RoomId,
+		ThreadRootEventID: req.Msg.ThreadRootEventId,
+		Limit:             int(req.Msg.Limit),
+		AfterSeq:          afterSeq,
+		BeforeSeq:         beforeSeq,
 	}
+
+	result, err := s.api.core.RoomTimelineReads().GetThreadEvents(ctx, input)
 	if err != nil {
 		return nil, connectError(err)
 	}
 
-	page, err := s.buildThreadPage(ctx, user.Id, kind, root, replies, includeRoot)
+	page, err := s.buildThreadPage(ctx, user.Id, result.Kind, result.Root, result.Replies, result.IncludeRoot)
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -129,79 +110,23 @@ func (s *roomTimelineService) GetThreadEvents(ctx context.Context, req *connect.
 }
 
 func (s *roomTimelineService) GetThreadEventsAround(ctx context.Context, req *connect.Request[apiv1.GetThreadEventsAroundRequest]) (*connect.Response[apiv1.GetThreadEventsAroundResponse], error) {
-	user, room, err := s.requireRoomMember(ctx, req.Msg.RoomId)
+	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if strings.TrimSpace(req.Msg.EventId) == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("event_id is required"))
-	}
-	root, err := s.threadRootEvent(ctx, room, req.Msg.ThreadRootEventId)
-	if err != nil {
-		return nil, err
-	}
-	kind := core.KindOfRoom(room)
-
-	replies, err := s.api.core.GetThreadReplyEventsAround(ctx, kind, room.Id, root.Event.Id, req.Msg.EventId, int(req.Msg.Limit))
+	result, err := s.api.core.RoomTimelineReads().GetThreadEventsAround(ctx, user.Id, req.Msg.RoomId, req.Msg.ThreadRootEventId, req.Msg.EventId, int(req.Msg.Limit))
 	if err != nil {
 		return nil, connectError(err)
 	}
-	page, err := s.buildThreadPage(ctx, user.Id, kind, root, replies, true)
+	page, err := s.buildThreadPage(ctx, user.Id, result.Kind, result.Root, result.Replies, true)
 	if err != nil {
 		return nil, connectError(err)
 	}
 
 	return connect.NewResponse(&apiv1.GetThreadEventsAroundResponse{
 		Page:        page,
-		TargetIndex: threadPageTargetIndex(root.Event.Id, req.Msg.EventId, replies.Events),
+		TargetIndex: int32(result.TargetIndex),
 	}), nil
-}
-
-func (s *roomTimelineService) requireRoomMember(ctx context.Context, roomID string) (*corev1.User, *corev1.Room, error) {
-	user, err := requireAuth(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-	if strings.TrimSpace(roomID) == "" {
-		return nil, nil, connect.NewError(connect.CodeInvalidArgument, errors.New("room_id is required"))
-	}
-
-	room, err := s.api.core.FindRoomByID(ctx, roomID)
-	if err != nil {
-		return nil, nil, connectError(err)
-	}
-	kind := core.KindOfRoom(room)
-	ok, err := s.api.core.RoomMembershipExists(ctx, kind, user.Id, room.Id)
-	if err != nil {
-		return nil, nil, connectError(err)
-	}
-	if !ok {
-		return nil, nil, connectError(core.ErrNotRoomMember)
-	}
-	return user, room, nil
-}
-
-func (s *roomTimelineService) threadRootEvent(ctx context.Context, room *corev1.Room, threadRootEventID string) (*core.RoomEvent, error) {
-	if strings.TrimSpace(threadRootEventID) == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("thread_root_event_id is required"))
-	}
-	kind := core.KindOfRoom(room)
-	event, err := s.api.core.GetRoomEventByEventID(ctx, kind, room.Id, threadRootEventID)
-	if err != nil {
-		return nil, connectError(err)
-	}
-	if event == nil {
-		return nil, connect.NewError(connect.CodeNotFound, errors.New("thread root event not found"))
-	}
-	message := event.GetMessagePosted()
-	if message == nil || message.GetInThread() != "" || message.GetEchoOfEventId() != "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("thread_root_event_id must identify a root message"))
-	}
-	seq, err := s.api.core.GetEventSequence(ctx, kind, room.Id, threadRootEventID)
-	if err != nil {
-		return nil, connectError(err)
-	}
-	return &core.RoomEvent{Event: event, Sequence: seq}, nil
 }
 
 // buildPage turns projected room timeline entries into the public Connect view.
@@ -270,18 +195,6 @@ func (s *roomTimelineService) buildThreadPage(ctx context.Context, viewerID stri
 	return page, nil
 }
 
-func threadPageTargetIndex(rootEventID, targetEventID string, replies []*core.RoomEvent) int32 {
-	if targetEventID == rootEventID {
-		return 0
-	}
-	for i, event := range replies {
-		if event != nil && event.Event != nil && event.Event.Id == targetEventID {
-			return int32(i + 1)
-		}
-	}
-	return 0
-}
-
 type timelineHydrator struct {
 	api                  *API
 	ctx                  context.Context
@@ -325,7 +238,7 @@ func (h *timelineHydrator) event(event *core.RoomEvent) (*apiv1.RoomTimelineEven
 	case *corev1.Event_UserLeftRoom:
 		apiEvent.Event = &apiv1.RoomTimelineEvent_UserLeftRoom{UserLeftRoom: roomEvent(payload.UserLeftRoom.GetRoomId())}
 	default:
-		return nil, nil
+		return nil, fmt.Errorf("unsupported room timeline event %T", payload)
 	}
 
 	return apiEvent, nil
@@ -608,6 +521,39 @@ func parseRoomTimelineCursor(cursor string) (uint64, error) {
 		return 0, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid cursor sequence: %w", err))
 	}
 	return seq, nil
+}
+
+func roomTimelineCursorBounds(cursor any) (afterSeq, beforeSeq *uint64, err error) {
+	switch cursor := cursor.(type) {
+	case nil:
+		return nil, nil, nil
+	case *apiv1.GetRoomEventsRequest_After:
+		seq, err := parseRoomTimelineCursor(cursor.After)
+		if err != nil {
+			return nil, nil, err
+		}
+		return &seq, nil, nil
+	case *apiv1.GetRoomEventsRequest_Before:
+		seq, err := parseRoomTimelineCursor(cursor.Before)
+		if err != nil {
+			return nil, nil, err
+		}
+		return nil, &seq, nil
+	case *apiv1.GetThreadEventsRequest_After:
+		seq, err := parseRoomTimelineCursor(cursor.After)
+		if err != nil {
+			return nil, nil, err
+		}
+		return &seq, nil, nil
+	case *apiv1.GetThreadEventsRequest_Before:
+		seq, err := parseRoomTimelineCursor(cursor.Before)
+		if err != nil {
+			return nil, nil, err
+		}
+		return nil, &seq, nil
+	default:
+		return nil, nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unsupported cursor type %T", cursor))
+	}
 }
 
 func firstN(values []string, n int) []string {

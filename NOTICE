@@ -14,6 +14,7 @@ Server and CLI Go Components:
 - age (https://filippo.io/age) - BSD 3-Clause License
 - AWS SDK for Go v2 (https://github.com/aws/aws-sdk-go-v2) - Apache License 2.0
 - AWS Smithy Go (https://github.com/aws/smithy-go) - Apache License 2.0
+- Buf Protovalidate (https://protovalidate.com/) - Apache License 2.0
 - caarlos0/env (https://github.com/caarlos0/env) - MIT License
 - Charmbracelet log (https://github.com/charmbracelet/log) - MIT License
 - ConnectRPC (https://connectrpc.com/) - Apache License 2.0

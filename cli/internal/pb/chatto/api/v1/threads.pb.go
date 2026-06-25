@@ -7,6 +7,7 @@
 package apiv1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -24,9 +25,9 @@ const (
 // Request to follow one message thread.
 type FollowThreadRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Room containing the thread.
+	// Required. Room containing the thread.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Event ID of the root message for the thread.
+	// Required. Event ID of the root message for the thread.
 	ThreadRootEventId string `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
@@ -125,9 +126,9 @@ func (x *FollowThreadResponse) GetFollowing() bool {
 // Request to stop following one message thread.
 type UnfollowThreadRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Room containing the thread.
+	// Required. Room containing the thread.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Event ID of the root message for the thread.
+	// Required. Event ID of the root message for the thread.
 	ThreadRootEventId string `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
@@ -227,15 +228,15 @@ var File_chatto_api_v1_threads_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_threads_proto_rawDesc = "" +
 	"\n" +
-	"\x1bchatto/api/v1/threads.proto\x12\rchatto.api.v1\"_\n" +
-	"\x13FollowThreadRequest\x12\x17\n" +
-	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
-	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\"4\n" +
+	"\x1bchatto/api/v1/threads.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"q\n" +
+	"\x13FollowThreadRequest\x12 \n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x128\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x11threadRootEventId\"4\n" +
 	"\x14FollowThreadResponse\x12\x1c\n" +
-	"\tfollowing\x18\x01 \x01(\bR\tfollowing\"a\n" +
-	"\x15UnfollowThreadRequest\x12\x17\n" +
-	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
-	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\"6\n" +
+	"\tfollowing\x18\x01 \x01(\bR\tfollowing\"s\n" +
+	"\x15UnfollowThreadRequest\x12 \n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x128\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x11threadRootEventId\"6\n" +
 	"\x16UnfollowThreadResponse\x12\x1c\n" +
 	"\tfollowing\x18\x01 \x01(\bR\tfollowing2\xc7\x01\n" +
 	"\rThreadService\x12W\n" +

@@ -2,7 +2,6 @@ package connectapi
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"connectrpc.com/connect"
@@ -20,7 +19,6 @@ func (s *userStatusService) SetCustomStatus(ctx context.Context, req *connect.Re
 	if err != nil {
 		return nil, err
 	}
-
 	expiresAt, err := apiTimestampToTime(req.Msg.ExpiresAt)
 	if err != nil {
 		return nil, err
@@ -41,7 +39,6 @@ func (s *userStatusService) ClearCustomStatus(ctx context.Context, _ *connect.Re
 	if err != nil {
 		return nil, err
 	}
-
 	updated, err := s.api.core.ClearUserCustomStatus(ctx, user.Id)
 	if err != nil {
 		return nil, connectError(err)
@@ -57,7 +54,7 @@ func apiTimestampToTime(ts *timestamppb.Timestamp) (*time.Time, error) {
 		return nil, nil
 	}
 	if err := ts.CheckValid(); err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("expires_at is invalid"))
+		return nil, invalidArgument("expires_at is invalid")
 	}
 	expiresAt := ts.AsTime()
 	return &expiresAt, nil

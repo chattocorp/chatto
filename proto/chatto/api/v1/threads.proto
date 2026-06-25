@@ -2,12 +2,14 @@ syntax = "proto3";
 
 package chatto.api.v1;
 
+import "buf/validate/validate.proto";
+
 // Request to follow one message thread.
 message FollowThreadRequest {
-  // Room containing the thread.
-  string room_id = 1;
-  // Event ID of the root message for the thread.
-  string thread_root_event_id = 2;
+  // Required. Room containing the thread.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required. Event ID of the root message for the thread.
+  string thread_root_event_id = 2 [(buf.validate.field).string.min_len = 1];
 }
 
 // Result of following a thread.
@@ -18,10 +20,10 @@ message FollowThreadResponse {
 
 // Request to stop following one message thread.
 message UnfollowThreadRequest {
-  // Room containing the thread.
-  string room_id = 1;
-  // Event ID of the root message for the thread.
-  string thread_root_event_id = 2;
+  // Required. Room containing the thread.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required. Event ID of the root message for the thread.
+  string thread_root_event_id = 2 [(buf.validate.field).string.min_len = 1];
 }
 
 // Result of unfollowing a thread.

@@ -167,7 +167,7 @@ export class SetRoomNotificationLevelResponse extends Message<SetRoomNotificatio
  */
 export class GetRoomNotificationPreferenceRequest extends Message<GetRoomNotificationPreferenceRequest> {
   /**
-   * Room whose notification preference should be loaded for the current user.
+   * Required. Room whose notification preference should be loaded for the current user.
    *
    * @generated from field: string room_id = 1;
    */
@@ -208,15 +208,15 @@ export class GetRoomNotificationPreferenceRequest extends Message<GetRoomNotific
  */
 export class SetRoomNotificationLevelRequest extends Message<SetRoomNotificationLevelRequest> {
   /**
-   * Room whose notification level should be changed for the current user.
+   * Required. Room whose notification level should be changed for the current user.
    *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
-   * New explicit notification level. Use NOTIFICATION_LEVEL_DEFAULT to return
-   * the room to inherited/default behavior.
+   * Required. New explicit notification level. Use NOTIFICATION_LEVEL_DEFAULT
+   * to return the room to inherited/default behavior.
    *
    * @generated from field: chatto.api.v1.NotificationLevel level = 2;
    */

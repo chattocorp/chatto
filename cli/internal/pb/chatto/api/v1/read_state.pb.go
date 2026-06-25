@@ -7,6 +7,7 @@
 package apiv1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -25,7 +26,7 @@ const (
 // Request to mark a room timeline as read.
 type MarkRoomAsReadRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Room whose timeline should be marked read.
+	// Required. Room whose timeline should be marked read.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Highest room event ID the current user has read. When set, the event must
 	// exist as a root event in the room timeline. Leave empty to mark through the
@@ -140,9 +141,9 @@ func (x *MarkRoomAsReadResponse) GetPreviousLastReadAt() *timestamppb.Timestamp 
 // Request to mark a message thread as read.
 type MarkThreadAsReadRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Room containing the thread.
+	// Required. Room containing the thread.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Event ID of the root message for the thread.
+	// Required. Event ID of the root message for the thread.
 	ThreadRootEventId string `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
 	// Highest thread event ID the current user has read. The event should belong
 	// to the thread identified by thread_root_event_id.
@@ -252,17 +253,17 @@ var File_chatto_api_v1_read_state_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_read_state_proto_rawDesc = "" +
 	"\n" +
-	"\x1echatto/api/v1/read_state.proto\x12\rchatto.api.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"U\n" +
-	"\x15MarkRoomAsReadRequest\x12\x17\n" +
-	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12#\n" +
+	"\x1echatto/api/v1/read_state.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"^\n" +
+	"\x15MarkRoomAsReadRequest\x12 \n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12#\n" +
 	"\x0eup_to_event_id\x18\x02 \x01(\tR\vupToEventId\"\xa5\x01\n" +
 	"\x16MarkRoomAsReadResponse\x12<\n" +
 	"\flast_read_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"lastReadAt\x12M\n" +
-	"\x15previous_last_read_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x12previousLastReadAt\"\x88\x01\n" +
-	"\x17MarkThreadAsReadRequest\x12\x17\n" +
-	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
-	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\x12#\n" +
+	"\x15previous_last_read_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x12previousLastReadAt\"\x9a\x01\n" +
+	"\x17MarkThreadAsReadRequest\x12 \n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x128\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x11threadRootEventId\x12#\n" +
 	"\x0eup_to_event_id\x18\x03 \x01(\tR\vupToEventId\"`\n" +
 	"\x18MarkThreadAsReadResponse\x12D\n" +
 	"\x10previous_read_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x0epreviousReadAt2\xd6\x01\n" +

@@ -13,14 +13,14 @@ import { Message, proto3 } from "@bufbuild/protobuf";
  */
 export class FollowThreadRequest extends Message<FollowThreadRequest> {
   /**
-   * Room containing the thread.
+   * Required. Room containing the thread.
    *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
-   * Event ID of the root message for the thread.
+   * Required. Event ID of the root message for the thread.
    *
    * @generated from field: string thread_root_event_id = 2;
    */
@@ -103,14 +103,14 @@ export class FollowThreadResponse extends Message<FollowThreadResponse> {
  */
 export class UnfollowThreadRequest extends Message<UnfollowThreadRequest> {
   /**
-   * Room containing the thread.
+   * Required. Room containing the thread.
    *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
-   * Event ID of the root message for the thread.
+   * Required. Event ID of the root message for the thread.
    *
    * @generated from field: string thread_root_event_id = 2;
    */

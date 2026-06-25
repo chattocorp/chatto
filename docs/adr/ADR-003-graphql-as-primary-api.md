@@ -30,5 +30,5 @@ The NATS request-reply API exists as a secondary internal/extension API for trus
 - **Typed end-to-end**: gqlgen generates Go types and resolver interfaces; graphql-codegen generates TypeScript types and urql hooks. Type mismatches are caught at build time.
 - **Subscriptions are native**: GraphQL subscriptions over WebSocket map naturally to NATS pub/sub. No custom WebSocket protocol needed.
 - **N+1 risk**: Field resolvers can cause excessive KV lookups. Addressed with dataloader patterns where needed.
-- **Schema changes are potentially breaking**: Changes to `.graphqls` files affect all clients. Managed carefully even though there are no external clients yet (see `current-status.md`).
+- **Schema changes are potentially breaking**: Changes to `.graphqls` files affect all clients. Managed carefully according to the project status in `AGENTS.md`.
 - **No file upload via GraphQL**: Binary uploads use separate HTTP endpoints, not GraphQL mutations.

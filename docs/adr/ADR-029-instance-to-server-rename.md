@@ -37,7 +37,7 @@ Drop the prefix entirely when there's nothing left to disambiguate against (sing
 ### Scope decisions
 
 1. **Persisted names stay**: JetStream streams (`SERVER_EVENTS`), KV buckets (`KV_INSTANCE*`), `chatto.toml` keys. In-code variables that reference them may be renamed independently. Real migration deferred to a separate PR.
-2. **GraphQL hard rename**: schema breaks. Per early-stage policy (`.claude/rules/current-status.md`), external consumers re-codegen. Soft deprecation rejected as needless ceremony for this stage.
+2. **GraphQL hard rename**: schema breaks. Per early-stage policy ([`AGENTS.md`](../../AGENTS.md)), external consumers re-codegen. Soft deprecation rejected as needless ceremony for this stage.
 3. **Proto field-number stability**: message/field names rename; field numbers stay. Binary wire compat preserved — existing stored payloads decode unchanged. Verified at the end via a backup/restore round-trip.
 4. **`live.*` NATS subjects in scope**: `live.instance.user.{userId}.*` → `live.server.user.{userId}.*`, `live.instance.space.{spaceId}.*` → `live.server.space.{spaceId}.*`. Live events don't persist, so subject rename is free.
 5. **Frontend module path**: `$lib/instance/*` → `$lib/chatto/*` (not `$lib/server/*` — SvelteKit reserves that name for server-only modules).

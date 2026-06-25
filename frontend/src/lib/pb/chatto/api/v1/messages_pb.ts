@@ -111,7 +111,7 @@ export class MessageLinkPreviewInput extends Message<MessageLinkPreviewInput> {
  */
 export class PostMessageRequest extends Message<PostMessageRequest> {
   /**
-   * Room where the message should be posted.
+   * Required. Room where the message should be posted.
    *
    * @generated from field: string room_id = 1;
    */

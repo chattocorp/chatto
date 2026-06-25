@@ -7,6 +7,7 @@
 package apiv1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -132,7 +133,7 @@ func (x *MessageLinkPreviewInput) GetEmbedId() string {
 // existing room-scoped assets.
 type PostMessageRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Room where the message should be posted.
+	// Required. Room where the message should be posted.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Message body text. Required unless attachment_asset_ids is non-empty.
 	Body string `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
@@ -391,7 +392,7 @@ var File_chatto_api_v1_messages_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_messages_proto_rawDesc = "" +
 	"\n" +
-	"\x1cchatto/api/v1/messages.proto\x12\rchatto.api.v1\x1a!chatto/api/v1/room_timeline.proto\"\xe0\x01\n" +
+	"\x1cchatto/api/v1/messages.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a!chatto/api/v1/room_timeline.proto\"\xe0\x01\n" +
 	"\x17MessageLinkPreviewInput\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12 \n" +
@@ -400,9 +401,9 @@ const file_chatto_api_v1_messages_proto_rawDesc = "" +
 	"\x0eimage_asset_id\x18\x05 \x01(\tR\fimageAssetId\x12\x1d\n" +
 	"\n" +
 	"embed_type\x18\x06 \x01(\tR\tembedType\x12\x19\n" +
-	"\bembed_id\x18\a \x01(\tR\aembedId\"\xfe\x02\n" +
-	"\x12PostMessageRequest\x12\x17\n" +
-	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x12\n" +
+	"\bembed_id\x18\a \x01(\tR\aembedId\"\x87\x03\n" +
+	"\x12PostMessageRequest\x12 \n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\x12\n" +
 	"\x04body\x18\x02 \x01(\tR\x04body\x120\n" +
 	"\x14attachment_asset_ids\x18\x03 \x03(\tR\x12attachmentAssetIds\x12/\n" +
 	"\x14thread_root_event_id\x18\x04 \x01(\tR\x11threadRootEventId\x12\x1e\n" +

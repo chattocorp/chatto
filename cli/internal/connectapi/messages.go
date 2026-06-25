@@ -3,7 +3,6 @@ package connectapi
 import (
 	"context"
 	"errors"
-	"strings"
 
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/core"
@@ -19,15 +18,6 @@ func (s *messageService) PostMessage(ctx context.Context, req *connect.Request[a
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
-	}
-	if strings.TrimSpace(req.Msg.RoomId) == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("room_id is required"))
-	}
-	if !core.HasVisibleContent(req.Msg.Body) && len(req.Msg.AttachmentAssetIds) == 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("message must have either body or attachments"))
-	}
-	if req.Msg.AlsoSendToChannel && strings.TrimSpace(req.Msg.ThreadRootEventId) == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("also_send_to_channel requires thread_root_event_id"))
 	}
 
 	result, err := s.api.core.Messages().PostMessage(ctx, core.MessagePostInput{

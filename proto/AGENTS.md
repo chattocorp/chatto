@@ -1,29 +1,48 @@
-# Instructions for Agents Working on Protobuf Files
+# Instructions for Agents Working in `proto/`
 
-Protobuf comments are the source for Chatto's generated API reference.
+Protobuf definitions feed persisted state, generated Go/TypeScript bindings,
+ConnectRPC services, and the public API reference.
 
-## Public API Documentation
+## Public API Protos
 
-For files under `chatto/api/v1`, write comments for API consumers, not Chatto maintainers. Describe what a client can call, what data it receives, and how important fields should be interpreted.
+For `chatto/api/v1`:
 
-Every public service, RPC, message, enum, enum value, and important field should have a useful comment. Keep field comments concise enough for generated tables, and put longer behavior notes on RPCs or messages.
-
-Good RPC comments explain:
-
-- what state the call reads or changes
-- which IDs the client must provide
-- pagination, cursor, and anchor semantics
-- whether the call is available before login
-- notable response fields or edge cases a client must handle
-
-Avoid visible maintainer workflow text such as "edit the proto", "run codegen", or "do not edit generated output" in comments that render into the public docs.
-
-After changing public API comments, regenerate outputs with `mise codegen-proto` so the docs and generated clients stay in sync.
+- Write comments for API consumers, not Chatto maintainers.
+- Every public service, RPC, message, enum, enum value, and important field
+  should have useful comments.
+- Explain what the call reads or changes, required IDs, pagination/cursor
+  semantics, login availability, and notable response behavior.
+- Keep field comments short enough for generated tables; put longer behavior
+  notes on messages or RPCs.
+- Do not include maintainer workflow text such as "run codegen" in comments that
+  render into public docs.
 
 ## Compatibility
 
-Do not renumber existing fields or change field types in messages that may already be persisted or consumed by clients. Prefer additive schema changes.
+- Do not renumber fields that may be persisted or consumed by clients.
+- Do not change a field type at an existing tag. Add a new tag instead.
+- Removing a persisted field requires both `reserved <tag>` and
+  `reserved "<name>"`.
+- Renames are wire-safe but code-breaking; update generated consumers in the
+  same change.
+- Persisted protobufs in `EVT`, `RUNTIME_STATE`, `ENCRYPTION_KEYS`, and object
+  metadata need additive evolution plus repair/migration code when existing data
+  changes shape.
+- Transient live-event protos are less stable, but still consider GraphQL/API
+  behavior and mixed-version clients.
 
-## Scalar Presence
+## Presence And API Shape
 
-For public API messages under `chatto/api/v1`, use proto3 `optional` scalar fields when clients must distinguish an absent, unhydrated, or unknown value from the scalar's default value. Avoid parallel `*_present` boolean fields for simple scalar presence; use an enum or oneof only when the API needs to model multiple availability states.
+- For public API messages under `chatto/api/v1`, use proto3 `optional` scalar
+  fields when clients must distinguish absent/unhydrated/unknown from a scalar
+  default.
+- Avoid parallel `*_present` booleans for simple scalar presence.
+- Use enums or oneofs only when modeling multiple meaningful availability states.
+
+## Code Generation
+
+- Public `.proto` or ConnectRPC service changes require `mise codegen-proto`.
+- Commit all generated Go/TypeScript bindings and docs-website ConnectRPC
+  reference outputs.
+- New public services also need entries in `proto/buf.gen.yaml` and the docs
+  sidebar in `docs-website/astro.config.mjs`.

@@ -4,9 +4,9 @@ The canonical vocabulary for Chatto: UI surfaces, product concepts, authorizatio
 
 This document is **also a naming surface**: when we need a name for a thing we're building, we add it here first. That's how vocabulary stays consistent across code, UI, docs, and conversation.
 
-This is **not** a tutorial, design doc, or API reference. If a concept needs more than a paragraph, link to the relevant [FDR](fdr/INDEX.md), [ADR](adr/INDEX.md), `.claude/rules/*`, or [ARCHITECTURE.md](ARCHITECTURE.md) rather than inlining.
+This is **not** a tutorial, design doc, or API reference. If a concept needs more than a paragraph, link to the relevant [FDR](fdr/INDEX.md), [ADR](adr/INDEX.md), [`AGENTS.md`](../AGENTS.md) and directory-specific `AGENTS.md` files, or [ARCHITECTURE.md](ARCHITECTURE.md) rather than inlining.
 
-Entries within each section are ordered by **conceptual flow** — foundational terms first, derivatives after — not alphabetically. See [`.claude/skills/glossary/SKILL.md`](../.claude/skills/glossary/SKILL.md) for the maintenance workflow.
+Entries within each section are ordered by **conceptual flow** — foundational terms first, derivatives after — not alphabetically. See [`.agents/skills/glossary/SKILL.md`](../.agents/skills/glossary/SKILL.md) for the maintenance workflow.
 
 ## UI
 
@@ -22,7 +22,7 @@ Names for visible surfaces and component groupings. When a name here disagrees w
 
 **Composer** — The message input at the bottom of the Room View. Includes text input, attachment picker, emoji picker, mentions autocomplete.
 
-**Pane Header** — The top bar of a content pane (Room View, settings page, admin page, etc.). Carries the title, optional subtitle, optional back arrow, and icon-only action buttons via the `actions` snippet. Chunky labelled buttons belong in the body, not here. See `.claude/rules/general.md`.
+**Pane Header** — The top bar of a content pane (Room View, settings page, admin page, etc.). Carries the title, optional subtitle, optional back arrow, and icon-only action buttons via the `actions` snippet. Chunky labelled buttons belong in the body, not here. See [`AGENTS.md`](../AGENTS.md).
 
 **Quick Switcher** — Cmd-K / Ctrl-K palette for jumping between rooms, DMs, servers, and admin pages. Distinct from the Server Gutter — both let you change server, but the Quick Switcher is keyboard-first and searchable. See [FDR-015](fdr/FDR-015-quick-switcher.md).
 
@@ -30,7 +30,7 @@ Names for visible surfaces and component groupings. When a name here disagrees w
 
 **Hint** — Inline informational callout used in admin/settings panels to introduce or contextualise a control. Use instead of nesting an outer Panel around a self-contained matrix.
 
-**Panel** — Bordered card used across instance-admin (`/chat/[serverId]/admin/*`) and per-server settings pages. Shared visual chrome for administrative interfaces. See `.claude/rules/admin.md`.
+**Panel** — Bordered card used across instance-admin (`/chat/[serverId]/admin/*`) and per-server settings pages. Shared visual chrome for administrative interfaces. See [`cli/AGENTS.md`](../cli/AGENTS.md).
 
 ## Product
 
@@ -98,7 +98,7 @@ Chatto's RBAC model. Read top-to-bottom — terms build on each other.
 
 **Everyone** — Implicit virtual role (position 0) held by every authenticated user. Default-permission grants attach here.
 
-**Scope** — Tier at which a permission is configured: `server`, `group`, or `room`. Resolution: room > group > server (first explicit decision wins). See `.claude/rules/authorization.md`.
+**Scope** — Tier at which a permission is configured: `server`, `group`, or `room`. Resolution: room > group > server (first explicit decision wins). See [`cli/AGENTS.md`](../cli/AGENTS.md).
 
 **User-level override** — Permission grant or deny attached directly to a user, not via a role. Outranks every role grant. Used for suspensions and ad-hoc grants.
 
@@ -118,7 +118,7 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 
 **KV (Key-Value Bucket)** — JetStream-backed key/value store. Chatto uses several current buckets, especially `RUNTIME_STATE`, `MEMORY_CACHE`, and `ENCRYPTION_KEYS`; event-sourced domain state is sourced from `EVT`. See [ADR-033](adr/ADR-033-event-sourced-state-with-projections.md).
 
-**Subject** — NATS message topic. Current durable facts use `evt.{aggregateType}.{aggregateId}.{eventType}`; transient sync uses `live.sync.…`; committed EVT facts are internally republished on `live.evt.…`. See `.claude/rules/nats-subjects.md` and [ARCHITECTURE.md](ARCHITECTURE.md#evt-subject-patterns).
+**Subject** — NATS message topic. Current durable facts use `evt.{aggregateType}.{aggregateId}.{eventType}`; transient sync uses `live.sync.…`; committed EVT facts are internally republished on `live.evt.…`. See [`cli/AGENTS.md`](../cli/AGENTS.md) and [ARCHITECTURE.md](ARCHITECTURE.md#evt-subject-patterns).
 
 **Event** — Durable domain fact stored on `EVT` using the `corev1.Event` wrapper. Contrast with *Live Event*.
 
@@ -130,7 +130,7 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 
 **Live Event** — Transient `corev1.LiveEvent` published on `live.sync.>` (typing, notification sync, voice-call presence). Durable EVT facts reach live subscribers through the internal `live.evt.>` republish path after server-side projection readiness and authorization checks.
 
-**Republish** — JetStream feature that mirrors accepted stream messages onto another NATS subject. Chatto uses it to expose committed EVT facts on `live.evt.>`; `myEvents` treats that as an internal feed, not a client contract. See `.claude/rules/nats-subjects.md`.
+**Republish** — JetStream feature that mirrors accepted stream messages onto another NATS subject. Chatto uses it to expose committed EVT facts on `live.evt.>`; `myEvents` treats that as an internal feed, not a client contract. See [`cli/AGENTS.md`](../cli/AGENTS.md).
 
 **OCC (Optimistic Concurrency Control)** — Publishing with an expected stream sequence so concurrent writers don't clobber each other. Used for message posting. See [ADR-016](adr/ADR-016-occ-for-message-publishing.md).
 

@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package chatto.api.v1;
 
+import "buf/validate/validate.proto";
 import "google/protobuf/timestamp.proto";
 
 // User data included with room timeline events.
@@ -257,8 +258,8 @@ message RoomTimelinePage {
 // Omit the cursor to load the initial page. Set before to page toward older
 // events, or after to page toward newer events.
 message GetRoomEventsRequest {
-  // Room whose timeline should be loaded.
-  string room_id = 1;
+  // Required. Room whose timeline should be loaded.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
   // Maximum number of events to return. The server may clamp very large limits.
   int32 limit = 2;
   // Cursor direction for paging.
@@ -281,10 +282,10 @@ message GetRoomEventsResponse {
 // Use this when a client needs to jump to a known event and render enough
 // context around it.
 message GetRoomEventsAroundRequest {
-  // Room whose timeline should be loaded.
-  string room_id = 1;
-  // Anchor event ID that should appear in the returned page.
-  string event_id = 2;
+  // Required. Room whose timeline should be loaded.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required. Anchor event ID that should appear in the returned page.
+  string event_id = 2 [(buf.validate.field).string.min_len = 1];
   // Maximum number of events to return around the anchor.
   int32 limit = 3;
 }
@@ -303,10 +304,10 @@ message GetRoomEventsAroundResponse {
 // root message. Set before to page toward older replies, or after to page toward
 // newer replies without repeating the root message.
 message GetThreadEventsRequest {
-  // Room containing the thread.
-  string room_id = 1;
-  // Event ID of the root message for the thread.
-  string thread_root_event_id = 2;
+  // Required. Room containing the thread.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required. Event ID of the root message for the thread.
+  string thread_root_event_id = 2 [(buf.validate.field).string.min_len = 1];
   // Maximum number of events to return. The server may clamp very large limits.
   int32 limit = 3;
   // Cursor direction for paging.
@@ -329,13 +330,13 @@ message GetThreadEventsResponse {
 // Use this when a client needs to jump to a known reply and render surrounding
 // thread context.
 message GetThreadEventsAroundRequest {
-  // Room containing the thread.
-  string room_id = 1;
-  // Event ID of the root message for the thread.
-  string thread_root_event_id = 2;
-  // Anchor event ID inside the thread. The event should belong to the requested
-  // thread.
-  string event_id = 3;
+  // Required. Room containing the thread.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required. Event ID of the root message for the thread.
+  string thread_root_event_id = 2 [(buf.validate.field).string.min_len = 1];
+  // Required. Anchor event ID inside the thread. The event should belong to the
+  // requested thread.
+  string event_id = 3 [(buf.validate.field).string.min_len = 1];
   // Maximum number of events to return around the anchor.
   int32 limit = 4;
 }

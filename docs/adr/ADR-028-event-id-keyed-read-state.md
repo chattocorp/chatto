@@ -38,7 +38,7 @@ The honest semantic is "caught up at first read post-deploy", not strictly "at d
 
 A related consequence: on a deploy-era user's *first* `markRoomAsRead` call, the GraphQL response's `previousLastReadAt` is null (because lazy-init makes the previous and new markers identical). The frontend's "messages since last read" highlight window is therefore empty for that one call. From the next mark-read onwards it works normally.
 
-Concurrency safety: lazy-init uses `bucket.Create` (atomic insert), not `Put`. If another writer (`MarkRoomAsRead`, `JoinRoom`, `PostMessage` auto-mark) wrote a real marker between our not-found read and our write, `Create` returns `ErrKeyExists` and we re-read instead of clobbering. This follows the project convention spelled out in `.claude/rules/backend.md`.
+Concurrency safety: lazy-init uses `bucket.Create` (atomic insert), not `Put`. If another writer (`MarkRoomAsRead`, `JoinRoom`, `PostMessage` auto-mark) wrote a real marker between our not-found read and our write, `Create` returns `ErrKeyExists` and we re-read instead of clobbering. This follows the project convention spelled out in `cli/AGENTS.md`.
 
 ## Consequences
 
