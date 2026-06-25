@@ -395,10 +395,10 @@ test.describe('Sign Out', () => {
 });
 
 test.describe('/chat backward compatibility', () => {
-  test('/chat redirects to / for unauthenticated users', async ({ browser }) => {
+  test('/chat redirects to /login for unauthenticated users', async ({ browser }) => {
     await withFreshPage(browser, async ({ page }) => {
       await page.goto('/chat');
-      await page.waitForURL('/');
+      await page.waitForURL('/login');
     });
   });
 
