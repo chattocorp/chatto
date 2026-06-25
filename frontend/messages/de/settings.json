@@ -150,7 +150,9 @@
         "enabling": "Wird aktiviert...",
         "blocked_error": "Push-Benachrichtigungen sind in deinen Browser- oder Betriebssystemeinstellungen blockiert.",
         "enable_failed": "Push-Benachrichtigungen konnten nicht aktiviert werden. Bitte versuche es erneut.",
-        "enable_error": "Beim Aktivieren der Push-Benachrichtigungen ist ein Fehler aufgetreten"
+        "enable_error": "Beim Aktivieren der Push-Benachrichtigungen ist ein Fehler aufgetreten",
+        "remote_title": "Native Push-Benachrichtigungen sind für entfernte Server nicht verfügbar",
+        "remote_description": "Diese installierte App kann Browser-Push-Benachrichtigungen nur bei dem Server registrieren, der sie ausgeliefert hat. In-App-Badges und Benachrichtigungstöne funktionieren für diesen Server weiterhin, solange Chatto geöffnet ist."
       },
       "push_prompt": {
         "title": "Push-Benachrichtigungen aktivieren",

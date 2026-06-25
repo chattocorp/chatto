@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   mutation: vi.fn(),
   setRoomNotificationLevel: vi.fn(),
   playNotificationSound: vi.fn(),
+  activeServerId: 'origin',
   notificationLevels: {
     setServerPreference: vi.fn(),
     setRoomPreference: vi.fn()
@@ -49,7 +50,7 @@ vi.mock('$lib/api/notificationPreferences', () => ({
 }));
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
-  getActiveServer: () => 'origin'
+  getActiveServer: () => mocks.activeServerId
 }));
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
@@ -57,7 +58,8 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
     getStore: () => ({
       serverInfo: mocks.serverInfo,
       notificationLevels: mocks.notificationLevels
-    })
+    }),
+    isOriginServer: (serverId: string) => serverId === 'origin'
   }
 }));
 
@@ -134,6 +136,7 @@ describe('Notification settings page', () => {
     localStorage.clear();
     userPreferences.notificationSound = 'chime-up';
     userPreferences.resetNotificationSoundFilters();
+    mocks.activeServerId = 'origin';
     mocks.playNotificationSound.mockClear();
     mocks.notificationLevels.setServerPreference.mockClear();
     mocks.notificationLevels.setRoomPreference.mockClear();
@@ -265,6 +268,30 @@ describe('Notification settings page', () => {
     expect(container.textContent).toContain('Push Notifications');
     await expect.element(buttonWithText(container, 'Enable')).toBeVisible();
     expect(container.textContent).not.toContain('Disable');
+  });
+
+  it('does not offer native push registration for remote servers', async () => {
+    mocks.activeServerId = 'remote';
+    mocks.serverInfo.pushNotificationsEnabled = true;
+    mocks.serverInfo.vapidPublicKey = 'vapid-key';
+    mocks.pushNotifications.isSubscribed.mockResolvedValue(false);
+
+    const { container } = render(NotificationsPage);
+    await settle();
+
+    expect(container.textContent).toContain('Push Notifications');
+    expect(container.textContent).toContain('Native push is unavailable for remote servers');
+    expect(container.textContent).toContain('In-app notification badges and sounds still work');
+    expect(container.textContent).not.toContain(
+      'Get notified about new messages even when the browser is closed.'
+    );
+    expect(
+      Array.from(container.querySelectorAll('button')).some((button) =>
+        button.textContent?.includes('Enable')
+      )
+    ).toBe(false);
+    expect(mocks.pushNotifications.isSubscribed).not.toHaveBeenCalled();
+    expect(mocks.pushNotifications.ensureRegistered).not.toHaveBeenCalled();
   });
 
   it('enables push notifications through the registration helper', async () => {

@@ -150,7 +150,9 @@
         "enabling": "Enabling...",
         "blocked_error": "Push notifications are blocked in your browser or OS settings.",
         "enable_failed": "Failed to enable push notifications. Please try again.",
-        "enable_error": "An error occurred while enabling push notifications"
+        "enable_error": "An error occurred while enabling push notifications",
+        "remote_title": "Native push is unavailable for remote servers",
+        "remote_description": "This installed app can only register browser push notifications with the server that served it. In-app notification badges and sounds still work for this server while Chatto is open."
       },
       "push_prompt": {
         "title": "Enable push notifications",

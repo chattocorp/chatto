@@ -208,6 +208,8 @@ const msg_settings_notifications_push_enabling = (): LocalizedString => messages
 const msg_settings_notifications_push_blocked_error = (): LocalizedString => messages().settings_notifications_push_blocked_error(empty());
 const msg_settings_notifications_push_enable_failed = (): LocalizedString => messages().settings_notifications_push_enable_failed(empty());
 const msg_settings_notifications_push_enable_error = (): LocalizedString => messages().settings_notifications_push_enable_error(empty());
+const msg_settings_notifications_push_remote_title = (): LocalizedString => messages().settings_notifications_push_remote_title(empty());
+const msg_settings_notifications_push_remote_description = (): LocalizedString => messages().settings_notifications_push_remote_description(empty());
 const msg_settings_notifications_push_prompt_title = (): LocalizedString => messages().settings_notifications_push_prompt_title(empty());
 const msg_settings_notifications_push_prompt_message = (): LocalizedString => messages().settings_notifications_push_prompt_message(empty());
 const msg_settings_notifications_push_prompt_enabled = (): LocalizedString => messages().settings_notifications_push_prompt_enabled(empty());
@@ -1286,6 +1288,8 @@ export { msg_settings_notifications_push_enabling as 'settings.notifications.pus
 export { msg_settings_notifications_push_blocked_error as 'settings.notifications.push.blocked_error' };
 export { msg_settings_notifications_push_enable_failed as 'settings.notifications.push.enable_failed' };
 export { msg_settings_notifications_push_enable_error as 'settings.notifications.push.enable_error' };
+export { msg_settings_notifications_push_remote_title as 'settings.notifications.push.remote_title' };
+export { msg_settings_notifications_push_remote_description as 'settings.notifications.push.remote_description' };
 export { msg_settings_notifications_push_prompt_title as 'settings.notifications.push_prompt.title' };
 export { msg_settings_notifications_push_prompt_message as 'settings.notifications.push_prompt.message' };
 export { msg_settings_notifications_push_prompt_enabled as 'settings.notifications.push_prompt.enabled' };
