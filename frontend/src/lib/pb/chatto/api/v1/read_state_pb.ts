@@ -20,8 +20,9 @@ export class MarkRoomAsReadRequest extends Message<MarkRoomAsReadRequest> {
   roomId = "";
 
   /**
-   * Highest room event ID the current user has read. The event should belong to
-   * the room timeline the client is marking.
+   * Highest room event ID the current user has read. When set, the event must
+   * exist as a root event in the room timeline. Leave empty to mark through the
+   * room's current latest root event.
    *
    * @generated from field: string up_to_event_id = 2;
    */

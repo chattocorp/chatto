@@ -30,7 +30,7 @@
 
       // Server not registered — save return URL and redirect
       const currentUrl = page.url.pathname + page.url.search;
-      console.warn('[chat/[serverId] layout] redirect → /: instance not registered', {
+      console.warn('[chat/[serverId] layout] redirect → /login: instance not registered', {
         urlSegment: page.params.serverId,
         resolvedInstanceId: serverId || '(empty)',
         hasStore: !!serverStore,
@@ -39,7 +39,7 @@
         from: currentUrl
       });
       sessionStorage.setItem('returnUrl', currentUrl);
-      goto(resolve('/'), { replaceState: true });
+      goto(resolve('/login'), { replaceState: true });
     }
   });
 
@@ -56,7 +56,7 @@
   // re-runs inside each consumer's `$effect`.
   provideEventBus(getActiveServer);
 
-  // Auth guard: redirect unauthenticated users to /chat and save the return URL.
+  // Auth guard: redirect unauthenticated users to /login and save the return URL.
   const currentUserState = $derived(serverStore?.currentUser);
   $effect(() => {
     if (!browser) return;
@@ -66,14 +66,14 @@
 
     // Not authenticated on this instance — save return URL and redirect
     const currentUrl = page.url.pathname + page.url.search;
-    console.warn('[chat/[serverId] layout] redirect → /: not authenticated on instance', {
+    console.warn('[chat/[serverId] layout] redirect → /login: not authenticated on instance', {
       serverId,
       hasUser: !!currentUserState.user,
       loading: currentUserState.loading,
       from: currentUrl
     });
     sessionStorage.setItem('returnUrl', currentUrl);
-    goto(resolve('/'), { replaceState: true });
+    goto(resolve('/login'), { replaceState: true });
   });
 </script>
 
@@ -82,7 +82,7 @@
     {@render children?.()}
   </Chrome>
 {:else if currentUserState && !currentUserState.loading}
-  <!-- Unauthenticated: the $effect above redirects to /chat -->
+  <!-- Unauthenticated: the $effect above redirects to /login -->
 {:else if serverStore}
   <!-- Server store exists but user state is still resolving (e.g., remote server
        loading, or brief reactive update on origin). Render children to avoid a blank

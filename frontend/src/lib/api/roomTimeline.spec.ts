@@ -165,7 +165,6 @@ describe('roomTimelinePageToEventConnectionPage', () => {
             value: new RoomTimelineMessagePosted({
               roomId: 'room-1',
               body: 'hello',
-              bodyPresent: true,
               attachments: [
                 new RoomTimelineAttachment({
                   id: 'a-video',
@@ -209,7 +208,6 @@ describe('roomTimelinePageToEventConnectionPage', () => {
               replyCount: 1,
               threadParticipantUserIds: ['u2'],
               viewerIsFollowingThread: true,
-              viewerIsFollowingThreadPresent: true,
               reactions: [
                 {
                   emoji: 'thumbsup',

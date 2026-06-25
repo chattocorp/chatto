@@ -5,7 +5,7 @@
 | Field | Type | Description |
 | --- | --- | --- |
 {{range .Message.Fields -}}
-| `{{if .IsOneof}}{{.OneofDecl}}.{{end}}{{.Name}}` | {{template "fieldType" (dict "Field" . "Files" $.Files)}} | {{if (index .Options "deprecated"|default false)}}**Deprecated.** {{end}}{{if .Description}}{{nobr .Description}}{{else}}No field description provided.{{end}}{{if .DefaultValue}} Default: `{{.DefaultValue}}`{{end}} |
+| `{{if and .IsOneof (not (regexMatch "^_" .OneofDecl))}}{{.OneofDecl}}.{{end}}{{.Name}}` | {{template "fieldType" (dict "Field" . "Files" $.Files)}} | {{if (index .Options "deprecated"|default false)}}**Deprecated.** {{end}}{{if .Description}}{{nobr .Description}}{{else}}No field description provided.{{end}}{{if .DefaultValue}} Default: `{{.DefaultValue}}`{{end}} |
 {{end}}
 {{end}}
 {{- end -}}

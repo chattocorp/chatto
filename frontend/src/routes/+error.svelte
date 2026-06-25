@@ -3,7 +3,7 @@
   import { page } from '$app/state';
   import { dev } from '$app/environment';
   import * as m from '$lib/i18n/messages';
-  import { EmptyState } from '$lib/ui';
+  import EmptyState from '$lib/ui/EmptyState.svelte';
 
   const status = $derived(page.status);
   const message = $derived(page.error?.message ?? m['error_page.unknown']());

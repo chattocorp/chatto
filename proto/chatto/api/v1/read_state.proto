@@ -8,8 +8,9 @@ import "google/protobuf/timestamp.proto";
 message MarkRoomAsReadRequest {
   // Room whose timeline should be marked read.
   string room_id = 1;
-  // Highest room event ID the current user has read. The event should belong to
-  // the room timeline the client is marking.
+  // Highest room event ID the current user has read. When set, the event must
+  // exist as a root event in the room timeline. Leave empty to mark through the
+  // room's current latest root event.
   string up_to_event_id = 2;
 }
 
@@ -43,8 +44,10 @@ message MarkThreadAsReadResponse {
 
 // Updates room and thread read state for the current user.
 service ReadStateService {
-  // Marks a room timeline as read through the supplied event. Clients usually
-  // call this after the user has viewed the latest visible event in the room.
+  // Marks a room timeline as read through the supplied event. If no event is
+  // supplied, the server marks through the room's latest root event. Clients
+  // usually call this after the user has viewed the latest visible event in the
+  // room.
   rpc MarkRoomAsRead(MarkRoomAsReadRequest) returns (MarkRoomAsReadResponse);
   // Marks a thread timeline as read through the supplied event without changing
   // the room-level read marker.

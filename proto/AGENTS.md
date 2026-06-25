@@ -23,3 +23,7 @@ After changing public API comments, regenerate outputs with `mise codegen-proto`
 ## Compatibility
 
 Do not renumber existing fields or change field types in messages that may already be persisted or consumed by clients. Prefer additive schema changes.
+
+## Scalar Presence
+
+For public API messages under `chatto/api/v1`, use proto3 `optional` scalar fields when clients must distinguish an absent, unhydrated, or unknown value from the scalar's default value. Avoid parallel `*_present` boolean fields for simple scalar presence; use an enum or oneof only when the API needs to model multiple availability states.

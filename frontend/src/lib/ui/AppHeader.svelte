@@ -4,11 +4,11 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { renderMarkdown } from '$lib/markdown';
   import { version } from '$app/environment';
   import { sidebarNav, quickSwitcher } from '$lib/state/globals.svelte';
   import * as m from '$lib/i18n/messages';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
+  import MotdContent from '$lib/ui/MotdContent.svelte';
 
   // MOTD follows the active server; the connection-lost icon below stays
   // bound to the origin store since it reflects the SPA host's own connection.
@@ -89,17 +89,7 @@
 
   <!-- MOTD -->
   {#if motd}
-    <span
-      data-testid="motd-content"
-      class="prose prose-compact max-w-none flex-1 truncate text-center text-sm"
-    >
-      {#await renderMarkdown(motd)}
-        {motd}
-      {:then html}
-        <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-        {@html html}
-      {/await}
-    </span>
+    <MotdContent {motd} />
   {:else}
     <span class="flex-1"></span>
   {/if}

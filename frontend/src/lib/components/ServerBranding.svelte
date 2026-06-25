@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { renderMarkdown } from '$lib/markdown';
-
   let {
     name,
     iconUrl = null,
@@ -14,6 +12,13 @@
     description?: string | null;
     welcomeMessage?: string | null;
   } = $props();
+
+  let markdownModule: Promise<typeof import('$lib/markdown')> | null = null;
+
+  function loadMarkdown() {
+    markdownModule ??= import('$lib/markdown');
+    return markdownModule;
+  }
 </script>
 
 <div class="flex flex-col items-center gap-5">
@@ -35,11 +40,17 @@
 
   {#if welcomeMessage}
     <div class="w-full rounded-lg border border-border bg-surface p-4 prose max-w-none text-muted">
-      {#await renderMarkdown(welcomeMessage)}
+      {#await loadMarkdown()}
         <p>{welcomeMessage}</p>
-      {:then html}
-        <!-- eslint-disable-next-line svelte/no-at-html-tags -- admin-configured content -->
-        {@html html}
+      {:then { renderMarkdown }}
+        {#await renderMarkdown(welcomeMessage)}
+          <p>{welcomeMessage}</p>
+        {:then html}
+          <!-- eslint-disable-next-line svelte/no-at-html-tags -- admin-configured content -->
+          {@html html}
+        {/await}
+      {:catch}
+        <p>{welcomeMessage}</p>
       {/await}
     </div>
   {/if}

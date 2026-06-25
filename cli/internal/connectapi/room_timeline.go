@@ -333,14 +333,12 @@ func (h *timelineHydrator) event(event *core.RoomEvent) (*apiv1.RoomTimelineEven
 
 func (h *timelineHydrator) messagePosted(event *core.RoomEvent, payload *corev1.MessagePostedEvent) (*apiv1.RoomTimelineMessagePosted, error) {
 	message := &apiv1.RoomTimelineMessagePosted{
-		RoomId:                         payload.GetRoomId(),
-		InReplyTo:                      payload.GetInReplyTo(),
-		ThreadRootEventId:              payload.GetInThread(),
-		EchoOfEventId:                  payload.GetEchoOfEventId(),
-		EchoFromThreadRootEventId:      payload.GetEchoFromThreadRootEventId(),
-		ViewerIsFollowingThread:        false,
-		ViewerIsFollowingThreadPresent: false,
-		Reactions:                      h.reactions(event.Id),
+		RoomId:                    payload.GetRoomId(),
+		InReplyTo:                 payload.GetInReplyTo(),
+		ThreadRootEventId:         payload.GetInThread(),
+		EchoOfEventId:             payload.GetEchoOfEventId(),
+		EchoFromThreadRootEventId: payload.GetEchoFromThreadRootEventId(),
+		Reactions:                 h.reactions(event.Id),
 	}
 
 	if echoID, ok := h.api.core.RoomTimeline.ChannelEchoEventID(event.Id); ok {
@@ -352,8 +350,7 @@ func (h *timelineHydrator) messagePosted(event *core.RoomEvent, payload *corev1.
 		return nil, err
 	}
 	if body != nil {
-		message.Body = body.Body
-		message.BodyPresent = true
+		message.Body = &body.Body
 		message.Attachments = h.attachments(payload.GetRoomId(), event.Id, body.Attachments)
 		message.LinkPreview = h.linkPreview(body.LinkPreview)
 		if body.UpdatedAt != nil {
@@ -378,8 +375,7 @@ func (h *timelineHydrator) messagePosted(event *core.RoomEvent, payload *corev1.
 		if err != nil {
 			return nil, err
 		}
-		message.ViewerIsFollowingThread = following
-		message.ViewerIsFollowingThreadPresent = true
+		message.ViewerIsFollowingThread = &following
 	}
 
 	return message, nil

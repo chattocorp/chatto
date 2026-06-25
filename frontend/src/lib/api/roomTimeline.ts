@@ -205,7 +205,7 @@ function messagePostedPayload(
   return {
     __typename: 'MessagePostedEvent',
     roomId: message.roomId,
-    body: message.bodyPresent ? message.body : null,
+    body: message.body !== undefined ? message.body : null,
     attachments: message.attachments.map(attachmentView),
     linkPreview: linkPreviewView(message.linkPreview),
     updatedAt: timestampToISOOrNull(message.updatedAt),
@@ -219,9 +219,8 @@ function messagePostedPayload(
     threadParticipants: message.threadParticipantUserIds
       .map((id) => userView(id, users))
       .filter((user): user is NonNullable<ReturnType<typeof userView>> => user !== null),
-    viewerIsFollowingThread: message.viewerIsFollowingThreadPresent
-      ? message.viewerIsFollowingThread
-      : null,
+    viewerIsFollowingThread:
+      message.viewerIsFollowingThread !== undefined ? message.viewerIsFollowingThread : null,
     reactions: message.reactions.map((reaction) => ({
       __typename: 'ReactionSummary',
       emoji: reaction.emoji,

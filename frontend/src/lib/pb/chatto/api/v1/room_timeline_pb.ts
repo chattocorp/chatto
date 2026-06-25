@@ -671,19 +671,12 @@ export class RoomTimelineMessagePosted extends Message<RoomTimelineMessagePosted
   roomId = "";
 
   /**
-   * Message body text.
+   * Message body text, when available. A present empty string is distinct from
+   * an absent body.
    *
-   * @generated from field: string body = 2;
+   * @generated from field: optional string body = 2;
    */
-  body = "";
-
-  /**
-   * True when the original event explicitly carried a body. This lets clients
-   * distinguish an empty body from a missing body.
-   *
-   * @generated from field: bool body_present = 3;
-   */
-  bodyPresent = false;
+  body?: string;
 
   /**
    * Attachments sent with the message.
@@ -764,19 +757,11 @@ export class RoomTimelineMessagePosted extends Message<RoomTimelineMessagePosted
   threadParticipantUserIds: string[] = [];
 
   /**
-   * True when the current user follows this message's thread.
+   * Whether the current user follows this message's thread, when known.
    *
-   * @generated from field: bool viewer_is_following_thread = 15;
+   * @generated from field: optional bool viewer_is_following_thread = 15;
    */
-  viewerIsFollowingThread = false;
-
-  /**
-   * True when viewer_is_following_thread was explicitly hydrated. If false, the
-   * follow value should be treated as unknown rather than false.
-   *
-   * @generated from field: bool viewer_is_following_thread_present = 16;
-   */
-  viewerIsFollowingThreadPresent = false;
+  viewerIsFollowingThread?: boolean;
 
   /**
    * Reaction summaries for this message.
@@ -794,8 +779,7 @@ export class RoomTimelineMessagePosted extends Message<RoomTimelineMessagePosted
   static readonly typeName = "chatto.api.v1.RoomTimelineMessagePosted";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "body", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "body_present", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "body", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 4, name: "attachments", kind: "message", T: RoomTimelineAttachment, repeated: true },
     { no: 5, name: "link_preview", kind: "message", T: RoomTimelineLinkPreview },
     { no: 6, name: "updated_at", kind: "message", T: Timestamp },
@@ -807,8 +791,7 @@ export class RoomTimelineMessagePosted extends Message<RoomTimelineMessagePosted
     { no: 12, name: "reply_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
     { no: 13, name: "last_reply_at", kind: "message", T: Timestamp },
     { no: 14, name: "thread_participant_user_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 15, name: "viewer_is_following_thread", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 16, name: "viewer_is_following_thread_present", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 15, name: "viewer_is_following_thread", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 17, name: "reactions", kind: "message", T: RoomTimelineReactionSummary, repeated: true },
   ]);
 

@@ -367,8 +367,10 @@ Updates room and thread read state for the current user.
 
 ### MarkRoomAsRead
 
-Marks a room timeline as read through the supplied event. Clients usually
-call this after the user has viewed the latest visible event in the room.
+Marks a room timeline as read through the supplied event. If no event is
+supplied, the server marks through the room's latest root event. Clients
+usually call this after the user has viewed the latest visible event in the
+room.
 
 ```http
 POST /api/connect/chatto.api.v1.ReadStateService/MarkRoomAsRead
@@ -383,7 +385,7 @@ Request to mark a room timeline as read.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Room whose timeline should be marked read. |
-| `up_to_event_id` | `string` | Highest room event ID the current user has read. The event should belong to the room timeline the client is marking. |
+| `up_to_event_id` | `string` | Highest room event ID the current user has read. When set, the event must exist as a root event in the room timeline. Leave empty to mark through the room's current latest root event. |
 
 
 <a id="chatto-api-v1-MarkRoomAsReadResponse"></a>
@@ -739,8 +741,7 @@ participants, and follow state without additional per-message requests.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Room containing the message. |
-| `body` | `string` | Message body text. |
-| `body_present` | `bool` | True when the original event explicitly carried a body. This lets clients distinguish an empty body from a missing body. |
+| `body` | `optional string` | Message body text, when available. A present empty string is distinct from an absent body. |
 | `attachments` | repeated [`RoomTimelineAttachment`](#chatto-api-v1-RoomTimelineAttachment) | Attachments sent with the message. |
 | `link_preview` | [`RoomTimelineLinkPreview`](#chatto-api-v1-RoomTimelineLinkPreview) | Link preview extracted for the message, when available. |
 | `updated_at` | `google.protobuf.Timestamp` | Time when the message was last edited. |
@@ -752,8 +753,7 @@ participants, and follow state without additional per-message requests.
 | `reply_count` | `int32` | Number of replies in this message's thread. |
 | `last_reply_at` | `google.protobuf.Timestamp` | Creation time of the most recent reply in this message's thread. |
 | `thread_participant_user_ids` | `repeated string` | User IDs that have participated in this message's thread. |
-| `viewer_is_following_thread` | `bool` | True when the current user follows this message's thread. |
-| `viewer_is_following_thread_present` | `bool` | True when viewer_is_following_thread was explicitly hydrated. If false, the follow value should be treated as unknown rather than false. |
+| `viewer_is_following_thread` | `optional bool` | Whether the current user follows this message's thread, when known. |
 | `reactions` | repeated [`RoomTimelineReactionSummary`](#chatto-api-v1-RoomTimelineReactionSummary) | Reaction summaries for this message. |
 
 

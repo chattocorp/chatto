@@ -15,9 +15,9 @@ test.describe('Return URL after login', () => {
     // Try to access a protected route directly (unauthenticated)
     await page.goto(routes.settings);
 
-    // The [serverId] layout detects no auth and redirects to /,
+    // The [serverId] layout detects no auth and redirects to /login,
     // saving the returnUrl in sessionStorage
-    await page.waitForURL('/');
+    await page.waitForURL('/login');
 
     // sessionStorage should have the return URL stored
     const returnUrl = await page.evaluate(() => sessionStorage.getItem('returnUrl'));
@@ -41,9 +41,9 @@ test.describe('Return URL after login', () => {
     // Try to access a protected route directly (unauthenticated)
     await page.goto(routes.admin);
 
-    // The [serverId] layout detects no auth and redirects to /,
+    // The [serverId] layout detects no auth and redirects to /login,
     // saving the returnUrl in sessionStorage
-    await page.waitForURL('/');
+    await page.waitForURL('/login');
 
     // Register via the email → code → account-details flow
     await authPage.register(testLogin, testEmail, testPassword);
@@ -59,14 +59,14 @@ test.describe('Return URL after login', () => {
     // Try to access a protected route directly (will be redirected)
     await page.goto(routes.settings);
 
-    // Should be redirected to / (unauthenticated)
-    await page.waitForURL('/');
+    // Should be redirected to /login (unauthenticated)
+    await page.waitForURL('/login');
 
     // Simulate OAuth callback - this creates a session
     const data = await authPage.simulateOAuthCallback(oauthEmail, 'OAuth Return User');
     expect(data.success).toBe(true);
 
-    // Navigate to / which loads the authenticated layout — ReturnUrlHandler fires
+    // Navigate to / which forwards authenticated users to /chat — ReturnUrlHandler fires
     await page.goto('/');
 
     // Should be redirected to the original URL
@@ -84,8 +84,8 @@ test.describe('Return URL after login', () => {
     // Try to access a protected route directly (will be redirected)
     await page.goto(routes.settings);
 
-    // Should be redirected to home page
-    await page.waitForURL('/');
+    // Should be redirected to login page
+    await page.waitForURL('/login');
 
     // Login
     await authPage.gotoLogin();
@@ -117,8 +117,8 @@ test.describe('Return URL after login', () => {
     // Try to access a protected deep route with query params
     await page.goto(routes.settings + '?tab=profile');
 
-    // Should be redirected to / (unauthenticated)
-    await page.waitForURL('/');
+    // Should be redirected to /login (unauthenticated)
+    await page.waitForURL('/login');
 
     // sessionStorage should have the return URL with query params
     const returnUrl = await page.evaluate(() => sessionStorage.getItem('returnUrl'));
@@ -142,6 +142,40 @@ test.describe('Authentication', () => {
     // Should redirect to the login page
     await page.waitForURL('/login');
     await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+  });
+
+  test('authenticated users are redirected away from /login', async ({ page }) => {
+    await createAndLoginTestUser(page);
+
+    await page.goto('/login');
+
+    await page.waitForURL((url) => url.pathname.startsWith('/chat'));
+    await expect(page.getByRole('heading', { name: 'Sign In' })).not.toBeVisible();
+  });
+
+  test('authenticated users are redirected away from /register', async ({ page }) => {
+    await createAndLoginTestUser(page);
+
+    await page.goto('/register');
+
+    await page.waitForURL((url) => url.pathname.startsWith('/chat'));
+    await expect(page.getByRole('heading', { name: 'Create Account' })).not.toBeVisible();
+  });
+
+  test('authenticated OAuth login redirects continue to backend target', async ({ page }) => {
+    await createAndLoginTestUser(page);
+
+    await page.goto(`/login?redirect=${encodeURIComponent('/oauth/authorize?client_id=e2e')}`);
+
+    await page.waitForURL((url) => url.pathname === '/oauth/authorize');
+  });
+
+  test('authenticated root redirect preserves welcome confirmation', async ({ page }) => {
+    await createAndLoginTestUser(page);
+
+    await page.goto('/?welcome=true');
+
+    await expect(page.getByText('Your email has been verified and your account is ready.')).toBeVisible();
   });
 
   test.describe('Registration Form (Step 1 — Email)', () => {

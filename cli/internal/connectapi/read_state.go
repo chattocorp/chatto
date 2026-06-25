@@ -21,11 +21,6 @@ func (s *readStateService) MarkRoomAsRead(ctx context.Context, req *connect.Requ
 	}
 	kind := core.KindOfRoom(room)
 
-	previousEventID, err := s.api.core.GetLastReadEventID(ctx, kind, user.Id, room.Id)
-	if err != nil {
-		return nil, connectError(err)
-	}
-
 	var (
 		lastEventID string
 		lastTime    time.Time
@@ -47,6 +42,11 @@ func (s *readStateService) MarkRoomAsRead(ctx context.Context, req *connect.Requ
 		if err != nil {
 			return nil, connectError(err)
 		}
+	}
+
+	previousEventID, _, err := s.api.core.PeekLastReadEventID(ctx, user.Id, room.Id)
+	if err != nil {
+		return nil, connectError(err)
 	}
 
 	if hasLast {

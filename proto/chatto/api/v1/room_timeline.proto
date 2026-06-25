@@ -155,13 +155,16 @@ message RoomTimelineReactionSummary {
 // echo entries. Thread-related fields let clients render reply counts, thread
 // participants, and follow state without additional per-message requests.
 message RoomTimelineMessagePosted {
+  reserved 3;
+  reserved 16;
+  reserved "body_present";
+  reserved "viewer_is_following_thread_present";
+
   // Room containing the message.
   string room_id = 1;
-  // Message body text.
-  string body = 2;
-  // True when the original event explicitly carried a body. This lets clients
-  // distinguish an empty body from a missing body.
-  bool body_present = 3;
+  // Message body text, when available. A present empty string is distinct from
+  // an absent body.
+  optional string body = 2;
   // Attachments sent with the message.
   repeated RoomTimelineAttachment attachments = 4;
   // Link preview extracted for the message, when available.
@@ -185,11 +188,8 @@ message RoomTimelineMessagePosted {
   google.protobuf.Timestamp last_reply_at = 13;
   // User IDs that have participated in this message's thread.
   repeated string thread_participant_user_ids = 14;
-  // True when the current user follows this message's thread.
-  bool viewer_is_following_thread = 15;
-  // True when viewer_is_following_thread was explicitly hydrated. If false, the
-  // follow value should be treated as unknown rather than false.
-  bool viewer_is_following_thread_present = 16;
+  // Whether the current user follows this message's thread, when known.
+  optional bool viewer_is_following_thread = 15;
   // Reaction summaries for this message.
   repeated RoomTimelineReactionSummary reactions = 17;
 }

@@ -397,8 +397,15 @@ test.describe('Sign Out', () => {
 test.describe('/chat backward compatibility', () => {
   test('/chat redirects to / for unauthenticated users', async ({ browser }) => {
     await withFreshPage(browser, async ({ page }) => {
+      const navigatedPaths: string[] = [];
+      page.on('framenavigated', (frame) => {
+        if (frame === page.mainFrame()) navigatedPaths.push(new URL(frame.url()).pathname);
+      });
+
       await page.goto('/chat');
-      await page.waitForURL('/');
+      await page.waitForURL((url) => url.pathname === '/' || url.pathname === '/login');
+
+      expect(navigatedPaths).toContain('/');
     });
   });
 

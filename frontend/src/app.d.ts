@@ -7,6 +7,7 @@ declare global {
     // interface PageData {}
     interface PageState {
       threadFilter?: 'all' | 'unread';
+      welcome?: boolean;
       modal?: {
         type:
           | 'createRoom'

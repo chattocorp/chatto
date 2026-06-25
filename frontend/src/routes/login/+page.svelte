@@ -1,74 +1,41 @@
 <script lang="ts">
   import { goto, invalidateAll } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { clearCachedUser } from '$lib/auth/loadAuth';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
-  import { graphql } from '$lib/gql';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
   import * as m from '$lib/i18n/messages';
-  import { Divider, Hint } from '$lib/ui';
+  import type { AuthenticatedUserSummary } from '$lib/state/server/registry.svelte';
+  import type { PublicAuthProvider } from '$lib/api/server';
+  import Divider from '$lib/ui/Divider.svelte';
+  import Hint from '$lib/ui/Hint.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { TextInput, FormError, Button, Form } from '$lib/ui/form';
-  import AddServerDialog from '$lib/components/AddServerDialog.svelte';
 
   const { data } = $props();
-
-  type AuthProviderInfo = {
-    id: string;
-    type: string;
-    label: string;
-    loginUrl: string;
-  };
 
   let identifier = $state('');
   let password = $state('');
   let error = $state('');
   let isLoading = $state(false);
   let addServerDialogVisible = $state(false);
+  let addServerDialogModule: Promise<
+    typeof import('$lib/components/AddServerDialog.svelte')
+  > | null = null;
+
+  function loadAddServerDialog() {
+    addServerDialogModule ??= import('$lib/components/AddServerDialog.svelte');
+    return addServerDialogModule;
+  }
 
   const canSubmit = $derived(identifier.trim() && password);
+  const authProviders = $derived(data.serverInfo?.authProviders ?? []);
+  const directRegistrationEnabled = $derived(data.serverInfo?.directRegistrationEnabled ?? true);
 
-  // Standalone detection: no origin instance means no local backend to log in to.
-  // Only applies when there's no redirect param — a redirect means the backend sent
-  // us here (e.g. OAuth authorize flow), so the origin probe just hasn't completed yet.
+  // Standalone detection: if public server info failed to load, there is no local
+  // backend to log in to. Redirect URLs are backend-driven flows, so keep the
+  // login form visible while those complete or fail.
   const isStandalone = $derived(
-    !serverRegistry.originServer && serverRegistry.originProbed && data.redirectUrl === '/'
+    !data.serverInfo && data.serverInfoLoaded && data.redirectUrl === '/'
   );
-
-  $effect(() => {
-    if (data.user) {
-      navigateAfterLogin(data.redirectUrl);
-    }
-  });
-
-  // Fetch auth providers and registration setting from GraphQL
-  const LoginInfoQuery = graphql(`
-    query LoginPageInfo {
-      server {
-        authProviders {
-          id
-          type
-          label
-          loginUrl
-        }
-        directRegistrationEnabled
-      }
-    }
-  `);
-
-  let authProviders = $state.raw<AuthProviderInfo[]>([]);
-  let directRegistrationEnabled = $state(true);
-
-  graphqlClientManager.originClient.client
-    .query(LoginInfoQuery, {})
-    .toPromise()
-    .then((result) => {
-      if (result.data) {
-        authProviders = result.data.server.authProviders;
-        directRegistrationEnabled = result.data.server.directRegistrationEnabled;
-      }
-    });
 
   /**
    * Same-origin path check; mirrors the validator in +page.ts but applied
@@ -116,8 +83,20 @@
     }
   }
 
-  function providerLoginHref(provider: AuthProviderInfo): string {
+  function providerLoginHref(provider: PublicAuthProvider): string {
     return `${provider.loginUrl}?redirect=${encodeURIComponent(data.redirectUrl)}`;
+  }
+
+  async function authenticateOrigin(
+    token: string,
+    user: AuthenticatedUserSummary | null
+  ): Promise<void> {
+    const [{ serverRegistry }, { clearCachedUser }] = await Promise.all([
+      import('$lib/state/server/registry.svelte'),
+      import('$lib/auth/loadAuth')
+    ]);
+    serverRegistry.authenticateOrigin(token, user);
+    clearCachedUser();
   }
 
   async function handleSubmit(e: Event) {
@@ -145,13 +124,13 @@
         return;
       }
 
-      serverRegistry.authenticateOrigin(result.token, result.user ?? null);
-      clearCachedUser();
+      await authenticateOrigin(result.token, result.user ?? null);
       await invalidateAll();
 
       const returnUrl = sessionStorage.getItem('returnUrl');
       if (returnUrl) {
-        sessionStorage.removeItem('returnUrl');
+        // Keep the marker until the authenticated chat shell sees it; otherwise
+        // the chat landing redirect can win before the return URL settles.
         navigateAfterLogin(returnUrl);
       } else {
         navigateAfterLogin(data.redirectUrl);
@@ -166,103 +145,100 @@
 
 <PageTitle title={isStandalone ? m['auth.login.welcome_page_title']() : m['auth.login.title']()} />
 
-{#if !data.user}
-  {#if isStandalone}
-    <AuthLayout>
-      <div class="flex flex-col items-center gap-6 text-center">
-        <h1 class="text-2xl font-bold">{m['auth.login.welcome_title']()}</h1>
-        <p class="text-muted">
-          {m['auth.login.welcome_description']()}
-        </p>
-        <Button
-          variant="accent"
-          size="lg"
-          fullWidth
-          onclick={() => (addServerDialogVisible = true)}
-        >
-          {m['auth.login.add_server']()}
-        </Button>
+{#if isStandalone}
+  <AuthLayout>
+    <div class="flex flex-col items-center gap-6 text-center">
+      <h1 class="text-2xl font-bold">{m['auth.login.welcome_title']()}</h1>
+      <p class="text-muted">
+        {m['auth.login.welcome_description']()}
+      </p>
+      <Button variant="accent" size="lg" fullWidth onclick={() => (addServerDialogVisible = true)}>
+        {m['auth.login.add_server']()}
+      </Button>
+    </div>
+  </AuthLayout>
+{:else}
+  <AuthLayout>
+    <h1 class="mb-6 text-center text-2xl font-bold">{m['auth.login.title']()}</h1>
+
+    {#if data.passwordResetSuccess}
+      <div class="mb-4">
+        <Hint tone="success">
+          {m['auth.login.password_reset_success']()}
+        </Hint>
       </div>
-    </AuthLayout>
-  {:else}
-    <AuthLayout>
-      <h1 class="mb-6 text-center text-2xl font-bold">{m['auth.login.title']()}</h1>
+    {/if}
 
-      {#if data.passwordResetSuccess}
-        <div class="mb-4">
-          <Hint tone="success">
-            {m['auth.login.password_reset_success']()}
-          </Hint>
-        </div>
-      {/if}
+    <!-- SSO providers -->
+    {#if authProviders.length > 0}
+      <div class="flex flex-col gap-3">
+        {#each authProviders as provider (provider.id)}
+          <Button variant="secondary" size="lg" fullWidth href={providerLoginHref(provider)}>
+            <span class={['iconify text-lg', providerIcon(provider.type)]}></span>
+            {m['auth.login.continue_with_provider']({ provider: provider.label })}
+          </Button>
+        {/each}
 
-      <!-- SSO providers -->
-      {#if authProviders.length > 0}
-        <div class="flex flex-col gap-3">
-          {#each authProviders as provider (provider.id)}
-            <Button variant="secondary" size="lg" fullWidth href={providerLoginHref(provider)}>
-              <span class={['iconify text-lg', providerIcon(provider.type)]}></span>
-              {m['auth.login.continue_with_provider']({ provider: provider.label })}
-            </Button>
-          {/each}
-
-          <Divider label={m['common.or']()} />
-        </div>
-      {/if}
-
-      <Form onsubmit={handleSubmit}>
-        <TextInput
-          id="identifier"
-          label={m['auth.login.identifier_label']()}
-          bind:value={identifier}
-          placeholder={m['common.email_placeholder']()}
-          disabled={isLoading}
-          required
-          autocomplete="username"
-          autofocus
-        />
-
-        <TextInput
-          id="password"
-          label={m['common.password']()}
-          type="password"
-          bind:value={password}
-          placeholder={m['common.password_placeholder']()}
-          disabled={isLoading}
-          required
-          autocomplete="current-password"
-        />
-
-        <FormError {error} />
-
-        <Button
-          type="submit"
-          size="lg"
-          disabled={!canSubmit}
-          loading={isLoading}
-          loadingText={m['auth.login.signing_in']()}
-        >
-          <span class="iconify mdi--login"></span>
-          {m['common.sign_in']()}
-        </Button>
-      </Form>
-
-      <div class="mt-4 text-center">
-        <a href={resolve('/forgot-password')} class="link">{m['auth.login.forgot_password']()}</a>
-      </div>
-
-      {#if directRegistrationEnabled}
         <Divider label={m['common.or']()} />
+      </div>
+    {/if}
 
-        <a href={resolve('/register')} class="btn-secondary block w-full btn-lg text-center">
-          {m['common.create_account']()}
-        </a>
-      {/if}
-    </AuthLayout>
-  {/if}
+    <Form onsubmit={handleSubmit}>
+      <TextInput
+        id="identifier"
+        label={m['auth.login.identifier_label']()}
+        bind:value={identifier}
+        placeholder={m['common.email_placeholder']()}
+        disabled={isLoading}
+        required
+        autocomplete="username"
+        autofocus
+      />
+
+      <TextInput
+        id="password"
+        label={m['common.password']()}
+        type="password"
+        bind:value={password}
+        placeholder={m['common.password_placeholder']()}
+        disabled={isLoading}
+        required
+        autocomplete="current-password"
+      />
+
+      <FormError {error} />
+
+      <Button
+        type="submit"
+        size="lg"
+        disabled={!canSubmit}
+        loading={isLoading}
+        loadingText={m['auth.login.signing_in']()}
+      >
+        <span class="iconify mdi--login"></span>
+        {m['common.sign_in']()}
+      </Button>
+    </Form>
+
+    <div class="mt-4 text-center">
+      <a href={resolve('/forgot-password')} class="link">{m['auth.login.forgot_password']()}</a>
+    </div>
+
+    {#if directRegistrationEnabled}
+      <Divider label={m['common.or']()} />
+
+      <a href={resolve('/register')} class="btn-secondary block w-full btn-lg text-center">
+        {m['common.create_account']()}
+      </a>
+    {/if}
+  </AuthLayout>
 {/if}
 
-<AddServerDialog
-  bind:visible={addServerDialogVisible}
-  onclose={() => (addServerDialogVisible = false)}
-/>
+{#if addServerDialogVisible}
+  {#await loadAddServerDialog() then { default: AddServerDialog }}
+    <AddServerDialog
+      bind:visible={addServerDialogVisible}
+      onclose={() => (addServerDialogVisible = false)}
+    />
+  {/await}
+{/if}

@@ -43,8 +43,10 @@ const (
 
 // ReadStateServiceClient is a client for the chatto.api.v1.ReadStateService service.
 type ReadStateServiceClient interface {
-	// Marks a room timeline as read through the supplied event. Clients usually
-	// call this after the user has viewed the latest visible event in the room.
+	// Marks a room timeline as read through the supplied event. If no event is
+	// supplied, the server marks through the room's latest root event. Clients
+	// usually call this after the user has viewed the latest visible event in the
+	// room.
 	MarkRoomAsRead(context.Context, *connect.Request[v1.MarkRoomAsReadRequest]) (*connect.Response[v1.MarkRoomAsReadResponse], error)
 	// Marks a thread timeline as read through the supplied event without changing
 	// the room-level read marker.
@@ -95,8 +97,10 @@ func (c *readStateServiceClient) MarkThreadAsRead(ctx context.Context, req *conn
 
 // ReadStateServiceHandler is an implementation of the chatto.api.v1.ReadStateService service.
 type ReadStateServiceHandler interface {
-	// Marks a room timeline as read through the supplied event. Clients usually
-	// call this after the user has viewed the latest visible event in the room.
+	// Marks a room timeline as read through the supplied event. If no event is
+	// supplied, the server marks through the room's latest root event. Clients
+	// usually call this after the user has viewed the latest visible event in the
+	// room.
 	MarkRoomAsRead(context.Context, *connect.Request[v1.MarkRoomAsReadRequest]) (*connect.Response[v1.MarkRoomAsReadResponse], error)
 	// Marks a thread timeline as read through the supplied event without changing
 	// the room-level read marker.

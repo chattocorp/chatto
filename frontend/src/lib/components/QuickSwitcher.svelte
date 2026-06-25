@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
+  import { untrack } from 'svelte';
   import { scoreItem } from './quickSwitcherSearch';
   import { serverIdToSegment } from '$lib/navigation';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -11,8 +12,8 @@
     UserAvatarUserFragmentDoc,
     type UserAvatarUserFragment
   } from '$lib/gql/graphql';
-  import UserAvatar from '$lib/components/UserAvatar.svelte';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
+  import { getAvatarInitials } from '$lib/utils/initials';
   import { getGradientForName } from '$lib/utils/gradients';
   import { recentQuickSwitcher } from '$lib/state/recentQuickSwitcher.svelte';
   import { quickSwitcher } from '$lib/state/globals.svelte';
@@ -209,6 +210,7 @@
     });
 
     allItems = items;
+    selectedIndex = 0;
     loading = false;
   }
 
@@ -231,6 +233,8 @@
   }
 
   function handleQueryInput(e: Event) {
+    query = (e.currentTarget as HTMLInputElement).value;
+    selectedIndex = 0;
     scheduleUserSearch((e.currentTarget as HTMLInputElement).value);
   }
 
@@ -272,6 +276,7 @@
 
     if (requestId !== userSearchRequestId) return;
     userItems = items;
+    selectedIndex = 0;
     userSearchLoading = false;
   }
 
@@ -358,30 +363,29 @@
     return scored;
   });
 
-  $effect(() => {
-    void filtered;
-    selectedIndex = 0;
-  });
-
   // --- Visibility ---
 
   $effect(() => {
-    if (quickSwitcher.visible) {
-      query = '';
-      selectedIndex = 0;
-      allItems = [];
-      userItems = [];
-      scheduleUserSearch('');
-      dialogEl?.showModal();
-      requestAnimationFrame(() => inputEl?.focus());
-      loadAll();
-    } else {
-      if (userSearchTimer) clearTimeout(userSearchTimer);
-      userItems = [];
-      userSearchLoading = false;
-      userSearchRequestId++;
-      dialogEl?.close();
-    }
+    const visible = quickSwitcher.visible;
+
+    untrack(() => {
+      if (visible) {
+        query = '';
+        selectedIndex = 0;
+        allItems = [];
+        userItems = [];
+        scheduleUserSearch('');
+        dialogEl?.showModal();
+        requestAnimationFrame(() => inputEl?.focus());
+        loadAll();
+      } else {
+        if (userSearchTimer) clearTimeout(userSearchTimer);
+        userItems = [];
+        userSearchLoading = false;
+        userSearchRequestId++;
+        dialogEl?.close();
+      }
+    });
   });
 
   // --- Navigation ---
@@ -521,6 +525,24 @@
   }
 </script>
 
+{#snippet avatar(user: UserAvatarUserFragment)}
+  {#if user.avatarUrl}
+    <SkeletonImg
+      loading="lazy"
+      src={user.avatarUrl}
+      alt={user.login}
+      class="h-5 w-5 rounded-full object-cover"
+    />
+  {:else}
+    <span
+      class="flex h-5 w-5 items-center justify-center rounded-full bg-surface-200 text-[10px] font-semibold text-muted"
+      aria-label={user.login}
+    >
+      {getAvatarInitials(user.displayName, user.login)}
+    </span>
+  {/if}
+{/snippet}
+
 <!-- Outer wrapper replicates ContextMenu.svelte's container exactly -->
 <dialog
   bind:this={dialogEl}
@@ -589,7 +611,7 @@
                   {@const user = userAvatarParticipant(item)}
                   <span class="sidebar-icon">
                     {#if user}
-                      <UserAvatar {user} size="xs" showPresence={false} />
+                      {@render avatar(user)}
                     {:else}
                       <span class="sidebar-icon iconify text-muted uil--user"></span>
                     {/if}
@@ -598,7 +620,7 @@
                   <span class="sidebar-icon">
                     <div class="flex -space-x-2">
                       {#each dmAvatarParticipants(item) as participant (participant.id)}
-                        <UserAvatar user={participant} size="xs" showPresence={false} />
+                        {@render avatar(participant)}
                       {/each}
                     </div>
                   </span>

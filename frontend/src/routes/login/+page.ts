@@ -1,3 +1,6 @@
+import { redirect } from '@sveltejs/kit';
+import type { PageLoad } from './$types';
+
 /**
  * Returns true if `value` is safe to navigate to without validating against
  * a server-side allow-list — i.e. it points to *this* origin.
@@ -20,14 +23,20 @@ function isSafeInternalPath(value: string): boolean {
   );
 }
 
-export const load = ({ url }) => {
-  const raw = url.searchParams.get('redirect') ?? '';
+export const load: PageLoad = async ({ parent, url }) => {
+	const { user } = await parent();
+	const raw = url.searchParams.get('redirect') ?? '';
+	const redirectUrl = isSafeInternalPath(raw) ? raw : '/';
 
-  return {
-    /** URL to redirect to after login (default: /). Must be a same-origin path. */
-    redirectUrl: isSafeInternalPath(raw) ? raw : '/',
+	if (user) {
+		redirect(302, redirectUrl.startsWith('/oauth/') ? redirectUrl : '/chat');
+	}
 
-    /** Whether the user just completed a password reset */
-    passwordResetSuccess: url.searchParams.get('reset') === 'success'
-  };
+	return {
+		/** URL to redirect to after login (default: /). Must be a same-origin path. */
+		redirectUrl,
+
+		/** Whether the user just completed a password reset */
+		passwordResetSuccess: url.searchParams.get('reset') === 'success'
+	};
 };

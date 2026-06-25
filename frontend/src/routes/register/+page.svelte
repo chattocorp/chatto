@@ -1,27 +1,18 @@
 <script lang="ts">
   import { goto, invalidateAll } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { clearCachedUser } from '$lib/auth/loadAuth';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import * as m from '$lib/i18n/messages';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { Divider } from '$lib/ui';
+  import type { AuthenticatedUserSummary } from '$lib/state/server/registry.svelte';
+  import Divider from '$lib/ui/Divider.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button, FormError, TextInput, validate, z } from '$lib/ui/form';
 
   const { data } = $props();
 
-  // Redirect if already logged in (use layout data, consistent with /login)
-  // svelte-ignore state_referenced_locally
-  if (data.user) {
-    goto(resolve('/'));
-  }
-
   type Step = 'email' | 'code' | 'details';
 
-  const origin = $derived(serverRegistry.originServer);
-  const originStore = $derived(origin ? serverRegistry.tryGetStore(origin.id) : undefined);
-  const registrationEnabled = $derived(originStore?.serverInfo.directRegistrationEnabled ?? true);
+  const registrationEnabled = $derived(data.serverInfo?.directRegistrationEnabled ?? true);
 
   let step = $state<Step>('email');
   let email = $state('');
@@ -173,6 +164,18 @@
     }
   }
 
+  async function authenticateOrigin(
+    token: string,
+    user: AuthenticatedUserSummary | null
+  ): Promise<void> {
+    const [{ serverRegistry }, { clearCachedUser }] = await Promise.all([
+      import('$lib/state/server/registry.svelte'),
+      import('$lib/auth/loadAuth')
+    ]);
+    serverRegistry.authenticateOrigin(token, user);
+    clearCachedUser();
+  }
+
   async function handleDetailsSubmit(e: Event) {
     e.preventDefault();
     if (!completionToken || loginError || passwordError || confirmError) {
@@ -206,13 +209,13 @@
         return;
       }
 
-      serverRegistry.authenticateOrigin(body.token, body.user ?? null);
-      clearCachedUser();
+      await authenticateOrigin(body.token, body.user ?? null);
       await invalidateAll();
 
       const returnUrl = sessionStorage.getItem('returnUrl');
       if (returnUrl) {
-        sessionStorage.removeItem('returnUrl');
+        // Keep the marker until the authenticated chat shell sees it; otherwise
+        // the chat landing redirect can win before the return URL settles.
         // eslint-disable-next-line svelte/no-navigation-without-resolve -- dynamic return URL from sessionStorage
         goto(returnUrl);
       } else {

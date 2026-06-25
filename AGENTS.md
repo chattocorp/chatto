@@ -30,6 +30,7 @@ Please update this section as the project evolves, and refer to it when making d
 - Where feasible, write code comments that explain intent.
 - Make sure the code is well-tested, and that tests are easy to understand and maintain.
 - We're very likely migrating our API surface away from GraphQL to a combination of ConnectRPC and a custom wire protocol that pushes protobufs to the client. When writing new API surface, please add to the new setup, not GraphQL.
+- When adding or changing room timeline event visibility, make sure the ConnectRPC room timeline response mapping is updated too, or explicitly document why the event is hidden from the public timeline API. Add tests so visible events cannot be silently dropped by the ConnectRPC hydrator.
 - **Important:** before working on protobufs, ConnectRPC schemas, or generated API reference comments, read `proto/AGENTS.md`. Nested `AGENTS.md` files may not be loaded automatically, so this root file is the reminder.
 
 ### Specific Rules for Frontend Code
