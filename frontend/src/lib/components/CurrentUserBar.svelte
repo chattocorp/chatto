@@ -23,8 +23,12 @@ to the user settings page for the active server.
     setRoomSidebarPanel
   } from '$lib/storage/roomSidebarPanel';
   import { serverStorageKey } from '$lib/storage/serverStorage';
+  import { isTouchDevice } from '$lib/utils/isTouchDevice';
+  import BottomSheet from '$lib/ui/BottomSheet.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
+  import Dialog from '$lib/ui/Dialog.svelte';
   import UserAvatar from './UserAvatar.svelte';
+  import UserCustomStatusBadge from './UserCustomStatusBadge.svelte';
   import UserCustomStatusEditor from './UserCustomStatusEditor.svelte';
 
   const connection = useConnection();
@@ -70,6 +74,7 @@ to the user settings page for the active server.
   const compactCallButtonClass = 'btn-secondary h-7 w-7 shrink-0 !px-0 !py-0 text-xs';
   const compactCallActiveButtonClass = 'btn-success h-7 w-7 shrink-0 !px-0 !py-0 text-xs';
   const compactCallDangerButtonClass = 'btn-danger h-7 w-7 shrink-0 !px-0 !py-0 text-xs';
+  const isTouch = isTouchDevice();
   const presenceModes: PresenceMode[] = ['auto', 'away', 'doNotDisturb', 'invisible'];
   const presenceLabel = $derived.by(() => presenceModeLabel(presencePreference.mode));
   const presenceDotClass = $derived(
@@ -82,6 +87,7 @@ to the user settings page for the active server.
           : 'bg-gray-400'
   );
   let statusMenuAnchor = $state<{ top: number; bottom: number; left: number } | null>(null);
+  let customStatusDialogVisible = $state(false);
 
   function customStatusAPIConfig() {
     const conn = connection();
@@ -110,8 +116,26 @@ to the user settings page for the active server.
     }
   }
 
+  function presenceModeDotClass(mode: PresenceMode): string {
+    switch (mode) {
+      case 'away':
+        return 'bg-yellow-500';
+      case 'doNotDisturb':
+        return 'bg-red-500';
+      case 'invisible':
+        return 'bg-gray-400';
+      default:
+        return 'bg-green-500';
+    }
+  }
+
   function choosePresenceMode(mode: PresenceMode) {
     setPresenceMode(mode);
+  }
+
+  function openCustomStatusDialog() {
+    statusMenuAnchor = null;
+    customStatusDialogVisible = true;
   }
 
   function updateCurrentCustomStatus(status: CustomUserStatus | null) {
@@ -143,6 +167,17 @@ to the user settings page for the active server.
     );
   }
 </script>
+
+{#snippet customStatusEditor()}
+  {#if activeServerUser}
+    <UserCustomStatusEditor
+      status={activeServerUser.customStatus}
+      config={customStatusAPIConfig()}
+      onChange={updateCurrentCustomStatus}
+      onClose={() => (customStatusDialogVisible = false)}
+    />
+  {/if}
+{/snippet}
 
 {#if activeServerUser}
   <div class="flex shrink-0 flex-col gap-1 p-2">
@@ -229,22 +264,27 @@ to the user settings page for the active server.
       class="flex items-center gap-3 rounded-xl bg-surface py-1 pr-3 pl-1"
       data-testid="current-user-identity-card"
     >
-      <div class="relative shrink-0">
-        <UserAvatar user={activeServerUser} size="md" showPresence={false} />
-        <button
-          type="button"
-          title={m['settings.profile.presence.button']({ status: presenceLabel })}
-          aria-label={m['settings.profile.presence.button']({ status: presenceLabel })}
-          class="absolute right-0 bottom-0 grid h-4 w-4 translate-x-1/4 translate-y-1/4 cursor-pointer place-items-center rounded-full border-2 border-surface bg-surface hover:border-surface-100"
-          data-testid="current-user-presence-menu"
-          onclick={openStatusMenu}
-        >
-          <span class={`h-2.5 w-2.5 rounded-full ${presenceDotClass}`} aria-hidden="true"></span>
-        </button>
-      </div>
+      <button
+        type="button"
+        title={m['settings.profile.presence.button']({ status: presenceLabel })}
+        aria-label={m['settings.profile.presence.button']({ status: presenceLabel })}
+        class="relative shrink-0 cursor-pointer rounded-full"
+        data-testid="current-user-presence-menu"
+        onclick={openStatusMenu}
+      >
+        <UserAvatar user={activeServerUser} size="md" />
+        <span
+          class={[
+            'absolute right-0 bottom-0 h-3 w-3 translate-x-1/4 translate-y-1/4 rounded-full border-2 border-surface',
+            presenceDotClass
+          ]}
+          aria-hidden="true"
+        ></span>
+      </button>
       <div class="flex min-w-0 flex-1 flex-col leading-tight">
         <span class="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
           <span class="min-w-0 truncate">{displayName}</span>
+          <UserCustomStatusBadge status={activeServerUser.customStatus} class="text-xs" />
         </span>
         {#if showLogin}
           <span class="truncate text-xs text-muted">@{login}</span>
@@ -283,19 +323,9 @@ to the user settings page for the active server.
             aria-checked={presencePreference.mode === mode}
             onclick={() => choosePresenceMode(mode)}
           >
-            <span
-              class={[
-                'h-2.5 w-2.5 rounded-full',
-                mode === 'auto'
-                  ? 'bg-green-500'
-                  : mode === 'away'
-                    ? 'bg-yellow-500'
-                    : mode === 'doNotDisturb'
-                      ? 'bg-red-500'
-                      : 'bg-gray-400'
-              ]}
-              aria-hidden="true"
-            ></span>
+            <span class="grid w-5 shrink-0 place-items-center" aria-hidden="true">
+              <span class={['h-2.5 w-2.5 rounded-full', presenceModeDotClass(mode)]}></span>
+            </span>
             <span class="min-w-0 truncate">{presenceModeLabel(mode)}</span>
             {#if presencePreference.mode === mode}
               <span class="ml-auto iconify shrink-0 uil--check" aria-hidden="true"></span>
@@ -303,13 +333,60 @@ to the user settings page for the active server.
           </button>
         {/each}
       </div>
-      <UserCustomStatusEditor
-        status={activeServerUser.customStatus}
-        config={customStatusAPIConfig()}
-        compact
-        onChange={updateCurrentCustomStatus}
-        onClose={() => (statusMenuAnchor = null)}
-      />
+      <div class="menu-section p-1">
+        <button
+          type="button"
+          class="sidebar-item w-full gap-3 text-left"
+          data-testid="current-user-custom-status-action"
+          onclick={openCustomStatusDialog}
+        >
+          <span class="grid w-5 shrink-0 place-items-center" aria-hidden="true">
+            {#if activeServerUser.customStatus}
+              {activeServerUser.customStatus.emoji}
+            {:else}
+              <span class="iconify text-muted uil--comment-alt-edit"></span>
+            {/if}
+          </span>
+          <span class="min-w-0 truncate">
+            {m['settings.profile.status.set_custom_status']()}
+          </span>
+        </button>
+      </div>
     </div>
   </ContextMenu>
+{/if}
+
+{#if activeServerUser}
+  {#if isTouch}
+    <BottomSheet
+      bind:visible={customStatusDialogVisible}
+      onclose={() => (customStatusDialogVisible = false)}
+    >
+      <div class="max-h-[78vh] overflow-y-auto pb-2 text-text">
+        <header class="mb-4 flex items-start justify-between gap-3">
+          <h2 class="text-xl font-semibold text-text">
+            {m['settings.profile.status.dialog_title']()}
+          </h2>
+          <button
+            type="button"
+            onclick={() => (customStatusDialogVisible = false)}
+            class="-m-1 shrink-0 cursor-pointer rounded p-1 text-text/50 transition-colors hover:text-text"
+            aria-label={m['ui.close']()}
+          >
+            <span class="iconify text-xl uil--times"></span>
+          </button>
+        </header>
+        {@render customStatusEditor()}
+      </div>
+    </BottomSheet>
+  {:else}
+    <Dialog
+      bind:visible={customStatusDialogVisible}
+      title={m['settings.profile.status.dialog_title']()}
+      size="md"
+      onclose={() => (customStatusDialogVisible = false)}
+    >
+      {@render customStatusEditor()}
+    </Dialog>
+  {/if}
 {/if}

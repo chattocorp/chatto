@@ -78,7 +78,7 @@
       <div class="flex -space-x-1.5">
         {#each visibleAvatars as actor (actor.id)}
           {#if actor.user}
-            <UserAvatar user={actor.user} size="xs" showPresence={false} />
+            <UserAvatar user={actor.user} size="xs" />
           {:else}
             <div
               class="flex h-5 w-5 items-center justify-center rounded-full bg-surface-200 text-muted ring-1 ring-background"

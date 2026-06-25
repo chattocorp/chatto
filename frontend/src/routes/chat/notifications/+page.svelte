@@ -179,7 +179,7 @@
             onkeydown={(e) => e.key === 'Enter' && handleClick(item)}
           >
             {#if actor}
-              <UserAvatar user={actor} size="md" showPresence={false} />
+              <UserAvatar user={actor} size="md" />
             {/if}
 
             <div class="min-w-0 flex-1">

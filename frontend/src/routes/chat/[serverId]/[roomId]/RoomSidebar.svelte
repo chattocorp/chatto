@@ -353,7 +353,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
       ? 'Deleted User'
       : `View profile of ${getLiveDisplayName(member.id, member.displayName)}`}
   >
-    <UserAvatar user={member} size="sm" />
+    <UserAvatar user={member} size="sm" showPresence showStatus />
     <div class="min-w-0 flex-1">
       <div class="truncate">{getLiveDisplayName(member.id, member.displayName)}</div>
       <div class="truncate text-xs text-muted">@{getLiveLogin(member.id, member.login)}</div>

@@ -61,19 +61,17 @@
     lg: 'text-base',
     xl: 'text-lg'
   };
-  const customStatusBadgeSizes = new Set<Size>(['md', 'lg', 'xl']);
-
   let {
     user,
     size = 'md',
-    showPresence = true,
-    showCustomStatus = true,
+    showPresence = false,
+    showStatus = false,
     class: className = ''
   }: {
     user: AvatarUser;
     size?: Size;
     showPresence?: boolean;
-    showCustomStatus?: boolean;
+    showStatus?: boolean;
     class?: string;
   } = $props();
 
@@ -98,9 +96,7 @@
   const customStatus = $derived(
     user && !user.deleted ? getLiveCustomStatus(user.id, user.customStatus) : null
   );
-  const showCustomStatusBadge = $derived(
-    showCustomStatus && customStatusBadgeSizes.has(size) && !user.deleted
-  );
+  const showCustomStatusBadge = $derived(showStatus && !user.deleted);
 
   const badgeColor = $derived(
     presence === 'ONLINE'

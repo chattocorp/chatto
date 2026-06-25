@@ -7,9 +7,13 @@
   type Size = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 
   let {
-    size = 'md'
+    size = 'md',
+    showPresence = false,
+    showStatus = false
   }: {
     size?: Size;
+    showPresence?: boolean;
+    showStatus?: boolean;
   } = $props();
 
   const user: UserAvatarUserFragment = {
@@ -32,4 +36,4 @@
   createPresenceCache();
 </script>
 
-<UserAvatar {user} {size} />
+<UserAvatar {user} {size} {showPresence} {showStatus} />

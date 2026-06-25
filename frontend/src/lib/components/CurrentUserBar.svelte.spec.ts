@@ -150,19 +150,20 @@ describe('CurrentUserBar', () => {
     expect(container.textContent).toContain('@alice');
   });
 
-  it('opens the combined presence and custom status menu from the avatar status dot', async () => {
+  it('opens the combined presence menu with a custom status action from the avatar status dot', async () => {
     const { container } = render(CurrentUserBarTestHarness);
 
     (q(container, '[data-testid="current-user-presence-menu"]') as HTMLButtonElement).click();
     await vi.waitFor(() => {
       expect(container.textContent).toContain('Do Not Disturb');
       expect(container.textContent).toContain('Look offline');
-      expect(q(container, '[data-testid="custom-status-editor"]')).toBeTruthy();
+      expect(container.textContent).toContain('Set custom status');
+      expect(q(container, '[data-testid="custom-status-editor"]')).toBeFalsy();
     });
     expect(q(container, '[data-testid="current-user-edit-status"]')).toBeFalsy();
   });
 
-  it('shows the custom status emoji as an avatar badge', () => {
+  it('opens the custom status dialog from the status menu', async () => {
     currentUserState.user = {
       ...currentUserState.user!,
       customStatus: {
@@ -174,7 +175,37 @@ describe('CurrentUserBar', () => {
 
     const { container } = render(CurrentUserBarTestHarness);
 
-    expect(q(container, '[aria-label="🍜 Out for lunch"]')).toBeTruthy();
+    (q(container, '[data-testid="current-user-presence-menu"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => {
+      expect(q(container, '[data-testid="current-user-custom-status-action"]')).toBeTruthy();
+    });
+
+    (
+      q(container, '[data-testid="current-user-custom-status-action"]') as HTMLButtonElement
+    ).click();
+
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain('Set a status');
+      expect(container.textContent).toContain('Suggestions');
+      expect(container.textContent).toContain('Clear Status');
+      expect(q(container, '[data-testid="custom-status-editor"]')).toBeTruthy();
+    });
+  });
+
+  it('shows the custom status emoji next to the display name, not on the avatar', () => {
+    currentUserState.user = {
+      ...currentUserState.user!,
+      customStatus: {
+        emoji: '🍜',
+        text: 'chatto:status:out_for_lunch',
+        expiresAt: null
+      }
+    };
+
+    const { container } = render(CurrentUserBarTestHarness);
+
+    expect(container.querySelectorAll('[aria-label="🍜 Out for lunch"]')).toHaveLength(1);
+    expect(q(container, '[data-testid="current-user-identity-card"]')!.textContent).toContain('🍜');
     expect(q(container, '[data-testid="current-user-identity-card"]')!.textContent).not.toContain(
       'Out for lunch'
     );

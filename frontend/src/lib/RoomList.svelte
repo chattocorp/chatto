@@ -361,11 +361,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           ]}
           data-testid="room-call-participant-avatar"
         >
-          <UserAvatar
-            user={callParticipantAvatarUser(participant)}
-            size="xs"
-            showPresence={false}
-          />
+          <UserAvatar user={callParticipantAvatarUser(participant)} size="xs" />
         </span>
       {/each}
       {#if participants.length > 4}
