@@ -62,6 +62,7 @@ export class AddReactionRequest extends Message<AddReactionRequest> {
     return proto3.util.equals(AddReactionRequest, a, b);
   }
 }
+
 /**
  * Result of adding a reaction.
  *
@@ -200,3 +201,4 @@ export class RemoveReactionResponse extends Message<RemoveReactionResponse> {
     return proto3.util.equals(RemoveReactionResponse, a, b);
   }
 }
+
