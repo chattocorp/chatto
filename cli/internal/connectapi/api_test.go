@@ -52,6 +52,20 @@ func TestAPIHandlers(t *testing.T) {
 	}
 }
 
+func TestPrivateHandlersRequireAuth(t *testing.T) {
+	api := New(nil, config.ChattoConfig{}, "test")
+	mux := http.NewServeMux()
+	for _, handler := range api.Handlers() {
+		mux.Handle(handler.ServicePath, handler.Handler)
+	}
+	ts := httptest.NewServer(mux)
+	t.Cleanup(ts.Close)
+
+	client := apiv1connect.NewMessageServiceClient(ts.Client(), ts.URL)
+	_, err := client.PostMessage(context.Background(), connect.NewRequest(&apiv1.PostMessageRequest{}))
+	requireConnectCode(t, err, connect.CodeUnauthenticated)
+}
+
 func TestServerServiceGetServerPublicMetadata(t *testing.T) {
 	api := New(nil, config.ChattoConfig{
 		Auth: config.AuthConfig{
@@ -675,6 +689,111 @@ func TestRoomTimelineHydratorRejectsUnsupportedEvents(t *testing.T) {
 	}
 }
 
+func TestRoomTimelineHydratorSupportsVisibleCoreEvents(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("timeline-visible-events")
+	posted := env.post(room.Id, env.viewer.Id, "visible root", "")
+
+	h := &timelineHydrator{
+		api:      env.api,
+		ctx:      env.ctx,
+		viewerID: env.viewer.Id,
+		kind:     core.KindChannel,
+		userIDs:  make(map[string]struct{}),
+	}
+
+	tests := []struct {
+		name  string
+		event *corev1.Event
+	}{
+		{
+			name:  "message posted",
+			event: posted,
+		},
+		{
+			name: "room created",
+			event: &corev1.Event{
+				Id:      "Eroom-created",
+				ActorId: env.viewer.Id,
+				Event: &corev1.Event_RoomCreated{
+					RoomCreated: &corev1.RoomCreatedEvent{RoomId: room.Id},
+				},
+			},
+		},
+		{
+			name: "room updated",
+			event: &corev1.Event{
+				Id:      "Eroom-updated",
+				ActorId: env.viewer.Id,
+				Event: &corev1.Event_RoomUpdated{
+					RoomUpdated: &corev1.RoomUpdatedEvent{RoomId: room.Id},
+				},
+			},
+		},
+		{
+			name: "room deleted",
+			event: &corev1.Event{
+				Id:      "Eroom-deleted",
+				ActorId: env.viewer.Id,
+				Event: &corev1.Event_RoomDeleted{
+					RoomDeleted: &corev1.RoomDeletedEvent{RoomId: room.Id},
+				},
+			},
+		},
+		{
+			name: "room archived",
+			event: &corev1.Event{
+				Id:      "Eroom-archived",
+				ActorId: env.viewer.Id,
+				Event: &corev1.Event_RoomArchived{
+					RoomArchived: &corev1.RoomArchivedEvent{RoomId: room.Id},
+				},
+			},
+		},
+		{
+			name: "room unarchived",
+			event: &corev1.Event{
+				Id:      "Eroom-unarchived",
+				ActorId: env.viewer.Id,
+				Event: &corev1.Event_RoomUnarchived{
+					RoomUnarchived: &corev1.RoomUnarchivedEvent{RoomId: room.Id},
+				},
+			},
+		},
+		{
+			name: "user joined room",
+			event: &corev1.Event{
+				Id:      "Euser-joined",
+				ActorId: env.viewer.Id,
+				Event: &corev1.Event_UserJoinedRoom{
+					UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: room.Id},
+				},
+			},
+		},
+		{
+			name: "user left room",
+			event: &corev1.Event{
+				Id:      "Euser-left",
+				ActorId: env.viewer.Id,
+				Event: &corev1.Event_UserLeftRoom{
+					UserLeftRoom: &corev1.UserLeftRoomEvent{RoomId: room.Id},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if !core.IsVisibleRoomTimelineEntry(tt.event) {
+				t.Fatalf("test event is not visible according to core")
+			}
+			if _, err := h.event(&core.RoomEvent{Event: tt.event}); err != nil {
+				t.Fatalf("hydrate visible event: %v", err)
+			}
+		})
+	}
+}
+
 func TestReadStateServiceRequiresAuthAndMembership(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("read-state-authz")
@@ -1046,6 +1165,13 @@ func TestConnectErrorMapping(t *testing.T) {
 
 	if err := connectError(errors.New("boom")); strings.Contains(err.Error(), "boom") {
 		t.Fatalf("connectError leaked internal error: %v", err)
+	}
+}
+
+func requireConnectCode(t testing.TB, err error, want connect.Code) {
+	t.Helper()
+	if got := connect.CodeOf(err); got != want {
+		t.Fatalf("connect code = %v, want %v (err = %v)", got, want, err)
 	}
 }
 

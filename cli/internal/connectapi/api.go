@@ -39,13 +39,16 @@ func (a *API) Handlers() []Handler {
 	options := []connect.HandlerOption{
 		connect.WithReadMaxBytes(MaxRequestMessageBytes),
 	}
+	privateOptions := append([]connect.HandlerOption{}, options...)
+	privateOptions = append(privateOptions, connect.WithInterceptors(requireAuthedUnaryInterceptor()))
+
 	serverPath, serverHandler := apiv1connect.NewServerServiceHandler(&serverService{api: a}, options...)
-	messagePath, messageHandler := apiv1connect.NewMessageServiceHandler(&messageService{api: a}, options...)
-	prefsPath, prefsHandler := apiv1connect.NewNotificationPreferencesServiceHandler(&notificationPreferencesService{api: a}, options...)
-	readStatePath, readStateHandler := apiv1connect.NewReadStateServiceHandler(&readStateService{api: a}, options...)
-	timelinePath, timelineHandler := apiv1connect.NewRoomTimelineServiceHandler(&roomTimelineService{api: a}, options...)
-	userStatusPath, userStatusHandler := apiv1connect.NewUserStatusServiceHandler(&userStatusService{api: a}, options...)
-	threadPath, threadHandler := apiv1connect.NewThreadServiceHandler(&threadService{api: a}, options...)
+	messagePath, messageHandler := apiv1connect.NewMessageServiceHandler(&messageService{api: a}, privateOptions...)
+	prefsPath, prefsHandler := apiv1connect.NewNotificationPreferencesServiceHandler(&notificationPreferencesService{api: a}, privateOptions...)
+	readStatePath, readStateHandler := apiv1connect.NewReadStateServiceHandler(&readStateService{api: a}, privateOptions...)
+	timelinePath, timelineHandler := apiv1connect.NewRoomTimelineServiceHandler(&roomTimelineService{api: a}, privateOptions...)
+	userStatusPath, userStatusHandler := apiv1connect.NewUserStatusServiceHandler(&userStatusService{api: a}, privateOptions...)
+	threadPath, threadHandler := apiv1connect.NewThreadServiceHandler(&threadService{api: a}, privateOptions...)
 	return []Handler{
 		{ServicePath: messagePath, Handler: messageHandler},
 		{ServicePath: serverPath, Handler: serverHandler},

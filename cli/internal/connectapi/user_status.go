@@ -2,7 +2,6 @@ package connectapi
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"connectrpc.com/connect"
@@ -16,40 +15,34 @@ type userStatusService struct {
 }
 
 func (s *userStatusService) SetCustomStatus(ctx context.Context, req *connect.Request[apiv1.SetCustomStatusRequest]) (*connect.Response[apiv1.SetCustomStatusResponse], error) {
-	user, err := requireAuth(ctx)
-	if err != nil {
-		return nil, err
-	}
+	return handleAuthedUnary(ctx, func(ctx context.Context, user authenticatedUser) (*apiv1.SetCustomStatusResponse, error) {
+		expiresAt, err := apiTimestampToTime(req.Msg.ExpiresAt)
+		if err != nil {
+			return nil, err
+		}
 
-	expiresAt, err := apiTimestampToTime(req.Msg.ExpiresAt)
-	if err != nil {
-		return nil, err
-	}
+		updated, err := s.api.core.SetUserCustomStatus(ctx, user.Id, req.Msg.Emoji, req.Msg.Text, expiresAt)
+		if err != nil {
+			return nil, err
+		}
 
-	updated, err := s.api.core.SetUserCustomStatus(ctx, user.Id, req.Msg.Emoji, req.Msg.Text, expiresAt)
-	if err != nil {
-		return nil, connectError(err)
-	}
-
-	return connect.NewResponse(&apiv1.SetCustomStatusResponse{
-		Status: coreCustomStatusToAPI(updated.GetCustomStatus()),
-	}), nil
+		return &apiv1.SetCustomStatusResponse{
+			Status: coreCustomStatusToAPI(updated.GetCustomStatus()),
+		}, nil
+	})
 }
 
 func (s *userStatusService) ClearCustomStatus(ctx context.Context, _ *connect.Request[apiv1.ClearCustomStatusRequest]) (*connect.Response[apiv1.ClearCustomStatusResponse], error) {
-	user, err := requireAuth(ctx)
-	if err != nil {
-		return nil, err
-	}
+	return handleAuthedUnary(ctx, func(ctx context.Context, user authenticatedUser) (*apiv1.ClearCustomStatusResponse, error) {
+		updated, err := s.api.core.ClearUserCustomStatus(ctx, user.Id)
+		if err != nil {
+			return nil, err
+		}
 
-	updated, err := s.api.core.ClearUserCustomStatus(ctx, user.Id)
-	if err != nil {
-		return nil, connectError(err)
-	}
-
-	return connect.NewResponse(&apiv1.ClearCustomStatusResponse{
-		Status: coreCustomStatusToAPI(updated.GetCustomStatus()),
-	}), nil
+		return &apiv1.ClearCustomStatusResponse{
+			Status: coreCustomStatusToAPI(updated.GetCustomStatus()),
+		}, nil
+	})
 }
 
 func apiTimestampToTime(ts *timestamppb.Timestamp) (*time.Time, error) {
@@ -57,7 +50,7 @@ func apiTimestampToTime(ts *timestamppb.Timestamp) (*time.Time, error) {
 		return nil, nil
 	}
 	if err := ts.CheckValid(); err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("expires_at is invalid"))
+		return nil, invalidArgument("expires_at is invalid")
 	}
 	expiresAt := ts.AsTime()
 	return &expiresAt, nil

@@ -158,6 +158,12 @@ func isVisibleRoomTimelineEntry(event *corev1.Event) bool {
 	return false
 }
 
+// IsVisibleRoomTimelineEntry reports whether an event should surface in the
+// public room timeline.
+func IsVisibleRoomTimelineEntry(event *corev1.Event) bool {
+	return isVisibleRoomTimelineEntry(event)
+}
+
 func isDeliverableLiveEVTRoomEvent(event *corev1.Event) bool {
 	switch event.GetEvent().(type) {
 	case *corev1.Event_RoomCreated,
