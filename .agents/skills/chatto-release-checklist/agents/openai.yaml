@@ -1,0 +1,7 @@
+interface:
+  display_name: "Chatto Release Checklist"
+  short_description: "Prepare release checklist and announcement"
+  default_prompt: "Use $chatto-release-checklist to prepare the developer checklist and user-facing announcement for the current Chatto version."
+
+policy:
+  allow_implicit_invocation: true
