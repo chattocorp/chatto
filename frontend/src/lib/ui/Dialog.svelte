@@ -22,7 +22,7 @@
     onclose?: () => void;
   } = $props();
 
-  let dialogEl: HTMLDialogElement | undefined = $state();
+  let dialogEl: HTMLDialogElement | undefined;
   let closing = $state(false);
   // True when the current press started inside the content. Prevents a drag
   // that began inside (e.g. text selection) from closing on release outside.
@@ -44,11 +44,12 @@
     lg: 'w-200 max-w-[90vw]'
   };
 
-  $effect(() => {
+  function syncDialogVisibility(node: HTMLDialogElement) {
+    dialogEl = node;
     if (visible) {
       closing = false;
       pressStartedInside = true;
-      dialogEl?.showModal();
+      if (!node.open) node.showModal();
       // showModal() naturally focuses the first focusable element, which
       // for our layout is the Close (X) button in the header — not what
       // users expect. Move focus to the first form field, falling back
@@ -58,26 +59,25 @@
       // focus via the native `autofocus` attribute is left alone.
       if (shouldAutoFocus()) {
         queueMicrotask(() => {
-          if (!dialogEl) return;
           const fieldSelector =
             'input:not([type="hidden"]):not([disabled]),textarea:not([disabled]),select:not([disabled])';
           const active = document.activeElement;
           const alreadyOnField =
             active instanceof HTMLElement &&
-            dialogEl.contains(active) &&
+            node.contains(active) &&
             active.matches(fieldSelector);
           if (alreadyOnField) return;
           const target =
-            dialogEl.querySelector<HTMLElement>(fieldSelector) ??
-            dialogEl.querySelector<HTMLElement>('button[type="submit"]:not([disabled])');
+            node.querySelector<HTMLElement>(fieldSelector) ??
+            node.querySelector<HTMLElement>('button[type="submit"]:not([disabled])');
           target?.focus();
         });
       }
-    } else if (dialogEl?.open && !closing) {
+    } else if (node.open && !closing) {
       // Already closed via close() function
-      dialogEl?.close();
+      node.close();
     }
-  });
+  }
 
   function handleNativeClose() {
     visible = false;
@@ -96,7 +96,7 @@
 </script>
 
 <dialog
-  bind:this={dialogEl}
+  {@attach syncDialogVisibility}
   onclose={handleNativeClose}
   oncancel={(e) => {
     // Always run our animated close path; never let the browser close the

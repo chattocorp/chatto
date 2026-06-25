@@ -13,8 +13,8 @@
     onclose?: () => void;
   } = $props();
 
-  let dialogEl: HTMLDialogElement | undefined = $state();
-  let contentEl: HTMLElement | undefined = $state();
+  let dialogEl: HTMLDialogElement | undefined;
+  let contentEl: HTMLElement | undefined;
   let closing = $state(false);
   let dragging = $state(false);
   let dragOffsetY = $state(0);
@@ -31,14 +31,19 @@
   // Downward fling velocity (px/ms) that always closes regardless of distance.
   const FLING_CLOSE_VELOCITY = 0.5;
 
-  $effect(() => {
+  function syncSheetVisibility(node: HTMLDialogElement) {
+    dialogEl = node;
     if (visible) {
       closing = false;
-      dialogEl?.showModal();
-    } else if (dialogEl?.open && !closing) {
-      dialogEl?.close();
+      if (!node.open) node.showModal();
+    } else if (node.open && !closing) {
+      node.close();
     }
-  });
+  }
+
+  function registerContent(node: HTMLElement) {
+    contentEl = node;
+  }
 
   function handleNativeClose() {
     visible = false;
@@ -59,7 +64,7 @@
 </script>
 
 <dialog
-  bind:this={dialogEl}
+  {@attach syncSheetVisibility}
   onclose={handleNativeClose}
   oncancel={(e) => {
     e.preventDefault();
@@ -100,7 +105,7 @@
   class:closing
 >
   <div
-    bind:this={contentEl}
+    {@attach registerContent}
     class="pb-safe rounded-t-xl border-t border-border bg-surface"
     class:dragging
     style:transform={dragOffsetY > 0 ? `translateY(${dragOffsetY}px)` : undefined}
