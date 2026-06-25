@@ -274,12 +274,11 @@ to the user settings page for the active server.
       >
         <UserAvatar user={activeServerUser} size="md" />
         <span
-          class={[
-            'absolute right-0 bottom-0 h-3 w-3 translate-x-1/4 translate-y-1/4 rounded-full border-2 border-surface',
-            presenceDotClass
-          ]}
+          class="absolute right-0 bottom-0 grid h-4 w-4 translate-x-1/4 translate-y-1/4 place-items-center rounded-full border-2 border-surface bg-surface"
           aria-hidden="true"
-        ></span>
+        >
+          <span class={['h-2.5 w-2.5 rounded-full', presenceDotClass]}></span>
+        </span>
       </button>
       <div class="flex min-w-0 flex-1 flex-col leading-tight">
         <span class="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
