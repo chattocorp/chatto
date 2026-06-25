@@ -336,8 +336,8 @@ func TestMessageServicePostMessageReturnsRenderableTimelineEvent(t *testing.T) {
 	if message == nil {
 		t.Fatalf("PostMessage payload = %T, want message_posted", event.GetEvent())
 	}
-	if message.Body != "hello over connect" || !message.BodyPresent {
-		t.Fatalf("message body = %q present=%v, want posted body", message.Body, message.BodyPresent)
+	if message.Body == nil || message.GetBody() != "hello over connect" {
+		t.Fatalf("message body = %q present=%v, want posted body", message.GetBody(), message.Body != nil)
 	}
 	if got := resp.Msg.GetIncludes().GetUsers()[env.viewer.Id]; got == nil || got.DisplayName != env.viewer.DisplayName {
 		t.Fatalf("included viewer = %+v, want %q", got, env.viewer.DisplayName)
@@ -426,8 +426,8 @@ func TestRoomTimelineServiceHydratesMessagesWithoutClientNPlusOne(t *testing.T) 
 	if payload == nil {
 		t.Fatalf("root payload = nil, want message_posted")
 	}
-	if !payload.BodyPresent || payload.Body != "root" {
-		t.Fatalf("message body present/body = %v/%q, want true/root", payload.BodyPresent, payload.Body)
+	if payload.Body == nil || payload.GetBody() != "root" {
+		t.Fatalf("message body present/body = %v/%q, want true/root", payload.Body != nil, payload.GetBody())
 	}
 	if payload.ReplyCount != 1 {
 		t.Fatalf("reply count = %d, want 1", payload.ReplyCount)

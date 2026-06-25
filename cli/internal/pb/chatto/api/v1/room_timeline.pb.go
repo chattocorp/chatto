@@ -765,11 +765,9 @@ type RoomTimelineMessagePosted struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Room containing the message.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Message body text.
-	Body string `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
-	// True when the original event explicitly carried a body. This lets clients
-	// distinguish an empty body from a missing body.
-	BodyPresent bool `protobuf:"varint,3,opt,name=body_present,json=bodyPresent,proto3" json:"body_present,omitempty"`
+	// Message body text, when available. A present empty string is distinct from
+	// an absent body.
+	Body *string `protobuf:"bytes,2,opt,name=body,proto3,oneof" json:"body,omitempty"`
 	// Attachments sent with the message.
 	Attachments []*RoomTimelineAttachment `protobuf:"bytes,4,rep,name=attachments,proto3" json:"attachments,omitempty"`
 	// Link preview extracted for the message, when available.
@@ -793,11 +791,8 @@ type RoomTimelineMessagePosted struct {
 	LastReplyAt *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=last_reply_at,json=lastReplyAt,proto3" json:"last_reply_at,omitempty"`
 	// User IDs that have participated in this message's thread.
 	ThreadParticipantUserIds []string `protobuf:"bytes,14,rep,name=thread_participant_user_ids,json=threadParticipantUserIds,proto3" json:"thread_participant_user_ids,omitempty"`
-	// True when the current user follows this message's thread.
-	ViewerIsFollowingThread bool `protobuf:"varint,15,opt,name=viewer_is_following_thread,json=viewerIsFollowingThread,proto3" json:"viewer_is_following_thread,omitempty"`
-	// True when viewer_is_following_thread was explicitly hydrated. If false, the
-	// follow value should be treated as unknown rather than false.
-	ViewerIsFollowingThreadPresent bool `protobuf:"varint,16,opt,name=viewer_is_following_thread_present,json=viewerIsFollowingThreadPresent,proto3" json:"viewer_is_following_thread_present,omitempty"`
+	// Whether the current user follows this message's thread, when known.
+	ViewerIsFollowingThread *bool `protobuf:"varint,15,opt,name=viewer_is_following_thread,json=viewerIsFollowingThread,proto3,oneof" json:"viewer_is_following_thread,omitempty"`
 	// Reaction summaries for this message.
 	Reactions     []*RoomTimelineReactionSummary `protobuf:"bytes,17,rep,name=reactions,proto3" json:"reactions,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -842,17 +837,10 @@ func (x *RoomTimelineMessagePosted) GetRoomId() string {
 }
 
 func (x *RoomTimelineMessagePosted) GetBody() string {
-	if x != nil {
-		return x.Body
+	if x != nil && x.Body != nil {
+		return *x.Body
 	}
 	return ""
-}
-
-func (x *RoomTimelineMessagePosted) GetBodyPresent() bool {
-	if x != nil {
-		return x.BodyPresent
-	}
-	return false
 }
 
 func (x *RoomTimelineMessagePosted) GetAttachments() []*RoomTimelineAttachment {
@@ -933,15 +921,8 @@ func (x *RoomTimelineMessagePosted) GetThreadParticipantUserIds() []string {
 }
 
 func (x *RoomTimelineMessagePosted) GetViewerIsFollowingThread() bool {
-	if x != nil {
-		return x.ViewerIsFollowingThread
-	}
-	return false
-}
-
-func (x *RoomTimelineMessagePosted) GetViewerIsFollowingThreadPresent() bool {
-	if x != nil {
-		return x.ViewerIsFollowingThreadPresent
+	if x != nil && x.ViewerIsFollowingThread != nil {
+		return *x.ViewerIsFollowingThread
 	}
 	return false
 }
@@ -1946,11 +1927,10 @@ const file_chatto_api_v1_room_timeline_proto_rawDesc = "" +
 	"\x05count\x18\x02 \x01(\x05R\x05count\x12\x1f\n" +
 	"\vhas_reacted\x18\x03 \x01(\bR\n" +
 	"hasReacted\x12\x19\n" +
-	"\buser_ids\x18\x04 \x03(\tR\auserIds\"\x9d\a\n" +
+	"\buser_ids\x18\x04 \x03(\tR\auserIds\"\x9e\a\n" +
 	"\x19RoomTimelineMessagePosted\x12\x17\n" +
-	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x12\n" +
-	"\x04body\x18\x02 \x01(\tR\x04body\x12!\n" +
-	"\fbody_present\x18\x03 \x01(\bR\vbodyPresent\x12G\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x17\n" +
+	"\x04body\x18\x02 \x01(\tH\x00R\x04body\x88\x01\x01\x12G\n" +
 	"\vattachments\x18\x04 \x03(\v2%.chatto.api.v1.RoomTimelineAttachmentR\vattachments\x12I\n" +
 	"\flink_preview\x18\x05 \x01(\v2&.chatto.api.v1.RoomTimelineLinkPreviewR\vlinkPreview\x129\n" +
 	"\n" +
@@ -1964,10 +1944,11 @@ const file_chatto_api_v1_room_timeline_proto_rawDesc = "" +
 	"\vreply_count\x18\f \x01(\x05R\n" +
 	"replyCount\x12>\n" +
 	"\rlast_reply_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\vlastReplyAt\x12=\n" +
-	"\x1bthread_participant_user_ids\x18\x0e \x03(\tR\x18threadParticipantUserIds\x12;\n" +
-	"\x1aviewer_is_following_thread\x18\x0f \x01(\bR\x17viewerIsFollowingThread\x12J\n" +
-	"\"viewer_is_following_thread_present\x18\x10 \x01(\bR\x1eviewerIsFollowingThreadPresent\x12H\n" +
-	"\treactions\x18\x11 \x03(\v2*.chatto.api.v1.RoomTimelineReactionSummaryR\treactions\"0\n" +
+	"\x1bthread_participant_user_ids\x18\x0e \x03(\tR\x18threadParticipantUserIds\x12@\n" +
+	"\x1aviewer_is_following_thread\x18\x0f \x01(\bH\x01R\x17viewerIsFollowingThread\x88\x01\x01\x12H\n" +
+	"\treactions\x18\x11 \x03(\v2*.chatto.api.v1.RoomTimelineReactionSummaryR\treactionsB\a\n" +
+	"\x05_bodyB\x1d\n" +
+	"\x1b_viewer_is_following_threadJ\x04\b\x03\x10\x04J\x04\b\x10\x10\x11R\fbody_presentR\"viewer_is_following_thread_present\"0\n" +
 	"\x15RoomTimelineRoomEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\"\xf4\x05\n" +
 	"\x11RoomTimelineEvent\x12\x0e\n" +
@@ -2127,6 +2108,7 @@ func file_chatto_api_v1_room_timeline_proto_init() {
 	if File_chatto_api_v1_room_timeline_proto != nil {
 		return
 	}
+	file_chatto_api_v1_room_timeline_proto_msgTypes[8].OneofWrappers = []any{}
 	file_chatto_api_v1_room_timeline_proto_msgTypes[10].OneofWrappers = []any{
 		(*RoomTimelineEvent_MessagePosted)(nil),
 		(*RoomTimelineEvent_RoomCreated)(nil),

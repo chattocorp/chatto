@@ -61,9 +61,7 @@ describe('createMessageAPI', () => {
 							value: new RoomTimelineMessagePosted({
 								roomId: 'room-1',
 								body: 'hello',
-								bodyPresent: true,
-								viewerIsFollowingThread: true,
-								viewerIsFollowingThreadPresent: true
+								viewerIsFollowingThread: true
 							})
 						}
 					})
