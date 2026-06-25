@@ -195,7 +195,7 @@ func (s *HTTPServer) setupGraphQLAPI(allowedOrigins []string) {
 
 	// Introspection and the /api/playground UI below are intentionally
 	// enabled unconditionally — exposing Chatto's GraphQL API for
-	// experimentation is part of the product. See .claude/rules/general.md.
+	// experimentation is part of the product. See AGENTS.md.
 	h.Use(extension.Introspection{})
 	h.Use(extension.FixedComplexityLimit(500))
 	h.Use(&gqldepthlimit.Extension{MaxDepth: 12})

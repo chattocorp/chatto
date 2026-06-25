@@ -32,7 +32,7 @@ legacy clients, and media Range redirects. The older
 `/assets/attachments/...` signed locator path remains a compatibility
 path and is not the primary browser-rendering path.
 
-See `.claude/rules/authorization.md` → "Attachment URL Authorization"
+See `cli/AGENTS.md` → "Attachment URL Authorization"
 for the current flow and trade-offs.
 
 ## Context

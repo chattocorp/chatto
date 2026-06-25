@@ -400,7 +400,7 @@ test.describe('Room-Level Permission Overrides', () => {
   // their own messages (subject only to the edit window). The describe
   // block that used to deny it via a room-scope override and assert the
   // Edit button disappeared no longer maps to a real backend code path.
-  // See .claude/rules/authorization.md → "message moderation".
+  // See cli/AGENTS.md → "message moderation".
 
   test.describe('message.manage — Delete Button', () => {
     test('room grant enables Delete on other users messages', async ({ page, roomPage }) => {

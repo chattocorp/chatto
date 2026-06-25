@@ -6,7 +6,7 @@ For *why* a particular design decision was made:
 
 - **Cross-cutting architectural choices** (NATS as primary store, API strategy, per-user encryption, etc.) live in the [Architecture Decision Records](adr/INDEX.md).
 - **Per-feature design** (Roles & Permissions, Direct Messages, Reactions, Notifications, etc.) lives in the [Feature Decision Records](fdr/INDEX.md).
-- **Coding and review conventions** live in `.claude/rules/` at the repo root.
+- **Coding and review conventions** live in the repo root [`AGENTS.md`](../AGENTS.md) and directory-specific `AGENTS.md` files.
 
 ## Table of Contents
 
@@ -409,7 +409,7 @@ auth workflow audit facts.
 
 These sections previously described the RBAC model and DM behavior in detail. They've moved:
 
-- **Roles, permissions, and the resolver** — see [FDR-001](fdr/FDR-001-roles-and-permissions.md) for the design and rationale, [`/.claude/rules/authorization.md`](../.claude/rules/authorization.md) for the full resolver semantics (DM boundary, user-level overrides, scope cascade), and [`/.claude/rules/admin.md`](../.claude/rules/admin.md) for the admin-side picture.
+- **Roles, permissions, and the resolver** — see [FDR-001](fdr/FDR-001-roles-and-permissions.md) for the design and rationale, and [`cli/AGENTS.md`](../cli/AGENTS.md) for resolver semantics (DM boundary, user-level overrides, scope cascade) and the admin-side picture.
 - **Permission constants and `Can*` functions** — see [`cli/internal/core/permission.go`](../cli/internal/core/permission.go) and [`cli/internal/core/can.go`](../cli/internal/core/can.go).
 - **Direct Messages** — see [FDR-007](fdr/FDR-007-direct-messages.md) and [ADR-037 (DM Access via Membership)](adr/ADR-037-dm-access-via-membership.md).
 - **Storage layout for RBAC and DM rooms** — captured in the [NATS Resource Inventory](#nats-resource-inventory) below.

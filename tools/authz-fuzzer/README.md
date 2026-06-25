@@ -8,7 +8,7 @@ Any cell that doesn't match is a finding.
 ## Why this exists
 
 Chatto's authorization model is enforced at the GraphQL gateway, not in core
-(see [`.claude/rules/authorization.md`](../../.claude/rules/authorization.md)).
+(see `../../cli/AGENTS.md`).
 The contract is: every Query/Mutation/Subscription/field resolver is
 responsible for calling the right `Can*` check before it touches `core`.
 A single missed check on a single resolver = full bypass of that capability

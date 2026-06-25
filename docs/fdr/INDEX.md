@@ -4,7 +4,7 @@ This directory contains Feature Decision Records (FDRs) for Chatto. Each FDR doc
 
 FDRs are siblings of the [Architecture Decision Records](../adr/INDEX.md). ADRs cover cross-cutting architectural choices; FDRs cover individual features and the design decisions specific to them.
 
-See [`.claude/skills/fdr/SKILL.md`](../../.claude/skills/fdr/SKILL.md) for the FDR template, writing style, and maintenance workflow.
+See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the FDR template, writing style, and maintenance workflow.
 
 ## Features
 

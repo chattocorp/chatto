@@ -1,80 +1,156 @@
 # Instructions for Agents
 
-### Documentation
+Read this file first. It contains repo-wide rules that should not be hidden in
+path-specific guidance.
 
-Please refer to this repository's README.md for general information.
+## Where Context Lives
 
-This codebase keeps agent-relevant context in seven places. Read the one that fits your task:
+- [README.md](README.md) — general project overview.
+- [cli/AGENTS.md](cli/AGENTS.md) — Go backend, GraphQL, ConnectRPC, NATS/JetStream, authz, live events, backup/restore, and backend tests.
+- [frontend/AGENTS.md](frontend/AGENTS.md) — SvelteKit frontend, Tailwind, i18n, browser verification, frontend tests, e2e, and Storybook.
+- [proto/AGENTS.md](proto/AGENTS.md) — protobuf and generated public API reference guidance.
+- [docs-website/AGENTS.md](docs-website/AGENTS.md) — public docs website guidance.
+- `.agents/skills/**` — workflow skills. Use them when the task names one or clearly matches one, especially `chatto-architecture`, `glossary`, Svelte skills, ADR/FDR skills, and security/release workflows.
+- `docs/fdr/INDEX.md` — feature behavior and rationale.
+- `docs/adr/INDEX.md` — cross-cutting architecture decisions.
+- `docs/ARCHITECTURE.md` — current inventory of services, streams, buckets, subjects, projections, GraphQL operations, and ConnectRPC APIs.
+- `docs/GLOSSARY.md` — canonical Chatto terminology.
 
-- **`.claude/rules/**`** — always-on coding, testing, and review conventions, mostly path-scoped (`frontend.md` and `frontend-conventions.md` for SvelteKit work, `backend.md` for Go, `testing-frontend.md` / `testing-backend.md` for tests, `authorization.md` for permission changes, etc.). Start here for "how do we do things in this repo?"
-- **`.agents/skills/**`** — opt-in agent skills for repeated workflows. Use the matching skill when a task names one or clearly fits its workflow: `chatto-architecture` for `docs/ARCHITECTURE.md`, `glossary` for `docs/GLOSSARY.md`, and `svelte-core-bestpractices` together with the Svelte MCP tools when writing, editing, or reviewing Svelte components and modules.
-- **`docs/fdr/INDEX.md`** — **Feature** Decision Records, one per feature. They describe what a feature does *and* why it's designed that way. Read the relevant FDR before changing user-facing behavior.
-- **`docs/adr/INDEX.md`** — **Architecture** Decision Records. Cross-cutting choices like "NATS as primary data store" or "per-user encryption keys with crypto-shredding". Read when touching architectural seams.
-- **`docs/ARCHITECTURE.md`** — current-version inventory of what exists: core services, projections, EVT events and subject patterns, streams, KV buckets, object stores, key shapes, and GraphQL operations. Use when you need to know *what's where*, not *why*, and keep it current rather than reintroducing historical storage inventories.
-- **`docs/GLOSSARY.md`** — canonical one-line definitions of Chatto-specific terms (Server, Space, Event, Subject, Projection, OCC, etc.). Skim when you encounter a word you don't recognize, and update it when introducing or renaming shared concepts.
-- **`proto/AGENTS.md`** — required protobuf-specific guidance. Read this before editing `.proto` files, generated protobuf outputs, ConnectRPC schemas, or protobuf comments that feed the public API reference.
+## Project Status
 
-### Project Status
+- Chatto is public, self-hosted, and has real user data.
+- The project is pre-1.0, so breaking changes can be acceptable, but storage,
+  protobuf, discovery, and client compatibility still need an explicit plan.
+- Some self-hosters track `:latest`; assume mixed deployed versions can exist.
 
-Please use the following facts when making decisions about features or implementation:
+## Prime Directives
 
-- This project is currently in early development.
-- We've made the software public and users can now self-host. We're advising self-hosters to use the `:latest` image tag to keep up to date, but there may be stragglers.
-- We're in the pre-1.0 range of 0.x.y versions. Breaking changes are _mostly_ okay, but please alert the user of them first before committing to them.
+- Prefer simple, clear changes over clever abstractions.
+- Keep tests and documentation up to date when changing behavior.
+- Run verification that would actually catch regressions in the area touched.
+- Never claim full verification when only a partial signal was run.
+- Never silence lint, type, vet, or Svelte warnings as a routine fix. Fix the
+  cause; discuss rare scoped exceptions before adding them.
+- Do not create commits unless explicitly asked.
+- Never log PII: no raw login names, display names, email addresses, submitted
+  auth identifiers, OAuth/OIDC provider subjects, tokens, passwords, auth codes,
+  reset links, raw IPs, or full query strings.
 
-Please update this section as the project evolves, and refer to it when making decisions about features or implementation.
+## Tooling
 
-### General Coding and Design Guidelines
+Tools are managed by `mise`; prefer tasks when available.
 
-- Prefer simplicity and clarity over cleverness.
-- Where feasible, write code comments that explain intent.
-- Make sure the code is well-tested, and that tests are easy to understand and maintain.
-- We're very likely migrating our API surface away from GraphQL to a combination of ConnectRPC and a custom wire protocol that pushes protobufs to the client. When writing new API surface, please add to the new setup, not GraphQL.
-- When adding or changing room timeline event visibility, make sure the ConnectRPC room timeline response mapping is updated too, or explicitly document why the event is hidden from the public timeline API. Add tests so visible events cannot be silently dropped by the ConnectRPC hydrator.
-- **Important:** before working on protobufs, ConnectRPC schemas, or generated API reference comments, read `proto/AGENTS.md`. Nested `AGENTS.md` files may not be loaded automatically, so this root file is the reminder.
+```sh
+mise test
+mise test-cli
+mise test-frontend
+mise test-e2e
+mise codegen
+mise codegen-cli
+mise codegen-proto
+mise codegen-frontend
+mise codegen-types
+```
 
-### Specific Rules for Frontend Code
+For ad-hoc tool invocations, use `mise x -- ...` rather than assuming `go`,
+`pnpm`, `node`, or related binaries are on `PATH`.
 
-- Review your changes and additions in the browser, using the Chrome Devtools MCP.
-- We use Tailwind 4 for styling. Please use it, and don't write custom CSS directives.
-- Establish Tailwind 4 utility classes and/or Svelte components where feasible.
-- Before styling overlays, popovers, banners, toasts, menus, or similar floating UI, reuse the closest established utility/component pattern first (for example `menu`, `menu-section`, `btn`, and existing chat overlays). Add a shared Tailwind utility or component when a pattern is missing instead of inventing one-off visual styles.
-- Modal action buttons should follow the established modal footer style: visible `Button` variants, laid out horizontally in the footer with `justify-end gap-2`. Use `flex-wrap` or a wider dialog when long labels might not fit. Do not put primary modal actions in a vertical stack in the body, and do not use visually invisible/ghost buttons for core modal actions like Cancel.
-- Checkboxes and similar in the Server Admin UI should save their change immediately on click, confirmed through a toast notification.
-- Implement pagination as automatic "load more" (ie. when the edge of the container is reached), not manual/page-based pagination.
-- Use "Save" buttons only for forms with multiple fields that need to be submitted together, and make sure they are disabled until a change is made.
-- New or changed user-visible frontend strings should go through the Paraglide i18n message catalogs, with both English and German entries, following `docs/adr/ADR-043-client-shell-internationalization.md` and `.claude/rules/frontend-conventions.md`.
-- Never silence linter warnings.
-- Avoid Svelte's $effect like the plague. In almost all cases, there are better Svelte tools to do the same thing (eg. $derived, attachments, ...)
+## Backend Principles
 
-### Specific Rules for Backend Code
+- Chatto can run multiple replicas. Correctness must not depend on process-local
+  locks, single goroutines, or a single writer.
+- NATS JetStream and KV are the primary data store. Use JetStream OCC or KV
+  `Create`/revision `Update` for cross-replica invariants.
+- Durable domain facts belong in `EVT`. `RUNTIME_STATE` is for persisted
+  latest-value runtime records such as sessions, tokens, notification state,
+  push subscriptions, cached previews, and wrapped DEK records.
+- State interactions should go through the owning service/projection boundary.
+  Avoid direct JetStream/KV/projection access from unrelated code.
+- New public API surface should favor ConnectRPC/protobuf or the planned wire
+  protocol. GraphQL remains legacy and should not grow unless there is a
+  deliberate reason.
+- `GET /api/server` is a high-compatibility discovery endpoint. Prefer additive
+  changes and preserve CORS, URL shape, and OAuth discovery semantics.
 
-- Keep in mind that multiple replicas of the same server may be running, so anything you build must be ready to work in such a setup. Never assume that there is only ever a single replica.
-- State changes go into the EVT stream. Do not litter RUNTIME_STATE or other KV buckets with durable state unless it's something that we deliberately don't want to put into the main EVT event stream (eg. encryption keys, ephemeral state like typing notifications, last-read markers, etc.)
-- All state interactions should go through a Service responsible for a specific domain; that Service should create and maintain whatever projections it needs to do its work, and expose methods for the rest of the codebase to interact with it. Avoid direct interactions with JetStream, KV, or projections from outside of Services.
-- GraphQL list pagination should follow the existing offset style unless there is a specific reason to use a cursor. Use `limit` and `offset` arguments, normalize them through the backend `paginationArgs` helper with a domain-appropriate default/max, and return a connection-like object with the page items plus `totalCount` and `hasMore`. Compute `hasMore` from the requested offset and actual returned page length, and keep filtering/search semantics server-side so clients can page through filtered results without loading the whole list.
-- Never log PII. Logs must not include raw login names, display names, email addresses, submitted auth identifiers, OAuth/OIDC provider subject identifiers, tokens, passwords, auth codes, reset links, raw IP addresses, or full query strings. Prefer opaque Chatto IDs, counts, booleans, event names, and already-safe hashes from audit-specific code.
+## Frontend Principles
 
-### Breaking Changes
+- Use Svelte 5, Tailwind 4 utilities, and established shared components.
+- Avoid `$effect` unless synchronizing with the outside world. Prefer
+  `$derived`, event handlers, context getters, and store methods for state flow.
+- Review visible frontend changes in the browser using Chrome DevTools MCP.
+- User-visible strings go through Paraglide message catalogs with both English
+  and German entries. Follow ADR-043 and [frontend/AGENTS.md](frontend/AGENTS.md).
+- Use automatic "load more" pagination for frontend lists, not manual pages.
+- Use Save buttons only for multi-field forms that submit together; disable them
+  until something changed.
+- Server Admin checkboxes and similar binary settings should save immediately
+  and confirm via toast.
+- Floating UI should reuse established menu/popover/dialog/toast patterns.
 
-- While we're in 0.x.y, it is fine to make breaking changes to the GraphQL API, but please only make them when absolutely necessary, and alert the user accordingly.
-- Protocol Buffer messages that we are using in our persisted JetStream streams (EVT, RUNTIME_STATE, maybe others) are more stable, and breaking changes to their structure should be avoided. Protocol Buffer messages that are only used for transient communication (live events, etc.) are less stable, and can be changed more freely. (But please consider that changes to these might also lead to changes in the GraphQL API!)
-- Treat `GET /api/server` as a higher-stability compatibility surface than the GraphQL API. It is the unauthenticated, cross-origin discovery endpoint used by multi-server clients before they can establish GraphQL access, so breaking its URL, CORS behavior, required JSON fields, or OAuth discovery fields can strand older clients. Prefer additive changes and double-check compatibility before changing this endpoint.
+## Public API And Compatibility
 
-### When making changes...
+- GraphQL introspection and `/api/playground` are intentionally public by
+  default. Do not hide them behind dev/admin flags; sensitive operations belong
+  behind resolver authorization.
+- GraphQL breaking changes are acceptable only when needed and should be called
+  out clearly.
+- Persisted protobuf messages in `EVT`, `RUNTIME_STATE`, `ENCRYPTION_KEYS`, and
+  other JetStream resources are comparatively stable. Do not renumber fields or
+  change field types; prefer additive evolution and migrations/repair code.
+- Transient protobufs can change more freely, but still consider GraphQL/API
+  behavior and mixed-version clients.
+- When changing room timeline event visibility, update ConnectRPC room timeline
+  mapping or explicitly document why the event is hidden. Add tests so visible
+  events cannot be silently dropped.
 
-- Please keep ADRs, FDRs, and other documentation (glossary, docs-website, architecture inventory) up to date.
-- Keep `NOTICE` up to date when adding, removing, or materially changing third-party dependencies or shipped assets, especially dependencies embedded in the CLI/server binary or bundled into frontend/docs builds.
-- When changing public `.proto` files or ConnectRPC services, run `mise codegen-proto` after rebasing onto the current target branch and commit all generated outputs, including Go/TypeScript protobuf bindings and docs-website ConnectRPC reference pages. New public services also need an entry in `proto/buf.gen.yaml` for their generated service page and in the docs sidebar (`docs-website/astro.config.mjs`), otherwise CI can pass before merge but fail on `main` once generator changes from another PR are present.
-- When changing core services, projections, EVT events or subjects, NATS resources, or GraphQL operations, use the `chatto-architecture` skill and update `docs/ARCHITECTURE.md`.
-- When introducing, renaming, or clarifying canonical vocabulary, use the `glossary` skill and update `docs/GLOSSARY.md`.
-- Before pushing a branch for a PR, make sure it is named something descriptive of the change.
+## Documentation Updates
 
-### Issues, Commits, and PRs
+- Use FDRs for feature behavior/rationale and ADRs for cross-cutting decisions.
+- Update `docs/ARCHITECTURE.md` when changing core services, projections, EVT
+  events or subjects, NATS resources, GraphQL operations, or ConnectRPC APIs.
+- Update `docs/GLOSSARY.md` when introducing, renaming, or clarifying canonical
+  vocabulary.
+- Update the docs website when changing user-facing features, config,
+  deployment behavior, or public APIs.
+- Keep `NOTICE` current when adding, removing, or materially changing bundled
+  dependencies or shipped assets.
 
-- Use this project's GitHub Issues for planning work.
-- Use Conventional Commit format in commit messages. Where feasible, include a reference to the component affected, eg `fix(api): ...` or `feat(frontend)!: ...`
-- Use the same Conventional Commit format in PR titles. PR bodies should include a bullet list of changes, ideally with links to relevant FDRs, ADRs, and glossary terms.
-- When creating or editing multiline GitHub PR/issue bodies with `gh`, write real Markdown to a file/stdin and use `--body-file`. Do not pass escaped `\n` sequences to `--body`; they render literally. Afterward, verify the stored body with `gh pr view --json body --jq .body` or equivalent before telling the user the PR is ready.
-- Please keep ADRs and FDRs up to date.
-- When the PR closes an issue, please include this information in the PR title or body (e.g. "Fixes #123") so GitHub can link and auto-close them.
+## Code Generation
+
+- Public `.proto` or ConnectRPC changes require `mise codegen-proto` after
+  rebasing onto the target branch, and generated Go/TS/docs outputs must be
+  committed.
+- New public ConnectRPC services also need `proto/buf.gen.yaml` and docs sidebar
+  entries in `docs-website/astro.config.mjs`.
+- GraphQL schema changes require `mise codegen-cli`; frontend query changes also
+  require `mise codegen-frontend`.
+- Shared Go types used by frontend TypeScript require `mise codegen-types`.
+
+## Issues, Commits, And PRs
+
+- Use GitHub Issues for planning.
+- Use Conventional Commit format for commits and PR titles, for example
+  `fix(api): ...` or `feat(frontend)!: ...`. Only mark breaking changes when
+  they really are breaking.
+- PR bodies should summarize changes and link relevant FDRs, ADRs, glossary
+  terms, and issues.
+- If a PR closes an issue, include a GitHub closing keyword such as
+  `Closes #123.` in the body.
+- When using `gh` for multiline PR/issue bodies, write Markdown to a file/stdin
+  and use `--body-file`; do not pass escaped `\n` to `--body`.
+- After creating or editing a PR, verify the stored body and issue-closing
+  wiring with `gh pr view --json body,baseRefName,closingIssuesReferences`.
+- After creating a PR, check CI and fix failures that are regressions from
+  `main`.
+- Do not rename the current branch unless explicitly asked.
+
+## Testing Judgment
+
+- Pick the lowest test layer that exercises the change, but do not stop below
+  the layer where the bug could occur.
+- Svelte runtime errors, hydration issues, missing context, and `$effect` loops
+  require mounting a component or browser verification.
+- Backend refactors that touch subjects, streams, projections, authorization, or
+  live delivery usually need targeted Go tests plus relevant e2e coverage.
+- E2E tests run locally without Docker/Tilt/OrbStack; Playwright starts its own
+  embedded-NATS Chatto binary.
