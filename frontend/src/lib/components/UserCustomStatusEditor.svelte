@@ -50,6 +50,7 @@
   let isSaving = $state(false);
   let isClearing = $state(false);
   let error = $state('');
+  let compactCustomEditorOpen = $state(false);
 
   const isCustom = $derived(selectedMode === 'custom');
   const statusTextInputId = $derived(
@@ -67,6 +68,12 @@
   const activeEmoji = $derived(isCustom ? statusEmoji : (activeTemplate?.emoji ?? statusEmoji));
   const activeText = $derived(
     isCustom ? statusText.trim() : customStatusTemplateText(selectedMode as CustomStatusTemplateId)
+  );
+  const hasActiveCustomStatus = $derived(
+    !!localStatus && getCustomStatusTemplate(localStatus) === undefined
+  );
+  const customRowActive = $derived(
+    selectedMode === 'custom' && (compactCustomEditorOpen || hasActiveCustomStatus)
   );
   const isModified = $derived(
     activeEmoji !== (localStatus?.emoji ?? '') ||
@@ -101,9 +108,15 @@
     selectedMode = mode;
     error = '';
     if (mode !== 'custom') {
+      compactCustomEditorOpen = false;
       const templateExpiry = defaultTemplateExpiry(mode);
       statusExpiresAt = templateExpiry ? toDatetimeLocalValue(templateExpiry) : '';
     }
+  }
+
+  function openCompactCustomEditor() {
+    selectMode('custom');
+    compactCustomEditorOpen = true;
   }
 
   function openEmojiPicker(event: MouseEvent) {
@@ -136,7 +149,7 @@
       const customStatus = await setCustomStatusViaAPI(config, {
         emoji,
         text,
-        expiresAt: expiryInputToISO(statusExpiresAt)
+        expiresAt: compact ? null : expiryInputToISO(statusExpiresAt)
       });
       onChange?.(customStatus);
       localStatus = customStatus;
@@ -144,6 +157,36 @@
       statusEmoji = customStatus?.emoji ?? statusEmoji;
       statusText = initialText(customStatus);
       statusExpiresAt = toDatetimeLocalValue(customStatus?.expiresAt);
+      compactCustomEditorOpen = false;
+      toast.success(m['settings.profile.status.saved']());
+      onClose?.();
+    } catch (err) {
+      error = err instanceof Error ? err.message : m['settings.profile.status.save_failed']();
+    } finally {
+      isSaving = false;
+    }
+  }
+
+  async function applyTemplateStatus(mode: CustomStatusTemplateId) {
+    const template = CUSTOM_STATUS_TEMPLATES.find((item) => item.id === mode);
+    if (!template) return;
+
+    isSaving = true;
+    error = '';
+
+    try {
+      const customStatus = await setCustomStatusViaAPI(config, {
+        emoji: template.emoji,
+        text: customStatusTemplateText(mode),
+        expiresAt: defaultTemplateExpiry(mode)?.toISOString() ?? null
+      });
+      onChange?.(customStatus);
+      localStatus = customStatus;
+      selectedMode = initialMode(customStatus);
+      statusEmoji = customStatus?.emoji ?? statusEmoji;
+      statusText = initialText(customStatus);
+      statusExpiresAt = toDatetimeLocalValue(customStatus?.expiresAt);
+      compactCustomEditorOpen = false;
       toast.success(m['settings.profile.status.saved']());
       onClose?.();
     } catch (err) {
@@ -165,6 +208,7 @@
       statusEmoji = '🌿';
       statusText = '';
       statusExpiresAt = '';
+      compactCustomEditorOpen = false;
       toast.success(m['settings.profile.status.cleared']());
       onClose?.();
     } catch (err) {
@@ -175,63 +219,63 @@
   }
 </script>
 
-<form
-  class={['flex flex-col gap-4', compact ? 'w-96 max-w-[calc(100vw-2rem)] menu-section p-3' : '']}
-  data-testid="custom-status-editor"
-  onsubmit={saveCustomStatus}
->
-  <div
-    class="flex flex-col gap-2"
-    role="radiogroup"
-    aria-label={m['settings.profile.status.template.label']()}
+{#if compact}
+  <form
+    class="flex flex-col gap-1 menu-section-sm p-1"
+    data-testid="custom-status-editor"
+    onsubmit={saveCustomStatus}
   >
-    {#each CUSTOM_STATUS_TEMPLATES as template (template.id)}
-      {@const isSelected = selectedMode === template.id}
+    <div
+      class="flex flex-col gap-0.5"
+      role="radiogroup"
+      aria-label={m['settings.profile.status.template.label']()}
+    >
+      {#each CUSTOM_STATUS_TEMPLATES as template (template.id)}
+        {@const isSelected = selectedMode === template.id}
+        <button
+          type="button"
+          role="radio"
+          aria-checked={isSelected}
+          class={['sidebar-item gap-3 text-left', isSelected && 'bg-surface-100']}
+          disabled={isSaving || isClearing}
+          onclick={() => applyTemplateStatus(template.id)}
+        >
+          <span class="w-5 shrink-0 text-center" aria-hidden="true">{template.emoji}</span>
+          <span class={['min-w-0 truncate', isSelected && 'font-medium']}>{template.label()}</span>
+          {#if isSelected}
+            <span class="ml-auto iconify shrink-0 uil--check" aria-hidden="true"></span>
+          {/if}
+        </button>
+      {/each}
       <button
         type="button"
         role="radio"
-        aria-checked={isSelected}
-        class={['choice-row', isSelected && 'choice-row-selected']}
-        onclick={() => selectMode(template.id)}
+        aria-checked={hasActiveCustomStatus}
+        class={['sidebar-item gap-3 text-left', customRowActive && 'bg-surface-100']}
+        disabled={isSaving || isClearing}
+        onclick={openCompactCustomEditor}
       >
-        <span class={['choice-indicator', isSelected && 'choice-indicator-selected']}>
-          {#if isSelected}
-            <span class="choice-indicator-dot"></span>
-          {/if}
-        </span>
-        <span class="flex min-w-0 items-center gap-2">
-          <span aria-hidden="true">{template.emoji}</span>
-          <span class={['min-w-0 truncate', isSelected && 'font-medium']}>{template.label()}</span>
-        </span>
-      </button>
-    {/each}
-    <button
-      type="button"
-      role="radio"
-      aria-checked={selectedMode === 'custom'}
-      class={['choice-row', selectedMode === 'custom' && 'choice-row-selected']}
-      onclick={() => selectMode('custom')}
-    >
-      <span class={['choice-indicator', selectedMode === 'custom' && 'choice-indicator-selected']}>
-        {#if selectedMode === 'custom'}
-          <span class="choice-indicator-dot"></span>
+        {#if hasActiveCustomStatus && localStatus}
+          <span class="w-5 shrink-0 text-center" aria-hidden="true">{localStatus.emoji}</span>
+        {:else}
+          <span class="iconify w-5 shrink-0 text-center uil--pen" aria-hidden="true"></span>
         {/if}
-      </span>
-      <span class="flex min-w-0 items-center gap-2">
-        <span class="iconify uil--pen" aria-hidden="true"></span>
-        <span class={['min-w-0 truncate', selectedMode === 'custom' && 'font-medium']}>
-          {m['settings.profile.status.template.custom']()}
+        <span class={['min-w-0 truncate', hasActiveCustomStatus && 'font-medium']}>
+          {hasActiveCustomStatus && localStatus
+            ? localStatus.text
+            : m['settings.profile.status.template.custom']()}
         </span>
-      </span>
-    </button>
-  </div>
+        {#if hasActiveCustomStatus}
+          <span class="ml-auto iconify shrink-0 uil--check" aria-hidden="true"></span>
+        {/if}
+      </button>
+    </div>
 
-  {#if isCustom}
-    <FormField id={statusTextInputId} label={m['settings.profile.status.text.label']()}>
-      <div class="flex min-w-0 items-center gap-2">
+    {#if compactCustomEditorOpen}
+      <div class="flex min-w-0 items-center gap-1">
         <button
           type="button"
-          class="btn-secondary h-10 w-10 shrink-0 !px-0 text-xl"
+          class="grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded-md hover:bg-surface-100 disabled:cursor-not-allowed disabled:opacity-60"
           title={m['settings.profile.status.emoji.choose']()}
           aria-label={m['settings.profile.status.emoji.choose']()}
           disabled={isSaving || isClearing}
@@ -243,50 +287,158 @@
         <input
           id={statusTextInputId}
           bind:value={statusText}
+          aria-label={m['settings.profile.status.text.label']()}
           placeholder={m['settings.profile.status.text.placeholder']()}
           disabled={isSaving || isClearing}
           maxlength={100}
-          class="input min-w-0 flex-1"
+          class="h-8 input min-w-0 flex-1 rounded-md px-2 py-1 text-sm"
           data-testid="settings-custom-status-text"
         />
+        <button
+          type="submit"
+          class="btn-accent h-8 w-8 shrink-0 !px-0 !py-0 text-sm"
+          title={m['settings.profile.status.save_button']()}
+          aria-label={m['settings.profile.status.save_button']()}
+          disabled={!isModified || isSaving}
+        >
+          <span
+            class={['iconify', isSaving ? 'animate-spin uil--spinner' : 'uil--check']}
+            aria-hidden="true"
+          ></span>
+        </button>
       </div>
-    </FormField>
-  {/if}
+    {/if}
 
-  <FormField id={expiresAtInputId} label={m['settings.profile.status.expires_at.label']()}>
-    <input
-      id={expiresAtInputId}
-      type="datetime-local"
-      bind:value={statusExpiresAt}
-      disabled={isSaving || isClearing}
-      class="input"
-      data-testid="settings-custom-status-expires-at"
-    />
-  </FormField>
+    {#if error}
+      <Hint tone="danger">{error}</Hint>
+    {/if}
 
-  {#if error}
-    <Hint tone="danger">{error}</Hint>
-  {/if}
-
-  <div class="flex flex-nowrap items-center justify-end gap-2">
     {#if hasActiveStatus}
-      <Button
+      <button
         type="button"
-        variant="secondary"
-        size="sm"
-        loading={isClearing}
+        class="sidebar-item gap-3 text-left text-muted"
+        disabled={isSaving || isClearing}
         onclick={clearCustomStatus}
       >
-        <span class="iconify uil--times"></span>
-        {m['settings.profile.status.clear_button']()}
-      </Button>
+        <span class="iconify w-5 shrink-0 text-center uil--times" aria-hidden="true"></span>
+        <span class="min-w-0 truncate">{m['settings.profile.status.clear_button']()}</span>
+      </button>
     {/if}
-    <Button type="submit" size="sm" disabled={!isModified || isSaving} loading={isSaving}>
-      <span class="iconify uil--check"></span>
-      {m['settings.profile.status.save_button']()}
-    </Button>
-  </div>
-</form>
+  </form>
+{:else}
+  <form class="flex flex-col gap-4" data-testid="custom-status-editor" onsubmit={saveCustomStatus}>
+    <div
+      class="flex flex-col gap-2"
+      role="radiogroup"
+      aria-label={m['settings.profile.status.template.label']()}
+    >
+      {#each CUSTOM_STATUS_TEMPLATES as template (template.id)}
+        {@const isSelected = selectedMode === template.id}
+        <button
+          type="button"
+          role="radio"
+          aria-checked={isSelected}
+          class={['choice-row', isSelected && 'choice-row-selected']}
+          onclick={() => selectMode(template.id)}
+        >
+          <span class={['choice-indicator', isSelected && 'choice-indicator-selected']}>
+            {#if isSelected}
+              <span class="choice-indicator-dot"></span>
+            {/if}
+          </span>
+          <span class="flex min-w-0 items-center gap-2">
+            <span aria-hidden="true">{template.emoji}</span>
+            <span class={['min-w-0 truncate', isSelected && 'font-medium']}>
+              {template.label()}
+            </span>
+          </span>
+        </button>
+      {/each}
+      <button
+        type="button"
+        role="radio"
+        aria-checked={selectedMode === 'custom'}
+        class={['choice-row', selectedMode === 'custom' && 'choice-row-selected']}
+        onclick={() => selectMode('custom')}
+      >
+        <span
+          class={['choice-indicator', selectedMode === 'custom' && 'choice-indicator-selected']}
+        >
+          {#if selectedMode === 'custom'}
+            <span class="choice-indicator-dot"></span>
+          {/if}
+        </span>
+        <span class="flex min-w-0 items-center gap-2">
+          <span class="iconify uil--pen" aria-hidden="true"></span>
+          <span class={['min-w-0 truncate', selectedMode === 'custom' && 'font-medium']}>
+            {m['settings.profile.status.template.custom']()}
+          </span>
+        </span>
+      </button>
+    </div>
+
+    {#if isCustom}
+      <FormField id={statusTextInputId} label={m['settings.profile.status.text.label']()}>
+        <div class="flex min-w-0 items-center gap-2">
+          <button
+            type="button"
+            class="btn-secondary h-10 w-10 shrink-0 !px-0 text-xl"
+            title={m['settings.profile.status.emoji.choose']()}
+            aria-label={m['settings.profile.status.emoji.choose']()}
+            disabled={isSaving || isClearing}
+            onclick={openEmojiPicker}
+            data-testid="settings-custom-status-emoji-picker"
+          >
+            <span aria-hidden="true">{statusEmoji || '🙂'}</span>
+          </button>
+          <input
+            id={statusTextInputId}
+            bind:value={statusText}
+            placeholder={m['settings.profile.status.text.placeholder']()}
+            disabled={isSaving || isClearing}
+            maxlength={100}
+            class="input min-w-0 flex-1"
+            data-testid="settings-custom-status-text"
+          />
+        </div>
+      </FormField>
+    {/if}
+
+    <FormField id={expiresAtInputId} label={m['settings.profile.status.expires_at.label']()}>
+      <input
+        id={expiresAtInputId}
+        type="datetime-local"
+        bind:value={statusExpiresAt}
+        disabled={isSaving || isClearing}
+        class="input"
+        data-testid="settings-custom-status-expires-at"
+      />
+    </FormField>
+
+    {#if error}
+      <Hint tone="danger">{error}</Hint>
+    {/if}
+
+    <div class="flex flex-nowrap items-center justify-end gap-2">
+      {#if hasActiveStatus}
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          loading={isClearing}
+          onclick={clearCustomStatus}
+        >
+          <span class="iconify uil--times"></span>
+          {m['settings.profile.status.clear_button']()}
+        </Button>
+      {/if}
+      <Button type="submit" size="sm" disabled={!isModified || isSaving} loading={isSaving}>
+        <span class="iconify uil--check"></span>
+        {m['settings.profile.status.save_button']()}
+      </Button>
+    </div>
+  </form>
+{/if}
 
 {#if emojiPickerAnchor}
   <ContextMenu anchor={emojiPickerAnchor} onclose={() => (emojiPickerAnchor = null)}>

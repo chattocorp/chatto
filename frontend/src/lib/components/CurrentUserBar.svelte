@@ -81,8 +81,7 @@ to the user settings page for the active server.
           ? 'bg-red-500'
           : 'bg-gray-400'
   );
-  let statusEditorAnchor = $state<{ top: number; bottom: number; left: number } | null>(null);
-  let presenceMenuAnchor = $state<{ top: number; bottom: number; left: number } | null>(null);
+  let statusMenuAnchor = $state<{ top: number; bottom: number; left: number } | null>(null);
 
   function customStatusAPIConfig() {
     const conn = connection();
@@ -93,14 +92,9 @@ to the user settings page for the active server.
     };
   }
 
-  function openStatusEditor(event: MouseEvent) {
+  function openStatusMenu(event: MouseEvent) {
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    statusEditorAnchor = { top: rect.top, bottom: rect.bottom, left: rect.left };
-  }
-
-  function openPresenceMenu(event: MouseEvent) {
-    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    presenceMenuAnchor = { top: rect.top, bottom: rect.bottom, left: rect.left };
+    statusMenuAnchor = { top: rect.top, bottom: rect.bottom, left: rect.left };
   }
 
   function presenceModeLabel(mode: PresenceMode): string {
@@ -118,7 +112,6 @@ to the user settings page for the active server.
 
   function choosePresenceMode(mode: PresenceMode) {
     setPresenceMode(mode);
-    presenceMenuAnchor = null;
   }
 
   function updateCurrentCustomStatus(status: CustomUserStatus | null) {
@@ -236,7 +229,19 @@ to the user settings page for the active server.
       class="flex items-center gap-3 rounded-xl bg-surface py-1 pr-3 pl-1"
       data-testid="current-user-identity-card"
     >
-      <UserAvatar user={activeServerUser} size="md" />
+      <div class="relative shrink-0">
+        <UserAvatar user={activeServerUser} size="md" showPresence={false} />
+        <button
+          type="button"
+          title={m['settings.profile.presence.button']({ status: presenceLabel })}
+          aria-label={m['settings.profile.presence.button']({ status: presenceLabel })}
+          class="absolute right-0 bottom-0 grid h-4 w-4 translate-x-1/4 translate-y-1/4 cursor-pointer place-items-center rounded-full border-2 border-surface bg-surface hover:border-surface-100"
+          data-testid="current-user-presence-menu"
+          onclick={openStatusMenu}
+        >
+          <span class={`h-2.5 w-2.5 rounded-full ${presenceDotClass}`} aria-hidden="true"></span>
+        </button>
+      </div>
       <div class="flex min-w-0 flex-1 flex-col leading-tight">
         <span class="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
           <span class="min-w-0 truncate">{displayName}</span>
@@ -245,24 +250,6 @@ to the user settings page for the active server.
           <span class="truncate text-xs text-muted">@{login}</span>
         {/if}
       </div>
-      <button
-        type="button"
-        title={m['settings.profile.presence.button']({ status: presenceLabel })}
-        aria-label={m['settings.profile.presence.button']({ status: presenceLabel })}
-        class="grid h-7 w-7 shrink-0 cursor-pointer place-items-center rounded-md hover:bg-surface-100"
-        data-testid="current-user-presence-menu"
-        onclick={openPresenceMenu}
-      >
-        <span class={`h-3 w-3 rounded-full ${presenceDotClass}`} aria-hidden="true"></span>
-      </button>
-      <button
-        type="button"
-        title={m['settings.profile.status.edit_button']()}
-        aria-label={m['settings.profile.status.edit_button']()}
-        class="iconify shrink-0 cursor-pointer text-muted uil--pen hover:text-text"
-        data-testid="current-user-edit-status"
-        onclick={openStatusEditor}
-      ></button>
       <a
         href={resolve('/chat/[serverId]/settings', { serverId: serverSegment })}
         title={m['voice.user_settings']()}
@@ -272,63 +259,57 @@ to the user settings page for the active server.
   </div>
 {/if}
 
-{#if presenceMenuAnchor && activeServerUser}
+{#if statusMenuAnchor && activeServerUser}
   <ContextMenu
-    anchor={presenceMenuAnchor}
-    role="menu"
-    ariaLabel={m['settings.profile.presence.title']()}
-    class="w-56"
-    onclose={() => (presenceMenuAnchor = null)}
-  >
-    <div class="menu-section p-1">
-      {#each presenceModes as mode (mode)}
-        <button
-          type="button"
-          class={[
-            'sidebar-item w-full gap-3 text-left',
-            presencePreference.mode === mode ? 'bg-surface-100' : ''
-          ]}
-          role="menuitemradio"
-          aria-checked={presencePreference.mode === mode}
-          onclick={() => choosePresenceMode(mode)}
-        >
-          <span
-            class={[
-              'h-2.5 w-2.5 rounded-full',
-              mode === 'auto'
-                ? 'bg-green-500'
-                : mode === 'away'
-                  ? 'bg-yellow-500'
-                  : mode === 'doNotDisturb'
-                    ? 'bg-red-500'
-                    : 'bg-gray-400'
-            ]}
-            aria-hidden="true"
-          ></span>
-          <span class="min-w-0 truncate">{presenceModeLabel(mode)}</span>
-          {#if presencePreference.mode === mode}
-            <span class="iconify ml-auto shrink-0 uil--check" aria-hidden="true"></span>
-          {/if}
-        </button>
-      {/each}
-    </div>
-  </ContextMenu>
-{/if}
-
-{#if statusEditorAnchor && activeServerUser}
-  <ContextMenu
-    anchor={statusEditorAnchor}
+    anchor={statusMenuAnchor}
     role="dialog"
     ariaLabel={m['settings.profile.status.edit_button']()}
-    class="w-auto"
-    onclose={() => (statusEditorAnchor = null)}
+    class="w-80 max-w-[calc(100vw-2rem)]"
+    onclose={() => (statusMenuAnchor = null)}
   >
-    <UserCustomStatusEditor
-      status={activeServerUser.customStatus}
-      config={customStatusAPIConfig()}
-      compact
-      onChange={updateCurrentCustomStatus}
-      onClose={() => (statusEditorAnchor = null)}
-    />
+    <div class="flex w-full flex-col gap-1">
+      <div class="menu-section p-1">
+        <div class="px-2 py-1 text-xs font-semibold text-muted">
+          {m['settings.profile.presence.title']()}
+        </div>
+        {#each presenceModes as mode (mode)}
+          <button
+            type="button"
+            class={[
+              'sidebar-item w-full gap-3 text-left',
+              presencePreference.mode === mode ? 'bg-surface-100' : ''
+            ]}
+            role="menuitemradio"
+            aria-checked={presencePreference.mode === mode}
+            onclick={() => choosePresenceMode(mode)}
+          >
+            <span
+              class={[
+                'h-2.5 w-2.5 rounded-full',
+                mode === 'auto'
+                  ? 'bg-green-500'
+                  : mode === 'away'
+                    ? 'bg-yellow-500'
+                    : mode === 'doNotDisturb'
+                      ? 'bg-red-500'
+                      : 'bg-gray-400'
+              ]}
+              aria-hidden="true"
+            ></span>
+            <span class="min-w-0 truncate">{presenceModeLabel(mode)}</span>
+            {#if presencePreference.mode === mode}
+              <span class="ml-auto iconify shrink-0 uil--check" aria-hidden="true"></span>
+            {/if}
+          </button>
+        {/each}
+      </div>
+      <UserCustomStatusEditor
+        status={activeServerUser.customStatus}
+        config={customStatusAPIConfig()}
+        compact
+        onChange={updateCurrentCustomStatus}
+        onClose={() => (statusMenuAnchor = null)}
+      />
+    </div>
   </ContextMenu>
 {/if}

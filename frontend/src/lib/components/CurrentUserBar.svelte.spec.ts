@@ -144,20 +144,22 @@ describe('CurrentUserBar', () => {
   it('uses the seeded presence cache instead of the first-login offline fallback', () => {
     const { container } = render(CurrentUserBarTestHarness);
 
-    expect(q(container, '[aria-label="Online"]')).toBeTruthy();
+    expect(q(container, '[aria-label="Presence: Online"]')).toBeTruthy();
     expect(q(container, '[aria-label="Offline"]')).toBeFalsy();
     expect(container.textContent).toContain('Alice');
     expect(container.textContent).toContain('@alice');
   });
 
-  it('opens the presence mode menu', async () => {
+  it('opens the combined presence and custom status menu from the avatar status dot', async () => {
     const { container } = render(CurrentUserBarTestHarness);
 
     (q(container, '[data-testid="current-user-presence-menu"]') as HTMLButtonElement).click();
     await vi.waitFor(() => {
       expect(container.textContent).toContain('Do Not Disturb');
       expect(container.textContent).toContain('Look offline');
+      expect(q(container, '[data-testid="custom-status-editor"]')).toBeTruthy();
     });
+    expect(q(container, '[data-testid="current-user-edit-status"]')).toBeFalsy();
   });
 
   it('shows the custom status emoji as an avatar badge', () => {
@@ -209,7 +211,10 @@ describe('CurrentUserBar', () => {
       container,
       '[data-testid="current-user-call-screen-share"]'
     ) as HTMLButtonElement;
-    const leaveButton = q(container, '[data-testid="current-user-call-leave"]') as HTMLButtonElement;
+    const leaveButton = q(
+      container,
+      '[data-testid="current-user-call-leave"]'
+    ) as HTMLButtonElement;
 
     expect(muteButton.className).toContain('btn-success');
     expect(cameraButton.className).toContain('btn-secondary');
