@@ -214,6 +214,46 @@ test.describe('Thread Following', () => {
     );
   });
 
+  test('room-view bell updates after unfollowing an auto-followed thread', async ({
+    page,
+    chatPage,
+    roomPage,
+    browser,
+    serverURL
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+
+    const rootText = `Root ${Date.now()}`;
+    await roomPage.sendMessage(rootText);
+
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: page2, chatPage: chatPage2, roomPage: roomPage2 }) => {
+        await chatPage2.enterRoom('general');
+        await waitForRoomReady(page2, 'general');
+
+        const rootMsg2 = roomPage2.getMessage(rootText);
+        await rootMsg2.openThread();
+        await roomPage2.expectThreadPaneVisible();
+        await roomPage2.postThreadReply(`Reply from Bob ${Date.now()}`);
+
+        await rootMsg2.expectFollowingThread();
+
+        await rootMsg2.locator
+          .getByTitle('Unfollow thread')
+          .evaluate((button: HTMLElement) => button.click());
+        await rootMsg2.expectNotFollowingThread();
+
+        await page2.reload();
+        await page2.waitForLoadState('networkidle');
+        await roomPage2.getMessage(rootText).expectNotFollowingThread();
+      }
+    );
+  });
+
   test('unfollow persists when another user replies', async ({
     page,
     chatPage,
