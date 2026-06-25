@@ -1,7 +1,9 @@
 name: release-please
 
 on:
-  push:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
     branches:
       - main
       - 'release-[0-9]*'
@@ -12,9 +14,10 @@ permissions:
 
 jobs:
   release-please:
+    if: ${{ github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     env:
-      TARGET_BRANCH: ${{ github.ref_name }}
+      TARGET_BRANCH: ${{ github.event.workflow_run.head_branch }}
       CONFIG_FILE: .release-please-config.json
       MANIFEST_FILE: .release-please-manifest.json
     steps:
