@@ -9,12 +9,12 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-func TestNewConfigServiceWiresDependencies(t *testing.T) {
+func TestNewConfigModelWiresDependencies(t *testing.T) {
 	publisher := testEventPublisher(t)
 	projector := testEventProjector(t)
 	projection := NewConfigProjection()
 
-	service := NewConfigService(publisher, projector, projection)
+	service := NewConfigModel(publisher, projector, projection)
 
 	if service.publisher != publisher {
 		t.Fatal("publisher was not wired")
@@ -27,12 +27,12 @@ func TestNewConfigServiceWiresDependencies(t *testing.T) {
 	}
 }
 
-func TestConfigServiceUpdateSubjectAppendsAndWaitsForProjection(t *testing.T) {
+func TestConfigModelUpdateSubjectAppendsAndWaitsForProjection(t *testing.T) {
 	harness := newTestEventHarness(t)
 	projection := NewConfigProjection()
 	projector := harness.projector(projection)
 	startTestProjector(t, projector)
-	service := NewConfigService(harness.publisher, projector, projection)
+	service := NewConfigModel(harness.publisher, projector, projection)
 	ctx := testContext(t)
 
 	err := service.updateSubject(ctx, ConfigSubjectServer, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
@@ -53,16 +53,16 @@ func TestConfigServiceUpdateSubjectAppendsAndWaitsForProjection(t *testing.T) {
 	}
 }
 
-func TestConfigServicePrepareSubjectValidatesDependenciesAndSubject(t *testing.T) {
+func TestConfigModelPrepareSubjectValidatesDependenciesAndSubject(t *testing.T) {
 	ctx := testContext(t)
 
-	if _, _, _, err := (&ConfigService{}).prepareSubject(ctx, ConfigSubjectServer); err == nil {
+	if _, _, _, err := (&ConfigModel{}).prepareSubject(ctx, ConfigSubjectServer); err == nil {
 		t.Fatal("prepareSubject with missing dependencies returned nil error")
 	} else if !strings.Contains(err.Error(), "event publisher/projector not configured") {
 		t.Fatalf("prepareSubject missing dependencies error = %q", err.Error())
 	}
 
-	service := NewConfigService(testEventPublisher(t), testEventProjector(t), NewConfigProjection())
+	service := NewConfigModel(testEventPublisher(t), testEventProjector(t), NewConfigProjection())
 	if _, _, _, err := service.prepareSubject(ctx, "invalid.subject"); err == nil {
 		t.Fatal("prepareSubject with invalid subject returned nil error")
 	} else if !strings.Contains(err.Error(), "invalid config subject") {
@@ -70,12 +70,12 @@ func TestConfigServicePrepareSubjectValidatesDependenciesAndSubject(t *testing.T
 	}
 }
 
-func TestConfigServicePrepareSubjectReturnsExistingExpectedSeq(t *testing.T) {
+func TestConfigModelPrepareSubjectReturnsExistingExpectedSeq(t *testing.T) {
 	harness := newTestEventHarness(t)
 	projection := NewConfigProjection()
 	projector := harness.projector(projection)
 	startTestProjector(t, projector)
-	service := NewConfigService(harness.publisher, projector, projection)
+	service := NewConfigModel(harness.publisher, projector, projection)
 	ctx := testContext(t)
 
 	event := newEvent(SystemActorID, &corev1.Event{
@@ -104,9 +104,9 @@ func TestConfigServicePrepareSubjectReturnsExistingExpectedSeq(t *testing.T) {
 	}
 }
 
-func TestConfigServiceAppendEventsAtEmptyBatchIsNoop(t *testing.T) {
+func TestConfigModelAppendEventsAtEmptyBatchIsNoop(t *testing.T) {
 	harness := newTestEventHarness(t)
-	service := NewConfigService(harness.publisher, testEventProjector(t), NewConfigProjection())
+	service := NewConfigModel(harness.publisher, testEventProjector(t), NewConfigProjection())
 	ctx := testContext(t)
 
 	if err := service.appendEventsAt(ctx, events.ConfigSubjectAggregate(ConfigSubjectServer), events.ConfigSubjectAggregate(ConfigSubjectServer).AllEventsFilter(), 0, nil); err != nil {
@@ -121,12 +121,12 @@ func TestConfigServiceAppendEventsAtEmptyBatchIsNoop(t *testing.T) {
 	}
 }
 
-func TestConfigServiceUpdateSubjectNoEventsIsNoop(t *testing.T) {
+func TestConfigModelUpdateSubjectNoEventsIsNoop(t *testing.T) {
 	harness := newTestEventHarness(t)
 	projection := NewConfigProjection()
 	projector := harness.projector(projection)
 	startTestProjector(t, projector)
-	service := NewConfigService(harness.publisher, projector, projection)
+	service := NewConfigModel(harness.publisher, projector, projection)
 	ctx := testContext(t)
 
 	if err := service.updateSubject(ctx, ConfigSubjectServer, func(events.Aggregate, string, uint64) ([]*corev1.Event, error) {
@@ -143,12 +143,12 @@ func TestConfigServiceUpdateSubjectNoEventsIsNoop(t *testing.T) {
 	}
 }
 
-func TestConfigServiceUpdateSubjectPropagatesBuildError(t *testing.T) {
+func TestConfigModelUpdateSubjectPropagatesBuildError(t *testing.T) {
 	harness := newTestEventHarness(t)
 	projection := NewConfigProjection()
 	projector := harness.projector(projection)
 	startTestProjector(t, projector)
-	service := NewConfigService(harness.publisher, projector, projection)
+	service := NewConfigModel(harness.publisher, projector, projection)
 	ctx := testContext(t)
 	wantErr := errors.New("build failed")
 
@@ -160,12 +160,12 @@ func TestConfigServiceUpdateSubjectPropagatesBuildError(t *testing.T) {
 	}
 }
 
-func TestConfigServiceUpdateSubjectRetriesConflicts(t *testing.T) {
+func TestConfigModelUpdateSubjectRetriesConflicts(t *testing.T) {
 	harness := newTestEventHarness(t)
 	projection := NewConfigProjection()
 	projector := harness.projector(projection)
 	startTestProjector(t, projector)
-	service := NewConfigService(harness.publisher, projector, projection)
+	service := NewConfigModel(harness.publisher, projector, projection)
 	ctx := testContext(t)
 	attempts := 0
 
@@ -200,12 +200,12 @@ func TestConfigServiceUpdateSubjectRetriesConflicts(t *testing.T) {
 	}
 }
 
-func TestConfigServiceUpdateSubjectReturnsConflictAfterRetries(t *testing.T) {
+func TestConfigModelUpdateSubjectReturnsConflictAfterRetries(t *testing.T) {
 	harness := newTestEventHarness(t)
 	projection := NewConfigProjection()
 	projector := harness.projector(projection)
 	startTestProjector(t, projector)
-	service := NewConfigService(harness.publisher, projector, projection)
+	service := NewConfigModel(harness.publisher, projector, projection)
 	ctx := testContext(t)
 	attempts := 0
 

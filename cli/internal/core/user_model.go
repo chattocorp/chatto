@@ -6,8 +6,8 @@ import (
 	"hmans.de/chatto/internal/events"
 )
 
-// UserService owns user-derived projections and their readiness barriers.
-type UserService struct {
+// UserModel owns user-derived projections and their readiness barriers.
+type UserModel struct {
 	publisher *events.Publisher
 
 	users          *UserProjection
@@ -17,14 +17,14 @@ type UserService struct {
 	contentKeysProjector *events.Projector
 }
 
-func newUserService(
+func newUserModel(
 	publisher *events.Publisher,
 	users *UserProjection,
 	usersProjector *events.Projector,
 	contentKeys *ContentKeyProjection,
 	contentKeysProjector *events.Projector,
-) *UserService {
-	return &UserService{
+) *UserModel {
+	return &UserModel{
 		publisher:            publisher,
 		users:                users,
 		usersProjector:       usersProjector,
@@ -33,22 +33,22 @@ func newUserService(
 	}
 }
 
-func (m *UserService) waitForUsers(ctx context.Context, pos events.StreamPosition) error {
+func (m *UserModel) waitForUsers(ctx context.Context, pos events.StreamPosition) error {
 	return waitForPositionAll(ctx, pos, waitForProjection("users", m.usersProjector))
 }
 
-func (m *UserService) waitForContentKeys(ctx context.Context, pos events.StreamPosition) error {
+func (m *UserModel) waitForContentKeys(ctx context.Context, pos events.StreamPosition) error {
 	return waitForPositionAll(ctx, pos, waitForProjection("content key", m.contentKeysProjector))
 }
 
-func (m *UserService) waitForUsersCurrent(ctx context.Context, name string, subjects ...string) error {
+func (m *UserModel) waitForUsersCurrent(ctx context.Context, name string, subjects ...string) error {
 	if m.publisher == nil || m.usersProjector == nil {
 		return nil
 	}
 	return waitForProjectionSubjectsCurrent(ctx, m.publisher, name, m.usersProjector, subjects...)
 }
 
-func (m *UserService) waitForContentKeysCurrent(ctx context.Context, userID string) error {
+func (m *UserModel) waitForContentKeysCurrent(ctx context.Context, userID string) error {
 	if m.publisher == nil || m.contentKeysProjector == nil {
 		return nil
 	}

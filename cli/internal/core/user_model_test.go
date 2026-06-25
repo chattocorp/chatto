@@ -7,14 +7,14 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-func TestNewUserServiceWiresDependencies(t *testing.T) {
+func TestNewUserModelWiresDependencies(t *testing.T) {
 	publisher := testEventPublisher(t)
 	users := NewUserProjection(nil, nil)
 	usersProjector := testEventProjector(t)
 	contentKeys := NewContentKeyProjection()
 	contentKeysProjector := testEventProjector(t)
 
-	service := newUserService(publisher, users, usersProjector, contentKeys, contentKeysProjector)
+	service := newUserModel(publisher, users, usersProjector, contentKeys, contentKeysProjector)
 
 	if service.publisher != publisher {
 		t.Fatal("publisher was not wired")
@@ -33,12 +33,12 @@ func TestNewUserServiceWiresDependencies(t *testing.T) {
 	}
 }
 
-func TestUserServiceWaitForContentKeysProjectsDEKGenerated(t *testing.T) {
+func TestUserModelWaitForContentKeysProjectsDEKGenerated(t *testing.T) {
 	harness := newTestEventHarness(t)
 	contentKeys := NewContentKeyProjection()
 	contentKeysProjector := harness.projector(contentKeys)
 	startTestProjector(t, contentKeysProjector)
-	service := newUserService(harness.publisher, nil, nil, contentKeys, contentKeysProjector)
+	service := newUserModel(harness.publisher, nil, nil, contentKeys, contentKeysProjector)
 	ctx := testContext(t)
 
 	event := newEvent(SystemActorID, &corev1.Event{
@@ -70,12 +70,12 @@ func TestUserServiceWaitForContentKeysProjectsDEKGenerated(t *testing.T) {
 	}
 }
 
-func TestUserServiceWaitForUsersProjectsUserAvatar(t *testing.T) {
+func TestUserModelWaitForUsersProjectsUserAvatar(t *testing.T) {
 	harness := newTestEventHarness(t)
 	users := NewUserProjection(nil, nil)
 	usersProjector := harness.projector(users)
 	startTestProjector(t, usersProjector)
-	service := newUserService(harness.publisher, users, usersProjector, nil, nil)
+	service := newUserModel(harness.publisher, users, usersProjector, nil, nil)
 	ctx := testContext(t)
 
 	event := newEvent(SystemActorID, &corev1.Event{
@@ -106,7 +106,7 @@ func TestUserServiceWaitForUsersProjectsUserAvatar(t *testing.T) {
 	}
 }
 
-func TestUserServiceCurrentWaitsUsePublisherTail(t *testing.T) {
+func TestUserModelCurrentWaitsUsePublisherTail(t *testing.T) {
 	harness := newTestEventHarness(t)
 	users := NewUserProjection(nil, nil)
 	usersProjector := harness.projector(users)
@@ -114,7 +114,7 @@ func TestUserServiceCurrentWaitsUsePublisherTail(t *testing.T) {
 	contentKeys := NewContentKeyProjection()
 	contentKeysProjector := harness.projector(contentKeys)
 	startTestProjector(t, contentKeysProjector)
-	service := newUserService(harness.publisher, users, usersProjector, contentKeys, contentKeysProjector)
+	service := newUserModel(harness.publisher, users, usersProjector, contentKeys, contentKeysProjector)
 	ctx := testContext(t)
 
 	avatarEvent := newEvent(SystemActorID, &corev1.Event{
@@ -159,9 +159,9 @@ func TestUserServiceCurrentWaitsUsePublisherTail(t *testing.T) {
 	}
 }
 
-func TestUserServiceCurrentWaitsAreNoopsWhenDependenciesMissing(t *testing.T) {
+func TestUserModelCurrentWaitsAreNoopsWhenDependenciesMissing(t *testing.T) {
 	ctx := testContext(t)
-	service := &UserService{}
+	service := &UserModel{}
 
 	if err := service.waitForUsersCurrent(ctx, "users", "evt.user.U1.created"); err != nil {
 		t.Fatalf("waitForUsersCurrent returned error: %v", err)

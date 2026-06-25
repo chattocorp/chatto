@@ -197,7 +197,7 @@ func TestChattoCore_SetRoomNotificationLevel(t *testing.T) {
 	}
 }
 
-func TestNotificationPreferencesService_SetRoomNotificationLevelAuthorization(t *testing.T) {
+func TestNotificationPreferencesModel_SetRoomNotificationLevelAuthorization(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

@@ -8,11 +8,11 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-func TestNewRBACServiceWiresDependencies(t *testing.T) {
+func TestNewRBACModelWiresDependencies(t *testing.T) {
 	projection := NewRBACProjection()
 	projector := testEventProjector(t)
 
-	service := newRBACService(projection, projector)
+	service := newRBACModel(projection, projector)
 
 	if service.projection != projection {
 		t.Fatal("RBAC projection was not wired")
@@ -22,12 +22,12 @@ func TestNewRBACServiceWiresDependencies(t *testing.T) {
 	}
 }
 
-func TestRBACServiceWaitForRejectsUnconsumedSubject(t *testing.T) {
+func TestRBACModelWaitForRejectsUnconsumedSubject(t *testing.T) {
 	harness := newTestEventHarness(t)
 	projection := NewRBACProjection()
 	projector := harness.projector(projection)
 	startTestProjector(t, projector)
-	service := newRBACService(projection, projector)
+	service := newRBACModel(projection, projector)
 	ctx := testContext(t)
 
 	event := newEvent(SystemActorID, roomCreatedEvent("R-not-rbac", "not-rbac", "", corev1.RoomKind_ROOM_KIND_CHANNEL))
@@ -43,12 +43,12 @@ func TestRBACServiceWaitForRejectsUnconsumedSubject(t *testing.T) {
 	}
 }
 
-func TestRBACServiceWaitForProjectsRoleCreation(t *testing.T) {
+func TestRBACModelWaitForProjectsRoleCreation(t *testing.T) {
 	harness := newTestEventHarness(t)
 	projection := NewRBACProjection()
 	projector := harness.projector(projection)
 	startTestProjector(t, projector)
-	service := newRBACService(projection, projector)
+	service := newRBACModel(projection, projector)
 	ctx := testContext(t)
 
 	event := newEvent(SystemActorID, &corev1.Event{

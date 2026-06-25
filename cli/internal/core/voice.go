@@ -143,19 +143,19 @@ func GenerateVoiceCallToken(apiKey, apiSecret, roomName, userID, displayName, lo
 // Called by the webhook handler when LiveKit reports a participant joined.
 func (c *ChattoCore) HandleCallParticipantJoined(ctx context.Context, spaceID, roomID, userID, displayName, login, avatarURL string, callID ...string) error {
 	expectedCallID := optionalCallID(callID)
-	if c.callService == nil {
-		return fmt.Errorf("call service is not initialized")
+	if c.callModel == nil {
+		return fmt.Errorf("call model is not initialized")
 	}
-	return c.callService.AppendJoinedForCall(ctx, roomID, userID, expectedCallID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT)
+	return c.callModel.AppendJoinedForCall(ctx, roomID, userID, expectedCallID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT)
 }
 
 // HandleCallParticipantLeft appends a durable LiveKit-observed leave fact.
 // Called by the webhook handler when LiveKit reports a participant left.
 func (c *ChattoCore) HandleCallParticipantLeft(ctx context.Context, spaceID, roomID, userID string, callID ...string) error {
-	if c.callService == nil {
-		return fmt.Errorf("call service is not initialized")
+	if c.callModel == nil {
+		return fmt.Errorf("call model is not initialized")
 	}
-	return c.callService.AppendLeftForCall(ctx, roomID, userID, optionalCallID(callID), corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT)
+	return c.callModel.AppendLeftForCall(ctx, roomID, userID, optionalCallID(callID), corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT)
 }
 
 // HandleCallRoomFinished appends LiveKit-observed leave facts for any remaining
@@ -170,10 +170,10 @@ func (c *ChattoCore) HandleCallRoomFinished(ctx context.Context, spaceID, roomID
 		}
 	}
 	for _, p := range c.CallState.Participants(roomID) {
-		if c.callService == nil {
-			return fmt.Errorf("call service is not initialized")
+		if c.callModel == nil {
+			return fmt.Errorf("call model is not initialized")
 		}
-		if err := c.callService.AppendLeftForCall(ctx, roomID, p.UserID, expectedCallID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT); err != nil {
+		if err := c.callModel.AppendLeftForCall(ctx, roomID, p.UserID, expectedCallID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT); err != nil {
 			return err
 		}
 	}
@@ -188,24 +188,24 @@ func optionalCallID(callID []string) string {
 }
 
 func (c *ChattoCore) RecordCallParticipantJoined(ctx context.Context, kind RoomKind, roomID, userID string, source corev1.CallParticipantEventSource) error {
-	if c.callService == nil {
-		return fmt.Errorf("call service is not initialized")
+	if c.callModel == nil {
+		return fmt.Errorf("call model is not initialized")
 	}
-	return c.callService.AppendJoined(ctx, roomID, userID, source)
+	return c.callModel.AppendJoined(ctx, roomID, userID, source)
 }
 
 func (c *ChattoCore) RecordCallParticipantLeft(ctx context.Context, kind RoomKind, roomID, userID string, source corev1.CallParticipantEventSource) error {
-	if c.callService == nil {
-		return fmt.Errorf("call service is not initialized")
+	if c.callModel == nil {
+		return fmt.Errorf("call model is not initialized")
 	}
-	return c.callService.AppendLeft(ctx, roomID, userID, source)
+	return c.callModel.AppendLeft(ctx, roomID, userID, source)
 }
 
 func (c *ChattoCore) GetVoiceCallE2EEKey(ctx context.Context, roomID string) (string, error) {
-	if c.callService == nil {
-		return "", fmt.Errorf("call service is not initialized")
+	if c.callModel == nil {
+		return "", fmt.Errorf("call model is not initialized")
 	}
-	return c.callService.GetE2EEKey(ctx, roomID)
+	return c.callModel.GetE2EEKey(ctx, roomID)
 }
 
 // GetCallParticipants returns the participants currently in a voice call.

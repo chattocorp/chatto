@@ -23,12 +23,12 @@ import (
 // subscription goroutine forever.
 const liveEVTProjectionWaitTimeout = 2 * time.Second
 
-// MyEventsService owns the server-side myEvents live stream machinery.
+// MyEventsModel owns the server-side myEvents live stream machinery.
 //
-// ChattoCore remains the public facade, while this service keeps live root
+// ChattoCore remains the public facade, while this model keeps live root
 // filtering, projection readiness, and per-subscription room membership state
 // together.
-type MyEventsService struct {
+type MyEventsModel struct {
 	core              *ChattoCore
 	activeStreams     atomic.Int64
 	deliveredEvents   atomic.Uint64
@@ -37,8 +37,8 @@ type MyEventsService struct {
 	presenceFailures  atomic.Uint64
 }
 
-func NewMyEventsService(core *ChattoCore) *MyEventsService {
-	return &MyEventsService{core: core}
+func NewMyEventsModel(core *ChattoCore) *MyEventsModel {
+	return &MyEventsModel{core: core}
 }
 
 // StreamMyEventsOptions controls compatibility behavior for a myEvents stream.
@@ -49,11 +49,11 @@ type StreamMyEventsOptions struct {
 	ReportPresence bool
 }
 
-func (c *ChattoCore) myEvents() *MyEventsService {
-	if c.myEventsService == nil {
-		c.myEventsService = NewMyEventsService(c)
+func (c *ChattoCore) myEvents() *MyEventsModel {
+	if c.myEventsModel == nil {
+		c.myEventsModel = NewMyEventsModel(c)
 	}
-	return c.myEventsService
+	return c.myEventsModel
 }
 
 // MyEventsMetrics is a process-local snapshot of the GraphQL live-event stream.
@@ -67,14 +67,14 @@ type MyEventsMetrics struct {
 
 // MyEventsMetrics returns process-local live-event stream counters.
 func (c *ChattoCore) MyEventsMetrics() MyEventsMetrics {
-	if c.myEventsService == nil {
+	if c.myEventsModel == nil {
 		return MyEventsMetrics{}
 	}
-	return c.myEventsService.Metrics()
+	return c.myEventsModel.Metrics()
 }
 
 // Metrics returns process-local live-event stream counters.
-func (s *MyEventsService) Metrics() MyEventsMetrics {
+func (s *MyEventsModel) Metrics() MyEventsMetrics {
 	return MyEventsMetrics{
 		ActiveStreams:     s.activeStreams.Load(),
 		DeliveredEvents:   s.deliveredEvents.Load(),
@@ -119,7 +119,7 @@ func (c *ChattoCore) StreamMyEventsWithOptions(ctx context.Context, userID strin
 	return c.myEvents().StreamMyEvents(ctx, userID, options)
 }
 
-func (s *MyEventsService) StreamMyEvents(ctx context.Context, userID string, options StreamMyEventsOptions) (<-chan EventEnvelope, error) {
+func (s *MyEventsModel) StreamMyEvents(ctx context.Context, userID string, options StreamMyEventsOptions) (<-chan EventEnvelope, error) {
 	c := s.core
 
 	// memberRooms is the per-subscription visibility cache: the user receives
@@ -148,7 +148,7 @@ func (s *MyEventsService) StreamMyEvents(ctx context.Context, userID string, opt
 	}
 	slowEVTConsumerCh := liveEVTSub.StatusChanged(nats.SubscriptionSlowConsumer)
 
-	presenceSub, err := c.presenceService.Subscribe(ctx)
+	presenceSub, err := c.presenceModel.Subscribe(ctx)
 	if err != nil {
 		liveSyncSub.Unsubscribe()
 		liveEVTSub.Unsubscribe()
@@ -189,7 +189,7 @@ func (s *MyEventsService) StreamMyEvents(ctx context.Context, userID string, opt
 			c.logger.Debug("Server event stream closed", "user_id", userID)
 			liveSyncSub.Unsubscribe()
 			liveEVTSub.Unsubscribe()
-			c.presenceService.Unsubscribe(presenceSub)
+			c.presenceModel.Unsubscribe(presenceSub)
 			close(eventChan)
 		}()
 
@@ -281,7 +281,7 @@ func (s *MyEventsService) StreamMyEvents(ctx context.Context, userID string, opt
 // populateMemberRoomsCache (re)builds the per-subscription room visibility set
 // in place. The cache contains every channel room the user is an explicit
 // member of, plus every DM room they participate in.
-func (s *MyEventsService) populateMemberRoomsCache(ctx context.Context, userID string, memberRooms map[string]struct{}) error {
+func (s *MyEventsModel) populateMemberRoomsCache(ctx context.Context, userID string, memberRooms map[string]struct{}) error {
 	for k := range memberRooms {
 		delete(memberRooms, k)
 	}
@@ -313,7 +313,7 @@ func (s *MyEventsService) populateMemberRoomsCache(ctx context.Context, userID s
 // close the stream because a deliverable event could not be made projection-safe;
 // the client will resubscribe and refresh projected state. Mutates memberRooms
 // when the subscriber themselves joins/leaves a room or when a room is deleted.
-func (s *MyEventsService) filterLiveEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg) (EventEnvelope, bool, bool) {
+func (s *MyEventsModel) filterLiveEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg) (EventEnvelope, bool, bool) {
 	if strings.HasPrefix(msg.Subject, "live.sync.") {
 		var live corev1.LiveEvent
 		if err := proto.Unmarshal(msg.Data, &live); err != nil {
@@ -342,7 +342,7 @@ func (c *ChattoCore) filterLiveSyncEvent(ctx context.Context, userID string, mem
 	return c.myEvents().filterLiveSyncEvent(ctx, userID, memberRooms, msg, event)
 }
 
-func (s *MyEventsService) filterLiveSyncEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *corev1.LiveEvent) (EventEnvelope, bool) {
+func (s *MyEventsModel) filterLiveSyncEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *corev1.LiveEvent) (EventEnvelope, bool) {
 	if event == nil || event.Event == nil {
 		s.core.logger.Warn("Dropping live sync event without payload", "subject", msg.Subject)
 		return nil, false
@@ -374,7 +374,7 @@ func (s *MyEventsService) filterLiveSyncEvent(ctx context.Context, userID string
 	return NewLiveEventEnvelope(event), true
 }
 
-func (s *MyEventsService) filterLiveEVTEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *corev1.Event) (EventEnvelope, bool, bool) {
+func (s *MyEventsModel) filterLiveEVTEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *corev1.Event) (EventEnvelope, bool, bool) {
 	seq := liveEVTMsgSeq(msg)
 	if seq == 0 {
 		s.core.logger.Warn("live EVT message missing stream sequence", "subject", msg.Subject, "sequence", msg.Header.Get(nats.JSSequence))
@@ -445,7 +445,7 @@ func liveEVTMsgSeq(msg *nats.Msg) uint64 {
 	return seq
 }
 
-func (s *MyEventsService) filterReadyEVTRoomSubjectEvent(userID string, memberRooms map[string]struct{}, roomID string, event *corev1.Event, seq uint64) (EventEnvelope, bool) {
+func (s *MyEventsModel) filterReadyEVTRoomSubjectEvent(userID string, memberRooms map[string]struct{}, roomID string, event *corev1.Event, seq uint64) (EventEnvelope, bool) {
 	if roomID == "" || event == nil || !isDeliverableLiveEVTRoomEvent(event) || seq == 0 {
 		return nil, false
 	}
@@ -493,7 +493,7 @@ func (s *MyEventsService) filterReadyEVTRoomSubjectEvent(userID string, memberRo
 	return NewEVTEventEnvelopeWithDeliverySeq(event, seq), true
 }
 
-func (s *MyEventsService) filterReadyEVTAssetSubjectEvent(userID string, memberRooms map[string]struct{}, roomID string, event *corev1.Event, seq uint64) (EventEnvelope, bool) {
+func (s *MyEventsModel) filterReadyEVTAssetSubjectEvent(userID string, memberRooms map[string]struct{}, roomID string, event *corev1.Event, seq uint64) (EventEnvelope, bool) {
 	if roomID == "" || event == nil || !isDeliverableLiveEVTAssetEvent(event) || seq == 0 {
 		return nil, false
 	}
@@ -503,7 +503,7 @@ func (s *MyEventsService) filterReadyEVTAssetSubjectEvent(userID string, memberR
 	return NewEVTEventEnvelopeWithDeliverySeq(event, seq), true
 }
 
-func (s *MyEventsService) waitForLiveEVTRoomEvent(ctx context.Context, subject string, event *corev1.Event, seq uint64) error {
+func (s *MyEventsModel) waitForLiveEVTRoomEvent(ctx context.Context, subject string, event *corev1.Event, seq uint64) error {
 	pos := events.SubjectPosition(subject, seq)
 	if err := s.core.rooms().waitForLiveEVTEvent(ctx, pos, event); err != nil {
 		return err
@@ -523,12 +523,12 @@ func (s *MyEventsService) waitForLiveEVTRoomEvent(ctx context.Context, subject s
 	return nil
 }
 
-func (s *MyEventsService) waitForLiveEVTAssetEvent(ctx context.Context, subject string, seq uint64) error {
+func (s *MyEventsModel) waitForLiveEVTAssetEvent(ctx context.Context, subject string, seq uint64) error {
 	return s.core.assetLifecycle().waitForAssets(ctx, events.SubjectPosition(subject, seq))
 }
 
-func (s *MyEventsService) waitForLiveEVTUserEvent(ctx context.Context, subject string, seq uint64) error {
-	return s.core.userService.waitForUsers(ctx, events.SubjectPosition(subject, seq))
+func (s *MyEventsModel) waitForLiveEVTUserEvent(ctx context.Context, subject string, seq uint64) error {
+	return s.core.userModel.waitForUsers(ctx, events.SubjectPosition(subject, seq))
 }
 
 // isAuthorizedForLiveEvent checks whether a user can receive a non-room
@@ -537,7 +537,7 @@ func (c *ChattoCore) isAuthorizedForLiveEvent(ctx context.Context, userID, subje
 	return c.myEvents().isAuthorizedForLiveEvent(ctx, userID, subject)
 }
 
-func (s *MyEventsService) isAuthorizedForLiveEvent(_ context.Context, userID, subject string) bool {
+func (s *MyEventsModel) isAuthorizedForLiveEvent(_ context.Context, userID, subject string) bool {
 	parts := strings.Split(subject, ".")
 	if len(parts) < 3 || parts[0] != "live" || parts[1] != "sync" {
 		s.core.logger.Warn("Invalid live event subject format", "subject", subject)

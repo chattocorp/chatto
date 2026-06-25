@@ -20,21 +20,21 @@ type MarkThreadAsReadResult struct {
 	PreviousReadAt time.Time
 }
 
-// ReadState returns the operation-level service for user-facing read marker
+// ReadState returns the operation-level model for user-facing read marker
 // updates. Public transports should authenticate at the edge, pass the actor
-// ID here, and let this service own membership checks and anchor validation.
-func (c *ChattoCore) ReadState() *ReadStateService {
-	return c.readStateService
+// ID here, and let this model own membership checks and anchor validation.
+func (c *ChattoCore) ReadState() *ReadStateModel {
+	return c.readStateModel
 }
 
-// ReadStateService owns user-facing read marker mutations. Lower-level marker
-// helpers stay available for trusted/internal callers, while this service keeps
+// ReadStateModel owns user-facing read marker mutations. Lower-level marker
+// helpers stay available for trusted/internal callers, while this model keeps
 // public API authorization and anchor semantics in one place.
-type ReadStateService struct {
+type ReadStateModel struct {
 	core *ChattoCore
 }
 
-func (s *ReadStateService) MarkRoomAsRead(ctx context.Context, actorID, roomID, upToEventID string) (*MarkRoomAsReadResult, error) {
+func (s *ReadStateModel) MarkRoomAsRead(ctx context.Context, actorID, roomID, upToEventID string) (*MarkRoomAsReadResult, error) {
 	room, kind, err := s.core.requireRoomMember(ctx, actorID, roomID)
 	if err != nil {
 		return nil, err
@@ -93,7 +93,7 @@ func (s *ReadStateService) MarkRoomAsRead(ctx context.Context, actorID, roomID, 
 	return result, nil
 }
 
-func (s *ReadStateService) MarkThreadAsRead(ctx context.Context, actorID, roomID, threadRootEventID, upToEventID string) (*MarkThreadAsReadResult, error) {
+func (s *ReadStateModel) MarkThreadAsRead(ctx context.Context, actorID, roomID, threadRootEventID, upToEventID string) (*MarkThreadAsReadResult, error) {
 	room, kind, err := s.core.requireRoomMember(ctx, actorID, roomID)
 	if err != nil {
 		return nil, err
@@ -129,7 +129,7 @@ func (s *ReadStateService) MarkThreadAsRead(ctx context.Context, actorID, roomID
 	return &MarkThreadAsReadResult{PreviousReadAt: previousReadAt}, nil
 }
 
-func (s *ReadStateService) roomReadAnchor(ctx context.Context, kind RoomKind, roomID, eventID string) (eventIDOut string, ts time.Time, found bool, err error) {
+func (s *ReadStateModel) roomReadAnchor(ctx context.Context, kind RoomKind, roomID, eventID string) (eventIDOut string, ts time.Time, found bool, err error) {
 	if strings.TrimSpace(eventID) == "" {
 		return "", time.Time{}, false, nil
 	}
@@ -150,7 +150,7 @@ func (s *ReadStateService) roomReadAnchor(ctx context.Context, kind RoomKind, ro
 	return event.Id, time.Time{}, true, nil
 }
 
-func (s *ReadStateService) threadReadAnchor(ctx context.Context, kind RoomKind, roomID, threadRootEventID, eventID string) (string, error) {
+func (s *ReadStateModel) threadReadAnchor(ctx context.Context, kind RoomKind, roomID, threadRootEventID, eventID string) (string, error) {
 	if strings.TrimSpace(eventID) == "" {
 		return "", nil
 	}

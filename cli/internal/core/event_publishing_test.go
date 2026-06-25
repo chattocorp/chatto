@@ -252,8 +252,8 @@ func TestStreamMyEvents_ClosesWhenLiveEVTProjectionReadinessFails(t *testing.T) 
 	// projection readiness wait fails immediately, matching the production
 	// failure mode without waiting for the timeout.
 	wrongProjector := harness.projector(NewAssetProjection())
-	core := &ChattoCore{logger: testServiceLogger()}
-	core.roomService = newRoomService(
+	core := &ChattoCore{logger: testCoreLogger()}
+	core.roomModel = newRoomModel(
 		nil,
 		nil,
 		nil,
@@ -265,7 +265,7 @@ func TestStreamMyEvents_ClosesWhenLiveEVTProjectionReadinessFails(t *testing.T) 
 		nil,
 		nil,
 	)
-	service := NewMyEventsService(core)
+	service := NewMyEventsModel(core)
 	msg := &nats.Msg{
 		Subject: events.LiveSubjectRoot + strings.TrimPrefix(subject, events.SubjectRoot),
 		Header:  nats.Header{nats.JSSequence: []string{strconv.FormatUint(seq, 10)}},
@@ -309,7 +309,7 @@ func TestMyEventsFilter_DeliversUniversalDisableToPriorEffectiveMember(t *testin
 		t.Fatalf("RoomMembershipExists after disable = %v, %v; want false, nil", exists, err)
 	}
 
-	service := NewMyEventsService(core)
+	service := NewMyEventsModel(core)
 	memberRooms := map[string]struct{}{room.Id: {}}
 	event := &corev1.Event{
 		Id:      NewEventID(),

@@ -87,7 +87,7 @@ func parsePresenceKey(key string) (userID string, ok bool) {
 
 // GetUserPresence retrieves a user's current presence status.
 // Returns "OFFLINE" if the user has no presence entry (never connected or TTL expired).
-func (s *PresenceService) GetUserPresence(ctx context.Context, userID string) (string, error) {
+func (s *PresenceModel) GetUserPresence(ctx context.Context, userID string) (string, error) {
 	entry, err := s.memoryCacheKV.Get(ctx, presenceKey(userID))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
@@ -111,14 +111,14 @@ func (s *PresenceService) GetUserPresence(ctx context.Context, userID string) (s
 
 // SetPresence writes/refreshes a user's live presence in MEMORY_CACHE.
 // Authorization: Caller must verify the user is authenticated before calling.
-func (s *PresenceService) SetPresence(ctx context.Context, userID string, status string) error {
+func (s *PresenceModel) SetPresence(ctx context.Context, userID string, status string) error {
 	return s.SetPresenceWithOptions(ctx, userID, status, false)
 }
 
 // SetPresenceWithOptions writes/refreshes a user's live presence in MEMORY_CACHE.
 // manuallySet marks explicit user-selected Away/DND so automatic reports from
 // other clients do not overwrite the user's chosen availability.
-func (s *PresenceService) SetPresenceWithOptions(ctx context.Context, userID string, status string, manuallySet bool) error {
+func (s *PresenceModel) SetPresenceWithOptions(ctx context.Context, userID string, status string, manuallySet bool) error {
 	presence := &corev1.UserPresence{
 		Status:      presenceStatusFromString(status),
 		ManuallySet: manuallySet && status != PresenceStatusOnline,
@@ -139,7 +139,7 @@ func (s *PresenceService) SetPresenceWithOptions(ctx context.Context, userID str
 // Uses optimistic locking (kv.Update with revision) to avoid overwriting a concurrent
 // SetPresence call from updateMyPresence. If the revision has changed between Get and
 // Update, the newer value is preserved and we silently skip the refresh.
-func (s *PresenceService) refreshPresence(ctx context.Context, userID string) error {
+func (s *PresenceModel) refreshPresence(ctx context.Context, userID string) error {
 	key := presenceKey(userID)
 	entry, err := s.memoryCacheKV.Get(ctx, key)
 	if err != nil {
@@ -165,7 +165,7 @@ func (s *PresenceService) refreshPresence(ctx context.Context, userID string) er
 	return nil
 }
 
-func (s *PresenceService) writePresence(ctx context.Context, key string, data []byte, forceOverwrite bool) error {
+func (s *PresenceModel) writePresence(ctx context.Context, key string, data []byte, forceOverwrite bool) error {
 	for attempt := 0; attempt < maxPresenceWriteRetries; attempt++ {
 		entry, err := s.memoryCacheKV.Get(ctx, key)
 		if err != nil {
@@ -211,7 +211,7 @@ func shouldIgnoreAutomaticPresenceWrite(existingData, incomingData []byte) bool 
 	return !incoming.ManuallySet
 }
 
-func (s *PresenceService) putPresenceWithTTL(ctx context.Context, key string, data []byte, revision uint64) (uint64, error) {
+func (s *PresenceModel) putPresenceWithTTL(ctx context.Context, key string, data []byte, revision uint64) (uint64, error) {
 	ack, err := s.js.Publish(
 		ctx,
 		"$KV.MEMORY_CACHE."+key,
@@ -228,19 +228,19 @@ func (s *PresenceService) putPresenceWithTTL(ctx context.Context, key string, da
 // GetUserPresence retrieves a user's current presence status.
 // Returns "OFFLINE" if the user has no presence entry (never connected or TTL expired).
 func (c *ChattoCore) GetUserPresence(ctx context.Context, userID string) (string, error) {
-	return c.presenceService.GetUserPresence(ctx, userID)
+	return c.presenceModel.GetUserPresence(ctx, userID)
 }
 
 // SetPresence writes/refreshes a user's live presence in MEMORY_CACHE.
 // Authorization: Caller must verify the user is authenticated before calling.
 func (c *ChattoCore) SetPresence(ctx context.Context, userID string, status string) error {
-	return c.presenceService.SetPresence(ctx, userID, status)
+	return c.presenceModel.SetPresence(ctx, userID, status)
 }
 
 func (c *ChattoCore) SetPresenceWithOptions(ctx context.Context, userID string, status string, manuallySet bool) error {
-	return c.presenceService.SetPresenceWithOptions(ctx, userID, status, manuallySet)
+	return c.presenceModel.SetPresenceWithOptions(ctx, userID, status, manuallySet)
 }
 
 func (c *ChattoCore) refreshPresence(ctx context.Context, userID string) error {
-	return c.presenceService.refreshPresence(ctx, userID)
+	return c.presenceModel.refreshPresence(ctx, userID)
 }

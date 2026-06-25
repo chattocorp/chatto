@@ -304,14 +304,14 @@ func TestMoveRoomToSet_FromSourceRejectsChangedSourceAfterOCCRetry(t *testing.T)
 	groupLayoutProjector := harness.projector(groupLayout)
 	core := &ChattoCore{
 		nc:                       harness.nc,
-		logger:                   testServiceLogger(),
+		logger:                   testCoreLogger(),
 		EventPublisher:           harness.publisher,
 		RoomGroupLayout:          groupLayout,
 		RoomGroupLayoutProjector: groupLayoutProjector,
 		RoomGroups:               groupLayout.Groups,
 		RoomLayout:               groupLayout.Layout,
 	}
-	core.roomService = newRoomService(nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
+	core.roomModel = newRoomModel(nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
 
 	eventsToAppend := []*corev1.Event{
 		newEvent("actor", groupCreatedEvent("G-source", "Source", "")),
@@ -372,14 +372,14 @@ func TestMoveRoomToSet_TargetCreatedBeforeProjectionCatchup(t *testing.T) {
 	groupLayoutProjector := harness.projector(groupLayout)
 	core := &ChattoCore{
 		nc:                       harness.nc,
-		logger:                   testServiceLogger(),
+		logger:                   testCoreLogger(),
 		EventPublisher:           harness.publisher,
 		RoomGroupLayout:          groupLayout,
 		RoomGroupLayoutProjector: groupLayoutProjector,
 		RoomGroups:               groupLayout.Groups,
 		RoomLayout:               groupLayout.Layout,
 	}
-	core.roomService = newRoomService(nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
+	core.roomModel = newRoomModel(nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
 
 	created := newEvent("actor", &corev1.Event{
 		Event: &corev1.Event_RoomGroupCreated{
@@ -426,14 +426,14 @@ func TestMoveRoomToSet_IdempotentNoopRefreshesStaleSnapshot(t *testing.T) {
 	groupLayoutProjector := harness.projector(groupLayout)
 	core := &ChattoCore{
 		nc:                       harness.nc,
-		logger:                   testServiceLogger(),
+		logger:                   testCoreLogger(),
 		EventPublisher:           harness.publisher,
 		RoomGroupLayout:          groupLayout,
 		RoomGroupLayoutProjector: groupLayoutProjector,
 		RoomGroups:               groupLayout.Groups,
 		RoomLayout:               groupLayout.Layout,
 	}
-	core.roomService = newRoomService(nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
+	core.roomModel = newRoomModel(nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
 
 	eventsToAppend := []*corev1.Event{
 		newEvent("actor", groupCreatedEvent("G-target", "Target", "")),

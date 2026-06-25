@@ -13,46 +13,46 @@ import (
 	"hmans.de/chatto/pkg/signedurl"
 )
 
-func TestNewMediaServiceWiresCore(t *testing.T) {
+func TestNewMediaModelWiresCore(t *testing.T) {
 	core := &ChattoCore{}
 
-	service := NewMediaService(core)
+	service := NewMediaModel(core)
 
 	if service.ChattoCore != core {
 		t.Fatal("core facade was not wired")
 	}
 }
 
-func TestChattoCoreMediaLazilyInitializesService(t *testing.T) {
+func TestChattoCoreMediaLazilyInitializesModel(t *testing.T) {
 	core := &ChattoCore{}
 
 	first := core.media()
 	second := core.media()
 
 	if first == nil {
-		t.Fatal("media service was not initialized")
+		t.Fatal("media model was not initialized")
 	}
 	if first != second {
-		t.Fatal("media service was not reused")
+		t.Fatal("media model was not reused")
 	}
-	if core.mediaService != first {
-		t.Fatal("media service was not stored on core")
+	if core.mediaModel != first {
+		t.Fatal("media model was not stored on core")
 	}
 	if first.ChattoCore != core {
-		t.Fatal("media service does not point at its core facade")
+		t.Fatal("media model does not point at its core facade")
 	}
 }
 
-func TestMediaServiceUploadAttachmentStoresAndProjectsAsset(t *testing.T) {
+func TestMediaModelUploadAttachmentStoresAndProjectsAsset(t *testing.T) {
 	core, _ := setupTestCore(t)
-	service := core.mediaService
+	service := core.mediaModel
 	ctx := testContext(t)
 
 	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "media-service", "Media service")
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	attachment, err := service.UploadAttachment(ctx, SystemActorID, room.Id, "note.txt", "text/plain", bytes.NewReader([]byte("hello media service")))
+	attachment, err := service.UploadAttachment(ctx, SystemActorID, room.Id, "note.txt", "text/plain", bytes.NewReader([]byte("hello media model")))
 	if err != nil {
 		t.Fatalf("UploadAttachment returned error: %v", err)
 	}
@@ -87,19 +87,19 @@ func TestMediaServiceUploadAttachmentStoresAndProjectsAsset(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadAll attachment: %v", err)
 	}
-	if string(data) != "hello media service" {
-		t.Fatalf("stored attachment = %q, want %q", string(data), "hello media service")
+	if string(data) != "hello media model" {
+		t.Fatalf("stored attachment = %q, want %q", string(data), "hello media model")
 	}
 	if info.ContentType != "text/plain" {
 		t.Fatalf("content type = %q, want %q", info.ContentType, "text/plain")
 	}
 }
 
-func TestMediaServiceUploadAttachmentRequiresActor(t *testing.T) {
+func TestMediaModelUploadAttachmentRequiresActor(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	_, err := core.mediaService.UploadAttachment(ctx, "", "R-missing", "note.txt", "text/plain", bytes.NewReader([]byte("body")))
+	_, err := core.mediaModel.UploadAttachment(ctx, "", "R-missing", "note.txt", "text/plain", bytes.NewReader([]byte("body")))
 	if err == nil {
 		t.Fatal("UploadAttachment with missing actor returned nil error")
 	}
@@ -108,9 +108,9 @@ func TestMediaServiceUploadAttachmentRequiresActor(t *testing.T) {
 	}
 }
 
-func TestMediaServiceUploadDerivativeAttachmentProjectsParentage(t *testing.T) {
+func TestMediaModelUploadDerivativeAttachmentProjectsParentage(t *testing.T) {
 	core, _ := setupTestCore(t)
-	service := core.mediaService
+	service := core.mediaModel
 	ctx := testContext(t)
 
 	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "media-derivative", "Media derivative")
@@ -145,9 +145,9 @@ func TestMediaServiceUploadDerivativeAttachmentProjectsParentage(t *testing.T) {
 	}
 }
 
-func TestMediaServiceCacheOperations(t *testing.T) {
+func TestMediaModelCacheOperations(t *testing.T) {
 	core, _ := setupTestCoreWithCache(t)
-	service := core.mediaService
+	service := core.mediaModel
 	ctx := testContext(t)
 	key := ImageCacheKey(AttachmentSignResource, "A-cache", 64, 64, "cover")
 
@@ -180,9 +180,9 @@ func TestMediaServiceCacheOperations(t *testing.T) {
 	}
 }
 
-func TestMediaServiceDeleteAttachmentFromStorageDeletesBinaryAndCache(t *testing.T) {
+func TestMediaModelDeleteAttachmentFromStorageDeletesBinaryAndCache(t *testing.T) {
 	core, _ := setupTestCoreWithCache(t)
-	service := core.mediaService
+	service := core.mediaModel
 	ctx := testContext(t)
 
 	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "media-delete", "Media delete")
@@ -209,10 +209,10 @@ func TestMediaServiceDeleteAttachmentFromStorageDeletesBinaryAndCache(t *testing
 	}
 }
 
-func TestMediaServiceStableAttachmentURLs(t *testing.T) {
+func TestMediaModelStableAttachmentURLs(t *testing.T) {
 	core, _ := setupTestCore(t)
 	core.AssetBaseURL = "https://assets.example"
-	service := core.mediaService
+	service := core.mediaModel
 
 	stable := service.GetStableAttachmentAssetURL("A-url", "U-url")
 	if stable.URL == "" {
@@ -247,10 +247,10 @@ func TestMediaServiceStableAttachmentURLs(t *testing.T) {
 	}
 }
 
-func TestMediaServiceSignedAttachmentURLs(t *testing.T) {
+func TestMediaModelSignedAttachmentURLs(t *testing.T) {
 	core, _ := setupTestCore(t)
 	core.AssetBaseURL = "https://assets.example"
-	service := core.mediaService
+	service := core.mediaModel
 	loc := signedurl.AttachmentLocator{RoomID: "R-url", BodyKey: "E-url", AttachmentID: "A-url"}
 
 	rawURL := service.GetAttachmentURL(loc, "U-url")
@@ -285,7 +285,7 @@ func TestMediaServiceSignedAttachmentURLs(t *testing.T) {
 	}
 }
 
-func TestMediaServiceAttachmentLocatorHelpers(t *testing.T) {
+func TestMediaModelAttachmentLocatorHelpers(t *testing.T) {
 	attachment := &corev1.Attachment{Id: "A-loc", RoomId: "R-loc", MessageBodyId: "E-default"}
 
 	body := LocatorForBodyAttachment(attachment, "")
@@ -303,7 +303,7 @@ func TestMediaServiceAttachmentLocatorHelpers(t *testing.T) {
 	}
 }
 
-func TestMediaServiceAttachmentNeedsVideoProcessing(t *testing.T) {
+func TestMediaModelAttachmentNeedsVideoProcessing(t *testing.T) {
 	tests := []struct {
 		name        string
 		attachment  *corev1.Attachment
@@ -325,9 +325,9 @@ func TestMediaServiceAttachmentNeedsVideoProcessing(t *testing.T) {
 	}
 }
 
-func TestAssetServiceVideoProcessingLifecycle(t *testing.T) {
+func TestAssetModelVideoProcessingLifecycle(t *testing.T) {
 	core, _ := setupTestCore(t)
-	media := core.mediaService
+	media := core.mediaModel
 	service := core.assetLifecycle()
 	ctx := testContext(t)
 
@@ -396,7 +396,7 @@ func TestAssetServiceVideoProcessingLifecycle(t *testing.T) {
 	}
 }
 
-func TestAssetServiceRecordAssetDeletedRequiresActor(t *testing.T) {
+func TestAssetModelRecordAssetDeletedRequiresActor(t *testing.T) {
 	core, _ := setupTestCore(t)
 	service := core.assetLifecycle()
 	ctx := testContext(t)
@@ -410,9 +410,9 @@ func TestAssetServiceRecordAssetDeletedRequiresActor(t *testing.T) {
 	}
 }
 
-func TestAssetServiceProcessingDoesNotAppendAfterAssetDeleted(t *testing.T) {
+func TestAssetModelProcessingDoesNotAppendAfterAssetDeleted(t *testing.T) {
 	core, _ := setupTestCore(t)
-	media := core.mediaService
+	media := core.mediaModel
 	service := core.assetLifecycle()
 	ctx := testContext(t)
 
@@ -443,9 +443,9 @@ func TestAssetServiceProcessingDoesNotAppendAfterAssetDeleted(t *testing.T) {
 	}
 }
 
-func TestAssetServiceSkippedVideoManifestCleansUpDerivativeOutputs(t *testing.T) {
+func TestAssetModelSkippedVideoManifestCleansUpDerivativeOutputs(t *testing.T) {
 	core, _ := setupTestCore(t)
-	media := core.mediaService
+	media := core.mediaModel
 	service := core.assetLifecycle()
 	ctx := testContext(t)
 
@@ -500,9 +500,9 @@ func TestAssetServiceSkippedVideoManifestCleansUpDerivativeOutputs(t *testing.T)
 	}
 }
 
-func TestAssetServicePublishAssetProcessingRejectsRoomMismatch(t *testing.T) {
+func TestAssetModelPublishAssetProcessingRejectsRoomMismatch(t *testing.T) {
 	core, _ := setupTestCore(t)
-	media := core.mediaService
+	media := core.mediaModel
 	service := core.assetLifecycle()
 	ctx := testContext(t)
 
@@ -535,9 +535,9 @@ func TestAssetServicePublishAssetProcessingRejectsRoomMismatch(t *testing.T) {
 	}
 }
 
-func TestAssetServiceDeleteVideoDerivativesUsesInheritedAssetRoom(t *testing.T) {
+func TestAssetModelDeleteVideoDerivativesUsesInheritedAssetRoom(t *testing.T) {
 	core, _ := setupTestCore(t)
-	media := core.mediaService
+	media := core.mediaModel
 	service := core.assetLifecycle()
 	ctx := testContext(t)
 
@@ -586,9 +586,9 @@ func TestAssetServiceDeleteVideoDerivativesUsesInheritedAssetRoom(t *testing.T) 
 	}
 }
 
-func TestMediaServiceMessageBodyAttachmentLookups(t *testing.T) {
+func TestMediaModelMessageBodyAttachmentLookups(t *testing.T) {
 	core, _ := setupTestCore(t)
-	service := core.mediaService
+	service := core.mediaModel
 	ctx := testContext(t)
 
 	user, err := core.CreateUser(ctx, SystemActorID, "media-lookup-user", "Media Lookup", "password123")

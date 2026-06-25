@@ -40,7 +40,7 @@ func newTestEventHarness(t *testing.T) *testEventHarness {
 		nc:        nc,
 		js:        js,
 		stream:    stream,
-		publisher: events.NewPublisher(js, stream, testServiceLogger()),
+		publisher: events.NewPublisher(js, stream, testCoreLogger()),
 	}
 }
 
@@ -55,7 +55,7 @@ func testEventProjector(t *testing.T) *events.Projector {
 }
 
 func (h *testEventHarness) projector(proj events.Projection) *events.Projector {
-	return events.NewProjector(h.js, h.stream, proj, testServiceLogger())
+	return events.NewProjector(h.js, h.stream, proj, testCoreLogger())
 }
 
 func startTestProjector(t *testing.T, projector *events.Projector) {
@@ -81,6 +81,6 @@ func startTestProjector(t *testing.T, projector *events.Projector) {
 	}
 }
 
-func testServiceLogger() *log.Logger {
+func testCoreLogger() *log.Logger {
 	return log.New(io.Discard)
 }

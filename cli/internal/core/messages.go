@@ -180,7 +180,7 @@ func (c *ChattoCore) appendThreadReplyEcho(
 			return "", false, fmt.Errorf("read echo OCC tail: %w", err)
 		}
 		if expectedSeq > 0 {
-			if err := c.roomService.waitForTimeline(ctx, events.SubjectPosition(messageSubject, expectedSeq)); err != nil {
+			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(messageSubject, expectedSeq)); err != nil {
 				return "", false, err
 			}
 		}
@@ -237,7 +237,7 @@ func (c *ChattoCore) appendThreadReplyEcho(
 		})
 		if err == nil {
 			echoSeq := seqs[len(seqs)-1]
-			if err := c.roomService.waitForTimeline(ctx, events.SubjectPosition(messageSubject, echoSeq)); err != nil {
+			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(messageSubject, echoSeq)); err != nil {
 				return echoID, true, err
 			}
 			c.logger.Info("Thread reply echo posted",
@@ -269,7 +269,7 @@ func (c *ChattoCore) hideChannelEchoForReply(ctx context.Context, actorID string
 			return fmt.Errorf("read echo retract OCC tail: %w", err)
 		}
 		if expectedSeq > 0 {
-			if err := c.roomService.waitForTimeline(ctx, events.SubjectPosition(retractSubject, expectedSeq)); err != nil {
+			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(retractSubject, expectedSeq)); err != nil {
 				return err
 			}
 		}
@@ -288,7 +288,7 @@ func (c *ChattoCore) hideChannelEchoForReply(ctx context.Context, actorID string
 		})
 		seq, err := c.EventPublisher.AppendAt(ctx, retractSubject, event, expectedSeq)
 		if err == nil {
-			if err := c.roomService.waitForTimeline(ctx, events.SubjectPosition(retractSubject, seq)); err != nil {
+			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(retractSubject, seq)); err != nil {
 				return err
 			}
 			c.logger.Info("Message echo hidden", "kind", kind, "room_id", roomID, "event_id", echoID, "actor_id", actorID)

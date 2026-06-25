@@ -27,18 +27,18 @@ const maxConfigUpdateRetries = 5
 // Writes are event-only (publish to EVT + WaitForSeq for read-your-writes).
 // Reads come from the in-memory ConfigProjection.
 type ConfigManager struct {
-	service    *ConfigService
+	model      *ConfigModel
 	projection *ConfigProjection
 }
 
 // NewConfigManager creates a server-config compatibility facade over the
-// semantic ConfigService / ConfigProjection.
+// semantic ConfigModel / ConfigProjection.
 func NewConfigManager(
-	service *ConfigService,
+	model *ConfigModel,
 	projection *ConfigProjection,
 ) *ConfigManager {
 	return &ConfigManager{
-		service:    service,
+		model:      model,
 		projection: projection,
 	}
 }
@@ -79,12 +79,12 @@ func (cm *ConfigManager) UpdateServerConfigFunc(
 	actorID string,
 	updateFn func(current *configv1.ServerConfig) (*configv1.ServerConfig, error),
 ) (*configv1.ServerConfig, error) {
-	if cm.service == nil {
+	if cm.model == nil {
 		return nil, fmt.Errorf("config manager: event publisher/projector not configured")
 	}
 
 	for attempt := 0; attempt < maxConfigUpdateRetries; attempt++ {
-		agg, filter, expectedSeq, err := cm.service.prepareSubject(ctx, ConfigSubjectServer)
+		agg, filter, expectedSeq, err := cm.model.prepareSubject(ctx, ConfigSubjectServer)
 		if err != nil {
 			return nil, err
 		}
@@ -100,7 +100,7 @@ func (cm *ConfigManager) UpdateServerConfigFunc(
 			return nil, err
 		}
 
-		err = cm.service.appendEventsAt(ctx, agg, filter, expectedSeq, serverConfigEvents(actorID, baseline, updated))
+		err = cm.model.appendEventsAt(ctx, agg, filter, expectedSeq, serverConfigEvents(actorID, baseline, updated))
 		if err == nil {
 			return updated, nil
 		}
@@ -115,14 +115,14 @@ func (cm *ConfigManager) UpdateServerConfigFunc(
 // config aggregate and waiting for the projection to apply, giving the caller
 // read-your-writes.
 func (cm *ConfigManager) publish(ctx context.Context, actorID string, cfg *configv1.ServerConfig) error {
-	if cm.service == nil {
+	if cm.model == nil {
 		return fmt.Errorf("config manager: event publisher/projector not configured")
 	}
 	if err := validateServerConfig(cfg); err != nil {
 		return err
 	}
 
-	return cm.service.updateSubject(ctx, ConfigSubjectServer, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+	return cm.model.updateSubject(ctx, ConfigSubjectServer, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
 		return serverConfigEvents(actorID, cm.effectiveConfigForUpdate(), cfg), nil
 	})
 }

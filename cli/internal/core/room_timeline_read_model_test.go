@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestRoomTimelineReadServiceRequiresMembership(t *testing.T) {
+func TestRoomTimelineReadModelRequiresMembership(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -48,7 +48,7 @@ func TestRoomTimelineReadServiceRequiresMembership(t *testing.T) {
 	}
 }
 
-func TestRoomTimelineReadServiceValidatesThreadRoot(t *testing.T) {
+func TestRoomTimelineReadModelValidatesThreadRoot(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -98,7 +98,7 @@ func TestRoomTimelineReadServiceValidatesThreadRoot(t *testing.T) {
 	}
 }
 
-func TestRoomTimelineReadServiceThreadAroundComputesTargetIndex(t *testing.T) {
+func TestRoomTimelineReadModelThreadAroundComputesTargetIndex(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

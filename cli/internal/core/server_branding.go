@@ -114,8 +114,8 @@ func (c *ChattoCore) SetServerBanner(ctx context.Context, actorID string, asset 
 // SetServerLogo / SetServerBanner. Publishes ServerUpdatedEvent on
 // success so subscribers can refetch the updated branding.
 func (c *ChattoCore) setServerBrandingAsset(ctx context.Context, actorID, kind string, asset *corev1.AssetRecord) error {
-	if c.configManager == nil || c.configManager.service == nil || c.ServerConfig == nil {
-		return fmt.Errorf("config service not configured")
+	if c.configManager == nil || c.configManager.model == nil || c.ServerConfig == nil {
+		return fmt.Errorf("config model not configured")
 	}
 	if asset == nil {
 		return c.deleteServerBrandingAsset(ctx, actorID, kind)
@@ -123,7 +123,7 @@ func (c *ChattoCore) setServerBrandingAsset(ctx context.Context, actorID, kind s
 
 	var oldAsset *corev1.AssetRecord
 	changed := false
-	err := c.configManager.service.updateSubject(ctx, ConfigSubjectServer, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+	err := c.configManager.model.updateSubject(ctx, ConfigSubjectServer, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
 		oldAsset = c.projectedServerBrandingAsset(kind)
 		if assetRecordsEqual(oldAsset, asset) {
 			changed = false
@@ -235,13 +235,13 @@ func (c *ChattoCore) DeleteServerBanner(ctx context.Context, actorID string) err
 }
 
 func (c *ChattoCore) deleteServerBrandingAsset(ctx context.Context, actorID, kind string) error {
-	if c.configManager == nil || c.configManager.service == nil || c.ServerConfig == nil {
-		return fmt.Errorf("config service not configured")
+	if c.configManager == nil || c.configManager.model == nil || c.ServerConfig == nil {
+		return fmt.Errorf("config model not configured")
 	}
 
 	var asset *corev1.AssetRecord
 	changed := false
-	err := c.configManager.service.updateSubject(ctx, ConfigSubjectServer, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+	err := c.configManager.model.updateSubject(ctx, ConfigSubjectServer, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
 		asset = c.projectedServerBrandingAsset(kind)
 		if asset == nil {
 			changed = false

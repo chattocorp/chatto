@@ -86,7 +86,7 @@ func startCoreServices(t *testing.T, core *ChattoCore) {
 	}
 }
 
-func TestNewChattoCoreInitializesOperationServices(t *testing.T) {
+func TestNewChattoCoreInitializesOperationModels(t *testing.T) {
 	core, _ := setupTestCore(t)
 
 	if core.NotificationPreferences() == nil {
@@ -101,8 +101,8 @@ func TestNewChattoCoreInitializesOperationServices(t *testing.T) {
 	if core.ThreadFollows() == nil {
 		t.Fatal("ThreadFollows() = nil")
 	}
-	if core.ReactionsService() == nil {
-		t.Fatal("ReactionsService() = nil")
+	if core.ReactionModel() == nil {
+		t.Fatal("ReactionModel() = nil")
 	}
 }
 

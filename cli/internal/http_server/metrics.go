@@ -79,7 +79,8 @@ type chattoCollector struct {
 	myEventsSlowDisconnects *prometheus.Desc
 	presenceRefreshes       *prometheus.Desc
 	presenceFailures        *prometheus.Desc
-	serviceInfo             *prometheus.Desc
+	modelInfo               *prometheus.Desc
+	legacyServiceInfo       *prometheus.Desc
 	natsConnected           *prometheus.Desc
 	natsRTT                 *prometheus.Desc
 	natsMessages            *prometheus.Desc
@@ -149,9 +150,15 @@ func newChattoCollector(server *HTTPServer) *chattoCollector {
 			nil,
 			nil,
 		),
-		serviceInfo: prometheus.NewDesc(
+		modelInfo: prometheus.NewDesc(
+			"chatto_model_info",
+			"Registered core model in this Chatto process.",
+			[]string{"model"},
+			nil,
+		),
+		legacyServiceInfo: prometheus.NewDesc(
 			"chatto_service_info",
-			"Registered core runtime service in this Chatto process.",
+			"Deprecated compatibility alias for chatto_model_info.",
 			[]string{"service"},
 			nil,
 		),
@@ -257,7 +264,8 @@ func (c *chattoCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.myEventsSlowDisconnects
 	ch <- c.presenceRefreshes
 	ch <- c.presenceFailures
-	ch <- c.serviceInfo
+	ch <- c.modelInfo
+	ch <- c.legacyServiceInfo
 	ch <- c.natsConnected
 	ch <- c.natsRTT
 	ch <- c.natsMessages
@@ -334,8 +342,9 @@ func (c *chattoCollector) collectCoreMetrics(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(c.myEventsSlowDisconnects, prometheus.CounterValue, float64(myEvents.SlowDisconnects))
 	ch <- prometheus.MustNewConstMetric(c.presenceRefreshes, prometheus.CounterValue, float64(myEvents.PresenceRefreshes))
 	ch <- prometheus.MustNewConstMetric(c.presenceFailures, prometheus.CounterValue, float64(myEvents.PresenceFailures))
-	for _, service := range c.server.core.ServiceMetadata() {
-		ch <- prometheus.MustNewConstMetric(c.serviceInfo, prometheus.GaugeValue, 1, service.Key)
+	for _, model := range c.server.core.ModelMetadata() {
+		ch <- prometheus.MustNewConstMetric(c.modelInfo, prometheus.GaugeValue, 1, model.Key)
+		ch <- prometheus.MustNewConstMetric(c.legacyServiceInfo, prometheus.GaugeValue, 1, model.LegacyServiceKey)
 	}
 
 	projections, err := c.server.core.ProjectionAdminStates(ctx)

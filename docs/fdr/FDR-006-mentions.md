@@ -30,7 +30,7 @@ Users can mention users, roles, and room-scoped virtual groups with `@handle` sy
 
 ### 1. One shared `@` namespace
 
-**Decision:** Users, roles, and virtual handles all use `@handle`. User logins cannot use existing role names or virtual handles, and custom role names cannot use existing user logins or virtual handles. A mentionables service derives the shared handle map from existing user and RBAC events; handle-changing user and role writes check that projection under a stream-wide OCC boundary so concurrent user/role writes cannot commit the same mention handle.
+**Decision:** Users, roles, and virtual handles all use `@handle`. User logins cannot use existing role names or virtual handles, and custom role names cannot use existing user logins or virtual handles. A mentionables model derives the shared handle map from existing user and RBAC events; handle-changing user and role writes check that projection under a stream-wide OCC boundary so concurrent user/role writes cannot commit the same mention handle.
 **Why:** Users already understand `@` as "direct attention". A second prefix would make role mentions harder to discover and harder to tab-complete. A single case-insensitive namespace keeps parsing and autocomplete predictable.
 **Tradeoff:** A server cannot have a user and role with the same mention handle. Early 0.1.x servers can resolve any existing collisions manually.
 

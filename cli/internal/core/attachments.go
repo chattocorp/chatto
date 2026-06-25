@@ -24,7 +24,7 @@ import (
 
 // GetAttachmentsStore returns the ObjectStore for attachments.
 // Uses lazy-loading and caching for efficiency.
-func (c *MediaService) GetAttachmentsStore(ctx context.Context) (jetstream.ObjectStore, error) {
+func (c *MediaModel) GetAttachmentsStore(ctx context.Context) (jetstream.ObjectStore, error) {
 	return c.storage.serverAssets, nil
 }
 
@@ -42,7 +42,7 @@ func (c *MediaService) GetAttachmentsStore(ctx context.Context) (jetstream.Objec
 // asset's user_id, distinct from any future message_event_id that might
 // claim the asset. The returned Attachment has `MessageBodyId` empty — the
 // asset is not (yet) bound to a message; PostMessage references it by id.
-func (c *MediaService) UploadAttachment(
+func (c *MediaModel) UploadAttachment(
 	ctx context.Context,
 	actorID string,
 	roomID string,
@@ -78,7 +78,7 @@ func (c *MediaService) UploadAttachment(
 // (NATS object store or S3) and returns the rendered Attachment proto. No
 // event is emitted — callers are responsible for emitting AssetCreatedEvent
 // with the right owner shape (user upload vs derivative).
-func (c *MediaService) uploadAttachmentBinary(
+func (c *MediaModel) uploadAttachmentBinary(
 	ctx context.Context,
 	roomID string,
 	filename string,
@@ -173,7 +173,7 @@ func (c *MediaService) uploadAttachmentBinary(
 // knows this asset is a child of `parentAssetID` (thumbnails, transcoded
 // video variants, etc.). Always attributed to SystemActorID — derivatives
 // are produced by workers, not user actions.
-func (c *MediaService) UploadDerivativeAttachment(
+func (c *MediaModel) UploadDerivativeAttachment(
 	ctx context.Context,
 	parentAssetID string,
 	derivativeRole corev1.AssetDerivativeRole,
@@ -209,7 +209,7 @@ type StableAssetURL struct {
 // GetAttachment retrieves an attachment by ID from NATS ObjectStore.
 // This is the legacy path for attachments stored in NATS.
 // Returns a reader for the attachment content and the object info.
-func (c *MediaService) GetAttachment(ctx context.Context, attachmentID string) (io.Reader, *jetstream.ObjectInfo, error) {
+func (c *MediaModel) GetAttachment(ctx context.Context, attachmentID string) (io.Reader, *jetstream.ObjectInfo, error) {
 	store, err := c.GetAttachmentsStore(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get attachments store: %w", err)
@@ -235,7 +235,7 @@ func (c *MediaService) GetAttachment(ctx context.Context, attachmentID string) (
 // AttachmentInfo.RoomID is NOT populated here — S3 has no equivalent of
 // the NATS `Room-Id` header. Callers that need authorization should
 // instead look up the canonical Attachment record via GetAttachmentRecord.
-func (c *MediaService) GetS3Attachment(ctx context.Context, s3Key string) (io.ReadCloser, *AttachmentInfo, error) {
+func (c *MediaModel) GetS3Attachment(ctx context.Context, s3Key string) (io.ReadCloser, *AttachmentInfo, error) {
 	if c.s3Client == nil {
 		return nil, nil, fmt.Errorf("S3 client not configured")
 	}
@@ -260,7 +260,7 @@ func (c *MediaService) GetS3Attachment(ctx context.Context, s3Key string) (io.Re
 // for the binary by attachment ID — this handles pre-locator video
 // variants and thumbnails whose backfilled Attachment protos came from
 // minimal standalone records that lacked a `Storage` field.
-func (c *MediaService) GetAttachmentReader(ctx context.Context, attachment *corev1.Attachment) (io.Reader, *AttachmentInfo, error) {
+func (c *MediaModel) GetAttachmentReader(ctx context.Context, attachment *corev1.Attachment) (io.Reader, *AttachmentInfo, error) {
 	if attachment == nil {
 		return nil, nil, fmt.Errorf("attachment is nil")
 	}
@@ -297,7 +297,7 @@ func (c *MediaService) GetAttachmentReader(ctx context.Context, attachment *core
 //
 // This is load-bearing for older video variants and thumbnails whose
 // attachment protos have no Storage field, so we probe.
-func (c *MediaService) probeAttachmentReaderByID(ctx context.Context, attachmentID string) (io.Reader, *AttachmentInfo, error) {
+func (c *MediaModel) probeAttachmentReaderByID(ctx context.Context, attachmentID string) (io.Reader, *AttachmentInfo, error) {
 	reader, natsInfo, err := c.GetAttachment(ctx, attachmentID)
 	if err == nil {
 		return reader, &AttachmentInfo{
@@ -451,7 +451,7 @@ func cloneAssetRecord(asset *corev1.AssetRecord) *corev1.AssetRecord {
 // missing. The returned Attachment is the in-memory copy from the body
 // proto with `MessageBodyId` populated, so callers can use it to
 // construct signed URLs directly.
-func (c *MediaService) FindBodyAttachment(ctx context.Context, bodyKey, attachmentID string) (*corev1.Attachment, error) {
+func (c *MediaModel) FindBodyAttachment(ctx context.Context, bodyKey, attachmentID string) (*corev1.Attachment, error) {
 	if bodyKey == "" || attachmentID == "" {
 		return nil, nil
 	}
@@ -479,7 +479,7 @@ func (c *MediaService) FindBodyAttachment(ctx context.Context, bodyKey, attachme
 // asset_ids (current format) and falling back to the legacy embedded
 // attachments slice otherwise. The returned slice preserves the body's
 // declared order; missing projection entries are skipped.
-func (c *MediaService) MessageBodyAttachments(body *corev1.MessageBody) []*corev1.Attachment {
+func (c *MediaModel) MessageBodyAttachments(body *corev1.MessageBody) []*corev1.Attachment {
 	if body == nil {
 		return nil
 	}
@@ -507,7 +507,7 @@ func (c *MediaService) MessageBodyAttachments(body *corev1.MessageBody) []*corev
 // from the durable video manifest keyed by the original video's attachment
 // ID. Returns (nil, nil) if the manifest is missing or doesn't contain an
 // attachment with the given ID.
-func (c *MediaService) FindVideoOriginAttachment(ctx context.Context, videoOriginID, attachmentID string) (*corev1.Attachment, error) {
+func (c *MediaModel) FindVideoOriginAttachment(ctx context.Context, videoOriginID, attachmentID string) (*corev1.Attachment, error) {
 	if videoOriginID == "" || attachmentID == "" {
 		return nil, nil
 	}
@@ -542,7 +542,7 @@ func (c *MediaService) FindVideoOriginAttachment(ctx context.Context, videoOrigi
 //   - VideoOrigin set: legacy lookup via VideoProcessingState.
 //   - Neither set: new asset-as-aggregate lookup — fetch the asset
 //     directly from the projection by AttachmentID.
-func (c *MediaService) LookupAttachment(ctx context.Context, loc signedurl.AttachmentLocator) (*corev1.Attachment, error) {
+func (c *MediaModel) LookupAttachment(ctx context.Context, loc signedurl.AttachmentLocator) (*corev1.Attachment, error) {
 	if err := loc.Validate(); err != nil {
 		return nil, err
 	}
@@ -562,7 +562,7 @@ func (c *MediaService) LookupAttachment(ctx context.Context, loc signedurl.Attac
 // DeleteAttachmentFromStorage deletes an attachment's binary and its
 // cached resizes. When Storage is missing for legacy imported derivatives,
 // it falls back to known backend key layouts by attachment ID.
-func (c *MediaService) DeleteAttachmentFromStorage(ctx context.Context, attachment *corev1.Attachment) error {
+func (c *MediaModel) DeleteAttachmentFromStorage(ctx context.Context, attachment *corev1.Attachment) error {
 	if attachment == nil {
 		return fmt.Errorf("attachment is nil")
 	}
@@ -572,7 +572,7 @@ func (c *MediaService) DeleteAttachmentFromStorage(ctx context.Context, attachme
 	return deleteErr
 }
 
-func (c *MediaService) deleteAttachmentBinary(ctx context.Context, attachment *corev1.Attachment) error {
+func (c *MediaModel) deleteAttachmentBinary(ctx context.Context, attachment *corev1.Attachment) error {
 	if attachment.Storage == nil {
 		return c.deleteAttachmentBinaryByID(ctx, attachment.Id)
 	}
@@ -600,7 +600,7 @@ func (c *MediaService) deleteAttachmentBinary(ctx context.Context, attachment *c
 	return nil
 }
 
-func (c *MediaService) deleteAttachmentBinaryByID(ctx context.Context, attachmentID string) error {
+func (c *MediaModel) deleteAttachmentBinaryByID(ctx context.Context, attachmentID string) error {
 	if attachmentID == "" {
 		return fmt.Errorf("attachment has no id")
 	}
@@ -638,7 +638,7 @@ func (c *MediaService) deleteAttachmentBinaryByID(ctx context.Context, attachmen
 	return natsErr
 }
 
-func (c *MediaService) deleteCachedResizesForAttachment(ctx context.Context, attachmentID string) {
+func (c *MediaModel) deleteCachedResizesForAttachment(ctx context.Context, attachmentID string) {
 	deletedCount, cacheErr := c.DeleteCachedResizesForAttachment(ctx, attachmentID)
 	if cacheErr != nil {
 		c.logger.Warn("Failed to delete cached resizes for attachment",
@@ -660,7 +660,7 @@ func (c *MediaService) deleteCachedResizesForAttachment(ctx context.Context, att
 // layouts. See `GetAttachmentReader` for why this exists.
 //
 // Authorization is the caller's responsibility.
-func (c *MediaService) TryPresignedAttachmentURL(ctx context.Context, attachment *corev1.Attachment) (string, error) {
+func (c *MediaModel) TryPresignedAttachmentURL(ctx context.Context, attachment *corev1.Attachment) (string, error) {
 	if c.s3Client == nil {
 		return "", fmt.Errorf("S3 not configured")
 	}
@@ -684,7 +684,7 @@ func (c *MediaService) TryPresignedAttachmentURL(ctx context.Context, attachment
 // probePresignedAttachmentURL is the fallback when an Attachment's
 // `Storage` field isn't populated and the binary might live in S3.
 // Stats the known key layouts; presigns the first hit.
-func (c *MediaService) probePresignedAttachmentURL(ctx context.Context, attachmentID string) (string, error) {
+func (c *MediaModel) probePresignedAttachmentURL(ctx context.Context, attachmentID string) (string, error) {
 	for _, s3Key := range legacyAttachmentS3KeyCandidates(attachmentID) {
 		if _, err := c.s3Client.StatObject(ctx, s3Key); err != nil {
 			continue
@@ -737,7 +737,7 @@ const AssetAccessTicketTTL = time.Hour
 // Returns an empty string if `userID` is empty or the locator is
 // otherwise invalid (a programmer error — locators come from trusted
 // resolver code, not user input).
-func (c *MediaService) GetAttachmentURL(loc signedurl.AttachmentLocator, userID string) string {
+func (c *MediaModel) GetAttachmentURL(loc signedurl.AttachmentLocator, userID string) string {
 	loc.UserID = userID
 	loc.ExpiresAt = time.Now().Add(AttachmentURLTTL).Unix()
 	signed, err := signedurl.SignedAttachmentLocator(c.config.Assets.SigningSecret, loc)
@@ -759,7 +759,7 @@ func (c *MediaService) GetAttachmentURL(loc signedurl.AttachmentLocator, userID 
 //
 // `userID` and `AttachmentURLTTL`-bounded expiry are baked into the
 // signed locator — see GetAttachmentURL.
-func (c *MediaService) GetTransformedAttachmentURL(loc signedurl.AttachmentLocator, userID string, width, height int, fit string) string {
+func (c *MediaModel) GetTransformedAttachmentURL(loc signedurl.AttachmentLocator, userID string, width, height int, fit string) string {
 	loc.UserID = userID
 	loc.ExpiresAt = time.Now().Add(AttachmentURLTTL).Unix()
 	signedLoc, err := signedurl.SignedAttachmentLocator(c.config.Assets.SigningSecret, loc)
@@ -775,13 +775,13 @@ func (c *MediaService) GetTransformedAttachmentURL(loc signedurl.AttachmentLocat
 // path identifies the asset; the asset-scoped access ticket authorizes the
 // viewer so browsers and standalone clients can load the URL directly from the
 // owning host without custom headers.
-func (c *MediaService) GetStableAttachmentURL(assetID, userID string) string {
+func (c *MediaModel) GetStableAttachmentURL(assetID, userID string) string {
 	return c.GetStableAttachmentAssetURL(assetID, userID).URL
 }
 
 // GetStableAttachmentAssetURL returns the canonical URL for an asset binary
 // together with the exact expiry embedded in its access ticket.
-func (c *MediaService) GetStableAttachmentAssetURL(assetID, userID string) StableAssetURL {
+func (c *MediaModel) GetStableAttachmentAssetURL(assetID, userID string) StableAssetURL {
 	if assetID == "" || userID == "" {
 		return StableAssetURL{}
 	}
@@ -795,14 +795,14 @@ func (c *MediaService) GetStableAttachmentAssetURL(assetID, userID string) Stabl
 // GetStableTransformedAttachmentURL returns the canonical URL for a derived
 // image form factor. The dimensions are visible in the URL; authorization is a
 // scoped access ticket.
-func (c *MediaService) GetStableTransformedAttachmentURL(assetID, userID string, width, height int, fit string) string {
+func (c *MediaModel) GetStableTransformedAttachmentURL(assetID, userID string, width, height int, fit string) string {
 	return c.GetStableTransformedAttachmentAssetURL(assetID, userID, width, height, fit).URL
 }
 
 // GetStableTransformedAttachmentAssetURL returns the canonical URL for a
 // derived image form factor together with the exact expiry embedded in its
 // access ticket.
-func (c *MediaService) GetStableTransformedAttachmentAssetURL(assetID, userID string, width, height int, fit string) StableAssetURL {
+func (c *MediaModel) GetStableTransformedAttachmentAssetURL(assetID, userID string, width, height int, fit string) StableAssetURL {
 	if assetID == "" || userID == "" {
 		return StableAssetURL{}
 	}
@@ -824,7 +824,7 @@ func (c *MediaService) GetStableTransformedAttachmentAssetURL(assetID, userID st
 	}
 }
 
-func (c *MediaService) stableAttachmentPathWithAccess(assetID, userID, path string, params *signedurl.TransformParams, expiresAt time.Time) string {
+func (c *MediaModel) stableAttachmentPathWithAccess(assetID, userID, path string, params *signedurl.TransformParams, expiresAt time.Time) string {
 	if path == "" {
 		path = fmt.Sprintf("/assets/files/%s", url.PathEscape(assetID))
 	}
@@ -881,7 +881,7 @@ func LocatorForVideoOriginAttachment(roomID, videoOriginID, attachmentID string)
 // The URL includes HMAC signature to prevent parameter tampering.
 // Format: /assets/server/{key}/t/{params}.{signature}
 // where {params} is base64url-encoded JSON: {"w":width,"h":height,"f":"fit"}
-func (c *MediaService) GetTransformedServerAssetURL(key string, width, height int, fit string) string {
+func (c *MediaModel) GetTransformedServerAssetURL(key string, width, height int, fit string) string {
 	// Generate signed transform path component using the server asset resource ID.
 	signedPath := signedurl.SignedTransformPath(c.config.Assets.SigningSecret, ServerAssetSignResource, key, width, height, fit)
 
@@ -894,7 +894,7 @@ func (c *MediaService) GetTransformedServerAssetURL(key string, width, height in
 // ============================================================================
 
 // ImageCacheEnabled returns whether the image resize cache is enabled.
-func (c *MediaService) ImageCacheEnabled() bool {
+func (c *MediaModel) ImageCacheEnabled() bool {
 	return c.storage.imageCacheStore != nil
 }
 
@@ -909,7 +909,7 @@ func ImageCacheKey(spaceID, attachmentID string, width, height int, fit string) 
 
 // GetCachedResize retrieves a cached resized image.
 // Returns nil, nil if the cache is disabled or the key is not found.
-func (c *MediaService) GetCachedResize(ctx context.Context, key string) ([]byte, error) {
+func (c *MediaModel) GetCachedResize(ctx context.Context, key string) ([]byte, error) {
 	if c.storage.imageCacheStore == nil {
 		return nil, nil
 	}
@@ -932,7 +932,7 @@ func (c *MediaService) GetCachedResize(ctx context.Context, key string) ([]byte,
 
 // StoreCachedResize stores a resized image in the cache.
 // Does nothing if the cache is disabled.
-func (c *MediaService) StoreCachedResize(ctx context.Context, key string, data []byte) error {
+func (c *MediaModel) StoreCachedResize(ctx context.Context, key string, data []byte) error {
 	if c.storage.imageCacheStore == nil {
 		return nil
 	}
@@ -956,20 +956,20 @@ func (c *MediaService) StoreCachedResize(ctx context.Context, key string, data [
 // cache entries written under a {server|DM} prefix are not cleaned up
 // and are left to age out — the transform-URL signer always uses the
 // kind-less prefix now, so no lookups land on them.
-func (c *MediaService) DeleteCachedResizesForAttachment(ctx context.Context, attachmentID string) (int, error) {
+func (c *MediaModel) DeleteCachedResizesForAttachment(ctx context.Context, attachmentID string) (int, error) {
 	return c.DeleteCachedResizesForKey(ctx, AttachmentSignResource, attachmentID)
 }
 
 // DeleteCachedResizesForServerAsset deletes all cached resizes for a server
 // asset such as a user avatar or server branding image.
-func (c *MediaService) DeleteCachedResizesForServerAsset(ctx context.Context, assetID string) (int, error) {
+func (c *MediaModel) DeleteCachedResizesForServerAsset(ctx context.Context, assetID string) (int, error) {
 	return c.DeleteCachedResizesForKey(ctx, ServerAssetSignResource, assetID)
 }
 
 // DeleteCachedResizesForKey deletes all cached resizes for a given prefix and asset key.
 // Returns the number of deleted cache entries and any error encountered.
 // Does nothing if the cache is disabled.
-func (c *MediaService) DeleteCachedResizesForKey(ctx context.Context, prefix, assetKey string) (int, error) {
+func (c *MediaModel) DeleteCachedResizesForKey(ctx context.Context, prefix, assetKey string) (int, error) {
 	if prefix == "" || assetKey == "" {
 		return 0, nil
 	}

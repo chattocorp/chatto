@@ -40,22 +40,22 @@ type ChattoCore struct {
 	config             config.CoreConfig
 	encryption         *encryptionManager
 	configManager      *ConfigManager
-	roomService        *RoomService
-	messageService     *MessageService
-	notificationPrefs  *NotificationPreferencesService
-	roomTimelineReads  *RoomTimelineReadService
-	readStateService   *ReadStateService
-	threadFollows      *ThreadFollowService
-	reactionService    *ReactionService
-	userService        *UserService
-	rbacService        *RBACService
-	mentionables       *MentionablesService
-	myEventsService    *MyEventsService
-	presenceService    *PresenceService
-	mediaService       *MediaService
-	callService        *CallService
-	assetService       *AssetService
-	services           []serviceRegistration
+	roomModel          *RoomModel
+	messageModel       *MessageModel
+	notificationPrefs  *NotificationPreferencesModel
+	roomTimelineReads  *RoomTimelineReadModel
+	readStateModel     *ReadStateModel
+	threadFollows      *ThreadFollowModel
+	reactionModel      *ReactionModel
+	userModel          *UserModel
+	rbacModel          *RBACModel
+	mentionables       *MentionablesModel
+	myEventsModel      *MyEventsModel
+	presenceModel      *PresenceModel
+	mediaModel         *MediaModel
+	callModel          *CallModel
+	assetModel         *AssetModel
+	models             []modelRegistration
 	s3Client           *S3Client            // Optional S3 client for S3-compatible storage
 	permissionResolver *PermissionResolver  // Hierarchical permission resolver
 	linkPreviewCache   *linkpreview.Cache   // Cache for link preview metadata
@@ -87,8 +87,8 @@ type ChattoCore struct {
 	// Set from webserver.url config: scheme + host only (no trailing slash).
 	AssetBaseURL string
 
-	// PresenceHub is the compatibility handle for PresenceService's per-process
-	// fanout hub. Started by (*ChattoCore).Run through PresenceService.
+	// PresenceHub is the compatibility handle for PresenceModel's per-process
+	// fanout hub. Started by (*ChattoCore).Run through PresenceModel.
 	PresenceHub *PresenceHub
 
 	// EventPublisher writes to the EVT event-sourcing stream
@@ -229,9 +229,9 @@ type ChattoCore struct {
 	bootDone chan struct{}
 }
 
-// Run starts every background service owned by the core — currently
-// PresenceService and every registered projector — and blocks until ctx is
-// cancelled or any service returns an error. Returns the first error
+// Run starts every background component owned by the core — currently
+// PresenceModel, CallModel, and every registered projector — and blocks until
+// ctx is cancelled or any component returns an error. Returns the first error
 // observed (or ctx.Err on shutdown).
 //
 // Call this once per process from an errgroup goroutine; tests typically
@@ -298,8 +298,8 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 		return nil
 	})
 
-	g.Go(func() error { return c.presenceService.Run(gctx) })
-	g.Go(func() error { return c.callService.Run(gctx) })
+	g.Go(func() error { return c.presenceModel.Run(gctx) })
+	g.Go(func() error { return c.callModel.Run(gctx) })
 
 	return g.Wait()
 }
@@ -466,7 +466,7 @@ func (c *ChattoCore) DeleteUserEncryptionKeyAs(ctx context.Context, actorID, use
 		return nil // Encryption not configured
 	}
 
-	if err := c.userService.waitForContentKeysCurrent(ctx, userID); err != nil {
+	if err := c.userModel.waitForContentKeysCurrent(ctx, userID); err != nil {
 		return err
 	}
 
@@ -951,9 +951,9 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	mentionables := NewMentionablesProjection(encMgr.keyWrapper, encMgr.contentKeys)
 	mentionablesProjector := newProjector(mentionables, "mentionables", "Mentionables", mentionables.adminProjectionEstimate)
 
-	configService := NewConfigService(eventPublisher, serverConfigProjector, serverConfigProjection)
-	configMgr := NewConfigManager(configService, serverConfigProjection)
-	roomMgr := newRoomService(
+	configModel := NewConfigModel(eventPublisher, serverConfigProjector, serverConfigProjection)
+	configMgr := NewConfigManager(configModel, serverConfigProjection)
+	roomMgr := newRoomModel(
 		roomDirectory,
 		roomDirectoryProjector,
 		roomGroupLayout,
@@ -965,9 +965,9 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		reactions,
 		reactionsProjector,
 	)
-	userMgr := newUserService(eventPublisher, users, usersProjector, contentKeys, contentKeysProjector)
-	rbacMgr := newRBACService(rbac, rbacProjector)
-	mentionablesMgr := newMentionablesService(mentionables, mentionablesProjector)
+	userMgr := newUserModel(eventPublisher, users, usersProjector, contentKeys, contentKeysProjector)
+	rbacMgr := newRBACModel(rbac, rbacProjector)
+	mentionablesMgr := newMentionablesModel(mentionables, mentionablesProjector)
 
 	core := &ChattoCore{
 		nc:                       nc,
@@ -977,9 +977,9 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		config:                   cfg,
 		encryption:               encMgr,
 		configManager:            configMgr,
-		roomService:              roomMgr,
-		userService:              userMgr,
-		rbacService:              rbacMgr,
+		roomModel:                roomMgr,
+		userModel:                userMgr,
+		rbacModel:                rbacMgr,
 		mentionables:             mentionablesMgr,
 		s3Client:                 s3Client,
 		EventPublisher:           eventPublisher,
@@ -1028,15 +1028,15 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		return nil, fmt.Errorf("failed to initialize call reconciler lease: %w", err)
 	}
 
-	core.mediaService = NewMediaService(core)
-	core.callService = NewCallService(eventPublisher, callState, callStateProjector, encMgr.callKeys, nil, callReconcileLease, storage.memoryCacheKV, logger.WithPrefix("core.CallService"))
-	core.assetService = NewAssetService(core)
-	core.messageService = &MessageService{core: core}
-	core.notificationPrefs = &NotificationPreferencesService{core: core}
-	core.roomTimelineReads = &RoomTimelineReadService{core: core}
-	core.readStateService = &ReadStateService{core: core}
-	core.threadFollows = &ThreadFollowService{core: core}
-	core.reactionService = &ReactionService{core: core}
+	core.mediaModel = NewMediaModel(core)
+	core.callModel = NewCallModel(eventPublisher, callState, callStateProjector, encMgr.callKeys, nil, callReconcileLease, storage.memoryCacheKV, logger.WithPrefix("core.CallModel"))
+	core.assetModel = NewAssetModel(core)
+	core.messageModel = &MessageModel{core: core}
+	core.notificationPrefs = &NotificationPreferencesModel{core: core}
+	core.roomTimelineReads = &RoomTimelineReadModel{core: core}
+	core.readStateModel = &ReadStateModel{core: core}
+	core.threadFollows = &ThreadFollowModel{core: core}
+	core.reactionModel = &ReactionModel{core: core}
 
 	if err := core.seedDefaultRBAC(ctx); err != nil {
 		return nil, fmt.Errorf("failed to seed default RBAC: %w", err)
@@ -1056,31 +1056,31 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	// (when projectors haven't been started yet) would leave orphan
 	// rooms in any subsequent SeedDefaultRooms call.
 
-	// Initialize presence service (single KV watcher per process). Started
+	// Initialize presence model (single KV watcher per process). Started
 	// by core.Run alongside the projectors.
-	core.presenceService = NewPresenceService(js, storage.memoryCacheKV, logger)
-	core.PresenceHub = core.presenceService.hub
-	core.myEventsService = NewMyEventsService(core)
-	core.services = []serviceRegistration{
+	core.presenceModel = NewPresenceModel(js, storage.memoryCacheKV, logger)
+	core.PresenceHub = core.presenceModel.hub
+	core.myEventsModel = NewMyEventsModel(core)
+	core.models = []modelRegistration{
 		{key: "chatto_core", name: "Chatto Core"},
 		{key: "event_publisher", name: "Event Publisher"},
-		{key: "config_service", name: "Config Service"},
+		{key: "config_model", name: "Config Model", legacyServiceKey: "config_service"},
 		{key: "config_manager", name: "Config Manager"},
-		{key: "notification_preferences_service", name: "Notification Preferences Service"},
-		{key: "message_service", name: "Message Service"},
-		{key: "reaction_service", name: "Reaction Service"},
-		{key: "room_timeline_read_service", name: "Room Timeline Read Service"},
-		{key: "read_state_service", name: "Read State Service"},
-		{key: "thread_follow_service", name: "Thread Follow Service"},
-		{key: "room_service", name: "Room Service"},
-		{key: "user_service", name: "User Service"},
-		{key: "rbac_service", name: "RBAC Service"},
-		{key: "mentionables_service", name: "Mentionables Service"},
-		{key: "presence_service", name: "Presence Service"},
-		{key: "my_events_service", name: "My Events Service"},
-		{key: "call_service", name: "Call Service"},
-		{key: "media_service", name: "Media Service"},
-		{key: "asset_service", name: "Asset Service"},
+		{key: "notification_preferences_model", name: "Notification Preferences Model", legacyServiceKey: "notification_preferences_service"},
+		{key: "message_model", name: "Message Model", legacyServiceKey: "message_service"},
+		{key: "reaction_model", name: "Reaction Model", legacyServiceKey: "reaction_service"},
+		{key: "room_timeline_read_model", name: "Room Timeline Read Model", legacyServiceKey: "room_timeline_read_service"},
+		{key: "read_state_model", name: "Read State Model", legacyServiceKey: "read_state_service"},
+		{key: "thread_follow_model", name: "Thread Follow Model", legacyServiceKey: "thread_follow_service"},
+		{key: "room_model", name: "Room Model", legacyServiceKey: "room_service"},
+		{key: "user_model", name: "User Model", legacyServiceKey: "user_service"},
+		{key: "rbac_model", name: "RBAC Model", legacyServiceKey: "rbac_service"},
+		{key: "mentionables_model", name: "Mentionables Model", legacyServiceKey: "mentionables_service"},
+		{key: "presence_model", name: "Presence Model", legacyServiceKey: "presence_service"},
+		{key: "my_events_model", name: "My Events Model", legacyServiceKey: "my_events_service"},
+		{key: "call_model", name: "Call Model", legacyServiceKey: "call_service"},
+		{key: "media_model", name: "Media Model", legacyServiceKey: "media_service"},
+		{key: "asset_model", name: "Asset Model", legacyServiceKey: "asset_service"},
 	}
 
 	return core, nil

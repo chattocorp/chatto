@@ -14,7 +14,7 @@ Without a shared convention, new ConnectRPC methods can drift in several risky w
 - request-size limits, protobuf validation, and error mapping can diverge service by service;
 - generated public API docs and client bindings can fall out of sync with service implementation.
 
-ConnectRPC should remain a transport boundary. Chatto's domain behavior still belongs in core services and projections, especially for event-sourced writes where authorization, OCC, projection readiness, and replay compatibility must stay consistent.
+ConnectRPC should remain a transport boundary. Chatto's domain behavior still belongs in core models and projections, especially for event-sourced writes where authorization, OCC, projection readiness, and replay compatibility must stay consistent.
 
 ## Decision
 
@@ -32,16 +32,16 @@ Connect service methods use `requireCaller` for authenticated methods. They do n
 
 Every public Connect handler uses the shared `connectapi.HandlerOptions()` set. That set includes the public request-size limit and the protovalidate interceptor. Authenticated services should authenticate first, then decode and validate requests.
 
-Protobuf validation handles stable wire-shape constraints such as required IDs, simple length bounds, enum domains, and pagination limits. Semantic validation remains in core operation services when it depends on permissions, room kind, projections, persisted state, or domain-specific invariants.
+Protobuf validation handles stable wire-shape constraints such as required IDs, simple length bounds, enum domains, and pagination limits. Semantic validation remains in core operation models when it depends on permissions, room kind, projections, persisted state, or domain-specific invariants.
 
-Public operation behavior should be centralized in focused core services. ConnectRPC handlers, future protobuf WebSocket RPC handlers, and temporary GraphQL compatibility resolvers should call the same operation service for the same user-facing action. Transports are responsible for:
+Public operation behavior should be centralized in focused core models. ConnectRPC handlers, future protobuf WebSocket RPC handlers, and temporary GraphQL compatibility resolvers should call the same operation model for the same user-facing action. Transports are responsible for:
 
 - authenticating the caller;
-- translating protocol messages into service inputs;
-- translating service outputs into protocol responses;
-- mapping service/domain errors to transport errors.
+- translating protocol messages into model inputs;
+- translating model outputs into protocol responses;
+- mapping model/domain errors to transport errors.
 
-Core operation services are responsible for:
+Core operation models are responsible for:
 
 - operation-specific authorization;
 - room kind and membership resolution;
@@ -59,7 +59,7 @@ Adding a new public ConnectRPC service requires the same change set:
 - `connectapi.API.Handlers()` registration with an explicit auth policy;
 - tests that lock service path and auth policy;
 - transport tests for auth-before-validation and validation behavior where applicable;
-- operation tests for authorization and response semantics at the shared core service boundary;
+- operation tests for authorization and response semantics at the shared core model boundary;
 - updates to `docs/ARCHITECTURE.md` and relevant FDRs;
 - docs website sidebar/reference wiring when a new generated reference page is introduced.
 
@@ -69,7 +69,7 @@ ConnectRPC services become predictable to review: public surface, auth policy, v
 
 Some small mapping code remains in each handler. That is intentional. The handler layer should be thin and explicit rather than hiding service behavior behind broad reflection or generic transport abstractions.
 
-Authorization moves out of GraphQL resolvers for migrated operations. This reduces transport drift, but it means older core helpers can coexist with newer operation services. Trusted/internal callers may still use lower-level helpers; public transports should use operation services.
+Authorization moves out of GraphQL resolvers for migrated operations. This reduces transport drift, but it means older core helpers can coexist with newer operation models. Trusted/internal callers may still use lower-level helpers; public transports should use operation models.
 
 Authenticated malformed requests return unauthenticated before validation when no caller is present. Authenticated malformed requests then return validation errors. Tests should preserve that ordering because clients and security reviews will depend on it.
 

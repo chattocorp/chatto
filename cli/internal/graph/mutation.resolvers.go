@@ -776,7 +776,7 @@ func (r *mutationResolver) AddReaction(ctx context.Context, input model.AddReact
 	if err != nil {
 		return false, err
 	}
-	return r.core.ReactionsService().AddReaction(ctx, core.ReactionMutationInput{
+	return r.core.ReactionModel().AddReaction(ctx, core.ReactionMutationInput{
 		ActorID:        user.Id,
 		RoomID:         input.RoomID,
 		MessageEventID: input.MessageEventID,
@@ -790,7 +790,7 @@ func (r *mutationResolver) RemoveReaction(ctx context.Context, input model.Remov
 	if err != nil {
 		return false, err
 	}
-	return r.core.ReactionsService().RemoveReaction(ctx, core.ReactionMutationInput{
+	return r.core.ReactionModel().RemoveReaction(ctx, core.ReactionMutationInput{
 		ActorID:        user.Id,
 		RoomID:         input.RoomID,
 		MessageEventID: input.MessageEventID,

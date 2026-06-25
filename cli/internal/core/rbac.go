@@ -200,7 +200,7 @@ func (c *ChattoCore) ListAdmins(ctx context.Context) ([]string, error) {
 
 // AssignServerRole assigns any role to a user.
 // The role must exist (system or custom). The everyone role cannot be assigned (it's implicit).
-// Authorization is enforced by the API boundary (`role.assign`); this service
+// Authorization is enforced by the API boundary (`role.assign`); this model
 // method validates role existence and writes the assignment fact.
 func (c *ChattoCore) AssignServerRole(ctx context.Context, actorID, userID, roleName string) error {
 	if roleName == RoleEveryone {

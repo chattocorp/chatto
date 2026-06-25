@@ -133,12 +133,12 @@ func TestChattoCore_AddReactionRefreshesStaleNoopSnapshot(t *testing.T) {
 	reactions := NewReactionProjection()
 	reactionsProjector := harness.projector(reactions)
 	core := &ChattoCore{
-		logger:             testServiceLogger(),
+		logger:             testCoreLogger(),
 		EventPublisher:     harness.publisher,
 		Reactions:          reactions,
 		ReactionsProjector: reactionsProjector,
 	}
-	core.roomService = newRoomService(nil, nil, nil, nil, nil, nil, nil, nil, reactions, reactionsProjector)
+	core.roomModel = newRoomModel(nil, nil, nil, nil, nil, nil, nil, nil, reactions, reactionsProjector)
 
 	addedOnOtherReplica := newReactionAddedEvent("U1", "R1", "M1", "thumbsup")
 	addSubject := events.RoomAggregate("R1").SubjectFor(addedOnOtherReplica)

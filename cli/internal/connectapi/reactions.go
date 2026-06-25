@@ -18,7 +18,7 @@ func (s *reactionService) AddReaction(ctx context.Context, req *connect.Request[
 		return nil, err
 	}
 
-	added, err := s.api.core.ReactionsService().AddReaction(ctx, core.ReactionMutationInput{
+	added, err := s.api.core.ReactionModel().AddReaction(ctx, core.ReactionMutationInput{
 		ActorID:        caller.UserID,
 		RoomID:         req.Msg.RoomId,
 		MessageEventID: req.Msg.MessageEventId,
@@ -36,7 +36,7 @@ func (s *reactionService) RemoveReaction(ctx context.Context, req *connect.Reque
 		return nil, err
 	}
 
-	removed, err := s.api.core.ReactionsService().RemoveReaction(ctx, core.ReactionMutationInput{
+	removed, err := s.api.core.ReactionModel().RemoveReaction(ctx, core.ReactionMutationInput{
 		ActorID:        caller.UserID,
 		RoomID:         req.Msg.RoomId,
 		MessageEventID: req.Msg.MessageEventId,
