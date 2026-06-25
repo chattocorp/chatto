@@ -526,7 +526,7 @@ test.describe('Role Assignment', () => {
 
 test.describe('Instance Settings', () => {
   // No per-test cleanup needed: every e2e test spawns its own isolated
-  // chatto instance (see frontend/e2e/fixtures/server.ts), so state
+  // chatto instance (see apps/frontend/e2e/fixtures/server.ts), so state
   // never leaks between tests.
 
   test('admin can access instance settings page', async ({ page, adminPage }) => {
@@ -536,7 +536,7 @@ test.describe('Instance Settings', () => {
 
     await adminPage.expectServerSettingsVisible();
     // The e2e fixture's [bootstrap.instance] block seeds the instance name on
-    // first boot (see frontend/e2e/fixtures/chatto.toml).
+    // first boot (see apps/frontend/e2e/fixtures/chatto.toml).
     await adminPage.expectInstanceName('E2E Test Server');
     await adminPage.expectMotd('');
     await adminPage.expectWelcomeMessage('');

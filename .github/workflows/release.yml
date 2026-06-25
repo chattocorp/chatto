@@ -63,7 +63,7 @@ jobs:
               .release-please-manifest-main.json|\
               CHANGELOG.md|\
               cli/version.go|\
-              frontend/package.json)
+              apps/frontend/package.json)
                 ;;
               *)
                 disallowed+=("$path")

@@ -4,7 +4,11 @@ on:
   push:
     branches: [main]
     paths:
-      - "docs-website/**"
+      - "apps/docs-website/**"
+      - ".npmrc"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
   workflow_dispatch:
     inputs:
       ref:
@@ -73,8 +77,8 @@ jobs:
       - name: Build docs image
         uses: docker/build-push-action@v6
         with:
-          context: ./docs-website
-          file: ./docs-website/Dockerfile
+          context: .
+          file: ./apps/docs-website/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           platforms: linux/amd64
           tags: |

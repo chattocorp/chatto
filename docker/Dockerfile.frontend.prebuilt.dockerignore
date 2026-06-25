@@ -2,5 +2,5 @@
 *
 
 # Release workflow builds the frontend once, then packages the static output.
-!frontend/build/
-!frontend/nginx.conf
+!apps/frontend/build/
+!apps/frontend/nginx.conf

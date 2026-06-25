@@ -3,7 +3,6 @@
   "private": true,
   "version": "0.4.0-beta.2",
   "type": "module",
-  "packageManager": "pnpm@10.19.0",
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
@@ -93,16 +92,6 @@
     "vitest-browser-svelte": "^2.1.1",
     "wonka": "^6.3.6",
     "zod": "^4.4.3"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@parcel/watcher",
-      "esbuild",
-      "sharp"
-    ],
-    "ignoredBuiltDependencies": [
-      "@tailwindcss/oxide"
-    ]
   },
   "dependencies": {
     "@bufbuild/protobuf": "^1.10.0",

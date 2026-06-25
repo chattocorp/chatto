@@ -1,4 +1,4 @@
-# Instructions for Agents Working in `frontend/`
+# Instructions for Agents Working in `apps/frontend/`
 
 Frontend work uses SvelteKit, Svelte 5 runes, Tailwind 4, Paraglide i18n,
 GraphQL, generated protobuf clients, Vitest browser tests, Playwright e2e, and

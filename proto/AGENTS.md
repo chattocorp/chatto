@@ -45,4 +45,4 @@ For `chatto/api/v1`:
 - Commit all generated Go/TypeScript bindings and docs-website ConnectRPC
   reference outputs.
 - New public services also need entries in `proto/buf.gen.yaml` and the docs
-  sidebar in `docs-website/astro.config.mjs`.
+  sidebar in `apps/docs-website/astro.config.mjs`.

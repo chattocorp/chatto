@@ -48,22 +48,22 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
             playwright-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Install Playwright dependencies
-        run: cd frontend && pnpm exec playwright install chromium --with-deps
+        run: cd apps/frontend && pnpm exec playwright install chromium --with-deps
         timeout-minutes: 5
 
       - name: Run frontend typecheck
-        run: cd frontend && pnpm check
+        run: cd apps/frontend && pnpm check
 
       - name: Run frontend lint
-        run: cd frontend && pnpm lint
+        run: cd apps/frontend && pnpm lint
 
       - name: Run frontend unit tests
-        run: cd frontend && pnpm vitest --run
+        run: cd apps/frontend && pnpm vitest --run
 
   test-cli:
     runs-on: ubicloud-standard-4
@@ -98,26 +98,26 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
             playwright-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Install Playwright dependencies
-        run: cd frontend && pnpm exec playwright install chromium --with-deps
+        run: cd apps/frontend && pnpm exec playwright install chromium --with-deps
         timeout-minutes: 5
 
       - name: Build E2E server
         run: mise build-e2e-server
 
       - name: Run E2E tests
-        run: cd frontend && pnpm exec playwright test --grep-invert @ffmpeg --shard=${{ matrix.shard }}/4
+        run: cd apps/frontend && pnpm exec playwright test --grep-invert @ffmpeg --shard=${{ matrix.shard }}/4
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: playwright-report-${{ matrix.shard }}-of-4
-          path: frontend/playwright-report/
+          path: apps/frontend/playwright-report/
           retention-days: 14
 
   test-e2e-media:
@@ -135,24 +135,24 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
             playwright-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Install Playwright dependencies
-        run: cd frontend && pnpm exec playwright install chromium --with-deps
+        run: cd apps/frontend && pnpm exec playwright install chromium --with-deps
         timeout-minutes: 5
 
       - name: Build E2E server
         run: mise build-e2e-server
 
       - name: Run media E2E tests
-        run: cd frontend && pnpm exec playwright test --grep @ffmpeg
+        run: cd apps/frontend && pnpm exec playwright test --grep @ffmpeg
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: playwright-report-media
-          path: frontend/playwright-report/
+          path: apps/frontend/playwright-report/
           retention-days: 14

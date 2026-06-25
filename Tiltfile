@@ -8,7 +8,7 @@ metrics_url = 'http://localhost:%d/metrics' % metrics_port
 local_resource(
     'frontend-deps',
     cmd='mise run deps-frontend',
-    deps=['frontend/package.json', 'frontend/pnpm-lock.yaml'],
+    deps=['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'apps/frontend/package.json'],
     allow_parallel=True,
 )
 
@@ -45,7 +45,7 @@ local_resource(
     'frontend',
     cmd='',
     serve_cmd='mise run dev-frontend',
-    serve_dir='frontend',
+    serve_dir='apps/frontend',
     serve_env={
         'VITE_PORT': str(frontend_port),
         'CHATTO_WEBSERVER_PORT': str(backend_port),
@@ -64,7 +64,7 @@ local_resource(
     'frontend-codegen',
     cmd='',
     serve_cmd='mise run dev-frontend-codegen',
-    serve_dir='frontend',
+    serve_dir='apps/frontend',
     resource_deps=['frontend-deps'],
     allow_parallel=True,
 )

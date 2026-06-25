@@ -30,7 +30,7 @@ runs:
       uses: actions/cache@v5
       with:
         path: ~/.cache/go-build
-        key: go-build-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('cli/go.sum', 'cli/**/*.go', 'proto/**/*.go', 'proto/**/*.proto', 'frontend/package.json', 'frontend/pnpm-lock.yaml', 'frontend/src/**', 'frontend/static/**', 'frontend/svelte.config.js', 'frontend/tsconfig.json', 'frontend/vite.config.ts', 'mise.toml') }}
+        key: go-build-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('cli/go.sum', 'cli/**/*.go', 'proto/**/*.go', 'proto/**/*.proto', 'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'apps/frontend/package.json', 'apps/frontend/src/**', 'apps/frontend/static/**', 'apps/frontend/svelte.config.js', 'apps/frontend/tsconfig.json', 'apps/frontend/vite.config.ts', 'mise.toml') }}
         restore-keys: |
           go-build-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}-
           go-build-${{ runner.os }}-${{ runner.arch }}-
@@ -45,8 +45,6 @@ runs:
     # pnpm is not available as a mise plugin, so install via npm (comes with Node)
     - name: Install pnpm
       uses: pnpm/action-setup@v5
-      with:
-        version: 10
 
     - name: Install ffmpeg (required for video processing e2e tests)
       if: inputs.install-ffmpeg == 'true'

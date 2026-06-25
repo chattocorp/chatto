@@ -102,6 +102,7 @@ export class ReportPresenceRequest extends Message<ReportPresenceRequest> {
     return proto3.util.equals(ReportPresenceRequest, a, b);
   }
 }
+
 /**
  * Result of reporting live presence.
  *
@@ -142,3 +143,4 @@ export class ReportPresenceResponse extends Message<ReportPresenceResponse> {
     return proto3.util.equals(ReportPresenceResponse, a, b);
   }
 }
+

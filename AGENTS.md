@@ -7,9 +7,9 @@ path-specific guidance.
 
 - [README.md](README.md) — general project overview.
 - [cli/AGENTS.md](cli/AGENTS.md) — Go backend, GraphQL, ConnectRPC, NATS/JetStream, authz, live events, backup/restore, and backend tests.
-- [frontend/AGENTS.md](frontend/AGENTS.md) — SvelteKit frontend, Tailwind, i18n, browser verification, frontend tests, e2e, and Storybook.
+- [apps/frontend/AGENTS.md](apps/frontend/AGENTS.md) — SvelteKit frontend, Tailwind, i18n, browser verification, frontend tests, e2e, and Storybook.
 - [proto/AGENTS.md](proto/AGENTS.md) — protobuf and generated public API reference guidance.
-- [docs-website/AGENTS.md](docs-website/AGENTS.md) — public docs website guidance.
+- [apps/docs-website/AGENTS.md](apps/docs-website/AGENTS.md) — public docs website guidance.
 - `.agents/skills/**` — workflow skills. Use them when the task names one or clearly matches one, especially `chatto-architecture`, `glossary`, Svelte skills, ADR/FDR skills, and security/release workflows.
 - `docs/fdr/INDEX.md` — feature behavior and rationale.
 - `docs/adr/INDEX.md` — cross-cutting architecture decisions.
@@ -79,7 +79,7 @@ For ad-hoc tool invocations, use `mise x -- ...` rather than assuming `go`,
   `$derived`, event handlers, context getters, and store methods for state flow.
 - Review visible frontend changes in the browser using Chrome DevTools MCP.
 - User-visible strings go through Paraglide message catalogs with both English
-  and German entries. Follow ADR-043 and [frontend/AGENTS.md](frontend/AGENTS.md).
+  and German entries. Follow ADR-043 and [apps/frontend/AGENTS.md](apps/frontend/AGENTS.md).
 - Use automatic "load more" pagination for frontend lists, not manual pages.
 - Use Save buttons only for multi-field forms that submit together; disable them
   until something changed.
@@ -121,7 +121,7 @@ For ad-hoc tool invocations, use `mise x -- ...` rather than assuming `go`,
   rebasing onto the target branch, and generated Go/TS/docs outputs must be
   committed.
 - New public ConnectRPC services also need `proto/buf.gen.yaml` and docs sidebar
-  entries in `docs-website/astro.config.mjs`.
+  entries in `apps/docs-website/astro.config.mjs`.
 - GraphQL schema changes require `mise codegen-cli`; frontend query changes also
   require `mise codegen-frontend`.
 - Shared Go types used by frontend TypeScript require `mise codegen-types`.

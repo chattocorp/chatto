@@ -1,0 +1,22 @@
+# Ignore everything by default.
+*
+
+# The docs image builds from the repo root so it can use the root pnpm workspace.
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!.npmrc
+!apps/
+!apps/docs-website/
+!apps/docs-website/**
+
+# Keep local/generated app state out of Docker contexts and images.
+apps/docs-website/node_modules
+apps/docs-website/dist
+apps/docs-website/.astro
+apps/docs-website/.cache
+apps/docs-website/.vscode
+apps/docs-website/.env
+apps/docs-website/.env.*
+apps/docs-website/.DS_Store
+apps/docs-website/**/.DS_Store

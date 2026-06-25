@@ -29,11 +29,11 @@ sources = ["go.mod", "go.sum"]
 
 [tasks.deps-frontend]
 description = "Install frontend dependencies"
-dir = "frontend"
+dir = "."
 run = "pnpm install"
 # package.json also contains app metadata and scripts; the lockfile is the
 # dependency-resolution input that should trigger installs.
-sources = ["pnpm-lock.yaml", "pnpm-workspace.yaml", ".npmrc"]
+sources = ["package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".npmrc", "apps/*/package.json"]
 
 [tasks.deps]
 description = "Install all dependencies"
@@ -70,7 +70,7 @@ run = "go generate ./..."
 [tasks.codegen-frontend]
 description = "Generate Frontend code (e.g. GraphQL types)"
 depends = ["setup-frontend"]
-dir = "frontend"
+dir = "apps/frontend"
 run = "pnpm codegen"
 
 [tasks.codegen-emoji]
@@ -109,20 +109,21 @@ run = [{ task = "build-*" }, "ls -lah cli/bin/*"]
 [tasks.build-frontend]
 description = "Build the frontend application"
 depends = ["setup-frontend"]
-dir = "frontend"
+dir = "apps/frontend"
 run = [
     "pnpm svelte-kit sync",
     "pnpm build",
     "touch build/.mise-build-stamp",
-    "rm -rf ../cli/internal/http_server/.client",
-    "cp -r build ../cli/internal/http_server/.client",
-    "touch ../cli/internal/http_server/.client/.gitkeep",
+    "rm -rf ../../cli/internal/http_server/.client",
+    "cp -r build ../../cli/internal/http_server/.client",
+    "touch ../../cli/internal/http_server/.client/.gitkeep",
 ]
 sources = [
-    ".npmrc",
+    "../../.npmrc",
+    "../../package.json",
+    "../../pnpm-lock.yaml",
+    "../../pnpm-workspace.yaml",
     "package.json",
-    "pnpm-lock.yaml",
-    "pnpm-workspace.yaml",
     "src/**/*",
     "!src/**/*.spec.*",
     "!src/**/*.test.*",
@@ -133,7 +134,7 @@ sources = [
     "tsconfig.json",
     "vite.config.ts",
 ]
-outputs = ["build/.mise-build-stamp", "../cli/internal/http_server/.client/.gitkeep"]
+outputs = ["build/.mise-build-stamp", "../../cli/internal/http_server/.client/.gitkeep"]
 
 [tasks.build-dev-cli]
 description = "Build the development CLI application for the current architecture"
@@ -161,19 +162,19 @@ dir = "cli"
 # test-only HTTP endpoints (e.g. /auth/test/create-user) used by per-test
 # fixtures. Deliberately scoped — the e2e binary should NOT pull in any
 # future broader dev-only code that might land under a separate tag.
-run = "CGO_ENABLED=0 go build -trimpath -tags 'bootstrap test_endpoints' -ldflags '-s -w' -o ../frontend/e2e/fixtures/bin/chatto ."
+run = "CGO_ENABLED=0 go build -trimpath -tags 'bootstrap test_endpoints' -ldflags '-s -w' -o ../apps/frontend/e2e/fixtures/bin/chatto ."
 sources = [
     "**/*.go",
     "cmd/embedded/LICENSE",
     "cmd/embedded/NOTICE",
     "internal/http_server/.client/**/*",
 ]
-outputs = ["../frontend/e2e/fixtures/bin/chatto"]
+outputs = ["../apps/frontend/e2e/fixtures/bin/chatto"]
 
 [tasks.storybook]
 description = "Run the Storybook design-system catalog"
 depends = ["setup-frontend"]
-dir = "frontend"
+dir = "apps/frontend"
 run = "pnpm storybook"
 
 [tasks.dev-backend]
@@ -185,13 +186,13 @@ run = "go build -trimpath -tags bootstrap -o bin/chatto-dev . && exec ./bin/chat
 [tasks.dev-frontend]
 description = "Run the local development frontend"
 depends = ["setup-frontend"]
-dir = "frontend"
+dir = "apps/frontend"
 run = "exec ./node_modules/.bin/vite dev"
 
 [tasks.dev-frontend-codegen]
 description = "Run frontend GraphQL codegen in watch mode"
 depends = ["setup-frontend"]
-dir = "frontend"
+dir = "apps/frontend"
 run = "exec ./node_modules/.bin/graphql-codegen --watch"
 
 [tasks.dev]
@@ -246,7 +247,7 @@ sources = ["**/*.go", "cmd/embedded/LICENSE", "cmd/embedded/NOTICE"]
 [tasks.lint-frontend]
 description = "Run TypeScript and ESLint checks on frontend"
 depends = ["setup-frontend"]
-dir = "frontend"
+dir = "apps/frontend"
 run = ["pnpm check", "pnpm lint"]
 
 [tasks.lint]
@@ -256,13 +257,13 @@ run = [{ task = "lint-*" }]
 [tasks.test-frontend]
 description = "Run frontend unit tests"
 depends = ["setup-frontend"]
-dir = "frontend"
+dir = "apps/frontend"
 run = "pnpm vitest --run"
 
 [tasks.test-e2e]
 description = "Run E2E tests"
 depends = ["setup-frontend", "build-e2e-server"]
-dir = "frontend"
+dir = "apps/frontend"
 run = "pnpm exec playwright test"
 
 [tasks.test]
@@ -285,7 +286,7 @@ run = [
     "rm -rf cli/bin/*",
     "rm -rf cli/cmd/embedded",
     "rm -rf cli/internal/http_server/.client",
-    "rm -rf frontend/build",
+    "rm -rf apps/frontend/build",
 ]
 
 [tasks.reset-config]
@@ -320,7 +321,7 @@ goreleaser check
 actionlint .github/workflows/*.yml
 
 docker buildx build --check --build-arg TARGETARCH=amd64 -f docker/Dockerfile.dev .
-docker buildx build --check -f docker/Dockerfile.frontend.dev frontend
+docker buildx build --check -f docker/Dockerfile.frontend.dev .
 docker buildx build --check -f docker/Dockerfile.frontend.prebuilt .
 
 tmp="$(mktemp -d /tmp/chatto-docker-verify.XXXXXX)"

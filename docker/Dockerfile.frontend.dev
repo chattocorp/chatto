@@ -7,8 +7,10 @@ RUN corepack enable pnpm
 WORKDIR /app
 
 # Layer 1: deps (cached unless lockfile changes)
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm config set store-dir /pnpm-store && pnpm install --frozen-lockfile
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY apps/frontend/package.json apps/frontend/package.json
+RUN pnpm config set store-dir /pnpm-store && pnpm install --frozen-lockfile --filter chatto-frontend...
 
 # Layer 2: source (live-updated by Tilt afterwards, no rebuild needed)
-COPY . .
+COPY apps/frontend apps/frontend
+WORKDIR /app/apps/frontend

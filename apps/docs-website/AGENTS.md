@@ -1,4 +1,4 @@
-# Instructions for Agents Working in `docs-website/`
+# Instructions for Agents Working in `apps/docs-website/`
 
 The docs website is Chatto's public documentation site, built with Astro and
 Starlight.

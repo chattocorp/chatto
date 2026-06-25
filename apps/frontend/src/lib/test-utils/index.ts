@@ -6,7 +6,7 @@
  * - `testSnippet(html)` — build a `Snippet` for component children/slot props
  * - `createMockGraphqlClient(opts?)` / `createMockConnection(opts?)` — urql client mocks
  *
- * See `frontend/AGENTS.md` for the full convention.
+ * See `apps/frontend/AGENTS.md` for the full convention.
  */
 export { q } from './q';
 export { testSnippet } from './snippet';
