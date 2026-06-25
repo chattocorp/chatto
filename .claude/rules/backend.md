@@ -108,8 +108,9 @@ Room events (`live.sync.room.{kind}.{roomId}.…` plus deliverable EVT room fact
 2. Add to GraphQL schema in `events.graphqls` (type + `ServerEventType` union)
 3. Add `IsServerEventType()` method in `pb/chatto/core/v1/graphql.go`
 4. Add case in `unwrapEvent()` in `event_helpers.go`
-5. Publish via `EventPublisher` for durable EVT facts or `publishLiveEvent` for transient LiveEvent signals — choose ONE conceptual delivery path
-6. Subscribe in frontend via `eventBus.svelte.ts` (or a handler registered through `useEvent`)
+5. If the event is visible in room timelines, update the ConnectRPC room timeline proto/hydrator mapping in `cli/internal/connectapi/room_timeline.go`, and add tests so visible events cannot be silently dropped from the public timeline API.
+6. Publish via `EventPublisher` for durable EVT facts or `publishLiveEvent` for transient LiveEvent signals — choose ONE conceptual delivery path
+7. Subscribe in frontend via `eventBus.svelte.ts` (or a handler registered through `useEvent`)
 
 **When to create a live event:** Any time a user action changes state that other tabs/devices or other UI components need to reflect in real-time. Common triggers:
 - User changes a preference or setting (notification level, follow state)
