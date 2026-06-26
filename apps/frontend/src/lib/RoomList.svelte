@@ -193,7 +193,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       }
     } else if (event.__typename === 'CallParticipantJoinedEvent') {
       const actor = serverEvent.actor ? useFragment(UserAvatarFragment, serverEvent.actor) : null;
-      activeCallRooms.handleJoin(event.roomId, event.callId, actor);
+      void activeCallRooms.handleJoin(event.roomId, event.callId, actor);
     } else if (event.__typename === 'CallParticipantLeftEvent') {
       activeCallRooms.handleLeave(event.roomId, event.callId, serverEvent.actorId ?? null);
       voiceCallState.handleParticipantLeftEvent(

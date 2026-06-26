@@ -459,6 +459,10 @@ func mapRealtimeLive(envelope *apiv1.RealtimeEventEnvelope, event *corev1.LiveEv
 		envelope.Event = &apiv1.RealtimeEventEnvelope_RoomGroupsUpdated{RoomGroupsUpdated: &apiv1.RealtimeRoomGroupsUpdatedEvent{
 			Changed: true,
 		}}
+	case *corev1.LiveEvent_ServerMemberDeleted:
+		envelope.Event = &apiv1.RealtimeEventEnvelope_ServerMemberDeleted{ServerMemberDeleted: &apiv1.RealtimeServerMemberDeletedEvent{
+			UserId: payload.ServerMemberDeleted.GetUserId(),
+		}}
 	case *corev1.LiveEvent_ServerUpdated:
 		server := payload.ServerUpdated
 		envelope.Event = &apiv1.RealtimeEventEnvelope_ServerUpdated{ServerUpdated: &apiv1.RealtimeServerUpdatedEvent{
