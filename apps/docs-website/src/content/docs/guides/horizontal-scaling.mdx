@@ -64,7 +64,7 @@ token = "your-shared-token"
 </Tabs>
 
 <Aside type="caution">
-  All server processes **must** share the same `cookie_signing_secret`, `cookie_encryption_secret` when configured, `core.secret_key`, and `core.assets.signing_secret`. If they differ, cookies, bearer tokens, account-flow links, or asset URLs created by one server process won't validate on another.
+  All server processes **must** share the same `cookie_signing_secret`, `cookie_encryption_secret` when configured, `core.secret_key`, and `core.assets.signing_secret`. If they differ, cookies, bearer/cookie session records, OAuth codes, account-flow credentials, or asset URLs created by one server process won't validate on another.
 </Aside>
 
 ## Health Checks
@@ -146,7 +146,7 @@ The [Docker Compose deployment guide](/guides/dockercompose/) includes a Caddy c
 | NATS client URL & credentials | Yes | All connect to the same cluster |
 | `cookie_signing_secret` | Yes | Cookie validation |
 | `cookie_encryption_secret` | Yes, when configured | Cookie confidentiality |
-| `core.secret_key` | Yes | Bearer-token and account-flow verifier keys |
+| `core.secret_key` | Yes | Bearer-token, cookie-session, OAuth-code, and account-flow verifier keys |
 | `core.assets.signing_secret` | Yes | Asset URL signing |
 | `webserver.url` | Yes | Public URL for absolute links |
 | `livekit.server_id` | Yes, within one Chatto server | Use a different value only across Chatto servers sharing one LiveKit cluster |

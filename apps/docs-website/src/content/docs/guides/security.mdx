@@ -160,7 +160,7 @@ Without `--include-keys`, the `ENCRYPTION_KEYS` bucket is deliberately excluded 
 
 - `ENCRYPTION_KEYS` — keeps backup archives unable to decrypt their own message bodies or durable user PII if leaked.
 
-`RUNTIME_STATE` is included in backups so active sessions and pending registration, email-verification, password-reset, account-deletion, and OAuth-code flows can survive a restore. Credential entries in that bucket use HMAC-derived keys, so backup archives do not contain redeemable raw bearer tokens, verification codes, links, or OAuth codes. Restoring with a different `core.secret_key` intentionally invalidates those credentials.
+`RUNTIME_STATE` is included in backups so active bearer/cookie sessions and pending registration, email-verification, password-reset, account-deletion, and OAuth-code flows can survive a restore. Credential entries in that bucket use HMAC-derived keys, so backup archives do not contain redeemable raw session IDs, bearer tokens, verification codes, links, or OAuth codes. Restoring with a different `core.secret_key` intentionally invalidates those credentials.
 
 Encryption key records can also be exported and imported separately with `chatto keys export` / `chatto keys import`, again age-encrypted. Use this advanced split-backup flow only when you intentionally want data archives and key material stored or retained separately. Restores need the data backup, including the wrapped DEK records in `RUNTIME_STATE`, plus the KEKs from the separate key export to rebuild encrypted profile indexes as well as message bodies. The same passphrase format means a standalone `age` CLI can inspect or re-encrypt any Chatto archive.
 
@@ -220,16 +220,26 @@ For HSTS, CSP, and other policy headers, add them at your reverse proxy.
 
 ## Secret and key storage
 
-| Secret                              | Storage                                     | Backed up?     |
-| ----------------------------------- | ------------------------------------------- | -------------- |
-| Per-user KEK records                 | `ENCRYPTION_KEYS` (NATS KV)                 | No (export separately) |
-| Wrapped app DEK records              | `RUNTIME_STATE` (`dek.*` protobuf records)  | Yes (unusable without KEKs) |
-| Bearer/session token verifiers      | `RUNTIME_STATE` (HMAC-keyed, with TTL)      | Yes (not raw tokens) |
-| Account-flow code/link verifiers    | `RUNTIME_STATE` (HMAC-keyed, with TTL)      | Yes (not raw codes/links) |
-| Core secret key                     | `chatto.toml` (`core.secret_key`)           | n/a            |
-| Cookie signing secret               | `chatto.toml` (`webserver.cookie_signing_secret`) | n/a       |
-| Cookie encryption secret (optional) | `chatto.toml` (`webserver.cookie_encryption_secret`) | n/a    |
-| TLS certificates                    | Disk cache directory (`autocert`)           | n/a            |
+| Secret or key material | Storage | Backed up by `chatto backup`? |
+| ---------------------- | ------- | ----------------------------- |
+| Per-user KEK records | `ENCRYPTION_KEYS` (NATS KV) | No (export separately, or use `--include-keys`) |
+| Per-call LiveKit E2EE keys | `ENCRYPTION_KEYS` (NATS KV, short-lived) | No (active calls are not recoverable without them) |
+| Wrapped app DEK records | `RUNTIME_STATE` (`dek.*` protobuf records) | Yes (unusable without KEKs) |
+| Bearer/cookie session verifiers | `RUNTIME_STATE` (HMAC-keyed, with TTL) | Yes (not raw tokens or session IDs) |
+| Account-flow and OAuth-code verifiers | `RUNTIME_STATE` (HMAC-keyed, with TTL) | Yes (not raw codes or links) |
+| Core secret key | `chatto.toml` / `CHATTO_CORE_SECRET_KEY` | n/a |
+| Cookie signing secret | `chatto.toml` / `CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET` | n/a |
+| Cookie encryption secret (optional) | `chatto.toml` / `CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET` | n/a |
+| Asset URL signing secret | `chatto.toml` / `CHATTO_CORE_ASSETS_SIGNING_SECRET` | n/a |
+| S3 access key ID and secret access key | `chatto.toml` / `CHATTO_CORE_ASSETS_S3_ACCESS_KEY_ID`, `CHATTO_CORE_ASSETS_S3_SECRET_ACCESS_KEY` | n/a |
+| NATS embedded/client credentials | `chatto.toml` / `CHATTO_NATS_EMBEDDED_AUTH_TOKEN`, `CHATTO_NATS_CLIENT_TOKEN`, `CHATTO_NATS_CLIENT_PASSWORD`, `CHATTO_NATS_CLIENT_CREDENTIALS_FILE`, or `CHATTO_NATS_CLIENT_NKEY_SEED` | n/a |
+| OAuth/OIDC provider client secrets | `chatto.toml` `[[auth.providers]]` / `CHATTO_AUTH_PROVIDERS_<index>_CLIENT_SECRET` or legacy `CHATTO_AUTH_OIDC_CLIENT_SECRET` | n/a |
+| SMTP password | `chatto.toml` / `CHATTO_SMTP_PASSWORD` | n/a |
+| Web Push VAPID key pair | `chatto.toml` / `CHATTO_PUSH_VAPID_PUBLIC_KEY`, `CHATTO_PUSH_VAPID_PRIVATE_KEY` | n/a |
+| LiveKit API and webhook secrets | `chatto.toml` / `CHATTO_LIVEKIT_API_KEY`, `CHATTO_LIVEKIT_API_SECRET`, `CHATTO_LIVEKIT_WEBHOOK_API_KEY`, `CHATTO_LIVEKIT_WEBHOOK_API_SECRET` | n/a |
+| TLS certificates | Disk cache directory (`autocert`) | n/a |
+
+`core.secret_key` is not a message-encryption KEK. Rotating it invalidates bearer tokens, cookie session records, OAuth authorization codes, and pending account-flow credentials, but it does not rotate or invalidate the KEK records in `ENCRYPTION_KEYS`.
 
 ## Reporting a security issue
 

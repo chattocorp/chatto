@@ -101,7 +101,7 @@ vault kv get -field=passphrase secret/chatto | chatto backup -c chatto.toml --en
 </Aside>
 
 <Aside type="tip">
-  Keep the same `core.secret_key` in `chatto.toml` when restoring if you want existing bearer sessions and pending account-flow links to remain valid. Using a new value is a clean way to invalidate them during disaster recovery.
+  Keep the same `core.secret_key` in `chatto.toml` when restoring if you want existing bearer/cookie sessions, OAuth codes, and pending account-flow credentials to remain valid. Using a new value is a clean way to invalidate them during disaster recovery.
 </Aside>
 
 <Steps>
