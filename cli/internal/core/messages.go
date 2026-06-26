@@ -937,7 +937,7 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 			echoTargetPost = echoTargetEvent.GetMessagePosted()
 		}
 		if echoTargetPost == nil || echoTargetPost.GetEchoOfEventId() != "" || echoTargetPost.GetInThread() == "" {
-			return fmt.Errorf("channel echo state can only be changed for thread replies")
+			return invalidArgument("channel echo state can only be changed for thread replies")
 		}
 		if roomIDOfEvent(echoTargetEvent) != roomID {
 			return ErrMessageNotFound

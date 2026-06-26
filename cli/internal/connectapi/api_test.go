@@ -1285,6 +1285,16 @@ func TestMessageServiceUpdateMessageAuthorAndRBAC(t *testing.T) {
 		t.Fatalf("body after author edit = %q, %v; want author edit, nil", body, err)
 	}
 
+	echo := false
+	if _, err := env.messages.UpdateMessage(authorCtx, connect.NewRequest(&apiv1.UpdateMessageRequest{
+		RoomId:            room.Id,
+		EventId:           original.Id,
+		Body:              "invalid echo edit",
+		AlsoSendToChannel: &echo,
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("root echo-state UpdateMessage code = %v, want %v", connect.CodeOf(err), connect.CodeInvalidArgument)
+	}
+
 	moderator, err := env.core.CreateUser(env.ctx, core.SystemActorID, "message-update-moderator", "Message Update Moderator", "password")
 	if err != nil {
 		t.Fatalf("CreateUser moderator: %v", err)
@@ -1307,7 +1317,7 @@ func TestMessageServiceUpdateMessageAuthorAndRBAC(t *testing.T) {
 		t.Fatalf("body after moderator edit = %q, %v; want moderator edit, nil", body, err)
 	}
 
-	echo := true
+	echo = true
 	if _, err := env.messages.UpdateMessage(withCaller(env.ctx, moderator), connect.NewRequest(&apiv1.UpdateMessageRequest{
 		RoomId:            room.Id,
 		EventId:           moderated.Id,
