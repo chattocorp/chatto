@@ -27,6 +27,7 @@ describe('UserPreferencesState', () => {
     localStorage.clear();
     delete document.documentElement.dataset.theme;
     document.documentElement.style.backgroundColor = '';
+    document.documentElement.style.colorScheme = '';
   });
 
   describe('initial state', () => {
@@ -205,6 +206,7 @@ describe('UserPreferencesState', () => {
         expect(state.displayTheme).toBe(displayTheme);
         expect(document.documentElement.dataset.theme).toBe(effectiveTheme);
         expect(document.documentElement.style.backgroundColor).toBe(background);
+        expect(document.documentElement.style.colorScheme).toBe(effectiveTheme);
 
         const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
         expect(stored.displayTheme).toBe(displayTheme);

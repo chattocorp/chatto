@@ -94,11 +94,13 @@ describe('app.html theme bootstrap', () => {
 
     expect(root.dataset.theme).toBe('light');
     expect(root.style.backgroundColor).toBe('#f3f4f6');
+    expect(root.style.colorScheme).toBe('light');
   });
 
   it('uses legacy localStorage.theme when no display preference exists', () => {
     const { root } = runThemeScript({ legacyTheme: 'dark', systemDark: false });
     expect(root.dataset.theme).toBe('dark');
+    expect(root.style.colorScheme).toBe('dark');
   });
 
   it('follows prefers-color-scheme when the display preference is system', () => {
@@ -108,11 +110,13 @@ describe('app.html theme bootstrap', () => {
     });
 
     expect(root.dataset.theme).toBe('dark');
+    expect(root.style.colorScheme).toBe('dark');
   });
 
   it('follows prefers-color-scheme when no display preference exists', () => {
     const { root } = runThemeScript({ systemDark: true });
     expect(root.dataset.theme).toBe('dark');
+    expect(root.style.colorScheme).toBe('dark');
   });
 
   it('only reacts to system theme changes while the display preference is system', () => {

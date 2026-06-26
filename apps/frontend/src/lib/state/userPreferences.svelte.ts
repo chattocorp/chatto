@@ -80,6 +80,7 @@ export function applyDisplayTheme(theme: DisplayTheme): void {
   const root = document.documentElement;
   root.dataset.theme = effective;
   root.style.backgroundColor = effective === 'dark' ? '#171717' : '#f3f4f6';
+  root.style.colorScheme = effective;
 }
 
 function normalizeNotificationSoundFilters(value: unknown): NotificationSoundFilters {

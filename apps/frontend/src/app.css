@@ -28,6 +28,8 @@
  * `data-theme="dark"`.
  */
 :root {
+  color-scheme: light;
+
   --color-background: var(--color-gray-100);
   --color-text: var(--color-gray-600);
   --color-text-top: var(--color-black);

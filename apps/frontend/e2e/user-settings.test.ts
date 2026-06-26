@@ -28,22 +28,27 @@ test.describe('User Settings - Display', () => {
 
     await darkOption.click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await expect(page.locator('html')).toHaveCSS('color-scheme', 'dark');
 
     await page.reload();
     await expect(darkOption).toHaveAttribute('aria-checked', 'true');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await expect(page.locator('html')).toHaveCSS('color-scheme', 'dark');
 
     await lightOption.click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    await expect(page.locator('html')).toHaveCSS('color-scheme', 'light');
 
     await systemOption.click();
     await expect(systemOption).toHaveAttribute('aria-checked', 'true');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    await expect(page.locator('html')).toHaveCSS('color-scheme', 'light');
 
     await page.emulateMedia({ colorScheme: 'dark' });
     await page.reload();
     await expect(systemOption).toHaveAttribute('aria-checked', 'true');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await expect(page.locator('html')).toHaveCSS('color-scheme', 'dark');
   });
 
   test('can choose a local language', async ({ page }) => {

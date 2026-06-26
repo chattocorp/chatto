@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" dir="ltr" style="color-scheme: light dark">
+<html lang="en" dir="ltr" style="color-scheme: light">
   <head>
     <meta charset="utf-8" />
     <script>
@@ -39,6 +39,7 @@
           root.dataset.theme = effective;
           // Pre-CSS background hint, mirrors --color-background.
           root.style.backgroundColor = effective === 'dark' ? '#171717' : '#f3f4f6';
+          root.style.colorScheme = effective;
         }
 
         function applyLocale() {
