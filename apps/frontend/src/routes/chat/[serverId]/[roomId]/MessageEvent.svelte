@@ -686,12 +686,12 @@
             {#if compact}
               <span
                 aria-hidden="true"
-                class="group-hover/reply:border-surface-400 h-3 w-5 shrink-0 rounded-tl-md border-t-2 border-l-2 border-surface-300/70 transition-colors"
+                class="h-3 w-5 shrink-0 rounded-tl-md border-t-2 border-l-2 border-surface-300/30 transition-colors group-hover/reply:border-surface-300/55"
               ></span>
             {:else}
               <span
                 aria-hidden="true"
-                class="group-hover/reply:border-surface-400 absolute top-[11px] -left-[39px] h-7 w-[39px] rounded-tl-md border-t-2 border-l-2 border-surface-300/70 transition-colors"
+                class="absolute top-[11px] -left-[39px] h-7 w-[39px] rounded-tl-md border-t-2 border-l-2 border-surface-300/30 transition-colors group-hover/reply:border-surface-300/55"
               ></span>
             {/if}
             {#if replyPreview.actor}
