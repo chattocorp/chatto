@@ -16,6 +16,9 @@ const { mocks } = vi.hoisted(() => ({
     toastError: vi.fn(),
     joinRoom: vi.fn(),
     refreshRooms: vi.fn(),
+    mutation: vi.fn(() => ({
+      toPromise: () => Promise.resolve({ data: {}, error: null })
+    })),
     activeServer: 'origin',
     serverIdParam: '-' as string | undefined,
     servers: [] as Array<{ id: string; url: string; name: string; token: string | null }>,
@@ -96,9 +99,7 @@ vi.mock('$lib/state/server/graphqlClient.svelte', () => ({
   graphqlClientManager: {
     getClient: vi.fn(() => ({
       client: {
-        mutation: vi.fn(() => ({
-          toPromise: () => Promise.resolve({ data: {}, error: null })
-        }))
+        mutation: mocks.mutation
       }
     }))
   }
@@ -179,6 +180,9 @@ beforeEach(() => {
     viewerCanJoinRoom: true
   };
   mocks.joinRoom.mockResolvedValue({ ok: true, room: { id: 'room-1', name: 'general' } });
+  mocks.mutation.mockReturnValue({
+    toPromise: () => Promise.resolve({ data: {}, error: null })
+  });
   mocks.refreshRooms.mockResolvedValue(undefined);
   mocks.signOutServer.mockResolvedValue(new Response('{}', { status: 200 }));
   mocks.signOutServers.mockResolvedValue(undefined);
@@ -400,5 +404,35 @@ describe('ModalContainer sign out modal', () => {
     expect(findButton(second.container, 'All Servers')).not.toBeDisabled();
 
     finishSignOut?.(new Response('{}', { status: 200 }));
+  });
+});
+
+describe('ModalContainer message mutation modals', () => {
+  it('notifies the visible room after link preview deletion succeeds', async () => {
+    mocks.modal = {
+      type: 'deleteLinkPreview',
+      roomId: 'room-1',
+      eventId: 'event-1',
+      previewUrl: 'https://example.test/article'
+    };
+    const listener = vi.fn();
+    window.addEventListener('chatto:room-message-mutated', listener);
+
+    try {
+      const { container } = render(ModalContainer);
+      clickButton(container, 'Delete');
+
+      await vi.waitFor(() => {
+        expect(mocks.mutation).toHaveBeenCalledOnce();
+        expect(listener).toHaveBeenCalledOnce();
+      });
+      expect((listener.mock.calls[0][0] as CustomEvent).detail).toEqual({
+        roomId: 'room-1',
+        eventId: 'event-1',
+        reason: 'link-preview-deleted'
+      });
+    } finally {
+      window.removeEventListener('chatto:room-message-mutated', listener);
+    }
   });
 });

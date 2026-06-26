@@ -22,6 +22,7 @@
   import { refreshAttachmentUrlsForMessage } from '$lib/attachments/attachmentUrls';
   import { toast } from '$lib/ui/toast';
   import { clearLastRoom } from '$lib/storage/lastRoom';
+  import { notifyRoomMessageMutated } from '$lib/state/room/messageMutationEvents';
 
   /** Get the GraphQL client for the currently active instance (derived from URL). */
   function getActiveClient() {
@@ -131,6 +132,7 @@
       toast.error(m['room.message.delete_failed']());
       console.error('Error deleting message:', result.error);
     } else {
+      notifyRoomMessageMutated({ roomId, eventId, reason: 'message-deleted' });
       toast.success(m['room.message.deleted']());
     }
     closeModal();
@@ -153,6 +155,8 @@
     if (result.error) {
       toast.error(m['room.link_preview.delete_failed']());
       console.error('Error deleting link preview:', result.error);
+    } else {
+      notifyRoomMessageMutated({ roomId, eventId, reason: 'link-preview-deleted' });
     }
     closeModal();
   }
@@ -174,6 +178,8 @@
     if (result.error) {
       toast.error(m['room.attachment.delete_failed']());
       console.error('Error deleting attachment:', result.error);
+    } else {
+      notifyRoomMessageMutated({ roomId, eventId, reason: 'attachment-deleted' });
     }
     closeModal();
   }

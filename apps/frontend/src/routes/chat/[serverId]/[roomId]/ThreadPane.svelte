@@ -18,6 +18,7 @@
     MessagesStore,
     type QuoteInsertionRequest
   } from '$lib/state/room';
+  import { onRoomMessageMutated } from '$lib/state/room/messageMutationEvents';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import HeaderIconButton from '$lib/ui/HeaderIconButton.svelte';
   import MessageComposer, {
@@ -58,6 +59,14 @@
 
   const store = new MessagesStore(connection(), () => currentUser.user?.id ?? null);
   onDestroy(() => store.dispose());
+
+  $effect(() =>
+    onRoomMessageMutated((detail) => {
+      if (detail.roomId !== roomId) return;
+      if (!store.getEventById(detail.eventId)) return;
+      void store.refreshCurrentWindow(detail.eventId);
+    })
+  );
 
   let threadEvents = $derived(store.threadEvents);
   let updateCounter = $derived(threadEvents.length);

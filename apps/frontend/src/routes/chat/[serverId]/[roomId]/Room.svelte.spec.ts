@@ -293,4 +293,34 @@ describe('Room local message echo', () => {
       expect(mocks.rooms.refreshNotificationCounts).toHaveBeenCalledOnce();
     });
   });
+
+  it('refreshes the visible room window after a local link-preview deletion succeeds', async () => {
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    await expect.element(q(container, '[data-testid="room-event-ids"]')).toHaveTextContent('');
+    (q(container, '[data-testid="emit-returned-post"]') as HTMLButtonElement).click();
+    await expect
+      .element(q(container, '[data-testid="room-event-ids"]'))
+      .toHaveTextContent('msg-local');
+    await vi.waitFor(() => expect(mocks.query).toHaveBeenCalled());
+    mocks.query.mockClear();
+
+    window.dispatchEvent(
+      new CustomEvent('chatto:room-message-mutated', {
+        detail: {
+          roomId: 'room-1',
+          eventId: 'msg-local',
+          reason: 'link-preview-deleted'
+        }
+      })
+    );
+
+    await vi.waitFor(() => {
+      expect(mocks.query).toHaveBeenCalledWith(
+        expect.anything(),
+        { roomId: 'room-1', eventId: 'msg-local', limit: 50 },
+        { requestPolicy: 'network-only' }
+      );
+    });
+  });
 });

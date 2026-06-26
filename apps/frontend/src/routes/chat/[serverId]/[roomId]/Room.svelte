@@ -29,6 +29,7 @@
     DEFAULT_ROOM_PERMISSIONS,
     type QuoteInsertionContent
   } from '$lib/state/room';
+  import { onRoomMessageMutated } from '$lib/state/room/messageMutationEvents';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
@@ -101,6 +102,14 @@
   const roomMessageStore = new MessagesStore(connection(), () => currentUser.user?.id ?? null);
 
   onDestroy(() => roomMessageStore.dispose());
+
+  $effect(() =>
+    onRoomMessageMutated((detail) => {
+      if (detail.roomId !== roomId) return;
+      if (!roomMessageStore.getEventById(detail.eventId)) return;
+      void roomMessageStore.refreshCurrentWindow(detail.eventId);
+    })
+  );
 
   // --- Extracted hooks ---
   const room = useRoomData(() => ({ roomId }));
