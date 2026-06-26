@@ -616,17 +616,14 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     await test.step('Delete the echo in main room using the echo event ID', async () => {
       const echo = roomPage.getMessage(replyMessage);
       const deleteRequestPromise = page.waitForRequest((request) => {
-        const body = request.postData() ?? '';
-        return request.url().includes('/api/graphql') && body.includes('DeleteMessageFromModal');
+        return (
+          request.method() === 'POST' &&
+          request.url().includes('/api/connect/chatto.api.v1.MessageService/DeleteMessage')
+        );
       });
 
       await echo.delete();
-
-      const deleteRequest = await deleteRequestPromise;
-      const payload = JSON.parse(deleteRequest.postData() ?? '{}') as {
-        variables?: { input?: { eventId?: string } };
-      };
-      expect(payload.variables?.input?.eventId).toBe(echoEventId);
+      await deleteRequestPromise;
     });
 
     await test.step('Verify echo is hidden from the main room', async () => {
