@@ -1,4 +1,5 @@
 @import "@fontsource-variable/ibm-plex-sans";
+@import "@fontsource-variable/ibm-plex-sans/wght-italic.css";
 
 :root {
   --sl-font: "IBM Plex Sans Variable", sans-serif;

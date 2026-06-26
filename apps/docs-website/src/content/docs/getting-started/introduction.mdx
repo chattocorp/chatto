@@ -1,0 +1,31 @@
+---
+title: Introduction
+description: What you should know before setting up Chatto.
+---
+
+### What Chatto Is
+
+Chatto is a **fully-featured, web-based chat application** that you can **self-host for free**. If you've used any of the big chat apps -- no matter if it's the one that rhymes with _"knack"_ or the one that rhymes with _"beams"_ or the one that rhymes with _"this gourd"_ -- then you know pretty much what to expect.
+
+Except: **it's tiny**! It comes with **strong privacy properties** (it's made in Europe, we have laws here!) You can just put it on a cheap VPS and host a little chat community for you and the two friends you've made in World of Warcraft, or scale it across multiple processes, servers, or even regions, for your 8000 person company!
+
+It has **rooms**! **Threads**! **Replies**! **Notifications**! File attachments (with built-in thumbnail generation, video transcoding, and GIF processing!) DMs! **Voice and video calls** with **screen sharing**! **Full-text search**! Heaps of configuration options! Flexible role-based access control! **SSO integration**! And more is coming!
+
+And it ships in a compact ~70 MB executable that you can just [plop on a server and run](/getting-started/quick-start/). It doesn't even need a database!
+
+### What Chatto Isn't
+
+**Chatto is not a chat platform.** There is no big central instance that everyone is on; every Chatto deployment powers exactly one community. **There are no ads**, or **premium subscriptions**. We _do_ offer paid hosting of individual Chatto instances through [Chatto Cloud](https://chatto.run), but every hosted instance is completely isolated and structurally equivalent to one that you're hosting yourself (in fact, you can always move in and out of Chatto Cloud at any point!)
+
+**Chatto is not a protocol.** Chatto instances never exchange any data; there is **no cross-instance federation**, and there are no plans for it (in fact, we consider it an anti-feature that strongly collides with Chatto's stated privacy and GDPR compliance goals.) The available client applications **simply connect to each of your favorite communities directly** to give you the convenient multi-community user experience you crave, without the operational and legal complexity of federating systems.
+
+### Project Status
+
+Chatto is still very much work in progress. If you're planning to self-host, please be aware of the following:
+
+- It's early days, so **expect bugs and missing features**. We're adding features and fixing bugs constantly, and shipping new versions regularly, so please be ready to upgrade your deployment frequently. We're taking great care to make upgrades painless, but do watch out for upgrade instructions in each release's release notes.
+- **We do consider it safe to use**, though; we're (obviously) dogfooding Chatto [in our own communities](https://chat.chatto.run), so we're motivated to fix issues quickly and not ship updates that nuke everything into oblivion. We do, however, recommend that you [make backups of your data](/guides/backup-restore/) on a regular basis. You know, just in case.
+- The part of the codebase that's still moving the most is the API; please take this into account when building bots or integrations. Generally speaking, while Chatto is still in the `0.x.y` version range, **be ready for unannounced breaking API changes**.
+- For a high-level overview of where Chatto is at and what features are still missing, please see the [Official Chatto Roadmap](https://github.com/orgs/chattocorp/projects/1).
+
+Enough yapping. We know you want to get started. Let's do this.

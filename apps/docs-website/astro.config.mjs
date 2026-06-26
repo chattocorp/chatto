@@ -5,7 +5,7 @@ import starlight from "@astrojs/starlight";
 // https://astro.build/config
 export default defineConfig({
   redirects: {
-    "/getting-started/overview": "/getting-started/quick-start",
+    "/getting-started/overview": "/getting-started/introduction",
   },
   integrations: [
     starlight({
@@ -21,7 +21,7 @@ export default defineConfig({
       sidebar: [
         {
           label: "Getting Started",
-          items: ["getting-started/quick-start"],
+          items: ["getting-started/introduction", "getting-started/quick-start"],
         },
         {
           label: "Deployment",
