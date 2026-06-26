@@ -636,7 +636,7 @@
         {#if actor}
           <button
             type="button"
-            class="absolute top-1 left-2 cursor-pointer"
+            class={['absolute left-2 z-10 cursor-pointer', replyPreview ? 'top-8' : 'top-1']}
             onclick={showPopoverForActor}
             ontouchstart={(e) => e.stopPropagation()}
             oncontextmenu={(e) => {
@@ -654,7 +654,10 @@
         {:else}
           <!-- Deleted user placeholder avatar -->
           <div
-            class="absolute top-1 left-2 flex h-11 w-11 items-center justify-center rounded-full bg-surface-200 text-muted shadow-md ring-1 ring-surface-200/30"
+            class={[
+              'absolute left-2 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-surface-200 text-muted shadow-md ring-1 ring-surface-200/30',
+              replyPreview ? 'top-8' : 'top-1'
+            ]}
           >
             <span class="iconify text-xl uil--user-times"></span>
           </div>
@@ -676,14 +679,21 @@
             data-testid="reply-attribution"
             aria-label={m['room.message.meta.in_reply_to']()}
             title={m['room.message.meta.in_reply_to']()}
-            class="group/reply flex min-w-0 cursor-pointer items-center gap-1.5 py-0.5 text-xs leading-none text-muted"
+            class="group/reply relative flex min-w-0 cursor-pointer items-center gap-1.5 py-0.5 text-xs leading-none text-muted"
             onclick={scrollToReplyTarget}
             onmousedown={(e) => e.stopPropagation()}
           >
-            <span
-              aria-hidden="true"
-              class="group-hover/reply:border-surface-400 h-3 w-5 shrink-0 rounded-tl-md border-t-2 border-l-2 border-surface-300/70 transition-colors"
-            ></span>
+            {#if compact}
+              <span
+                aria-hidden="true"
+                class="group-hover/reply:border-surface-400 h-3 w-5 shrink-0 rounded-tl-md border-t-2 border-l-2 border-surface-300/70 transition-colors"
+              ></span>
+            {:else}
+              <span
+                aria-hidden="true"
+                class="group-hover/reply:border-surface-400 absolute top-[11px] -left-[39px] h-7 w-[39px] rounded-tl-md border-t-2 border-l-2 border-surface-300/70 transition-colors"
+              ></span>
+            {/if}
             {#if replyPreview.actor}
               {@const replyCallPresence = activeCallRooms.getParticipantCallPresence(
                 roomId,
