@@ -41,6 +41,8 @@ type ChattoCore struct {
 	encryption         *encryptionManager
 	configManager      *ConfigManager
 	roomModel          *RoomModel
+	roomCommands       *RoomCommandModel
+	roomDirectoryReads *RoomDirectoryReadModel
 	messageModel       *MessageModel
 	notificationPrefs  *NotificationPreferencesModel
 	roomTimelineReads  *RoomTimelineReadModel
@@ -1031,6 +1033,8 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	core.mediaModel = NewMediaModel(core)
 	core.callModel = NewCallModel(eventPublisher, callState, callStateProjector, encMgr.callKeys, nil, callReconcileLease, storage.memoryCacheKV, logger.WithPrefix("core.CallModel"))
 	core.assetModel = NewAssetModel(core)
+	core.roomCommands = &RoomCommandModel{core: core}
+	core.roomDirectoryReads = &RoomDirectoryReadModel{core: core}
 	core.messageModel = &MessageModel{core: core}
 	core.notificationPrefs = &NotificationPreferencesModel{core: core}
 	core.roomTimelineReads = &RoomTimelineReadModel{core: core}
