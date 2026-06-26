@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   goto: vi.fn(),
   query: vi.fn(),
   mutation: vi.fn(),
+  startDM: vi.fn(),
   toastError: vi.fn(),
   recents: {
     urls: [] as string[],
@@ -61,6 +62,8 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
 vi.mock('$lib/state/server/graphqlClient.svelte', () => ({
   graphqlClientManager: {
     getClient: () => ({
+      connectBaseUrl: 'https://chat.example.test/api/connect',
+      bearerToken: 'token-1',
       client: {
         query: mocks.query,
         mutation: mocks.mutation
@@ -90,6 +93,12 @@ vi.mock('$lib/ui/toast', () => ({
   }
 }));
 
+vi.mock('$lib/api/rooms', () => ({
+  createRoomCommandAPI: vi.fn(() => ({
+    startDM: mocks.startDM
+  }))
+}));
+
 import QuickSwitcher from './QuickSwitcher.svelte';
 
 type User = {
@@ -117,12 +126,6 @@ let originalShowModal: typeof HTMLDialogElement.prototype.showModal;
 let originalClose: typeof HTMLDialogElement.prototype.close;
 
 function queryResult(data: unknown) {
-  return {
-    toPromise: vi.fn().mockResolvedValue({ data })
-  };
-}
-
-function mutationResult(data: unknown) {
   return {
     toPromise: vi.fn().mockResolvedValue({ data })
   };
@@ -211,7 +214,7 @@ function installQueryMocks() {
     throw new Error(`Unexpected query document: ${name}`);
   });
 
-  mocks.mutation.mockReturnValue(mutationResult({ startDM: { id: 'dm-new' } }));
+  mocks.startDM.mockResolvedValue({ id: 'dm-new' });
 }
 
 async function renderOpenSwitcher() {
@@ -286,6 +289,7 @@ beforeEach(() => {
   mocks.recents.urls = [];
   mocks.recents.record.mockClear();
   mocks.mutation.mockClear();
+  mocks.startDM.mockClear();
   mocks.query.mockClear();
 });
 
@@ -386,13 +390,7 @@ describe('QuickSwitcher', () => {
       .click();
 
     await vi.waitFor(() => {
-      const [document, variables] = mocks.mutation.mock.calls[0] ?? [];
-      expect(operationName(document)).toBe('QuickSwitcherStartDM');
-      expect(variables).toEqual({
-        input: {
-          participantIds: ['user-river-login']
-        }
-      });
+      expect(mocks.startDM).toHaveBeenCalledWith(['user-river-login']);
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-/dm-new');
     });
     expect(mocks.recents.record).toHaveBeenCalledWith('/chat/-/dm-new');

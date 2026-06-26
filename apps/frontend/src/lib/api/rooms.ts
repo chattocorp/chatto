@@ -150,6 +150,15 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
       }
     },
 
+    async startDM(participantIds: string[]): Promise<PublicRoom | null> {
+      try {
+        const response = await rooms.startDM({ participantIds }, { headers: headers() });
+        return publicRoom(response.room);
+      } catch (err) {
+        return handleAuthError(err);
+      }
+    },
+
     async leaveRoom(roomId: string): Promise<boolean> {
       try {
         const response = await rooms.leaveRoom({ roomId }, { headers: headers() });
@@ -180,9 +189,7 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
             roomId: input.roomId,
             userId: input.userId,
             reason: input.reason,
-            expiresAt: input.expiresAt
-              ? Timestamp.fromDate(new Date(input.expiresAt))
-              : undefined
+            expiresAt: input.expiresAt ? Timestamp.fromDate(new Date(input.expiresAt)) : undefined
           },
           { headers: headers() }
         );

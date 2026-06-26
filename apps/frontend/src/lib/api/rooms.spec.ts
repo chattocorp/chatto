@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   handleAuthenticationRequired: vi.fn(),
   createRoom: vi.fn(),
   joinRoom: vi.fn(),
+  startDM: vi.fn(),
   leaveRoom: vi.fn(),
   joinGroup: vi.fn(),
   banRoomMember: vi.fn(),
@@ -39,6 +40,7 @@ describe('createRoomCommandAPI', () => {
     mocks.handleAuthenticationRequired.mockReset();
     mocks.createRoom.mockReset();
     mocks.joinRoom.mockReset();
+    mocks.startDM.mockReset();
     mocks.leaveRoom.mockReset();
     mocks.joinGroup.mockReset();
     mocks.banRoomMember.mockReset();
@@ -47,6 +49,7 @@ describe('createRoomCommandAPI', () => {
     mocks.createClient.mockReturnValue({
       createRoom: mocks.createRoom,
       joinRoom: mocks.joinRoom,
+      startDM: mocks.startDM,
       leaveRoom: mocks.leaveRoom,
       joinGroup: mocks.joinGroup,
       banRoomMember: mocks.banRoomMember,
@@ -103,6 +106,7 @@ describe('createRoomCommandAPI', () => {
 
   it('uses Connect room and directory membership commands', async () => {
     mocks.joinRoom.mockResolvedValue({ room: { id: 'room-1', name: 'general' } });
+    mocks.startDM.mockResolvedValue({ room: { id: 'dm-1', name: '' } });
     mocks.leaveRoom.mockResolvedValue({ left: true });
     mocks.joinGroup.mockResolvedValue({ joinedRoomIds: ['room-1', 'room-2'] });
 
@@ -112,10 +116,15 @@ describe('createRoomCommandAPI', () => {
     });
 
     await expect(api.joinRoom('room-1')).resolves.toMatchObject({ id: 'room-1' });
+    await expect(api.startDM(['user-1'])).resolves.toMatchObject({ id: 'dm-1' });
     await expect(api.leaveRoom('room-1')).resolves.toBe(true);
     await expect(api.joinGroup('group-1')).resolves.toEqual(['room-1', 'room-2']);
 
     expect(mocks.joinRoom).toHaveBeenCalledWith({ roomId: 'room-1' }, { headers: undefined });
+    expect(mocks.startDM).toHaveBeenCalledWith(
+      { participantIds: ['user-1'] },
+      { headers: undefined }
+    );
     expect(mocks.leaveRoom).toHaveBeenCalledWith({ roomId: 'room-1' }, { headers: undefined });
     expect(mocks.joinGroup).toHaveBeenCalledWith({ groupId: 'group-1' }, { headers: undefined });
   });

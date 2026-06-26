@@ -672,6 +672,90 @@ export class JoinRoomResponse extends Message<JoinRoomResponse> {
 }
 
 /**
+ * Request to start or fetch a direct-message room.
+ *
+ * @generated from message chatto.api.v1.StartDMRequest
+ */
+export class StartDMRequest extends Message<StartDMRequest> {
+  /**
+   * Other participants to include in the direct-message room. The current user
+   * is always included by the server. An empty list creates or fetches the
+   * caller's self-DM.
+   *
+   * @generated from field: repeated string participant_ids = 1;
+   */
+  participantIds: string[] = [];
+
+  constructor(data?: PartialMessage<StartDMRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.StartDMRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "participant_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StartDMRequest {
+    return new StartDMRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): StartDMRequest {
+    return new StartDMRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): StartDMRequest {
+    return new StartDMRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: StartDMRequest | PlainMessage<StartDMRequest> | undefined, b: StartDMRequest | PlainMessage<StartDMRequest> | undefined): boolean {
+    return proto3.util.equals(StartDMRequest, a, b);
+  }
+}
+
+/**
+ * Result of starting or fetching a direct-message room.
+ *
+ * @generated from message chatto.api.v1.StartDMResponse
+ */
+export class StartDMResponse extends Message<StartDMResponse> {
+  /**
+   * Direct-message room for the participant set.
+   *
+   * @generated from field: chatto.api.v1.Room room = 1;
+   */
+  room?: Room;
+
+  constructor(data?: PartialMessage<StartDMResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.StartDMResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room", kind: "message", T: Room },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StartDMResponse {
+    return new StartDMResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): StartDMResponse {
+    return new StartDMResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): StartDMResponse {
+    return new StartDMResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: StartDMResponse | PlainMessage<StartDMResponse> | undefined, b: StartDMResponse | PlainMessage<StartDMResponse> | undefined): boolean {
+    return proto3.util.equals(StartDMResponse, a, b);
+  }
+}
+
+/**
  * Request to leave a room as the current user.
  *
  * @generated from message chatto.api.v1.LeaveRoomRequest

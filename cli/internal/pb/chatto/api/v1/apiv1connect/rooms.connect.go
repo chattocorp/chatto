@@ -47,6 +47,8 @@ const (
 	RoomServiceSetRoomUniversalProcedure = "/chatto.api.v1.RoomService/SetRoomUniversal"
 	// RoomServiceJoinRoomProcedure is the fully-qualified name of the RoomService's JoinRoom RPC.
 	RoomServiceJoinRoomProcedure = "/chatto.api.v1.RoomService/JoinRoom"
+	// RoomServiceStartDMProcedure is the fully-qualified name of the RoomService's StartDM RPC.
+	RoomServiceStartDMProcedure = "/chatto.api.v1.RoomService/StartDM"
 	// RoomServiceLeaveRoomProcedure is the fully-qualified name of the RoomService's LeaveRoom RPC.
 	RoomServiceLeaveRoomProcedure = "/chatto.api.v1.RoomService/LeaveRoom"
 	// RoomServiceBanRoomMemberProcedure is the fully-qualified name of the RoomService's BanRoomMember
@@ -76,6 +78,9 @@ type RoomServiceClient interface {
 	SetRoomUniversal(context.Context, *connect.Request[v1.SetRoomUniversalRequest]) (*connect.Response[v1.SetRoomUniversalResponse], error)
 	// Joins the room as the current user when room permissions allow it.
 	JoinRoom(context.Context, *connect.Request[v1.JoinRoomRequest]) (*connect.Response[v1.JoinRoomResponse], error)
+	// Starts or fetches a direct-message room for the current user and the
+	// requested participant set. The caller must be allowed to start DMs.
+	StartDM(context.Context, *connect.Request[v1.StartDMRequest]) (*connect.Response[v1.StartDMResponse], error)
 	// Leaves the room as the current user. Direct-message and universal rooms
 	// cannot be left.
 	LeaveRoom(context.Context, *connect.Request[v1.LeaveRoomRequest]) (*connect.Response[v1.LeaveRoomResponse], error)
@@ -134,6 +139,12 @@ func NewRoomServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(roomServiceMethods.ByName("JoinRoom")),
 			connect.WithClientOptions(opts...),
 		),
+		startDM: connect.NewClient[v1.StartDMRequest, v1.StartDMResponse](
+			httpClient,
+			baseURL+RoomServiceStartDMProcedure,
+			connect.WithSchema(roomServiceMethods.ByName("StartDM")),
+			connect.WithClientOptions(opts...),
+		),
 		leaveRoom: connect.NewClient[v1.LeaveRoomRequest, v1.LeaveRoomResponse](
 			httpClient,
 			baseURL+RoomServiceLeaveRoomProcedure,
@@ -163,6 +174,7 @@ type roomServiceClient struct {
 	unarchiveRoom    *connect.Client[v1.UnarchiveRoomRequest, v1.UnarchiveRoomResponse]
 	setRoomUniversal *connect.Client[v1.SetRoomUniversalRequest, v1.SetRoomUniversalResponse]
 	joinRoom         *connect.Client[v1.JoinRoomRequest, v1.JoinRoomResponse]
+	startDM          *connect.Client[v1.StartDMRequest, v1.StartDMResponse]
 	leaveRoom        *connect.Client[v1.LeaveRoomRequest, v1.LeaveRoomResponse]
 	banRoomMember    *connect.Client[v1.BanRoomMemberRequest, v1.BanRoomMemberResponse]
 	unbanRoomMember  *connect.Client[v1.UnbanRoomMemberRequest, v1.UnbanRoomMemberResponse]
@@ -196,6 +208,11 @@ func (c *roomServiceClient) SetRoomUniversal(ctx context.Context, req *connect.R
 // JoinRoom calls chatto.api.v1.RoomService.JoinRoom.
 func (c *roomServiceClient) JoinRoom(ctx context.Context, req *connect.Request[v1.JoinRoomRequest]) (*connect.Response[v1.JoinRoomResponse], error) {
 	return c.joinRoom.CallUnary(ctx, req)
+}
+
+// StartDM calls chatto.api.v1.RoomService.StartDM.
+func (c *roomServiceClient) StartDM(ctx context.Context, req *connect.Request[v1.StartDMRequest]) (*connect.Response[v1.StartDMResponse], error) {
+	return c.startDM.CallUnary(ctx, req)
 }
 
 // LeaveRoom calls chatto.api.v1.RoomService.LeaveRoom.
@@ -232,6 +249,9 @@ type RoomServiceHandler interface {
 	SetRoomUniversal(context.Context, *connect.Request[v1.SetRoomUniversalRequest]) (*connect.Response[v1.SetRoomUniversalResponse], error)
 	// Joins the room as the current user when room permissions allow it.
 	JoinRoom(context.Context, *connect.Request[v1.JoinRoomRequest]) (*connect.Response[v1.JoinRoomResponse], error)
+	// Starts or fetches a direct-message room for the current user and the
+	// requested participant set. The caller must be allowed to start DMs.
+	StartDM(context.Context, *connect.Request[v1.StartDMRequest]) (*connect.Response[v1.StartDMResponse], error)
 	// Leaves the room as the current user. Direct-message and universal rooms
 	// cannot be left.
 	LeaveRoom(context.Context, *connect.Request[v1.LeaveRoomRequest]) (*connect.Response[v1.LeaveRoomResponse], error)
@@ -286,6 +306,12 @@ func NewRoomServiceHandler(svc RoomServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(roomServiceMethods.ByName("JoinRoom")),
 		connect.WithHandlerOptions(opts...),
 	)
+	roomServiceStartDMHandler := connect.NewUnaryHandler(
+		RoomServiceStartDMProcedure,
+		svc.StartDM,
+		connect.WithSchema(roomServiceMethods.ByName("StartDM")),
+		connect.WithHandlerOptions(opts...),
+	)
 	roomServiceLeaveRoomHandler := connect.NewUnaryHandler(
 		RoomServiceLeaveRoomProcedure,
 		svc.LeaveRoom,
@@ -318,6 +344,8 @@ func NewRoomServiceHandler(svc RoomServiceHandler, opts ...connect.HandlerOption
 			roomServiceSetRoomUniversalHandler.ServeHTTP(w, r)
 		case RoomServiceJoinRoomProcedure:
 			roomServiceJoinRoomHandler.ServeHTTP(w, r)
+		case RoomServiceStartDMProcedure:
+			roomServiceStartDMHandler.ServeHTTP(w, r)
 		case RoomServiceLeaveRoomProcedure:
 			roomServiceLeaveRoomHandler.ServeHTTP(w, r)
 		case RoomServiceBanRoomMemberProcedure:
@@ -355,6 +383,10 @@ func (UnimplementedRoomServiceHandler) SetRoomUniversal(context.Context, *connec
 
 func (UnimplementedRoomServiceHandler) JoinRoom(context.Context, *connect.Request[v1.JoinRoomRequest]) (*connect.Response[v1.JoinRoomResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.JoinRoom is not implemented"))
+}
+
+func (UnimplementedRoomServiceHandler) StartDM(context.Context, *connect.Request[v1.StartDMRequest]) (*connect.Response[v1.StartDMResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.StartDM is not implemented"))
 }
 
 func (UnimplementedRoomServiceHandler) LeaveRoom(context.Context, *connect.Request[v1.LeaveRoomRequest]) (*connect.Response[v1.LeaveRoomResponse], error) {

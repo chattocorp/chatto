@@ -322,30 +322,26 @@ test.describe('Direct Messages (room-shaped)', () => {
     await withServerUser(browser, serverURL, async ({ page: regularPage, user: regularUser }) => {
       // Admin starts a DM with the regular user (via API) and seeds it so
       // the conversation isn't filtered by the active DM-room list.
-      const startResp = await page.request.post('/api/graphql', {
-        headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-        data: {
-          query: `mutation($input: StartDMInput!) { startDM(input: $input) { id } }`,
-          variables: { input: { participantIds: [regularUser.id] } }
-        }
+      const startResp = await page.request.post('/api/connect/chatto.api.v1.RoomService/StartDM', {
+        headers: { 'Content-Type': 'application/json', 'Connect-Protocol-Version': '1' },
+        data: { participantIds: [regularUser.id] }
       });
-      const dmRoomId = (await startResp.json()).data.startDM.id as string;
+      expect(startResp.ok()).toBe(true);
+      const dmRoomId = (await startResp.json()).room.id as string;
       await postMessageViaAPI(page, dmRoomId, 'seed');
 
       // Deny message.post BEFORE the regular user navigates. This should stop
       // starting/sending DMs, not reading an existing DM.
       const denyRole = await denyUserPermission(page, regularUser.id!, 'message.post');
       try {
-        const deniedStartResp = await regularPage.request.post('/api/graphql', {
-          headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-          data: {
-            query: `mutation($input: StartDMInput!) { startDM(input: $input) { id } }`,
-            variables: { input: { participantIds: [adminUser.id!] } }
+        const deniedStartResp = await regularPage.request.post(
+          '/api/connect/chatto.api.v1.RoomService/StartDM',
+          {
+            headers: { 'Content-Type': 'application/json', 'Connect-Protocol-Version': '1' },
+            data: { participantIds: [adminUser.id!] }
           }
-        });
-        const deniedStartJson = await deniedStartResp.json();
-        expect(deniedStartJson.data?.startDM).toBeFalsy();
-        expect(deniedStartJson.errors?.length ?? 0).toBeGreaterThan(0);
+        );
+        expect(deniedStartResp.status()).toBe(403);
 
         await regularPage.goto(routes.chat);
         await regularPage.waitForURL(routes.chat);

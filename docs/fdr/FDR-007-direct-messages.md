@@ -1,7 +1,7 @@
 # FDR-007: Direct Messages
 
 **Status:** Active
-**Last reviewed:** 2026-06-07
+**Last reviewed:** 2026-06-26
 
 ## Overview
 
@@ -11,6 +11,7 @@ Users can start a direct conversation (1-to-1 or small group, up to 10 participa
 
 - A DM is started from user context menus inside the chat UI (member list clicks, @mention clicks, message author clicks).
 - Starting a DM with a user (or set of users) navigates to the resulting DM room. If a DM with the same participant set already exists, the user lands in that room rather than creating a duplicate.
+- The bundled web client starts DMs through ConnectRPC `RoomService.StartDM`; the legacy GraphQL `startDM` mutation delegates to the same core DM model.
 - DM rooms appear in the per-server room sidebar with their participants' names and avatars rather than a room name.
 - Inside a DM room, the room extras sidebar is available but starts closed and does not show the Members panel. The current Files panel and future non-member panels are shared, while channel-style moderation actions such as banning/removing room members remain unavailable.
 - Maximum 10 participants per DM.

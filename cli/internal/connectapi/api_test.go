@@ -341,6 +341,86 @@ func TestRoomServiceMembershipAndModerationCommands(t *testing.T) {
 	}
 }
 
+func TestRoomServiceStartDM(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+
+	participant, err := env.core.CreateUser(env.ctx, core.SystemActorID, "connect-dm-participant", "Connect DM Participant", "password")
+	if err != nil {
+		t.Fatalf("CreateUser participant: %v", err)
+	}
+	participantTwo, err := env.core.CreateUser(env.ctx, core.SystemActorID, "connect-dm-participant-two", "Connect DM Participant Two", "password")
+	if err != nil {
+		t.Fatalf("CreateUser participantTwo: %v", err)
+	}
+
+	if _, err := env.rooms.StartDM(env.ctx, connect.NewRequest(&apiv1.StartDMRequest{
+		ParticipantIds: []string{participant.Id},
+	})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated StartDM code = %v, want unauthenticated", connect.CodeOf(err))
+	}
+
+	tooManyParticipants := make([]string, core.MaxDMParticipants)
+	for i := range tooManyParticipants {
+		tooManyParticipants[i] = "participant"
+	}
+	if _, err := env.rooms.StartDM(ctx, connect.NewRequest(&apiv1.StartDMRequest{
+		ParticipantIds: tooManyParticipants,
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("oversized StartDM code = %v, want invalid argument", connect.CodeOf(err))
+	}
+
+	resp, err := env.rooms.StartDM(ctx, connect.NewRequest(&apiv1.StartDMRequest{
+		ParticipantIds: []string{participant.Id},
+	}))
+	if err != nil {
+		t.Fatalf("StartDM: %v", err)
+	}
+	room := resp.Msg.GetRoom()
+	if room.GetKind() != apiv1.RoomKind_ROOM_KIND_DM {
+		t.Fatalf("StartDM room kind = %v, want DM", room.GetKind())
+	}
+
+	again, err := env.rooms.StartDM(ctx, connect.NewRequest(&apiv1.StartDMRequest{
+		ParticipantIds: []string{participant.Id},
+	}))
+	if err != nil {
+		t.Fatalf("StartDM again: %v", err)
+	}
+	if again.Msg.GetRoom().GetId() != room.GetId() {
+		t.Fatalf("StartDM returned different room IDs: %q and %q", room.GetId(), again.Msg.GetRoom().GetId())
+	}
+
+	groupResp, err := env.rooms.StartDM(ctx, connect.NewRequest(&apiv1.StartDMRequest{
+		ParticipantIds: []string{participant.Id, participantTwo.Id},
+	}))
+	if err != nil {
+		t.Fatalf("StartDM group: %v", err)
+	}
+	if groupResp.Msg.GetRoom().GetId() == room.GetId() {
+		t.Fatalf("group StartDM reused two-person room ID %q", room.GetId())
+	}
+
+	blocked, err := env.core.CreateUser(env.ctx, core.SystemActorID, "connect-dm-blocked", "Connect DM Blocked", "password")
+	if err != nil {
+		t.Fatalf("CreateUser blocked: %v", err)
+	}
+	if _, err := env.core.CreateServerRole(env.ctx, core.SystemActorID, "connect-dm-blocked-role", "Connect DM Blocked", ""); err != nil {
+		t.Fatalf("CreateServerRole blocked: %v", err)
+	}
+	if err := env.core.DenyServerPermission(env.ctx, core.SystemActorID, "connect-dm-blocked-role", core.PermMessagePost); err != nil {
+		t.Fatalf("DenyServerPermission message.post: %v", err)
+	}
+	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, blocked.Id, "connect-dm-blocked-role"); err != nil {
+		t.Fatalf("AssignServerRole blocked: %v", err)
+	}
+	if _, err := env.rooms.StartDM(withCaller(env.ctx, blocked), connect.NewRequest(&apiv1.StartDMRequest{
+		ParticipantIds: []string{participant.Id},
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("StartDM denied user code = %v, want permission denied", connect.CodeOf(err))
+	}
+}
+
 func TestRoomServiceRejectsDMRooms(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)

@@ -125,6 +125,25 @@ message JoinRoomResponse {
   Room room = 1;
 }
 
+// Request to start or fetch a direct-message room.
+message StartDMRequest {
+  // Other participants to include in the direct-message room. The current user
+  // is always included by the server. An empty list creates or fetches the
+  // caller's self-DM.
+  repeated string participant_ids = 1 [(buf.validate.field).repeated = {
+    max_items: 9
+    items: {
+      string: {min_len: 1}
+    }
+  }];
+}
+
+// Result of starting or fetching a direct-message room.
+message StartDMResponse {
+  // Direct-message room for the participant set.
+  Room room = 1;
+}
+
 // Request to leave a room as the current user.
 message LeaveRoomRequest {
   // Required. Room to leave.
@@ -196,6 +215,9 @@ service RoomService {
   rpc SetRoomUniversal(SetRoomUniversalRequest) returns (SetRoomUniversalResponse);
   // Joins the room as the current user when room permissions allow it.
   rpc JoinRoom(JoinRoomRequest) returns (JoinRoomResponse);
+  // Starts or fetches a direct-message room for the current user and the
+  // requested participant set. The caller must be allowed to start DMs.
+  rpc StartDM(StartDMRequest) returns (StartDMResponse);
   // Leaves the room as the current user. Direct-message and universal rooms
   // cannot be left.
   rpc LeaveRoom(LeaveRoomRequest) returns (LeaveRoomResponse);

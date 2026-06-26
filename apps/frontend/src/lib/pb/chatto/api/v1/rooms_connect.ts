@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ArchiveRoomRequest, ArchiveRoomResponse, BanRoomMemberRequest, BanRoomMemberResponse, CreateRoomRequest, CreateRoomResponse, JoinRoomRequest, JoinRoomResponse, LeaveRoomRequest, LeaveRoomResponse, SetRoomUniversalRequest, SetRoomUniversalResponse, UnarchiveRoomRequest, UnarchiveRoomResponse, UnbanRoomMemberRequest, UnbanRoomMemberResponse, UpdateRoomRequest, UpdateRoomResponse } from "./rooms_pb.js";
+import { ArchiveRoomRequest, ArchiveRoomResponse, BanRoomMemberRequest, BanRoomMemberResponse, CreateRoomRequest, CreateRoomResponse, JoinRoomRequest, JoinRoomResponse, LeaveRoomRequest, LeaveRoomResponse, SetRoomUniversalRequest, SetRoomUniversalResponse, StartDMRequest, StartDMResponse, UnarchiveRoomRequest, UnarchiveRoomResponse, UnbanRoomMemberRequest, UnbanRoomMemberResponse, UpdateRoomRequest, UpdateRoomResponse } from "./rooms_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -83,6 +83,18 @@ export const RoomService = {
       name: "JoinRoom",
       I: JoinRoomRequest,
       O: JoinRoomResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Starts or fetches a direct-message room for the current user and the
+     * requested participant set. The caller must be allowed to start DMs.
+     *
+     * @generated from rpc chatto.api.v1.RoomService.StartDM
+     */
+    startDM: {
+      name: "StartDM",
+      I: StartDMRequest,
+      O: StartDMResponse,
       kind: MethodKind.Unary,
     },
     /**

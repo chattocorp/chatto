@@ -8,7 +8,7 @@ import { RoomPage } from './RoomPage';
  * Per #330 phase 3, DMs are rooms on the Server: they appear in the
  * primary-server sidebar alongside channels and use the channel URL shape
  * (/chat/{instanceSegment}/{roomId}). This helper still reaches the DM
- * room directly via the GraphQL API for setup convenience, and offers
+ * room directly via the API for setup convenience, and offers
  * sidebar-scoped assertions for tests that care about list rendering.
  */
 export class DMPage {
@@ -28,7 +28,7 @@ export class DMPage {
   // --- API Actions ---
 
   /**
-   * Start a DM conversation with a user via the GraphQL API and navigate
+   * Start a DM conversation with a user via the ConnectRPC API and navigate
    * to the resulting room (using the channel URL shape).
    */
   async startConversation(username: string): Promise<RoomPage> {
@@ -47,15 +47,18 @@ export class DMPage {
     }
 
     // Start DM
-    const dmResult = await this.page.request.post('/api/graphql', {
-      headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-      data: {
-        query: `mutation StartDM($input: StartDMInput!) { startDM(input: $input) { id } }`,
-        variables: { input: { participantIds: [userId] } }
+    const dmResult = await this.page.request.post(
+      '/api/connect/chatto.api.v1.RoomService/StartDM',
+      {
+        headers: { 'Content-Type': 'application/json', 'Connect-Protocol-Version': '1' },
+        data: { participantIds: [userId] }
       }
-    });
+    );
+    if (!dmResult.ok()) {
+      throw new Error(`Failed to start DM with ${username}: ${await dmResult.text()}`);
+    }
     const dmData = await dmResult.json();
-    const conversationId = dmData.data?.startDM?.id;
+    const conversationId = dmData.room?.id;
     if (!conversationId) {
       throw new Error(`Failed to start DM with ${username}`);
     }

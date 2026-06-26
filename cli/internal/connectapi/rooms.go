@@ -116,6 +116,29 @@ func (s *roomService) JoinRoom(ctx context.Context, req *connect.Request[apiv1.J
 	return connect.NewResponse(&apiv1.JoinRoomResponse{Room: apiRoom(room)}), nil
 }
 
+func (s *roomService) StartDM(ctx context.Context, req *connect.Request[apiv1.StartDMRequest]) (*connect.Response[apiv1.StartDMResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if len(req.Msg.ParticipantIds) > core.MaxDMParticipants-1 {
+		return nil, invalidArgument("DM conversations are limited to 10 participants")
+	}
+	can, err := s.api.core.CanStartDM(ctx, caller.UserID)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	if !can {
+		return nil, connectError(core.ErrPermissionDenied)
+	}
+
+	room, _, err := s.api.core.FindOrCreateDM(ctx, caller.UserID, req.Msg.ParticipantIds)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.StartDMResponse{Room: apiRoom(room)}), nil
+}
+
 func (s *roomService) LeaveRoom(ctx context.Context, req *connect.Request[apiv1.LeaveRoomRequest]) (*connect.Response[apiv1.LeaveRoomResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {

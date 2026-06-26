@@ -4,6 +4,7 @@ import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import { readFile } from 'fs/promises';
 import { MessageService } from '$lib/pb/chatto/api/v1/messages_connect';
+import { RoomService } from '$lib/pb/chatto/api/v1/rooms_connect';
 import { startServer, stopServer, type ServerInfo } from './server';
 
 /**
@@ -302,21 +303,19 @@ export async function startDMOnRemote(
 	receiverUserId: string,
 	message: string
 ): Promise<string> {
-	const startResp = await fetch(`${remoteBaseURL}/api/graphql`, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			'X-REQUEST-TYPE': 'GraphQL',
-			Authorization: `Bearer ${senderToken}`
-		},
-		body: JSON.stringify({
-			query: `mutation StartDM($input: StartDMInput!) { startDM(input: $input) { id } }`,
-			variables: { input: { participantIds: [receiverUserId] } }
+	const client = createClient(
+		RoomService,
+		createConnectTransport({
+			baseUrl: new URL('/api/connect', remoteBaseURL).toString(),
+			useBinaryFormat: true
 		})
-	});
-	const startData = await startResp.json();
-	const roomId = startData.data?.startDM?.id;
-	if (!roomId) throw new Error(`Failed to start DM on remote: ${JSON.stringify(startData)}`);
+	);
+	const response = await client.startDM(
+		{ participantIds: [receiverUserId] },
+		{ headers: { Authorization: `Bearer ${senderToken}` } }
+	);
+	const roomId = response.room?.id;
+	if (!roomId) throw new Error('Failed to start DM on remote');
 
 	await postMessageOnRemote(remoteBaseURL, senderToken, roomId, message);
 	return roomId;

@@ -896,6 +896,39 @@ Result of joining a room.
 | `room` | [`Room`](#chatto-api-v1-Room) | Joined room. |
 
 
+<a id="chatto-api-v1-RoomService-StartDM"></a>
+
+### StartDM
+
+Starts or fetches a direct-message room for the current user and the
+requested participant set. The caller must be allowed to start DMs.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/StartDM
+```
+
+<a id="chatto-api-v1-StartDMRequest"></a>
+
+#### Input: StartDMRequest
+
+Request to start or fetch a direct-message room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `participant_ids` | `repeated string` | Other participants to include in the direct-message room. The current user is always included by the server. An empty list creates or fetches the caller's self-DM. |
+
+
+<a id="chatto-api-v1-StartDMResponse"></a>
+
+#### Result: StartDMResponse
+
+Result of starting or fetching a direct-message room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`Room`](#chatto-api-v1-Room) | Direct-message room for the participant set. |
+
+
 <a id="chatto-api-v1-RoomService-LeaveRoom"></a>
 
 ### LeaveRoom

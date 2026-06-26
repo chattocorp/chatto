@@ -19,6 +19,7 @@
   import { quickSwitcher } from '$lib/state/globals.svelte';
   import * as m from '$lib/i18n/messages';
   import { toast } from '$lib/ui/toast';
+  import { createRoomCommandAPI } from '$lib/api/rooms';
 
   type ServerLogo = { name: string; logoUrl?: string | null };
 
@@ -96,14 +97,6 @@
             ...UserAvatarUser
           }
         }
-      }
-    }
-  `);
-
-  const StartDMMutation = graphql(`
-    mutation QuickSwitcherStartDM($input: StartDMInput!) {
-      startDM(input: $input) {
-        id
       }
     }
   `);
@@ -413,17 +406,15 @@
   async function startDMFromUser(item: ResultItem) {
     if (!item.targetUserId) throw new Error('Missing DM target');
 
-    const result = await graphqlClientManager
-      .getClient(item.serverId)
-      .client.mutation(StartDMMutation, {
-        input: {
-          participantIds: item.targetUserId === item.currentUserId ? [] : [item.targetUserId]
-        }
-      })
-      .toPromise();
+    const conn = graphqlClientManager.getClient(item.serverId);
+    const room = await createRoomCommandAPI({
+      serverId: item.serverId,
+      baseUrl: conn.connectBaseUrl,
+      bearerToken: conn.bearerToken
+    }).startDM(item.targetUserId === item.currentUserId ? [] : [item.targetUserId]);
 
-    const roomId = result.data?.startDM.id;
-    if (!roomId) throw result.error ?? new Error('Failed to start DM');
+    const roomId = room?.id;
+    if (!roomId) throw new Error('Failed to start DM');
 
     return roomId;
   }
