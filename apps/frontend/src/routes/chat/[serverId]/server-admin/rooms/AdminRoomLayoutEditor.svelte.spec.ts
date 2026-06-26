@@ -3,6 +3,7 @@ import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import type { Client } from '@urql/svelte';
 import { q } from '$lib/test-utils';
+import type { RoomCommandAPI } from '$lib/api/rooms';
 import {
   AdminRoomLayoutStore,
   type AdminRoomGroup,
@@ -60,13 +61,25 @@ function group(id: string, rooms: AdminRoomInfo[], name = id): AdminRoomGroup {
   };
 }
 
+function roomAPI(): Pick<
+  RoomCommandAPI,
+  'updateRoom' | 'archiveRoom' | 'unarchiveRoom' | 'setRoomUniversal'
+> {
+  return {
+    updateRoom: vi.fn().mockResolvedValue(null),
+    archiveRoom: vi.fn().mockResolvedValue(null),
+    unarchiveRoom: vi.fn().mockResolvedValue(null),
+    setRoomUniversal: vi.fn().mockResolvedValue(null)
+  };
+}
+
 function makeLayout(): AdminRoomLayoutStore {
   const client = {
     query: vi.fn(),
     mutation: vi.fn(),
     subscription: vi.fn()
   } as unknown as Client;
-  return new AdminRoomLayoutStore(client);
+  return new AdminRoomLayoutStore(client, roomAPI());
 }
 
 function renderEditor(layout: AdminRoomLayoutStore) {

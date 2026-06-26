@@ -1,6 +1,7 @@
 <script lang="ts">
   import { graphql, useFragment } from '$lib/gql';
-  import { useMutation, useQuery } from '$lib/hooks';
+  import { useQuery } from '$lib/hooks';
+  import { createRoomCommandAPI } from '$lib/api/rooms';
   import { Panel, DataTable } from '$lib/components/admin';
   import { Hint } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
@@ -11,9 +12,12 @@
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { formatDate as formatDateUtil } from '$lib/utils/formatTime';
   import { toast } from '$lib/ui/toast';
+  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { getActiveServer } from '$lib/state/activeServer.svelte';
   import * as m from '$lib/i18n/messages';
 
   const userSettings = getUserSettings();
+  const connection = useConnection();
 
   const RoomBansQuery = graphql(`
     query AdminRoomBans {
@@ -36,14 +40,7 @@
     }
   `);
 
-  const UnbanRoomMemberMutation = graphql(`
-    mutation AdminUnbanRoomMember($input: UnbanRoomMemberInput!) {
-      unbanRoomMember(input: $input)
-    }
-  `);
-
   const roomBansQuery = useQuery(RoomBansQuery, () => ({}));
-  const unbanMutation = useMutation(UnbanRoomMemberMutation);
 
   let bans = $derived(roomBansQuery.data?.admin?.roomBans ?? []);
   let unbanningBanId = $state<string | null>(null);
@@ -75,21 +72,26 @@
     if (unbanningBanId) return;
     unbanningBanId = ban.id;
     unbanError = null;
-    const result = await unbanMutation.execute({
-      input: {
+    try {
+      const conn = connection();
+      const api = createRoomCommandAPI({
+        serverId: conn.serverId ?? getActiveServer(),
+        baseUrl: conn.connectBaseUrl,
+        bearerToken: conn.bearerToken
+      });
+      await api.unbanRoomMember({
         roomId: ban.roomId,
         userId: ban.userId,
         reason
-      }
-    });
-    unbanningBanId = null;
-
-    if (result.error) {
+      });
+    } catch (error) {
+      unbanningBanId = null;
       unbanError = m['admin.moderation.unban_failed']();
       toast.error(unbanError);
-      console.error('Failed to unban room member:', result.error);
+      console.error('Failed to unban room member:', error);
       return;
     }
+    unbanningBanId = null;
 
     toast.success(m['admin.moderation.unban_success']());
     unbanDialogBan = null;

@@ -18,6 +18,7 @@ import { RoomsStore } from './rooms.svelte';
 import { RoomDirectoryStore } from './roomDirectory.svelte';
 import { AdminRoomLayoutStore } from './adminRoomLayout.svelte';
 import { AdminEventLogStore } from './adminEventLog.svelte';
+import { createRoomCommandAPI } from '$lib/api/rooms';
 import { eventBusManager } from './eventBus.svelte';
 import type { EventBusCatchUpReason, EventHandler } from '$lib/eventBus.svelte';
 import type { GraphQLClient } from './graphqlClient.svelte';
@@ -94,13 +95,18 @@ export class ServerStateStore {
     this.notifications = new NotificationStore(client);
     this.roomUnread = new RoomUnreadStore();
     this.notificationLevels = new NotificationLevelStore();
+    const roomCommandAPI = createRoomCommandAPI({
+      serverId: gqlClient.serverId ?? registered.id,
+      baseUrl: gqlClient.connectBaseUrl,
+      bearerToken: gqlClient.bearerToken
+    });
     this.pendingHighlights = new PendingHighlightStore();
     this.voiceCall = new VoiceCallState(client);
     this.callParticipants = new CallParticipantsState(client);
     this.activeCallRooms = new ActiveCallRoomsState(client, this.voiceCall);
     this.rooms = new RoomsStore(client, this.notificationLevels, this.roomUnread);
-    this.roomDirectory = new RoomDirectoryStore(client);
-    this.adminRoomLayout = new AdminRoomLayoutStore(client);
+    this.roomDirectory = new RoomDirectoryStore(client, roomCommandAPI);
+    this.adminRoomLayout = new AdminRoomLayoutStore(client, roomCommandAPI);
     this.adminEventLog = new AdminEventLogStore(client);
 
     // Self-managed lifecycle for the substores that need fetch / event

@@ -1,8 +1,7 @@
 <script lang="ts">
   import { useConnection } from '$lib/state/server/connection.svelte';
   import * as m from '$lib/i18n/messages';
-  import { isUnsupportedGraphQLInputFieldError } from '$lib/gql/compatibility';
-  import { graphql } from './gql';
+  import { createRoomCommandAPI } from '$lib/api/rooms';
   import {
     TextInput,
     TextArea,
@@ -32,24 +31,6 @@
 
   const form = createFormState(schema, { name: '', description: '', isUniversal: false });
 
-  const CreateRoomMutation = graphql(`
-    mutation CreateRoom($input: CreateRoomInput!) {
-      createRoom(input: $input) {
-        id
-        name
-        description
-      }
-    }
-  `);
-
-  const JoinRoomMutation = graphql(`
-    mutation JoinRoom($input: JoinRoomInput!) {
-      joinRoom(input: $input) {
-        id
-      }
-    }
-  `);
-
   let isLoading = $state(false);
   /** Server-side / network error from the mutations. Validation errors live on form. */
   let submitError = $state('');
@@ -69,41 +50,22 @@
         return;
       }
 
-      const input = {
+      const conn = connection();
+      const api = createRoomCommandAPI({
+        serverId: conn.serverId,
+        baseUrl: conn.connectBaseUrl,
+        bearerToken: conn.bearerToken
+      });
+      const created = await api.createRoom({
         name: values.name.trim(),
-        description: values.description.trim() || undefined,
-        groupId: targetGroupId
-      };
-      const client = connection().client;
-      let result = await client
-        .mutation(CreateRoomMutation, {
-          input: values.isUniversal ? { ...input, isUniversal: true } : input
-        })
-        .toPromise();
+        description: values.description.trim() || null,
+        groupId: targetGroupId,
+        universal: values.isUniversal
+      });
+      const roomId = created?.id;
+      if (!roomId) throw new Error(m['room.create.failed']());
 
-      if (
-        values.isUniversal &&
-        result.error &&
-        isUnsupportedGraphQLInputFieldError(result.error, 'isUniversal')
-      ) {
-        result = await client.mutation(CreateRoomMutation, { input }).toPromise();
-      }
-
-      if (result.error) {
-        submitError = result.error.message;
-        console.error('Error creating room:', result.error);
-        return;
-      }
-
-      const roomId = result.data!.createRoom.id;
-
-      const joinResult = await client.mutation(JoinRoomMutation, { input: { roomId } }).toPromise();
-
-      if (joinResult.error) {
-        submitError = joinResult.error.message;
-        console.error('Error joining room:', joinResult.error);
-        return;
-      }
+      await api.joinRoom(roomId);
 
       onroomcreated?.(roomId);
     } catch (err) {

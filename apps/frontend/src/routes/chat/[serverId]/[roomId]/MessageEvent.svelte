@@ -10,7 +10,6 @@
   import BottomSheet from '$lib/ui/BottomSheet.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import { useFragment } from '$lib/gql/fragment-masking';
-  import { graphql } from '$lib/gql';
   import type { RoomEventViewFragment } from '$lib/gql/graphql';
   import {
     getRoomPermissions,
@@ -55,6 +54,7 @@
   import { shouldHighlightCurrentUserMention } from './messageMentionHighlight';
   import { selectedQuoteTextForMessageBody } from './selectedReplyQuote';
   import { createThreadAPI } from '$lib/api/threads';
+  import { createRoomCommandAPI } from '$lib/api/rooms';
   import * as m from '$lib/i18n/messages';
 
   // Long-press thresholds in milliseconds
@@ -409,12 +409,6 @@
   let banDialogUser = $state<RoomMember | null>(null);
   let banError = $state<string | null>(null);
 
-  const BanRoomMemberMutation = graphql(`
-    mutation BanRoomMemberFromMessageEvent($input: BanRoomMemberInput!) {
-      banRoomMember(input: $input)
-    }
-  `);
-
   const canBanPopoverUser = $derived.by(() => {
     if (
       !popoverUser ||
@@ -442,17 +436,22 @@
     banningMemberId = member.id;
     banError = null;
     const displayName = member.displayName || member.login;
-    const result = await connection().client.mutation(BanRoomMemberMutation, {
-      input: { roomId, userId: member.id, reason, expiresAt }
-    });
-    banningMemberId = null;
-
-    if (result.error) {
+    try {
+      const conn = connection();
+      const api = createRoomCommandAPI({
+        serverId: conn.serverId ?? getActiveServer(),
+        baseUrl: conn.connectBaseUrl,
+        bearerToken: conn.bearerToken
+      });
+      await api.banRoomMember({ roomId, userId: member.id, reason, expiresAt });
+    } catch (error) {
+      banningMemberId = null;
       banError = 'Failed to ban member from room';
       toast.error(banError);
-      console.error('Failed to ban member from room:', result.error);
+      console.error('Failed to ban member from room:', error);
       return;
     }
+    banningMemberId = null;
 
     toast.success(`Banned ${displayName} from room`);
     banDialogUser = null;

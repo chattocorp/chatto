@@ -15,6 +15,7 @@
   import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
   import { Button } from '$lib/ui/form';
   import CreateRoom from '$lib/CreateRoom.svelte';
+  import { createRoomCommandAPI } from '$lib/api/rooms';
 
   import ImageModal from '$lib/ui/ImageModal.svelte';
 
@@ -48,24 +49,22 @@
 
   async function handleLeaveRoom(roomId: string) {
     leavingRoom = true;
-    const result = await getActiveClient()
-      .mutation(
-        graphql(`
-          mutation LeaveRoomFromModal($input: LeaveRoomInput!) {
-            leaveRoom(input: $input)
-          }
-        `),
-        { input: { roomId } }
-      )
-      .toPromise();
-    leavingRoom = false;
-
-    if (result.error) {
+    try {
+      const conn = graphqlClientManager.getClient(activeInstanceId);
+      const api = createRoomCommandAPI({
+        serverId: conn.serverId ?? activeInstanceId,
+        baseUrl: conn.connectBaseUrl,
+        bearerToken: conn.bearerToken
+      });
+      await api.leaveRoom(roomId);
+    } catch (error) {
+      leavingRoom = false;
       toast.error(m['room.leave.failed']());
-      console.error('Error leaving room:', result.error);
+      console.error('Error leaving room:', error);
       closeModal();
       return;
     }
+    leavingRoom = false;
 
     clearLastRoom(activeInstanceId);
     goto(resolve('/chat/[serverId]', { serverId: serverSegment }));

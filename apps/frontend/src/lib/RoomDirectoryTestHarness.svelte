@@ -37,9 +37,16 @@ chat-event tree or registering a server in the global registry.
     mutation: () => ({ toPromise: () => Promise.resolve({ data: null, error: null }) })
   };
 
+  const stubRoomAPI = {
+    joinRoom: async () => null,
+    leaveRoom: async () => true,
+    joinGroup: async () => []
+  };
+
   const directory = new RoomDirectoryStore(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub
-    stubClient as any
+    stubClient as any,
+    stubRoomAPI
   );
   directory.allRooms = untrack(() => initialRooms);
   directory.isLoading = false;

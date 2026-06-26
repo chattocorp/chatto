@@ -1,7 +1,7 @@
 import { SvelteSet } from 'svelte/reactivity';
 import type { Client } from '@urql/svelte';
 import { graphql } from '$lib/gql';
-import { isUnsupportedGraphQLFieldError } from '$lib/gql/compatibility';
+import type { RoomCommandAPI } from '$lib/api/rooms';
 import { isRoomStateRefreshEvent } from './rooms.svelte';
 
 export type DirectoryRoom = {
@@ -25,38 +25,6 @@ const RoomsForDirectoryQuery = graphql(`
         viewerCanJoinRoom
       }
     }
-  }
-`);
-
-const RoomsForDirectoryCompatibilityQuery = graphql(`
-  query GetServerRoomDirectoryCompatibility {
-    server {
-      rooms(type: CHANNEL) {
-        id
-        name
-        description
-        archived
-        viewerCanJoinRoom
-      }
-    }
-  }
-`);
-
-const JoinRoomFromDirectory = graphql(`
-  mutation JoinRoomFromDirectory($input: JoinRoomInput!) {
-    joinRoom(input: $input) { id }
-  }
-`);
-
-const LeaveRoomFromDirectory = graphql(`
-  mutation LeaveRoomFromDirectoryStore($input: LeaveRoomInput!) {
-    leaveRoom(input: $input)
-  }
-`);
-
-const JoinGroupFromDirectory = graphql(`
-  mutation JoinGroupFromDirectory($input: JoinGroupInput!) {
-    joinGroup(input: $input)
   }
 `);
 
@@ -106,7 +74,10 @@ export class RoomDirectoryStore {
 
   private loadId = 0;
 
-  constructor(private readonly client: Client) {}
+  constructor(
+    private readonly client: Client,
+    private readonly roomAPI: Pick<RoomCommandAPI, 'joinRoom' | 'leaveRoom' | 'joinGroup'>
+  ) {}
 
   // ---------------------------------------------------------------------------
   // Loading
@@ -114,11 +85,7 @@ export class RoomDirectoryStore {
 
   async refresh(): Promise<void> {
     const thisLoad = ++this.loadId;
-    const initialResult = await this.client.query(RoomsForDirectoryQuery, {}).toPromise();
-    const result =
-      initialResult.error && isUnsupportedGraphQLFieldError(initialResult.error, 'isUniversal')
-        ? await this.client.query(RoomsForDirectoryCompatibilityQuery, {}).toPromise()
-        : initialResult;
+    const result = await this.client.query(RoomsForDirectoryQuery, {}).toPromise();
     if (this.loadId !== thisLoad) return;
 
     if (result.data?.server) {
@@ -158,17 +125,12 @@ export class RoomDirectoryStore {
   async joinRoom(roomId: string): Promise<JoinResult> {
     this.joiningIds.add(roomId);
     try {
-      const result = await this.client
-        .mutation(JoinRoomFromDirectory, { input: { roomId } })
-        .toPromise();
-
-      if (result.error) {
-        return { ok: false, error: new Error(result.error.message) };
-      }
-
+      await this.roomAPI.joinRoom(roomId);
       this.justJoinedIds.add(roomId);
       this.justLeftIds.delete(roomId);
       return { ok: true, room: this.allRooms.find((r) => r.id === roomId) };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error : new Error(String(error)) };
     } finally {
       this.joiningIds.delete(roomId);
     }
@@ -182,20 +144,14 @@ export class RoomDirectoryStore {
   async joinGroup(groupId: string): Promise<JoinGroupResult> {
     this.joiningGroupIds.add(groupId);
     try {
-      const result = await this.client
-        .mutation(JoinGroupFromDirectory, { input: { groupId } })
-        .toPromise();
-
-      if (result.error) {
-        return { ok: false, error: new Error(result.error.message) };
-      }
-
-      const joined = result.data?.joinGroup ?? [];
+      const joined = await this.roomAPI.joinGroup(groupId);
       for (const id of joined) {
         this.justJoinedIds.add(id);
         this.justLeftIds.delete(id);
       }
       return { ok: true, joinedRoomIds: joined };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error : new Error(String(error)) };
     } finally {
       this.joiningGroupIds.delete(groupId);
     }
@@ -204,17 +160,12 @@ export class RoomDirectoryStore {
   async leaveRoom(roomId: string): Promise<LeaveResult> {
     this.leavingIds.add(roomId);
     try {
-      const result = await this.client
-        .mutation(LeaveRoomFromDirectory, { input: { roomId } })
-        .toPromise();
-
-      if (result.error) {
-        return { ok: false, error: new Error(result.error.message) };
-      }
-
+      await this.roomAPI.leaveRoom(roomId);
       this.justLeftIds.add(roomId);
       this.justJoinedIds.delete(roomId);
       return { ok: true, room: this.allRooms.find((r) => r.id === roomId) };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error : new Error(String(error)) };
     } finally {
       this.leavingIds.delete(roomId);
     }

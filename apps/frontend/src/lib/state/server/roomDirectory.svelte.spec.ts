@@ -3,6 +3,7 @@ import { flushSync } from 'svelte';
 import type { Client } from '@urql/svelte';
 import type { RoomEventViewFragment } from '$lib/gql/graphql';
 import { RoomDirectoryStore, type DirectoryRoom } from './roomDirectory.svelte';
+import type { RoomCommandAPI } from '$lib/api/rooms';
 
 const SPACE_ID = 's_main';
 
@@ -21,28 +22,23 @@ type QueryResponse = { server: { id: string; rooms: DirectoryRoom[] } | null };
 
 function makeClient(opts: {
   query?: QueryResponse | null;
-  joinError?: string;
-  leaveError?: string;
 }) {
   const queryMock = vi.fn(() => ({
     toPromise: () => Promise.resolve({ data: opts.query ?? null, error: null })
   }));
-  const mutationMock = vi.fn((doc: unknown) => {
-    // crude heuristic — gql.tada returns objects, distinguish by error opt
-    const docStr = JSON.stringify(doc);
-    const isJoin = docStr.includes('joinRoom');
-    const isLeave = docStr.includes('leaveRoom');
-    const errMsg = isJoin ? opts.joinError : isLeave ? opts.leaveError : undefined;
-    return {
-      toPromise: () =>
-        Promise.resolve({
-          data: errMsg ? null : { joinRoom: true, leaveRoom: true },
-          error: errMsg ? { message: errMsg } : null
-        })
-    };
-  });
-  const client = { query: queryMock, mutation: mutationMock } as unknown as Client;
-  return { client, queryMock, mutationMock };
+  const client = { query: queryMock, mutation: vi.fn() } as unknown as Client;
+  return { client, queryMock };
+}
+
+function roomAPI(
+  overrides: Partial<Pick<RoomCommandAPI, 'joinRoom' | 'leaveRoom' | 'joinGroup'>> = {}
+): Pick<RoomCommandAPI, 'joinRoom' | 'leaveRoom' | 'joinGroup'> {
+  return {
+    joinRoom: vi.fn().mockResolvedValue(null),
+    leaveRoom: vi.fn().mockResolvedValue(true),
+    joinGroup: vi.fn().mockResolvedValue([]),
+    ...overrides
+  };
 }
 
 async function settle() {
@@ -58,7 +54,7 @@ describe('RoomDirectoryStore — initial load', () => {
         server: { id: SPACE_ID, rooms: [makeRoom('r1'), makeRoom('r2', { archived: true })] }
       }
     });
-    const store = new RoomDirectoryStore(client);
+    const store = new RoomDirectoryStore(client, roomAPI());
 
     expect(store.isLoading).toBe(true);
     void store.refresh();
@@ -73,7 +69,7 @@ describe('RoomDirectoryStore — initial load', () => {
 
   it('keeps allRooms unchanged when the query returns no data', async () => {
     const { client } = makeClient({ query: null });
-    const store = new RoomDirectoryStore(client);
+    const store = new RoomDirectoryStore(client, roomAPI());
     void store.refresh();
     await settle();
 
@@ -85,7 +81,7 @@ describe('RoomDirectoryStore — initial load', () => {
 describe('RoomDirectoryStore — isJoined predicate', () => {
   it('returns true when the room is in the joined set', async () => {
     const { client } = makeClient({ query: null });
-    const store = new RoomDirectoryStore(client);
+    const store = new RoomDirectoryStore(client, roomAPI());
     void store.refresh();
     await settle();
 
@@ -95,7 +91,7 @@ describe('RoomDirectoryStore — isJoined predicate', () => {
 
   it('returns true for an optimistically-just-joined room even if not in the joined set yet', async () => {
     const { client } = makeClient({ query: null });
-    const store = new RoomDirectoryStore(client);
+    const store = new RoomDirectoryStore(client, roomAPI());
     void store.refresh();
     await settle();
 
@@ -105,7 +101,7 @@ describe('RoomDirectoryStore — isJoined predicate', () => {
 
   it('returns false for an optimistically-just-left room even if still in the joined set', async () => {
     const { client } = makeClient({ query: null });
-    const store = new RoomDirectoryStore(client);
+    const store = new RoomDirectoryStore(client, roomAPI());
     void store.refresh();
     await settle();
 
@@ -115,7 +111,7 @@ describe('RoomDirectoryStore — isJoined predicate', () => {
 
   it('justLeft takes precedence over justJoined when both are set', async () => {
     const { client } = makeClient({ query: null });
-    const store = new RoomDirectoryStore(client);
+    const store = new RoomDirectoryStore(client, roomAPI());
     void store.refresh();
     await settle();
 
@@ -130,7 +126,7 @@ describe('RoomDirectoryStore — joinRoom', () => {
     const { client } = makeClient({
       query: { server: { id: SPACE_ID, rooms: [makeRoom('r1', { name: 'general' })] } }
     });
-    const store = new RoomDirectoryStore(client);
+    const store = new RoomDirectoryStore(client, roomAPI());
     void store.refresh();
     await settle();
 
@@ -146,10 +142,12 @@ describe('RoomDirectoryStore — joinRoom', () => {
 
   it('returns an error result and does not set just-joined when the mutation fails', async () => {
     const { client } = makeClient({
-      query: { server: { id: SPACE_ID, rooms: [makeRoom('r1')] } },
-      joinError: 'permission denied'
+      query: { server: { id: SPACE_ID, rooms: [makeRoom('r1')] } }
     });
-    const store = new RoomDirectoryStore(client);
+    const store = new RoomDirectoryStore(
+      client,
+      roomAPI({ joinRoom: vi.fn().mockRejectedValue(new Error('permission denied')) })
+    );
     void store.refresh();
     await settle();
 
@@ -164,7 +162,7 @@ describe('RoomDirectoryStore — joinRoom', () => {
     const { client } = makeClient({
       query: { server: { id: SPACE_ID, rooms: [makeRoom('r1')] } }
     });
-    const store = new RoomDirectoryStore(client);
+    const store = new RoomDirectoryStore(client, roomAPI());
     void store.refresh();
     await settle();
 
@@ -181,7 +179,7 @@ describe('RoomDirectoryStore — leaveRoom', () => {
     const { client } = makeClient({
       query: { server: { id: SPACE_ID, rooms: [makeRoom('r1')] } }
     });
-    const store = new RoomDirectoryStore(client);
+    const store = new RoomDirectoryStore(client, roomAPI());
     void store.refresh();
     await settle();
 
@@ -198,10 +196,12 @@ describe('RoomDirectoryStore — leaveRoom', () => {
 
   it('returns an error result on failure', async () => {
     const { client } = makeClient({
-      query: { server: { id: SPACE_ID, rooms: [makeRoom('r1')] } },
-      leaveError: 'cannot leave'
+      query: { server: { id: SPACE_ID, rooms: [makeRoom('r1')] } }
     });
-    const store = new RoomDirectoryStore(client);
+    const store = new RoomDirectoryStore(
+      client,
+      roomAPI({ leaveRoom: vi.fn().mockRejectedValue(new Error('cannot leave')) })
+    );
     void store.refresh();
     await settle();
 
@@ -217,7 +217,7 @@ describe('RoomDirectoryStore — refresh clears optimistic state', () => {
     const { client } = makeClient({
       query: { server: { id: SPACE_ID, rooms: [makeRoom('r1')] } }
     });
-    const store = new RoomDirectoryStore(client);
+    const store = new RoomDirectoryStore(client, roomAPI());
     void store.refresh();
     await settle();
 
@@ -241,7 +241,7 @@ describe('RoomDirectoryStore — ingestServerEvent', () => {
     const { client, queryMock } = makeClient({
       query: { server: { id: SPACE_ID, rooms: [] } }
     });
-    const store = new RoomDirectoryStore(client);
+    const store = new RoomDirectoryStore(client, roomAPI());
     void store.refresh();
     await settle();
     expect(queryMock).toHaveBeenCalledTimes(1);
@@ -255,7 +255,7 @@ describe('RoomDirectoryStore — ingestServerEvent', () => {
     const { client, queryMock } = makeClient({
       query: { server: { id: SPACE_ID, rooms: [] } }
     });
-    const store = new RoomDirectoryStore(client);
+    const store = new RoomDirectoryStore(client, roomAPI());
     void store.refresh();
     await settle();
 
@@ -268,7 +268,7 @@ describe('RoomDirectoryStore — ingestServerEvent', () => {
     const { client, queryMock } = makeClient({
       query: { server: { id: SPACE_ID, rooms: [] } }
     });
-    const store = new RoomDirectoryStore(client);
+    const store = new RoomDirectoryStore(client, roomAPI());
     void store.refresh();
     await settle();
 
@@ -292,7 +292,7 @@ describe('RoomDirectoryStore — ingestServerEvent', () => {
     const { client, queryMock } = makeClient({
       query: { server: { id: SPACE_ID, rooms: [] } }
     });
-    const store = new RoomDirectoryStore(client);
+    const store = new RoomDirectoryStore(client, roomAPI());
     void store.refresh();
     await settle();
 
@@ -307,7 +307,7 @@ describe('RoomDirectoryStore — ingestServerEvent', () => {
     const { client, queryMock } = makeClient({
       query: { server: { id: SPACE_ID, rooms: [] } }
     });
-    const store = new RoomDirectoryStore(client);
+    const store = new RoomDirectoryStore(client, roomAPI());
     void store.refresh();
     await settle();
 
@@ -332,7 +332,7 @@ describe('RoomDirectoryStore — concurrent refresh guard', () => {
       }));
     const client = { query: queryMock, mutation: vi.fn() } as unknown as Client;
 
-    const store = new RoomDirectoryStore(client);
+    const store = new RoomDirectoryStore(client, roomAPI());
     void store.refresh(); // first load
     void store.refresh(); // second concurrent load
 

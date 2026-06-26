@@ -1,7 +1,7 @@
 import type { Client } from '@urql/svelte';
 import { graphql } from '$lib/gql';
-import { isUnsupportedGraphQLFieldError } from '$lib/gql/compatibility';
 import { RoomGroupItemType } from '$lib/gql/graphql';
+import type { RoomCommandAPI } from '$lib/api/rooms';
 import { SvelteMap } from 'svelte/reactivity';
 
 const OWN_MUTATION_ECHO_SUPPRESSION_MS = 2000;
@@ -15,38 +15,6 @@ const AdminRoomGroupsQuery = graphql(`
         description
         archived
         isUniversal
-      }
-      roomGroups {
-        id
-        name
-        rooms {
-          id
-        }
-        items {
-          type
-          id
-          room {
-            id
-          }
-          link {
-            id
-            label
-            url
-          }
-        }
-      }
-    }
-  }
-`);
-
-const AdminRoomGroupsCompatibilityQuery = graphql(`
-  query AdminRoomGroupsCompatibility {
-    server {
-      rooms(type: CHANNEL) {
-        id
-        name
-        description
-        archived
       }
       roomGroups {
         id
@@ -149,43 +117,6 @@ const MoveSidebarLinkToGroupMutation = graphql(`
   mutation AdminMoveSidebarLinkToGroup($input: MoveSidebarLinkToGroupInput!) {
     moveSidebarLinkToGroup(input: $input) {
       id
-    }
-  }
-`);
-
-const UpdateRoomMutation = graphql(`
-  mutation AdminUpdateRoom($input: UpdateRoomInput!) {
-    updateRoom(input: $input) {
-      id
-      name
-      description
-    }
-  }
-`);
-
-const ArchiveRoomMutation = graphql(`
-  mutation ArchiveRoom($input: ArchiveRoomInput!) {
-    archiveRoom(input: $input) {
-      id
-      archived
-    }
-  }
-`);
-
-const UnarchiveRoomMutation = graphql(`
-  mutation UnarchiveRoom($input: UnarchiveRoomInput!) {
-    unarchiveRoom(input: $input) {
-      id
-      archived
-    }
-  }
-`);
-
-const SetRoomUniversalMutation = graphql(`
-  mutation AdminSetRoomUniversal($input: SetRoomUniversalInput!) {
-    setRoomUniversal(input: $input) {
-      id
-      isUniversal
     }
   }
 `);
@@ -485,6 +416,10 @@ export class AdminRoomLayoutStore {
 
   constructor(
     private readonly client: Client,
+    private readonly roomAPI: Pick<
+      RoomCommandAPI,
+      'updateRoom' | 'archiveRoom' | 'unarchiveRoom' | 'setRoomUniversal'
+    >,
     private readonly now: () => number = () => Date.now()
   ) {}
 
@@ -496,15 +431,9 @@ export class AdminRoomLayoutStore {
     const thisLoad = ++this.#loadId;
     this.isRefreshing = true;
     try {
-      const initialResult = await this.client
+      const result = await this.client
         .query(AdminRoomGroupsQuery, {}, { requestPolicy: 'network-only' })
         .toPromise();
-      const result =
-        initialResult.error && isUnsupportedGraphQLFieldError(initialResult.error, 'isUniversal')
-          ? await this.client
-              .query(AdminRoomGroupsCompatibilityQuery, {}, { requestPolicy: 'network-only' })
-              .toPromise()
-          : initialResult;
       if (this.#loadId !== thisLoad) return;
 
       if (result.error) {
@@ -657,17 +586,12 @@ export class AdminRoomLayoutStore {
   async updateRoom(roomId: string, name: string, description: string | null): Promise<StoreResult> {
     this.updatingRoom = true;
     try {
-      const result = await this.client
-        .mutation(UpdateRoomMutation, { input: { roomId, name, description } })
-        .toPromise();
-
-      if (result.error) {
-        return { ok: false, error: errorMessage(result.error) };
-      }
-
+      await this.roomAPI.updateRoom({ roomId, name, description });
       this.markMutation();
       await this.refresh();
       return { ok: true };
+    } catch (error) {
+      return { ok: false, error: errorMessage(error) };
     } finally {
       this.updatingRoom = false;
     }
@@ -684,17 +608,12 @@ export class AdminRoomLayoutStore {
   async setRoomUniversal(roomId: string, isUniversal: boolean): Promise<StoreResult> {
     this.universalRoomId = roomId;
     try {
-      const result = await this.client
-        .mutation(SetRoomUniversalMutation, { input: { roomId, isUniversal } })
-        .toPromise();
-
-      if (result.error) {
-        return { ok: false, error: errorMessage(result.error) };
-      }
-
+      await this.roomAPI.setRoomUniversal(roomId, isUniversal);
       this.markMutation();
       await this.refresh();
       return { ok: true };
+    } catch (error) {
+      return { ok: false, error: errorMessage(error) };
     } finally {
       this.universalRoomId = null;
     }
@@ -855,17 +774,16 @@ export class AdminRoomLayoutStore {
   private async setRoomArchived(roomId: string, archived: boolean): Promise<StoreResult> {
     this.archivingRoomId = roomId;
     try {
-      const result = await this.client
-        .mutation(archived ? ArchiveRoomMutation : UnarchiveRoomMutation, { input: { roomId } })
-        .toPromise();
-
-      if (result.error) {
-        return { ok: false, error: errorMessage(result.error) };
+      if (archived) {
+        await this.roomAPI.archiveRoom(roomId);
+      } else {
+        await this.roomAPI.unarchiveRoom(roomId);
       }
-
       this.markMutation();
       await this.refresh();
       return { ok: true };
+    } catch (error) {
+      return { ok: false, error: errorMessage(error) };
     } finally {
       this.archivingRoomId = null;
     }
