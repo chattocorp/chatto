@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { PostMessageRequest, PostMessageResponse } from "./messages_pb.js";
+import { DeleteAttachmentRequest, DeleteAttachmentResponse, DeleteLinkPreviewRequest, DeleteLinkPreviewResponse, DeleteMessageRequest, DeleteMessageResponse, PostMessageRequest, PostMessageResponse, SendTypingIndicatorRequest, SendTypingIndicatorResponse, UpdateMessageRequest, UpdateMessageResponse } from "./messages_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -26,6 +26,65 @@ export const MessageService = {
       name: "PostMessage",
       I: PostMessageRequest,
       O: PostMessageResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Edits a message body. Authors can edit their own messages within the edit
+     * window. Non-authors need message.manage and cannot change channel echo
+     * state.
+     *
+     * @generated from rpc chatto.api.v1.MessageService.UpdateMessage
+     */
+    updateMessage: {
+      name: "UpdateMessage",
+      I: UpdateMessageRequest,
+      O: UpdateMessageResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Retracts a message. Authors can delete their own messages. Non-authors need
+     * message.manage.
+     *
+     * @generated from rpc chatto.api.v1.MessageService.DeleteMessage
+     */
+    deleteMessage: {
+      name: "DeleteMessage",
+      I: DeleteMessageRequest,
+      O: DeleteMessageResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Removes one attachment from the author's own message.
+     *
+     * @generated from rpc chatto.api.v1.MessageService.DeleteAttachment
+     */
+    deleteAttachment: {
+      name: "DeleteAttachment",
+      I: DeleteAttachmentRequest,
+      O: DeleteAttachmentResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Removes the accepted link preview from the author's own message.
+     *
+     * @generated from rpc chatto.api.v1.MessageService.DeleteLinkPreview
+     */
+    deleteLinkPreview: {
+      name: "DeleteLinkPreview",
+      I: DeleteLinkPreviewRequest,
+      O: DeleteLinkPreviewResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Publishes a live-only typing indicator. Room membership is required; message
+     * posting permission is not.
+     *
+     * @generated from rpc chatto.api.v1.MessageService.SendTypingIndicator
+     */
+    sendTypingIndicator: {
+      name: "SendTypingIndicator",
+      I: SendTypingIndicatorRequest,
+      O: SendTypingIndicatorResponse,
       kind: MethodKind.Unary,
     },
   }

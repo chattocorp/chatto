@@ -314,3 +314,486 @@ export class PostMessageResponse extends Message<PostMessageResponse> {
   }
 }
 
+/**
+ * Request to edit a message body.
+ *
+ * @generated from message chatto.api.v1.UpdateMessageRequest
+ */
+export class UpdateMessageRequest extends Message<UpdateMessageRequest> {
+  /**
+   * Required. Room containing the message.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Required. Event ID of the message to edit.
+   *
+   * @generated from field: string event_id = 2;
+   */
+  eventId = "";
+
+  /**
+   * New message body text.
+   *
+   * @generated from field: string body = 3;
+   */
+  body = "";
+
+  /**
+   * For thread replies, whether a channel echo should exist after saving.
+   * Omit to preserve the current echo state.
+   *
+   * @generated from field: optional bool also_send_to_channel = 4;
+   */
+  alsoSendToChannel?: boolean;
+
+  constructor(data?: PartialMessage<UpdateMessageRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.UpdateMessageRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "body", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "also_send_to_channel", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateMessageRequest {
+    return new UpdateMessageRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateMessageRequest {
+    return new UpdateMessageRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateMessageRequest {
+    return new UpdateMessageRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UpdateMessageRequest | PlainMessage<UpdateMessageRequest> | undefined, b: UpdateMessageRequest | PlainMessage<UpdateMessageRequest> | undefined): boolean {
+    return proto3.util.equals(UpdateMessageRequest, a, b);
+  }
+}
+
+/**
+ * Result of editing a message.
+ *
+ * @generated from message chatto.api.v1.UpdateMessageResponse
+ */
+export class UpdateMessageResponse extends Message<UpdateMessageResponse> {
+  /**
+   * True when the edit was accepted.
+   *
+   * @generated from field: bool updated = 1;
+   */
+  updated = false;
+
+  constructor(data?: PartialMessage<UpdateMessageResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.UpdateMessageResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "updated", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateMessageResponse {
+    return new UpdateMessageResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateMessageResponse {
+    return new UpdateMessageResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateMessageResponse {
+    return new UpdateMessageResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UpdateMessageResponse | PlainMessage<UpdateMessageResponse> | undefined, b: UpdateMessageResponse | PlainMessage<UpdateMessageResponse> | undefined): boolean {
+    return proto3.util.equals(UpdateMessageResponse, a, b);
+  }
+}
+
+/**
+ * Request to retract a message.
+ *
+ * @generated from message chatto.api.v1.DeleteMessageRequest
+ */
+export class DeleteMessageRequest extends Message<DeleteMessageRequest> {
+  /**
+   * Required. Room containing the message.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Required. Event ID of the message to retract.
+   *
+   * @generated from field: string event_id = 2;
+   */
+  eventId = "";
+
+  constructor(data?: PartialMessage<DeleteMessageRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.DeleteMessageRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteMessageRequest {
+    return new DeleteMessageRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeleteMessageRequest {
+    return new DeleteMessageRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeleteMessageRequest {
+    return new DeleteMessageRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DeleteMessageRequest | PlainMessage<DeleteMessageRequest> | undefined, b: DeleteMessageRequest | PlainMessage<DeleteMessageRequest> | undefined): boolean {
+    return proto3.util.equals(DeleteMessageRequest, a, b);
+  }
+}
+
+/**
+ * Result of retracting a message.
+ *
+ * @generated from message chatto.api.v1.DeleteMessageResponse
+ */
+export class DeleteMessageResponse extends Message<DeleteMessageResponse> {
+  /**
+   * True when the delete/retract request was accepted.
+   *
+   * @generated from field: bool deleted = 1;
+   */
+  deleted = false;
+
+  constructor(data?: PartialMessage<DeleteMessageResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.DeleteMessageResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "deleted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteMessageResponse {
+    return new DeleteMessageResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeleteMessageResponse {
+    return new DeleteMessageResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeleteMessageResponse {
+    return new DeleteMessageResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DeleteMessageResponse | PlainMessage<DeleteMessageResponse> | undefined, b: DeleteMessageResponse | PlainMessage<DeleteMessageResponse> | undefined): boolean {
+    return proto3.util.equals(DeleteMessageResponse, a, b);
+  }
+}
+
+/**
+ * Request to remove one attachment from a message.
+ *
+ * @generated from message chatto.api.v1.DeleteAttachmentRequest
+ */
+export class DeleteAttachmentRequest extends Message<DeleteAttachmentRequest> {
+  /**
+   * Required. Room containing the message.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Required. Event ID of the message containing the attachment.
+   *
+   * @generated from field: string event_id = 2;
+   */
+  eventId = "";
+
+  /**
+   * Required. Attachment ID to remove from the message.
+   *
+   * @generated from field: string attachment_id = 3;
+   */
+  attachmentId = "";
+
+  constructor(data?: PartialMessage<DeleteAttachmentRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.DeleteAttachmentRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "attachment_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteAttachmentRequest {
+    return new DeleteAttachmentRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeleteAttachmentRequest {
+    return new DeleteAttachmentRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeleteAttachmentRequest {
+    return new DeleteAttachmentRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DeleteAttachmentRequest | PlainMessage<DeleteAttachmentRequest> | undefined, b: DeleteAttachmentRequest | PlainMessage<DeleteAttachmentRequest> | undefined): boolean {
+    return proto3.util.equals(DeleteAttachmentRequest, a, b);
+  }
+}
+
+/**
+ * Result of removing one attachment from a message.
+ *
+ * @generated from message chatto.api.v1.DeleteAttachmentResponse
+ */
+export class DeleteAttachmentResponse extends Message<DeleteAttachmentResponse> {
+  /**
+   * True when the attachment removal was accepted.
+   *
+   * @generated from field: bool deleted = 1;
+   */
+  deleted = false;
+
+  constructor(data?: PartialMessage<DeleteAttachmentResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.DeleteAttachmentResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "deleted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteAttachmentResponse {
+    return new DeleteAttachmentResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeleteAttachmentResponse {
+    return new DeleteAttachmentResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeleteAttachmentResponse {
+    return new DeleteAttachmentResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DeleteAttachmentResponse | PlainMessage<DeleteAttachmentResponse> | undefined, b: DeleteAttachmentResponse | PlainMessage<DeleteAttachmentResponse> | undefined): boolean {
+    return proto3.util.equals(DeleteAttachmentResponse, a, b);
+  }
+}
+
+/**
+ * Request to remove the accepted link preview from a message.
+ *
+ * @generated from message chatto.api.v1.DeleteLinkPreviewRequest
+ */
+export class DeleteLinkPreviewRequest extends Message<DeleteLinkPreviewRequest> {
+  /**
+   * Required. Room containing the message.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Required. Event ID of the message containing the link preview.
+   *
+   * @generated from field: string event_id = 2;
+   */
+  eventId = "";
+
+  /**
+   * Required. URL of the link preview to remove.
+   *
+   * @generated from field: string url = 3;
+   */
+  url = "";
+
+  constructor(data?: PartialMessage<DeleteLinkPreviewRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.DeleteLinkPreviewRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteLinkPreviewRequest {
+    return new DeleteLinkPreviewRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeleteLinkPreviewRequest {
+    return new DeleteLinkPreviewRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeleteLinkPreviewRequest {
+    return new DeleteLinkPreviewRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DeleteLinkPreviewRequest | PlainMessage<DeleteLinkPreviewRequest> | undefined, b: DeleteLinkPreviewRequest | PlainMessage<DeleteLinkPreviewRequest> | undefined): boolean {
+    return proto3.util.equals(DeleteLinkPreviewRequest, a, b);
+  }
+}
+
+/**
+ * Result of removing a link preview from a message.
+ *
+ * @generated from message chatto.api.v1.DeleteLinkPreviewResponse
+ */
+export class DeleteLinkPreviewResponse extends Message<DeleteLinkPreviewResponse> {
+  /**
+   * True when the link preview removal was accepted.
+   *
+   * @generated from field: bool deleted = 1;
+   */
+  deleted = false;
+
+  constructor(data?: PartialMessage<DeleteLinkPreviewResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.DeleteLinkPreviewResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "deleted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteLinkPreviewResponse {
+    return new DeleteLinkPreviewResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeleteLinkPreviewResponse {
+    return new DeleteLinkPreviewResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeleteLinkPreviewResponse {
+    return new DeleteLinkPreviewResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DeleteLinkPreviewResponse | PlainMessage<DeleteLinkPreviewResponse> | undefined, b: DeleteLinkPreviewResponse | PlainMessage<DeleteLinkPreviewResponse> | undefined): boolean {
+    return proto3.util.equals(DeleteLinkPreviewResponse, a, b);
+  }
+}
+
+/**
+ * Request to publish a live-only typing indicator.
+ *
+ * @generated from message chatto.api.v1.SendTypingIndicatorRequest
+ */
+export class SendTypingIndicatorRequest extends Message<SendTypingIndicatorRequest> {
+  /**
+   * Required. Room where the current user is typing.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Event ID of the thread root when typing inside a thread.
+   *
+   * @generated from field: string thread_root_event_id = 2;
+   */
+  threadRootEventId = "";
+
+  constructor(data?: PartialMessage<SendTypingIndicatorRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.SendTypingIndicatorRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SendTypingIndicatorRequest {
+    return new SendTypingIndicatorRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SendTypingIndicatorRequest {
+    return new SendTypingIndicatorRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SendTypingIndicatorRequest {
+    return new SendTypingIndicatorRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SendTypingIndicatorRequest | PlainMessage<SendTypingIndicatorRequest> | undefined, b: SendTypingIndicatorRequest | PlainMessage<SendTypingIndicatorRequest> | undefined): boolean {
+    return proto3.util.equals(SendTypingIndicatorRequest, a, b);
+  }
+}
+
+/**
+ * Result of publishing a typing indicator.
+ *
+ * @generated from message chatto.api.v1.SendTypingIndicatorResponse
+ */
+export class SendTypingIndicatorResponse extends Message<SendTypingIndicatorResponse> {
+  /**
+   * True when the typing indicator was accepted for publish.
+   *
+   * @generated from field: bool sent = 1;
+   */
+  sent = false;
+
+  constructor(data?: PartialMessage<SendTypingIndicatorResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.SendTypingIndicatorResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "sent", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SendTypingIndicatorResponse {
+    return new SendTypingIndicatorResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SendTypingIndicatorResponse {
+    return new SendTypingIndicatorResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SendTypingIndicatorResponse {
+    return new SendTypingIndicatorResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SendTypingIndicatorResponse | PlainMessage<SendTypingIndicatorResponse> | undefined, b: SendTypingIndicatorResponse | PlainMessage<SendTypingIndicatorResponse> | undefined): boolean {
+    return proto3.util.equals(SendTypingIndicatorResponse, a, b);
+  }
+}
+

@@ -1233,6 +1233,249 @@ func TestMessageServicePostMessageReturnsRenderableTimelineEvent(t *testing.T) {
 	}
 }
 
+func TestMessageServiceUpdateMessageAuthorAndRBAC(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("message-update-rbac")
+	authorCtx := withCaller(env.ctx, env.viewer)
+	original := env.post(room.Id, env.viewer.Id, "original", "")
+
+	if _, err := env.messages.UpdateMessage(env.ctx, connect.NewRequest(&apiv1.UpdateMessageRequest{
+		RoomId:  room.Id,
+		EventId: original.Id,
+		Body:    "ignored",
+	})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated UpdateMessage code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
+	}
+
+	outsider, err := env.core.CreateUser(env.ctx, core.SystemActorID, "message-update-outsider", "Message Update Outsider", "password")
+	if err != nil {
+		t.Fatalf("CreateUser outsider: %v", err)
+	}
+	if _, err := env.messages.UpdateMessage(withCaller(env.ctx, outsider), connect.NewRequest(&apiv1.UpdateMessageRequest{
+		RoomId:  room.Id,
+		EventId: original.Id,
+		Body:    "ignored",
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("outsider UpdateMessage code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	}
+
+	other, err := env.core.CreateUser(env.ctx, core.SystemActorID, "message-update-other", "Message Update Other", "password")
+	if err != nil {
+		t.Fatalf("CreateUser other: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, other.Id, core.KindChannel, other.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom other: %v", err)
+	}
+	if _, err := env.messages.UpdateMessage(withCaller(env.ctx, other), connect.NewRequest(&apiv1.UpdateMessageRequest{
+		RoomId:  room.Id,
+		EventId: original.Id,
+		Body:    "ignored",
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("member without manage UpdateMessage code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	}
+
+	if _, err := env.messages.UpdateMessage(authorCtx, connect.NewRequest(&apiv1.UpdateMessageRequest{
+		RoomId:  room.Id,
+		EventId: original.Id,
+		Body:    "author edit",
+	})); err != nil {
+		t.Fatalf("author UpdateMessage: %v", err)
+	}
+	if body, err := env.core.GetMessageBody(env.ctx, core.KindChannel, original.Id); err != nil || body != "author edit" {
+		t.Fatalf("body after author edit = %q, %v; want author edit, nil", body, err)
+	}
+
+	moderator, err := env.core.CreateUser(env.ctx, core.SystemActorID, "message-update-moderator", "Message Update Moderator", "password")
+	if err != nil {
+		t.Fatalf("CreateUser moderator: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, moderator.Id, core.KindChannel, moderator.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom moderator: %v", err)
+	}
+	if err := env.core.GrantUserRoomPermission(env.ctx, core.SystemActorID, room.Id, moderator.Id, core.PermMessageManage); err != nil {
+		t.Fatalf("GrantUserRoomPermission moderator manage: %v", err)
+	}
+	moderated := env.post(room.Id, env.viewer.Id, "moderated original", "")
+	if _, err := env.messages.UpdateMessage(withCaller(env.ctx, moderator), connect.NewRequest(&apiv1.UpdateMessageRequest{
+		RoomId:  room.Id,
+		EventId: moderated.Id,
+		Body:    "moderator edit",
+	})); err != nil {
+		t.Fatalf("moderator UpdateMessage: %v", err)
+	}
+	if body, err := env.core.GetMessageBody(env.ctx, core.KindChannel, moderated.Id); err != nil || body != "moderator edit" {
+		t.Fatalf("body after moderator edit = %q, %v; want moderator edit, nil", body, err)
+	}
+
+	echo := true
+	if _, err := env.messages.UpdateMessage(withCaller(env.ctx, moderator), connect.NewRequest(&apiv1.UpdateMessageRequest{
+		RoomId:            room.Id,
+		EventId:           moderated.Id,
+		Body:              "moderator echo edit",
+		AlsoSendToChannel: &echo,
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("moderator echo UpdateMessage code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	}
+}
+
+func TestMessageServiceDeleteMessageAuthorAndRBAC(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("message-delete-rbac")
+	target := env.post(room.Id, env.viewer.Id, "delete target", "")
+
+	other, err := env.core.CreateUser(env.ctx, core.SystemActorID, "message-delete-other", "Message Delete Other", "password")
+	if err != nil {
+		t.Fatalf("CreateUser other: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, other.Id, core.KindChannel, other.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom other: %v", err)
+	}
+	if _, err := env.messages.DeleteMessage(withCaller(env.ctx, other), connect.NewRequest(&apiv1.DeleteMessageRequest{
+		RoomId:  room.Id,
+		EventId: target.Id,
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("member without manage DeleteMessage code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	}
+
+	moderator, err := env.core.CreateUser(env.ctx, core.SystemActorID, "message-delete-moderator", "Message Delete Moderator", "password")
+	if err != nil {
+		t.Fatalf("CreateUser moderator: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, moderator.Id, core.KindChannel, moderator.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom moderator: %v", err)
+	}
+	if err := env.core.GrantUserRoomPermission(env.ctx, core.SystemActorID, room.Id, moderator.Id, core.PermMessageManage); err != nil {
+		t.Fatalf("GrantUserRoomPermission moderator manage: %v", err)
+	}
+	resp, err := env.messages.DeleteMessage(withCaller(env.ctx, moderator), connect.NewRequest(&apiv1.DeleteMessageRequest{
+		RoomId:  room.Id,
+		EventId: target.Id,
+	}))
+	if err != nil {
+		t.Fatalf("moderator DeleteMessage: %v", err)
+	}
+	if !resp.Msg.Deleted {
+		t.Fatal("moderator DeleteMessage Deleted = false, want true")
+	}
+	if body, err := env.core.GetMessageBody(env.ctx, core.KindChannel, target.Id); err != nil || body != "" {
+		t.Fatalf("body after moderator delete = %q, %v; want empty, nil", body, err)
+	}
+
+	own := env.post(room.Id, env.viewer.Id, "own delete target", "")
+	if _, err := env.messages.DeleteMessage(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.DeleteMessageRequest{
+		RoomId:  room.Id,
+		EventId: own.Id,
+	})); err != nil {
+		t.Fatalf("author DeleteMessage: %v", err)
+	}
+}
+
+func TestMessageServiceDeleteAttachmentAndLinkPreviewAuthorOnly(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("message-partial-delete")
+
+	attachment, err := env.core.UploadAttachment(env.ctx, env.viewer.Id, room.Id, "note.txt", "text/plain", bytes.NewReader([]byte("note")))
+	if err != nil {
+		t.Fatalf("UploadAttachment: %v", err)
+	}
+	attachmentEvent, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, env.viewer.Id, "with attachment", []string{attachment.Id}, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage attachment: %v", err)
+	}
+	previewURL := "https://example.test/preview"
+	previewEvent, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, env.viewer.Id, "with preview", nil, "", "", &corev1.LinkPreview{
+		Url:   previewURL,
+		Title: "Preview",
+	}, false)
+	if err != nil {
+		t.Fatalf("PostMessage preview: %v", err)
+	}
+
+	other, err := env.core.CreateUser(env.ctx, core.SystemActorID, "message-partial-other", "Message Partial Other", "password")
+	if err != nil {
+		t.Fatalf("CreateUser other: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, other.Id, core.KindChannel, other.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom other: %v", err)
+	}
+	if err := env.core.GrantUserRoomPermission(env.ctx, core.SystemActorID, room.Id, other.Id, core.PermMessageManage); err != nil {
+		t.Fatalf("GrantUserRoomPermission other manage: %v", err)
+	}
+	if _, err := env.messages.DeleteAttachment(withCaller(env.ctx, other), connect.NewRequest(&apiv1.DeleteAttachmentRequest{
+		RoomId:       room.Id,
+		EventId:      attachmentEvent.Id,
+		AttachmentId: attachment.Id,
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("non-author DeleteAttachment code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	}
+	if _, err := env.messages.DeleteLinkPreview(withCaller(env.ctx, other), connect.NewRequest(&apiv1.DeleteLinkPreviewRequest{
+		RoomId:  room.Id,
+		EventId: previewEvent.Id,
+		Url:     previewURL,
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("non-author DeleteLinkPreview code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	}
+
+	if _, err := env.messages.DeleteAttachment(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.DeleteAttachmentRequest{
+		RoomId:       room.Id,
+		EventId:      attachmentEvent.Id,
+		AttachmentId: attachment.Id,
+	})); err != nil {
+		t.Fatalf("author DeleteAttachment: %v", err)
+	}
+	body, err := env.core.GetFullMessageBody(env.ctx, core.KindChannel, attachmentEvent.Id)
+	if err != nil {
+		t.Fatalf("GetFullMessageBody attachment: %v", err)
+	}
+	if len(body.Attachments) != 0 {
+		t.Fatalf("attachments after delete = %d, want 0", len(body.Attachments))
+	}
+
+	if _, err := env.messages.DeleteLinkPreview(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.DeleteLinkPreviewRequest{
+		RoomId:  room.Id,
+		EventId: previewEvent.Id,
+		Url:     previewURL,
+	})); err != nil {
+		t.Fatalf("author DeleteLinkPreview: %v", err)
+	}
+	body, err = env.core.GetFullMessageBody(env.ctx, core.KindChannel, previewEvent.Id)
+	if err != nil {
+		t.Fatalf("GetFullMessageBody preview: %v", err)
+	}
+	if body.LinkPreview != nil {
+		t.Fatalf("link preview after delete = %+v, want nil", body.LinkPreview)
+	}
+}
+
+func TestMessageServiceSendTypingIndicatorRequiresMembershipOnly(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("message-typing")
+	req := connect.NewRequest(&apiv1.SendTypingIndicatorRequest{RoomId: room.Id})
+
+	if _, err := env.messages.SendTypingIndicator(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated SendTypingIndicator code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
+	}
+
+	outsider, err := env.core.CreateUser(env.ctx, core.SystemActorID, "message-typing-outsider", "Message Typing Outsider", "password")
+	if err != nil {
+		t.Fatalf("CreateUser outsider: %v", err)
+	}
+	if _, err := env.messages.SendTypingIndicator(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("outsider SendTypingIndicator code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	}
+
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessagePost); err != nil {
+		t.Fatalf("DenyRoomPermission post: %v", err)
+	}
+	resp, err := env.messages.SendTypingIndicator(withCaller(env.ctx, env.viewer), req)
+	if err != nil {
+		t.Fatalf("member SendTypingIndicator with post denied: %v", err)
+	}
+	if !resp.Msg.Sent {
+		t.Fatal("SendTypingIndicator Sent = false, want true")
+	}
+}
+
 func TestRoomTimelineServiceGetRoomEventsPaginatesWithOpaqueCursors(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("timeline-pagination")
@@ -2020,13 +2263,17 @@ func TestConnectErrorMapping(t *testing.T) {
 		{"not authenticated", core.ErrNotAuthenticated, connect.CodeUnauthenticated},
 		{"permission denied", core.ErrPermissionDenied, connect.CodePermissionDenied},
 		{"not room member", core.ErrNotRoomMember, connect.CodePermissionDenied},
+		{"not message author", core.ErrNotMessageAuthor, connect.CodePermissionDenied},
 		{"core not found", core.ErrNotFound, connect.CodeNotFound},
 		{"message not found", core.ErrMessageNotFound, connect.CodeNotFound},
+		{"message attachment not found", core.ErrMessageAttachmentNotFound, connect.CodeNotFound},
+		{"message link preview not found", core.ErrMessageLinkPreviewNotFound, connect.CodeNotFound},
 		{"jetstream key not found", jetstream.ErrKeyNotFound, connect.CodeNotFound},
 		{"message too long", core.ErrMessageTooLong, connect.CodeInvalidArgument},
 		{"invalid argument", core.ErrInvalidArgument, connect.CodeInvalidArgument},
 		{"string length", &core.StringLengthError{Field: "field", Max: 10}, connect.CodeInvalidArgument},
 		{"room archived", core.ErrRoomArchived, connect.CodeFailedPrecondition},
+		{"edit window expired", core.ErrEditWindowExpired, connect.CodeFailedPrecondition},
 		{"unknown", errors.New("boom"), connect.CodeInternal},
 	}
 

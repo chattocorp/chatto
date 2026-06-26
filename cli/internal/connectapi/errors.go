@@ -18,7 +18,9 @@ func connectError(err error) error {
 	if errors.Is(err, core.ErrNotAuthenticated) {
 		return connect.NewError(connect.CodeUnauthenticated, err)
 	}
-	if errors.Is(err, core.ErrPermissionDenied) || errors.Is(err, core.ErrNotRoomMember) {
+	if errors.Is(err, core.ErrPermissionDenied) ||
+		errors.Is(err, core.ErrNotRoomMember) ||
+		errors.Is(err, core.ErrNotMessageAuthor) {
 		return connect.NewError(connect.CodePermissionDenied, err)
 	}
 	if errors.Is(err, core.ErrRoomNameExists) {
@@ -37,6 +39,8 @@ func connectError(err error) error {
 		errors.Is(err, core.ErrRoomGroupNotFound) ||
 		errors.Is(err, core.ErrSidebarLinkNotFound) ||
 		errors.Is(err, core.ErrMessageNotFound) ||
+		errors.Is(err, core.ErrMessageAttachmentNotFound) ||
+		errors.Is(err, core.ErrMessageLinkPreviewNotFound) ||
 		errors.Is(err, jetstream.ErrKeyNotFound) {
 		return connect.NewError(connect.CodeNotFound, err)
 	}
@@ -44,6 +48,7 @@ func connectError(err error) error {
 		return connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	if errors.Is(err, core.ErrRoomArchived) ||
+		errors.Is(err, core.ErrEditWindowExpired) ||
 		errors.Is(err, core.ErrCannotLeaveDMConversation) ||
 		errors.Is(err, core.ErrCannotLeaveUniversalRoom) {
 		return connect.NewError(connect.CodeFailedPrecondition, err)

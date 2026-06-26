@@ -61,7 +61,7 @@ When posting a reply inside a thread, the user can optionally "also send to chan
 
 ### 7. Echo state is editable during the edit window
 
-**Decision:** `updateMessage` can optionally reconcile a thread reply's channel echo state during the author's normal edit window. Omitting the field preserves current echo state for older clients and moderation edits.
+**Decision:** The message update API can optionally reconcile a thread reply's channel echo state during the author's normal edit window. GraphQL `updateMessage` remains the legacy compatibility path, and ConnectRPC `MessageService.UpdateMessage` exposes the same behavior through the shared core message model. Omitting the field preserves current echo state for older clients and moderation edits.
 **Why:** Users often realize shortly after posting in a thread that the reply should have been visible in the room. Treating the checkbox as edit-time message state keeps the interaction aligned with the composer.
 **Tradeoff:** Echo reconciliation is not a new persisted event type; adding an echo appends the existing echo-shaped `MessagePostedEvent`, and removing one appends a normal `MessageRetractedEvent` for the echo artifact.
 

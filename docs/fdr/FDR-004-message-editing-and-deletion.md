@@ -18,6 +18,7 @@ Authors can edit and delete their own messages; users with `message.manage` can 
 - Editing or deleting a thread reply that was echoed to the channel propagates to both visible artifacts automatically through the echo's `echoOfEventId` link.
 - Deleting the echo artifact itself hides only the room-timeline echo. The original thread reply remains readable inside the thread.
 - Individual attachments and link previews can be removed from a message by the author without deleting the whole message.
+- GraphQL remains the legacy compatibility path. ConnectRPC `MessageService.UpdateMessage`, `DeleteMessage`, `DeleteAttachment`, and `DeleteLinkPreview` expose the same message-management behavior through the shared core `MessageModel`.
 
 ## Design Decisions
 
@@ -61,6 +62,7 @@ Authors can edit and delete their own messages; users with `message.manage` can 
 
 - `message.manage` — edit and delete *other* users' messages.
 - (No separate permission for editing/deleting one's own messages — that's gated by authorship and the edit window only.)
+- Attachment and link-preview removal is author-only; `message.manage` does not grant cross-user removal for those partial message edits.
 
 ## Related
 

@@ -66,6 +66,94 @@ func (s *messageService) PostMessage(ctx context.Context, req *connect.Request[a
 	}), nil
 }
 
+func (s *messageService) UpdateMessage(ctx context.Context, req *connect.Request[apiv1.UpdateMessageRequest]) (*connect.Response[apiv1.UpdateMessageResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.api.core.Messages().UpdateMessage(ctx, core.MessageUpdateInput{
+		ActorID:           caller.UserID,
+		RoomID:            req.Msg.RoomId,
+		EventID:           req.Msg.EventId,
+		Body:              req.Msg.Body,
+		AlsoSendToChannel: req.Msg.AlsoSendToChannel,
+	}); err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.UpdateMessageResponse{Updated: true}), nil
+}
+
+func (s *messageService) DeleteMessage(ctx context.Context, req *connect.Request[apiv1.DeleteMessageRequest]) (*connect.Response[apiv1.DeleteMessageResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.api.core.Messages().DeleteMessage(ctx, core.MessageDeleteInput{
+		ActorID: caller.UserID,
+		RoomID:  req.Msg.RoomId,
+		EventID: req.Msg.EventId,
+	}); err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.DeleteMessageResponse{Deleted: true}), nil
+}
+
+func (s *messageService) DeleteAttachment(ctx context.Context, req *connect.Request[apiv1.DeleteAttachmentRequest]) (*connect.Response[apiv1.DeleteAttachmentResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.api.core.Messages().DeleteAttachment(ctx, core.MessageAttachmentDeleteInput{
+		ActorID:      caller.UserID,
+		RoomID:       req.Msg.RoomId,
+		EventID:      req.Msg.EventId,
+		AttachmentID: req.Msg.AttachmentId,
+	}); err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.DeleteAttachmentResponse{Deleted: true}), nil
+}
+
+func (s *messageService) DeleteLinkPreview(ctx context.Context, req *connect.Request[apiv1.DeleteLinkPreviewRequest]) (*connect.Response[apiv1.DeleteLinkPreviewResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.api.core.Messages().DeleteLinkPreview(ctx, core.MessageLinkPreviewDeleteInput{
+		ActorID: caller.UserID,
+		RoomID:  req.Msg.RoomId,
+		EventID: req.Msg.EventId,
+		URL:     req.Msg.Url,
+	}); err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.DeleteLinkPreviewResponse{Deleted: true}), nil
+}
+
+func (s *messageService) SendTypingIndicator(ctx context.Context, req *connect.Request[apiv1.SendTypingIndicatorRequest]) (*connect.Response[apiv1.SendTypingIndicatorResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var threadRootEventID *string
+	if req.Msg.ThreadRootEventId != "" {
+		threadRootEventID = &req.Msg.ThreadRootEventId
+	}
+	if err := s.api.core.Messages().SendTypingIndicator(ctx, core.TypingIndicatorInput{
+		ActorID:           caller.UserID,
+		RoomID:            req.Msg.RoomId,
+		ThreadRootEventID: threadRootEventID,
+	}); err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.SendTypingIndicatorResponse{Sent: true}), nil
+}
+
 func (s *messageService) hydratePostedEvent(ctx context.Context, viewerID string, kind core.RoomKind, event *corev1.Event) (*apiv1.RoomTimelineEvent, *apiv1.RoomTimelineIncludes, error) {
 	reactionsByMessageID, err := s.api.core.GetReactionsBatch(ctx, []string{event.Id})
 	if err != nil {

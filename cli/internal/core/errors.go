@@ -60,6 +60,14 @@ var (
 	// ErrMessageNotFound is returned when a message body doesn't exist (already deleted).
 	ErrMessageNotFound = errors.New("message not found")
 
+	// ErrMessageAttachmentNotFound is returned when a message does not contain
+	// the requested attachment.
+	ErrMessageAttachmentNotFound = errors.New("message attachment not found")
+
+	// ErrMessageLinkPreviewNotFound is returned when a message does not contain
+	// the requested link preview.
+	ErrMessageLinkPreviewNotFound = errors.New("message link preview not found")
+
 	// ErrEditWindowExpired is returned when attempting to edit a message
 	// after the edit window has closed.
 	ErrEditWindowExpired = errors.New("edit window has expired")

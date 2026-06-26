@@ -1291,7 +1291,7 @@ func (c *ChattoCore) DeleteAttachmentFromMessage(ctx context.Context, actorID st
 			}
 		}
 		if removed == nil {
-			return fmt.Errorf("attachment not found in message")
+			return fmt.Errorf("attachment not found in message: %w", ErrMessageAttachmentNotFound)
 		}
 		trimmedIDs := body.AssetIds[:0]
 		for _, id := range body.GetAssetIds() {
@@ -1343,7 +1343,7 @@ func (c *ChattoCore) DeleteAttachmentFromMessage(ctx context.Context, actorID st
 func (c *ChattoCore) DeleteLinkPreviewFromMessage(ctx context.Context, actorID string, kind RoomKind, roomID, messageBodyKey, previewURL string) error {
 	err := c.editEmbeddedBody(ctx, actorID, kind, roomID, messageBodyKey, func(body *corev1.MessageBody) error {
 		if body.GetLinkPreview() == nil || body.GetLinkPreview().GetUrl() != previewURL {
-			return fmt.Errorf("link preview not found in message")
+			return fmt.Errorf("link preview not found in message: %w", ErrMessageLinkPreviewNotFound)
 		}
 		body.LinkPreview = nil
 		return nil

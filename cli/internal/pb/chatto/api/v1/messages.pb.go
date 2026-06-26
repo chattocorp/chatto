@@ -388,6 +388,548 @@ func (*PostMessageResponse_Event) isPostMessageResponse_Result() {}
 
 func (*PostMessageResponse_MentionConfirmation) isPostMessageResponse_Result() {}
 
+// Request to edit a message body.
+type UpdateMessageRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Required. Room containing the message.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Required. Event ID of the message to edit.
+	EventId string `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	// New message body text.
+	Body string `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
+	// For thread replies, whether a channel echo should exist after saving.
+	// Omit to preserve the current echo state.
+	AlsoSendToChannel *bool `protobuf:"varint,4,opt,name=also_send_to_channel,json=alsoSendToChannel,proto3,oneof" json:"also_send_to_channel,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *UpdateMessageRequest) Reset() {
+	*x = UpdateMessageRequest{}
+	mi := &file_chatto_api_v1_messages_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateMessageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateMessageRequest) ProtoMessage() {}
+
+func (x *UpdateMessageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_messages_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateMessageRequest.ProtoReflect.Descriptor instead.
+func (*UpdateMessageRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_messages_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *UpdateMessageRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *UpdateMessageRequest) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+func (x *UpdateMessageRequest) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+func (x *UpdateMessageRequest) GetAlsoSendToChannel() bool {
+	if x != nil && x.AlsoSendToChannel != nil {
+		return *x.AlsoSendToChannel
+	}
+	return false
+}
+
+// Result of editing a message.
+type UpdateMessageResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// True when the edit was accepted.
+	Updated       bool `protobuf:"varint,1,opt,name=updated,proto3" json:"updated,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateMessageResponse) Reset() {
+	*x = UpdateMessageResponse{}
+	mi := &file_chatto_api_v1_messages_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateMessageResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateMessageResponse) ProtoMessage() {}
+
+func (x *UpdateMessageResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_messages_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateMessageResponse.ProtoReflect.Descriptor instead.
+func (*UpdateMessageResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_messages_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *UpdateMessageResponse) GetUpdated() bool {
+	if x != nil {
+		return x.Updated
+	}
+	return false
+}
+
+// Request to retract a message.
+type DeleteMessageRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Required. Room containing the message.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Required. Event ID of the message to retract.
+	EventId       string `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteMessageRequest) Reset() {
+	*x = DeleteMessageRequest{}
+	mi := &file_chatto_api_v1_messages_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteMessageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteMessageRequest) ProtoMessage() {}
+
+func (x *DeleteMessageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_messages_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteMessageRequest.ProtoReflect.Descriptor instead.
+func (*DeleteMessageRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_messages_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *DeleteMessageRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *DeleteMessageRequest) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+// Result of retracting a message.
+type DeleteMessageResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// True when the delete/retract request was accepted.
+	Deleted       bool `protobuf:"varint,1,opt,name=deleted,proto3" json:"deleted,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteMessageResponse) Reset() {
+	*x = DeleteMessageResponse{}
+	mi := &file_chatto_api_v1_messages_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteMessageResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteMessageResponse) ProtoMessage() {}
+
+func (x *DeleteMessageResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_messages_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteMessageResponse.ProtoReflect.Descriptor instead.
+func (*DeleteMessageResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_messages_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *DeleteMessageResponse) GetDeleted() bool {
+	if x != nil {
+		return x.Deleted
+	}
+	return false
+}
+
+// Request to remove one attachment from a message.
+type DeleteAttachmentRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Required. Room containing the message.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Required. Event ID of the message containing the attachment.
+	EventId string `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	// Required. Attachment ID to remove from the message.
+	AttachmentId  string `protobuf:"bytes,3,opt,name=attachment_id,json=attachmentId,proto3" json:"attachment_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteAttachmentRequest) Reset() {
+	*x = DeleteAttachmentRequest{}
+	mi := &file_chatto_api_v1_messages_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteAttachmentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteAttachmentRequest) ProtoMessage() {}
+
+func (x *DeleteAttachmentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_messages_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteAttachmentRequest.ProtoReflect.Descriptor instead.
+func (*DeleteAttachmentRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_messages_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *DeleteAttachmentRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *DeleteAttachmentRequest) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+func (x *DeleteAttachmentRequest) GetAttachmentId() string {
+	if x != nil {
+		return x.AttachmentId
+	}
+	return ""
+}
+
+// Result of removing one attachment from a message.
+type DeleteAttachmentResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// True when the attachment removal was accepted.
+	Deleted       bool `protobuf:"varint,1,opt,name=deleted,proto3" json:"deleted,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteAttachmentResponse) Reset() {
+	*x = DeleteAttachmentResponse{}
+	mi := &file_chatto_api_v1_messages_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteAttachmentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteAttachmentResponse) ProtoMessage() {}
+
+func (x *DeleteAttachmentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_messages_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteAttachmentResponse.ProtoReflect.Descriptor instead.
+func (*DeleteAttachmentResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_messages_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *DeleteAttachmentResponse) GetDeleted() bool {
+	if x != nil {
+		return x.Deleted
+	}
+	return false
+}
+
+// Request to remove the accepted link preview from a message.
+type DeleteLinkPreviewRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Required. Room containing the message.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Required. Event ID of the message containing the link preview.
+	EventId string `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	// Required. URL of the link preview to remove.
+	Url           string `protobuf:"bytes,3,opt,name=url,proto3" json:"url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteLinkPreviewRequest) Reset() {
+	*x = DeleteLinkPreviewRequest{}
+	mi := &file_chatto_api_v1_messages_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteLinkPreviewRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteLinkPreviewRequest) ProtoMessage() {}
+
+func (x *DeleteLinkPreviewRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_messages_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteLinkPreviewRequest.ProtoReflect.Descriptor instead.
+func (*DeleteLinkPreviewRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_messages_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *DeleteLinkPreviewRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *DeleteLinkPreviewRequest) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+func (x *DeleteLinkPreviewRequest) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+// Result of removing a link preview from a message.
+type DeleteLinkPreviewResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// True when the link preview removal was accepted.
+	Deleted       bool `protobuf:"varint,1,opt,name=deleted,proto3" json:"deleted,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteLinkPreviewResponse) Reset() {
+	*x = DeleteLinkPreviewResponse{}
+	mi := &file_chatto_api_v1_messages_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteLinkPreviewResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteLinkPreviewResponse) ProtoMessage() {}
+
+func (x *DeleteLinkPreviewResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_messages_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteLinkPreviewResponse.ProtoReflect.Descriptor instead.
+func (*DeleteLinkPreviewResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_messages_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *DeleteLinkPreviewResponse) GetDeleted() bool {
+	if x != nil {
+		return x.Deleted
+	}
+	return false
+}
+
+// Request to publish a live-only typing indicator.
+type SendTypingIndicatorRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Required. Room where the current user is typing.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Event ID of the thread root when typing inside a thread.
+	ThreadRootEventId string `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *SendTypingIndicatorRequest) Reset() {
+	*x = SendTypingIndicatorRequest{}
+	mi := &file_chatto_api_v1_messages_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SendTypingIndicatorRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SendTypingIndicatorRequest) ProtoMessage() {}
+
+func (x *SendTypingIndicatorRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_messages_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SendTypingIndicatorRequest.ProtoReflect.Descriptor instead.
+func (*SendTypingIndicatorRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_messages_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *SendTypingIndicatorRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *SendTypingIndicatorRequest) GetThreadRootEventId() string {
+	if x != nil {
+		return x.ThreadRootEventId
+	}
+	return ""
+}
+
+// Result of publishing a typing indicator.
+type SendTypingIndicatorResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// True when the typing indicator was accepted for publish.
+	Sent          bool `protobuf:"varint,1,opt,name=sent,proto3" json:"sent,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SendTypingIndicatorResponse) Reset() {
+	*x = SendTypingIndicatorResponse{}
+	mi := &file_chatto_api_v1_messages_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SendTypingIndicatorResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SendTypingIndicatorResponse) ProtoMessage() {}
+
+func (x *SendTypingIndicatorResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_messages_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SendTypingIndicatorResponse.ProtoReflect.Descriptor instead.
+func (*SendTypingIndicatorResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_messages_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *SendTypingIndicatorResponse) GetSent() bool {
+	if x != nil {
+		return x.Sent
+	}
+	return false
+}
+
 var File_chatto_api_v1_messages_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_messages_proto_rawDesc = "" +
@@ -418,9 +960,44 @@ const file_chatto_api_v1_messages_proto_rawDesc = "" +
 	"\x05event\x18\x01 \x01(\v2 .chatto.api.v1.RoomTimelineEventH\x00R\x05event\x12`\n" +
 	"\x14mention_confirmation\x18\x02 \x01(\v2+.chatto.api.v1.MentionConfirmationChallengeH\x00R\x13mentionConfirmation\x12?\n" +
 	"\bincludes\x18\x03 \x01(\v2#.chatto.api.v1.RoomTimelineIncludesR\bincludesB\b\n" +
-	"\x06result2f\n" +
+	"\x06result\"\xc9\x01\n" +
+	"\x14UpdateMessageRequest\x12 \n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\"\n" +
+	"\bevent_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aeventId\x12\x1c\n" +
+	"\x04body\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x90NR\x04body\x124\n" +
+	"\x14also_send_to_channel\x18\x04 \x01(\bH\x00R\x11alsoSendToChannel\x88\x01\x01B\x17\n" +
+	"\x15_also_send_to_channel\"1\n" +
+	"\x15UpdateMessageResponse\x12\x18\n" +
+	"\aupdated\x18\x01 \x01(\bR\aupdated\"\\\n" +
+	"\x14DeleteMessageRequest\x12 \n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\"\n" +
+	"\bevent_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aeventId\"1\n" +
+	"\x15DeleteMessageResponse\x12\x18\n" +
+	"\adeleted\x18\x01 \x01(\bR\adeleted\"\x8d\x01\n" +
+	"\x17DeleteAttachmentRequest\x12 \n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\"\n" +
+	"\bevent_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aeventId\x12,\n" +
+	"\rattachment_id\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fattachmentId\"4\n" +
+	"\x18DeleteAttachmentResponse\x12\x18\n" +
+	"\adeleted\x18\x01 \x01(\bR\adeleted\"{\n" +
+	"\x18DeleteLinkPreviewRequest\x12 \n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\"\n" +
+	"\bevent_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aeventId\x12\x19\n" +
+	"\x03url\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x03url\"5\n" +
+	"\x19DeleteLinkPreviewResponse\x12\x18\n" +
+	"\adeleted\x18\x01 \x01(\bR\adeleted\"o\n" +
+	"\x1aSendTypingIndicatorRequest\x12 \n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12/\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\"1\n" +
+	"\x1bSendTypingIndicatorResponse\x12\x12\n" +
+	"\x04sent\x18\x01 \x01(\bR\x04sent2\xd9\x04\n" +
 	"\x0eMessageService\x12T\n" +
-	"\vPostMessage\x12!.chatto.api.v1.PostMessageRequest\x1a\".chatto.api.v1.PostMessageResponseB\xa9\x01\n" +
+	"\vPostMessage\x12!.chatto.api.v1.PostMessageRequest\x1a\".chatto.api.v1.PostMessageResponse\x12Z\n" +
+	"\rUpdateMessage\x12#.chatto.api.v1.UpdateMessageRequest\x1a$.chatto.api.v1.UpdateMessageResponse\x12Z\n" +
+	"\rDeleteMessage\x12#.chatto.api.v1.DeleteMessageRequest\x1a$.chatto.api.v1.DeleteMessageResponse\x12c\n" +
+	"\x10DeleteAttachment\x12&.chatto.api.v1.DeleteAttachmentRequest\x1a'.chatto.api.v1.DeleteAttachmentResponse\x12f\n" +
+	"\x11DeleteLinkPreview\x12'.chatto.api.v1.DeleteLinkPreviewRequest\x1a(.chatto.api.v1.DeleteLinkPreviewResponse\x12l\n" +
+	"\x13SendTypingIndicator\x12).chatto.api.v1.SendTypingIndicatorRequest\x1a*.chatto.api.v1.SendTypingIndicatorResponseB\xa9\x01\n" +
 	"\x11com.chatto.api.v1B\rMessagesProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
@@ -435,27 +1012,47 @@ func file_chatto_api_v1_messages_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_messages_proto_rawDescData
 }
 
-var file_chatto_api_v1_messages_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_chatto_api_v1_messages_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_chatto_api_v1_messages_proto_goTypes = []any{
 	(*MessageLinkPreviewInput)(nil),      // 0: chatto.api.v1.MessageLinkPreviewInput
 	(*PostMessageRequest)(nil),           // 1: chatto.api.v1.PostMessageRequest
 	(*MentionConfirmationChallenge)(nil), // 2: chatto.api.v1.MentionConfirmationChallenge
 	(*PostMessageResponse)(nil),          // 3: chatto.api.v1.PostMessageResponse
-	(*RoomTimelineEvent)(nil),            // 4: chatto.api.v1.RoomTimelineEvent
-	(*RoomTimelineIncludes)(nil),         // 5: chatto.api.v1.RoomTimelineIncludes
+	(*UpdateMessageRequest)(nil),         // 4: chatto.api.v1.UpdateMessageRequest
+	(*UpdateMessageResponse)(nil),        // 5: chatto.api.v1.UpdateMessageResponse
+	(*DeleteMessageRequest)(nil),         // 6: chatto.api.v1.DeleteMessageRequest
+	(*DeleteMessageResponse)(nil),        // 7: chatto.api.v1.DeleteMessageResponse
+	(*DeleteAttachmentRequest)(nil),      // 8: chatto.api.v1.DeleteAttachmentRequest
+	(*DeleteAttachmentResponse)(nil),     // 9: chatto.api.v1.DeleteAttachmentResponse
+	(*DeleteLinkPreviewRequest)(nil),     // 10: chatto.api.v1.DeleteLinkPreviewRequest
+	(*DeleteLinkPreviewResponse)(nil),    // 11: chatto.api.v1.DeleteLinkPreviewResponse
+	(*SendTypingIndicatorRequest)(nil),   // 12: chatto.api.v1.SendTypingIndicatorRequest
+	(*SendTypingIndicatorResponse)(nil),  // 13: chatto.api.v1.SendTypingIndicatorResponse
+	(*RoomTimelineEvent)(nil),            // 14: chatto.api.v1.RoomTimelineEvent
+	(*RoomTimelineIncludes)(nil),         // 15: chatto.api.v1.RoomTimelineIncludes
 }
 var file_chatto_api_v1_messages_proto_depIdxs = []int32{
-	0, // 0: chatto.api.v1.PostMessageRequest.link_preview:type_name -> chatto.api.v1.MessageLinkPreviewInput
-	4, // 1: chatto.api.v1.PostMessageResponse.event:type_name -> chatto.api.v1.RoomTimelineEvent
-	2, // 2: chatto.api.v1.PostMessageResponse.mention_confirmation:type_name -> chatto.api.v1.MentionConfirmationChallenge
-	5, // 3: chatto.api.v1.PostMessageResponse.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
-	1, // 4: chatto.api.v1.MessageService.PostMessage:input_type -> chatto.api.v1.PostMessageRequest
-	3, // 5: chatto.api.v1.MessageService.PostMessage:output_type -> chatto.api.v1.PostMessageResponse
-	5, // [5:6] is the sub-list for method output_type
-	4, // [4:5] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	0,  // 0: chatto.api.v1.PostMessageRequest.link_preview:type_name -> chatto.api.v1.MessageLinkPreviewInput
+	14, // 1: chatto.api.v1.PostMessageResponse.event:type_name -> chatto.api.v1.RoomTimelineEvent
+	2,  // 2: chatto.api.v1.PostMessageResponse.mention_confirmation:type_name -> chatto.api.v1.MentionConfirmationChallenge
+	15, // 3: chatto.api.v1.PostMessageResponse.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
+	1,  // 4: chatto.api.v1.MessageService.PostMessage:input_type -> chatto.api.v1.PostMessageRequest
+	4,  // 5: chatto.api.v1.MessageService.UpdateMessage:input_type -> chatto.api.v1.UpdateMessageRequest
+	6,  // 6: chatto.api.v1.MessageService.DeleteMessage:input_type -> chatto.api.v1.DeleteMessageRequest
+	8,  // 7: chatto.api.v1.MessageService.DeleteAttachment:input_type -> chatto.api.v1.DeleteAttachmentRequest
+	10, // 8: chatto.api.v1.MessageService.DeleteLinkPreview:input_type -> chatto.api.v1.DeleteLinkPreviewRequest
+	12, // 9: chatto.api.v1.MessageService.SendTypingIndicator:input_type -> chatto.api.v1.SendTypingIndicatorRequest
+	3,  // 10: chatto.api.v1.MessageService.PostMessage:output_type -> chatto.api.v1.PostMessageResponse
+	5,  // 11: chatto.api.v1.MessageService.UpdateMessage:output_type -> chatto.api.v1.UpdateMessageResponse
+	7,  // 12: chatto.api.v1.MessageService.DeleteMessage:output_type -> chatto.api.v1.DeleteMessageResponse
+	9,  // 13: chatto.api.v1.MessageService.DeleteAttachment:output_type -> chatto.api.v1.DeleteAttachmentResponse
+	11, // 14: chatto.api.v1.MessageService.DeleteLinkPreview:output_type -> chatto.api.v1.DeleteLinkPreviewResponse
+	13, // 15: chatto.api.v1.MessageService.SendTypingIndicator:output_type -> chatto.api.v1.SendTypingIndicatorResponse
+	10, // [10:16] is the sub-list for method output_type
+	4,  // [4:10] is the sub-list for method input_type
+	4,  // [4:4] is the sub-list for extension type_name
+	4,  // [4:4] is the sub-list for extension extendee
+	0,  // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_messages_proto_init() }
@@ -468,13 +1065,14 @@ func file_chatto_api_v1_messages_proto_init() {
 		(*PostMessageResponse_Event)(nil),
 		(*PostMessageResponse_MentionConfirmation)(nil),
 	}
+	file_chatto_api_v1_messages_proto_msgTypes[4].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_messages_proto_rawDesc), len(file_chatto_api_v1_messages_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -21,6 +21,47 @@ type MessagePostInput struct {
 	LinkPreview              *corev1.LinkPreview
 }
 
+// MessageUpdateInput describes one user-facing message edit operation.
+type MessageUpdateInput struct {
+	ActorID           string
+	RoomID            string
+	EventID           string
+	Body              string
+	AlsoSendToChannel *bool
+}
+
+// MessageDeleteInput describes one user-facing message retraction operation.
+type MessageDeleteInput struct {
+	ActorID string
+	RoomID  string
+	EventID string
+}
+
+// MessageAttachmentDeleteInput describes removal of one attachment from a
+// message body.
+type MessageAttachmentDeleteInput struct {
+	ActorID      string
+	RoomID       string
+	EventID      string
+	AttachmentID string
+}
+
+// MessageLinkPreviewDeleteInput describes removal of one link preview from a
+// message body.
+type MessageLinkPreviewDeleteInput struct {
+	ActorID string
+	RoomID  string
+	EventID string
+	URL     string
+}
+
+// TypingIndicatorInput describes one live-only typing indicator publish.
+type TypingIndicatorInput struct {
+	ActorID           string
+	RoomID            string
+	ThreadRootEventID *string
+}
+
 // MessagePostResult is returned by MessageModel.PostMessage. Exactly one of
 // Event or MentionConfirmation is set.
 type MessagePostResult struct {
@@ -183,6 +224,161 @@ func (s *MessageModel) PostMessage(ctx context.Context, input MessagePostInput) 
 
 	s.core.NotifyRoomMarkedAsRead(ctx, input.ActorID, kind, room.Id)
 	return &MessagePostResult{Event: event}, nil
+}
+
+// UpdateMessage edits an existing message. Authorization: actor must be a room
+// member. Authors may edit their own messages subject to the core edit window.
+// Non-authors need message.manage. Changing a thread reply's channel echo state
+// is author-only and, when enabling the echo, additionally requires message.echo
+// and message.post.
+func (s *MessageModel) UpdateMessage(ctx context.Context, input MessageUpdateInput) error {
+	room, kind, err := s.core.requireRoomMember(ctx, input.ActorID, input.RoomID)
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(input.EventID) == "" {
+		return invalidArgument("event_id is required")
+	}
+	if _, err := s.requireMessagePostedEvent(ctx, kind, room.Id, input.EventID); err != nil {
+		return err
+	}
+
+	body, err := s.core.GetFullMessageBodyByEventID(ctx, input.EventID)
+	if err != nil {
+		return err
+	}
+	if body == nil {
+		return ErrMessageNotFound
+	}
+	if body.AuthorId != input.ActorID {
+		can, err := s.core.CanManageOthersMessage(ctx, input.ActorID, kind, room.Id)
+		if err != nil {
+			return err
+		}
+		if !can {
+			return ErrPermissionDenied
+		}
+	}
+
+	var editOptions []EditMessageOption
+	if input.AlsoSendToChannel != nil {
+		if body.AuthorId != input.ActorID {
+			return ErrNotMessageAuthor
+		}
+		if *input.AlsoSendToChannel {
+			can, err := s.core.CanEchoMessage(ctx, input.ActorID, kind, room.Id)
+			if err != nil {
+				return err
+			}
+			if !can {
+				return ErrPermissionDenied
+			}
+			can, err = s.core.CanPostMessage(ctx, input.ActorID, kind, room.Id)
+			if err != nil {
+				return err
+			}
+			if !can {
+				return ErrPermissionDenied
+			}
+		}
+		editOptions = append(editOptions, WithMessageChannelEcho(*input.AlsoSendToChannel))
+	}
+
+	return s.core.EditMessage(ctx, input.ActorID, kind, room.Id, input.EventID, input.Body, editOptions...)
+}
+
+// DeleteMessage retracts an existing message. Authorization: actor must be a
+// room member. Authors may delete their own messages; non-authors need
+// message.manage.
+func (s *MessageModel) DeleteMessage(ctx context.Context, input MessageDeleteInput) error {
+	room, kind, err := s.core.requireRoomMember(ctx, input.ActorID, input.RoomID)
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(input.EventID) == "" {
+		return invalidArgument("event_id is required")
+	}
+	if _, err := s.requireMessagePostedEvent(ctx, kind, room.Id, input.EventID); err != nil {
+		return err
+	}
+
+	authorID, err := s.core.GetMessageAuthorID(ctx, kind, input.EventID)
+	if err != nil {
+		return err
+	}
+	if authorID != "" && authorID != input.ActorID {
+		can, err := s.core.CanManageOthersMessage(ctx, input.ActorID, kind, room.Id)
+		if err != nil {
+			return err
+		}
+		if !can {
+			return ErrPermissionDenied
+		}
+	}
+
+	return s.core.DeleteMessage(ctx, input.ActorID, kind, room.Id, input.EventID)
+}
+
+// DeleteAttachment removes one attachment from a message. Authorization:
+// actor must be a room member; the core partial-edit helper keeps the operation
+// author-only.
+func (s *MessageModel) DeleteAttachment(ctx context.Context, input MessageAttachmentDeleteInput) error {
+	room, kind, err := s.core.requireRoomMember(ctx, input.ActorID, input.RoomID)
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(input.EventID) == "" {
+		return invalidArgument("event_id is required")
+	}
+	if strings.TrimSpace(input.AttachmentID) == "" {
+		return invalidArgument("attachment_id is required")
+	}
+	if _, err := s.requireMessagePostedEvent(ctx, kind, room.Id, input.EventID); err != nil {
+		return err
+	}
+	return s.core.DeleteAttachmentFromMessage(ctx, input.ActorID, kind, room.Id, input.EventID, input.AttachmentID)
+}
+
+// DeleteLinkPreview removes the selected link preview from a message.
+// Authorization: actor must be a room member; the core partial-edit helper
+// keeps the operation author-only.
+func (s *MessageModel) DeleteLinkPreview(ctx context.Context, input MessageLinkPreviewDeleteInput) error {
+	room, kind, err := s.core.requireRoomMember(ctx, input.ActorID, input.RoomID)
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(input.EventID) == "" {
+		return invalidArgument("event_id is required")
+	}
+	if strings.TrimSpace(input.URL) == "" {
+		return invalidArgument("url is required")
+	}
+	if _, err := s.requireMessagePostedEvent(ctx, kind, room.Id, input.EventID); err != nil {
+		return err
+	}
+	return s.core.DeleteLinkPreviewFromMessage(ctx, input.ActorID, kind, room.Id, input.EventID, input.URL)
+}
+
+// SendTypingIndicator publishes a live-only typing indicator. Authorization:
+// actor must be a room member; there is intentionally no message-posting
+// permission check.
+func (s *MessageModel) SendTypingIndicator(ctx context.Context, input TypingIndicatorInput) error {
+	room, kind, err := s.core.requireRoomMember(ctx, input.ActorID, input.RoomID)
+	if err != nil {
+		return err
+	}
+	return s.core.PublishTypingIndicator(ctx, input.ActorID, kind, room.Id, input.ThreadRootEventID)
+}
+
+func (s *MessageModel) requireMessagePostedEvent(ctx context.Context, kind RoomKind, roomID, eventID string) (*corev1.Event, error) {
+	event, err := s.core.GetRoomEventByEventID(ctx, kind, roomID, eventID)
+	if err != nil {
+		return nil, err
+	}
+	if event == nil || event.GetMessagePosted() == nil {
+		return nil, ErrMessageNotFound
+	}
+	return event, nil
 }
 
 func (s *MessageModel) videoProcessingAssetIDsForPost(input MessagePostInput) []string {

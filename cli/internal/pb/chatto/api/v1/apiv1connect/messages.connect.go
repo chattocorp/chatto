@@ -36,6 +36,21 @@ const (
 	// MessageServicePostMessageProcedure is the fully-qualified name of the MessageService's
 	// PostMessage RPC.
 	MessageServicePostMessageProcedure = "/chatto.api.v1.MessageService/PostMessage"
+	// MessageServiceUpdateMessageProcedure is the fully-qualified name of the MessageService's
+	// UpdateMessage RPC.
+	MessageServiceUpdateMessageProcedure = "/chatto.api.v1.MessageService/UpdateMessage"
+	// MessageServiceDeleteMessageProcedure is the fully-qualified name of the MessageService's
+	// DeleteMessage RPC.
+	MessageServiceDeleteMessageProcedure = "/chatto.api.v1.MessageService/DeleteMessage"
+	// MessageServiceDeleteAttachmentProcedure is the fully-qualified name of the MessageService's
+	// DeleteAttachment RPC.
+	MessageServiceDeleteAttachmentProcedure = "/chatto.api.v1.MessageService/DeleteAttachment"
+	// MessageServiceDeleteLinkPreviewProcedure is the fully-qualified name of the MessageService's
+	// DeleteLinkPreview RPC.
+	MessageServiceDeleteLinkPreviewProcedure = "/chatto.api.v1.MessageService/DeleteLinkPreview"
+	// MessageServiceSendTypingIndicatorProcedure is the fully-qualified name of the MessageService's
+	// SendTypingIndicator RPC.
+	MessageServiceSendTypingIndicatorProcedure = "/chatto.api.v1.MessageService/SendTypingIndicator"
 )
 
 // MessageServiceClient is a client for the chatto.api.v1.MessageService service.
@@ -45,6 +60,20 @@ type MessageServiceClient interface {
 	// thread replies. Echoing a thread reply also requires message.echo and
 	// message.post.
 	PostMessage(context.Context, *connect.Request[v1.PostMessageRequest]) (*connect.Response[v1.PostMessageResponse], error)
+	// Edits a message body. Authors can edit their own messages within the edit
+	// window. Non-authors need message.manage and cannot change channel echo
+	// state.
+	UpdateMessage(context.Context, *connect.Request[v1.UpdateMessageRequest]) (*connect.Response[v1.UpdateMessageResponse], error)
+	// Retracts a message. Authors can delete their own messages. Non-authors need
+	// message.manage.
+	DeleteMessage(context.Context, *connect.Request[v1.DeleteMessageRequest]) (*connect.Response[v1.DeleteMessageResponse], error)
+	// Removes one attachment from the author's own message.
+	DeleteAttachment(context.Context, *connect.Request[v1.DeleteAttachmentRequest]) (*connect.Response[v1.DeleteAttachmentResponse], error)
+	// Removes the accepted link preview from the author's own message.
+	DeleteLinkPreview(context.Context, *connect.Request[v1.DeleteLinkPreviewRequest]) (*connect.Response[v1.DeleteLinkPreviewResponse], error)
+	// Publishes a live-only typing indicator. Room membership is required; message
+	// posting permission is not.
+	SendTypingIndicator(context.Context, *connect.Request[v1.SendTypingIndicatorRequest]) (*connect.Response[v1.SendTypingIndicatorResponse], error)
 }
 
 // NewMessageServiceClient constructs a client for the chatto.api.v1.MessageService service. By
@@ -64,17 +93,77 @@ func NewMessageServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(messageServiceMethods.ByName("PostMessage")),
 			connect.WithClientOptions(opts...),
 		),
+		updateMessage: connect.NewClient[v1.UpdateMessageRequest, v1.UpdateMessageResponse](
+			httpClient,
+			baseURL+MessageServiceUpdateMessageProcedure,
+			connect.WithSchema(messageServiceMethods.ByName("UpdateMessage")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteMessage: connect.NewClient[v1.DeleteMessageRequest, v1.DeleteMessageResponse](
+			httpClient,
+			baseURL+MessageServiceDeleteMessageProcedure,
+			connect.WithSchema(messageServiceMethods.ByName("DeleteMessage")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteAttachment: connect.NewClient[v1.DeleteAttachmentRequest, v1.DeleteAttachmentResponse](
+			httpClient,
+			baseURL+MessageServiceDeleteAttachmentProcedure,
+			connect.WithSchema(messageServiceMethods.ByName("DeleteAttachment")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteLinkPreview: connect.NewClient[v1.DeleteLinkPreviewRequest, v1.DeleteLinkPreviewResponse](
+			httpClient,
+			baseURL+MessageServiceDeleteLinkPreviewProcedure,
+			connect.WithSchema(messageServiceMethods.ByName("DeleteLinkPreview")),
+			connect.WithClientOptions(opts...),
+		),
+		sendTypingIndicator: connect.NewClient[v1.SendTypingIndicatorRequest, v1.SendTypingIndicatorResponse](
+			httpClient,
+			baseURL+MessageServiceSendTypingIndicatorProcedure,
+			connect.WithSchema(messageServiceMethods.ByName("SendTypingIndicator")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // messageServiceClient implements MessageServiceClient.
 type messageServiceClient struct {
-	postMessage *connect.Client[v1.PostMessageRequest, v1.PostMessageResponse]
+	postMessage         *connect.Client[v1.PostMessageRequest, v1.PostMessageResponse]
+	updateMessage       *connect.Client[v1.UpdateMessageRequest, v1.UpdateMessageResponse]
+	deleteMessage       *connect.Client[v1.DeleteMessageRequest, v1.DeleteMessageResponse]
+	deleteAttachment    *connect.Client[v1.DeleteAttachmentRequest, v1.DeleteAttachmentResponse]
+	deleteLinkPreview   *connect.Client[v1.DeleteLinkPreviewRequest, v1.DeleteLinkPreviewResponse]
+	sendTypingIndicator *connect.Client[v1.SendTypingIndicatorRequest, v1.SendTypingIndicatorResponse]
 }
 
 // PostMessage calls chatto.api.v1.MessageService.PostMessage.
 func (c *messageServiceClient) PostMessage(ctx context.Context, req *connect.Request[v1.PostMessageRequest]) (*connect.Response[v1.PostMessageResponse], error) {
 	return c.postMessage.CallUnary(ctx, req)
+}
+
+// UpdateMessage calls chatto.api.v1.MessageService.UpdateMessage.
+func (c *messageServiceClient) UpdateMessage(ctx context.Context, req *connect.Request[v1.UpdateMessageRequest]) (*connect.Response[v1.UpdateMessageResponse], error) {
+	return c.updateMessage.CallUnary(ctx, req)
+}
+
+// DeleteMessage calls chatto.api.v1.MessageService.DeleteMessage.
+func (c *messageServiceClient) DeleteMessage(ctx context.Context, req *connect.Request[v1.DeleteMessageRequest]) (*connect.Response[v1.DeleteMessageResponse], error) {
+	return c.deleteMessage.CallUnary(ctx, req)
+}
+
+// DeleteAttachment calls chatto.api.v1.MessageService.DeleteAttachment.
+func (c *messageServiceClient) DeleteAttachment(ctx context.Context, req *connect.Request[v1.DeleteAttachmentRequest]) (*connect.Response[v1.DeleteAttachmentResponse], error) {
+	return c.deleteAttachment.CallUnary(ctx, req)
+}
+
+// DeleteLinkPreview calls chatto.api.v1.MessageService.DeleteLinkPreview.
+func (c *messageServiceClient) DeleteLinkPreview(ctx context.Context, req *connect.Request[v1.DeleteLinkPreviewRequest]) (*connect.Response[v1.DeleteLinkPreviewResponse], error) {
+	return c.deleteLinkPreview.CallUnary(ctx, req)
+}
+
+// SendTypingIndicator calls chatto.api.v1.MessageService.SendTypingIndicator.
+func (c *messageServiceClient) SendTypingIndicator(ctx context.Context, req *connect.Request[v1.SendTypingIndicatorRequest]) (*connect.Response[v1.SendTypingIndicatorResponse], error) {
+	return c.sendTypingIndicator.CallUnary(ctx, req)
 }
 
 // MessageServiceHandler is an implementation of the chatto.api.v1.MessageService service.
@@ -84,6 +173,20 @@ type MessageServiceHandler interface {
 	// thread replies. Echoing a thread reply also requires message.echo and
 	// message.post.
 	PostMessage(context.Context, *connect.Request[v1.PostMessageRequest]) (*connect.Response[v1.PostMessageResponse], error)
+	// Edits a message body. Authors can edit their own messages within the edit
+	// window. Non-authors need message.manage and cannot change channel echo
+	// state.
+	UpdateMessage(context.Context, *connect.Request[v1.UpdateMessageRequest]) (*connect.Response[v1.UpdateMessageResponse], error)
+	// Retracts a message. Authors can delete their own messages. Non-authors need
+	// message.manage.
+	DeleteMessage(context.Context, *connect.Request[v1.DeleteMessageRequest]) (*connect.Response[v1.DeleteMessageResponse], error)
+	// Removes one attachment from the author's own message.
+	DeleteAttachment(context.Context, *connect.Request[v1.DeleteAttachmentRequest]) (*connect.Response[v1.DeleteAttachmentResponse], error)
+	// Removes the accepted link preview from the author's own message.
+	DeleteLinkPreview(context.Context, *connect.Request[v1.DeleteLinkPreviewRequest]) (*connect.Response[v1.DeleteLinkPreviewResponse], error)
+	// Publishes a live-only typing indicator. Room membership is required; message
+	// posting permission is not.
+	SendTypingIndicator(context.Context, *connect.Request[v1.SendTypingIndicatorRequest]) (*connect.Response[v1.SendTypingIndicatorResponse], error)
 }
 
 // NewMessageServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -99,10 +202,50 @@ func NewMessageServiceHandler(svc MessageServiceHandler, opts ...connect.Handler
 		connect.WithSchema(messageServiceMethods.ByName("PostMessage")),
 		connect.WithHandlerOptions(opts...),
 	)
+	messageServiceUpdateMessageHandler := connect.NewUnaryHandler(
+		MessageServiceUpdateMessageProcedure,
+		svc.UpdateMessage,
+		connect.WithSchema(messageServiceMethods.ByName("UpdateMessage")),
+		connect.WithHandlerOptions(opts...),
+	)
+	messageServiceDeleteMessageHandler := connect.NewUnaryHandler(
+		MessageServiceDeleteMessageProcedure,
+		svc.DeleteMessage,
+		connect.WithSchema(messageServiceMethods.ByName("DeleteMessage")),
+		connect.WithHandlerOptions(opts...),
+	)
+	messageServiceDeleteAttachmentHandler := connect.NewUnaryHandler(
+		MessageServiceDeleteAttachmentProcedure,
+		svc.DeleteAttachment,
+		connect.WithSchema(messageServiceMethods.ByName("DeleteAttachment")),
+		connect.WithHandlerOptions(opts...),
+	)
+	messageServiceDeleteLinkPreviewHandler := connect.NewUnaryHandler(
+		MessageServiceDeleteLinkPreviewProcedure,
+		svc.DeleteLinkPreview,
+		connect.WithSchema(messageServiceMethods.ByName("DeleteLinkPreview")),
+		connect.WithHandlerOptions(opts...),
+	)
+	messageServiceSendTypingIndicatorHandler := connect.NewUnaryHandler(
+		MessageServiceSendTypingIndicatorProcedure,
+		svc.SendTypingIndicator,
+		connect.WithSchema(messageServiceMethods.ByName("SendTypingIndicator")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/chatto.api.v1.MessageService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case MessageServicePostMessageProcedure:
 			messageServicePostMessageHandler.ServeHTTP(w, r)
+		case MessageServiceUpdateMessageProcedure:
+			messageServiceUpdateMessageHandler.ServeHTTP(w, r)
+		case MessageServiceDeleteMessageProcedure:
+			messageServiceDeleteMessageHandler.ServeHTTP(w, r)
+		case MessageServiceDeleteAttachmentProcedure:
+			messageServiceDeleteAttachmentHandler.ServeHTTP(w, r)
+		case MessageServiceDeleteLinkPreviewProcedure:
+			messageServiceDeleteLinkPreviewHandler.ServeHTTP(w, r)
+		case MessageServiceSendTypingIndicatorProcedure:
+			messageServiceSendTypingIndicatorHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -114,4 +257,24 @@ type UnimplementedMessageServiceHandler struct{}
 
 func (UnimplementedMessageServiceHandler) PostMessage(context.Context, *connect.Request[v1.PostMessageRequest]) (*connect.Response[v1.PostMessageResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MessageService.PostMessage is not implemented"))
+}
+
+func (UnimplementedMessageServiceHandler) UpdateMessage(context.Context, *connect.Request[v1.UpdateMessageRequest]) (*connect.Response[v1.UpdateMessageResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MessageService.UpdateMessage is not implemented"))
+}
+
+func (UnimplementedMessageServiceHandler) DeleteMessage(context.Context, *connect.Request[v1.DeleteMessageRequest]) (*connect.Response[v1.DeleteMessageResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MessageService.DeleteMessage is not implemented"))
+}
+
+func (UnimplementedMessageServiceHandler) DeleteAttachment(context.Context, *connect.Request[v1.DeleteAttachmentRequest]) (*connect.Response[v1.DeleteAttachmentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MessageService.DeleteAttachment is not implemented"))
+}
+
+func (UnimplementedMessageServiceHandler) DeleteLinkPreview(context.Context, *connect.Request[v1.DeleteLinkPreviewRequest]) (*connect.Response[v1.DeleteLinkPreviewResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MessageService.DeleteLinkPreview is not implemented"))
+}
+
+func (UnimplementedMessageServiceHandler) SendTypingIndicator(context.Context, *connect.Request[v1.SendTypingIndicatorRequest]) (*connect.Response[v1.SendTypingIndicatorResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MessageService.SendTypingIndicator is not implemented"))
 }

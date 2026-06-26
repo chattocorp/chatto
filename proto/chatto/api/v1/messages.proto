@@ -71,6 +71,85 @@ message PostMessageResponse {
   RoomTimelineIncludes includes = 3;
 }
 
+// Request to edit a message body.
+message UpdateMessageRequest {
+  // Required. Room containing the message.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required. Event ID of the message to edit.
+  string event_id = 2 [(buf.validate.field).string.min_len = 1];
+  // New message body text.
+  string body = 3 [(buf.validate.field).string.max_len = 10000];
+  // For thread replies, whether a channel echo should exist after saving.
+  // Omit to preserve the current echo state.
+  optional bool also_send_to_channel = 4;
+}
+
+// Result of editing a message.
+message UpdateMessageResponse {
+  // True when the edit was accepted.
+  bool updated = 1;
+}
+
+// Request to retract a message.
+message DeleteMessageRequest {
+  // Required. Room containing the message.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required. Event ID of the message to retract.
+  string event_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of retracting a message.
+message DeleteMessageResponse {
+  // True when the delete/retract request was accepted.
+  bool deleted = 1;
+}
+
+// Request to remove one attachment from a message.
+message DeleteAttachmentRequest {
+  // Required. Room containing the message.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required. Event ID of the message containing the attachment.
+  string event_id = 2 [(buf.validate.field).string.min_len = 1];
+  // Required. Attachment ID to remove from the message.
+  string attachment_id = 3 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of removing one attachment from a message.
+message DeleteAttachmentResponse {
+  // True when the attachment removal was accepted.
+  bool deleted = 1;
+}
+
+// Request to remove the accepted link preview from a message.
+message DeleteLinkPreviewRequest {
+  // Required. Room containing the message.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required. Event ID of the message containing the link preview.
+  string event_id = 2 [(buf.validate.field).string.min_len = 1];
+  // Required. URL of the link preview to remove.
+  string url = 3 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of removing a link preview from a message.
+message DeleteLinkPreviewResponse {
+  // True when the link preview removal was accepted.
+  bool deleted = 1;
+}
+
+// Request to publish a live-only typing indicator.
+message SendTypingIndicatorRequest {
+  // Required. Room where the current user is typing.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Event ID of the thread root when typing inside a thread.
+  string thread_root_event_id = 2;
+}
+
+// Result of publishing a typing indicator.
+message SendTypingIndicatorResponse {
+  // True when the typing indicator was accepted for publish.
+  bool sent = 1;
+}
+
 // Posts messages into room and thread timelines.
 service MessageService {
   // Posts a message for the current user. The user must be a room member and
@@ -78,4 +157,18 @@ service MessageService {
   // thread replies. Echoing a thread reply also requires message.echo and
   // message.post.
   rpc PostMessage(PostMessageRequest) returns (PostMessageResponse);
+  // Edits a message body. Authors can edit their own messages within the edit
+  // window. Non-authors need message.manage and cannot change channel echo
+  // state.
+  rpc UpdateMessage(UpdateMessageRequest) returns (UpdateMessageResponse);
+  // Retracts a message. Authors can delete their own messages. Non-authors need
+  // message.manage.
+  rpc DeleteMessage(DeleteMessageRequest) returns (DeleteMessageResponse);
+  // Removes one attachment from the author's own message.
+  rpc DeleteAttachment(DeleteAttachmentRequest) returns (DeleteAttachmentResponse);
+  // Removes the accepted link preview from the author's own message.
+  rpc DeleteLinkPreview(DeleteLinkPreviewRequest) returns (DeleteLinkPreviewResponse);
+  // Publishes a live-only typing indicator. Room membership is required; message
+  // posting permission is not.
+  rpc SendTypingIndicator(SendTypingIndicatorRequest) returns (SendTypingIndicatorResponse);
 }

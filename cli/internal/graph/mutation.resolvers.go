@@ -804,22 +804,11 @@ func (r *mutationResolver) SendTypingIndicator(ctx context.Context, input model.
 	if err != nil {
 		return false, err
 	}
-	kind, err := r.resolveRoomKind(ctx, input.RoomID)
-	if err != nil {
-		return false, err
-	}
-
-	// Authorization: check room membership
-	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, input.RoomID)
-	if err != nil {
-		return false, err
-	}
-	if !isMember {
-		return false, core.ErrNotRoomMember
-	}
-
-	// Publish the typing indicator (live-only event, no permission check beyond membership)
-	if err := r.core.PublishTypingIndicator(ctx, user.Id, kind, input.RoomID, input.ThreadRootEventID); err != nil {
+	if err := r.core.Messages().SendTypingIndicator(ctx, core.TypingIndicatorInput{
+		ActorID:           user.Id,
+		RoomID:            input.RoomID,
+		ThreadRootEventID: input.ThreadRootEventID,
+	}); err != nil {
 		return false, err
 	}
 
@@ -832,50 +821,11 @@ func (r *mutationResolver) DeleteMessage(ctx context.Context, input model.Delete
 	if err != nil {
 		return false, err
 	}
-	kind, err := r.resolveRoomKind(ctx, input.RoomID)
-	if err != nil {
-		return false, err
-	}
-
-	// Authorization: check room membership
-	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, input.RoomID)
-	if err != nil {
-		return false, err
-	}
-	if !isMember {
-		return false, core.ErrNotRoomMember
-	}
-
-	// Resolve event ID to internal body key
-	messageBodyKey, err := r.resolveMessageBodyKey(ctx, kind, input.RoomID, input.EventID)
-	if err != nil {
-		return false, err
-	}
-
-	// Authorization: check ownership and permissions
-	authorID, err := r.core.GetMessageAuthorID(ctx, kind, messageBodyKey)
-	if err != nil {
-		return false, err
-	}
-	if authorID == "" {
-		// Message already deleted, nothing to do
-		return true, nil
-	}
-
-	if user.Id != authorID {
-		// Non-author deleting requires message.manage in the room.
-		can, err := r.core.CanManageOthersMessage(ctx, user.Id, kind, input.RoomID)
-		if err != nil {
-			return false, err
-		}
-		if !can {
-			return false, core.ErrPermissionDenied
-		}
-	}
-	// Authors deleting their own messages: always allowed (subject to
-	// membership, which we already checked above).
-
-	if err := r.core.DeleteMessage(ctx, user.Id, kind, input.RoomID, messageBodyKey); err != nil {
+	if err := r.core.Messages().DeleteMessage(ctx, core.MessageDeleteInput{
+		ActorID: user.Id,
+		RoomID:  input.RoomID,
+		EventID: input.EventID,
+	}); err != nil {
 		return false, err
 	}
 
@@ -888,73 +838,13 @@ func (r *mutationResolver) UpdateMessage(ctx context.Context, input model.Update
 	if err != nil {
 		return false, err
 	}
-	kind, err := r.resolveRoomKind(ctx, input.RoomID)
-	if err != nil {
-		return false, err
-	}
-
-	// Authorization: check room membership
-	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, input.RoomID)
-	if err != nil {
-		return false, err
-	}
-	if !isMember {
-		return false, core.ErrNotRoomMember
-	}
-
-	// Resolve event ID to internal body key
-	messageBodyKey, err := r.resolveMessageBodyKey(ctx, kind, input.RoomID, input.EventID)
-	if err != nil {
-		return false, err
-	}
-
-	// Get the message to determine authorship
-	messageBody, err := r.core.GetFullMessageBody(ctx, kind, messageBodyKey)
-	if err != nil {
-		return false, err
-	}
-	if messageBody == nil {
-		return false, core.ErrMessageNotFound
-	}
-
-	// Authorization: authors editing their own messages are always allowed
-	// (the edit window is enforced in Core.EditMessage). Non-author edits
-	// require message.manage in the room.
-	if messageBody.AuthorId != user.Id {
-		can, err := r.core.CanManageOthersMessage(ctx, user.Id, kind, input.RoomID)
-		if err != nil {
-			return false, err
-		}
-		if !can {
-			return false, core.ErrPermissionDenied
-		}
-	}
-
-	var editOptions []core.EditMessageOption
-	if input.AlsoSendToChannel != nil {
-		if messageBody.AuthorId != user.Id {
-			return false, core.ErrNotMessageAuthor
-		}
-		if *input.AlsoSendToChannel {
-			can, err := r.core.CanEchoMessage(ctx, user.Id, kind, input.RoomID)
-			if err != nil {
-				return false, err
-			}
-			if !can {
-				return false, core.ErrPermissionDenied
-			}
-			can, err = r.core.CanPostMessage(ctx, user.Id, kind, input.RoomID)
-			if err != nil {
-				return false, err
-			}
-			if !can {
-				return false, core.ErrPermissionDenied
-			}
-		}
-		editOptions = append(editOptions, core.WithMessageChannelEcho(*input.AlsoSendToChannel))
-	}
-
-	if err := r.core.EditMessage(ctx, user.Id, kind, input.RoomID, messageBodyKey, input.Body, editOptions...); err != nil {
+	if err := r.core.Messages().UpdateMessage(ctx, core.MessageUpdateInput{
+		ActorID:           user.Id,
+		RoomID:            input.RoomID,
+		EventID:           input.EventID,
+		Body:              input.Body,
+		AlsoSendToChannel: input.AlsoSendToChannel,
+	}); err != nil {
 		return false, err
 	}
 
@@ -967,28 +857,12 @@ func (r *mutationResolver) DeleteAttachment(ctx context.Context, input model.Del
 	if err != nil {
 		return false, err
 	}
-	kind, err := r.resolveRoomKind(ctx, input.RoomID)
-	if err != nil {
-		return false, err
-	}
-
-	// Authorization: check room membership
-	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, input.RoomID)
-	if err != nil {
-		return false, err
-	}
-	if !isMember {
-		return false, core.ErrNotRoomMember
-	}
-
-	// Resolve event ID to internal body key
-	messageBodyKey, err := r.resolveMessageBodyKey(ctx, kind, input.RoomID, input.EventID)
-	if err != nil {
-		return false, err
-	}
-
-	// Core handles ownership check - only author can delete their attachments
-	if err := r.core.DeleteAttachmentFromMessage(ctx, user.Id, kind, input.RoomID, messageBodyKey, input.AttachmentID); err != nil {
+	if err := r.core.Messages().DeleteAttachment(ctx, core.MessageAttachmentDeleteInput{
+		ActorID:      user.Id,
+		RoomID:       input.RoomID,
+		EventID:      input.EventID,
+		AttachmentID: input.AttachmentID,
+	}); err != nil {
 		return false, err
 	}
 
@@ -1001,28 +875,12 @@ func (r *mutationResolver) DeleteLinkPreview(ctx context.Context, input model.De
 	if err != nil {
 		return false, err
 	}
-	kind, err := r.resolveRoomKind(ctx, input.RoomID)
-	if err != nil {
-		return false, err
-	}
-
-	// Authorization: check room membership
-	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, input.RoomID)
-	if err != nil {
-		return false, err
-	}
-	if !isMember {
-		return false, core.ErrNotRoomMember
-	}
-
-	// Resolve event ID to internal body key
-	messageBodyKey, err := r.resolveMessageBodyKey(ctx, kind, input.RoomID, input.EventID)
-	if err != nil {
-		return false, err
-	}
-
-	// Core handles ownership check - only author can delete their link previews
-	if err := r.core.DeleteLinkPreviewFromMessage(ctx, user.Id, kind, input.RoomID, messageBodyKey, input.URL); err != nil {
+	if err := r.core.Messages().DeleteLinkPreview(ctx, core.MessageLinkPreviewDeleteInput{
+		ActorID: user.Id,
+		RoomID:  input.RoomID,
+		EventID: input.EventID,
+		URL:     input.URL,
+	}); err != nil {
 		return false, err
 	}
 
