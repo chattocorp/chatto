@@ -194,6 +194,12 @@ export class GraphQLClient {
     }
 
     if (status === 'connected') {
+      console.log(
+        '[ws:%s] Connected (prev status: %s, wasDisconnected: %s)',
+        this.#host,
+        this.status,
+        this.#wasDisconnected
+      );
       if (this.#wasDisconnected) {
         this.#wasDisconnected = false;
         this.reconnectCount++;

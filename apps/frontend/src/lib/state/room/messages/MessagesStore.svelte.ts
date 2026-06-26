@@ -347,6 +347,15 @@ export class MessagesStore {
       eventData.__typename === 'RoomArchivedEvent' ||
       eventData.__typename === 'RoomUnarchivedEvent'
     ) {
+      if (
+        !spaceEvent.actor &&
+        this.roomTimeline &&
+        (eventData.__typename === 'UserJoinedRoomEvent' ||
+          eventData.__typename === 'UserLeftRoomEvent')
+      ) {
+        void this.fetchAndIngestSystemEvent(spaceEvent.id);
+        return;
+      }
       this.onSystemEvent(spaceEvent);
     }
   }
@@ -618,6 +627,13 @@ export class MessagesStore {
     }
   }
 
+  private async fetchAndIngestSystemEvent(eventId: string): Promise<void> {
+    const fetched = await this.fetchEventById(eventId);
+    if (fetched) {
+      this.ingestEvent(fetched);
+    }
+  }
+
   private async fetchAndIngestMessagePostedSignal(
     messageEventId: string,
     threadRootEventId: string | null
@@ -663,7 +679,10 @@ export class MessagesStore {
   }
 
   private async refetchOne(eventId: string): Promise<void> {
-    const updated = await this.fetchEventById(eventId);
+    const updated = await this.fetchEventById(
+      eventId,
+      this.scope === 'thread' && eventId !== this.threadRootEventId ? this.threadRootEventId : null
+    );
     if (!updated) return;
     const idx = this.events.findIndex((e) => e.id === eventId);
     if (idx !== -1) this.events[idx] = updated;
