@@ -70,7 +70,8 @@ Storybook.
 - Svelte files use tabs; match local style.
 - Use base text size by default. Reserve smaller text for metadata.
 - Clickable controls need `cursor-pointer`.
-- Never use `{@html}`.
+- Do not use `{@html}` directly in feature components. Render trusted markdown
+  HTML through `$lib/ui/MarkdownHtml.svelte`, which is the reviewed exception.
 - Use `<SkeletonImg>` instead of `<img class="skeleton">`.
 - Use `link` for inline links, not `text-primary`.
 - Flex children with truncation or fixed-width media usually need `min-w-0`.

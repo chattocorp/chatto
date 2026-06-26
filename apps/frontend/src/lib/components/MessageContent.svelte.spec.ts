@@ -354,6 +354,27 @@ describe('MessageContent component', () => {
     await expect.poll(() => q(container, 'em')).toBeTruthy();
   });
 
+  it('renders bold content followed immediately by text', async () => {
+    const { container } = renderMessage('fsdfsd **fsdf**fdsf');
+
+    await expect.poll(() => q(container, 'strong')).toBeTruthy();
+    expect(q(container, 'strong')?.textContent).toBe('fsdf');
+    expect(container.textContent).toContain('fsdfsd fsdffdsf');
+  });
+
+  it('renders bold content followed immediately by text in edited messages', async () => {
+    const { container } = render(MessageContent, {
+      props: {
+        body: 'fsdfsd **fsdf**fdsf',
+        edited: true
+      }
+    });
+
+    await expect.poll(() => q(container, 'strong')).toBeTruthy();
+    expect(q(container, 'strong')?.textContent).toBe('fsdf');
+    expect(container.textContent).toContain('fsdfsd fsdffdsf (edited)');
+  });
+
   it('applies prose classes for typography', async () => {
     const { container } = renderMessage('Hello world');
 

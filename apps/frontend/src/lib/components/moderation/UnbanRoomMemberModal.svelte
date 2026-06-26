@@ -3,6 +3,7 @@
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import FormDialog from '$lib/ui/FormDialog.svelte';
   import { TextArea } from '$lib/ui/form';
+  import * as m from '$lib/i18n/messages';
 
   type User = {
     id: string;
@@ -52,12 +53,12 @@
 
 <FormDialog
   bind:visible
-  title={`Unban ${displayName}`}
+  title={m['admin.moderation.unban_title']({ user: displayName })}
   size="sm"
-  submitLabel="Unban"
+  submitLabel={m['admin.moderation.unban']()}
   submitTone="warning"
   submitIcon="iconify uil--unlock"
-  submitLoadingText="Unbanning..."
+  submitLoadingText={m['admin.moderation.unbanning']()}
   loading={submitting}
   {disabled}
   {error}
@@ -82,7 +83,7 @@
 
   <TextArea
     id="unban-room-member-reason"
-    label="Reason"
+    label={m['admin.common.reason']()}
     bind:value={reason}
     rows={4}
     maxlength={1000}

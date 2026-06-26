@@ -4,11 +4,11 @@
 </script>
 
 <script lang="ts">
-  /* eslint-disable svelte/no-navigation-without-resolve -- goto target is built via buildMessageLinkPath which already calls resolve() */
   import { goto } from '$app/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { renderMarkdown as renderMd } from '$lib/markdown';
+  import MarkdownHtml from '$lib/ui/MarkdownHtml.svelte';
   import { classifyMessageBodyChatLink, buildMessageLinkPath } from '$lib/messageLinks';
   import { wrapValidMentions, type RoomMember } from '$lib/mentions';
 
@@ -93,10 +93,12 @@
 
       const chatLink = classifyMessageBodyChatLink(anchor.href);
       if (chatLink?.kind === 'message') {
+        // eslint-disable-next-line svelte/no-navigation-without-resolve -- buildMessageLinkPath returns a resolved app route.
         goto(buildMessageLinkPath(chatLink.serverId, chatLink.roomId, chatLink.messageId));
         return;
       }
       if (chatLink) {
+        // eslint-disable-next-line svelte/no-navigation-without-resolve -- classifyMessageBodyChatLink returns an allow-listed resolved app path.
         goto(chatLink.path);
         return;
       }
@@ -111,16 +113,11 @@
 
 <div class="prose max-w-none min-w-0" role="presentation" onclick={handleContentClick}>
   {#await render(body, members, roleHandles, edited, viewerLogin)}
-    <!-- Show escaped body while loading -->
-    <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-    {@html body.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+    {body}
   {:then html}
-    <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-    {@html html}
+    <MarkdownHtml {html} />
   {:catch error}
-    <!-- Render failed - show escaped body as fallback -->
-    <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-    {@html body.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+    {body}
     {(() => {
       console.error('[MessageContent] Render failed:', error);
       return '';

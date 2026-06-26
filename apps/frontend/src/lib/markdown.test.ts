@@ -98,6 +98,16 @@ describe('renderMarkdown', () => {
       expect(html).toContain('<strong>foo:</strong>');
       expect(html).toContain('<strong>bar</strong>');
     });
+
+    it('renders bold text when the closing marker is followed by text', async () => {
+      const html = await renderMarkdown('fsdfsd **fsdf**fdsf');
+      expect(html).toContain('<strong>fsdf</strong>fdsf');
+    });
+
+    it('renders bold text embedded within surrounding text', async () => {
+      const html = await renderMarkdown('fsdfsd**fsdf**fdsf');
+      expect(html).toContain('fsdfsd<strong>fsdf</strong>fdsf');
+    });
   });
 
   describe('emphasis suppressed when not at word boundaries', () => {

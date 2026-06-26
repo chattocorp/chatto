@@ -1,4 +1,6 @@
 <script lang="ts">
+  import MarkdownHtml from './MarkdownHtml.svelte';
+
   let { motd }: { motd: string } = $props();
 
   let markdownModule: Promise<typeof import('$lib/markdown')> | null = null;
@@ -19,8 +21,7 @@
     {#await renderMarkdown(motd)}
       {motd}
     {:then html}
-      <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-      {@html html}
+      <MarkdownHtml {html} />
     {/await}
   {:catch}
     {motd}

@@ -47,7 +47,42 @@
       "winning_decision": "(entscheidende Entscheidung)",
       "level_server": "Server",
       "level_group": "Gruppe",
-      "level_room": "Raum"
+      "level_room": "Raum",
+      "empty_category": "Keine Berechtigungen in dieser Kategorie",
+      "categories": {
+        "space": {
+          "title": "Serverberechtigungen",
+          "description": "Serverweite Fähigkeiten, die aus Kompatibilitätsgründen unter dem alten Kategorieschlüssel geführt werden"
+        },
+        "room": {
+          "title": "Raumberechtigungen",
+          "description": "Servervorgaben für Raumsuche, Beitritt und Raumerstellung. Verweigerungen auf Raum- oder Gruppenebene setzen lokale Einschränkungen"
+        },
+        "message": {
+          "title": "Nachrichtenberechtigungen",
+          "description": "Servervorgaben für Schreiben, Threads, Reaktionen, Echo und Nachrichtenmoderation. Verweigerungen auf Raum- oder Gruppenebene setzen lokale Ausnahmen"
+        },
+        "member": {
+          "title": "Mitgliederberechtigungen",
+          "description": "Steuert, wer Servermitglieder einladen und entfernen kann"
+        },
+        "role": {
+          "title": "Rollenberechtigungen",
+          "description": "Steuert, wer Rollen bearbeiten, Rollen zuweisen und Berechtigungsvorlagen verwalten kann"
+        },
+        "admin": {
+          "title": "Adminberechtigungen",
+          "description": "Steuert den Zugriff auf serverweite Administrationsansichten und Diagnose"
+        },
+        "dm": {
+          "title": "DM-Berechtigungen",
+          "description": "Steuert den Zugriff auf Direktnachrichten-Einstiegspunkte"
+        },
+        "user": {
+          "title": "Benutzerberechtigungen",
+          "description": "Steuert Benutzerkonto- und benutzerbezogene Berechtigungsvorgänge. Jede Nicht-Owner-Verweigerung hebt Erlaubnisse auf"
+        }
+      }
     }
   }
 }

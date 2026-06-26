@@ -1,10 +1,12 @@
 <script lang="ts">
+  import MarkdownHtml from '$lib/ui/MarkdownHtml.svelte';
+
   let {
     name,
     iconUrl = null,
     bannerUrl = null,
     description = null,
-    welcomeMessage = null,
+    welcomeMessage = null
   }: {
     name: string;
     iconUrl?: string | null;
@@ -39,15 +41,14 @@
   {/if}
 
   {#if welcomeMessage}
-    <div class="w-full rounded-lg border border-border bg-surface p-4 prose max-w-none text-muted">
+    <div class="prose w-full max-w-none rounded-lg border border-border bg-surface p-4 text-muted">
       {#await loadMarkdown()}
         <p>{welcomeMessage}</p>
       {:then { renderMarkdown }}
         {#await renderMarkdown(welcomeMessage)}
           <p>{welcomeMessage}</p>
         {:then html}
-          <!-- eslint-disable-next-line svelte/no-at-html-tags -- admin-configured content -->
-          {@html html}
+          <MarkdownHtml {html} />
         {/await}
       {:catch}
         <p>{welcomeMessage}</p>

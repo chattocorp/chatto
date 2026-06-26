@@ -6,6 +6,8 @@
     "open_quick_switcher": "Schnellwechsler öffnen",
     "quick_switcher_shortcut": "Schnellwechsler (Cmd+K)",
     "realtime_paused": "Echtzeitaktualisierungen pausiert. Verbindung wird wiederhergestellt...",
+    "update_available": "Eine neue Version ist verfügbar",
+    "reload": "Neu laden",
     "sign_out": "Abmelden",
     "close": "Schließen",
     "access_denied": {
@@ -23,6 +25,18 @@
     },
     "combobox": {
       "loading": "Wird geladen..."
+    },
+    "expiry": {
+      "label": "Läuft ab",
+      "24h": "24 Stunden",
+      "7d": "7 Tage",
+      "30d": "30 Tage",
+      "indefinite": "Kein Ablauf",
+      "custom": "Benutzerdefiniert",
+      "custom_label": "Benutzerdefinierter Ablauf",
+      "error_required": "Wähle ein Ablaufdatum.",
+      "error_invalid": "Gib einen gültigen Ablauf ein.",
+      "error_future": "Der Ablauf muss in der Zukunft liegen."
     },
     "form": {
       "required": "Erforderlich"

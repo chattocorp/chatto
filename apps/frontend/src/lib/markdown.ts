@@ -42,14 +42,17 @@ function wordBoundaryEmphasis(state: StateInline, silent: boolean): boolean {
   while (runEnd < state.posMax && state.src.charCodeAt(runEnd) === marker) {
     runEnd++;
   }
+  const runLength = runEnd - start;
 
   const before = start > 0 ? state.src[start - 1] : '';
   const after = runEnd < state.src.length ? state.src[runEnd] : '';
   const beforeAlnum = ALPHANUMERIC.test(before);
   const afterAlnum = ALPHANUMERIC.test(after);
 
-  // Intraword: definitely literal (`snake_case`, `foo*bar*baz`).
-  const intraword = beforeAlnum && afterAlnum;
+  // Single-marker intraword runs are definitely literal (`snake_case`,
+  // `foo*bar*baz`). Double-marker runs are still allowed so bold can end next
+  // to a following word (`**bold**text`).
+  const intraword = runLength === 1 && beforeAlnum && afterAlnum;
   // Kaomoji-like: punctuation on both sides AND neither direction crosses an
   // alphanumeric before hitting a same-marker run or the input boundary. The
   // bidirectional check distinguishes a true kaomoji marker (e.g. the trailing
@@ -335,7 +338,7 @@ export async function renderMarkdown(body: string): Promise<string> {
 
     return md!.render(body);
   } catch (err) {
-    console.error('[Markdown] renderMarkdown failed:', err, 'Body:', body.slice(0, 100));
+    console.error('[Markdown] renderMarkdown failed:', err, { bodyLength: body.length });
     throw err;
   }
 }

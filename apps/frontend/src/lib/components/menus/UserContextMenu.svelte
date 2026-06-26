@@ -26,6 +26,7 @@ ContextMenu, which handles both modes automatically.
     getLiveLogin,
     type CustomUserStatus
   } from '$lib/state/userProfiles.svelte';
+  import * as m from '$lib/i18n/messages';
 
   let {
     user,
@@ -70,7 +71,7 @@ ContextMenu, which handles both modes automatically.
 <ContextMenu
   anchor={anchorRect}
   role="dialog"
-  ariaLabel="User profile"
+  ariaLabel={m['chat.user_menu.profile']()}
   class="w-64"
   onclose={() => onClose?.()}
 >
@@ -88,7 +89,7 @@ ContextMenu, which handles both modes automatically.
       <div class="border-t border-border p-1">
         {#if canSendMessage}
           <button type="button" class="sidebar-item" onclick={handleSendMessage}>
-            Send Message
+            {m['chat.user_menu.send_message']()}
           </button>
         {/if}
         {#if canBanFromRoom}
@@ -98,7 +99,7 @@ ContextMenu, which handles both modes automatically.
             onclick={handleBanFromRoom}
             disabled={banningFromRoom}
           >
-            {banningFromRoom ? 'Banning...' : 'Ban from room'}
+            {banningFromRoom ? m['admin.moderation.banning']() : m['admin.moderation.ban_action']()}
           </button>
         {/if}
       </div>

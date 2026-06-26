@@ -6,6 +6,8 @@
     "open_quick_switcher": "Open quick switcher",
     "quick_switcher_shortcut": "Quick switcher (Cmd+K)",
     "realtime_paused": "Real-time updates paused. Reconnecting...",
+    "update_available": "A new version is available",
+    "reload": "Reload",
     "sign_out": "Sign out",
     "close": "Close",
     "access_denied": {
@@ -23,6 +25,18 @@
     },
     "combobox": {
       "loading": "Loading..."
+    },
+    "expiry": {
+      "label": "Expires",
+      "24h": "24 hours",
+      "7d": "7 days",
+      "30d": "30 days",
+      "indefinite": "No expiry",
+      "custom": "Custom",
+      "custom_label": "Custom expiry",
+      "error_required": "Choose an expiry date.",
+      "error_invalid": "Enter a valid expiry.",
+      "error_future": "Expiry must be in the future."
     },
     "form": {
       "required": "Required"

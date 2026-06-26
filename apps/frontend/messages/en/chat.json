@@ -21,6 +21,10 @@
     "overview": {
       "title": "Overview"
     },
+    "user_menu": {
+      "profile": "User profile",
+      "send_message": "Send Message"
+    },
     "server_gutter": {
       "add_server": "Add Server"
     },

@@ -64,36 +64,36 @@ under it. Column headers are clickable when `onRoleClick` is provided
 
   const CATEGORY_META: Record<string, { title: string; description: string }> = {
     space: {
-      title: 'Server Permissions',
-      description: 'Server-level capabilities kept under the legacy category key for compatibility'
+      title: m['rbac.permissions.categories.space.title'](),
+      description: m['rbac.permissions.categories.space.description']()
     },
     room: {
-      title: 'Room Permissions',
-      description:
-        'Server defaults for room discovery and joining, plus room creation. Add room/group denies for local restrictions'
+      title: m['rbac.permissions.categories.room.title'](),
+      description: m['rbac.permissions.categories.room.description']()
     },
     message: {
-      title: 'Message Permissions',
-      description:
-        'Server defaults for posting, threads, reactions, echoing, and message moderation. Room/group denies create local exceptions'
+      title: m['rbac.permissions.categories.message.title'](),
+      description: m['rbac.permissions.categories.message.description']()
     },
     member: {
-      title: 'Member Permissions',
-      description: 'Control who can invite and remove server members'
+      title: m['rbac.permissions.categories.member.title'](),
+      description: m['rbac.permissions.categories.member.description']()
     },
     role: {
-      title: 'Role Permissions',
-      description: 'Control who can edit roles, assign roles, and manage permission presets'
+      title: m['rbac.permissions.categories.role.title'](),
+      description: m['rbac.permissions.categories.role.description']()
     },
     admin: {
-      title: 'Admin Permissions',
-      description: 'Control access to server-wide administrative views and diagnostics'
+      title: m['rbac.permissions.categories.admin.title'](),
+      description: m['rbac.permissions.categories.admin.description']()
     },
-    dm: { title: 'DM Permissions', description: 'Control access to direct messaging entry points' },
+    dm: {
+      title: m['rbac.permissions.categories.dm.title'](),
+      description: m['rbac.permissions.categories.dm.description']()
+    },
     user: {
-      title: 'User Permissions',
-      description:
-        'Control user account and per-user permission operations. Any non-owner deny cancels grants'
+      title: m['rbac.permissions.categories.user.title'](),
+      description: m['rbac.permissions.categories.user.description']()
     }
   };
 
@@ -315,7 +315,7 @@ under it. Column headers are clickable when `onRoleClick` is provided
             items={group.permissions}
             columns={roles.length + 1}
             getKey={(p) => p}
-            emptyMessage="No permissions in this category"
+            emptyMessage={m['rbac.permissions.empty_category']()}
             hoverable={false}
           >
             {#snippet header()}
@@ -323,7 +323,7 @@ under it. Column headers are clickable when `onRoleClick` is provided
                 class="sticky left-0 z-10 bg-background px-4 py-3 text-left align-bottom font-medium"
                 style="width: 14rem"
               >
-                Permission
+                {m['rbac.permissions.permission']()}
               </th>
               {#each roles as role (role.roleName)}
                 {@const handle =

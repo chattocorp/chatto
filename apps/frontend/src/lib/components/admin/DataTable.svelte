@@ -26,7 +26,7 @@
     row: Snippet<[T]>;
     emptyMessage?: string;
     onRowClick?: (item: T) => void;
-    getKey?: (item: T, index: number) => string | number;
+    getKey?: (item: T, index: number) => unknown;
     getGroupKey?: (item: T, index: number) => string | null | undefined;
     group?: Snippet<[T]>;
     /**
@@ -52,12 +52,12 @@
 
   let loadMoreInFlight = false;
 
-  // Default key function: use id if present, otherwise use index
-  function defaultGetKey(item: T, index: number): string | number {
+  // Default key function: use id if present, otherwise key by item identity.
+  function defaultGetKey(item: T): unknown {
     if (item && typeof item === 'object' && 'id' in item) {
       return (item as { id: string | number }).id;
     }
-    return index;
+    return item;
   }
 
   const keyFn = $derived(getKey ?? defaultGetKey);

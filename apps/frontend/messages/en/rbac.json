@@ -47,7 +47,42 @@
       "winning_decision": "(winning decision)",
       "level_server": "Server",
       "level_group": "Group",
-      "level_room": "Room"
+      "level_room": "Room",
+      "empty_category": "No permissions in this category",
+      "categories": {
+        "space": {
+          "title": "Server Permissions",
+          "description": "Server-level capabilities kept under the legacy category key for compatibility"
+        },
+        "room": {
+          "title": "Room Permissions",
+          "description": "Server defaults for room discovery and joining, plus room creation. Add room/group denies for local restrictions"
+        },
+        "message": {
+          "title": "Message Permissions",
+          "description": "Server defaults for posting, threads, reactions, echoing, and message moderation. Room/group denies create local exceptions"
+        },
+        "member": {
+          "title": "Member Permissions",
+          "description": "Control who can invite and remove server members"
+        },
+        "role": {
+          "title": "Role Permissions",
+          "description": "Control who can edit roles, assign roles, and manage permission presets"
+        },
+        "admin": {
+          "title": "Admin Permissions",
+          "description": "Control access to server-wide administrative views and diagnostics"
+        },
+        "dm": {
+          "title": "DM Permissions",
+          "description": "Control access to direct messaging entry points"
+        },
+        "user": {
+          "title": "User Permissions",
+          "description": "Control user account and per-user permission operations. Any non-owner deny cancels grants"
+        }
+      }
     }
   }
 }
