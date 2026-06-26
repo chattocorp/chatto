@@ -168,13 +168,7 @@ You won't need the `livekit.*` subdomain or the UDP port range.
 
 The default setup exposes LiveKit's UDP port range directly. This works for most networks, but users behind strict corporate firewalls or symmetric NATs that block all UDP traffic won't be able to join calls.
 
-If your users are on restrictive networks, you have two options:
-
-### Option A: LiveKit's Built-in TURN Server
-
-LiveKit includes a TURN server that can relay media over TCP. To use it, the TURN server needs its own port that doesn't conflict with Caddy's port 443.
-
-Add to your selected LiveKit config (`livekit.generated.yaml` if you used `init-env.sh`, otherwise `livekit.yaml`):
+For Docker Compose deployments, the shortest path is LiveKit's built-in TURN server on a dedicated TCP port:
 
 ```yaml
 turn:
@@ -182,7 +176,7 @@ turn:
   tls_port: 5349
 ```
 
-Expose the TURN port in `compose.yml` under the `livekit` service:
+Expose that port on the `livekit` service:
 
 ```yaml
 ports:
@@ -191,54 +185,12 @@ ports:
 ```
 
 <Aside>
-  Some firewalls only allow outbound traffic on port 443. If you need TURN on
-  port 443, LiveKit must run on a separate IP address or host so it doesn't
-  conflict with Caddy. Alternatively, use a dedicated TURN server (option B).
+  Some networks only allow outbound traffic on TCP 443. If you need TURN on
+  port 443, run LiveKit or a dedicated TURN server on a separate IP address or
+  host so it does not conflict with Caddy.
 </Aside>
 
-### Option B: Dedicated TURN Server (coturn)
-
-For maximum compatibility, run [coturn](https://github.com/coturn/coturn) as a dedicated TURN server, optionally on a separate host or IP. Add to `compose.yml`:
-
-```yaml
-coturn:
-  image: coturn/coturn:latest
-  network_mode: host
-  volumes:
-    - ./turnserver.conf:/etc/coturn/turnserver.conf:ro
-```
-
-Create `turnserver.conf`:
-
-```ini
-listening-port=3478
-tls-listening-port=443
-realm=chat.example.com
-# Static credentials (must match LiveKit config)
-user=livekit:your-turn-password
-lt-cred-mech
-# TLS (use Caddy's certificates or provide your own)
-cert=/path/to/cert.pem
-pkey=/path/to/key.pem
-```
-
-Then configure LiveKit to use the external TURN server by adding to your selected LiveKit config:
-
-```yaml
-rtc:
-  turn_servers:
-    - host: turn.example.com
-      port: 443
-      protocol: tls
-      username: livekit
-      credential: your-turn-password
-```
-
-<Aside type="caution">
-  Running coturn with `network_mode: host` and TLS on port 443 requires either a
-  dedicated IP or a separate host from Caddy. If colocated, use port 5349 for
-  TURN/TLS instead.
-</Aside>
+See [Voice & Video Calls](/guides/voice-calls/#turn-for-restrictive-networks) for the full TURN tradeoffs, including when to use a dedicated TURN server.
 
 ## Troubleshooting
 

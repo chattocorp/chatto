@@ -112,6 +112,22 @@ Use `wss://` (WebSocket Secure) URLs in production. Plain `ws://` should only be
 - **End-to-end encryption**: Chatto enables LiveKit E2EE automatically for clients. No additional LiveKit server configuration is required.
 - **API Secret**: Keep your API secret confidential. It's used to sign JWT tokens and should never be exposed to clients.
 
+## TURN for Restrictive Networks
+
+LiveKit can usually connect browsers directly over UDP. Users behind strict corporate firewalls or symmetric NATs may need a TURN relay so media can fall back to TCP or TLS.
+
+For most self-hosted deployments, enable LiveKit's built-in TURN server first:
+
+```yaml
+turn:
+  enabled: true
+  tls_port: 5349
+```
+
+Expose the TURN/TLS port on the LiveKit host and keep the UDP media range open. If your users can only reach outbound TCP 443, LiveKit or TURN needs a dedicated IP address or host so it can listen on 443 without conflicting with your HTTPS reverse proxy.
+
+Use a dedicated TURN server such as [coturn](https://github.com/coturn/coturn) when you need tighter network separation, a shared TURN service for multiple LiveKit deployments, or TURN/TLS on port 443 without moving LiveKit itself. Configure static credentials on the TURN server and list it under LiveKit's `rtc.turn_servers` configuration.
+
 ## Features
 
 - **Mute/unmute** — Toggle your microphone during a call

@@ -80,12 +80,14 @@ Chatto uses a role-based permission system with four built-in roles (everyone / 
 <LinkCard
   title="Permissions & Roles"
   href="/guides/permissions/"
-  description="Roles, the rank hierarchy, common patterns (announcements channels, private team rooms, suspending users), and how Chatto resolves any given permission check."
+  description="Roles, explicit grants and denies, owner recovery, common patterns, and how Chatto resolves any given permission check."
 />
 
 ### Initial ownership
 
-The first owner is designated via `owners.emails` in `chatto.toml`. The match runs against **verified** emails only, so claiming an address you can't receive mail at won't grant you ownership. When a matching email is verified, the user is auto-promoted to the owner role — no restart required. Owner is the highest-ranked role and holds every server-scope permission explicitly granted; see the [permissions guide](/guides/permissions/) for what that means in practice.
+The first owner is designated via `owners.emails` in `chatto.toml`. The match runs against **verified** emails only, so claiming an address you can't receive mail at won't grant you ownership. When a matching email is verified, the user is auto-promoted to the owner role — no restart required.
+
+Owners are effective-owner overrides: they are allowed for every normal RBAC permission, and their permissions are virtual rather than stored as editable grants. Roles still have display order, but Chatto does not use role position as an authorization rank. See the [permissions guide](/guides/permissions/) for the full resolution model.
 
 ### The privacy boundary
 

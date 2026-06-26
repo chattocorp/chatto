@@ -130,7 +130,7 @@ Some data is kept in memory for speed and has short TTLs:
 
 - **Presence** — online/offline status (60-second TTL, auto-expires)
 
-This state is replicated across the NATS cluster for consistency, but it is reconstructed automatically if lost.
+This state lives in Chatto's memory-backed `MEMORY_CACHE` bucket. It can be replicated while the NATS cluster is healthy, but it is intentionally non-durable, excluded from backups, and reconstructed automatically if lost.
 
 ### Security-sensitive key storage
 
