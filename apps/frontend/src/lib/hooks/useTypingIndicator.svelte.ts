@@ -1,13 +1,8 @@
 import { SvelteMap } from 'svelte/reactivity';
 import { onTypingEvent, type TypingEventData } from '$lib/eventBus.svelte';
 import { useConnection } from '$lib/state/server/connection.svelte';
-import { graphql } from '$lib/gql';
-
-const SendTypingIndicatorMutation = graphql(`
-  mutation SendTypingIndicator($input: SendTypingIndicatorInput!) {
-    sendTypingIndicator(input: $input)
-  }
-`);
+import { getActiveServer } from '$lib/state/activeServer.svelte';
+import { createMessageAPI } from '$lib/api/messages';
 
 /** How long to display typing indicator after receiving an event (ms) */
 export const TYPING_TIMEOUT_MS = 6000;
@@ -149,12 +144,12 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
       lastSentAt = now;
 
       try {
-        await connection().client.mutation(SendTypingIndicatorMutation, {
-          input: {
-            roomId: configRoomId,
-            threadRootEventId: configThreadRootEventId
-          }
-        });
+        const conn = connection();
+        await createMessageAPI({
+          serverId: conn.serverId ?? getActiveServer(),
+          baseUrl: conn.connectBaseUrl,
+          bearerToken: conn.bearerToken
+        }).sendTypingIndicator(configRoomId, configThreadRootEventId);
       } catch (err) {
         console.debug('Failed to send typing indicator:', err);
       }

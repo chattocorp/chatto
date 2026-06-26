@@ -1,6 +1,9 @@
 import type { Page } from '@playwright/test';
 import type { TestInfo } from '@playwright/test';
+import { createClient } from '@connectrpc/connect';
+import { createConnectTransport } from '@connectrpc/connect-web';
 import { readFile } from 'fs/promises';
+import { MessageService } from '$lib/pb/chatto/api/v1/messages_connect';
 import { startServer, stopServer, type ServerInfo } from './server';
 
 /**
@@ -320,33 +323,27 @@ export async function startDMOnRemote(
 }
 
 /**
- * Sends a typing indicator on a remote server via GraphQL mutation.
+ * Sends a typing indicator on a remote server via ConnectRPC.
  */
 export async function sendTypingOnRemote(
 	remoteBaseURL: string,
 	token: string,
 	roomId: string
 ): Promise<void> {
-	const response = await fetch(`${remoteBaseURL}/api/graphql`, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			'X-REQUEST-TYPE': 'GraphQL',
-			Authorization: `Bearer ${token}`
-		},
-		body: JSON.stringify({
-			query: `
-				mutation SendTypingIndicator($input: SendTypingIndicatorInput!) {
-					sendTypingIndicator(input: $input)
-				}
-			`,
-			variables: { input: { roomId } }
+	const client = createClient(
+		MessageService,
+		createConnectTransport({
+			baseUrl: new URL('/api/connect', remoteBaseURL).toString(),
+			useBinaryFormat: true
 		})
-	});
+	);
 
-	if (!response.ok) {
-		throw new Error(`Failed to send typing on remote: ${await response.text()}`);
-	}
+	await client.sendTypingIndicator(
+		{ roomId },
+		{
+			headers: { Authorization: `Bearer ${token}` }
+		}
+	);
 }
 
 /**

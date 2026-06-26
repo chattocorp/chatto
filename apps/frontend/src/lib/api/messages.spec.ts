@@ -18,7 +18,8 @@ const mocks = vi.hoisted(() => ({
 	updateMessage: vi.fn(),
 	deleteMessage: vi.fn(),
 	deleteAttachment: vi.fn(),
-	deleteLinkPreview: vi.fn()
+	deleteLinkPreview: vi.fn(),
+	sendTypingIndicator: vi.fn()
 }));
 
 vi.mock('@connectrpc/connect', async (importOriginal) => {
@@ -49,13 +50,15 @@ describe('createMessageAPI', () => {
 		mocks.deleteMessage.mockReset();
 		mocks.deleteAttachment.mockReset();
 		mocks.deleteLinkPreview.mockReset();
+		mocks.sendTypingIndicator.mockReset();
 		mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
 		mocks.createClient.mockReturnValue({
 			postMessage: mocks.postMessage,
 			updateMessage: mocks.updateMessage,
 			deleteMessage: mocks.deleteMessage,
 			deleteAttachment: mocks.deleteAttachment,
-			deleteLinkPreview: mocks.deleteLinkPreview
+			deleteLinkPreview: mocks.deleteLinkPreview,
+			sendTypingIndicator: mocks.sendTypingIndicator
 		});
 	});
 
@@ -240,6 +243,22 @@ describe('createMessageAPI', () => {
 		expect(mocks.deleteLinkPreview).toHaveBeenCalledWith(
 			{ roomId: 'room-1', eventId: 'event-1', url: 'https://example.test/article' },
 			{ headers: undefined }
+		);
+	});
+
+	it('sends typing indicators through MessageService', async () => {
+		mocks.sendTypingIndicator.mockResolvedValue({ sent: true });
+
+		const api = createMessageAPI({
+			baseUrl: 'https://remote.example.test/api/connect',
+			bearerToken: 'remote-token'
+		});
+
+		await expect(api.sendTypingIndicator('room-1', 'thread-root-1')).resolves.toBe(true);
+
+		expect(mocks.sendTypingIndicator).toHaveBeenCalledWith(
+			{ roomId: 'room-1', threadRootEventId: 'thread-root-1' },
+			{ headers: { Authorization: 'Bearer remote-token' } }
 		);
 	});
 });
