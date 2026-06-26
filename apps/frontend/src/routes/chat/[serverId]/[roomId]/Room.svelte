@@ -106,8 +106,9 @@
   $effect(() =>
     onRoomMessageMutated((detail) => {
       if (detail.roomId !== roomId) return;
-      if (!roomMessageStore.getEventById(detail.eventId)) return;
-      void roomMessageStore.refreshCurrentWindow(detail.eventId);
+      const anchorEventId = roomMessageStore.refreshAnchorForMessageMutation(detail.eventId);
+      if (!anchorEventId) return;
+      void roomMessageStore.refreshCurrentWindow(anchorEventId);
     })
   );
 

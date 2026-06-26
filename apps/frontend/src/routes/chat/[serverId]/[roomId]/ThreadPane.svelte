@@ -63,8 +63,9 @@
   $effect(() =>
     onRoomMessageMutated((detail) => {
       if (detail.roomId !== roomId) return;
-      if (!store.getEventById(detail.eventId)) return;
-      void store.refreshCurrentWindow(detail.eventId);
+      const anchorEventId = store.refreshAnchorForMessageMutation(detail.eventId);
+      if (!anchorEventId) return;
+      void store.refreshCurrentWindow(anchorEventId);
     })
   );
 

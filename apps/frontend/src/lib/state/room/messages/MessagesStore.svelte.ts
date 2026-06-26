@@ -119,6 +119,31 @@ export class MessagesStore {
     );
   }
 
+  /** Find the visible event to anchor a refresh for a message mutation.
+   * Mutations from channel echoes use the original message ID, while the
+   * rendered room timeline contains the echo wrapper event.
+   */
+  refreshAnchorForMessageMutation(messageEventId: string): string | null {
+    for (const event of this.events) {
+      if (event.id === messageEventId) return event.id;
+      const payload = event.event;
+      if (payload?.__typename === 'MessagePostedEvent' && payload.echoOfEventId === messageEventId) {
+        return event.id;
+      }
+    }
+
+    for (const event of this.previewEvents.values()) {
+      if (!event) continue;
+      if (event.id === messageEventId) return event.id;
+      const payload = event.event;
+      if (payload?.__typename === 'MessagePostedEvent' && payload.echoOfEventId === messageEventId) {
+        return event.id;
+      }
+    }
+
+    return null;
+  }
+
   /** Update the viewer's thread follow state on a known thread root event. */
   setThreadRootFollowState(threadRootEventId: string, isFollowing: boolean): void {
     const idx = this.events.findIndex((e) => e.id === threadRootEventId);
