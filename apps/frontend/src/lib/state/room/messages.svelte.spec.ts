@@ -1147,6 +1147,7 @@ describe('MessagesStore — thread lifecycle ownership', () => {
 			__typename: 'MessagePostedEvent',
 			channelEchoEventId: 'echo1'
 		});
+		expect(store.refreshAnchorForMessageMutation('echo1')).toBe('reply1');
 
 		store.ingestServerEvent({
 			id: 'retract-echo1',

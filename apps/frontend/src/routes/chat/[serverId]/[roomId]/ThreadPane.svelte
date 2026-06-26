@@ -63,6 +63,10 @@
   $effect(() =>
     onRoomMessageMutated((detail) => {
       if (detail.roomId !== roomId) return;
+      if (detail.reason === 'message-deleted') {
+        store.applyLocalMessageDeletion(detail.eventId);
+        return;
+      }
       const anchorEventId = store.refreshAnchorForMessageMutation(detail.eventId);
       if (!anchorEventId) return;
       void store.refreshCurrentWindow(anchorEventId);

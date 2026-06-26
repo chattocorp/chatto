@@ -130,6 +130,12 @@ export class MessagesStore {
       if (payload?.__typename === 'MessagePostedEvent' && payload.echoOfEventId === messageEventId) {
         return event.id;
       }
+      if (
+        payload?.__typename === 'MessagePostedEvent' &&
+        payload.channelEchoEventId === messageEventId
+      ) {
+        return event.id;
+      }
     }
 
     for (const event of this.previewEvents.values()) {
@@ -139,9 +145,20 @@ export class MessagesStore {
       if (payload?.__typename === 'MessagePostedEvent' && payload.echoOfEventId === messageEventId) {
         return event.id;
       }
+      if (
+        payload?.__typename === 'MessagePostedEvent' &&
+        payload.channelEchoEventId === messageEventId
+      ) {
+        return event.id;
+      }
     }
 
     return null;
+  }
+
+  /** Apply a successful local message delete without querying around a now-hidden echo. */
+  applyLocalMessageDeletion(messageEventId: string): void {
+    this.applyDeletion(messageEventId);
   }
 
   /** Update the viewer's thread follow state on a known thread root event. */
@@ -640,6 +657,7 @@ export class MessagesStore {
       targetPayload.echoOfEventId
     ) {
       this.events.splice(targetIndex, 1);
+      this.seenIds.delete(messageEventId);
       return;
     }
 
@@ -651,7 +669,7 @@ export class MessagesStore {
 
       this.events[i] = {
         ...e,
-        event: { ...evt, body: null, attachments: [] }
+        event: { ...evt, body: null, attachments: [], linkPreview: null }
       };
     }
 
@@ -660,7 +678,7 @@ export class MessagesStore {
     if (preview?.event?.__typename === 'MessagePostedEvent') {
       this.previewEvents.set(previewKey, {
         ...preview,
-        event: { ...preview.event, body: null, attachments: [] }
+        event: { ...preview.event, body: null, attachments: [], linkPreview: null }
       });
     }
   }
