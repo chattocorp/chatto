@@ -86,14 +86,16 @@ func setupWebSocketTestServer(t *testing.T) *wsTestEnv {
 			},
 			Core: coreConfig,
 		},
-		nc:     nc,
-		router: router,
-		core:   chattoCore,
-		mailer: email.NewMockSender(true),
-		logger: log.WithPrefix("test"),
+		nc:      nc,
+		router:  router,
+		core:    chattoCore,
+		mailer:  email.NewMockSender(true),
+		version: "test",
+		logger:  log.WithPrefix("test"),
 	}
 
 	s.setupAuthRoutes()
+	s.setupRealtimeAPI(s.buildAllowedOrigins())
 	s.setupGraphQLAPI(s.buildAllowedOrigins())
 
 	ts := httptest.NewServer(router)

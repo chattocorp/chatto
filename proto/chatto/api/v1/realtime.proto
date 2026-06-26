@@ -1,0 +1,324 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "chatto/api/v1/notification_preferences.proto";
+import "chatto/api/v1/presence.proto";
+import "google/protobuf/timestamp.proto";
+
+// Client-to-server frame for Chatto's protobuf WebSocket realtime protocol.
+//
+// Clients send binary protobuf frames to `/api/realtime`. The first frame must
+// be `hello`; after the server replies with `hello`, clients send
+// `subscribe_events` to start the authenticated live event stream.
+message RealtimeClientFrame {
+  oneof frame {
+    // Opens the protocol session and optionally carries a bearer token.
+    RealtimeClientHello hello = 1;
+    // Starts the caller's authorized live-event stream.
+    RealtimeSubscribeEvents subscribe_events = 2;
+    // Application-level ping. The server replies with `pong`.
+    RealtimePing ping = 3;
+    // Acknowledges the latest event cursor processed by the client.
+    RealtimeAck ack = 4;
+  }
+}
+
+// Server-to-client frame for Chatto's protobuf WebSocket realtime protocol.
+message RealtimeServerFrame {
+  oneof frame {
+    // Confirms protocol version, server version, and capabilities.
+    RealtimeServerHello hello = 1;
+    // Confirms the live-event stream has started.
+    RealtimeSubscribed subscribed = 2;
+    // A live event authorized for the connected user.
+    RealtimeEventEnvelope event = 3;
+    // Application-level heartbeat used for liveness checks.
+    RealtimeHeartbeat heartbeat = 4;
+    // Protocol or authorization error.
+    RealtimeError error = 5;
+    // Server-requested close with reconnect guidance.
+    RealtimeClose close = 6;
+    // Reply to a client ping.
+    RealtimePong pong = 7;
+  }
+}
+
+// Initial client hello.
+message RealtimeClientHello {
+  // Protocol version requested by the client. The current version is 1.
+  uint32 protocol_version = 1;
+  // Optional bearer token. When present, it takes precedence over cookie auth.
+  string bearer_token = 2;
+  // Optional opaque cursor reserved for future resume support.
+  string resume_cursor = 3;
+}
+
+// Initial server hello.
+message RealtimeServerHello {
+  // Protocol version accepted by the server.
+  uint32 protocol_version = 1;
+  // Chatto server software version.
+  string server_version = 2;
+  // True when the server can resume from event cursors.
+  bool resume_supported = 3;
+  // Approximate heartbeat interval clients should expect.
+  uint32 heartbeat_interval_seconds = 4;
+}
+
+// Request to start the caller's authorized live event stream.
+message RealtimeSubscribeEvents {}
+
+// Confirms event streaming has started.
+message RealtimeSubscribed {
+  // Opaque cursor from which the stream starts, when known.
+  string cursor = 1;
+}
+
+// Application-level ping.
+message RealtimePing {
+  // Client-chosen opaque value echoed in the pong.
+  string nonce = 1;
+}
+
+// Application-level pong.
+message RealtimePong {
+  // Echo of the ping nonce.
+  string nonce = 1;
+}
+
+// Client acknowledgement for an event cursor.
+message RealtimeAck {
+  // Latest opaque event cursor fully processed by the client.
+  string cursor = 1;
+}
+
+// Application-level heartbeat.
+message RealtimeHeartbeat {
+  // Stable event ID for this heartbeat.
+  string id = 1;
+  // Time the heartbeat was emitted.
+  google.protobuf.Timestamp created_at = 2;
+}
+
+// Protocol error.
+message RealtimeError {
+  // Stable machine-readable error code.
+  string code = 1;
+  // Human-readable diagnostic message.
+  string message = 2;
+  // True when the server will close the socket after sending this error.
+  bool fatal = 3;
+}
+
+// Close instruction sent before the socket is closed when possible.
+message RealtimeClose {
+  // Stable machine-readable close code.
+  string code = 1;
+  // Human-readable diagnostic message.
+  string message = 2;
+  // True when the client should reconnect after a delay.
+  bool reconnect = 3;
+  // Suggested reconnect delay in milliseconds.
+  uint32 retry_after_ms = 4;
+}
+
+// One authorized live event delivered over the realtime WebSocket.
+//
+// The cursor is opaque. Clients may store and later echo it, but must not parse
+// it as a sequence number, timestamp, NATS subject, or storage position.
+message RealtimeEventEnvelope {
+  // Stable event ID.
+  string id = 1;
+  // Time the event was created.
+  google.protobuf.Timestamp created_at = 2;
+  // User or system actor that caused the event, when known.
+  string actor_id = 3;
+  // Opaque resume/ack cursor, when this event has one.
+  string cursor = 4;
+
+  oneof event {
+    // A message was posted in a room or thread.
+    RealtimeMessagePostedEvent message_posted = 10;
+    // A message body or renderable metadata changed.
+    RealtimeMessageEditedEvent message_edited = 11;
+    // A message was retracted.
+    RealtimeMessageRetractedEvent message_retracted = 12;
+    // A user added a reaction to a message.
+    RealtimeReactionEvent reaction_added = 20;
+    // A user removed a reaction from a message.
+    RealtimeReactionEvent reaction_removed = 21;
+    // A user is typing in a room or thread.
+    RealtimeTypingEvent user_typing = 30;
+    // A user's live presence changed.
+    RealtimePresenceChangedEvent presence_changed = 31;
+    // A room lifecycle or membership change happened.
+    RealtimeRoomEvent room_created = 40;
+    RealtimeRoomEvent room_updated = 41;
+    RealtimeRoomEvent room_deleted = 42;
+    RealtimeRoomEvent room_archived = 43;
+    RealtimeRoomEvent room_unarchived = 44;
+    RealtimeRoomEvent user_joined_room = 45;
+    RealtimeRoomEvent user_left_room = 46;
+    RealtimeRoomUniversalChangedEvent room_universal_changed = 47;
+    // A notification was created or dismissed for the current user.
+    RealtimeNotificationCreatedEvent notification_created = 60;
+    RealtimeNotificationDismissedEvent notification_dismissed = 61;
+    // The current user's notification level changed.
+    RealtimeNotificationLevelChangedEvent notification_level_changed = 62;
+    // The current user's thread follow state changed.
+    RealtimeThreadFollowChangedEvent thread_follow_changed = 63;
+    // The current user's room read state changed.
+    RealtimeRoomMarkedAsReadEvent room_marked_as_read = 64;
+    // The server profile/config changed.
+    RealtimeServerUpdatedEvent server_updated = 70;
+    // A user profile changed.
+    RealtimeUserProfileUpdatedEvent user_profile_updated = 71;
+    // The current user's session was terminated.
+    RealtimeSessionTerminatedEvent session_terminated = 90;
+  }
+}
+
+// Message-posted signal.
+message RealtimeMessagePostedEvent {
+  // Room containing the message.
+  string room_id = 1;
+  // Event ID of the posted message.
+  string message_event_id = 2;
+  // Root message event ID when the message was posted in a thread.
+  string thread_root_event_id = 3;
+}
+
+// Message-edited signal.
+message RealtimeMessageEditedEvent {
+  // Room containing the message.
+  string room_id = 1;
+  // Event ID of the edited message.
+  string message_event_id = 2;
+}
+
+// Message-retracted signal.
+message RealtimeMessageRetractedEvent {
+  // Room containing the message.
+  string room_id = 1;
+  // Event ID of the retracted message.
+  string message_event_id = 2;
+  // Retraction reason, when one was supplied.
+  string reason = 3;
+}
+
+// Reaction signal.
+message RealtimeReactionEvent {
+  // Room containing the reacted-to message.
+  string room_id = 1;
+  // Event ID of the reacted-to message.
+  string message_event_id = 2;
+  // Reaction emoji.
+  string emoji = 3;
+}
+
+// Typing signal.
+message RealtimeTypingEvent {
+  // Room where the actor is typing.
+  string room_id = 1;
+  // Thread root event ID when the actor is typing in a thread.
+  string thread_root_event_id = 2;
+}
+
+// Presence-changed signal.
+message RealtimePresenceChangedEvent {
+  // User whose presence changed.
+  string user_id = 1;
+  // Latest presence status.
+  PresenceStatus status = 2;
+}
+
+// Room lifecycle or membership signal.
+message RealtimeRoomEvent {
+  // Room affected by the event.
+  string room_id = 1;
+}
+
+// Room universal-visibility signal.
+message RealtimeRoomUniversalChangedEvent {
+  // Room whose universal setting changed.
+  string room_id = 1;
+  // Latest universal setting.
+  bool universal = 2;
+}
+
+// Notification-created signal for the connected user.
+message RealtimeNotificationCreatedEvent {
+  // Notification ID.
+  string notification_id = 1;
+  // Room associated with the notification.
+  string room_id = 2;
+  // Event ID associated with the notification.
+  string event_id = 3;
+  // Parent event ID for reply notifications, when known.
+  string in_reply_to_id = 4;
+  // True when the notification should not alert.
+  bool silent = 5;
+}
+
+// Notification-dismissed signal for the connected user.
+message RealtimeNotificationDismissedEvent {
+  // Notification ID.
+  string notification_id = 1;
+}
+
+// Notification-level signal for the connected user.
+message RealtimeNotificationLevelChangedEvent {
+  // Room whose notification level changed.
+  string room_id = 1;
+  // Explicit room notification level.
+  NotificationLevel level = 2;
+  // Effective notification level after defaults are applied.
+  NotificationLevel effective_level = 3;
+}
+
+// Thread-follow signal for the connected user.
+message RealtimeThreadFollowChangedEvent {
+  // Room containing the thread.
+  string room_id = 1;
+  // Root message event ID of the thread.
+  string thread_root_event_id = 2;
+  // True when the user now follows the thread.
+  bool following = 3;
+}
+
+// Room-read signal for the connected user.
+message RealtimeRoomMarkedAsReadEvent {
+  // Room marked read.
+  string room_id = 1;
+}
+
+// Server-profile signal.
+message RealtimeServerUpdatedEvent {
+  // Server display name.
+  string name = 1;
+  // Server description.
+  string description = 2;
+  // Server logo URL.
+  string logo_url = 3;
+  // Server banner URL.
+  string banner_url = 4;
+}
+
+// User-profile signal.
+message RealtimeUserProfileUpdatedEvent {
+  // User whose profile changed.
+  string user_id = 1;
+  // Login name.
+  string login = 2;
+  // Display name.
+  string display_name = 3;
+  // Avatar URL.
+  string avatar_url = 4;
+}
+
+// Session-terminated signal for the connected user's current session.
+message RealtimeSessionTerminatedEvent {
+  // Termination reason.
+  string reason = 1;
+}
