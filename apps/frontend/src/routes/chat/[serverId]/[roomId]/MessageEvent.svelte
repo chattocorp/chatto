@@ -679,7 +679,10 @@
             data-testid="reply-attribution"
             aria-label={m['room.message.meta.in_reply_to']()}
             title={m['room.message.meta.in_reply_to']()}
-            class="group/reply relative flex min-w-0 cursor-pointer items-center gap-1.5 py-0.5 text-xs leading-none text-muted"
+            class={[
+              'group/reply relative flex min-w-0 cursor-pointer items-center gap-1.5 py-0.5 text-xs leading-none text-muted',
+              compact ? '' : '-ml-[39px] pl-[39px]'
+            ]}
             onclick={scrollToReplyTarget}
             onmousedown={(e) => e.stopPropagation()}
           >
@@ -691,7 +694,7 @@
             {:else}
               <span
                 aria-hidden="true"
-                class="absolute top-[11px] -left-[39px] h-7 w-[39px] rounded-tl-md border-t-2 border-l-2 border-surface-300/30 transition-colors group-hover/reply:border-surface-300/55"
+                class="absolute top-[11px] left-0 h-7 w-[39px] rounded-tl-md border-t-2 border-l-2 border-surface-300/30 transition-colors group-hover/reply:border-surface-300/55"
               ></span>
             {/if}
             {#if replyPreview.actor}
