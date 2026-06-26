@@ -1,0 +1,145 @@
+name: Bug report
+description: Report a reproducible problem in Chatto.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please redact private data before submitting.
+
+        Do not include tokens, passwords, auth codes, reset links, email addresses, raw IPs, full query strings, OAuth/OIDC subjects, private chat content, or unredacted screenshots.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What went wrong?
+      placeholder: Chatto fails to ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      description: Pick the closest area. Use "Not sure" if the boundary is unclear.
+      options:
+        - Frontend / browser app
+        - Backend / API
+        - Auth / OAuth / OIDC
+        - Realtime / notifications / LiveKit
+        - Deployment / configuration
+        - Backup / restore / migration
+        - Documentation
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Chatto version
+      description: Include the release tag, Docker image tag, commit SHA, or `chatto version` output.
+      placeholder: v0.x.y, ghcr.io/...:v0.x.y, or commit SHA
+    validations:
+      required: true
+
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment type
+      description: How is Chatto running?
+      options:
+        - Single binary with embedded NATS
+        - Docker Compose
+        - Kubernetes
+        - Development checkout
+        - Chatto Cloud
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: deployment_details
+    attributes:
+      label: Deployment details
+      description: Share relevant redacted config, reverse proxy details, external NATS/S3/LiveKit/auth setup, and recent upgrade path.
+      placeholder: |
+        - Install method:
+        - Reverse proxy / TLS:
+        - NATS: embedded or external
+        - Object storage: NATS or S3-compatible
+        - Auth providers:
+        - Upgraded from:
+    validations:
+      required: false
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Give exact steps. Include account role/permissions only if relevant, without naming real users.
+      placeholder: |
+        1. Start Chatto with ...
+        2. Sign in as a user with ...
+        3. Open ...
+        4. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should have happened instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened? Include exact error text when safe to share.
+    validations:
+      required: true
+
+  - type: textarea
+    id: client_environment
+    attributes:
+      label: Client environment
+      description: Complete this for browser, mobile, PWA, or desktop-client issues.
+      placeholder: |
+        - OS:
+        - Browser and version:
+        - Device type:
+        - Installed PWA: yes/no
+        - Reproduces in another browser/device: yes/no/not tested
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Redacted logs or console output
+      description: Paste only the relevant excerpt. Redact private data and secrets before submitting.
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Redacted screenshots or screen recordings
+      description: Attach visuals only when they help explain the issue. Redact private chat content, user names, emails, URLs, and tokens.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Submission checklist
+      options:
+        - label: I have removed or redacted private data, secrets, tokens, private chat content, and identifying user information.
+          required: true
+        - label: I have included the Chatto version or commit SHA.
+          required: true
