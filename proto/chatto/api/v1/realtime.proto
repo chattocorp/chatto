@@ -174,6 +174,28 @@ message RealtimeEventEnvelope {
     RealtimeServerUpdatedEvent server_updated = 70;
     // A user profile changed.
     RealtimeUserProfileUpdatedEvent user_profile_updated = 71;
+    // A user's custom status changed.
+    RealtimeUserCustomStatusSetEvent user_custom_status_set = 72;
+    RealtimeUserCustomStatusClearedEvent user_custom_status_cleared = 73;
+    // The current user's display preferences changed.
+    RealtimeServerUserPreferencesUpdatedEvent server_user_preferences_updated = 74;
+    // Room-group layout changed.
+    RealtimeRoomGroupsUpdatedEvent room_groups_updated = 75;
+    // A server member was deleted.
+    RealtimeServerMemberDeletedEvent server_member_deleted = 76;
+    // Asset processing or deletion changed message attachments.
+    RealtimeAssetProcessingEvent asset_processing_started = 80;
+    RealtimeAssetProcessingEvent asset_processing_succeeded = 81;
+    RealtimeAssetProcessingEvent asset_processing_failed = 82;
+    RealtimeAssetDeletedEvent asset_deleted = 83;
+    // Voice-call state changed.
+    RealtimeCallEvent call_started = 84;
+    RealtimeCallEvent call_participant_joined = 85;
+    RealtimeCallEvent call_participant_left = 86;
+    RealtimeCallEvent call_ended = 87;
+    // Legacy attention notification signals.
+    RealtimeMentionNotificationEvent mention_notification = 88;
+    RealtimeNewDirectMessageNotificationEvent new_direct_message_notification = 89;
     // The current user's session was terminated.
     RealtimeSessionTerminatedEvent session_terminated = 90;
   }
@@ -315,6 +337,96 @@ message RealtimeUserProfileUpdatedEvent {
   string display_name = 3;
   // Avatar URL.
   string avatar_url = 4;
+}
+
+// User-custom-status set signal.
+message RealtimeUserCustomStatusSetEvent {
+  // User whose status changed.
+  string user_id = 1;
+  // Emoji part of the status.
+  string emoji = 2;
+  // Text part of the status.
+  string text = 3;
+  // Expiration time, when the status expires automatically.
+  google.protobuf.Timestamp expires_at = 4;
+}
+
+// User-custom-status cleared signal.
+message RealtimeUserCustomStatusClearedEvent {
+  // User whose status was cleared.
+  string user_id = 1;
+}
+
+// User display-preferences signal for the connected user.
+message RealtimeServerUserPreferencesUpdatedEvent {
+  // IANA timezone name, empty when browser default should be used.
+  string timezone = 1;
+  // Preferred time display format.
+  RealtimeTimeFormat time_format = 2;
+}
+
+// Time-display format used by realtime preference events.
+enum RealtimeTimeFormat {
+  // Use browser or locale default.
+  REALTIME_TIME_FORMAT_UNSPECIFIED = 0;
+  // 12-hour clock.
+  REALTIME_TIME_FORMAT_12H = 1;
+  // 24-hour clock.
+  REALTIME_TIME_FORMAT_24H = 2;
+}
+
+// Room-group layout signal.
+message RealtimeRoomGroupsUpdatedEvent {
+  // Always true; present for GraphQL event-bus compatibility.
+  bool changed = 1;
+}
+
+// Server-member deleted signal.
+message RealtimeServerMemberDeletedEvent {
+  // Deleted user ID.
+  string user_id = 1;
+}
+
+// Asset-processing signal.
+message RealtimeAssetProcessingEvent {
+  // Room containing the message that owns the asset.
+  string room_id = 1;
+  // Asset ID.
+  string asset_id = 2;
+  // Event ID of the message that owns the asset.
+  string message_event_id = 3;
+}
+
+// Asset-deleted signal.
+message RealtimeAssetDeletedEvent {
+  // Room containing the message that owned the asset, when known.
+  string room_id = 1;
+  // Asset ID.
+  string asset_id = 2;
+}
+
+// Voice-call state signal.
+message RealtimeCallEvent {
+  // Room containing the call.
+  string room_id = 1;
+  // Call ID.
+  string call_id = 2;
+}
+
+// Mention attention signal for the connected user.
+message RealtimeMentionNotificationEvent {
+  // Room where the mention occurred.
+  string room_id = 1;
+  // Author user ID.
+  string actor_user_id = 2;
+}
+
+// New-DM attention signal for the connected user.
+message RealtimeNewDirectMessageNotificationEvent {
+  // DM room ID.
+  string room_id = 1;
+  // Sender user ID.
+  string sender_id = 2;
 }
 
 // Session-terminated signal for the connected user's current session.

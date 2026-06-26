@@ -1,290 +1,367 @@
+import { Timestamp } from '@bufbuild/protobuf';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { flushSync } from 'svelte';
-import { makeSubject, type Source, type Subject } from 'wonka';
-import type { Client } from '@urql/svelte';
 import { createEventBusHandlerRegistrar } from '$lib/eventBus.svelte';
-import { eventBusManager } from './eventBus.svelte';
-import type { GraphQLClient } from './graphqlClient.svelte';
+import {
+  RealtimeEventEnvelope,
+  RealtimeHeartbeat,
+  RealtimeServerFrame,
+  RealtimeServerHello,
+  RealtimeServerUpdatedEvent,
+  RealtimeSubscribed
+} from '$lib/pb/chatto/api/v1/realtime_pb';
+import { eventBusManager, setRealtimeSocketFactoryForTests } from './eventBus.svelte';
+import type { ConnectionStatus, GraphQLClient } from './graphqlClient.svelte';
 
-/**
- * Returns a fake GraphQLClient-shaped object whose `client.subscription()`
- * yields a fresh Wonka subject each time, plus controls to drive it from the
- * test. `reconnectCount` is a Svelte `$state` so the bus's `$effect` reacts
- * to `bumpReconnect()`.
- *
- * The real `OperationResultSource` is a Wonka `Source` with helper methods
- * tacked on — the bus only uses it through `pipe(source, ...)`, so a bare
- * Source is sufficient. The cast launders TS noise.
- */
+class FakeRealtimeSocket {
+  binaryType: BinaryType = 'blob';
+  readyState = 0;
+  onopen: (() => void) | null = null;
+  onmessage: ((event: { data: Uint8Array | ArrayBuffer | Blob }) => void) | null = null;
+  onerror: ((event: Event) => void) | null = null;
+  onclose: ((event: { code?: number; reason?: string }) => void) | null = null;
+  sent: Uint8Array[] = [];
+  closeCalls: Array<{ code?: number; reason?: string }> = [];
+
+  constructor(readonly url: string) {}
+
+  send(data: Uint8Array): void {
+    this.sent.push(data);
+  }
+
+  close(code?: number, reason?: string): void {
+    this.readyState = 3;
+    this.closeCalls.push({ code, reason });
+    this.onclose?.({ code, reason });
+  }
+
+  open(): void {
+    this.readyState = 1;
+    this.onopen?.();
+  }
+
+  async receive(frame: RealtimeServerFrame): Promise<void> {
+    this.onmessage?.({ data: frame.toBinary() });
+    await Promise.resolve();
+  }
+
+  serverClose(code = 1006, reason = 'closed'): void {
+    this.readyState = 3;
+    this.onclose?.({ code, reason });
+  }
+}
+
 class FakeGqlClient {
-	reconnectCount = $state(0);
-	#subjects: Subject<{ data?: unknown; error?: unknown }>[] = [];
-	subscribeCalls = 0;
-	client: Client;
+  status: ConnectionStatus = $state('connecting');
+  reconnectCount = $state(0);
+  realtimeUrl = 'ws://chatto.test/api/realtime';
+  bearerToken: string | null = 'token-1';
+  client = {};
+  statusUpdates: ConnectionStatus[] = [];
+  authRequiredCalls = 0;
+  #reconnect: ((reason: string) => void) | null = null;
+  #wasDisconnected = false;
 
-	constructor() {
-		const subscription = vi.fn().mockImplementation(() => {
-			this.subscribeCalls++;
-			const subj = makeSubject<{ data?: unknown; error?: unknown }>();
-			this.#subjects.push(subj);
-			return subj.source as unknown as Source<unknown>;
-		});
-		this.client = {
-			subscription,
-			query: vi.fn(),
-			mutation: vi.fn()
-		} as unknown as Client;
-	}
+  setRealtimeConnectionStatus(status: ConnectionStatus): void {
+    if (status === 'disconnected') {
+      if (this.status === 'connected') this.#wasDisconnected = true;
+      this.status = status;
+      this.statusUpdates.push(status);
+      return;
+    }
+    if (status === 'connected' && this.#wasDisconnected) {
+      this.#wasDisconnected = false;
+      this.reconnectCount++;
+    }
+    this.status = status;
+    this.statusUpdates.push(status);
+  }
 
-	/** The currently-live subject (the one the bus is subscribed to right now). */
-	get current(): Subject<{ data?: unknown; error?: unknown }> {
-		if (this.#subjects.length === 0) throw new Error('no subscription started yet');
-		return this.#subjects[this.#subjects.length - 1];
-	}
+  registerRealtimeReconnect(handler: (reason: string) => void): () => void {
+    this.#reconnect = handler;
+    return () => {
+      if (this.#reconnect === handler) this.#reconnect = null;
+    };
+  }
 
-	bumpReconnect() {
-		this.reconnectCount++;
-		flushSync();
-	}
+  forceReconnect(reason: string): void {
+    this.#reconnect?.(reason);
+  }
 
-	get subscriptionMock() {
-		return this.client.subscription as ReturnType<typeof vi.fn>;
-	}
+  handleAuthenticationRequired(): void {
+    this.authRequiredCalls++;
+  }
 }
 
 const TEST_SERVER = 'test-server-bus';
+let sockets: FakeRealtimeSocket[];
 
-describe('eventBusManager subscription robustness', () => {
-	let consoleError: ReturnType<typeof vi.spyOn>;
-	let consoleWarn: ReturnType<typeof vi.spyOn>;
-	let consoleDebug: ReturnType<typeof vi.spyOn>;
+function serverFrame(frame: RealtimeServerFrame['frame']): RealtimeServerFrame {
+  return new RealtimeServerFrame({ frame });
+}
 
-	beforeEach(() => {
-		consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-		consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		consoleDebug = vi.spyOn(console, 'debug').mockImplementation(() => {});
-	});
+function helloFrame(): RealtimeServerFrame {
+  return serverFrame({
+    case: 'hello',
+    value: new RealtimeServerHello({
+      protocolVersion: 1,
+      serverVersion: 'test',
+      heartbeatIntervalSeconds: 10
+    })
+  });
+}
 
-	afterEach(() => {
-		eventBusManager.resumeAll();
-		eventBusManager.stopBus(TEST_SERVER);
-		consoleError.mockRestore();
-		consoleWarn.mockRestore();
-		consoleDebug.mockRestore();
-		vi.useRealTimers();
-	});
+function subscribedFrame(): RealtimeServerFrame {
+  return serverFrame({ case: 'subscribed', value: new RealtimeSubscribed({ cursor: 'cursor-1' }) });
+}
 
-	it('logs an error when the subscription delivers result.error', () => {
-		const fake = new FakeGqlClient();
-		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
+function serverUpdatedFrame(id = 'evt-1'): RealtimeServerFrame {
+  return serverFrame({
+    case: 'event',
+    value: new RealtimeEventEnvelope({
+      id,
+      createdAt: Timestamp.now(),
+      event: {
+        case: 'serverUpdated',
+        value: new RealtimeServerUpdatedEvent({
+          name: 'Updated',
+          description: 'Description',
+          logoUrl: 'https://example.test/logo.png'
+        })
+      }
+    })
+  });
+}
 
-		fake.current.next({ error: new Error('subscription failed') });
+function heartbeatFrame(): RealtimeServerFrame {
+  return serverFrame({
+    case: 'heartbeat',
+    value: new RealtimeHeartbeat({ id: 'heartbeat-1', createdAt: Timestamp.now() })
+  });
+}
 
-		expect(consoleError).toHaveBeenCalledTimes(1);
-		expect(consoleError.mock.calls[0][0]).toContain(TEST_SERVER);
-		expect(consoleError.mock.calls[0][0]).toContain('subscription error');
-	});
+async function startAndSubscribe(fake = new FakeGqlClient()): Promise<{
+  fake: FakeGqlClient;
+  socket: FakeRealtimeSocket;
+}> {
+  eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
+  const socket = sockets.at(-1);
+  if (!socket) throw new Error('expected realtime socket');
+  socket.open();
+  await socket.receive(helloFrame());
+  await socket.receive(subscribedFrame());
+  return { fake, socket };
+}
 
-	it('isolates handler errors so one throwing handler does not stop the others', () => {
-		const fake = new FakeGqlClient();
-		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
+describe('eventBusManager realtime transport', () => {
+  let consoleError: ReturnType<typeof vi.spyOn>;
+  let consoleWarn: ReturnType<typeof vi.spyOn>;
+  let consoleDebug: ReturnType<typeof vi.spyOn>;
 
-		const bus = eventBusManager.getBus(TEST_SERVER)!;
-		const ranBefore = vi.fn();
-		const ranAfter = vi.fn();
-		bus.handlers.add(ranBefore);
-		bus.handlers.add(() => {
-			throw new Error('handler boom');
-		});
-		bus.handlers.add(ranAfter);
+  beforeEach(() => {
+    sockets = [];
+    setRealtimeSocketFactoryForTests((url) => {
+      const socket = new FakeRealtimeSocket(url);
+      sockets.push(socket);
+      return socket;
+    });
+    consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    consoleDebug = vi.spyOn(console, 'debug').mockImplementation(() => {});
+  });
 
-		const event = { actorId: 'a', event: { __typename: 'ServerUpdatedEvent' } };
-		fake.current.next({ data: { myEvents: event } });
+  afterEach(() => {
+    eventBusManager.resumeAll();
+    eventBusManager.stopBus(TEST_SERVER);
+    setRealtimeSocketFactoryForTests(null);
+    consoleError.mockRestore();
+    consoleWarn.mockRestore();
+    consoleDebug.mockRestore();
+    vi.useRealTimers();
+  });
 
-		expect(ranBefore).toHaveBeenCalledTimes(1);
-		expect(ranAfter).toHaveBeenCalledTimes(1);
-		expect(consoleError).toHaveBeenCalled();
-		expect(consoleError.mock.calls[0][0]).toContain('handler threw');
-	});
+  it('opens /api/realtime, sends hello, then subscribes after server hello', async () => {
+    const fake = new FakeGqlClient();
+    eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
 
-	it('continues delivering events after a handler error on a previous event', () => {
-		const fake = new FakeGqlClient();
-		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
+    expect(sockets).toHaveLength(1);
+    expect(sockets[0].url).toBe(fake.realtimeUrl);
+    sockets[0].open();
+    expect(sockets[0].sent).toHaveLength(1);
 
-		const bus = eventBusManager.getBus(TEST_SERVER)!;
-		const handler = vi.fn();
-		let throwOnce = true;
-		bus.handlers.add(() => {
-			if (throwOnce) {
-				throwOnce = false;
-				throw new Error('handler boom');
-			}
-		});
-		bus.handlers.add(handler);
+    await sockets[0].receive(helloFrame());
+    expect(sockets[0].sent).toHaveLength(2);
+    await sockets[0].receive(subscribedFrame());
+    expect(fake.status).toBe('connected');
+  });
 
-		const event = { actorId: 'a', event: { __typename: 'ServerUpdatedEvent' } };
-		fake.current.next({ data: { myEvents: event } });
-		fake.current.next({ data: { myEvents: event } });
+  it('dispatches protobuf realtime events to existing event handlers', async () => {
+    const { socket } = await startAndSubscribe();
+    const handler = vi.fn();
+    eventBusManager.getBus(TEST_SERVER)!.handlers.add(handler);
 
-		expect(handler).toHaveBeenCalledTimes(2);
-	});
+    await socket.receive(serverUpdatedFrame());
 
-	it('re-subscribes when the source ends (onEnd)', () => {
-		const fake = new FakeGqlClient();
-		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
-		expect(fake.subscribeCalls).toBe(1);
-		const catchUp = vi.fn();
-		eventBusManager.getBus(TEST_SERVER)!.catchUpHandlers.add(catchUp);
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'evt-1',
+        event: expect.objectContaining({
+          __typename: 'ServerUpdatedEvent',
+          name: 'Updated'
+        })
+      })
+    );
+  });
 
-		// Server sent Complete (or graphql-ws closed the Sink) → source ends.
-		fake.current.complete();
+  it('isolates handler errors so one throwing handler does not stop the others', async () => {
+    const { socket } = await startAndSubscribe();
+    const ranBefore = vi.fn();
+    const ranAfter = vi.fn();
+    const bus = eventBusManager.getBus(TEST_SERVER)!;
+    bus.handlers.add(ranBefore);
+    bus.handlers.add(() => {
+      throw new Error('handler boom');
+    });
+    bus.handlers.add(ranAfter);
 
-		expect(fake.subscribeCalls).toBe(2);
-		expect(catchUp).toHaveBeenCalledWith('subscription-ended');
-		expect(consoleWarn.mock.calls.some((c: unknown[]) => String(c[0]).includes('source ended'))).toBe(true);
+    await socket.receive(serverUpdatedFrame());
 
-		// And the new subscription is wired through — events flow.
-		const handler = vi.fn();
-		eventBusManager.getBus(TEST_SERVER)!.handlers.add(handler);
-		fake.current.next({
-			data: { myEvents: { actorId: 'a', event: { __typename: 'ServerUpdatedEvent' } } }
-		});
-		expect(handler).toHaveBeenCalledTimes(1);
-	});
+    expect(ranBefore).toHaveBeenCalledTimes(1);
+    expect(ranAfter).toHaveBeenCalledTimes(1);
+    expect(consoleError.mock.calls[0][0]).toContain('handler threw');
+  });
 
-	it('re-notifies catch-up handlers after the projection grace period', async () => {
-		vi.useFakeTimers();
-		const fake = new FakeGqlClient();
-		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
-		const catchUp = vi.fn();
-		eventBusManager.getBus(TEST_SERVER)!.catchUpHandlers.add(catchUp);
+  it('continues delivering events after a handler error on a previous event', async () => {
+    const { socket } = await startAndSubscribe();
+    const handler = vi.fn();
+    let throwOnce = true;
+    const bus = eventBusManager.getBus(TEST_SERVER)!;
+    bus.handlers.add(() => {
+      if (throwOnce) {
+        throwOnce = false;
+        throw new Error('handler boom');
+      }
+    });
+    bus.handlers.add(handler);
 
-		fake.current.complete();
+    await socket.receive(serverUpdatedFrame('evt-1'));
+    await socket.receive(serverUpdatedFrame('evt-2'));
 
-		expect(catchUp).toHaveBeenCalledTimes(1);
-		expect(catchUp).toHaveBeenNthCalledWith(1, 'subscription-ended');
+    expect(handler).toHaveBeenCalledTimes(2);
+  });
 
-		await vi.advanceTimersByTimeAsync(2_499);
-		expect(catchUp).toHaveBeenCalledTimes(1);
+  it('reconnects and notifies catch-up handlers when the socket closes', async () => {
+    vi.useFakeTimers();
+    const { fake, socket } = await startAndSubscribe();
+    const catchUp = vi.fn();
+    eventBusManager.getBus(TEST_SERVER)!.catchUpHandlers.add(catchUp);
 
-		await vi.advanceTimersByTimeAsync(1);
-		expect(catchUp).toHaveBeenCalledTimes(2);
-		expect(catchUp).toHaveBeenNthCalledWith(2, 'subscription-ended');
-	});
+    socket.serverClose();
 
-	it('re-subscribes when the WebSocket reconnects (reconnectCount increments)', () => {
-		const fake = new FakeGqlClient();
-		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
-		expect(fake.subscribeCalls).toBe(1);
-		const catchUp = vi.fn();
-		eventBusManager.getBus(TEST_SERVER)!.catchUpHandlers.add(catchUp);
+    expect(fake.status).toBe('disconnected');
+    expect(catchUp).toHaveBeenCalledWith('subscription-ended');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(sockets).toHaveLength(2);
+  });
 
-		fake.bumpReconnect();
+  it('re-notifies catch-up handlers after the projection grace period', async () => {
+    vi.useFakeTimers();
+    const { socket } = await startAndSubscribe();
+    const catchUp = vi.fn();
+    eventBusManager.getBus(TEST_SERVER)!.catchUpHandlers.add(catchUp);
 
-		expect(fake.subscribeCalls).toBe(2);
-		expect(catchUp).toHaveBeenCalledWith('ws-reconnected');
-		expect(consoleWarn.mock.calls.some((c: unknown[]) => String(c[0]).includes('ws reconnected'))).toBe(true);
-	});
+    socket.serverClose();
 
-	it('re-subscribes and notifies catch-up handlers when heartbeats stall', () => {
-		vi.useFakeTimers();
-		const fake = new FakeGqlClient();
-		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
-		expect(fake.subscribeCalls).toBe(1);
-		const catchUp = vi.fn();
-		eventBusManager.getBus(TEST_SERVER)!.catchUpHandlers.add(catchUp);
+    expect(catchUp).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(2_499);
+    expect(catchUp).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(catchUp).toHaveBeenCalledTimes(2);
+    expect(catchUp).toHaveBeenNthCalledWith(2, 'subscription-ended');
+  });
 
-		vi.advanceTimersByTime(90_000);
+  it('reconnects when the GraphQLClient retry bridge requests it', async () => {
+    vi.useFakeTimers();
+    const { fake } = await startAndSubscribe();
+    const catchUp = vi.fn();
+    eventBusManager.getBus(TEST_SERVER)!.catchUpHandlers.add(catchUp);
 
-		expect(fake.subscribeCalls).toBe(2);
-		expect(catchUp).toHaveBeenCalledWith('heartbeat-stalled');
-		expect(consoleWarn.mock.calls.some((c: unknown[]) => String(c[0]).includes('heartbeat stalled'))).toBe(true);
-	});
+    fake.forceReconnect('user retry');
 
-	it('subscribes without variables on initial start and reconnect', () => {
-		const fake = new FakeGqlClient();
-		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
-		expect(fake.subscriptionMock.mock.calls[0][1]).toEqual({});
+    expect(catchUp).toHaveBeenCalledWith('ws-reconnected');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(sockets).toHaveLength(2);
+  });
 
-		fake.current.next({
-			data: {
-				myEvents: {
-					actorId: 'a',
-					event: { __typename: 'ServerUpdatedEvent' }
-				}
-			}
-		});
-		fake.bumpReconnect();
+  it('reconnects and notifies catch-up handlers when heartbeats stall', async () => {
+    vi.useFakeTimers();
+    await startAndSubscribe();
+    const catchUp = vi.fn();
+    eventBusManager.getBus(TEST_SERVER)!.catchUpHandlers.add(catchUp);
 
-		expect(fake.subscriptionMock.mock.calls[1][1]).toEqual({});
-	});
+    await vi.advanceTimersByTimeAsync(90_000);
 
-	it('does not dispatch heartbeat events to handlers', () => {
-		const fake = new FakeGqlClient();
-		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
-		const handler = vi.fn();
-		eventBusManager.getBus(TEST_SERVER)!.handlers.add(handler);
+    expect(catchUp).toHaveBeenCalledWith('heartbeat-stalled');
+    expect(sockets).toHaveLength(2);
+  });
 
-		fake.current.next({
-			data: { myEvents: { actorId: '', event: { __typename: 'HeartbeatEvent' } } }
-		});
+  it('does not dispatch heartbeat frames to handlers', async () => {
+    const { socket } = await startAndSubscribe();
+    const handler = vi.fn();
+    eventBusManager.getBus(TEST_SERVER)!.handlers.add(handler);
 
-		expect(handler).not.toHaveBeenCalled();
-	});
+    await socket.receive(heartbeatFrame());
 
-	it('treats room universal changes as room layout updates', () => {
-		const fake = new FakeGqlClient();
-		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
-		const handler = vi.fn();
-		const unsubscribe = createEventBusHandlerRegistrar(TEST_SERVER)!.onRoomLayoutUpdated(handler);
+    expect(handler).not.toHaveBeenCalled();
+  });
 
-		fake.current.next({
-			data: {
-				myEvents: {
-					actorId: 'a',
-					event: {
-						__typename: 'RoomUniversalChangedEvent',
-						roomId: 'room-1',
-						universal: false
-					}
-				}
-			}
-		});
+  it('treats room universal changes as room layout updates', async () => {
+    const { socket } = await startAndSubscribe();
+    const handler = vi.fn();
+    const unsubscribe = createEventBusHandlerRegistrar(TEST_SERVER)!.onRoomLayoutUpdated(handler);
 
-		expect(handler).toHaveBeenCalledWith({ roomId: 'room-1', universal: false });
+    await socket.receive(
+      serverFrame({
+        case: 'event',
+        value: new RealtimeEventEnvelope({
+          id: 'evt-room',
+          createdAt: Timestamp.now(),
+          event: {
+            case: 'roomUniversalChanged',
+            value: { roomId: 'room-1', universal: false }
+          }
+        })
+      })
+    );
 
-		unsubscribe();
-	});
+    expect(handler).toHaveBeenCalledWith({ roomId: 'room-1', universal: false });
+    unsubscribe();
+  });
 
-	it('does NOT re-subscribe when stopBus is called (teardown guard)', () => {
-		const fake = new FakeGqlClient();
-		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
-		expect(fake.subscribeCalls).toBe(1);
+  it('does NOT reconnect when stopBus is called', async () => {
+    await startAndSubscribe();
+    expect(sockets).toHaveLength(1);
 
-		eventBusManager.stopBus(TEST_SERVER);
+    eventBusManager.stopBus(TEST_SERVER);
 
-		// Unsubscribing the wonka source completes it, which would trigger
-		// onEnd → resubscribe without the guard. With the guard, no new
-		// subscription is started.
-		expect(fake.subscribeCalls).toBe(1);
-	});
+    expect(sockets).toHaveLength(1);
+    expect(sockets[0].closeCalls).toHaveLength(1);
+  });
 
-	it('pauseAll stops active buses and blocks later startBus calls until resumeAll', () => {
-		const fake = new FakeGqlClient();
-		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
-		expect(fake.subscribeCalls).toBe(1);
+  it('pauseAll stops active buses and blocks later startBus calls until resumeAll', async () => {
+    const fake = new FakeGqlClient();
+    await startAndSubscribe(fake);
+    expect(sockets).toHaveLength(1);
 
-		eventBusManager.pauseAll();
-		expect(eventBusManager.getBus(TEST_SERVER)).toBeUndefined();
+    eventBusManager.pauseAll();
+    expect(eventBusManager.getBus(TEST_SERVER)).toBeUndefined();
 
-		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
-		expect(fake.subscribeCalls).toBe(1);
-		expect(eventBusManager.getBus(TEST_SERVER)).toBeUndefined();
+    eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
+    expect(sockets).toHaveLength(1);
+    expect(eventBusManager.getBus(TEST_SERVER)).toBeUndefined();
 
-		eventBusManager.resumeAll();
-		eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
-		expect(fake.subscribeCalls).toBe(2);
-		expect(eventBusManager.getBus(TEST_SERVER)).toBeDefined();
-	});
-
+    eventBusManager.resumeAll();
+    eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
+    expect(sockets).toHaveLength(2);
+    expect(eventBusManager.getBus(TEST_SERVER)).toBeDefined();
+  });
 });

@@ -1642,6 +1642,46 @@ Client acknowledgement for an event cursor.
 
 
 
+<a id="chatto-api-v1-RealtimeAssetDeletedEvent"></a>
+
+### RealtimeAssetDeletedEvent
+
+Asset-deleted signal.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room containing the message that owned the asset, when known. |
+| `asset_id` | `string` | Asset ID. |
+
+
+
+<a id="chatto-api-v1-RealtimeAssetProcessingEvent"></a>
+
+### RealtimeAssetProcessingEvent
+
+Asset-processing signal.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room containing the message that owns the asset. |
+| `asset_id` | `string` | Asset ID. |
+| `message_event_id` | `string` | Event ID of the message that owns the asset. |
+
+
+
+<a id="chatto-api-v1-RealtimeCallEvent"></a>
+
+### RealtimeCallEvent
+
+Voice-call state signal.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room containing the call. |
+| `call_id` | `string` | Call ID. |
+
+
+
 <a id="chatto-api-v1-RealtimeClientFrame"></a>
 
 ### RealtimeClientFrame
@@ -1741,6 +1781,21 @@ it as a sequence number, timestamp, NATS subject, or storage position.
 | `event.room_marked_as_read` | [`RealtimeRoomMarkedAsReadEvent`](#chatto-api-v1-RealtimeRoomMarkedAsReadEvent) | The current user's room read state changed. |
 | `event.server_updated` | [`RealtimeServerUpdatedEvent`](#chatto-api-v1-RealtimeServerUpdatedEvent) | The server profile/config changed. |
 | `event.user_profile_updated` | [`RealtimeUserProfileUpdatedEvent`](#chatto-api-v1-RealtimeUserProfileUpdatedEvent) | A user profile changed. |
+| `event.user_custom_status_set` | [`RealtimeUserCustomStatusSetEvent`](#chatto-api-v1-RealtimeUserCustomStatusSetEvent) | A user's custom status changed. |
+| `event.user_custom_status_cleared` | [`RealtimeUserCustomStatusClearedEvent`](#chatto-api-v1-RealtimeUserCustomStatusClearedEvent) | No field description provided. |
+| `event.server_user_preferences_updated` | [`RealtimeServerUserPreferencesUpdatedEvent`](#chatto-api-v1-RealtimeServerUserPreferencesUpdatedEvent) | The current user's display preferences changed. |
+| `event.room_groups_updated` | [`RealtimeRoomGroupsUpdatedEvent`](#chatto-api-v1-RealtimeRoomGroupsUpdatedEvent) | Room-group layout changed. |
+| `event.server_member_deleted` | [`RealtimeServerMemberDeletedEvent`](#chatto-api-v1-RealtimeServerMemberDeletedEvent) | A server member was deleted. |
+| `event.asset_processing_started` | [`RealtimeAssetProcessingEvent`](#chatto-api-v1-RealtimeAssetProcessingEvent) | Asset processing or deletion changed message attachments. |
+| `event.asset_processing_succeeded` | [`RealtimeAssetProcessingEvent`](#chatto-api-v1-RealtimeAssetProcessingEvent) | No field description provided. |
+| `event.asset_processing_failed` | [`RealtimeAssetProcessingEvent`](#chatto-api-v1-RealtimeAssetProcessingEvent) | No field description provided. |
+| `event.asset_deleted` | [`RealtimeAssetDeletedEvent`](#chatto-api-v1-RealtimeAssetDeletedEvent) | No field description provided. |
+| `event.call_started` | [`RealtimeCallEvent`](#chatto-api-v1-RealtimeCallEvent) | Voice-call state changed. |
+| `event.call_participant_joined` | [`RealtimeCallEvent`](#chatto-api-v1-RealtimeCallEvent) | No field description provided. |
+| `event.call_participant_left` | [`RealtimeCallEvent`](#chatto-api-v1-RealtimeCallEvent) | No field description provided. |
+| `event.call_ended` | [`RealtimeCallEvent`](#chatto-api-v1-RealtimeCallEvent) | No field description provided. |
+| `event.mention_notification` | [`RealtimeMentionNotificationEvent`](#chatto-api-v1-RealtimeMentionNotificationEvent) | Legacy attention notification signals. |
+| `event.new_direct_message_notification` | [`RealtimeNewDirectMessageNotificationEvent`](#chatto-api-v1-RealtimeNewDirectMessageNotificationEvent) | No field description provided. |
 | `event.session_terminated` | [`RealtimeSessionTerminatedEvent`](#chatto-api-v1-RealtimeSessionTerminatedEvent) | The current user's session was terminated. |
 
 
@@ -1755,6 +1810,19 @@ Application-level heartbeat.
 | --- | --- | --- |
 | `id` | `string` | Stable event ID for this heartbeat. |
 | `created_at` | `google.protobuf.Timestamp` | Time the heartbeat was emitted. |
+
+
+
+<a id="chatto-api-v1-RealtimeMentionNotificationEvent"></a>
+
+### RealtimeMentionNotificationEvent
+
+Mention attention signal for the connected user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room where the mention occurred. |
+| `actor_user_id` | `string` | Author user ID. |
 
 
 
@@ -1796,6 +1864,19 @@ Message-retracted signal.
 | `room_id` | `string` | Room containing the message. |
 | `message_event_id` | `string` | Event ID of the retracted message. |
 | `reason` | `string` | Retraction reason, when one was supplied. |
+
+
+
+<a id="chatto-api-v1-RealtimeNewDirectMessageNotificationEvent"></a>
+
+### RealtimeNewDirectMessageNotificationEvent
+
+New-DM attention signal for the connected user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | DM room ID. |
+| `sender_id` | `string` | Sender user ID. |
 
 
 
@@ -1904,6 +1985,18 @@ Room lifecycle or membership signal.
 
 
 
+<a id="chatto-api-v1-RealtimeRoomGroupsUpdatedEvent"></a>
+
+### RealtimeRoomGroupsUpdatedEvent
+
+Room-group layout signal.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `changed` | `bool` | Always true; present for GraphQL event-bus compatibility. |
+
+
+
 <a id="chatto-api-v1-RealtimeRoomMarkedAsReadEvent"></a>
 
 ### RealtimeRoomMarkedAsReadEvent
@@ -1962,6 +2055,18 @@ Initial server hello.
 
 
 
+<a id="chatto-api-v1-RealtimeServerMemberDeletedEvent"></a>
+
+### RealtimeServerMemberDeletedEvent
+
+Server-member deleted signal.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Deleted user ID. |
+
+
+
 <a id="chatto-api-v1-RealtimeServerUpdatedEvent"></a>
 
 ### RealtimeServerUpdatedEvent
@@ -1974,6 +2079,19 @@ Server-profile signal.
 | `description` | `string` | Server description. |
 | `logo_url` | `string` | Server logo URL. |
 | `banner_url` | `string` | Server banner URL. |
+
+
+
+<a id="chatto-api-v1-RealtimeServerUserPreferencesUpdatedEvent"></a>
+
+### RealtimeServerUserPreferencesUpdatedEvent
+
+User display-preferences signal for the connected user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `timezone` | `string` | IANA timezone name, empty when browser default should be used. |
+| `time_format` | [`RealtimeTimeFormat`](#chatto-api-v1-RealtimeTimeFormat) | Preferred time display format. |
 
 
 
@@ -2033,6 +2151,33 @@ Typing signal.
 | --- | --- | --- |
 | `room_id` | `string` | Room where the actor is typing. |
 | `thread_root_event_id` | `string` | Thread root event ID when the actor is typing in a thread. |
+
+
+
+<a id="chatto-api-v1-RealtimeUserCustomStatusClearedEvent"></a>
+
+### RealtimeUserCustomStatusClearedEvent
+
+User-custom-status cleared signal.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | User whose status was cleared. |
+
+
+
+<a id="chatto-api-v1-RealtimeUserCustomStatusSetEvent"></a>
+
+### RealtimeUserCustomStatusSetEvent
+
+User-custom-status set signal.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | User whose status changed. |
+| `emoji` | `string` | Emoji part of the status. |
+| `text` | `string` | Text part of the status. |
+| `expires_at` | `google.protobuf.Timestamp` | Expiration time, when the status expires automatically. |
 
 
 
@@ -2230,6 +2375,19 @@ record expire.
 | `PRESENCE_STATUS_ONLINE` | `1` | The user is actively available. |
 | `PRESENCE_STATUS_AWAY` | `2` | The user is connected but away or idle. |
 | `PRESENCE_STATUS_DO_NOT_DISTURB` | `3` | The user does not want notifications while this live status is active. |
+
+
+<a id="chatto-api-v1-RealtimeTimeFormat"></a>
+
+### RealtimeTimeFormat
+
+Time-display format used by realtime preference events.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `REALTIME_TIME_FORMAT_UNSPECIFIED` | `0` | Use browser or locale default. |
+| `REALTIME_TIME_FORMAT_12H` | `1` | 12-hour clock. |
+| `REALTIME_TIME_FORMAT_24H` | `2` | 24-hour clock. |
 
 
 <a id="chatto-api-v1-RoomKind"></a>

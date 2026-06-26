@@ -178,7 +178,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 				}})
 				return
 			}
-			frame, err := realtimeServerFrameForEvent(event)
+			frame, err := s.realtimeServerFrameForEvent(event)
 			if err != nil {
 				s.logger.Warn("Dropping unsupported realtime event", "event_id", event.ID(), "error", err)
 				continue
@@ -266,7 +266,7 @@ func (s *HTTPServer) realtimeAuthenticatedUser(ctx context.Context, hello *apiv1
 	return nil, core.ErrNotAuthenticated
 }
 
-func realtimeServerFrameForEvent(event core.EventEnvelope) (*apiv1.RealtimeServerFrame, error) {
+func (s *HTTPServer) realtimeServerFrameForEvent(event core.EventEnvelope) (*apiv1.RealtimeServerFrame, error) {
 	if event == nil {
 		return nil, errors.New("nil event")
 	}
@@ -275,14 +275,14 @@ func realtimeServerFrameForEvent(event core.EventEnvelope) (*apiv1.RealtimeServe
 			Heartbeat: &apiv1.RealtimeHeartbeat{Id: event.ID(), CreatedAt: event.CreatedAt()},
 		}}, nil
 	}
-	envelope, err := realtimeEventEnvelope(event)
+	envelope, err := s.realtimeEventEnvelope(event)
 	if err != nil {
 		return nil, err
 	}
 	return &apiv1.RealtimeServerFrame{Frame: &apiv1.RealtimeServerFrame_Event{Event: envelope}}, nil
 }
 
-func realtimeEventEnvelope(event core.EventEnvelope) (*apiv1.RealtimeEventEnvelope, error) {
+func (s *HTTPServer) realtimeEventEnvelope(event core.EventEnvelope) (*apiv1.RealtimeEventEnvelope, error) {
 	envelope := &apiv1.RealtimeEventEnvelope{
 		Id:        event.ID(),
 		CreatedAt: event.CreatedAt(),
@@ -291,7 +291,7 @@ func realtimeEventEnvelope(event core.EventEnvelope) (*apiv1.RealtimeEventEnvelo
 	}
 
 	if evt := event.EVTEvent(); evt != nil {
-		if err := mapRealtimeEVT(envelope, evt); err != nil {
+		if err := s.mapRealtimeEVT(envelope, evt); err != nil {
 			return nil, err
 		}
 		return envelope, nil
@@ -305,7 +305,7 @@ func realtimeEventEnvelope(event core.EventEnvelope) (*apiv1.RealtimeEventEnvelo
 	return nil, fmt.Errorf("unknown event envelope %T", event.Payload())
 }
 
-func mapRealtimeEVT(envelope *apiv1.RealtimeEventEnvelope, event *corev1.Event) error {
+func (s *HTTPServer) mapRealtimeEVT(envelope *apiv1.RealtimeEventEnvelope, event *corev1.Event) error {
 	switch payload := event.GetEvent().(type) {
 	case *corev1.Event_MessagePosted:
 		msg := payload.MessagePosted
@@ -353,6 +353,49 @@ func mapRealtimeEVT(envelope *apiv1.RealtimeEventEnvelope, event *corev1.Event) 
 		envelope.Event = &apiv1.RealtimeEventEnvelope_RoomUniversalChanged{RoomUniversalChanged: &apiv1.RealtimeRoomUniversalChangedEvent{
 			RoomId: room.GetRoomId(), Universal: room.GetUniversal(),
 		}}
+	case *corev1.Event_ServerMemberDeleted:
+		envelope.Event = &apiv1.RealtimeEventEnvelope_ServerMemberDeleted{ServerMemberDeleted: &apiv1.RealtimeServerMemberDeletedEvent{
+			UserId: payload.ServerMemberDeleted.GetUserId(),
+		}}
+	case *corev1.Event_VoiceCallStarted:
+		call := payload.VoiceCallStarted
+		envelope.Event = &apiv1.RealtimeEventEnvelope_CallStarted{CallStarted: realtimeCallEvent(call.GetRoomId(), call.GetCallId())}
+	case *corev1.Event_VoiceCallParticipantJoined:
+		call := payload.VoiceCallParticipantJoined
+		envelope.Event = &apiv1.RealtimeEventEnvelope_CallParticipantJoined{CallParticipantJoined: realtimeCallEvent(call.GetRoomId(), call.GetCallId())}
+	case *corev1.Event_VoiceCallParticipantLeft:
+		call := payload.VoiceCallParticipantLeft
+		envelope.Event = &apiv1.RealtimeEventEnvelope_CallParticipantLeft{CallParticipantLeft: realtimeCallEvent(call.GetRoomId(), call.GetCallId())}
+	case *corev1.Event_VoiceCallEnded:
+		call := payload.VoiceCallEnded
+		envelope.Event = &apiv1.RealtimeEventEnvelope_CallEnded{CallEnded: realtimeCallEvent(call.GetRoomId(), call.GetCallId())}
+	case *corev1.Event_AssetProcessingStarted:
+		asset := payload.AssetProcessingStarted
+		envelope.Event = &apiv1.RealtimeEventEnvelope_AssetProcessingStarted{AssetProcessingStarted: realtimeAssetProcessingEvent(s, asset.GetAssetId(), asset.GetMessageEventId())}
+	case *corev1.Event_AssetProcessingSucceeded:
+		asset := payload.AssetProcessingSucceeded
+		envelope.Event = &apiv1.RealtimeEventEnvelope_AssetProcessingSucceeded{AssetProcessingSucceeded: realtimeAssetProcessingEvent(s, asset.GetAssetId(), asset.GetMessageEventId())}
+	case *corev1.Event_AssetProcessingFailed:
+		asset := payload.AssetProcessingFailed
+		envelope.Event = &apiv1.RealtimeEventEnvelope_AssetProcessingFailed{AssetProcessingFailed: realtimeAssetProcessingEvent(s, asset.GetAssetId(), asset.GetMessageEventId())}
+	case *corev1.Event_AssetDeleted:
+		assetID := payload.AssetDeleted.GetAssetId()
+		roomID, _ := s.core.Assets.AssetRoomID(assetID)
+		envelope.Event = &apiv1.RealtimeEventEnvelope_AssetDeleted{AssetDeleted: &apiv1.RealtimeAssetDeletedEvent{
+			RoomId: roomID, AssetId: assetID,
+		}}
+	case *corev1.Event_UserCustomStatusSet:
+		status := payload.UserCustomStatusSet.GetStatus()
+		envelope.Event = &apiv1.RealtimeEventEnvelope_UserCustomStatusSet{UserCustomStatusSet: &apiv1.RealtimeUserCustomStatusSetEvent{
+			UserId:    payload.UserCustomStatusSet.GetUserId(),
+			Emoji:     status.GetEmoji(),
+			Text:      status.GetText(),
+			ExpiresAt: status.GetExpiresAt(),
+		}}
+	case *corev1.Event_UserCustomStatusCleared:
+		envelope.Event = &apiv1.RealtimeEventEnvelope_UserCustomStatusCleared{UserCustomStatusCleared: &apiv1.RealtimeUserCustomStatusClearedEvent{
+			UserId: payload.UserCustomStatusCleared.GetUserId(),
+		}}
 	default:
 		return fmt.Errorf("unsupported EVT event %T", payload)
 	}
@@ -388,14 +431,33 @@ func mapRealtimeLive(envelope *apiv1.RealtimeEventEnvelope, event *corev1.LiveEv
 		envelope.Event = &apiv1.RealtimeEventEnvelope_NotificationLevelChanged{NotificationLevelChanged: &apiv1.RealtimeNotificationLevelChangedEvent{
 			RoomId: level.GetRoomId(), Level: apiNotificationLevel(level.GetLevel()), EffectiveLevel: apiNotificationLevel(level.GetEffectiveLevel()),
 		}}
+	case *corev1.LiveEvent_ServerUserPreferencesUpdated:
+		prefs := payload.ServerUserPreferencesUpdated
+		envelope.Event = &apiv1.RealtimeEventEnvelope_ServerUserPreferencesUpdated{ServerUserPreferencesUpdated: &apiv1.RealtimeServerUserPreferencesUpdatedEvent{
+			Timezone: prefs.GetTimezone(), TimeFormat: apiRealtimeTimeFormat(prefs.GetTimeFormat()),
+		}}
 	case *corev1.LiveEvent_ThreadFollowChanged:
 		follow := payload.ThreadFollowChanged
 		envelope.Event = &apiv1.RealtimeEventEnvelope_ThreadFollowChanged{ThreadFollowChanged: &apiv1.RealtimeThreadFollowChangedEvent{
 			RoomId: follow.GetRoomId(), ThreadRootEventId: follow.GetThreadRootEventId(), Following: follow.GetIsFollowing(),
 		}}
+	case *corev1.LiveEvent_MentionNotification:
+		mention := payload.MentionNotification
+		envelope.Event = &apiv1.RealtimeEventEnvelope_MentionNotification{MentionNotification: &apiv1.RealtimeMentionNotificationEvent{
+			RoomId: mention.GetRoomId(), ActorUserId: mention.GetMentionedByUserId(),
+		}}
+	case *corev1.LiveEvent_NewDirectMessageNotification:
+		dm := payload.NewDirectMessageNotification
+		envelope.Event = &apiv1.RealtimeEventEnvelope_NewDirectMessageNotification{NewDirectMessageNotification: &apiv1.RealtimeNewDirectMessageNotificationEvent{
+			RoomId: dm.GetRoomId(), SenderId: dm.GetSenderId(),
+		}}
 	case *corev1.LiveEvent_RoomMarkedAsRead:
 		envelope.Event = &apiv1.RealtimeEventEnvelope_RoomMarkedAsRead{RoomMarkedAsRead: &apiv1.RealtimeRoomMarkedAsReadEvent{
 			RoomId: payload.RoomMarkedAsRead.GetRoomId(),
+		}}
+	case *corev1.LiveEvent_RoomGroupsUpdated:
+		envelope.Event = &apiv1.RealtimeEventEnvelope_RoomGroupsUpdated{RoomGroupsUpdated: &apiv1.RealtimeRoomGroupsUpdatedEvent{
+			Changed: true,
 		}}
 	case *corev1.LiveEvent_ServerUpdated:
 		server := payload.ServerUpdated
@@ -419,6 +481,19 @@ func mapRealtimeLive(envelope *apiv1.RealtimeEventEnvelope, event *corev1.LiveEv
 
 func realtimeRoomEvent(roomID string) *apiv1.RealtimeRoomEvent {
 	return &apiv1.RealtimeRoomEvent{RoomId: roomID}
+}
+
+func realtimeCallEvent(roomID, callID string) *apiv1.RealtimeCallEvent {
+	return &apiv1.RealtimeCallEvent{RoomId: roomID, CallId: callID}
+}
+
+func realtimeAssetProcessingEvent(s *HTTPServer, assetID, messageEventID string) *apiv1.RealtimeAssetProcessingEvent {
+	roomID, _ := s.core.Assets.AssetRoomID(assetID)
+	return &apiv1.RealtimeAssetProcessingEvent{
+		RoomId:         roomID,
+		AssetId:        assetID,
+		MessageEventId: messageEventID,
+	}
 }
 
 func realtimeCursor(seq uint64) string {
@@ -453,5 +528,16 @@ func apiNotificationLevel(level corev1.NotificationLevel) apiv1.NotificationLeve
 		return apiv1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES
 	default:
 		return apiv1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
+	}
+}
+
+func apiRealtimeTimeFormat(format corev1.TimeFormat) apiv1.RealtimeTimeFormat {
+	switch format {
+	case corev1.TimeFormat_TIME_FORMAT_12H:
+		return apiv1.RealtimeTimeFormat_REALTIME_TIME_FORMAT_12H
+	case corev1.TimeFormat_TIME_FORMAT_24H:
+		return apiv1.RealtimeTimeFormat_REALTIME_TIME_FORMAT_24H
+	default:
+		return apiv1.RealtimeTimeFormat_REALTIME_TIME_FORMAT_UNSPECIFIED
 	}
 }

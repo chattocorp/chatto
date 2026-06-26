@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { flushSync } from 'svelte';
 import { makeSubject, type Source, type Subject } from 'wonka';
 import type { Client } from '@urql/svelte';
@@ -15,12 +15,17 @@ vi.mock('$lib/audio/callSounds', () => ({
 }));
 
 import { ServerStateStore } from './store.svelte';
-import { eventBusManager } from './eventBus.svelte';
+import { eventBusManager, setRealtimeSocketFactoryForTests } from './eventBus.svelte';
 import type { GraphQLClient } from './graphqlClient.svelte';
 import type { RegisteredServer } from './registry.svelte';
 
 class FakeGqlClient {
   reconnectCount = $state(0);
+  realtimeUrl = 'ws://store-event.test/api/realtime';
+  bearerToken: string | null = 'remote-token';
+  setRealtimeConnectionStatus = vi.fn();
+  registerRealtimeReconnect = vi.fn(() => () => {});
+  handleAuthenticationRequired = vi.fn();
   client: Client;
   subject: Subject<{ data?: unknown; error?: unknown }>;
   query = vi.fn();
@@ -127,11 +132,25 @@ function adminRoomLayoutResult(rooms: unknown[] = [], roomGroups: unknown[] = []
   return { server: { rooms, roomGroups } };
 }
 
+beforeEach(() => {
+  setRealtimeSocketFactoryForTests(() => ({
+    binaryType: 'arraybuffer',
+    readyState: 0,
+    onopen: null,
+    onmessage: null,
+    onerror: null,
+    onclose: null,
+    send: vi.fn(),
+    close: vi.fn()
+  }));
+});
+
 afterEach(() => {
   for (const store of stores.splice(0)) {
     store.dispose();
   }
   eventBusManager.stopBus(registered.id);
+  setRealtimeSocketFactoryForTests(null);
   soundMocks.playCallSound.mockClear();
   vi.restoreAllMocks();
 });

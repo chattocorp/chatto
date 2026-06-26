@@ -3,7 +3,10 @@ import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import { makeSubject, type Source, type Subject } from 'wonka';
 import type { Client } from '@urql/svelte';
-import { eventBusManager } from '$lib/state/server/eventBus.svelte';
+import {
+  eventBusManager,
+  setRealtimeSocketFactoryForTests
+} from '$lib/state/server/eventBus.svelte';
 import type { GraphQLClient } from '$lib/state/server/graphqlClient.svelte';
 import Harness from './UseMayHaveMissedMessagesCallbackHarness.svelte';
 
@@ -23,6 +26,11 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
 
 class FakeGqlClient {
   reconnectCount = $state(0);
+  realtimeUrl = 'ws://test-server/api/realtime';
+  bearerToken: string | null = null;
+  setRealtimeConnectionStatus = vi.fn();
+  registerRealtimeReconnect = vi.fn(() => () => {});
+  handleAuthenticationRequired = vi.fn();
   #subjects: Subject<{ data?: unknown; error?: unknown }>[] = [];
   client: Client;
 
@@ -46,12 +54,23 @@ describe('useMayHaveMissedMessagesCallback', () => {
 
   beforeEach(() => {
     mocks.activeServerId = TEST_SERVER;
+    setRealtimeSocketFactoryForTests(() => ({
+      binaryType: 'arraybuffer',
+      readyState: 0,
+      onopen: null,
+      onmessage: null,
+      onerror: null,
+      onclose: null,
+      send: vi.fn(),
+      close: vi.fn()
+    }));
     consoleDebug = vi.spyOn(console, 'debug').mockImplementation(() => {});
   });
 
   afterEach(() => {
     vi.useRealTimers();
     eventBusManager.stopBus(TEST_SERVER);
+    setRealtimeSocketFactoryForTests(null);
     consoleDebug.mockRestore();
     vi.restoreAllMocks();
   });
@@ -72,9 +91,7 @@ describe('useMayHaveMissedMessagesCallback', () => {
       handler('heartbeat-stalled');
     }
 
-    await vi.waitFor(() =>
-      expect(onSignal).toHaveBeenCalledWith('event-bus-heartbeat-stalled')
-    );
+    await vi.waitFor(() => expect(onSignal).toHaveBeenCalledWith('event-bus-heartbeat-stalled'));
     rendered.unmount();
   });
 
@@ -83,7 +100,10 @@ describe('useMayHaveMissedMessagesCallback', () => {
     const firstRefresh = new Promise<boolean>((resolve) => {
       resolveFirst = resolve;
     });
-    const onSignal = vi.fn().mockImplementationOnce(() => firstRefresh).mockResolvedValue(undefined);
+    const onSignal = vi
+      .fn()
+      .mockImplementationOnce(() => firstRefresh)
+      .mockResolvedValue(undefined);
 
     const rendered = render(Harness, { props: { onSignal } });
     flushSync();
@@ -107,7 +127,10 @@ describe('useMayHaveMissedMessagesCallback', () => {
     const firstRefresh = new Promise<boolean>((resolve) => {
       resolveFirst = resolve;
     });
-    const onSignal = vi.fn().mockImplementationOnce(() => firstRefresh).mockResolvedValue(undefined);
+    const onSignal = vi
+      .fn()
+      .mockImplementationOnce(() => firstRefresh)
+      .mockResolvedValue(undefined);
 
     const rendered = render(Harness, { props: { onSignal } });
     flushSync();
