@@ -273,12 +273,6 @@
     }
   `);
 
-  const UpdateMessageMutation = graphql(`
-    mutation UpdateMessageFromInput($input: UpdateMessageInput!) {
-      updateMessage(input: $input)
-    }
-  `);
-
   $effect(() => {
     return linkPreviews.scheduleDetection(message, isEditing);
   });
@@ -727,17 +721,19 @@
       input.alsoSendToChannel = alsoSendToChannel;
     }
 
-    const response = await connection().client.mutation(UpdateMessageMutation, {
-      input
-    });
-
-    if (response.error) {
-      toast.error(response.error.message || m['composer.edit_failed']());
-    } else {
+    try {
+      const conn = connection();
+      await createMessageAPI({
+        serverId: conn.serverId,
+        baseUrl: conn.connectBaseUrl,
+        bearerToken: conn.bearerToken
+      }).updateMessage(input);
       autocomplete.reset();
       message = '';
       editorApi?.setContent('');
       editState.cancelEdit();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : m['composer.edit_failed']());
     }
 
     loading = false;

@@ -15,6 +15,9 @@ const { mocks } = vi.hoisted(() => ({
     toastSuccess: vi.fn(),
     toastError: vi.fn(),
     joinRoom: vi.fn(),
+    deleteMessage: vi.fn(),
+    deleteAttachment: vi.fn(),
+    deleteLinkPreview: vi.fn(),
     refreshRooms: vi.fn(),
     mutation: vi.fn(() => ({
       toPromise: () => Promise.resolve({ data: {}, error: null })
@@ -98,6 +101,9 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
 vi.mock('$lib/state/server/graphqlClient.svelte', () => ({
   graphqlClientManager: {
     getClient: vi.fn(() => ({
+      serverId: 'origin',
+      connectBaseUrl: 'https://origin.example.test/api/connect',
+      bearerToken: null,
       client: {
         mutation: mocks.mutation
       }
@@ -132,6 +138,14 @@ vi.mock('$lib/attachments/attachmentUrls', () => ({
 
 vi.mock('$lib/CreateRoom.svelte', () => ({
   default: {}
+}));
+
+vi.mock('$lib/api/messages', () => ({
+  createMessageAPI: () => ({
+    deleteMessage: mocks.deleteMessage,
+    deleteAttachment: mocks.deleteAttachment,
+    deleteLinkPreview: mocks.deleteLinkPreview
+  })
 }));
 
 vi.mock('$lib/ui/ImageModal.svelte', () => ({
@@ -180,6 +194,9 @@ beforeEach(() => {
     viewerCanJoinRoom: true
   };
   mocks.joinRoom.mockResolvedValue({ ok: true, room: { id: 'room-1', name: 'general' } });
+  mocks.deleteMessage.mockResolvedValue(true);
+  mocks.deleteAttachment.mockResolvedValue(true);
+  mocks.deleteLinkPreview.mockResolvedValue(true);
   mocks.mutation.mockReturnValue({
     toPromise: () => Promise.resolve({ data: {}, error: null })
   });
@@ -423,7 +440,11 @@ describe('ModalContainer message mutation modals', () => {
       clickButton(container, 'Delete');
 
       await vi.waitFor(() => {
-        expect(mocks.mutation).toHaveBeenCalledOnce();
+        expect(mocks.deleteLinkPreview).toHaveBeenCalledWith(
+          'room-1',
+          'event-1',
+          'https://example.test/article'
+        );
         expect(listener).toHaveBeenCalledOnce();
       });
       expect((listener.mock.calls[0][0] as CustomEvent).detail).toEqual({

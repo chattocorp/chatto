@@ -23,6 +23,13 @@ export type PostMessageInput = {
 	linkPreview?: LinkPreviewInput | null;
 };
 
+export type UpdateMessageInput = {
+	roomId: string;
+	eventId: string;
+	body: string;
+	alsoSendToChannel?: boolean;
+};
+
 export type PostMessageResult =
 	| {
 			kind: 'event';
@@ -86,6 +93,53 @@ export function createMessageAPI(config: MessageAPIConfig) {
 				}
 
 				return { kind: 'event', event: null };
+			} catch (err) {
+				return handleAuthError(err);
+			}
+		},
+
+		async updateMessage(input: UpdateMessageInput): Promise<boolean> {
+			try {
+				const response = await client.updateMessage(
+					{
+						roomId: input.roomId,
+						eventId: input.eventId,
+						body: input.body,
+						alsoSendToChannel: input.alsoSendToChannel
+					},
+					{ headers: headers() }
+				);
+				return response.updated;
+			} catch (err) {
+				return handleAuthError(err);
+			}
+		},
+
+		async deleteMessage(roomId: string, eventId: string): Promise<boolean> {
+			try {
+				const response = await client.deleteMessage({ roomId, eventId }, { headers: headers() });
+				return response.deleted;
+			} catch (err) {
+				return handleAuthError(err);
+			}
+		},
+
+		async deleteAttachment(roomId: string, eventId: string, attachmentId: string): Promise<boolean> {
+			try {
+				const response = await client.deleteAttachment(
+					{ roomId, eventId, attachmentId },
+					{ headers: headers() }
+				);
+				return response.deleted;
+			} catch (err) {
+				return handleAuthError(err);
+			}
+		},
+
+		async deleteLinkPreview(roomId: string, eventId: string, url: string): Promise<boolean> {
+			try {
+				const response = await client.deleteLinkPreview({ roomId, eventId, url }, { headers: headers() });
+				return response.deleted;
 			} catch (err) {
 				return handleAuthError(err);
 			}

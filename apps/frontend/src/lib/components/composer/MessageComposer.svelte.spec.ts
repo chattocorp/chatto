@@ -46,11 +46,15 @@ const prepareFilesMock = vi.hoisted(() => vi.fn());
 const mutationMock = vi.hoisted(() => vi.fn());
 const queryMock = vi.hoisted(() => vi.fn());
 const postMessageConnectMock = vi.hoisted(() => vi.fn());
+const updateMessageConnectMock = vi.hoisted(() => vi.fn());
 const roomStateMock = vi.hoisted(() => ({
   members: [] as RoomMember[],
   editState: {
     eventId: null as string | null,
     originalBody: '',
+    threadRootEventId: null as string | null,
+    channelEchoEventId: null as string | null,
+    canAddChannelEcho: false,
     startEdit: vi.fn(),
     cancelEdit: vi.fn()
   },
@@ -100,7 +104,8 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
 
 vi.mock('$lib/api/messages', () => ({
   createMessageAPI: () => ({
-    postMessage: postMessageConnectMock
+    postMessage: postMessageConnectMock,
+    updateMessage: updateMessageConnectMock
   })
 }));
 
@@ -305,6 +310,9 @@ describe('MessageComposer', () => {
     roomStateMock.members = [];
     roomStateMock.editState.eventId = null;
     roomStateMock.editState.originalBody = '';
+    roomStateMock.editState.threadRootEventId = null;
+    roomStateMock.editState.channelEchoEventId = null;
+    roomStateMock.editState.canAddChannelEcho = false;
     roomStateMock.editState.startEdit.mockClear();
     roomStateMock.editState.cancelEdit.mockClear();
     roomStateMock.quoteInsertionState.request = null;
@@ -352,6 +360,8 @@ describe('MessageComposer', () => {
         event: response.data?.postMessage ?? null
       };
     });
+    updateMessageConnectMock.mockReset();
+    updateMessageConnectMock.mockResolvedValue(true);
     queryMock.mockReset();
     queryMock.mockResolvedValue({ data: null, error: null });
     sessionStorage.clear();
@@ -1091,6 +1101,7 @@ describe('MessageComposer', () => {
 
       expect(roomStateMock.editState.cancelEdit).toHaveBeenCalledOnce();
       expect(mutationMock).not.toHaveBeenCalled();
+      expect(updateMessageConnectMock).not.toHaveBeenCalled();
     });
 
     it('closes mention autocomplete when cancelling an edit', async () => {
@@ -1136,8 +1147,9 @@ describe('MessageComposer', () => {
       );
       (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
-      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
-      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+      await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
+      expect(updateMessageConnectMock).toHaveBeenCalledWith({
+        roomId: expect.any(String),
         eventId: 'evt_edit',
         body: '@gold'
       });
@@ -1159,8 +1171,9 @@ describe('MessageComposer', () => {
       expect(container.textContent).not.toMatch(/(?:Cmd|Ctrl)\+Return to Send/);
       await pressEditorKey(editor, 'Enter');
 
-      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
-      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+      await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
+      expect(updateMessageConnectMock).toHaveBeenCalledWith({
+        roomId: expect.any(String),
         eventId: 'evt_edit',
         body: 'original body'
       });
@@ -1178,6 +1191,7 @@ describe('MessageComposer', () => {
       await vi.waitFor(() => expect(editor.textContent).toBe('original body'));
       await pressEditorKey(editor, 'Enter', { ctrlKey: true });
       expect(mutationMock).not.toHaveBeenCalled();
+      expect(updateMessageConnectMock).not.toHaveBeenCalled();
       await vi.waitFor(() => expect(editor.querySelectorAll(':scope > p')).toHaveLength(2));
       await vi.waitFor(() =>
         expect(container.textContent).toMatch(/(?:Return|Enter) again to Send/)
@@ -1185,8 +1199,9 @@ describe('MessageComposer', () => {
 
       await pressEditorKey(editor, 'Enter', { ctrlKey: true });
 
-      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
-      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+      await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
+      expect(updateMessageConnectMock).toHaveBeenCalledWith({
+        roomId: expect.any(String),
         eventId: 'evt_edit',
         body: 'original body'
       });
@@ -1210,8 +1225,9 @@ describe('MessageComposer', () => {
 
       (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
-      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
-      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+      await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
+      expect(updateMessageConnectMock).toHaveBeenCalledWith({
+        roomId: expect.any(String),
         eventId: 'evt_edit',
         body: editedBody
       });
@@ -1262,8 +1278,9 @@ describe('MessageComposer', () => {
       );
       (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
-      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
-      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+      await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
+      expect(updateMessageConnectMock).toHaveBeenCalledWith({
+        roomId: expect.any(String),
         eventId: 'evt_edit',
         body: '```ts\nconst existing = true;\n```\n\n```js\nconsole.log("second");\n```'
       });
@@ -1720,8 +1737,9 @@ describe('MessageComposer', () => {
       );
       (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
-      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
-      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+      await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
+      expect(updateMessageConnectMock).toHaveBeenCalledWith({
+        roomId: expect.any(String),
         eventId: 'evt_edit',
         body: '```text\nmoo\nquack\n```\n\nor this:\n\n```go\nIO.puts("moo")\n```'
       });

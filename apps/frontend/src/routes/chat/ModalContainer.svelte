@@ -16,22 +16,31 @@
   import { Button } from '$lib/ui/form';
   import CreateRoom from '$lib/CreateRoom.svelte';
   import { createRoomCommandAPI } from '$lib/api/rooms';
+  import { createMessageAPI } from '$lib/api/messages';
 
   import ImageModal from '$lib/ui/ImageModal.svelte';
 
-  import { graphql } from '$lib/gql';
   import { refreshAttachmentUrlsForMessage } from '$lib/attachments/attachmentUrls';
   import { toast } from '$lib/ui/toast';
   import { clearLastRoom } from '$lib/storage/lastRoom';
   import { notifyRoomMessageMutated } from '$lib/state/room/messageMutationEvents';
 
-  /** Get the GraphQL client for the currently active instance (derived from URL). */
+  function closeModal() {
+    history.back();
+  }
+
+  /** Get the GraphQL client for read/refresh helpers that still use GraphQL. */
   function getActiveClient() {
     return graphqlClientManager.getClient(activeInstanceId).client;
   }
 
-  function closeModal() {
-    history.back();
+  function getActiveMessageAPI() {
+    const conn = graphqlClientManager.getClient(activeInstanceId);
+    return createMessageAPI({
+      serverId: conn.serverId ?? activeInstanceId,
+      baseUrl: conn.connectBaseUrl,
+      bearerToken: conn.bearerToken
+    });
   }
 
   function handleRoomCreated(roomId: string) {
@@ -115,71 +124,50 @@
 
   async function handleDeleteMessage(roomId: string, eventId: string) {
     deletingMessage = true;
-    const result = await getActiveClient()
-      .mutation(
-        graphql(`
-          mutation DeleteMessageFromModal($input: DeleteMessageInput!) {
-            deleteMessage(input: $input)
-          }
-        `),
-        { input: { roomId, eventId } }
-      )
-      .toPromise();
-    deletingMessage = false;
-
-    if (result.error) {
+    try {
+      await getActiveMessageAPI().deleteMessage(roomId, eventId);
+    } catch (error) {
+      deletingMessage = false;
       toast.error(m['room.message.delete_failed']());
-      console.error('Error deleting message:', result.error);
-    } else {
-      notifyRoomMessageMutated({ roomId, eventId, reason: 'message-deleted' });
-      toast.success(m['room.message.deleted']());
+      console.error('Error deleting message:', error);
+      closeModal();
+      return;
     }
+    deletingMessage = false;
+    notifyRoomMessageMutated({ roomId, eventId, reason: 'message-deleted' });
+    toast.success(m['room.message.deleted']());
     closeModal();
   }
 
   async function handleDeleteLinkPreview(roomId: string, eventId: string, previewUrl: string) {
     deletingLinkPreview = true;
-    const result = await getActiveClient()
-      .mutation(
-        graphql(`
-          mutation DeleteLinkPreviewFromModal($input: DeleteLinkPreviewInput!) {
-            deleteLinkPreview(input: $input)
-          }
-        `),
-        { input: { roomId, eventId, url: previewUrl } }
-      )
-      .toPromise();
-    deletingLinkPreview = false;
-
-    if (result.error) {
+    try {
+      await getActiveMessageAPI().deleteLinkPreview(roomId, eventId, previewUrl);
+    } catch (error) {
+      deletingLinkPreview = false;
       toast.error(m['room.link_preview.delete_failed']());
-      console.error('Error deleting link preview:', result.error);
-    } else {
-      notifyRoomMessageMutated({ roomId, eventId, reason: 'link-preview-deleted' });
+      console.error('Error deleting link preview:', error);
+      closeModal();
+      return;
     }
+    deletingLinkPreview = false;
+    notifyRoomMessageMutated({ roomId, eventId, reason: 'link-preview-deleted' });
     closeModal();
   }
 
   async function handleDeleteAttachment(roomId: string, eventId: string, attachmentId: string) {
     deletingAttachment = true;
-    const result = await getActiveClient()
-      .mutation(
-        graphql(`
-          mutation DeleteAttachmentFromModal($input: DeleteAttachmentInput!) {
-            deleteAttachment(input: $input)
-          }
-        `),
-        { input: { roomId, eventId, attachmentId } }
-      )
-      .toPromise();
-    deletingAttachment = false;
-
-    if (result.error) {
+    try {
+      await getActiveMessageAPI().deleteAttachment(roomId, eventId, attachmentId);
+    } catch (error) {
+      deletingAttachment = false;
       toast.error(m['room.attachment.delete_failed']());
-      console.error('Error deleting attachment:', result.error);
-    } else {
-      notifyRoomMessageMutated({ roomId, eventId, reason: 'attachment-deleted' });
+      console.error('Error deleting attachment:', error);
+      closeModal();
+      return;
     }
+    deletingAttachment = false;
+    notifyRoomMessageMutated({ roomId, eventId, reason: 'attachment-deleted' });
     closeModal();
   }
 

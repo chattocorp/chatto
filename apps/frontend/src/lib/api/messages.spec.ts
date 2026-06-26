@@ -14,7 +14,11 @@ const mocks = vi.hoisted(() => ({
 	createClient: vi.fn(),
 	createConnectTransport: vi.fn(),
 	handleAuthenticationRequired: vi.fn(),
-	postMessage: vi.fn()
+	postMessage: vi.fn(),
+	updateMessage: vi.fn(),
+	deleteMessage: vi.fn(),
+	deleteAttachment: vi.fn(),
+	deleteLinkPreview: vi.fn()
 }));
 
 vi.mock('@connectrpc/connect', async (importOriginal) => {
@@ -41,9 +45,17 @@ describe('createMessageAPI', () => {
 		mocks.createConnectTransport.mockReset();
 		mocks.handleAuthenticationRequired.mockReset();
 		mocks.postMessage.mockReset();
+		mocks.updateMessage.mockReset();
+		mocks.deleteMessage.mockReset();
+		mocks.deleteAttachment.mockReset();
+		mocks.deleteLinkPreview.mockReset();
 		mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
 		mocks.createClient.mockReturnValue({
-			postMessage: mocks.postMessage
+			postMessage: mocks.postMessage,
+			updateMessage: mocks.updateMessage,
+			deleteMessage: mocks.deleteMessage,
+			deleteAttachment: mocks.deleteAttachment,
+			deleteLinkPreview: mocks.deleteLinkPreview
 		});
 	});
 
@@ -171,5 +183,63 @@ describe('createMessageAPI', () => {
 
 		await expect(api.postMessage({ roomId: 'room-1', body: 'hello' })).rejects.toBe(err);
 		expect(mocks.handleAuthenticationRequired).toHaveBeenCalledWith('remote');
+	});
+
+	it('updates a message through MessageService', async () => {
+		mocks.updateMessage.mockResolvedValue({ updated: true });
+
+		const api = createMessageAPI({
+			baseUrl: 'https://remote.example.test/api/connect',
+			bearerToken: 'remote-token'
+		});
+
+		await expect(
+			api.updateMessage({
+				roomId: 'room-1',
+				eventId: 'event-1',
+				body: 'edited',
+				alsoSendToChannel: false
+			})
+		).resolves.toBe(true);
+
+		expect(mocks.updateMessage).toHaveBeenCalledWith(
+			{
+				roomId: 'room-1',
+				eventId: 'event-1',
+				body: 'edited',
+				alsoSendToChannel: false
+			},
+			{ headers: { Authorization: 'Bearer remote-token' } }
+		);
+	});
+
+	it('deletes message content through MessageService', async () => {
+		mocks.deleteMessage.mockResolvedValue({ deleted: true });
+		mocks.deleteAttachment.mockResolvedValue({ deleted: true });
+		mocks.deleteLinkPreview.mockResolvedValue({ deleted: true });
+
+		const api = createMessageAPI({
+			baseUrl: 'https://remote.example.test/api/connect',
+			bearerToken: null
+		});
+
+		await expect(api.deleteMessage('room-1', 'event-1')).resolves.toBe(true);
+		await expect(api.deleteAttachment('room-1', 'event-1', 'attachment-1')).resolves.toBe(true);
+		await expect(
+			api.deleteLinkPreview('room-1', 'event-1', 'https://example.test/article')
+		).resolves.toBe(true);
+
+		expect(mocks.deleteMessage).toHaveBeenCalledWith(
+			{ roomId: 'room-1', eventId: 'event-1' },
+			{ headers: undefined }
+		);
+		expect(mocks.deleteAttachment).toHaveBeenCalledWith(
+			{ roomId: 'room-1', eventId: 'event-1', attachmentId: 'attachment-1' },
+			{ headers: undefined }
+		);
+		expect(mocks.deleteLinkPreview).toHaveBeenCalledWith(
+			{ roomId: 'room-1', eventId: 'event-1', url: 'https://example.test/article' },
+			{ headers: undefined }
+		);
 	});
 });
