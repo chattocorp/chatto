@@ -3,7 +3,6 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "chatto/api/v1/notification_preferences.proto";
-import "chatto/api/v1/presence.proto";
 import "google/protobuf/timestamp.proto";
 
 // Client-to-server frame for Chatto's protobuf WebSocket realtime protocol.
@@ -178,6 +177,8 @@ message RealtimeEventEnvelope {
     RealtimeThreadFollowChangedEvent thread_follow_changed = 63;
     // The current user's room read state changed.
     RealtimeRoomMarkedAsReadEvent room_marked_as_read = 64;
+    // A thread was created in a room visible to the current user.
+    RealtimeThreadCreatedEvent thread_created = 65;
     // The server profile/config changed.
     RealtimeServerUpdatedEvent server_updated = 70;
     // A user profile changed.
@@ -268,7 +269,21 @@ message RealtimePresenceChangedEvent {
   // User whose presence changed.
   string user_id = 1;
   // Latest presence status.
-  PresenceStatus status = 2;
+  RealtimePresenceStatus status = 2;
+}
+
+// Presence status delivered by the realtime stream.
+enum RealtimePresenceStatus {
+  // No presence status was specified.
+  REALTIME_PRESENCE_STATUS_UNSPECIFIED = 0;
+  // The user is offline.
+  REALTIME_PRESENCE_STATUS_OFFLINE = 1;
+  // The user is actively available.
+  REALTIME_PRESENCE_STATUS_ONLINE = 2;
+  // The user is connected but away or idle.
+  REALTIME_PRESENCE_STATUS_AWAY = 3;
+  // The user does not want notifications while this live status is active.
+  REALTIME_PRESENCE_STATUS_DO_NOT_DISTURB = 4;
 }
 
 // Room lifecycle or membership signal.
@@ -323,6 +338,14 @@ message RealtimeThreadFollowChangedEvent {
   string thread_root_event_id = 2;
   // True when the user now follows the thread.
   bool following = 3;
+}
+
+// Thread-created signal.
+message RealtimeThreadCreatedEvent {
+  // Room containing the thread.
+  string room_id = 1;
+  // Root message event ID that identifies the thread.
+  string thread_root_event_id = 2;
 }
 
 // Room-read signal for the connected user.

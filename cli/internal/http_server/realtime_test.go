@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 func (env *wsTestEnv) connectRealtime(t *testing.T) *websocket.Conn {
@@ -105,6 +106,71 @@ func waitRealtimeEvent(t *testing.T, conn *websocket.Conn, timeout time.Duration
 		}
 	}
 	return nil
+}
+
+func TestRealtimeMapperMapsOfflinePresence(t *testing.T) {
+	frame, err := (&HTTPServer{}).realtimeEventEnvelope(core.NewLiveEventEnvelope(&corev1.LiveEvent{
+		Id:      "presence-1",
+		ActorId: "U1",
+		Event: &corev1.LiveEvent_PresenceChanged{PresenceChanged: &corev1.PresenceChangedEvent{
+			Status: core.PresenceStatusOffline,
+		}},
+	}))
+	if err != nil {
+		t.Fatalf("realtimeEventEnvelope: %v", err)
+	}
+	presence := frame.GetPresenceChanged()
+	if presence == nil {
+		t.Fatalf("event = %T, want presence_changed", frame.GetEvent())
+	}
+	if presence.Status != apiv1.RealtimePresenceStatus_REALTIME_PRESENCE_STATUS_OFFLINE {
+		t.Fatalf("presence status = %v, want OFFLINE", presence.Status)
+	}
+}
+
+func TestRealtimeMapperMapsThreadCreated(t *testing.T) {
+	frame, err := (&HTTPServer{}).realtimeEventEnvelope(core.NewEVTEventEnvelope(&corev1.Event{
+		Id:      "thread-created-1",
+		ActorId: "U1",
+		Event: &corev1.Event_ThreadCreated{ThreadCreated: &corev1.ThreadCreatedEvent{
+			RoomId: "R1", ThreadRootEventId: "M1",
+		}},
+	}))
+	if err != nil {
+		t.Fatalf("realtimeEventEnvelope: %v", err)
+	}
+	thread := frame.GetThreadCreated()
+	if thread == nil {
+		t.Fatalf("event = %T, want thread_created", frame.GetEvent())
+	}
+	if thread.RoomId != "R1" || thread.ThreadRootEventId != "M1" {
+		t.Fatalf("thread_created = %+v, want room R1 root M1", thread)
+	}
+}
+
+func TestRealtimeMapperMapsUnspecifiedNotificationLevelToDefault(t *testing.T) {
+	frame, err := (&HTTPServer{}).realtimeEventEnvelope(core.NewLiveEventEnvelope(&corev1.LiveEvent{
+		Id:      "notification-level-1",
+		ActorId: "U1",
+		Event: &corev1.LiveEvent_NotificationLevelChanged{NotificationLevelChanged: &corev1.NotificationLevelChangedEvent{
+			RoomId:         "R1",
+			Level:          corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED,
+			EffectiveLevel: corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED,
+		}},
+	}))
+	if err != nil {
+		t.Fatalf("realtimeEventEnvelope: %v", err)
+	}
+	notificationLevel := frame.GetNotificationLevelChanged()
+	if notificationLevel == nil {
+		t.Fatalf("event = %T, want notification_level_changed", frame.GetEvent())
+	}
+	if notificationLevel.Level != apiv1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
+		t.Fatalf("level = %v, want DEFAULT", notificationLevel.Level)
+	}
+	if notificationLevel.EffectiveLevel != apiv1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
+		t.Fatalf("effective level = %v, want DEFAULT", notificationLevel.EffectiveLevel)
+	}
 }
 
 func TestRealtimeWebSocketAuthenticatesWithBearerHello(t *testing.T) {

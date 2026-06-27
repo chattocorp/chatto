@@ -348,6 +348,11 @@ func (s *HTTPServer) mapRealtimeEVT(envelope *apiv1.RealtimeEventEnvelope, event
 		envelope.Event = &apiv1.RealtimeEventEnvelope_UserJoinedRoom{UserJoinedRoom: realtimeRoomEvent(payload.UserJoinedRoom.GetRoomId())}
 	case *corev1.Event_UserLeftRoom:
 		envelope.Event = &apiv1.RealtimeEventEnvelope_UserLeftRoom{UserLeftRoom: realtimeRoomEvent(payload.UserLeftRoom.GetRoomId())}
+	case *corev1.Event_ThreadCreated:
+		thread := payload.ThreadCreated
+		envelope.Event = &apiv1.RealtimeEventEnvelope_ThreadCreated{ThreadCreated: &apiv1.RealtimeThreadCreatedEvent{
+			RoomId: thread.GetRoomId(), ThreadRootEventId: thread.GetThreadRootEventId(),
+		}}
 	case *corev1.Event_RoomUniversalChanged:
 		room := payload.RoomUniversalChanged
 		envelope.Event = &apiv1.RealtimeEventEnvelope_RoomUniversalChanged{RoomUniversalChanged: &apiv1.RealtimeRoomUniversalChangedEvent{
@@ -509,21 +514,25 @@ func realtimeCursor(seq uint64) string {
 	return "rt1:" + base64.RawURLEncoding.EncodeToString(buf[:])
 }
 
-func apiPresenceStatus(status string) apiv1.PresenceStatus {
+func apiPresenceStatus(status string) apiv1.RealtimePresenceStatus {
 	switch status {
+	case core.PresenceStatusOffline:
+		return apiv1.RealtimePresenceStatus_REALTIME_PRESENCE_STATUS_OFFLINE
 	case core.PresenceStatusOnline:
-		return apiv1.PresenceStatus_PRESENCE_STATUS_ONLINE
+		return apiv1.RealtimePresenceStatus_REALTIME_PRESENCE_STATUS_ONLINE
 	case core.PresenceStatusAway:
-		return apiv1.PresenceStatus_PRESENCE_STATUS_AWAY
+		return apiv1.RealtimePresenceStatus_REALTIME_PRESENCE_STATUS_AWAY
 	case core.PresenceStatusDoNotDisturb:
-		return apiv1.PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB
+		return apiv1.RealtimePresenceStatus_REALTIME_PRESENCE_STATUS_DO_NOT_DISTURB
 	default:
-		return apiv1.PresenceStatus_PRESENCE_STATUS_UNSPECIFIED
+		return apiv1.RealtimePresenceStatus_REALTIME_PRESENCE_STATUS_UNSPECIFIED
 	}
 }
 
 func apiNotificationLevel(level corev1.NotificationLevel) apiv1.NotificationLevel {
 	switch level {
+	case corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED:
+		return apiv1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT
 	case corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED:
 		return apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED
 	case corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL:
@@ -531,7 +540,7 @@ func apiNotificationLevel(level corev1.NotificationLevel) apiv1.NotificationLeve
 	case corev1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES:
 		return apiv1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES
 	default:
-		return apiv1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
+		return apiv1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT
 	}
 }
 

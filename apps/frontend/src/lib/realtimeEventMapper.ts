@@ -4,10 +4,10 @@ import {
   TimeFormat
 } from '$lib/gql/graphql';
 import { NotificationLevel as ApiNotificationLevel } from '$lib/pb/chatto/api/v1/notification_preferences_pb';
-import { PresenceStatus as ApiPresenceStatus } from '$lib/pb/chatto/api/v1/presence_pb';
 import {
   RealtimeEventEnvelope,
   RealtimeHeartbeat,
+  RealtimePresenceStatus,
   RealtimeTimeFormat
 } from '$lib/pb/chatto/api/v1/realtime_pb';
 import type { EventEnvelope } from '$lib/eventBus.svelte';
@@ -35,15 +35,16 @@ function notificationLevel(level: ApiNotificationLevel): GqlNotificationLevel {
   }
 }
 
-function presenceStatus(status: ApiPresenceStatus): GqlPresenceStatus {
+function presenceStatus(status: RealtimePresenceStatus): GqlPresenceStatus {
   switch (status) {
-    case ApiPresenceStatus.AWAY:
+    case RealtimePresenceStatus.AWAY:
       return GqlPresenceStatus.Away;
-    case ApiPresenceStatus.DO_NOT_DISTURB:
+    case RealtimePresenceStatus.DO_NOT_DISTURB:
       return GqlPresenceStatus.DoNotDisturb;
-    case ApiPresenceStatus.ONLINE:
+    case RealtimePresenceStatus.ONLINE:
       return GqlPresenceStatus.Online;
-    case ApiPresenceStatus.UNSPECIFIED:
+    case RealtimePresenceStatus.OFFLINE:
+    case RealtimePresenceStatus.UNSPECIFIED:
     default:
       return GqlPresenceStatus.Offline;
   }
@@ -235,6 +236,15 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
           tfcRoomId: frame.event.value.roomId,
           tfcThreadRootEventId: frame.event.value.threadRootEventId,
           isFollowing: frame.event.value.following
+        }
+      } as unknown as EventEnvelope;
+    case 'threadCreated':
+      return {
+        ...base,
+        event: {
+          __typename: 'ThreadCreatedEvent',
+          roomId: frame.event.value.roomId,
+          threadRootEventId: frame.event.value.threadRootEventId
         }
       } as unknown as EventEnvelope;
     case 'roomMarkedAsRead':

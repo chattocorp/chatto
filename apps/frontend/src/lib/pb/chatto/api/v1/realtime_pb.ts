@@ -5,8 +5,57 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
-import { PresenceStatus } from "./presence_pb.js";
 import { NotificationLevel } from "./notification_preferences_pb.js";
+
+/**
+ * Presence status delivered by the realtime stream.
+ *
+ * @generated from enum chatto.api.v1.RealtimePresenceStatus
+ */
+export enum RealtimePresenceStatus {
+  /**
+   * No presence status was specified.
+   *
+   * @generated from enum value: REALTIME_PRESENCE_STATUS_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * The user is offline.
+   *
+   * @generated from enum value: REALTIME_PRESENCE_STATUS_OFFLINE = 1;
+   */
+  OFFLINE = 1,
+
+  /**
+   * The user is actively available.
+   *
+   * @generated from enum value: REALTIME_PRESENCE_STATUS_ONLINE = 2;
+   */
+  ONLINE = 2,
+
+  /**
+   * The user is connected but away or idle.
+   *
+   * @generated from enum value: REALTIME_PRESENCE_STATUS_AWAY = 3;
+   */
+  AWAY = 3,
+
+  /**
+   * The user does not want notifications while this live status is active.
+   *
+   * @generated from enum value: REALTIME_PRESENCE_STATUS_DO_NOT_DISTURB = 4;
+   */
+  DO_NOT_DISTURB = 4,
+}
+// Retrieve enum metadata with: proto3.getEnumType(RealtimePresenceStatus)
+proto3.util.setEnumType(RealtimePresenceStatus, "chatto.api.v1.RealtimePresenceStatus", [
+  { no: 0, name: "REALTIME_PRESENCE_STATUS_UNSPECIFIED" },
+  { no: 1, name: "REALTIME_PRESENCE_STATUS_OFFLINE" },
+  { no: 2, name: "REALTIME_PRESENCE_STATUS_ONLINE" },
+  { no: 3, name: "REALTIME_PRESENCE_STATUS_AWAY" },
+  { no: 4, name: "REALTIME_PRESENCE_STATUS_DO_NOT_DISTURB" },
+]);
 
 /**
  * Time-display format used by realtime preference events.
@@ -913,6 +962,14 @@ export class RealtimeEventEnvelope extends Message<RealtimeEventEnvelope> {
     case: "roomMarkedAsRead";
   } | {
     /**
+     * A thread was created in a room visible to the current user.
+     *
+     * @generated from field: chatto.api.v1.RealtimeThreadCreatedEvent thread_created = 65;
+     */
+    value: RealtimeThreadCreatedEvent;
+    case: "threadCreated";
+  } | {
+    /**
      * The server profile/config changed.
      *
      * @generated from field: chatto.api.v1.RealtimeServerUpdatedEvent server_updated = 70;
@@ -1089,6 +1146,7 @@ export class RealtimeEventEnvelope extends Message<RealtimeEventEnvelope> {
     { no: 62, name: "notification_level_changed", kind: "message", T: RealtimeNotificationLevelChangedEvent, oneof: "event" },
     { no: 63, name: "thread_follow_changed", kind: "message", T: RealtimeThreadFollowChangedEvent, oneof: "event" },
     { no: 64, name: "room_marked_as_read", kind: "message", T: RealtimeRoomMarkedAsReadEvent, oneof: "event" },
+    { no: 65, name: "thread_created", kind: "message", T: RealtimeThreadCreatedEvent, oneof: "event" },
     { no: 70, name: "server_updated", kind: "message", T: RealtimeServerUpdatedEvent, oneof: "event" },
     { no: 71, name: "user_profile_updated", kind: "message", T: RealtimeUserProfileUpdatedEvent, oneof: "event" },
     { no: 72, name: "user_custom_status_set", kind: "message", T: RealtimeUserCustomStatusSetEvent, oneof: "event" },
@@ -1411,9 +1469,9 @@ export class RealtimePresenceChangedEvent extends Message<RealtimePresenceChange
   /**
    * Latest presence status.
    *
-   * @generated from field: chatto.api.v1.PresenceStatus status = 2;
+   * @generated from field: chatto.api.v1.RealtimePresenceStatus status = 2;
    */
-  status = PresenceStatus.UNSPECIFIED;
+  status = RealtimePresenceStatus.UNSPECIFIED;
 
   constructor(data?: PartialMessage<RealtimePresenceChangedEvent>) {
     super();
@@ -1424,7 +1482,7 @@ export class RealtimePresenceChangedEvent extends Message<RealtimePresenceChange
   static readonly typeName = "chatto.api.v1.RealtimePresenceChangedEvent";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "status", kind: "enum", T: proto3.getEnumType(PresenceStatus) },
+    { no: 2, name: "status", kind: "enum", T: proto3.getEnumType(RealtimePresenceStatus) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimePresenceChangedEvent {
@@ -1759,6 +1817,55 @@ export class RealtimeThreadFollowChangedEvent extends Message<RealtimeThreadFoll
 
   static equals(a: RealtimeThreadFollowChangedEvent | PlainMessage<RealtimeThreadFollowChangedEvent> | undefined, b: RealtimeThreadFollowChangedEvent | PlainMessage<RealtimeThreadFollowChangedEvent> | undefined): boolean {
     return proto3.util.equals(RealtimeThreadFollowChangedEvent, a, b);
+  }
+}
+
+/**
+ * Thread-created signal.
+ *
+ * @generated from message chatto.api.v1.RealtimeThreadCreatedEvent
+ */
+export class RealtimeThreadCreatedEvent extends Message<RealtimeThreadCreatedEvent> {
+  /**
+   * Room containing the thread.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Root message event ID that identifies the thread.
+   *
+   * @generated from field: string thread_root_event_id = 2;
+   */
+  threadRootEventId = "";
+
+  constructor(data?: PartialMessage<RealtimeThreadCreatedEvent>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.RealtimeThreadCreatedEvent";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeThreadCreatedEvent {
+    return new RealtimeThreadCreatedEvent().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeThreadCreatedEvent {
+    return new RealtimeThreadCreatedEvent().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeThreadCreatedEvent {
+    return new RealtimeThreadCreatedEvent().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RealtimeThreadCreatedEvent | PlainMessage<RealtimeThreadCreatedEvent> | undefined, b: RealtimeThreadCreatedEvent | PlainMessage<RealtimeThreadCreatedEvent> | undefined): boolean {
+    return proto3.util.equals(RealtimeThreadCreatedEvent, a, b);
   }
 }
 

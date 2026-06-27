@@ -1779,6 +1779,7 @@ it as a sequence number, timestamp, NATS subject, or storage position.
 | `event.notification_level_changed` | [`RealtimeNotificationLevelChangedEvent`](#chatto-api-v1-RealtimeNotificationLevelChangedEvent) | The current user's notification level changed. |
 | `event.thread_follow_changed` | [`RealtimeThreadFollowChangedEvent`](#chatto-api-v1-RealtimeThreadFollowChangedEvent) | The current user's thread follow state changed. |
 | `event.room_marked_as_read` | [`RealtimeRoomMarkedAsReadEvent`](#chatto-api-v1-RealtimeRoomMarkedAsReadEvent) | The current user's room read state changed. |
+| `event.thread_created` | [`RealtimeThreadCreatedEvent`](#chatto-api-v1-RealtimeThreadCreatedEvent) | A thread was created in a room visible to the current user. |
 | `event.server_updated` | [`RealtimeServerUpdatedEvent`](#chatto-api-v1-RealtimeServerUpdatedEvent) | The server profile/config changed. |
 | `event.user_profile_updated` | [`RealtimeUserProfileUpdatedEvent`](#chatto-api-v1-RealtimeUserProfileUpdatedEvent) | A user profile changed. |
 | `event.user_custom_status_set` | [`RealtimeUserCustomStatusSetEvent`](#chatto-api-v1-RealtimeUserCustomStatusSetEvent) | A user's custom status was set or changed. |
@@ -1955,7 +1956,7 @@ Presence-changed signal.
 | Field | Type | Description |
 | --- | --- | --- |
 | `user_id` | `string` | User whose presence changed. |
-| `status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Latest presence status. |
+| `status` | [`RealtimePresenceStatus`](#chatto-api-v1-RealtimePresenceStatus) | Latest presence status. |
 
 
 
@@ -2124,6 +2125,19 @@ Confirms event streaming has started.
 | Field | Type | Description |
 | --- | --- | --- |
 | `cursor` | `string` | Opaque cursor from which the stream starts, when known. |
+
+
+
+<a id="chatto-api-v1-RealtimeThreadCreatedEvent"></a>
+
+### RealtimeThreadCreatedEvent
+
+Thread-created signal.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room containing the thread. |
+| `thread_root_event_id` | `string` | Root message event ID that identifies the thread. |
 
 
 
@@ -2375,6 +2389,21 @@ record expire.
 | `PRESENCE_STATUS_ONLINE` | `1` | The user is actively available. |
 | `PRESENCE_STATUS_AWAY` | `2` | The user is connected but away or idle. |
 | `PRESENCE_STATUS_DO_NOT_DISTURB` | `3` | The user does not want notifications while this live status is active. |
+
+
+<a id="chatto-api-v1-RealtimePresenceStatus"></a>
+
+### RealtimePresenceStatus
+
+Presence status delivered by the realtime stream.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `REALTIME_PRESENCE_STATUS_UNSPECIFIED` | `0` | No presence status was specified. |
+| `REALTIME_PRESENCE_STATUS_OFFLINE` | `1` | The user is offline. |
+| `REALTIME_PRESENCE_STATUS_ONLINE` | `2` | The user is actively available. |
+| `REALTIME_PRESENCE_STATUS_AWAY` | `3` | The user is connected but away or idle. |
+| `REALTIME_PRESENCE_STATUS_DO_NOT_DISTURB` | `4` | The user does not want notifications while this live status is active. |
 
 
 <a id="chatto-api-v1-RealtimeTimeFormat"></a>
