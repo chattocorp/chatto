@@ -78,7 +78,7 @@ func subscribeRealtime(t *testing.T, conn *websocket.Conn, token string) {
 	}
 	if got := hello.GetHello(); got == nil {
 		t.Fatalf("first realtime frame = %T, want hello", hello.GetFrame())
-	} else if got.ProtocolVersion != realtimeProtocolVersion || got.ServerVersion == "" || got.ResumeSupported {
+	} else if got.ProtocolVersion != realtimeProtocolVersion || got.ServerVersion == "" {
 		t.Fatalf("unexpected realtime hello: %+v", got)
 	}
 
@@ -209,9 +209,6 @@ func TestRealtimeMapperOmitsAbsentNotificationNavigationFields(t *testing.T) {
 	}
 	if frame.ActorId == nil || frame.GetActorId() != "U1" {
 		t.Fatalf("actor_id = %q, present=%v; want U1 present", frame.GetActorId(), frame.ActorId != nil)
-	}
-	if frame.Cursor != nil {
-		t.Fatalf("cursor present = %q, want absent for zero delivery sequence", frame.GetCursor())
 	}
 	notification := frame.GetNotificationCreated()
 	if notification == nil {
@@ -400,9 +397,6 @@ func TestRealtimeWebSocketDeliversRoomMessageToMember(t *testing.T) {
 	})
 	if event == nil {
 		t.Fatal("member did not receive realtime message_posted event")
-	}
-	if event.Cursor == nil || event.GetCursor() == "" {
-		t.Fatal("message_posted cursor is absent or empty; want opaque durable cursor")
 	}
 	msg := event.GetMessagePosted()
 	if msg.RoomId != room.Id || msg.MessageEventId != posted.Id {

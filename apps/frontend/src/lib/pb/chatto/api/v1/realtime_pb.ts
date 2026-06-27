@@ -170,14 +170,6 @@ export class RealtimeClientFrame extends Message<RealtimeClientFrame> {
      */
     value: RealtimePing;
     case: "ping";
-  } | {
-    /**
-     * Acknowledges the latest event cursor processed by the client.
-     *
-     * @generated from field: chatto.api.v1.RealtimeAck ack = 4;
-     */
-    value: RealtimeAck;
-    case: "ack";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<RealtimeClientFrame>) {
@@ -191,7 +183,6 @@ export class RealtimeClientFrame extends Message<RealtimeClientFrame> {
     { no: 1, name: "hello", kind: "message", T: RealtimeClientHello, oneof: "frame" },
     { no: 2, name: "subscribe_events", kind: "message", T: RealtimeSubscribeEvents, oneof: "frame" },
     { no: 3, name: "ping", kind: "message", T: RealtimePing, oneof: "frame" },
-    { no: 4, name: "ack", kind: "message", T: RealtimeAck, oneof: "frame" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeClientFrame {
@@ -332,13 +323,6 @@ export class RealtimeClientHello extends Message<RealtimeClientHello> {
    */
   bearerToken?: string;
 
-  /**
-   * Optional opaque cursor reserved for future resume support.
-   *
-   * @generated from field: optional string resume_cursor = 3;
-   */
-  resumeCursor?: string;
-
   constructor(data?: PartialMessage<RealtimeClientHello>) {
     super();
     proto3.util.initPartial(data, this);
@@ -349,7 +333,6 @@ export class RealtimeClientHello extends Message<RealtimeClientHello> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "protocol_version", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 2, name: "bearer_token", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 3, name: "resume_cursor", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeClientHello {
@@ -390,13 +373,6 @@ export class RealtimeServerHello extends Message<RealtimeServerHello> {
   serverVersion = "";
 
   /**
-   * True when the server can resume from event cursors.
-   *
-   * @generated from field: bool resume_supported = 3;
-   */
-  resumeSupported = false;
-
-  /**
    * Approximate heartbeat interval clients should expect.
    *
    * @generated from field: uint32 heartbeat_interval_seconds = 4;
@@ -413,7 +389,6 @@ export class RealtimeServerHello extends Message<RealtimeServerHello> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "protocol_version", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 2, name: "server_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "resume_supported", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 4, name: "heartbeat_interval_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
@@ -473,13 +448,6 @@ export class RealtimeSubscribeEvents extends Message<RealtimeSubscribeEvents> {
  * @generated from message chatto.api.v1.RealtimeSubscribed
  */
 export class RealtimeSubscribed extends Message<RealtimeSubscribed> {
-  /**
-   * Opaque cursor from which the stream starts, when known.
-   *
-   * @generated from field: optional string cursor = 1;
-   */
-  cursor?: string;
-
   constructor(data?: PartialMessage<RealtimeSubscribed>) {
     super();
     proto3.util.initPartial(data, this);
@@ -488,7 +456,6 @@ export class RealtimeSubscribed extends Message<RealtimeSubscribed> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.RealtimeSubscribed";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "cursor", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeSubscribed {
@@ -587,47 +554,6 @@ export class RealtimePong extends Message<RealtimePong> {
 
   static equals(a: RealtimePong | PlainMessage<RealtimePong> | undefined, b: RealtimePong | PlainMessage<RealtimePong> | undefined): boolean {
     return proto3.util.equals(RealtimePong, a, b);
-  }
-}
-
-/**
- * Client acknowledgement for an event cursor.
- *
- * @generated from message chatto.api.v1.RealtimeAck
- */
-export class RealtimeAck extends Message<RealtimeAck> {
-  /**
-   * Latest opaque event cursor fully processed by the client.
-   *
-   * @generated from field: string cursor = 1;
-   */
-  cursor = "";
-
-  constructor(data?: PartialMessage<RealtimeAck>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.RealtimeAck";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "cursor", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeAck {
-    return new RealtimeAck().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeAck {
-    return new RealtimeAck().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeAck {
-    return new RealtimeAck().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeAck | PlainMessage<RealtimeAck> | undefined, b: RealtimeAck | PlainMessage<RealtimeAck> | undefined): boolean {
-    return proto3.util.equals(RealtimeAck, a, b);
   }
 }
 
@@ -805,9 +731,6 @@ export class RealtimeClose extends Message<RealtimeClose> {
 /**
  * One authorized live event delivered over the realtime WebSocket.
  *
- * The cursor is opaque. Clients may store and later echo it, but must not parse
- * it as a sequence number, timestamp, NATS subject, or storage position.
- *
  * @generated from message chatto.api.v1.RealtimeEventEnvelope
  */
 export class RealtimeEventEnvelope extends Message<RealtimeEventEnvelope> {
@@ -831,13 +754,6 @@ export class RealtimeEventEnvelope extends Message<RealtimeEventEnvelope> {
    * @generated from field: optional string actor_id = 3;
    */
   actorId?: string;
-
-  /**
-   * Opaque resume/ack cursor, when this event has one.
-   *
-   * @generated from field: optional string cursor = 4;
-   */
-  cursor?: string;
 
   /**
    * @generated from oneof chatto.api.v1.RealtimeEventEnvelope.event
@@ -1167,7 +1083,6 @@ export class RealtimeEventEnvelope extends Message<RealtimeEventEnvelope> {
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "created_at", kind: "message", T: Timestamp },
     { no: 3, name: "actor_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 4, name: "cursor", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 10, name: "message_posted", kind: "message", T: RealtimeMessagePostedEvent, oneof: "event" },
     { no: 11, name: "message_edited", kind: "message", T: RealtimeMessageEditedEvent, oneof: "event" },
     { no: 12, name: "message_retracted", kind: "message", T: RealtimeMessageRetractedEvent, oneof: "event" },

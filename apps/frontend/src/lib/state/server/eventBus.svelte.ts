@@ -1,7 +1,8 @@
 /**
  * Manages per-server realtime event streams. One `/api/realtime` WebSocket
- * per registered server feeds the local event bus; consumers stay decoupled
- * from the wire protocol by receiving the existing EventEnvelope shape.
+ * per registered server feeds the local event bus; consumers receive the
+ * existing EventEnvelope shape with the decoded protobuf envelope attached for
+ * paths that are ready to use the public realtime payload directly.
  */
 
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
@@ -11,6 +12,7 @@ import type {
   EventBus,
   EventEnvelope
 } from '$lib/eventBus.svelte';
+import { attachRealtimeEventEnvelope } from '$lib/eventBus.svelte';
 import { realtimeEventToEventEnvelope } from '$lib/realtimeEventMapper';
 import {
   RealtimeClientFrame,
@@ -57,7 +59,7 @@ function clientHelloFrame(token: string | null): Uint8Array {
       case: 'hello',
       value: new RealtimeClientHello({
         protocolVersion: 1,
-        bearerToken: token ?? ''
+        bearerToken: token ?? undefined
       })
     }
   }).toBinary();
@@ -215,7 +217,6 @@ class EventBusManager {
               reconnectAttempts = 0;
               gqlClient.setRealtimeConnectionStatus('connected');
               console.debug(`[eventBus:${serverId}] realtime stream subscribed`, {
-                cursor: frame.frame.value.cursor,
                 generation: socketGeneration
               });
               return;
@@ -227,7 +228,7 @@ class EventBusManager {
               return;
             case 'event': {
               const event = realtimeEventToEventEnvelope(frame.frame.value);
-              if (event) dispatchEvent(event);
+              if (event) dispatchEvent(attachRealtimeEventEnvelope(event, frame.frame.value));
               return;
             }
             case 'error':

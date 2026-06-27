@@ -2,8 +2,6 @@ package http_server
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"net/http"
@@ -114,12 +112,6 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseProtocolError, "unsupported protocol"), time.Now().Add(time.Second))
 		return
 	}
-	if clientHello.GetResumeCursor() != "" {
-		writeError("resume_unavailable", "resume cursors are reserved but not supported by this server version", true)
-		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "resume unavailable"), time.Now().Add(time.Second))
-		return
-	}
-
 	user, err := s.realtimeAuthenticatedUser(ctx, clientHello)
 	if err != nil {
 		writeError("authentication_required", "authentication required", true)
@@ -131,7 +123,6 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		Hello: &apiv1.RealtimeServerHello{
 			ProtocolVersion:          realtimeProtocolVersion,
 			ServerVersion:            s.version,
-			ResumeSupported:          false,
 			HeartbeatIntervalSeconds: realtimeHeartbeatIntervalSeconds,
 		},
 	}}); err != nil {
@@ -241,8 +232,6 @@ func (s *HTTPServer) readRealtimeControlFrames(ctx context.Context, cancel conte
 			_ = writeFrame(&apiv1.RealtimeServerFrame{Frame: &apiv1.RealtimeServerFrame_Pong{
 				Pong: &apiv1.RealtimePong{Nonce: payload.Ping.GetNonce()},
 			}})
-		case *apiv1.RealtimeClientFrame_Ack:
-			// Reserved for future backpressure/resume accounting.
 		default:
 			_ = writeFrame(&apiv1.RealtimeServerFrame{Frame: &apiv1.RealtimeServerFrame_Error{
 				Error: &apiv1.RealtimeError{Code: "bad_frame", Message: "unexpected control frame", Fatal: true},
@@ -287,7 +276,6 @@ func (s *HTTPServer) realtimeEventEnvelope(ctx context.Context, viewerID string,
 		Id:        event.ID(),
 		CreatedAt: event.CreatedAt(),
 		ActorId:   optionalRealtimeString(event.ActorID()),
-		Cursor:    optionalRealtimeString(realtimeCursor(event.DeliverySeq())),
 	}
 
 	if evt := event.EVTEvent(); evt != nil {
@@ -598,15 +586,6 @@ func (s *HTTPServer) viewerCanReadRealtimeRoomLabel(ctx context.Context, viewerI
 	}
 	ok, err := s.core.CanSeeRoom(ctx, viewerID, kind, room.GetId())
 	return err == nil && ok
-}
-
-func realtimeCursor(seq uint64) string {
-	if seq == 0 {
-		return ""
-	}
-	var buf [8]byte
-	binary.BigEndian.PutUint64(buf[:], seq)
-	return "rt1:" + base64.RawURLEncoding.EncodeToString(buf[:])
 }
 
 func apiPresenceStatus(status string) apiv1.RealtimePresenceStatus {

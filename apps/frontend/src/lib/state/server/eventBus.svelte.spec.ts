@@ -1,9 +1,10 @@
 import { Timestamp } from '@bufbuild/protobuf';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createEventBusHandlerRegistrar } from '$lib/eventBus.svelte';
+import { createEventBusHandlerRegistrar, getRealtimeEventEnvelope } from '$lib/eventBus.svelte';
 import {
   RealtimeEventEnvelope,
   RealtimeHeartbeat,
+  RealtimeMentionNotificationEvent,
   RealtimeServerFrame,
   RealtimeServerHello,
   RealtimeServerUpdatedEvent,
@@ -111,7 +112,7 @@ function helloFrame(): RealtimeServerFrame {
 }
 
 function subscribedFrame(): RealtimeServerFrame {
-  return serverFrame({ case: 'subscribed', value: new RealtimeSubscribed({ cursor: 'cursor-1' }) });
+  return serverFrame({ case: 'subscribed', value: new RealtimeSubscribed() });
 }
 
 function serverUpdatedFrame(id = 'evt-1'): RealtimeServerFrame {
@@ -136,6 +137,26 @@ function heartbeatFrame(): RealtimeServerFrame {
   return serverFrame({
     case: 'heartbeat',
     value: new RealtimeHeartbeat({ id: 'heartbeat-1', createdAt: Timestamp.now() })
+  });
+}
+
+function mentionNotificationFrame(): RealtimeServerFrame {
+  return serverFrame({
+    case: 'event',
+    value: new RealtimeEventEnvelope({
+      id: 'evt-mention',
+      createdAt: Timestamp.now(),
+      actorId: 'user-1',
+      event: {
+        case: 'mentionNotification',
+        value: new RealtimeMentionNotificationEvent({
+          roomId: 'room-1',
+          actorUserId: 'user-1',
+          actorDisplayName: 'Ada Lovelace',
+          roomName: 'General'
+        })
+      }
+    })
   });
 }
 
@@ -208,6 +229,31 @@ describe('eventBusManager realtime transport', () => {
           __typename: 'ServerUpdatedEvent',
           name: 'Updated'
         })
+      })
+    );
+  });
+
+  it('attaches the decoded protobuf event to dispatched envelopes', async () => {
+    const { socket } = await startAndSubscribe();
+    const handler = vi.fn();
+    eventBusManager.getBus(TEST_SERVER)!.handlers.add(handler);
+
+    await socket.receive(mentionNotificationFrame());
+
+    const dispatched = handler.mock.calls[0]?.[0];
+    expect(dispatched).toEqual(
+      expect.objectContaining({
+        event: expect.objectContaining({
+          __typename: 'MentionNotificationEvent'
+        })
+      })
+    );
+    const realtime = getRealtimeEventEnvelope(dispatched);
+    expect(realtime?.event.case).toBe('mentionNotification');
+    expect(realtime?.event.value).toEqual(
+      expect.objectContaining({
+        actorDisplayName: 'Ada Lovelace',
+        roomName: 'General'
       })
     );
   });

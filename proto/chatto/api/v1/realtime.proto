@@ -11,6 +11,9 @@ import "google/protobuf/timestamp.proto";
 // be `hello`; after the server replies with `hello`, clients send
 // `subscribe_events` to start the authenticated live event stream.
 message RealtimeClientFrame {
+  reserved 4;
+  reserved "ack";
+
   oneof frame {
     // Opens the protocol session and optionally carries a bearer token.
     RealtimeClientHello hello = 1;
@@ -18,8 +21,6 @@ message RealtimeClientFrame {
     RealtimeSubscribeEvents subscribe_events = 2;
     // Application-level ping. The server replies with `pong`.
     RealtimePing ping = 3;
-    // Acknowledges the latest event cursor processed by the client.
-    RealtimeAck ack = 4;
   }
 }
 
@@ -45,22 +46,24 @@ message RealtimeServerFrame {
 
 // Initial client hello.
 message RealtimeClientHello {
+  reserved 3;
+  reserved "resume_cursor";
+
   // Protocol version requested by the client. The current version is 1.
   uint32 protocol_version = 1;
   // Optional bearer token. When present, it takes precedence over cookie auth.
   optional string bearer_token = 2;
-  // Optional opaque cursor reserved for future resume support.
-  optional string resume_cursor = 3;
 }
 
 // Initial server hello.
 message RealtimeServerHello {
+  reserved 3;
+  reserved "resume_supported";
+
   // Protocol version accepted by the server.
   uint32 protocol_version = 1;
   // Chatto server software version.
   string server_version = 2;
-  // True when the server can resume from event cursors.
-  bool resume_supported = 3;
   // Approximate heartbeat interval clients should expect.
   uint32 heartbeat_interval_seconds = 4;
 }
@@ -70,8 +73,8 @@ message RealtimeSubscribeEvents {}
 
 // Confirms event streaming has started.
 message RealtimeSubscribed {
-  // Opaque cursor from which the stream starts, when known.
-  optional string cursor = 1;
+  reserved 1;
+  reserved "cursor";
 }
 
 // Application-level ping.
@@ -84,12 +87,6 @@ message RealtimePing {
 message RealtimePong {
   // Echo of the ping nonce.
   string nonce = 1;
-}
-
-// Client acknowledgement for an event cursor.
-message RealtimeAck {
-  // Latest opaque event cursor fully processed by the client.
-  string cursor = 1;
 }
 
 // Application-level heartbeat.
@@ -123,18 +120,16 @@ message RealtimeClose {
 }
 
 // One authorized live event delivered over the realtime WebSocket.
-//
-// The cursor is opaque. Clients may store and later echo it, but must not parse
-// it as a sequence number, timestamp, NATS subject, or storage position.
 message RealtimeEventEnvelope {
+  reserved 4;
+  reserved "cursor";
+
   // Stable event ID.
   string id = 1;
   // Time the event was created.
   google.protobuf.Timestamp created_at = 2;
   // User or system actor that caused the event, when known.
   optional string actor_id = 3;
-  // Opaque resume/ack cursor, when this event has one.
-  optional string cursor = 4;
 
   oneof event {
     // A message was posted in a room or thread.

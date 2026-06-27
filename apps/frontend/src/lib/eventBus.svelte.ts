@@ -21,6 +21,7 @@ import {
 } from './gql/graphql';
 import { eventBusManager } from './state/server/eventBus.svelte';
 import type { CustomUserStatus } from './state/userProfiles.svelte';
+import type { RealtimeEventEnvelope as RealtimeProtobufEventEnvelope } from '$lib/pb/chatto/api/v1/realtime_pb';
 
 export const MyServerEventsSubscriptionDoc = graphql(`
   subscription MyServerEvents {
@@ -261,6 +262,29 @@ export interface EventBus {
   catchUpHandlers: SvelteSet<EventBusCatchUpHandler>;
 }
 
+const realtimeEnvelopeSymbol: unique symbol = Symbol('chattoRealtimeEventEnvelope');
+
+type EventEnvelopeWithRealtime = EventEnvelope & {
+  [realtimeEnvelopeSymbol]?: RealtimeProtobufEventEnvelope;
+};
+
+export function attachRealtimeEventEnvelope(
+  event: EventEnvelope,
+  realtimeEnvelope: RealtimeProtobufEventEnvelope
+): EventEnvelope {
+  Object.defineProperty(event, realtimeEnvelopeSymbol, {
+    value: realtimeEnvelope,
+    enumerable: false
+  });
+  return event;
+}
+
+export function getRealtimeEventEnvelope(
+  event: EventEnvelope
+): RealtimeProtobufEventEnvelope | undefined {
+  return (event as EventEnvelopeWithRealtime)[realtimeEnvelopeSymbol];
+}
+
 // The context holds a getter — not a fixed bus — so reads from inside a
 // consumer's $effect track whatever reactive state the getter touches
 // (typically `page.params.serverId` via `getActiveServer`). When the URL
@@ -419,6 +443,18 @@ export function onMention(handler: (notification: MentionNotification) => void):
   return onTypedEvent(
     'MentionNotificationEvent',
     (env, e) => {
+      const realtime = getRealtimeEventEnvelope(env);
+      if (realtime?.event.case === 'mentionNotification') {
+        const mention = realtime.event.value;
+        return {
+          roomId: mention.roomId,
+          actorUserId: mention.actorUserId ?? env.actorId ?? '',
+          actorDisplayName: mention.actorDisplayName ?? 'Unknown user',
+          spaceName: '',
+          roomName: mention.roomName ?? ''
+        };
+      }
+
       const envelopeActor = env.actor ? useFragment(UserAvatarUserFragmentDoc, env.actor) : null;
       const actor = e.actor ?? envelopeActor;
 
@@ -446,6 +482,18 @@ export function onNewDM(handler: (notification: DMNotification) => void): () => 
   return onTypedEvent(
     'NewDirectMessageNotificationEvent',
     (env, e) => {
+      const realtime = getRealtimeEventEnvelope(env);
+      if (realtime?.event.case === 'newDirectMessageNotification') {
+        const dm = realtime.event.value;
+        return {
+          roomId: dm.roomId,
+          senderId: dm.senderId ?? env.actorId ?? '',
+          senderDisplayName: dm.senderDisplayName ?? 'Unknown user',
+          senderAvatarUrl: dm.senderAvatarUrl ?? '',
+          conversationName: dm.conversationName ?? ''
+        };
+      }
+
       const envelopeActor = env.actor ? useFragment(UserAvatarUserFragmentDoc, env.actor) : null;
       const sender = e.sender ?? envelopeActor;
 
@@ -474,7 +522,18 @@ export function onNotificationCreated(
 ): () => void {
   return onTypedEvent(
     'NotificationCreatedEvent',
-    (_env, e) => {
+    (env, e) => {
+      const realtime = getRealtimeEventEnvelope(env);
+      if (realtime?.event.case === 'notificationCreated') {
+        const notification = realtime.event.value;
+        return {
+          notificationId: notification.notificationId,
+          roomId: notification.roomId,
+          eventId: notification.eventId,
+          inReplyToId: notification.inReplyToId
+        };
+      }
+
       return {
         notificationId: e.notificationId,
         roomId: e.roomId ?? undefined,
