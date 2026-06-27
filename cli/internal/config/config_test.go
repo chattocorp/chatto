@@ -613,6 +613,8 @@ func TestReadConfig_SMTPPolicyFromEnv(t *testing.T) {
 	t.Setenv("CHATTO_CORE_SECRET_KEY", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
 	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
 	t.Setenv("CHATTO_SMTP_TLS", "opportunistic")
+	t.Setenv("CHATTO_SMTP_TLS_SERVER_NAME", "mail.example.com")
+	t.Setenv("CHATTO_SMTP_TLS_SKIP_VERIFY", "true")
 
 	cfg, err := ReadConfig("")
 	if err != nil {
@@ -621,6 +623,12 @@ func TestReadConfig_SMTPPolicyFromEnv(t *testing.T) {
 
 	if got := cfg.SMTP.TLSPolicyOrDefault(); got != SMTPTLSOpportunistic {
 		t.Errorf("expected SMTP TLS policy %q from env, got %q", SMTPTLSOpportunistic, got)
+	}
+	if got := cfg.SMTP.TLSServerName; got != "mail.example.com" {
+		t.Errorf("expected SMTP TLS server name from env, got %q", got)
+	}
+	if !cfg.SMTP.TLSSkipVerify {
+		t.Error("expected SMTP TLS skip verify from env")
 	}
 }
 

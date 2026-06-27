@@ -3,6 +3,7 @@ package email
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 
@@ -107,6 +108,18 @@ func mailOptions(cfg config.SMTPConfig) []mail.Option {
 		opts = append(opts, mail.WithTLSPortPolicy(mail.TLSOpportunistic))
 	default:
 		opts = append(opts, mail.WithTLSPortPolicy(mail.TLSMandatory))
+	}
+
+	if cfg.TLSSkipVerify || cfg.TLSServerName != "" {
+		serverName := cfg.Host
+		if cfg.TLSServerName != "" {
+			serverName = cfg.TLSServerName
+		}
+		opts = append(opts, mail.WithTLSConfig(&tls.Config{
+			ServerName:         serverName,
+			InsecureSkipVerify: cfg.TLSSkipVerify,
+			MinVersion:         tls.VersionTLS12,
+		}))
 	}
 
 	return opts

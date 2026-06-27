@@ -332,6 +332,14 @@ See [External Login Providers](/guides/external-login-providers/) for callback U
   SMTP TLS policy. Use `mandatory` to require STARTTLS on port `587`, or `implicit` for SMTPS on port `465`. When this value is omitted or left as `mandatory`, Chatto automatically uses implicit TLS for port `465`. Use `opportunistic` only when the SMTP server cannot support mandatory STARTTLS and plaintext fallback is explicitly acceptable.
 </EnvVar>
 
+<EnvVar name="CHATTO_SMTP_TLS_SERVER_NAME" toml="smtp.tls_server_name">
+  SMTP TLS server name for certificate verification and SNI. Use when `smtp.host` is an IP address or internal alias but the certificate is issued for a DNS name.
+</EnvVar>
+
+<EnvVar name="CHATTO_SMTP_TLS_SKIP_VERIFY" toml="smtp.tls_skip_verify" default="false">
+  Disable SMTP TLS certificate verification. Insecure; use only for trusted internal SMTP servers with self-signed or mismatched certificates.
+</EnvVar>
+
 <EnvVar name="CHATTO_SMTP_USERNAME" toml="smtp.username">
   SMTP username.
 </EnvVar>

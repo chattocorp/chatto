@@ -714,13 +714,15 @@ func (c *SMTPConfig) TLSPolicyOrDefault() SMTPTLSPolicy {
 
 // SMTPConfig contains settings for sending transactional emails.
 type SMTPConfig struct {
-	Enabled  bool          `toml:"enabled" env:"CHATTO_SMTP_ENABLED" comment:"Enable SMTP for sending transactional emails (verification, password reset, etc.)."`
-	Host     string        `toml:"host" env:"CHATTO_SMTP_HOST" comment:"SMTP server hostname. Example: smtp.example.com"`
-	Port     int           `toml:"port" env:"CHATTO_SMTP_PORT" comment:"SMTP server port. Common value: 587 (STARTTLS)."`
-	TLS      SMTPTLSPolicy `toml:"tls" env:"CHATTO_SMTP_TLS" comment:"SMTP TLS policy: mandatory STARTTLS (default), implicit TLS/SMTPS, or opportunistic. Opportunistic allows plaintext fallback and should only be used when explicitly required."`
-	Username string        `toml:"username" env:"CHATTO_SMTP_USERNAME" comment:"SMTP authentication username."`
-	Password string        `toml:"password" env:"CHATTO_SMTP_PASSWORD" comment:"SMTP authentication password. NEVER SHARE THIS!"`
-	From     string        `toml:"from" env:"CHATTO_SMTP_FROM" comment:"From address for outgoing emails. Example: noreply@example.com"`
+	Enabled       bool          `toml:"enabled" env:"CHATTO_SMTP_ENABLED" comment:"Enable SMTP for sending transactional emails (verification, password reset, etc.)."`
+	Host          string        `toml:"host" env:"CHATTO_SMTP_HOST" comment:"SMTP server hostname. Example: smtp.example.com"`
+	Port          int           `toml:"port" env:"CHATTO_SMTP_PORT" comment:"SMTP server port. Common value: 587 (STARTTLS)."`
+	TLS           SMTPTLSPolicy `toml:"tls" env:"CHATTO_SMTP_TLS" comment:"SMTP TLS policy: mandatory STARTTLS (default), implicit TLS/SMTPS, or opportunistic. Opportunistic allows plaintext fallback and should only be used when explicitly required."`
+	TLSServerName string        `toml:"tls_server_name,commented" env:"CHATTO_SMTP_TLS_SERVER_NAME" comment:"SMTP TLS server name for certificate verification and SNI. Use when smtp.host is an IP address or internal alias but the certificate is issued for a DNS name."`
+	TLSSkipVerify bool          `toml:"tls_skip_verify,commented" env:"CHATTO_SMTP_TLS_SKIP_VERIFY" comment:"Disable SMTP TLS certificate verification. Insecure; use only for trusted internal SMTP servers with self-signed or mismatched certificates."`
+	Username      string        `toml:"username" env:"CHATTO_SMTP_USERNAME" comment:"SMTP authentication username."`
+	Password      string        `toml:"password" env:"CHATTO_SMTP_PASSWORD" comment:"SMTP authentication password. NEVER SHARE THIS!"`
+	From          string        `toml:"from" env:"CHATTO_SMTP_FROM" comment:"From address for outgoing emails. Example: noreply@example.com"`
 }
 
 // PushConfig contains settings for Web Push notifications.
