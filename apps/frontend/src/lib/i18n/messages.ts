@@ -1083,6 +1083,7 @@ const msg_admin_system_title = (): LocalizedString => messages().admin_system_ti
 const msg_admin_system_subtitle = (): LocalizedString => messages().admin_system_subtitle(empty());
 const msg_admin_system_loading = (): LocalizedString => messages().admin_system_loading(empty());
 const msg_admin_system_connection = (): LocalizedString => messages().admin_system_connection(empty());
+const msg_admin_system_broker = (): LocalizedString => messages().admin_system_broker(empty());
 const msg_admin_system_connected = (): LocalizedString => messages().admin_system_connected(empty());
 const msg_admin_system_disconnected = (): LocalizedString => messages().admin_system_disconnected(empty());
 const msg_admin_system_unlimited = (): LocalizedString => messages().admin_system_unlimited(empty());
@@ -1091,16 +1092,47 @@ const msg_admin_system_pending_state = (): LocalizedString => messages().admin_s
 const msg_admin_system_rtt = (): LocalizedString => messages().admin_system_rtt(empty());
 const msg_admin_system_max_payload = (): LocalizedString => messages().admin_system_max_payload(empty());
 const msg_admin_system_server_id = (): LocalizedString => messages().admin_system_server_id(empty());
+const msg_admin_system_server_name = (): LocalizedString => messages().admin_system_server_name(empty());
 const msg_admin_system_limit = (
   inputs: Parameters<LocaleMessages['admin_system_limit']>[0]
 ): LocalizedString => messages().admin_system_limit(inputs);
+const msg_admin_system_used_of_limit = (
+  inputs: Parameters<LocaleMessages['admin_system_used_of_limit']>[0]
+): LocalizedString => messages().admin_system_used_of_limit(inputs);
+const msg_admin_system_jetstream_account = (): LocalizedString => messages().admin_system_jetstream_account(empty());
 const msg_admin_system_account_storage = (): LocalizedString => messages().admin_system_account_storage(empty());
+const msg_admin_system_account_memory = (): LocalizedString => messages().admin_system_account_memory(empty());
+const msg_admin_system_stream_capacity = (): LocalizedString => messages().admin_system_stream_capacity(empty());
+const msg_admin_system_consumer_capacity = (): LocalizedString => messages().admin_system_consumer_capacity(empty());
+const msg_admin_system_stream_activity = (): LocalizedString => messages().admin_system_stream_activity(empty());
 const msg_admin_system_events = (): LocalizedString => messages().admin_system_events(empty());
 const msg_admin_system_event_bytes = (): LocalizedString => messages().admin_system_event_bytes(empty());
+const msg_admin_system_messages_stored = (): LocalizedString => messages().admin_system_messages_stored(empty());
+const msg_admin_system_stream_bytes = (): LocalizedString => messages().admin_system_stream_bytes(empty());
+const msg_admin_system_average_message_size = (
+  inputs: Parameters<LocaleMessages['admin_system_average_message_size']>[0]
+): LocalizedString => messages().admin_system_average_message_size(inputs);
+const msg_admin_system_storage_mix = (
+  inputs: Parameters<LocaleMessages['admin_system_storage_mix']>[0]
+): LocalizedString => messages().admin_system_storage_mix(inputs);
 const msg_admin_system_consumer_backlog = (): LocalizedString => messages().admin_system_consumer_backlog(empty());
 const msg_admin_system_consumer_backlog_subtitle = (
   inputs: Parameters<LocaleMessages['admin_system_consumer_backlog_subtitle']>[0]
 ): LocalizedString => messages().admin_system_consumer_backlog_subtitle(inputs);
+const msg_admin_system_redelivered_total = (
+  inputs: Parameters<LocaleMessages['admin_system_redelivered_total']>[0]
+): LocalizedString => messages().admin_system_redelivered_total(inputs);
+const msg_admin_system_stream_summary = (): LocalizedString => messages().admin_system_stream_summary(empty());
+const msg_admin_system_file_streams = (): LocalizedString => messages().admin_system_file_streams(empty());
+const msg_admin_system_memory_streams = (): LocalizedString => messages().admin_system_memory_streams(empty());
+const msg_admin_system_largest_stream = (): LocalizedString => messages().admin_system_largest_stream(empty());
+const msg_admin_system_messages_lower = (): LocalizedString => messages().admin_system_messages_lower(empty());
+const msg_admin_system_consumer_summary = (): LocalizedString => messages().admin_system_consumer_summary(empty());
+const msg_admin_system_pull_consumers = (): LocalizedString => messages().admin_system_pull_consumers(empty());
+const msg_admin_system_push_consumers = (): LocalizedString => messages().admin_system_push_consumers(empty());
+const msg_admin_system_unbound_push_consumers = (): LocalizedString => messages().admin_system_unbound_push_consumers(empty());
+const msg_admin_system_projection_summary = (): LocalizedString => messages().admin_system_projection_summary(empty());
+const msg_admin_system_average_entry_size = (): LocalizedString => messages().admin_system_average_entry_size(empty());
 const msg_admin_system_no_streams = (): LocalizedString => messages().admin_system_no_streams(empty());
 const msg_admin_system_streams = (): LocalizedString => messages().admin_system_streams(empty());
 const msg_admin_system_stream = (): LocalizedString => messages().admin_system_stream(empty());
@@ -2087,6 +2119,7 @@ export { msg_admin_system_title as 'admin.system.title' };
 export { msg_admin_system_subtitle as 'admin.system.subtitle' };
 export { msg_admin_system_loading as 'admin.system.loading' };
 export { msg_admin_system_connection as 'admin.system.connection' };
+export { msg_admin_system_broker as 'admin.system.broker' };
 export { msg_admin_system_connected as 'admin.system.connected' };
 export { msg_admin_system_disconnected as 'admin.system.disconnected' };
 export { msg_admin_system_unlimited as 'admin.system.unlimited' };
@@ -2095,12 +2128,35 @@ export { msg_admin_system_pending_state as 'admin.system.pending_state' };
 export { msg_admin_system_rtt as 'admin.system.rtt' };
 export { msg_admin_system_max_payload as 'admin.system.max_payload' };
 export { msg_admin_system_server_id as 'admin.system.server_id' };
+export { msg_admin_system_server_name as 'admin.system.server_name' };
 export { msg_admin_system_limit as 'admin.system.limit' };
+export { msg_admin_system_used_of_limit as 'admin.system.used_of_limit' };
+export { msg_admin_system_jetstream_account as 'admin.system.jetstream_account' };
 export { msg_admin_system_account_storage as 'admin.system.account_storage' };
+export { msg_admin_system_account_memory as 'admin.system.account_memory' };
+export { msg_admin_system_stream_capacity as 'admin.system.stream_capacity' };
+export { msg_admin_system_consumer_capacity as 'admin.system.consumer_capacity' };
+export { msg_admin_system_stream_activity as 'admin.system.stream_activity' };
 export { msg_admin_system_events as 'admin.system.events' };
 export { msg_admin_system_event_bytes as 'admin.system.event_bytes' };
+export { msg_admin_system_messages_stored as 'admin.system.messages_stored' };
+export { msg_admin_system_stream_bytes as 'admin.system.stream_bytes' };
+export { msg_admin_system_average_message_size as 'admin.system.average_message_size' };
+export { msg_admin_system_storage_mix as 'admin.system.storage_mix' };
 export { msg_admin_system_consumer_backlog as 'admin.system.consumer_backlog' };
 export { msg_admin_system_consumer_backlog_subtitle as 'admin.system.consumer_backlog_subtitle' };
+export { msg_admin_system_redelivered_total as 'admin.system.redelivered_total' };
+export { msg_admin_system_stream_summary as 'admin.system.stream_summary' };
+export { msg_admin_system_file_streams as 'admin.system.file_streams' };
+export { msg_admin_system_memory_streams as 'admin.system.memory_streams' };
+export { msg_admin_system_largest_stream as 'admin.system.largest_stream' };
+export { msg_admin_system_messages_lower as 'admin.system.messages_lower' };
+export { msg_admin_system_consumer_summary as 'admin.system.consumer_summary' };
+export { msg_admin_system_pull_consumers as 'admin.system.pull_consumers' };
+export { msg_admin_system_push_consumers as 'admin.system.push_consumers' };
+export { msg_admin_system_unbound_push_consumers as 'admin.system.unbound_push_consumers' };
+export { msg_admin_system_projection_summary as 'admin.system.projection_summary' };
+export { msg_admin_system_average_entry_size as 'admin.system.average_entry_size' };
 export { msg_admin_system_no_streams as 'admin.system.no_streams' };
 export { msg_admin_system_streams as 'admin.system.streams' };
 export { msg_admin_system_stream as 'admin.system.stream' };

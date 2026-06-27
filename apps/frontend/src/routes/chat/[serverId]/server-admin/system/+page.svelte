@@ -37,7 +37,6 @@
             streams {
               name
               description
-              subjects
               storage
               messages
               bytes
@@ -69,7 +68,6 @@
         }
         projections {
           name
-          subjects
           started
           startupDurationSeconds
           lastAppliedSequence
@@ -114,9 +112,41 @@
   const consumersWithBacklog = $derived(
     consumers.filter((consumer) => consumer.pending > 0).length
   );
+  const fileStreamCount = $derived(streams.filter((stream) => stream.storage === 'File').length);
+  const memoryStreamCount = $derived(
+    streams.filter((stream) => stream.storage === 'Memory').length
+  );
+  const pullConsumerCount = $derived(consumers.filter((consumer) => consumer.pullBased).length);
+  const pushConsumerCount = $derived(consumers.length - pullConsumerCount);
+  const unboundPushConsumerCount = $derived(
+    consumers.filter((consumer) => !consumer.pullBased && !consumer.pushBound).length
+  );
+  const totalRedelivered = $derived(
+    consumers.reduce((sum, consumer) => sum + consumer.redelivered, 0)
+  );
+  const averageEventBytes = $derived(
+    systemInfo && systemInfo.nats.totalMessages > 0
+      ? systemInfo.nats.totalBytes / systemInfo.nats.totalMessages
+      : 0
+  );
+  const averageProjectionEntryBytes = $derived(
+    totalEntries > 0 ? totalEstimatedBytes / totalEntries : 0
+  );
+  const largestStream = $derived.by(() => {
+    let largest = streams[0] ?? null;
+    for (const stream of streams) {
+      if (!largest || stream.bytes > largest.bytes) largest = stream;
+    }
+    return largest;
+  });
 
   function formatLimit(limit: number, formatter: (n: number) => string = String): string {
     return limit <= 0 ? m['admin.system.unlimited']() : formatter(limit);
+  }
+
+  function formatPercent(used: number, limit: number): string {
+    if (limit <= 0) return m['admin.system.unlimited']();
+    return `${Math.round((used / limit) * 100)}%`;
   }
 
   function consumerFilters(consumer: {
@@ -157,108 +187,232 @@
       {:else if error}
         <Hint tone="danger">{error}</Hint>
       {:else if systemInfo}
-        <Panel title={m['admin.system.connection']()} icon="iconify uil--plug">
-          <div class="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
-            <div>
+        <Panel title={m['admin.system.broker']()} icon="iconify uil--server">
+          <div class="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,2fr)]">
+            <div class="rounded-lg border border-border bg-surface-100/70 p-4">
               <div class="text-sm text-muted">{m['admin.common.status']()}</div>
-              <div class="flex items-center gap-2">
-                {systemInfo.connection.connected
-                  ? m['admin.system.connected']()
-                  : m['admin.system.disconnected']()}
+              <div class="mt-1 flex items-center gap-2 text-xl font-semibold">
                 <span
                   class={[
-                    'h-2 w-2 rounded-full',
+                    'h-2.5 w-2.5 rounded-full',
                     systemInfo.connection.connected ? 'bg-success' : 'bg-danger'
                   ]}
                 ></span>
+                {systemInfo.connection.connected
+                  ? m['admin.system.connected']()
+                  : m['admin.system.disconnected']()}
+              </div>
+              <div
+                class="mt-3 truncate font-mono text-xs text-muted"
+                title={systemInfo.connection.serverId}
+              >
+                {systemInfo.connection.serverId || '-'}
               </div>
             </div>
-            <div>
-              <div class="text-sm text-muted">{m['admin.common.version']()}</div>
-              <div class="font-mono text-sm">{systemInfo.connection.version}</div>
-            </div>
-            <div>
-              <div class="text-sm text-muted">{m['admin.system.rtt']()}</div>
-              <div class="font-mono text-sm">{systemInfo.connection.rtt || '-'}</div>
-            </div>
-            <div>
-              <div class="text-sm text-muted">{m['admin.system.max_payload']()}</div>
-              <div class="font-mono text-sm">{formatBytes(systemInfo.connection.maxPayload)}</div>
-            </div>
-            <div>
-              <div class="text-sm text-muted">{m['admin.system.server_id']()}</div>
-              <div class="truncate font-mono text-xs" title={systemInfo.connection.serverId}>
-                {systemInfo.connection.serverId.slice(0, 12)}...
+
+            <div class="grid grid-cols-2 gap-x-6 gap-y-4 md:grid-cols-4">
+              <div>
+                <div class="text-sm text-muted">{m['admin.common.version']()}</div>
+                <div class="font-mono text-sm">{systemInfo.connection.version || '-'}</div>
+              </div>
+              <div>
+                <div class="text-sm text-muted">{m['admin.system.rtt']()}</div>
+                <div class="font-mono text-sm">{systemInfo.connection.rtt || '-'}</div>
+              </div>
+              <div>
+                <div class="text-sm text-muted">{m['admin.system.max_payload']()}</div>
+                <div class="font-mono text-sm">{formatBytes(systemInfo.connection.maxPayload)}</div>
+              </div>
+              <div>
+                <div class="text-sm text-muted">{m['admin.system.server_name']()}</div>
+                <div class="truncate font-mono text-sm" title={systemInfo.connection.serverName}>
+                  {systemInfo.connection.serverName || '-'}
+                </div>
               </div>
             </div>
           </div>
         </Panel>
 
-        <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <StatCard
-            value={formatBytes(systemInfo.account.storageUsed)}
-            label={m['admin.system.account_storage']()}
-            icon="iconify uil--hdd"
-            color="primary"
-            subtitle={m['admin.system.limit']({
-              limit: formatLimit(systemInfo.account.storage, formatBytes)
-            })}
-          />
-          <StatCard
-            value={formatBytes(systemInfo.account.memoryUsed)}
-            label={m['admin.system.memory']()}
-            icon="iconify uil--processor"
-            color="success"
-            subtitle={m['admin.system.limit']({
-              limit: formatLimit(systemInfo.account.memory, formatBytes)
-            })}
-          />
-          <StatCard
-            value={systemInfo.account.streamsUsed}
-            label={m['admin.system.streams']()}
-            icon="iconify uil--exchange"
-            color="warning"
-            subtitle={m['admin.system.limit']({ limit: formatLimit(systemInfo.account.streams) })}
-          />
-          <StatCard
-            value={systemInfo.account.consumersUsed}
-            label={m['admin.system.consumers']()}
-            icon="iconify uil--users-alt"
-            color="danger"
-            subtitle={m['admin.system.limit']({
-              limit: formatLimit(systemInfo.account.consumers)
-            })}
-          />
+        <div>
+          <h2 class="mb-3 text-sm font-semibold text-muted uppercase">
+            {m['admin.system.jetstream_account']()}
+          </h2>
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <StatCard
+              value={formatBytes(systemInfo.account.storageUsed)}
+              label={m['admin.system.account_storage']()}
+              icon="iconify uil--hdd"
+              color="primary"
+              subtitle={m['admin.system.limit']({
+                limit: formatLimit(systemInfo.account.storage, formatBytes)
+              })}
+            />
+            <StatCard
+              value={formatBytes(systemInfo.account.memoryUsed)}
+              label={m['admin.system.account_memory']()}
+              icon="iconify uil--processor"
+              color="success"
+              subtitle={m['admin.system.limit']({
+                limit: formatLimit(systemInfo.account.memory, formatBytes)
+              })}
+            />
+            <StatCard
+              value={formatPercent(systemInfo.account.streamsUsed, systemInfo.account.streams)}
+              label={m['admin.system.stream_capacity']()}
+              icon="iconify uil--exchange"
+              color="warning"
+              subtitle={m['admin.system.used_of_limit']({
+                used: formatNumber(systemInfo.account.streamsUsed),
+                limit: formatLimit(systemInfo.account.streams)
+              })}
+            />
+            <StatCard
+              value={formatPercent(systemInfo.account.consumersUsed, systemInfo.account.consumers)}
+              label={m['admin.system.consumer_capacity']()}
+              icon="iconify uil--users-alt"
+              color="danger"
+              subtitle={m['admin.system.used_of_limit']({
+                used: formatNumber(systemInfo.account.consumersUsed),
+                limit: formatLimit(systemInfo.account.consumers)
+              })}
+            />
+          </div>
         </div>
 
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
-          <StatCard
-            value={formatNumber(systemInfo.nats.totalMessages)}
-            label={m['admin.system.events']()}
-            icon="iconify uil--database"
-            color="primary"
-          />
-          <StatCard
-            value={formatBytes(systemInfo.nats.totalBytes)}
-            label={m['admin.system.event_bytes']()}
-            icon="iconify uil--hdd"
-            color="success"
-          />
-          <StatCard
-            value={formatNumber(systemInfo.nats.totalConsumerPending)}
-            label={m['admin.system.consumer_backlog']()}
-            icon="iconify uil--clock"
-            color={systemInfo.nats.totalConsumerPending > 0 ? 'warning' : 'success'}
-            subtitle={m['admin.system.consumer_backlog_subtitle']({
-              count: formatNumber(consumersWithBacklog)
-            })}
-          />
-          <StatCard
-            value={formatNumber(systemInfo.nats.totalAckPending)}
-            label={m['admin.system.ack_pending']()}
-            icon="iconify uil--check-circle"
-            color={systemInfo.nats.totalAckPending > 0 ? 'warning' : 'success'}
-          />
+        <div>
+          <h2 class="mb-3 text-sm font-semibold text-muted uppercase">
+            {m['admin.system.stream_activity']()}
+          </h2>
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <StatCard
+              value={formatNumber(systemInfo.nats.totalMessages)}
+              label={m['admin.system.messages_stored']()}
+              icon="iconify uil--database"
+              color="primary"
+              subtitle={m['admin.system.average_message_size']({
+                size: formatBytes(averageEventBytes)
+              })}
+            />
+            <StatCard
+              value={formatBytes(systemInfo.nats.totalBytes)}
+              label={m['admin.system.stream_bytes']()}
+              icon="iconify uil--hdd"
+              color="success"
+              subtitle={m['admin.system.storage_mix']({
+                file: formatNumber(fileStreamCount),
+                memory: formatNumber(memoryStreamCount)
+              })}
+            />
+            <StatCard
+              value={formatNumber(systemInfo.nats.totalConsumerPending)}
+              label={m['admin.system.consumer_backlog']()}
+              icon="iconify uil--clock"
+              color={systemInfo.nats.totalConsumerPending > 0 ? 'warning' : 'success'}
+              subtitle={m['admin.system.consumer_backlog_subtitle']({
+                count: formatNumber(consumersWithBacklog)
+              })}
+            />
+            <StatCard
+              value={formatNumber(systemInfo.nats.totalAckPending)}
+              label={m['admin.system.ack_pending']()}
+              icon="iconify uil--check-circle"
+              color={systemInfo.nats.totalAckPending > 0 ? 'warning' : 'success'}
+              subtitle={m['admin.system.redelivered_total']({
+                count: formatNumber(totalRedelivered)
+              })}
+            />
+          </div>
+        </div>
+
+        <div class="grid gap-4 lg:grid-cols-3">
+          <Panel title={m['admin.system.stream_summary']()} icon="iconify uil--chart-line">
+            <div class="grid grid-cols-2 gap-x-6 gap-y-4">
+              <div>
+                <div class="text-sm text-muted">{m['admin.system.file_streams']()}</div>
+                <div class="font-mono text-lg">{formatNumber(fileStreamCount)}</div>
+              </div>
+              <div>
+                <div class="text-sm text-muted">{m['admin.system.memory_streams']()}</div>
+                <div class="font-mono text-lg">{formatNumber(memoryStreamCount)}</div>
+              </div>
+              <div class="col-span-2">
+                <div class="text-sm text-muted">{m['admin.system.largest_stream']()}</div>
+                {#if largestStream}
+                  <div class="min-w-0">
+                    <div class="truncate font-medium" title={largestStream.name}>
+                      {largestStream.name}
+                    </div>
+                    <div class="font-mono text-sm text-muted">
+                      {formatBytes(largestStream.bytes)} / {formatNumber(largestStream.messages)}
+                      {m['admin.system.messages_lower']()}
+                    </div>
+                  </div>
+                {:else}
+                  <div class="font-mono text-sm text-muted">-</div>
+                {/if}
+              </div>
+            </div>
+          </Panel>
+
+          <Panel title={m['admin.system.consumer_summary']()} icon="iconify uil--users-alt">
+            <div class="grid grid-cols-2 gap-x-6 gap-y-4">
+              <div>
+                <div class="text-sm text-muted">{m['admin.system.pull_consumers']()}</div>
+                <div class="font-mono text-lg">{formatNumber(pullConsumerCount)}</div>
+              </div>
+              <div>
+                <div class="text-sm text-muted">{m['admin.system.push_consumers']()}</div>
+                <div class="font-mono text-lg">{formatNumber(pushConsumerCount)}</div>
+              </div>
+              <div>
+                <div class="text-sm text-muted">{m['admin.system.unbound_push_consumers']()}</div>
+                <div
+                  class={['font-mono text-lg', unboundPushConsumerCount > 0 ? 'text-warning' : '']}
+                >
+                  {formatNumber(unboundPushConsumerCount)}
+                </div>
+              </div>
+              <div>
+                <div class="text-sm text-muted">{m['admin.system.redelivered']()}</div>
+                <div class={['font-mono text-lg', totalRedelivered > 0 ? 'text-warning' : '']}>
+                  {formatNumber(totalRedelivered)}
+                </div>
+              </div>
+            </div>
+          </Panel>
+
+          <Panel title={m['admin.system.projection_summary']()} icon="iconify uil--layers">
+            <div class="grid grid-cols-2 gap-x-6 gap-y-4">
+              <div>
+                <div class="text-sm text-muted">{m['admin.system.projections']()}</div>
+                <div class="font-mono text-lg">{formatNumber(projections.length)}</div>
+              </div>
+              <div>
+                <div class="text-sm text-muted">{m['admin.system.entries']()}</div>
+                <div class="font-mono text-lg">{formatNumber(totalEntries)}</div>
+              </div>
+              <div>
+                <div class="text-sm text-muted">{m['admin.system.projection_memory']()}</div>
+                <div class="font-mono text-lg">{formatBytes(totalEstimatedBytes)}</div>
+              </div>
+              <div>
+                <div class="text-sm text-muted">{m['admin.system.average_entry_size']()}</div>
+                <div class="font-mono text-lg">{formatBytes(averageProjectionEntryBytes)}</div>
+              </div>
+              <div>
+                <div class="text-sm text-muted">{m['admin.system.projection_failures']()}</div>
+                <div class={['font-mono text-lg', failedProjectionCount > 0 ? 'text-danger' : '']}>
+                  {formatNumber(failedProjectionCount)}
+                </div>
+              </div>
+              <div>
+                <div class="text-sm text-muted">{m['admin.system.projection_lag']()}</div>
+                <div class={['font-mono text-lg', laggingCount > 0 ? 'text-warning' : '']}>
+                  {formatNumber(laggingCount)}
+                </div>
+              </div>
+            </div>
+          </Panel>
         </div>
 
         <Panel title={m['admin.system.streams']()} icon="iconify uil--exchange" noPadding>
@@ -277,15 +431,6 @@
                 {#if stream.description}
                   <div class="text-xs text-muted">{stream.description}</div>
                 {/if}
-                <div class="mt-1 flex flex-wrap gap-1">
-                  {#each stream.subjects as subject (subject)}
-                    <span
-                      class="rounded border border-border px-1.5 py-0.5 font-mono text-[11px] text-muted"
-                    >
-                      {subject}
-                    </span>
-                  {/each}
-                </div>
               </td>
               <td class="px-4 py-3">{stream.storage}</td>
               <td class="px-4 py-3 font-mono text-sm">{formatNumber(stream.messages)}</td>
@@ -367,34 +512,6 @@
           </DataTable>
         </Panel>
 
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
-          <StatCard
-            value={formatNumber(projections.length)}
-            label={m['admin.system.projections']()}
-            icon="iconify uil--layers"
-            color="primary"
-          />
-          <StatCard
-            value={formatBytes(totalEstimatedBytes)}
-            label={m['admin.system.projection_memory']()}
-            icon="iconify uil--processor"
-            color="success"
-            subtitle={m['admin.system.projection_entries']({ count: formatNumber(totalEntries) })}
-          />
-          <StatCard
-            value={formatNumber(failedProjectionCount)}
-            label={m['admin.system.projection_failures']()}
-            icon="iconify uil--exclamation-triangle"
-            color={failedProjectionCount > 0 ? 'danger' : 'success'}
-          />
-          <StatCard
-            value={formatNumber(laggingCount)}
-            label={m['admin.system.projection_lag']()}
-            icon="iconify uil--clock"
-            color={laggingCount > 0 ? 'warning' : 'success'}
-          />
-        </div>
-
         <Panel title={m['admin.system.projections']()} icon="iconify uil--chart-line" noPadding>
           <DataTable
             items={projections}
@@ -413,15 +530,6 @@
             {#snippet row(projection)}
               <td class="px-4 py-3">
                 <div class="font-medium">{projection.name}</div>
-                <div class="mt-1 flex flex-wrap gap-1">
-                  {#each projection.subjects as subject (subject)}
-                    <span
-                      class="rounded border border-border px-1.5 py-0.5 font-mono text-[11px] text-muted"
-                    >
-                      {subject}
-                    </span>
-                  {/each}
-                </div>
               </td>
               <td class="px-4 py-3">
                 <div class="flex flex-wrap gap-1">

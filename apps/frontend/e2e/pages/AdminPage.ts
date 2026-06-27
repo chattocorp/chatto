@@ -315,7 +315,9 @@ export class AdminPage {
    */
   async expectSystemPageVisible(): Promise<void> {
     await expect(this.page.getByRole('heading', { name: 'System' })).toBeVisible();
-    await expect(this.page.getByText('NATS, JetStream, and projection health')).toBeVisible();
+    await expect(
+      this.page.getByText('Broker, JetStream storage, consumers, and projection health')
+    ).toBeVisible();
   }
 
   /**
@@ -450,7 +452,7 @@ export class AdminPage {
    * Assert that system connection status is connected.
    */
   async expectSystemConnected(): Promise<void> {
-    await expect(this.page.getByText('Connection')).toBeVisible();
+    await expect(this.page.getByText('NATS Broker')).toBeVisible();
     await expect(this.page.getByText('Connected')).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
@@ -460,16 +462,15 @@ export class AdminPage {
    * Assert that system stat cards are visible.
    */
   async expectSystemStatsVisible(): Promise<void> {
-    await expect(this.mainContent.getByText('Account Storage')).toBeVisible();
-    await expect(
-      this.mainContent.locator('.text-sm', { hasText: /^Memory$/ }).first()
-    ).toBeVisible();
-    await expect(
-      this.mainContent.locator('.text-sm', { hasText: /^Streams$/ }).first()
-    ).toBeVisible();
-    await expect(
-      this.mainContent.locator('.text-sm', { hasText: /^Consumers$/ }).first()
-    ).toBeVisible();
+    await expect(this.mainContent.getByText('JetStream Account')).toBeVisible();
+    await expect(this.mainContent.getByText('File Storage')).toBeVisible();
+    await expect(this.mainContent.getByText('Memory Storage')).toBeVisible();
+    await expect(this.mainContent.getByText('Stream Capacity')).toBeVisible();
+    await expect(this.mainContent.getByText('Consumer Capacity')).toBeVisible();
+    await expect(this.mainContent.getByText('Stream Activity')).toBeVisible();
+    await expect(this.mainContent.getByText('Stream Summary')).toBeVisible();
+    await expect(this.mainContent.getByText('Consumer Summary')).toBeVisible();
+    await expect(this.mainContent.getByText('Projection Summary')).toBeVisible();
   }
 
   /**
