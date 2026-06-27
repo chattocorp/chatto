@@ -55,10 +55,10 @@ depends = ["deps-frontend"]
 description = "Generate Go and frontend code from protobuf schemas"
 depends = ["setup-cli", "setup-frontend"]
 dir = "proto"
-run = """
-buf generate
-node -e "const fs = require('fs'); const path = require('path'); const root = path.join('..', 'apps', 'frontend', 'src', 'lib', 'pb'); function visit(dir) { for (const entry of fs.readdirSync(dir, { withFileTypes: true })) { const file = path.join(dir, entry.name); if (entry.isDirectory()) visit(file); else if (entry.isFile() && file.endsWith('.ts')) { const next = fs.readFileSync(file, 'utf8').replace(/\\n{2,}$/u, '\\n'); fs.writeFileSync(file, next); } } } visit(root);"
-"""
+run = [
+  "buf generate",
+  "find ../apps/frontend/src/lib/pb -name '*.ts' -exec perl -0pi -e 's/\\n+\\z/\\n/' {} +",
+]
 
 [tasks.codegen-api-frontend]
 description = "Generate frontend TypeScript code from public API protobuf schemas"
