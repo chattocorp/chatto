@@ -5,7 +5,7 @@ name = "Chatto"
 url = "http://localhost:$CONDUCTOR_PORT"
 
 [scripts]
-setup = "mise trust"
+setup = "mise trust && mise setup"
 run = "mise run chatto run"
 run_mode = "concurrent"
 
