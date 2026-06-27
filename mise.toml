@@ -244,6 +244,11 @@ dir = "cli"
 run = "go test -trimpath -tags integration ./cmd -run TestRunCommandShutsDownOnSignals -count=1 -timeout 2m"
 sources = ["**/*.go", "cmd/embedded/LICENSE", "cmd/embedded/NOTICE"]
 
+[tasks.knip]
+description = "Find unused frontend/docs files, dependencies, and exports"
+depends = ["setup-frontend"]
+run = "pnpm knip"
+
 [tasks.lint-frontend]
 description = "Run TypeScript and ESLint checks on frontend"
 depends = ["setup-frontend"]

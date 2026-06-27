@@ -1,0 +1,53 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "rules": {
+    "dependencies": "warn",
+    "devDependencies": "warn",
+    "files": "warn",
+    "unlisted": "warn",
+    "exports": "off",
+    "types": "off",
+    "enumMembers": "off",
+    "namespaceMembers": "off",
+    "duplicates": "warn"
+  },
+  "ignoreBinaries": ["check", "lint", "mise", "playwright", "vitest"],
+  "ignoreDependencies": ["gemoji"],
+  "workspaces": {
+    ".": {
+      "entry": ["tools/*.mjs"],
+      "project": ["tools/**/*.mjs"]
+    },
+    "apps/frontend": {
+      "entry": ["scripts/*.mjs"],
+      "project": [
+        ".storybook/**/*.{css,js,ts}",
+        "e2e/**/*.ts",
+        "scripts/**/*.mjs",
+        "src/**/*.{js,ts,svelte}"
+      ],
+      "ignoreDependencies": [
+        "@bufbuild/protoc-gen-es",
+        "@connectrpc/protoc-gen-connect-es",
+        "@iconify/json",
+        "@iconify/tailwind4",
+        "@inlang/plugin-m-function-matcher",
+        "@inlang/plugin-message-format",
+        "@fontsource-variable/ibm-plex-sans",
+        "@fontsource/ibm-plex-mono",
+        "svelte2tsx",
+        "tailwindcss",
+        "urql"
+      ],
+      "ignoreIssues": {
+        "src/lib/gql/**": ["exports", "types", "enumMembers"],
+        "src/lib/i18n/messages.ts": ["exports", "types"],
+        "src/lib/paraglide/**": ["exports", "types"],
+        "src/lib/pb/**": ["exports", "types", "enumMembers"]
+      }
+    },
+    "apps/docs-website": {
+      "ignoreDependencies": ["@fontsource-variable/ibm-plex-sans"]
+    }
+  }
+}

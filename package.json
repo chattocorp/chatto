@@ -9,6 +9,8 @@
     "check:frontend": "pnpm --filter chatto-frontend check",
     "dev:docs": "pnpm --filter docs-website dev",
     "dev:frontend": "pnpm --filter chatto-frontend dev",
+    "knip": "pnpm run knip:prepare && knip",
+    "knip:prepare": "pnpm --dir apps/frontend run paraglide && pnpm --dir apps/frontend run prepare",
     "lint:frontend": "pnpm --filter chatto-frontend lint",
     "test:frontend": "pnpm --filter chatto-frontend vitest --run"
   },
@@ -21,5 +23,8 @@
     "ignoredBuiltDependencies": [
       "@tailwindcss/oxide"
     ]
+  },
+  "devDependencies": {
+    "knip": "^6.22.0"
   }
 }
