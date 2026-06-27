@@ -119,6 +119,7 @@ export class RealtimeClientFrame extends Message<RealtimeClientFrame> {
     return proto3.util.equals(RealtimeClientFrame, a, b);
   }
 }
+
 /**
  * Server-to-client frame for Chatto's protobuf WebSocket realtime protocol.
  *

@@ -64,4 +64,3 @@ export const RoomDirectoryService = {
     },
   }
 } as const;
-

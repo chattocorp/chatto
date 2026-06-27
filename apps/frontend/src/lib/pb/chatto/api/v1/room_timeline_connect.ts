@@ -64,4 +64,3 @@ export const RoomTimelineService = {
     },
   }
 } as const;
-

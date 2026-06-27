@@ -40,4 +40,3 @@ export const UserStatusService = {
     },
   }
 } as const;
-
