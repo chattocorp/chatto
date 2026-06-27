@@ -21,16 +21,98 @@ import (
 )
 
 func setupConnectTestServer(t *testing.T, authConfig config.AuthConfig) (*HTTPServer, *httptest.Server) {
+	return setupConnectTestServerWithConfig(t, config.ChattoConfig{Auth: authConfig})
+}
+
+func setupConnectTestServerWithConfig(t *testing.T, cfg config.ChattoConfig) (*HTTPServer, *httptest.Server) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 
-	s := setupServerInfoServer(t, authConfig)
+	s := setupServerInfoServer(t, cfg.Auth)
+	s.config.AdminAPI = cfg.AdminAPI
 	s.setupConnectAPI()
 
 	ts := httptest.NewServer(s.router)
 	t.Cleanup(ts.Close)
 
 	return s, ts
+}
+
+func TestConnectAdminServiceTokenAuth(t *testing.T) {
+	t.Run("not mounted when disabled", func(t *testing.T) {
+		_, ts := setupConnectTestServer(t, config.AuthConfig{})
+		client := apiv1connect.NewAdminServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+
+		_, err := client.ListUsers(context.Background(), connect.NewRequest(&apiv1.ListAdminUsersRequest{}))
+		if connect.CodeOf(err) != connect.CodeUnimplemented {
+			t.Fatalf("ListUsers disabled err = %v, want unimplemented", err)
+		}
+	})
+
+	t.Run("accepts configured token from allowed CIDR", func(t *testing.T) {
+		s, ts := setupConnectTestServerWithConfig(t, config.ChattoConfig{
+			AdminAPI: config.AdminAPIConfig{
+				Enabled: true,
+				Tokens: []config.AdminAPITokenConfig{{
+					Name:         "local-cli",
+					Token:        "operator-secret",
+					AllowedCIDRs: []string{"127.0.0.1/32"},
+				}},
+			},
+		})
+		ctx := context.Background()
+		user, err := s.core.CreateUser(ctx, core.SystemActorID, "admin-connect", "Admin Connect", "password")
+		if err != nil {
+			t.Fatalf("CreateUser: %v", err)
+		}
+
+		client := apiv1connect.NewAdminServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		req := connect.NewRequest(&apiv1.GetAdminUserRequest{UserId: user.GetId()})
+		req.Header().Set("Authorization", "Bearer operator-secret")
+		resp, err := client.GetUser(ctx, req)
+		if err != nil {
+			t.Fatalf("GetUser: %v", err)
+		}
+		if got := resp.Msg.GetUser().GetLogin(); got != "admin-connect" {
+			t.Fatalf("GetUser login = %q, want admin-connect", got)
+		}
+	})
+
+	t.Run("rejects bad token", func(t *testing.T) {
+		_, ts := setupConnectTestServerWithConfig(t, config.ChattoConfig{
+			AdminAPI: config.AdminAPIConfig{
+				Enabled: true,
+				Tokens:  []config.AdminAPITokenConfig{{Name: "local-cli", Token: "operator-secret"}},
+			},
+		})
+		client := apiv1connect.NewAdminServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		req := connect.NewRequest(&apiv1.ListAdminUsersRequest{})
+		req.Header().Set("Authorization", "Bearer wrong")
+		_, err := client.ListUsers(context.Background(), req)
+		if connect.CodeOf(err) != connect.CodeUnauthenticated {
+			t.Fatalf("ListUsers bad token err = %v, want unauthenticated", err)
+		}
+	})
+
+	t.Run("rejects disallowed CIDR", func(t *testing.T) {
+		_, ts := setupConnectTestServerWithConfig(t, config.ChattoConfig{
+			AdminAPI: config.AdminAPIConfig{
+				Enabled: true,
+				Tokens: []config.AdminAPITokenConfig{{
+					Name:         "ops-sidecar",
+					Token:        "operator-secret",
+					AllowedCIDRs: []string{"192.0.2.0/24"},
+				}},
+			},
+		})
+		client := apiv1connect.NewAdminServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		req := connect.NewRequest(&apiv1.ListAdminUsersRequest{})
+		req.Header().Set("Authorization", "Bearer operator-secret")
+		_, err := client.ListUsers(context.Background(), req)
+		if connect.CodeOf(err) != connect.CodeUnauthenticated {
+			t.Fatalf("ListUsers disallowed CIDR err = %v, want unauthenticated", err)
+		}
+	})
 }
 
 func TestConnectServerServiceGetServer(t *testing.T) {

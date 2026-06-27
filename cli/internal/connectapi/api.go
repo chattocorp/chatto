@@ -24,6 +24,7 @@ type AuthPolicy string
 const (
 	AuthPolicyPublic            AuthPolicy = "public"
 	AuthPolicyAuthenticatedUser AuthPolicy = "authenticated_user"
+	AuthPolicyAdminToken        AuthPolicy = "admin_token"
 )
 
 // Handler is one generated Connect service handler, its generated service path,
@@ -70,7 +71,7 @@ func (a *API) Handlers() []Handler {
 	roomDirectoryPath, roomDirectoryHandler := apiv1connect.NewRoomDirectoryServiceHandler(&roomDirectoryService{api: a}, options...)
 	userStatusPath, userStatusHandler := apiv1connect.NewUserStatusServiceHandler(&userStatusService{api: a}, options...)
 	threadPath, threadHandler := apiv1connect.NewThreadServiceHandler(&threadService{api: a}, options...)
-	return []Handler{
+	handlers := []Handler{
 		{ServicePath: messagePath, Handler: messageHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: serverPath, Handler: serverHandler, AuthPolicy: AuthPolicyPublic},
 		{ServicePath: presencePath, Handler: presenceHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
@@ -83,4 +84,9 @@ func (a *API) Handlers() []Handler {
 		{ServicePath: userStatusPath, Handler: userStatusHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: threadPath, Handler: threadHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 	}
+	if a.config.AdminAPI.Enabled {
+		adminPath, adminHandler := apiv1connect.NewAdminServiceHandler(&adminService{api: a}, options...)
+		handlers = append(handlers, Handler{ServicePath: adminPath, Handler: adminHandler, AuthPolicy: AuthPolicyAdminToken})
+	}
+	return handlers
 }

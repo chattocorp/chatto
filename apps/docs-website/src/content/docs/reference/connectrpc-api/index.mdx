@@ -14,6 +14,315 @@ Endpoint paths use the Connect convention:
 
 Use this reference when building clients against Chatto's public ConnectRPC API.
 
+<a id="chatto-api-v1-AdminService"></a>
+
+## AdminService
+
+Operator-only administrative API for user lifecycle and bootstrap tasks.
+
+This service is disabled unless the server operator enables admin_api in
+configuration. It accepts only configured Admin API tokens from each token's
+allowed CIDR ranges and performs mutations as the system actor.
+
+<a id="chatto-api-v1-AdminService-ListUsers"></a>
+
+### ListUsers
+
+Lists users visible to operator administration.
+
+```http
+POST /api/connect/chatto.api.v1.AdminService/ListUsers
+```
+
+<a id="chatto-api-v1-ListAdminUsersRequest"></a>
+
+#### Input: ListAdminUsersRequest
+
+Request to list users for operator administration.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `search` | `string` | Optional case-insensitive substring filter for login or display name. |
+| `limit` | `int32` | Maximum number of users to return. Defaults to 20 and is clamped to 100. |
+| `offset` | `int32` | Zero-based result offset. |
+
+
+<a id="chatto-api-v1-ListAdminUsersResponse"></a>
+
+#### Result: ListAdminUsersResponse
+
+Result of listing users for operator administration.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `users` | repeated [`AdminUser`](#chatto-api-v1-AdminUser) | Users in the requested page. |
+| `total_count` | `int32` | Total number of matching users before pagination. |
+| `has_more` | `bool` | True when another page is available. |
+
+
+<a id="chatto-api-v1-AdminService-GetUser"></a>
+
+### GetUser
+
+Fetches a single user by ID or login.
+
+```http
+POST /api/connect/chatto.api.v1.AdminService/GetUser
+```
+
+<a id="chatto-api-v1-GetAdminUserRequest"></a>
+
+#### Input: GetAdminUserRequest
+
+Request to fetch a single user by ID or login.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | User ID to fetch. Provide either user_id or login. |
+| `login` | `string` | Login to fetch. Provide either user_id or login. |
+
+
+<a id="chatto-api-v1-GetAdminUserResponse"></a>
+
+#### Result: GetAdminUserResponse
+
+Result of fetching a single administrative user view.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`AdminUser`](#chatto-api-v1-AdminUser) | Requested user. |
+
+
+<a id="chatto-api-v1-AdminService-CreateUser"></a>
+
+### CreateUser
+
+Creates a new user, optionally adding a verified email and roles.
+
+```http
+POST /api/connect/chatto.api.v1.AdminService/CreateUser
+```
+
+<a id="chatto-api-v1-CreateAdminUserRequest"></a>
+
+#### Input: CreateAdminUserRequest
+
+Request to create a user as an operator action.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `login` | `string` | Required login for the new user. |
+| `display_name` | `string` | Optional display name. Defaults to login when empty. |
+| `password` | `string` | Optional password. When present, it must satisfy server password policy. |
+| `verified_email` | `string` | Optional email to add as already verified. |
+| `role_names` | `repeated string` | Optional explicit server roles to assign after creation. |
+
+
+<a id="chatto-api-v1-CreateAdminUserResponse"></a>
+
+#### Result: CreateAdminUserResponse
+
+Result of creating a user as an operator action.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`AdminUser`](#chatto-api-v1-AdminUser) | Created user. |
+
+
+<a id="chatto-api-v1-AdminService-UpdateUser"></a>
+
+### UpdateUser
+
+Updates a user's login and/or display name.
+
+```http
+POST /api/connect/chatto.api.v1.AdminService/UpdateUser
+```
+
+<a id="chatto-api-v1-UpdateAdminUserRequest"></a>
+
+#### Input: UpdateAdminUserRequest
+
+Request to update a user's editable profile fields.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Required user ID. |
+| `login` | `optional string` | Optional new login. |
+| `display_name` | `optional string` | Optional new display name. |
+
+
+<a id="chatto-api-v1-UpdateAdminUserResponse"></a>
+
+#### Result: UpdateAdminUserResponse
+
+Result of updating a user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`AdminUser`](#chatto-api-v1-AdminUser) | Updated user. |
+
+
+<a id="chatto-api-v1-AdminService-SetUserPassword"></a>
+
+### SetUserPassword
+
+Sets a user's password and revokes existing runtime credentials.
+
+```http
+POST /api/connect/chatto.api.v1.AdminService/SetUserPassword
+```
+
+<a id="chatto-api-v1-SetAdminUserPasswordRequest"></a>
+
+#### Input: SetAdminUserPasswordRequest
+
+Request to set a user's password as an operator action.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Required user ID. |
+| `password` | `string` | New password. |
+
+
+<a id="chatto-api-v1-SetAdminUserPasswordResponse"></a>
+
+#### Result: SetAdminUserPasswordResponse
+
+Result of setting a user's password.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`AdminUser`](#chatto-api-v1-AdminUser) | Updated user. |
+
+
+<a id="chatto-api-v1-AdminService-DeleteUser"></a>
+
+### DeleteUser
+
+Permanently deletes a user account.
+
+```http
+POST /api/connect/chatto.api.v1.AdminService/DeleteUser
+```
+
+<a id="chatto-api-v1-DeleteAdminUserRequest"></a>
+
+#### Input: DeleteAdminUserRequest
+
+Request to permanently delete a user account.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Required user ID. |
+
+
+<a id="chatto-api-v1-DeleteAdminUserResponse"></a>
+
+#### Result: DeleteAdminUserResponse
+
+Result of permanently deleting a user account.
+
+
+<a id="chatto-api-v1-AdminService-AddUserVerifiedEmail"></a>
+
+### AddUserVerifiedEmail
+
+Adds an already-verified email address to a user.
+
+```http
+POST /api/connect/chatto.api.v1.AdminService/AddUserVerifiedEmail
+```
+
+<a id="chatto-api-v1-AddAdminUserVerifiedEmailRequest"></a>
+
+#### Input: AddAdminUserVerifiedEmailRequest
+
+Request to add a verified email address to a user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Required user ID. |
+| `email` | `string` | Email address to mark as verified. |
+
+
+<a id="chatto-api-v1-AddAdminUserVerifiedEmailResponse"></a>
+
+#### Result: AddAdminUserVerifiedEmailResponse
+
+Result of adding a verified email address.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`AdminUser`](#chatto-api-v1-AdminUser) | Updated user. |
+
+
+<a id="chatto-api-v1-AdminService-AssignUserRole"></a>
+
+### AssignUserRole
+
+Assigns a server role to a user.
+
+```http
+POST /api/connect/chatto.api.v1.AdminService/AssignUserRole
+```
+
+<a id="chatto-api-v1-AssignAdminUserRoleRequest"></a>
+
+#### Input: AssignAdminUserRoleRequest
+
+Request to assign a server role to a user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Required user ID. |
+| `role_name` | `string` | Role name to assign. |
+
+
+<a id="chatto-api-v1-AssignAdminUserRoleResponse"></a>
+
+#### Result: AssignAdminUserRoleResponse
+
+Result of assigning a server role.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`AdminUser`](#chatto-api-v1-AdminUser) | Updated user. |
+
+
+<a id="chatto-api-v1-AdminService-RevokeUserRole"></a>
+
+### RevokeUserRole
+
+Revokes a server role from a user.
+
+```http
+POST /api/connect/chatto.api.v1.AdminService/RevokeUserRole
+```
+
+<a id="chatto-api-v1-RevokeAdminUserRoleRequest"></a>
+
+#### Input: RevokeAdminUserRoleRequest
+
+Request to revoke a server role from a user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Required user ID. |
+| `role_name` | `string` | Role name to revoke. |
+
+
+<a id="chatto-api-v1-RevokeAdminUserRoleResponse"></a>
+
+#### Result: RevokeAdminUserRoleResponse
+
+Result of revoking a server role.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`AdminUser`](#chatto-api-v1-AdminUser) | Updated user. |
+
+
 <a id="chatto-api-v1-RoomTimelineService"></a>
 
 ## RoomTimelineService
@@ -1359,6 +1668,36 @@ Result of clearing the current user's custom status.
 
 
 ## Supporting Types
+
+<a id="chatto-api-v1-AdminUser"></a>
+
+### AdminUser
+
+User record returned by the operator-only AdminService.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Stable user ID. |
+| `login` | `string` | Login name used for password sign-in and mentions. |
+| `display_name` | `string` | Display name shown in clients. |
+| `created_at` | `google.protobuf.Timestamp` | When the account was created, if known. |
+| `role_names` | `repeated string` | Explicit server roles assigned to the user. The implicit "everyone" role is not included. |
+| `verified_emails` | repeated [`AdminVerifiedEmail`](#chatto-api-v1-AdminVerifiedEmail) | Verified email addresses attached to this user. |
+
+
+
+<a id="chatto-api-v1-AdminVerifiedEmail"></a>
+
+### AdminVerifiedEmail
+
+Verified email address attached to an administrative user view.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `email` | `string` | Verified email address. |
+| `verified_at` | `google.protobuf.Timestamp` | When the email address was verified. |
+
+
 
 <a id="chatto-api-v1-RoomTimelineAssetUrl"></a>
 

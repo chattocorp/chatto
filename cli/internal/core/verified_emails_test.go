@@ -350,6 +350,24 @@ func TestChattoCore_AddVerifiedEmailDirect(t *testing.T) {
 		}
 	})
 
+	t.Run("normalizes direct email before storing", func(t *testing.T) {
+		user, _ := core.CreateUser(ctx, "system", "normalized-direct-user", "Normalized User", "password123")
+
+		if err := core.AddVerifiedEmailDirect(ctx, user.Id, " Normalized@Example.COM "); err != nil {
+			t.Fatalf("AddVerifiedEmailDirect: %v", err)
+		}
+		found, err := core.GetUserByVerifiedEmail(ctx, "normalized@example.com")
+		if err != nil {
+			t.Fatalf("GetUserByVerifiedEmail normalized: %v", err)
+		}
+		if found.GetId() != user.GetId() {
+			t.Fatalf("normalized lookup user = %q, want %q", found.GetId(), user.GetId())
+		}
+		if claimed, err := core.IsEmailClaimed(ctx, " normalized@example.com "); err != nil || !claimed {
+			t.Fatalf("IsEmailClaimed normalized = %t, %v; want true, nil", claimed, err)
+		}
+	})
+
 	t.Run("returns error when email claimed by another user", func(t *testing.T) {
 		user1, _ := core.CreateUser(ctx, "system", "direct-claim-user1", "User 1", "password123")
 		user2, _ := core.CreateUser(ctx, "system", "direct-claim-user2", "User 2", "password123")
@@ -381,6 +399,16 @@ func TestChattoCore_AddVerifiedEmailDirect(t *testing.T) {
 		err = core.AddVerifiedEmailDirect(ctx, user2.Id, "case-claimed@example.com")
 		if err != ErrEmailAlreadyVerified {
 			t.Errorf("Expected ErrEmailAlreadyVerified for case-insensitive duplicate, got %v", err)
+		}
+	})
+
+	t.Run("does not claim email for missing user", func(t *testing.T) {
+		err := core.AddVerifiedEmailDirect(ctx, "UmissingVerifiedEmail", "missing-direct@example.com")
+		if !errors.Is(err, ErrNotFound) {
+			t.Fatalf("AddVerifiedEmailDirect error = %v, want ErrNotFound", err)
+		}
+		if claimed, err := core.IsEmailClaimed(ctx, "missing-direct@example.com"); err != nil || claimed {
+			t.Fatalf("IsEmailClaimed after missing user add = %t, %v; want false, nil", claimed, err)
 		}
 	})
 

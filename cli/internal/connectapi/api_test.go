@@ -18,6 +18,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/events"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -53,6 +54,31 @@ func TestAPIHandlers(t *testing.T) {
 	sort.Strings(want)
 	if strings.Join(paths, ",") != strings.Join(want, ",") {
 		t.Fatalf("handler paths = %v, want %v", paths, want)
+	}
+}
+
+func TestAPIHandlersIncludesAdminServiceWhenEnabled(t *testing.T) {
+	api := New(nil, config.ChattoConfig{
+		AdminAPI: config.AdminAPIConfig{
+			Enabled: true,
+			Tokens:  []config.AdminAPITokenConfig{{Name: "local-cli", Token: "secret"}},
+		},
+	}, "test")
+
+	var found bool
+	for _, handler := range api.Handlers() {
+		if handler.ServicePath == "/"+apiv1connect.AdminServiceName+"/" {
+			found = true
+			if handler.Handler == nil {
+				t.Fatal("AdminService handler is nil")
+			}
+			if handler.AuthPolicy != AuthPolicyAdminToken {
+				t.Fatalf("AdminService AuthPolicy = %q, want %q", handler.AuthPolicy, AuthPolicyAdminToken)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("AdminService handler not found")
 	}
 }
 
@@ -116,6 +142,24 @@ func TestRequireCaller(t *testing.T) {
 	})
 }
 
+func TestRequireAdminCaller(t *testing.T) {
+	t.Run("rejects missing authn info", func(t *testing.T) {
+		err := requireAdminCaller(context.Background())
+		requireConnectCode(t, err, connect.CodeUnauthenticated)
+	})
+
+	t.Run("rejects user caller", func(t *testing.T) {
+		err := requireAdminCaller(authn.SetInfo(context.Background(), Caller{UserID: "user-123"}))
+		requireConnectCode(t, err, connect.CodeUnauthenticated)
+	})
+
+	t.Run("accepts admin caller", func(t *testing.T) {
+		if err := requireAdminCaller(authn.SetInfo(context.Background(), AdminCaller{})); err != nil {
+			t.Fatalf("requireAdminCaller: %v", err)
+		}
+	})
+}
+
 func TestPrivateHandlersRequireAuth(t *testing.T) {
 	api := New(nil, config.ChattoConfig{}, "test")
 	mux := http.NewServeMux()
@@ -173,6 +217,218 @@ func TestServerServiceGetServerPublicMetadata(t *testing.T) {
 	}
 	if provider.LoginUrl != "/auth/providers/hub%20provider" {
 		t.Fatalf("provider LoginUrl = %q, want escaped provider path", provider.LoginUrl)
+	}
+}
+
+func TestAdminServiceUserLifecycle(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	admin := &adminService{api: env.api}
+	ctx := authn.SetInfo(env.ctx, AdminCaller{})
+
+	createResp, err := admin.CreateUser(ctx, connect.NewRequest(&apiv1.CreateAdminUserRequest{
+		Login:         "admin-api-user",
+		DisplayName:   "Admin API User",
+		Password:      "password123",
+		VerifiedEmail: "admin-api@example.com",
+		RoleNames:     []string{core.RoleAdmin},
+	}))
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	user := createResp.Msg.GetUser()
+	if user.GetUserId() == "" || user.GetLogin() != "admin-api-user" || user.GetDisplayName() != "Admin API User" {
+		t.Fatalf("created user = %+v", user)
+	}
+	if got := strings.Join(user.GetRoleNames(), ","); got != core.RoleAdmin {
+		t.Fatalf("created roles = %q, want %s", got, core.RoleAdmin)
+	}
+	if got := len(user.GetVerifiedEmails()); got != 1 {
+		t.Fatalf("created verified email count = %d, want 1", got)
+	}
+	if _, err := env.core.VerifyPassword(env.ctx, "admin-api-user", "password123"); err != nil {
+		t.Fatalf("VerifyPassword initial: %v", err)
+	}
+
+	updateResp, err := admin.UpdateUser(ctx, connect.NewRequest(&apiv1.UpdateAdminUserRequest{
+		UserId:      user.GetUserId(),
+		Login:       stringPtr("admin-api-renamed"),
+		DisplayName: stringPtr("Admin API Renamed"),
+	}))
+	if err != nil {
+		t.Fatalf("UpdateUser: %v", err)
+	}
+	if got := updateResp.Msg.GetUser().GetLogin(); got != "admin-api-renamed" {
+		t.Fatalf("updated login = %q, want admin-api-renamed", got)
+	}
+
+	if _, err := admin.SetUserPassword(ctx, connect.NewRequest(&apiv1.SetAdminUserPasswordRequest{
+		UserId:   user.GetUserId(),
+		Password: "newpassword123",
+	})); err != nil {
+		t.Fatalf("SetUserPassword: %v", err)
+	}
+	if _, err := env.core.VerifyPassword(env.ctx, "admin-api-renamed", "newpassword123"); err != nil {
+		t.Fatalf("VerifyPassword updated: %v", err)
+	}
+
+	emailResp, err := admin.AddUserVerifiedEmail(ctx, connect.NewRequest(&apiv1.AddAdminUserVerifiedEmailRequest{
+		UserId: user.GetUserId(),
+		Email:  "admin-api-alt@example.com",
+	}))
+	if err != nil {
+		t.Fatalf("AddUserVerifiedEmail: %v", err)
+	}
+	if got := len(emailResp.Msg.GetUser().GetVerifiedEmails()); got != 2 {
+		t.Fatalf("verified email count = %d, want 2", got)
+	}
+
+	if _, err := admin.AssignUserRole(ctx, connect.NewRequest(&apiv1.AssignAdminUserRoleRequest{
+		UserId:   user.GetUserId(),
+		RoleName: core.RoleModerator,
+	})); err != nil {
+		t.Fatalf("AssignUserRole: %v", err)
+	}
+	roleResp, err := admin.RevokeUserRole(ctx, connect.NewRequest(&apiv1.RevokeAdminUserRoleRequest{
+		UserId:   user.GetUserId(),
+		RoleName: core.RoleAdmin,
+	}))
+	if err != nil {
+		t.Fatalf("RevokeUserRole: %v", err)
+	}
+	if got := strings.Join(roleResp.Msg.GetUser().GetRoleNames(), ","); got != core.RoleModerator {
+		t.Fatalf("roles after revoke = %q, want %s", got, core.RoleModerator)
+	}
+
+	if _, err := admin.DeleteUser(ctx, connect.NewRequest(&apiv1.DeleteAdminUserRequest{UserId: user.GetUserId()})); err != nil {
+		t.Fatalf("DeleteUser: %v", err)
+	}
+	if _, err := admin.GetUser(ctx, connect.NewRequest(&apiv1.GetAdminUserRequest{UserId: user.GetUserId()})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("GetUser after delete err = %v, want not found", err)
+	}
+}
+
+func TestAdminServiceUpdateUserValidatesAllFieldsBeforeWriting(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	admin := &adminService{api: env.api}
+	ctx := authn.SetInfo(env.ctx, AdminCaller{})
+
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "admin-api-update-rollback", "Original Display", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser setup: %v", err)
+	}
+
+	_, err = admin.UpdateUser(ctx, connect.NewRequest(&apiv1.UpdateAdminUserRequest{
+		UserId:      user.GetId(),
+		DisplayName: stringPtr("Changed Display"),
+		Login:       stringPtr("bad login"),
+	}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("UpdateUser error = %v, want invalid argument", err)
+	}
+
+	got, err := env.core.GetUser(env.ctx, user.GetId())
+	if err != nil {
+		t.Fatalf("GetUser after rollback: %v", err)
+	}
+	if got.GetDisplayName() != "Original Display" {
+		t.Fatalf("display name after rollback = %q, want Original Display", got.GetDisplayName())
+	}
+	if got.GetLogin() != "admin-api-update-rollback" {
+		t.Fatalf("login after rollback = %q, want admin-api-update-rollback", got.GetLogin())
+	}
+}
+
+func TestAdminServiceUpdateUserEventsUseSystemActor(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	admin := &adminService{api: env.api}
+	ctx := authn.SetInfo(env.ctx, AdminCaller{})
+
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "admin-api-actor", "Admin Actor", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser setup: %v", err)
+	}
+
+	if _, err := admin.UpdateUser(ctx, connect.NewRequest(&apiv1.UpdateAdminUserRequest{
+		UserId:      user.GetId(),
+		Login:       stringPtr("admin-api-actor-renamed"),
+		DisplayName: stringPtr("Admin Actor Renamed"),
+	})); err != nil {
+		t.Fatalf("UpdateUser: %v", err)
+	}
+
+	loginEvents, _, err := env.core.EventPublisher.SubjectEvents(env.ctx, events.UserAggregate(user.GetId()).Subject(events.EventUserLoginChanged))
+	if err != nil {
+		t.Fatalf("SubjectEvents login changed: %v", err)
+	}
+	if len(loginEvents) != 1 {
+		t.Fatalf("login changed events = %d, want 1", len(loginEvents))
+	}
+	if got := loginEvents[0].GetActorId(); got != core.SystemActorID {
+		t.Fatalf("login changed actor = %q, want %q", got, core.SystemActorID)
+	}
+
+	displayEvents, _, err := env.core.EventPublisher.SubjectEvents(env.ctx, events.UserAggregate(user.GetId()).Subject(events.EventUserDisplayNameChanged))
+	if err != nil {
+		t.Fatalf("SubjectEvents display name changed: %v", err)
+	}
+	if len(displayEvents) != 1 {
+		t.Fatalf("display name changed events = %d, want 1", len(displayEvents))
+	}
+	if got := displayEvents[0].GetActorId(); got != core.SystemActorID {
+		t.Fatalf("display name changed actor = %q, want %q", got, core.SystemActorID)
+	}
+}
+
+func TestAdminServiceAddVerifiedEmailRejectsMissingUserWithoutClaimingEmail(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	admin := &adminService{api: env.api}
+	ctx := authn.SetInfo(env.ctx, AdminCaller{})
+
+	_, err := admin.AddUserVerifiedEmail(ctx, connect.NewRequest(&apiv1.AddAdminUserVerifiedEmailRequest{
+		UserId: "UmissingVerifiedEmail",
+		Email:  "missing-admin@example.com",
+	}))
+	if connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("AddUserVerifiedEmail error = %v, want not found", err)
+	}
+	if claimed, err := env.core.IsEmailClaimed(env.ctx, "missing-admin@example.com"); err != nil || claimed {
+		t.Fatalf("IsEmailClaimed after missing user add = %t, %v; want false, nil", claimed, err)
+	}
+}
+
+func TestAdminServiceAssignUserRoleRejectsMissingUserWithoutPersistingRole(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	admin := &adminService{api: env.api}
+	ctx := authn.SetInfo(env.ctx, AdminCaller{})
+
+	_, err := admin.AssignUserRole(ctx, connect.NewRequest(&apiv1.AssignAdminUserRoleRequest{
+		UserId:   "UmissingAdminUser",
+		RoleName: core.RoleAdmin,
+	}))
+	if connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("AssignUserRole error = %v, want not found", err)
+	}
+	if env.core.RBAC.HasRole("UmissingAdminUser", core.RoleAdmin) {
+		t.Fatal("missing user was assigned admin role despite NotFound response")
+	}
+
+	beforeRevocations, _, err := env.core.EventPublisher.SubjectEvents(env.ctx, events.RBACAggregate().Subject(events.EventRBACRoleRevoked))
+	if err != nil {
+		t.Fatalf("SubjectEvents role revoked before: %v", err)
+	}
+	_, err = admin.RevokeUserRole(ctx, connect.NewRequest(&apiv1.RevokeAdminUserRoleRequest{
+		UserId:   "UmissingAdminUser",
+		RoleName: core.RoleAdmin,
+	}))
+	if connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("RevokeUserRole error = %v, want not found", err)
+	}
+	afterRevocations, _, err := env.core.EventPublisher.SubjectEvents(env.ctx, events.RBACAggregate().Subject(events.EventRBACRoleRevoked))
+	if err != nil {
+		t.Fatalf("SubjectEvents role revoked after: %v", err)
+	}
+	if len(afterRevocations) != len(beforeRevocations) {
+		t.Fatalf("role revocation events changed from %d to %d for missing user", len(beforeRevocations), len(afterRevocations))
 	}
 }
 
@@ -2361,6 +2617,7 @@ func TestConnectErrorMapping(t *testing.T) {
 		{"jetstream key not found", jetstream.ErrKeyNotFound, connect.CodeNotFound},
 		{"message too long", core.ErrMessageTooLong, connect.CodeInvalidArgument},
 		{"invalid argument", core.ErrInvalidArgument, connect.CodeInvalidArgument},
+		{"limit exceeded", core.ErrLimitExceeded, connect.CodeResourceExhausted},
 		{"string length", &core.StringLengthError{Field: "field", Max: 10}, connect.CodeInvalidArgument},
 		{"room archived", core.ErrRoomArchived, connect.CodeFailedPrecondition},
 		{"edit window expired", core.ErrEditWindowExpired, connect.CodeFailedPrecondition},
@@ -2389,6 +2646,10 @@ func requireConnectCode(t testing.TB, err error, want connect.Code) {
 
 func withCaller(ctx context.Context, user *corev1.User) context.Context {
 	return authn.SetInfo(ctx, Caller{UserID: user.Id})
+}
+
+func stringPtr(s string) *string {
+	return &s
 }
 
 type connectAPITestEnv struct {

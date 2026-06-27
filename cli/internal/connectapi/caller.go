@@ -15,10 +15,22 @@ type Caller struct {
 	UserID string
 }
 
+// AdminCaller is the authenticated operator identity available to AdminService.
+// It is intentionally separate from Caller so normal user bearer/cookie auth
+// cannot satisfy operator-only handlers.
+type AdminCaller struct{}
+
 func requireCaller(ctx context.Context) (Caller, error) {
 	caller, ok := authn.GetInfo(ctx).(Caller)
 	if !ok || caller.UserID == "" {
 		return Caller{}, connect.NewError(connect.CodeUnauthenticated, errors.New("authentication required"))
 	}
 	return caller, nil
+}
+
+func requireAdminCaller(ctx context.Context) error {
+	if _, ok := authn.GetInfo(ctx).(AdminCaller); !ok {
+		return connect.NewError(connect.CodeUnauthenticated, errors.New("admin token required"))
+	}
+	return nil
 }

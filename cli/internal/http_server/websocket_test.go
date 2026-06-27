@@ -95,9 +95,10 @@ func setupWebSocketTestServer(t *testing.T) *wsTestEnv {
 		logger:  log.WithPrefix("test"),
 	}
 
+	allowedOrigins := s.buildAllowedOrigins()
 	s.setupAuthRoutes()
-	s.setupRealtimeAPI(s.buildAllowedOrigins())
-	s.setupGraphQLAPI(s.buildAllowedOrigins())
+	s.setupRealtimeAPI(allowedOrigins)
+	s.setupGraphQLAPI(allowedOrigins)
 
 	ts := httptest.NewServer(router)
 	t.Cleanup(func() { ts.Close() })

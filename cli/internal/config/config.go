@@ -104,6 +104,49 @@ type DiagnosticsConfig struct {
 	StartupCPUProfile string `toml:"startup_cpu_profile,commented" env:"CHATTO_DIAGNOSTICS_STARTUP_CPU_PROFILE" comment:"Write a Go CPU profile covering process startup through core boot to this path. Disabled when empty."`
 }
 
+// AdminAPIConfig controls the opt-in operator administrative ConnectRPC API.
+type AdminAPIConfig struct {
+	Enabled bool                  `toml:"enabled" env:"CHATTO_ADMIN_API_ENABLED" comment:"Enable the operator-only AdminService ConnectRPC API. Default: false."`
+	Tokens  []AdminAPITokenConfig `toml:"tokens,commented" comment:"Bearer tokens accepted by the AdminService. Required when admin_api.enabled = true."`
+}
+
+// AdminAPITokenConfig is one named AdminService bearer token and its network allow-list.
+type AdminAPITokenConfig struct {
+	Name         string   `toml:"name" comment:"Operator-facing token name used for selection and rotation."`
+	Token        string   `toml:"token" comment:"Bearer token accepted by the AdminService. NEVER SHARE THIS!"`
+	AllowedCIDRs []string `toml:"allowed_cidrs,commented" comment:"CIDR ranges allowed to use this token. Default: [\"127.0.0.1/32\", \"::1/128\"]."`
+}
+
+var defaultAdminAPIAllowedCIDRs = []string{"127.0.0.1/32", "::1/128"}
+
+const minAdminAPITokenLength = 32
+
+// AllowedCIDRsOrDefault returns the configured allowed CIDRs or the loopback-only default.
+func (c AdminAPITokenConfig) AllowedCIDRsOrDefault() []string {
+	if len(c.AllowedCIDRs) == 0 {
+		return append([]string(nil), defaultAdminAPIAllowedCIDRs...)
+	}
+	return append([]string(nil), c.AllowedCIDRs...)
+}
+
+// AllowedIPNetsOrDefault parses the configured allowed CIDRs or the loopback-only default.
+func (c AdminAPITokenConfig) AllowedIPNetsOrDefault() ([]*net.IPNet, error) {
+	cidrs := c.AllowedCIDRsOrDefault()
+	nets := make([]*net.IPNet, 0, len(cidrs))
+	for _, cidr := range cidrs {
+		trimmed := strings.TrimSpace(cidr)
+		if trimmed == "" {
+			return nil, fmt.Errorf("admin_api.tokens[%s].allowed_cidrs contains an empty CIDR", c.Name)
+		}
+		_, ipNet, err := net.ParseCIDR(trimmed)
+		if err != nil {
+			return nil, fmt.Errorf("admin_api.tokens[%s].allowed_cidrs contains invalid CIDR %q: %w", c.Name, cidr, err)
+		}
+		nets = append(nets, ipNet)
+	}
+	return nets, nil
+}
+
 // BindAddressOrDefault returns the metrics bind address, defaulting to localhost.
 func (c *MetricsConfig) BindAddressOrDefault() string {
 	if c.BindAddress == "" {
@@ -854,6 +897,7 @@ type ChattoConfig struct {
 	Metrics     MetricsConfig     `toml:"metrics,commented" comment:"Process-local Prometheus metrics endpoint."`
 	Exporter    ExporterConfig    `toml:"exporter,commented" comment:"Deployment-wide Prometheus metrics exporter."`
 	Diagnostics DiagnosticsConfig `toml:"diagnostics,commented" comment:"Opt-in diagnostics for local benchmarking and operator troubleshooting."`
+	AdminAPI    AdminAPIConfig    `toml:"admin_api,commented" comment:"Operator-only administrative ConnectRPC API. Disabled by default."`
 	Core        CoreConfig        `toml:"core" comment:"Core service configuration."`
 	Auth        AuthConfig        `toml:"auth" comment:"Authentication configuration."`
 	Limits      LimitsConfig      `toml:"limits,commented" comment:"Instance-wide resource limits. Use -1 for unlimited."`
@@ -932,6 +976,33 @@ func (c *ChattoConfig) Validate() error {
 	}
 	if _, err := c.Webserver.CookieEncryptionKey(); err != nil {
 		errs = append(errs, err.Error())
+	}
+	if c.AdminAPI.Enabled {
+		if len(c.AdminAPI.Tokens) == 0 {
+			errs = append(errs, "admin_api.tokens is required when admin_api.enabled is true")
+		}
+	}
+	adminTokenNames := make(map[string]struct{}, len(c.AdminAPI.Tokens))
+	for i, token := range c.AdminAPI.Tokens {
+		tokenPath := fmt.Sprintf("admin_api.tokens[%d]", i)
+		name := strings.TrimSpace(token.Name)
+		if name == "" {
+			errs = append(errs, tokenPath+".name is required")
+		} else {
+			if _, exists := adminTokenNames[name]; exists {
+				errs = append(errs, fmt.Sprintf("admin_api.tokens name %q is duplicated", name))
+			}
+			adminTokenNames[name] = struct{}{}
+		}
+		tokenValue := strings.TrimSpace(token.Token)
+		if tokenValue == "" {
+			errs = append(errs, tokenPath+".token is required")
+		} else if len(tokenValue) < minAdminAPITokenLength {
+			errs = append(errs, fmt.Sprintf("%s.token must be at least %d characters", tokenPath, minAdminAPITokenLength))
+		}
+		if _, err := token.AllowedIPNetsOrDefault(); err != nil {
+			errs = append(errs, err.Error())
+		}
 	}
 
 	// Port ranges (port 0 is allowed when TLS is enabled, as it defaults to 443)
@@ -1211,6 +1282,9 @@ func ReadConfig(configPath string) (ChattoConfig, error) {
 	if err := applyAuthProviderEnv(&cfg); err != nil {
 		return cfg, err
 	}
+	if err := applyAdminAPIEnv(&cfg); err != nil {
+		return cfg, err
+	}
 
 	// 3. Apply derived defaults and normalize harmless spelling differences
 	cfg.ApplyDefaults()
@@ -1222,6 +1296,86 @@ func ReadConfig(configPath string) (ChattoConfig, error) {
 	}
 
 	return cfg, nil
+}
+
+func applyAdminAPIEnv(cfg *ChattoConfig) error {
+	tokens, tokensSet, err := AdminAPITokensFromEnv()
+	if err != nil {
+		return err
+	}
+	if tokensSet {
+		cfg.AdminAPI.Tokens = tokens
+	}
+	return nil
+}
+
+// AdminAPITokensFromEnv parses counted CHATTO_ADMIN_API_TOKENS_* variables.
+// It is exported so operator CLI commands can read admin token entries without
+// validating the entire server configuration.
+func AdminAPITokensFromEnv() ([]AdminAPITokenConfig, bool, error) {
+	const prefix = "CHATTO_ADMIN_API_TOKENS_"
+	tokensByIndex := make(map[int]*AdminAPITokenConfig)
+
+	for _, entry := range os.Environ() {
+		name, value, ok := strings.Cut(entry, "=")
+		if !ok || !strings.HasPrefix(name, prefix) {
+			continue
+		}
+
+		rest := strings.TrimPrefix(name, prefix)
+		indexPart, field, ok := strings.Cut(rest, "_")
+		if !ok {
+			return nil, false, fmt.Errorf("%s must use CHATTO_ADMIN_API_TOKENS_<index>_<field>", name)
+		}
+		index, err := strconv.Atoi(indexPart)
+		if err != nil || index < 0 {
+			return nil, false, fmt.Errorf("%s uses invalid admin API token index %q", name, indexPart)
+		}
+
+		token := tokensByIndex[index]
+		if token == nil {
+			token = &AdminAPITokenConfig{}
+			tokensByIndex[index] = token
+		}
+		if err := applyAdminAPITokenEnvField(token, name, field, value); err != nil {
+			return nil, false, err
+		}
+	}
+
+	if len(tokensByIndex) == 0 {
+		return nil, false, nil
+	}
+
+	indices := make([]int, 0, len(tokensByIndex))
+	for index := range tokensByIndex {
+		indices = append(indices, index)
+	}
+	sort.Ints(indices)
+	for expected, index := range indices {
+		if index != expected {
+			return nil, false, fmt.Errorf("CHATTO_ADMIN_API_TOKENS_* indexes must be contiguous starting at 0; missing index %d", expected)
+		}
+	}
+
+	tokens := make([]AdminAPITokenConfig, 0, len(indices))
+	for _, index := range indices {
+		tokens = append(tokens, *tokensByIndex[index])
+	}
+	return tokens, true, nil
+}
+
+func applyAdminAPITokenEnvField(token *AdminAPITokenConfig, name, field, value string) error {
+	switch field {
+	case "NAME":
+		token.Name = value
+	case "TOKEN":
+		token.Token = value
+	case "ALLOWED_CIDRS":
+		token.AllowedCIDRs = splitCommaSeparatedEnv(value)
+	default:
+		return fmt.Errorf("%s uses unknown admin API token field %q", name, field)
+	}
+	return nil
 }
 
 func applyAuthProviderEnv(cfg *ChattoConfig) error {

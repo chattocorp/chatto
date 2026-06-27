@@ -131,6 +131,24 @@ The exporter exposes deployment-wide Chatto metrics. Run it as `chatto exporter`
   Write a Go CPU profile covering process startup through core boot to this path. Useful for local projection replay benchmarking; disabled when empty.
 </EnvVar>
 
+## Admin API
+
+<EnvVar name="CHATTO_ADMIN_API_ENABLED" toml="admin_api.enabled" default="false">
+  Enable the operator-only ConnectRPC AdminService. Keep disabled unless you need token-based automation through `chatto admin ...` or another trusted operator client.
+</EnvVar>
+
+<EnvVar name="CHATTO_ADMIN_API_TOKENS_<index>_NAME" toml="admin_api.tokens[].name">
+  Counted token name for an AdminService bearer token. Indexes start at `0` and must not have gaps.
+</EnvVar>
+
+<EnvVar name="CHATTO_ADMIN_API_TOKENS_<index>_TOKEN" toml="admin_api.tokens[].token">
+  Bearer token accepted by the AdminService for this named token entry. Tokens must be at least 32 characters. At least one token entry is required when `admin_api.enabled = true`. Treat each token like a root operator secret.
+</EnvVar>
+
+<EnvVar name="CHATTO_ADMIN_API_TOKENS_<index>_ALLOWED_CIDRS" toml="admin_api.tokens[].allowed_cidrs" default="127.0.0.1/32,::1/128">
+  Comma-separated CIDR ranges allowed to use this AdminService token. The server checks the direct TCP peer address, not forwarded headers.
+</EnvVar>
+
 ## Core
 
 <EnvVar name="CHATTO_CORE_SECRET_KEY" toml="core.secret_key" required>

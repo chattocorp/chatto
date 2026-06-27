@@ -130,6 +130,44 @@ signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddee
 	}
 }
 
+func TestReadConfig_AdminAPIFromEnv(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(originalDir) })
+
+	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
+	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+	t.Setenv("CHATTO_CORE_SECRET_KEY", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
+	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
+	t.Setenv("CHATTO_ADMIN_API_ENABLED", "true")
+	t.Setenv("CHATTO_ADMIN_API_TOKENS_0_NAME", "local-cli")
+	t.Setenv("CHATTO_ADMIN_API_TOKENS_0_TOKEN", "operator-secret-0123456789abcdef")
+	t.Setenv("CHATTO_ADMIN_API_TOKENS_0_ALLOWED_CIDRS", "127.0.0.1/32,::1/128")
+
+	cfg, err := ReadConfig("")
+	if err != nil {
+		t.Fatalf("ReadConfig() failed: %v", err)
+	}
+	if !cfg.AdminAPI.Enabled {
+		t.Fatal("AdminAPI.Enabled = false, want true")
+	}
+	if len(cfg.AdminAPI.Tokens) != 1 {
+		t.Fatalf("AdminAPI.Tokens len = %d, want 1", len(cfg.AdminAPI.Tokens))
+	}
+	if cfg.AdminAPI.Tokens[0].Name != "local-cli" || cfg.AdminAPI.Tokens[0].Token != "operator-secret-0123456789abcdef" {
+		t.Fatalf("AdminAPI.Tokens[0] = %+v", cfg.AdminAPI.Tokens[0])
+	}
+	if got := strings.Join(cfg.AdminAPI.Tokens[0].AllowedCIDRs, ","); got != "127.0.0.1/32,::1/128" {
+		t.Fatalf("AdminAPI.Tokens[0].AllowedCIDRs = %q", got)
+	}
+}
+
 func TestReadConfig_AuthProvidersFromEnv(t *testing.T) {
 	tmpDir := t.TempDir()
 	originalDir, err := os.Getwd()
@@ -1136,6 +1174,67 @@ func TestChattoConfig_Validate_RequiredSecrets(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestChattoConfig_Validate_AdminAPI(t *testing.T) {
+	t.Run("enabled requires token", func(t *testing.T) {
+		cfg := validTestConfig()
+		cfg.AdminAPI.Enabled = true
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "admin_api.tokens is required when admin_api.enabled is true") {
+			t.Fatalf("Validate() error = %v, want admin token required error", err)
+		}
+	})
+
+	t.Run("validates allowed CIDRs even when disabled", func(t *testing.T) {
+		cfg := validTestConfig()
+		cfg.AdminAPI.Tokens = []AdminAPITokenConfig{{Name: "local-cli", Token: "secret-0123456789abcdef012345678", AllowedCIDRs: []string{"not-a-cidr"}}}
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "admin_api.tokens[local-cli].allowed_cidrs contains invalid CIDR") {
+			t.Fatalf("Validate() error = %v, want invalid CIDR error", err)
+		}
+	})
+
+	t.Run("requires sufficiently long token", func(t *testing.T) {
+		cfg := validTestConfig()
+		cfg.AdminAPI.Tokens = []AdminAPITokenConfig{{Name: "local-cli", Token: "short-token"}}
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "admin_api.tokens[0].token must be at least 32 characters") {
+			t.Fatalf("Validate() error = %v, want token length error", err)
+		}
+	})
+
+	t.Run("uses loopback defaults", func(t *testing.T) {
+		token := AdminAPITokenConfig{Name: "local-cli", Token: "secret"}
+		got := token.AllowedCIDRsOrDefault()
+		if strings.Join(got, ",") != "127.0.0.1/32,::1/128" {
+			t.Fatalf("AllowedCIDRsOrDefault() = %v", got)
+		}
+		if _, err := token.AllowedIPNetsOrDefault(); err != nil {
+			t.Fatalf("AllowedIPNetsOrDefault(): %v", err)
+		}
+	})
+
+	t.Run("requires token entry fields", func(t *testing.T) {
+		cfg := validTestConfig()
+		cfg.AdminAPI.Tokens = []AdminAPITokenConfig{{}}
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "admin_api.tokens[0].name is required") || !strings.Contains(err.Error(), "admin_api.tokens[0].token is required") {
+			t.Fatalf("Validate() error = %v, want token field errors", err)
+		}
+	})
+
+	t.Run("requires unique token names", func(t *testing.T) {
+		cfg := validTestConfig()
+		cfg.AdminAPI.Tokens = []AdminAPITokenConfig{
+			{Name: "local-cli", Token: "secret-1-0123456789abcdef0123456"},
+			{Name: "local-cli", Token: "secret-2-0123456789abcdef0123456"},
+		}
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), `admin_api.tokens name "local-cli" is duplicated`) {
+			t.Fatalf("Validate() error = %v, want duplicate token name error", err)
+		}
+	})
 }
 
 func TestChattoConfig_Validate_CookieEncryptionSecret(t *testing.T) {
