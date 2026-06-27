@@ -130,7 +130,7 @@ func TestResolveAdminAPIClientConfigAllowsExplicitTokenForOverriddenURL(t *testi
 
 func TestResolveAdminAPIClientConfigUsesDedicatedListenerURL(t *testing.T) {
 	resetAdminGlobals(t)
-	adminConfigFile = writeAdminListenerTestConfig(t, "https://public.example")
+	adminConfigFile = writeAdminTestConfig(t, "https://public.example")
 
 	got, err := resolveAdminAPIClientConfig()
 	if err != nil {
@@ -148,9 +148,9 @@ func TestResolveAdminAPIClientConfigUsesDedicatedListenerEnv(t *testing.T) {
 	resetAdminGlobals(t)
 	adminConfigFile = writeAdminTestConfig(t, "https://safe.example")
 	t.Setenv("CHATTO_WEBSERVER_URL", "https://public-env.example")
-	t.Setenv("CHATTO_ADMIN_API_LISTENER_ENABLED", "true")
-	t.Setenv("CHATTO_ADMIN_API_LISTENER_BIND_ADDRESS", "0.0.0.0")
-	t.Setenv("CHATTO_ADMIN_API_LISTENER_PORT", "4123")
+	t.Setenv("CHATTO_ADMIN_API_ENABLED", "true")
+	t.Setenv("CHATTO_ADMIN_API_BIND_ADDRESS", "0.0.0.0")
+	t.Setenv("CHATTO_ADMIN_API_PORT", "4123")
 
 	got, err := resolveAdminAPIClientConfig()
 	if err != nil {
@@ -196,7 +196,7 @@ func TestResolveAdminAPIClientConfigRejectsAmbiguousAdminTokenSources(t *testing
 
 func TestResolveAdminAPIClientConfigAllowsEnvTokenEntriesForEnvURL(t *testing.T) {
 	resetAdminGlobals(t)
-	adminConfigFile = writeAdminTestConfig(t, "https://safe.example")
+	adminConfigFile = writeWebserverOnlyTestConfig(t, "https://safe.example")
 	t.Setenv("CHATTO_WEBSERVER_URL", "https://ops.example")
 	t.Setenv("CHATTO_ADMIN_API_TOKENS_0_NAME", "env-token")
 	t.Setenv("CHATTO_ADMIN_API_TOKENS_0_TOKEN", "env-token-value")
@@ -333,7 +333,7 @@ func resetAdminGlobals(t *testing.T) {
 		if !ok {
 			continue
 		}
-		if name == "CHATTO_WEBSERVER_URL" || name == "CHATTO_ADMIN_API_TOKEN" || name == "CHATTO_ADMIN_API_TOKEN_NAME" || strings.HasPrefix(name, "CHATTO_ADMIN_API_TOKENS_") || strings.HasPrefix(name, "CHATTO_ADMIN_API_LISTENER_") {
+		if name == "CHATTO_WEBSERVER_URL" || name == "CHATTO_ADMIN_API_TOKEN" || name == "CHATTO_ADMIN_API_TOKEN_NAME" || name == "CHATTO_ADMIN_API_ENABLED" || name == "CHATTO_ADMIN_API_BIND_ADDRESS" || name == "CHATTO_ADMIN_API_PORT" || strings.HasPrefix(name, "CHATTO_ADMIN_API_TOKENS_") {
 			value := os.Getenv(name)
 			oldEnv[name] = &value
 			if err := os.Unsetenv(name); err != nil {
@@ -381,21 +381,11 @@ token = "config-token-value"
 	return path
 }
 
-func writeAdminListenerTestConfig(t *testing.T, webserverURL string) string {
+func writeWebserverOnlyTestConfig(t *testing.T, webserverURL string) string {
 	t.Helper()
 	path := t.TempDir() + "/chatto.toml"
 	body := `[webserver]
 url = "` + webserverURL + `"
-
-[admin_api]
-enabled = true
-
-[admin_api.listener]
-enabled = true
-
-[[admin_api.tokens]]
-name = "local-cli"
-token = "config-token-value"
 `
 	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 		t.Fatalf("write config: %v", err)

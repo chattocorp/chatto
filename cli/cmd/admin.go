@@ -440,15 +440,15 @@ func resolveAdminAPIClientConfig() (resolvedAdminAPIConfig, error) {
 	if cfgErr != nil {
 		return resolved, cfgErr
 	}
-	if err := applyAdminAPIListenerEnv(&cfg); err != nil {
+	if err := applyAdminAPIEndpointEnv(&cfg); err != nil {
 		return resolved, err
 	}
 	configuredURL := strings.TrimSpace(cfg.Webserver.URL)
 	if envURL != "" {
 		configuredURL = envURL
 	}
-	if cfg.AdminAPI.Listener.Enabled {
-		configuredURL = cfg.AdminAPI.Listener.URLOrDefault()
+	if cfg.AdminAPI.Enabled {
+		configuredURL = cfg.AdminAPI.URLOrDefault()
 	}
 	if envTokens, envTokensSet, err := config.AdminAPITokensFromEnv(); err != nil {
 		return resolved, err
@@ -456,8 +456,8 @@ func resolveAdminAPIClientConfig() (resolvedAdminAPIConfig, error) {
 		cfg.AdminAPI.Tokens = envTokens
 	}
 	if resolved.connectBaseURL == "" {
-		if cfg.AdminAPI.Listener.Enabled {
-			resolved.connectBaseURL = cfg.AdminAPI.Listener.URLOrDefault()
+		if cfg.AdminAPI.Enabled {
+			resolved.connectBaseURL = cfg.AdminAPI.URLOrDefault()
 		} else if envURL != "" {
 			resolved.connectBaseURL = envURL
 		} else if cfg.Webserver.URL != "" {
@@ -488,23 +488,23 @@ func resolveAdminAPIClientConfig() (resolvedAdminAPIConfig, error) {
 	return resolved, nil
 }
 
-func applyAdminAPIListenerEnv(cfg *config.ChattoConfig) error {
-	if v := strings.TrimSpace(os.Getenv("CHATTO_ADMIN_API_LISTENER_ENABLED")); v != "" {
+func applyAdminAPIEndpointEnv(cfg *config.ChattoConfig) error {
+	if v := strings.TrimSpace(os.Getenv("CHATTO_ADMIN_API_ENABLED")); v != "" {
 		enabled, err := strconv.ParseBool(v)
 		if err != nil {
-			return fmt.Errorf("invalid CHATTO_ADMIN_API_LISTENER_ENABLED: %w", err)
+			return fmt.Errorf("invalid CHATTO_ADMIN_API_ENABLED: %w", err)
 		}
-		cfg.AdminAPI.Listener.Enabled = enabled
+		cfg.AdminAPI.Enabled = enabled
 	}
-	if v := strings.TrimSpace(os.Getenv("CHATTO_ADMIN_API_LISTENER_BIND_ADDRESS")); v != "" {
-		cfg.AdminAPI.Listener.BindAddress = v
+	if v := strings.TrimSpace(os.Getenv("CHATTO_ADMIN_API_BIND_ADDRESS")); v != "" {
+		cfg.AdminAPI.BindAddress = v
 	}
-	if v := strings.TrimSpace(os.Getenv("CHATTO_ADMIN_API_LISTENER_PORT")); v != "" {
+	if v := strings.TrimSpace(os.Getenv("CHATTO_ADMIN_API_PORT")); v != "" {
 		port, err := strconv.Atoi(v)
 		if err != nil {
-			return fmt.Errorf("invalid CHATTO_ADMIN_API_LISTENER_PORT: %w", err)
+			return fmt.Errorf("invalid CHATTO_ADMIN_API_PORT: %w", err)
 		}
-		cfg.AdminAPI.Listener.Port = port
+		cfg.AdminAPI.Port = port
 	}
 	return nil
 }

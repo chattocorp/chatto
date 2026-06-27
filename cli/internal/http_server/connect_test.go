@@ -53,9 +53,6 @@ func TestConnectAdminServiceTokenAuth(t *testing.T) {
 		s, _ := setupConnectTestServerWithConfig(t, config.ChattoConfig{
 			AdminAPI: config.AdminAPIConfig{
 				Enabled: true,
-				Listener: config.AdminAPIListenerConfig{
-					Enabled: true,
-				},
 				Tokens: []config.AdminAPITokenConfig{{
 					Name:         "local-cli",
 					Token:        "operator-secret",
@@ -69,7 +66,7 @@ func TestConnectAdminServiceTokenAuth(t *testing.T) {
 			t.Fatalf("CreateUser: %v", err)
 		}
 
-		adminTS := newAdminAPIListenerTestServer(t, s)
+		adminTS := newAdminAPITestServer(t, s)
 		client := apiv1connect.NewAdminServiceClient(adminTS.Client(), adminTS.URL+connectAPIPrefix)
 		req := connect.NewRequest(&apiv1.GetAdminUserRequest{UserId: user.GetId()})
 		req.Header().Set("Authorization", "Bearer operator-secret")
@@ -111,9 +108,6 @@ func TestConnectAdminServiceTokenAuth(t *testing.T) {
 		s, publicTS := setupConnectTestServerWithConfig(t, config.ChattoConfig{
 			AdminAPI: config.AdminAPIConfig{
 				Enabled: true,
-				Listener: config.AdminAPIListenerConfig{
-					Enabled: true,
-				},
 				Tokens: []config.AdminAPITokenConfig{{
 					Name:         "local-cli",
 					Token:        "operator-secret",
@@ -129,7 +123,7 @@ func TestConnectAdminServiceTokenAuth(t *testing.T) {
 			t.Fatalf("public ListUsers err = %v, want unimplemented", err)
 		}
 
-		adminTS := newAdminAPIListenerTestServer(t, s)
+		adminTS := newAdminAPITestServer(t, s)
 		adminClient := apiv1connect.NewAdminServiceClient(adminTS.Client(), adminTS.URL+connectAPIPrefix)
 		req = connect.NewRequest(&apiv1.ListAdminUsersRequest{})
 		req.Header().Set("Authorization", "Bearer operator-secret")
@@ -142,13 +136,10 @@ func TestConnectAdminServiceTokenAuth(t *testing.T) {
 		s, _ := setupConnectTestServerWithConfig(t, config.ChattoConfig{
 			AdminAPI: config.AdminAPIConfig{
 				Enabled: true,
-				Listener: config.AdminAPIListenerConfig{
-					Enabled: true,
-				},
-				Tokens: []config.AdminAPITokenConfig{{Name: "local-cli", Token: "operator-secret"}},
+				Tokens:  []config.AdminAPITokenConfig{{Name: "local-cli", Token: "operator-secret"}},
 			},
 		})
-		adminTS := newAdminAPIListenerTestServer(t, s)
+		adminTS := newAdminAPITestServer(t, s)
 		client := apiv1connect.NewAdminServiceClient(adminTS.Client(), adminTS.URL+connectAPIPrefix)
 		req := connect.NewRequest(&apiv1.ListAdminUsersRequest{})
 		req.Header().Set("Authorization", "Bearer wrong")
@@ -162,9 +153,6 @@ func TestConnectAdminServiceTokenAuth(t *testing.T) {
 		s, _ := setupConnectTestServerWithConfig(t, config.ChattoConfig{
 			AdminAPI: config.AdminAPIConfig{
 				Enabled: true,
-				Listener: config.AdminAPIListenerConfig{
-					Enabled: true,
-				},
 				Tokens: []config.AdminAPITokenConfig{{
 					Name:         "ops-sidecar",
 					Token:        "operator-secret",
@@ -172,7 +160,7 @@ func TestConnectAdminServiceTokenAuth(t *testing.T) {
 				}},
 			},
 		})
-		adminTS := newAdminAPIListenerTestServer(t, s)
+		adminTS := newAdminAPITestServer(t, s)
 		client := apiv1connect.NewAdminServiceClient(adminTS.Client(), adminTS.URL+connectAPIPrefix)
 		req := connect.NewRequest(&apiv1.ListAdminUsersRequest{})
 		req.Header().Set("Authorization", "Bearer operator-secret")
@@ -183,7 +171,7 @@ func TestConnectAdminServiceTokenAuth(t *testing.T) {
 	})
 }
 
-func newAdminAPIListenerTestServer(t *testing.T, s *HTTPServer) *httptest.Server {
+func newAdminAPITestServer(t *testing.T, s *HTTPServer) *httptest.Server {
 	t.Helper()
 	adminServer := s.newAdminAPIServer()
 	adminTS := httptest.NewServer(adminServer.Handler)

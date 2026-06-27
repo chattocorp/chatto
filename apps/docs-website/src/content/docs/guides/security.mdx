@@ -185,13 +185,13 @@ The ConnectRPC AdminService is disabled by default. Operators can enable it with
 AdminService is only served on its own listener:
 
 ```toml
-[admin_api.listener]
+[admin_api]
 enabled = true
 bind_address = "127.0.0.1"
 port = 4021
 ```
 
-Chatto never mounts AdminService on the public web listener. This is intentional defense in depth: normal public reverse-proxy routing for Chatto's web UI and public APIs cannot accidentally expose `/api/connect/chatto.api.v1.AdminService/*`. The `chatto admin ...` CLI also prefers the dedicated listener URL from `chatto.toml` or `CHATTO_ADMIN_API_LISTENER_*`, so local operator commands keep using the private endpoint automatically.
+Chatto never mounts AdminService on the public web listener. This is intentional defense in depth: normal public reverse-proxy routing for Chatto's web UI and public APIs cannot accidentally expose `/api/connect/chatto.api.v1.AdminService/*`. The `chatto admin ...` CLI also prefers the dedicated listener URL from `chatto.toml` or `CHATTO_ADMIN_API_BIND_ADDRESS` / `CHATTO_ADMIN_API_PORT`, so local operator commands keep using the private endpoint automatically.
 
 The CIDR check uses the direct TCP peer address seen by Chatto, not `X-Forwarded-For` or another forwarded client header. Bind the Admin API listener to loopback for local CLI use, or to a trusted private interface when a sidecar or automation host needs direct access.
 

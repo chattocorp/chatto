@@ -146,9 +146,8 @@ func TestReadConfig_AdminAPIFromEnv(t *testing.T) {
 	t.Setenv("CHATTO_CORE_SECRET_KEY", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
 	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
 	t.Setenv("CHATTO_ADMIN_API_ENABLED", "true")
-	t.Setenv("CHATTO_ADMIN_API_LISTENER_ENABLED", "true")
-	t.Setenv("CHATTO_ADMIN_API_LISTENER_BIND_ADDRESS", "127.0.0.1")
-	t.Setenv("CHATTO_ADMIN_API_LISTENER_PORT", "4021")
+	t.Setenv("CHATTO_ADMIN_API_BIND_ADDRESS", "127.0.0.1")
+	t.Setenv("CHATTO_ADMIN_API_PORT", "4021")
 	t.Setenv("CHATTO_ADMIN_API_TOKENS_0_NAME", "local-cli")
 	t.Setenv("CHATTO_ADMIN_API_TOKENS_0_TOKEN", "operator-secret-0123456789abcdef")
 	t.Setenv("CHATTO_ADMIN_API_TOKENS_0_ALLOWED_CIDRS", "127.0.0.1/32,::1/128")
@@ -160,11 +159,8 @@ func TestReadConfig_AdminAPIFromEnv(t *testing.T) {
 	if !cfg.AdminAPI.Enabled {
 		t.Fatal("AdminAPI.Enabled = false, want true")
 	}
-	if !cfg.AdminAPI.Listener.Enabled {
-		t.Fatal("AdminAPI.Listener.Enabled = false, want true")
-	}
-	if got := cfg.AdminAPI.Listener.URLOrDefault(); got != "http://127.0.0.1:4021" {
-		t.Fatalf("AdminAPI.Listener.URLOrDefault() = %q", got)
+	if got := cfg.AdminAPI.URLOrDefault(); got != "http://127.0.0.1:4021" {
+		t.Fatalf("AdminAPI.URLOrDefault() = %q", got)
 	}
 	if len(cfg.AdminAPI.Tokens) != 1 {
 		t.Fatalf("AdminAPI.Tokens len = %d, want 1", len(cfg.AdminAPI.Tokens))
@@ -1195,16 +1191,6 @@ func TestChattoConfig_Validate_AdminAPI(t *testing.T) {
 		}
 	})
 
-	t.Run("enabled requires dedicated listener", func(t *testing.T) {
-		cfg := validTestConfig()
-		cfg.AdminAPI.Enabled = true
-		cfg.AdminAPI.Tokens = []AdminAPITokenConfig{{Name: "local-cli", Token: "secret-0123456789abcdef012345678"}}
-		err := cfg.Validate()
-		if err == nil || !strings.Contains(err.Error(), "admin_api.listener.enabled must be true when admin_api.enabled is true") {
-			t.Fatalf("Validate() error = %v, want dedicated listener required error", err)
-		}
-	})
-
 	t.Run("validates allowed CIDRs even when disabled", func(t *testing.T) {
 		cfg := validTestConfig()
 		cfg.AdminAPI.Tokens = []AdminAPITokenConfig{{Name: "local-cli", Token: "secret-0123456789abcdef012345678", AllowedCIDRs: []string{"not-a-cidr"}}}
@@ -1234,15 +1220,15 @@ func TestChattoConfig_Validate_AdminAPI(t *testing.T) {
 		}
 	})
 
-	t.Run("uses dedicated listener defaults", func(t *testing.T) {
-		listener := AdminAPIListenerConfig{}
-		if got := listener.BindAddressOrDefault(); got != "127.0.0.1" {
+	t.Run("uses listener defaults", func(t *testing.T) {
+		adminAPI := AdminAPIConfig{}
+		if got := adminAPI.BindAddressOrDefault(); got != "127.0.0.1" {
 			t.Fatalf("BindAddressOrDefault() = %q", got)
 		}
-		if got := listener.PortOrDefault(); got != 4021 {
+		if got := adminAPI.PortOrDefault(); got != 4021 {
 			t.Fatalf("PortOrDefault() = %d", got)
 		}
-		if got := listener.URLOrDefault(); got != "http://127.0.0.1:4021" {
+		if got := adminAPI.URLOrDefault(); got != "http://127.0.0.1:4021" {
 			t.Fatalf("URLOrDefault() = %q", got)
 		}
 	})
@@ -1250,11 +1236,10 @@ func TestChattoConfig_Validate_AdminAPI(t *testing.T) {
 	t.Run("validates listener port when enabled", func(t *testing.T) {
 		cfg := validTestConfig()
 		cfg.AdminAPI.Enabled = true
-		cfg.AdminAPI.Listener.Enabled = true
-		cfg.AdminAPI.Listener.Port = 70000
+		cfg.AdminAPI.Port = 70000
 		cfg.AdminAPI.Tokens = []AdminAPITokenConfig{{Name: "local-cli", Token: "secret-0123456789abcdef012345678"}}
 		err := cfg.Validate()
-		if err == nil || !strings.Contains(err.Error(), "admin_api.listener.port must be between 0 and 65535") {
+		if err == nil || !strings.Contains(err.Error(), "admin_api.port must be between 0 and 65535") {
 			t.Fatalf("Validate() error = %v, want listener port error", err)
 		}
 	})

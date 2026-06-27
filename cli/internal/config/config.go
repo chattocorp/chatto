@@ -106,16 +106,10 @@ type DiagnosticsConfig struct {
 
 // AdminAPIConfig controls the opt-in operator administrative ConnectRPC API.
 type AdminAPIConfig struct {
-	Enabled  bool                   `toml:"enabled" env:"CHATTO_ADMIN_API_ENABLED" comment:"Enable the operator-only AdminService ConnectRPC API. Default: false."`
-	Listener AdminAPIListenerConfig `toml:"listener,commented" comment:"Dedicated AdminService listener. Required when admin_api.enabled = true."`
-	Tokens   []AdminAPITokenConfig  `toml:"tokens,commented" comment:"Bearer tokens accepted by the AdminService. Required when admin_api.enabled = true."`
-}
-
-// AdminAPIListenerConfig controls the dedicated listener for AdminService.
-type AdminAPIListenerConfig struct {
-	Enabled     bool   `toml:"enabled" env:"CHATTO_ADMIN_API_LISTENER_ENABLED" comment:"Serve AdminService on its dedicated listener. Required when admin_api.enabled = true."`
-	BindAddress string `toml:"bind_address,commented" env:"CHATTO_ADMIN_API_LISTENER_BIND_ADDRESS" comment:"Address to bind the Admin API listener. Default: 127.0.0.1 (localhost only)."`
-	Port        int    `toml:"port,commented" env:"CHATTO_ADMIN_API_LISTENER_PORT" comment:"Port for the Admin API listener. Default: 4021."`
+	Enabled     bool                  `toml:"enabled" env:"CHATTO_ADMIN_API_ENABLED" comment:"Enable the operator-only AdminService ConnectRPC API on its dedicated listener. Default: false."`
+	BindAddress string                `toml:"bind_address,commented" env:"CHATTO_ADMIN_API_BIND_ADDRESS" comment:"Address to bind the Admin API listener. Default: 127.0.0.1 (localhost only)."`
+	Port        int                   `toml:"port,commented" env:"CHATTO_ADMIN_API_PORT" comment:"Port for the Admin API listener. Default: 4021."`
+	Tokens      []AdminAPITokenConfig `toml:"tokens,commented" comment:"Bearer tokens accepted by the AdminService. Required when admin_api.enabled = true."`
 }
 
 // AdminAPITokenConfig is one named AdminService bearer token and its network allow-list.
@@ -130,7 +124,7 @@ var defaultAdminAPIAllowedCIDRs = []string{"127.0.0.1/32", "::1/128"}
 const minAdminAPITokenLength = 32
 
 // BindAddressOrDefault returns the admin API listener bind address, defaulting to localhost.
-func (c *AdminAPIListenerConfig) BindAddressOrDefault() string {
+func (c *AdminAPIConfig) BindAddressOrDefault() string {
 	if c.BindAddress == "" {
 		return "127.0.0.1"
 	}
@@ -138,7 +132,7 @@ func (c *AdminAPIListenerConfig) BindAddressOrDefault() string {
 }
 
 // PortOrDefault returns the admin API listener port, defaulting to 4021.
-func (c *AdminAPIListenerConfig) PortOrDefault() int {
+func (c *AdminAPIConfig) PortOrDefault() int {
 	if c.Port == 0 {
 		return 4021
 	}
@@ -146,7 +140,7 @@ func (c *AdminAPIListenerConfig) PortOrDefault() int {
 }
 
 // URLOrDefault returns the loopback/private AdminService base URL for CLI use.
-func (c *AdminAPIListenerConfig) URLOrDefault() string {
+func (c *AdminAPIConfig) URLOrDefault() string {
 	host := c.BindAddressOrDefault()
 	switch host {
 	case "", "0.0.0.0", "::":
@@ -1015,11 +1009,8 @@ func (c *ChattoConfig) Validate() error {
 		if len(c.AdminAPI.Tokens) == 0 {
 			errs = append(errs, "admin_api.tokens is required when admin_api.enabled is true")
 		}
-		if !c.AdminAPI.Listener.Enabled {
-			errs = append(errs, "admin_api.listener.enabled must be true when admin_api.enabled is true")
-		}
-		if c.AdminAPI.Listener.Port < 0 || c.AdminAPI.Listener.Port > 65535 {
-			errs = append(errs, "admin_api.listener.port must be between 0 and 65535")
+		if c.AdminAPI.Port < 0 || c.AdminAPI.Port > 65535 {
+			errs = append(errs, "admin_api.port must be between 0 and 65535")
 		}
 	}
 	adminTokenNames := make(map[string]struct{}, len(c.AdminAPI.Tokens))

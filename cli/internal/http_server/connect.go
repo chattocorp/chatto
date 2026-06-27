@@ -37,7 +37,7 @@ func (s *HTTPServer) newAdminAPIServer() *http.Server {
 		router.Use(requestLogger(s.logger))
 	}
 	s.setupAdminConnectAPI(router)
-	addr := net.JoinHostPort(s.config.AdminAPI.Listener.BindAddressOrDefault(), fmt.Sprint(s.config.AdminAPI.Listener.PortOrDefault()))
+	addr := net.JoinHostPort(s.config.AdminAPI.BindAddressOrDefault(), fmt.Sprint(s.config.AdminAPI.PortOrDefault()))
 	return newHTTPServer(addr, router)
 }
 

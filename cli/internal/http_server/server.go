@@ -235,7 +235,7 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 		servers = append(servers, metricsServer)
 	}
 
-	if s.config.AdminAPI.Enabled && s.config.AdminAPI.Listener.Enabled {
+	if s.config.AdminAPI.Enabled {
 		adminServer = s.newAdminAPIServer()
 		servers = append(servers, adminServer)
 	}
