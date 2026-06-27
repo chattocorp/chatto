@@ -178,7 +178,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 				}})
 				return
 			}
-			frame, err := s.realtimeServerFrameForEvent(event)
+			frame, err := s.realtimeServerFrameForEvent(ctx, user.Id, event)
 			if err != nil {
 				s.logger.Warn("Dropping unsupported realtime event", "event_id", event.ID(), "error", err)
 				continue
@@ -266,7 +266,7 @@ func (s *HTTPServer) realtimeAuthenticatedUser(ctx context.Context, hello *apiv1
 	return nil, core.ErrNotAuthenticated
 }
 
-func (s *HTTPServer) realtimeServerFrameForEvent(event core.EventEnvelope) (*apiv1.RealtimeServerFrame, error) {
+func (s *HTTPServer) realtimeServerFrameForEvent(ctx context.Context, viewerID string, event core.EventEnvelope) (*apiv1.RealtimeServerFrame, error) {
 	if event == nil {
 		return nil, errors.New("nil event")
 	}
@@ -275,14 +275,14 @@ func (s *HTTPServer) realtimeServerFrameForEvent(event core.EventEnvelope) (*api
 			Heartbeat: &apiv1.RealtimeHeartbeat{Id: event.ID(), CreatedAt: event.CreatedAt()},
 		}}, nil
 	}
-	envelope, err := s.realtimeEventEnvelope(event)
+	envelope, err := s.realtimeEventEnvelope(ctx, viewerID, event)
 	if err != nil {
 		return nil, err
 	}
 	return &apiv1.RealtimeServerFrame{Frame: &apiv1.RealtimeServerFrame_Event{Event: envelope}}, nil
 }
 
-func (s *HTTPServer) realtimeEventEnvelope(event core.EventEnvelope) (*apiv1.RealtimeEventEnvelope, error) {
+func (s *HTTPServer) realtimeEventEnvelope(ctx context.Context, viewerID string, event core.EventEnvelope) (*apiv1.RealtimeEventEnvelope, error) {
 	envelope := &apiv1.RealtimeEventEnvelope{
 		Id:        event.ID(),
 		CreatedAt: event.CreatedAt(),
@@ -297,7 +297,7 @@ func (s *HTTPServer) realtimeEventEnvelope(event core.EventEnvelope) (*apiv1.Rea
 		return envelope, nil
 	}
 	if live := event.LiveEvent(); live != nil {
-		if err := mapRealtimeLive(envelope, live); err != nil {
+		if err := s.mapRealtimeLive(ctx, viewerID, envelope, live); err != nil {
 			return nil, err
 		}
 		return envelope, nil
@@ -407,7 +407,7 @@ func (s *HTTPServer) mapRealtimeEVT(envelope *apiv1.RealtimeEventEnvelope, event
 	return nil
 }
 
-func mapRealtimeLive(envelope *apiv1.RealtimeEventEnvelope, event *corev1.LiveEvent) error {
+func (s *HTTPServer) mapRealtimeLive(ctx context.Context, viewerID string, envelope *apiv1.RealtimeEventEnvelope, event *corev1.LiveEvent) error {
 	switch payload := event.GetEvent().(type) {
 	case *corev1.LiveEvent_UserTyping:
 		typing := payload.UserTyping
@@ -448,14 +448,10 @@ func mapRealtimeLive(envelope *apiv1.RealtimeEventEnvelope, event *corev1.LiveEv
 		}}
 	case *corev1.LiveEvent_MentionNotification:
 		mention := payload.MentionNotification
-		envelope.Event = &apiv1.RealtimeEventEnvelope_MentionNotification{MentionNotification: &apiv1.RealtimeMentionNotificationEvent{
-			RoomId: mention.GetRoomId(), ActorUserId: mention.GetMentionedByUserId(),
-		}}
+		envelope.Event = &apiv1.RealtimeEventEnvelope_MentionNotification{MentionNotification: s.realtimeMentionNotification(ctx, viewerID, mention)}
 	case *corev1.LiveEvent_NewDirectMessageNotification:
 		dm := payload.NewDirectMessageNotification
-		envelope.Event = &apiv1.RealtimeEventEnvelope_NewDirectMessageNotification{NewDirectMessageNotification: &apiv1.RealtimeNewDirectMessageNotificationEvent{
-			RoomId: dm.GetRoomId(), SenderId: dm.GetSenderId(),
-		}}
+		envelope.Event = &apiv1.RealtimeEventEnvelope_NewDirectMessageNotification{NewDirectMessageNotification: s.realtimeNewDirectMessageNotification(ctx, viewerID, dm)}
 	case *corev1.LiveEvent_RoomMarkedAsRead:
 		envelope.Event = &apiv1.RealtimeEventEnvelope_RoomMarkedAsRead{RoomMarkedAsRead: &apiv1.RealtimeRoomMarkedAsReadEvent{
 			RoomId: payload.RoomMarkedAsRead.GetRoomId(),
@@ -503,6 +499,86 @@ func realtimeAssetProcessingEvent(s *HTTPServer, assetID, messageEventID string)
 		AssetId:        assetID,
 		MessageEventId: messageEventID,
 	}
+}
+
+func (s *HTTPServer) realtimeMentionNotification(ctx context.Context, viewerID string, mention *corev1.MentionNotificationEvent) *apiv1.RealtimeMentionNotificationEvent {
+	out := &apiv1.RealtimeMentionNotificationEvent{
+		RoomId:      mention.GetRoomId(),
+		ActorUserId: mention.GetMentionedByUserId(),
+	}
+	if s == nil || s.core == nil {
+		return out
+	}
+	if room, err := s.core.FindRoomByID(ctx, mention.GetRoomId()); err == nil && s.viewerCanReadRealtimeRoomLabel(ctx, viewerID, room) {
+		out.RoomName = room.GetName()
+	}
+	if actor, err := s.core.GetUser(ctx, mention.GetMentionedByUserId()); err == nil {
+		out.ActorDisplayName = actor.GetDisplayName()
+	}
+	return out
+}
+
+func (s *HTTPServer) realtimeNewDirectMessageNotification(ctx context.Context, viewerID string, dm *corev1.NewDirectMessageNotificationEvent) *apiv1.RealtimeNewDirectMessageNotificationEvent {
+	out := &apiv1.RealtimeNewDirectMessageNotificationEvent{
+		RoomId:           dm.GetRoomId(),
+		SenderId:         dm.GetSenderId(),
+		ConversationName: "Direct Message",
+	}
+	if s == nil || s.core == nil {
+		return out
+	}
+	if ok, err := s.core.RoomMembershipExists(ctx, core.KindDM, viewerID, dm.GetRoomId()); viewerID != "" && (err != nil || !ok) {
+		return out
+	}
+	if sender, err := s.core.GetUser(ctx, dm.GetSenderId()); err == nil {
+		out.SenderDisplayName = sender.GetDisplayName()
+		if avatarURL, err := s.core.GetUserAvatarURL(ctx, sender.GetId(), nil, nil, ""); err == nil {
+			out.SenderAvatarUrl = avatarURL
+		}
+	}
+	out.ConversationName = s.realtimeDMConversationName(ctx, viewerID, dm.GetRoomId())
+	return out
+}
+
+func (s *HTTPServer) realtimeDMConversationName(ctx context.Context, viewerID, roomID string) string {
+	participants, err := s.core.GetRoomMembersList(ctx, core.KindDM, roomID)
+	if err != nil {
+		return "Direct Message"
+	}
+
+	names := make([]string, 0, len(participants))
+	for _, participant := range participants {
+		userID := participant.GetUserId()
+		if userID == "" || userID == viewerID {
+			continue
+		}
+		user, err := s.core.GetUser(ctx, userID)
+		if err != nil {
+			continue
+		}
+		if user.GetDisplayName() != "" {
+			names = append(names, user.GetDisplayName())
+		} else if user.GetLogin() != "" {
+			names = append(names, user.GetLogin())
+		}
+	}
+	if len(names) == 0 {
+		return "Direct Message"
+	}
+	return strings.Join(names, ", ")
+}
+
+func (s *HTTPServer) viewerCanReadRealtimeRoomLabel(ctx context.Context, viewerID string, room *corev1.Room) bool {
+	if s == nil || s.core == nil || viewerID == "" || room == nil {
+		return false
+	}
+	kind := core.KindOfRoom(room)
+	if kind == core.KindDM {
+		ok, err := s.core.RoomMembershipExists(ctx, core.KindDM, viewerID, room.GetId())
+		return err == nil && ok
+	}
+	ok, err := s.core.CanSeeRoom(ctx, viewerID, kind, room.GetId())
+	return err == nil && ok
 }
 
 func realtimeCursor(seq uint64) string {

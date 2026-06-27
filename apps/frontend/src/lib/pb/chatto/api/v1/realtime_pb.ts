@@ -2452,6 +2452,20 @@ export class RealtimeMentionNotificationEvent extends Message<RealtimeMentionNot
    */
   actorUserId = "";
 
+  /**
+   * Display name of the room where the mention occurred.
+   *
+   * @generated from field: string room_name = 3;
+   */
+  roomName = "";
+
+  /**
+   * Display name of the author who mentioned the connected user.
+   *
+   * @generated from field: string actor_display_name = 4;
+   */
+  actorDisplayName = "";
+
   constructor(data?: PartialMessage<RealtimeMentionNotificationEvent>) {
     super();
     proto3.util.initPartial(data, this);
@@ -2462,6 +2476,8 @@ export class RealtimeMentionNotificationEvent extends Message<RealtimeMentionNot
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "actor_user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "room_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "actor_display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeMentionNotificationEvent {
@@ -2501,6 +2517,27 @@ export class RealtimeNewDirectMessageNotificationEvent extends Message<RealtimeN
    */
   senderId = "";
 
+  /**
+   * Display name of the sender.
+   *
+   * @generated from field: string sender_display_name = 3;
+   */
+  senderDisplayName = "";
+
+  /**
+   * Avatar URL of the sender, when one is available.
+   *
+   * @generated from field: string sender_avatar_url = 4;
+   */
+  senderAvatarUrl = "";
+
+  /**
+   * Display name for the DM conversation from the connected user's perspective.
+   *
+   * @generated from field: string conversation_name = 5;
+   */
+  conversationName = "";
+
   constructor(data?: PartialMessage<RealtimeNewDirectMessageNotificationEvent>) {
     super();
     proto3.util.initPartial(data, this);
@@ -2511,6 +2548,9 @@ export class RealtimeNewDirectMessageNotificationEvent extends Message<RealtimeN
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "sender_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "sender_display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "sender_avatar_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "conversation_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeNewDirectMessageNotificationEvent {

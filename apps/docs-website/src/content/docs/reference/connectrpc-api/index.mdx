@@ -1824,6 +1824,8 @@ Mention attention signal for the connected user.
 | --- | --- | --- |
 | `room_id` | `string` | Room where the mention occurred. |
 | `actor_user_id` | `string` | Author user ID. |
+| `room_name` | `string` | Display name of the room where the mention occurred. |
+| `actor_display_name` | `string` | Display name of the author who mentioned the connected user. |
 
 
 
@@ -1878,6 +1880,9 @@ New-DM attention signal for the connected user.
 | --- | --- | --- |
 | `room_id` | `string` | DM room ID. |
 | `sender_id` | `string` | Sender user ID. |
+| `sender_display_name` | `string` | Display name of the sender. |
+| `sender_avatar_url` | `string` | Avatar URL of the sender, when one is available. |
+| `conversation_name` | `string` | Display name for the DM conversation from the connected user's perspective. |
 
 
 

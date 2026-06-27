@@ -1,6 +1,7 @@
 package http_server
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"testing"
@@ -109,7 +110,7 @@ func waitRealtimeEvent(t *testing.T, conn *websocket.Conn, timeout time.Duration
 }
 
 func TestRealtimeMapperMapsOfflinePresence(t *testing.T) {
-	frame, err := (&HTTPServer{}).realtimeEventEnvelope(core.NewLiveEventEnvelope(&corev1.LiveEvent{
+	frame, err := (&HTTPServer{}).realtimeEventEnvelope(context.Background(), "", core.NewLiveEventEnvelope(&corev1.LiveEvent{
 		Id:      "presence-1",
 		ActorId: "U1",
 		Event: &corev1.LiveEvent_PresenceChanged{PresenceChanged: &corev1.PresenceChangedEvent{
@@ -129,7 +130,7 @@ func TestRealtimeMapperMapsOfflinePresence(t *testing.T) {
 }
 
 func TestRealtimeMapperMapsThreadCreated(t *testing.T) {
-	frame, err := (&HTTPServer{}).realtimeEventEnvelope(core.NewEVTEventEnvelope(&corev1.Event{
+	frame, err := (&HTTPServer{}).realtimeEventEnvelope(context.Background(), "", core.NewEVTEventEnvelope(&corev1.Event{
 		Id:      "thread-created-1",
 		ActorId: "U1",
 		Event: &corev1.Event_ThreadCreated{ThreadCreated: &corev1.ThreadCreatedEvent{
@@ -149,7 +150,7 @@ func TestRealtimeMapperMapsThreadCreated(t *testing.T) {
 }
 
 func TestRealtimeMapperMapsUnspecifiedNotificationLevelToDefault(t *testing.T) {
-	frame, err := (&HTTPServer{}).realtimeEventEnvelope(core.NewLiveEventEnvelope(&corev1.LiveEvent{
+	frame, err := (&HTTPServer{}).realtimeEventEnvelope(context.Background(), "", core.NewLiveEventEnvelope(&corev1.LiveEvent{
 		Id:      "notification-level-1",
 		ActorId: "U1",
 		Event: &corev1.LiveEvent_NotificationLevelChanged{NotificationLevelChanged: &corev1.NotificationLevelChangedEvent{
@@ -170,6 +171,91 @@ func TestRealtimeMapperMapsUnspecifiedNotificationLevelToDefault(t *testing.T) {
 	}
 	if notificationLevel.EffectiveLevel != apiv1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
 		t.Fatalf("effective level = %v, want DEFAULT", notificationLevel.EffectiveLevel)
+	}
+}
+
+func TestRealtimeMapperHydratesMentionNotificationDisplayData(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	actor, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-mention-actor", "RT Mention Actor", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser actor: %v", err)
+	}
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-mention-viewer", "RT Mention Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, actor.Id, core.KindChannel, "", "rt-mention-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, actor.Id, core.KindChannel, actor.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom actor: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, viewer.Id, core.KindChannel, viewer.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom viewer: %v", err)
+	}
+
+	frame, err := env.httpServer.realtimeEventEnvelope(env.ctx, viewer.Id, core.NewLiveEventEnvelope(&corev1.LiveEvent{
+		Id:      "mention-display-1",
+		ActorId: actor.Id,
+		Event: &corev1.LiveEvent_MentionNotification{MentionNotification: &corev1.MentionNotificationEvent{
+			RoomId:            room.Id,
+			MentionedByUserId: actor.Id,
+		}},
+	}))
+	if err != nil {
+		t.Fatalf("realtimeEventEnvelope: %v", err)
+	}
+	mention := frame.GetMentionNotification()
+	if mention == nil {
+		t.Fatalf("event = %T, want mention_notification", frame.GetEvent())
+	}
+	if mention.RoomName != room.Name {
+		t.Fatalf("room name = %q, want %q", mention.RoomName, room.Name)
+	}
+	if mention.ActorDisplayName != actor.DisplayName {
+		t.Fatalf("actor display name = %q, want %q", mention.ActorDisplayName, actor.DisplayName)
+	}
+}
+
+func TestRealtimeMapperHydratesDMNotificationDisplayData(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	sender, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-dm-sender", "RT DM Sender", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser sender: %v", err)
+	}
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-dm-viewer", "RT DM Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	room, _, err := env.core.FindOrCreateDM(env.ctx, sender.Id, []string{viewer.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+
+	frame, err := env.httpServer.realtimeEventEnvelope(env.ctx, viewer.Id, core.NewLiveEventEnvelope(&corev1.LiveEvent{
+		Id:      "dm-display-1",
+		ActorId: sender.Id,
+		Event: &corev1.LiveEvent_NewDirectMessageNotification{NewDirectMessageNotification: &corev1.NewDirectMessageNotificationEvent{
+			RoomId:   room.Id,
+			SenderId: sender.Id,
+		}},
+	}))
+	if err != nil {
+		t.Fatalf("realtimeEventEnvelope: %v", err)
+	}
+	dm := frame.GetNewDirectMessageNotification()
+	if dm == nil {
+		t.Fatalf("event = %T, want new_direct_message_notification", frame.GetEvent())
+	}
+	if dm.SenderDisplayName != sender.DisplayName {
+		t.Fatalf("sender display name = %q, want %q", dm.SenderDisplayName, sender.DisplayName)
+	}
+	if dm.ConversationName != sender.DisplayName {
+		t.Fatalf("conversation name = %q, want %q", dm.ConversationName, sender.DisplayName)
+	}
+	if dm.SenderAvatarUrl != "" {
+		t.Fatalf("sender avatar URL = %q, want empty", dm.SenderAvatarUrl)
 	}
 }
 

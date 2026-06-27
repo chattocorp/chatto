@@ -368,28 +368,41 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
         event: { __typename: typename, roomId: value.roomId, callId: value.callId }
       } as unknown as EventEnvelope;
     }
-    case 'mentionNotification':
+    case 'mentionNotification': {
+      const value = frame.event.value;
       return {
         ...base,
-        actorId: frame.event.value.actorUserId || base.actorId,
+        actorId: value.actorUserId || base.actorId,
         event: {
           __typename: 'MentionNotificationEvent',
-          roomId: frame.event.value.roomId,
-          room: { __typename: 'Room', name: '' },
-          actor: null
+          roomId: value.roomId,
+          room: { __typename: 'Room', name: value.roomName },
+          actor: value.actorUserId
+            ? { __typename: 'User', id: value.actorUserId, displayName: value.actorDisplayName }
+            : null
         }
       } as unknown as EventEnvelope;
-    case 'newDirectMessageNotification':
+    }
+    case 'newDirectMessageNotification': {
+      const value = frame.event.value;
       return {
         ...base,
-        actorId: frame.event.value.senderId || base.actorId,
+        actorId: value.senderId || base.actorId,
         event: {
           __typename: 'NewDirectMessageNotificationEvent',
-          roomId: frame.event.value.roomId,
-          sender: null,
-          conversationName: ''
+          roomId: value.roomId,
+          sender: value.senderId
+            ? {
+                __typename: 'User',
+                id: value.senderId,
+                displayName: value.senderDisplayName,
+                avatarUrl: value.senderAvatarUrl || null
+              }
+            : null,
+          conversationName: value.conversationName
         }
       } as unknown as EventEnvelope;
+    }
     case 'sessionTerminated':
       return {
         ...base,

@@ -3139,9 +3139,13 @@ type RealtimeMentionNotificationEvent struct {
 	// Room where the mention occurred.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Author user ID.
-	ActorUserId   string `protobuf:"bytes,2,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ActorUserId string `protobuf:"bytes,2,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	// Display name of the room where the mention occurred.
+	RoomName string `protobuf:"bytes,3,opt,name=room_name,json=roomName,proto3" json:"room_name,omitempty"`
+	// Display name of the author who mentioned the connected user.
+	ActorDisplayName string `protobuf:"bytes,4,opt,name=actor_display_name,json=actorDisplayName,proto3" json:"actor_display_name,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *RealtimeMentionNotificationEvent) Reset() {
@@ -3188,15 +3192,35 @@ func (x *RealtimeMentionNotificationEvent) GetActorUserId() string {
 	return ""
 }
 
+func (x *RealtimeMentionNotificationEvent) GetRoomName() string {
+	if x != nil {
+		return x.RoomName
+	}
+	return ""
+}
+
+func (x *RealtimeMentionNotificationEvent) GetActorDisplayName() string {
+	if x != nil {
+		return x.ActorDisplayName
+	}
+	return ""
+}
+
 // New-DM attention signal for the connected user.
 type RealtimeNewDirectMessageNotificationEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// DM room ID.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Sender user ID.
-	SenderId      string `protobuf:"bytes,2,opt,name=sender_id,json=senderId,proto3" json:"sender_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	SenderId string `protobuf:"bytes,2,opt,name=sender_id,json=senderId,proto3" json:"sender_id,omitempty"`
+	// Display name of the sender.
+	SenderDisplayName string `protobuf:"bytes,3,opt,name=sender_display_name,json=senderDisplayName,proto3" json:"sender_display_name,omitempty"`
+	// Avatar URL of the sender, when one is available.
+	SenderAvatarUrl string `protobuf:"bytes,4,opt,name=sender_avatar_url,json=senderAvatarUrl,proto3" json:"sender_avatar_url,omitempty"`
+	// Display name for the DM conversation from the connected user's perspective.
+	ConversationName string `protobuf:"bytes,5,opt,name=conversation_name,json=conversationName,proto3" json:"conversation_name,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *RealtimeNewDirectMessageNotificationEvent) Reset() {
@@ -3239,6 +3263,27 @@ func (x *RealtimeNewDirectMessageNotificationEvent) GetRoomId() string {
 func (x *RealtimeNewDirectMessageNotificationEvent) GetSenderId() string {
 	if x != nil {
 		return x.SenderId
+	}
+	return ""
+}
+
+func (x *RealtimeNewDirectMessageNotificationEvent) GetSenderDisplayName() string {
+	if x != nil {
+		return x.SenderDisplayName
+	}
+	return ""
+}
+
+func (x *RealtimeNewDirectMessageNotificationEvent) GetSenderAvatarUrl() string {
+	if x != nil {
+		return x.SenderAvatarUrl
+	}
+	return ""
+}
+
+func (x *RealtimeNewDirectMessageNotificationEvent) GetConversationName() string {
+	if x != nil {
+		return x.ConversationName
 	}
 	return ""
 }
@@ -3475,13 +3520,18 @@ const file_chatto_api_v1_realtime_proto_rawDesc = "" +
 	"\basset_id\x18\x02 \x01(\tR\aassetId\"E\n" +
 	"\x11RealtimeCallEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x17\n" +
-	"\acall_id\x18\x02 \x01(\tR\x06callId\"_\n" +
+	"\acall_id\x18\x02 \x01(\tR\x06callId\"\xaa\x01\n" +
 	" RealtimeMentionNotificationEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\"\n" +
-	"\ractor_user_id\x18\x02 \x01(\tR\vactorUserId\"a\n" +
+	"\ractor_user_id\x18\x02 \x01(\tR\vactorUserId\x12\x1b\n" +
+	"\troom_name\x18\x03 \x01(\tR\broomName\x12,\n" +
+	"\x12actor_display_name\x18\x04 \x01(\tR\x10actorDisplayName\"\xea\x01\n" +
 	")RealtimeNewDirectMessageNotificationEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x1b\n" +
-	"\tsender_id\x18\x02 \x01(\tR\bsenderId\"8\n" +
+	"\tsender_id\x18\x02 \x01(\tR\bsenderId\x12.\n" +
+	"\x13sender_display_name\x18\x03 \x01(\tR\x11senderDisplayName\x12*\n" +
+	"\x11sender_avatar_url\x18\x04 \x01(\tR\x0fsenderAvatarUrl\x12+\n" +
+	"\x11conversation_name\x18\x05 \x01(\tR\x10conversationName\"8\n" +
 	"\x1eRealtimeSessionTerminatedEvent\x12\x16\n" +
 	"\x06reason\x18\x01 \x01(\tR\x06reason*\xdd\x01\n" +
 	"\x16RealtimePresenceStatus\x12(\n" +

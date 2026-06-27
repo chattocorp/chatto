@@ -458,6 +458,10 @@ message RealtimeMentionNotificationEvent {
   string room_id = 1;
   // Author user ID.
   string actor_user_id = 2;
+  // Display name of the room where the mention occurred.
+  string room_name = 3;
+  // Display name of the author who mentioned the connected user.
+  string actor_display_name = 4;
 }
 
 // New-DM attention signal for the connected user.
@@ -466,6 +470,12 @@ message RealtimeNewDirectMessageNotificationEvent {
   string room_id = 1;
   // Sender user ID.
   string sender_id = 2;
+  // Display name of the sender.
+  string sender_display_name = 3;
+  // Avatar URL of the sender, when one is available.
+  string sender_avatar_url = 4;
+  // Display name for the DM conversation from the connected user's perspective.
+  string conversation_name = 5;
 }
 
 // Session-terminated signal for the connected user's current session.
