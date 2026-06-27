@@ -2,12 +2,24 @@ package cmd
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
+	"connectrpc.com/authn"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/connectapi"
+	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	"hmans.de/chatto/internal/testutil"
 )
 
 func TestRootHelpShowsBannerAndNoResetCommand(t *testing.T) {
@@ -291,6 +303,260 @@ func TestAdminOutputUsesProvidedWriter(t *testing.T) {
 	if got := jsonOut.String(); !strings.Contains(got, `"userId"`) || !strings.Contains(got, `"Uwriter"`) {
 		t.Fatalf("JSON output = %q", got)
 	}
+}
+
+func TestAdminUserCommandsExerciseAdminAPI(t *testing.T) {
+	env := newAdminCLITestEnv(t)
+
+	createOut := env.run(t, "admin", "user", "create",
+		"--login", "cli-admin-user",
+		"--display-name", "CLI Admin User",
+		"--password-stdin",
+		"--verified-email", "cli-admin@example.com",
+		"--role", "cli-test-role",
+		"--json",
+	)
+	var created struct {
+		User struct {
+			Login     string   `json:"login"`
+			RoleNames []string `json:"roleNames"`
+		} `json:"user"`
+	}
+	if err := json.Unmarshal([]byte(createOut), &created); err != nil {
+		t.Fatalf("unmarshal create output: %v\n%s", err, createOut)
+	}
+	if created.User.Login != "cli-admin-user" || strings.Join(created.User.RoleNames, ",") != "cli-test-role" {
+		t.Fatalf("create output = %+v", created.User)
+	}
+	user, err := env.core.GetUserByLogin(env.ctx, "cli-admin-user")
+	if err != nil {
+		t.Fatalf("GetUserByLogin after create: %v", err)
+	}
+	emails, err := env.core.GetVerifiedEmails(env.ctx, user.Id)
+	if err != nil {
+		t.Fatalf("GetVerifiedEmails: %v", err)
+	}
+	if len(emails) != 1 || emails[0].Email != "cli-admin@example.com" {
+		t.Fatalf("verified emails = %+v, want cli-admin@example.com", emails)
+	}
+	roles, err := env.core.GetUserRoles(env.ctx, user.Id)
+	if err != nil {
+		t.Fatalf("GetUserRoles: %v", err)
+	}
+	if strings.Join(roles, ",") != "cli-test-role" {
+		t.Fatalf("roles = %v, want cli-test-role", roles)
+	}
+
+	getOut := env.run(t, "admin", "user", "get", "--login", "cli-admin-user")
+	if !strings.Contains(getOut, user.Id+"\tcli-admin-user\tCLI Admin User") {
+		t.Fatalf("get output = %q", getOut)
+	}
+
+	updateOut := env.run(t, "admin", "user", "update", user.Id, "--display-name", "CLI Renamed")
+	if !strings.Contains(updateOut, "\tCLI Renamed\t") {
+		t.Fatalf("update output = %q", updateOut)
+	}
+
+	passwordPath := t.TempDir() + "/password"
+	if err := os.WriteFile(passwordPath, []byte("new-password-123\n"), 0o600); err != nil {
+		t.Fatalf("write password file: %v", err)
+	}
+	env.run(t, "admin", "user", "set-password", user.Id, "--password-file", passwordPath)
+	if _, _, err := env.core.VerifyPasswordWithAuthGeneration(env.ctx, "cli-admin-user", "new-password-123"); err != nil {
+		t.Fatalf("VerifyPasswordWithAuthGeneration after set-password: %v", err)
+	}
+
+	emailOut := env.run(t, "admin", "user", "add-email", user.Id, "cli-admin-2@example.com")
+	if !strings.Contains(emailOut, "cli-admin-2@example.com") {
+		t.Fatalf("add-email output = %q", emailOut)
+	}
+
+	roleAddOut := env.run(t, "admin", "user", "role", "add", user.Id, "cli-extra-role")
+	if !strings.Contains(roleAddOut, "cli-extra-role") {
+		t.Fatalf("role add output = %q", roleAddOut)
+	}
+	roleRemoveOut := env.run(t, "admin", "user", "role", "remove", user.Id, "cli-extra-role")
+	if strings.Contains(roleRemoveOut, "cli-extra-role") {
+		t.Fatalf("role remove output still contains cli-extra-role: %q", roleRemoveOut)
+	}
+
+	listOut := env.run(t, "admin", "user", "list", "--search", "cli-admin")
+	if !strings.Contains(listOut, "total=1 has_more=false") || !strings.Contains(listOut, "cli-admin-user") {
+		t.Fatalf("list output = %q", listOut)
+	}
+
+	deleteOut := env.run(t, "admin", "user", "delete", user.Id, "--yes")
+	if !strings.Contains(deleteOut, "deleted user "+user.Id) {
+		t.Fatalf("delete output = %q", deleteOut)
+	}
+	if _, err := env.core.GetUser(env.ctx, user.Id); !errors.Is(err, core.ErrNotFound) {
+		t.Fatalf("GetUser after delete err = %v, want ErrNotFound", err)
+	}
+}
+
+func TestAdminUserCommandReadsAdminTokenFile(t *testing.T) {
+	env := newAdminCLITestEnv(t)
+	tokenPath := t.TempDir() + "/admin-token"
+	if err := os.WriteFile(tokenPath, []byte(adminCLITestToken+"\n"), 0o600); err != nil {
+		t.Fatalf("write token file: %v", err)
+	}
+	env.token = ""
+
+	out := env.run(t, "admin", "--admin-token-file", tokenPath, "user", "create",
+		"--login", "token-file-user",
+		"--password", "password123",
+	)
+	if !strings.Contains(out, "\ttoken-file-user\t") {
+		t.Fatalf("create with token file output = %q", out)
+	}
+}
+
+const adminCLITestToken = "cli-admin-token"
+
+type adminCLITestEnv struct {
+	ctx    context.Context
+	core   *core.ChattoCore
+	server *httptest.Server
+	token  string
+}
+
+func newAdminCLITestEnv(t *testing.T) *adminCLITestEnv {
+	t.Helper()
+	resetAdminGlobals(t)
+
+	_, nc := testutil.StartSharedNATS(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Cleanup(cancel)
+
+	c, err := core.NewChattoCore(ctx, nc, config.CoreConfig{
+		SecretKey: "test-core-secret",
+		Assets: config.AssetsConfig{
+			SigningSecret: "test-signing-secret",
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewChattoCore: %v", err)
+	}
+	startAdminCLITestCore(t, c)
+	if _, err := c.CreateServerRole(ctx, core.SystemActorID, "cli-test-role", "CLI Test Role", ""); err != nil {
+		t.Fatalf("CreateServerRole cli-test-role: %v", err)
+	}
+	if _, err := c.CreateServerRole(ctx, core.SystemActorID, "cli-extra-role", "CLI Extra Role", ""); err != nil {
+		t.Fatalf("CreateServerRole cli-extra-role: %v", err)
+	}
+
+	cfg := config.ChattoConfig{
+		AdminAPI: config.AdminAPIConfig{
+			Enabled: true,
+			Tokens: []config.AdminAPITokenConfig{{
+				Name:         "local-cli",
+				Token:        adminCLITestToken,
+				AllowedCIDRs: []string{"127.0.0.1/32"},
+			}},
+		},
+	}
+	mux := http.NewServeMux()
+	api := connectapi.New(c, cfg, "test")
+	authMiddleware := authn.NewMiddleware(func(ctx context.Context, req *http.Request) (any, error) {
+		if req.Header.Get("Authorization") != "Bearer "+adminCLITestToken {
+			return nil, authn.Errorf("admin token required")
+		}
+		return connectapi.AdminCaller{TokenName: "local-cli"}, nil
+	}, connectapi.HandlerOptions()...)
+	for _, handler := range api.Handlers() {
+		if handler.AuthPolicy != connectapi.AuthPolicyAdminToken {
+			continue
+		}
+		mux.Handle(connectapi.Prefix+handler.ServicePath, http.StripPrefix(connectapi.Prefix, authMiddleware.Wrap(handler.Handler)))
+	}
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	env := &adminCLITestEnv{ctx: ctx, core: c, server: server, token: adminCLITestToken}
+	adminAPIURL = server.URL + connectapi.Prefix
+	adminAPIToken = adminCLITestToken
+	adminOutputJSON = false
+	return env
+}
+
+func startAdminCLITestCore(t *testing.T, c *core.ChattoCore) {
+	t.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- c.Run(ctx) }()
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Fatal("core.Run did not stop within timeout")
+		}
+	})
+
+	bootCtx, bootCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer bootCancel()
+	if err := c.WaitForBoot(bootCtx); err != nil {
+		t.Fatalf("WaitForBoot: %v", err)
+	}
+}
+
+func (env *adminCLITestEnv) run(t *testing.T, args ...string) string {
+	t.Helper()
+	resetCommandFlags(rootCmd)
+	oldStdin := os.Stdin
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("stdin pipe: %v", err)
+	}
+	if _, err := w.WriteString("password123\n"); err != nil {
+		t.Fatalf("write stdin password: %v", err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatalf("close stdin writer: %v", err)
+	}
+	os.Stdin = r
+	defer func() {
+		os.Stdin = oldStdin
+		_ = r.Close()
+	}()
+
+	adminAPIURL = env.server.URL + connectapi.Prefix
+	adminAPIToken = env.token
+	adminOutputJSON = false
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs(args)
+	defer func() {
+		rootCmd.SetOut(os.Stdout)
+		rootCmd.SetErr(os.Stderr)
+		rootCmd.SetArgs(nil)
+		adminOutputJSON = false
+	}()
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("chatto %s: %v\noutput:\n%s", strings.Join(args, " "), err, out.String())
+	}
+	return out.String()
+}
+
+func resetCommandFlags(cmd *cobra.Command) {
+	resetFlagSet(cmd.Flags())
+	resetFlagSet(cmd.PersistentFlags())
+	for _, child := range cmd.Commands() {
+		resetCommandFlags(child)
+	}
+}
+
+func resetFlagSet(flags *pflag.FlagSet) {
+	flags.VisitAll(func(flag *pflag.Flag) {
+		if replacer, ok := flag.Value.(interface{ Replace([]string) error }); ok {
+			_ = replacer.Replace(nil)
+		} else {
+			_ = flag.Value.Set(flag.DefValue)
+		}
+		flag.Changed = false
+	})
 }
 
 func TestAdminSecretReaders(t *testing.T) {
