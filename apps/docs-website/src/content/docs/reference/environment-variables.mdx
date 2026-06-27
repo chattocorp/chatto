@@ -138,7 +138,7 @@ The exporter exposes deployment-wide Chatto metrics. Run it as `chatto exporter`
 </EnvVar>
 
 <EnvVar name="CHATTO_ADMIN_API_LISTENER_ENABLED" toml="admin_api.listener.enabled" default="false">
-  Serve AdminService on a dedicated HTTP listener instead of the public web listener. Recommended when `admin_api.enabled = true`.
+  Serve AdminService on its dedicated HTTP listener. Required when `admin_api.enabled = true`; AdminService is never mounted on the public web listener.
 </EnvVar>
 
 <EnvVar name="CHATTO_ADMIN_API_LISTENER_BIND_ADDRESS" toml="admin_api.listener.bind_address" default="127.0.0.1">

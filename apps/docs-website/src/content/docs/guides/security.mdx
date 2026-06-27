@@ -182,7 +182,7 @@ Users can delete their own account via the GraphQL API. Deletion is comprehensiv
 
 The ConnectRPC AdminService is disabled by default. Operators can enable it with `[admin_api]` / `CHATTO_ADMIN_API_*` configuration for trusted automation such as `chatto admin user create` and password/bootstrap workflows. Requests must use a configured bearer token and originate from one of that token's configured CIDR ranges; by default each token is loopback-only.
 
-Prefer serving AdminService on its own listener:
+AdminService is only served on its own listener:
 
 ```toml
 [admin_api.listener]
@@ -191,9 +191,9 @@ bind_address = "127.0.0.1"
 port = 4021
 ```
 
-When this listener is enabled, Chatto does not mount AdminService on the public web listener. The `chatto admin ...` CLI also prefers this listener URL from `chatto.toml` or `CHATTO_ADMIN_API_LISTENER_*`, so local operator commands keep using the private endpoint automatically.
+Chatto never mounts AdminService on the public web listener. This is intentional defense in depth: normal public reverse-proxy routing for Chatto's web UI and public APIs cannot accidentally expose `/api/connect/chatto.api.v1.AdminService/*`. The `chatto admin ...` CLI also prefers the dedicated listener URL from `chatto.toml` or `CHATTO_ADMIN_API_LISTENER_*`, so local operator commands keep using the private endpoint automatically.
 
-The CIDR check uses the direct TCP peer address seen by Chatto, not `X-Forwarded-For` or another forwarded client header. If Chatto sits behind a reverse proxy on loopback and AdminService is mounted on the public web listener, public requests forwarded to Chatto can appear to come from `127.0.0.1` or `::1`; do not route `/api/connect/chatto.api.v1.AdminService/*` through a public reverse proxy unless that is intentional. Use the dedicated listener, a private sidecar, or proxy-level denial for AdminService routes.
+The CIDR check uses the direct TCP peer address seen by Chatto, not `X-Forwarded-For` or another forwarded client header. Bind the Admin API listener to loopback for local CLI use, or to a trusted private interface when a sidecar or automation host needs direct access.
 
 AdminService actions are attributed to Chatto's system actor, not to an in-app user or RBAC role. The matched token name is logged as non-secret admin-auth context so operators can distinguish token entries during incident response. Keep admin tokens out of browser clients, logs, and shell history where possible; for automation, prefer `--admin-token-file`, `--password-stdin`, and `--password-file` over direct secret flags.
 

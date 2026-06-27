@@ -107,13 +107,13 @@ type DiagnosticsConfig struct {
 // AdminAPIConfig controls the opt-in operator administrative ConnectRPC API.
 type AdminAPIConfig struct {
 	Enabled  bool                   `toml:"enabled" env:"CHATTO_ADMIN_API_ENABLED" comment:"Enable the operator-only AdminService ConnectRPC API. Default: false."`
-	Listener AdminAPIListenerConfig `toml:"listener,commented" comment:"Optional dedicated AdminService listener. Recommended when admin_api.enabled = true."`
+	Listener AdminAPIListenerConfig `toml:"listener,commented" comment:"Dedicated AdminService listener. Required when admin_api.enabled = true."`
 	Tokens   []AdminAPITokenConfig  `toml:"tokens,commented" comment:"Bearer tokens accepted by the AdminService. Required when admin_api.enabled = true."`
 }
 
-// AdminAPIListenerConfig controls an optional dedicated listener for AdminService.
+// AdminAPIListenerConfig controls the dedicated listener for AdminService.
 type AdminAPIListenerConfig struct {
-	Enabled     bool   `toml:"enabled" env:"CHATTO_ADMIN_API_LISTENER_ENABLED" comment:"Serve AdminService on a dedicated listener instead of the public web listener. Default: false."`
+	Enabled     bool   `toml:"enabled" env:"CHATTO_ADMIN_API_LISTENER_ENABLED" comment:"Serve AdminService on its dedicated listener. Required when admin_api.enabled = true."`
 	BindAddress string `toml:"bind_address,commented" env:"CHATTO_ADMIN_API_LISTENER_BIND_ADDRESS" comment:"Address to bind the Admin API listener. Default: 127.0.0.1 (localhost only)."`
 	Port        int    `toml:"port,commented" env:"CHATTO_ADMIN_API_LISTENER_PORT" comment:"Port for the Admin API listener. Default: 4021."`
 }
@@ -1015,7 +1015,10 @@ func (c *ChattoConfig) Validate() error {
 		if len(c.AdminAPI.Tokens) == 0 {
 			errs = append(errs, "admin_api.tokens is required when admin_api.enabled is true")
 		}
-		if c.AdminAPI.Listener.Enabled && (c.AdminAPI.Listener.Port < 0 || c.AdminAPI.Listener.Port > 65535) {
+		if !c.AdminAPI.Listener.Enabled {
+			errs = append(errs, "admin_api.listener.enabled must be true when admin_api.enabled is true")
+		}
+		if c.AdminAPI.Listener.Port < 0 || c.AdminAPI.Listener.Port > 65535 {
 			errs = append(errs, "admin_api.listener.port must be between 0 and 65535")
 		}
 	}

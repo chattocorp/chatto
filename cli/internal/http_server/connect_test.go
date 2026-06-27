@@ -50,9 +50,12 @@ func TestConnectAdminServiceTokenAuth(t *testing.T) {
 	})
 
 	t.Run("accepts configured token from allowed CIDR", func(t *testing.T) {
-		s, ts := setupConnectTestServerWithConfig(t, config.ChattoConfig{
+		s, _ := setupConnectTestServerWithConfig(t, config.ChattoConfig{
 			AdminAPI: config.AdminAPIConfig{
 				Enabled: true,
+				Listener: config.AdminAPIListenerConfig{
+					Enabled: true,
+				},
 				Tokens: []config.AdminAPITokenConfig{{
 					Name:         "local-cli",
 					Token:        "operator-secret",
@@ -66,7 +69,8 @@ func TestConnectAdminServiceTokenAuth(t *testing.T) {
 			t.Fatalf("CreateUser: %v", err)
 		}
 
-		client := apiv1connect.NewAdminServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		adminTS := newAdminAPIListenerTestServer(t, s)
+		client := apiv1connect.NewAdminServiceClient(adminTS.Client(), adminTS.URL+connectAPIPrefix)
 		req := connect.NewRequest(&apiv1.GetAdminUserRequest{UserId: user.GetId()})
 		req.Header().Set("Authorization", "Bearer operator-secret")
 		resp, err := client.GetUser(ctx, req)
@@ -103,7 +107,7 @@ func TestConnectAdminServiceTokenAuth(t *testing.T) {
 		}
 	})
 
-	t.Run("dedicated listener keeps admin service off public listener", func(t *testing.T) {
+	t.Run("never mounts admin service on public listener", func(t *testing.T) {
 		s, publicTS := setupConnectTestServerWithConfig(t, config.ChattoConfig{
 			AdminAPI: config.AdminAPIConfig{
 				Enabled: true,
@@ -125,9 +129,7 @@ func TestConnectAdminServiceTokenAuth(t *testing.T) {
 			t.Fatalf("public ListUsers err = %v, want unimplemented", err)
 		}
 
-		adminServer := s.newAdminAPIServer()
-		adminTS := httptest.NewServer(adminServer.Handler)
-		t.Cleanup(adminTS.Close)
+		adminTS := newAdminAPIListenerTestServer(t, s)
 		adminClient := apiv1connect.NewAdminServiceClient(adminTS.Client(), adminTS.URL+connectAPIPrefix)
 		req = connect.NewRequest(&apiv1.ListAdminUsersRequest{})
 		req.Header().Set("Authorization", "Bearer operator-secret")
@@ -137,13 +139,17 @@ func TestConnectAdminServiceTokenAuth(t *testing.T) {
 	})
 
 	t.Run("rejects bad token", func(t *testing.T) {
-		_, ts := setupConnectTestServerWithConfig(t, config.ChattoConfig{
+		s, _ := setupConnectTestServerWithConfig(t, config.ChattoConfig{
 			AdminAPI: config.AdminAPIConfig{
 				Enabled: true,
-				Tokens:  []config.AdminAPITokenConfig{{Name: "local-cli", Token: "operator-secret"}},
+				Listener: config.AdminAPIListenerConfig{
+					Enabled: true,
+				},
+				Tokens: []config.AdminAPITokenConfig{{Name: "local-cli", Token: "operator-secret"}},
 			},
 		})
-		client := apiv1connect.NewAdminServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		adminTS := newAdminAPIListenerTestServer(t, s)
+		client := apiv1connect.NewAdminServiceClient(adminTS.Client(), adminTS.URL+connectAPIPrefix)
 		req := connect.NewRequest(&apiv1.ListAdminUsersRequest{})
 		req.Header().Set("Authorization", "Bearer wrong")
 		_, err := client.ListUsers(context.Background(), req)
@@ -153,9 +159,12 @@ func TestConnectAdminServiceTokenAuth(t *testing.T) {
 	})
 
 	t.Run("rejects disallowed CIDR", func(t *testing.T) {
-		_, ts := setupConnectTestServerWithConfig(t, config.ChattoConfig{
+		s, _ := setupConnectTestServerWithConfig(t, config.ChattoConfig{
 			AdminAPI: config.AdminAPIConfig{
 				Enabled: true,
+				Listener: config.AdminAPIListenerConfig{
+					Enabled: true,
+				},
 				Tokens: []config.AdminAPITokenConfig{{
 					Name:         "ops-sidecar",
 					Token:        "operator-secret",
@@ -163,7 +172,8 @@ func TestConnectAdminServiceTokenAuth(t *testing.T) {
 				}},
 			},
 		})
-		client := apiv1connect.NewAdminServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		adminTS := newAdminAPIListenerTestServer(t, s)
+		client := apiv1connect.NewAdminServiceClient(adminTS.Client(), adminTS.URL+connectAPIPrefix)
 		req := connect.NewRequest(&apiv1.ListAdminUsersRequest{})
 		req.Header().Set("Authorization", "Bearer operator-secret")
 		_, err := client.ListUsers(context.Background(), req)
@@ -171,6 +181,14 @@ func TestConnectAdminServiceTokenAuth(t *testing.T) {
 			t.Fatalf("ListUsers disallowed CIDR err = %v, want unauthenticated", err)
 		}
 	})
+}
+
+func newAdminAPIListenerTestServer(t *testing.T, s *HTTPServer) *httptest.Server {
+	t.Helper()
+	adminServer := s.newAdminAPIServer()
+	adminTS := httptest.NewServer(adminServer.Handler)
+	t.Cleanup(adminTS.Close)
+	return adminTS
 }
 
 func TestConnectServerServiceGetServer(t *testing.T) {

@@ -1195,6 +1195,16 @@ func TestChattoConfig_Validate_AdminAPI(t *testing.T) {
 		}
 	})
 
+	t.Run("enabled requires dedicated listener", func(t *testing.T) {
+		cfg := validTestConfig()
+		cfg.AdminAPI.Enabled = true
+		cfg.AdminAPI.Tokens = []AdminAPITokenConfig{{Name: "local-cli", Token: "secret-0123456789abcdef012345678"}}
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "admin_api.listener.enabled must be true when admin_api.enabled is true") {
+			t.Fatalf("Validate() error = %v, want dedicated listener required error", err)
+		}
+	})
+
 	t.Run("validates allowed CIDRs even when disabled", func(t *testing.T) {
 		cfg := validTestConfig()
 		cfg.AdminAPI.Tokens = []AdminAPITokenConfig{{Name: "local-cli", Token: "secret-0123456789abcdef012345678", AllowedCIDRs: []string{"not-a-cidr"}}}

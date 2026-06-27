@@ -10,13 +10,13 @@ The Operator Admin API gives server operators a token-authenticated automation s
 ## Behavior
 
 - Operators opt in with the top-level `admin_api` configuration section. The Admin API is disabled by default.
-- Operators can serve AdminService on a dedicated listener with `[admin_api.listener]`. The listener defaults to `127.0.0.1:4021` when enabled and is the recommended production shape.
-- When the dedicated listener is disabled, AdminService is mounted on the public ConnectRPC listener under `/api/connect/chatto.api.v1.AdminService/*`. Operators using a public reverse proxy must block those routes at the proxy unless they intentionally expose them.
+- Operators must serve AdminService on the dedicated `[admin_api.listener]`. The listener defaults to `127.0.0.1:4021` when enabled.
+- AdminService is never mounted on the public web listener. This is a security feature: public reverse-proxy routing for the normal Chatto web/API surface cannot accidentally expose operator-only RPCs.
 - The Admin API accepts configured bearer tokens only from each token's configured CIDR ranges. When no ranges are configured for a token, that token accepts loopback addresses only.
 - Admin API actions are attributed to the system actor. They are not tied to a Chatto user account, cookie session, bearer session, or RBAC role. The authenticated token name is carried at the HTTP edge and logged as non-secret operation context.
 - The user-administration surface can list and look up users, create users, update login/display name, set passwords, delete users, add verified email addresses, assign server roles, and revoke server roles.
 - The CLI groups these commands under `chatto admin user ...`, for example `chatto admin user create`, `chatto admin user set-password`, and `chatto admin user role add`.
-- CLI clients read the Admin API URL and admin token from flags, environment variables, or `chatto.toml`, and call the same Admin API used by other trusted operator automation. When `[admin_api.listener].enabled = true`, the CLI prefers that listener URL over `webserver.url`.
+- CLI clients read the Admin API URL and admin token from flags, environment variables, or `chatto.toml`, and call the same Admin API used by other trusted operator automation. The CLI prefers the dedicated listener URL over `webserver.url`.
 - The CLI refuses to send admin tokens read from `chatto.toml` or counted `CHATTO_ADMIN_API_TOKENS_<index>_*` environment variables to a URL override unless the override resolves to the configured `webserver.url` / `CHATTO_WEBSERVER_URL`. Operators can still target another endpoint by passing `--admin-token` or `CHATTO_ADMIN_API_TOKEN` explicitly.
 - The CLI requires HTTPS for non-loopback Admin API URLs. Plain HTTP is accepted only for loopback hosts.
 - Password-setting commands prompt on interactive terminals when a password flag is not supplied. Non-interactive use must pass the password explicitly with `--password-stdin`, `--password-file`, or `--password`.
@@ -33,9 +33,9 @@ The Operator Admin API gives server operators a token-authenticated automation s
 
 ### 2. Dedicated Admin API listener
 
-**Decision:** AdminService can run on a separate HTTP listener controlled by `[admin_api.listener]` / `CHATTO_ADMIN_API_LISTENER_*`. When enabled, the public web listener does not mount AdminService.
-**Why:** A CIDR gate based on Chatto's direct TCP peer is not enough if a public reverse proxy forwards AdminService requests over loopback. A dedicated loopback or private listener lets operators keep the public site route map simple while still giving local CLI, sidecars, and automation a stable endpoint.
-**Tradeoff:** Operators who enable the listener need to allocate another local/private port. The default `127.0.0.1:4021` avoids public exposure and works for local administration.
+**Decision:** AdminService only runs on the dedicated HTTP listener controlled by `[admin_api.listener]` / `CHATTO_ADMIN_API_LISTENER_*`; it is never mounted on the public web listener.
+**Why:** A CIDR gate based on Chatto's direct TCP peer is not enough if a public reverse proxy forwards requests over loopback. Keeping AdminService off the public listener makes the public route map unable to expose operator-only RPCs accidentally, even when proxy rules are broad.
+**Tradeoff:** Operators who enable the Admin API need to allocate another local/private port. The default `127.0.0.1:4021` avoids public exposure and works for local administration.
 
 ### 3. Named token entries with per-token CIDR allow-lists
 
@@ -75,7 +75,7 @@ The Operator Admin API gives server operators a token-authenticated automation s
 
 ## Permissions
 
-The Admin API is not gated by Chatto RBAC permissions. It is gated by `[admin_api]` enablement, named bearer-token authentication, and per-token CIDR allow-listing.
+The Admin API is not gated by Chatto RBAC permissions. It is gated by `[admin_api]` enablement, the required `[admin_api.listener]`, named bearer-token authentication, and per-token CIDR allow-listing.
 
 ## Related
 

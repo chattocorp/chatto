@@ -24,13 +24,13 @@ func (s *HTTPServer) setupConnectAPI() {
 	if s.logger == nil {
 		s.logger = log.WithPrefix("server.HTTP")
 	}
-	s.setupConnectAPIOnRouter(s.router, !s.config.AdminAPI.Listener.Enabled)
-	if s.config.AdminAPI.Enabled && !s.config.AdminAPI.Listener.Enabled {
-		s.logger.Warn("Admin API is mounted on the public web listener; do not expose /api/connect/chatto.api.v1.AdminService through a public reverse proxy. Prefer [admin_api.listener] for a dedicated loopback/private listener.")
-	}
+	s.setupConnectAPIOnRouter(s.router)
 }
 
 func (s *HTTPServer) newAdminAPIServer() *http.Server {
+	if s.logger == nil {
+		s.logger = log.WithPrefix("server.HTTP")
+	}
 	router := gin.New()
 	router.Use(gin.Recovery())
 	if s.config.Webserver.RequestLoggingEnabled() {
@@ -41,12 +41,11 @@ func (s *HTTPServer) newAdminAPIServer() *http.Server {
 	return newHTTPServer(addr, router)
 }
 
-func (s *HTTPServer) setupConnectAPIOnRouter(router gin.IRouter, includeAdmin bool) {
+func (s *HTTPServer) setupConnectAPIOnRouter(router gin.IRouter) {
 	api := connectapi.New(s.core, s.config, s.version)
 	authMiddleware := authn.NewMiddleware(authenticateConnectRequest, connectapi.HandlerOptions()...)
-	adminAuthMiddleware := s.adminConnectAuthMiddleware()
 	for _, handler := range api.Handlers() {
-		if handler.AuthPolicy == connectapi.AuthPolicyAdminToken && !includeAdmin {
+		if handler.AuthPolicy == connectapi.AuthPolicyAdminToken {
 			continue
 		}
 		serviceHandler := handler.Handler
@@ -55,7 +54,7 @@ func (s *HTTPServer) setupConnectAPIOnRouter(router gin.IRouter, includeAdmin bo
 		case connectapi.AuthPolicyAuthenticatedUser:
 			serviceHandler = authMiddleware.Wrap(serviceHandler)
 		case connectapi.AuthPolicyAdminToken:
-			serviceHandler = adminAuthMiddleware.Wrap(serviceHandler)
+			panic("AdminService must be mounted only on the dedicated Admin API listener")
 		default:
 			panic("unknown ConnectRPC auth policy for " + handler.ServicePath)
 		}
