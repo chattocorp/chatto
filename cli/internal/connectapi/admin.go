@@ -15,7 +15,7 @@ type adminService struct {
 }
 
 func (s *adminService) ListUsers(ctx context.Context, req *connect.Request[apiv1.ListAdminUsersRequest]) (*connect.Response[apiv1.ListAdminUsersResponse], error) {
-	if err := requireAdminCaller(ctx); err != nil {
+	if _, err := requireAdminCaller(ctx); err != nil {
 		return nil, err
 	}
 
@@ -31,7 +31,7 @@ func (s *adminService) ListUsers(ctx context.Context, req *connect.Request[apiv1
 }
 
 func (s *adminService) GetUser(ctx context.Context, req *connect.Request[apiv1.GetAdminUserRequest]) (*connect.Response[apiv1.GetAdminUserResponse], error) {
-	if err := requireAdminCaller(ctx); err != nil {
+	if _, err := requireAdminCaller(ctx); err != nil {
 		return nil, err
 	}
 	userID := strings.TrimSpace(req.Msg.GetUserId())
@@ -56,7 +56,7 @@ func (s *adminService) GetUser(ctx context.Context, req *connect.Request[apiv1.G
 }
 
 func (s *adminService) CreateUser(ctx context.Context, req *connect.Request[apiv1.CreateAdminUserRequest]) (*connect.Response[apiv1.CreateAdminUserResponse], error) {
-	if err := requireAdminCaller(ctx); err != nil {
+	if _, err := requireAdminCaller(ctx); err != nil {
 		return nil, err
 	}
 	user, err := s.api.core.AdminCreateUser(ctx, core.AdminCreateUserRequest{
@@ -73,7 +73,7 @@ func (s *adminService) CreateUser(ctx context.Context, req *connect.Request[apiv
 }
 
 func (s *adminService) UpdateUser(ctx context.Context, req *connect.Request[apiv1.UpdateAdminUserRequest]) (*connect.Response[apiv1.UpdateAdminUserResponse], error) {
-	if err := requireAdminCaller(ctx); err != nil {
+	if _, err := requireAdminCaller(ctx); err != nil {
 		return nil, err
 	}
 	if req.Msg.Login == nil && req.Msg.DisplayName == nil {
@@ -91,7 +91,7 @@ func (s *adminService) UpdateUser(ctx context.Context, req *connect.Request[apiv
 }
 
 func (s *adminService) SetUserPassword(ctx context.Context, req *connect.Request[apiv1.SetAdminUserPasswordRequest]) (*connect.Response[apiv1.SetAdminUserPasswordResponse], error) {
-	if err := requireAdminCaller(ctx); err != nil {
+	if _, err := requireAdminCaller(ctx); err != nil {
 		return nil, err
 	}
 	user, err := s.api.core.AdminSetUserPassword(ctx, req.Msg.GetUserId(), req.Msg.GetPassword())
@@ -102,7 +102,7 @@ func (s *adminService) SetUserPassword(ctx context.Context, req *connect.Request
 }
 
 func (s *adminService) DeleteUser(ctx context.Context, req *connect.Request[apiv1.DeleteAdminUserRequest]) (*connect.Response[apiv1.DeleteAdminUserResponse], error) {
-	if err := requireAdminCaller(ctx); err != nil {
+	if _, err := requireAdminCaller(ctx); err != nil {
 		return nil, err
 	}
 	if err := s.api.core.AdminDeleteUser(ctx, req.Msg.GetUserId()); err != nil {
@@ -112,7 +112,7 @@ func (s *adminService) DeleteUser(ctx context.Context, req *connect.Request[apiv
 }
 
 func (s *adminService) AddUserVerifiedEmail(ctx context.Context, req *connect.Request[apiv1.AddAdminUserVerifiedEmailRequest]) (*connect.Response[apiv1.AddAdminUserVerifiedEmailResponse], error) {
-	if err := requireAdminCaller(ctx); err != nil {
+	if _, err := requireAdminCaller(ctx); err != nil {
 		return nil, err
 	}
 	user, err := s.api.core.AdminAddUserVerifiedEmail(ctx, req.Msg.GetUserId(), req.Msg.GetEmail())
@@ -123,7 +123,7 @@ func (s *adminService) AddUserVerifiedEmail(ctx context.Context, req *connect.Re
 }
 
 func (s *adminService) AssignUserRole(ctx context.Context, req *connect.Request[apiv1.AssignAdminUserRoleRequest]) (*connect.Response[apiv1.AssignAdminUserRoleResponse], error) {
-	if err := requireAdminCaller(ctx); err != nil {
+	if _, err := requireAdminCaller(ctx); err != nil {
 		return nil, err
 	}
 	user, err := s.api.core.AdminAssignUserRole(ctx, req.Msg.GetUserId(), req.Msg.GetRoleName())
@@ -134,7 +134,7 @@ func (s *adminService) AssignUserRole(ctx context.Context, req *connect.Request[
 }
 
 func (s *adminService) RevokeUserRole(ctx context.Context, req *connect.Request[apiv1.RevokeAdminUserRoleRequest]) (*connect.Response[apiv1.RevokeAdminUserRoleResponse], error) {
-	if err := requireAdminCaller(ctx); err != nil {
+	if _, err := requireAdminCaller(ctx); err != nil {
 		return nil, err
 	}
 	user, err := s.api.core.AdminRevokeUserRole(ctx, req.Msg.GetUserId(), req.Msg.GetRoleName())

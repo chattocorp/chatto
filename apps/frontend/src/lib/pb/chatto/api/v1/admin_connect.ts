@@ -10,8 +10,10 @@ import { MethodKind } from "@bufbuild/protobuf";
  * Operator-only administrative API for user lifecycle and bootstrap tasks.
  *
  * This service is disabled unless the server operator enables admin_api in
- * configuration. It accepts only configured Admin API tokens from each token's
- * allowed CIDR ranges and performs mutations as the system actor.
+ * configuration. It is served on the dedicated admin_api.listener when that
+ * listener is enabled; otherwise it is mounted below /api/connect. It accepts
+ * only configured Admin API tokens from each token's allowed CIDR ranges and
+ * performs mutations as the system actor.
  *
  * @generated from service chatto.api.v1.AdminService
  */

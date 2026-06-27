@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -27,6 +28,7 @@ import (
 var adminConfigFile string
 var adminAPIURL string
 var adminAPIToken string
+var adminAPITokenFile string
 var adminAPITokenName string
 var adminOutputJSON bool
 
@@ -45,7 +47,8 @@ func init() {
 	adminCmd.AddCommand(adminUserCmd)
 	adminCmd.PersistentFlags().StringVarP(&adminConfigFile, "config", "c", "", "path to configuration file (default: chatto.toml)")
 	adminCmd.PersistentFlags().StringVar(&adminAPIURL, "url", "", "server URL or ConnectRPC base URL (default: webserver.url from config/env)")
-	adminCmd.PersistentFlags().StringVar(&adminAPIToken, "admin-token", "", "Admin API bearer token (default: CHATTO_ADMIN_API_TOKEN or selected admin_api.tokens entry)")
+	adminCmd.PersistentFlags().StringVar(&adminAPIToken, "admin-token", "", "Admin API bearer token; prefer --admin-token-file or CHATTO_ADMIN_API_TOKEN for automation")
+	adminCmd.PersistentFlags().StringVar(&adminAPITokenFile, "admin-token-file", "", "file containing the Admin API bearer token")
 	adminCmd.PersistentFlags().StringVar(&adminAPITokenName, "admin-token-name", "", "name of admin_api.tokens entry to use when reading token from config")
 	adminCmd.PersistentFlags().BoolVar(&adminOutputJSON, "json", false, "print JSON output")
 
@@ -127,6 +130,8 @@ func adminUserCreateCmd() *cobra.Command {
 	var login string
 	var displayName string
 	var password string
+	var passwordFile string
+	var passwordStdin bool
 	var verifiedEmail string
 	var roles []string
 	cmd := &cobra.Command{
@@ -136,7 +141,24 @@ func adminUserCreateCmd() *cobra.Command {
 			if strings.TrimSpace(login) == "" {
 				return errors.New("--login is required")
 			}
-			passwordSet := cmd.Flags().Changed("password")
+			passwordSet := cmd.Flags().Changed("password") || passwordFile != "" || passwordStdin
+			if err := validateSecretSources("--password", cmd.Flags().Changed("password"), "--password-file", passwordFile != "", "--password-stdin", passwordStdin); err != nil {
+				return err
+			}
+			if passwordFile != "" {
+				fromFile, err := readSecretFile(passwordFile)
+				if err != nil {
+					return err
+				}
+				password = fromFile
+			}
+			if passwordStdin {
+				fromStdin, err := readSecretStdin()
+				if err != nil {
+					return err
+				}
+				password = fromStdin
+			}
 			if !passwordSet && term.IsTerminal(int(syscall.Stdin)) {
 				prompted, err := readPassword("Password (leave empty for no password): ")
 				if err != nil {
@@ -164,7 +186,9 @@ func adminUserCreateCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&login, "login", "", "login for the new user")
 	cmd.Flags().StringVar(&displayName, "display-name", "", "display name; defaults to login")
-	cmd.Flags().StringVar(&password, "password", "", "password for the new user")
+	cmd.Flags().StringVar(&password, "password", "", "password for the new user; prefer --password-stdin or --password-file for automation")
+	cmd.Flags().StringVar(&passwordFile, "password-file", "", "file containing the password for the new user")
+	cmd.Flags().BoolVar(&passwordStdin, "password-stdin", false, "read the password for the new user from stdin")
 	cmd.Flags().StringVar(&verifiedEmail, "verified-email", "", "email to add as already verified")
 	cmd.Flags().StringArrayVar(&roles, "role", nil, "server role to assign; repeatable")
 	return cmd
@@ -207,21 +231,43 @@ func adminUserUpdateCmd() *cobra.Command {
 
 func adminUserSetPasswordCmd() *cobra.Command {
 	var password string
+	var passwordFile string
+	var passwordStdin bool
 	cmd := &cobra.Command{
 		Use:     "set-password USER_ID",
 		Aliases: []string{"setpassword"},
 		Short:   "Set a user's password",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if !cmd.Flags().Changed("password") {
+			if err := validateSecretSources("--password", cmd.Flags().Changed("password"), "--password-file", passwordFile != "", "--password-stdin", passwordStdin); err != nil {
+				return err
+			}
+			if passwordFile != "" {
+				fromFile, err := readSecretFile(passwordFile)
+				if err != nil {
+					return err
+				}
+				password = fromFile
+			}
+			if passwordStdin {
+				fromStdin, err := readSecretStdin()
+				if err != nil {
+					return err
+				}
+				password = fromStdin
+			}
+			if !cmd.Flags().Changed("password") && passwordFile == "" && !passwordStdin {
 				if !term.IsTerminal(int(syscall.Stdin)) {
-					return errors.New("--password is required when stdin is not a terminal")
+					return errors.New("--password, --password-file, or --password-stdin is required when stdin is not a terminal")
 				}
 				var err error
 				password, err = readRequiredPassword("New password: ")
 				if err != nil {
 					return err
 				}
+			}
+			if password == "" {
+				return errors.New("password cannot be empty")
 			}
 			client, err := newAdminAPIClient()
 			if err != nil {
@@ -238,7 +284,9 @@ func adminUserSetPasswordCmd() *cobra.Command {
 			return printAdminOutput(out, resp.Msg, func() { printAdminUserLine(out, resp.Msg.GetUser()) })
 		},
 	}
-	cmd.Flags().StringVar(&password, "password", "", "new password")
+	cmd.Flags().StringVar(&password, "password", "", "new password; prefer --password-stdin or --password-file for automation")
+	cmd.Flags().StringVar(&passwordFile, "password-file", "", "file containing the new password")
+	cmd.Flags().BoolVar(&passwordStdin, "password-stdin", false, "read the new password from stdin")
 	return cmd
 }
 
@@ -365,19 +413,26 @@ type resolvedAdminAPIConfig struct {
 func resolveAdminAPIClientConfig() (resolvedAdminAPIConfig, error) {
 	envURL := strings.TrimSpace(os.Getenv("CHATTO_WEBSERVER_URL"))
 	envToken := strings.TrimSpace(os.Getenv("CHATTO_ADMIN_API_TOKEN"))
+	if err := validateSecretSources("--admin-token", adminAPIToken != "", "--admin-token-file", adminAPITokenFile != ""); err != nil {
+		return resolvedAdminAPIConfig{}, err
+	}
 	resolved := resolvedAdminAPIConfig{
 		connectBaseURL: strings.TrimSpace(adminAPIURL),
 		token:          strings.TrimSpace(adminAPIToken),
+	}
+	if resolved.token == "" && adminAPITokenFile != "" {
+		token, err := readTokenFile(adminAPITokenFile)
+		if err != nil {
+			return resolved, err
+		}
+		resolved.token = token
 	}
 	tokenName := strings.TrimSpace(adminAPITokenName)
 	if envTokenName := strings.TrimSpace(os.Getenv("CHATTO_ADMIN_API_TOKEN_NAME")); tokenName == "" && envTokenName != "" {
 		tokenName = envTokenName
 	}
-	if adminAPIURL == "" && envURL != "" {
-		resolved.connectBaseURL = envURL
-	}
 	explicitURL := resolved.connectBaseURL != ""
-	if adminAPIToken == "" && envToken != "" {
+	if resolved.token == "" && envToken != "" {
 		resolved.token = envToken
 	}
 
@@ -385,17 +440,29 @@ func resolveAdminAPIClientConfig() (resolvedAdminAPIConfig, error) {
 	if cfgErr != nil {
 		return resolved, cfgErr
 	}
+	if err := applyAdminAPIListenerEnv(&cfg); err != nil {
+		return resolved, err
+	}
 	configuredURL := strings.TrimSpace(cfg.Webserver.URL)
 	if envURL != "" {
 		configuredURL = envURL
+	}
+	if cfg.AdminAPI.Listener.Enabled {
+		configuredURL = cfg.AdminAPI.Listener.URLOrDefault()
 	}
 	if envTokens, envTokensSet, err := config.AdminAPITokensFromEnv(); err != nil {
 		return resolved, err
 	} else if envTokensSet {
 		cfg.AdminAPI.Tokens = envTokens
 	}
-	if resolved.connectBaseURL == "" && cfg.Webserver.URL != "" {
-		resolved.connectBaseURL = cfg.Webserver.URL
+	if resolved.connectBaseURL == "" {
+		if cfg.AdminAPI.Listener.Enabled {
+			resolved.connectBaseURL = cfg.AdminAPI.Listener.URLOrDefault()
+		} else if envURL != "" {
+			resolved.connectBaseURL = envURL
+		} else if cfg.Webserver.URL != "" {
+			resolved.connectBaseURL = cfg.Webserver.URL
+		}
 	}
 	if resolved.token == "" {
 		if explicitURL && !adminAPIURLMatchesConfig(resolved.connectBaseURL, configuredURL) {
@@ -419,6 +486,27 @@ func resolveAdminAPIClientConfig() (resolvedAdminAPIConfig, error) {
 	}
 	resolved.connectBaseURL = baseURL
 	return resolved, nil
+}
+
+func applyAdminAPIListenerEnv(cfg *config.ChattoConfig) error {
+	if v := strings.TrimSpace(os.Getenv("CHATTO_ADMIN_API_LISTENER_ENABLED")); v != "" {
+		enabled, err := strconv.ParseBool(v)
+		if err != nil {
+			return fmt.Errorf("invalid CHATTO_ADMIN_API_LISTENER_ENABLED: %w", err)
+		}
+		cfg.AdminAPI.Listener.Enabled = enabled
+	}
+	if v := strings.TrimSpace(os.Getenv("CHATTO_ADMIN_API_LISTENER_BIND_ADDRESS")); v != "" {
+		cfg.AdminAPI.Listener.BindAddress = v
+	}
+	if v := strings.TrimSpace(os.Getenv("CHATTO_ADMIN_API_LISTENER_PORT")); v != "" {
+		port, err := strconv.Atoi(v)
+		if err != nil {
+			return fmt.Errorf("invalid CHATTO_ADMIN_API_LISTENER_PORT: %w", err)
+		}
+		cfg.AdminAPI.Listener.Port = port
+	}
+	return nil
 }
 
 func adminAPIURLMatchesConfig(rawURL, rawConfigURL string) bool {
@@ -467,6 +555,49 @@ func readAdminAPIConfigFile(path string) (config.ChattoConfig, error) {
 		return cfg, err
 	}
 	return cfg, nil
+}
+
+func validateSecretSources(sources ...any) error {
+	var set []string
+	for i := 0; i+1 < len(sources); i += 2 {
+		name, _ := sources[i].(string)
+		isSet, _ := sources[i+1].(bool)
+		if isSet {
+			set = append(set, name)
+		}
+	}
+	if len(set) > 1 {
+		return fmt.Errorf("provide only one of %s", strings.Join(set, ", "))
+	}
+	return nil
+}
+
+func readTokenFile(path string) (string, error) {
+	token, err := readSecretFile(path)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(token), nil
+}
+
+func readSecretFile(path string) (string, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	return trimSecretNewline(string(b)), nil
+}
+
+func readSecretStdin() (string, error) {
+	b, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		return "", err
+	}
+	return trimSecretNewline(string(b)), nil
+}
+
+func trimSecretNewline(s string) string {
+	return strings.TrimRight(s, "\r\n")
 }
 
 func connectBaseURL(raw string) (string, error) {

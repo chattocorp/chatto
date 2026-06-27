@@ -78,6 +78,64 @@ func TestConnectAdminServiceTokenAuth(t *testing.T) {
 		}
 	})
 
+	t.Run("carries token name in admin caller", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, connectAPIPrefix+apiv1connect.AdminServiceListUsersProcedure, nil)
+		req.RemoteAddr = "127.0.0.1:12345"
+		req.Header.Set("Authorization", "Bearer operator-secret")
+
+		info, err := authenticateAdminConnectRequest(context.Background(), req, config.AdminAPIConfig{
+			Enabled: true,
+			Tokens: []config.AdminAPITokenConfig{{
+				Name:         "ops-sidecar",
+				Token:        "operator-secret",
+				AllowedCIDRs: []string{"127.0.0.1/32"},
+			}},
+		})
+		if err != nil {
+			t.Fatalf("authenticateAdminConnectRequest: %v", err)
+		}
+		caller, ok := info.(connectapi.AdminCaller)
+		if !ok {
+			t.Fatalf("auth info = %T, want AdminCaller", info)
+		}
+		if caller.TokenName != "ops-sidecar" {
+			t.Fatalf("TokenName = %q, want ops-sidecar", caller.TokenName)
+		}
+	})
+
+	t.Run("dedicated listener keeps admin service off public listener", func(t *testing.T) {
+		s, publicTS := setupConnectTestServerWithConfig(t, config.ChattoConfig{
+			AdminAPI: config.AdminAPIConfig{
+				Enabled: true,
+				Listener: config.AdminAPIListenerConfig{
+					Enabled: true,
+				},
+				Tokens: []config.AdminAPITokenConfig{{
+					Name:         "local-cli",
+					Token:        "operator-secret",
+					AllowedCIDRs: []string{"127.0.0.1/32"},
+				}},
+			},
+		})
+
+		publicClient := apiv1connect.NewAdminServiceClient(publicTS.Client(), publicTS.URL+connectAPIPrefix)
+		req := connect.NewRequest(&apiv1.ListAdminUsersRequest{})
+		req.Header().Set("Authorization", "Bearer operator-secret")
+		if _, err := publicClient.ListUsers(context.Background(), req); connect.CodeOf(err) != connect.CodeUnimplemented {
+			t.Fatalf("public ListUsers err = %v, want unimplemented", err)
+		}
+
+		adminServer := s.newAdminAPIServer()
+		adminTS := httptest.NewServer(adminServer.Handler)
+		t.Cleanup(adminTS.Close)
+		adminClient := apiv1connect.NewAdminServiceClient(adminTS.Client(), adminTS.URL+connectAPIPrefix)
+		req = connect.NewRequest(&apiv1.ListAdminUsersRequest{})
+		req.Header().Set("Authorization", "Bearer operator-secret")
+		if _, err := adminClient.ListUsers(context.Background(), req); err != nil {
+			t.Fatalf("dedicated listener ListUsers: %v", err)
+		}
+	})
+
 	t.Run("rejects bad token", func(t *testing.T) {
 		_, ts := setupConnectTestServerWithConfig(t, config.ChattoConfig{
 			AdminAPI: config.AdminAPIConfig{

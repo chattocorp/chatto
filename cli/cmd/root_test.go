@@ -128,6 +128,72 @@ func TestResolveAdminAPIClientConfigAllowsExplicitTokenForOverriddenURL(t *testi
 	}
 }
 
+func TestResolveAdminAPIClientConfigUsesDedicatedListenerURL(t *testing.T) {
+	resetAdminGlobals(t)
+	adminConfigFile = writeAdminListenerTestConfig(t, "https://public.example")
+
+	got, err := resolveAdminAPIClientConfig()
+	if err != nil {
+		t.Fatalf("resolveAdminAPIClientConfig(): %v", err)
+	}
+	if got.connectBaseURL != "http://127.0.0.1:4021/api/connect" {
+		t.Fatalf("connectBaseURL = %q, want dedicated listener URL", got.connectBaseURL)
+	}
+	if got.token != "config-token-value" {
+		t.Fatalf("token = %q, want config token", got.token)
+	}
+}
+
+func TestResolveAdminAPIClientConfigUsesDedicatedListenerEnv(t *testing.T) {
+	resetAdminGlobals(t)
+	adminConfigFile = writeAdminTestConfig(t, "https://safe.example")
+	t.Setenv("CHATTO_WEBSERVER_URL", "https://public-env.example")
+	t.Setenv("CHATTO_ADMIN_API_LISTENER_ENABLED", "true")
+	t.Setenv("CHATTO_ADMIN_API_LISTENER_BIND_ADDRESS", "0.0.0.0")
+	t.Setenv("CHATTO_ADMIN_API_LISTENER_PORT", "4123")
+
+	got, err := resolveAdminAPIClientConfig()
+	if err != nil {
+		t.Fatalf("resolveAdminAPIClientConfig(): %v", err)
+	}
+	if got.connectBaseURL != "http://127.0.0.1:4123/api/connect" {
+		t.Fatalf("connectBaseURL = %q, want dedicated listener URL from env", got.connectBaseURL)
+	}
+	if got.token != "config-token-value" {
+		t.Fatalf("token = %q, want config token", got.token)
+	}
+}
+
+func TestResolveAdminAPIClientConfigReadsAdminTokenFile(t *testing.T) {
+	resetAdminGlobals(t)
+	adminConfigFile = writeAdminTestConfig(t, "https://safe.example")
+	adminAPIURL = "https://ops.example"
+	adminAPITokenFile = t.TempDir() + "/admin-token"
+	if err := os.WriteFile(adminAPITokenFile, []byte("file-token-value\n"), 0o600); err != nil {
+		t.Fatalf("write token file: %v", err)
+	}
+	t.Setenv("CHATTO_ADMIN_API_TOKEN", "env-token-value")
+
+	got, err := resolveAdminAPIClientConfig()
+	if err != nil {
+		t.Fatalf("resolveAdminAPIClientConfig(): %v", err)
+	}
+	if got.token != "file-token-value" {
+		t.Fatalf("token = %q, want file token", got.token)
+	}
+}
+
+func TestResolveAdminAPIClientConfigRejectsAmbiguousAdminTokenSources(t *testing.T) {
+	resetAdminGlobals(t)
+	adminAPIToken = "flag-token"
+	adminAPITokenFile = "token-file"
+
+	_, err := resolveAdminAPIClientConfig()
+	if err == nil || !strings.Contains(err.Error(), "provide only one of --admin-token, --admin-token-file") {
+		t.Fatalf("resolveAdminAPIClientConfig() error = %v, want ambiguous token error", err)
+	}
+}
+
 func TestResolveAdminAPIClientConfigAllowsEnvTokenEntriesForEnvURL(t *testing.T) {
 	resetAdminGlobals(t)
 	adminConfigFile = writeAdminTestConfig(t, "https://safe.example")
@@ -227,11 +293,39 @@ func TestAdminOutputUsesProvidedWriter(t *testing.T) {
 	}
 }
 
+func TestAdminSecretReaders(t *testing.T) {
+	path := t.TempDir() + "/secret"
+	if err := os.WriteFile(path, []byte("secret value\n"), 0o600); err != nil {
+		t.Fatalf("write secret: %v", err)
+	}
+	if got, err := readSecretFile(path); err != nil || got != "secret value" {
+		t.Fatalf("readSecretFile() = %q, %v; want secret value, nil", got, err)
+	}
+
+	oldStdin := os.Stdin
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	t.Cleanup(func() { os.Stdin = oldStdin })
+	os.Stdin = r
+	if _, err := w.WriteString("stdin secret\n"); err != nil {
+		t.Fatalf("write stdin pipe: %v", err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatalf("close stdin writer: %v", err)
+	}
+	if got, err := readSecretStdin(); err != nil || got != "stdin secret" {
+		t.Fatalf("readSecretStdin() = %q, %v; want stdin secret, nil", got, err)
+	}
+}
+
 func resetAdminGlobals(t *testing.T) {
 	t.Helper()
 	oldConfigFile := adminConfigFile
 	oldAPIURL := adminAPIURL
 	oldToken := adminAPIToken
+	oldTokenFile := adminAPITokenFile
 	oldTokenName := adminAPITokenName
 	oldEnv := make(map[string]*string)
 	for _, entry := range os.Environ() {
@@ -239,7 +333,7 @@ func resetAdminGlobals(t *testing.T) {
 		if !ok {
 			continue
 		}
-		if name == "CHATTO_WEBSERVER_URL" || name == "CHATTO_ADMIN_API_TOKEN" || name == "CHATTO_ADMIN_API_TOKEN_NAME" || strings.HasPrefix(name, "CHATTO_ADMIN_API_TOKENS_") {
+		if name == "CHATTO_WEBSERVER_URL" || name == "CHATTO_ADMIN_API_TOKEN" || name == "CHATTO_ADMIN_API_TOKEN_NAME" || strings.HasPrefix(name, "CHATTO_ADMIN_API_TOKENS_") || strings.HasPrefix(name, "CHATTO_ADMIN_API_LISTENER_") {
 			value := os.Getenv(name)
 			oldEnv[name] = &value
 			if err := os.Unsetenv(name); err != nil {
@@ -251,6 +345,7 @@ func resetAdminGlobals(t *testing.T) {
 		adminConfigFile = oldConfigFile
 		adminAPIURL = oldAPIURL
 		adminAPIToken = oldToken
+		adminAPITokenFile = oldTokenFile
 		adminAPITokenName = oldTokenName
 		for name, value := range oldEnv {
 			if value == nil {
@@ -263,6 +358,7 @@ func resetAdminGlobals(t *testing.T) {
 	adminConfigFile = ""
 	adminAPIURL = ""
 	adminAPIToken = ""
+	adminAPITokenFile = ""
 	adminAPITokenName = ""
 }
 
@@ -273,6 +369,28 @@ func writeAdminTestConfig(t *testing.T, webserverURL string) string {
 url = "` + webserverURL + `"
 
 [admin_api]
+enabled = true
+
+[[admin_api.tokens]]
+name = "local-cli"
+token = "config-token-value"
+`
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	return path
+}
+
+func writeAdminListenerTestConfig(t *testing.T, webserverURL string) string {
+	t.Helper()
+	path := t.TempDir() + "/chatto.toml"
+	body := `[webserver]
+url = "` + webserverURL + `"
+
+[admin_api]
+enabled = true
+
+[admin_api.listener]
 enabled = true
 
 [[admin_api.tokens]]

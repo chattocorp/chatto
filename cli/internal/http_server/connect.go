@@ -5,11 +5,13 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"strings"
 
 	"connectrpc.com/authn"
+	"github.com/charmbracelet/log"
 	"github.com/gin-gonic/gin"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/connectapi"
@@ -19,12 +21,34 @@ import (
 const connectAPIPrefix = connectapi.Prefix
 
 func (s *HTTPServer) setupConnectAPI() {
+	if s.logger == nil {
+		s.logger = log.WithPrefix("server.HTTP")
+	}
+	s.setupConnectAPIOnRouter(s.router, !s.config.AdminAPI.Listener.Enabled)
+	if s.config.AdminAPI.Enabled && !s.config.AdminAPI.Listener.Enabled {
+		s.logger.Warn("Admin API is mounted on the public web listener; do not expose /api/connect/chatto.api.v1.AdminService through a public reverse proxy. Prefer [admin_api.listener] for a dedicated loopback/private listener.")
+	}
+}
+
+func (s *HTTPServer) newAdminAPIServer() *http.Server {
+	router := gin.New()
+	router.Use(gin.Recovery())
+	if s.config.Webserver.RequestLoggingEnabled() {
+		router.Use(requestLogger(s.logger))
+	}
+	s.setupAdminConnectAPI(router)
+	addr := net.JoinHostPort(s.config.AdminAPI.Listener.BindAddressOrDefault(), fmt.Sprint(s.config.AdminAPI.Listener.PortOrDefault()))
+	return newHTTPServer(addr, router)
+}
+
+func (s *HTTPServer) setupConnectAPIOnRouter(router gin.IRouter, includeAdmin bool) {
 	api := connectapi.New(s.core, s.config, s.version)
 	authMiddleware := authn.NewMiddleware(authenticateConnectRequest, connectapi.HandlerOptions()...)
-	adminAuthMiddleware := authn.NewMiddleware(func(ctx context.Context, req *http.Request) (any, error) {
-		return authenticateAdminConnectRequest(ctx, req, s.config.AdminAPI)
-	}, connectapi.HandlerOptions()...)
+	adminAuthMiddleware := s.adminConnectAuthMiddleware()
 	for _, handler := range api.Handlers() {
+		if handler.AuthPolicy == connectapi.AuthPolicyAdminToken && !includeAdmin {
+			continue
+		}
 		serviceHandler := handler.Handler
 		switch handler.AuthPolicy {
 		case connectapi.AuthPolicyPublic:
@@ -35,13 +59,36 @@ func (s *HTTPServer) setupConnectAPI() {
 		default:
 			panic("unknown ConnectRPC auth policy for " + handler.ServicePath)
 		}
-		s.mountConnectHandler(handler.ServicePath, serviceHandler)
+		s.mountConnectHandler(router, handler.ServicePath, serviceHandler)
 	}
 }
 
-func (s *HTTPServer) mountConnectHandler(servicePath string, serviceHandler http.Handler) {
+func (s *HTTPServer) setupAdminConnectAPI(router gin.IRouter) {
+	api := connectapi.New(s.core, s.config, s.version)
+	adminAuthMiddleware := s.adminConnectAuthMiddleware()
+	for _, handler := range api.Handlers() {
+		if handler.AuthPolicy != connectapi.AuthPolicyAdminToken {
+			continue
+		}
+		s.mountConnectHandler(router, handler.ServicePath, adminAuthMiddleware.Wrap(handler.Handler))
+	}
+}
+
+func (s *HTTPServer) adminConnectAuthMiddleware() *authn.Middleware {
+	return authn.NewMiddleware(func(ctx context.Context, req *http.Request) (any, error) {
+		info, err := authenticateAdminConnectRequest(ctx, req, s.config.AdminAPI)
+		if err == nil {
+			if caller, ok := info.(connectapi.AdminCaller); ok {
+				s.logger.Info("Authenticated Admin API request", "admin_token_name", caller.TokenName, "path", req.URL.Path)
+			}
+		}
+		return info, err
+	}, connectapi.HandlerOptions()...)
+}
+
+func (s *HTTPServer) mountConnectHandler(router gin.IRouter, servicePath string, serviceHandler http.Handler) {
 	handler := http.StripPrefix(connectAPIPrefix, serviceHandler)
-	s.router.Any(connectAPIPrefix+servicePath+"*connectPath", func(c *gin.Context) {
+	router.Any(connectAPIPrefix+servicePath+"*connectPath", func(c *gin.Context) {
 		req := s.injectUserIntoContext(c)
 		req = req.WithContext(connectapi.WithRequestBaseURL(req.Context(), requestBaseURL(c.Request)))
 		handler.ServeHTTP(c.Writer, req)
@@ -81,7 +128,7 @@ func authenticateAdminConnectRequest(_ context.Context, req *http.Request, cfg c
 		if !allowed {
 			return nil, authn.Errorf("admin token required")
 		}
-		return connectapi.AdminCaller{}, nil
+		return connectapi.AdminCaller{TokenName: configured.Name}, nil
 	}
 	return nil, authn.Errorf("admin token required")
 }

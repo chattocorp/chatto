@@ -144,17 +144,17 @@ func TestRequireCaller(t *testing.T) {
 
 func TestRequireAdminCaller(t *testing.T) {
 	t.Run("rejects missing authn info", func(t *testing.T) {
-		err := requireAdminCaller(context.Background())
+		_, err := requireAdminCaller(context.Background())
 		requireConnectCode(t, err, connect.CodeUnauthenticated)
 	})
 
 	t.Run("rejects user caller", func(t *testing.T) {
-		err := requireAdminCaller(authn.SetInfo(context.Background(), Caller{UserID: "user-123"}))
+		_, err := requireAdminCaller(authn.SetInfo(context.Background(), Caller{UserID: "user-123"}))
 		requireConnectCode(t, err, connect.CodeUnauthenticated)
 	})
 
 	t.Run("accepts admin caller", func(t *testing.T) {
-		if err := requireAdminCaller(authn.SetInfo(context.Background(), AdminCaller{})); err != nil {
+		if _, err := requireAdminCaller(authn.SetInfo(context.Background(), AdminCaller{})); err != nil {
 			t.Fatalf("requireAdminCaller: %v", err)
 		}
 	})

@@ -137,6 +137,18 @@ The exporter exposes deployment-wide Chatto metrics. Run it as `chatto exporter`
   Enable the operator-only ConnectRPC AdminService. Keep disabled unless you need token-based automation through `chatto admin ...` or another trusted operator client.
 </EnvVar>
 
+<EnvVar name="CHATTO_ADMIN_API_LISTENER_ENABLED" toml="admin_api.listener.enabled" default="false">
+  Serve AdminService on a dedicated HTTP listener instead of the public web listener. Recommended when `admin_api.enabled = true`.
+</EnvVar>
+
+<EnvVar name="CHATTO_ADMIN_API_LISTENER_BIND_ADDRESS" toml="admin_api.listener.bind_address" default="127.0.0.1">
+  Address to bind the dedicated AdminService listener. Keep this on localhost unless a trusted private network or sidecar needs direct access.
+</EnvVar>
+
+<EnvVar name="CHATTO_ADMIN_API_LISTENER_PORT" toml="admin_api.listener.port" default="4021">
+  Port for the dedicated AdminService listener.
+</EnvVar>
+
 <EnvVar name="CHATTO_ADMIN_API_TOKENS_<index>_NAME" toml="admin_api.tokens[].name">
   Counted token name for an AdminService bearer token. Indexes start at `0` and must not have gaps.
 </EnvVar>

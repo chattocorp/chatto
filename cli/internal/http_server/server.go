@@ -192,6 +192,7 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 	var servers []*http.Server
 	var tlsServer *http.Server
 	var metricsServer *http.Server
+	var adminServer *http.Server
 
 	if s.config.Webserver.TLS.Enabled {
 		tlsConfig := s.config.Webserver.TLS
@@ -234,12 +235,19 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 		servers = append(servers, metricsServer)
 	}
 
+	if s.config.AdminAPI.Enabled && s.config.AdminAPI.Listener.Enabled {
+		adminServer = s.newAdminAPIServer()
+		servers = append(servers, adminServer)
+	}
+
 	serverErr := make(chan error, len(servers)+1)
 
 	// Start HTTP servers
 	for _, srv := range servers {
 		if srv == metricsServer {
 			s.logger.Info("Starting metrics server", "url", metricsServerURL(srv.Addr, s.config.Metrics.PathOrDefault()))
+		} else if srv == adminServer {
+			s.logger.Info("Starting Admin API server", "url", adminAPIURL(srv.Addr))
 		} else {
 			s.logger.Info("Starting HTTP server", "addr", srv.Addr, "url", s.config.Webserver.URL)
 		}
@@ -282,6 +290,10 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 
 func metricsServerURL(addr, path string) string {
 	return (&url.URL{Scheme: "http", Host: addr, Path: path}).String()
+}
+
+func adminAPIURL(addr string) string {
+	return (&url.URL{Scheme: "http", Host: addr, Path: connectAPIPrefix}).String()
 }
 
 func (s *HTTPServer) shutdownServer(server *http.Server) error {
