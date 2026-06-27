@@ -1650,7 +1650,7 @@ Asset-deleted signal.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | Room containing the message that owned the asset, when known. |
+| `room_id` | `optional string` | Room containing the message that owned the asset, when known. |
 | `asset_id` | `string` | Asset ID. |
 
 
@@ -1663,9 +1663,9 @@ Asset-processing signal.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | Room containing the message that owns the asset. |
+| `room_id` | `optional string` | Room containing the message that owns the asset, when known. |
 | `asset_id` | `string` | Asset ID. |
-| `message_event_id` | `string` | Event ID of the message that owns the asset. |
+| `message_event_id` | `optional string` | Event ID of the message that owns the asset, when known. |
 
 
 
@@ -1679,6 +1679,7 @@ Voice-call state signal.
 | --- | --- | --- |
 | `room_id` | `string` | Room containing the call. |
 | `call_id` | `string` | Call ID. |
+| `source` | [`RealtimeCallEventSource`](#chatto-api-v1-RealtimeCallEventSource) | Source that produced the call transition. |
 
 
 
@@ -1710,8 +1711,8 @@ Initial client hello.
 | Field | Type | Description |
 | --- | --- | --- |
 | `protocol_version` | `uint32` | Protocol version requested by the client. The current version is 1. |
-| `bearer_token` | `string` | Optional bearer token. When present, it takes precedence over cookie auth. |
-| `resume_cursor` | `string` | Optional opaque cursor reserved for future resume support. |
+| `bearer_token` | `optional string` | Optional bearer token. When present, it takes precedence over cookie auth. |
+| `resume_cursor` | `optional string` | Optional opaque cursor reserved for future resume support. |
 
 
 
@@ -1757,8 +1758,8 @@ it as a sequence number, timestamp, NATS subject, or storage position.
 | --- | --- | --- |
 | `id` | `string` | Stable event ID. |
 | `created_at` | `google.protobuf.Timestamp` | Time the event was created. |
-| `actor_id` | `string` | User or system actor that caused the event, when known. |
-| `cursor` | `string` | Opaque resume/ack cursor, when this event has one. |
+| `actor_id` | `optional string` | User or system actor that caused the event, when known. |
+| `cursor` | `optional string` | Opaque resume/ack cursor, when this event has one. |
 | `event.message_posted` | [`RealtimeMessagePostedEvent`](#chatto-api-v1-RealtimeMessagePostedEvent) | A message was posted in a room or thread. |
 | `event.message_edited` | [`RealtimeMessageEditedEvent`](#chatto-api-v1-RealtimeMessageEditedEvent) | A message body or renderable metadata changed. |
 | `event.message_retracted` | [`RealtimeMessageRetractedEvent`](#chatto-api-v1-RealtimeMessageRetractedEvent) | A message was retracted. |
@@ -1824,8 +1825,8 @@ Mention attention signal for the connected user.
 | --- | --- | --- |
 | `room_id` | `string` | Room where the mention occurred. |
 | `actor_user_id` | `string` | Author user ID. |
-| `room_name` | `string` | Display name of the room where the mention occurred. |
-| `actor_display_name` | `string` | Display name of the author who mentioned the connected user. |
+| `room_name` | `optional string` | Display name of the room where the mention occurred, when hydrated for the caller. |
+| `actor_display_name` | `optional string` | Display name of the author who mentioned the connected user, when hydrated. |
 
 
 
@@ -1852,7 +1853,7 @@ Message-posted signal.
 | --- | --- | --- |
 | `room_id` | `string` | Room containing the message. |
 | `message_event_id` | `string` | Event ID of the posted message. |
-| `thread_root_event_id` | `string` | Root message event ID when the message was posted in a thread. |
+| `thread_root_event_id` | `optional string` | Root message event ID when the message was posted in a thread. |
 
 
 
@@ -1866,7 +1867,7 @@ Message-retracted signal.
 | --- | --- | --- |
 | `room_id` | `string` | Room containing the message. |
 | `message_event_id` | `string` | Event ID of the retracted message. |
-| `reason` | `string` | Retraction reason, when one was supplied. |
+| `reason` | `optional string` | Retraction reason, when one was supplied. |
 
 
 
@@ -1880,9 +1881,9 @@ New-DM attention signal for the connected user.
 | --- | --- | --- |
 | `room_id` | `string` | DM room ID. |
 | `sender_id` | `string` | Sender user ID. |
-| `sender_display_name` | `string` | Display name of the sender. |
-| `sender_avatar_url` | `string` | Avatar URL of the sender, when one is available. |
-| `conversation_name` | `string` | Display name for the DM conversation from the connected user's perspective. |
+| `sender_display_name` | `optional string` | Display name of the sender, when hydrated. |
+| `sender_avatar_url` | `optional string` | Avatar URL of the sender, when one is available. |
+| `conversation_name` | `optional string` | Display name for the DM conversation from the connected user's perspective, when hydrated. |
 
 
 
@@ -1895,9 +1896,9 @@ Notification-created signal for the connected user.
 | Field | Type | Description |
 | --- | --- | --- |
 | `notification_id` | `string` | Notification ID. |
-| `room_id` | `string` | Room associated with the notification. |
-| `event_id` | `string` | Event ID associated with the notification. |
-| `in_reply_to_id` | `string` | Parent event ID for reply notifications, when known. |
+| `room_id` | `optional string` | Room associated with the notification, when the notification navigates to a room. |
+| `event_id` | `optional string` | Event ID associated with the notification, when the notification navigates to an event. |
+| `in_reply_to_id` | `optional string` | Parent event ID for reply notifications, when known. |
 | `silent` | `bool` | True when the notification should not alert. |
 
 
@@ -2083,8 +2084,8 @@ Server-profile signal.
 | --- | --- | --- |
 | `name` | `string` | Server display name. |
 | `description` | `string` | Server description. |
-| `logo_url` | `string` | Server logo URL. |
-| `banner_url` | `string` | Server banner URL. |
+| `logo_url` | `optional string` | Server logo URL, when configured. |
+| `banner_url` | `optional string` | Server banner URL, when configured. |
 
 
 
@@ -2096,7 +2097,7 @@ User display-preferences signal for the connected user.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `timezone` | `string` | IANA timezone name, empty when browser default should be used. |
+| `timezone` | `optional string` | IANA timezone name, when the user has selected a fixed timezone. |
 | `time_format` | [`RealtimeTimeFormat`](#chatto-api-v1-RealtimeTimeFormat) | Preferred time display format. |
 
 
@@ -2129,7 +2130,7 @@ Confirms event streaming has started.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `cursor` | `string` | Opaque cursor from which the stream starts, when known. |
+| `cursor` | `optional string` | Opaque cursor from which the stream starts, when known. |
 
 
 
@@ -2169,7 +2170,7 @@ Typing signal.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Room where the actor is typing. |
-| `thread_root_event_id` | `string` | Thread root event ID when the actor is typing in a thread. |
+| `thread_root_event_id` | `optional string` | Thread root event ID when the actor is typing in a thread. |
 
 
 
@@ -2211,7 +2212,7 @@ User-profile signal.
 | `user_id` | `string` | User whose profile changed. |
 | `login` | `string` | Login name. |
 | `display_name` | `string` | Display name. |
-| `avatar_url` | `string` | Avatar URL. |
+| `avatar_url` | `optional string` | Avatar URL, when the user has an avatar. |
 
 
 
@@ -2394,6 +2395,20 @@ record expire.
 | `PRESENCE_STATUS_ONLINE` | `1` | The user is actively available. |
 | `PRESENCE_STATUS_AWAY` | `2` | The user is connected but away or idle. |
 | `PRESENCE_STATUS_DO_NOT_DISTURB` | `3` | The user does not want notifications while this live status is active. |
+
+
+<a id="chatto-api-v1-RealtimeCallEventSource"></a>
+
+### RealtimeCallEventSource
+
+Source that produced a realtime voice-call transition.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `REALTIME_CALL_EVENT_SOURCE_UNSPECIFIED` | `0` | No call event source was specified. |
+| `REALTIME_CALL_EVENT_SOURCE_USER` | `1` | The user explicitly requested the transition through Chatto. |
+| `REALTIME_CALL_EVENT_SOURCE_LIVEKIT` | `2` | LiveKit reported the transition through a webhook. |
+| `REALTIME_CALL_EVENT_SOURCE_RECONCILIATION` | `3` | Chatto reconciled its local state against LiveKit's current room state. |
 
 
 <a id="chatto-api-v1-RealtimePresenceStatus"></a>

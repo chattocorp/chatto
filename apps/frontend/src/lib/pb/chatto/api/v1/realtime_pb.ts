@@ -92,6 +92,48 @@ proto3.util.setEnumType(RealtimeTimeFormat, "chatto.api.v1.RealtimeTimeFormat", 
 ]);
 
 /**
+ * Source that produced a realtime voice-call transition.
+ *
+ * @generated from enum chatto.api.v1.RealtimeCallEventSource
+ */
+export enum RealtimeCallEventSource {
+  /**
+   * No call event source was specified.
+   *
+   * @generated from enum value: REALTIME_CALL_EVENT_SOURCE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * The user explicitly requested the transition through Chatto.
+   *
+   * @generated from enum value: REALTIME_CALL_EVENT_SOURCE_USER = 1;
+   */
+  USER = 1,
+
+  /**
+   * LiveKit reported the transition through a webhook.
+   *
+   * @generated from enum value: REALTIME_CALL_EVENT_SOURCE_LIVEKIT = 2;
+   */
+  LIVEKIT = 2,
+
+  /**
+   * Chatto reconciled its local state against LiveKit's current room state.
+   *
+   * @generated from enum value: REALTIME_CALL_EVENT_SOURCE_RECONCILIATION = 3;
+   */
+  RECONCILIATION = 3,
+}
+// Retrieve enum metadata with: proto3.getEnumType(RealtimeCallEventSource)
+proto3.util.setEnumType(RealtimeCallEventSource, "chatto.api.v1.RealtimeCallEventSource", [
+  { no: 0, name: "REALTIME_CALL_EVENT_SOURCE_UNSPECIFIED" },
+  { no: 1, name: "REALTIME_CALL_EVENT_SOURCE_USER" },
+  { no: 2, name: "REALTIME_CALL_EVENT_SOURCE_LIVEKIT" },
+  { no: 3, name: "REALTIME_CALL_EVENT_SOURCE_RECONCILIATION" },
+]);
+
+/**
  * Client-to-server frame for Chatto's protobuf WebSocket realtime protocol.
  *
  * Clients send binary protobuf frames to `/api/realtime`. The first frame must
@@ -286,16 +328,16 @@ export class RealtimeClientHello extends Message<RealtimeClientHello> {
   /**
    * Optional bearer token. When present, it takes precedence over cookie auth.
    *
-   * @generated from field: string bearer_token = 2;
+   * @generated from field: optional string bearer_token = 2;
    */
-  bearerToken = "";
+  bearerToken?: string;
 
   /**
    * Optional opaque cursor reserved for future resume support.
    *
-   * @generated from field: string resume_cursor = 3;
+   * @generated from field: optional string resume_cursor = 3;
    */
-  resumeCursor = "";
+  resumeCursor?: string;
 
   constructor(data?: PartialMessage<RealtimeClientHello>) {
     super();
@@ -306,8 +348,8 @@ export class RealtimeClientHello extends Message<RealtimeClientHello> {
   static readonly typeName = "chatto.api.v1.RealtimeClientHello";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "protocol_version", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 2, name: "bearer_token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "resume_cursor", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "bearer_token", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 3, name: "resume_cursor", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeClientHello {
@@ -434,9 +476,9 @@ export class RealtimeSubscribed extends Message<RealtimeSubscribed> {
   /**
    * Opaque cursor from which the stream starts, when known.
    *
-   * @generated from field: string cursor = 1;
+   * @generated from field: optional string cursor = 1;
    */
-  cursor = "";
+  cursor?: string;
 
   constructor(data?: PartialMessage<RealtimeSubscribed>) {
     super();
@@ -446,7 +488,7 @@ export class RealtimeSubscribed extends Message<RealtimeSubscribed> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.RealtimeSubscribed";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "cursor", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: "cursor", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeSubscribed {
@@ -786,16 +828,16 @@ export class RealtimeEventEnvelope extends Message<RealtimeEventEnvelope> {
   /**
    * User or system actor that caused the event, when known.
    *
-   * @generated from field: string actor_id = 3;
+   * @generated from field: optional string actor_id = 3;
    */
-  actorId = "";
+  actorId?: string;
 
   /**
    * Opaque resume/ack cursor, when this event has one.
    *
-   * @generated from field: string cursor = 4;
+   * @generated from field: optional string cursor = 4;
    */
-  cursor = "";
+  cursor?: string;
 
   /**
    * @generated from oneof chatto.api.v1.RealtimeEventEnvelope.event
@@ -1124,8 +1166,8 @@ export class RealtimeEventEnvelope extends Message<RealtimeEventEnvelope> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "created_at", kind: "message", T: Timestamp },
-    { no: 3, name: "actor_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "cursor", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "actor_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 4, name: "cursor", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 10, name: "message_posted", kind: "message", T: RealtimeMessagePostedEvent, oneof: "event" },
     { no: 11, name: "message_edited", kind: "message", T: RealtimeMessageEditedEvent, oneof: "event" },
     { no: 12, name: "message_retracted", kind: "message", T: RealtimeMessageRetractedEvent, oneof: "event" },
@@ -1207,9 +1249,9 @@ export class RealtimeMessagePostedEvent extends Message<RealtimeMessagePostedEve
   /**
    * Root message event ID when the message was posted in a thread.
    *
-   * @generated from field: string thread_root_event_id = 3;
+   * @generated from field: optional string thread_root_event_id = 3;
    */
-  threadRootEventId = "";
+  threadRootEventId?: string;
 
   constructor(data?: PartialMessage<RealtimeMessagePostedEvent>) {
     super();
@@ -1221,7 +1263,7 @@ export class RealtimeMessagePostedEvent extends Message<RealtimeMessagePostedEve
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "message_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeMessagePostedEvent {
@@ -1313,9 +1355,9 @@ export class RealtimeMessageRetractedEvent extends Message<RealtimeMessageRetrac
   /**
    * Retraction reason, when one was supplied.
    *
-   * @generated from field: string reason = 3;
+   * @generated from field: optional string reason = 3;
    */
-  reason = "";
+  reason?: string;
 
   constructor(data?: PartialMessage<RealtimeMessageRetractedEvent>) {
     super();
@@ -1327,7 +1369,7 @@ export class RealtimeMessageRetractedEvent extends Message<RealtimeMessageRetrac
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "message_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeMessageRetractedEvent {
@@ -1420,9 +1462,9 @@ export class RealtimeTypingEvent extends Message<RealtimeTypingEvent> {
   /**
    * Thread root event ID when the actor is typing in a thread.
    *
-   * @generated from field: string thread_root_event_id = 2;
+   * @generated from field: optional string thread_root_event_id = 2;
    */
-  threadRootEventId = "";
+  threadRootEventId?: string;
 
   constructor(data?: PartialMessage<RealtimeTypingEvent>) {
     super();
@@ -1433,7 +1475,7 @@ export class RealtimeTypingEvent extends Message<RealtimeTypingEvent> {
   static readonly typeName = "chatto.api.v1.RealtimeTypingEvent";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeTypingEvent {
@@ -1606,25 +1648,25 @@ export class RealtimeNotificationCreatedEvent extends Message<RealtimeNotificati
   notificationId = "";
 
   /**
-   * Room associated with the notification.
+   * Room associated with the notification, when the notification navigates to a room.
    *
-   * @generated from field: string room_id = 2;
+   * @generated from field: optional string room_id = 2;
    */
-  roomId = "";
+  roomId?: string;
 
   /**
-   * Event ID associated with the notification.
+   * Event ID associated with the notification, when the notification navigates to an event.
    *
-   * @generated from field: string event_id = 3;
+   * @generated from field: optional string event_id = 3;
    */
-  eventId = "";
+  eventId?: string;
 
   /**
    * Parent event ID for reply notifications, when known.
    *
-   * @generated from field: string in_reply_to_id = 4;
+   * @generated from field: optional string in_reply_to_id = 4;
    */
-  inReplyToId = "";
+  inReplyToId?: string;
 
   /**
    * True when the notification should not alert.
@@ -1642,9 +1684,9 @@ export class RealtimeNotificationCreatedEvent extends Message<RealtimeNotificati
   static readonly typeName = "chatto.api.v1.RealtimeNotificationCreatedEvent";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "notification_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "in_reply_to_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 3, name: "event_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 4, name: "in_reply_to_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 5, name: "silent", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
@@ -1931,18 +1973,18 @@ export class RealtimeServerUpdatedEvent extends Message<RealtimeServerUpdatedEve
   description = "";
 
   /**
-   * Server logo URL.
+   * Server logo URL, when configured.
    *
-   * @generated from field: string logo_url = 3;
+   * @generated from field: optional string logo_url = 3;
    */
-  logoUrl = "";
+  logoUrl?: string;
 
   /**
-   * Server banner URL.
+   * Server banner URL, when configured.
    *
-   * @generated from field: string banner_url = 4;
+   * @generated from field: optional string banner_url = 4;
    */
-  bannerUrl = "";
+  bannerUrl?: string;
 
   constructor(data?: PartialMessage<RealtimeServerUpdatedEvent>) {
     super();
@@ -1954,8 +1996,8 @@ export class RealtimeServerUpdatedEvent extends Message<RealtimeServerUpdatedEve
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "logo_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "banner_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "logo_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 4, name: "banner_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeServerUpdatedEvent {
@@ -2003,11 +2045,11 @@ export class RealtimeUserProfileUpdatedEvent extends Message<RealtimeUserProfile
   displayName = "";
 
   /**
-   * Avatar URL.
+   * Avatar URL, when the user has an avatar.
    *
-   * @generated from field: string avatar_url = 4;
+   * @generated from field: optional string avatar_url = 4;
    */
-  avatarUrl = "";
+  avatarUrl?: string;
 
   constructor(data?: PartialMessage<RealtimeUserProfileUpdatedEvent>) {
     super();
@@ -2020,7 +2062,7 @@ export class RealtimeUserProfileUpdatedEvent extends Message<RealtimeUserProfile
     { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "avatar_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "avatar_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeUserProfileUpdatedEvent {
@@ -2153,11 +2195,11 @@ export class RealtimeUserCustomStatusClearedEvent extends Message<RealtimeUserCu
  */
 export class RealtimeServerUserPreferencesUpdatedEvent extends Message<RealtimeServerUserPreferencesUpdatedEvent> {
   /**
-   * IANA timezone name, empty when browser default should be used.
+   * IANA timezone name, when the user has selected a fixed timezone.
    *
-   * @generated from field: string timezone = 1;
+   * @generated from field: optional string timezone = 1;
    */
-  timezone = "";
+  timezone?: string;
 
   /**
    * Preferred time display format.
@@ -2174,7 +2216,7 @@ export class RealtimeServerUserPreferencesUpdatedEvent extends Message<RealtimeS
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.RealtimeServerUserPreferencesUpdatedEvent";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "timezone", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: "timezone", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 2, name: "time_format", kind: "enum", T: proto3.getEnumType(RealtimeTimeFormat) },
   ]);
 
@@ -2284,11 +2326,11 @@ export class RealtimeServerMemberDeletedEvent extends Message<RealtimeServerMemb
  */
 export class RealtimeAssetProcessingEvent extends Message<RealtimeAssetProcessingEvent> {
   /**
-   * Room containing the message that owns the asset.
+   * Room containing the message that owns the asset, when known.
    *
-   * @generated from field: string room_id = 1;
+   * @generated from field: optional string room_id = 1;
    */
-  roomId = "";
+  roomId?: string;
 
   /**
    * Asset ID.
@@ -2298,11 +2340,11 @@ export class RealtimeAssetProcessingEvent extends Message<RealtimeAssetProcessin
   assetId = "";
 
   /**
-   * Event ID of the message that owns the asset.
+   * Event ID of the message that owns the asset, when known.
    *
-   * @generated from field: string message_event_id = 3;
+   * @generated from field: optional string message_event_id = 3;
    */
-  messageEventId = "";
+  messageEventId?: string;
 
   constructor(data?: PartialMessage<RealtimeAssetProcessingEvent>) {
     super();
@@ -2312,9 +2354,9 @@ export class RealtimeAssetProcessingEvent extends Message<RealtimeAssetProcessin
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.RealtimeAssetProcessingEvent";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 2, name: "asset_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "message_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "message_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeAssetProcessingEvent {
@@ -2343,9 +2385,9 @@ export class RealtimeAssetDeletedEvent extends Message<RealtimeAssetDeletedEvent
   /**
    * Room containing the message that owned the asset, when known.
    *
-   * @generated from field: string room_id = 1;
+   * @generated from field: optional string room_id = 1;
    */
-  roomId = "";
+  roomId?: string;
 
   /**
    * Asset ID.
@@ -2362,7 +2404,7 @@ export class RealtimeAssetDeletedEvent extends Message<RealtimeAssetDeletedEvent
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.RealtimeAssetDeletedEvent";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 2, name: "asset_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
@@ -2403,6 +2445,13 @@ export class RealtimeCallEvent extends Message<RealtimeCallEvent> {
    */
   callId = "";
 
+  /**
+   * Source that produced the call transition.
+   *
+   * @generated from field: chatto.api.v1.RealtimeCallEventSource source = 3;
+   */
+  source = RealtimeCallEventSource.UNSPECIFIED;
+
   constructor(data?: PartialMessage<RealtimeCallEvent>) {
     super();
     proto3.util.initPartial(data, this);
@@ -2413,6 +2462,7 @@ export class RealtimeCallEvent extends Message<RealtimeCallEvent> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "call_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "source", kind: "enum", T: proto3.getEnumType(RealtimeCallEventSource) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeCallEvent {
@@ -2453,18 +2503,18 @@ export class RealtimeMentionNotificationEvent extends Message<RealtimeMentionNot
   actorUserId = "";
 
   /**
-   * Display name of the room where the mention occurred.
+   * Display name of the room where the mention occurred, when hydrated for the caller.
    *
-   * @generated from field: string room_name = 3;
+   * @generated from field: optional string room_name = 3;
    */
-  roomName = "";
+  roomName?: string;
 
   /**
-   * Display name of the author who mentioned the connected user.
+   * Display name of the author who mentioned the connected user, when hydrated.
    *
-   * @generated from field: string actor_display_name = 4;
+   * @generated from field: optional string actor_display_name = 4;
    */
-  actorDisplayName = "";
+  actorDisplayName?: string;
 
   constructor(data?: PartialMessage<RealtimeMentionNotificationEvent>) {
     super();
@@ -2476,8 +2526,8 @@ export class RealtimeMentionNotificationEvent extends Message<RealtimeMentionNot
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "actor_user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "room_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "actor_display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "room_name", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 4, name: "actor_display_name", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeMentionNotificationEvent {
@@ -2518,25 +2568,25 @@ export class RealtimeNewDirectMessageNotificationEvent extends Message<RealtimeN
   senderId = "";
 
   /**
-   * Display name of the sender.
+   * Display name of the sender, when hydrated.
    *
-   * @generated from field: string sender_display_name = 3;
+   * @generated from field: optional string sender_display_name = 3;
    */
-  senderDisplayName = "";
+  senderDisplayName?: string;
 
   /**
    * Avatar URL of the sender, when one is available.
    *
-   * @generated from field: string sender_avatar_url = 4;
+   * @generated from field: optional string sender_avatar_url = 4;
    */
-  senderAvatarUrl = "";
+  senderAvatarUrl?: string;
 
   /**
-   * Display name for the DM conversation from the connected user's perspective.
+   * Display name for the DM conversation from the connected user's perspective, when hydrated.
    *
-   * @generated from field: string conversation_name = 5;
+   * @generated from field: optional string conversation_name = 5;
    */
-  conversationName = "";
+  conversationName?: string;
 
   constructor(data?: PartialMessage<RealtimeNewDirectMessageNotificationEvent>) {
     super();
@@ -2548,9 +2598,9 @@ export class RealtimeNewDirectMessageNotificationEvent extends Message<RealtimeN
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "sender_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "sender_display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "sender_avatar_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 5, name: "conversation_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "sender_display_name", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 4, name: "sender_avatar_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 5, name: "conversation_name", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeNewDirectMessageNotificationEvent {

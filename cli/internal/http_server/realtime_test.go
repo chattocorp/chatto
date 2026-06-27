@@ -70,7 +70,7 @@ func readRealtimeServerFrame(t *testing.T, conn *websocket.Conn, timeout time.Du
 func subscribeRealtime(t *testing.T, conn *websocket.Conn, token string) {
 	t.Helper()
 	sendRealtimeClientFrame(t, conn, &apiv1.RealtimeClientFrame{Frame: &apiv1.RealtimeClientFrame_Hello{
-		Hello: &apiv1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion, BearerToken: token},
+		Hello: &apiv1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion, BearerToken: proto.String(token)},
 	}})
 	hello, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
 	if !ok {
@@ -149,6 +149,28 @@ func TestRealtimeMapperMapsThreadCreated(t *testing.T) {
 	}
 }
 
+func TestRealtimeMapperMapsCallEventSource(t *testing.T) {
+	frame, err := (&HTTPServer{}).realtimeEventEnvelope(context.Background(), "", core.NewEVTEventEnvelope(&corev1.Event{
+		Id:      "call-joined-1",
+		ActorId: "U1",
+		Event: &corev1.Event_VoiceCallParticipantJoined{VoiceCallParticipantJoined: &corev1.CallParticipantJoinedEvent{
+			RoomId: "R1",
+			CallId: "call-1",
+			Source: corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT,
+		}},
+	}))
+	if err != nil {
+		t.Fatalf("realtimeEventEnvelope: %v", err)
+	}
+	call := frame.GetCallParticipantJoined()
+	if call == nil {
+		t.Fatalf("event = %T, want call_participant_joined", frame.GetEvent())
+	}
+	if call.Source != apiv1.RealtimeCallEventSource_REALTIME_CALL_EVENT_SOURCE_LIVEKIT {
+		t.Fatalf("call source = %v, want LIVEKIT", call.Source)
+	}
+}
+
 func TestRealtimeMapperMapsUnspecifiedNotificationLevelToDefault(t *testing.T) {
 	frame, err := (&HTTPServer{}).realtimeEventEnvelope(context.Background(), "", core.NewLiveEventEnvelope(&corev1.LiveEvent{
 		Id:      "notification-level-1",
@@ -171,6 +193,32 @@ func TestRealtimeMapperMapsUnspecifiedNotificationLevelToDefault(t *testing.T) {
 	}
 	if notificationLevel.EffectiveLevel != apiv1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
 		t.Fatalf("effective level = %v, want DEFAULT", notificationLevel.EffectiveLevel)
+	}
+}
+
+func TestRealtimeMapperOmitsAbsentNotificationNavigationFields(t *testing.T) {
+	frame, err := (&HTTPServer{}).realtimeEventEnvelope(context.Background(), "", core.NewLiveEventEnvelope(&corev1.LiveEvent{
+		Id:      "notification-created-1",
+		ActorId: "U1",
+		Event: &corev1.LiveEvent_NotificationCreated{NotificationCreated: &corev1.NotificationCreatedEvent{
+			NotificationId: "N1",
+		}},
+	}))
+	if err != nil {
+		t.Fatalf("realtimeEventEnvelope: %v", err)
+	}
+	if frame.ActorId == nil || frame.GetActorId() != "U1" {
+		t.Fatalf("actor_id = %q, present=%v; want U1 present", frame.GetActorId(), frame.ActorId != nil)
+	}
+	if frame.Cursor != nil {
+		t.Fatalf("cursor present = %q, want absent for zero delivery sequence", frame.GetCursor())
+	}
+	notification := frame.GetNotificationCreated()
+	if notification == nil {
+		t.Fatalf("event = %T, want notification_created", frame.GetEvent())
+	}
+	if notification.RoomId != nil || notification.EventId != nil || notification.InReplyToId != nil {
+		t.Fatalf("navigation fields present: room=%v event=%v reply=%v; want all absent", notification.RoomId, notification.EventId, notification.InReplyToId)
 	}
 }
 
@@ -210,11 +258,17 @@ func TestRealtimeMapperHydratesMentionNotificationDisplayData(t *testing.T) {
 	if mention == nil {
 		t.Fatalf("event = %T, want mention_notification", frame.GetEvent())
 	}
-	if mention.RoomName != room.Name {
-		t.Fatalf("room name = %q, want %q", mention.RoomName, room.Name)
+	if mention.RoomName == nil {
+		t.Fatal("room name is absent, want hydrated room name")
 	}
-	if mention.ActorDisplayName != actor.DisplayName {
-		t.Fatalf("actor display name = %q, want %q", mention.ActorDisplayName, actor.DisplayName)
+	if mention.GetRoomName() != room.Name {
+		t.Fatalf("room name = %q, want %q", mention.GetRoomName(), room.Name)
+	}
+	if mention.ActorDisplayName == nil {
+		t.Fatal("actor display name is absent, want hydrated actor display name")
+	}
+	if mention.GetActorDisplayName() != actor.DisplayName {
+		t.Fatalf("actor display name = %q, want %q", mention.GetActorDisplayName(), actor.DisplayName)
 	}
 }
 
@@ -248,14 +302,23 @@ func TestRealtimeMapperHydratesDMNotificationDisplayData(t *testing.T) {
 	if dm == nil {
 		t.Fatalf("event = %T, want new_direct_message_notification", frame.GetEvent())
 	}
-	if dm.SenderDisplayName != sender.DisplayName {
-		t.Fatalf("sender display name = %q, want %q", dm.SenderDisplayName, sender.DisplayName)
+	if dm.SenderDisplayName == nil {
+		t.Fatal("sender display name is absent, want hydrated sender display name")
 	}
-	if dm.ConversationName != sender.DisplayName {
-		t.Fatalf("conversation name = %q, want %q", dm.ConversationName, sender.DisplayName)
+	if dm.GetSenderDisplayName() != sender.DisplayName {
+		t.Fatalf("sender display name = %q, want %q", dm.GetSenderDisplayName(), sender.DisplayName)
 	}
-	if dm.SenderAvatarUrl != "" {
-		t.Fatalf("sender avatar URL = %q, want empty", dm.SenderAvatarUrl)
+	if dm.ConversationName == nil {
+		t.Fatal("conversation name is absent, want hydrated conversation name")
+	}
+	if dm.GetConversationName() != sender.DisplayName {
+		t.Fatalf("conversation name = %q, want %q", dm.GetConversationName(), sender.DisplayName)
+	}
+	if dm.SenderAvatarUrl == nil {
+		t.Fatal("sender avatar URL is absent, want hydrated empty avatar URL")
+	}
+	if dm.GetSenderAvatarUrl() != "" {
+		t.Fatalf("sender avatar URL = %q, want empty", dm.GetSenderAvatarUrl())
 	}
 }
 
@@ -338,8 +401,8 @@ func TestRealtimeWebSocketDeliversRoomMessageToMember(t *testing.T) {
 	if event == nil {
 		t.Fatal("member did not receive realtime message_posted event")
 	}
-	if event.Cursor == "" {
-		t.Fatal("message_posted cursor is empty; want opaque durable cursor")
+	if event.Cursor == nil || event.GetCursor() == "" {
+		t.Fatal("message_posted cursor is absent or empty; want opaque durable cursor")
 	}
 	msg := event.GetMessagePosted()
 	if msg.RoomId != room.Id || msg.MessageEventId != posted.Id {

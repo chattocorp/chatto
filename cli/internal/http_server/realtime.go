@@ -114,7 +114,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseProtocolError, "unsupported protocol"), time.Now().Add(time.Second))
 		return
 	}
-	if clientHello.ResumeCursor != "" {
+	if clientHello.GetResumeCursor() != "" {
 		writeError("resume_unavailable", "resume cursors are reserved but not supported by this server version", true)
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "resume unavailable"), time.Now().Add(time.Second))
 		return
@@ -286,8 +286,8 @@ func (s *HTTPServer) realtimeEventEnvelope(ctx context.Context, viewerID string,
 	envelope := &apiv1.RealtimeEventEnvelope{
 		Id:        event.ID(),
 		CreatedAt: event.CreatedAt(),
-		ActorId:   event.ActorID(),
-		Cursor:    realtimeCursor(event.DeliverySeq()),
+		ActorId:   optionalRealtimeString(event.ActorID()),
+		Cursor:    optionalRealtimeString(realtimeCursor(event.DeliverySeq())),
 	}
 
 	if evt := event.EVTEvent(); evt != nil {
@@ -312,7 +312,7 @@ func (s *HTTPServer) mapRealtimeEVT(envelope *apiv1.RealtimeEventEnvelope, event
 		envelope.Event = &apiv1.RealtimeEventEnvelope_MessagePosted{MessagePosted: &apiv1.RealtimeMessagePostedEvent{
 			RoomId:            msg.GetRoomId(),
 			MessageEventId:    event.GetId(),
-			ThreadRootEventId: msg.GetInThread(),
+			ThreadRootEventId: optionalRealtimeString(msg.GetInThread()),
 		}}
 	case *corev1.Event_MessageEdited:
 		msg := payload.MessageEdited
@@ -322,7 +322,7 @@ func (s *HTTPServer) mapRealtimeEVT(envelope *apiv1.RealtimeEventEnvelope, event
 	case *corev1.Event_MessageRetracted:
 		msg := payload.MessageRetracted
 		envelope.Event = &apiv1.RealtimeEventEnvelope_MessageRetracted{MessageRetracted: &apiv1.RealtimeMessageRetractedEvent{
-			RoomId: msg.GetRoomId(), MessageEventId: msg.GetEventId(), Reason: msg.GetReason(),
+			RoomId: msg.GetRoomId(), MessageEventId: msg.GetEventId(), Reason: optionalRealtimeString(msg.GetReason()),
 		}}
 	case *corev1.Event_ReactionAdded:
 		reaction := payload.ReactionAdded
@@ -364,16 +364,16 @@ func (s *HTTPServer) mapRealtimeEVT(envelope *apiv1.RealtimeEventEnvelope, event
 		}}
 	case *corev1.Event_VoiceCallStarted:
 		call := payload.VoiceCallStarted
-		envelope.Event = &apiv1.RealtimeEventEnvelope_CallStarted{CallStarted: realtimeCallEvent(call.GetRoomId(), call.GetCallId())}
+		envelope.Event = &apiv1.RealtimeEventEnvelope_CallStarted{CallStarted: realtimeCallEvent(call.GetRoomId(), call.GetCallId(), call.GetSource())}
 	case *corev1.Event_VoiceCallParticipantJoined:
 		call := payload.VoiceCallParticipantJoined
-		envelope.Event = &apiv1.RealtimeEventEnvelope_CallParticipantJoined{CallParticipantJoined: realtimeCallEvent(call.GetRoomId(), call.GetCallId())}
+		envelope.Event = &apiv1.RealtimeEventEnvelope_CallParticipantJoined{CallParticipantJoined: realtimeCallEvent(call.GetRoomId(), call.GetCallId(), call.GetSource())}
 	case *corev1.Event_VoiceCallParticipantLeft:
 		call := payload.VoiceCallParticipantLeft
-		envelope.Event = &apiv1.RealtimeEventEnvelope_CallParticipantLeft{CallParticipantLeft: realtimeCallEvent(call.GetRoomId(), call.GetCallId())}
+		envelope.Event = &apiv1.RealtimeEventEnvelope_CallParticipantLeft{CallParticipantLeft: realtimeCallEvent(call.GetRoomId(), call.GetCallId(), call.GetSource())}
 	case *corev1.Event_VoiceCallEnded:
 		call := payload.VoiceCallEnded
-		envelope.Event = &apiv1.RealtimeEventEnvelope_CallEnded{CallEnded: realtimeCallEvent(call.GetRoomId(), call.GetCallId())}
+		envelope.Event = &apiv1.RealtimeEventEnvelope_CallEnded{CallEnded: realtimeCallEvent(call.GetRoomId(), call.GetCallId(), call.GetSource())}
 	case *corev1.Event_AssetProcessingStarted:
 		asset := payload.AssetProcessingStarted
 		envelope.Event = &apiv1.RealtimeEventEnvelope_AssetProcessingStarted{AssetProcessingStarted: realtimeAssetProcessingEvent(s, asset.GetAssetId(), asset.GetMessageEventId())}
@@ -387,7 +387,7 @@ func (s *HTTPServer) mapRealtimeEVT(envelope *apiv1.RealtimeEventEnvelope, event
 		assetID := payload.AssetDeleted.GetAssetId()
 		roomID, _ := s.core.Assets.AssetRoomID(assetID)
 		envelope.Event = &apiv1.RealtimeEventEnvelope_AssetDeleted{AssetDeleted: &apiv1.RealtimeAssetDeletedEvent{
-			RoomId: roomID, AssetId: assetID,
+			RoomId: optionalRealtimeString(roomID), AssetId: assetID,
 		}}
 	case *corev1.Event_UserCustomStatusSet:
 		status := payload.UserCustomStatusSet.GetStatus()
@@ -412,7 +412,7 @@ func (s *HTTPServer) mapRealtimeLive(ctx context.Context, viewerID string, envel
 	case *corev1.LiveEvent_UserTyping:
 		typing := payload.UserTyping
 		envelope.Event = &apiv1.RealtimeEventEnvelope_UserTyping{UserTyping: &apiv1.RealtimeTypingEvent{
-			RoomId: typing.GetRoomId(), ThreadRootEventId: typing.GetThreadRootEventId(),
+			RoomId: typing.GetRoomId(), ThreadRootEventId: optionalRealtimeString(typing.GetThreadRootEventId()),
 		}}
 	case *corev1.LiveEvent_PresenceChanged:
 		envelope.Event = &apiv1.RealtimeEventEnvelope_PresenceChanged{PresenceChanged: &apiv1.RealtimePresenceChangedEvent{
@@ -422,9 +422,9 @@ func (s *HTTPServer) mapRealtimeLive(ctx context.Context, viewerID string, envel
 		notification := payload.NotificationCreated
 		envelope.Event = &apiv1.RealtimeEventEnvelope_NotificationCreated{NotificationCreated: &apiv1.RealtimeNotificationCreatedEvent{
 			NotificationId: notification.GetNotificationId(),
-			RoomId:         notification.GetRoomId(),
-			EventId:        notification.GetEventId(),
-			InReplyToId:    notification.GetInReplyToId(),
+			RoomId:         optionalRealtimeString(notification.GetRoomId()),
+			EventId:        optionalRealtimeString(notification.GetEventId()),
+			InReplyToId:    optionalRealtimeString(notification.GetInReplyToId()),
 			Silent:         notification.GetSilent(),
 		}}
 	case *corev1.LiveEvent_NotificationDismissed:
@@ -439,7 +439,7 @@ func (s *HTTPServer) mapRealtimeLive(ctx context.Context, viewerID string, envel
 	case *corev1.LiveEvent_ServerUserPreferencesUpdated:
 		prefs := payload.ServerUserPreferencesUpdated
 		envelope.Event = &apiv1.RealtimeEventEnvelope_ServerUserPreferencesUpdated{ServerUserPreferencesUpdated: &apiv1.RealtimeServerUserPreferencesUpdatedEvent{
-			Timezone: prefs.GetTimezone(), TimeFormat: apiRealtimeTimeFormat(prefs.GetTimeFormat()),
+			Timezone: optionalRealtimeString(prefs.GetTimezone()), TimeFormat: apiRealtimeTimeFormat(prefs.GetTimeFormat()),
 		}}
 	case *corev1.LiveEvent_ThreadFollowChanged:
 		follow := payload.ThreadFollowChanged
@@ -467,12 +467,12 @@ func (s *HTTPServer) mapRealtimeLive(ctx context.Context, viewerID string, envel
 	case *corev1.LiveEvent_ServerUpdated:
 		server := payload.ServerUpdated
 		envelope.Event = &apiv1.RealtimeEventEnvelope_ServerUpdated{ServerUpdated: &apiv1.RealtimeServerUpdatedEvent{
-			Name: server.GetName(), Description: server.GetDescription(), LogoUrl: server.GetLogoUrl(), BannerUrl: server.GetBannerUrl(),
+			Name: server.GetName(), Description: server.GetDescription(), LogoUrl: optionalRealtimeString(server.GetLogoUrl()), BannerUrl: optionalRealtimeString(server.GetBannerUrl()),
 		}}
 	case *corev1.LiveEvent_UserProfileUpdated:
 		user := payload.UserProfileUpdated
 		envelope.Event = &apiv1.RealtimeEventEnvelope_UserProfileUpdated{UserProfileUpdated: &apiv1.RealtimeUserProfileUpdatedEvent{
-			UserId: user.GetUserId(), Login: user.GetLogin(), DisplayName: user.GetDisplayName(), AvatarUrl: user.GetAvatarUrl(),
+			UserId: user.GetUserId(), Login: user.GetLogin(), DisplayName: user.GetDisplayName(), AvatarUrl: optionalRealtimeString(user.GetAvatarUrl()),
 		}}
 	case *corev1.LiveEvent_SessionTerminated:
 		envelope.Event = &apiv1.RealtimeEventEnvelope_SessionTerminated{SessionTerminated: &apiv1.RealtimeSessionTerminatedEvent{
@@ -488,17 +488,24 @@ func realtimeRoomEvent(roomID string) *apiv1.RealtimeRoomEvent {
 	return &apiv1.RealtimeRoomEvent{RoomId: roomID}
 }
 
-func realtimeCallEvent(roomID, callID string) *apiv1.RealtimeCallEvent {
-	return &apiv1.RealtimeCallEvent{RoomId: roomID, CallId: callID}
+func realtimeCallEvent(roomID, callID string, source corev1.CallParticipantEventSource) *apiv1.RealtimeCallEvent {
+	return &apiv1.RealtimeCallEvent{RoomId: roomID, CallId: callID, Source: apiRealtimeCallEventSource(source)}
 }
 
 func realtimeAssetProcessingEvent(s *HTTPServer, assetID, messageEventID string) *apiv1.RealtimeAssetProcessingEvent {
 	roomID, _ := s.core.Assets.AssetRoomID(assetID)
 	return &apiv1.RealtimeAssetProcessingEvent{
-		RoomId:         roomID,
+		RoomId:         optionalRealtimeString(roomID),
 		AssetId:        assetID,
-		MessageEventId: messageEventID,
+		MessageEventId: optionalRealtimeString(messageEventID),
 	}
+}
+
+func optionalRealtimeString(value string) *string {
+	if value == "" {
+		return nil
+	}
+	return proto.String(value)
 }
 
 func (s *HTTPServer) realtimeMentionNotification(ctx context.Context, viewerID string, mention *corev1.MentionNotificationEvent) *apiv1.RealtimeMentionNotificationEvent {
@@ -510,19 +517,18 @@ func (s *HTTPServer) realtimeMentionNotification(ctx context.Context, viewerID s
 		return out
 	}
 	if room, err := s.core.FindRoomByID(ctx, mention.GetRoomId()); err == nil && s.viewerCanReadRealtimeRoomLabel(ctx, viewerID, room) {
-		out.RoomName = room.GetName()
+		out.RoomName = proto.String(room.GetName())
 	}
 	if actor, err := s.core.GetUser(ctx, mention.GetMentionedByUserId()); err == nil {
-		out.ActorDisplayName = actor.GetDisplayName()
+		out.ActorDisplayName = proto.String(actor.GetDisplayName())
 	}
 	return out
 }
 
 func (s *HTTPServer) realtimeNewDirectMessageNotification(ctx context.Context, viewerID string, dm *corev1.NewDirectMessageNotificationEvent) *apiv1.RealtimeNewDirectMessageNotificationEvent {
 	out := &apiv1.RealtimeNewDirectMessageNotificationEvent{
-		RoomId:           dm.GetRoomId(),
-		SenderId:         dm.GetSenderId(),
-		ConversationName: "Direct Message",
+		RoomId:   dm.GetRoomId(),
+		SenderId: dm.GetSenderId(),
 	}
 	if s == nil || s.core == nil {
 		return out
@@ -531,12 +537,12 @@ func (s *HTTPServer) realtimeNewDirectMessageNotification(ctx context.Context, v
 		return out
 	}
 	if sender, err := s.core.GetUser(ctx, dm.GetSenderId()); err == nil {
-		out.SenderDisplayName = sender.GetDisplayName()
+		out.SenderDisplayName = proto.String(sender.GetDisplayName())
 		if avatarURL, err := s.core.GetUserAvatarURL(ctx, sender.GetId(), nil, nil, ""); err == nil {
-			out.SenderAvatarUrl = avatarURL
+			out.SenderAvatarUrl = proto.String(avatarURL)
 		}
 	}
-	out.ConversationName = s.realtimeDMConversationName(ctx, viewerID, dm.GetRoomId())
+	out.ConversationName = proto.String(s.realtimeDMConversationName(ctx, viewerID, dm.GetRoomId()))
 	return out
 }
 
@@ -566,6 +572,19 @@ func (s *HTTPServer) realtimeDMConversationName(ctx context.Context, viewerID, r
 		return "Direct Message"
 	}
 	return strings.Join(names, ", ")
+}
+
+func apiRealtimeCallEventSource(source corev1.CallParticipantEventSource) apiv1.RealtimeCallEventSource {
+	switch source {
+	case corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER:
+		return apiv1.RealtimeCallEventSource_REALTIME_CALL_EVENT_SOURCE_USER
+	case corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT:
+		return apiv1.RealtimeCallEventSource_REALTIME_CALL_EVENT_SOURCE_LIVEKIT
+	case corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION:
+		return apiv1.RealtimeCallEventSource_REALTIME_CALL_EVENT_SOURCE_RECONCILIATION
+	default:
+		return apiv1.RealtimeCallEventSource_REALTIME_CALL_EVENT_SOURCE_UNSPECIFIED
+	}
 }
 
 func (s *HTTPServer) viewerCanReadRealtimeRoomLabel(ctx context.Context, viewerID string, room *corev1.Room) bool {

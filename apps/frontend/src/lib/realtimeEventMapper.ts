@@ -78,7 +78,7 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
     __typename: 'Event',
     id: frame.id,
     createdAt: timestampToISO(frame.createdAt),
-    actorId: frame.actorId || null,
+    actorId: frame.actorId ?? null,
     actor: null
   };
 
@@ -91,7 +91,7 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
           __typename: 'MessagePostedEvent',
           roomId: value.roomId,
           messageEventId: value.messageEventId,
-          threadRootEventId: value.threadRootEventId || null
+          threadRootEventId: value.threadRootEventId ?? null
         }
       } as unknown as EventEnvelope;
     }
@@ -114,7 +114,7 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
           __typename: 'MessageRetractedEvent',
           roomId: value.roomId,
           messageEventId: value.messageEventId,
-          retractedReason: value.reason
+          retractedReason: value.reason ?? ''
         }
       } as unknown as EventEnvelope;
     }
@@ -139,7 +139,7 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
         event: {
           __typename: 'UserTypingEvent',
           roomId: value.roomId,
-          typingThreadRootEventId: value.threadRootEventId || null
+          typingThreadRootEventId: value.threadRootEventId ?? null
         }
       } as unknown as EventEnvelope;
     }
@@ -203,9 +203,9 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
         event: {
           __typename: 'NotificationCreatedEvent',
           notificationId: value.notificationId,
-          roomId: value.roomId || null,
-          eventId: value.eventId || null,
-          inReplyToId: value.inReplyToId || null,
+          roomId: value.roomId ?? null,
+          eventId: value.eventId ?? null,
+          inReplyToId: value.inReplyToId ?? null,
           silent: value.silent
         }
       } as unknown as EventEnvelope;
@@ -260,8 +260,8 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
           __typename: 'ServerUpdatedEvent',
           name: value.name,
           description: value.description,
-          logoUrl: value.logoUrl || null,
-          bannerUrl: value.bannerUrl || null
+          logoUrl: value.logoUrl ?? null,
+          bannerUrl: value.bannerUrl ?? null
         }
       } as unknown as EventEnvelope;
     }
@@ -274,7 +274,7 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
           userId: value.userId,
           login: value.login,
           displayName: value.displayName,
-          avatarUrl: value.avatarUrl || null
+          avatarUrl: value.avatarUrl ?? null
         }
       } as unknown as EventEnvelope;
     }
@@ -307,7 +307,7 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
         ...base,
         event: {
           __typename: 'ServerUserPreferencesUpdatedEvent',
-          timezone: frame.event.value.timezone || null,
+          timezone: frame.event.value.timezone ?? null,
           timeFormat: timeFormat(frame.event.value.timeFormat)
         }
       } as unknown as EventEnvelope;
@@ -335,9 +335,9 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
         ...base,
         event: {
           __typename: typename,
-          processingRoomId: value.roomId || null,
+          processingRoomId: value.roomId ?? null,
           assetId: value.assetId,
-          processingMessageEventId: value.messageEventId || null
+          processingMessageEventId: value.messageEventId ?? null
         }
       } as unknown as EventEnvelope;
     }
@@ -346,7 +346,7 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
         ...base,
         event: {
           __typename: 'AssetDeletedEvent',
-          deletedRoomId: frame.event.value.roomId || null,
+          deletedRoomId: frame.event.value.roomId ?? null,
           assetId: frame.event.value.assetId
         }
       } as unknown as EventEnvelope;
@@ -376,9 +376,9 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
         event: {
           __typename: 'MentionNotificationEvent',
           roomId: value.roomId,
-          room: { __typename: 'Room', name: value.roomName },
+          room: { __typename: 'Room', name: value.roomName ?? '' },
           actor: value.actorUserId
-            ? { __typename: 'User', id: value.actorUserId, displayName: value.actorDisplayName }
+            ? { __typename: 'User', id: value.actorUserId, displayName: value.actorDisplayName ?? '' }
             : null
         }
       } as unknown as EventEnvelope;
@@ -395,11 +395,11 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
             ? {
                 __typename: 'User',
                 id: value.senderId,
-                displayName: value.senderDisplayName,
+                displayName: value.senderDisplayName ?? '',
                 avatarUrl: value.senderAvatarUrl || null
               }
             : null,
-          conversationName: value.conversationName
+          conversationName: value.conversationName ?? ''
         }
       } as unknown as EventEnvelope;
     }

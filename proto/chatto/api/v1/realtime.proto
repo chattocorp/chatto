@@ -48,9 +48,9 @@ message RealtimeClientHello {
   // Protocol version requested by the client. The current version is 1.
   uint32 protocol_version = 1;
   // Optional bearer token. When present, it takes precedence over cookie auth.
-  string bearer_token = 2;
+  optional string bearer_token = 2;
   // Optional opaque cursor reserved for future resume support.
-  string resume_cursor = 3;
+  optional string resume_cursor = 3;
 }
 
 // Initial server hello.
@@ -71,7 +71,7 @@ message RealtimeSubscribeEvents {}
 // Confirms event streaming has started.
 message RealtimeSubscribed {
   // Opaque cursor from which the stream starts, when known.
-  string cursor = 1;
+  optional string cursor = 1;
 }
 
 // Application-level ping.
@@ -132,9 +132,9 @@ message RealtimeEventEnvelope {
   // Time the event was created.
   google.protobuf.Timestamp created_at = 2;
   // User or system actor that caused the event, when known.
-  string actor_id = 3;
+  optional string actor_id = 3;
   // Opaque resume/ack cursor, when this event has one.
-  string cursor = 4;
+  optional string cursor = 4;
 
   oneof event {
     // A message was posted in a room or thread.
@@ -225,7 +225,7 @@ message RealtimeMessagePostedEvent {
   // Event ID of the posted message.
   string message_event_id = 2;
   // Root message event ID when the message was posted in a thread.
-  string thread_root_event_id = 3;
+  optional string thread_root_event_id = 3;
 }
 
 // Message-edited signal.
@@ -243,7 +243,7 @@ message RealtimeMessageRetractedEvent {
   // Event ID of the retracted message.
   string message_event_id = 2;
   // Retraction reason, when one was supplied.
-  string reason = 3;
+  optional string reason = 3;
 }
 
 // Reaction signal.
@@ -261,7 +261,7 @@ message RealtimeTypingEvent {
   // Room where the actor is typing.
   string room_id = 1;
   // Thread root event ID when the actor is typing in a thread.
-  string thread_root_event_id = 2;
+  optional string thread_root_event_id = 2;
 }
 
 // Presence-changed signal.
@@ -304,12 +304,12 @@ message RealtimeRoomUniversalChangedEvent {
 message RealtimeNotificationCreatedEvent {
   // Notification ID.
   string notification_id = 1;
-  // Room associated with the notification.
-  string room_id = 2;
-  // Event ID associated with the notification.
-  string event_id = 3;
+  // Room associated with the notification, when the notification navigates to a room.
+  optional string room_id = 2;
+  // Event ID associated with the notification, when the notification navigates to an event.
+  optional string event_id = 3;
   // Parent event ID for reply notifications, when known.
-  string in_reply_to_id = 4;
+  optional string in_reply_to_id = 4;
   // True when the notification should not alert.
   bool silent = 5;
 }
@@ -360,10 +360,10 @@ message RealtimeServerUpdatedEvent {
   string name = 1;
   // Server description.
   string description = 2;
-  // Server logo URL.
-  string logo_url = 3;
-  // Server banner URL.
-  string banner_url = 4;
+  // Server logo URL, when configured.
+  optional string logo_url = 3;
+  // Server banner URL, when configured.
+  optional string banner_url = 4;
 }
 
 // User-profile signal.
@@ -374,8 +374,8 @@ message RealtimeUserProfileUpdatedEvent {
   string login = 2;
   // Display name.
   string display_name = 3;
-  // Avatar URL.
-  string avatar_url = 4;
+  // Avatar URL, when the user has an avatar.
+  optional string avatar_url = 4;
 }
 
 // User-custom-status set signal.
@@ -398,8 +398,8 @@ message RealtimeUserCustomStatusClearedEvent {
 
 // User display-preferences signal for the connected user.
 message RealtimeServerUserPreferencesUpdatedEvent {
-  // IANA timezone name, empty when browser default should be used.
-  string timezone = 1;
+  // IANA timezone name, when the user has selected a fixed timezone.
+  optional string timezone = 1;
   // Preferred time display format.
   RealtimeTimeFormat time_format = 2;
 }
@@ -428,18 +428,18 @@ message RealtimeServerMemberDeletedEvent {
 
 // Asset-processing signal.
 message RealtimeAssetProcessingEvent {
-  // Room containing the message that owns the asset.
-  string room_id = 1;
+  // Room containing the message that owns the asset, when known.
+  optional string room_id = 1;
   // Asset ID.
   string asset_id = 2;
-  // Event ID of the message that owns the asset.
-  string message_event_id = 3;
+  // Event ID of the message that owns the asset, when known.
+  optional string message_event_id = 3;
 }
 
 // Asset-deleted signal.
 message RealtimeAssetDeletedEvent {
   // Room containing the message that owned the asset, when known.
-  string room_id = 1;
+  optional string room_id = 1;
   // Asset ID.
   string asset_id = 2;
 }
@@ -450,6 +450,20 @@ message RealtimeCallEvent {
   string room_id = 1;
   // Call ID.
   string call_id = 2;
+  // Source that produced the call transition.
+  RealtimeCallEventSource source = 3;
+}
+
+// Source that produced a realtime voice-call transition.
+enum RealtimeCallEventSource {
+  // No call event source was specified.
+  REALTIME_CALL_EVENT_SOURCE_UNSPECIFIED = 0;
+  // The user explicitly requested the transition through Chatto.
+  REALTIME_CALL_EVENT_SOURCE_USER = 1;
+  // LiveKit reported the transition through a webhook.
+  REALTIME_CALL_EVENT_SOURCE_LIVEKIT = 2;
+  // Chatto reconciled its local state against LiveKit's current room state.
+  REALTIME_CALL_EVENT_SOURCE_RECONCILIATION = 3;
 }
 
 // Mention attention signal for the connected user.
@@ -458,10 +472,10 @@ message RealtimeMentionNotificationEvent {
   string room_id = 1;
   // Author user ID.
   string actor_user_id = 2;
-  // Display name of the room where the mention occurred.
-  string room_name = 3;
-  // Display name of the author who mentioned the connected user.
-  string actor_display_name = 4;
+  // Display name of the room where the mention occurred, when hydrated for the caller.
+  optional string room_name = 3;
+  // Display name of the author who mentioned the connected user, when hydrated.
+  optional string actor_display_name = 4;
 }
 
 // New-DM attention signal for the connected user.
@@ -470,12 +484,12 @@ message RealtimeNewDirectMessageNotificationEvent {
   string room_id = 1;
   // Sender user ID.
   string sender_id = 2;
-  // Display name of the sender.
-  string sender_display_name = 3;
+  // Display name of the sender, when hydrated.
+  optional string sender_display_name = 3;
   // Avatar URL of the sender, when one is available.
-  string sender_avatar_url = 4;
-  // Display name for the DM conversation from the connected user's perspective.
-  string conversation_name = 5;
+  optional string sender_avatar_url = 4;
+  // Display name for the DM conversation from the connected user's perspective, when hydrated.
+  optional string conversation_name = 5;
 }
 
 // Session-terminated signal for the connected user's current session.
