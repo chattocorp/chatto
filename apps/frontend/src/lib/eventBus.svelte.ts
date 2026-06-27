@@ -1,7 +1,6 @@
 /**
- * Single GraphQL subscription per connected server, covering everything
- * the user can receive (deployment-wide events and room-scoped events
- * over one stream).
+ * Single realtime stream per connected server, covering everything the user
+ * can receive (deployment-wide events and room-scoped events over one stream).
  *
  * The manager keeps one bus per registered server. Consumers register
  * handlers either via Svelte context (current active server) or directly
@@ -11,7 +10,6 @@
 
 import { createContext } from 'svelte';
 import { SvelteSet } from 'svelte/reactivity';
-import { visit, type DocumentNode } from 'graphql';
 import { graphql, useFragment } from './gql';
 import {
   RoomEventViewFragmentDoc,
@@ -23,6 +21,7 @@ import {
 } from './gql/graphql';
 import { eventBusManager } from './state/server/eventBus.svelte';
 import type { CustomUserStatus } from './state/userProfiles.svelte';
+import type { RealtimeEventEnvelope as RealtimeProtobufEventEnvelope } from '$lib/pb/chatto/api/v1/realtime_pb';
 
 export const MyServerEventsSubscriptionDoc = graphql(`
   subscription MyServerEvents {
@@ -248,34 +247,6 @@ export const MyServerEventsSubscriptionDoc = graphql(`
   }
 `);
 
-const legacySubscriptionEventTypeNames = new Set([
-  'CallStartedEvent',
-  'CallParticipantJoinedEvent',
-  'CallParticipantLeftEvent',
-  'CallEndedEvent',
-  'UserCustomStatusSetEvent',
-  'UserCustomStatusClearedEvent'
-]);
-
-export const MyServerEventsLegacySubscriptionDoc = visit(
-  MyServerEventsSubscriptionDoc as DocumentNode,
-  {
-    InlineFragment(node) {
-      if (
-        node.typeCondition &&
-        legacySubscriptionEventTypeNames.has(node.typeCondition.name.value)
-      ) {
-        return null;
-      }
-    },
-    Field(node) {
-      if (node.name.value === 'customStatus') {
-        return null;
-      }
-    }
-  }
-) as typeof MyServerEventsSubscriptionDoc;
-
 /** Re-export the urql RoomEventView fragment doc so the chat-event handler can
  *  mask subscription payloads when forwarding to room-history stores. */
 export { RoomEventViewFragmentDoc, useFragment };
@@ -283,15 +254,35 @@ export { RoomEventViewFragmentDoc, useFragment };
 export type EventEnvelope = MyServerEventsSubscription['myEvents'];
 
 export type EventHandler = (event: EventEnvelope) => void;
-export type EventBusCatchUpReason =
-  | 'subscription-ended'
-  | 'ws-reconnected'
-  | 'heartbeat-stalled';
+export type EventBusCatchUpReason = 'subscription-ended' | 'ws-reconnected' | 'heartbeat-stalled';
 export type EventBusCatchUpHandler = (reason: EventBusCatchUpReason) => void;
 
 export interface EventBus {
   handlers: SvelteSet<EventHandler>;
   catchUpHandlers: SvelteSet<EventBusCatchUpHandler>;
+}
+
+const realtimeEnvelopeSymbol: unique symbol = Symbol('chattoRealtimeEventEnvelope');
+
+type EventEnvelopeWithRealtime = EventEnvelope & {
+  [realtimeEnvelopeSymbol]?: RealtimeProtobufEventEnvelope;
+};
+
+export function attachRealtimeEventEnvelope(
+  event: EventEnvelope,
+  realtimeEnvelope: RealtimeProtobufEventEnvelope
+): EventEnvelope {
+  Object.defineProperty(event, realtimeEnvelopeSymbol, {
+    value: realtimeEnvelope,
+    enumerable: false
+  });
+  return event;
+}
+
+export function getRealtimeEventEnvelope(
+  event: EventEnvelope
+): RealtimeProtobufEventEnvelope | undefined {
+  return (event as EventEnvelopeWithRealtime)[realtimeEnvelopeSymbol];
 }
 
 // The context holds a getter — not a fixed bus — so reads from inside a
@@ -300,8 +291,7 @@ export interface EventBus {
 // `[serverId]` param changes, every `useEvent` / `onEvent` consumer
 // re-subscribes against the new server's bus without needing a remount or
 // a context refresh.
-const [getServerBusGetter, setServerBusGetter] =
-  createContext<() => EventBus | undefined>();
+const [getServerBusGetter, setServerBusGetter] = createContext<() => EventBus | undefined>();
 
 /**
  * Expose the active server's event bus to descendants via Svelte context.
@@ -403,14 +393,18 @@ export type UserProfileUpdate = {
 };
 
 export function onUserProfileUpdate(handler: (update: UserProfileUpdate) => void): () => void {
-  return onTypedEvent('UserProfileUpdatedEvent', (_env, e) => {
-    return {
-      userId: e.userId,
-      displayName: e.displayName,
-      avatarUrl: e.avatarUrl,
-      login: e.login
-    };
-  }, handler);
+  return onTypedEvent(
+    'UserProfileUpdatedEvent',
+    (_env, e) => {
+      return {
+        userId: e.userId,
+        displayName: e.displayName,
+        avatarUrl: e.avatarUrl,
+        login: e.login
+      };
+    },
+    handler
+  );
 }
 
 export type UserCustomStatusUpdate = {
@@ -446,18 +440,34 @@ export type MentionNotification = {
 };
 
 export function onMention(handler: (notification: MentionNotification) => void): () => void {
-  return onTypedEvent('MentionNotificationEvent', (env, e) => {
-    const envelopeActor = env.actor ? useFragment(UserAvatarUserFragmentDoc, env.actor) : null;
-    const actor = e.actor ?? envelopeActor;
+  return onTypedEvent(
+    'MentionNotificationEvent',
+    (env, e) => {
+      const realtime = getRealtimeEventEnvelope(env);
+      if (realtime?.event.case === 'mentionNotification') {
+        const mention = realtime.event.value;
+        return {
+          roomId: mention.roomId,
+          actorUserId: mention.actorUserId ?? env.actorId ?? '',
+          actorDisplayName: mention.actorDisplayName ?? 'Unknown user',
+          spaceName: '',
+          roomName: mention.roomName ?? ''
+        };
+      }
 
-    return {
-      roomId: e.roomId,
-      actorUserId: actor?.id ?? env.actorId ?? '',
-      actorDisplayName: actor?.displayName ?? 'Unknown user',
-      spaceName: '',
-      roomName: e.room.name
-    };
-  }, handler);
+      const envelopeActor = env.actor ? useFragment(UserAvatarUserFragmentDoc, env.actor) : null;
+      const actor = e.actor ?? envelopeActor;
+
+      return {
+        roomId: e.roomId,
+        actorUserId: actor?.id ?? env.actorId ?? '',
+        actorDisplayName: actor?.displayName ?? 'Unknown user',
+        spaceName: '',
+        roomName: e.room.name
+      };
+    },
+    handler
+  );
 }
 
 export type DMNotification = {
@@ -469,18 +479,34 @@ export type DMNotification = {
 };
 
 export function onNewDM(handler: (notification: DMNotification) => void): () => void {
-  return onTypedEvent('NewDirectMessageNotificationEvent', (env, e) => {
-    const envelopeActor = env.actor ? useFragment(UserAvatarUserFragmentDoc, env.actor) : null;
-    const sender = e.sender ?? envelopeActor;
+  return onTypedEvent(
+    'NewDirectMessageNotificationEvent',
+    (env, e) => {
+      const realtime = getRealtimeEventEnvelope(env);
+      if (realtime?.event.case === 'newDirectMessageNotification') {
+        const dm = realtime.event.value;
+        return {
+          roomId: dm.roomId,
+          senderId: dm.senderId ?? env.actorId ?? '',
+          senderDisplayName: dm.senderDisplayName ?? 'Unknown user',
+          senderAvatarUrl: dm.senderAvatarUrl ?? '',
+          conversationName: dm.conversationName ?? ''
+        };
+      }
 
-    return {
-      roomId: e.roomId,
-      senderId: sender?.id ?? env.actorId ?? '',
-      senderDisplayName: sender?.displayName ?? 'Unknown user',
-      senderAvatarUrl: sender?.avatarUrl ?? '',
-      conversationName: e.conversationName
-    };
-  }, handler);
+      const envelopeActor = env.actor ? useFragment(UserAvatarUserFragmentDoc, env.actor) : null;
+      const sender = e.sender ?? envelopeActor;
+
+      return {
+        roomId: e.roomId,
+        senderId: sender?.id ?? env.actorId ?? '',
+        senderDisplayName: sender?.displayName ?? 'Unknown user',
+        senderAvatarUrl: sender?.avatarUrl ?? '',
+        conversationName: e.conversationName
+      };
+    },
+    handler
+  );
 }
 
 export type NotificationCreatedInfo = {
@@ -491,25 +517,48 @@ export type NotificationCreatedInfo = {
   inReplyToId?: string;
 };
 
-export function onNotificationCreated(handler: (info: NotificationCreatedInfo) => void): () => void {
-  return onTypedEvent('NotificationCreatedEvent', (_env, e) => {
-    return {
-      notificationId: e.notificationId,
-      roomId: e.roomId ?? undefined,
-      eventId: e.eventId ?? undefined,
-      inReplyToId: e.inReplyToId ?? undefined
-    };
-  }, handler);
+export function onNotificationCreated(
+  handler: (info: NotificationCreatedInfo) => void
+): () => void {
+  return onTypedEvent(
+    'NotificationCreatedEvent',
+    (env, e) => {
+      const realtime = getRealtimeEventEnvelope(env);
+      if (realtime?.event.case === 'notificationCreated') {
+        const notification = realtime.event.value;
+        return {
+          notificationId: notification.notificationId,
+          roomId: notification.roomId,
+          eventId: notification.eventId,
+          inReplyToId: notification.inReplyToId
+        };
+      }
+
+      return {
+        notificationId: e.notificationId,
+        roomId: e.roomId ?? undefined,
+        eventId: e.eventId ?? undefined,
+        inReplyToId: e.inReplyToId ?? undefined
+      };
+    },
+    handler
+  );
 }
 
 export type NotificationDismissedInfo = {
   notificationId: string;
 };
 
-export function onNotificationDismissed(handler: (info: NotificationDismissedInfo) => void): () => void {
-  return onTypedEvent('NotificationDismissedEvent', (_env, e) => {
-    return { notificationId: e.notificationId };
-  }, handler);
+export function onNotificationDismissed(
+  handler: (info: NotificationDismissedInfo) => void
+): () => void {
+  return onTypedEvent(
+    'NotificationDismissedEvent',
+    (_env, e) => {
+      return { notificationId: e.notificationId };
+    },
+    handler
+  );
 }
 
 export type RoomMarkedAsReadInfo = {
@@ -517,9 +566,13 @@ export type RoomMarkedAsReadInfo = {
 };
 
 export function onRoomMarkedAsRead(handler: (info: RoomMarkedAsReadInfo) => void): () => void {
-  return onTypedEvent('RoomMarkedAsReadEvent', (_env, e) => {
-    return { roomId: e.roomId };
-  }, handler);
+  return onTypedEvent(
+    'RoomMarkedAsReadEvent',
+    (_env, e) => {
+      return { roomId: e.roomId };
+    },
+    handler
+  );
 }
 
 export type UserSettingsUpdate = {
@@ -528,9 +581,13 @@ export type UserSettingsUpdate = {
 };
 
 export function onUserSettingsUpdate(handler: (update: UserSettingsUpdate) => void): () => void {
-  return onTypedEvent('ServerUserPreferencesUpdatedEvent', (_env, e) => {
-    return { timezone: e.timezone, timeFormat: e.timeFormat };
-  }, handler);
+  return onTypedEvent(
+    'ServerUserPreferencesUpdatedEvent',
+    (_env, e) => {
+      return { timezone: e.timezone, timeFormat: e.timeFormat };
+    },
+    handler
+  );
 }
 
 export type RoomLayoutUpdatedInfo = {
@@ -557,14 +614,20 @@ export type NotificationLevelChanged = {
   effectiveLevel: NotificationLevel;
 };
 
-export function onNotificationLevelChanged(handler: (update: NotificationLevelChanged) => void): () => void {
-  return onTypedEvent('NotificationLevelChangedEvent', (_env, e) => {
-    return {
-      roomId: e.nlcRoomId ?? null,
-      level: e.level,
-      effectiveLevel: e.effectiveLevel
-    };
-  }, handler);
+export function onNotificationLevelChanged(
+  handler: (update: NotificationLevelChanged) => void
+): () => void {
+  return onTypedEvent(
+    'NotificationLevelChangedEvent',
+    (_env, e) => {
+      return {
+        roomId: e.nlcRoomId ?? null,
+        level: e.level,
+        effectiveLevel: e.effectiveLevel
+      };
+    },
+    handler
+  );
 }
 
 export type ThreadFollowChanged = {
@@ -574,19 +637,27 @@ export type ThreadFollowChanged = {
 };
 
 export function onThreadFollowChanged(handler: (update: ThreadFollowChanged) => void): () => void {
-  return onTypedEvent('ThreadFollowChangedEvent', (_env, e) => {
-    return {
-      roomId: e.tfcRoomId,
-      threadRootEventId: e.tfcThreadRootEventId,
-      isFollowing: e.isFollowing
-    };
-  }, handler);
+  return onTypedEvent(
+    'ThreadFollowChangedEvent',
+    (_env, e) => {
+      return {
+        roomId: e.tfcRoomId,
+        threadRootEventId: e.tfcThreadRootEventId,
+        isFollowing: e.isFollowing
+      };
+    },
+    handler
+  );
 }
 
 export function onSessionTerminated(handler: (reason: string) => void): () => void {
-  return onTypedEvent('SessionTerminatedEvent', (_env, e) => {
-    return e.reason;
-  }, handler);
+  return onTypedEvent(
+    'SessionTerminatedEvent',
+    (_env, e) => {
+      return e.reason;
+    },
+    handler
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -596,12 +667,16 @@ export function onSessionTerminated(handler: (reason: string) => void): () => vo
 type PresenceHandler = (userId: string, status: PresenceStatus) => void;
 
 export function onPresenceChange(handler: PresenceHandler): () => void {
-  return onTypedEvent('PresenceChangedEvent', (envelope, e) => {
-    return { userId: envelope.actorId, status: e.status as PresenceStatus };
-  }, ({ userId, status }) => {
-    if (!userId) return;
-    handler(userId, status);
-  });
+  return onTypedEvent(
+    'PresenceChangedEvent',
+    (envelope, e) => {
+      return { userId: envelope.actorId, status: e.status as PresenceStatus };
+    },
+    ({ userId, status }) => {
+      if (!userId) return;
+      handler(userId, status);
+    }
+  );
 }
 
 export interface TypingEventData {
@@ -659,18 +734,28 @@ export function createEventBusHandlerRegistrar(serverId: string) {
       };
     },
     onRoomMarkedAsRead(handler: (info: RoomMarkedAsReadInfo) => void): () => void {
-      return onTypedEventDirect(bus, 'RoomMarkedAsReadEvent', (_env, e) => {
-        return { roomId: e.roomId };
-      }, handler);
+      return onTypedEventDirect(
+        bus,
+        'RoomMarkedAsReadEvent',
+        (_env, e) => {
+          return { roomId: e.roomId };
+        },
+        handler
+      );
     },
     onNotificationLevelChanged(handler: (update: NotificationLevelChanged) => void): () => void {
-      return onTypedEventDirect(bus, 'NotificationLevelChangedEvent', (_env, e) => {
-        return {
-          roomId: e.nlcRoomId ?? null,
-          level: e.level,
-          effectiveLevel: e.effectiveLevel
-        };
-      }, handler);
+      return onTypedEventDirect(
+        bus,
+        'NotificationLevelChangedEvent',
+        (_env, e) => {
+          return {
+            roomId: e.nlcRoomId ?? null,
+            level: e.level,
+            effectiveLevel: e.effectiveLevel
+          };
+        },
+        handler
+      );
     },
     onRoomLayoutUpdated(handler: (info: RoomLayoutUpdatedInfo) => void): () => void {
       const unsubscribeGroupsUpdated = onTypedEventDirect(

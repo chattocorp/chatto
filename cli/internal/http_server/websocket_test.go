@@ -28,11 +28,12 @@ import (
 
 // wsTestEnv holds all test dependencies for WebSocket tests
 type wsTestEnv struct {
-	server    *httptest.Server
-	client    *http.Client
-	core      *core.ChattoCore
-	ctx       context.Context
-	cookieJar *cookiejar.Jar
+	server     *httptest.Server
+	client     *http.Client
+	core       *core.ChattoCore
+	ctx        context.Context
+	cookieJar  *cookiejar.Jar
+	httpServer *HTTPServer
 }
 
 // setupWebSocketTestServer creates a test server for WebSocket testing.
@@ -86,14 +87,16 @@ func setupWebSocketTestServer(t *testing.T) *wsTestEnv {
 			},
 			Core: coreConfig,
 		},
-		nc:     nc,
-		router: router,
-		core:   chattoCore,
-		mailer: email.NewMockSender(true),
-		logger: log.WithPrefix("test"),
+		nc:      nc,
+		router:  router,
+		core:    chattoCore,
+		mailer:  email.NewMockSender(true),
+		version: "test",
+		logger:  log.WithPrefix("test"),
 	}
 
 	s.setupAuthRoutes()
+	s.setupRealtimeAPI(s.buildAllowedOrigins())
 	s.setupGraphQLAPI(s.buildAllowedOrigins())
 
 	ts := httptest.NewServer(router)
@@ -108,11 +111,12 @@ func setupWebSocketTestServer(t *testing.T) *wsTestEnv {
 	}
 
 	return &wsTestEnv{
-		server:    ts,
-		client:    client,
-		core:      chattoCore,
-		ctx:       ctx,
-		cookieJar: jar,
+		server:     ts,
+		client:     client,
+		core:       chattoCore,
+		ctx:        ctx,
+		cookieJar:  jar,
+		httpServer: s,
 	}
 }
 

@@ -74,7 +74,7 @@ Room sidebar panel for voice/video calls.
 
     if (event.__typename === 'CallParticipantJoinedEvent' && event.roomId === roomId) {
       const actor = spaceEvent.actor ? useFragment(UserAvatarFragment, spaceEvent.actor) : null;
-      callParticipantsState.handleJoin(event.roomId, event.callId, actor);
+      void callParticipantsState.handleJoin(event.roomId, event.callId, actor);
     } else if (event.__typename === 'CallParticipantLeftEvent' && event.roomId === roomId) {
       callParticipantsState.handleLeave(event.roomId, event.callId, spaceEvent.actorId ?? null);
       voiceCallState.handleParticipantLeftEvent(

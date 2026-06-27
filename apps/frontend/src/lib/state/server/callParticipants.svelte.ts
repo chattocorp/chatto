@@ -10,10 +10,7 @@
  */
 
 import { graphql, useFragment } from '$lib/gql';
-import type {
-	GetCallParticipantsQuery,
-	UserAvatarUserFragment
-} from '$lib/gql/graphql';
+import type { GetCallParticipantsQuery, UserAvatarUserFragment } from '$lib/gql/graphql';
 import { UserAvatarUserFragmentDoc } from '$lib/gql/graphql';
 import type { Client } from '@urql/svelte';
 
@@ -33,103 +30,133 @@ const CallParticipantsQuery = graphql(`
 
 /** Participant info stored in observer mode. */
 export type ObserverParticipant = {
-	userId: string;
-	displayName: string;
-	login: string;
-	avatarUrl: string | null;
+  userId: string;
+  displayName: string;
+  login: string;
+  avatarUrl: string | null;
 };
 
-type QueryCallParticipant = NonNullable<GetCallParticipantsQuery['room']>['callParticipants'][number];
+type QueryCallParticipant = NonNullable<
+  GetCallParticipantsQuery['room']
+>['callParticipants'][number];
 
 export class CallParticipantsState {
-	#client: Client;
+  #client: Client;
 
-	/** Current participants visible to observers. */
-	participants = $state<ObserverParticipant[]>([]);
+  /** Current participants visible to observers. */
+  participants = $state<ObserverParticipant[]>([]);
 
-	/** The room these participants are for. */
-	private currentRoomId: string | null = null;
-	private currentCallId: string | null = null;
+  /** The room these participants are for. */
+  private currentRoomId: string | null = null;
+  private currentCallId: string | null = null;
+  private version = 0;
 
-	constructor(client: Client) {
-		this.#client = client;
-	}
+  constructor(client: Client) {
+    this.#client = client;
+  }
 
-	/**
-	 * Load participants from the server for a specific room.
-	 * Called when entering a room that has an active call.
-	 */
-	async load(roomId: string): Promise<void> {
-		this.currentRoomId = roomId;
+  /**
+   * Load participants from the server for a specific room.
+   * Called when entering a room that has an active call.
+   */
+  private bumpVersion(): number {
+    this.version += 1;
+    return this.version;
+  }
 
-		const result = await this.#client
-			.query(CallParticipantsQuery, { roomId })
-			.toPromise();
+  private async fetchParticipants(roomId: string): Promise<QueryCallParticipant[] | null> {
+    const result = await this.#client.query(CallParticipantsQuery, { roomId }).toPromise();
+    return result.data?.room?.callParticipants ?? null;
+  }
 
-		const participants = result.data?.room?.callParticipants;
-		if (participants) {
-			this.currentCallId = participants[0]?.callId ?? null;
-			this.participants = participants.map(toObserverParticipant);
-		}
-	}
+  async load(roomId: string): Promise<void> {
+    this.currentRoomId = roomId;
+    const version = this.bumpVersion();
 
-	/**
-	 * Optimistically add a participant from a CallParticipantJoinedEvent.
-	 * Uses the actor data from the Event envelope.
-	 */
-	handleJoin(roomId: string, callId: string, actor: UserAvatarUserFragment | null): void {
-		if (roomId !== this.currentRoomId) return;
-		if (this.currentCallId && this.currentCallId !== callId) return;
-		if (!actor) return;
+    const participants = await this.fetchParticipants(roomId);
+    if (version !== this.version || this.currentRoomId !== roomId) return;
 
-		this.currentCallId = callId;
+    if (participants) {
+      this.currentCallId = participants[0]?.callId ?? null;
+      this.participants = participants.map(toObserverParticipant);
+    }
+  }
 
-		// Avoid duplicates
-		if (this.participants.some((p) => p.userId === actor.id)) return;
+  /**
+   * Optimistically add a participant from a CallParticipantJoinedEvent.
+   * Uses the actor data from the Event envelope.
+   */
+  async handleJoin(
+    roomId: string,
+    callId: string,
+    actor: UserAvatarUserFragment | null
+  ): Promise<void> {
+    if (roomId !== this.currentRoomId) return;
+    if (this.currentCallId && this.currentCallId !== callId) return;
+    if (!actor) {
+      const version = this.bumpVersion();
+      const participants = await this.fetchParticipants(roomId);
+      if (version !== this.version || this.currentRoomId !== roomId) return;
+      if (participants) {
+        const loadedCallId = participants[0]?.callId ?? callId;
+        if (loadedCallId !== callId) return;
+        this.currentCallId = loadedCallId;
+        this.participants = participants.map(toObserverParticipant);
+      }
+      return;
+    }
 
-		this.participants = [
-			...this.participants,
-			{
-				userId: actor.id,
-				displayName: actor.displayName,
-				login: actor.login,
-				avatarUrl: actor.avatarUrl ?? null
-			}
-		];
-	}
+    this.bumpVersion();
+    this.currentCallId = callId;
 
-	/**
-	 * Optimistically remove a participant from a CallParticipantLeftEvent.
-	 */
-	handleLeave(roomId: string, callId: string | null, actorId: string | null): void {
-		if (roomId !== this.currentRoomId) return;
-		if (callId !== null && this.currentCallId !== callId) return;
-		if (!actorId) return;
+    // Avoid duplicates
+    if (this.participants.some((p) => p.userId === actor.id)) return;
 
-		this.participants = this.participants.filter((p) => p.userId !== actorId);
-	}
+    this.participants = [
+      ...this.participants,
+      {
+        userId: actor.id,
+        displayName: actor.displayName,
+        login: actor.login,
+        avatarUrl: actor.avatarUrl ?? null
+      }
+    ];
+  }
 
-	/** Clear observer participants when the room's call ends. */
-	handleEnd(roomId: string, callId: string): void {
-		if (roomId !== this.currentRoomId) return;
-		if (this.currentCallId !== null && this.currentCallId !== callId) return;
-		this.clear();
-	}
+  /**
+   * Optimistically remove a participant from a CallParticipantLeftEvent.
+   */
+  handleLeave(roomId: string, callId: string | null, actorId: string | null): void {
+    if (roomId !== this.currentRoomId) return;
+    if (callId !== null && this.currentCallId !== callId) return;
+    if (!actorId) return;
 
-	/** Clear state (e.g., when leaving a room or call ends). */
-	clear(): void {
-		this.participants = [];
-		this.currentRoomId = null;
-		this.currentCallId = null;
-	}
+    this.bumpVersion();
+    this.participants = this.participants.filter((p) => p.userId !== actorId);
+  }
+
+  /** Clear observer participants when the room's call ends. */
+  handleEnd(roomId: string, callId: string): void {
+    if (roomId !== this.currentRoomId) return;
+    if (this.currentCallId !== null && this.currentCallId !== callId) return;
+    this.clear();
+  }
+
+  /** Clear state (e.g., when leaving a room or call ends). */
+  clear(): void {
+    this.bumpVersion();
+    this.participants = [];
+    this.currentRoomId = null;
+    this.currentCallId = null;
+  }
 }
 
 function toObserverParticipant(p: QueryCallParticipant): ObserverParticipant {
-	const user = useFragment(UserAvatarUserFragmentDoc, p.user);
-	return {
-		userId: user.id,
-		displayName: user.displayName,
-		login: user.login,
-		avatarUrl: user.avatarUrl ?? null
-	};
+  const user = useFragment(UserAvatarUserFragmentDoc, p.user);
+  return {
+    userId: user.id,
+    displayName: user.displayName,
+    login: user.login,
+    avatarUrl: user.avatarUrl ?? null
+  };
 }

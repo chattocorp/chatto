@@ -2,15 +2,9 @@ import { tick } from 'svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { Client } from '@urql/svelte';
 import { useFragment } from '$lib/gql';
-import {
-  RoomEventViewFragmentDoc,
-  type RoomEventViewFragment
-} from '$lib/gql/graphql';
+import { RoomEventViewFragmentDoc, type RoomEventViewFragment } from '$lib/gql/graphql';
 import type { EventEnvelope } from '$lib/eventBus.svelte';
-import {
-  createRoomTimelineAPI,
-  type RoomTimelineAPI
-} from '$lib/api/roomTimeline';
+import { createRoomTimelineAPI, type RoomTimelineAPI } from '$lib/api/roomTimeline';
 import type { GraphQLClient } from '$lib/state/server/graphqlClient.svelte';
 import type { JumpToMessageState } from '../composerContext.svelte';
 import {
@@ -22,12 +16,7 @@ import {
   RoomLatestQuery
 } from './queries';
 import { isRootRoomEvent, isThreadEvent } from './filters';
-import {
-  type EventConnectionPage,
-  type RawEvent,
-  getActorId,
-  unmask
-} from './helpers';
+import { type EventConnectionPage, type RawEvent, getActorId, unmask } from './helpers';
 
 type MessageScope = 'room' | 'thread';
 
@@ -61,10 +50,9 @@ function roomTimelineFromGraphQLClient(gqlClient: GraphQLClient): RoomTimelineAP
 
 /**
  * Message store for both the main room timeline and a single thread pane.
- * Room history now uses the protobuf ConnectRPC timeline API when available;
- * thread history requires that path. Single-event refetches still use GraphQL
- * during the migration. Lifecycle, pagination, refetch, and subscription
- * ingestion behavior stays shared across both scopes.
+ * Room history uses the protobuf ConnectRPC timeline API when available;
+ * thread history requires that path. Lifecycle, pagination, refetch, and
+ * realtime ingestion behavior stays shared across both scopes.
  */
 export class MessagesStore {
   events = $state<RoomEventViewFragment[]>([]);
@@ -127,7 +115,10 @@ export class MessagesStore {
     for (const event of this.events) {
       if (event.id === messageEventId) return event.id;
       const payload = event.event;
-      if (payload?.__typename === 'MessagePostedEvent' && payload.echoOfEventId === messageEventId) {
+      if (
+        payload?.__typename === 'MessagePostedEvent' &&
+        payload.echoOfEventId === messageEventId
+      ) {
         return event.id;
       }
       if (
@@ -142,7 +133,10 @@ export class MessagesStore {
       if (!event) continue;
       if (event.id === messageEventId) return event.id;
       const payload = event.event;
-      if (payload?.__typename === 'MessagePostedEvent' && payload.echoOfEventId === messageEventId) {
+      if (
+        payload?.__typename === 'MessagePostedEvent' &&
+        payload.echoOfEventId === messageEventId
+      ) {
         return event.id;
       }
       if (
@@ -304,6 +298,10 @@ export class MessagesStore {
     }
 
     if (eventData.__typename === 'MessageEditedEvent') {
+      if (!('body' in eventData)) {
+        void this.refetchByMessageEventId(eventData.messageEventId);
+        return;
+      }
       this.applyEdit(eventData.messageEventId, eventData);
       return;
     }
@@ -327,6 +325,17 @@ export class MessagesStore {
     }
 
     if (eventData.__typename === 'MessagePostedEvent') {
+      if (!('body' in eventData)) {
+        const messageEventId =
+          'messageEventId' in eventData && typeof eventData.messageEventId === 'string'
+            ? eventData.messageEventId
+            : spaceEvent.id;
+        void this.fetchAndIngestMessagePostedSignal(
+          messageEventId,
+          eventData.threadRootEventId ?? null
+        );
+        return;
+      }
       this.onMessagePosted(spaceEvent, eventData);
       return;
     }
@@ -338,6 +347,15 @@ export class MessagesStore {
       eventData.__typename === 'RoomArchivedEvent' ||
       eventData.__typename === 'RoomUnarchivedEvent'
     ) {
+      if (
+        !spaceEvent.actor &&
+        this.roomTimeline &&
+        (eventData.__typename === 'UserJoinedRoomEvent' ||
+          eventData.__typename === 'UserLeftRoomEvent')
+      ) {
+        void this.fetchAndIngestSystemEvent(spaceEvent.id);
+        return;
+      }
       this.onSystemEvent(spaceEvent);
     }
   }
@@ -609,18 +627,62 @@ export class MessagesStore {
     }
   }
 
-  private async refetchOne(eventId: string): Promise<void> {
+  private async fetchAndIngestSystemEvent(eventId: string): Promise<void> {
+    const fetched = await this.fetchEventById(eventId);
+    if (fetched) {
+      this.ingestEvent(fetched);
+    }
+  }
+
+  private async fetchAndIngestMessagePostedSignal(
+    messageEventId: string,
+    threadRootEventId: string | null
+  ): Promise<void> {
+    const fetched = await this.fetchEventById(messageEventId, threadRootEventId);
+    if (fetched) {
+      this.ingestEvent(fetched);
+      return;
+    }
+
+    if (this.scope === 'room' && threadRootEventId) {
+      await this.refetchOne(threadRootEventId);
+    }
+  }
+
+  private async fetchEventById(
+    eventId: string,
+    threadRootEventId?: string | null
+  ): Promise<RoomEventViewFragment | null> {
+    if (this.roomTimeline) {
+      const page = threadRootEventId
+        ? await this.roomTimeline.getThreadEventsAround({
+            roomId: this.roomId,
+            threadRootEventId,
+            eventId,
+            limit: 1
+          })
+        : await this.roomTimeline.getRoomEventsAround({
+            roomId: this.roomId,
+            eventId,
+            limit: 1
+          });
+      return unmask(page.events).find((event) => event.id === eventId) ?? null;
+    }
+
     const result = await this.client
-      .query(
-        RefetchOneQuery,
-        { roomId: this.roomId, eventId },
-        { requestPolicy: 'network-only' }
-      )
+      .query(RefetchOneQuery, { roomId: this.roomId, eventId }, { requestPolicy: 'network-only' })
       .toPromise();
 
     const fetched = result.data?.room?.event;
-    if (!fetched) return;
-    const updated = useFragment(RoomEventViewFragmentDoc, fetched);
+    if (!fetched) return null;
+    return useFragment(RoomEventViewFragmentDoc, fetched) ?? null;
+  }
+
+  private async refetchOne(eventId: string): Promise<void> {
+    const updated = await this.fetchEventById(
+      eventId,
+      this.scope === 'thread' && eventId !== this.threadRootEventId ? this.threadRootEventId : null
+    );
     if (!updated) return;
     const idx = this.events.findIndex((e) => e.id === eventId);
     if (idx !== -1) this.events[idx] = updated;
@@ -652,10 +714,7 @@ export class MessagesStore {
     const targetIndex = this.events.findIndex((e) => e.id === messageEventId);
     const target = targetIndex === -1 ? null : this.events[targetIndex];
     const targetPayload = target?.event;
-    if (
-      targetPayload?.__typename === 'MessagePostedEvent' &&
-      targetPayload.echoOfEventId
-    ) {
+    if (targetPayload?.__typename === 'MessagePostedEvent' && targetPayload.echoOfEventId) {
       this.events.splice(targetIndex, 1);
       this.seenIds.delete(messageEventId);
       return;
@@ -769,10 +828,7 @@ export class MessagesStore {
     }
   }
 
-  private addEvent(
-    event: RoomEventViewFragment,
-    options: { sortRoom?: boolean } = {}
-  ): boolean {
+  private addEvent(event: RoomEventViewFragment, options: { sortRoom?: boolean } = {}): boolean {
     if (this.seenIds.has(event.id)) return false;
     this.seenIds.add(event.id);
     this.events.push(event);
