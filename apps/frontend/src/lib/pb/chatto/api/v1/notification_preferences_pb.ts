@@ -250,3 +250,4 @@ export class SetRoomNotificationLevelRequest extends Message<SetRoomNotification
     return proto3.util.equals(SetRoomNotificationLevelRequest, a, b);
   }
 }
+

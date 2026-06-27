@@ -185,3 +185,4 @@ export class UnfollowThreadResponse extends Message<UnfollowThreadResponse> {
     return proto3.util.equals(UnfollowThreadResponse, a, b);
   }
 }
+

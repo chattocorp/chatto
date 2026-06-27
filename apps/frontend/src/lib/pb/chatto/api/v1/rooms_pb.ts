@@ -1040,3 +1040,4 @@ export class UnbanRoomMemberResponse extends Message<UnbanRoomMemberResponse> {
     return proto3.util.equals(UnbanRoomMemberResponse, a, b);
   }
 }
+

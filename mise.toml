@@ -55,10 +55,7 @@ depends = ["deps-frontend"]
 description = "Generate Go and frontend code from protobuf schemas"
 depends = ["setup-cli", "setup-frontend"]
 dir = "proto"
-run = [
-  "buf generate",
-  "find ../apps/frontend/src/lib/pb -name '*.ts' -exec perl -0pi -e 's/\\n+\\z/\\n/' {} +",
-]
+run = "buf generate"
 
 [tasks.codegen-api-frontend]
 description = "Generate frontend TypeScript code from public API protobuf schemas"

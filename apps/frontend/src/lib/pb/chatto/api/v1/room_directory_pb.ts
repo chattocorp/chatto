@@ -735,3 +735,4 @@ export class JoinGroupResponse extends Message<JoinGroupResponse> {
     return proto3.util.equals(JoinGroupResponse, a, b);
   }
 }
+
