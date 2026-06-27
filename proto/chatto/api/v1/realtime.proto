@@ -152,17 +152,25 @@ message RealtimeEventEnvelope {
     RealtimeTypingEvent user_typing = 30;
     // A user's live presence changed.
     RealtimePresenceChangedEvent presence_changed = 31;
-    // A room lifecycle or membership change happened.
+    // A room was created.
     RealtimeRoomEvent room_created = 40;
+    // A room's profile or settings changed.
     RealtimeRoomEvent room_updated = 41;
+    // A room was deleted.
     RealtimeRoomEvent room_deleted = 42;
+    // A room was archived.
     RealtimeRoomEvent room_archived = 43;
+    // A room was restored from the archive.
     RealtimeRoomEvent room_unarchived = 44;
+    // A user joined a room visible to the current user.
     RealtimeRoomEvent user_joined_room = 45;
+    // A user left a room visible to the current user.
     RealtimeRoomEvent user_left_room = 46;
+    // A room's universal visibility flag changed.
     RealtimeRoomUniversalChangedEvent room_universal_changed = 47;
-    // A notification was created or dismissed for the current user.
+    // A notification was created for the current user.
     RealtimeNotificationCreatedEvent notification_created = 60;
+    // A notification was dismissed for the current user.
     RealtimeNotificationDismissedEvent notification_dismissed = 61;
     // The current user's notification level changed.
     RealtimeNotificationLevelChangedEvent notification_level_changed = 62;
@@ -174,8 +182,9 @@ message RealtimeEventEnvelope {
     RealtimeServerUpdatedEvent server_updated = 70;
     // A user profile changed.
     RealtimeUserProfileUpdatedEvent user_profile_updated = 71;
-    // A user's custom status changed.
+    // A user's custom status was set or changed.
     RealtimeUserCustomStatusSetEvent user_custom_status_set = 72;
+    // A user's custom status was cleared.
     RealtimeUserCustomStatusClearedEvent user_custom_status_cleared = 73;
     // The current user's display preferences changed.
     RealtimeServerUserPreferencesUpdatedEvent server_user_preferences_updated = 74;
@@ -183,18 +192,25 @@ message RealtimeEventEnvelope {
     RealtimeRoomGroupsUpdatedEvent room_groups_updated = 75;
     // A server member was deleted.
     RealtimeServerMemberDeletedEvent server_member_deleted = 76;
-    // Asset processing or deletion changed message attachments.
+    // Asset processing started for a message attachment.
     RealtimeAssetProcessingEvent asset_processing_started = 80;
+    // Asset processing completed successfully for a message attachment.
     RealtimeAssetProcessingEvent asset_processing_succeeded = 81;
+    // Asset processing failed for a message attachment.
     RealtimeAssetProcessingEvent asset_processing_failed = 82;
+    // An asset attached to a message was deleted.
     RealtimeAssetDeletedEvent asset_deleted = 83;
-    // Voice-call state changed.
+    // A voice call started in a room.
     RealtimeCallEvent call_started = 84;
+    // A participant joined a voice call.
     RealtimeCallEvent call_participant_joined = 85;
+    // A participant left a voice call.
     RealtimeCallEvent call_participant_left = 86;
+    // A voice call ended.
     RealtimeCallEvent call_ended = 87;
-    // Legacy attention notification signals.
+    // The current user was mentioned in a room.
     RealtimeMentionNotificationEvent mention_notification = 88;
+    // The current user received a new direct message.
     RealtimeNewDirectMessageNotificationEvent new_direct_message_notification = 89;
     // The current user's session was terminated.
     RealtimeSessionTerminatedEvent session_terminated = 90;

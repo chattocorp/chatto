@@ -1766,36 +1766,36 @@ it as a sequence number, timestamp, NATS subject, or storage position.
 | `event.reaction_removed` | [`RealtimeReactionEvent`](#chatto-api-v1-RealtimeReactionEvent) | A user removed a reaction from a message. |
 | `event.user_typing` | [`RealtimeTypingEvent`](#chatto-api-v1-RealtimeTypingEvent) | A user is typing in a room or thread. |
 | `event.presence_changed` | [`RealtimePresenceChangedEvent`](#chatto-api-v1-RealtimePresenceChangedEvent) | A user's live presence changed. |
-| `event.room_created` | [`RealtimeRoomEvent`](#chatto-api-v1-RealtimeRoomEvent) | A room lifecycle or membership change happened. |
-| `event.room_updated` | [`RealtimeRoomEvent`](#chatto-api-v1-RealtimeRoomEvent) | No field description provided. |
-| `event.room_deleted` | [`RealtimeRoomEvent`](#chatto-api-v1-RealtimeRoomEvent) | No field description provided. |
-| `event.room_archived` | [`RealtimeRoomEvent`](#chatto-api-v1-RealtimeRoomEvent) | No field description provided. |
-| `event.room_unarchived` | [`RealtimeRoomEvent`](#chatto-api-v1-RealtimeRoomEvent) | No field description provided. |
-| `event.user_joined_room` | [`RealtimeRoomEvent`](#chatto-api-v1-RealtimeRoomEvent) | No field description provided. |
-| `event.user_left_room` | [`RealtimeRoomEvent`](#chatto-api-v1-RealtimeRoomEvent) | No field description provided. |
-| `event.room_universal_changed` | [`RealtimeRoomUniversalChangedEvent`](#chatto-api-v1-RealtimeRoomUniversalChangedEvent) | No field description provided. |
-| `event.notification_created` | [`RealtimeNotificationCreatedEvent`](#chatto-api-v1-RealtimeNotificationCreatedEvent) | A notification was created or dismissed for the current user. |
-| `event.notification_dismissed` | [`RealtimeNotificationDismissedEvent`](#chatto-api-v1-RealtimeNotificationDismissedEvent) | No field description provided. |
+| `event.room_created` | [`RealtimeRoomEvent`](#chatto-api-v1-RealtimeRoomEvent) | A room was created. |
+| `event.room_updated` | [`RealtimeRoomEvent`](#chatto-api-v1-RealtimeRoomEvent) | A room's profile or settings changed. |
+| `event.room_deleted` | [`RealtimeRoomEvent`](#chatto-api-v1-RealtimeRoomEvent) | A room was deleted. |
+| `event.room_archived` | [`RealtimeRoomEvent`](#chatto-api-v1-RealtimeRoomEvent) | A room was archived. |
+| `event.room_unarchived` | [`RealtimeRoomEvent`](#chatto-api-v1-RealtimeRoomEvent) | A room was restored from the archive. |
+| `event.user_joined_room` | [`RealtimeRoomEvent`](#chatto-api-v1-RealtimeRoomEvent) | A user joined a room visible to the current user. |
+| `event.user_left_room` | [`RealtimeRoomEvent`](#chatto-api-v1-RealtimeRoomEvent) | A user left a room visible to the current user. |
+| `event.room_universal_changed` | [`RealtimeRoomUniversalChangedEvent`](#chatto-api-v1-RealtimeRoomUniversalChangedEvent) | A room's universal visibility flag changed. |
+| `event.notification_created` | [`RealtimeNotificationCreatedEvent`](#chatto-api-v1-RealtimeNotificationCreatedEvent) | A notification was created for the current user. |
+| `event.notification_dismissed` | [`RealtimeNotificationDismissedEvent`](#chatto-api-v1-RealtimeNotificationDismissedEvent) | A notification was dismissed for the current user. |
 | `event.notification_level_changed` | [`RealtimeNotificationLevelChangedEvent`](#chatto-api-v1-RealtimeNotificationLevelChangedEvent) | The current user's notification level changed. |
 | `event.thread_follow_changed` | [`RealtimeThreadFollowChangedEvent`](#chatto-api-v1-RealtimeThreadFollowChangedEvent) | The current user's thread follow state changed. |
 | `event.room_marked_as_read` | [`RealtimeRoomMarkedAsReadEvent`](#chatto-api-v1-RealtimeRoomMarkedAsReadEvent) | The current user's room read state changed. |
 | `event.server_updated` | [`RealtimeServerUpdatedEvent`](#chatto-api-v1-RealtimeServerUpdatedEvent) | The server profile/config changed. |
 | `event.user_profile_updated` | [`RealtimeUserProfileUpdatedEvent`](#chatto-api-v1-RealtimeUserProfileUpdatedEvent) | A user profile changed. |
-| `event.user_custom_status_set` | [`RealtimeUserCustomStatusSetEvent`](#chatto-api-v1-RealtimeUserCustomStatusSetEvent) | A user's custom status changed. |
-| `event.user_custom_status_cleared` | [`RealtimeUserCustomStatusClearedEvent`](#chatto-api-v1-RealtimeUserCustomStatusClearedEvent) | No field description provided. |
+| `event.user_custom_status_set` | [`RealtimeUserCustomStatusSetEvent`](#chatto-api-v1-RealtimeUserCustomStatusSetEvent) | A user's custom status was set or changed. |
+| `event.user_custom_status_cleared` | [`RealtimeUserCustomStatusClearedEvent`](#chatto-api-v1-RealtimeUserCustomStatusClearedEvent) | A user's custom status was cleared. |
 | `event.server_user_preferences_updated` | [`RealtimeServerUserPreferencesUpdatedEvent`](#chatto-api-v1-RealtimeServerUserPreferencesUpdatedEvent) | The current user's display preferences changed. |
 | `event.room_groups_updated` | [`RealtimeRoomGroupsUpdatedEvent`](#chatto-api-v1-RealtimeRoomGroupsUpdatedEvent) | Room-group layout changed. |
 | `event.server_member_deleted` | [`RealtimeServerMemberDeletedEvent`](#chatto-api-v1-RealtimeServerMemberDeletedEvent) | A server member was deleted. |
-| `event.asset_processing_started` | [`RealtimeAssetProcessingEvent`](#chatto-api-v1-RealtimeAssetProcessingEvent) | Asset processing or deletion changed message attachments. |
-| `event.asset_processing_succeeded` | [`RealtimeAssetProcessingEvent`](#chatto-api-v1-RealtimeAssetProcessingEvent) | No field description provided. |
-| `event.asset_processing_failed` | [`RealtimeAssetProcessingEvent`](#chatto-api-v1-RealtimeAssetProcessingEvent) | No field description provided. |
-| `event.asset_deleted` | [`RealtimeAssetDeletedEvent`](#chatto-api-v1-RealtimeAssetDeletedEvent) | No field description provided. |
-| `event.call_started` | [`RealtimeCallEvent`](#chatto-api-v1-RealtimeCallEvent) | Voice-call state changed. |
-| `event.call_participant_joined` | [`RealtimeCallEvent`](#chatto-api-v1-RealtimeCallEvent) | No field description provided. |
-| `event.call_participant_left` | [`RealtimeCallEvent`](#chatto-api-v1-RealtimeCallEvent) | No field description provided. |
-| `event.call_ended` | [`RealtimeCallEvent`](#chatto-api-v1-RealtimeCallEvent) | No field description provided. |
-| `event.mention_notification` | [`RealtimeMentionNotificationEvent`](#chatto-api-v1-RealtimeMentionNotificationEvent) | Legacy attention notification signals. |
-| `event.new_direct_message_notification` | [`RealtimeNewDirectMessageNotificationEvent`](#chatto-api-v1-RealtimeNewDirectMessageNotificationEvent) | No field description provided. |
+| `event.asset_processing_started` | [`RealtimeAssetProcessingEvent`](#chatto-api-v1-RealtimeAssetProcessingEvent) | Asset processing started for a message attachment. |
+| `event.asset_processing_succeeded` | [`RealtimeAssetProcessingEvent`](#chatto-api-v1-RealtimeAssetProcessingEvent) | Asset processing completed successfully for a message attachment. |
+| `event.asset_processing_failed` | [`RealtimeAssetProcessingEvent`](#chatto-api-v1-RealtimeAssetProcessingEvent) | Asset processing failed for a message attachment. |
+| `event.asset_deleted` | [`RealtimeAssetDeletedEvent`](#chatto-api-v1-RealtimeAssetDeletedEvent) | An asset attached to a message was deleted. |
+| `event.call_started` | [`RealtimeCallEvent`](#chatto-api-v1-RealtimeCallEvent) | A voice call started in a room. |
+| `event.call_participant_joined` | [`RealtimeCallEvent`](#chatto-api-v1-RealtimeCallEvent) | A participant joined a voice call. |
+| `event.call_participant_left` | [`RealtimeCallEvent`](#chatto-api-v1-RealtimeCallEvent) | A participant left a voice call. |
+| `event.call_ended` | [`RealtimeCallEvent`](#chatto-api-v1-RealtimeCallEvent) | A voice call ended. |
+| `event.mention_notification` | [`RealtimeMentionNotificationEvent`](#chatto-api-v1-RealtimeMentionNotificationEvent) | The current user was mentioned in a room. |
+| `event.new_direct_message_notification` | [`RealtimeNewDirectMessageNotificationEvent`](#chatto-api-v1-RealtimeNewDirectMessageNotificationEvent) | The current user received a new direct message. |
 | `event.session_terminated` | [`RealtimeSessionTerminatedEvent`](#chatto-api-v1-RealtimeSessionTerminatedEvent) | The current user's session was terminated. |
 
 

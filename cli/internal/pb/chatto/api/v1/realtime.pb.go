@@ -1424,44 +1424,52 @@ type RealtimeEventEnvelope_PresenceChanged struct {
 }
 
 type RealtimeEventEnvelope_RoomCreated struct {
-	// A room lifecycle or membership change happened.
+	// A room was created.
 	RoomCreated *RealtimeRoomEvent `protobuf:"bytes,40,opt,name=room_created,json=roomCreated,proto3,oneof"`
 }
 
 type RealtimeEventEnvelope_RoomUpdated struct {
+	// A room's profile or settings changed.
 	RoomUpdated *RealtimeRoomEvent `protobuf:"bytes,41,opt,name=room_updated,json=roomUpdated,proto3,oneof"`
 }
 
 type RealtimeEventEnvelope_RoomDeleted struct {
+	// A room was deleted.
 	RoomDeleted *RealtimeRoomEvent `protobuf:"bytes,42,opt,name=room_deleted,json=roomDeleted,proto3,oneof"`
 }
 
 type RealtimeEventEnvelope_RoomArchived struct {
+	// A room was archived.
 	RoomArchived *RealtimeRoomEvent `protobuf:"bytes,43,opt,name=room_archived,json=roomArchived,proto3,oneof"`
 }
 
 type RealtimeEventEnvelope_RoomUnarchived struct {
+	// A room was restored from the archive.
 	RoomUnarchived *RealtimeRoomEvent `protobuf:"bytes,44,opt,name=room_unarchived,json=roomUnarchived,proto3,oneof"`
 }
 
 type RealtimeEventEnvelope_UserJoinedRoom struct {
+	// A user joined a room visible to the current user.
 	UserJoinedRoom *RealtimeRoomEvent `protobuf:"bytes,45,opt,name=user_joined_room,json=userJoinedRoom,proto3,oneof"`
 }
 
 type RealtimeEventEnvelope_UserLeftRoom struct {
+	// A user left a room visible to the current user.
 	UserLeftRoom *RealtimeRoomEvent `protobuf:"bytes,46,opt,name=user_left_room,json=userLeftRoom,proto3,oneof"`
 }
 
 type RealtimeEventEnvelope_RoomUniversalChanged struct {
+	// A room's universal visibility flag changed.
 	RoomUniversalChanged *RealtimeRoomUniversalChangedEvent `protobuf:"bytes,47,opt,name=room_universal_changed,json=roomUniversalChanged,proto3,oneof"`
 }
 
 type RealtimeEventEnvelope_NotificationCreated struct {
-	// A notification was created or dismissed for the current user.
+	// A notification was created for the current user.
 	NotificationCreated *RealtimeNotificationCreatedEvent `protobuf:"bytes,60,opt,name=notification_created,json=notificationCreated,proto3,oneof"`
 }
 
 type RealtimeEventEnvelope_NotificationDismissed struct {
+	// A notification was dismissed for the current user.
 	NotificationDismissed *RealtimeNotificationDismissedEvent `protobuf:"bytes,61,opt,name=notification_dismissed,json=notificationDismissed,proto3,oneof"`
 }
 
@@ -1491,11 +1499,12 @@ type RealtimeEventEnvelope_UserProfileUpdated struct {
 }
 
 type RealtimeEventEnvelope_UserCustomStatusSet struct {
-	// A user's custom status changed.
+	// A user's custom status was set or changed.
 	UserCustomStatusSet *RealtimeUserCustomStatusSetEvent `protobuf:"bytes,72,opt,name=user_custom_status_set,json=userCustomStatusSet,proto3,oneof"`
 }
 
 type RealtimeEventEnvelope_UserCustomStatusCleared struct {
+	// A user's custom status was cleared.
 	UserCustomStatusCleared *RealtimeUserCustomStatusClearedEvent `protobuf:"bytes,73,opt,name=user_custom_status_cleared,json=userCustomStatusCleared,proto3,oneof"`
 }
 
@@ -1515,45 +1524,52 @@ type RealtimeEventEnvelope_ServerMemberDeleted struct {
 }
 
 type RealtimeEventEnvelope_AssetProcessingStarted struct {
-	// Asset processing or deletion changed message attachments.
+	// Asset processing started for a message attachment.
 	AssetProcessingStarted *RealtimeAssetProcessingEvent `protobuf:"bytes,80,opt,name=asset_processing_started,json=assetProcessingStarted,proto3,oneof"`
 }
 
 type RealtimeEventEnvelope_AssetProcessingSucceeded struct {
+	// Asset processing completed successfully for a message attachment.
 	AssetProcessingSucceeded *RealtimeAssetProcessingEvent `protobuf:"bytes,81,opt,name=asset_processing_succeeded,json=assetProcessingSucceeded,proto3,oneof"`
 }
 
 type RealtimeEventEnvelope_AssetProcessingFailed struct {
+	// Asset processing failed for a message attachment.
 	AssetProcessingFailed *RealtimeAssetProcessingEvent `protobuf:"bytes,82,opt,name=asset_processing_failed,json=assetProcessingFailed,proto3,oneof"`
 }
 
 type RealtimeEventEnvelope_AssetDeleted struct {
+	// An asset attached to a message was deleted.
 	AssetDeleted *RealtimeAssetDeletedEvent `protobuf:"bytes,83,opt,name=asset_deleted,json=assetDeleted,proto3,oneof"`
 }
 
 type RealtimeEventEnvelope_CallStarted struct {
-	// Voice-call state changed.
+	// A voice call started in a room.
 	CallStarted *RealtimeCallEvent `protobuf:"bytes,84,opt,name=call_started,json=callStarted,proto3,oneof"`
 }
 
 type RealtimeEventEnvelope_CallParticipantJoined struct {
+	// A participant joined a voice call.
 	CallParticipantJoined *RealtimeCallEvent `protobuf:"bytes,85,opt,name=call_participant_joined,json=callParticipantJoined,proto3,oneof"`
 }
 
 type RealtimeEventEnvelope_CallParticipantLeft struct {
+	// A participant left a voice call.
 	CallParticipantLeft *RealtimeCallEvent `protobuf:"bytes,86,opt,name=call_participant_left,json=callParticipantLeft,proto3,oneof"`
 }
 
 type RealtimeEventEnvelope_CallEnded struct {
+	// A voice call ended.
 	CallEnded *RealtimeCallEvent `protobuf:"bytes,87,opt,name=call_ended,json=callEnded,proto3,oneof"`
 }
 
 type RealtimeEventEnvelope_MentionNotification struct {
-	// Legacy attention notification signals.
+	// The current user was mentioned in a room.
 	MentionNotification *RealtimeMentionNotificationEvent `protobuf:"bytes,88,opt,name=mention_notification,json=mentionNotification,proto3,oneof"`
 }
 
 type RealtimeEventEnvelope_NewDirectMessageNotification struct {
+	// The current user received a new direct message.
 	NewDirectMessageNotification *RealtimeNewDirectMessageNotificationEvent `protobuf:"bytes,89,opt,name=new_direct_message_notification,json=newDirectMessageNotification,proto3,oneof"`
 }
 

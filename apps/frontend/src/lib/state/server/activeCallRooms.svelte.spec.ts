@@ -1,6 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ActiveCallRoomsState } from './activeCallRooms.svelte';
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
+}
+
 describe('ActiveCallRoomsState', () => {
   it('removes a failed local participant without hiding other active participants', () => {
     const state = new ActiveCallRoomsState(
@@ -123,6 +131,53 @@ describe('ActiveCallRoomsState', () => {
 
     expect(state.has('R1')).toBe(true);
     expect(state.getParticipants('R1')).toHaveLength(1);
+  });
+
+  it('does not resurrect an ended call from a late actor-less join reload', async () => {
+    const reload = deferred<{
+      data: {
+        room: {
+          callParticipants: Array<{
+            callId: string;
+            joinedAt: string;
+            user: { id: string; displayName: string; login: string; avatarUrl: string | null };
+          }>;
+        };
+      };
+    }>();
+    const state = new ActiveCallRoomsState(
+      {
+        query: vi.fn(() => ({
+          toPromise: vi.fn(() => reload.promise)
+        }))
+      } as never,
+      { connected: false, roomId: null, participants: [] } as never
+    );
+
+    const join = state.handleJoin('R1', 'call-1', null);
+    state.handleEnd('R1', 'call-1');
+    reload.resolve({
+      data: {
+        room: {
+          callParticipants: [
+            {
+              callId: 'call-1',
+              joinedAt: '2026-01-01T00:00:00Z',
+              user: {
+                id: 'U1',
+                displayName: 'Alice',
+                login: 'alice',
+                avatarUrl: null
+              }
+            }
+          ]
+        }
+      }
+    });
+    await join;
+
+    expect(state.has('R1')).toBe(false);
+    expect(state.getParticipants('R1')).toEqual([]);
   });
 
   it('reports active LiveKit camera participants as video participants', () => {

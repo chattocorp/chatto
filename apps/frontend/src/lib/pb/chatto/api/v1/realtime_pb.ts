@@ -119,7 +119,6 @@ export class RealtimeClientFrame extends Message<RealtimeClientFrame> {
     return proto3.util.equals(RealtimeClientFrame, a, b);
   }
 }
-
 /**
  * Server-to-client frame for Chatto's protobuf WebSocket realtime protocol.
  *
@@ -809,7 +808,7 @@ export class RealtimeEventEnvelope extends Message<RealtimeEventEnvelope> {
     case: "presenceChanged";
   } | {
     /**
-     * A room lifecycle or membership change happened.
+     * A room was created.
      *
      * @generated from field: chatto.api.v1.RealtimeRoomEvent room_created = 40;
      */
@@ -817,49 +816,63 @@ export class RealtimeEventEnvelope extends Message<RealtimeEventEnvelope> {
     case: "roomCreated";
   } | {
     /**
+     * A room's profile or settings changed.
+     *
      * @generated from field: chatto.api.v1.RealtimeRoomEvent room_updated = 41;
      */
     value: RealtimeRoomEvent;
     case: "roomUpdated";
   } | {
     /**
+     * A room was deleted.
+     *
      * @generated from field: chatto.api.v1.RealtimeRoomEvent room_deleted = 42;
      */
     value: RealtimeRoomEvent;
     case: "roomDeleted";
   } | {
     /**
+     * A room was archived.
+     *
      * @generated from field: chatto.api.v1.RealtimeRoomEvent room_archived = 43;
      */
     value: RealtimeRoomEvent;
     case: "roomArchived";
   } | {
     /**
+     * A room was restored from the archive.
+     *
      * @generated from field: chatto.api.v1.RealtimeRoomEvent room_unarchived = 44;
      */
     value: RealtimeRoomEvent;
     case: "roomUnarchived";
   } | {
     /**
+     * A user joined a room visible to the current user.
+     *
      * @generated from field: chatto.api.v1.RealtimeRoomEvent user_joined_room = 45;
      */
     value: RealtimeRoomEvent;
     case: "userJoinedRoom";
   } | {
     /**
+     * A user left a room visible to the current user.
+     *
      * @generated from field: chatto.api.v1.RealtimeRoomEvent user_left_room = 46;
      */
     value: RealtimeRoomEvent;
     case: "userLeftRoom";
   } | {
     /**
+     * A room's universal visibility flag changed.
+     *
      * @generated from field: chatto.api.v1.RealtimeRoomUniversalChangedEvent room_universal_changed = 47;
      */
     value: RealtimeRoomUniversalChangedEvent;
     case: "roomUniversalChanged";
   } | {
     /**
-     * A notification was created or dismissed for the current user.
+     * A notification was created for the current user.
      *
      * @generated from field: chatto.api.v1.RealtimeNotificationCreatedEvent notification_created = 60;
      */
@@ -867,6 +880,8 @@ export class RealtimeEventEnvelope extends Message<RealtimeEventEnvelope> {
     case: "notificationCreated";
   } | {
     /**
+     * A notification was dismissed for the current user.
+     *
      * @generated from field: chatto.api.v1.RealtimeNotificationDismissedEvent notification_dismissed = 61;
      */
     value: RealtimeNotificationDismissedEvent;
@@ -913,7 +928,7 @@ export class RealtimeEventEnvelope extends Message<RealtimeEventEnvelope> {
     case: "userProfileUpdated";
   } | {
     /**
-     * A user's custom status changed.
+     * A user's custom status was set or changed.
      *
      * @generated from field: chatto.api.v1.RealtimeUserCustomStatusSetEvent user_custom_status_set = 72;
      */
@@ -921,6 +936,8 @@ export class RealtimeEventEnvelope extends Message<RealtimeEventEnvelope> {
     case: "userCustomStatusSet";
   } | {
     /**
+     * A user's custom status was cleared.
+     *
      * @generated from field: chatto.api.v1.RealtimeUserCustomStatusClearedEvent user_custom_status_cleared = 73;
      */
     value: RealtimeUserCustomStatusClearedEvent;
@@ -951,7 +968,7 @@ export class RealtimeEventEnvelope extends Message<RealtimeEventEnvelope> {
     case: "serverMemberDeleted";
   } | {
     /**
-     * Asset processing or deletion changed message attachments.
+     * Asset processing started for a message attachment.
      *
      * @generated from field: chatto.api.v1.RealtimeAssetProcessingEvent asset_processing_started = 80;
      */
@@ -959,25 +976,31 @@ export class RealtimeEventEnvelope extends Message<RealtimeEventEnvelope> {
     case: "assetProcessingStarted";
   } | {
     /**
+     * Asset processing completed successfully for a message attachment.
+     *
      * @generated from field: chatto.api.v1.RealtimeAssetProcessingEvent asset_processing_succeeded = 81;
      */
     value: RealtimeAssetProcessingEvent;
     case: "assetProcessingSucceeded";
   } | {
     /**
+     * Asset processing failed for a message attachment.
+     *
      * @generated from field: chatto.api.v1.RealtimeAssetProcessingEvent asset_processing_failed = 82;
      */
     value: RealtimeAssetProcessingEvent;
     case: "assetProcessingFailed";
   } | {
     /**
+     * An asset attached to a message was deleted.
+     *
      * @generated from field: chatto.api.v1.RealtimeAssetDeletedEvent asset_deleted = 83;
      */
     value: RealtimeAssetDeletedEvent;
     case: "assetDeleted";
   } | {
     /**
-     * Voice-call state changed.
+     * A voice call started in a room.
      *
      * @generated from field: chatto.api.v1.RealtimeCallEvent call_started = 84;
      */
@@ -985,25 +1008,31 @@ export class RealtimeEventEnvelope extends Message<RealtimeEventEnvelope> {
     case: "callStarted";
   } | {
     /**
+     * A participant joined a voice call.
+     *
      * @generated from field: chatto.api.v1.RealtimeCallEvent call_participant_joined = 85;
      */
     value: RealtimeCallEvent;
     case: "callParticipantJoined";
   } | {
     /**
+     * A participant left a voice call.
+     *
      * @generated from field: chatto.api.v1.RealtimeCallEvent call_participant_left = 86;
      */
     value: RealtimeCallEvent;
     case: "callParticipantLeft";
   } | {
     /**
+     * A voice call ended.
+     *
      * @generated from field: chatto.api.v1.RealtimeCallEvent call_ended = 87;
      */
     value: RealtimeCallEvent;
     case: "callEnded";
   } | {
     /**
-     * Legacy attention notification signals.
+     * The current user was mentioned in a room.
      *
      * @generated from field: chatto.api.v1.RealtimeMentionNotificationEvent mention_notification = 88;
      */
@@ -1011,6 +1040,8 @@ export class RealtimeEventEnvelope extends Message<RealtimeEventEnvelope> {
     case: "mentionNotification";
   } | {
     /**
+     * The current user received a new direct message.
+     *
      * @generated from field: chatto.api.v1.RealtimeNewDirectMessageNotificationEvent new_direct_message_notification = 89;
      */
     value: RealtimeNewDirectMessageNotificationEvent;
@@ -2431,4 +2462,3 @@ export class RealtimeSessionTerminatedEvent extends Message<RealtimeSessionTermi
     return proto3.util.equals(RealtimeSessionTerminatedEvent, a, b);
   }
 }
-

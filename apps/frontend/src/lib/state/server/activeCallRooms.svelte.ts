@@ -57,6 +57,8 @@ export class ActiveCallRoomsState {
 
   /** Map of room ID → server-observed active call snapshot. */
   private serverRooms = new SvelteMap<string, ActiveCallRoomSnapshot>();
+  private roomVersions = new SvelteMap<string, number>();
+  private pendingCallIds = new SvelteMap<string, string>();
 
   constructor(client: Client, voiceCall: VoiceCallState) {
     this.#client = client;
@@ -121,15 +123,32 @@ export class ActiveCallRoomsState {
     await Promise.all(roomIds.map((roomId: string) => this.loadRoomParticipants(roomId)));
   }
 
-  private async loadRoomParticipants(roomId: string, fallbackCallId: string | null = null) {
+  private bumpRoomVersion(roomId: string): number {
+    const next = (this.roomVersions.get(roomId) ?? 0) + 1;
+    this.roomVersions.set(roomId, next);
+    return next;
+  }
+
+  private async loadRoomParticipants(
+    roomId: string,
+    fallbackCallId: string | null = null,
+    expectedVersion?: number
+  ) {
     const participantResult = await this.#client
       .query(CallParticipantsQuery, { roomId })
       .toPromise();
 
+    if (expectedVersion !== undefined && this.roomVersions.get(roomId) !== expectedVersion) {
+      return;
+    }
+
     const participants = participantResult.data?.room?.callParticipants;
     if (participants) {
+      const callId = participants[0]?.callId ?? fallbackCallId;
+      if (fallbackCallId !== null && callId !== null && callId !== fallbackCallId) return;
+
       this.serverRooms.set(roomId, {
-        callId: participants[0]?.callId ?? fallbackCallId,
+        callId,
         participants: participants.map((p) => {
           const user = useFragment(UserAvatarUserFragmentDoc, p.user);
           return {
@@ -140,6 +159,9 @@ export class ActiveCallRoomsState {
           };
         })
       });
+      if (this.pendingCallIds.get(roomId) === fallbackCallId) {
+        this.pendingCallIds.delete(roomId);
+      }
     } else if (!this.serverRooms.has(roomId)) {
       // Room is active but we couldn't fetch participants
       this.serverRooms.set(roomId, { callId: fallbackCallId, participants: [] });
@@ -164,6 +186,8 @@ export class ActiveCallRoomsState {
       // Avoid duplicates
       if (participants.some((p) => p.userId === actor.id)) return;
 
+      this.bumpRoomVersion(roomId);
+      this.pendingCallIds.delete(roomId);
       this.serverRooms.set(roomId, {
         callId,
         participants: [
@@ -177,7 +201,9 @@ export class ActiveCallRoomsState {
         ]
       });
     } else {
-      await this.loadRoomParticipants(roomId, callId);
+      this.pendingCallIds.set(roomId, callId);
+      const version = this.bumpRoomVersion(roomId);
+      await this.loadRoomParticipants(roomId, callId, version);
     }
   }
 
@@ -194,10 +220,12 @@ export class ActiveCallRoomsState {
     if (!snapshot.participants.some((p) => p.userId === actorId)) return;
 
     const updated = snapshot.participants.filter((p) => p.userId !== actorId);
+    this.bumpRoomVersion(roomId);
     if (updated.length > 0) {
       this.serverRooms.set(roomId, { callId: snapshot.callId, participants: updated });
     } else {
       this.serverRooms.delete(roomId);
+      this.pendingCallIds.delete(roomId);
     }
   }
 
@@ -206,9 +234,17 @@ export class ActiveCallRoomsState {
    */
   handleEnd(roomId: string, callId: string): void {
     const snapshot = this.serverRooms.get(roomId);
-    if (!snapshot) return;
+    if (!snapshot) {
+      if (this.pendingCallIds.get(roomId) === callId) {
+        this.bumpRoomVersion(roomId);
+        this.pendingCallIds.delete(roomId);
+      }
+      return;
+    }
     if (snapshot.callId !== null && snapshot.callId !== callId) return;
+    this.bumpRoomVersion(roomId);
     this.serverRooms.delete(roomId);
+    this.pendingCallIds.delete(roomId);
   }
 
   /**
@@ -216,5 +252,7 @@ export class ActiveCallRoomsState {
    */
   clear(): void {
     this.serverRooms.clear();
+    this.roomVersions.clear();
+    this.pendingCallIds.clear();
   }
 }

@@ -49,6 +49,7 @@ export class CallParticipantsState {
   /** The room these participants are for. */
   private currentRoomId: string | null = null;
   private currentCallId: string | null = null;
+  private version = 0;
 
   constructor(client: Client) {
     this.#client = client;
@@ -58,12 +59,23 @@ export class CallParticipantsState {
    * Load participants from the server for a specific room.
    * Called when entering a room that has an active call.
    */
+  private bumpVersion(): number {
+    this.version += 1;
+    return this.version;
+  }
+
+  private async fetchParticipants(roomId: string): Promise<QueryCallParticipant[] | null> {
+    const result = await this.#client.query(CallParticipantsQuery, { roomId }).toPromise();
+    return result.data?.room?.callParticipants ?? null;
+  }
+
   async load(roomId: string): Promise<void> {
     this.currentRoomId = roomId;
+    const version = this.bumpVersion();
 
-    const result = await this.#client.query(CallParticipantsQuery, { roomId }).toPromise();
+    const participants = await this.fetchParticipants(roomId);
+    if (version !== this.version || this.currentRoomId !== roomId) return;
 
-    const participants = result.data?.room?.callParticipants;
     if (participants) {
       this.currentCallId = participants[0]?.callId ?? null;
       this.participants = participants.map(toObserverParticipant);
@@ -82,10 +94,19 @@ export class CallParticipantsState {
     if (roomId !== this.currentRoomId) return;
     if (this.currentCallId && this.currentCallId !== callId) return;
     if (!actor) {
-      await this.load(roomId);
+      const version = this.bumpVersion();
+      const participants = await this.fetchParticipants(roomId);
+      if (version !== this.version || this.currentRoomId !== roomId) return;
+      if (participants) {
+        const loadedCallId = participants[0]?.callId ?? callId;
+        if (loadedCallId !== callId) return;
+        this.currentCallId = loadedCallId;
+        this.participants = participants.map(toObserverParticipant);
+      }
       return;
     }
 
+    this.bumpVersion();
     this.currentCallId = callId;
 
     // Avoid duplicates
@@ -110,6 +131,7 @@ export class CallParticipantsState {
     if (callId !== null && this.currentCallId !== callId) return;
     if (!actorId) return;
 
+    this.bumpVersion();
     this.participants = this.participants.filter((p) => p.userId !== actorId);
   }
 
@@ -122,6 +144,7 @@ export class CallParticipantsState {
 
   /** Clear state (e.g., when leaving a room or call ends). */
   clear(): void {
+    this.bumpVersion();
     this.participants = [];
     this.currentRoomId = null;
     this.currentCallId = null;
