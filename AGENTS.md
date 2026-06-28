@@ -9,6 +9,7 @@ path-specific guidance.
 - [cli/AGENTS.md](cli/AGENTS.md) — Go backend, ConnectRPC, NATS/JetStream, authz, live events, backup/restore, and backend tests.
 - [apps/frontend/AGENTS.md](apps/frontend/AGENTS.md) — SvelteKit frontend, Tailwind, i18n, browser verification, frontend tests, e2e, and Storybook.
 - [proto/AGENTS.md](proto/AGENTS.md) — protobuf and generated public API reference guidance.
+- [proto/chatto/api/v1/AGENTS.md](proto/chatto/api/v1/AGENTS.md) — public ConnectRPC API consistency rules for `chatto.api.v1`.
 - [apps/docs-website/AGENTS.md](apps/docs-website/AGENTS.md) — public docs website guidance.
 - `.agents/skills/**` — workflow skills. Use them when the task names one or clearly matches one, especially `chatto-architecture`, `glossary`, Svelte skills, ADR/FDR skills, and security/release workflows.
 - `docs/fdr/INDEX.md` — feature behavior and rationale.
