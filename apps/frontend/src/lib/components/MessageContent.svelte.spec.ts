@@ -3,7 +3,7 @@ import { render } from 'vitest-browser-svelte';
 import '../../app.css';
 import { q } from '$lib/test-utils';
 import type { RoomMember } from '$lib/mentions';
-import { PresenceStatus } from '$lib/gql/graphql';
+import { PresenceStatus } from '$lib/render/types';
 
 const mocks = vi.hoisted(() => ({
   goto: vi.fn(),

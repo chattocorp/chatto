@@ -95,7 +95,7 @@ describe('AddServerDialog', () => {
       makeProbeResponse(realResponse)
     ) as unknown as typeof fetch;
 
-    let visible = $state(true);
+    let visible = true;
     const onclose = vi.fn(() => {
       visible = false;
     });

@@ -8,14 +8,15 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"connectrpc.com/authn"
 	"github.com/charmbracelet/log"
 	"github.com/gin-gonic/gin"
+	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/connectapi"
-	graphauth "hmans.de/chatto/internal/graph/auth"
 )
 
 const connectAPIPrefix = connectapi.Prefix
@@ -89,13 +90,13 @@ func (s *HTTPServer) mountConnectHandler(router gin.IRouter, servicePath string,
 	handler := http.StripPrefix(connectAPIPrefix, serviceHandler)
 	router.Any(connectAPIPrefix+servicePath+"*connectPath", func(c *gin.Context) {
 		req := s.injectUserIntoContext(c)
-		req = req.WithContext(connectapi.WithRequestBaseURL(req.Context(), requestBaseURL(c.Request)))
+		req = req.WithContext(connectapi.WithRequestBaseURL(req.Context(), s.requestBaseURL(c.Request)))
 		handler.ServeHTTP(c.Writer, req)
 	})
 }
 
 func authenticateConnectRequest(ctx context.Context, _ *http.Request) (any, error) {
-	user := graphauth.ForContext(ctx)
+	user := authctx.ForContext(ctx)
 	if user == nil {
 		return nil, authn.Errorf("authentication required")
 	}
@@ -164,12 +165,24 @@ func requestRemoteIP(req *http.Request) (net.IP, error) {
 	return ip, nil
 }
 
-func requestBaseURL(r *http.Request) string {
+func (s *HTTPServer) requestBaseURL(r *http.Request) string {
+	if baseURL := configuredWebserverOrigin(s.config.Webserver.URL); baseURL != "" {
+		return baseURL
+	}
 	scheme := "http"
-	if proto := r.Header.Get("X-Forwarded-Proto"); proto != "" {
-		scheme = proto
-	} else if r.TLS != nil {
+	if r.TLS != nil {
 		scheme = "https"
 	}
 	return scheme + "://" + r.Host
+}
+
+func configuredWebserverOrigin(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	base, err := url.Parse(raw)
+	if err != nil || base.Scheme == "" || base.Host == "" {
+		return ""
+	}
+	return base.Scheme + "://" + base.Host
 }

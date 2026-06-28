@@ -264,7 +264,36 @@ func TestServerInfo(t *testing.T) {
 		}
 	})
 
-	t.Run("absolutizes bannerUrl as https when X-Forwarded-Proto is https", func(t *testing.T) {
+	t.Run("uses configured webserver URL before request headers", func(t *testing.T) {
+		s := setupServerInfoServer(t, config.AuthConfig{})
+		s.config.Webserver.URL = "https://configured.example.com/chatto"
+
+		ctx := testContext(t)
+		asset, err := s.core.UploadServerBanner(ctx, bannerImageBytes(t))
+		if err != nil {
+			t.Fatalf("upload banner: %v", err)
+		}
+		if err := s.core.SetServerBanner(ctx, "test-admin", asset); err != nil {
+			t.Fatalf("set banner: %v", err)
+		}
+
+		req := httptest.NewRequest("GET", "/api/server", nil)
+		req.Host = "remote.example.com"
+		req.Header.Set("X-Forwarded-Proto", "https")
+		w := httptest.NewRecorder()
+		s.router.ServeHTTP(w, req)
+
+		var resp serverInfoResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to parse response: %v", err)
+		}
+
+		if !strings.HasPrefix(resp.BannerURL, "https://configured.example.com/") {
+			t.Errorf("expected configured URL, got %q", resp.BannerURL)
+		}
+	})
+
+	t.Run("ignores X-Forwarded-Proto without trusted proxy config", func(t *testing.T) {
 		s := setupServerInfoServer(t, config.AuthConfig{})
 
 		ctx := testContext(t)
@@ -287,8 +316,8 @@ func TestServerInfo(t *testing.T) {
 			t.Fatalf("failed to parse response: %v", err)
 		}
 
-		if !strings.HasPrefix(resp.BannerURL, "https://remote.example.com/") {
-			t.Errorf("expected absolute https://remote.example.com URL, got %q", resp.BannerURL)
+		if !strings.HasPrefix(resp.BannerURL, "http://remote.example.com/") {
+			t.Errorf("expected direct request URL, got %q", resp.BannerURL)
 		}
 	})
 

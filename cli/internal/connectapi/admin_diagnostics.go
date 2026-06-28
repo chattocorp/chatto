@@ -1,0 +1,178 @@
+package connectapi
+
+import (
+	"context"
+	"strconv"
+
+	"connectrpc.com/connect"
+	"hmans.de/chatto/internal/core"
+	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+)
+
+type adminDiagnosticsService struct {
+	api *API
+}
+
+func (s *adminDiagnosticsService) GetSystemInfo(ctx context.Context, _ *connect.Request[apiv1.GetSystemInfoRequest]) (*connect.Response[apiv1.GetSystemInfoResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	diagnostics, err := s.api.core.GetAdminDiagnostics(ctx, caller.UserID)
+	if err != nil {
+		return nil, connectError(err)
+	}
+
+	return connect.NewResponse(&apiv1.GetSystemInfoResponse{
+		SystemInfo:  adminSystemInfo(diagnostics),
+		Projections: adminProjectionStates(diagnostics.Projections),
+	}), nil
+}
+
+func adminSystemInfo(diagnostics *core.AdminDiagnostics) *apiv1.AdminSystemInfo {
+	return &apiv1.AdminSystemInfo{
+		Connection: adminConnectionInfo(diagnostics.Connection),
+		Account:    adminAccountInfo(diagnostics.Account),
+		Nats:       adminNatsStats(diagnostics.JetStream),
+		Stats:      adminServerStats(diagnostics.Stats),
+	}
+}
+
+func adminProjectionStates(states []core.ProjectionAdminState) []*apiv1.AdminProjectionState {
+	out := make([]*apiv1.AdminProjectionState, 0, len(states))
+	for _, state := range states {
+		out = append(out, adminProjectionState(state))
+	}
+	return out
+}
+
+func adminConnectionInfo(info *core.ConnectionInfo) *apiv1.AdminConnectionInfo {
+	if info == nil {
+		return &apiv1.AdminConnectionInfo{}
+	}
+	return &apiv1.AdminConnectionInfo{
+		Connected:  info.Connected,
+		ServerId:   info.ServerID,
+		ServerName: info.ServerName,
+		Version:    info.Version,
+		MaxPayload: info.MaxPayload,
+		Rtt:        info.RTT,
+	}
+}
+
+func adminAccountInfo(info *core.AccountInfo) *apiv1.AdminAccountInfo {
+	if info == nil {
+		return &apiv1.AdminAccountInfo{}
+	}
+	return &apiv1.AdminAccountInfo{
+		Memory:        int64(info.Memory),
+		MemoryUsed:    int64(info.MemoryUsed),
+		Storage:       int64(info.Storage),
+		StorageUsed:   int64(info.StorageUsed),
+		Streams:       int32(info.Streams),
+		StreamsUsed:   int32(info.StreamsUsed),
+		Consumers:     int32(info.Consumers),
+		ConsumersUsed: int32(info.ConsumersUsed),
+	}
+}
+
+func adminServerStats(stats *core.ServerStats) *apiv1.AdminServerStats {
+	if stats == nil {
+		return &apiv1.AdminServerStats{}
+	}
+	return &apiv1.AdminServerStats{
+		UserCount:        int32(stats.UserCount),
+		ChannelRoomCount: int32(stats.ChannelRoomCount),
+		DmRoomCount:      int32(stats.DMRoomCount),
+	}
+}
+
+func adminNatsStats(stats *core.JetStreamStats) *apiv1.AdminNatsStats {
+	if stats == nil {
+		return &apiv1.AdminNatsStats{}
+	}
+
+	streams := make([]*apiv1.AdminNatsStreamInfo, 0, len(stats.Streams))
+	for _, stream := range stats.Streams {
+		streams = append(streams, &apiv1.AdminNatsStreamInfo{
+			Name:          stream.Name,
+			Description:   stream.Description,
+			Subjects:      append([]string(nil), stream.Subjects...),
+			Storage:       stream.Storage,
+			Messages:      int64(stream.Messages),
+			Bytes:         int64(stream.Bytes),
+			FirstSequence: strconv.FormatUint(stream.FirstSeq, 10),
+			LastSequence:  strconv.FormatUint(stream.LastSeq, 10),
+			ConsumerCount: int32(stream.ConsumerCount),
+			Replicas:      int32(stream.Replicas),
+			ClusterLeader: stream.ClusterLeader,
+		})
+	}
+
+	consumers := make([]*apiv1.AdminNatsConsumerInfo, 0, len(stats.Consumers))
+	for _, consumer := range stats.Consumers {
+		consumers = append(consumers, &apiv1.AdminNatsConsumerInfo{
+			Stream:                    consumer.Stream,
+			Name:                      consumer.Name,
+			Durable:                   consumer.Durable,
+			FilterSubject:             consumer.FilterSubject,
+			FilterSubjects:            append([]string(nil), consumer.FilterSubjects...),
+			AckPolicy:                 consumer.AckPolicy,
+			PullBased:                 consumer.PullBased,
+			PushBound:                 consumer.PushBound,
+			Pending:                   int64(consumer.Pending),
+			AckPending:                int32(consumer.AckPending),
+			Redelivered:               int32(consumer.Redelivered),
+			Waiting:                   int32(consumer.Waiting),
+			DeliveredConsumerSequence: strconv.FormatUint(consumer.DeliveredConsumerSeq, 10),
+			DeliveredStreamSequence:   strconv.FormatUint(consumer.DeliveredStreamSeq, 10),
+			AckFloorConsumerSequence:  strconv.FormatUint(consumer.AckFloorConsumerSeq, 10),
+			AckFloorStreamSequence:    strconv.FormatUint(consumer.AckFloorStreamSeq, 10),
+		})
+	}
+
+	return &apiv1.AdminNatsStats{
+		TotalMessages:        int64(stats.TotalMessages),
+		TotalBytes:           int64(stats.TotalBytes),
+		TotalConsumerPending: int64(stats.TotalConsumerPending),
+		TotalAckPending:      int32(stats.TotalAckPending),
+		Streams:              streams,
+		Consumers:            consumers,
+	}
+}
+
+func adminProjectionState(state core.ProjectionAdminState) *apiv1.AdminProjectionState {
+	metrics := make([]*apiv1.AdminProjectionMetric, 0, len(state.Metrics))
+	for _, metric := range state.Metrics {
+		metrics = append(metrics, &apiv1.AdminProjectionMetric{
+			Name:  metric.Name,
+			Value: metric.Value,
+			Bytes: metric.Bytes,
+		})
+	}
+
+	var startupDurationSeconds *float64
+	if state.StartupComplete {
+		startupDurationSeconds = &state.StartupDuration
+	}
+
+	return &apiv1.AdminProjectionState{
+		Key:                    state.Key,
+		Name:                   state.Name,
+		Subjects:               append([]string(nil), state.Subjects...),
+		Started:                state.Started,
+		StartupDurationSeconds: startupDurationSeconds,
+		LastAppliedSequence:    strconv.FormatUint(state.LastAppliedSeq, 10),
+		MatchingStreamSequence: strconv.FormatUint(state.MatchingStreamSeq, 10),
+		StreamLastSequence:     strconv.FormatUint(state.StreamLastSeq, 10),
+		Lag:                    int64(state.Lag),
+		Failed:                 state.Failed,
+		FailedSequence:         strconv.FormatUint(state.FailedSeq, 10),
+		Failure:                state.Failure,
+		EntryCount:             state.EntryCount,
+		EstimatedBytes:         state.EstimatedBytes,
+		AverageEntryBytes:      state.AverageEntryBytes,
+		Metrics:                metrics,
+	}
+}

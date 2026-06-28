@@ -1,149 +1,143 @@
 import { describe, it, expect, vi } from 'vitest';
 import { flushSync } from 'svelte';
-import type { Client } from '@urql/svelte';
-import { NotificationLevel, RoomType } from '$lib/gql/graphql';
+import {
+  NotificationLevel,
+  PresenceStatus,
+  RoomType,
+  type UserAvatarUserView
+} from '$lib/render/types';
+import { RoomEventKind } from '$lib/render/eventKinds';
+import {
+  RoomDirectoryScope,
+  RoomKind,
+  type DirectoryRoomGroup,
+  type DirectoryRoomSummary,
+  type RoomDirectoryAPI
+} from '$lib/api/roomDirectory';
+import type { DirectoryMember, MemberDirectoryAPI } from '$lib/api/memberDirectory';
+import type { NotificationAPI } from '$lib/api/notifications';
+import type { ViewerState } from '$lib/api/viewer';
 import { NotificationLevelStore } from './notificationLevel.svelte';
 import { RoomUnreadStore } from './roomUnread.svelte';
-import { isRoomStateRefreshEvent, RoomsStore } from './rooms.svelte';
+import { isRoomStateRefreshEvent, RoomsStore, type ViewerStateLoader } from './rooms.svelte';
 
-type QueryRoom = {
-  id: string;
-  name: string;
-  type: RoomType;
-  isUniversal?: boolean;
-  hasUnread: boolean;
-  archived: boolean;
-  viewerIsMember: boolean;
-  viewerCanJoinRoom: boolean;
-  viewerNotificationPreference: {
-    level: NotificationLevel;
-    effectiveLevel: NotificationLevel;
-  } | null;
-  members: {
-    users: Array<{
-      id: string;
-      login: string;
-      displayName: string;
-      avatarUrl: string | null;
-      presenceStatus: string;
-    }>;
-  };
-};
-
-type QueryResponse = {
-  viewer: {
-    user: {
-      id: string;
-    };
-  };
-  server: {
-    channelRooms: QueryRoom[];
-    dmRooms: QueryRoom[];
-    roomGroups: Array<{
-      id: string;
-      name: string;
-      rooms: Array<{ id: string }>;
-      items?: Array<{
-        type: 'ROOM' | 'SIDEBAR_LINK';
-        id: string;
-        room?: { id: string } | null;
-        link?: { id: string; label: string; url: string } | null;
-      }>;
-    }>;
-  };
-};
-
-type NotificationCountsResponse = {
-  server: {
-    rooms: Array<{
-      id: string;
-      viewerNotifications: {
-        totalCount: number;
-      };
-    }>;
-  };
-};
-
-function makeRoom(id: string, overrides: Partial<QueryRoom> = {}): QueryRoom {
+function makeRoom(id: string, overrides: Partial<DirectoryRoomSummary> = {}): DirectoryRoomSummary {
   return {
     id,
     name: overrides.name ?? id,
-    type: overrides.type ?? RoomType.Channel,
-    isUniversal: overrides.isUniversal ?? false,
-    hasUnread: overrides.hasUnread ?? false,
+    description: overrides.description ?? null,
+    kind: overrides.kind ?? RoomKind.CHANNEL,
     archived: overrides.archived ?? false,
-    viewerIsMember: overrides.viewerIsMember ?? true,
-    viewerCanJoinRoom: overrides.viewerCanJoinRoom ?? true,
-    viewerNotificationPreference:
-      overrides.viewerNotificationPreference === undefined
-        ? {
-            level: NotificationLevel.Default,
-            effectiveLevel: NotificationLevel.Normal
-          }
-        : overrides.viewerNotificationPreference,
-    members: overrides.members ?? {
-      users: [
-        {
-          id: 'U1',
-          login: 'alice',
-          displayName: 'Alice',
-          avatarUrl: null,
-          presenceStatus: 'ONLINE'
-        }
-      ]
-    }
+    isUniversal: overrides.isUniversal ?? false,
+    isMember: overrides.isMember ?? true,
+    hasUnread: overrides.hasUnread ?? false,
+    canJoinRoom: overrides.canJoinRoom ?? true
   };
 }
 
-function makeResponse(
-  channelRooms: QueryRoom[],
-  groups: QueryResponse['server']['roomGroups'] = [],
-  dmRooms: QueryRoom[] = []
-): QueryResponse {
+function makeMember(id: string, overrides: Partial<DirectoryMember> = {}): DirectoryMember {
   return {
-    viewer: {
-      user: {
-        id: 'U1'
-      }
+    id,
+    login: overrides.login ?? id.toLowerCase(),
+    displayName: overrides.displayName ?? id,
+    deleted: overrides.deleted ?? false,
+    avatarUrl: overrides.avatarUrl ?? null,
+    presenceStatus: overrides.presenceStatus ?? PresenceStatus.Online,
+    customStatus: overrides.customStatus ?? null,
+    roles: overrides.roles ?? [],
+    createdAt: overrides.createdAt ?? null
+  };
+}
+
+function makeViewer(overrides: Partial<ViewerState> = {}): ViewerState {
+  return {
+    user: {
+      id: 'U1',
+      login: 'alice',
+      displayName: 'Alice',
+      avatarUrl: null,
+      customStatus: null,
+      presenceStatus: PresenceStatus.Online,
+      hasVerifiedEmail: true,
+      viewerCanDeleteAccount: true,
+      lastLoginChange: null,
+      settings: null
     },
-    server: {
-      channelRooms,
-      dmRooms,
-      roomGroups: groups
-    }
+    canViewAdmin: false,
+    canStartDMs: true,
+    canAdminViewUsers: false,
+    canAdminManageUsers: false,
+    canAdminViewRoles: false,
+    canAdminManageRoles: false,
+    canAdminViewSystem: false,
+    canAdminViewAudit: false,
+    canManageUserPermissions: false,
+    serverNotificationPreference: {
+      level: NotificationLevel.Default,
+      effectiveLevel: NotificationLevel.Normal
+    },
+    roomNotificationPreferences: [],
+    ...overrides
   };
 }
 
-function makeStore(client: Client) {
-  return new RoomsStore(client, new NotificationLevelStore(), new RoomUnreadStore());
-}
-
-function operationName(document: unknown): string | undefined {
-  return (
-    document as {
-      definitions?: Array<{ name?: { value?: string } }>;
-    }
-  ).definitions?.[0]?.name?.value;
-}
-
-function makeCountsResponse(counts: Record<string, number>): NotificationCountsResponse {
+function makeNotificationAPI(counts: Record<string, number> = {}): NotificationAPI {
   return {
-    server: {
-      rooms: Object.entries(counts).map(([id, totalCount]) => ({
-        id,
-        viewerNotifications: { totalCount }
-      }))
-    }
-  };
+    listNotifications: vi.fn(),
+    listRoomNotifications: vi.fn(),
+    hasNotifications: vi.fn(),
+    listNotificationCounts: vi.fn().mockResolvedValue(counts),
+    dismissNotification: vi.fn(),
+    dismissAllNotifications: vi.fn()
+  } as unknown as NotificationAPI;
 }
 
-function makeClient(responses: Array<QueryResponse | NotificationCountsResponse | null>) {
-  const queue = [...responses];
-  const queryMock = vi.fn(() => ({
-    toPromise: () => Promise.resolve({ data: queue.shift() ?? null, error: null })
-  }));
-  const client = { query: queryMock } as unknown as Client;
-  return { client, queryMock };
+function makeRoomDirectoryAPI(
+  rooms: DirectoryRoomSummary[] = [],
+  groups: DirectoryRoomGroup[] = []
+): RoomDirectoryAPI {
+  return {
+    listRooms: vi.fn().mockResolvedValue(rooms),
+    listRoomGroups: vi.fn().mockResolvedValue(groups)
+  } as unknown as RoomDirectoryAPI;
+}
+
+function makeMemberDirectoryAPI(
+  membersByRoomId: Record<string, DirectoryMember[]> = {}
+): MemberDirectoryAPI {
+  return {
+    listServerMembers: vi.fn(),
+    listRoomMembers: vi.fn(async (roomId: string) => ({
+      members: membersByRoomId[roomId] ?? [],
+      totalCount: membersByRoomId[roomId]?.length ?? 0,
+      hasMore: false
+    }))
+  } as unknown as MemberDirectoryAPI;
+}
+
+function makeStore({
+  roomDirectoryAPI = makeRoomDirectoryAPI(),
+  memberDirectoryAPI = makeMemberDirectoryAPI(),
+  viewerStateLoader = vi.fn().mockResolvedValue(makeViewer()),
+  notificationAPI = makeNotificationAPI(),
+  notificationLevels = new NotificationLevelStore(),
+  roomUnread = new RoomUnreadStore()
+}: {
+  roomDirectoryAPI?: RoomDirectoryAPI;
+  memberDirectoryAPI?: MemberDirectoryAPI;
+  viewerStateLoader?: ViewerStateLoader;
+  notificationAPI?: NotificationAPI;
+  notificationLevels?: NotificationLevelStore;
+  roomUnread?: RoomUnreadStore;
+} = {}) {
+  return new RoomsStore(
+    roomDirectoryAPI,
+    memberDirectoryAPI,
+    viewerStateLoader,
+    notificationLevels,
+    roomUnread,
+    notificationAPI
+  );
 }
 
 async function settle() {
@@ -153,18 +147,30 @@ async function settle() {
 }
 
 describe('RoomsStore - refresh', () => {
-  it('loads listable non-member channels from server rooms and DMs with members', async () => {
-    const { client } = makeClient([
-      makeResponse(
-        [makeRoom('public', { viewerIsMember: false, viewerCanJoinRoom: true })],
-        [{ id: 'g1', name: 'Lobby', rooms: [{ id: 'public' }] }],
-        [makeRoom('dm-1', { type: RoomType.Dm, name: '' })]
-      )
-    ]);
-    const store = makeStore(client);
+  it('loads listable non-member channels from room directory and DMs with members', async () => {
+    const roomDirectoryAPI = makeRoomDirectoryAPI(
+      [
+        makeRoom('public', { isMember: false, canJoinRoom: true }),
+        makeRoom('dm-1', { kind: RoomKind.DM, name: '' })
+      ],
+      [
+        {
+          id: 'g1',
+          name: 'Lobby',
+          roomIds: ['public'],
+          items: [{ id: 'room:public', type: 'room', roomId: 'public' }]
+        }
+      ]
+    );
+    const memberDirectoryAPI = makeMemberDirectoryAPI({
+      'dm-1': [makeMember('U1', { login: 'alice', displayName: 'Alice' })]
+    });
+    const store = makeStore({ roomDirectoryAPI, memberDirectoryAPI });
 
     await store.refresh();
 
+    expect(roomDirectoryAPI.listRooms).toHaveBeenCalledWith(RoomDirectoryScope.ALL);
+    expect(memberDirectoryAPI.listRoomMembers).toHaveBeenCalledWith('dm-1', '', 100, 0);
     expect(store.rooms).toMatchObject([
       {
         id: 'public',
@@ -190,45 +196,97 @@ describe('RoomsStore - refresh', () => {
     ]);
   });
 
-  it('maps universal channel rooms from the bootstrap query', async () => {
-    const { client } = makeClient([makeResponse([makeRoom('general', { isUniversal: true })])]);
-    const store = makeStore(client);
+  it('maps universal channel rooms from the room directory', async () => {
+    const store = makeStore({
+      roomDirectoryAPI: makeRoomDirectoryAPI([makeRoom('general', { isUniversal: true })])
+    });
 
     await store.refresh();
 
     expect(store.rooms).toMatchObject([{ id: 'general', isUniversal: true }]);
   });
 
+  it('loads viewer identity and notification preferences from Connect viewer state', async () => {
+    const notificationLevels = new NotificationLevelStore();
+    const store = makeStore({
+      roomDirectoryAPI: makeRoomDirectoryAPI([makeRoom('general')]),
+      notificationLevels,
+      viewerStateLoader: vi.fn().mockResolvedValue(
+        makeViewer({
+          user: {
+            ...makeViewer().user,
+            id: 'U2'
+          },
+          serverNotificationPreference: {
+            level: NotificationLevel.Muted,
+            effectiveLevel: NotificationLevel.Muted
+          },
+          roomNotificationPreferences: [
+            {
+              roomId: 'general',
+              level: NotificationLevel.AllMessages,
+              effectiveLevel: NotificationLevel.AllMessages
+            }
+          ]
+        })
+      )
+    });
+
+    await store.refresh();
+
+    expect(store.currentUserId).toBe('U2');
+    expect(notificationLevels.getServerPreference()).toEqual({
+      level: NotificationLevel.Muted,
+      effectiveLevel: NotificationLevel.Muted
+    });
+    expect(notificationLevels.getRoomPreference('general')).toEqual({
+      level: NotificationLevel.AllMessages,
+      effectiveLevel: NotificationLevel.AllMessages
+    });
+  });
+
   it('discards out-of-order responses', async () => {
-    let resolveFirst!: (value: { data: QueryResponse; error: null }) => void;
-    let resolveSecond!: (value: { data: QueryResponse; error: null }) => void;
-    const queryMock = vi.fn().mockImplementation((document: unknown) => {
-      if (operationName(document) === 'GetMyServerRoomNotificationCounts') {
-        return {
-          toPromise: () => Promise.resolve({ data: makeCountsResponse({ newer: 4 }), error: null })
-        };
+    let resolveFirstRooms!: (value: DirectoryRoomSummary[]) => void;
+    let resolveSecondRooms!: (value: DirectoryRoomSummary[]) => void;
+    const listRooms = vi.fn().mockImplementation(() => {
+      if (listRooms.mock.calls.length === 1) {
+        return new Promise<DirectoryRoomSummary[]>((resolve) => (resolveFirstRooms = resolve));
       }
-      if (queryMock.mock.calls.length === 1) {
-        return {
-          toPromise: () => new Promise((resolve) => (resolveFirst = resolve))
-        };
-      }
-      return {
-        toPromise: () => new Promise((resolve) => (resolveSecond = resolve))
-      };
+      return new Promise<DirectoryRoomSummary[]>((resolve) => (resolveSecondRooms = resolve));
     });
-    const store = makeStore({ query: queryMock } as unknown as Client);
+    const listRoomGroups = vi.fn().mockImplementation(() => {
+      if (listRoomGroups.mock.calls.length === 1) {
+        return Promise.resolve([
+          {
+            id: 'g1',
+            name: 'Lobby',
+            roomIds: ['older'],
+            items: [{ id: 'room:older', type: 'room', roomId: 'older' }]
+          }
+        ]);
+      }
+      return Promise.resolve([
+        {
+          id: 'g1',
+          name: 'Lobby',
+          roomIds: ['newer'],
+          items: [{ id: 'room:newer', type: 'room', roomId: 'newer' }]
+        }
+      ]);
+    });
+    const roomDirectoryAPI = {
+      listRooms,
+      listRoomGroups
+    } as unknown as RoomDirectoryAPI;
+    const store = makeStore({
+      roomDirectoryAPI,
+      notificationAPI: makeNotificationAPI({ newer: 4 })
+    });
 
     void store.refresh();
     void store.refresh();
 
-    resolveSecond({
-      data: makeResponse(
-        [makeRoom('newer')],
-        [{ id: 'g1', name: 'Lobby', rooms: [{ id: 'newer' }] }]
-      ),
-      error: null
-    });
+    resolveSecondRooms([makeRoom('newer')]);
     await settle();
 
     expect(store.rooms.map((room) => room.id)).toEqual(['newer']);
@@ -244,13 +302,7 @@ describe('RoomsStore - refresh', () => {
       expect(store.rooms.find((room) => room.id === 'newer')?.viewerNotificationCount).toBe(4);
     });
 
-    resolveFirst({
-      data: makeResponse(
-        [makeRoom('older')],
-        [{ id: 'g1', name: 'Lobby', rooms: [{ id: 'older' }] }]
-      ),
-      error: null
-    });
+    resolveFirstRooms([makeRoom('older')]);
     await settle();
 
     expect(store.rooms.map((room) => room.id)).toEqual(['newer']);
@@ -264,24 +316,21 @@ describe('RoomsStore - refresh', () => {
     ]);
   });
 
-  it('patches notification counts from the optional compatibility query', async () => {
-    let resolveCounts!: (value: { data: NotificationCountsResponse; error: null }) => void;
-    const queryMock = vi.fn((document: unknown) => {
-      if (operationName(document) === 'GetMyServerRoomNotificationCounts') {
-        return {
-          toPromise: () => new Promise((resolve) => (resolveCounts = resolve))
-        };
-      }
-      return {
-        toPromise: () => Promise.resolve({ data: makeResponse([makeRoom('general')]), error: null })
-      };
+  it('patches notification counts from Connect', async () => {
+    let resolveCounts!: (value: Record<string, number>) => void;
+    const notificationAPI = makeNotificationAPI();
+    vi.mocked(notificationAPI.listNotificationCounts).mockImplementation(
+      () => new Promise((resolve) => (resolveCounts = resolve))
+    );
+    const store = makeStore({
+      roomDirectoryAPI: makeRoomDirectoryAPI([makeRoom('general')]),
+      notificationAPI
     });
-    const store = makeStore({ query: queryMock } as unknown as Client);
 
     await store.refresh();
 
     expect(store.rooms).toMatchObject([{ id: 'general', viewerNotificationCount: 0 }]);
-    resolveCounts({ data: makeCountsResponse({ general: 7 }), error: null });
+    resolveCounts({ general: 7 });
 
     await vi.waitFor(() => {
       expect(store.rooms).toMatchObject([{ id: 'general', viewerNotificationCount: 7 }]);
@@ -290,22 +339,15 @@ describe('RoomsStore - refresh', () => {
 
   it('refreshes notification counts for an already-loaded room list', async () => {
     let countQueries = 0;
-    const queryMock = vi.fn((document: unknown) => {
-      if (operationName(document) === 'GetMyServerRoomNotificationCounts') {
-        countQueries++;
-        return {
-          toPromise: () =>
-            Promise.resolve({
-              data: makeCountsResponse({ general: countQueries === 1 ? 1 : 0 }),
-              error: null
-            })
-        };
-      }
-      return {
-        toPromise: () => Promise.resolve({ data: makeResponse([makeRoom('general')]), error: null })
-      };
+    const notificationAPI = makeNotificationAPI();
+    vi.mocked(notificationAPI.listNotificationCounts).mockImplementation(async () => {
+      countQueries++;
+      return { general: countQueries === 1 ? 1 : 0 };
     });
-    const store = makeStore({ query: queryMock } as unknown as Client);
+    const store = makeStore({
+      roomDirectoryAPI: makeRoomDirectoryAPI([makeRoom('general')]),
+      notificationAPI
+    });
 
     await store.refresh();
     await vi.waitFor(() => {
@@ -319,30 +361,19 @@ describe('RoomsStore - refresh', () => {
 
   it('discards out-of-order notification count refresh responses', async () => {
     let countQueries = 0;
-    let resolveOlder!: (value: { data: NotificationCountsResponse; error: null }) => void;
-    let resolveNewer!: (value: { data: NotificationCountsResponse; error: null }) => void;
-    const queryMock = vi.fn((document: unknown) => {
-      if (operationName(document) === 'GetMyServerRoomNotificationCounts') {
-        countQueries++;
-        if (countQueries === 1) {
-          return {
-            toPromise: () => Promise.resolve({ data: makeCountsResponse({ general: 0 }), error: null })
-          };
-        }
-        if (countQueries === 2) {
-          return {
-            toPromise: () => new Promise((resolve) => (resolveOlder = resolve))
-          };
-        }
-        return {
-          toPromise: () => new Promise((resolve) => (resolveNewer = resolve))
-        };
-      }
-      return {
-        toPromise: () => Promise.resolve({ data: makeResponse([makeRoom('general')]), error: null })
-      };
+    let resolveOlder!: (value: Record<string, number>) => void;
+    let resolveNewer!: (value: Record<string, number>) => void;
+    const notificationAPI = makeNotificationAPI();
+    vi.mocked(notificationAPI.listNotificationCounts).mockImplementation(() => {
+      countQueries++;
+      if (countQueries === 1) return Promise.resolve({ general: 0 });
+      if (countQueries === 2) return new Promise((resolve) => (resolveOlder = resolve));
+      return new Promise((resolve) => (resolveNewer = resolve));
     });
-    const store = makeStore({ query: queryMock } as unknown as Client);
+    const store = makeStore({
+      roomDirectoryAPI: makeRoomDirectoryAPI([makeRoom('general')]),
+      notificationAPI
+    });
 
     await store.refresh();
     await vi.waitFor(() => {
@@ -352,35 +383,26 @@ describe('RoomsStore - refresh', () => {
     const olderRefresh = store.refreshNotificationCounts();
     const newerRefresh = store.refreshNotificationCounts();
 
-    resolveNewer({ data: makeCountsResponse({ general: 2 }), error: null });
+    resolveNewer({ general: 2 });
     await newerRefresh;
 
     expect(store.rooms).toMatchObject([{ id: 'general', viewerNotificationCount: 2 }]);
 
-    resolveOlder({ data: makeCountsResponse({ general: 1 }), error: null });
+    resolveOlder({ general: 1 });
     await olderRefresh;
 
     expect(store.rooms).toMatchObject([{ id: 'general', viewerNotificationCount: 2 }]);
   });
 
-  it('keeps rooms visible when the optional notification count field is unsupported', async () => {
-    const queryMock = vi.fn((document: unknown) => {
-      if (operationName(document) === 'GetMyServerRoomNotificationCounts') {
-        return {
-          toPromise: () =>
-            Promise.resolve({
-              data: null,
-              error: {
-                message: 'Cannot query field "viewerNotifications" on type "Room".'
-              }
-            })
-        };
-      }
-      return {
-        toPromise: () => Promise.resolve({ data: makeResponse([makeRoom('general')]), error: null })
-      };
+  it('keeps rooms visible when notification count loading fails', async () => {
+    const notificationAPI = makeNotificationAPI();
+    vi.mocked(notificationAPI.listNotificationCounts).mockRejectedValue(
+      new Error('server too old')
+    );
+    const store = makeStore({
+      roomDirectoryAPI: makeRoomDirectoryAPI([makeRoom('general')]),
+      notificationAPI
     });
-    const store = makeStore({ query: queryMock } as unknown as Client);
 
     await store.refresh();
     await settle();
@@ -388,25 +410,27 @@ describe('RoomsStore - refresh', () => {
     expect(store.rooms).toMatchObject([{ id: 'general', viewerNotificationCount: 0 }]);
   });
 
-  it('maps mixed sidebar group items from the bootstrap query', async () => {
-    const { client } = makeClient([
-      makeResponse([makeRoom('general')], [
-        {
-          id: 'g1',
-          name: 'Lobby',
-          rooms: [{ id: 'general' }],
-          items: [
-            {
-              id: 'link:docs',
-              type: 'SIDEBAR_LINK',
-              link: { id: 'docs', label: 'Docs', url: 'https://example.com/docs' }
-            },
-            { id: 'room:general', type: 'ROOM', room: { id: 'general' } }
-          ]
-        }
-      ])
-    ]);
-    const store = makeStore(client);
+  it('maps mixed sidebar group items from the room directory', async () => {
+    const store = makeStore({
+      roomDirectoryAPI: makeRoomDirectoryAPI(
+        [makeRoom('general')],
+        [
+          {
+            id: 'g1',
+            name: 'Lobby',
+            roomIds: ['general'],
+            items: [
+              {
+                id: 'link:docs',
+                type: 'link',
+                link: { id: 'docs', label: 'Docs', url: 'https://example.com/docs' }
+              },
+              { id: 'room:general', type: 'room', roomId: 'general' }
+            ]
+          }
+        ]
+      )
+    });
 
     await store.refresh();
 
@@ -426,57 +450,85 @@ describe('RoomsStore - refresh', () => {
       }
     ]);
   });
+
+  it('preserves the avatar shape expected by sidebar DM rows', async () => {
+    const member: DirectoryMember = makeMember('U2', {
+      login: 'bob',
+      displayName: 'Bob',
+      customStatus: { emoji: ':wave:', text: 'Hi', expiresAt: null }
+    });
+    const store = makeStore({
+      roomDirectoryAPI: makeRoomDirectoryAPI([makeRoom('dm-1', { kind: RoomKind.DM })]),
+      memberDirectoryAPI: makeMemberDirectoryAPI({ 'dm-1': [member] })
+    });
+
+    await store.refresh();
+
+    expect(store.rooms[0]?.members).toEqual<UserAvatarUserView[]>([
+      {
+        id: 'U2',
+        login: 'bob',
+        displayName: 'Bob',
+        deleted: false,
+        avatarUrl: null,
+        presenceStatus: PresenceStatus.Online,
+        customStatus: {
+          emoji: ':wave:',
+          text: 'Hi',
+          expiresAt: null
+        }
+      }
+    ]);
+  });
 });
 
 describe('RoomsStore - ingestServerEvent', () => {
-  function makeEvent(typename: string) {
-    return { event: { __typename: typename } };
+  function makeEvent(kind: RoomEventKind, extra: Record<string, unknown> = {}) {
+    return { event: { kind, ...extra } } as never;
   }
 
   it('uses one shared predicate for room state refresh events', () => {
-    expect(isRoomStateRefreshEvent('RoomCreatedEvent')).toBe(true);
-    expect(isRoomStateRefreshEvent('RoomGroupsUpdatedEvent')).toBe(true);
-    expect(isRoomStateRefreshEvent('RoomUniversalChangedEvent')).toBe(true);
-    expect(isRoomStateRefreshEvent('ReactionAddedEvent')).toBe(false);
+    expect(isRoomStateRefreshEvent({ kind: RoomEventKind.RoomCreated } as never)).toBe(true);
+    expect(isRoomStateRefreshEvent({ kind: RoomEventKind.RoomGroupsUpdated } as never)).toBe(true);
+    expect(isRoomStateRefreshEvent({ kind: RoomEventKind.RoomUniversalChanged } as never)).toBe(
+      true
+    );
+    expect(isRoomStateRefreshEvent({ kind: RoomEventKind.ReactionAdded } as never)).toBe(false);
   });
 
   it('refreshes on RoomCreatedEvent', () => {
-    const { client } = makeClient([]);
-    const store = makeStore(client);
+    const store = makeStore();
     store.refresh = vi.fn().mockResolvedValue(undefined);
 
-    store.ingestServerEvent(makeEvent('RoomCreatedEvent'));
+    store.ingestServerEvent(makeEvent(RoomEventKind.RoomCreated));
 
     expect(store.refresh).toHaveBeenCalledOnce();
   });
 
   it('refreshes on RoomGroupsUpdatedEvent', () => {
-    const { client } = makeClient([]);
-    const store = makeStore(client);
+    const store = makeStore();
     store.refresh = vi.fn().mockResolvedValue(undefined);
 
-    store.ingestServerEvent(makeEvent('RoomGroupsUpdatedEvent'));
+    store.ingestServerEvent(makeEvent(RoomEventKind.RoomGroupsUpdated));
 
     expect(store.refresh).toHaveBeenCalledOnce();
   });
 
   it('refreshes on UserJoinedRoomEvent', () => {
-    const { client } = makeClient([]);
-    const store = makeStore(client);
+    const store = makeStore();
     store.refresh = vi.fn().mockResolvedValue(undefined);
 
-    store.ingestServerEvent(makeEvent('UserJoinedRoomEvent'));
+    store.ingestServerEvent(makeEvent(RoomEventKind.UserJoinedRoom));
 
     expect(store.refresh).toHaveBeenCalledOnce();
   });
 
   it('does not refresh on irrelevant event types', () => {
-    const { client } = makeClient([]);
-    const store = makeStore(client);
+    const store = makeStore();
     store.refresh = vi.fn().mockResolvedValue(undefined);
 
-    store.ingestServerEvent(makeEvent('ReactionAddedEvent'));
-    store.ingestServerEvent(makeEvent('HeartbeatEvent'));
+    store.ingestServerEvent(makeEvent(RoomEventKind.ReactionAdded));
+    store.ingestServerEvent(makeEvent(RoomEventKind.Heartbeat));
 
     expect(store.refresh).not.toHaveBeenCalled();
   });

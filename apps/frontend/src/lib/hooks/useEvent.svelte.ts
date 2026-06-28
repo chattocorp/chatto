@@ -24,7 +24,8 @@ import {
   type RoomMarkedAsReadInfo,
   type RoomLayoutUpdatedInfo
 } from '$lib/eventBus.svelte';
-import type { PresenceStatus } from '$lib/gql/graphql';
+import type { PresenceStatus } from '$lib/render/types';
+import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
 import { eventBusManager } from '$lib/state/server/eventBus.svelte';
 import { getActiveServer } from '$lib/state/activeServer.svelte';
 
@@ -33,12 +34,12 @@ import { getActiveServer } from '$lib/state/activeServer.svelte';
  * automatic cleanup. Must be called during component initialization
  * (not inside conditionals).
  *
- * The handler receives the full envelope — filter by
- * `event.event?.__typename` to dispatch on a specific event variant.
+ * The handler receives the full envelope — filter with `roomEventKind` to
+ * dispatch on a specific event variant.
  *
  * @example
  * useEvent((event) => {
- *   if (event.event?.__typename === 'ServerUpdatedEvent') {
+ *   if (roomEventKind(event.event) === RoomEventKind.ServerUpdated) {
  *     serverName = event.event.name;
  *   }
  * });
@@ -174,10 +175,12 @@ export function useActiveEvent(handler: EventHandler) {
 export function useActiveRoomLayoutUpdated(handler: (info: RoomLayoutUpdatedInfo) => void) {
   const wrapper: EventHandler = (event) => {
     if (!event.event) return;
-    if (event.event.__typename === 'RoomGroupsUpdatedEvent') {
+    const kind = roomEventKind(event.event);
+    if (kind === RoomEventKind.RoomGroupsUpdated) {
       handler({});
-    } else if (event.event.__typename === 'RoomUniversalChangedEvent') {
-      handler({ roomId: event.event.roomId, universal: event.event.universal });
+    } else if (kind === RoomEventKind.RoomUniversalChanged) {
+      const payload = event.event as { roomId?: string; universal?: boolean };
+      handler({ roomId: payload.roomId, universal: payload.universal });
     }
   };
   useActiveEvent(wrapper);

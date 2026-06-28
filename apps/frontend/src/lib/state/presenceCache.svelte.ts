@@ -1,12 +1,12 @@
 import { createContext } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
-import type { PresenceStatus } from '$lib/gql/graphql';
+import type { PresenceStatus } from '$lib/render/types';
 
 /**
  * Global cache for live user presence updates.
  *
  * Solves the problem where newly-mounted UserAvatar components (e.g., in popovers)
- * show stale presence from the initial GraphQL query because they missed earlier
+ * show stale presence from the initial server snapshot because they missed earlier
  * PresenceChangedEvents. By writing all presence updates to a shared cache,
  * any component can read the most recently observed status at mount time.
  *

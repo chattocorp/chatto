@@ -22,7 +22,22 @@ Include this component once in the chat layout (unconditionally).
     clearBadge,
     syncServiceWorkerUnreadBadgeState
   } from '$lib/notifications/appBadge';
-  import type { EventHandler } from '$lib/eventBus.svelte';
+  import type { EventEnvelope, EventHandler } from '$lib/eventBus.svelte';
+  import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
+
+  function notificationCreatedEvent(event: EventEnvelope['event']): { silent?: boolean } | null {
+    if (!event || !('silent' in event)) return null;
+    return { silent: event.silent === true };
+  }
+
+  function notificationDismissedEvent(
+    event: EventEnvelope['event']
+  ): { notificationId: string } | null {
+    if (!event || !('notificationId' in event) || typeof event.notificationId !== 'string') {
+      return null;
+    }
+    return { notificationId: event.notificationId };
+  }
 
   // Subscribe to notification events on all authenticated instance buses.
   // Uses the event bus manager directly (not Svelte context) to handle all instances.
@@ -41,28 +56,35 @@ Include this component once in the chat layout (unconditionally).
       const handler: EventHandler = (event) => {
         if (!event.event) return;
 
-        if (event.event.__typename === 'NotificationCreatedEvent') {
-          void Promise.allSettled([
-            notificationStore.addNotification(),
-            stores.rooms.refreshNotificationCounts()
-          ]);
-          if (!event.event.silent) {
-            playNotificationSound(
-              userPreferences.notificationSound,
-              userPreferences.notificationSoundFilters
-            );
-          }
-        }
-
-        if (event.event.__typename === 'NotificationDismissedEvent') {
-          const roomId = notificationStore.removeNotification(event.event.notificationId);
-          if (roomId) {
-            void stores.rooms.refreshNotificationCounts();
-          } else if (!notificationStore.consumeLocalDismissal(event.event.notificationId)) {
+        switch (roomEventKind(event.event)) {
+          case RoomEventKind.NotificationCreated: {
+            const notification = notificationCreatedEvent(event.event);
+            if (!notification) break;
             void Promise.allSettled([
-              notificationStore.fetch(),
+              notificationStore.addNotification(),
               stores.rooms.refreshNotificationCounts()
             ]);
+            if (!notification.silent) {
+              playNotificationSound(
+                userPreferences.notificationSound,
+                userPreferences.notificationSoundFilters
+              );
+            }
+            break;
+          }
+          case RoomEventKind.NotificationDismissed: {
+            const notification = notificationDismissedEvent(event.event);
+            if (!notification) break;
+            const roomId = notificationStore.removeNotification(notification.notificationId);
+            if (roomId) {
+              void stores.rooms.refreshNotificationCounts();
+            } else if (!notificationStore.consumeLocalDismissal(notification.notificationId)) {
+              void Promise.allSettled([
+                notificationStore.fetch(),
+                stores.rooms.refreshNotificationCounts()
+              ]);
+            }
+            break;
           }
         }
       };

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { VoiceCallAPI, VoiceCallParticipant } from '$lib/api/voiceCalls';
 import { CallParticipantsState } from './callParticipants.svelte';
 
 function deferred<T>() {
@@ -9,13 +10,39 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
+function participant(
+  userId: string,
+  displayName = 'Alice',
+  login = 'alice',
+  callId = 'call-1'
+): VoiceCallParticipant {
+  return {
+    callId,
+    joinedAt: '2026-01-01T00:00:00Z',
+    user: {
+      id: userId,
+      displayName,
+      login,
+      deleted: false,
+      avatarUrl: null
+    }
+  };
+}
+
+function makeVoiceCallAPI(overrides: Partial<VoiceCallAPI> = {}): VoiceCallAPI {
+  return {
+    listActiveCallRoomIds: vi.fn().mockResolvedValue([]),
+    listCallParticipants: vi.fn().mockResolvedValue([]),
+    joinCall: vi.fn().mockResolvedValue(true),
+    getCallToken: vi.fn().mockResolvedValue(null),
+    leaveCall: vi.fn().mockResolvedValue(true),
+    ...overrides
+  };
+}
+
 describe('CallParticipantsState', () => {
   it('removes a failed local participant from observer participants', async () => {
-    const state = new CallParticipantsState({
-      query: vi.fn(() => ({
-        toPromise: vi.fn(async () => ({ data: { room: { callParticipants: [] } } }))
-      }))
-    } as never);
+    const state = new CallParticipantsState(makeVoiceCallAPI());
 
     await state.load('R1');
     state.handleJoin('R1', 'call-1', {
@@ -44,37 +71,16 @@ describe('CallParticipantsState', () => {
   });
 
   it('reloads observer participants when a protobuf call join has no hydrated actor', async () => {
-    const query = vi
+    const listCallParticipants = vi
       .fn()
-      .mockReturnValueOnce({
-        toPromise: vi.fn(async () => ({ data: { room: { callParticipants: [] } } }))
-      })
-      .mockReturnValueOnce({
-        toPromise: vi.fn(async () => ({
-          data: {
-            room: {
-              callParticipants: [
-                {
-                  callId: 'call-1',
-                  joinedAt: '2026-01-01T00:00:00Z',
-                  user: {
-                    id: 'U1',
-                    displayName: 'Alice',
-                    login: 'alice',
-                    avatarUrl: null
-                  }
-                }
-              ]
-            }
-          }
-        }))
-      });
-    const state = new CallParticipantsState({ query } as never);
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([participant('U1')]);
+    const state = new CallParticipantsState(makeVoiceCallAPI({ listCallParticipants }));
 
     await state.load('R1');
     await state.handleJoin('R1', 'call-1', null);
 
-    expect(query).toHaveBeenCalledTimes(2);
+    expect(listCallParticipants).toHaveBeenCalledTimes(2);
     expect(state.participants).toEqual([
       {
         userId: 'U1',
@@ -86,59 +92,24 @@ describe('CallParticipantsState', () => {
   });
 
   it('does not resurrect observer participants from a late actor-less join reload', async () => {
-    const reload = deferred<{
-      data: {
-        room: {
-          callParticipants: Array<{
-            callId: string;
-            joinedAt: string;
-            user: { id: string; displayName: string; login: string; avatarUrl: string | null };
-          }>;
-        };
-      };
-    }>();
-    const query = vi
+    const reload = deferred<VoiceCallParticipant[]>();
+    const listCallParticipants = vi
       .fn()
-      .mockReturnValueOnce({
-        toPromise: vi.fn(async () => ({ data: { room: { callParticipants: [] } } }))
-      })
-      .mockReturnValueOnce({
-        toPromise: vi.fn(() => reload.promise)
-      });
-    const state = new CallParticipantsState({ query } as never);
+      .mockResolvedValueOnce([])
+      .mockReturnValueOnce(reload.promise);
+    const state = new CallParticipantsState(makeVoiceCallAPI({ listCallParticipants }));
 
     await state.load('R1');
     const join = state.handleJoin('R1', 'call-1', null);
     state.handleEnd('R1', 'call-1');
-    reload.resolve({
-      data: {
-        room: {
-          callParticipants: [
-            {
-              callId: 'call-1',
-              joinedAt: '2026-01-01T00:00:00Z',
-              user: {
-                id: 'U1',
-                displayName: 'Alice',
-                login: 'alice',
-                avatarUrl: null
-              }
-            }
-          ]
-        }
-      }
-    });
+    reload.resolve([participant('U1')]);
     await join;
 
     expect(state.participants).toEqual([]);
   });
 
   it('clears observer participants when the current room call ends', async () => {
-    const state = new CallParticipantsState({
-      query: vi.fn(() => ({
-        toPromise: vi.fn(async () => ({ data: { room: { callParticipants: [] } } }))
-      }))
-    } as never);
+    const state = new CallParticipantsState(makeVoiceCallAPI());
 
     await state.load('R1');
     state.handleJoin('R1', 'call-1', {
@@ -156,11 +127,7 @@ describe('CallParticipantsState', () => {
   });
 
   it('clears observer state for an end event when the loaded snapshot had no call id', async () => {
-    const state = new CallParticipantsState({
-      query: vi.fn(() => ({
-        toPromise: vi.fn(async () => ({ data: { room: { callParticipants: [] } } }))
-      }))
-    } as never);
+    const state = new CallParticipantsState(makeVoiceCallAPI());
 
     await state.load('R1');
     state.handleEnd('R1', 'call-1');
@@ -175,11 +142,7 @@ describe('CallParticipantsState', () => {
   });
 
   it('ignores stale leave and end events from an older call', async () => {
-    const state = new CallParticipantsState({
-      query: vi.fn(() => ({
-        toPromise: vi.fn(async () => ({ data: { room: { callParticipants: [] } } }))
-      }))
-    } as never);
+    const state = new CallParticipantsState(makeVoiceCallAPI());
 
     await state.load('R1');
     state.handleJoin('R1', 'call-2', {

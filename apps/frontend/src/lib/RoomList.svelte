@@ -25,14 +25,16 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     setRoomSidebarPanel
   } from '$lib/storage/roomSidebarPanel';
   import { serverStorageKey } from '$lib/storage/serverStorage';
-  import { useFragment } from './gql';
-  import { PresenceStatus, RoomType, type UserAvatarUserFragment } from '$lib/gql/graphql';
-  import UserAvatar, { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
+  import { useRenderData } from './render/data';
+  import { PresenceStatus, RoomType, type UserAvatarUserView } from '$lib/render/types';
+  import UserAvatar, { UserAvatarViewData } from '$lib/components/UserAvatar.svelte';
   import NotificationBadge from '$lib/ui/NotificationBadge.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
   import { appState } from '$lib/state/globals.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
+  import type { EventEnvelope } from '$lib/eventBus.svelte';
+  import { isMessagePostedEvent, RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
   import {
     type RoomsListItem,
     type RoomsListGroup,
@@ -60,6 +62,26 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   const roomsStore = $derived(stores.rooms);
 
   let activeRoomId = $derived(page.params.roomId);
+
+  function eventRoomId(event: EventEnvelope['event']): string | null {
+    if (!event || !('roomId' in event) || typeof event.roomId !== 'string') return null;
+    return event.roomId;
+  }
+
+  function callEventPayload(
+    event: EventEnvelope['event']
+  ): { roomId: string; callId: string } | null {
+    if (
+      !event ||
+      !('roomId' in event) ||
+      typeof event.roomId !== 'string' ||
+      !('callId' in event) ||
+      typeof event.callId !== 'string'
+    ) {
+      return null;
+    }
+    return { roomId: event.roomId, callId: event.callId };
+  }
 
   // Load active call room IDs whenever the active server has a LiveKit URL.
   // Re-runs on server switch so a server with LiveKit configured fetches its
@@ -133,9 +155,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     return others.slice(0, 3);
   }
 
-  function callParticipantAvatarUser(participant: CallRoomParticipant): UserAvatarUserFragment {
+  function callParticipantAvatarUser(participant: CallRoomParticipant): UserAvatarUserView {
     return {
-      __typename: 'User',
       id: participant.userId,
       login: participant.login,
       displayName: participant.displayName,
@@ -182,29 +203,48 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   // and update voice-call indicators.
   useEvent((serverEvent) => {
     const event = serverEvent.event;
+    if (!event) return;
 
-    if (event.__typename === 'UserLeftRoomEvent' && event.roomId === activeRoomId) {
-      // Only navigate away when *the viewer* leaves the active room.
-      // Without the actor check, any other member's leave (including the
-      // cascade of UserLeftRoomEvents fired when a peer deletes their
-      // account) would yank the viewer out of the room they're in.
-      if (serverEvent.actorId === roomsStore.currentUserId) {
-        goto(resolve('/chat/[serverId]', { serverId: serverSegment }));
+    switch (roomEventKind(event)) {
+      case RoomEventKind.UserLeftRoom:
+        if (eventRoomId(event) === activeRoomId) {
+          // Only navigate away when *the viewer* leaves the active room.
+          // Without the actor check, any other member's leave (including the
+          // cascade of UserLeftRoomEvents fired when a peer deletes their
+          // account) would yank the viewer out of the room they're in.
+          if (serverEvent.actorId === roomsStore.currentUserId) {
+            goto(resolve('/chat/[serverId]', { serverId: serverSegment }));
+          }
+        }
+        break;
+      case RoomEventKind.CallParticipantJoined: {
+        const call = callEventPayload(event);
+        if (!call) break;
+        const actor = serverEvent.actor
+          ? useRenderData(UserAvatarViewData, serverEvent.actor)
+          : null;
+        void activeCallRooms.handleJoin(call.roomId, call.callId, actor);
+        break;
       }
-    } else if (event.__typename === 'CallParticipantJoinedEvent') {
-      const actor = serverEvent.actor ? useFragment(UserAvatarFragment, serverEvent.actor) : null;
-      void activeCallRooms.handleJoin(event.roomId, event.callId, actor);
-    } else if (event.__typename === 'CallParticipantLeftEvent') {
-      activeCallRooms.handleLeave(event.roomId, event.callId, serverEvent.actorId ?? null);
-      voiceCallState.handleParticipantLeftEvent(
-        event.roomId,
-        event.callId,
-        serverEvent.actorId ?? null,
-        roomsStore.currentUserId
-      );
-    } else if (event.__typename === 'CallEndedEvent') {
-      activeCallRooms.handleEnd(event.roomId, event.callId);
-      voiceCallState.handleCallEndedEvent(event.roomId, event.callId);
+      case RoomEventKind.CallParticipantLeft: {
+        const call = callEventPayload(event);
+        if (!call) break;
+        activeCallRooms.handleLeave(call.roomId, call.callId, serverEvent.actorId ?? null);
+        voiceCallState.handleParticipantLeftEvent(
+          call.roomId,
+          call.callId,
+          serverEvent.actorId ?? null,
+          roomsStore.currentUserId
+        );
+        break;
+      }
+      case RoomEventKind.CallEnded: {
+        const call = callEventPayload(event);
+        if (!call) break;
+        activeCallRooms.handleEnd(call.roomId, call.callId);
+        voiceCallState.handleCallEndedEvent(call.roomId, call.callId);
+        break;
+      }
     }
   });
 
@@ -221,7 +261,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   useEvent((serverEvent) => {
     const event = serverEvent.event;
     if (!event) return;
-    if (event.__typename !== 'MessagePostedEvent') return;
+    if (!isMessagePostedEvent(event)) return;
     if (event.threadRootEventId) return; // root messages only
 
     // Bump DM rooms to the top of the Direct Messages section on ANY

@@ -13,6 +13,49 @@ type notificationPreferencesService struct {
 	api *API
 }
 
+func (s *notificationPreferencesService) GetServerNotificationPreference(ctx context.Context, _ *connect.Request[apiv1.GetServerNotificationPreferenceRequest]) (*connect.Response[apiv1.GetServerNotificationPreferenceResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	level, err := s.api.core.GetSpaceNotificationLevel(ctx, caller.UserID)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	effectiveLevel := level
+	if effectiveLevel == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
+		effectiveLevel = corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL
+	}
+	return connect.NewResponse(&apiv1.GetServerNotificationPreferenceResponse{
+		Level:          coreNotificationLevelToAPI(level),
+		EffectiveLevel: coreNotificationLevelToAPI(effectiveLevel),
+	}), nil
+}
+
+func (s *notificationPreferencesService) SetServerNotificationLevel(ctx context.Context, req *connect.Request[apiv1.SetServerNotificationLevelRequest]) (*connect.Response[apiv1.SetServerNotificationLevelResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	level, err := apiNotificationLevelToCore(req.Msg.Level)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.api.core.SetSpaceNotificationLevel(ctx, caller.UserID, level); err != nil {
+		return nil, connectError(err)
+	}
+	effectiveLevel := level
+	if effectiveLevel == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
+		effectiveLevel = corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL
+	}
+	return connect.NewResponse(&apiv1.SetServerNotificationLevelResponse{
+		Level:          coreNotificationLevelToAPI(level),
+		EffectiveLevel: coreNotificationLevelToAPI(effectiveLevel),
+	}), nil
+}
+
 func (s *notificationPreferencesService) GetRoomNotificationPreference(ctx context.Context, req *connect.Request[apiv1.GetRoomNotificationPreferenceRequest]) (*connect.Response[apiv1.GetRoomNotificationPreferenceResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {

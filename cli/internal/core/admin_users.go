@@ -32,8 +32,8 @@ type AdminCreateUserRequest struct {
 	RoleNames     []string
 }
 
-// AdminUpdateUserRequest describes one operator profile update.
-type AdminUpdateUserRequest struct {
+// AdminUpdateOperatorUserRequest describes one operator profile update.
+type AdminUpdateOperatorUserRequest struct {
 	UserID      string
 	Login       *string
 	DisplayName *string
@@ -152,9 +152,9 @@ func (c *ChattoCore) AdminCreateUser(ctx context.Context, req AdminCreateUserReq
 	return adminUser, nil
 }
 
-// AdminUpdateUser updates admin-managed profile fields and returns the hydrated
-// user view.
-func (c *ChattoCore) AdminUpdateUser(ctx context.Context, req AdminUpdateUserRequest) (*AdminUserView, error) {
+// AdminUpdateOperatorUser updates operator-managed profile fields and returns
+// the hydrated user view.
+func (c *ChattoCore) AdminUpdateOperatorUser(ctx context.Context, req AdminUpdateOperatorUserRequest) (*AdminUserView, error) {
 	if req.Login == nil && req.DisplayName == nil {
 		return nil, ErrInvalidArgument
 	}

@@ -32,4 +32,4 @@ This decision does not make DMs globally visible. It removes the redundant read 
 - Users do not lose read access to conversations they are already part of because an operator toggled a broad server permission.
 - The authorization model becomes easier to explain: membership answers "can read this room?", while `message.*` permissions answer "can perform this messaging capability?"
 - Subscription filtering and sidebar queries no longer need a second DM-specific read check on top of membership.
-- GraphQL fields, frontend guards, tests, and permission seed data that existed only for `dm.view` / `dm.write` have been removed.
+- API fields, frontend guards, tests, and permission seed data that existed only for `dm.view` / `dm.write` have been removed.

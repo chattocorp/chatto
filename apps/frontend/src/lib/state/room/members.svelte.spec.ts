@@ -1,32 +1,22 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { Client } from '@urql/svelte';
-import type { GraphQLClient } from '$lib/state/server/graphqlClient.svelte';
-import { PresenceStatus } from '$lib/gql/graphql';
+import type { EventEnvelope } from '$lib/eventBus.svelte';
+import { RoomEventKind } from '$lib/render/eventKinds';
+import { PresenceStatus } from '$lib/render/types';
+import type { MemberDirectoryAPI, MemberDirectoryPage } from '$lib/api/memberDirectory';
 import { RoomMembersStore } from './members.svelte';
 
-type OperationResult = {
-  data?: unknown;
-  error?: unknown;
-};
+class FakeMemberDirectoryAPI {
+  listRoomMembers: MemberDirectoryAPI['listRoomMembers'];
+  listServerMembers: MemberDirectoryAPI['listServerMembers'];
 
-class FakeGqlClient {
-  client: Client;
-  queryMock: ReturnType<typeof vi.fn>;
-
-  constructor(results: Array<OperationResult | Promise<OperationResult>>) {
+  constructor(results: Array<MemberDirectoryPage | Promise<MemberDirectoryPage>>) {
     const queue = [...results];
-    this.queryMock = vi.fn(() => ({
-      toPromise: async () => {
-        const result = queue.shift();
-        if (!result) throw new Error('Unexpected room members query');
-        return result;
-      }
-    }));
-    this.client = {
-      query: this.queryMock,
-      mutation: vi.fn(),
-      subscription: vi.fn()
-    } as unknown as Client;
+    this.listRoomMembers = vi.fn(async () => {
+      const result = queue.shift();
+      if (!result) throw new Error('Unexpected room members query');
+      return result;
+    });
+    this.listServerMembers = vi.fn();
   }
 }
 
@@ -40,13 +30,15 @@ function deferred<T>() {
 
 function user(id: string, login = id) {
   return {
-    __typename: 'User',
     id,
     login,
     displayName: login,
     deleted: false,
     avatarUrl: null,
-    presenceStatus: PresenceStatus.Online
+    presenceStatus: PresenceStatus.Online,
+    customStatus: null,
+    roles: [],
+    createdAt: null
   };
 }
 
@@ -54,23 +46,16 @@ function pageResult(
   users: ReturnType<typeof user>[],
   hasMore = false,
   totalCount = users.length
-): OperationResult {
+): MemberDirectoryPage {
   return {
-    data: {
-      room: {
-        members: {
-          users,
-          totalCount,
-          hasMore
-        }
-      }
-    },
-    error: null
+    members: users,
+    totalCount,
+    hasMore
   };
 }
 
-function createStore(results: Array<OperationResult | Promise<OperationResult>>) {
-  return new RoomMembersStore(new FakeGqlClient(results) as unknown as GraphQLClient);
+function createStore(results: Array<MemberDirectoryPage | Promise<MemberDirectoryPage>>) {
+  return new RoomMembersStore(new FakeMemberDirectoryAPI(results));
 }
 
 describe('RoomMembersStore', () => {
@@ -105,8 +90,8 @@ describe('RoomMembersStore', () => {
 
   it('marks failed initial loads as loaded to avoid immediate ensureLoaded retries', async () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const fakeClient = new FakeGqlClient([{ data: null, error: new Error('network failed') }]);
-    const store = new RoomMembersStore(fakeClient as unknown as GraphQLClient);
+    const fakeAPI = new FakeMemberDirectoryAPI([Promise.reject(new Error('network failed'))]);
+    const store = new RoomMembersStore(fakeAPI);
 
     try {
       store.setRoom('room-1');
@@ -119,7 +104,7 @@ describe('RoomMembersStore', () => {
 
       store.ensureLoaded();
 
-      expect(fakeClient.queryMock).toHaveBeenCalledTimes(1);
+      expect(fakeAPI.listRoomMembers).toHaveBeenCalledTimes(1);
     } finally {
       consoleErrorSpy.mockRestore();
     }
@@ -127,11 +112,11 @@ describe('RoomMembersStore', () => {
 
   it('does not expose partial members when a later eager page fails', async () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const fakeClient = new FakeGqlClient([
+    const fakeAPI = new FakeMemberDirectoryAPI([
       pageResult([user('u1', 'alice')], true, 3),
-      { data: null, error: new Error('network failed') }
+      Promise.reject(new Error('network failed'))
     ]);
-    const store = new RoomMembersStore(fakeClient as unknown as GraphQLClient);
+    const store = new RoomMembersStore(fakeAPI);
 
     try {
       store.setRoom('room-1');
@@ -142,15 +127,15 @@ describe('RoomMembersStore', () => {
       expect(store.hasLoaded).toBe(true);
       expect(store.filteredMembers).toEqual([]);
       expect(await store.searchMembers('alice')).toEqual([]);
-      expect(fakeClient.queryMock).toHaveBeenCalledTimes(2);
+      expect(fakeAPI.listRoomMembers).toHaveBeenCalledTimes(2);
     } finally {
       consoleErrorSpy.mockRestore();
     }
   });
 
   it('refresh clears a stale initial loading state when it invalidates an initial load', async () => {
-    const initial = deferred<OperationResult>();
-    const refresh = deferred<OperationResult>();
+    const initial = deferred<MemberDirectoryPage>();
+    const refresh = deferred<MemberDirectoryPage>();
     const store = createStore([initial.promise, refresh.promise]);
 
     store.setRoom('room-1');
@@ -195,14 +180,41 @@ describe('RoomMembersStore', () => {
     expect(store.totalCount).toBe(3);
   });
 
+  it('refreshes from room membership events using local event kind', async () => {
+    const fakeAPI = new FakeMemberDirectoryAPI([
+      pageResult([user('u1', 'initial')], false, 1),
+      pageResult([user('u2', 'joined')], false, 1)
+    ]);
+    const store = new RoomMembersStore(fakeAPI);
+
+    store.setRoom('room-1');
+    await store.loadInitial();
+
+    store.ingestServerEvent({
+      id: 'evt-1',
+      roomId: 'room-1',
+      actorId: 'u2',
+      createdAt: new Date().toISOString(),
+      event: {
+        kind: RoomEventKind.UserJoinedRoom,
+        roomId: 'room-1'
+      }
+    } as EventEnvelope);
+
+    await vi.waitFor(() => {
+      expect(fakeAPI.listRoomMembers).toHaveBeenCalledTimes(2);
+      expect(store.members.map((member) => member.login)).toEqual(['joined']);
+    });
+  });
+
   it('preserves the previous complete snapshot when refresh fails mid-load', async () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const fakeClient = new FakeGqlClient([
+    const fakeAPI = new FakeMemberDirectoryAPI([
       pageResult([user('u1', 'initial')], false, 1),
       pageResult([user('u2', 'refresh-a')], true, 3),
-      { data: null, error: new Error('network failed') }
+      Promise.reject(new Error('network failed'))
     ]);
-    const store = new RoomMembersStore(fakeClient as unknown as GraphQLClient);
+    const store = new RoomMembersStore(fakeAPI);
 
     try {
       store.setRoom('room-1');

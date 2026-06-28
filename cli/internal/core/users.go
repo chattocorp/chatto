@@ -763,6 +763,10 @@ func (c *ChattoCore) AdminUpdateUserDisplayName(ctx context.Context, userID, dis
 // single admin-authored mutation. When both fields are changed, both durable
 // events are appended atomically in one batch.
 func (c *ChattoCore) AdminUpdateUserProfile(ctx context.Context, userID string, login, displayName *string) (*corev1.User, error) {
+	return c.updateUserProfileAs(ctx, SystemActorID, userID, login, displayName)
+}
+
+func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID string, login, displayName *string) (*corev1.User, error) {
 	user, err := c.GetUser(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)
@@ -811,7 +815,7 @@ func (c *ChattoCore) AdminUpdateUserProfile(ctx context.Context, userID string, 
 	agg := events.UserAggregate(userID)
 	entries := make([]events.BatchEntry, 0, 2)
 	if loginChanged {
-		loginChangedEvent := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_UserLoginChanged{
+		loginChangedEvent := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserLoginChanged{
 			UserLoginChanged: &corev1.UserLoginChangedEvent{UserId: userID},
 		}})
 		encryptedLogin, err := c.encryptUserPIIString(ctx, loginChangedEvent.GetId(), userID, events.EventUserLoginChanged, "login", nextLogin)
@@ -822,7 +826,7 @@ func (c *ChattoCore) AdminUpdateUserProfile(ctx context.Context, userID string, 
 		entries = append(entries, events.BatchEntry{Subject: agg.SubjectFor(loginChangedEvent), Event: loginChangedEvent})
 	}
 	if displayNameChanged {
-		displayNameChangedEvent := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_UserDisplayNameChanged{
+		displayNameChangedEvent := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserDisplayNameChanged{
 			UserDisplayNameChanged: &corev1.UserDisplayNameChangedEvent{UserId: userID},
 		}})
 		encryptedDisplayName, err := c.encryptUserPIIString(ctx, displayNameChangedEvent.GetId(), userID, events.EventUserDisplayNameChanged, "display_name", nextDisplayName)
@@ -867,6 +871,48 @@ func (c *ChattoCore) AdminUpdateUserProfile(ctx context.Context, userID string, 
 	c.logger.Info("Admin updated user profile", "id", userID)
 	c.publishUserProfileUpdate(ctx, userID)
 	return user, nil
+}
+
+type AdminUpdateUserInput struct {
+	Login       *string
+	DisplayName *string
+}
+
+func (c *ChattoCore) AdminUpdateUser(ctx context.Context, actorID, targetUserID string, input AdminUpdateUserInput) (*corev1.User, error) {
+	if err := c.requireCanAdminManageUser(ctx, actorID, targetUserID); err != nil {
+		return nil, err
+	}
+	if input.Login == nil && input.DisplayName == nil {
+		return nil, fmt.Errorf("%w: at least one of login or display_name must be provided", ErrInvalidArgument)
+	}
+	return c.updateUserProfileAs(ctx, actorID, targetUserID, input.Login, input.DisplayName)
+}
+
+func (c *ChattoCore) AdminClearLoginChangeCooldown(ctx context.Context, actorID, targetUserID string) error {
+	if err := c.requireCanAdminManageUser(ctx, actorID, targetUserID); err != nil {
+		return err
+	}
+	return c.ClearLoginChangeCooldown(ctx, targetUserID)
+}
+
+func (c *ChattoCore) requireCanAdminManageUser(ctx context.Context, actorID, targetUserID string) error {
+	if actorID == "" {
+		return ErrNotAuthenticated
+	}
+	if targetUserID == "" {
+		return fmt.Errorf("%w: target user ID is required", ErrInvalidArgument)
+	}
+	if actorID == targetUserID {
+		return nil
+	}
+	canManage, err := c.CanAssignRoles(ctx, actorID)
+	if err != nil {
+		return fmt.Errorf("check role.assign: %w", err)
+	}
+	if !canManage {
+		return ErrPermissionDenied
+	}
+	return nil
 }
 
 // ============================================================================

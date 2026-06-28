@@ -1,15 +1,15 @@
 <script lang="ts">
-  import type { RoomEventViewFragment, UserAvatarUserFragment } from '$lib/gql/graphql';
+  import type { RoomEventView, UserAvatarUserView } from '$lib/render/types';
   import type { SystemGroupKind } from './virtualItems';
-  import UserAvatar, { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
-  import { useFragment } from '$lib/gql/fragment-masking';
+  import UserAvatar, { UserAvatarViewData } from '$lib/components/UserAvatar.svelte';
+  import { useRenderData } from '$lib/render/data';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
 
   let {
     events,
     kind
   }: {
-    events: RoomEventViewFragment[];
+    events: RoomEventView[];
     kind: SystemGroupKind;
   } = $props();
 
@@ -25,15 +25,15 @@
   type Actor = {
     id: string;
     name: string;
-    user: UserAvatarUserFragment | null;
+    user: UserAvatarUserView | null;
   };
 
-  function displayName(user: UserAvatarUserFragment): string {
+  function displayName(user: UserAvatarUserView): string {
     return getLiveDisplayName(user.id, user.displayName || user.login);
   }
 
-  function eventSubject(event: RoomEventViewFragment): Actor {
-    const actor = event?.actor ? useFragment(UserAvatarFragment, event.actor) : null;
+  function eventSubject(event: RoomEventView): Actor {
+    const actor = event?.actor ? useRenderData(UserAvatarViewData, event.actor) : null;
     if (actor) {
       return { id: actor.id, name: displayName(actor), user: actor };
     }

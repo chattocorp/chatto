@@ -201,6 +201,10 @@ func (c *ChattoCore) RecordCallParticipantLeft(ctx context.Context, kind RoomKin
 	return c.callModel.AppendLeft(ctx, roomID, userID, source)
 }
 
+func (c *ChattoCore) VoiceCallRoomForMember(ctx context.Context, actorID, roomID string) (*corev1.Room, RoomKind, error) {
+	return c.requireRoomMember(ctx, actorID, roomID)
+}
+
 func (c *ChattoCore) GetVoiceCallE2EEKey(ctx context.Context, roomID string) (string, error) {
 	if c.callModel == nil {
 		return "", fmt.Errorf("call model is not initialized")

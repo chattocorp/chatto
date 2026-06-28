@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ArchiveRoomRequest, ArchiveRoomResponse, BanRoomMemberRequest, BanRoomMemberResponse, CreateRoomRequest, CreateRoomResponse, JoinRoomRequest, JoinRoomResponse, LeaveRoomRequest, LeaveRoomResponse, SetRoomUniversalRequest, SetRoomUniversalResponse, StartDMRequest, StartDMResponse, UnarchiveRoomRequest, UnarchiveRoomResponse, UnbanRoomMemberRequest, UnbanRoomMemberResponse, UpdateRoomRequest, UpdateRoomResponse } from "./rooms_pb.js";
+import { ArchiveRoomRequest, ArchiveRoomResponse, BanRoomMemberRequest, BanRoomMemberResponse, CreateRoomRequest, CreateRoomResponse, JoinRoomRequest, JoinRoomResponse, LeaveRoomRequest, LeaveRoomResponse, ListRoomBansRequest, ListRoomBansResponse, SetRoomUniversalRequest, SetRoomUniversalResponse, StartDMRequest, StartDMResponse, UnarchiveRoomRequest, UnarchiveRoomResponse, UnbanRoomMemberRequest, UnbanRoomMemberResponse, UpdateRoomRequest, UpdateRoomResponse } from "./rooms_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -107,6 +107,18 @@ export const RoomService = {
       name: "LeaveRoom",
       I: LeaveRoomRequest,
       O: LeaveRoomResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Lists active channel room bans. The caller must be allowed to moderate room
+     * membership bans.
+     *
+     * @generated from rpc chatto.api.v1.RoomService.ListRoomBans
+     */
+    listRoomBans: {
+      name: "ListRoomBans",
+      I: ListRoomBansRequest,
+      O: ListRoomBansResponse,
       kind: MethodKind.Unary,
     },
     /**

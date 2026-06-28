@@ -949,6 +949,7 @@ const msg_admin_members_assigned_role = (
 const msg_admin_members_removed_role = (
   inputs: Parameters<LocaleMessages['admin_members_removed_role']>[0]
 ): LocalizedString => messages().admin_members_removed_role(inputs);
+const msg_admin_members_role_update_failed = (): LocalizedString => messages().admin_members_role_update_failed(empty());
 const msg_admin_permissions_title = (): LocalizedString => messages().admin_permissions_title(empty());
 const msg_admin_permissions_subtitle = (): LocalizedString => messages().admin_permissions_subtitle(empty());
 const msg_admin_permissions_role_presets = (): LocalizedString => messages().admin_permissions_role_presets(empty());
@@ -2015,6 +2016,7 @@ export { msg_admin_members_cannot_revoke_own_role as 'admin.members.cannot_revok
 export { msg_admin_members_edit as 'admin.members.edit' };
 export { msg_admin_members_assigned_role as 'admin.members.assigned_role' };
 export { msg_admin_members_removed_role as 'admin.members.removed_role' };
+export { msg_admin_members_role_update_failed as 'admin.members.role_update_failed' };
 export { msg_admin_permissions_title as 'admin.permissions.title' };
 export { msg_admin_permissions_subtitle as 'admin.permissions.subtitle' };
 export { msg_admin_permissions_role_presets as 'admin.permissions.role_presets' };

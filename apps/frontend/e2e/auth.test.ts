@@ -1,7 +1,14 @@
 import { test, expect } from './setup';
 import { csrfHeaders } from './fixtures/csrf';
 import { createAndLoginTestUser } from './fixtures/testUser';
+import { connectPost } from './fixtures/connectHelpers';
 import * as routes from './routes';
+
+interface E2EViewerResponse {
+  user?: {
+    hasVerifiedEmail?: boolean;
+  };
+}
 
 test.describe('Return URL after login', () => {
   test('redirects to original URL after email login', async ({ page, authPage }) => {
@@ -175,7 +182,9 @@ test.describe('Authentication', () => {
 
     await page.goto('/?welcome=true');
 
-    await expect(page.getByText('Your email has been verified and your account is ready.')).toBeVisible();
+    await expect(
+      page.getByText('Your email has been verified and your account is ready.')
+    ).toBeVisible();
   });
 
   test.describe('Registration Form (Step 1 — Email)', () => {
@@ -488,18 +497,11 @@ test.describe('Authentication', () => {
       await page.goto('/chat');
       await page.waitForURL(routes.patterns.chatRedirect);
 
-      // Check that user has verified email via GraphQL
-      const meResponse = await page.request.post('/api/graphql', {
-        headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-        data: {
-          query: `query { viewer { user { id hasVerifiedEmail verifiedEmails } } }`
-        }
-      });
-
-      expect(meResponse.ok()).toBeTruthy();
-      const meData = await meResponse.json();
-      expect(meData.data.viewer.user.hasVerifiedEmail).toBe(true);
-      expect(meData.data.viewer.user.verifiedEmails).toContain(testEmail);
+      const viewer = await connectPost<E2EViewerResponse>(
+        page,
+        'chatto.api.v1.ViewerService/GetViewer'
+      );
+      expect(viewer.user?.hasVerifiedEmail).toBe(true);
     });
   });
 
@@ -515,18 +517,11 @@ test.describe('Authentication', () => {
       expect(data.isNewUser).toBe(true);
       expect(data.user.id).toBeTruthy();
 
-      // Check that user has verified email via GraphQL
-      const meResponse = await page.request.post('/api/graphql', {
-        headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-        data: {
-          query: `query { viewer { user { id hasVerifiedEmail verifiedEmails } } }`
-        }
-      });
-
-      expect(meResponse.ok()).toBeTruthy();
-      const meData = await meResponse.json();
-      expect(meData.data.viewer.user.hasVerifiedEmail).toBe(true);
-      expect(meData.data.viewer.user.verifiedEmails).toContain(oauthEmail);
+      const viewer = await connectPost<E2EViewerResponse>(
+        page,
+        'chatto.api.v1.ViewerService/GetViewer'
+      );
+      expect(viewer.user?.hasVerifiedEmail).toBe(true);
     });
 
     test('existing OAuth user logs in by verified email', async ({ page, authPage }) => {

@@ -42,9 +42,11 @@ func (c *ChattoCore) CanManageRoles(ctx context.Context, userID string) (bool, e
 }
 
 // CanAdminSystemView checks if a user can view system projection diagnostics
-// in admin. The full systemInfo field is owner-only.
+// in admin. The diagnostics endpoint exposes low-level system state and is
+// owner-only, so this mirrors GetAdminDiagnostics instead of the historical
+// admin.view-system permission flag.
 func (c *ChattoCore) CanAdminSystemView(ctx context.Context, userID string) (bool, error) {
-	return c.HasServerPermission(ctx, userID, PermAdminSystemView)
+	return c.IsServerOwner(ctx, userID)
 }
 
 // CanAdminAuditView checks if a user can view the audit log (event log)

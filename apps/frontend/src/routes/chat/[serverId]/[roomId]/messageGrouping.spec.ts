@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { computeEventMetadata } from './messageGrouping';
-import type { RoomEventViewFragment } from '$lib/gql/graphql';
+import type { RoomEventView } from '$lib/render/types';
+import { RoomEventKind } from '$lib/render/eventKinds';
 import type { UserSettingsState } from '$lib/state/userSettings.svelte';
 
 // Mock settings with explicit UTC timezone so tests are deterministic regardless of host TZ
@@ -18,12 +19,12 @@ function createMockEvent(
     id: string;
     actorId: string;
     createdAt: string;
-    typename: 'MessagePostedEvent' | 'UserJoinedRoomEvent' | 'UserLeftRoomEvent';
+    kind: RoomEventKind;
     body: string | null;
     attachments: unknown[];
   }> = {}
-): RoomEventViewFragment {
-  const typename = overrides.typename ?? 'MessagePostedEvent';
+): RoomEventView {
+  const kind = overrides.kind ?? RoomEventKind.MessagePosted;
 
   const baseEvent = {
     id: overrides.id ?? `evt_${Math.random().toString(36).slice(2)}`,
@@ -32,15 +33,18 @@ function createMockEvent(
     actor: {
       id: overrides.actorId ?? 'u_user1',
       login: 'testuser',
+      displayName: 'Test User',
+      deleted: false,
+      presenceStatus: 'ONLINE',
       avatarUrl: null
     }
   };
 
-  if (typename === 'MessagePostedEvent') {
+  if (kind === RoomEventKind.MessagePosted) {
     return {
       ...baseEvent,
       event: {
-        __typename: 'MessagePostedEvent',
+        kind,
         roomId: 'r_test',
 
         body: 'body' in overrides ? overrides.body : 'Test message',
@@ -55,17 +59,17 @@ function createMockEvent(
         threadParticipants: [],
         viewerIsFollowingThread: null
       }
-    } as RoomEventViewFragment;
+    } as RoomEventView;
   }
 
-	return {
-		...baseEvent,
-		event: {
-			__typename: typename,
-			roomId: 'r_test',
-			userId: baseEvent.actorId
-		}
-	} as RoomEventViewFragment;
+  return {
+    ...baseEvent,
+    event: {
+      kind,
+      roomId: 'r_test',
+      userId: baseEvent.actorId
+    }
+  } as RoomEventView;
 }
 
 describe('computeEventMetadata', () => {
@@ -122,6 +126,26 @@ describe('computeEventMetadata', () => {
       expect(result[2].isFirstInGroup).toBe(false);
     });
 
+    it('groups kind-discriminated messages from the same user', () => {
+      const events = [
+        createMockEvent({
+          id: 'evt_1',
+          actorId: 'u_alice',
+          createdAt: '2025-11-28T10:00:00Z'
+        }),
+        createMockEvent({
+          id: 'evt_2',
+          actorId: 'u_alice',
+          createdAt: '2025-11-28T10:05:00Z'
+        })
+      ];
+
+      const result = computeEventMetadata(events, defaultSettings);
+
+      expect(result[0].isFirstInGroup).toBe(true);
+      expect(result[1].isFirstInGroup).toBe(false);
+    });
+
     it('starts new group when more than 10 minutes apart', () => {
       const events = [
         createMockEvent({
@@ -168,19 +192,19 @@ describe('computeEventMetadata', () => {
           id: 'evt_1',
           actorId: 'u_alice',
           createdAt: '2025-11-28T10:00:00Z',
-          typename: 'MessagePostedEvent'
+          kind: RoomEventKind.MessagePosted
         }),
         createMockEvent({
           id: 'evt_2',
           actorId: 'u_alice',
           createdAt: '2025-11-28T10:01:00Z',
-          typename: 'UserJoinedRoomEvent'
+          kind: RoomEventKind.UserJoinedRoom
         }),
         createMockEvent({
           id: 'evt_3',
           actorId: 'u_alice',
           createdAt: '2025-11-28T10:02:00Z',
-          typename: 'MessagePostedEvent'
+          kind: RoomEventKind.MessagePosted
         })
       ];
 

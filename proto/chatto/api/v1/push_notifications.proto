@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "buf/validate/validate.proto";
+
+// Browser Web Push subscription commands for the current user.
+service PushNotificationService {
+  // Stores or updates the caller's browser push subscription.
+  //
+  // The server must have Web Push configured. Clients normally call this after
+  // the browser grants notification permission and returns a PushSubscription.
+  rpc Subscribe(SubscribeRequest) returns (SubscribeResponse);
+
+  // Removes the caller's browser push subscription by endpoint.
+  //
+  // The call is idempotent: removing an unknown endpoint still succeeds.
+  rpc Unsubscribe(UnsubscribeRequest) returns (UnsubscribeResponse);
+}
+
+// Request to store a PushSubscription returned by the browser Push API.
+message SubscribeRequest {
+  // Push service endpoint URL.
+  string endpoint = 1 [(buf.validate.field).string.max_len = 4096];
+
+  // Client P-256 ECDH public key from PushSubscription.keys.p256dh.
+  string p256dh = 2 [(buf.validate.field).string.max_len = 256];
+
+  // Authentication secret from PushSubscription.keys.auth.
+  string auth = 3 [(buf.validate.field).string.max_len = 128];
+
+  // Optional browser user-agent string for device identification.
+  optional string user_agent = 4 [(buf.validate.field).string.max_len = 512];
+}
+
+// Response from storing a browser push subscription.
+message SubscribeResponse {
+  // True when the subscription was stored.
+  bool subscribed = 1;
+}
+
+// Request to remove a browser push subscription.
+message UnsubscribeRequest {
+  // Push service endpoint URL to remove.
+  string endpoint = 1 [(buf.validate.field).string.max_len = 4096];
+}
+
+// Response from removing a browser push subscription.
+message UnsubscribeResponse {
+  // True when the request completed.
+  bool unsubscribed = 1;
+}

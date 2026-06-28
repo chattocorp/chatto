@@ -1,20 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ensureRegistered, onNotificationClick } from './pushNotifications';
+import { ensureRegistered, onNotificationClick, unsubscribe } from './pushNotifications';
 
 const mocks = vi.hoisted(() => ({
-  mutation: vi.fn()
+  createPushNotificationAPI: vi.fn(),
+  subscribePush: vi.fn(),
+  unsubscribePush: vi.fn()
 }));
 
-vi.mock('$lib/gql', () => ({
-  graphql: (source: TemplateStringsArray) => ({ source })
+vi.mock('$lib/api/pushNotifications', () => ({
+  createPushNotificationAPI: mocks.createPushNotificationAPI
 }));
 
-vi.mock('$lib/state/server/graphqlClient.svelte', () => ({
-  graphqlClientManager: {
+vi.mock('$lib/state/server/serverConnection.svelte', () => ({
+  serverConnectionManager: {
     originClient: {
-      client: {
-        mutation: mocks.mutation
-      }
+      connectBaseUrl: 'https://origin.test/api/connect',
+      bearerToken: 'origin-token'
     }
   }
 }));
@@ -119,13 +120,15 @@ describe('pushNotifications.ensureRegistered', () => {
   beforeEach(() => {
     permission = 'default';
     installPushGlobals();
-    mocks.mutation.mockReset();
-    mocks.mutation.mockReturnValue({
-      toPromise: vi.fn().mockResolvedValue({
-        data: { subscribeToPush: true },
-        error: null
-      })
+    mocks.createPushNotificationAPI.mockReset();
+    mocks.createPushNotificationAPI.mockReturnValue({
+      subscribe: mocks.subscribePush,
+      unsubscribe: mocks.unsubscribePush
     });
+    mocks.subscribePush.mockReset();
+    mocks.subscribePush.mockResolvedValue(true);
+    mocks.unsubscribePush.mockReset();
+    mocks.unsubscribePush.mockResolvedValue(true);
   });
 
   it('does not prompt or mutate when permission is default and prompt is false', async () => {
@@ -135,7 +138,7 @@ describe('pushNotifications.ensureRegistered', () => {
     expect(requestPermission).not.toHaveBeenCalled();
     expect(getSubscription).not.toHaveBeenCalled();
     expect(subscribe).not.toHaveBeenCalled();
-    expect(mocks.mutation).not.toHaveBeenCalled();
+    expect(mocks.subscribePush).not.toHaveBeenCalled();
   });
 
   it('saves an existing subscription when permission is granted', async () => {
@@ -145,13 +148,15 @@ describe('pushNotifications.ensureRegistered', () => {
 
     await expect(ensureRegistered('dmFwaWQ', { prompt: false })).resolves.toBe(true);
     expect(subscribe).not.toHaveBeenCalled();
-    expect(mocks.mutation).toHaveBeenCalledWith(expect.anything(), {
-      input: {
-        endpoint: 'https://push.example/existing',
-        p256dh: 'p256dh-key',
-        auth: 'auth-secret',
-        userAgent: 'test-agent'
-      }
+    expect(mocks.createPushNotificationAPI).toHaveBeenCalledWith({
+      baseUrl: 'https://origin.test/api/connect',
+      bearerToken: 'origin-token'
+    });
+    expect(mocks.subscribePush).toHaveBeenCalledWith({
+      endpoint: 'https://push.example/existing',
+      p256dh: 'p256dh-key',
+      auth: 'auth-secret',
+      userAgent: 'test-agent'
     });
   });
 
@@ -166,12 +171,9 @@ describe('pushNotifications.ensureRegistered', () => {
       userVisibleOnly: true,
       applicationServerKey: expect.any(Uint8Array)
     });
-    expect(mocks.mutation).toHaveBeenCalledWith(
-      expect.anything(),
+    expect(mocks.subscribePush).toHaveBeenCalledWith(
       expect.objectContaining({
-        input: expect.objectContaining({
-          endpoint: 'https://push.example/created'
-        })
+        endpoint: 'https://push.example/created'
       })
     );
   });
@@ -184,19 +186,14 @@ describe('pushNotifications.ensureRegistered', () => {
     await expect(ensureRegistered('dmFwaWQ', { prompt: true })).resolves.toBe(true);
     expect(requestPermission).toHaveBeenCalledOnce();
     expect(subscribe).toHaveBeenCalledOnce();
-    expect(mocks.mutation).toHaveBeenCalledOnce();
+    expect(mocks.subscribePush).toHaveBeenCalledOnce();
   });
 
   it('cleans up only a newly created subscription when server save fails', async () => {
     permission = 'granted';
     const existingSubscription = makeSubscription('https://push.example/existing');
     getSubscription.mockResolvedValueOnce(existingSubscription);
-    mocks.mutation.mockReturnValueOnce({
-      toPromise: vi.fn().mockResolvedValue({
-        data: null,
-        error: new Error('save failed')
-      })
-    });
+    mocks.subscribePush.mockResolvedValueOnce(false);
 
     await expect(ensureRegistered('dmFwaWQ', { prompt: false })).resolves.toBe(false);
     expect(existingSubscription.unsubscribe).not.toHaveBeenCalled();
@@ -204,15 +201,21 @@ describe('pushNotifications.ensureRegistered', () => {
     const createdSubscription = makeSubscription('https://push.example/created');
     getSubscription.mockResolvedValueOnce(null);
     subscribe.mockResolvedValueOnce(createdSubscription);
-    mocks.mutation.mockReturnValueOnce({
-      toPromise: vi.fn().mockResolvedValue({
-        data: null,
-        error: new Error('save failed')
-      })
-    });
+    mocks.subscribePush.mockResolvedValueOnce(false);
 
     await expect(ensureRegistered('dmFwaWQ', { prompt: false })).resolves.toBe(false);
     expect(createdSubscription.unsubscribe).toHaveBeenCalledOnce();
+  });
+
+  it('unsubscribes from the server before unsubscribing the browser subscription', async () => {
+    permission = 'granted';
+    const subscription = makeSubscription('https://push.example/existing');
+    getSubscription.mockResolvedValue(subscription);
+
+    await expect(unsubscribe()).resolves.toBe(true);
+
+    expect(mocks.unsubscribePush).toHaveBeenCalledWith('https://push.example/existing');
+    expect(subscription.unsubscribe).toHaveBeenCalledOnce();
   });
 });
 

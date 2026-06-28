@@ -46,6 +46,56 @@ func TestRoomTimelineReadModelRequiresMembership(t *testing.T) {
 	if _, err := core.RoomTimelineReads().GetRoomEventsAround(ctx, outsider.Id, room.Id, message.Id, 3); !errors.Is(err, ErrNotRoomMember) {
 		t.Fatalf("GetRoomEventsAround outsider error = %v, want ErrNotRoomMember", err)
 	}
+
+	if _, err := core.RoomTimelineReads().ResolveMessageLinkTarget(ctx, outsider.Id, room.Id, message.Id); !errors.Is(err, ErrNotRoomMember) {
+		t.Fatalf("ResolveMessageLinkTarget outsider error = %v, want ErrNotRoomMember", err)
+	}
+}
+
+func TestRoomTimelineReadModelResolvesMessageLinkTargets(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "message-link-target", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	user, err := core.CreateUser(ctx, SystemActorID, "message-link-reader", "Message Link Reader", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+
+	root, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("Post root: %v", err)
+	}
+	reply, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "reply", nil, root.Id, "", nil, false)
+	if err != nil {
+		t.Fatalf("Post reply: %v", err)
+	}
+
+	rootResult, err := core.RoomTimelineReads().ResolveMessageLinkTarget(ctx, user.Id, room.Id, root.Id)
+	if err != nil {
+		t.Fatalf("ResolveMessageLinkTarget root: %v", err)
+	}
+	if rootResult.Event.GetId() != root.Id || rootResult.ThreadRootEventID != "" {
+		t.Fatalf("root target = event %q thread %q, want event %q no thread", rootResult.Event.GetId(), rootResult.ThreadRootEventID, root.Id)
+	}
+
+	replyResult, err := core.RoomTimelineReads().ResolveMessageLinkTarget(ctx, user.Id, room.Id, reply.Id)
+	if err != nil {
+		t.Fatalf("ResolveMessageLinkTarget reply: %v", err)
+	}
+	if replyResult.Event.GetId() != reply.Id || replyResult.ThreadRootEventID != root.Id {
+		t.Fatalf("reply target = event %q thread %q, want event %q thread %q", replyResult.Event.GetId(), replyResult.ThreadRootEventID, reply.Id, root.Id)
+	}
+
+	if _, err := core.RoomTimelineReads().ResolveMessageLinkTarget(ctx, user.Id, room.Id, "missing-event"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("missing target error = %v, want ErrNotFound", err)
+	}
 }
 
 func TestRoomTimelineReadModelValidatesThreadRoot(t *testing.T) {

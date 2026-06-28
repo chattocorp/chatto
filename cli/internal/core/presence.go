@@ -12,7 +12,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// Presence status constants (matching GraphQL enum values)
+// Presence status constants used by public API and storage mappings.
 const (
 	PresenceStatusOffline      = "OFFLINE"
 	PresenceStatusOnline       = "ONLINE"
@@ -31,7 +31,7 @@ const (
 	PresenceRefreshInterval = 30 * time.Second
 )
 
-// presenceStatusFromString converts a GraphQL PresenceStatus string to protobuf enum.
+// presenceStatusFromString converts a stored presence status string to protobuf enum.
 // Note: OFFLINE should never be stored - callers should delete the key instead.
 func presenceStatusFromString(s string) corev1.UserPresenceStatus {
 	switch s {
@@ -44,7 +44,7 @@ func presenceStatusFromString(s string) corev1.UserPresenceStatus {
 	}
 }
 
-// presenceStatusToString converts a protobuf UserPresenceStatus enum to GraphQL string.
+// presenceStatusToString converts a protobuf UserPresenceStatus enum to storage string.
 func presenceStatusToString(status corev1.UserPresenceStatus) string {
 	switch status {
 	case corev1.UserPresenceStatus_USER_PRESENCE_STATUS_AWAY:

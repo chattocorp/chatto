@@ -1,37 +1,8 @@
-import { expect, type Page } from '@playwright/test';
+import { expect } from '@playwright/test';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { TIMEOUTS, POLLING_INTERVALS } from './constants';
-
-/**
- * Post messages via GraphQL API (much faster than UI-based posting).
- * Use this for test setup when you need many messages quickly.
- */
-async function postMessagesViaAPI(
-  page: Page,
-  roomId: string,
-  messages: string[]
-): Promise<void> {
-  for (const body of messages) {
-    await page.request.post('/api/graphql', {
-      headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-      data: {
-        query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
-        variables: { input: { roomId, body } }
-      }
-    });
-  }
-}
-
-/**
- * Extract roomId from the current URL (`/chat/-/{roomId}`). Post-ADR-030
- * the spaceId is just the kind discriminator constant.
- */
-async function getIdsFromUrl(page: Page): Promise<{ spaceId: string; roomId: string }> {
-  const match = page.url().match(/\/chat\/-\/([^/]+)/);
-  if (!match) throw new Error(`Could not extract roomId from URL: ${page.url()}`);
-  return { spaceId: 'server', roomId: match[1] };
-}
+import { getIdsFromUrlViaConnect, postMessagesViaConnect } from './fixtures/connectHelpers';
 
 test.describe('message pagination', () => {
   test('newest message is visible after posting many messages and reloading', async ({
@@ -43,12 +14,12 @@ test.describe('message pagination', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    const { roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrlViaConnect(page);
     const timestamp = Date.now();
 
-    // Post 60 messages via API (more than default limit of 50)
+    // Post 60 messages via Connect (more than default limit of 50)
     const messages = Array.from({ length: 60 }, (_, i) => `Message ${i + 1} - ${timestamp}`);
-    await postMessagesViaAPI(page, roomId, messages);
+    await postMessagesViaConnect(page, roomId, messages);
 
     const lastMessage = `Message 60 - ${timestamp}`;
 
@@ -73,39 +44,20 @@ test.describe('message pagination', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    const { roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrlViaConnect(page);
     const timestamp = Date.now();
 
-    // Post 70 messages via API (well over the 50-message page size)
+    // Post 70 messages via Connect (well over the 50-message page size)
     const messages = Array.from({ length: 70 }, (_, i) => `Scroll-test ${i + 1} - ${timestamp}`);
-    await postMessagesViaAPI(page, roomId, messages);
+    await postMessagesViaConnect(page, roomId, messages);
 
-    // Intercept the initial GraphQL query to limit it to 25 events.
-    // The subscription uses DeliverNewPolicy (no replay), so after reload only
-    // the initial query populates the cache. By limiting to 25 we create a
-    // clear pagination gap (messages 1-45 are not loaded initially).
-    await page.route('**/api/graphql', async (route, request) => {
-      const postData = request.postDataJSON();
-      const queryName = postData?.query?.match(/query\s+(\w+)/)?.[1] ?? '';
-      if (queryName === 'RoomEventsQuery' && !postData?.variables?.before) {
-        await route.continue({
-          postData: JSON.stringify({
-            ...postData,
-            variables: { ...postData.variables, limit: 25 }
-          })
-        });
-      } else {
-        await route.continue();
-      }
-    });
-
-    // Reload the page — the intercepted query returns only ~25 events
+    // Reload the page so only the initial Connect timeline page populates the cache.
+    // Messages 1-20 are outside that page and require backward pagination.
     await page.reload();
     await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+$/);
-    await expect(page.getByText(`Scroll-test 70 - ${timestamp}`)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-
-    // Remove the intercept so pagination queries go through unmodified
-    await page.unroute('**/api/graphql');
+    await expect(page.getByText(`Scroll-test 70 - ${timestamp}`)).toBeVisible({
+      timeout: TIMEOUTS.REALTIME_EVENT
+    });
 
     const messagesContainer = page.getByTestId('messages-container');
 
@@ -120,8 +72,8 @@ test.describe('message pagination', () => {
       expect(distanceFromBottom).toBeLessThan(50);
     }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
 
-    // Pick a message near the top of the initially loaded batch as anchor.
-    // With 25 events returned, the earliest message is around Scroll-test 46.
+    // Pick a message in the initially loaded batch as anchor, far enough from
+    // the latest message that scrolling up still triggers backward pagination.
     const anchorMessage = `Scroll-test 48 - ${timestamp}`;
 
     // Scroll up incrementally until the anchor message is visible.
@@ -199,17 +151,19 @@ test.describe('message pagination', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    const { roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrlViaConnect(page);
     const timestamp = Date.now();
 
     // Post 150 messages (3 full pages of 50)
     const messages = Array.from({ length: 150 }, (_, i) => `Paginate ${i + 1} - ${timestamp}`);
-    await postMessagesViaAPI(page, roomId, messages);
+    await postMessagesViaConnect(page, roomId, messages);
 
     // Reload for clean state (loads last ~50)
     await page.reload();
     await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+$/);
-    await expect(page.getByText(`Paginate 150 - ${timestamp}`)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+    await expect(page.getByText(`Paginate 150 - ${timestamp}`)).toBeVisible({
+      timeout: TIMEOUTS.REALTIME_EVENT
+    });
 
     // The first message should NOT be visible yet
     await expect(page.getByText(`Paginate 1 - ${timestamp}`)).not.toBeVisible();
@@ -265,25 +219,25 @@ test.describe('message pagination', () => {
 
     const timestamp = Date.now();
 
-    // Create a second room and post 5 messages via API
+    // Create a second room and post 5 messages via Connect
     const secondRoomName = await chatPage.createRoom(`room-b-${timestamp}`);
-    const roomBIds = await getIdsFromUrl(page);
+    const roomBIds = await getIdsFromUrlViaConnect(page);
     const roomBMessages = Array.from(
       { length: 5 },
       (_, i) => `Room B Message ${i + 1} - ${timestamp}`
     );
-    await postMessagesViaAPI(page, roomBIds.roomId, roomBMessages);
+    await postMessagesViaConnect(page, roomBIds.roomId, roomBMessages);
     const lastRoomBMessage = `Room B Message 5 - ${timestamp}`;
     await expect(page.getByText(lastRoomBMessage)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
-    // Go to room A (general) and post 60 messages via API
+    // Go to room A (general) and post 60 messages via Connect
     await chatPage.enterRoom('general');
-    const roomAIds = await getIdsFromUrl(page);
+    const roomAIds = await getIdsFromUrlViaConnect(page);
     const roomAMessages = Array.from(
       { length: 60 },
       (_, i) => `Room A Message ${i + 1} - ${timestamp}`
     );
-    await postMessagesViaAPI(page, roomAIds.roomId, roomAMessages);
+    await postMessagesViaConnect(page, roomAIds.roomId, roomAMessages);
     const lastRoomAMessage = `Room A Message 60 - ${timestamp}`;
 
     // Reload so room A messages are loaded via initial query (last 50) rather than
@@ -292,7 +246,9 @@ test.describe('message pagination', () => {
     await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+$/);
 
     // Room A should show its newest message
-    await expect(page.getByText(lastRoomAMessage)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+    await expect(page.getByText(lastRoomAMessage)).toBeVisible({
+      timeout: TIMEOUTS.REALTIME_EVENT
+    });
 
     // Go to room B - all messages should still be visible
     await chatPage.enterRoom(secondRoomName);

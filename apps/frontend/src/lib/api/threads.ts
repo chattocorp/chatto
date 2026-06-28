@@ -1,12 +1,31 @@
 import { Code, ConnectError, createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import { ThreadService } from '$lib/pb/chatto/api/v1/threads_connect';
+import type { RoomTimelineUser } from '$lib/pb/chatto/api/v1/room_timeline_pb';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
+import type { RawEvent } from '$lib/state/room/messages/helpers';
+import { roomTimelineEventToRawEvent } from './roomTimeline';
 
 export type ConnectAPIConfig = {
 	serverId?: string;
 	baseUrl: string;
 	bearerToken: string | null;
+};
+
+export type FollowedThread = {
+	roomId: string;
+	roomName: string;
+	threadRootEventId: string;
+	rootMessage: RawEvent | null;
+	replyCount: number;
+	lastReplyAt: string | null;
+	hasUnread: boolean;
+};
+
+export type FollowedThreadsPage = {
+	threads: FollowedThread[];
+	totalCount: number;
+	hasMore: boolean;
 };
 
 export function createThreadAPI(config: ConnectAPIConfig) {
@@ -26,6 +45,33 @@ export function createThreadAPI(config: ConnectAPIConfig) {
 	}
 
 	return {
+		async listFollowedThreads(input: { limit: number; offset: number }): Promise<FollowedThreadsPage> {
+			try {
+				const response = await client.listFollowedThreads(input, { headers: headers() });
+				const users = response.includes?.users ?? {};
+				return {
+					threads: response.threads.map((thread) => ({
+						roomId: thread.roomId,
+						roomName: thread.roomName,
+						threadRootEventId: thread.threadRootEventId,
+						rootMessage: thread.rootMessage
+							? roomTimelineEventToRawEvent(
+									thread.rootMessage,
+									users as Record<string, RoomTimelineUser>
+								)
+							: null,
+						replyCount: thread.replyCount,
+						lastReplyAt: timestampToISOOrNull(thread.lastReplyAt),
+						hasUnread: thread.hasUnread
+					})),
+					totalCount: response.totalCount,
+					hasMore: response.hasMore
+				};
+			} catch (err) {
+				return handleAuthError(err);
+			}
+		},
+
 		async followThread(input: { roomId: string; threadRootEventId: string }): Promise<boolean> {
 			try {
 				const response = await client.followThread(input, { headers: headers() });
@@ -44,4 +90,8 @@ export function createThreadAPI(config: ConnectAPIConfig) {
 			}
 		}
 	};
+}
+
+function timestampToISOOrNull(timestamp: { toDate(): Date } | undefined): string | null {
+	return timestamp ? timestamp.toDate().toISOString() : null;
 }

@@ -15,7 +15,7 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 - **Universal** — a channel room with Universal enabled behaves as joined for every server member who is currently eligible to join it. The system does not fan out `UserJoinedRoomEvent` facts for implicit membership. Existing explicit memberships remain intact, so disabling Universal restores the prior explicit membership set.
 - **Bootstrap defaults** — fresh servers seed `#announcements` as Universal and `#general` as a normal channel room in the default Lobby group.
 - **Join / leave** — joining a Universal room succeeds without writing an explicit membership event. Leaving a Universal room is rejected; users should mute it instead. DMs cannot be Universal.
-- **API surface** — GraphQL remains the bundled web client's compatibility surface for room lifecycle workflows. ConnectRPC `RoomService` exposes create, edit, archive, unarchive, Universal, join, leave, ban, and unban commands for protobuf-first clients. ConnectRPC `RoomDirectoryService` exposes the complementary room list, room-group/sidebar list, single-room refresh, per-room viewer capability state, and group join-all command.
+- **API surface** — ConnectRPC `RoomService` exposes create, edit, archive, unarchive, Universal, join, leave, ban, and unban commands. ConnectRPC `RoomDirectoryService` exposes the complementary room list, room-group/sidebar list, single-room refresh, per-room viewer capability state, and group join-all command.
 - **Archive** — `room.manage` toggles an `archived` flag on the room. Archived rooms vanish from the sidebar, the Browse Rooms page, and search results, but members stay joined and history is intact. The owner can still navigate to the room directly.
 - **Unarchive** — same permission, flips the flag back. The room reappears in the sidebar and discovery surfaces.
 - **Ban member** — `room.ban-member` holders can ban a user from a channel room with a required reason and optional expiry. The banned user loses room read/write/live access immediately and cannot rejoin until the ban is removed or expires.
@@ -32,7 +32,7 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 
 ### 2. Every channel room belongs to exactly one group
 
-**Decision:** `groupID` is non-nullable on channel rooms. The GraphQL `createRoom` API requires an explicit `groupId`; lower-level bootstrap/import paths may still pass an empty group ID to fall back to the seed room group while constructing first-boot state.
+**Decision:** `groupID` is non-nullable on channel rooms. The public create-room API requires an explicit `groupId`; lower-level bootstrap/import paths may still pass an empty group ID to fall back to the seed room group while constructing first-boot state.
 **Why:** Optional grouping means an "unsorted" branch in the permission resolver and sidebar layout — extra cases that nobody actually wants. Requiring a group simplifies the resolver and gives operators a consistent unit of permission scope. See ADR-031 and FDR-017.
 **Tradeoff:** Bulk room creation tools need to know which group to drop rooms into. The API surfaces a clear error if `groupID` is missing.
 

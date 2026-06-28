@@ -19,11 +19,35 @@ import { RoomDirectoryStore } from './roomDirectory.svelte';
 import { AdminRoomLayoutStore } from './adminRoomLayout.svelte';
 import { AdminEventLogStore } from './adminEventLog.svelte';
 import { createRoomCommandAPI } from '$lib/api/rooms';
+import { createNotificationAPI } from '$lib/api/notifications';
+import { createVoiceCallAPI } from '$lib/api/voiceCalls';
+import { createRoomDirectoryAPI } from '$lib/api/roomDirectory';
+import { createAdminRoomLayoutAPI } from '$lib/api/adminRoomLayout';
+import { createAdminEventLogAPI } from '$lib/api/adminEventLog';
+import { createMemberDirectoryAPI } from '$lib/api/memberDirectory';
+import { getViewerStateViaConnect } from '$lib/api/viewer';
 import { eventBusManager } from './eventBus.svelte';
 import type { EventBusCatchUpReason, EventHandler } from '$lib/eventBus.svelte';
-import type { GraphQLClient } from './graphqlClient.svelte';
+import type { ServerConnection } from './serverConnection.svelte';
 import type { RegisteredServer } from './registry.svelte';
 import { playCallSound } from '$lib/audio/callSounds';
+import { RoomEventKind, roomEventKind, type RoomEventKindSource } from '$lib/render/eventKinds';
+
+type CallTransitionEventPayload = {
+  roomId: string;
+  callId: string | null;
+};
+
+function callTransitionEventPayload(event: RoomEventKindSource): CallTransitionEventPayload | null {
+  if (!event || typeof event !== 'object') return null;
+  const roomId = 'roomId' in event ? event.roomId : null;
+  const callId = 'callId' in event ? event.callId : null;
+  if (typeof roomId !== 'string') return null;
+  return {
+    roomId,
+    callId: typeof callId === 'string' ? callId : null
+  };
+}
 
 /**
  * What kind of indicator a server (or the DM area) should display.
@@ -82,32 +106,54 @@ export class ServerStateStore {
 
   constructor(
     registered: RegisteredServer,
-    gqlClient: GraphQLClient,
+    serverConnection: ServerConnection,
     publicServerInfoLoader?: (baseUrl: string) => Promise<PublicServerInfo>
   ) {
     this.serverId = registered.id;
     this.#registered = registered;
     const cookieAuth = this.#cookieAuth;
 
-    const client = gqlClient.client;
-    this.currentUser = new CurrentUserState(client, cookieAuth);
-    this.serverInfo = new ServerInfoState(client, registered.url, publicServerInfoLoader);
-    this.notifications = new NotificationStore(client);
+    const connectAPIConfig = {
+      baseUrl: serverConnection.connectBaseUrl,
+      bearerToken: serverConnection.bearerToken
+    };
+    const notificationAPI = createNotificationAPI(connectAPIConfig);
+    const voiceCallAPI = createVoiceCallAPI(connectAPIConfig);
+    const roomDirectoryAPI = createRoomDirectoryAPI({
+      serverId: serverConnection.serverId ?? registered.id,
+      ...connectAPIConfig
+    });
+    const adminRoomLayoutAPI = createAdminRoomLayoutAPI({
+      serverId: serverConnection.serverId ?? registered.id,
+      ...connectAPIConfig
+    });
+    const adminEventLogAPI = createAdminEventLogAPI(connectAPIConfig);
+    const memberDirectoryAPI = createMemberDirectoryAPI(connectAPIConfig);
+    this.currentUser = new CurrentUserState(cookieAuth, connectAPIConfig);
+    this.serverInfo = new ServerInfoState(registered.url, publicServerInfoLoader, connectAPIConfig);
+    this.notifications = new NotificationStore(notificationAPI);
     this.roomUnread = new RoomUnreadStore();
     this.notificationLevels = new NotificationLevelStore();
     const roomCommandAPI = createRoomCommandAPI({
-      serverId: gqlClient.serverId ?? registered.id,
-      baseUrl: gqlClient.connectBaseUrl,
-      bearerToken: gqlClient.bearerToken
+      serverId: serverConnection.serverId ?? registered.id,
+      baseUrl: serverConnection.connectBaseUrl,
+      bearerToken: serverConnection.bearerToken
     });
     this.pendingHighlights = new PendingHighlightStore();
-    this.voiceCall = new VoiceCallState(client);
-    this.callParticipants = new CallParticipantsState(client);
-    this.activeCallRooms = new ActiveCallRoomsState(client, this.voiceCall);
-    this.rooms = new RoomsStore(client, this.notificationLevels, this.roomUnread);
-    this.roomDirectory = new RoomDirectoryStore(client, roomCommandAPI);
-    this.adminRoomLayout = new AdminRoomLayoutStore(client, roomCommandAPI);
-    this.adminEventLog = new AdminEventLogStore(client);
+    this.voiceCall = new VoiceCallState(voiceCallAPI);
+    this.callParticipants = new CallParticipantsState(voiceCallAPI);
+    this.activeCallRooms = new ActiveCallRoomsState(voiceCallAPI, this.voiceCall);
+    this.rooms = new RoomsStore(
+      roomDirectoryAPI,
+      memberDirectoryAPI,
+      () => getViewerStateViaConnect(connectAPIConfig),
+      this.notificationLevels,
+      this.roomUnread,
+      notificationAPI
+    );
+    this.roomDirectory = new RoomDirectoryStore(roomDirectoryAPI, roomCommandAPI);
+    this.adminRoomLayout = new AdminRoomLayoutStore(adminRoomLayoutAPI, roomCommandAPI);
+    this.adminEventLog = new AdminEventLogStore(adminEventLogAPI);
 
     // Self-managed lifecycle for the substores that need fetch / event
     // wiring. Living here (in the per-server bundle) means consumers
@@ -147,7 +193,8 @@ export class ServerStateStore {
           this.rooms.ingestServerEvent(event);
           this.roomDirectory.ingestServerEvent(event);
           this.adminRoomLayout.ingestServerEvent(event);
-          if (event.event?.__typename === 'ServerUpdatedEvent') {
+          const eventKind = roomEventKind(event.event);
+          if (eventKind === RoomEventKind.ServerUpdated) {
             void this.serverInfo.refreshProfile();
             if (this.currentUser.user) {
               this.serverInfo.refreshAuthenticatedSettings().catch((err) => {
@@ -157,30 +204,36 @@ export class ServerStateStore {
                 );
               });
             }
-          } else if (event.event?.__typename === 'CallParticipantJoinedEvent') {
+          } else if (eventKind === RoomEventKind.CallParticipantJoined) {
+            const callEvent = callTransitionEventPayload(event.event);
+            if (!callEvent) return;
             this.playCallTransitionSound(
               event.id,
               'join',
-              event.event.roomId,
-              event.event.callId ?? null,
+              callEvent.roomId,
+              callEvent.callId,
               event.actorId ?? null
             );
-          } else if (event.event?.__typename === 'CallParticipantLeftEvent') {
+          } else if (eventKind === RoomEventKind.CallParticipantLeft) {
+            const callEvent = callTransitionEventPayload(event.event);
+            if (!callEvent) return;
             this.playCallTransitionSound(
               event.id,
               'leave',
-              event.event.roomId,
-              event.event.callId ?? null,
+              callEvent.roomId,
+              callEvent.callId,
               event.actorId ?? null
             );
             this.voiceCall.handleParticipantLeftEvent(
-              event.event.roomId,
-              event.event.callId ?? null,
+              callEvent.roomId,
+              callEvent.callId,
               event.actorId ?? null,
               this.currentUserId()
             );
-          } else if (event.event?.__typename === 'CallEndedEvent') {
-            this.voiceCall.handleCallEndedEvent(event.event.roomId, event.event.callId ?? null);
+          } else if (eventKind === RoomEventKind.CallEnded) {
+            const callEvent = callTransitionEventPayload(event.event);
+            if (!callEvent) return;
+            this.voiceCall.handleCallEndedEvent(callEvent.roomId, callEvent.callId);
           }
         };
         const catchUpHandler = (reason: EventBusCatchUpReason) => {

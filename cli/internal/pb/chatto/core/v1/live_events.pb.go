@@ -25,7 +25,7 @@ const (
 // LiveEvent is the wire-format envelope for transient pubsub signals.
 // These events are never stored in EVT and are not projection input. They
 // are delivered over the live.sync.> subject family and adapted by myEvents
-// into the public GraphQL Event shape.
+// into public realtime events.
 //
 // Durable facts belong in Event on the EVT stream. Do not add new transient
 // variants to Event.

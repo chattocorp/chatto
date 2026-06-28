@@ -95,12 +95,11 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 	})
 
 	// Test-only endpoint to create a user directly. Bypasses registration,
-	// email verification, and session creation. Replaces the production
-	// `createUser` GraphQL mutation that was removed for security (see #175):
-	// production `createUser` was unauthenticated and let any caller win the
-	// race to become server owner. The test endpoint is gated behind the
-	// `test_endpoints` build tag so it is never compiled into release
-	// binaries — same trust model as `/auth/test/verify-email` above.
+	// email verification, and session creation. This intentionally does not
+	// exist in production (see #175): unauthenticated user creation lets any
+	// caller win the race to become server owner. The test endpoint is gated
+	// behind the `test_endpoints` build tag so it is never compiled into
+	// release binaries, same trust model as `/auth/test/verify-email` above.
 	auth.POST("test/create-user", func(c *gin.Context) {
 		var req struct {
 			Login       string `json:"login" binding:"required"`

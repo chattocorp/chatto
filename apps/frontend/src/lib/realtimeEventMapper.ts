@@ -2,7 +2,8 @@ import {
   NotificationLevel as GqlNotificationLevel,
   PresenceStatus as GqlPresenceStatus,
   TimeFormat
-} from '$lib/gql/graphql';
+} from '$lib/render/types';
+import { RoomEventKind } from '$lib/render/eventKinds';
 import { NotificationLevel as ApiNotificationLevel } from '$lib/pb/chatto/api/v1/notification_preferences_pb';
 import {
   RealtimeEventEnvelope,
@@ -64,18 +65,16 @@ function timeFormat(format: RealtimeTimeFormat): TimeFormat {
 
 export function realtimeHeartbeatToEventEnvelope(frame: RealtimeHeartbeat): EventEnvelope {
   return {
-    __typename: 'Event',
     id: frame.id,
     createdAt: timestampToISO(frame.createdAt),
     actorId: null,
     actor: null,
-    event: { __typename: 'HeartbeatEvent', alive: true }
+    event: { kind: RoomEventKind.Heartbeat, alive: true }
   } as unknown as EventEnvelope;
 }
 
 export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): EventEnvelope | null {
   const base = {
-    __typename: 'Event',
     id: frame.id,
     createdAt: timestampToISO(frame.createdAt),
     actorId: frame.actorId ?? null,
@@ -88,7 +87,7 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
       return {
         ...base,
         event: {
-          __typename: 'MessagePostedEvent',
+          kind: RoomEventKind.MessagePosted,
           roomId: value.roomId,
           messageEventId: value.messageEventId,
           threadRootEventId: value.threadRootEventId ?? null
@@ -100,7 +99,7 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
       return {
         ...base,
         event: {
-          __typename: 'MessageEditedEvent',
+          kind: RoomEventKind.MessageEdited,
           roomId: value.roomId,
           messageEventId: value.messageEventId
         }
@@ -111,7 +110,7 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
       return {
         ...base,
         event: {
-          __typename: 'MessageRetractedEvent',
+          kind: RoomEventKind.MessageRetracted,
           roomId: value.roomId,
           messageEventId: value.messageEventId,
           retractedReason: value.reason ?? ''
@@ -121,11 +120,14 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
     case 'reactionAdded':
     case 'reactionRemoved': {
       const value = frame.event.value;
+      const kind =
+        frame.event.case === 'reactionAdded'
+          ? RoomEventKind.ReactionAdded
+          : RoomEventKind.ReactionRemoved;
       return {
         ...base,
         event: {
-          __typename:
-            frame.event.case === 'reactionAdded' ? 'ReactionAddedEvent' : 'ReactionRemovedEvent',
+          kind,
           roomId: value.roomId,
           messageEventId: value.messageEventId,
           emoji: value.emoji
@@ -137,7 +139,7 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
       return {
         ...base,
         event: {
-          __typename: 'UserTypingEvent',
+          kind: RoomEventKind.UserTyping,
           roomId: value.roomId,
           typingThreadRootEventId: value.threadRootEventId ?? null
         }
@@ -148,50 +150,71 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
         ...base,
         actorId: frame.event.value.userId || base.actorId,
         event: {
-          __typename: 'PresenceChangedEvent',
+          kind: RoomEventKind.PresenceChanged,
           status: presenceStatus(frame.event.value.status)
         }
       } as unknown as EventEnvelope;
     case 'roomCreated':
       return {
         ...base,
-        event: { __typename: 'RoomCreatedEvent', roomId: frame.event.value.roomId }
+        event: {
+          kind: RoomEventKind.RoomCreated,
+          roomId: frame.event.value.roomId
+        }
       } as unknown as EventEnvelope;
     case 'roomUpdated':
       return {
         ...base,
-        event: { __typename: 'RoomUpdatedEvent', roomId: frame.event.value.roomId }
+        event: {
+          kind: RoomEventKind.RoomUpdated,
+          roomId: frame.event.value.roomId
+        }
       } as unknown as EventEnvelope;
     case 'roomDeleted':
       return {
         ...base,
-        event: { __typename: 'RoomDeletedEvent', roomId: frame.event.value.roomId }
+        event: {
+          kind: RoomEventKind.RoomDeleted,
+          roomId: frame.event.value.roomId
+        }
       } as unknown as EventEnvelope;
     case 'roomArchived':
       return {
         ...base,
-        event: { __typename: 'RoomArchivedEvent', roomId: frame.event.value.roomId }
+        event: {
+          kind: RoomEventKind.RoomArchived,
+          roomId: frame.event.value.roomId
+        }
       } as unknown as EventEnvelope;
     case 'roomUnarchived':
       return {
         ...base,
-        event: { __typename: 'RoomUnarchivedEvent', roomId: frame.event.value.roomId }
+        event: {
+          kind: RoomEventKind.RoomUnarchived,
+          roomId: frame.event.value.roomId
+        }
       } as unknown as EventEnvelope;
     case 'userJoinedRoom':
       return {
         ...base,
-        event: { __typename: 'UserJoinedRoomEvent', roomId: frame.event.value.roomId }
+        event: {
+          kind: RoomEventKind.UserJoinedRoom,
+          roomId: frame.event.value.roomId
+        }
       } as unknown as EventEnvelope;
     case 'userLeftRoom':
       return {
         ...base,
-        event: { __typename: 'UserLeftRoomEvent', roomId: frame.event.value.roomId }
+        event: {
+          kind: RoomEventKind.UserLeftRoom,
+          roomId: frame.event.value.roomId
+        }
       } as unknown as EventEnvelope;
     case 'roomUniversalChanged':
       return {
         ...base,
         event: {
-          __typename: 'RoomUniversalChangedEvent',
+          kind: RoomEventKind.RoomUniversalChanged,
           roomId: frame.event.value.roomId,
           universal: frame.event.value.universal
         }
@@ -201,7 +224,7 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
       return {
         ...base,
         event: {
-          __typename: 'NotificationCreatedEvent',
+          kind: RoomEventKind.NotificationCreated,
           notificationId: value.notificationId,
           roomId: value.roomId ?? null,
           eventId: value.eventId ?? null,
@@ -214,7 +237,7 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
       return {
         ...base,
         event: {
-          __typename: 'NotificationDismissedEvent',
+          kind: RoomEventKind.NotificationDismissed,
           notificationId: frame.event.value.notificationId
         }
       } as unknown as EventEnvelope;
@@ -222,7 +245,7 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
       return {
         ...base,
         event: {
-          __typename: 'NotificationLevelChangedEvent',
+          kind: RoomEventKind.NotificationLevelChanged,
           nlcRoomId: frame.event.value.roomId || null,
           level: notificationLevel(frame.event.value.level),
           effectiveLevel: notificationLevel(frame.event.value.effectiveLevel)
@@ -232,7 +255,7 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
       return {
         ...base,
         event: {
-          __typename: 'ThreadFollowChangedEvent',
+          kind: RoomEventKind.ThreadFollowChanged,
           tfcRoomId: frame.event.value.roomId,
           tfcThreadRootEventId: frame.event.value.threadRootEventId,
           isFollowing: frame.event.value.following
@@ -242,7 +265,7 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
       return {
         ...base,
         event: {
-          __typename: 'ThreadCreatedEvent',
+          kind: RoomEventKind.ThreadCreated,
           roomId: frame.event.value.roomId,
           threadRootEventId: frame.event.value.threadRootEventId
         }
@@ -250,14 +273,17 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
     case 'roomMarkedAsRead':
       return {
         ...base,
-        event: { __typename: 'RoomMarkedAsReadEvent', roomId: frame.event.value.roomId }
+        event: {
+          kind: RoomEventKind.RoomMarkedAsRead,
+          roomId: frame.event.value.roomId
+        }
       } as unknown as EventEnvelope;
     case 'serverUpdated': {
       const value = frame.event.value;
       return {
         ...base,
         event: {
-          __typename: 'ServerUpdatedEvent',
+          kind: RoomEventKind.ServerUpdated,
           name: value.name,
           description: value.description,
           logoUrl: value.logoUrl ?? null,
@@ -270,7 +296,7 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
       return {
         ...base,
         event: {
-          __typename: 'UserProfileUpdatedEvent',
+          kind: RoomEventKind.UserProfileUpdated,
           userId: value.userId,
           login: value.login,
           displayName: value.displayName,
@@ -283,10 +309,9 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
       return {
         ...base,
         event: {
-          __typename: 'UserCustomStatusSetEvent',
+          kind: RoomEventKind.UserCustomStatusSet,
           userId: value.userId,
           setCustomStatus: {
-            __typename: 'CustomUserStatus',
             emoji: value.emoji,
             text: value.text,
             expiresAt: optionalTimestampToISO(value.expiresAt)
@@ -298,7 +323,7 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
       return {
         ...base,
         event: {
-          __typename: 'UserCustomStatusClearedEvent',
+          kind: RoomEventKind.UserCustomStatusCleared,
           userId: frame.event.value.userId
         }
       } as unknown as EventEnvelope;
@@ -306,7 +331,7 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
       return {
         ...base,
         event: {
-          __typename: 'ServerUserPreferencesUpdatedEvent',
+          kind: RoomEventKind.ServerUserPreferencesUpdated,
           timezone: frame.event.value.timezone ?? null,
           timeFormat: timeFormat(frame.event.value.timeFormat)
         }
@@ -314,27 +339,33 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
     case 'roomGroupsUpdated':
       return {
         ...base,
-        event: { __typename: 'RoomGroupsUpdatedEvent', changed: frame.event.value.changed }
+        event: {
+          kind: RoomEventKind.RoomGroupsUpdated,
+          changed: frame.event.value.changed
+        }
       } as unknown as EventEnvelope;
     case 'serverMemberDeleted':
       return {
         ...base,
-        event: { __typename: 'ServerMemberDeletedEvent', userId: frame.event.value.userId }
+        event: {
+          kind: RoomEventKind.ServerMemberDeleted,
+          userId: frame.event.value.userId
+        }
       } as unknown as EventEnvelope;
     case 'assetProcessingStarted':
     case 'assetProcessingSucceeded':
     case 'assetProcessingFailed': {
       const value = frame.event.value;
-      const typename =
+      const kind =
         frame.event.case === 'assetProcessingStarted'
-          ? 'AssetProcessingStartedEvent'
+          ? RoomEventKind.AssetProcessingStarted
           : frame.event.case === 'assetProcessingSucceeded'
-            ? 'AssetProcessingSucceededEvent'
-            : 'AssetProcessingFailedEvent';
+            ? RoomEventKind.AssetProcessingSucceeded
+            : RoomEventKind.AssetProcessingFailed;
       return {
         ...base,
         event: {
-          __typename: typename,
+          kind,
           processingRoomId: value.roomId ?? null,
           assetId: value.assetId,
           processingMessageEventId: value.messageEventId ?? null
@@ -345,7 +376,7 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
       return {
         ...base,
         event: {
-          __typename: 'AssetDeletedEvent',
+          kind: RoomEventKind.AssetDeleted,
           deletedRoomId: frame.event.value.roomId ?? null,
           assetId: frame.event.value.assetId
         }
@@ -355,17 +386,17 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
     case 'callParticipantLeft':
     case 'callEnded': {
       const value = frame.event.value;
-      const typename =
+      const kind =
         frame.event.case === 'callStarted'
-          ? 'CallStartedEvent'
+          ? RoomEventKind.CallStarted
           : frame.event.case === 'callParticipantJoined'
-            ? 'CallParticipantJoinedEvent'
+            ? RoomEventKind.CallParticipantJoined
             : frame.event.case === 'callParticipantLeft'
-              ? 'CallParticipantLeftEvent'
-              : 'CallEndedEvent';
+              ? RoomEventKind.CallParticipantLeft
+              : RoomEventKind.CallEnded;
       return {
         ...base,
-        event: { __typename: typename, roomId: value.roomId, callId: value.callId }
+        event: { kind, roomId: value.roomId, callId: value.callId }
       } as unknown as EventEnvelope;
     }
     case 'mentionNotification': {
@@ -374,11 +405,14 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
         ...base,
         actorId: value.actorUserId || base.actorId,
         event: {
-          __typename: 'MentionNotificationEvent',
+          kind: RoomEventKind.MentionNotification,
           roomId: value.roomId,
-          room: { __typename: 'Room', name: value.roomName ?? '' },
+          room: { name: value.roomName ?? '' },
           actor: value.actorUserId
-            ? { __typename: 'User', id: value.actorUserId, displayName: value.actorDisplayName ?? '' }
+            ? {
+                id: value.actorUserId,
+                displayName: value.actorDisplayName ?? ''
+              }
             : null
         }
       } as unknown as EventEnvelope;
@@ -389,11 +423,10 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
         ...base,
         actorId: value.senderId || base.actorId,
         event: {
-          __typename: 'NewDirectMessageNotificationEvent',
+          kind: RoomEventKind.NewDirectMessageNotification,
           roomId: value.roomId,
           sender: value.senderId
             ? {
-                __typename: 'User',
                 id: value.senderId,
                 displayName: value.senderDisplayName ?? '',
                 avatarUrl: value.senderAvatarUrl || null
@@ -406,7 +439,10 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
     case 'sessionTerminated':
       return {
         ...base,
-        event: { __typename: 'SessionTerminatedEvent', reason: frame.event.value.reason }
+        event: {
+          kind: RoomEventKind.SessionTerminated,
+          reason: frame.event.value.reason
+        }
       } as unknown as EventEnvelope;
     default:
       return null;

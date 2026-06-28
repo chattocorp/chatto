@@ -1,75 +1,24 @@
-import { expect, type Locator, type Page } from '@playwright/test';
+import { expect, type Locator } from '@playwright/test';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { withBootstrapAdminRequest, withServerUser } from './fixtures/serverUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
-import { waitForSpaceUnread, getRoomIdByName, waitForRoomRead } from './fixtures/graphqlHelpers';
+import {
+  connectPost,
+  getDefaultRoomGroupIdViaConnect,
+  getIdsFromUrlViaConnect,
+  getRoomIdByNameViaConnect,
+  postMessageViaConnect,
+  postThreadReplyViaConnect,
+  postThreadReplyWithEchoViaConnect,
+  waitForRoomReadViaConnect,
+  waitForServerUnreadViaConnect
+} from './fixtures/connectHelpers';
 import { test } from './setup';
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
 
-async function getIdsFromUrl(page: Page): Promise<{ spaceId: string; roomId: string }> {
-  const match = page.url().match(/\/chat\/-\/([^/]+)/);
-  if (!match) throw new Error(`Could not extract roomId from URL: ${page.url()}`);
-  return { spaceId: 'server', roomId: match[1] };
-}
-
 async function clickReplyAttributionJump(attribution: Locator): Promise<void> {
   await attribution.click({ position: { x: 8, y: 8 } });
-}
-
-/** Post a message via API and return its event ID. */
-async function postMessageAndGetId(page: Page, roomId: string, body: string): Promise<string> {
-  const response = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
-      variables: { input: { roomId, body } }
-    }
-  });
-  const json = await response.json();
-  return json.data.postMessage.id;
-}
-
-/** Post a thread reply via API and return its event ID. */
-async function postThreadReplyViaAPI(
-  page: Page,
-  roomId: string,
-  body: string,
-  inThread: string,
-  inReplyTo?: string
-): Promise<string> {
-  const input: Record<string, unknown> = { roomId, body, threadRootEventId: inThread };
-  if (inReplyTo) input.inReplyTo = inReplyTo;
-  const response = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
-      variables: { input }
-    }
-  });
-  const json = await response.json();
-  return json.data.postMessage.id;
-}
-
-/** Post a thread reply with echo via API and return its event ID. */
-async function postThreadReplyWithEchoViaAPI(
-  page: Page,
-  roomId: string,
-  body: string,
-  inThread: string,
-  inReplyTo: string
-): Promise<string> {
-  const response = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
-      variables: {
-        input: { roomId, body, threadRootEventId: inThread, inReplyTo, alsoSendToChannel: true }
-      }
-    }
-  });
-  const json = await response.json();
-  return json.data.postMessage.id;
 }
 
 test.describe('Thread Reply Echo ("Also send to channel")', () => {
@@ -736,19 +685,19 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       await chatPage.enterRoom('general');
     });
 
-    const { roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrlViaConnect(page);
 
     // Post a root message that starts the thread
     const rootBody = `Thread root ${timestamp}`;
-    const rootEventId = await postMessageAndGetId(page, roomId, rootBody);
+    const rootEventId = await postMessageViaConnect(page, roomId, rootBody);
 
     // Post a first thread reply — this is the message we'll reply to
     const targetBody = `Target reply in thread ${timestamp}`;
-    const targetEventId = await postThreadReplyViaAPI(page, roomId, targetBody, rootEventId);
+    const targetEventId = await postThreadReplyViaConnect(page, roomId, targetBody, rootEventId);
 
     // Post filler thread replies to push the target off-screen
     for (let i = 0; i < 15; i++) {
-      await postThreadReplyViaAPI(
+      await postThreadReplyViaConnect(
         page,
         roomId,
         `Filler thread reply ${i + 1} - ${timestamp}`,
@@ -758,7 +707,13 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
 
     // Post a thread reply that references targetEventId AND echoes to channel
     const echoReplyBody = `Echo reply pointing to target ${timestamp}`;
-    await postThreadReplyWithEchoViaAPI(page, roomId, echoReplyBody, rootEventId, targetEventId);
+    await postThreadReplyWithEchoViaConnect(
+      page,
+      roomId,
+      echoReplyBody,
+      rootEventId,
+      targetEventId
+    );
 
     await test.step('Reload and verify echo shows reply attribution', async () => {
       await page.reload();
@@ -885,27 +840,21 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       // be scoped to the room's set (server-scope grants don't cascade into
       // channel rooms anymore). "general" lives in the seed "Lobby" group.
       await withBootstrapAdminRequest(serverURL, async (adminRequest) => {
-        // Find the seed set's ID.
-        const layoutResp = await adminRequest.post('/api/graphql', {
-          headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-          data: { query: `query { server { roomGroups { id } } }` }
-        });
-        expect(layoutResp.ok()).toBeTruthy();
-        const layoutJson = await layoutResp.json();
-        const seedSetId = layoutJson.data.server.roomGroups[0].id as string;
-
-        const resp = await adminRequest.post('/api/graphql', {
-          headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-          data: {
-            query: `mutation($input: GroupPermissionInput!) { denyGroupPermission(input: $input) }`,
-            variables: {
-              input: { groupId: seedSetId, subject: 'everyone', permission: 'message.echo' }
+        const seedSetId = await getDefaultRoomGroupIdViaConnect(adminRequest);
+        const response = await connectPost<{ ok?: boolean }>(
+          adminRequest,
+          'chatto.api.v1.PermissionService/SetRolePermission',
+          {
+            roleName: 'everyone',
+            permission: 'message.echo',
+            decision: 'PERMISSION_DECISION_DENY',
+            scope: {
+              kind: 'PERMISSION_SCOPE_KIND_GROUP',
+              id: seedSetId
             }
           }
-        });
-        expect(resp.ok()).toBeTruthy();
-        const respJson = await resp.json();
-        expect(respJson.errors).toBeFalsy();
+        );
+        expect(response.ok).toBe(true);
       });
     });
 
@@ -955,8 +904,8 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
         await waitForRoomReady(page2, 'general');
 
         // Wait for markRoomAsRead to complete on server before navigating away.
-        const roomId = await getRoomIdByName(page2, 'general');
-        await waitForRoomRead(page2, roomId);
+        const roomId = await getRoomIdByNameViaConnect(page2, 'general');
+        await waitForRoomReadViaConnect(page2, roomId);
 
         // Navigate to announcements so general is no longer active.
         // Note: navigating to /chat/-/${spaceId} doesn't work because the route
@@ -974,7 +923,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
 
       await test.step('User B sees unread indicator from echo', async () => {
         // Wait for server to register unread state
-        await waitForSpaceUnread(page2, true);
+        await waitForServerUnreadViaConnect(page2, true);
 
         // Verify UI shows the unread dot
         await expect(async () => {
@@ -1002,19 +951,19 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       await chatPage.enterRoom('general');
     });
 
-    const { roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrlViaConnect(page);
 
     // Post a root message that starts the thread
     const rootBody = `Thread root ${timestamp}`;
-    const rootEventId = await postMessageAndGetId(page, roomId, rootBody);
+    const rootEventId = await postMessageViaConnect(page, roomId, rootBody);
 
     // Post a target reply in the thread
     const targetBody = `Target reply ${timestamp}`;
-    const targetEventId = await postThreadReplyViaAPI(page, roomId, targetBody, rootEventId);
+    const targetEventId = await postThreadReplyViaConnect(page, roomId, targetBody, rootEventId);
 
     // Echo #1: replies to the root message
     const echo1Body = `Echo replying to root ${timestamp}`;
-    await postThreadReplyWithEchoViaAPI(
+    await postThreadReplyWithEchoViaConnect(
       page,
       roomId,
       echo1Body,
@@ -1024,7 +973,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
 
     // Echo #2: replies to the non-root target message
     const echo2Body = `Echo replying to target ${timestamp}`;
-    await postThreadReplyWithEchoViaAPI(
+    await postThreadReplyWithEchoViaConnect(
       page,
       roomId,
       echo2Body,
@@ -1097,25 +1046,25 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       await chatPage.enterRoom('general');
     });
 
-    const { roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrlViaConnect(page);
 
     // Post root message
     const rootBody = `Thread root ${timestamp}`;
-    const rootEventId = await postMessageAndGetId(page, roomId, rootBody);
+    const rootEventId = await postMessageViaConnect(page, roomId, rootBody);
 
     // Post target reply early in the thread (2nd message)
     const targetBody = `Target reply ${timestamp}`;
-    const targetEventId = await postThreadReplyViaAPI(page, roomId, targetBody, rootEventId);
+    const targetEventId = await postThreadReplyViaConnect(page, roomId, targetBody, rootEventId);
 
     // Post enough thread replies to make the thread pane scrollable.
     // The target is near the top, so auto-scroll-to-bottom would scroll past it.
     for (let i = 0; i < 25; i++) {
-      await postThreadReplyViaAPI(page, roomId, `Filler reply ${i} ${timestamp}`, rootEventId);
+      await postThreadReplyViaConnect(page, roomId, `Filler reply ${i} ${timestamp}`, rootEventId);
     }
 
     // Post an echo that replies to the non-root target
     const echoBody = `Echo to target in long thread ${timestamp}`;
-    await postThreadReplyWithEchoViaAPI(page, roomId, echoBody, rootEventId, targetEventId);
+    await postThreadReplyWithEchoViaConnect(page, roomId, echoBody, rootEventId, targetEventId);
 
     // Wait for echo to appear in main room
     await expect(page.getByText(echoBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
@@ -1170,15 +1119,15 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       await chatPage.enterRoom('general');
     });
 
-    const { roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrlViaConnect(page);
 
     // Post root message
     const rootBody = `Thread root ${timestamp}`;
-    const rootEventId = await postMessageAndGetId(page, roomId, rootBody);
+    const rootEventId = await postMessageViaConnect(page, roomId, rootBody);
 
     // Post target reply (this is what we'll reply to)
     const targetBody = `Target reply ${timestamp}`;
-    const targetEventId = await postThreadReplyViaAPI(page, roomId, targetBody, rootEventId);
+    const targetEventId = await postThreadReplyViaConnect(page, roomId, targetBody, rootEventId);
 
     // Reload to see root message
     await page.reload();
@@ -1250,15 +1199,15 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       await chatPage.enterRoom('general');
     });
 
-    const { roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrlViaConnect(page);
 
     // Post root message via API
     const rootBody = `Thread root ${timestamp}`;
-    const rootEventId = await postMessageAndGetId(page, roomId, rootBody);
+    const rootEventId = await postMessageViaConnect(page, roomId, rootBody);
 
     // Post target reply via API (so we know its event ID for verification)
     const targetBody = `Target for UI reply ${timestamp}`;
-    const targetEventId = await postThreadReplyViaAPI(page, roomId, targetBody, rootEventId);
+    const targetEventId = await postThreadReplyViaConnect(page, roomId, targetBody, rootEventId);
 
     // Reload to see the root message with thread indicator
     await page.reload();

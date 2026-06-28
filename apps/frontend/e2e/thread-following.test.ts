@@ -343,10 +343,9 @@ test.describe('Thread Following', () => {
       timeout: TIMEOUTS.REALTIME_EVENT
     });
 
-    // Reload to force a fresh GraphQL query — this directly tests the
-    // ViewerIsFollowingThread resolver with InReplyTo set on the root message.
-    // Before the fix, the resolver returned nil because it checked InReplyTo
-    // instead of InThread, causing auto-follow to appear lost after reload.
+    // Reload to force a fresh server read with InReplyTo set on the root
+    // message. Before the fix, auto-follow appeared lost after reload because
+    // the backend checked InReplyTo instead of InThread.
     await page.reload();
     await page.waitForLoadState('networkidle');
 

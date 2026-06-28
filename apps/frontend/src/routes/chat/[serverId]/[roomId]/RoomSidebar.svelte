@@ -17,7 +17,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
   import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
-  import type { PresenceStatus } from '$lib/gql/graphql';
+  import type { PresenceStatus } from '$lib/render/types';
   import type { RoomFilesStore, RoomMember, RoomMembersStore } from '$lib/state/room';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import {

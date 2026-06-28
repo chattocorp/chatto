@@ -1,7 +1,7 @@
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
-import type { Client } from '@urql/svelte';
-import { LoadCurrentUserDocument, clearCachedUser, type CurrentUser } from './loadAuth';
+import { getCurrentUserViaConnect, type CurrentUser, type ViewerAPIConfig } from '$lib/api/viewer';
+import { clearCachedUser } from './loadAuth';
 import { csrfFetch } from './csrf';
 import { isAuthenticationRequiredError } from './errors';
 
@@ -24,20 +24,29 @@ interface AuthFailureOptions {
 export class CurrentUserState {
   user = $state<CurrentUser | undefined>(undefined);
   loading = $state(true);
-  #client: Client;
   #cookieAuth: boolean;
+  #apiConfig?: ViewerAPIConfig;
+  #loadCurrentUser: (config: ViewerAPIConfig) => Promise<CurrentUser>;
   #isLoggingOut = false;
 
-  constructor(client: Client, cookieAuth: boolean = false) {
-    this.#client = client;
+  constructor(
+    cookieAuth: boolean = false,
+    apiConfig?: ViewerAPIConfig,
+    loadCurrentUser = getCurrentUserViaConnect
+  ) {
     this.#cookieAuth = cookieAuth;
+    this.#apiConfig = apiConfig;
+    this.#loadCurrentUser = loadCurrentUser;
   }
 
   async load() {
-    const resp = await this.#client.query(LoadCurrentUserDocument, {});
-
-    if (resp.error) {
-      if (isAuthenticationRequiredError(resp.error)) {
+    try {
+      if (!this.#apiConfig) {
+        throw new Error('current user Connect API config is not configured');
+      }
+      this.user = await this.#loadCurrentUser(this.#apiConfig);
+    } catch (err) {
+      if (isAuthenticationRequiredError(err)) {
         this.user = undefined;
         this.loading = false;
         return;
@@ -46,11 +55,9 @@ export class CurrentUserState {
       // error so unreachable instances are visible in the dev console.
       // Don't throw — the caller treats this as a per-instance soft
       // failure, not a global crash.
-      console.error('[auth] failed to load current user', resp.error);
+      console.error('[auth] failed to load current user', err);
     }
 
-    const fetched = resp.data?.viewer?.user;
-    this.user = fetched ?? undefined;
     this.loading = false;
   }
 

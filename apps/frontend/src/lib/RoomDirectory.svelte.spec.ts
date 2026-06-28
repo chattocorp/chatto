@@ -7,7 +7,7 @@ import {
   type DirectoryRoom
 } from '$lib/state/server/roomDirectory.svelte';
 import type { RoomsListItem } from '$lib/state/server/rooms.svelte';
-import { RoomType } from '$lib/gql/graphql';
+import { RoomType } from '$lib/render/types';
 
 const room = (id: string, overrides: Partial<DirectoryRoom> = {}): DirectoryRoom => ({
   id,

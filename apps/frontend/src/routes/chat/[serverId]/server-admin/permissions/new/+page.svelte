@@ -4,7 +4,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
-  import { graphql } from '$lib/gql';
+  import { createRoleAPI } from '$lib/api/roles';
   import { Panel } from '$lib/components/admin';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
@@ -26,24 +26,15 @@
   async function loadPermissions() {
     loading = true;
 
-    const resp = await connection().client.query(
-      graphql(`
-        query SpaceRolesNewCheck {
-          server {
-            viewerCanManageRoles
-          }
-        }
-      `),
-      {}
-    );
-
-    if (resp.error || !resp.data?.server) {
+    try {
+      const resp = await roleAPI().listRoles();
+      canManageRoles = resp.viewerCanManageRoles;
+    } catch {
       error = m['admin.permissions.load_instance_failed']();
       loading = false;
       return;
     }
 
-    canManageRoles = resp.data.server.viewerCanManageRoles;
     loading = false;
   }
 
@@ -55,29 +46,15 @@
     creating = true;
     error = null;
 
-    const resp = await connection().client.mutation(
-      graphql(`
-        mutation CreateRoleNewPage($input: CreateRoleInput!) {
-          createRole(input: $input) {
-            name
-            displayName
-            description
-            pingable
-          }
-        }
-      `),
-      {
-        input: {
-          name: name.trim(),
-          displayName: displayName.trim(),
-          description: description.trim(),
-          pingable
-        }
-      }
-    );
-
-    if (resp.error) {
-      error = resp.error.message;
+    try {
+      await roleAPI().createRole({
+        name: name.trim(),
+        displayName: displayName.trim(),
+        description: description.trim(),
+        pingable
+      });
+    } catch (err) {
+      error = err instanceof Error ? err.message : m['admin.permissions.load_instance_failed']();
       creating = false;
       return;
     }
@@ -89,6 +66,14 @@
         name: name.trim()
       })
     );
+  }
+
+  function roleAPI() {
+    const conn = connection();
+    return createRoleAPI({
+      baseUrl: conn.connectBaseUrl,
+      bearerToken: conn.bearerToken
+    });
   }
 </script>
 

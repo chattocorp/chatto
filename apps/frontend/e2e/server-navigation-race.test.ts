@@ -1,6 +1,11 @@
 import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
 import { TIMEOUTS } from './constants';
+import {
+  createRoomViaConnect,
+  getDefaultRoomGroupIdViaConnect,
+  joinRoomViaConnect
+} from './fixtures/connectHelpers';
 import { loginAsAdminAndUsePrimaryServer } from './fixtures/testUser';
 import * as routes from './routes';
 
@@ -14,66 +19,11 @@ async function usePrimaryServerViaAPI(page: Page, _name: string): Promise<TestSe
   return loginAsAdminAndUsePrimaryServer(page);
 }
 
-/** Creates a room via GraphQL API and joins it. */
+/** Creates a room via ConnectRPC API and joins it. */
 async function createRoomViaAPI(page: Page, _spaceId: string, name: string): Promise<string> {
-  const groupResponse = await page.request.post('/api/graphql', {
-    headers: {
-      'Content-Type': 'application/json',
-      'X-REQUEST-TYPE': 'GraphQL'
-    },
-    data: { query: `query { server { roomGroups { id } } }` }
-  });
-  expect(groupResponse.ok()).toBeTruthy();
-  const groupData = await groupResponse.json();
-  const groupId = groupData.data?.server?.roomGroups?.[0]?.id;
-  if (!groupId) {
-    throw new Error(`No room group available for e2e room creation: ${JSON.stringify(groupData)}`);
-  }
-
-  // Create the room
-  const createResponse = await page.request.post('/api/graphql', {
-    headers: {
-      'Content-Type': 'application/json',
-      'X-REQUEST-TYPE': 'GraphQL'
-    },
-    data: {
-      query: `
-				mutation CreateRoom($input: CreateRoomInput!) {
-					createRoom(input: $input) {
-						id
-					}
-				}
-			`,
-      variables: { input: { name, groupId } }
-    }
-  });
-
-  expect(createResponse.ok()).toBeTruthy();
-  const createData = await createResponse.json();
-  expect(createData.data?.createRoom).toBeTruthy();
-
-  const roomId = createData.data.createRoom.id;
-
-  // Join the room
-  const joinResponse = await page.request.post('/api/graphql', {
-    headers: {
-      'Content-Type': 'application/json',
-      'X-REQUEST-TYPE': 'GraphQL'
-    },
-    data: {
-      query: `
-				mutation JoinRoom($input: JoinRoomInput!) {
-					joinRoom(input: $input) { id }
-				}
-			`,
-      variables: { input: { roomId } }
-    }
-  });
-
-  expect(joinResponse.ok()).toBeTruthy();
-  const joinData = await joinResponse.json();
-  expect(joinData.data?.joinRoom?.id).toBe(roomId);
-
+  const groupId = await getDefaultRoomGroupIdViaConnect(page);
+  const roomId = await createRoomViaConnect(page, name, groupId);
+  await joinRoomViaConnect(page, roomId);
   return roomId;
 }
 

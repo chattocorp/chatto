@@ -1,6 +1,6 @@
 import { SvelteMap } from 'svelte/reactivity';
 import { ServerStateStore } from './store.svelte';
-import { graphqlClientManager } from './graphqlClient.svelte';
+import { serverConnectionManager } from './serverConnection.svelte';
 import { eventBusManager } from './eventBus.svelte';
 import { Codecs, globalSlot } from '$lib/storage/slot';
 import { clearAssetProxyCache } from '$lib/pwa/assetProxy';
@@ -307,12 +307,12 @@ class ServerRegistry {
 		// existing bus-start effect
 		// starts the bus once `isAuthenticated` flips true.
 		if (store.isAuthenticated) {
-			const gqlClient = graphqlClientManager.getClient(server.id);
-			eventBusManager.startBus(server.id, gqlClient);
+			const serverConnection = serverConnectionManager.getClient(server.id);
+			eventBusManager.startBus(server.id, serverConnection);
 		}
 	}
 
-	/** Remove a server by ID. Disposes its event bus, store, and GraphQL client. */
+	/** Remove a server by ID. Disposes its event bus, store, and connection state. */
 	removeServer(id: string): boolean {
 		const server = this.servers.find((s) => s.id === id);
 		if (!server) {
@@ -326,8 +326,8 @@ class ServerRegistry {
 		this.#stores.get(id)?.dispose();
 		this.#stores.delete(id);
 
-		// Dispose GraphQL client
-		graphqlClientManager.destroyClient(id);
+		// Dispose connection state
+		serverConnectionManager.destroyClient(id);
 		clearAssetProxyCache(id);
 
 		this.servers = this.servers.filter((s) => s.id !== id);
@@ -342,7 +342,7 @@ class ServerRegistry {
 			eventBusManager.stopBus(server.id);
 			this.#stores.get(server.id)?.dispose();
 			this.#stores.delete(server.id);
-			graphqlClientManager.destroyClient(server.id);
+			serverConnectionManager.destroyClient(server.id);
 		}
 		clearAssetProxyCache();
 		this.servers = [];
@@ -374,7 +374,7 @@ class ServerRegistry {
 		eventBusManager.stopBus(id);
 		this.#stores.get(id)?.dispose();
 		this.#stores.delete(id);
-		graphqlClientManager.destroyClient(id);
+		serverConnectionManager.destroyClient(id);
 		clearAssetProxyCache(id);
 
 		Object.assign(server, data);
@@ -414,8 +414,8 @@ class ServerRegistry {
 
 	/** Create a state store for a server and wire up remote user sync. */
 	#createStore(server: RegisteredServer): ServerStateStore {
-		const gqlClient = graphqlClientManager.getClient(server.id);
-		const store = new ServerStateStore(server, gqlClient);
+		const serverConnection = serverConnectionManager.getClient(server.id);
+		const store = new ServerStateStore(server, serverConnection);
 		this.#stores.set(server.id, store);
 
 		// Eagerly fetch server info (name, MOTD, upload limits, etc.).

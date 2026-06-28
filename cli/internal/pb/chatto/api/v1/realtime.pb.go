@@ -2825,7 +2825,7 @@ func (x *RealtimeServerUserPreferencesUpdatedEvent) GetTimeFormat() RealtimeTime
 // Room-group layout signal.
 type RealtimeRoomGroupsUpdatedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Always true; present for GraphQL event-bus compatibility.
+	// Always true; present for event-bus compatibility.
 	Changed       bool `protobuf:"varint,1,opt,name=changed,proto3" json:"changed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

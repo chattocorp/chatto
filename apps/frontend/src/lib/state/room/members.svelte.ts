@@ -1,19 +1,23 @@
-import type { Client } from '@urql/svelte';
 import { createContext } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
-import { graphql, useFragment } from '$lib/gql';
-import { isUnsupportedGraphQLArgumentError } from '$lib/gql/compatibility';
+import { type PresenceStatus } from '$lib/render/types';
 import {
-  UserAvatarUserFragmentDoc,
-  type PresenceStatus,
-  type RoomMembersQuery
-} from '$lib/gql/graphql';
+  createMemberDirectoryAPI,
+  type DirectoryMember,
+  type MemberDirectoryAPI,
+  type MemberDirectoryPage
+} from '$lib/api/memberDirectory';
 import type { EventEnvelope } from '$lib/eventBus.svelte';
-import type { GraphQLClient } from '$lib/state/server/graphqlClient.svelte';
+import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
+import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
 import type { CustomUserStatus } from '$lib/state/userProfiles.svelte';
 
 export const ROOM_MEMBERS_PAGE_SIZE = 100;
 const MENTION_MEMBER_SEARCH_LIMIT = 10;
+const roomMemberInvalidatingEventKinds = new Set<RoomEventKind>([
+  RoomEventKind.UserJoinedRoom,
+  RoomEventKind.UserLeftRoom
+]);
 
 /**
  * Room member data for the current room.
@@ -34,34 +38,6 @@ export type RoomMembersPage = {
   hasMore: boolean;
 };
 
-const RoomMembersQuery = graphql(`
-  query RoomMembers($roomId: ID!, $search: String, $limit: Int!, $offset: Int!) {
-    room(roomId: $roomId) {
-      members(search: $search, limit: $limit, offset: $offset) {
-        users {
-          ...UserAvatarUser
-        }
-        totalCount
-        hasMore
-      }
-    }
-  }
-`);
-
-const RoomMembersWithoutSearchQuery = graphql(`
-  query RoomMembersWithoutSearch($roomId: ID!, $limit: Int!, $offset: Int!) {
-    room(roomId: $roomId) {
-      members(limit: $limit, offset: $offset) {
-        users {
-          ...UserAvatarUser
-        }
-        totalCount
-        hasMore
-      }
-    }
-  }
-`);
-
 function memberMatchesSearch(member: RoomMember, search: string): boolean {
   const query = search.trim().toLowerCase();
   if (!query) return true;
@@ -70,22 +46,23 @@ function memberMatchesSearch(member: RoomMember, search: string): boolean {
   );
 }
 
-function mapPage(connectionData: {
-  users: NonNullable<RoomMembersQuery['room']>['members']['users'];
-  totalCount: number;
-  hasMore: boolean;
-}): RoomMembersPage {
+function mapPage(page: MemberDirectoryPage): RoomMembersPage {
   return {
-    members: connectionData.users.map((m) => useFragment(UserAvatarUserFragmentDoc, m)),
-    totalCount: connectionData.totalCount,
-    hasMore: connectionData.hasMore
+    members: page.members.map(memberFromDirectory),
+    totalCount: page.totalCount,
+    hasMore: page.hasMore
   };
+}
+
+function eventRoomId(eventData: EventEnvelope['event']): string | null {
+  if (!eventData || !('roomId' in eventData) || typeof eventData.roomId !== 'string') return null;
+  return eventData.roomId;
 }
 
 /**
  * Room member store for the current room.
  *
- * The store uses the paginated GraphQL API internally, but room initialization
+ * The store uses the paginated Connect member directory API internally, but room initialization
  * eagerly fills `members` with the complete room member list. Message rendering,
  * mention highlighting, popovers, and moderation checks all treat this as
  * canonical room context, not as a lazy sidebar page. Partial page results are
@@ -98,16 +75,24 @@ export class RoomMembersStore {
   isInitialLoading = $state(false);
   searchInput = $state('');
   activeSearch = $state('');
-  searchUnsupported = $state(false);
   livePresence = new SvelteMap<string, PresenceStatus>();
   presenceVersion = $state(0);
 
-  private readonly client: Client | null;
+  private readonly api: MemberDirectoryAPI | null;
   private roomId = '';
   #loadId = 0;
 
-  constructor(gqlClient?: GraphQLClient) {
-    this.client = gqlClient?.client ?? null;
+  constructor(source?: ServerConnection | MemberDirectoryAPI | null) {
+    if (!source) {
+      this.api = null;
+    } else if ('listRoomMembers' in source) {
+      this.api = source;
+    } else {
+      this.api = createMemberDirectoryAPI({
+        baseUrl: source.connectBaseUrl,
+        bearerToken: source.bearerToken
+      });
+    }
   }
 
   setRoom(roomId: string): void {
@@ -133,7 +118,7 @@ export class RoomMembersStore {
   }
 
   async loadInitial(): Promise<void> {
-    if (!this.roomId || !this.client) return;
+    if (!this.roomId || !this.api) return;
     const loadId = ++this.#loadId;
     this.isInitialLoading = true;
     try {
@@ -155,7 +140,7 @@ export class RoomMembersStore {
   }
 
   async refresh(): Promise<void> {
-    if (!this.roomId || !this.client) return;
+    if (!this.roomId || !this.api) return;
     const loadId = ++this.#loadId;
     this.isInitialLoading = false;
     try {
@@ -178,10 +163,11 @@ export class RoomMembersStore {
   ingestServerEvent(serverEvent: EventEnvelope): void {
     const eventData = serverEvent.event;
     if (!eventData) return;
+    const kind = roomEventKind(eventData);
     if (
-      (eventData.__typename === 'UserJoinedRoomEvent' ||
-        eventData.__typename === 'UserLeftRoomEvent') &&
-      eventData.roomId === this.roomId
+      kind &&
+      roomMemberInvalidatingEventKinds.has(kind) &&
+      eventRoomId(eventData) === this.roomId
     ) {
       void this.refresh();
     }
@@ -214,45 +200,9 @@ export class RoomMembersStore {
   }
 
   private async fetchPage(offset: number, limit: number, search: string): Promise<RoomMembersPage> {
-    if (!this.client) return { members: [], totalCount: 0, hasMore: false };
+    if (!this.api) return { members: [], totalCount: 0, hasMore: false };
     const normalizedSearch = search.trim();
-    if (!this.searchUnsupported) {
-      const response = await this.client
-        .query(RoomMembersQuery, {
-          roomId: this.roomId,
-          search: normalizedSearch || null,
-          limit,
-          offset
-        })
-        .toPromise();
-
-      if (!response.error) {
-        const connectionData = response.data?.room?.members;
-        if (!connectionData) throw new Error('Room members response missing connection');
-        return mapPage(connectionData);
-      }
-
-      if (!isUnsupportedGraphQLArgumentError(response.error, 'search')) {
-        throw response.error;
-      }
-      this.searchUnsupported = true;
-    }
-
-    const response = await this.client
-      .query(RoomMembersWithoutSearchQuery, { roomId: this.roomId, limit, offset })
-      .toPromise();
-    if (response.error) throw response.error;
-    const connectionData = response.data?.room?.members;
-    if (!connectionData) throw new Error('Room members response missing connection');
-    const page = mapPage(connectionData);
-    if (!normalizedSearch) return page;
-
-    const members = page.members.filter((member) => memberMatchesSearch(member, normalizedSearch));
-    return {
-      members,
-      totalCount: members.length,
-      hasMore: page.hasMore
-    };
+    return mapPage(await this.api.listRoomMembers(this.roomId, normalizedSearch, limit, offset));
   }
 
   private filterLoadedMembers(search: string): RoomMember[] {
@@ -271,7 +221,6 @@ export class RoomMembersStore {
     this.isInitialLoading = false;
     this.searchInput = '';
     this.activeSearch = '';
-    this.searchUnsupported = false;
     this.livePresence.clear();
     this.presenceVersion = 0;
   }
@@ -284,8 +233,8 @@ export function setRoomMembersStore(store: RoomMembersStore): RoomMembersStore {
   return store;
 }
 
-export function createRoomMembers(gqlClient?: GraphQLClient): RoomMembersStore {
-  return setRoomMembersStore(new RoomMembersStore(gqlClient));
+export function createRoomMembers(serverConnection?: ServerConnection): RoomMembersStore {
+  return setRoomMembersStore(new RoomMembersStore(serverConnection));
 }
 
 export function getRoomMembersStore(): RoomMembersStore {
@@ -299,4 +248,16 @@ export function getRoomMembers(): RoomMember[] {
 export function getMemberPresence(member: RoomMember): PresenceStatus {
   const state = getRoomMembersStore();
   return state.livePresence.get(member.id) ?? member.presenceStatus;
+}
+
+function memberFromDirectory(member: DirectoryMember): RoomMember {
+  return {
+    id: member.id,
+    login: member.login,
+    displayName: member.displayName,
+    deleted: member.deleted,
+    avatarUrl: member.avatarUrl,
+    customStatus: member.customStatus,
+    presenceStatus: member.presenceStatus
+  };
 }

@@ -54,9 +54,8 @@ func (*MemoryProjection) Restore(_ []byte) error { return nil }
 //
 // Concurrency contract: Apply is called from a single goroutine owned by
 // the Projector, in stream order. Implementations don't need internal
-// locking on the write path. They DO need a read lock if external code
-// (e.g. GraphQL resolvers) reads concurrently — projections typically
-// embed a sync.RWMutex for this.
+// locking on the write path. They DO need a read lock if external code reads
+// concurrently; projections typically embed a sync.RWMutex for this.
 //
 // Idempotency: Apply(e, n) followed by Apply(e, n) must produce the same
 // state as a single Apply(e, n). Snapshots aren't implemented yet, but the

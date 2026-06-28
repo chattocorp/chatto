@@ -1,6 +1,5 @@
-import type { Client } from '@urql/svelte';
-import { graphql } from '$lib/gql';
-import { FitMode, RefreshMessageAttachmentUrlsDocument } from '$lib/gql/graphql';
+import { FitMode } from '$lib/render/types';
+import type { AttachmentAPI } from '$lib/api/attachments';
 
 export type ExpiringAssetUrl = {
   url: string;
@@ -80,93 +79,16 @@ export function withAssetUrlRetryParam(url: string, retry: string | number): str
   return `${base}${separator}retry=${encodeURIComponent(String(retry))}${hash}`;
 }
 
-// Re-fetch a message event's attachment URLs just before the user actually
-// needs them. Asset URL fields re-sign on every resolve; the staleness lives
-// in already-rendered query/subscription data, not the server.
-//
-// This source query is intentionally kept next to the helper for codegen.
-// Runtime uses the generated document below so TypeScript doesn't depend on
-// the exact whitespace of the typed graphql() overload.
-void graphql(`
-  query RefreshMessageAttachmentUrls(
-    $roomId: ID!
-    $eventId: ID!
-    $thumbnailWidth: Int = 960
-    $thumbnailHeight: Int = 800
-    $thumbnailFit: FitMode = CONTAIN
-  ) {
-    room(roomId: $roomId) {
-      event(eventId: $eventId) {
-        event {
-          __typename
-          ... on MessagePostedEvent {
-            attachments {
-              id
-              assetUrl {
-                url
-                expiresAt
-              }
-              thumbnailAssetUrl(
-                width: $thumbnailWidth
-                height: $thumbnailHeight
-                fit: $thumbnailFit
-              ) {
-                url
-                expiresAt
-              }
-              videoProcessing {
-                thumbnailAssetUrl {
-                  url
-                  expiresAt
-                }
-                variants {
-                  quality
-                  assetUrl {
-                    url
-                    expiresAt
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-`);
-
 export async function refreshAttachmentUrlsForMessage(
-  client: Client,
+  api: Pick<AttachmentAPI, 'refreshMessageAttachmentUrls'>,
   roomId: string,
   eventId: string,
   thumbnailOptions = DEFAULT_ATTACHMENT_THUMBNAIL_REFRESH
 ): Promise<Map<string, RefreshedAttachmentUrls>> {
-  const fresh = new Map<string, RefreshedAttachmentUrls>();
-  const result = await client
-    .query(RefreshMessageAttachmentUrlsDocument, {
-      roomId,
-      eventId,
-      thumbnailWidth: thumbnailOptions.width,
-      thumbnailHeight: thumbnailOptions.height,
-      thumbnailFit: thumbnailOptions.fit
-    })
-    .toPromise();
-  if (result.error) {
-    console.warn('Failed to refresh attachment URLs', result.error);
-    return fresh;
+  try {
+    return await api.refreshMessageAttachmentUrls(roomId, eventId, thumbnailOptions);
+  } catch (error) {
+    console.warn('Failed to refresh attachment URLs', error);
+    return new Map();
   }
-  const inner = result.data?.room?.event?.event;
-  if (inner && 'attachments' in inner) {
-    for (const att of inner.attachments) {
-      fresh.set(att.id, {
-        assetUrl: att.assetUrl,
-        thumbnailAssetUrl: att.thumbnailAssetUrl ?? null,
-        videoThumbnailAssetUrl: att.videoProcessing?.thumbnailAssetUrl ?? null,
-        variantAssetUrls: new Map(
-          att.videoProcessing?.variants.map((variant) => [variant.quality, variant.assetUrl]) ?? []
-        )
-      });
-    }
-  }
-  return fresh;
 }

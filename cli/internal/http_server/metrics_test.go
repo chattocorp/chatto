@@ -22,9 +22,6 @@ func TestMetricsServerExposesPrometheusMetrics(t *testing.T) {
 		metrics: newProcessMetrics(),
 	}
 
-	closeWebSocket := s.metrics.openGraphQLWebSocket()
-	defer closeWebSocket()
-
 	metricsServer, err := s.newMetricsServer()
 	if err != nil {
 		t.Fatalf("newMetricsServer() error = %v", err)
@@ -49,7 +46,6 @@ func TestMetricsServerExposesPrometheusMetrics(t *testing.T) {
 
 	for _, want := range []string{
 		`chatto_build_info{version="test-version"} 1`,
-		`chatto_graphql_websocket_connections 1`,
 		`chatto_nats_connected 0`,
 		`chatto_ready 0`,
 	} {
@@ -179,26 +175,5 @@ func TestMetricsServerUsesProjectionAndModelKeys(t *testing.T) {
 	}
 	if strings.Contains(text, `model="Message Model"`) {
 		t.Fatalf("metrics body used human model name as label\n%s", text)
-	}
-}
-
-func TestProcessMetricsTracksGraphQLWebSockets(t *testing.T) {
-	metrics := newProcessMetrics()
-	closeA := metrics.openGraphQLWebSocket()
-	closeB := metrics.openGraphQLWebSocket()
-
-	if got := metrics.activeWebSockets(); got != 2 {
-		t.Fatalf("activeWebSockets() = %d, want 2", got)
-	}
-
-	closeA()
-	closeA()
-	if got := metrics.activeWebSockets(); got != 1 {
-		t.Fatalf("activeWebSockets() after idempotent close = %d, want 1", got)
-	}
-
-	closeB()
-	if got := metrics.activeWebSockets(); got != 0 {
-		t.Fatalf("activeWebSockets() after close = %d, want 0", got)
 	}
 }

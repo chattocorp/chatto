@@ -1,19 +1,17 @@
 <!--
 @component
 
-Per-role permission matrix loader. Owns the GraphQL query for the
+Per-role permission matrix loader. Owns the ConnectRPC query for the
 role's matrix and the mutation dispatch for cell clicks; delegates
 rendering to `SubjectPermissionsMatrix` (shared with the user variant).
 
-Mutations reuse the existing per-tier role mutations
-(`grantPermission` / `grantGroupPermission` / `grantRoomPermission`
-and the deny/clear variants) via `setRolePermission`.
+Mutations go through the PermissionService via `setRolePermission`.
 -->
 <script lang="ts">
   import { untrack } from 'svelte';
   import { Hint } from '$lib/ui';
   import { useConnection } from '$lib/state/server/connection.svelte';
-  import { graphql } from '$lib/gql';
+  import { createPermissionAPI } from '$lib/api/permissions';
   import { toast } from '$lib/ui/toast';
   import * as m from '$lib/i18n/messages';
   import {
@@ -33,6 +31,14 @@ and the deny/clear variants) via `setRolePermission`.
 
   const connection = useConnection();
 
+  function permissionAPI() {
+    const conn = connection();
+    return createPermissionAPI({
+      baseUrl: conn.connectBaseUrl,
+      bearerToken: conn.bearerToken
+    });
+  }
+
   let data = $state<Matrix | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
@@ -48,43 +54,19 @@ and the deny/clear variants) via `setRolePermission`.
     if (!current || current.roleName !== name) loading = true;
     error = null;
 
-    const resp = await connection().client.query(
-      graphql(`
-        query RolePermissionsMatrixQuery($roleName: String!) {
-          admin {
-            rbac {
-              rolePermissionMatrix(roleName: $roleName) {
-                roleName
-                applicablePermissions
-                scopes {
-                  id
-                  label
-                  kind
-                  parentGroupId
-                }
-                cells {
-                  permission
-                  scopeId
-                  override
-                  effective
-                }
-              }
-            }
-          }
-        }
-      `),
-      { roleName: name },
-      { requestPolicy: 'network-only' }
-    );
+    let matrix: Matrix | null = null;
+    try {
+      matrix = await permissionAPI().getRolePermissionMatrix(name);
+    } catch (err) {
+      if (name !== roleName) return;
+      loading = false;
+      error = err instanceof Error ? err.message : String(err);
+      return;
+    }
 
     if (name !== roleName) return;
 
     loading = false;
-    if (resp.error) {
-      error = resp.error.message;
-      return;
-    }
-    const matrix = resp.data?.admin?.rbac.rolePermissionMatrix;
     if (!matrix) {
       error = 'Role not found.';
       return;
@@ -117,7 +99,7 @@ and the deny/clear variants) via `setRolePermission`.
     error = null;
 
     const result = await setRolePermission(
-      connection().client,
+      permissionAPI(),
       mutationScopeFor(scope, data.roleName),
       permission,
       next as PermissionState

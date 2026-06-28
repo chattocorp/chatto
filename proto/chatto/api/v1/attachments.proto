@@ -1,0 +1,110 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "buf/validate/validate.proto";
+import "chatto/api/v1/room_timeline.proto";
+import "google/protobuf/timestamp.proto";
+
+// Fit mode used when generating transformed attachment thumbnails.
+enum AttachmentFitMode {
+  // The fit mode was not specified.
+  ATTACHMENT_FIT_MODE_UNSPECIFIED = 0;
+  // Preserve the whole source image within the requested bounds.
+  ATTACHMENT_FIT_MODE_CONTAIN = 1;
+  // Fill the requested bounds, cropping when needed.
+  ATTACHMENT_FIT_MODE_COVER = 2;
+}
+
+// Thumbnail transform parameters for attachment URL reads.
+message AttachmentThumbnailOptions {
+  // Thumbnail width in pixels.
+  int32 width = 1 [(buf.validate.field).int32 = {
+    gte: 1,
+    lte: 4096
+  }];
+  // Thumbnail height in pixels.
+  int32 height = 2 [(buf.validate.field).int32 = {
+    gte: 1,
+    lte: 4096
+  }];
+  // Thumbnail fit mode.
+  AttachmentFitMode fit = 3 [(buf.validate.field).enum.defined_only = true];
+}
+
+// Request for room-scoped attachment list pages.
+message ListRoomAttachmentsRequest {
+  // Required room ID.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Maximum number of attachments to return.
+  int32 limit = 2 [(buf.validate.field).int32 = {
+    gte: 1,
+    lte: 100
+  }];
+  // Zero-based offset into the newest-first attachment list.
+  int32 offset = 3 [(buf.validate.field).int32.gte = 0];
+  // Thumbnail URL options. Defaults are applied when absent.
+  AttachmentThumbnailOptions thumbnail = 4;
+}
+
+// One current room attachment and its message anchor.
+message RoomAttachmentListItem {
+  // Attachment metadata and signed URLs.
+  RoomTimelineAttachment attachment = 1;
+  // Message event containing the attachment.
+  string message_event_id = 2;
+  // Thread root event ID when the containing message is a thread reply.
+  string thread_root_event_id = 3;
+  // Message creation timestamp.
+  google.protobuf.Timestamp created_at = 4;
+}
+
+// Room-scoped attachment list response.
+message ListRoomAttachmentsResponse {
+  // Current attachments in newest message order.
+  repeated RoomAttachmentListItem items = 1;
+  // Total current attachment count for the room.
+  int32 total_count = 2;
+  // True when a later page exists.
+  bool has_more = 3;
+}
+
+// Request to refresh signed attachment URLs for one message.
+message RefreshMessageAttachmentUrlsRequest {
+  // Required room ID.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required message event ID.
+  string event_id = 2 [(buf.validate.field).string.min_len = 1];
+  // Thumbnail URL options. Defaults are applied when absent.
+  AttachmentThumbnailOptions thumbnail = 3;
+}
+
+// Fresh signed URLs for one message attachment.
+message RefreshedAttachmentUrls {
+  // Attachment ID these URLs belong to.
+  string attachment_id = 1;
+  // Fresh signed URL for the original attachment.
+  RoomTimelineAssetUrl asset_url = 2;
+  // Fresh signed transformed thumbnail URL for the attachment.
+  RoomTimelineAssetUrl thumbnail_asset_url = 3;
+  // Fresh signed URL for the processed video thumbnail, when present.
+  RoomTimelineAssetUrl video_thumbnail_asset_url = 4;
+  // Fresh signed URLs for processed video variants, when present.
+  repeated RoomTimelineVideoVariant variants = 5;
+}
+
+// Response containing fresh signed URLs for the current message attachments.
+message RefreshMessageAttachmentUrlsResponse {
+  // Fresh URL bundle for each current attachment on the message.
+  repeated RefreshedAttachmentUrls attachments = 1;
+}
+
+// Reads room attachments and refreshes expiring signed attachment URLs.
+service AttachmentService {
+  // Lists current message-owned room attachments. Authentication and room
+  // membership are required.
+  rpc ListRoomAttachments(ListRoomAttachmentsRequest) returns (ListRoomAttachmentsResponse);
+  // Refreshes signed URLs for the current attachments on one message.
+  // Authentication and room membership are required.
+  rpc RefreshMessageAttachmentUrls(RefreshMessageAttachmentUrlsRequest) returns (RefreshMessageAttachmentUrlsResponse);
+}

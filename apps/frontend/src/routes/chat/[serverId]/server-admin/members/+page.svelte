@@ -4,8 +4,11 @@
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { graphql } from '$lib/gql';
-  import type { ServerAdminMembersQuery } from '$lib/gql/graphql';
+  import {
+    createAdminUserManagementAPI,
+    type AdminMember,
+    type AdminMemberRoleSummary
+  } from '$lib/api/adminUsers';
   import { Panel, DataTable } from '$lib/components/admin';
   import { Hint, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
@@ -20,36 +23,10 @@
   const connection = useConnection();
   const PAGE_SIZE = 20;
 
-  const ServerAdminMembersDocument = graphql(`
-    query ServerAdminMembers($search: String, $limit: Int!, $offset: Int!) {
-      server {
-        roles {
-          name
-          displayName
-        }
-        members(search: $search, limit: $limit, offset: $offset) {
-          users {
-            id
-            login
-            displayName
-            avatarUrl
-            roles
-            createdAt
-          }
-          totalCount
-          hasMore
-        }
-      }
-    }
-  `);
-
-  type User = ServerAdminMembersQuery['server']['members']['users'][number];
-  type Role = ServerAdminMembersQuery['server']['roles'][number];
-
   let searchInput = $state('');
   let activeSearch = '';
-  let users = $state<User[]>([]);
-  let roles = $state<Role[]>([]);
+  let users = $state<AdminMember[]>([]);
+  let roles = $state<AdminMemberRoleSummary[]>([]);
   let totalCount = $state(0);
   let hasMore = $state(false);
   let loading = $state(true);
@@ -83,13 +60,15 @@
   }
 
   async function queryMembers(search: string, offset: number) {
-    return connection()
-      .client.query(ServerAdminMembersDocument, {
-        search: search || null,
-        limit: PAGE_SIZE,
-        offset
-      })
-      .toPromise();
+    const conn = connection();
+    return createAdminUserManagementAPI({
+      baseUrl: conn.connectBaseUrl,
+      bearerToken: conn.bearerToken
+    }).listMembers({
+      search: search || null,
+      limit: PAGE_SIZE,
+      offset
+    });
   }
 
   async function loadFirstPage(search = activeSearch) {
@@ -105,21 +84,10 @@
       const result = await queryMembers(search, 0);
       if (currentRequest !== requestId) return;
 
-      if (result.error) {
-        error = result.error.message;
-        return;
-      }
-
-      if (!result.data?.server) {
-        error = m['admin.members.server_not_found']();
-        return;
-      }
-
-      const members = result.data.server.members;
-      roles = result.data.server.roles;
-      users = members.users;
-      totalCount = members.totalCount;
-      hasMore = members.hasMore;
+      roles = result.roles;
+      users = result.users;
+      totalCount = result.totalCount;
+      hasMore = result.hasMore;
     } catch (e) {
       if (currentRequest !== requestId) return;
       error = e instanceof Error ? e.message : m['admin.members.load_failed']();
@@ -143,22 +111,11 @@
       const result = await queryMembers(search, offset);
       if (currentRequest !== requestId) return;
 
-      if (result.error) {
-        error = result.error.message;
-        return;
-      }
-
-      if (!result.data?.server) {
-        error = m['admin.members.server_not_found']();
-        return;
-      }
-
-      const members = result.data.server.members;
       const seen = new Set(users.map((user) => user.id));
-      roles = result.data.server.roles;
-      users = [...users, ...members.users.filter((user) => !seen.has(user.id))];
-      totalCount = members.totalCount;
-      hasMore = members.hasMore;
+      roles = result.roles;
+      users = [...users, ...result.users.filter((user) => !seen.has(user.id))];
+      totalCount = result.totalCount;
+      hasMore = result.hasMore;
     } catch (e) {
       if (currentRequest !== requestId) return;
       error = e instanceof Error ? e.message : m['admin.members.load_more_failed']();

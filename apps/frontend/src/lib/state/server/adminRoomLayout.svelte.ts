@@ -1,158 +1,23 @@
-import type { Client } from '@urql/svelte';
-import { graphql } from '$lib/gql';
-import { RoomGroupItemType } from '$lib/gql/graphql';
+import type {
+  AdminRoomGroup,
+  AdminRoomInfo,
+  AdminRoomLayoutAPI,
+  AdminRoomLayoutItemMutationInput,
+  AdminSidebarItem,
+  AdminSidebarLinkInfo
+} from '$lib/api/adminRoomLayout';
 import type { RoomCommandAPI } from '$lib/api/rooms';
+import { RoomEventKind, roomEventKind, type RoomEventKindSource } from '$lib/render/eventKinds';
 import { SvelteMap } from 'svelte/reactivity';
 
 const OWN_MUTATION_ECHO_SUPPRESSION_MS = 2000;
 
-const AdminRoomGroupsQuery = graphql(`
-  query AdminRoomGroups {
-    server {
-      rooms(type: CHANNEL) {
-        id
-        name
-        description
-        archived
-        isUniversal
-      }
-      roomGroups {
-        id
-        name
-        rooms {
-          id
-        }
-        items {
-          type
-          id
-          room {
-            id
-          }
-          link {
-            id
-            label
-            url
-          }
-        }
-      }
-    }
-  }
-`);
-
-const CreateRoomGroupMutation = graphql(`
-  mutation AdminCreateRoomGroup($input: CreateRoomGroupInput!) {
-    createRoomGroup(input: $input) {
-      id
-      name
-    }
-  }
-`);
-
-const UpdateRoomGroupMutation = graphql(`
-  mutation AdminUpdateRoomGroup($input: UpdateRoomGroupInput!) {
-    updateRoomGroup(input: $input) {
-      id
-      name
-    }
-  }
-`);
-
-const DeleteRoomGroupMutation = graphql(`
-  mutation AdminDeleteRoomGroup($input: DeleteRoomGroupInput!) {
-    deleteRoomGroup(input: $input)
-  }
-`);
-
-const ReorderRoomGroupsMutation = graphql(`
-  mutation AdminReorderRoomGroups($input: ReorderRoomGroupsInput!) {
-    reorderRoomGroups(input: $input) {
-      id
-    }
-  }
-`);
-
-const MoveRoomToGroupMutation = graphql(`
-  mutation AdminMoveRoomToGroup($input: MoveRoomToGroupInput!) {
-    moveRoomToGroup(input: $input) {
-      id
-    }
-  }
-`);
-
-const ReorderRoomsInGroupMutation = graphql(`
-  mutation AdminReorderSidebarItemsInGroup($input: ReorderSidebarItemsInGroupInput!) {
-    reorderSidebarItemsInGroup(input: $input) {
-      id
-    }
-  }
-`);
-
-const CreateSidebarLinkMutation = graphql(`
-  mutation AdminCreateSidebarLink($input: CreateSidebarLinkInput!) {
-    createSidebarLink(input: $input) {
-      id
-      label
-      url
-    }
-  }
-`);
-
-const UpdateSidebarLinkMutation = graphql(`
-  mutation AdminUpdateSidebarLink($input: UpdateSidebarLinkInput!) {
-    updateSidebarLink(input: $input) {
-      id
-      label
-      url
-    }
-  }
-`);
-
-const DeleteSidebarLinkMutation = graphql(`
-  mutation AdminDeleteSidebarLink($input: DeleteSidebarLinkInput!) {
-    deleteSidebarLink(input: $input)
-  }
-`);
-
-const MoveSidebarLinkToGroupMutation = graphql(`
-  mutation AdminMoveSidebarLinkToGroup($input: MoveSidebarLinkToGroupInput!) {
-    moveSidebarLinkToGroup(input: $input) {
-      id
-    }
-  }
-`);
-
-export type AdminRoomInfo = {
-  id: string;
-  name: string;
-  description?: string | null;
-  archived: boolean;
-  isUniversal: boolean;
-};
-
-export type AdminSidebarLinkInfo = {
-  id: string;
-  label: string;
-  url: string;
-};
-
-export type AdminSidebarItem =
-  | {
-      id: string;
-      kind: 'room';
-      room: AdminRoomInfo;
-    }
-  | {
-      id: string;
-      kind: 'link';
-      link: AdminSidebarLinkInfo;
-    };
-
-export type AdminRoomGroup = {
-  id: string;
-  name: string;
-  rooms: AdminRoomInfo[];
-  items?: AdminSidebarItem[];
-};
+export type {
+  AdminRoomGroup,
+  AdminRoomInfo,
+  AdminSidebarItem,
+  AdminSidebarLinkInfo
+} from '$lib/api/adminRoomLayout';
 
 export type MoveRoomMutationInput = {
   roomId: string;
@@ -161,7 +26,7 @@ export type MoveRoomMutationInput = {
 
 export type ReorderRoomsMutationInput = {
   groupId: string;
-  items: Array<{ type: RoomGroupItemType; id: string }>;
+  items: AdminRoomLayoutItemMutationInput[];
 };
 
 export type RoomMovePlan = {
@@ -203,10 +68,6 @@ function errorMessage(error: unknown): string {
     return error.message;
   }
   return String(error);
-}
-
-function isUniversalRoom(room: object): boolean {
-  return 'isUniversal' in room && room.isUniversal === true;
 }
 
 export function buildGroupRoomOrder(groups: AdminRoomGroup[]): GroupRoomOrder {
@@ -259,9 +120,9 @@ function itemId(item: AdminSidebarItem): string {
   return item.kind === 'room' ? item.room.id : item.link.id;
 }
 
-function itemToMutationInput(item: AdminSidebarItem): { type: RoomGroupItemType; id: string } {
+function itemToMutationInput(item: AdminSidebarItem): AdminRoomLayoutItemMutationInput {
   return {
-    type: item.kind === 'room' ? RoomGroupItemType.Room : RoomGroupItemType.SidebarLink,
+    kind: item.kind,
     id: itemId(item)
   };
 }
@@ -287,7 +148,7 @@ export function planRoomMoveMutations(before: GroupRoomOrder, after: GroupRoomOr
     if (!sameOrder(orderedRoomIds, before.get(groupId))) {
       reorders.push({
         groupId,
-        items: orderedRoomIds.map((id) => ({ type: RoomGroupItemType.Room, id }))
+        items: orderedRoomIds.map((id) => ({ kind: 'room', id }))
       });
     }
   }
@@ -295,7 +156,10 @@ export function planRoomMoveMutations(before: GroupRoomOrder, after: GroupRoomOr
   return { moves, linkMoves: [], reorders };
 }
 
-export function planSidebarItemMutations(before: GroupItemOrder, after: GroupItemOrder): RoomMovePlan {
+export function planSidebarItemMutations(
+  before: GroupItemOrder,
+  after: GroupItemOrder
+): RoomMovePlan {
   const beforeRooms = buildItemToGroup(before, 'room');
   const afterRooms = buildItemToGroup(after, 'room');
   const beforeLinks = buildItemToGroup(before, 'link');
@@ -350,46 +214,6 @@ function normalizeGroups(groups: AdminRoomGroup[]): AdminRoomGroup[] {
   }));
 }
 
-function adminItemsFromQuery(
-  group: {
-    rooms?: Array<{ id: string }> | null;
-    items?: Array<{
-      type: RoomGroupItemType;
-      id: string;
-      room?: { id: string } | null;
-      link?: { id: string; label: string; url: string } | null;
-    }> | null;
-  },
-  roomsMap: SvelteMap<string, AdminRoomInfo>
-): AdminSidebarItem[] {
-  if (!group.items || group.items.length === 0) {
-    return (group.rooms ?? [])
-      .map((room) => roomsMap.get(room.id))
-      .filter((room): room is AdminRoomInfo => room != null)
-      .map((room) => ({ id: `room:${room.id}`, kind: 'room', room }));
-  }
-  return group.items
-    .map((item): AdminSidebarItem | null => {
-      if (item.type === RoomGroupItemType.Room && item.room) {
-        const room = roomsMap.get(item.room.id);
-        return room ? { id: `room:${room.id}`, kind: 'room', room } : null;
-      }
-      if (item.type === RoomGroupItemType.SidebarLink && item.link) {
-        return {
-          id: `link:${item.link.id}`,
-          kind: 'link',
-          link: {
-            id: item.link.id,
-            label: item.link.label,
-            url: item.link.url
-          }
-        };
-      }
-      return null;
-    })
-    .filter((item): item is AdminSidebarItem => item != null);
-}
-
 function toSidebarItems(items: Array<AdminSidebarItem | AdminRoomInfo>): AdminSidebarItem[] {
   return items.map((item) => {
     if ('kind' in item) return item;
@@ -415,7 +239,7 @@ export class AdminRoomLayoutStore {
   #preReorderIds: string[] | null = null;
 
   constructor(
-    private readonly client: Client,
+    private readonly layoutAPI: AdminRoomLayoutAPI,
     private readonly roomAPI: Pick<
       RoomCommandAPI,
       'updateRoom' | 'archiveRoom' | 'unarchiveRoom' | 'setRoomUniversal'
@@ -431,46 +255,10 @@ export class AdminRoomLayoutStore {
     const thisLoad = ++this.#loadId;
     this.isRefreshing = true;
     try {
-      const result = await this.client
-        .query(AdminRoomGroupsQuery, {}, { requestPolicy: 'network-only' })
-        .toPromise();
+      const groups = await this.layoutAPI.listAdminRoomLayout();
       if (this.#loadId !== thisLoad) return;
 
-      if (result.error) {
-        this.error = errorMessage(result.error);
-        return;
-      }
-
-      const server = result.data?.server;
-      if (!server) {
-        this.error = 'Server not found';
-        return;
-      }
-
-      const roomsMap = new SvelteMap<string, AdminRoomInfo>(
-        (server.rooms ?? []).map((room) => [
-          room.id,
-          {
-            id: room.id,
-            name: room.name,
-            description: room.description,
-            archived: room.archived,
-            isUniversal: isUniversalRoom(room)
-          }
-        ])
-      );
-
-      this.groups = normalizeGroups(
-        server.roomGroups.map((group) => {
-          const items = adminItemsFromQuery(group, roomsMap);
-          return {
-            id: group.id,
-            name: group.name,
-            rooms: items.filter((item) => item.kind === 'room').map((item) => item.room),
-            items
-          };
-        })
-      );
+      this.groups = normalizeGroups(groups);
       this.error = null;
       this.initialized = true;
     } catch (err) {
@@ -485,16 +273,13 @@ export class AdminRoomLayoutStore {
   }
 
   async createGroup(name: string): Promise<StoreResult<{ group: AdminRoomGroup }>> {
-    const result = await this.client
-      .mutation(CreateRoomGroupMutation, { input: { name } })
-      .toPromise();
-
-    if (result.error || !result.data?.createRoomGroup) {
-      return { ok: false, error: errorMessage(result.error) };
+    let group: AdminRoomGroup | null;
+    try {
+      group = await this.layoutAPI.createRoomGroup({ name });
+    } catch (error) {
+      return { ok: false, error: errorMessage(error) };
     }
-
-    const created = result.data.createRoomGroup;
-    const group = { id: created.id, name: created.name, rooms: [], items: [] };
+    if (!group) return { ok: false, error: 'Room group not found' };
     this.groups = [...this.groups, group];
     this.markMutation();
     return { ok: true, group };
@@ -504,12 +289,10 @@ export class AdminRoomLayoutStore {
     const idx = this.groups.findIndex((group) => group.id === groupId);
     if (idx === -1) return { ok: true };
 
-    const result = await this.client
-      .mutation(UpdateRoomGroupMutation, { input: { id: groupId, name: newName } })
-      .toPromise();
-
-    if (result.error) {
-      return { ok: false, error: errorMessage(result.error) };
+    try {
+      await this.layoutAPI.updateRoomGroup({ groupId, name: newName });
+    } catch (error) {
+      return { ok: false, error: errorMessage(error) };
     }
 
     this.groups[idx] = { ...this.groups[idx], name: newName };
@@ -518,12 +301,10 @@ export class AdminRoomLayoutStore {
   }
 
   async deleteGroup(groupId: string): Promise<StoreResult> {
-    const result = await this.client
-      .mutation(DeleteRoomGroupMutation, { input: { id: groupId } })
-      .toPromise();
-
-    if (result.error) {
-      return { ok: false, error: errorMessage(result.error) };
+    try {
+      await this.layoutAPI.deleteRoomGroup(groupId);
+    } catch (error) {
+      return { ok: false, error: errorMessage(error) };
     }
 
     this.groups = this.groups.filter((group) => group.id !== groupId);
@@ -536,15 +317,14 @@ export class AdminRoomLayoutStore {
     label: string,
     url: string
   ): Promise<StoreResult<{ link: AdminSidebarLinkInfo }>> {
-    const result = await this.client
-      .mutation(CreateSidebarLinkMutation, { input: { groupId, label, url } })
-      .toPromise();
-
-    if (result.error || !result.data?.createSidebarLink) {
-      return { ok: false, error: errorMessage(result.error) };
+    let link: AdminSidebarLinkInfo | null;
+    try {
+      link = await this.layoutAPI.createSidebarLink({ groupId, label, url });
+    } catch (error) {
+      return { ok: false, error: errorMessage(error) };
     }
+    if (!link) return { ok: false, error: 'Sidebar link not found' };
 
-    const link = result.data.createSidebarLink;
     this.markMutation();
     await this.refresh();
     return { ok: true, link };
@@ -555,27 +335,24 @@ export class AdminRoomLayoutStore {
     label: string,
     url: string
   ): Promise<StoreResult<{ link: AdminSidebarLinkInfo }>> {
-    const result = await this.client
-      .mutation(UpdateSidebarLinkMutation, { input: { linkId, label, url } })
-      .toPromise();
-
-    if (result.error || !result.data?.updateSidebarLink) {
-      return { ok: false, error: errorMessage(result.error) };
+    let link: AdminSidebarLinkInfo | null;
+    try {
+      link = await this.layoutAPI.updateSidebarLink({ linkId, label, url });
+    } catch (error) {
+      return { ok: false, error: errorMessage(error) };
     }
+    if (!link) return { ok: false, error: 'Sidebar link not found' };
 
-    const link = result.data.updateSidebarLink;
     this.markMutation();
     await this.refresh();
     return { ok: true, link };
   }
 
   async deleteSidebarLink(linkId: string): Promise<StoreResult> {
-    const result = await this.client
-      .mutation(DeleteSidebarLinkMutation, { input: { linkId } })
-      .toPromise();
-
-    if (result.error) {
-      return { ok: false, error: errorMessage(result.error) };
+    try {
+      await this.layoutAPI.deleteSidebarLink(linkId);
+    } catch (error) {
+      return { ok: false, error: errorMessage(error) };
     }
 
     this.markMutation();
@@ -665,16 +442,14 @@ export class AdminRoomLayoutStore {
     this.#preReorderIds = null;
     if (!orderedIds) return { ok: true, changed: false };
 
-    const result = await this.client
-      .mutation(ReorderRoomGroupsMutation, { input: { orderedIds } })
-      .toPromise();
-
-    if (result.error) {
+    try {
+      await this.layoutAPI.reorderRoomGroups(orderedIds);
+    } catch (error) {
       void this.refresh();
       return {
         ok: false,
         changed: true,
-        error: errorMessage(result.error),
+        error: errorMessage(error),
         refreshRequested: true
       };
     }
@@ -695,31 +470,26 @@ export class AdminRoomLayoutStore {
 
     const errors: string[] = [];
     for (const move of plan.moves) {
-      const result = await this.client
-        .mutation(MoveRoomToGroupMutation, { input: move })
-        .toPromise();
-      if (result.error) {
-        errors.push(`Failed to move room: ${errorMessage(result.error)}`);
+      try {
+        await this.layoutAPI.moveRoomToGroup(move);
+      } catch (error) {
+        errors.push(`Failed to move room: ${errorMessage(error)}`);
       }
     }
 
     for (const move of plan.linkMoves) {
-      const result = await this.client
-        .mutation(MoveSidebarLinkToGroupMutation, {
-          input: { linkId: move.roomId, groupId: move.groupId }
-        })
-        .toPromise();
-      if (result.error) {
-        errors.push(`Failed to move link: ${errorMessage(result.error)}`);
+      try {
+        await this.layoutAPI.moveSidebarLinkToGroup({ linkId: move.roomId, groupId: move.groupId });
+      } catch (error) {
+        errors.push(`Failed to move link: ${errorMessage(error)}`);
       }
     }
 
     for (const reorder of plan.reorders) {
-      const result = await this.client
-        .mutation(ReorderRoomsInGroupMutation, { input: reorder })
-        .toPromise();
-      if (result.error) {
-        errors.push(`Failed to reorder rooms: ${errorMessage(result.error)}`);
+      try {
+        await this.layoutAPI.reorderSidebarItemsInGroup(reorder);
+      } catch (error) {
+        errors.push(`Failed to reorder rooms: ${errorMessage(error)}`);
       }
     }
 
@@ -742,17 +512,16 @@ export class AdminRoomLayoutStore {
     };
   }
 
-  ingestServerEvent(serverEvent: { event?: { __typename?: string } | null }): boolean {
-    const event = serverEvent.event;
-    if (!event) return false;
-    if (event.__typename === 'RoomGroupsUpdatedEvent') {
+  ingestServerEvent(serverEvent: { event?: RoomEventKindSource }): boolean {
+    const kind = roomEventKind(serverEvent.event);
+    if (kind === RoomEventKind.RoomGroupsUpdated) {
       return this.ingestRoomLayoutUpdated();
     }
     if (
-      event.__typename === 'RoomUpdatedEvent' ||
-      event.__typename === 'RoomArchivedEvent' ||
-      event.__typename === 'RoomUnarchivedEvent' ||
-      event.__typename === 'RoomUniversalChangedEvent'
+      kind === RoomEventKind.RoomUpdated ||
+      kind === RoomEventKind.RoomArchived ||
+      kind === RoomEventKind.RoomUnarchived ||
+      kind === RoomEventKind.RoomUniversalChanged
     ) {
       return this.ingestRoomMetadataUpdated();
     }

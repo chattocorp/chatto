@@ -17,19 +17,19 @@ An FDR is a single source of truth for one feature. It answers:
 
 FDRs sit alongside [ADRs](../adr/INDEX.md). The split:
 
-- **ADRs** are about **architectural decisions** — cross-cutting choices like "GraphQL as primary API" or "per-user encryption keys". Often immutable once decided.
+- **ADRs** are about **architectural decisions** — cross-cutting choices like "protobuf-first public API" or "per-user encryption keys". Often immutable once decided.
 - **FDRs** are about **features** — what they do and the design decisions specific to that feature. Updated as the feature evolves.
 
 A single feature may cite several ADRs; a single ADR may underpin several FDRs. That's fine and expected.
 
 ## What an FDR Is NOT
 
-- **NOT** a code walkthrough. No function signatures, no proto field tags, no GraphQL schema dumps, no KV key patterns, no NATS subject formats.
+- **NOT** a code walkthrough. No function signatures, no proto field tags, no API schema dumps, no KV key patterns, no NATS subject formats.
 - **NOT** a file index. No "Key Files" tables.
 - **NOT** an implementation guide. Agents can `grep` for those things.
 - **NOT** a changelog. Old design decisions that have been superseded should be rewritten, not appended. The FDR describes the feature *today*.
 
-If you're writing GraphQL schema, proto definitions, or Go/TypeScript code in an FDR, you're going too deep. Stop and pull back to behavior + rationale.
+If you're writing proto definitions, ConnectRPC handler details, or Go/TypeScript code in an FDR, you're going too deep. Stop and pull back to behavior + rationale.
 
 ## Directory Structure
 

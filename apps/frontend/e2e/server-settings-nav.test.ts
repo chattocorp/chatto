@@ -2,6 +2,7 @@ import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
 import {
   createAndLoginTestUser,
+  grantPermission,
   logoutCurrentUser,
   loginAsAdminAndUsePrimaryServer,
   type TestUser
@@ -73,28 +74,6 @@ async function loginUser(page: Page, login: string, password: string): Promise<v
  */
 async function logoutUser(page: Page): Promise<void> {
   await logoutCurrentUser(page);
-}
-
-/** Grants a server-scope permission to a role via GraphQL API. */
-async function grantPermission(page: Page, role: string, permission: string): Promise<void> {
-  const response = await page.request.post('/api/graphql', {
-    headers: {
-      'Content-Type': 'application/json',
-      'X-REQUEST-TYPE': 'GraphQL'
-    },
-    data: {
-      query: `
-				mutation GrantPerm($input: GrantPermissionInput!) {
-					grantPermission(input: $input)
-				}
-			`,
-      variables: { input: { roleName: role, permission } }
-    }
-  });
-
-  expect(response.ok()).toBeTruthy();
-  const data = await response.json();
-  expect(data.data?.grantPermission).toBe(true);
 }
 
 test.describe('Server Admin Navigation Permissions', () => {

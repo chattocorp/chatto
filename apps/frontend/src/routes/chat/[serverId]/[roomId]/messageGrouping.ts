@@ -1,25 +1,26 @@
-import type { RoomEventViewFragment } from '$lib/gql/graphql';
+import type { RoomEventView } from '$lib/render/types';
+import { isMessagePostedEvent } from '$lib/render/eventKinds';
 import type { UserSettingsState } from '$lib/state/userSettings.svelte';
 import { isSameDay, formatDayLabel } from '$lib/utils/formatTime';
 
 const TEN_MINUTES_MS = 10 * 60 * 1000;
 
 export type EventWithMeta = {
-  event: RoomEventViewFragment;
+  event: RoomEventView;
   isFirstInGroup: boolean;
   showDaySeparator: boolean;
   dayLabel: string;
 };
 
 export function computeEventMetadata(
-  events: RoomEventViewFragment[],
+  events: RoomEventView[],
   settings: UserSettingsState
 ): EventWithMeta[] {
   const result: EventWithMeta[] = [];
 
   for (let i = 0; i < events.length; i++) {
     const event = events[i];
-    const prevEvent: RoomEventViewFragment | null = i > 0 ? events[i - 1] : null;
+    const prevEvent: RoomEventView | null = i > 0 ? events[i - 1] : null;
 
     const eventDate = new Date(event.createdAt);
     const prevEventDate = prevEvent ? new Date(prevEvent.createdAt) : null;
@@ -35,11 +36,9 @@ export function computeEventMetadata(
       const timeDiff = eventDate.getTime() - prevEventDate!.getTime();
       const sameActor = event.actorId === prevEvent.actorId;
       const withinTimeWindow = timeDiff <= TEN_MINUTES_MS;
-      const isMessage = (t?: string) => t === 'MessagePostedEvent';
       const bothAreMessages =
-        isMessage(event.event?.__typename) && isMessage(prevEvent.event?.__typename);
-      const isReply =
-        event.event?.__typename === 'MessagePostedEvent' && event.event?.inReplyTo != null;
+        isMessagePostedEvent(event.event) && isMessagePostedEvent(prevEvent.event);
+      const isReply = isMessagePostedEvent(event.event) && event.event.inReplyTo != null;
 
       // Group if same actor, within 10 minutes, both are messages, and not a reply.
       // Replies always render full (with avatar/name) to show the attribution context.

@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
-import type { Client } from '@urql/svelte';
 import { q } from '$lib/test-utils';
+import type { AdminRoomLayoutAPI } from '$lib/api/adminRoomLayout';
 import type { RoomCommandAPI } from '$lib/api/rooms';
 import {
   AdminRoomLayoutStore,
@@ -74,12 +74,20 @@ function roomAPI(): Pick<
 }
 
 function makeLayout(): AdminRoomLayoutStore {
-  const client = {
-    query: vi.fn(),
-    mutation: vi.fn(),
-    subscription: vi.fn()
-  } as unknown as Client;
-  return new AdminRoomLayoutStore(client, roomAPI());
+  const layoutAPI = {
+    listAdminRoomLayout: vi.fn().mockResolvedValue([]),
+    createRoomGroup: vi.fn().mockResolvedValue(null),
+    updateRoomGroup: vi.fn().mockResolvedValue(null),
+    deleteRoomGroup: vi.fn().mockResolvedValue(true),
+    reorderRoomGroups: vi.fn().mockResolvedValue([]),
+    moveRoomToGroup: vi.fn().mockResolvedValue(undefined),
+    reorderSidebarItemsInGroup: vi.fn().mockResolvedValue(null),
+    createSidebarLink: vi.fn().mockResolvedValue(null),
+    updateSidebarLink: vi.fn().mockResolvedValue(null),
+    deleteSidebarLink: vi.fn().mockResolvedValue(true),
+    moveSidebarLinkToGroup: vi.fn().mockResolvedValue(undefined)
+  } satisfies AdminRoomLayoutAPI;
+  return new AdminRoomLayoutStore(layoutAPI, roomAPI());
 }
 
 function renderEditor(layout: AdminRoomLayoutStore) {
@@ -123,7 +131,9 @@ describe('AdminRoomLayoutEditor', () => {
 
     const populated = makeLayout();
     populated.initialized = true;
-    populated.groups = [group('g1', [room('r1', { name: 'general', description: 'Public room' })], 'Lobby')];
+    populated.groups = [
+      group('g1', [room('r1', { name: 'general', description: 'Public room' })], 'Lobby')
+    ];
     const populatedRender = renderEditor(populated);
     expect(populatedRender.container.textContent).toContain('Lobby');
     expect(populatedRender.container.textContent).toContain('general');
@@ -178,9 +188,7 @@ describe('AdminRoomLayoutEditor', () => {
     layout.initialized = true;
     layout.groups = [group('g1', [room('r1', { name: 'general' })], 'Lobby')];
     const updateRoom = vi.spyOn(layout, 'updateRoom').mockResolvedValue({ ok: true });
-    const setRoomUniversal = vi
-      .spyOn(layout, 'setRoomUniversal')
-      .mockResolvedValue({ ok: true });
+    const setRoomUniversal = vi.spyOn(layout, 'setRoomUniversal').mockResolvedValue({ ok: true });
     const { container } = renderEditor(layout);
 
     expect(container.querySelector('[title="Make universal room"]')).toBeNull();

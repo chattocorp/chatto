@@ -2311,10 +2311,9 @@ func TestChattoCore_RoomPermissions_PerRoomIsolation(t *testing.T) {
 	}
 }
 
-// Authorization for room-level permission mutations now lives at the GraphQL
-// boundary (Resolver.requireRoomManageAuth → CanSpaceRolesManage). The previous
-// in-core gate that this test exercised has been retired; the resolver-level
-// equivalent is covered by mutation_test.go.
+// Authorization for room-level permission mutations now lives in public
+// operation models. The previous in-core gate that this test exercised has
+// been retired; API-level coverage exercises the replacement path.
 
 func clearDefaultEveryoneRoomPermissions(t *testing.T, core *ChattoCore, ctx context.Context, roomID string) {
 	t.Helper()
@@ -2652,6 +2651,113 @@ func TestChattoCore_RevokeRole_PeersCanRevokeWhenAPIGatePermits(t *testing.T) {
 	}
 	if hasMod(rolesB) {
 		t.Error("Moderator B should no longer have moderator role")
+	}
+}
+
+func TestChattoCore_AdminRoleManagementAuthorization(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	regular, err := core.CreateUser(ctx, SystemActorID, "role-regular", "Role Regular", "password")
+	if err != nil {
+		t.Fatalf("CreateUser regular: %v", err)
+	}
+	admin, err := core.CreateUser(ctx, SystemActorID, "role-admin", "Role Admin", "password")
+	if err != nil {
+		t.Fatalf("CreateUser admin: %v", err)
+	}
+	if err := core.AssignServerRole(ctx, SystemActorID, admin.Id, RoleAdmin); err != nil {
+		t.Fatalf("AssignServerRole admin: %v", err)
+	}
+
+	pingable := true
+	if _, err := core.AdminCreateServerRole(ctx, "", AdminRoleInput{Name: "helpdesk", DisplayName: "Helpdesk"}); !errors.Is(err, ErrNotAuthenticated) {
+		t.Fatalf("unauth create err = %v, want ErrNotAuthenticated", err)
+	}
+	if _, err := core.AdminCreateServerRole(ctx, regular.Id, AdminRoleInput{Name: "helpdesk", DisplayName: "Helpdesk"}); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("regular create err = %v, want ErrPermissionDenied", err)
+	}
+	role, err := core.AdminCreateServerRole(ctx, admin.Id, AdminRoleInput{
+		Name:        "helpdesk",
+		DisplayName: "Helpdesk",
+		Description: "Support team",
+		Pingable:    &pingable,
+	})
+	if err != nil {
+		t.Fatalf("AdminCreateServerRole: %v", err)
+	}
+	if !role.Pingable {
+		t.Fatal("Pingable = false, want true")
+	}
+
+	pingable = false
+	updated, err := core.AdminUpdateServerRole(ctx, admin.Id, AdminRoleInput{
+		Name:        "helpdesk",
+		DisplayName: "Support",
+		Description: "Support queue",
+		Pingable:    &pingable,
+	})
+	if err != nil {
+		t.Fatalf("AdminUpdateServerRole: %v", err)
+	}
+	if updated.DisplayName != "Support" || updated.Pingable {
+		t.Fatalf("updated role = %+v, want display Support and pingable false", updated)
+	}
+
+	if err := core.AdminDeleteServerRole(ctx, regular.Id, "helpdesk"); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("regular delete err = %v, want ErrPermissionDenied", err)
+	}
+	if err := core.AdminDeleteServerRole(ctx, admin.Id, RoleOwner); !errors.Is(err, ErrCannotDeleteSystemRole) {
+		t.Fatalf("delete owner err = %v, want ErrCannotDeleteSystemRole", err)
+	}
+	if err := core.AdminDeleteServerRole(ctx, admin.Id, "helpdesk"); err != nil {
+		t.Fatalf("AdminDeleteServerRole: %v", err)
+	}
+}
+
+func TestChattoCore_ServerRoleDetailsRostersRequireAssign(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	regular, err := core.CreateUser(ctx, SystemActorID, "roster-regular", "Roster Regular", "password")
+	if err != nil {
+		t.Fatalf("CreateUser regular: %v", err)
+	}
+	admin, err := core.CreateUser(ctx, SystemActorID, "roster-admin", "Roster Admin", "password")
+	if err != nil {
+		t.Fatalf("CreateUser admin: %v", err)
+	}
+	member, err := core.CreateUser(ctx, SystemActorID, "roster-member", "Roster Member", "password")
+	if err != nil {
+		t.Fatalf("CreateUser member: %v", err)
+	}
+	if _, err := core.CreateServerRole(ctx, SystemActorID, "support", "Support", ""); err != nil {
+		t.Fatalf("CreateServerRole support: %v", err)
+	}
+	if err := core.AssignServerRole(ctx, SystemActorID, member.Id, "support"); err != nil {
+		t.Fatalf("AssignServerRole support: %v", err)
+	}
+	if err := core.AssignServerRole(ctx, SystemActorID, admin.Id, RoleAdmin); err != nil {
+		t.Fatalf("AssignServerRole admin: %v", err)
+	}
+
+	regularDetails, err := core.GetServerRoleDetails(ctx, regular.Id, "support")
+	if err != nil {
+		t.Fatalf("GetServerRoleDetails regular: %v", err)
+	}
+	if regularDetails.ViewerCanAssignRoles || len(regularDetails.Users) != 0 {
+		t.Fatalf("regular details canAssign=%v users=%d, want false/0", regularDetails.ViewerCanAssignRoles, len(regularDetails.Users))
+	}
+
+	adminDetails, err := core.GetServerRoleDetails(ctx, admin.Id, "support")
+	if err != nil {
+		t.Fatalf("GetServerRoleDetails admin: %v", err)
+	}
+	if !adminDetails.ViewerCanAssignRoles {
+		t.Fatal("admin ViewerCanAssignRoles = false, want true")
+	}
+	if len(adminDetails.Users) != 1 || adminDetails.Users[0].ID != member.Id {
+		t.Fatalf("admin role users = %+v, want member %s", adminDetails.Users, member.Id)
 	}
 }
 

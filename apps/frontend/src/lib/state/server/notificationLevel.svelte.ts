@@ -10,7 +10,7 @@
  */
 
 import { SvelteMap } from 'svelte/reactivity';
-import { NotificationLevel } from '$lib/gql/graphql';
+import { NotificationLevel } from '$lib/render/types';
 
 export class NotificationLevelStore {
   /** Server-level preference. */

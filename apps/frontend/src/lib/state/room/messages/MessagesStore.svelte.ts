@@ -1,24 +1,31 @@
 import { tick } from 'svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import type { Client } from '@urql/svelte';
-import { useFragment } from '$lib/gql';
-import { RoomEventViewFragmentDoc, type RoomEventViewFragment } from '$lib/gql/graphql';
+import type { RoomEventView } from '$lib/render/types';
 import type { EventEnvelope } from '$lib/eventBus.svelte';
+import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
 import { createRoomTimelineAPI, type RoomTimelineAPI } from '$lib/api/roomTimeline';
-import type { GraphQLClient } from '$lib/state/server/graphqlClient.svelte';
+import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
 import type { JumpToMessageState } from '../composerContext.svelte';
-import {
-  PAGE_SIZE,
-  RefetchOneQuery,
-  RoomAfterQuery,
-  RoomAroundQuery,
-  RoomBeforeQuery,
-  RoomLatestQuery
-} from './queries';
+import { PAGE_SIZE } from './queries';
 import { isRootRoomEvent, isThreadEvent } from './filters';
 import { type EventConnectionPage, type RawEvent, getActorId, unmask } from './helpers';
 
 type MessageScope = 'room' | 'thread';
+type RoomEventPayload = NonNullable<RoomEventView['event']>;
+type MessagePostedPayload = Extract<RoomEventPayload, { kind: typeof RoomEventKind.MessagePosted }>;
+type MessageEditedPayload = Extract<RoomEventPayload, { kind: typeof RoomEventKind.MessageEdited }>;
+type MessageRetractedPayload = Extract<
+  RoomEventPayload,
+  { kind: typeof RoomEventKind.MessageRetracted }
+>;
+type ReactionMutationPayload =
+  | Extract<RoomEventPayload, { kind: typeof RoomEventKind.ReactionAdded }>
+  | Extract<RoomEventPayload, { kind: typeof RoomEventKind.ReactionRemoved }>;
+type AssetProcessingPayload =
+  | Extract<RoomEventPayload, { kind: typeof RoomEventKind.AssetProcessingStarted }>
+  | Extract<RoomEventPayload, { kind: typeof RoomEventKind.AssetProcessingSucceeded }>
+  | Extract<RoomEventPayload, { kind: typeof RoomEventKind.AssetProcessingFailed }>;
+type RoomDeletedPayload = Extract<RoomEventPayload, { kind: typeof RoomEventKind.RoomDeleted }>;
 
 export type RefreshCurrentWindowResult = {
   hasOlder: boolean;
@@ -30,17 +37,55 @@ function eventCacheKey(roomId: string, eventId: string): string {
   return `${roomId}\u0000${eventId}`;
 }
 
-function compareEventCreatedAt(a: RoomEventViewFragment, b: RoomEventViewFragment): number {
+function compareEventCreatedAt(a: RoomEventView, b: RoomEventView): number {
   return Date.parse(a.createdAt) - Date.parse(b.createdAt);
 }
 
-function roomTimelineFromGraphQLClient(gqlClient: GraphQLClient): RoomTimelineAPI | null {
-  const candidate = gqlClient as {
+function isMessagePostedPayload(
+  event: RoomEventView['event'] | EventEnvelope['event'] | null | undefined
+): event is MessagePostedPayload {
+  return roomEventKind(event) === RoomEventKind.MessagePosted;
+}
+
+function isRoomDeletedPayload(event: RoomEventView['event']): event is RoomDeletedPayload {
+  return roomEventKind(event) === RoomEventKind.RoomDeleted;
+}
+
+function isMessageRetractedPayload(
+  event: RoomEventView['event']
+): event is MessageRetractedPayload {
+  return roomEventKind(event) === RoomEventKind.MessageRetracted;
+}
+
+function isMessageEditedPayload(event: RoomEventView['event']): event is MessageEditedPayload {
+  return roomEventKind(event) === RoomEventKind.MessageEdited;
+}
+
+function isReactionMutationPayload(
+  event: RoomEventView['event']
+): event is ReactionMutationPayload {
+  const kind = roomEventKind(event);
+  return kind === RoomEventKind.ReactionAdded || kind === RoomEventKind.ReactionRemoved;
+}
+
+function isAssetProcessingPayload(event: RoomEventView['event']): event is AssetProcessingPayload {
+  const kind = roomEventKind(event);
+  return (
+    kind === RoomEventKind.AssetProcessingStarted ||
+    kind === RoomEventKind.AssetProcessingSucceeded ||
+    kind === RoomEventKind.AssetProcessingFailed
+  );
+}
+
+function roomTimelineFromServerConnection(serverConnection: ServerConnection): RoomTimelineAPI {
+  const candidate = serverConnection as {
     serverId?: string;
     connectBaseUrl?: string;
     bearerToken?: string | null;
   };
-  if (!candidate.connectBaseUrl) return null;
+  if (!candidate.connectBaseUrl) {
+    throw new Error('MessagesStore requires the ConnectRPC timeline API');
+  }
   return createRoomTimelineAPI({
     serverId: candidate.serverId,
     baseUrl: candidate.connectBaseUrl,
@@ -55,17 +100,16 @@ function roomTimelineFromGraphQLClient(gqlClient: GraphQLClient): RoomTimelineAP
  * realtime ingestion behavior stays shared across both scopes.
  */
 export class MessagesStore {
-  events = $state<RoomEventViewFragment[]>([]);
+  events = $state<RoomEventView[]>([]);
   isInitialLoading = $state(true);
   isLoadingMore = $state(false);
   hasReachedStart = $state(false);
 
-  private readonly client: Client;
-  private readonly roomTimeline: RoomTimelineAPI | null;
+  private readonly roomTimeline: RoomTimelineAPI;
   private scope: MessageScope | null = null;
   private threadRootEventId = '';
   private seenIds: SvelteSet<string> = new SvelteSet<string>();
-  private previewEvents = new SvelteMap<string, RoomEventViewFragment | null>();
+  private previewEvents = new SvelteMap<string, RoomEventView | null>();
   private pendingPreviewFetches = new SvelteMap<string, Promise<void>>();
   private roomId = '';
   private oldestCursor: string | undefined;
@@ -76,12 +120,11 @@ export class MessagesStore {
   #loadId = 0;
 
   constructor(
-    gqlClient: GraphQLClient,
+    serverConnection: ServerConnection,
     private readonly getCurrentUserId: () => string | null,
-    roomTimeline?: RoomTimelineAPI | null
+    roomTimeline?: RoomTimelineAPI
   ) {
-    this.client = gqlClient.client;
-    this.roomTimeline = roomTimeline ?? roomTimelineFromGraphQLClient(gqlClient);
+    this.roomTimeline = roomTimeline ?? roomTimelineFromServerConnection(serverConnection);
   }
 
   /** Tear down lifecycle listeners. Idempotent. */
@@ -91,17 +134,17 @@ export class MessagesStore {
   }
 
   /** Root-level events only (excludes thread replies). */
-  get rootEvents(): RoomEventViewFragment[] {
+  get rootEvents(): RoomEventView[] {
     return this.events.filter(isRootRoomEvent);
   }
 
   /** Events that belong to this thread (root + replies). */
-  get threadEvents(): RoomEventViewFragment[] {
+  get threadEvents(): RoomEventView[] {
     return this.events.filter((e) => isThreadEvent(e, this.roomId, this.threadRootEventId));
   }
 
   /** Look up an event already known to this room, including off-window preview targets. */
-  getEventById(eventId: string): RoomEventViewFragment | null | undefined {
+  getEventById(eventId: string): RoomEventView | null | undefined {
     return (
       this.events.find((e) => e.id === eventId) ?? this.previewEvents.get(this.previewKey(eventId))
     );
@@ -115,16 +158,10 @@ export class MessagesStore {
     for (const event of this.events) {
       if (event.id === messageEventId) return event.id;
       const payload = event.event;
-      if (
-        payload?.__typename === 'MessagePostedEvent' &&
-        payload.echoOfEventId === messageEventId
-      ) {
+      if (isMessagePostedPayload(payload) && payload.echoOfEventId === messageEventId) {
         return event.id;
       }
-      if (
-        payload?.__typename === 'MessagePostedEvent' &&
-        payload.channelEchoEventId === messageEventId
-      ) {
+      if (isMessagePostedPayload(payload) && payload.channelEchoEventId === messageEventId) {
         return event.id;
       }
     }
@@ -133,16 +170,10 @@ export class MessagesStore {
       if (!event) continue;
       if (event.id === messageEventId) return event.id;
       const payload = event.event;
-      if (
-        payload?.__typename === 'MessagePostedEvent' &&
-        payload.echoOfEventId === messageEventId
-      ) {
+      if (isMessagePostedPayload(payload) && payload.echoOfEventId === messageEventId) {
         return event.id;
       }
-      if (
-        payload?.__typename === 'MessagePostedEvent' &&
-        payload.channelEchoEventId === messageEventId
-      ) {
+      if (isMessagePostedPayload(payload) && payload.channelEchoEventId === messageEventId) {
         return event.id;
       }
     }
@@ -161,7 +192,7 @@ export class MessagesStore {
     if (idx === -1) return;
 
     const rootEvent = this.events[idx];
-    if (rootEvent.event?.__typename !== 'MessagePostedEvent') return;
+    if (!isMessagePostedPayload(rootEvent.event)) return;
     if (rootEvent.event.viewerIsFollowingThread === isFollowing) return;
 
     this.events[idx] = {
@@ -184,19 +215,9 @@ export class MessagesStore {
     const existing = this.pendingPreviewFetches.get(key);
     if (existing) return existing;
 
-    const roomId = this.roomId;
-    const promise = this.client
-      .query(RefetchOneQuery, { roomId, eventId })
-      .toPromise()
-      .then((result) => {
-        if (result.error) {
-          console.error('MessagesStore: ensureEvent error:', result.error);
-          return;
-        }
-
-        const fetched = result.data?.room?.event;
-        const event = fetched ? useFragment(RoomEventViewFragmentDoc, fetched) : null;
-        this.previewEvents.set(key, event ?? null);
+    const promise = this.fetchEventById(eventId)
+      .then((event) => {
+        this.previewEvents.set(key, event);
       })
       .catch((error: unknown) => {
         console.error('MessagesStore: ensureEvent failed:', error);
@@ -259,8 +280,8 @@ export class MessagesStore {
   ingestServerEvent(serverEvent: EventEnvelope): void {
     // Subscription and historical-query payloads share the same Event
     // envelope. Cast once at the room boundary so downstream code can keep
-    // using the RoomEventViewFragment shape it renders with.
-    const spaceEvent = serverEvent as unknown as RoomEventViewFragment;
+    // using the RoomEventView shape it renders with.
+    const spaceEvent = serverEvent as unknown as RoomEventView;
     this.ingestEvent(spaceEvent);
   }
 
@@ -269,16 +290,17 @@ export class MessagesStore {
    * after mutations that return the posted event; live subscription delivery
    * still follows {@link ingestServerEvent} and is deduped by event ID.
    */
-  ingestEvent(spaceEvent: RoomEventViewFragment): void {
+  ingestEvent(spaceEvent: RoomEventView): void {
     const eventData = spaceEvent.event;
     if (!eventData) return;
+    const kind = roomEventKind(eventData);
 
-    if (eventData.__typename === 'ServerMemberDeletedEvent') {
+    if (kind === RoomEventKind.ServerMemberDeleted) {
       this.refetchAll();
       return;
     }
 
-    if (eventData.__typename === 'RoomDeletedEvent') {
+    if (isRoomDeletedPayload(eventData)) {
       if (eventData.roomId === this.roomId) this.resetState();
       return;
     }
@@ -292,12 +314,12 @@ export class MessagesStore {
           : null;
     if (eventRoomId != null && eventRoomId !== this.roomId) return;
 
-    if (eventData.__typename === 'MessageRetractedEvent') {
+    if (isMessageRetractedPayload(eventData)) {
       this.applyDeletion(eventData.messageEventId);
       return;
     }
 
-    if (eventData.__typename === 'MessageEditedEvent') {
+    if (isMessageEditedPayload(eventData)) {
       if (!('body' in eventData)) {
         void this.refetchByMessageEventId(eventData.messageEventId);
         return;
@@ -306,25 +328,18 @@ export class MessagesStore {
       return;
     }
 
-    if (
-      eventData.__typename === 'ReactionAddedEvent' ||
-      eventData.__typename === 'ReactionRemovedEvent'
-    ) {
+    if (isReactionMutationPayload(eventData)) {
       this.refetchByMessageEventId(eventData.messageEventId);
       return;
     }
 
-    if (
-      eventData.__typename === 'AssetProcessingStartedEvent' ||
-      eventData.__typename === 'AssetProcessingSucceededEvent' ||
-      eventData.__typename === 'AssetProcessingFailedEvent'
-    ) {
+    if (isAssetProcessingPayload(eventData)) {
       if (!eventData.processingMessageEventId) return;
       this.refetchByMessageEventId(eventData.processingMessageEventId);
       return;
     }
 
-    if (eventData.__typename === 'MessagePostedEvent') {
+    if (isMessagePostedPayload(eventData)) {
       if (!('body' in eventData)) {
         const messageEventId =
           'messageEventId' in eventData && typeof eventData.messageEventId === 'string'
@@ -341,18 +356,15 @@ export class MessagesStore {
     }
 
     if (
-      eventData.__typename === 'UserJoinedRoomEvent' ||
-      eventData.__typename === 'UserLeftRoomEvent' ||
-      eventData.__typename === 'RoomUpdatedEvent' ||
-      eventData.__typename === 'RoomArchivedEvent' ||
-      eventData.__typename === 'RoomUnarchivedEvent'
+      kind === RoomEventKind.UserJoinedRoom ||
+      kind === RoomEventKind.UserLeftRoom ||
+      kind === RoomEventKind.RoomUpdated ||
+      kind === RoomEventKind.RoomArchived ||
+      kind === RoomEventKind.RoomUnarchived
     ) {
-      if (
-        !spaceEvent.actor &&
-        this.roomTimeline &&
-        (eventData.__typename === 'UserJoinedRoomEvent' ||
-          eventData.__typename === 'UserLeftRoomEvent')
-      ) {
+      const isMembershipEvent =
+        kind === RoomEventKind.UserJoinedRoom || kind === RoomEventKind.UserLeftRoom;
+      if (!spaceEvent.actor && this.roomTimeline && isMembershipEvent) {
         void this.fetchAndIngestSystemEvent(spaceEvent.id);
         return;
       }
@@ -402,7 +414,7 @@ export class MessagesStore {
 
   private async fetchOlderPage(before: string): Promise<EventConnectionPage | null> {
     if (this.scope === 'thread') {
-      return this.requireRoomTimeline().getThreadEvents({
+      return this.roomTimeline.getThreadEvents({
         roomId: this.roomId,
         threadRootEventId: this.threadRootEventId,
         limit: PAGE_SIZE,
@@ -410,23 +422,11 @@ export class MessagesStore {
       });
     }
 
-    if (this.roomTimeline) {
-      return this.roomTimeline.getRoomEvents({
-        roomId: this.roomId,
-        limit: PAGE_SIZE,
-        before
-      });
-    }
-
-    const result = await this.client
-      .query(RoomBeforeQuery, {
-        roomId: this.roomId,
-        limit: PAGE_SIZE,
-        before
-      })
-      .toPromise();
-
-    return result.data?.room?.events ?? null;
+    return this.roomTimeline.getRoomEvents({
+      roomId: this.roomId,
+      limit: PAGE_SIZE,
+      before
+    });
   }
 
   private afterOlderPagePrepended(): void {
@@ -442,18 +442,14 @@ export class MessagesStore {
 
     jumpState.isLoadingNewer = true;
     try {
-      const page = this.roomTimeline
-        ? await this.roomTimeline.getRoomEvents({
-            roomId: this.roomId,
-            limit: PAGE_SIZE,
-            after: this.newestCursor
-          })
-        : await this.fetchRoomAfterViaGraphQL(this.newestCursor);
+      const page = await this.roomTimeline.getRoomEvents({
+        roomId: this.roomId,
+        limit: PAGE_SIZE,
+        after: this.newestCursor
+      });
 
       // User left jumped mode while in flight — abandon the result.
       if (!jumpState.isJumpedMode) return;
-
-      if (!page) return;
 
       const newer = unmask(page.events);
       if (newer.length === 0) {
@@ -482,15 +478,11 @@ export class MessagesStore {
 
     this.isInitialLoading = true;
     try {
-      const around = this.roomTimeline
-        ? await this.roomTimeline.getRoomEventsAround({
-            roomId: this.roomId,
-            eventId,
-            limit: PAGE_SIZE
-          })
-        : await this.fetchRoomAroundViaGraphQL(eventId);
-
-      if (!around) return;
+      const around = await this.roomTimeline.getRoomEventsAround({
+        roomId: this.roomId,
+        eventId,
+        limit: PAGE_SIZE
+      });
 
       const { events: rawEvents, hasOlder, hasNewer, startCursor, endCursor } = around;
       const parsed = unmask(rawEvents);
@@ -592,8 +584,8 @@ export class MessagesStore {
   }
 
   private onMessagePosted(
-    spaceEvent: RoomEventViewFragment,
-    eventData: Extract<RoomEventViewFragment['event'], { __typename: 'MessagePostedEvent' }>
+    spaceEvent: RoomEventView,
+    eventData: Extract<RoomEventView['event'], { kind: typeof RoomEventKind.MessagePosted }>
   ): void {
     if (this.scope === 'thread') {
       if (
@@ -615,13 +607,15 @@ export class MessagesStore {
     // metadata on the root message (replyCount, lastReplyAt, participants,
     // viewerIsFollowingThread auto-follow).
     if (eventData.threadRootEventId) {
+      if (this.seenIds.has(spaceEvent.id)) return;
+      this.seenIds.add(spaceEvent.id);
       this.applyThreadReplyToRoot(spaceEvent, eventData);
       return;
     }
     this.addEvent(spaceEvent);
   }
 
-  private onSystemEvent(spaceEvent: RoomEventViewFragment): void {
+  private onSystemEvent(spaceEvent: RoomEventView): void {
     if (this.scope === 'room') {
       this.addEvent(spaceEvent);
     }
@@ -652,30 +646,20 @@ export class MessagesStore {
   private async fetchEventById(
     eventId: string,
     threadRootEventId?: string | null
-  ): Promise<RoomEventViewFragment | null> {
-    if (this.roomTimeline) {
-      const page = threadRootEventId
-        ? await this.roomTimeline.getThreadEventsAround({
-            roomId: this.roomId,
-            threadRootEventId,
-            eventId,
-            limit: 1
-          })
-        : await this.roomTimeline.getRoomEventsAround({
-            roomId: this.roomId,
-            eventId,
-            limit: 1
-          });
-      return unmask(page.events).find((event) => event.id === eventId) ?? null;
-    }
-
-    const result = await this.client
-      .query(RefetchOneQuery, { roomId: this.roomId, eventId }, { requestPolicy: 'network-only' })
-      .toPromise();
-
-    const fetched = result.data?.room?.event;
-    if (!fetched) return null;
-    return useFragment(RoomEventViewFragmentDoc, fetched) ?? null;
+  ): Promise<RoomEventView | null> {
+    const page = threadRootEventId
+      ? await this.roomTimeline.getThreadEventsAround({
+          roomId: this.roomId,
+          threadRootEventId,
+          eventId,
+          limit: 1
+        })
+      : await this.roomTimeline.getRoomEventsAround({
+          roomId: this.roomId,
+          eventId,
+          limit: 1
+        });
+    return unmask(page.events).find((event) => event.id === eventId) ?? null;
   }
 
   private async refetchOne(eventId: string): Promise<void> {
@@ -694,7 +678,7 @@ export class MessagesStore {
       const evt = e.event;
       if (
         e.id === messageEventId ||
-        (evt?.__typename === 'MessagePostedEvent' && evt.echoOfEventId === messageEventId)
+        (isMessagePostedPayload(evt) && evt.echoOfEventId === messageEventId)
       ) {
         await this.refetchOne(e.id);
       }
@@ -714,7 +698,7 @@ export class MessagesStore {
     const targetIndex = this.events.findIndex((e) => e.id === messageEventId);
     const target = targetIndex === -1 ? null : this.events[targetIndex];
     const targetPayload = target?.event;
-    if (targetPayload?.__typename === 'MessagePostedEvent' && targetPayload.echoOfEventId) {
+    if (isMessagePostedPayload(targetPayload) && targetPayload.echoOfEventId) {
       this.events.splice(targetIndex, 1);
       this.seenIds.delete(messageEventId);
       return;
@@ -723,7 +707,7 @@ export class MessagesStore {
     for (let i = 0; i < this.events.length; i++) {
       const e = this.events[i];
       const evt = e.event;
-      if (evt?.__typename !== 'MessagePostedEvent') continue;
+      if (!isMessagePostedPayload(evt)) continue;
       if (e.id !== messageEventId && evt.echoOfEventId !== messageEventId) continue;
 
       this.events[i] = {
@@ -734,7 +718,7 @@ export class MessagesStore {
 
     const previewKey = this.previewKey(messageEventId);
     const preview = this.previewEvents.get(previewKey);
-    if (preview?.event?.__typename === 'MessagePostedEvent') {
+    if (isMessagePostedPayload(preview?.event)) {
       this.previewEvents.set(previewKey, {
         ...preview,
         event: { ...preview.event, body: null, attachments: [], linkPreview: null }
@@ -746,7 +730,7 @@ export class MessagesStore {
     for (let i = 0; i < this.events.length; i++) {
       const e = this.events[i];
       const evt = e.event;
-      if (e.id !== originalEventId || evt?.__typename !== 'MessagePostedEvent') continue;
+      if (e.id !== originalEventId || !isMessagePostedPayload(evt)) continue;
       this.events[i] = {
         ...e,
         event: { ...evt, channelEchoEventId: echoEventId }
@@ -755,7 +739,7 @@ export class MessagesStore {
 
     const previewKey = this.previewKey(originalEventId);
     const preview = this.previewEvents.get(previewKey);
-    if (preview?.event?.__typename === 'MessagePostedEvent') {
+    if (isMessagePostedPayload(preview?.event)) {
       this.previewEvents.set(previewKey, {
         ...preview,
         event: { ...preview.event, channelEchoEventId: echoEventId }
@@ -767,7 +751,7 @@ export class MessagesStore {
     for (let i = 0; i < this.events.length; i++) {
       const e = this.events[i];
       const evt = e.event;
-      if (evt?.__typename !== 'MessagePostedEvent') continue;
+      if (!isMessagePostedPayload(evt)) continue;
       if (evt.channelEchoEventId !== echoEventId) continue;
       this.events[i] = {
         ...e,
@@ -776,7 +760,7 @@ export class MessagesStore {
     }
 
     for (const [key, preview] of this.previewEvents) {
-      if (preview?.event?.__typename !== 'MessagePostedEvent') continue;
+      if (!isMessagePostedPayload(preview?.event)) continue;
       if (preview.event.channelEchoEventId !== echoEventId) continue;
       this.previewEvents.set(key, {
         ...preview,
@@ -790,14 +774,11 @@ export class MessagesStore {
    * backend emits one canonical edit event per linked post/echo, so we only
    * patch the direct event ID here; the linked event will arrive separately.
    */
-  private applyEdit(
-    messageEventId: string,
-    edit: Extract<EventEnvelope['event'], { __typename: 'MessageEditedEvent' }>
-  ): void {
+  private applyEdit(messageEventId: string, edit: MessageEditedPayload): void {
     for (let i = 0; i < this.events.length; i++) {
       const e = this.events[i];
       const evt = e.event;
-      if (evt?.__typename !== 'MessagePostedEvent') continue;
+      if (!isMessagePostedPayload(evt)) continue;
       if (e.id !== messageEventId) continue;
 
       this.events[i] = {
@@ -814,7 +795,7 @@ export class MessagesStore {
 
     const previewKey = this.previewKey(messageEventId);
     const preview = this.previewEvents.get(previewKey);
-    if (preview?.event?.__typename === 'MessagePostedEvent') {
+    if (isMessagePostedPayload(preview?.event)) {
       this.previewEvents.set(previewKey, {
         ...preview,
         event: {
@@ -828,7 +809,7 @@ export class MessagesStore {
     }
   }
 
-  private addEvent(event: RoomEventViewFragment, options: { sortRoom?: boolean } = {}): boolean {
+  private addEvent(event: RoomEventView, options: { sortRoom?: boolean } = {}): boolean {
     if (this.seenIds.has(event.id)) return false;
     this.seenIds.add(event.id);
     this.events.push(event);
@@ -836,7 +817,7 @@ export class MessagesStore {
     return true;
   }
 
-  private appendMany(events: RoomEventViewFragment[]): void {
+  private appendMany(events: RoomEventView[]): void {
     let added = false;
     for (const e of events) {
       added = this.addEvent(e, { sortRoom: false }) || added;
@@ -844,7 +825,7 @@ export class MessagesStore {
     if (added && this.scope === 'room') this.sortRoomEvents();
   }
 
-  private prependEvents(olderEvents: RoomEventViewFragment[]): number {
+  private prependEvents(olderEvents: RoomEventView[]): number {
     const newOnes = olderEvents.filter((e) => !this.seenIds.has(e.id));
     for (const e of newOnes) this.seenIds.add(e.id);
     this.events.unshift(...newOnes);
@@ -863,7 +844,7 @@ export class MessagesStore {
   private replaceMergingExisting(rawEvents: readonly RawEvent[]): void {
     const fetched = unmask(rawEvents);
     const newSeen = new SvelteSet<string>();
-    const merged: RoomEventViewFragment[] = [];
+    const merged: RoomEventView[] = [];
     for (const e of fetched) {
       if (newSeen.has(e.id)) continue;
       newSeen.add(e.id);
@@ -912,7 +893,7 @@ export class MessagesStore {
   ): void {
     const fetched = unmask(connection.events);
     const newSeen = new SvelteSet<string>();
-    const merged: RoomEventViewFragment[] = [];
+    const merged: RoomEventView[] = [];
 
     for (const e of fetched) {
       if (newSeen.has(e.id)) continue;
@@ -948,15 +929,12 @@ export class MessagesStore {
     thisLoad: number,
     existingBeforeFetch: ReadonlySet<string>
   ): Promise<RefreshCurrentWindowResult> {
-    const page = this.roomTimeline
-      ? await this.roomTimeline.getRoomEvents({
-          roomId: this.roomId,
-          limit: PAGE_SIZE
-        })
-      : await this.fetchRoomLatestViaGraphQL({ requestPolicy: 'network-only' });
+    const page = await this.roomTimeline.getRoomEvents({
+      roomId: this.roomId,
+      limit: PAGE_SIZE
+    });
 
     if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false, refreshed: false };
-    if (!page) return { hasOlder: false, hasNewer: false, refreshed: false };
     this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch);
     return { hasOlder: page.hasOlder, hasNewer: page.hasNewer, refreshed: true };
   }
@@ -966,78 +944,15 @@ export class MessagesStore {
     anchorEventId: string,
     existingBeforeFetch: ReadonlySet<string>
   ): Promise<RefreshCurrentWindowResult | null> {
-    const page = this.roomTimeline
-      ? await this.roomTimeline.getRoomEventsAround({
-          roomId: this.roomId,
-          eventId: anchorEventId,
-          limit: PAGE_SIZE
-        })
-      : await this.fetchRoomAroundViaGraphQL(anchorEventId, { requestPolicy: 'network-only' });
+    const page = await this.roomTimeline.getRoomEventsAround({
+      roomId: this.roomId,
+      eventId: anchorEventId,
+      limit: PAGE_SIZE
+    });
 
     if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false, refreshed: false };
-    if (!page) return null;
     this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch);
     return { hasOlder: page.hasOlder, hasNewer: page.hasNewer, refreshed: true };
-  }
-
-  private async fetchRoomLatestViaGraphQL(options?: {
-    requestPolicy: 'network-only';
-  }): Promise<EventConnectionPage | null> {
-    const result = await this.client
-      .query(
-        RoomLatestQuery,
-        {
-          roomId: this.roomId,
-          limit: PAGE_SIZE
-        },
-        options
-      )
-      .toPromise();
-
-    if (result.error) {
-      console.error('MessagesStore: fetchRoomLatestViaGraphQL error:', result.error);
-      return null;
-    }
-    return result.data?.room?.events ?? null;
-  }
-
-  private async fetchRoomAfterViaGraphQL(after: string): Promise<EventConnectionPage | null> {
-    const result = await this.client
-      .query(RoomAfterQuery, {
-        roomId: this.roomId,
-        limit: PAGE_SIZE,
-        after
-      })
-      .toPromise();
-
-    if (result.error) {
-      console.error('MessagesStore: fetchRoomAfterViaGraphQL error:', result.error);
-      return null;
-    }
-    return result.data?.room?.events ?? null;
-  }
-
-  private async fetchRoomAroundViaGraphQL(
-    eventId: string,
-    options?: { requestPolicy: 'network-only' }
-  ): Promise<EventConnectionPage | null> {
-    const result = await this.client
-      .query(
-        RoomAroundQuery,
-        {
-          roomId: this.roomId,
-          eventId,
-          limit: PAGE_SIZE
-        },
-        options
-      )
-      .toPromise();
-
-    if (result.error) {
-      console.error('MessagesStore: fetchRoomAroundViaGraphQL error:', result.error);
-      return null;
-    }
-    return result.data?.room?.eventsAround ?? null;
   }
 
   private async refreshThreadWindow(
@@ -1045,15 +960,14 @@ export class MessagesStore {
     existingBeforeFetch: ReadonlySet<string>,
     anchorEventId: string | null
   ): Promise<RefreshCurrentWindowResult> {
-    const timeline = this.requireRoomTimeline();
     const page = anchorEventId
-      ? await timeline.getThreadEventsAround({
+      ? await this.roomTimeline.getThreadEventsAround({
           roomId: this.roomId,
           threadRootEventId: this.threadRootEventId,
           eventId: anchorEventId,
           limit: PAGE_SIZE
         })
-      : await timeline.getThreadEvents({
+      : await this.roomTimeline.getThreadEvents({
           roomId: this.roomId,
           threadRootEventId: this.threadRootEventId,
           limit: PAGE_SIZE
@@ -1072,12 +986,10 @@ export class MessagesStore {
   }
 
   private fetchLatest(thisLoad: number): void {
-    const promise = this.roomTimeline
-      ? this.roomTimeline.getRoomEvents({
-          roomId: this.roomId,
-          limit: PAGE_SIZE
-        })
-      : this.fetchRoomLatestViaGraphQL();
+    const promise = this.roomTimeline.getRoomEvents({
+      roomId: this.roomId,
+      limit: PAGE_SIZE
+    });
 
     promise
       .then((page) => {
@@ -1096,7 +1008,7 @@ export class MessagesStore {
   }
 
   private fetchThread(thisLoad: number): void {
-    const promise = this.requireRoomTimeline().getThreadEvents({
+    const promise = this.roomTimeline.getThreadEvents({
       roomId: this.roomId,
       threadRootEventId: this.threadRootEventId,
       limit: PAGE_SIZE
@@ -1122,26 +1034,16 @@ export class MessagesStore {
       });
   }
 
-  private requireRoomTimeline(): RoomTimelineAPI {
-    if (!this.roomTimeline) {
-      throw new Error('MessagesStore: thread history requires the ConnectRPC timeline API');
-    }
-    return this.roomTimeline;
-  }
-
   /**
    * Mirror the backend's auto-follow behavior on the root message when a
    * thread reply arrives, so the UI updates instantly without refetching.
    */
-  private applyThreadReplyToRoot(
-    spaceEvent: RoomEventViewFragment,
-    eventData: Extract<RoomEventViewFragment['event'], { __typename: 'MessagePostedEvent' }>
-  ): void {
+  private applyThreadReplyToRoot(spaceEvent: RoomEventView, eventData: MessagePostedPayload): void {
     const rootIdx = this.events.findIndex((e) => e.id === eventData.threadRootEventId);
     if (rootIdx === -1) return;
 
     const rootEvent = this.events[rootIdx];
-    if (rootEvent.event?.__typename !== 'MessagePostedEvent') return;
+    if (!isMessagePostedPayload(rootEvent.event)) return;
 
     const actorId = getActorId(spaceEvent.actor);
     const existingParticipants = rootEvent.event.threadParticipants;

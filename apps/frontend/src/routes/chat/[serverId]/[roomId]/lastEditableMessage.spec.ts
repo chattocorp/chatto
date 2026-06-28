@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { RoomEventViewFragment } from '$lib/gql/graphql';
+import type { RoomEventView } from '$lib/render/types';
+import { RoomEventKind } from '$lib/render/eventKinds';
 import type { RoomPermissions } from '$lib/state/room';
 import { findLastEditableMessage } from './lastEditableMessage';
 
@@ -28,7 +29,7 @@ function makeMessageEvent(
     echoFromThreadRootEventId: string | null;
     channelEchoEventId: string | null;
   }> = {}
-): RoomEventViewFragment {
+): RoomEventView {
   const actorId = overrides.actorId ?? 'user_self';
   return {
     id: overrides.id ?? 'evt_' + Math.random().toString(36).slice(2),
@@ -36,7 +37,7 @@ function makeMessageEvent(
     actorId,
     actor: { id: actorId, login: 'tester', avatarUrl: null },
     event: {
-      __typename: 'MessagePostedEvent',
+      kind: RoomEventKind.MessagePosted,
       roomId: 'room_test',
       body: 'body' in overrides ? overrides.body : 'hello',
       attachments: [],
@@ -53,10 +54,10 @@ function makeMessageEvent(
       threadParticipants: [],
       viewerIsFollowingThread: null
     }
-  } as unknown as RoomEventViewFragment;
+  } as unknown as RoomEventView;
 }
 
-function find(events: RoomEventViewFragment[]) {
+function find(events: RoomEventView[]) {
   return findLastEditableMessage({
     events,
     currentUserId: 'user_self',

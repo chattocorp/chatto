@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { FollowThreadRequest, FollowThreadResponse, UnfollowThreadRequest, UnfollowThreadResponse } from "./threads_pb.js";
+import { FollowThreadRequest, FollowThreadResponse, ListFollowedThreadsRequest, ListFollowedThreadsResponse, UnfollowThreadRequest, UnfollowThreadResponse } from "./threads_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -14,6 +14,18 @@ import { MethodKind } from "@bufbuild/protobuf";
 export const ThreadService = {
   typeName: "chatto.api.v1.ThreadService",
   methods: {
+    /**
+     * Returns followed threads for the current user, including enough root-message
+     * data for clients to render the list without extra per-field fetches.
+     *
+     * @generated from rpc chatto.api.v1.ThreadService.ListFollowedThreads
+     */
+    listFollowedThreads: {
+      name: "ListFollowedThreads",
+      I: ListFollowedThreadsRequest,
+      O: ListFollowedThreadsResponse,
+      kind: MethodKind.Unary,
+    },
     /**
      * Follows a thread for the current user. Followed threads can be surfaced in
      * clients and can participate in thread notification behavior.

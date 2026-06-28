@@ -86,7 +86,8 @@
       "cannot_revoke_own_role": "You cannot revoke your own {role} role",
       "edit": "Edit",
       "assigned_role": "Assigned {role} role",
-      "removed_role": "Removed {role} role"
+      "removed_role": "Removed {role} role",
+      "role_update_failed": "Failed to update role assignment"
     },
     "permissions": {
       "title": "Permissions",

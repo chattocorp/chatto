@@ -1,4 +1,4 @@
-import { PresenceStatus } from '$lib/gql/graphql';
+import { PresenceStatus } from '$lib/render/types';
 
 export type PresenceMode = 'auto' | 'away' | 'doNotDisturb' | 'invisible';
 

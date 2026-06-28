@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-01
 
-**Status:** Superseded for future public API direction by [ADR-042](ADR-042-protobuf-first-public-api.md). GraphQL remains the current implemented API until the protobuf-first API is built and migrated.
+**Status:** Superseded by [ADR-042](ADR-042-protobuf-first-public-api.md). GraphQL was removed after the protobuf-first API migration; this record is preserved as historical context for the original API choice.
 
 ## Context
 

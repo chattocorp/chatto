@@ -4,7 +4,7 @@
 
 ## Context
 
-Chatto's frontend uses Svelte 5 runes (`$state`, `$derived`) for reactive state management. The `SpaceEventProvider` receives all real-time events from GraphQL subscriptions and caches them for child components to consume.
+Chatto's frontend uses Svelte 5 runes (`$state`, `$derived`) for reactive state management. The room event stores receive realtime events and projected timeline refreshes, then cache renderable events for child components to consume.
 
 A performance investigation revealed that pushing *any* item to a `$state` array triggers every `$derived` expression that reads it. Even if downstream `$derived` chains immediately filter the item out (e.g., filtering by room ID), the entire chain re-evaluates because `.filter()` always produces a new array reference. This caused CPU spikes when high-frequency events like typing indicators were added to the cache.
 

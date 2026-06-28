@@ -11,7 +11,7 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 //
 // Top-level Event oneof tags owned by this file:
 //   - 400-424: durable message timeline events on evt.room.{roomId}.*
-//   - 1040-1041: legacy live-only GraphQL adapter payloads
+//   - 1040-1041: retired legacy live-only adapter payloads
 //
 // Keep these tags coordinated with event.proto. Message-internal field numbers
 // are local to each message and do not consume top-level Event tag space.
@@ -46,8 +46,8 @@ message MessagePostedEvent {
   // Thread root event ID — the thread this echo originates from (empty = not an echo)
   string echo_from_thread_root_event_id = 8;
 
-  // The message's durable event ID lives on the Event envelope. GraphQL exposes
-  // that wrapper ID on the public Event wrapper, not on this payload.
+  // The message's durable event ID lives on the Event envelope, not on this
+  // payload.
 }
 // ============================================================================
 // MESSAGE MUTATION EVENTS (room-scoped)
@@ -56,7 +56,7 @@ message MessagePostedEvent {
 // MessageEditedEvent / MessageRetractedEvent are the durable mutation facts on
 // EVT. The older MessageUpdatedEvent / MessageDeletedEvent messages below are
 // retired legacy live-only payload shapes; they are no longer carried by the
-// durable Event envelope or the public GraphQL EventType union.
+// durable Event envelope or public realtime payloads.
 
 // MessageBodyEvent carries the encrypted body payload for a message post or
 // body update. It is durable, room-scoped projection input but is not delivered
@@ -127,7 +127,7 @@ message MessageUpdatedEvent {
   // Threading: event ID of the thread root message (empty = top-level message)
   string in_thread = 6;
 
-  // Event ID of the updated message (for GraphQL API consumers).
+  // Event ID of the updated message for legacy live payload consumers.
   // Populated at publish time from the body key.
   string message_event_id = 7;
 
@@ -147,7 +147,7 @@ message MessageDeletedEvent {
   // The userId prefix enables efficient per-user filtering for GDPR deletion.
   string message_body_id = 3;
 
-  // Event ID of the deleted message (for GraphQL API consumers).
+  // Event ID of the deleted message for legacy live payload consumers.
   // Populated at publish time from the body key.
   string message_event_id = 4;
 }

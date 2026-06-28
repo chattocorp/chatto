@@ -1,8 +1,11 @@
 import { Code, ConnectError, createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import type { LinkPreviewInput, RoomEventViewFragment } from '$lib/gql/graphql';
+import type { LinkPreviewInput, RoomEventView } from '$lib/render/types';
 import { MessageService } from '$lib/pb/chatto/api/v1/messages_connect';
-import { MessageLinkPreviewInput } from '$lib/pb/chatto/api/v1/messages_pb';
+import {
+	MessageAttachmentUpload,
+	MessageLinkPreviewInput
+} from '$lib/pb/chatto/api/v1/messages_pb';
 import { roomTimelineEventToRawEvent } from '$lib/api/roomTimeline';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 
@@ -16,6 +19,7 @@ export type PostMessageInput = {
 	roomId: string;
 	body: string;
 	attachmentAssetIds?: string[];
+	attachments?: File[] | null;
 	threadRootEventId?: string | null;
 	inReplyTo?: string | null;
 	alsoSendToChannel?: boolean;
@@ -33,7 +37,7 @@ export type UpdateMessageInput = {
 export type PostMessageResult =
 	| {
 			kind: 'event';
-			event: RoomEventViewFragment | null;
+			event: RoomEventView | null;
 	  }
 	| {
 			kind: 'mentionConfirmation';
@@ -65,6 +69,7 @@ export function createMessageAPI(config: MessageAPIConfig) {
 						roomId: input.roomId,
 						body: input.body,
 						attachmentAssetIds: input.attachmentAssetIds ?? [],
+						attachments: await messageAttachmentUploads(input.attachments),
 						threadRootEventId: input.threadRootEventId ?? '',
 						inReplyTo: input.inReplyTo ?? '',
 						alsoSendToChannel: input.alsoSendToChannel ?? false,
@@ -88,7 +93,7 @@ export function createMessageAPI(config: MessageAPIConfig) {
 						event: roomTimelineEventToRawEvent(
 							response.result.value,
 							response.includes?.users ?? {}
-						) as RoomEventViewFragment | null
+						) as RoomEventView | null
 					};
 				}
 
@@ -160,6 +165,20 @@ export function createMessageAPI(config: MessageAPIConfig) {
 			}
 		}
 	};
+}
+
+async function messageAttachmentUploads(files: File[] | null | undefined) {
+	if (!files?.length) return [];
+	return Promise.all(
+		files.map(async (file) => {
+			const buffer = await file.arrayBuffer();
+			return new MessageAttachmentUpload({
+				content: new Uint8Array(buffer),
+				filename: file.name,
+				contentType: file.type || 'application/octet-stream'
+			});
+		})
+	);
 }
 
 function messageLinkPreviewInput(input: LinkPreviewInput | null | undefined) {

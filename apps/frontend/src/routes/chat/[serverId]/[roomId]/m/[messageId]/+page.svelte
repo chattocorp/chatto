@@ -5,27 +5,10 @@
   re-fire the highlight). Renders nothing — the goto() fires on mount.
 -->
 <script lang="ts" module>
-  import { graphql } from '$lib/gql';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import type { Client } from '@urql/svelte';
+  import { createRoomTimelineAPI, type RoomTimelineAPIConfig } from '$lib/api/roomTimeline';
   import type { PendingHighlightStore } from '$lib/state/server/pendingHighlight.svelte';
-
-  const ResolveMessageLinkQuery = graphql(`
-    query ResolveMessageLink($roomId: ID!, $eventId: ID!) {
-      room(roomId: $roomId) {
-        event(eventId: $eventId) {
-          id
-          event {
-            __typename
-            ... on MessagePostedEvent {
-              threadRootEventId
-            }
-          }
-        }
-      }
-    }
-  `);
 
   /**
    * Fetch a message by ID and redirect to the appropriate room or thread URL.
@@ -33,7 +16,7 @@
    * on error, falls back to the room URL.
    */
   export async function resolveAndRedirect(
-    client: Client,
+    config: RoomTimelineAPIConfig,
     pendingHighlights: PendingHighlightStore,
     serverSegment: string,
     roomId: string,
@@ -42,27 +25,23 @@
     const roomParams = { serverId: serverSegment, roomId };
 
     try {
-      const result = await client
-        .query(ResolveMessageLinkQuery, { roomId, eventId: messageId }, { requestPolicy: 'network-only' })
-        .toPromise();
+      const target = await createRoomTimelineAPI(config).resolveMessageLinkTarget({
+        roomId,
+        eventId: messageId
+      });
 
-      const event = result.data?.room?.event;
-      if (!event) {
+      if (!target.event) {
         pendingHighlights.set(roomId, null, messageId);
         goto(resolve('/chat/[serverId]/[roomId]', roomParams), { replaceState: true });
         return;
       }
 
-      const inner = event.event;
-      const threadRoot =
-        inner?.__typename === 'MessagePostedEvent' ? inner.threadRootEventId : null;
-
-      if (threadRoot) {
-        pendingHighlights.set(roomId, threadRoot, messageId);
+      if (target.threadRootEventId) {
+        pendingHighlights.set(roomId, target.threadRootEventId, messageId);
         goto(
           resolve('/chat/[serverId]/[roomId]/[threadId]', {
             ...roomParams,
-            threadId: threadRoot
+            threadId: target.threadRootEventId
           }),
           { replaceState: true }
         );
@@ -93,8 +72,13 @@
 
   $effect(() => {
     if (roomsStore.isInitialLoading) return;
+    const conn = connection();
     resolveAndRedirect(
-      connection().client,
+      {
+        serverId: conn.serverId,
+        baseUrl: conn.connectBaseUrl,
+        bearerToken: conn.bearerToken
+      },
       stores.pendingHighlights,
       page.params.serverId!,
       page.params.roomId!,

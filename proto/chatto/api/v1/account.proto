@@ -1,0 +1,110 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "chatto/api/v1/viewer.proto";
+
+// Profile fields returned after a self-service profile or avatar command.
+message AccountUser {
+  // Stable user ID.
+  string id = 1;
+  // Login identifier.
+  string login = 2;
+  // Display name shown in Chatto.
+  string display_name = 3;
+  // Optional avatar URL.
+  optional string avatar_url = 4;
+}
+
+// Request to update the authenticated user's profile. At least one field must
+// be present.
+message UpdateProfileRequest {
+  // New display name, when changing it.
+  optional string display_name = 1;
+  // New login identifier, when changing it.
+  optional string login = 2;
+}
+
+// Result of a profile update.
+message UpdateProfileResponse {
+  // Updated user profile.
+  AccountUser user = 1;
+}
+
+// Request to upload and set the authenticated user's avatar.
+message UploadAvatarRequest {
+  // Raw image bytes. The server validates, resizes, and stores a WebP avatar.
+  bytes image = 1;
+  // Original browser filename, for diagnostics and future compatibility.
+  string filename = 2;
+  // Browser-provided content type, for diagnostics and future compatibility.
+  string content_type = 3;
+}
+
+// Result of uploading the authenticated user's avatar.
+message UploadAvatarResponse {
+  // Updated user profile.
+  AccountUser user = 1;
+}
+
+// Request to delete the authenticated user's avatar.
+message DeleteAvatarRequest {}
+
+// Result of deleting the authenticated user's avatar.
+message DeleteAvatarResponse {
+  // Updated user profile.
+  AccountUser user = 1;
+}
+
+// Request to update the authenticated user's display preferences. Omitted
+// fields are left unchanged. An empty timezone clears the explicit timezone.
+message UpdateSettingsRequest {
+  // IANA timezone override. Empty clears the override.
+  optional string timezone = 1;
+  // Preferred time format.
+  optional TimeFormat time_format = 2;
+}
+
+// Result of updating display preferences.
+message UpdateSettingsResponse {
+  // Stored settings after merging the request.
+  UserSettings settings = 1;
+}
+
+// Request a short-lived confirmation token for deleting the authenticated
+// account.
+message RequestAccountDeletionRequest {}
+
+// Result of issuing an account deletion confirmation token.
+message RequestAccountDeletionResponse {
+  // Confirmation token. Clients must pass this to DeleteMyAccount.
+  string confirmation_token = 1;
+}
+
+// Request to permanently delete the authenticated account.
+message DeleteMyAccountRequest {
+  // Confirmation token obtained from RequestAccountDeletion.
+  string confirmation_token = 1;
+}
+
+// Result of deleting the authenticated account.
+message DeleteMyAccountResponse {
+  // True when the account was deleted.
+  bool deleted = 1;
+}
+
+// Self-service account, profile, avatar, and display preference commands.
+service AccountService {
+  // Updates the authenticated user's login and/or display name.
+  rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
+  // Uploads and sets the authenticated user's avatar.
+  rpc UploadAvatar(UploadAvatarRequest) returns (UploadAvatarResponse);
+  // Deletes the authenticated user's avatar. The call is idempotent.
+  rpc DeleteAvatar(DeleteAvatarRequest) returns (DeleteAvatarResponse);
+  // Updates the authenticated user's display preferences.
+  rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsResponse);
+  // Issues a short-lived token used to confirm self-deletion.
+  rpc RequestAccountDeletion(RequestAccountDeletionRequest) returns (RequestAccountDeletionResponse);
+  // Permanently deletes the authenticated account after token validation.
+  rpc DeleteMyAccount(DeleteMyAccountRequest) returns (DeleteMyAccountResponse);
+}

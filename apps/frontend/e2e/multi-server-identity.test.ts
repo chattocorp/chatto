@@ -1,4 +1,5 @@
 import { test, expect } from './setup';
+import type { Page } from '@playwright/test';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import {
   startSecondServer,
@@ -23,6 +24,15 @@ import * as routes from './routes';
  */
 function remoteBaseURL(server: ServerInfo): string {
   return server.baseURL.replace('localhost', '127.0.0.1');
+}
+
+async function gotoRemoteRoom(page: Page, roomId: string): Promise<void> {
+  const roomPath = routes.remote.room('127.0.0.1', roomId);
+  await expect(async () => {
+    await page.goto(roomPath);
+    await page.waitForURL((url) => url.pathname === roomPath, { timeout: TIMEOUTS.UI_STANDARD });
+    await waitForRoomReady(page, 'general', { timeout: TIMEOUTS.UI_STANDARD });
+  }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });
 }
 
 test.describe('Multi-Instance Identity', () => {
@@ -57,8 +67,7 @@ test.describe('Multi-Instance Identity', () => {
 
     // Connect remote instance and navigate directly to the room
     await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteBrowser.userId);
-    await page.goto(routes.remote.room('127.0.0.1', roomId));
-    await waitForRoomReady(page, 'general');
+    await gotoRemoteRoom(page, roomId);
 
     // Send a message on the remote instance
     const roomPage = new RoomPage(page);
@@ -94,8 +103,7 @@ test.describe('Multi-Instance Identity', () => {
 
     // Connect remote instance and navigate directly to the room
     await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteBrowser.userId);
-    await page.goto(routes.remote.room('127.0.0.1', roomId));
-    await waitForRoomReady(page, 'general');
+    await gotoRemoteRoom(page, roomId);
 
     const roomPage = new RoomPage(page);
     await roomPage.waitForInputEditable();
@@ -133,8 +141,7 @@ test.describe('Multi-Instance Identity', () => {
 
     // Connect remote instance with the viewer user and navigate directly
     await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteViewer.userId);
-    await page.goto(routes.remote.room('127.0.0.1', roomId));
-    await waitForRoomReady(page, 'general');
+    await gotoRemoteRoom(page, roomId);
 
     const roomPage = new RoomPage(page);
     await roomPage.waitForInputEditable();

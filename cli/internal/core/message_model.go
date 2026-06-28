@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -13,12 +14,31 @@ type MessagePostInput struct {
 	RoomID                   string
 	Body                     string
 	AttachmentAssetIDs       []string
+	HasPendingAttachments    bool
 	VideoProcessingAssetIDs  []string
 	ThreadRootEventID        string
 	InReplyTo                string
 	AlsoSendToChannel        bool
 	MentionConfirmationToken string
 	LinkPreview              *corev1.LinkPreview
+}
+
+// MessagePostAuthorizationInput describes the authorization preflight for a
+// user-facing message post. HasAttachments covers attachments that have not yet
+// been uploaded and therefore do not have asset IDs.
+type MessagePostAuthorizationInput struct {
+	ActorID           string
+	RoomID            string
+	Body              string
+	HasAttachments    bool
+	ThreadRootEventID string
+	AlsoSendToChannel bool
+}
+
+// MessagePostAuthorization is the resolved room context for an authorized post.
+type MessagePostAuthorization struct {
+	Room *corev1.Room
+	Kind RoomKind
 }
 
 // MessageUpdateInput describes one user-facing message edit operation.
@@ -75,6 +95,14 @@ type MentionConfirmationChallenge struct {
 	Token          string
 }
 
+// MessagePostPreflight is the result of checking whether a post can proceed
+// before any transport-specific attachment uploads are performed.
+type MessagePostPreflight struct {
+	Authorization       *MessagePostAuthorization
+	MentionConfirmed    bool
+	MentionConfirmation *MentionConfirmationChallenge
+}
+
 // Messages returns the operation-level model for message reads/writes that
 // need shared public-API authorization and response semantics.
 func (c *ChattoCore) Messages() *MessageModel {
@@ -84,7 +112,7 @@ func (c *ChattoCore) Messages() *MessageModel {
 // MessageModel owns user-facing message operations. Lower-level ChattoCore
 // helpers still perform the event-sourced write, while this model centralizes
 // authZ, mention confirmation, and post-write sync behavior for public
-// transports during the GraphQL-to-ConnectRPC migration.
+// transports.
 type MessageModel struct {
 	core *ChattoCore
 }
@@ -94,13 +122,152 @@ type MessageModel struct {
 // member and must have message.post or message.post-in-thread, plus
 // message.echo/message.post when echoing a thread reply.
 func (s *MessageModel) PostMessage(ctx context.Context, input MessagePostInput) (*MessagePostResult, error) {
+	preflight, err := s.PreflightPost(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	if preflight.MentionConfirmation != nil {
+		return &MessagePostResult{MentionConfirmation: preflight.MentionConfirmation}, nil
+	}
+	room := preflight.Authorization.Room
+	kind := preflight.Authorization.Kind
+
+	videoProcessingAssetIDs := s.videoProcessingAssetIDsForPost(input)
+	options := make([]PostMessageOption, 0, 2)
+	if len(videoProcessingAssetIDs) > 0 {
+		options = append(options, WithVideoProcessingAssets(videoProcessingAssetIDs...))
+	}
+	if preflight.MentionConfirmed {
+		options = append(options, WithLargeMentionConfirmed())
+	}
+
+	event, err := s.core.PostMessage(ctx, kind, room.Id, input.ActorID, input.Body, input.AttachmentAssetIDs, input.ThreadRootEventID, input.InReplyTo, input.LinkPreview, input.AlsoSendToChannel, options...)
+	if err != nil {
+		if confirmErr, ok := err.(*MentionConfirmationRequiredError); ok {
+			mentionScope := messagePostMentionScope(input, preflight.Authorization)
+			token, tokenErr := s.core.CreateMentionConfirmationToken(mentionScope, confirmErr.RecipientCount)
+			if tokenErr != nil {
+				return nil, tokenErr
+			}
+			return &MessagePostResult{MentionConfirmation: &MentionConfirmationChallenge{
+				RecipientCount: confirmErr.RecipientCount,
+				Token:          token,
+			}}, nil
+		}
+		return nil, err
+	}
+
+	s.core.NotifyRoomMarkedAsRead(ctx, input.ActorID, kind, room.Id)
+	return &MessagePostResult{Event: event}, nil
+}
+
+// PreflightPost checks authorization and large-mention confirmation before a
+// transport uploads binary attachments that would otherwise become orphaned if
+// the post must pause for explicit confirmation.
+func (s *MessageModel) PreflightPost(ctx context.Context, input MessagePostInput) (*MessagePostPreflight, error) {
+	authorization, err := s.AuthorizePost(ctx, MessagePostAuthorizationInput{
+		ActorID:           input.ActorID,
+		RoomID:            input.RoomID,
+		Body:              input.Body,
+		HasAttachments:    input.HasPendingAttachments || len(input.AttachmentAssetIDs) > 0,
+		ThreadRootEventID: input.ThreadRootEventID,
+		AlsoSendToChannel: input.AlsoSendToChannel,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := s.validatePostBeforeUpload(ctx, input, authorization); err != nil {
+		return nil, err
+	}
+
+	mentionConfirmed := false
+	if input.Body != "" {
+		mentionScope := messagePostMentionScope(input, authorization)
+		recipientCount, err := s.core.MentionNotificationRecipientCountForBody(ctx, authorization.Kind, authorization.Room.Id, input.ActorID, input.Body)
+		if err != nil {
+			return nil, err
+		}
+		if recipientCount > LargeMentionNotificationThreshold {
+			if err := s.core.ValidateMentionConfirmationToken(input.MentionConfirmationToken, mentionScope); err != nil {
+				token, err := s.core.CreateMentionConfirmationToken(mentionScope, recipientCount)
+				if err != nil {
+					return nil, err
+				}
+				return &MessagePostPreflight{
+					Authorization: authorization,
+					MentionConfirmation: &MentionConfirmationChallenge{
+						RecipientCount: recipientCount,
+						Token:          token,
+					},
+				}, nil
+			}
+			mentionConfirmed = true
+		}
+	}
+
+	return &MessagePostPreflight{
+		Authorization:    authorization,
+		MentionConfirmed: mentionConfirmed,
+	}, nil
+}
+
+func (s *MessageModel) validatePostBeforeUpload(ctx context.Context, input MessagePostInput, authorization *MessagePostAuthorization) error {
+	if len(input.Body) > MaxMessageBodyLength {
+		return ErrMessageTooLong
+	}
+	if err := validateLinkPreview(input.LinkPreview); err != nil {
+		return err
+	}
+	if err := s.core.HydrateLinkPreviewImageAsset(ctx, input.LinkPreview); err != nil {
+		return err
+	}
+	if err := validateLinkPreview(input.LinkPreview); err != nil {
+		return err
+	}
+
+	if input.ThreadRootEventID == "" {
+		return nil
+	}
+	rootEvent, err := s.core.GetRoomEventByEventID(ctx, authorization.Kind, authorization.Room.Id, input.ThreadRootEventID)
+	if err != nil {
+		return fmt.Errorf("failed to get thread root message: %w", err)
+	}
+	if rootEvent == nil {
+		return fmt.Errorf("thread root message not found: %w", ErrMessageNotFound)
+	}
+	rootMsg := rootEvent.GetMessagePosted()
+	if rootMsg == nil {
+		return invalidArgument("thread root is not a message event")
+	}
+	if rootMsg.InThread != "" {
+		return invalidArgument("thread root must be a root message, not a thread reply")
+	}
+	return nil
+}
+
+func messagePostMentionScope(input MessagePostInput, authorization *MessagePostAuthorization) MentionConfirmationScope {
+	return MentionConfirmationScope{
+		UserID:            input.ActorID,
+		RoomID:            authorization.Room.Id,
+		Kind:              authorization.Kind,
+		Body:              input.Body,
+		ThreadRootEventID: input.ThreadRootEventID,
+		AlsoSendToChannel: input.AlsoSendToChannel,
+	}
+}
+
+// AuthorizePost checks the room, visibility, and permission gates for a
+// user-facing message post. Callers that need to write attachment binaries
+// before PostMessage can use this to avoid creating unclaimable assets for
+// requests that are already unauthorized.
+func (s *MessageModel) AuthorizePost(ctx context.Context, input MessagePostAuthorizationInput) (*MessagePostAuthorization, error) {
 	if strings.TrimSpace(input.ActorID) == "" {
 		return nil, ErrNotAuthenticated
 	}
 	if strings.TrimSpace(input.RoomID) == "" {
 		return nil, invalidArgument("room_id is required")
 	}
-	if !HasVisibleContent(input.Body) && len(input.AttachmentAssetIDs) == 0 {
+	if !HasVisibleContent(input.Body) && !input.HasAttachments {
 		return nil, invalidArgument("message must have either body or attachments")
 	}
 	if input.AlsoSendToChannel && strings.TrimSpace(input.ThreadRootEventID) == "" {
@@ -112,6 +279,9 @@ func (s *MessageModel) PostMessage(ctx context.Context, input MessagePostInput) 
 		return nil, err
 	}
 	kind := KindOfRoom(room)
+	if room.Archived {
+		return nil, ErrRoomArchived
+	}
 
 	isMember, err := s.core.RoomMembershipExists(ctx, kind, input.ActorID, room.Id)
 	if err != nil {
@@ -139,7 +309,7 @@ func (s *MessageModel) PostMessage(ctx context.Context, input MessagePostInput) 
 		}
 	}
 
-	if len(input.AttachmentAssetIDs) > 0 {
+	if input.HasAttachments {
 		can, err := s.core.CanAttachFiles(ctx, input.ActorID, kind, room.Id)
 		if err != nil {
 			return nil, err
@@ -150,9 +320,6 @@ func (s *MessageModel) PostMessage(ctx context.Context, input MessagePostInput) 
 	}
 
 	if input.AlsoSendToChannel {
-		if input.ThreadRootEventID == "" {
-			return nil, invalidArgument("alsoSendToChannel can only be used with thread replies (threadRootEventId must be set)")
-		}
 		can, err := s.core.CanEchoMessage(ctx, input.ActorID, kind, room.Id)
 		if err != nil {
 			return nil, err
@@ -169,61 +336,7 @@ func (s *MessageModel) PostMessage(ctx context.Context, input MessagePostInput) 
 		}
 	}
 
-	mentionScope := MentionConfirmationScope{
-		UserID:            input.ActorID,
-		RoomID:            room.Id,
-		Kind:              kind,
-		Body:              input.Body,
-		ThreadRootEventID: input.ThreadRootEventID,
-		AlsoSendToChannel: input.AlsoSendToChannel,
-	}
-	mentionConfirmed := false
-	if input.Body != "" {
-		recipientCount, err := s.core.MentionNotificationRecipientCountForBody(ctx, kind, room.Id, input.ActorID, input.Body)
-		if err != nil {
-			return nil, err
-		}
-		if recipientCount > LargeMentionNotificationThreshold {
-			if err := s.core.ValidateMentionConfirmationToken(input.MentionConfirmationToken, mentionScope); err != nil {
-				token, err := s.core.CreateMentionConfirmationToken(mentionScope, recipientCount)
-				if err != nil {
-					return nil, err
-				}
-				return &MessagePostResult{MentionConfirmation: &MentionConfirmationChallenge{
-					RecipientCount: recipientCount,
-					Token:          token,
-				}}, nil
-			}
-			mentionConfirmed = true
-		}
-	}
-
-	videoProcessingAssetIDs := s.videoProcessingAssetIDsForPost(input)
-	options := make([]PostMessageOption, 0, 2)
-	if len(videoProcessingAssetIDs) > 0 {
-		options = append(options, WithVideoProcessingAssets(videoProcessingAssetIDs...))
-	}
-	if mentionConfirmed {
-		options = append(options, WithLargeMentionConfirmed())
-	}
-
-	event, err := s.core.PostMessage(ctx, kind, room.Id, input.ActorID, input.Body, input.AttachmentAssetIDs, input.ThreadRootEventID, input.InReplyTo, input.LinkPreview, input.AlsoSendToChannel, options...)
-	if err != nil {
-		if confirmErr, ok := err.(*MentionConfirmationRequiredError); ok {
-			token, tokenErr := s.core.CreateMentionConfirmationToken(mentionScope, confirmErr.RecipientCount)
-			if tokenErr != nil {
-				return nil, tokenErr
-			}
-			return &MessagePostResult{MentionConfirmation: &MentionConfirmationChallenge{
-				RecipientCount: confirmErr.RecipientCount,
-				Token:          token,
-			}}, nil
-		}
-		return nil, err
-	}
-
-	s.core.NotifyRoomMarkedAsRead(ctx, input.ActorID, kind, room.Id)
-	return &MessagePostResult{Event: event}, nil
+	return &MessagePostAuthorization{Room: room, Kind: kind}, nil
 }
 
 // UpdateMessage edits an existing message. Authorization: actor must be a room

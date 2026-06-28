@@ -2,6 +2,7 @@ import { Timestamp } from '@bufbuild/protobuf';
 import { describe, expect, it } from 'vitest';
 
 import { realtimeEventToEventEnvelope } from '$lib/realtimeEventMapper';
+import { RoomEventKind } from '$lib/render/eventKinds';
 import {
   RealtimeEventEnvelope,
   RealtimeMentionNotificationEvent,
@@ -25,16 +26,17 @@ describe('realtimeEventToEventEnvelope', () => {
           })
         }
       })
-    ) as {
+    ) as unknown as {
       event: {
+        kind: string;
         room: { name: string };
         actor: { id: string; displayName: string } | null;
       };
     };
 
+    expect(event.event.kind).toBe(RoomEventKind.MentionNotification);
     expect(event.event.room.name).toBe('General');
     expect(event.event.actor).toEqual({
-      __typename: 'User',
       id: 'user-1',
       displayName: 'Ada Lovelace'
     });
@@ -57,16 +59,17 @@ describe('realtimeEventToEventEnvelope', () => {
           })
         }
       })
-    ) as {
+    ) as unknown as {
       event: {
+        kind: string;
         conversationName: string;
         sender: { id: string; displayName: string; avatarUrl: string | null } | null;
       };
     };
 
+    expect(event.event.kind).toBe(RoomEventKind.NewDirectMessageNotification);
     expect(event.event.conversationName).toBe('Grace Hopper');
     expect(event.event.sender).toEqual({
-      __typename: 'User',
       id: 'user-2',
       displayName: 'Grace Hopper',
       avatarUrl: '/assets/avatar.png'

@@ -1,16 +1,17 @@
-import { graphql, useFragment } from '$lib/gql';
-import { isUnsupportedGraphQLFieldError } from '$lib/gql/compatibility';
-import { RoomType, UserAvatarUserFragmentDoc, type PresenceStatus } from '$lib/gql/graphql';
+import { Code, ConnectError } from '@connectrpc/connect';
+import { createMemberDirectoryAPI, type DirectoryMember } from '$lib/api/memberDirectory';
+import { createRoomDirectoryAPI, RoomKind } from '$lib/api/roomDirectory';
 import { useActiveRoomLayoutUpdated } from '$lib/hooks/useEvent.svelte';
 import { useReconnectTrigger } from '$lib/hooks/useReconnectCallback.svelte';
 import { useConnection } from '$lib/state/server/connection.svelte';
+import { serverRegistry } from '$lib/state/server/registry.svelte';
 import { untrack } from 'svelte';
 
 export type RoomData = {
   room: {
     id: string;
     name: string;
-    type: string;
+    type: RoomKind;
     description?: string | null;
     isUniversal: boolean;
   };
@@ -32,65 +33,10 @@ export type DMData = {
     displayName: string;
     deleted?: boolean;
     avatarUrl?: string | null;
-    presenceStatus: PresenceStatus;
+    presenceStatus: DirectoryMember['presenceStatus'];
   }>;
   currentUserId: string | null;
 };
-
-const GetRoomQuery = graphql(`
-  query GetRoom($roomId: ID!) {
-    room(roomId: $roomId) {
-      id
-      name
-      description
-      type
-      isUniversal
-      viewerCanPostMessage
-      viewerCanPostInThread
-      viewerCanAttach
-      viewerCanReact
-      viewerCanManageOthersMessage
-      viewerCanEchoMessage
-      viewerCanManageRoom
-      viewerCanBanRoomMembers
-    }
-    server {
-      profile {
-        name
-      }
-      viewerCanManageRooms
-    }
-  }
-`);
-
-const GetRoomCompatibilityQuery = graphql(`
-  query GetRoomCompatibility($roomId: ID!) {
-    room(roomId: $roomId) {
-      id
-      name
-      description
-      type
-      viewerCanPostMessage
-      viewerCanPostInThread
-      viewerCanAttach
-      viewerCanReact
-      viewerCanManageOthersMessage
-      viewerCanEchoMessage
-      viewerCanManageRoom
-      viewerCanBanRoomMembers
-    }
-    server {
-      profile {
-        name
-      }
-      viewerCanManageRooms
-    }
-  }
-`);
-
-function roomIsUniversal(room: object): boolean {
-  return 'isUniversal' in room && room.isUniversal === true;
-}
 
 /**
  * Loads room metadata and DM participant data.
@@ -124,9 +70,7 @@ export function useRoomData(getProps: () => { roomId: string }) {
   const roomLoadId = { current: 0 };
   const dmLoadId = { current: 0 };
 
-  // Post-PR(b) we tell channel vs DM via `Room.type` (the resolver returns
-  // `RoomType.DM` for DM rooms and `CHANNEL` for everything else).
-  const isDM = $derived(roomData?.room.type === RoomType.Dm);
+  const isDM = $derived(roomData?.room.type === RoomKind.DM);
   const isRoomLoading = $derived(roomData === undefined);
 
   // Load room data when roomId, reconnect, or the room-sets layout changes
@@ -148,61 +92,51 @@ export function useRoomData(getProps: () => { roomId: string }) {
       }
     });
 
-    const client = connection().client;
-    client
-      .query(GetRoomQuery, { roomId: currentRoomId })
-      .toPromise()
-      .then((initialResp) => {
-        if (
-          initialResp.error &&
-          isUnsupportedGraphQLFieldError(initialResp.error, 'isUniversal')
-        ) {
-          return client.query(GetRoomCompatibilityQuery, { roomId: currentRoomId }).toPromise();
-        }
-        return initialResp;
-      })
-      .then((resp) => {
+    const currentConnection = connection();
+    const api = createRoomDirectoryAPI({
+      serverId: currentConnection.serverId,
+      baseUrl: currentConnection.connectBaseUrl,
+      bearerToken: currentConnection.bearerToken
+    });
+
+    api
+      .getRoom(currentRoomId)
+      .then((loadedRoom) => {
         if (roomLoadId.current !== thisLoadId) return;
 
-        // Transient network failure (e.g., wake-from-sleep) — keep prior data
-        // visible and let the reconnect handler retry. Don't flip to null,
-        // which would trigger the not-found redirect path.
-        // Logged so a stuck-blank-screen incident leaves a fingerprint.
-        if (resp.error?.networkError) {
-          console.warn(
-            '[useRoomData] networkError, ignoring (roomData stays at prior value)',
-            { roomId: currentRoomId, error: resp.error }
-          );
-          return;
-        }
-
-        if (!resp.data?.room) {
+        if (!loadedRoom) {
           roomData = null;
           return;
         }
 
-        const loadedRoom = resp.data.room;
         roomData = {
           room: {
             id: loadedRoom.id,
             name: loadedRoom.name,
             description: loadedRoom.description,
-            type: loadedRoom.type,
-            isUniversal: roomIsUniversal(loadedRoom)
+            type: loadedRoom.kind,
+            isUniversal: loadedRoom.isUniversal
           },
-          spaceName: resp.data.server?.profile.name ?? null,
-          canPostMessage: loadedRoom.viewerCanPostMessage,
-          canPostInThread: loadedRoom.viewerCanPostInThread,
-          canAttach: loadedRoom.viewerCanAttach,
-          canReact: loadedRoom.viewerCanReact,
-          canManageOthersMessage: loadedRoom.viewerCanManageOthersMessage,
-          canEchoMessage: loadedRoom.viewerCanEchoMessage,
-          canManageRoom: loadedRoom.viewerCanManageRoom,
-          canBanRoomMembers: loadedRoom.viewerCanBanRoomMembers
+          spaceName: serverName(currentConnection.serverId),
+          canPostMessage: loadedRoom.canPostMessage,
+          canPostInThread: loadedRoom.canPostInThread,
+          canAttach: loadedRoom.canAttach,
+          canReact: loadedRoom.canReact,
+          canManageOthersMessage: loadedRoom.canManageOthersMessage,
+          canEchoMessage: loadedRoom.canEchoMessage,
+          canManageRoom: loadedRoom.canManageRoom,
+          canBanRoomMembers: loadedRoom.canBanRoomMembers
         };
       })
       .catch((err) => {
         if (roomLoadId.current !== thisLoadId) return;
+        if (isTransientRoomLoadError(err)) {
+          console.warn('[useRoomData] transient room load failure, keeping prior roomData', {
+            roomId: currentRoomId,
+            error: err
+          });
+          return;
+        }
         console.error('Failed to load room:', err);
         roomData = null;
       });
@@ -220,43 +154,27 @@ export function useRoomData(getProps: () => { roomId: string }) {
     const currentRoomId = getProps().roomId;
     const thisLoadId = ++dmLoadId.current;
 
-    connection()
-      .client.query(
-        graphql(`
-          query GetDMRoomMembers($roomId: ID!) {
-            room(roomId: $roomId) {
-              id
-              members(limit: 100) {
-                users {
-                  ...UserAvatarUser
-                }
-                totalCount
-                hasMore
-              }
-            }
-            viewer {
-              user {
-                id
-              }
-            }
-          }
-        `),
-        { roomId: currentRoomId }
-      )
-      .toPromise()
+    const currentConnection = connection();
+    const api = createMemberDirectoryAPI({
+      baseUrl: currentConnection.connectBaseUrl,
+      bearerToken: currentConnection.bearerToken
+    });
+    api
+      .listRoomMembers(currentRoomId, '', 100, 0)
       .then((resp) => {
         if (dmLoadId.current !== thisLoadId) return;
-        if (resp.data?.room?.id && resp.data.room.id !== currentRoomId) return;
-
-        if (!resp.data?.room) {
-          dmData = { participants: [], currentUserId: null };
-          return;
-        }
         dmData = {
-          participants: resp.data.room.members.users.map((m) =>
-            useFragment(UserAvatarUserFragmentDoc, m)
-          ),
-          currentUserId: resp.data.viewer?.user.id ?? null
+          participants: resp.members.map((member) => ({
+            id: member.id,
+            login: member.login,
+            displayName: member.displayName,
+            deleted: member.deleted,
+            avatarUrl: member.avatarUrl,
+            presenceStatus: member.presenceStatus
+          })),
+          currentUserId: currentConnection.serverId
+            ? (serverRegistry.tryGetStore(currentConnection.serverId)?.currentUser.user?.id ?? null)
+            : null
         };
       })
       .catch((err) => {
@@ -282,4 +200,15 @@ export function useRoomData(getProps: () => { roomId: string }) {
       return isRoomLoading;
     }
   };
+}
+
+function serverName(serverId: string | null | undefined): string | null {
+  return serverId ? (serverRegistry.tryGetStore(serverId)?.serverInfo.name ?? null) : null;
+}
+
+function isTransientRoomLoadError(err: unknown): boolean {
+  if (err instanceof ConnectError) {
+    return err.code === Code.Unavailable || err.code === Code.DeadlineExceeded;
+  }
+  return err instanceof TypeError;
 }

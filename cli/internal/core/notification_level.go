@@ -22,13 +22,12 @@ import (
 // predate the ConnectRPC API and mostly perform projected reads, config writes,
 // effective-level resolution, and live-event publishing. New user-facing
 // transports should enter through NotificationPreferencesModel instead, so
-// operation authZ and response shaping do not drift between GraphQL, ConnectRPC,
-// and future transports.
+// operation authZ and response shaping do not drift across public transports.
 // ============================================================================
 
 // GetSpaceNotificationLevel returns the user's server-wide notification level.
 // Returns NOTIFICATION_LEVEL_UNSPECIFIED if no preference is set.
-// Authorization: Caller must verify access (self-only in GraphQL layer).
+// Authorization: Caller must verify access before calling this helper.
 func (c *ChattoCore) GetSpaceNotificationLevel(_ context.Context, userID string) (corev1.NotificationLevel, error) {
 	if c.ServerConfig == nil {
 		return corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED, nil
@@ -38,7 +37,7 @@ func (c *ChattoCore) GetSpaceNotificationLevel(_ context.Context, userID string)
 
 // SetSpaceNotificationLevel sets the user's server-wide notification level.
 // Pass NOTIFICATION_LEVEL_UNSPECIFIED to clear the override.
-// Authorization: Caller must verify access (self-only in GraphQL layer).
+// Authorization: Caller must verify access before calling this helper.
 func (c *ChattoCore) SetSpaceNotificationLevel(ctx context.Context, userID string, level corev1.NotificationLevel) error {
 	if c.configManager == nil || c.configManager.model == nil || c.ServerConfig == nil {
 		return fmt.Errorf("config model not configured")
@@ -80,7 +79,7 @@ func (c *ChattoCore) SetSpaceNotificationLevel(ctx context.Context, userID strin
 
 // GetRoomNotificationLevel returns the user's notification level for a room.
 // Returns NOTIFICATION_LEVEL_UNSPECIFIED if no preference is set.
-// Authorization: Caller must verify access (self-only in GraphQL layer).
+// Authorization: Caller must verify access before calling this helper.
 func (c *ChattoCore) GetRoomNotificationLevel(_ context.Context, userID, roomID string) (corev1.NotificationLevel, error) {
 	if c.ServerConfig == nil {
 		return corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED, nil
@@ -197,9 +196,8 @@ func (c *ChattoCore) NotificationPreferences() *NotificationPreferencesModel {
 // NotificationPreferencesModel owns user-facing notification preference
 // operations. It is intentionally thin for now: the low-level config
 // reads/writes already lived on ChattoCore, while membership authZ and response
-// shaping used to live in the GraphQL resolver. This model centralizes that
-// operation policy so ConnectRPC and GraphQL share it during the transition
-// toward model-owned operations.
+// shaping now live here. This model centralizes that operation policy for
+// ConnectRPC and future public transports.
 type NotificationPreferencesModel struct {
 	core *ChattoCore
 }

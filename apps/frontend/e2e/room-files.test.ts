@@ -1,7 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 import { TIMEOUTS } from './constants';
 import { test } from './setup';
-import { postMessageViaAPI } from './fixtures/graphqlHelpers';
+import { postMessageViaConnect } from './fixtures/connectHelpers';
 import { loginAndEnterRoom } from './fixtures/serverUser';
 
 function roomIdFromUrl(page: Page): string {
@@ -12,7 +12,7 @@ function roomIdFromUrl(page: Page): string {
 
 async function postFillerMessages(page: Page, roomId: string, prefix: string, count: number) {
   for (let index = 0; index < count; index++) {
-    await postMessageViaAPI(page, roomId, `${prefix} ${index}`);
+    await postMessageViaConnect(page, roomId, `${prefix} ${index}`);
   }
 }
 

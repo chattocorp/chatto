@@ -79,7 +79,7 @@ func (s *adminService) UpdateUser(ctx context.Context, req *connect.Request[apiv
 	if req.Msg.Login == nil && req.Msg.DisplayName == nil {
 		return nil, invalidArgument("at least one of login or display_name must be provided")
 	}
-	user, err := s.api.core.AdminUpdateUser(ctx, core.AdminUpdateUserRequest{
+	user, err := s.api.core.AdminUpdateOperatorUser(ctx, core.AdminUpdateOperatorUserRequest{
 		UserID:      req.Msg.GetUserId(),
 		Login:       req.Msg.Login,
 		DisplayName: req.Msg.DisplayName,

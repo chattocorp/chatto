@@ -8,14 +8,19 @@ These preferences are server-side and sync across devices.
   import { onMount } from 'svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { graphql } from '$lib/gql';
-  import { NotificationLevel } from '$lib/gql/graphql';
+  import { NotificationLevel } from '$lib/render/types';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { FormSection } from '$lib/ui';
   import { FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import * as m from '$lib/i18n/messages';
-  import { setRoomNotificationLevel } from '$lib/api/notificationPreferences';
+  import {
+    getServerNotificationPreference,
+    setRoomNotificationLevel,
+    setServerNotificationLevel
+  } from '$lib/api/notificationPreferences';
+  import { createRoomDirectoryAPI, RoomDirectoryScope } from '$lib/api/roomDirectory';
+  import { getViewerStateViaConnect } from '$lib/api/viewer';
   import { NotificationLevel as ApiNotificationLevel } from '$lib/pb/chatto/api/v1/notification_preferences_pb';
 
   const serverId = getActiveServer();
@@ -53,59 +58,39 @@ These preferences are server-side and sync across devices.
     error = '';
 
     try {
-      const result = await connection()
-        .client.query(
-          graphql(`
-            query GetServerNotificationPreferences {
-              server {
-                viewerNotificationPreference {
-                  level
-                  effectiveLevel
-                }
-              }
-              viewer {
-                user {
-                  rooms(type: CHANNEL) {
-                    id
-                    name
-                    viewerNotificationPreference {
-                      level
-                      effectiveLevel
-                    }
-                  }
-                }
-              }
-            }
-          `),
-          {}
-        )
-        .toPromise();
+      const config = connectConfig();
+      const [serverPref, viewer, channelRooms] = await Promise.all([
+        getServerNotificationPreference(config),
+        getViewerStateViaConnect(config),
+        createRoomDirectoryAPI(config).listRooms(RoomDirectoryScope.CHANNELS)
+      ]);
 
-      if (result.error) {
-        error = result.error.message;
-        return;
-      }
+      const mappedServerPref = notificationPreferenceFromAPI(serverPref);
+      serverLevel =
+        mappedServerPref.level === NotificationLevel.Default
+          ? NotificationLevel.Normal
+          : mappedServerPref.level;
+      serverEffectiveLevel = mappedServerPref.effectiveLevel;
+      notificationLevelStore.setServerPreference(
+        mappedServerPref.level,
+        mappedServerPref.effectiveLevel
+      );
 
-      if (result.data?.server?.viewerNotificationPreference) {
-        const pref = result.data.server.viewerNotificationPreference;
-        serverLevel =
-          pref.level === NotificationLevel.Default ? NotificationLevel.Normal : pref.level;
-        serverEffectiveLevel = pref.effectiveLevel;
-        notificationLevelStore.setServerPreference(pref.level, pref.effectiveLevel);
-      }
-
-      if (result.data?.viewer?.user.rooms) {
-        rooms = result.data.viewer.user.rooms.map((room) => ({
+      const roomPreferences = new Map(
+        viewer.roomNotificationPreferences.map((pref) => [pref.roomId, pref])
+      );
+      rooms = channelRooms.map((room) => {
+        const pref = roomPreferences.get(room.id);
+        return {
           id: room.id,
           name: room.name,
-          level: room.viewerNotificationPreference?.level ?? NotificationLevel.Default,
-          effectiveLevel:
-            room.viewerNotificationPreference?.effectiveLevel ?? NotificationLevel.Normal
-        }));
+          level: pref?.level ?? NotificationLevel.Default,
+          effectiveLevel: pref?.effectiveLevel ?? NotificationLevel.Normal
+        };
+      });
 
-        for (const room of rooms) {
-          notificationLevelStore.setRoomPreference(room.id, room.level, room.effectiveLevel);
-        }
+      for (const room of rooms) {
+        notificationLevelStore.setRoomPreference(room.id, room.level, room.effectiveLevel);
       }
     } catch (e) {
       error = e instanceof Error ? e.message : m['settings.notifications.levels.load_failed']();
@@ -118,34 +103,15 @@ These preferences are server-side and sync across devices.
     savingServerLevel = true;
 
     try {
-      const result = await connection()
-        .client.mutation(
-          graphql(`
-            mutation SetServerNotificationLevel($input: SetServerNotificationLevelInput!) {
-              setServerNotificationLevel(input: $input) {
-                level
-                effectiveLevel
-              }
-            }
-          `),
-          { input: { level: newLevel } }
-        )
-        .toPromise();
+      const pref = notificationPreferenceFromAPI(
+        await setServerNotificationLevel(connectConfig(), notificationLevelToAPI(newLevel))
+      );
+      serverLevel = pref.level;
+      serverEffectiveLevel = pref.effectiveLevel;
+      notificationLevelStore.setServerPreference(pref.level, pref.effectiveLevel);
 
-      if (result.error) {
-        toast.error(result.error.message);
-        return;
-      }
-
-      if (result.data?.setServerNotificationLevel) {
-        const pref = result.data.setServerNotificationLevel;
-        serverLevel = pref.level;
-        serverEffectiveLevel = pref.effectiveLevel;
-        notificationLevelStore.setServerPreference(pref.level, pref.effectiveLevel);
-
-        await loadPreferences();
-        toast.success(m['settings.notifications.levels.server_updated']());
-      }
+      await loadPreferences();
+      toast.success(m['settings.notifications.levels.server_updated']());
     } catch (e) {
       toast.error(
         e instanceof Error ? e.message : m['settings.notifications.levels.update_failed']()
@@ -205,12 +171,27 @@ These preferences are server-side and sync across devices.
     roomId: string,
     newLevel: NotificationLevel
   ): Promise<NotificationPreference> {
-    const conn = connection();
     const pref = await setRoomNotificationLevel(
-      { serverId, baseUrl: conn.connectBaseUrl, bearerToken: conn.bearerToken },
+      connectConfig(),
       roomId,
       notificationLevelToAPI(newLevel)
     );
+    return notificationPreferenceFromAPI(pref);
+  }
+
+  function connectConfig() {
+    const conn = connection();
+    return {
+      serverId,
+      baseUrl: conn.connectBaseUrl,
+      bearerToken: conn.bearerToken
+    };
+  }
+
+  function notificationPreferenceFromAPI(pref: {
+    level: ApiNotificationLevel;
+    effectiveLevel: ApiNotificationLevel;
+  }): NotificationPreference {
     return {
       level: notificationLevelFromAPI(pref.level),
       effectiveLevel: notificationLevelFromAPI(pref.effectiveLevel)

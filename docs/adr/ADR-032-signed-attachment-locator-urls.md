@@ -104,7 +104,7 @@ No standalone-record bucket is consulted.
 - **Longer URLs.** ~150 chars vs ~30. Irrelevant for our use case (URLs aren't human-typed and aren't shared as bare share-links outside the app).
 - **URLs aren't individually revocable.** Rotating `[core.assets].signing_secret` invalidates *all* URLs at once. Ticketed URL leaks are bounded by expiry and the signed user's current room membership. If we ever want share links with single-use semantics, we'd extend the payload or add server-side revocation state; none of that is needed today.
 - **Expiry is now signed into issued browser URLs.** The original design did not include an expiry claim, but the 2026-05-24 update added one because signed browser asset URLs became standalone capabilities. Stable `/assets/files/...` tickets use the same short-lived capability model.
-- **Operational: secret rotation invalidates in-flight URLs.** Currently-loaded pages would 404 their image requests after a rotation until the user navigates and re-renders. Frontend URL emission is on every GraphQL response, so the impact is bounded to "until next page transition." Worth a runbook note.
+- **Operational: secret rotation invalidates in-flight URLs.** Currently-loaded pages would 404 their image requests after a rotation until the user navigates and re-renders. Frontend URL emission happens on projected timeline/attachment responses, so the impact is bounded to "until next refresh." Worth a runbook note.
 - **Cleaner internal API.** `GetAttachmentReader(*Attachment)` and `DeleteAttachmentFromStorage(*Attachment)` take the proto directly; the previous `(spaceID, attachmentID)` shape and the multi-layout S3 key probing are gone. Reads `Storage.S3.Key` straight off the proto.
 
 ## Related

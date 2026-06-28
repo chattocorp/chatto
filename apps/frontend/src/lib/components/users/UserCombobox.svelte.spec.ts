@@ -4,14 +4,19 @@ import { flushSync } from 'svelte';
 import UserCombobox from './UserCombobox.svelte';
 
 const mocks = vi.hoisted(() => ({
-  query: vi.fn()
+  listServerMembers: vi.fn()
 }));
 
 vi.mock('$lib/state/server/connection.svelte', () => ({
   useConnection: () => () => ({
-    client: {
-      query: mocks.query
-    }
+    connectBaseUrl: 'http://localhost/api/connect',
+    bearerToken: null
+  })
+}));
+
+vi.mock('$lib/api/memberDirectory', () => ({
+  createMemberDirectoryAPI: () => ({
+    listServerMembers: mocks.listServerMembers
   })
 }));
 
@@ -24,25 +29,23 @@ async function settle() {
 describe('UserCombobox', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    mocks.query.mockReset();
-    mocks.query.mockReturnValue({
-      toPromise: vi.fn().mockResolvedValue({
-        data: {
-          server: {
-            members: {
-              users: [
-                {
-                  id: 'user-1',
-                  login: 'alice',
-                  displayName: 'Alice Admin',
-                  avatarUrl: null
-                }
-              ]
-            }
-          }
-        },
-        error: null
-      })
+    mocks.listServerMembers.mockReset();
+    mocks.listServerMembers.mockResolvedValue({
+      members: [
+        {
+          id: 'user-1',
+          login: 'alice',
+          displayName: 'Alice Admin',
+          deleted: false,
+          avatarUrl: null,
+          presenceStatus: 'ONLINE',
+          customStatus: null,
+          roles: [],
+          createdAt: null
+        }
+      ],
+      totalCount: 1,
+      hasMore: false
     });
   });
 
@@ -64,10 +67,6 @@ describe('UserCombobox', () => {
     await vi.advanceTimersByTimeAsync(220);
     await settle();
 
-    expect(mocks.query).toHaveBeenCalledWith(
-      expect.anything(),
-      { search: 'alice' },
-      { requestPolicy: 'network-only' }
-    );
+    expect(mocks.listServerMembers).toHaveBeenCalledWith('alice', 10, 0);
   });
 });

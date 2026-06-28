@@ -4,7 +4,13 @@ import { createAndLoginTestUser, loginAsAdminAndUsePrimaryServer } from './fixtu
 import { withServerUser } from './fixtures/serverUser';
 import { ServerAdminPage } from './pages';
 import { TIMEOUTS } from './constants';
-import { postMessageViaAPI } from './fixtures/graphqlHelpers';
+import {
+  connectPost,
+  connectPostResponse,
+  createRoomViaConnect,
+  getDefaultRoomGroupIdViaConnect,
+  joinRoomViaConnect
+} from './fixtures/connectHelpers';
 import * as routes from './routes';
 
 // ============================================================================
@@ -22,23 +28,20 @@ interface RoomGroup {
   roomIds: string[];
 }
 
-// ============================================================================
-// GraphQL Helpers (use page.request.post to avoid browser context issues)
-// ============================================================================
+interface AdminRoomLayoutRoomResponse {
+  id?: string;
+  name?: string;
+  archived?: boolean;
+}
 
-async function gqlRequest<T>(
-  page: Page,
-  query: string,
-  variables?: Record<string, unknown>
-): Promise<T> {
-  const resp = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: { query, variables }
-  });
-  const json = await resp.json().catch(async () => ({ raw: await resp.text() }));
-  expect(resp.ok(), JSON.stringify(json)).toBeTruthy();
-  if (json.errors) throw new Error(JSON.stringify(json.errors));
-  return json.data;
+interface AdminRoomLayoutGroupResponse {
+  id?: string;
+  name?: string;
+  rooms?: AdminRoomLayoutRoomResponse[];
+}
+
+interface AdminRoomLayoutResponse {
+  groups?: AdminRoomLayoutGroupResponse[];
 }
 
 async function usePrimaryServerViaAPI(page: Page, _name?: string): Promise<TestServer> {
@@ -46,28 +49,12 @@ async function usePrimaryServerViaAPI(page: Page, _name?: string): Promise<TestS
 }
 
 async function createRoomViaAPI(page: Page, name: string): Promise<string> {
-  const groupData = await gqlRequest<{ server: { roomGroups: { id: string }[] } }>(
-    page,
-    `query { server { roomGroups { id } } }`
-  );
-  const groupId = groupData.server.roomGroups[0]?.id;
-  if (!groupId) throw new Error('No room group available for e2e room creation');
-
-  const data = await gqlRequest<{ createRoom: { id: string; name: string } }>(
-    page,
-    `mutation($input: CreateRoomInput!) { createRoom(input: $input) { id name } }`,
-    { input: { name, groupId } }
-  );
-  return data.createRoom.id;
+  const groupId = await getDefaultRoomGroupIdViaConnect(page);
+  return createRoomViaConnect(page, name, groupId);
 }
 
 async function joinRoomViaAPI(page: Page, roomId: string): Promise<void> {
-  const data = await gqlRequest<{ joinRoom: { id: string } }>(
-    page,
-    `mutation($input: JoinRoomInput!) { joinRoom(input: $input) { id } }`,
-    { input: { roomId } }
-  );
-  expect(data.joinRoom?.id).toBe(roomId);
+  await joinRoomViaConnect(page, roomId);
 }
 
 async function denyRoomPermissionViaAPI(
@@ -76,12 +63,20 @@ async function denyRoomPermissionViaAPI(
   roleName: string,
   permission: string
 ): Promise<void> {
-  const data = await gqlRequest<{ denyRoomPermission: boolean }>(
+  const data = await connectPost<{ ok?: boolean }>(
     page,
-    `mutation($input: DenyRoomPermissionInput!) { denyRoomPermission(input: $input) }`,
-    { input: { roomId, roleName, permission } }
+    'chatto.api.v1.PermissionService/SetRolePermission',
+    {
+      roleName,
+      permission,
+      decision: 'PERMISSION_DECISION_DENY',
+      scope: {
+        kind: 'PERMISSION_SCOPE_KIND_ROOM',
+        id: roomId
+      }
+    }
   );
-  expect(data.denyRoomPermission).toBe(true);
+  expect(data.ok).toBe(true);
 }
 
 // updateRoomLayoutViaAPI reshapes the room-group layout to match the
@@ -96,11 +91,9 @@ async function denyRoomPermissionViaAPI(
 async function updateRoomLayoutViaAPI(page: Page, groups: RoomGroup[]): Promise<void> {
   // Snapshot the current state once so we can decide create vs. update.
   type CurrentGroup = { id: string; name: string; roomIds: string[] };
-  const currentData = await gqlRequest<{
-    server: { roomGroups: { id: string; name: string; rooms: { id: string }[] }[] };
-  }>(page, `query { server { roomGroups { id name rooms { id } } } }`);
+  const currentData = await getRoomLayoutViaAPI(page);
   const currentById = new Map<string, CurrentGroup>();
-  for (const g of currentData.server.roomGroups) {
+  for (const g of currentData?.groups ?? []) {
     currentById.set(g.id, { id: g.id, name: g.name, roomIds: g.rooms.map((r) => r.id) });
   }
 
@@ -111,20 +104,20 @@ async function updateRoomLayoutViaAPI(page: Page, groups: RoomGroup[]): Promise<
     const existing = currentById.get(desired.id);
     if (existing) {
       if (existing.name !== desired.name) {
-        await gqlRequest(
-          page,
-          `mutation($input: UpdateRoomGroupInput!) { updateRoomGroup(input: $input) { id } }`,
-          { input: { id: existing.id, name: desired.name } }
-        );
+        await connectPost(page, 'chatto.api.v1.AdminRoomLayoutService/UpdateRoomGroup', {
+          groupId: existing.id,
+          name: desired.name
+        });
       }
       resolvedIds.push(existing.id);
     } else {
-      const created = await gqlRequest<{ createRoomGroup: { id: string } }>(
+      const created = await connectPost<{ group?: { id?: string } }>(
         page,
-        `mutation($input: CreateRoomGroupInput!) { createRoomGroup(input: $input) { id } }`,
-        { input: { name: desired.name } }
+        'chatto.api.v1.AdminRoomLayoutService/CreateRoomGroup',
+        { name: desired.name }
       );
-      const newId = created.createRoomGroup.id;
+      const newId = created.group?.id;
+      if (!newId) throw new Error('CreateRoomGroup did not return a group id');
       currentById.set(newId, { id: newId, name: desired.name, roomIds: [] });
       resolvedIds.push(newId);
     }
@@ -158,21 +151,18 @@ async function updateRoomLayoutViaAPI(page: Page, groups: RoomGroup[]): Promise<
       }
     }
     if (currentGroup === targetId) continue;
-    await gqlRequest(
-      page,
-      `mutation($input: MoveRoomToGroupInput!) { moveRoomToGroup(input: $input) { id } }`,
-      { input: { roomId, groupId: targetId } }
-    );
+    await connectPost(page, 'chatto.api.v1.AdminRoomLayoutService/MoveRoomToGroup', {
+      roomId,
+      groupId: targetId
+    });
   }
 
   // Reorder rooms inside each desired group so the final sequence
   // matches the input. Read fresh state to confirm the moves landed
   // before validating room sets.
-  const refreshed = await gqlRequest<{
-    server: { roomGroups: { id: string; rooms: { id: string }[] }[] };
-  }>(page, `query { server { roomGroups { id rooms { id } } } }`);
+  const refreshed = await getRoomLayoutViaAPI(page);
   const refreshedRooms = new Map<string, string[]>();
-  for (const g of refreshed.server.roomGroups) {
+  for (const g of refreshed?.groups ?? []) {
     refreshedRooms.set(
       g.id,
       g.rooms.map((r) => r.id)
@@ -184,11 +174,10 @@ async function updateRoomLayoutViaAPI(page: Page, groups: RoomGroup[]): Promise<
     const after = refreshedRooms.get(targetId) ?? [];
     const same = desired.length === after.length && desired.every((id, j) => id === after[j]);
     if (same) continue;
-    await gqlRequest(
-      page,
-      `mutation($input: ReorderRoomsInGroupInput!) { reorderRoomsInGroup(input: $input) { id } }`,
-      { input: { groupId: targetId, orderedRoomIds: desired } }
-    );
+    await connectPost(page, 'chatto.api.v1.AdminRoomLayoutService/ReorderSidebarItemsInGroup', {
+      groupId: targetId,
+      items: desired.map((id) => ({ kind: 'ADMIN_ROOM_LAYOUT_ITEM_KIND_ROOM', id }))
+    });
   }
 
   // Drop any pre-existing group that isn't part of the desired layout.
@@ -200,30 +189,40 @@ async function updateRoomLayoutViaAPI(page: Page, groups: RoomGroup[]): Promise<
     if (desiredSet.has(g.id)) continue;
     const fresh = refreshedRooms.get(g.id) ?? [];
     if (fresh.length > 0) continue;
-    await gqlRequest(
+    const response = await connectPost<{ deleted?: boolean }>(
       page,
-      `mutation($input: DeleteRoomGroupInput!) { deleteRoomGroup(input: $input) }`,
-      { input: { id: g.id } }
+      'chatto.api.v1.AdminRoomLayoutService/DeleteRoomGroup',
+      { groupId: g.id }
     );
+    expect(response.deleted).toBe(true);
   }
 
   // Finally, force the layout's group order to match the input.
   if (resolvedIds.length > 1) {
-    await gqlRequest(
-      page,
-      `mutation($input: ReorderRoomGroupsInput!) { reorderRoomGroups(input: $input) { id } }`,
-      { input: { orderedIds: resolvedIds } }
-    );
+    await connectPost(page, 'chatto.api.v1.AdminRoomLayoutService/ReorderRoomGroups', {
+      orderedGroupIds: resolvedIds
+    });
   }
 }
 
-async function getRoomLayoutViaAPI(
-  page: Page
-): Promise<{ groups: { id: string; name: string; rooms: { id: string }[] }[] } | null> {
-  const data = await gqlRequest<{
-    server: { roomGroups: { id: string; name: string; rooms: { id: string }[] }[] };
-  }>(page, `query { server { roomGroups { id name rooms { id } } } }`);
-  return { groups: data.server.roomGroups };
+async function getRoomLayoutViaAPI(page: Page): Promise<{
+  groups: { id: string; name: string; rooms: { id: string; name: string; archived: boolean }[] }[];
+} | null> {
+  const data = await connectPost<AdminRoomLayoutResponse>(
+    page,
+    'chatto.api.v1.AdminRoomLayoutService/ListAdminRoomLayout'
+  );
+  return {
+    groups: (data.groups ?? []).map((group) => ({
+      id: group.id ?? '',
+      name: group.name ?? '',
+      rooms: (group.rooms ?? []).map((room) => ({
+        id: room.id ?? '',
+        name: room.name ?? '',
+        archived: room.archived ?? false
+      }))
+    }))
+  };
 }
 
 /**
@@ -240,34 +239,42 @@ async function getSeedSetId(page: Page): Promise<string> {
 }
 
 async function archiveRoomViaAPI(page: Page, roomId: string): Promise<void> {
-  await gqlRequest(
+  const data = await connectPost<{ room?: { archived?: boolean } }>(
     page,
-    `mutation($input: ArchiveRoomInput!) { archiveRoom(input: $input) { id archived } }`,
-    { input: { roomId } }
+    'chatto.api.v1.RoomService/ArchiveRoom',
+    { roomId }
   );
+  expect(data.room?.archived).toBe(true);
 }
 
 async function unarchiveRoomViaAPI(page: Page, roomId: string): Promise<void> {
-  await gqlRequest(
+  const data = await connectPost<{ room?: { archived?: boolean } }>(
     page,
-    `mutation($input: UnarchiveRoomInput!) { unarchiveRoom(input: $input) { id archived } }`,
-    { input: { roomId } }
+    'chatto.api.v1.RoomService/UnarchiveRoom',
+    { roomId }
   );
+  expect(data.room).toBeTruthy();
+  expect(data.room?.archived ?? false).toBe(false);
 }
 
 /** Returns IDs of both default rooms (announcements, general) created for the server. */
 async function getDefaultRoomIds(
   page: Page
 ): Promise<{ announcementsId: string; generalId: string }> {
-  const data = await gqlRequest<{ server: { rooms: { id: string; name: string }[] } }>(
-    page,
-    `query { server { rooms(type: CHANNEL) { id name } } }`
-  );
-  const gen = data.server.rooms.find((r) => r.name === 'general');
-  const ann = data.server.rooms.find((r) => r.name === 'announcements');
+  const layout = await getRoomLayoutViaAPI(page);
+  const rooms = layout?.groups.flatMap((group) => group.rooms) ?? [];
+  const gen = rooms.find((r) => r.name === 'general');
+  const ann = rooms.find((r) => r.name === 'announcements');
   if (!gen) throw new Error('Default "general" room not found');
   if (!ann) throw new Error('Default "announcements" room not found');
   return { announcementsId: ann.id, generalId: gen.id };
+}
+
+async function getRoomArchivedViaAPI(page: Page, roomId: string): Promise<boolean> {
+  const layout = await getRoomLayoutViaAPI(page);
+  const room = layout?.groups.flatMap((group) => group.rooms).find((entry) => entry.id === roomId);
+  if (!room) throw new Error(`Room "${roomId}" not found in admin layout`);
+  return room.archived ?? false;
 }
 
 // ============================================================================
@@ -567,22 +574,15 @@ test.describe('Room Layout', () => {
         // other layout mutator (the old bulk updateRoomGroups was retired
         // when storage was split per ADR-031).
         void generalId;
-        const resp = await page2.request.post('/api/graphql', {
-          headers: {
-            'Content-Type': 'application/json',
-            'X-REQUEST-TYPE': 'GraphQL'
-          },
-          data: {
-            query: `mutation($input: CreateRoomGroupInput!) {
-							createRoomGroup(input: $input) { id name }
-						}`,
-            variables: { input: { name: 'Hacked' } }
-          }
-        });
+        const resp = await connectPostResponse(
+          page2,
+          'chatto.api.v1.AdminRoomLayoutService/CreateRoomGroup',
+          { name: 'Hacked' }
+        );
 
-        const data = await resp.json();
-        expect(data.errors).toBeTruthy();
-        expect(data.errors[0].message).toContain('permission denied');
+        const body = await resp.text();
+        expect(resp.status(), body).toBe(403);
+        expect(body).toContain('permission denied');
       });
     });
 
@@ -764,13 +764,7 @@ test.describe('Room Layout', () => {
 
       // Room should be unarchived via API
       await expect(async () => {
-        const data = await gqlRequest<{ server: { rooms: { id: string; archived: boolean }[] } }>(
-          page,
-          `query { server { rooms(type: CHANNEL) { id archived } } }`
-        );
-        const room = data.server.rooms.find((r) => r.id === roomId);
-        expect(room).toBeTruthy();
-        expect(room!.archived).toBe(false);
+        expect(await getRoomArchivedViaAPI(page, roomId)).toBe(false);
       }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [100, 250, 500, 1000] });
     });
 
@@ -786,13 +780,7 @@ test.describe('Room Layout', () => {
       await serverAdminRoomsPage.cancelDialog();
 
       // Room should still be non-archived — verify via API
-      const data = await gqlRequest<{ server: { rooms: { id: string; archived: boolean }[] } }>(
-        page,
-        `query { server { rooms(type: CHANNEL) { id archived } } }`
-      );
-      const room = data.server.rooms.find((r) => r.id === roomId);
-      expect(room).toBeTruthy();
-      expect(room!.archived).toBe(false);
+      expect(await getRoomArchivedViaAPI(page, roomId)).toBe(false);
     });
 
     test('archived room disappears from member sidebar', async ({ page, browser, serverURL }) => {

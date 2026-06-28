@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { PresenceStatus } from '$lib/gql/graphql';
+  import type { PresenceStatus } from '$lib/render/types';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import FormDialog from '$lib/ui/FormDialog.svelte';
   import { TextArea } from '$lib/ui/form';

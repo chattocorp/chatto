@@ -1,8 +1,10 @@
 import { Code, ConnectError, createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import type { RawEvent, EventConnectionPage } from '$lib/state/room/messages/helpers';
-import type { RoomEventViewFragment } from '$lib/gql/graphql';
+import { RoomEventKind } from '$lib/render/eventKinds';
+import { PresenceStatus, type RoomEventView } from '$lib/render/types';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
+import { primeUserSummaryCache } from '$lib/state/userSummaries.svelte';
 import { RoomTimelineService } from '$lib/pb/chatto/api/v1/room_timeline_connect';
 import {
   RoomTimelinePage,
@@ -35,6 +37,10 @@ export type RoomTimelineAPI = {
     eventId: string;
     limit: number;
   }): Promise<EventConnectionPage>;
+  resolveMessageLinkTarget(input: {
+    roomId: string;
+    eventId: string;
+  }): Promise<{ event: RawEvent | null; threadRootEventId: string | null }>;
   getThreadEvents(input: {
     roomId: string;
     threadRootEventId: string;
@@ -81,6 +87,7 @@ export function createRoomTimelineAPI(config: RoomTimelineAPIConfig): RoomTimeli
           },
           { headers: headers() }
         );
+        primeTimelineUserIncludes(config.serverId, response.page?.includes?.users ?? {});
         return roomTimelinePageToEventConnectionPage(response.page ?? new RoomTimelinePage());
       } catch (err) {
         return handleAuthError(err);
@@ -93,7 +100,25 @@ export function createRoomTimelineAPI(config: RoomTimelineAPIConfig): RoomTimeli
           { headers: headers() }
         );
         if (!response.page) return emptyEventConnectionPage();
+        primeTimelineUserIncludes(config.serverId, response.page.includes?.users ?? {});
         return roomTimelinePageToEventConnectionPage(response.page);
+      } catch (err) {
+        return handleAuthError(err);
+      }
+    },
+    async resolveMessageLinkTarget({ roomId, eventId }) {
+      try {
+        const response = await client.resolveMessageLinkTarget(
+          { roomId, eventId },
+          { headers: headers() }
+        );
+        primeTimelineUserIncludes(config.serverId, response.includes?.users ?? {});
+        return {
+          event: response.event
+            ? roomTimelineEventToRawEvent(response.event, response.includes?.users ?? {})
+            : null,
+          threadRootEventId: response.threadRootEventId || null
+        };
       } catch (err) {
         return handleAuthError(err);
       }
@@ -113,6 +138,7 @@ export function createRoomTimelineAPI(config: RoomTimelineAPIConfig): RoomTimeli
           },
           { headers: headers() }
         );
+        primeTimelineUserIncludes(config.serverId, response.page?.includes?.users ?? {});
         return roomTimelinePageToEventConnectionPage(response.page ?? new RoomTimelinePage());
       } catch (err) {
         return handleAuthError(err);
@@ -125,12 +151,29 @@ export function createRoomTimelineAPI(config: RoomTimelineAPIConfig): RoomTimeli
           { headers: headers() }
         );
         if (!response.page) return emptyEventConnectionPage();
+        primeTimelineUserIncludes(config.serverId, response.page.includes?.users ?? {});
         return roomTimelinePageToEventConnectionPage(response.page);
       } catch (err) {
         return handleAuthError(err);
       }
     }
   };
+}
+
+function primeTimelineUserIncludes(
+  serverId: string | undefined,
+  users: Record<string, RoomTimelineUser>
+) {
+  primeUserSummaryCache(
+    serverId,
+    Object.values(users).map((user) => ({
+      id: user.id,
+      login: user.login,
+      displayName: user.displayName,
+      deleted: user.deleted,
+      avatarUrl: user.avatarUrl || null
+    }))
+  );
 }
 
 function emptyEventConnectionPage(): EventConnectionPage {
@@ -163,7 +206,6 @@ export function roomTimelineEventToRawEvent(
   const payload = timelinePayload(event, users);
   if (!payload) return null;
   return {
-    __typename: 'Event',
     id: event.id,
     createdAt: timestampToISO(event.createdAt),
     actorId: event.actorId,
@@ -175,24 +217,45 @@ export function roomTimelineEventToRawEvent(
 function timelinePayload(
   event: RoomTimelineEvent,
   users: Record<string, RoomTimelineUser>
-): RoomEventViewFragment['event'] | null {
+): RoomEventView['event'] | null {
   switch (event.event.case) {
     case 'messagePosted':
-      return messagePostedPayload(event.event.value, users) as RoomEventViewFragment['event'];
+      return messagePostedPayload(event.event.value, users) as RoomEventView['event'];
     case 'roomCreated':
-      return { __typename: 'RoomCreatedEvent', roomId: event.event.value.roomId } as never;
+      return {
+        kind: RoomEventKind.RoomCreated,
+        roomId: event.event.value.roomId
+      } as never;
     case 'roomUpdated':
-      return { __typename: 'RoomUpdatedEvent', roomId: event.event.value.roomId } as never;
+      return {
+        kind: RoomEventKind.RoomUpdated,
+        roomId: event.event.value.roomId
+      } as never;
     case 'roomDeleted':
-      return { __typename: 'RoomDeletedEvent', roomId: event.event.value.roomId } as never;
+      return {
+        kind: RoomEventKind.RoomDeleted,
+        roomId: event.event.value.roomId
+      } as never;
     case 'roomArchived':
-      return { __typename: 'RoomArchivedEvent', roomId: event.event.value.roomId } as never;
+      return {
+        kind: RoomEventKind.RoomArchived,
+        roomId: event.event.value.roomId
+      } as never;
     case 'roomUnarchived':
-      return { __typename: 'RoomUnarchivedEvent', roomId: event.event.value.roomId } as never;
+      return {
+        kind: RoomEventKind.RoomUnarchived,
+        roomId: event.event.value.roomId
+      } as never;
     case 'userJoinedRoom':
-      return { __typename: 'UserJoinedRoomEvent', roomId: event.event.value.roomId } as never;
+      return {
+        kind: RoomEventKind.UserJoinedRoom,
+        roomId: event.event.value.roomId
+      } as never;
     case 'userLeftRoom':
-      return { __typename: 'UserLeftRoomEvent', roomId: event.event.value.roomId } as never;
+      return {
+        kind: RoomEventKind.UserLeftRoom,
+        roomId: event.event.value.roomId
+      } as never;
     default:
       return null;
   }
@@ -203,7 +266,7 @@ function messagePostedPayload(
   users: Record<string, RoomTimelineUser>
 ) {
   return {
-    __typename: 'MessagePostedEvent',
+    kind: RoomEventKind.MessagePosted,
     roomId: message.roomId,
     body: message.body !== undefined ? message.body : null,
     attachments: message.attachments.map(attachmentView),
@@ -222,7 +285,6 @@ function messagePostedPayload(
     viewerIsFollowingThread:
       message.viewerIsFollowingThread !== undefined ? message.viewerIsFollowingThread : null,
     reactions: message.reactions.map((reaction) => ({
-      __typename: 'ReactionSummary',
       emoji: reaction.emoji,
       count: reaction.count,
       hasReacted: reaction.hasReacted,
@@ -238,23 +300,21 @@ function userView(userId: string, users: Record<string, RoomTimelineUser>) {
   const user = users[userId];
   if (!user) {
     return {
-      __typename: 'User',
       id: userId,
       login: '',
       displayName: 'Deleted User',
       deleted: true,
       avatarUrl: null,
-      presenceStatus: null
+      presenceStatus: PresenceStatus.Offline
     };
   }
   return {
-    __typename: 'User',
     id: user.id,
     login: user.login,
     displayName: user.displayName,
     deleted: user.deleted,
     avatarUrl: user.avatarUrl || null,
-    presenceStatus: null
+    presenceStatus: PresenceStatus.Offline
   };
 }
 
@@ -269,7 +329,6 @@ function attachmentView(attachment: {
   videoProcessing?: RoomTimelineVideoProcessing;
 }) {
   return {
-    __typename: 'Attachment',
     id: attachment.id,
     filename: attachment.filename,
     contentType: attachment.contentType,
@@ -287,7 +346,6 @@ function videoProcessingView(processing?: RoomTimelineVideoProcessing) {
   if (!status) return null;
   const durationMs = Number(processing.durationMs);
   return {
-    __typename: 'VideoProcessing',
     status,
     durationMs: durationMs > 0 ? durationMs : null,
     width: processing.width > 0 ? processing.width : null,
@@ -296,7 +354,6 @@ function videoProcessingView(processing?: RoomTimelineVideoProcessing) {
     reasonCode: processing.reasonCode || null,
     thumbnailAssetUrl: assetUrlView(processing.thumbnailAssetUrl),
     variants: processing.variants.map((variant) => ({
-      __typename: 'VideoVariant',
       quality: variant.quality,
       width: variant.width,
       height: variant.height,
@@ -322,7 +379,6 @@ function videoProcessingStatusView(status: RoomTimelineVideoProcessingStatus) {
 function linkPreviewView(preview?: RoomTimelineLinkPreview) {
   if (!preview) return null;
   return {
-    __typename: 'LinkPreview',
     url: preview.url,
     title: preview.title || null,
     description: preview.description || null,
@@ -336,7 +392,6 @@ function linkPreviewView(preview?: RoomTimelineLinkPreview) {
 function assetUrlView(assetUrl?: RoomTimelineAssetUrl) {
   if (!assetUrl) return null;
   return {
-    __typename: 'AssetURL',
     url: assetUrl.url,
     expiresAt: timestampToISOOrNull(assetUrl.expiresAt)
   };

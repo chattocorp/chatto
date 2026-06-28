@@ -4,9 +4,17 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
+  import {
+    deleteServerBanner,
+    deleteServerLogo,
+    getAuthenticatedServerState,
+    updateServerConfig,
+    uploadServerBanner,
+    uploadServerLogo,
+    type ServerStateAPIConfig
+  } from '$lib/api/serverState';
   import * as m from '$lib/i18n/messages';
 
-  import { graphql } from '$lib/gql';
   import { Panel } from '$lib/components/admin';
   import { TextInput, TextArea, Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
@@ -14,6 +22,14 @@
   import DropZoneOverlay from '$lib/attachments/DropZoneOverlay.svelte';
 
   const connection = useConnection();
+
+  function apiConfig(): ServerStateAPIConfig {
+    const currentConnection = connection();
+    return {
+      baseUrl: currentConnection.connectBaseUrl,
+      bearerToken: currentConnection.bearerToken
+    };
+  }
 
   let loading = $state(true);
   let canManage = $state(false);
@@ -58,38 +74,9 @@
     error = null;
 
     try {
-      const result = await connection()
-        .client.query(
-          graphql(`
-            query ServerSettingsModal {
-              server {
-                profile {
-                  name
-                  description
-                  motd
-                  welcomeMessage
-                  logoUrl
-                  bannerUrl
-                }
-                viewerCanManageServer
-              }
-            }
-          `),
-          {}
-        )
-        .toPromise();
+      const state = await getAuthenticatedServerState(apiConfig());
 
-      if (result.error) {
-        error = m['server_settings.load_failed']();
-        return;
-      }
-
-      if (!result.data?.server) {
-        error = m['server_settings.not_found']();
-        return;
-      }
-
-      canManage = result.data.server.viewerCanManageServer;
+      canManage = state.viewerCanManageServer;
       if (!canManage) {
         toast.error(m['server_settings.manage_denied']());
         goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(getActiveServer()) }));
@@ -97,12 +84,12 @@
       }
 
       loaded = true;
-      name = result.data.server.profile.name;
-      description = result.data.server.profile.description ?? '';
-      motd = result.data.server.profile.motd ?? '';
-      welcomeMessage = result.data.server.profile.welcomeMessage ?? '';
-      logoUrl = result.data.server.profile.logoUrl ?? null;
-      bannerUrl = result.data.server.profile.bannerUrl ?? null;
+      name = state.name;
+      description = state.description ?? '';
+      motd = state.motd ?? '';
+      welcomeMessage = state.welcomeMessage ?? '';
+      logoUrl = state.logoUrl ?? null;
+      bannerUrl = state.bannerUrl ?? null;
     } catch (_e) {
       error = m['server_settings.load_failed']();
     } finally {
@@ -124,38 +111,22 @@
     error = null;
 
     try {
-      const result = await connection()
-        .client.mutation(
-          graphql(`
-            mutation UpdateServerSettingsModal($input: UpdateServerConfigInput!) {
-              updateServerConfig(input: $input) {
-                name
-                description
-                motd
-                welcomeMessage
-              }
-            }
-          `),
-          {
-            input: {
-              serverName: name.trim(),
-              description: description.trim(),
-              motd,
-              welcomeMessage
-            }
-          }
-        )
-        .toPromise();
+      const profile = await updateServerConfig(
+        apiConfig(),
+        {
+          name: name.trim(),
+          description: description.trim(),
+          motd,
+          welcomeMessage
+        }
+      );
 
-      if (result.error) {
-        error = m['server_settings.save_failed']();
-        return;
-      }
-
-      if (result.data?.updateServerConfig) {
-        saveSuccess = true;
-        setTimeout(() => (saveSuccess = false), 3000);
-      }
+      name = profile.name;
+      description = profile.description ?? '';
+      motd = profile.motd ?? '';
+      welcomeMessage = profile.welcomeMessage ?? '';
+      saveSuccess = true;
+      setTimeout(() => (saveSuccess = false), 3000);
     } catch (_e) {
       error = m['server_settings.save_failed']();
     } finally {
@@ -177,26 +148,8 @@
     uploadingLogo = true;
 
     try {
-      const result = await connection()
-        .client.mutation(
-          graphql(`
-            mutation UploadInstanceLogo($input: UploadServerLogoInput!) {
-              uploadServerLogo(input: $input) {
-                profile {
-                  logoUrl
-                }
-              }
-            }
-          `),
-          { input: { file } }
-        )
-        .toPromise();
-
-      if (result.error) {
-        throw new Error(result.error.message);
-      }
-
-      logoUrl = result.data?.uploadServerLogo.profile.logoUrl ?? null;
+      const profile = await uploadServerLogo(apiConfig(), file);
+      logoUrl = profile.logoUrl ?? null;
       toast.success(m['server_settings.logo_uploaded']());
     } catch (e) {
       toast.error(e instanceof Error ? e.message : m['server_settings.logo_upload_failed']());
@@ -224,26 +177,8 @@
     deletingLogo = true;
 
     try {
-      const result = await connection()
-        .client.mutation(
-          graphql(`
-            mutation DeleteInstanceLogo {
-              deleteServerLogo {
-                profile {
-                  logoUrl
-                }
-              }
-            }
-          `),
-          {}
-        )
-        .toPromise();
-
-      if (result.error) {
-        throw new Error(result.error.message);
-      }
-
-      logoUrl = null;
+      const profile = await deleteServerLogo(apiConfig());
+      logoUrl = profile.logoUrl ?? null;
       toast.success(m['server_settings.logo_removed']());
     } catch (e) {
       toast.error(e instanceof Error ? e.message : m['server_settings.logo_delete_failed']());
@@ -266,26 +201,8 @@
     uploadingBanner = true;
 
     try {
-      const result = await connection()
-        .client.mutation(
-          graphql(`
-            mutation UploadInstanceBanner($input: UploadServerBannerInput!) {
-              uploadServerBanner(input: $input) {
-                profile {
-                  bannerUrl
-                }
-              }
-            }
-          `),
-          { input: { file } }
-        )
-        .toPromise();
-
-      if (result.error) {
-        throw new Error(result.error.message);
-      }
-
-      bannerUrl = result.data?.uploadServerBanner.profile.bannerUrl ?? null;
+      const profile = await uploadServerBanner(apiConfig(), file);
+      bannerUrl = profile.bannerUrl ?? null;
       toast.success(m['server_settings.banner_uploaded']());
     } catch (e) {
       toast.error(e instanceof Error ? e.message : m['server_settings.banner_upload_failed']());
@@ -313,26 +230,8 @@
     deletingBanner = true;
 
     try {
-      const result = await connection()
-        .client.mutation(
-          graphql(`
-            mutation DeleteInstanceBanner {
-              deleteServerBanner {
-                profile {
-                  bannerUrl
-                }
-              }
-            }
-          `),
-          {}
-        )
-        .toPromise();
-
-      if (result.error) {
-        throw new Error(result.error.message);
-      }
-
-      bannerUrl = null;
+      const profile = await deleteServerBanner(apiConfig());
+      bannerUrl = profile.bannerUrl ?? null;
       toast.success(m['server_settings.banner_removed']());
     } catch (e) {
       toast.error(e instanceof Error ? e.message : m['server_settings.banner_delete_failed']());

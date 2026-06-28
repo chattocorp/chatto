@@ -11,7 +11,7 @@ emails = ["admin@e2e-test.example.com"]
 url = 'http://localhost:4040'
 # Port for the webserver to listen on.
 port = 4040
-# Enable WebSocket compression for GraphQL connections.
+# Enable WebSocket compression.
 websocket_compression = true
 # Secret for signing session cookies. NEVER SHARE THIS!
 # If it leaks, change it immediately, but please note that all existing sessions will become invalid.

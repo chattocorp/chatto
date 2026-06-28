@@ -7,7 +7,7 @@
     type MessageComposerApi
   } from '$lib/components/composer/MessageComposer.svelte';
   import type { EventEnvelope } from '$lib/eventBus.svelte';
-  import { graphql } from '$lib/gql';
+  import { createRoleAPI } from '$lib/api/roles';
   import {
     useRoomData,
     useRoomUnread,
@@ -45,6 +45,7 @@
   import { serverStorageKey } from '$lib/storage/serverStorage';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
+  import { isMessagePostedEvent, RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
   import { onDestroy, tick } from 'svelte';
   import { fly } from 'svelte/transition';
   import RoomEventsPane from './RoomEventsPane.svelte';
@@ -119,33 +120,28 @@
   // --- Extracted hooks ---
   const room = useRoomData(() => ({ roomId }));
 
-  const RoomMentionRolesQuery = graphql(`
-    query RoomMentionRoles {
-      server {
-        roles {
-          name
-          isSystem
-          position
-          pingable
-        }
-      }
-    }
-  `);
-
   $effect(() => {
-    const client = connection().client;
+    const conn = connection();
+    const api = createRoleAPI({
+      baseUrl: conn.connectBaseUrl,
+      bearerToken: conn.bearerToken
+    });
     let cancelled = false;
 
     async function loadMentionRoles() {
-      const response = await client.query(RoomMentionRolesQuery, {});
-      if (cancelled) return;
-      if (response.error) {
-        mentionRoles.clear();
+      let roles;
+      try {
+        roles = (await api.listRoles()).roles;
+      } catch {
+        if (!cancelled) {
+          mentionRoles.clear();
+        }
         return;
       }
+      if (cancelled) return;
       mentionRoles.setRoles(
-        response.data?.server?.roles
-          .filter((role) => role.name !== 'everyone')
+        roles
+          ?.filter((role) => role.name !== 'everyone')
           .map((role) => ({
             name: role.name,
             isSystem: role.isSystem,
@@ -308,23 +304,29 @@
     }
   }
 
+  function scopedRoomId(event: EventEnvelope['event']): string | null {
+    if (!event || !('roomId' in event) || typeof event.roomId !== 'string') return null;
+    return event.roomId;
+  }
+
   function shouldRevealAwaySeparator(event: EventEnvelope): boolean {
     const eventData = event.event;
     if (!eventData) return false;
     if (event.actorId === currentUser.user?.id) return false;
 
-    switch (eventData.__typename) {
-      case 'MessagePostedEvent':
+    switch (roomEventKind(eventData)) {
+      case RoomEventKind.MessagePosted:
+        if (!isMessagePostedEvent(eventData)) return false;
         return (
           eventData.roomId === roomId && (!!eventData.echoOfEventId || !eventData.threadRootEventId)
         );
-      case 'UserJoinedRoomEvent':
-      case 'UserLeftRoomEvent':
-      case 'RoomUpdatedEvent':
-      case 'RoomDeletedEvent':
-      case 'RoomArchivedEvent':
-      case 'RoomUnarchivedEvent':
-        return eventData.roomId === roomId;
+      case RoomEventKind.UserJoinedRoom:
+      case RoomEventKind.UserLeftRoom:
+      case RoomEventKind.RoomUpdated:
+      case RoomEventKind.RoomDeleted:
+      case RoomEventKind.RoomArchived:
+      case RoomEventKind.RoomUnarchived:
+        return scopedRoomId(eventData) === roomId;
       default:
         return false;
     }
@@ -347,7 +349,7 @@
       unread.noteAwayEvent();
     }
 
-    if (event.event.__typename === 'MessagePostedEvent' && event.event.roomId === roomId) {
+    if (isMessagePostedEvent(event.event) && event.event.roomId === roomId) {
       const actorId = event.actorId;
 
       if (!event.event.threadRootEventId) {
@@ -573,7 +575,7 @@
             if (event) {
               roomMessageStore.ingestEvent(event);
               if (
-                event.event?.__typename === 'MessagePostedEvent' &&
+                isMessagePostedEvent(event.event) &&
                 event.event.roomId === roomId &&
                 !event.event.threadRootEventId
               ) {

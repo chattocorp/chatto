@@ -40,6 +40,35 @@ message SetRoomNotificationLevelResponse {
   NotificationLevel effective_level = 2;
 }
 
+// Current server-level notification preference.
+message GetServerNotificationPreferenceResponse {
+  // Explicit server-level setting.
+  NotificationLevel level = 1;
+  // Level after applying system defaults.
+  NotificationLevel effective_level = 2;
+}
+
+// Updated server-level notification preference.
+message SetServerNotificationLevelResponse {
+  // Explicit server-level setting.
+  NotificationLevel level = 1;
+  // Level after applying system defaults.
+  NotificationLevel effective_level = 2;
+}
+
+// Request for the current user's server-level notification preference.
+message GetServerNotificationPreferenceRequest {}
+
+// Request to update the current user's server-level notification level.
+message SetServerNotificationLevelRequest {
+  // Required. New explicit notification level. Use NOTIFICATION_LEVEL_DEFAULT
+  // to return the server to default behavior.
+  NotificationLevel level = 1 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+}
+
 // Request for the current user's notification preference in one room.
 message GetRoomNotificationPreferenceRequest {
   // Required. Room whose notification preference should be loaded for the current user.
@@ -60,6 +89,11 @@ message SetRoomNotificationLevelRequest {
 
 // Reads and updates per-room notification preferences for the current user.
 service NotificationPreferencesService {
+  // Returns the current user's explicit and effective server notification level.
+  rpc GetServerNotificationPreference(GetServerNotificationPreferenceRequest) returns (GetServerNotificationPreferenceResponse);
+  // Sets the current user's explicit server notification level and returns the
+  // resulting stored and effective levels.
+  rpc SetServerNotificationLevel(SetServerNotificationLevelRequest) returns (SetServerNotificationLevelResponse);
   // Returns the current user's explicit and effective notification level for a
   // room. Use this before rendering room notification controls so the UI can
   // distinguish inherited defaults from an explicit room override.

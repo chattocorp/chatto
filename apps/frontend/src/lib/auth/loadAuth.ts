@@ -8,45 +8,19 @@
 import { redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import { browser } from '$app/environment';
-import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
+import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
-import { graphql } from '$lib/gql';
-import type { LoadCurrentUserQuery } from '$lib/gql/graphql';
+import { getCurrentUserViaConnect, type CurrentUser } from '$lib/api/viewer';
 import { isAuthenticationRequiredError } from './errors';
 
-export const LoadCurrentUserDocument = graphql(`
-  query LoadCurrentUser {
-    viewer {
-      user {
-        id
-        login
-        displayName
-        avatarUrl
-        customStatus {
-          emoji
-          text
-          expiresAt
-        }
-        presenceStatus
-        hasVerifiedEmail
-        settings {
-          timezone
-          timeFormat
-        }
-      }
-    }
-  }
-`);
-
-// Re-export the CurrentUser type for use in load function return types
-export type CurrentUser = NonNullable<LoadCurrentUserQuery['viewer']>['user'];
+export type { CurrentUser };
 
 // Module-level cache for the current user. Root load re-checks the server on
 // navigation, but keeps this value as a fallback when the check itself fails.
 let cachedUser: CurrentUser | null = null;
 
 /**
- * Load the current user from the GraphQL API.
+ * Load the current user from the ConnectRPC API.
  * Returns null if not authenticated.
  *
  * On transient network errors (e.g., slow CI, server still warming up after reload),
@@ -61,28 +35,24 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
   }
 
   for (let attempt = 0; attempt < 2; attempt++) {
-    const resp = await graphqlClientManager.originClient.client.query(
-      LoadCurrentUserDocument,
-      {},
-      { requestPolicy: 'network-only' }
-    );
-
-    if (resp.error?.networkError && attempt === 0) {
-      await new Promise((r) => setTimeout(r, 200));
-      continue;
-    }
-
-    if (resp.error) {
-      if (isAuthenticationRequiredError(resp.error)) {
+    try {
+      cachedUser = await getCurrentUserViaConnect({
+        baseUrl: serverConnectionManager.originClient.connectBaseUrl,
+        bearerToken: serverConnectionManager.originClient.bearerToken
+      });
+      return cachedUser;
+    } catch (err) {
+      if (isAuthenticationRequiredError(err)) {
         cachedUser = null;
         serverRegistry.clearOriginAuthentication();
         return null;
       }
+      if (attempt === 0) {
+        await new Promise((r) => setTimeout(r, 200));
+        continue;
+      }
       return cachedUser;
     }
-
-    cachedUser = resp.data?.viewer?.user ?? null;
-    return cachedUser;
   }
 
   return cachedUser;

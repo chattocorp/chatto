@@ -2,8 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import NotificationsPage from './+page.svelte';
-import { NotificationLevel } from '$lib/gql/graphql';
+import { NotificationLevel } from '$lib/render/types';
 import { NotificationLevel as ApiNotificationLevel } from '$lib/pb/chatto/api/v1/notification_preferences_pb';
+import { RoomDirectoryScope } from '$lib/pb/chatto/api/v1/room_directory_pb';
 import { q } from '$lib/test-utils';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
 import { defaultNotificationSoundFilters } from '$lib/audio/notificationSounds';
@@ -11,7 +12,11 @@ import { defaultNotificationSoundFilters } from '$lib/audio/notificationSounds';
 const mocks = vi.hoisted(() => ({
   query: vi.fn(),
   mutation: vi.fn(),
+  getServerNotificationPreference: vi.fn(),
+  setServerNotificationLevel: vi.fn(),
   setRoomNotificationLevel: vi.fn(),
+  getViewerStateViaConnect: vi.fn(),
+  listRooms: vi.fn(),
   playNotificationSound: vi.fn(),
   activeServerId: 'origin',
   notificationLevels: {
@@ -46,8 +51,24 @@ vi.mock('$lib/notifications/pushNotifications', () => ({
 }));
 
 vi.mock('$lib/api/notificationPreferences', () => ({
+  getServerNotificationPreference: mocks.getServerNotificationPreference,
+  setServerNotificationLevel: mocks.setServerNotificationLevel,
   setRoomNotificationLevel: mocks.setRoomNotificationLevel
 }));
+
+vi.mock('$lib/api/viewer', () => ({
+  getViewerStateViaConnect: mocks.getViewerStateViaConnect
+}));
+
+vi.mock('$lib/api/roomDirectory', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('$lib/api/roomDirectory')>();
+  return {
+    ...actual,
+    createRoomDirectoryAPI: vi.fn(() => ({
+      listRooms: mocks.listRooms
+    }))
+  };
+});
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => mocks.activeServerId
@@ -96,31 +117,6 @@ function commitRangeValue(input: HTMLInputElement, value: string) {
   flushSync();
 }
 
-function preferenceResult() {
-  return {
-    server: {
-      viewerNotificationPreference: {
-        level: NotificationLevel.Normal,
-        effectiveLevel: NotificationLevel.Normal
-      }
-    },
-    viewer: {
-      user: {
-        rooms: [
-          {
-            id: 'room-1',
-            name: 'general',
-            viewerNotificationPreference: {
-              level: NotificationLevel.Default,
-              effectiveLevel: NotificationLevel.Normal
-            }
-          }
-        ]
-      }
-    }
-  };
-}
-
 function buttonWithText(container: Element, text: string): HTMLButtonElement {
   const button = Array.from(container.querySelectorAll('button')).find((candidate) =>
     candidate.textContent?.includes(text)
@@ -151,18 +147,39 @@ describe('Notification settings page', () => {
     mocks.pushNotifications.isSubscribed.mockReset();
     mocks.pushNotifications.isSubscribed.mockResolvedValue(false);
     mocks.query.mockReset();
-    mocks.query.mockReturnValue({
-      toPromise: vi.fn().mockResolvedValue({
-        data: preferenceResult(),
-        error: null
-      })
-    });
     mocks.mutation.mockReset();
+    mocks.getServerNotificationPreference.mockReset();
+    mocks.getServerNotificationPreference.mockResolvedValue({
+      level: ApiNotificationLevel.NORMAL,
+      effectiveLevel: ApiNotificationLevel.NORMAL
+    });
+    mocks.setServerNotificationLevel.mockReset();
+    mocks.setServerNotificationLevel.mockResolvedValue({
+      level: ApiNotificationLevel.ALL_MESSAGES,
+      effectiveLevel: ApiNotificationLevel.ALL_MESSAGES
+    });
     mocks.setRoomNotificationLevel.mockReset();
     mocks.setRoomNotificationLevel.mockResolvedValue({
       level: ApiNotificationLevel.MUTED,
       effectiveLevel: ApiNotificationLevel.MUTED
     });
+    mocks.getViewerStateViaConnect.mockReset();
+    mocks.getViewerStateViaConnect.mockResolvedValue({
+      roomNotificationPreferences: [
+        {
+          roomId: 'room-1',
+          level: NotificationLevel.Default,
+          effectiveLevel: NotificationLevel.Normal
+        },
+        {
+          roomId: 'dm-1',
+          level: NotificationLevel.Muted,
+          effectiveLevel: NotificationLevel.Muted
+        }
+      ]
+    });
+    mocks.listRooms.mockReset();
+    mocks.listRooms.mockResolvedValue([{ id: 'room-1', name: 'general', hasUnread: false }]);
   });
 
   it('renders notification levels and sound choices from mocked state', async () => {
@@ -173,6 +190,18 @@ describe('Notification settings page', () => {
     await expect
       .element(q(container, '[data-testid="room-notification-general"]'))
       .toBeInTheDocument();
+    expect(mocks.query).not.toHaveBeenCalled();
+    expect(mocks.getServerNotificationPreference).toHaveBeenCalledWith({
+      serverId: 'origin',
+      baseUrl: 'https://origin.test/api/connect',
+      bearerToken: 'origin-token'
+    });
+    expect(mocks.getViewerStateViaConnect).toHaveBeenCalledWith({
+      serverId: 'origin',
+      baseUrl: 'https://origin.test/api/connect',
+      bearerToken: 'origin-token'
+    });
+    expect(mocks.listRooms).toHaveBeenCalledWith(RoomDirectoryScope.CHANNELS);
     expect(container.textContent).toContain('Notification Sound');
     expect(container.textContent).toContain('Silent');
     expect(container.textContent).toContain('Simple');
@@ -254,6 +283,28 @@ describe('Notification settings page', () => {
       'room-1',
       NotificationLevel.Muted,
       NotificationLevel.Muted
+    );
+  });
+
+  it('updates server notification level through ConnectRPC', async () => {
+    const { container } = render(NotificationsPage);
+    await settle();
+
+    buttonWithText(container, 'All Messages').click();
+    await settle();
+
+    expect(mocks.setServerNotificationLevel).toHaveBeenCalledWith(
+      {
+        serverId: 'origin',
+        baseUrl: 'https://origin.test/api/connect',
+        bearerToken: 'origin-token'
+      },
+      ApiNotificationLevel.ALL_MESSAGES
+    );
+    expect(mocks.mutation).not.toHaveBeenCalled();
+    expect(mocks.notificationLevels.setServerPreference).toHaveBeenCalledWith(
+      NotificationLevel.AllMessages,
+      NotificationLevel.AllMessages
     );
   });
 

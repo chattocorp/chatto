@@ -59,12 +59,3 @@ local_resource(
     links=[webserver_url],
     allow_parallel=True,
 )
-
-local_resource(
-    'frontend-codegen',
-    cmd='',
-    serve_cmd='mise run dev-frontend-codegen',
-    serve_dir='apps/frontend',
-    resource_deps=['frontend-deps'],
-    allow_parallel=True,
-)

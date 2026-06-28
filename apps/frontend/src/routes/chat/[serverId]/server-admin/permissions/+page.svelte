@@ -4,8 +4,6 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
-  import { graphql } from '$lib/gql';
-  import { useQuery } from '$lib/hooks';
   import { Hint } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
@@ -14,29 +12,14 @@
   import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
   import * as m from '$lib/i18n/messages';
 
-  // Lightweight query just to gate UI on viewerCanManageRoles. The heavy
-  // lifting is done by PermissionMatrix's own admin.rbac.rolePermissionTierMatrix query.
-  const SpaceRolesGateQuery = graphql(`
-    query SpaceRolesGate {
-      server {
-        viewerCanManageRoles
-      }
-    }
-  `);
-
   const serverSegment = $derived(serverIdToSegment(getActiveServer()));
-
-  const gateQuery = useQuery(SpaceRolesGateQuery, () => ({}));
-  const canManageRoles = $derived(gateQuery.data?.server?.viewerCanManageRoles ?? false);
-  const error = $derived(
-    gateQuery.error ??
-      (!gateQuery.loading && !gateQuery.data?.server ? m['admin.members.server_not_found']() : null)
-  );
 
   // Role detail pages require admin.manage-roles. Gate the column-header
   // click so non-admins see plain text.
   const serverPerms = getServerPermissions();
   const canManageRolesFull = $derived(serverPerms.current.canAdminManageRoles);
+  const canManageRoles = $derived(canManageRolesFull);
+  const error = $derived(null);
 
   function openRoleDetail(role: { roleName: string }) {
     goto(

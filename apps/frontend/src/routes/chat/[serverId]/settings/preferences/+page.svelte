@@ -2,8 +2,8 @@
   import * as m from '$lib/i18n/messages';
   import { getLocale, setLocale, type Locale } from '$lib/i18n/runtime';
   import { useConnection } from '$lib/state/server/connection.svelte';
-  import { graphql } from '$lib/gql';
-  import { TimeFormat } from '$lib/gql/graphql';
+  import { createAccountAPI } from '$lib/api/account';
+  import { TimeFormat } from '$lib/render/types';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { userPreferences, type DisplayTheme } from '$lib/state/userPreferences.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -16,6 +16,14 @@
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
   const connection = useConnection();
   const activeLocale = $derived(getLocale());
+
+  function accountAPI() {
+    const conn = connection();
+    return createAccountAPI({
+      baseUrl: conn.connectBaseUrl,
+      bearerToken: conn.bearerToken
+    });
+  }
 
   // All available IANA timezone names
   const allTimezones = Intl.supportedValuesOf('timeZone');
@@ -149,36 +157,17 @@
     error = '';
 
     try {
-      const result = await connection()
-        .client.mutation(
-          graphql(`
-            mutation UpdateSettings($input: UpdateSettingsInput!) {
-              updateSettings(input: $input) {
-                timezone
-                timeFormat
-              }
-            }
-          `),
-          {
-            input: {
-              userId: currentUser.user!.id,
-              // Send empty string to clear (Go backend: nil = no change, "" = clear)
-              timezone: selectedTimezone ?? '',
-              timeFormat: selectedTimeFormat
-            }
-          }
-        )
-        .toPromise();
-
-      if (result.error) {
-        error = result.error.message;
-        return;
-      }
-
       // Update the local settings state so formatting changes take effect immediately
-      const data = result.data?.updateSettings;
-      if (data) {
-        userSettings.updateFromData(data);
+      const settings = await accountAPI().updateSettings({
+        timezone: selectedTimezone,
+        timeFormat: selectedTimeFormat
+      });
+      userSettings.updateFromData(settings);
+      if (currentUser.user) {
+        currentUser.user = {
+          ...currentUser.user,
+          settings
+        };
       }
 
       toast.success(m['settings.preferences.saved']());

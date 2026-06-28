@@ -23,10 +23,10 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
 <script lang="ts">
   import { resolve } from '$app/paths';
   import { on } from 'svelte/events';
-  import type { RoomEventViewFragment } from '$lib/gql/graphql';
-  import UserAvatar, { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
+  import type { RoomEventView } from '$lib/render/types';
+  import UserAvatar, { UserAvatarViewData } from '$lib/components/UserAvatar.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
-  import { useFragment } from '$lib/gql/fragment-masking';
+  import { useRenderData } from '$lib/render/data';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { toast } from '$lib/ui/toast';
   import FloatingTooltip from '$lib/ui/FloatingTooltip.svelte';
@@ -35,10 +35,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
   import * as m from '$lib/i18n/messages';
 
   // Extract the MessagePostedEvent type from the union
-  type MessagePostedEvent = Extract<
-    RoomEventViewFragment['event'],
-    { __typename: 'MessagePostedEvent' }
-  >;
+  type MessagePostedEvent = Extract<RoomEventView['event'], { kind: 'messagePosted' }>;
   type ReactionSummary = MessagePostedEvent['reactions'][number];
 
   // Shared base style for all meta bar buttons. Uses the `meta-badge` utility
@@ -197,7 +194,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
       {#if threadParticipants && threadParticipants.length > 0}
         <div class="flex -space-x-1.5">
           {#each threadParticipants.slice(0, 3) as participant, i (i)}
-            {@const p = useFragment(UserAvatarFragment, participant)}
+            {@const p = useRenderData(UserAvatarViewData, participant)}
             {#if p}
               <UserAvatar user={p} size="xs" />
             {/if}

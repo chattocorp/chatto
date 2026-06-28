@@ -86,7 +86,8 @@
       "cannot_revoke_own_role": "Du kannst deine eigene Rolle {role} nicht entziehen",
       "edit": "Bearbeiten",
       "assigned_role": "Rolle {role} zugewiesen",
-      "removed_role": "Rolle {role} entfernt"
+      "removed_role": "Rolle {role} entfernt",
+      "role_update_failed": "Rollenzuweisung konnte nicht aktualisiert werden"
     },
     "permissions": {
       "title": "Berechtigungen",

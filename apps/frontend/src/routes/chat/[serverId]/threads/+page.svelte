@@ -7,10 +7,9 @@
   import { useConnection } from '$lib/state/server/connection.svelte';
   import * as m from '$lib/i18n/messages';
 
-  import { graphql } from '$lib/gql';
-  import { useFragment } from '$lib/gql/fragment-masking';
-  import type { MyFollowedThreadsQuery as MyFollowedThreadsQueryType } from '$lib/gql/graphql';
-  import { RoomEventViewFragmentDoc, type RoomEventViewFragment } from '$lib/gql/graphql';
+  import { useRenderData } from '$lib/render/data';
+  import { RoomEventViewDocument, type RoomEventView } from '$lib/render/types';
+  import { createThreadAPI, type FollowedThread as APIFollowedThread } from '$lib/api/threads';
   import { EmptyState, Hint, PaneHeader } from '$lib/ui';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button } from '$lib/ui/form';
@@ -19,6 +18,7 @@
   import { formatDate } from '$lib/utils/formatTime';
   import { onThreadFollowChanged } from '$lib/eventBus.svelte';
   import { useEvent } from '$lib/hooks';
+  import { isMessagePostedEvent } from '$lib/render/eventKinds';
   import {
     createRoomPermissions,
     DEFAULT_ROOM_PERMISSIONS,
@@ -39,54 +39,22 @@
   const userSettings = getUserSettings();
   const PAGE_SIZE = 20;
 
-  // prettier-ignore
-  const MyFollowedThreadsDoc = graphql(`
-		query MyFollowedThreads($limit: Int!, $offset: Int!) {
-			viewer {
-				followedThreads(limit: $limit, offset: $offset) {
-					threads {
-						roomId
-						room {
-							name
-						}
-						threadRootEventId
-						rootMessage {
-							...RoomEventView
-						}
-						replyCount
-						lastReplyAt
-						threadParticipants(first: 3) {
-							...UserAvatarUser
-						}
-						hasUnread
-					}
-					totalCount
-					hasMore
-				}
-			}
-		}
-	`);
-
-  type RawThread = NonNullable<
-    MyFollowedThreadsQueryType['viewer']
-  >['followedThreads']['threads'][number];
-
   type FollowedThreadItem = {
     roomId: string;
     roomName: string;
     threadRootEventId: string;
-    rootMessage: RoomEventViewFragment | null;
+    rootMessage: RoomEventView | null;
     replyCount: number;
     lastReplyAt: string | null;
     hasUnread: boolean;
   };
 
-  function mapThread(t: RawThread): FollowedThreadItem {
-    const rootMessage = t.rootMessage ? useFragment(RoomEventViewFragmentDoc, t.rootMessage) : null;
+  function mapThread(t: APIFollowedThread): FollowedThreadItem {
+    const rootMessage = t.rootMessage ? useRenderData(RoomEventViewDocument, t.rootMessage) : null;
 
     return {
       roomId: t.roomId,
-      roomName: t.room.name,
+      roomName: t.roomName,
       threadRootEventId: t.threadRootEventId,
       rootMessage,
       replyCount: t.replyCount,
@@ -123,24 +91,22 @@
     error = null;
 
     try {
-      const result = await connection()
-        .client.query(MyFollowedThreadsDoc, {
-          limit: PAGE_SIZE,
-          offset: append ? threads.length : 0
-        })
-        .toPromise();
+      const conn = connection();
+      const result = await createThreadAPI({
+        serverId: conn.serverId,
+        baseUrl: conn.connectBaseUrl,
+        bearerToken: conn.bearerToken
+      }).listFollowedThreads({
+        limit: PAGE_SIZE,
+        offset: append ? threads.length : 0
+      });
 
       if (thisId !== loadId) return;
 
-      if (result.error) {
-        error = result.error.message;
-      } else if (result.data?.viewer) {
-        const page = result.data.viewer.followedThreads;
-        const nextThreads = page.threads.map(mapThread);
-        threads = append ? mergeThreads(threads, nextThreads) : nextThreads;
-        hasMore = page.hasMore;
-        totalCount = page.totalCount;
-      }
+      const nextThreads = result.threads.map(mapThread);
+      threads = append ? mergeThreads(threads, nextThreads) : nextThreads;
+      hasMore = result.hasMore;
+      totalCount = result.totalCount;
     } catch (e) {
       if (thisId !== loadId) return;
       error = e instanceof Error ? e.message : 'Failed to load threads';
@@ -171,7 +137,7 @@
   useEvent((spaceEvent) => {
     const event = spaceEvent.event;
     if (!event) return;
-    if (event.__typename === 'MessagePostedEvent' && event.threadRootEventId) {
+    if (isMessagePostedEvent(event) && event.threadRootEventId) {
       // Only refresh if it's a reply in a thread we're displaying
       if (threads.some((t) => t.threadRootEventId === event.threadRootEventId)) {
         loadThreads();

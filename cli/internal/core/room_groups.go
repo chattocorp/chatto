@@ -34,8 +34,9 @@ const maxMoveRoomToGroupRetries = 5
 // self-healing reconciliation the KV-era code did, just sourced from
 // in-memory projections.
 //
-// Authorization is enforced at the API boundary; these methods
-// assume the caller is authorized.
+// Low-level mutation helpers in this file assume the caller is authorized.
+// Public admin room-layout operations should go through
+// admin_room_layout_management.go so authorization stays in core.
 
 // Errors specific to room-group operations.
 var (

@@ -2,7 +2,7 @@
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
-  import { graphql } from '$lib/gql';
+  import { createAccountAPI } from '$lib/api/account';
   import { PaneHeader, FormSection, Dialog, Hint } from '$lib/ui';
   import { TextInput, Button, Form } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
@@ -22,10 +22,18 @@
   // so we don't need the registry lookup to re-resolve reactively — and
   // the captured CurrentUserState is itself a reactive class (`user` /
   // `loading` are `$state`), so subsequent profile updates flow through.
-  // The connection getter resolves to the active server's GraphQL client,
+  // The connection getter resolves to the active server's API client,
   // so profile/avatar mutations land on the right backend.
   const currentUser = serverRegistry.getStore(getActiveServer()).currentUser;
   const connection = useConnection();
+
+  function accountAPI() {
+    const conn = connection();
+    return createAccountAPI({
+      baseUrl: conn.connectBaseUrl,
+      bearerToken: conn.bearerToken
+    });
+  }
 
   // Form state seeded once from the user's current profile. After init
   // these are local edit buffers; profile updates from elsewhere
@@ -46,8 +54,11 @@
   let isDraggingAvatar = $state(false);
 
   // Cooldown state
-  let lastLoginChange = $state<Date | null>(null);
-  let cooldownLoaded = $state(false);
+  let localLastLoginChange = $state<Date | null>(null);
+  const viewerLastLoginChange = $derived(
+    currentUser.user?.lastLoginChange ? new Date(currentUser.user.lastLoginChange) : null
+  );
+  const lastLoginChange = $derived(localLastLoginChange ?? viewerLastLoginChange);
 
   // Confirmation dialog state
   let showLoginConfirm = $state(false);
@@ -66,32 +77,6 @@
   // Cooldown
   const cooldownRemaining = $derived(getLoginChangeCooldownRemaining(lastLoginChange));
   const canChangeLogin = $derived(cooldownRemaining === 0);
-
-  // Fetch last login change on mount
-  $effect(() => {
-    connection()
-      .client.query(
-        graphql(`
-          query GetMyLastLoginChange {
-            viewer {
-              user {
-                id
-                lastLoginChange
-              }
-            }
-          }
-        `),
-        {}
-      )
-      .toPromise()
-      .then((result) => {
-        const last = result.data?.viewer?.user.lastLoginChange;
-        if (last) {
-          lastLoginChange = new Date(last);
-        }
-        cooldownLoaded = true;
-      });
-  });
 
   function clearProfileMessages() {
     error = '';
@@ -112,31 +97,14 @@
     uploadingAvatar = true;
 
     try {
-      const result = await connection()
-        .client.mutation(
-          graphql(`
-            mutation UploadAvatar($input: UploadAvatarInput!) {
-              uploadAvatar(input: $input) {
-                id
-                avatarUrl
-              }
-            }
-          `),
-          { input: { userId: currentUser.user!.id, file } }
-        )
-        .toPromise();
-
-      if (result.error) {
-        throw new Error(result.error.message);
-      }
-
-      avatarUrl = result.data?.uploadAvatar.avatarUrl ?? null;
+      const updated = await accountAPI().uploadAvatar(file);
+      avatarUrl = updated.avatarUrl ?? null;
 
       // Update the current user state
-      if (currentUser.user && result.data?.uploadAvatar) {
+      if (currentUser.user) {
         currentUser.user = {
           ...currentUser.user,
-          avatarUrl: result.data.uploadAvatar.avatarUrl
+          avatarUrl: updated.avatarUrl ?? null
         };
       }
 
@@ -167,31 +135,14 @@
     deletingAvatar = true;
 
     try {
-      const result = await connection()
-        .client.mutation(
-          graphql(`
-            mutation DeleteAvatar($input: DeleteAvatarInput!) {
-              deleteAvatar(input: $input) {
-                id
-                avatarUrl
-              }
-            }
-          `),
-          { input: { userId: currentUser.user!.id } }
-        )
-        .toPromise();
-
-      if (result.error) {
-        throw new Error(result.error.message);
-      }
-
-      avatarUrl = null;
+      const updated = await accountAPI().deleteAvatar();
+      avatarUrl = updated.avatarUrl ?? null;
 
       // Update the current user state
       if (currentUser.user) {
         currentUser.user = {
           ...currentUser.user,
-          avatarUrl: null
+          avatarUrl: updated.avatarUrl ?? null
         };
       }
 
@@ -266,48 +217,31 @@
     successMessage = '';
 
     try {
-      const result = await connection()
-        .client.mutation(
-          graphql(`
-            mutation UpdateProfile($input: UpdateProfileInput!) {
-              updateProfile(input: $input) {
-                id
-                displayName
-                login
-              }
-            }
-          `),
-          {
-            input: {
-              userId: currentUser.user!.id,
-              displayName: normalizedDisplayName ?? null,
-              login: normalizedLogin ?? null
-            }
-          }
-        )
-        .toPromise();
-
-      if (result.error) {
-        error = result.error.message;
-        return;
-      }
+      const updated = await accountAPI().updateProfile({
+        displayName: normalizedDisplayName,
+        login: normalizedLogin
+      });
 
       // Update the current user state
-      if (currentUser.user && result.data?.updateProfile) {
+      if (currentUser.user) {
+        const lastLoginChange = normalizedLogin
+          ? new Date().toISOString()
+          : currentUser.user.lastLoginChange;
         currentUser.user = {
           ...currentUser.user,
-          displayName: result.data.updateProfile.displayName,
-          login: result.data.updateProfile.login
+          displayName: updated.displayName,
+          login: updated.login,
+          lastLoginChange
         };
       }
 
       // Update local state to match
-      displayName = result.data?.updateProfile.displayName ?? displayName;
-      login = result.data?.updateProfile.login ?? login;
+      displayName = updated.displayName;
+      login = updated.login;
 
       // Update cooldown if login was changed
       if (normalizedLogin) {
-        lastLoginChange = new Date();
+        localLastLoginChange = new Date();
       }
 
       successMessage = m['settings.profile.saved']();
@@ -416,7 +350,7 @@
       oninput={clearProfileMessages}
     />
 
-    {#if cooldownLoaded && !canChangeLogin}
+    {#if !canChangeLogin}
       <p class="text-sm text-muted">
         {m['settings.profile.username.cooldown_notice']({
           remaining: formatCooldownRemaining(cooldownRemaining)

@@ -367,3 +367,30 @@ func (c *ChattoCore) GetRoomMembersList(ctx context.Context, kind RoomKind, room
 	}
 	return out, nil
 }
+
+func (c *ChattoCore) ListRoomMemberReferences(ctx context.Context, actorID, roomID string) ([]*corev1.User, error) {
+	room, kind, err := c.requireRoomMember(ctx, actorID, roomID)
+	if err != nil {
+		return nil, err
+	}
+	memberships, err := c.GetRoomMembersList(ctx, kind, room.GetId())
+	if err != nil {
+		return nil, err
+	}
+
+	users := make([]*corev1.User, 0, len(memberships))
+	for _, membership := range memberships {
+		user, err := c.GetUserReference(ctx, membership.GetUserId())
+		if err != nil {
+			if errors.Is(err, ErrNotFound) {
+				user = DeletedUserReference(membership.GetUserId())
+			} else {
+				return nil, err
+			}
+		}
+		if user != nil {
+			users = append(users, user)
+		}
+	}
+	return users, nil
+}

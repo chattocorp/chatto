@@ -2,6 +2,12 @@ import { expect, type Locator, type Page } from '@playwright/test';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
+import {
+  getIdsFromUrlViaConnect,
+  postMessageViaConnect,
+  postMessagesViaConnect,
+  postReplyViaConnect
+} from './fixtures/connectHelpers';
 import { test } from './setup';
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
@@ -9,36 +15,12 @@ import * as routes from './routes';
 /**
  * Post a message and return its event ID.
  */
-async function postMessageAndGetId(page: Page, roomId: string, body: string): Promise<string> {
-  const response = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
-      variables: { input: { roomId, body } }
-    }
-  });
-  const json = await response.json();
-  return json.data.postMessage.id;
-}
-
-/**
- * Post a message with inReplyTo attribution via GraphQL API.
- */
-async function postReplyViaAPI(
+async function postMessageAndGetIdViaConnect(
   page: Page,
   roomId: string,
-  body: string,
-  inReplyTo: string
+  body: string
 ): Promise<string> {
-  const response = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
-      variables: { input: { roomId, body, inReplyTo } }
-    }
-  });
-  const json = await response.json();
-  return json.data.postMessage.id;
+  return postMessageViaConnect(page, roomId, body);
 }
 
 async function selectTextInside(locator: Locator, selectedText: string): Promise<void> {
@@ -84,30 +66,20 @@ async function insertTextAtComposerEnd(page: Page, composer: Locator, text: stri
   await page.keyboard.insertText(text);
 }
 
-async function getIdsFromUrl(page: Page): Promise<{ spaceId: string; roomId: string }> {
-  const match = page.url().match(/\/chat\/-\/([^/]+)/);
-  if (!match) throw new Error(`Could not extract roomId from URL: ${page.url()}`);
-  return { spaceId: 'server', roomId: match[1] };
-}
-
 async function clickReplyAttributionJump(attribution: Locator): Promise<void> {
   await attribution.click({ position: { x: 8, y: 8 } });
 }
 
 /**
- * Post messages via GraphQL API (much faster than UI-based posting).
+ * Post messages via ConnectRPC API (much faster than UI-based posting).
  * Use this for test setup when you need many messages quickly.
  */
-async function postMessagesViaAPI(page: Page, roomId: string, messages: string[]): Promise<void> {
-  for (const body of messages) {
-    await page.request.post('/api/graphql', {
-      headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-      data: {
-        query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
-        variables: { input: { roomId, body } }
-      }
-    });
-  }
+async function postMessagesForSetupViaConnect(
+  page: Page,
+  roomId: string,
+  messages: string[]
+): Promise<void> {
+  await postMessagesViaConnect(page, roomId, messages);
 }
 
 test.describe('Message Threading', () => {
@@ -595,9 +567,8 @@ test.describe('Message Threading', () => {
     await roomPage.closeThread();
     await roomPage.expectThreadRouteClosed();
 
-    // Resolve roomId from URL and spaceId from the GraphQL primary-server
-    // field — post ADR-027 the URL no longer carries spaceId.
-    const { roomId } = await getIdsFromUrl(page);
+    // Resolve roomId from the post-ADR-027 room URL.
+    const { roomId } = await getIdsFromUrlViaConnect(page);
 
     // Navigate directly to thread URL
     await roomPage.gotoThread(roomId, threadId!);
@@ -617,9 +588,8 @@ test.describe('Message Threading', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    // Resolve roomId from URL and spaceId from the GraphQL primary-server
-    // field — post ADR-027 the URL no longer carries spaceId.
-    const { roomId } = await getIdsFromUrl(page);
+    // Resolve roomId from the post-ADR-027 room URL.
+    const { roomId } = await getIdsFromUrlViaConnect(page);
 
     // Navigate to a non-existent thread
     await page.goto(routes.thread(roomId, 'nonexistent123'));
@@ -1252,7 +1222,7 @@ test.describe('Message Threading', () => {
     // Post enough messages to make the container scrollable
     const timestamp = Date.now();
     const messages = Array.from({ length: 20 }, (_, i) => `Scroll test ${i + 1} - ${timestamp}`);
-    await postMessagesViaAPI(page, roomId, messages);
+    await postMessagesForSetupViaConnect(page, roomId, messages);
 
     // Reload so messages are loaded via initial query instead of waiting for
     // 20 subscription events to arrive and render through virtua
@@ -1332,14 +1302,14 @@ test.describe('Message Threading', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    const { roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrlViaConnect(page);
     const timestamp = Date.now();
 
-    // Post a root message and a reply via API
+    // Post a root message and a reply via Connect
     const targetBody = `Target ${timestamp}`;
-    const targetEventId = await postMessageAndGetId(page, roomId, targetBody);
+    const targetEventId = await postMessageAndGetIdViaConnect(page, roomId, targetBody);
     const replyBody = `Reply to target ${timestamp}`;
-    await postReplyViaAPI(page, roomId, replyBody, targetEventId);
+    await postReplyViaConnect(page, roomId, replyBody, targetEventId);
 
     // Reload to see the reply with attribution
     await page.reload();
@@ -1363,14 +1333,14 @@ test.describe('Message Threading', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    const { roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrlViaConnect(page);
     const timestamp = Date.now();
 
-    // Post a root message and a reply via API
+    // Post a root message and a reply via Connect
     const targetBody = `Target ${timestamp}`;
-    const targetEventId = await postMessageAndGetId(page, roomId, targetBody);
+    const targetEventId = await postMessageAndGetIdViaConnect(page, roomId, targetBody);
     const replyBody = `Reply to target ${timestamp}`;
-    await postReplyViaAPI(page, roomId, replyBody, targetEventId);
+    await postReplyViaConnect(page, roomId, replyBody, targetEventId);
 
     // Reload to see the reply with attribution
     await page.reload();
@@ -1389,7 +1359,7 @@ test.describe('Message Threading', () => {
     });
   });
 
-  // Posts 60+ messages via API — needs more time than the default
+  // Posts 60+ messages via Connect — needs more time than the default
   test('clicking reply attribution excerpt scrolls to target message', async ({
     page,
     chatPage
@@ -1399,19 +1369,19 @@ test.describe('Message Threading', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    const { roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrlViaConnect(page);
     const timestamp = Date.now();
 
     // Post a target message, then enough filler to push it outside the initial
     // 50-message load window, then a reply referencing the target.
     const targetBody = `Scroll target ${timestamp}`;
-    const targetEventId = await postMessageAndGetId(page, roomId, targetBody);
+    const targetEventId = await postMessageAndGetIdViaConnect(page, roomId, targetBody);
 
     const fillerMessages = Array.from({ length: 60 }, (_, i) => `Filler ${i + 1} - ${timestamp}`);
-    await postMessagesViaAPI(page, roomId, fillerMessages);
+    await postMessagesForSetupViaConnect(page, roomId, fillerMessages);
 
     const replyBody = `Reply pointing to target ${timestamp}`;
-    await postReplyViaAPI(page, roomId, replyBody, targetEventId);
+    await postReplyViaConnect(page, roomId, replyBody, targetEventId);
 
     // Reload so only the latest ~50 messages are loaded (target is outside this window)
     await page.reload();
@@ -1445,19 +1415,19 @@ test.describe('Message Threading', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    const { roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrlViaConnect(page);
     const timestamp = Date.now();
 
     const targetBody = `User A says hello ${timestamp}`;
-    const targetEventId = await postMessageAndGetId(page, roomId, targetBody);
+    const targetEventId = await postMessageAndGetIdViaConnect(page, roomId, targetBody);
 
     // User B: open the server, reply to User A's message
     await withServerUser(browser!, serverURL, async ({ page: page2, chatPage: chatPage2 }) => {
       await chatPage2.enterRoom('general');
 
-      // User B posts a reply to User A's message via API
+      // User B posts a reply to User A's message via Connect
       const replyBody = `User B replies ${timestamp}`;
-      await postReplyViaAPI(page2, roomId, replyBody, targetEventId);
+      await postReplyViaConnect(page2, roomId, replyBody, targetEventId);
 
       // User B should see the reply attribution with User A's name
       await expect(page2.getByText(replyBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });

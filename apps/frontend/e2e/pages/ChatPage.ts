@@ -1,7 +1,12 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import * as routes from '../routes';
-import { adminGraphql, createBootstrapAdminRequest } from '../fixtures/adminRequest';
-import { graphqlQuery } from '../fixtures/graphqlHelpers';
+import { createBootstrapAdminRequest } from '../fixtures/adminRequest';
+import {
+  connectPost,
+  createRoomViaConnect,
+  getDefaultRoomGroupIdViaConnect,
+  joinRoomViaConnect
+} from '../fixtures/connectHelpers';
 import { loginAsAdmin, logoutCurrentUser } from '../fixtures/testUser';
 import { RoomPage } from './RoomPage';
 
@@ -29,8 +34,8 @@ export class ChatPage {
   }
 
   /**
-   * Return the legacy server-scope discriminator used by GraphQL operations
-   * that still expose a `spaceId` input.
+   * Return the legacy server-scope discriminator used by APIs that still
+   * expose a `spaceId` input.
    */
   async getServerScopeId(): Promise<string> {
     return 'server';
@@ -38,13 +43,13 @@ export class ChatPage {
 
   /** Return the bootstrap server display name. */
   async getServerName(): Promise<string> {
-    const data = await graphqlQuery<{
-      server: { profile: { name: string } } | null;
-    }>(this.page, `query { server { profile { name } } }`);
-    if (!data.server) {
-      throw new Error('Server query returned no data — bootstrap profile likely broken');
+    const data = await connectPost<{
+      profile?: { name?: string };
+    }>(this.page, 'chatto.api.v1.ServerStateService/GetServerState');
+    if (!data.profile?.name) {
+      throw new Error('Server state returned no profile name; bootstrap profile likely broken');
     }
-    return data.server.profile.name;
+    return data.profile.name;
   }
 
   /**
@@ -146,7 +151,7 @@ export class ChatPage {
   }
 
   /**
-   * Create a new room via the GraphQL API, then navigate to it.
+   * Create a new room via the ConnectRPC API, then navigate to it.
    * Much faster than UI-based creation and used for test setup.
    * Returns the room name for reference.
    */
@@ -155,32 +160,15 @@ export class ChatPage {
     const adminContext = await createBootstrapAdminRequest(new URL(this.page.url()).origin);
     let roomId: string;
     try {
-      const groupData = await adminGraphql<{ server: { roomGroups: { id: string }[] } }>(
-        adminContext,
-        `query { server { roomGroups { id } } }`
-      );
-      const groupId = groupData.server.roomGroups[0]?.id;
-      if (!groupId) {
-        throw new Error('No room group available for e2e room creation');
-      }
-
-      const createData = await adminGraphql<{ createRoom: { id: string; name: string } }>(
-        adminContext,
-        `mutation($input: CreateRoomInput!) { createRoom(input: $input) { id name } }`,
-        { input: { name: roomName, description: description || undefined, groupId } }
-      );
-      roomId = createData.createRoom.id;
+      const groupId = await getDefaultRoomGroupIdViaConnect(adminContext);
+      roomId = await createRoomViaConnect(adminContext, roomName, groupId, description ?? '');
     } finally {
       await adminContext.dispose();
     }
 
     // Join as the currently tested user. Room creation itself uses the admin
     // context because ordinary E2E users no longer have room.create by default.
-    await graphqlQuery<{ joinRoom: { id: string } }>(
-      this.page,
-      `mutation($input: JoinRoomInput!) { joinRoom(input: $input) { id } }`,
-      { input: { roomId } }
-    );
+    await joinRoomViaConnect(this.page, roomId);
 
     // Navigate to the new room
     await this.page.goto(routes.room(roomId));

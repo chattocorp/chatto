@@ -72,9 +72,6 @@ func setupCSRFTestServer(t *testing.T) (*httptest.Server, *http.Client) {
 	router.GET("/csrf-refresh", func(c *gin.Context) {
 		c.String(http.StatusOK, "refreshed")
 	})
-	router.POST("/api/graphql", func(c *gin.Context) {
-		c.String(http.StatusOK, "graphql ok")
-	})
 	router.POST(connectAPIPrefix+"/chatto.api.v1.ServerService/GetServer", func(c *gin.Context) {
 		c.String(http.StatusOK, "connect ok")
 	})
@@ -136,13 +133,13 @@ func csrfCookieValue(t *testing.T, client *http.Client, serverURL string) string
 }
 
 func TestCSRFMiddleware(t *testing.T) {
-	t.Run("rejects cookie GraphQL POST without token", func(t *testing.T) {
+	t.Run("rejects cookie unsafe POST without token", func(t *testing.T) {
 		server, client := setupCSRFTestServer(t)
 		csrfCookieValue(t, client, server.URL)
 
-		resp, err := client.Post(server.URL+"/api/graphql", "application/json", strings.NewReader("{}"))
+		resp, err := client.Post(server.URL+"/auth/verify-email/request-code", "application/json", strings.NewReader("{}"))
 		if err != nil {
-			t.Fatalf("GraphQL request: %v", err)
+			t.Fatalf("unsafe request: %v", err)
 		}
 		defer resp.Body.Close()
 
@@ -152,65 +149,20 @@ func TestCSRFMiddleware(t *testing.T) {
 		}
 	})
 
-	t.Run("accepts cookie GraphQL POST with matching token", func(t *testing.T) {
+	t.Run("accepts cookie unsafe POST with matching token", func(t *testing.T) {
 		server, client := setupCSRFTestServer(t)
 		token := csrfCookieValue(t, client, server.URL)
 
-		req, err := http.NewRequest(http.MethodPost, server.URL+"/api/graphql", strings.NewReader("{}"))
+		req, err := http.NewRequest(http.MethodPost, server.URL+"/auth/verify-email/request-code", strings.NewReader("{}"))
 		if err != nil {
-			t.Fatalf("create GraphQL request: %v", err)
+			t.Fatalf("create unsafe request: %v", err)
 		}
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set(csrfHeaderName, token)
 
 		resp, err := client.Do(req)
 		if err != nil {
-			t.Fatalf("GraphQL request: %v", err)
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			t.Fatalf("status = %d, want 200; body=%s", resp.StatusCode, body)
-		}
-	})
-
-	t.Run("accepts cookie GraphQL POST with request type header", func(t *testing.T) {
-		server, client := setupCSRFTestServer(t)
-		csrfCookieValue(t, client, server.URL)
-
-		req, err := http.NewRequest(http.MethodPost, server.URL+"/api/graphql", strings.NewReader("{}"))
-		if err != nil {
-			t.Fatalf("create GraphQL request: %v", err)
-		}
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set(csrfGraphQLRequestHeader, csrfGraphQLRequestHeaderVal)
-
-		resp, err := client.Do(req)
-		if err != nil {
-			t.Fatalf("GraphQL request: %v", err)
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			t.Fatalf("status = %d, want 200; body=%s", resp.StatusCode, body)
-		}
-	})
-
-	t.Run("exempts bearer GraphQL POST", func(t *testing.T) {
-		server, _ := setupCSRFTestServer(t)
-
-		req, err := http.NewRequest(http.MethodPost, server.URL+"/api/graphql", strings.NewReader("{}"))
-		if err != nil {
-			t.Fatalf("create GraphQL request: %v", err)
-		}
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Bearer cht_ATtesttoken123")
-
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			t.Fatalf("GraphQL request: %v", err)
+			t.Fatalf("unsafe request: %v", err)
 		}
 		defer resp.Body.Close()
 
@@ -236,20 +188,20 @@ func TestCSRFMiddleware(t *testing.T) {
 		}
 	})
 
-	t.Run("rejects cookie GraphQL POST with bearer header but no CSRF token", func(t *testing.T) {
+	t.Run("rejects cookie unsafe POST with bearer header but no CSRF token", func(t *testing.T) {
 		server, client := setupCSRFTestServer(t)
 		csrfCookieValue(t, client, server.URL)
 
-		req, err := http.NewRequest(http.MethodPost, server.URL+"/api/graphql", strings.NewReader("{}"))
+		req, err := http.NewRequest(http.MethodPost, server.URL+"/auth/verify-email/request-code", strings.NewReader("{}"))
 		if err != nil {
-			t.Fatalf("create GraphQL request: %v", err)
+			t.Fatalf("create unsafe request: %v", err)
 		}
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer invalid-token")
 
 		resp, err := client.Do(req)
 		if err != nil {
-			t.Fatalf("GraphQL request: %v", err)
+			t.Fatalf("unsafe request: %v", err)
 		}
 		defer resp.Body.Close()
 

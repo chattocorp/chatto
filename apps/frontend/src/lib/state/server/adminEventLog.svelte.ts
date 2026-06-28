@@ -1,91 +1,14 @@
-import type { Client, OperationResult } from '@urql/svelte';
-import { graphql } from '$lib/gql';
-import type {
-  AdminEventLogFilteredQuery,
-  AdminEventLogFilteredQueryVariables,
-  AdminEventLogLegacyQuery,
-  AdminEventLogLegacyQueryVariables
-} from '$lib/gql/graphql';
 import {
-  isUnsupportedGraphQLArgumentError,
-  isUnsupportedGraphQLFieldError,
-  isUnsupportedGraphQLTypeError
-} from '$lib/gql/compatibility';
+  EMPTY_ADMIN_EVENT_LOG_FILTER,
+  type AdminEventLogAPI,
+  type AdminEventLogEntry,
+  type AdminEventLogFilter,
+  type AdminEventLogPage
+} from '$lib/api/adminEventLog';
 
-export type AdminEventLogFilter = {
-  eventType: string;
-  actorId: string;
-  createdAtFrom: string;
-  createdAtTo: string;
-};
-
-const EMPTY_FILTER: AdminEventLogFilter = {
-  eventType: '',
-  actorId: '',
-  createdAtFrom: '',
-  createdAtTo: ''
-};
+export type { AdminEventLogEntry, AdminEventLogFilter } from '$lib/api/adminEventLog';
 
 const pageSize = 50;
-
-const AdminEventLogFilteredDocument = graphql(`
-  query AdminEventLogFiltered($limit: Int, $before: String, $filter: EventLogFilterInput) {
-    admin {
-      eventLog(limit: $limit, before: $before, filter: $filter) {
-        entries {
-          sequence
-          subject
-          aggregateType
-          aggregateId
-          eventType
-          eventId
-          actorId
-          createdAt
-        }
-        hasOlder
-        endCursor
-        totalCount
-        scannedCount
-        scanLimit
-        scanLimited
-      }
-    }
-  }
-`);
-
-const AdminEventLogLegacyDocument = graphql(`
-  query AdminEventLogLegacy($limit: Int, $before: String) {
-    admin {
-      eventLog(limit: $limit, before: $before) {
-        entries {
-          sequence
-          subject
-          aggregateType
-          aggregateId
-          eventType
-          eventId
-          actorId
-          createdAt
-        }
-        hasOlder
-        endCursor
-        totalCount
-      }
-    }
-  }
-`);
-
-const AdminEventLogEventTypesDocument = graphql(`
-  query AdminEventLogEventTypes {
-    admin {
-      eventLogEventTypes
-    }
-  }
-`);
-
-type FilteredConnection = NonNullable<AdminEventLogFilteredQuery['admin']>['eventLog'];
-type LegacyConnection = NonNullable<AdminEventLogLegacyQuery['admin']>['eventLog'];
-export type AdminEventLogEntry = FilteredConnection['entries'][number];
 
 function cloneFilter(filter: AdminEventLogFilter): AdminEventLogFilter {
   return { ...filter };
@@ -93,35 +16,6 @@ function cloneFilter(filter: AdminEventLogFilter): AdminEventLogFilter {
 
 function hasActiveFilter(filter: AdminEventLogFilter): boolean {
   return Boolean(filter.eventType || filter.actorId || filter.createdAtFrom || filter.createdAtTo);
-}
-
-function filterInput(filter: AdminEventLogFilter) {
-  if (!hasActiveFilter(filter)) return null;
-  return {
-    eventType: filter.eventType || null,
-    actorId: filter.actorId || null,
-    createdAtFrom: filter.createdAtFrom || null,
-    createdAtTo: filter.createdAtTo || null
-  };
-}
-
-function isEventLogCompatibilityError(error: unknown): boolean {
-  return (
-    isUnsupportedGraphQLArgumentError(error, 'filter') ||
-    isUnsupportedGraphQLTypeError(error, 'EventLogFilterInput') ||
-    isUnsupportedGraphQLFieldError(error, 'scannedCount') ||
-    isUnsupportedGraphQLFieldError(error, 'scanLimit') ||
-    isUnsupportedGraphQLFieldError(error, 'scanLimited')
-  );
-}
-
-function legacyToFilteredConnection(conn: LegacyConnection): FilteredConnection {
-  return {
-    ...conn,
-    scannedCount: conn.entries.length,
-    scanLimit: pageSize,
-    scanLimited: false
-  };
 }
 
 export class AdminEventLogStore {
@@ -136,7 +30,7 @@ export class AdminEventLogStore {
   loadingMore = $state(false);
   error = $state<string | null>(null);
   compatibilityMessage = $state<string | null>(null);
-  activeFilter = $state<AdminEventLogFilter>(cloneFilter(EMPTY_FILTER));
+  activeFilter = $state<AdminEventLogFilter>(cloneFilter(EMPTY_ADMIN_EVENT_LOG_FILTER));
 
   eventTypes = $state.raw<string[]>([]);
   eventTypesLoading = $state(false);
@@ -144,31 +38,23 @@ export class AdminEventLogStore {
 
   private requestId = 0;
   private eventTypesRequestId = 0;
-  private filterUnsupported = false;
 
-  constructor(private readonly client: Client) {}
+  constructor(private readonly api: AdminEventLogAPI) {}
 
   get hasActiveFilter(): boolean {
     return hasActiveFilter(this.activeFilter);
   }
 
   async loadEventTypes(): Promise<void> {
-    if (this.eventTypesLoading || this.eventTypesUnsupported || this.eventTypes.length > 0) return;
+    if (this.eventTypesLoading || this.eventTypes.length > 0) return;
 
     const currentRequest = ++this.eventTypesRequestId;
     this.eventTypesLoading = true;
+    this.eventTypesUnsupported = false;
     try {
-      const result = await this.client.query(AdminEventLogEventTypesDocument, {}).toPromise();
+      const eventTypes = await this.api.listEventTypes();
       if (currentRequest !== this.eventTypesRequestId) return;
-      if (result.error) {
-        if (isUnsupportedGraphQLFieldError(result.error, 'eventLogEventTypes')) {
-          this.eventTypesUnsupported = true;
-          this.eventTypes = [];
-          return;
-        }
-        throw new Error(result.error.message);
-      }
-      this.eventTypes = result.data?.admin?.eventLogEventTypes ?? [];
+      this.eventTypes = eventTypes;
     } catch {
       if (currentRequest === this.eventTypesRequestId) {
         this.eventTypes = [];
@@ -180,7 +66,7 @@ export class AdminEventLogStore {
     }
   }
 
-  async loadFirstPage(filter: AdminEventLogFilter = EMPTY_FILTER): Promise<void> {
+  async loadFirstPage(filter: AdminEventLogFilter = EMPTY_ADMIN_EVENT_LOG_FILTER): Promise<void> {
     const currentRequest = ++this.requestId;
     this.loading = true;
     this.error = null;
@@ -233,73 +119,24 @@ export class AdminEventLogStore {
     }
   }
 
-  private async queryEventLog(
+  getEvent(sequence: string): Promise<AdminEventLogEntry | null> {
+    return this.api.getEvent(sequence);
+  }
+
+  private queryEventLog(
     before: string | null,
     filter: AdminEventLogFilter
-  ): Promise<FilteredConnection> {
-    if (this.filterUnsupported) {
-      return this.queryLegacyEventLog(before);
-    }
-
-    const result = await this.client
-      .query(AdminEventLogFilteredDocument, {
-        limit: pageSize,
-        before,
-        filter: filterInput(filter)
-      } satisfies AdminEventLogFilteredQueryVariables)
-      .toPromise();
-
-    if (result.error && isEventLogCompatibilityError(result.error)) {
-      this.filterUnsupported = true;
-      this.compatibilityMessage =
-        'This server does not support Event Log filters yet. Showing the unfiltered log.';
-      return this.queryLegacyEventLog(before);
-    }
-
-    return this.connectionFromFilteredResult(result);
+  ): Promise<AdminEventLogPage> {
+    return this.api.listEvents({
+      limit: pageSize,
+      before,
+      filter
+    });
   }
 
-  private async queryLegacyEventLog(before: string | null): Promise<FilteredConnection> {
-    const result = await this.client
-      .query(AdminEventLogLegacyDocument, {
-        limit: pageSize,
-        before
-      } satisfies AdminEventLogLegacyQueryVariables)
-      .toPromise();
-
-    const conn = this.connectionFromLegacyResult(result);
-    return legacyToFilteredConnection(conn);
-  }
-
-  private connectionFromFilteredResult(
-    result: OperationResult<AdminEventLogFilteredQuery, AdminEventLogFilteredQueryVariables>
-  ): FilteredConnection {
-    if (result.error) {
-      throw new Error(result.error.message);
-    }
-    const conn = result.data?.admin?.eventLog;
-    if (!conn) {
-      throw new Error('Event log unavailable (audit permission required)');
-    }
-    return conn;
-  }
-
-  private connectionFromLegacyResult(
-    result: OperationResult<AdminEventLogLegacyQuery, AdminEventLogLegacyQueryVariables>
-  ): LegacyConnection {
-    if (result.error) {
-      throw new Error(result.error.message);
-    }
-    const conn = result.data?.admin?.eventLog;
-    if (!conn) {
-      throw new Error('Event log unavailable (audit permission required)');
-    }
-    return conn;
-  }
-
-  private applyConnection(conn: FilteredConnection, append: boolean): void {
+  private applyConnection(conn: AdminEventLogPage, append: boolean): void {
     this.entries = append ? mergeEntries(this.entries, conn.entries) : conn.entries;
-    this.totalCount = String(conn.totalCount);
+    this.totalCount = conn.totalCount;
     this.scannedCount = conn.scannedCount;
     this.scanLimit = conn.scanLimit;
     this.scanLimited = conn.scanLimited;

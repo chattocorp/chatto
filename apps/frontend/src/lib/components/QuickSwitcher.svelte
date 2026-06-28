@@ -5,13 +5,7 @@
   import { scoreItem } from './quickSwitcherSearch';
   import { serverIdToSegment } from '$lib/navigation';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
-  import { graphql, useFragment } from '$lib/gql';
-  import {
-    RoomType,
-    UserAvatarUserFragmentDoc,
-    type UserAvatarUserFragment
-  } from '$lib/gql/graphql';
+  import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import { getAvatarInitials } from '$lib/utils/initials';
   import { getGradientForName } from '$lib/utils/gradients';
@@ -20,8 +14,13 @@
   import * as m from '$lib/i18n/messages';
   import { toast } from '$lib/ui/toast';
   import { createRoomCommandAPI } from '$lib/api/rooms';
+  import { createMemberDirectoryAPI, type DirectoryMember } from '$lib/api/memberDirectory';
+  import { createRoomDirectoryAPI, RoomDirectoryScope, RoomKind } from '$lib/api/roomDirectory';
 
   type ServerLogo = { name: string; logoUrl?: string | null };
+  type AvatarUser = Pick<DirectoryMember, 'id' | 'login' | 'displayName' | 'deleted'> & {
+    avatarUrl?: string | null;
+  };
 
   type ResultItem = {
     kind: 'room' | 'dm' | 'destination' | 'server' | 'user';
@@ -31,7 +30,7 @@
     serverId: string;
     serverName: string;
     serverLogo?: ServerLogo;
-    participants?: UserAvatarUserFragment[];
+    participants?: AvatarUser[];
     currentUserId?: string;
     targetUserId?: string;
     href?: string;
@@ -50,57 +49,6 @@
   let userSearchTimer: ReturnType<typeof setTimeout> | undefined;
   let userSearchRequestId = 0;
 
-  // --- GraphQL queries ---
-
-  const ServerQuery = graphql(`
-    query QuickSwitcherServer {
-      server {
-        profile {
-          name
-          logoUrl
-        }
-      }
-    }
-  `);
-
-  const RoomsQuery = graphql(`
-    query QuickSwitcherRooms {
-      viewer {
-        user {
-          id
-          rooms {
-            id
-            name
-            type
-            members(limit: 100) {
-              users {
-                ...UserAvatarUser
-              }
-            }
-          }
-        }
-      }
-    }
-  `);
-
-  const MembersQuery = graphql(`
-    query QuickSwitcherMembers($search: String) {
-      viewer {
-        canStartDMs
-        user {
-          id
-        }
-      }
-      server {
-        members(search: $search, limit: 20) {
-          users {
-            ...UserAvatarUser
-          }
-        }
-      }
-    }
-  `);
-
   // --- Data loading ---
 
   async function loadAll() {
@@ -108,29 +56,28 @@
     const instances = serverRegistry.servers;
     const multiInstance = instances.length > 1;
     const items: ResultItem[] = [];
-    const opts = { requestPolicy: 'network-only' as const };
 
     await Promise.allSettled(
       instances.map(async (instance) => {
-        const client = graphqlClientManager.getClient(instance.id).client;
+        const serverConnection = serverConnectionManager.getClient(instance.id);
         const store = serverRegistry.tryGetStore(instance.id);
         const serverName = store?.serverInfo.name || instance.name || getHostname(instance.url);
         const serverLabel = multiInstance ? serverName : '';
-
-        // Fetch server metadata + this user's rooms in parallel.
-        const [serverSettled, roomsSettled] = await Promise.allSettled([
-          client.query(ServerQuery, {}, opts).toPromise(),
-          client.query(RoomsQuery, {}, opts).toPromise()
-        ]);
-
-        const serverResult = serverSettled.status === 'fulfilled' ? serverSettled.value : null;
-        const roomsResult = roomsSettled.status === 'fulfilled' ? roomsSettled.value : null;
+        const currentUserId = store?.currentUser.user?.id ?? undefined;
+        const directory = createRoomDirectoryAPI({
+          serverId: instance.id,
+          baseUrl: serverConnection.connectBaseUrl,
+          bearerToken: serverConnection.bearerToken
+        });
+        const members = createMemberDirectoryAPI({
+          baseUrl: serverConnection.connectBaseUrl,
+          bearerToken: serverConnection.bearerToken
+        });
 
         const logo: ServerLogo = {
-          name: serverResult?.data?.server?.profile.name ?? serverName,
-          logoUrl: serverResult?.data?.server?.profile.logoUrl ?? null
+          name: serverName,
+          logoUrl: store?.serverInfo.iconUrl ?? null
         };
-        const currentUserId = roomsResult?.data?.viewer?.user.id ?? undefined;
 
         items.push({
           kind: 'server',
@@ -144,27 +91,17 @@
           score: 0
         });
 
-        if (roomsResult?.data?.viewer?.user) {
-          for (const room of roomsResult.data.viewer.user.rooms) {
-            if (room.type === RoomType.Dm) {
-              const participants = room.members.users.map((m) =>
-                useFragment(UserAvatarUserFragmentDoc, m)
+        const rooms = await directory.listRooms(RoomDirectoryScope.ALL);
+        await Promise.all(
+          rooms.map(async (room) => {
+            if (room.kind === RoomKind.DM) {
+              const participants = (await members.listRoomMembers(room.id, '', 100, 0)).members.map(
+                avatarUser
               );
-              const others = participants.filter((p) => p.id !== currentUserId);
-              const isSelf = others.length === 0;
-
-              let label: string;
-              if (isSelf) {
-                const self = participants.find((p) => p.id === currentUserId);
-                label = self ? self.displayName || self.login : 'You';
-              } else {
-                label = others.map((p) => p.displayName || p.login).join(', ');
-              }
-
               items.push({
                 kind: 'dm',
                 id: room.id,
-                label,
+                label: dmLabel(participants, currentUserId),
                 detail: serverLabel,
                 serverId: instance.id,
                 serverName,
@@ -172,9 +109,10 @@
                 currentUserId,
                 score: 0
               });
-              continue;
+              return;
             }
 
+            if (!room.isMember) return;
             items.push({
               kind: 'room',
               id: room.id,
@@ -185,8 +123,8 @@
               serverLogo: logo,
               score: 0
             });
-          }
-        }
+          })
+        );
       })
     );
 
@@ -197,7 +135,7 @@
       detail: '',
       serverId: '',
       serverName: '',
-      href: '/chat/notifications',
+      href: resolve('/chat/notifications'),
       icon: 'uil--bell',
       score: 0
     });
@@ -234,23 +172,25 @@
   async function loadUserResults(search: string, requestId: number) {
     const instances = serverRegistry.servers;
     const multiInstance = instances.length > 1;
-    const opts = { requestPolicy: 'network-only' as const };
     const items: ResultItem[] = [];
 
     await Promise.allSettled(
       instances.map(async (instance) => {
-        const client = graphqlClientManager.getClient(instance.id).client;
+        const serverConnection = serverConnectionManager.getClient(instance.id);
         const store = serverRegistry.tryGetStore(instance.id);
         const serverName = store?.serverInfo.name || instance.name || getHostname(instance.url);
         const serverLabel = multiInstance ? serverName : '';
 
-        const result = await client.query(MembersQuery, { search }, opts).toPromise();
-        const viewer = result.data?.viewer;
-        if (!viewer?.canStartDMs) return;
+        if (!store?.permissions.canStartDMs) return;
 
-        const currentUserId = viewer.user.id;
-        for (const member of result.data?.server.members.users ?? []) {
-          const user = useFragment(UserAvatarUserFragmentDoc, member);
+        const currentUserId = store.currentUser.user?.id ?? undefined;
+        const api = createMemberDirectoryAPI({
+          baseUrl: serverConnection.connectBaseUrl,
+          bearerToken: serverConnection.bearerToken
+        });
+        const result = await api.listServerMembers(search, 20, 0);
+        for (const member of result.members) {
+          const user = avatarUser(member);
           items.push({
             kind: 'user',
             id: user.id,
@@ -279,6 +219,15 @@
     } catch {
       return url;
     }
+  }
+
+  function dmLabel(participants: AvatarUser[], currentUserId: string | undefined): string {
+    const others = participants.filter((p) => p.id !== currentUserId);
+    if (others.length === 0) {
+      const self = participants.find((p) => p.id === currentUserId);
+      return self ? self.displayName || self.login : 'You';
+    }
+    return others.map((p) => p.displayName || p.login).join(', ');
   }
 
   // --- Filtering ---
@@ -406,7 +355,7 @@
   async function startDMFromUser(item: ResultItem) {
     if (!item.targetUserId) throw new Error('Missing DM target');
 
-    const conn = graphqlClientManager.getClient(item.serverId);
+    const conn = serverConnectionManager.getClient(item.serverId);
     const room = await createRoomCommandAPI({
       serverId: item.serverId,
       baseUrl: conn.connectBaseUrl,
@@ -445,7 +394,7 @@
     const url = itemUrl(item);
     if (url) {
       recentQuickSwitcher.record(url);
-      // eslint-disable-next-line svelte/no-navigation-without-resolve -- url from itemUrl() is already resolved
+      // eslint-disable-next-line svelte/no-navigation-without-resolve -- itemUrl() returns resolved app routes
       goto(url);
     }
   }
@@ -510,18 +459,28 @@
     return null;
   }
 
-  function dmAvatarParticipants(item: ResultItem): UserAvatarUserFragment[] {
+  function dmAvatarParticipants(item: ResultItem): AvatarUser[] {
     if (!item.participants) return [];
     const others = item.participants.filter((p) => p.id !== item.currentUserId);
     return others.length === 0 ? item.participants.slice(0, 1) : others.slice(0, 2);
   }
 
-  function userAvatarParticipant(item: ResultItem): UserAvatarUserFragment | null {
+  function userAvatarParticipant(item: ResultItem): AvatarUser | null {
     return item.participants?.[0] ?? null;
+  }
+
+  function avatarUser(user: AvatarUser): AvatarUser {
+    return {
+      id: user.id,
+      login: user.login,
+      displayName: user.displayName,
+      deleted: user.deleted,
+      avatarUrl: user.avatarUrl ?? null
+    };
   }
 </script>
 
-{#snippet avatar(user: UserAvatarUserFragment)}
+{#snippet avatar(user: AvatarUser)}
   {#if user.avatarUrl}
     <SkeletonImg
       loading="lazy"

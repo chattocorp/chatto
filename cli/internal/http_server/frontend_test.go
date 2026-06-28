@@ -3,9 +3,12 @@ package http_server
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"testing/fstest"
 
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"hmans.de/chatto/internal/config"
@@ -285,6 +288,66 @@ func TestServeSPAFallback(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 		assert.Equal(t, "Failed to load application", w.Body.String())
 	})
+}
+
+func TestFrontendFallbackDoesNotServeReservedBackendPrefixes(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	server := &HTTPServer{
+		config: config.ChattoConfig{Webserver: config.WebserverConfig{URL: "https://example.com"}},
+		router: gin.New(),
+	}
+	sessionStore := cookie.NewStore([]byte("test-secret-key-32-bytes-long!!"))
+	server.router.Use(sessions.Sessions("chatto_session", sessionStore))
+	if err := server.setupFrontendRoutes(); err != nil {
+		t.Fatalf("setupFrontendRoutes: %v", err)
+	}
+
+	tests := []string{
+		"/api/unknown",
+		"/auth/unknown",
+		"/assets/unknown",
+	}
+	for _, path := range tests {
+		t.Run(path, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			w := httptest.NewRecorder()
+			server.router.ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusNotFound, w.Code)
+			assert.NotContains(t, w.Body.String(), "<!DOCTYPE html>")
+		})
+	}
+}
+
+func TestFrontendFallbackAllowsRoutesWithReservedPrefixNames(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	server := &HTTPServer{
+		config: config.ChattoConfig{Webserver: config.WebserverConfig{URL: "https://example.com"}},
+		router: gin.New(),
+	}
+	sessionStore := cookie.NewStore([]byte("test-secret-key-32-bytes-long!!"))
+	server.router.Use(sessions.Sessions("chatto_session", sessionStore))
+	if err := server.setupFrontendRoutes(); err != nil {
+		t.Fatalf("setupFrontendRoutes: %v", err)
+	}
+
+	tests := []string{
+		"/apiary",
+		"/author",
+		"/assets-gallery",
+	}
+	for _, path := range tests {
+		t.Run(path, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			w := httptest.NewRecorder()
+			server.router.ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusOK, w.Code)
+			assert.Contains(t, strings.ToLower(w.Body.String()), "<!doctype html>")
+		})
+	}
 }
 
 func TestSecurityHeaders(t *testing.T) {

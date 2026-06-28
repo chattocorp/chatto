@@ -2,16 +2,29 @@ import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
 import {
   createAndLoginTestUser,
+  denyPermission as denyServerPermission,
   generateRoleName,
+  grantPermission as grantServerPermission,
   logoutCurrentUser,
   loginAsAdminAndUsePrimaryServer,
   type TestUser
 } from './fixtures/testUser';
+import {
+  connectPost,
+  connectPostResponse,
+  createRoomViaConnect,
+  getDefaultRoomGroupIdViaConnect,
+  joinRoomViaConnect
+} from './fixtures/connectHelpers';
 import * as routes from './routes';
 
 interface TestServer {
   id: string;
   name: string;
+}
+
+interface E2EListRoomsResponse {
+  rooms?: Array<{ room?: { id?: string; name?: string } }>;
 }
 
 /** Log in as the bootstrap admin and return the primary server metadata. */
@@ -76,9 +89,6 @@ async function logoutUser(page: Page): Promise<void> {
   await logoutCurrentUser(page);
 }
 
-/**
- * Creates a room via GraphQL API and returns the room ID.
- */
 async function createRoomViaAPI(
   page: Page,
   spaceIdOrName?: string,
@@ -89,145 +99,38 @@ async function createRoomViaAPI(
     (spaceIdOrName && spaceIdOrName !== 'server' ? spaceIdOrName : undefined) ??
     `testroom${Date.now()}`;
   const groupId = await getDefaultRoomGroupId(page);
-  const response = await page.request.post('/api/graphql', {
-    headers: {
-      'Content-Type': 'application/json',
-      'X-REQUEST-TYPE': 'GraphQL'
-    },
-    data: {
-      query: `
-				mutation CreateRoom($input: CreateRoomInput!) {
-					createRoom(input: $input) { id name }
-				}
-			`,
-      variables: { input: { name: roomName, groupId } }
-    }
-  });
-  expect(response.ok()).toBeTruthy();
-  const data = await response.json();
-  expect(data.data?.createRoom).toBeTruthy();
-  return data.data.createRoom.id;
+  return createRoomViaConnect(page, roomName, groupId);
 }
 
 async function getDefaultRoomGroupId(page: Page): Promise<string> {
-  const response = await page.request.post('/api/graphql', {
-    headers: {
-      'Content-Type': 'application/json',
-      'X-REQUEST-TYPE': 'GraphQL'
-    },
-    data: { query: `query { server { roomGroups { id } } }` }
-  });
-  expect(response.ok()).toBeTruthy();
-  const data = await response.json();
-  const groupId = data.data?.server?.roomGroups?.[0]?.id;
-  if (!groupId) {
-    throw new Error(`No room group available for e2e room creation: ${JSON.stringify(data)}`);
-  }
-  return groupId;
+  return getDefaultRoomGroupIdViaConnect(page);
 }
 
-/**
- * Joins a room via GraphQL API.
- */
 async function joinRoomViaAPI(
   page: Page,
   spaceIdOrRoomId: string,
   maybeRoomId?: string
 ): Promise<void> {
   const roomId = maybeRoomId ?? spaceIdOrRoomId;
-  const response = await page.request.post('/api/graphql', {
-    headers: {
-      'Content-Type': 'application/json',
-      'X-REQUEST-TYPE': 'GraphQL'
-    },
-    data: {
-      query: `
-				mutation JoinRoom($input: JoinRoomInput!) {
-					joinRoom(input: $input) { id }
-				}
-			`,
-      variables: { input: { roomId } }
-    }
-  });
-  expect(response.ok()).toBeTruthy();
-  const data = await response.json();
-  expect(data.data?.joinRoom?.id).toBe(roomId);
+  await joinRoomViaConnect(page, roomId);
 }
 
-/** Grants a server-scope permission to a role via GraphQL API. */
 async function grantPermission(
   page: Page,
   _serverId: string,
   role: string,
   permission: string
 ): Promise<void> {
-  const response = await page.request.post('/api/graphql', {
-    headers: {
-      'Content-Type': 'application/json',
-      'X-REQUEST-TYPE': 'GraphQL'
-    },
-    data: {
-      query: `
-				mutation GrantPerm($input: GrantPermissionInput!) {
-					grantPermission(input: $input)
-				}
-			`,
-      variables: { input: { roleName: role, permission } }
-    }
-  });
-
-  expect(response.ok()).toBeTruthy();
-  const data = await response.json();
-  expect(data.data?.grantPermission).toBe(true);
+  await grantServerPermission(page, role, permission);
 }
 
-/** Revokes a server-scope permission from a role via GraphQL API. */
-async function _revokePermission(page: Page, role: string, permission: string): Promise<void> {
-  const response = await page.request.post('/api/graphql', {
-    headers: {
-      'Content-Type': 'application/json',
-      'X-REQUEST-TYPE': 'GraphQL'
-    },
-    data: {
-      query: `
-				mutation RevokePerm($input: RevokePermissionInput!) {
-					revokePermission(input: $input)
-				}
-			`,
-      variables: { input: { roleName: role, permission } }
-    }
-  });
-
-  expect(response.ok()).toBeTruthy();
-  const data = await response.json();
-  expect(data.data?.revokePermission).toBe(true);
-}
-
-/** Denies a server-scope permission for a role via GraphQL API. */
 async function denyPermission(
   page: Page,
   _serverId: string,
   role: string,
   permission: string
 ): Promise<void> {
-  const response = await page.request.post('/api/graphql', {
-    headers: {
-      'Content-Type': 'application/json',
-      'X-REQUEST-TYPE': 'GraphQL'
-    },
-    data: {
-      query: `
-				mutation DenyPerm($input: DenyPermissionInput!) {
-					denyPermission(input: $input)
-				}
-			`,
-      variables: { input: { roleName: role, permission } }
-    }
-  });
-
-  expect(response.ok()).toBeTruthy();
-  const data = await response.json();
-  expect(data.data?.denyPermission).toBe(true);
+  await denyServerPermission(page, role, permission);
 }
 
 test.describe('Server Roles Management', () => {
@@ -263,7 +166,7 @@ test.describe('Server Roles Management', () => {
 
       // Create admin user and load the primary server
       await createAndLoginTestUser(page);
-      const server = await usePrimaryServerViaAPI(page);
+      await usePrimaryServerViaAPI(page);
 
       // Create and login as non-admin user
       const nonAdmin = await createSecondTestUser(page);
@@ -766,29 +669,14 @@ test.describe('Server Permission Enforcement', () => {
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      // Try to list rooms via GraphQL
-      const response = await page.request.post('/api/graphql', {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-REQUEST-TYPE': 'GraphQL'
-        },
-        data: {
-          query: `
-						query ListRooms {
-							server {
-								rooms { id name }
-							}
-						}
-					`,
-          variables: { spaceId: server.id }
-        }
-      });
-
-      const data = await response.json();
+      const data = await connectPost<E2EListRoomsResponse>(
+        page,
+        'chatto.api.v1.RoomDirectoryService/ListRooms',
+        { scope: 'ROOM_DIRECTORY_SCOPE_CHANNELS' }
+      );
 
       // Should succeed - member has room.list
-      expect(data.errors).toBeUndefined();
-      expect(data.data?.server?.rooms).toBeDefined();
+      expect(data.rooms).toBeDefined();
     });
 
     test('user without room.list permission cannot list rooms via API', async ({ page }) => {
@@ -806,30 +694,13 @@ test.describe('Server Permission Enforcement', () => {
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      // Try to list rooms via GraphQL
-      const response = await page.request.post('/api/graphql', {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-REQUEST-TYPE': 'GraphQL'
-        },
-        data: {
-          query: `
-						query ListRooms {
-							server {
-								rooms { id name }
-							}
-						}
-					`,
-          variables: { spaceId: server.id }
-        }
-      });
-
-      const data = await response.json();
-
-      expect(data.errors).toBeUndefined();
-      expect(data.data?.server?.rooms ?? []).not.toContainEqual(
-        expect.objectContaining({ id: hiddenRoomId })
+      const data = await connectPost<E2EListRoomsResponse>(
+        page,
+        'chatto.api.v1.RoomDirectoryService/ListRooms',
+        { scope: 'ROOM_DIRECTORY_SCOPE_CHANNELS' }
       );
+
+      expect(data.rooms?.map((entry) => entry.room?.id) ?? []).not.toContain(hiddenRoomId);
     });
 
     // The three tests that previously asserted "room.list gates the
@@ -844,87 +715,21 @@ test.describe('Server Permission Enforcement', () => {
     test('user with room.join permission can join a room', async ({ page }) => {
       // Create admin user and load the primary server
       await createAndLoginTestUser(page);
-      const server = await usePrimaryServerViaAPI(page);
-      const groupId = await getDefaultRoomGroupId(page);
-
-      // Create a room (admin has room.create by default)
-      const roomResponse = await page.request.post('/api/graphql', {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-REQUEST-TYPE': 'GraphQL'
-        },
-        data: {
-          query: `
-						mutation CreateRoom($input: CreateRoomInput!) {
-							createRoom(input: $input) { id name }
-						}
-					`,
-          variables: {
-            input: { name: `testroom${Date.now()}`, groupId }
-          }
-        }
-      });
-      expect(roomResponse.ok()).toBeTruthy();
-      const roomData = await roomResponse.json();
-      expect(roomData.errors).toBeUndefined();
-      expect(roomData.data?.createRoom).toBeTruthy();
-      const roomId = roomData.data.createRoom.id;
+      await usePrimaryServerViaAPI(page);
+      const roomId = await createRoomViaAPI(page);
 
       // Create second user (everyone role has room.join by default)
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      // Try to join the room
-      const joinResponse = await page.request.post('/api/graphql', {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-REQUEST-TYPE': 'GraphQL'
-        },
-        data: {
-          query: `
-						mutation JoinRoom($input: JoinRoomInput!) {
-							joinRoom(input: $input) { id }
-						}
-					`,
-          variables: { input: { roomId } }
-        }
-      });
-
-      const joinData = await joinResponse.json();
-
-      // Should succeed - member has room.join
-      expect(joinData.errors).toBeUndefined();
-      expect(joinData.data?.joinRoom?.id).toBe(roomId);
+      await expect(joinRoomViaConnect(page, roomId)).resolves.toBe(roomId);
     });
 
     test('user without room.join permission cannot join a room', async ({ page }) => {
       // Create admin user and load the primary server
       await createAndLoginTestUser(page);
       const server = await usePrimaryServerViaAPI(page);
-      const groupId = await getDefaultRoomGroupId(page);
-
-      // Create a room (admin has room.create by default)
-      const roomResponse = await page.request.post('/api/graphql', {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-REQUEST-TYPE': 'GraphQL'
-        },
-        data: {
-          query: `
-						mutation CreateRoom($input: CreateRoomInput!) {
-							createRoom(input: $input) { id name }
-						}
-					`,
-          variables: {
-            input: { name: `testroom${Date.now()}`, groupId }
-          }
-        }
-      });
-      expect(roomResponse.ok()).toBeTruthy();
-      const roomData = await roomResponse.json();
-      expect(roomData.errors).toBeUndefined();
-      expect(roomData.data?.createRoom).toBeTruthy();
-      const roomId = roomData.data.createRoom.id;
+      const roomId = await createRoomViaAPI(page);
 
       // Deny room.join from everyone role
       await denyPermission(page, server.id, 'everyone', 'room.join');
@@ -933,54 +738,19 @@ test.describe('Server Permission Enforcement', () => {
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      // Try to join the room
-      const joinResponse = await page.request.post('/api/graphql', {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-REQUEST-TYPE': 'GraphQL'
-        },
-        data: {
-          query: `
-						mutation JoinRoom($input: JoinRoomInput!) {
-							joinRoom(input: $input) { id }
-						}
-					`,
-          variables: { input: { roomId } }
-        }
+      const joinResponse = await connectPostResponse(page, 'chatto.api.v1.RoomService/JoinRoom', {
+        roomId
       });
 
-      const joinData = await joinResponse.json();
-
       // Should fail - room.join is denied
-      expect(joinData.errors).toBeDefined();
-      expect(joinData.errors.length).toBeGreaterThan(0);
+      expect(joinResponse.ok()).toBe(false);
     });
 
     test('chat input is disabled when user lacks message.post permission', async ({ page }) => {
       // Admin creates server and room
       await createAndLoginTestUser(page);
       const server = await usePrimaryServerViaAPI(page);
-      const groupId = await getDefaultRoomGroupId(page);
-
-      const roomResponse = await page.request.post('/api/graphql', {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-REQUEST-TYPE': 'GraphQL'
-        },
-        data: {
-          query: `
-						mutation CreateRoom($input: CreateRoomInput!) {
-							createRoom(input: $input) { id name }
-						}
-					`,
-          variables: {
-            input: { name: `testroom${Date.now()}`, groupId }
-          }
-        }
-      });
-      expect(roomResponse.ok()).toBeTruthy();
-      const roomData = await roomResponse.json();
-      const roomId = roomData.data.createRoom.id;
+      const roomId = await createRoomViaAPI(page);
 
       // Deny message.post for everyone role at server level
       await denyPermission(page, server.id, 'everyone', 'message.post');
@@ -989,21 +759,7 @@ test.describe('Server Permission Enforcement', () => {
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      const joinResponse = await page.request.post('/api/graphql', {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-REQUEST-TYPE': 'GraphQL'
-        },
-        data: {
-          query: `
-						mutation JoinRoom($input: JoinRoomInput!) {
-							joinRoom(input: $input) { id }
-						}
-					`,
-          variables: { input: { roomId } }
-        }
-      });
-      expect((await joinResponse.json()).data?.joinRoom?.id).toBe(roomId);
+      await joinRoomViaAPI(page, server.id, roomId);
 
       // Navigate to the room
       await page.goto(routes.room(roomId));

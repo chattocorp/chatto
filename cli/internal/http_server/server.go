@@ -31,7 +31,7 @@ type HTTPServerConfig struct {
 	Version string
 }
 
-// HTTPServer serves the HTTP/GraphQL API and static frontend.
+// HTTPServer serves the HTTP APIs and static frontend.
 type HTTPServer struct {
 	config     config.ChattoConfig
 	nc         *nats.Conn
@@ -173,7 +173,6 @@ func (s *HTTPServer) setupRoutes() error {
 	s.setupWebhookRoutes()
 	s.setupConnectAPI()
 	s.setupRealtimeAPI(allowedOrigins)
-	s.setupGraphQLAPI(allowedOrigins)
 	s.setupOIDCRoutes()
 	s.setupAuthRoutes()
 	s.setupOAuthRoutes()

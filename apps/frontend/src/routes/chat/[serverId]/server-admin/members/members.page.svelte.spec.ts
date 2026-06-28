@@ -13,7 +13,7 @@ type Member = {
 };
 
 const mocks = vi.hoisted(() => ({
-  query: vi.fn(),
+  listMembers: vi.fn(),
   goto: vi.fn()
 }));
 
@@ -92,13 +92,20 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
   useConnection: () => () => ({
     isConnected: true,
     showConnectionLostBanner: false,
-    client: {
-      query: mocks.query,
-      mutation: vi.fn(),
-      subscription: vi.fn()
-    }
+    connectBaseUrl: 'http://localhost/api/connect',
+    bearerToken: null
   })
 }));
+
+vi.mock('$lib/api/adminUsers', async () => {
+  const actual = await vi.importActual<typeof import('$lib/api/adminUsers')>('$lib/api/adminUsers');
+  return {
+    ...actual,
+    createAdminUserManagementAPI: () => ({
+      listMembers: mocks.listMembers
+    })
+  };
+});
 
 function member(index: number, prefix = 'member'): Member {
   return {
@@ -113,26 +120,16 @@ function member(index: number, prefix = 'member'): Member {
 
 function result(users: Member[], totalCount = users.length, hasMore = false) {
   return {
-    server: {
-      roles: [{ name: 'admin', displayName: 'Admin' }],
-      members: {
-        users,
-        totalCount,
-        hasMore
-      }
-    }
+    roles: [{ name: 'admin', displayName: 'Admin' }],
+    users,
+    totalCount,
+    hasMore
   };
 }
 
 function queueResults(...results: ReturnType<typeof result>[]) {
-  mocks.query.mockImplementation(() => {
-    const data = results.shift();
-    return {
-      toPromise: vi.fn().mockResolvedValue({
-        data,
-        error: null
-      })
-    };
+  mocks.listMembers.mockImplementation(() => {
+    return Promise.resolve(results.shift());
   });
 }
 
@@ -150,7 +147,7 @@ describe('server admin members pagination', () => {
     observers = [];
     globalThis.IntersectionObserver =
       MockIntersectionObserver as unknown as typeof IntersectionObserver;
-    mocks.query.mockReset();
+    mocks.listMembers.mockReset();
     mocks.goto.mockReset();
   });
 
@@ -172,7 +169,7 @@ describe('server admin members pagination', () => {
     const { container } = render(MembersPage);
     await settle();
 
-    expect(mocks.query).toHaveBeenNthCalledWith(1, expect.anything(), {
+    expect(mocks.listMembers).toHaveBeenNthCalledWith(1, {
       search: null,
       limit: 20,
       offset: 0
@@ -183,7 +180,7 @@ describe('server admin members pagination', () => {
     observers[0].trigger(true);
     await settle();
 
-    expect(mocks.query).toHaveBeenNthCalledWith(2, expect.anything(), {
+    expect(mocks.listMembers).toHaveBeenNthCalledWith(2, {
       search: null,
       limit: 20,
       offset: 20
@@ -207,7 +204,7 @@ describe('server admin members pagination', () => {
     await vi.advanceTimersByTimeAsync(300);
     await settle();
 
-    expect(mocks.query).toHaveBeenNthCalledWith(2, expect.anything(), {
+    expect(mocks.listMembers).toHaveBeenNthCalledWith(2, {
       search: 'target',
       limit: 20,
       offset: 0

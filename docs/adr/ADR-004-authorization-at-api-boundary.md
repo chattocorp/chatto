@@ -2,11 +2,11 @@
 
 **Date:** 2026-03-01
 
-**Status:** Partially superseded by [ADR-042](ADR-042-protobuf-first-public-api.md) for new protobuf API work. GraphQL-era resolvers still follow this record unless migrated, but new public transports should share authorization through internal operation models instead of duplicating resolver-local checks.
+**Status:** Superseded for public API work by [ADR-042](ADR-042-protobuf-first-public-api.md) and [ADR-044](ADR-044-connectrpc-service-conventions.md). This record describes the former GraphQL-era boundary pattern; current public API operations put operation-specific authorization in shared core operation models.
 
 ## Context
 
-Chatto has two API surfaces that invoke business logic:
+At the time of this decision, Chatto had two API surfaces that invoked business logic:
 
 1. **GraphQL** — user-facing, untrusted callers (browser clients)
 2. **NATS request-reply** — internal/extension API, trusted callers (background jobs, NATS handlers, webhooks)
