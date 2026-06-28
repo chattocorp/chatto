@@ -12,6 +12,7 @@ const outputDir = path.join(
   repoRoot,
   'apps/docs-website/src/content/docs/reference/connectrpc-api'
 );
+const introDir = path.join(repoRoot, 'proto/docs/connectrpc-api-intros');
 
 const groups = [
   {
@@ -144,12 +145,21 @@ function renderLanding() {
   );
 }
 
-function renderServiceGroup(group, serviceSections) {
+async function readServiceGroupIntro(group) {
+  const introPath = path.join(introDir, `${group.slug}.md`);
+  const intro = (await readFile(introPath, 'utf8')).trim();
+  if (intro.length === 0) {
+    throw new Error(`Service group intro is empty: ${introPath}`);
+  }
+  return intro;
+}
+
+async function renderServiceGroup(group, serviceSections) {
+  const intro = await readServiceGroupIntro(group);
   const body = [
-    `Chatto exposes these ${group.title.toLowerCase()} services below \`/api/connect\`.`,
-    '',
+    intro,
+    `All endpoints on this page are mounted below \`/api/connect\`.`,
     'Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).',
-    '',
     ...group.services.map((service) => rewriteServiceTypeLinks(serviceSections.get(service).content))
   ];
   return renderPage(group.title, group.description, body.join('\n\n'));
@@ -300,7 +310,7 @@ if (missing.length > 0 || unmapped.length > 0) {
 
 const generatedPages = new Map([['index.mdx', renderLanding()]]);
 for (const group of groups) {
-  generatedPages.set(`${group.slug}.mdx`, renderServiceGroup(group, serviceSections));
+  generatedPages.set(`${group.slug}.mdx`, await renderServiceGroup(group, serviceSections));
 }
 generatedPages.set('types.mdx', renderTypesPage(typeSections, enumSections));
 generatedPages.set('realtime.mdx', renderRealtimePage(typeSections, enumSections));

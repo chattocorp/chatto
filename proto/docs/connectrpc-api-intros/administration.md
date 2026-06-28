@@ -1,0 +1,1 @@
+Use these services to inspect and manage server configuration, room layout, members, roles, permissions, audit events, and operational diagnostics. Most methods require server-administration permissions.

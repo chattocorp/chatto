@@ -87,5 +87,7 @@ first consumer.
 - New public services also need generated docs grouping in
   `tools/split-connectrpc-docs.mjs`; the splitter fails codegen when a service
   is not assigned to a reference page.
+- Generated service reference page introductions live in
+  `proto/docs/connectrpc-api-intros/`.
 - New generated reference pages need docs sidebar entries in
   `apps/docs-website/astro.config.mjs`.
