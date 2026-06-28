@@ -145,9 +145,11 @@ function apiPresenceStatus(status: APIPresenceStatus): PresenceStatus {
     case APIPresenceStatus.DO_NOT_DISTURB:
       return PresenceStatus.DoNotDisturb;
     case APIPresenceStatus.ONLINE:
+      return PresenceStatus.Online;
+    case APIPresenceStatus.OFFLINE:
     case APIPresenceStatus.UNSPECIFIED:
     default:
-      return PresenceStatus.Online;
+      return PresenceStatus.Offline;
   }
 }
 

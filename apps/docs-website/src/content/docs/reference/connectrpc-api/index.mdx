@@ -185,7 +185,7 @@ Request to report the current user's live presence status.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Live status to report for the authenticated user. |
+| `status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Live status to report for the authenticated user. Offline is rejected. |
 | `user_selected` | `bool` | True when this report comes from a deliberate user selection rather than automatic idle/refresh reporting. Automatic reports do not overwrite an active manually selected Away or Do Not Disturb status from another client. |
 
 
@@ -197,7 +197,7 @@ Result of reporting live presence.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Status accepted and stored by the server. |
+| `status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Reportable status accepted and stored by the server. |
 
 
 <a id="chatto-api-v1-UserStatusService"></a>
@@ -5853,11 +5853,11 @@ Notification delivery level for a room.
 
 ### PresenceStatus
 
-Live presence status a client can report for the current user.
+Live presence status returned by public read APIs.
 
-Offline is not a reportable status. Clients that want the user to appear
-offline should stop reporting presence and let the server's live presence
-record expire.
+Offline is a read-side state only. Clients cannot report Offline through
+PresenceService.ReportPresence; they should stop reporting presence and let
+the server's live presence record expire.
 
 | Name | Number | Description |
 | --- | --- | --- |
@@ -5865,6 +5865,7 @@ record expire.
 | `PRESENCE_STATUS_ONLINE` | `1` | The user is actively available. |
 | `PRESENCE_STATUS_AWAY` | `2` | The user is connected but away or idle. |
 | `PRESENCE_STATUS_DO_NOT_DISTURB` | `3` | The user does not want notifications while this live status is active. |
+| `PRESENCE_STATUS_OFFLINE` | `4` | The user has no active live presence record. |
 
 
 <a id="chatto-api-v1-TimeFormat"></a>

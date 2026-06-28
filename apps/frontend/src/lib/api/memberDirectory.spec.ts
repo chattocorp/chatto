@@ -133,4 +133,38 @@ describe('createMemberDirectoryAPI', () => {
       { headers: undefined }
     );
   });
+
+  it('maps offline and unspecified read statuses to offline', async () => {
+    mocks.listServerMembers.mockResolvedValue({
+      members: [
+        {
+          id: 'U3',
+          login: 'carol',
+          displayName: 'Carol',
+          deleted: false,
+          presenceStatus: APIPresenceStatus.OFFLINE,
+          roles: []
+        },
+        {
+          id: 'U4',
+          login: 'dave',
+          displayName: 'Dave',
+          deleted: false,
+          presenceStatus: APIPresenceStatus.UNSPECIFIED,
+          roles: []
+        }
+      ],
+      totalCount: 2,
+      hasMore: false
+    });
+
+    const api = createMemberDirectoryAPI({ baseUrl: '/api/connect', bearerToken: null });
+
+    await expect(api.listServerMembers()).resolves.toMatchObject({
+      members: [
+        { id: 'U3', presenceStatus: PresenceStatus.Offline },
+        { id: 'U4', presenceStatus: PresenceStatus.Offline }
+      ]
+    });
+  });
 });

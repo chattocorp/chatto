@@ -91,7 +91,7 @@ describe('getCurrentUserViaConnect', () => {
     });
   });
 
-  it('omits auth headers and defaults unspecified enum values', async () => {
+  it('omits auth headers and maps unspecified presence as offline', async () => {
     mocks.getViewer.mockResolvedValue({
       user: {
         id: 'U2',
@@ -110,7 +110,7 @@ describe('getCurrentUserViaConnect', () => {
     });
 
     expect(mocks.getViewer).toHaveBeenCalledWith({}, { headers: undefined });
-    expect(user.presenceStatus).toBe(PresenceStatus.Online);
+    expect(user.presenceStatus).toBe(PresenceStatus.Offline);
     expect(user.settings?.timeFormat).toBe(TimeFormat.Auto);
     expect(user.customStatus).toBeNull();
     expect(user.viewerCanDeleteAccount).toBe(false);

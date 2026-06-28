@@ -224,6 +224,18 @@ func TestUserServiceReadsPublicProfiles(t *testing.T) {
 	}
 
 	ctx := withCaller(env.ctx, env.viewer)
+	offlineUser, err := env.core.CreateUser(env.ctx, core.SystemActorID, "offline-profile", "Offline Profile", "password")
+	if err != nil {
+		t.Fatalf("CreateUser offline profile: %v", err)
+	}
+	offlineResp, err := env.users.GetUser(ctx, connect.NewRequest(&apiv1.GetUserRequest{UserId: offlineUser.Id}))
+	if err != nil {
+		t.Fatalf("GetUser offline profile: %v", err)
+	}
+	if offlineResp.Msg.GetUser().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE {
+		t.Fatalf("offline profile presence = %v, want OFFLINE", offlineResp.Msg.GetUser().GetPresenceStatus())
+	}
+
 	if _, err := env.core.SetUserCustomStatus(env.ctx, env.viewer.Id, "wave", "around", nil); err != nil {
 		t.Fatalf("SetUserCustomStatus: %v", err)
 	}
@@ -793,6 +805,14 @@ func TestViewerServiceGetViewerReturnsSelfScopedState(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("UpdateUserSettings: %v", err)
 	}
+	offlineResp, err := env.viewerService.GetViewer(ctx, connect.NewRequest(&apiv1.GetViewerRequest{}))
+	if err != nil {
+		t.Fatalf("GetViewer offline presence: %v", err)
+	}
+	if offlineResp.Msg.GetUser().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE {
+		t.Fatalf("initial viewer presence = %v, want OFFLINE", offlineResp.Msg.GetUser().GetPresenceStatus())
+	}
+
 	if err := env.core.SetPresence(env.ctx, env.viewer.Id, core.PresenceStatusAway); err != nil {
 		t.Fatalf("SetPresence: %v", err)
 	}
@@ -2252,6 +2272,9 @@ func TestMemberDirectoryServiceListServerMembers(t *testing.T) {
 	if gotByID[alice.Id].GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_AWAY {
 		t.Fatalf("alice presence = %v, want AWAY", gotByID[alice.Id].GetPresenceStatus())
 	}
+	if gotByID[bob.Id].GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE {
+		t.Fatalf("bob presence = %v, want OFFLINE", gotByID[bob.Id].GetPresenceStatus())
+	}
 	if roles := strings.Join(gotByID[bob.Id].GetRoles(), ","); roles != "everyone,admin" {
 		t.Fatalf("bob roles = %q, want everyone,admin", roles)
 	}
@@ -2675,6 +2698,11 @@ func TestPresenceServiceReportPresence(t *testing.T) {
 		Status: apiv1.PresenceStatus_PRESENCE_STATUS_UNSPECIFIED,
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("unspecified ReportPresence code = %v, want %v", connect.CodeOf(err), connect.CodeInvalidArgument)
+	}
+	if _, err := env.presence.ReportPresence(ctx, connect.NewRequest(&apiv1.ReportPresenceRequest{
+		Status: apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE,
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("offline ReportPresence code = %v, want %v", connect.CodeOf(err), connect.CodeInvalidArgument)
 	}
 
 	resp, err := env.presence.ReportPresence(ctx, connect.NewRequest(&apiv1.ReportPresenceRequest{
