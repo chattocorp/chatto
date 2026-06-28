@@ -279,6 +279,9 @@ func (s *MessageModel) AuthorizePost(ctx context.Context, input MessagePostAutho
 		return nil, err
 	}
 	kind := KindOfRoom(room)
+	if room.Archived {
+		return nil, ErrRoomArchived
+	}
 
 	isMember, err := s.core.RoomMembershipExists(ctx, kind, input.ActorID, room.Id)
 	if err != nil {

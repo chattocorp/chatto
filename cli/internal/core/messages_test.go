@@ -1308,6 +1308,28 @@ func TestChattoCore_ArchiveRoom_BlocksWrites(t *testing.T) {
 		}
 	})
 
+	t.Run("message preflight rejects archived room before uploads", func(t *testing.T) {
+		core, _ := setupTestCore(t)
+		ctx := testContext(t)
+
+		room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "Archived", "Archived room")
+		user, _ := core.CreateUser(ctx, "system", "preflight-archived", "Preflight Archived", "password123")
+		core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+		if _, err := core.ArchiveRoom(ctx, user.Id, KindChannel, room.Id); err != nil {
+			t.Fatalf("Failed to archive room: %v", err)
+		}
+
+		_, err := core.Messages().PreflightPost(ctx, MessagePostInput{
+			ActorID:               user.Id,
+			RoomID:                room.Id,
+			Body:                  "with file",
+			HasPendingAttachments: true,
+		})
+		if !errors.Is(err, ErrRoomArchived) {
+			t.Errorf("Expected ErrRoomArchived preflighting archived room, got: %v", err)
+		}
+	})
+
 	t.Run("cannot edit message in archived room", func(t *testing.T) {
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)

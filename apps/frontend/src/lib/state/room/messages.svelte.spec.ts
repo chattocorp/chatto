@@ -817,6 +817,33 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
+  it('applies a returned thread reply to the room root only once when subscription delivery follows', async () => {
+    const fake = new FakeQueryClient(
+      roomEventsResult({
+        events: [threadMessageEvent('t1')],
+        startCursor: null,
+        endCursor: null,
+        hasOlder: false,
+        hasNewer: false
+      })
+    );
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      timelineFromFixtures(fake)
+    );
+    const returnedReply = threadMessageEvent('r1', 't1');
+
+    store.setRoom('room-1');
+    await settle();
+
+    store.ingestEvent(returnedReply as never);
+    store.ingestServerEvent(returnedReply as never);
+
+    expect(store.rootEvents[0].event).toMatchObject({ replyCount: 1 });
+    store.dispose();
+  });
+
   it('soft-refreshes the latest room window without entering initial loading', async () => {
     const fake = new FakeQueryClient([
       roomEventsResult({

@@ -607,6 +607,8 @@ export class MessagesStore {
     // metadata on the root message (replyCount, lastReplyAt, participants,
     // viewerIsFollowingThread auto-follow).
     if (eventData.threadRootEventId) {
+      if (this.seenIds.has(spaceEvent.id)) return;
+      this.seenIds.add(spaceEvent.id);
       this.applyThreadReplyToRoot(spaceEvent, eventData);
       return;
     }
