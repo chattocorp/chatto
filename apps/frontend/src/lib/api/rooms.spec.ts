@@ -202,7 +202,7 @@ describe('createRoomCommandAPI', () => {
             login: 'mod',
             displayName: 'Moderator',
             deleted: false,
-            presenceStatus: APIPresenceStatus.ONLINE,
+            presenceStatus: APIPresenceStatus.OFFLINE,
             roles: []
           },
           reason: 'policy',
@@ -250,7 +250,7 @@ describe('createRoomCommandAPI', () => {
             displayName: 'Moderator',
             deleted: false,
             avatarUrl: null,
-            presenceStatus: PresenceStatus.Online,
+            presenceStatus: PresenceStatus.Offline,
             customStatus: null,
             roles: [],
             createdAt: null

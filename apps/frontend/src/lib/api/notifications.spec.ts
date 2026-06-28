@@ -62,7 +62,7 @@ describe('createNotificationAPI', () => {
             displayName: 'Alice',
             deleted: false,
             avatarUrl: 'https://cdn/avatar.webp',
-            presenceStatus: APIPresenceStatus.AWAY
+            presenceStatus: APIPresenceStatus.OFFLINE
           },
           summary: 'Alice mentioned you',
           kind: {
@@ -106,7 +106,7 @@ describe('createNotificationAPI', () => {
             displayName: 'Alice',
             deleted: false,
             avatarUrl: 'https://cdn/avatar.webp',
-            presenceStatus: PresenceStatus.Away,
+            presenceStatus: PresenceStatus.Offline,
             customStatus: null
           },
           summary: 'Alice mentioned you',

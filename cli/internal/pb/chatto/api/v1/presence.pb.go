@@ -21,11 +21,11 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Live presence status a client can report for the current user.
+// Live presence status returned by public read APIs.
 //
-// Offline is not a reportable status. Clients that want the user to appear
-// offline should stop reporting presence and let the server's live presence
-// record expire.
+// Offline is a read-side state only. Clients cannot report Offline through
+// PresenceService.ReportPresence; they should stop reporting presence and let
+// the server's live presence record expire.
 type PresenceStatus int32
 
 const (
@@ -37,6 +37,8 @@ const (
 	PresenceStatus_PRESENCE_STATUS_AWAY PresenceStatus = 2
 	// The user does not want notifications while this live status is active.
 	PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB PresenceStatus = 3
+	// The user has no active live presence record.
+	PresenceStatus_PRESENCE_STATUS_OFFLINE PresenceStatus = 4
 )
 
 // Enum value maps for PresenceStatus.
@@ -46,12 +48,14 @@ var (
 		1: "PRESENCE_STATUS_ONLINE",
 		2: "PRESENCE_STATUS_AWAY",
 		3: "PRESENCE_STATUS_DO_NOT_DISTURB",
+		4: "PRESENCE_STATUS_OFFLINE",
 	}
 	PresenceStatus_value = map[string]int32{
 		"PRESENCE_STATUS_UNSPECIFIED":    0,
 		"PRESENCE_STATUS_ONLINE":         1,
 		"PRESENCE_STATUS_AWAY":           2,
 		"PRESENCE_STATUS_DO_NOT_DISTURB": 3,
+		"PRESENCE_STATUS_OFFLINE":        4,
 	}
 )
 
@@ -85,7 +89,7 @@ func (PresenceStatus) EnumDescriptor() ([]byte, []int) {
 // Request to report the current user's live presence status.
 type ReportPresenceRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Live status to report for the authenticated user.
+	// Live status to report for the authenticated user. Offline is rejected.
 	Status PresenceStatus `protobuf:"varint,1,opt,name=status,proto3,enum=chatto.api.v1.PresenceStatus" json:"status,omitempty"`
 	// True when this report comes from a deliberate user selection rather than
 	// automatic idle/refresh reporting. Automatic reports do not overwrite an
@@ -142,7 +146,7 @@ func (x *ReportPresenceRequest) GetUserSelected() bool {
 // Result of reporting live presence.
 type ReportPresenceResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Status accepted and stored by the server.
+	// Reportable status accepted and stored by the server.
 	Status        PresenceStatus `protobuf:"varint,1,opt,name=status,proto3,enum=chatto.api.v1.PresenceStatus" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -194,12 +198,13 @@ const file_chatto_api_v1_presence_proto_rawDesc = "" +
 	"\x06status\x18\x01 \x01(\x0e2\x1d.chatto.api.v1.PresenceStatusR\x06status\x12#\n" +
 	"\ruser_selected\x18\x02 \x01(\bR\fuserSelected\"O\n" +
 	"\x16ReportPresenceResponse\x125\n" +
-	"\x06status\x18\x01 \x01(\x0e2\x1d.chatto.api.v1.PresenceStatusR\x06status*\x8b\x01\n" +
+	"\x06status\x18\x01 \x01(\x0e2\x1d.chatto.api.v1.PresenceStatusR\x06status*\xa8\x01\n" +
 	"\x0ePresenceStatus\x12\x1f\n" +
 	"\x1bPRESENCE_STATUS_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16PRESENCE_STATUS_ONLINE\x10\x01\x12\x18\n" +
 	"\x14PRESENCE_STATUS_AWAY\x10\x02\x12\"\n" +
-	"\x1ePRESENCE_STATUS_DO_NOT_DISTURB\x10\x032p\n" +
+	"\x1ePRESENCE_STATUS_DO_NOT_DISTURB\x10\x03\x12\x1b\n" +
+	"\x17PRESENCE_STATUS_OFFLINE\x10\x042p\n" +
 	"\x0fPresenceService\x12]\n" +
 	"\x0eReportPresence\x12$.chatto.api.v1.ReportPresenceRequest\x1a%.chatto.api.v1.ReportPresenceResponseB\xa9\x01\n" +
 	"\x11com.chatto.api.v1B\rPresenceProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
