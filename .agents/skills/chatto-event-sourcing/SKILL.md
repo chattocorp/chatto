@@ -14,7 +14,7 @@ Read only what is relevant to the task:
 - `docs/ARCHITECTURE.md` for the current runtime inventory, registered projections, EVT subject patterns, and live delivery shape.
 - `docs/adr/INDEX.md` to find relevant architecture decisions; read only the ADRs that apply to the current event-sourcing, stream, projection, or runtime-state question.
 - Relevant FDRs in `docs/fdr/` before changing user-visible behavior.
-- `.claude/rules/backend.md` and `.claude/rules/authorization.md` when changing backend writes, auth, or room visibility.
+- `AGENTS.md` and `cli/AGENTS.md` when changing backend writes, auth, or room visibility.
 
 Authoritative code anchors:
 
@@ -121,7 +121,7 @@ Check:
 
 - The returned stream position uses the same subject or filter the projector consumes.
 - Composite write paths wait for all affected projections, not just the one that owns the Service.
-- Live `live.evt.>` delivery waits for projection readiness before authorizing or shaping GraphQL events.
+- Live `live.evt.>` delivery waits for projection readiness before authorizing or shaping realtime events.
 - Reconnect replay waits for projections through the global cutoff before planning replay.
 
 ## Live Delivery And Reconnect Replay

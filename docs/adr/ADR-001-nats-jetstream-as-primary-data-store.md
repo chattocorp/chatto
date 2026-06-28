@@ -24,7 +24,7 @@ No relational database, no ORM, no SQL migrations.
 - **Simpler deployment**: No database to provision, configure, or back up separately. NATS data lives on disk alongside the binary.
 - **Unified data and messaging**: The same system that stores messages also delivers them in real-time. No CDC, no polling, no sync layer.
 - **No ad-hoc queries**: KV is key-based lookup only. There's no `SELECT * FROM messages WHERE body LIKE '%search%'`. Full-text search requires a separate pluggable system.
-- **No joins**: Related data must be fetched with multiple KV gets or denormalized. Field resolvers in GraphQL handle this naturally, but complex cross-entity queries aren't practical.
+- **No joins**: Related data must be fetched with multiple KV gets or denormalized. API handlers and read models compose these lookups explicitly; complex cross-entity ad-hoc queries aren't practical.
 - **Backup is NATS-native**: `chatto backup` exports streams and KV buckets. Restoring means replaying into a fresh NATS instance.
 - **Operational knowledge shifts**: Operators need to understand NATS streams, consumers, and KV semantics rather than SQL and database tuning.
 - **Scaling story is NATS-native**: Horizontal scaling means NATS clustering (JetStream Raft consensus), not database replicas.

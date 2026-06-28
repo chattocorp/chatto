@@ -304,8 +304,6 @@ func TestFrontendFallbackDoesNotServeReservedBackendPrefixes(t *testing.T) {
 	}
 
 	tests := []string{
-		"/api/graphql",
-		"/api/playground",
 		"/api/unknown",
 		"/auth/unknown",
 		"/assets/unknown",

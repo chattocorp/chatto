@@ -36,11 +36,9 @@
         "@fontsource-variable/ibm-plex-sans",
         "@fontsource/ibm-plex-mono",
         "svelte2tsx",
-        "tailwindcss",
-        "urql"
+        "tailwindcss"
       ],
       "ignoreIssues": {
-        "src/lib/gql/**": ["exports", "types", "enumMembers"],
         "src/lib/i18n/messages.ts": ["exports", "types"],
         "src/lib/paraglide/**": ["exports", "types"],
         "src/lib/pb/**": ["exports", "types", "enumMembers"]

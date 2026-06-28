@@ -6,15 +6,15 @@
 
 ## Context
 
-ADR-027 collapsed the historical three-tier model (Instance → Space → Room) into two tiers (Server → Room) at the conceptual and user-facing layers. ADR-029 finished the cosmetic rename of `Instance` → `Server` across identifiers, GraphQL, NATS subjects, frontend modules, and docs.
+ADR-027 collapsed the historical three-tier model (Instance → Space → Room) into two tiers (Server → Room) at the conceptual and user-facing layers. ADR-029 finished the cosmetic rename of `Instance` → `Server` across identifiers, public API surfaces, NATS subjects, frontend modules, and docs.
 
 The Space tier is therefore *behaviourally* retired, but its mechanical residue is still load-bearing in four places:
 
 1. **A vestigial primary-space record with stale readers.** Every deployment has one `Space` proto stored in `INSTANCE` KV at key `space.{spaceId}` with fields `id`, `name`, `description`. The branding (logo, banner) and the canonical server name/description already live in `INSTANCE_CONFIG` (`ServerConfig` proto + separate `instance.logo`/`instance.banner` keys). Four code paths still read from the Space record anyway (line numbers omitted — these files have since shifted):
    - `cli/internal/core/dm.go` — bootstrap creates a synthetic DM Space record
-   - `cli/internal/graph/mutation.resolvers.go` — explicit "until PR(c)" dual-write of name/description
+   - the then-current API mutation path — explicit "until PR(c)" dual-write of name/description
    - `cli/internal/http_server/opengraph.go` — OG metadata reads `space.Name` / `space.Description` (stale; `ServerConfig` is the right source)
-   - `cli/internal/graph/space_helpers.go` — thin GraphQL wrapper
+   - the thin Space API wrapper
    These are dead-end reads of stale data. Once they're removed, the persisted `space.{spaceId}` KV record becomes an orphan and can be left alone — one tiny entry per server, zero functional impact.
 
 2. **`spaceID` plumbing on the core API.** Roughly 80 functions across `cli/internal/core/*.go` still take a `spaceID string` parameter. Every one of them either ignores the value or feeds it into a legacy compatibility mapping, which exists only to map the legacy wire value `space_id = "DM"` to `"dm"` and everything else to `"channel"`. The parameter is a one-bit DM flag dressed up as an ID.
@@ -46,11 +46,11 @@ In-scope for this ADR:
 
 1. **Drop the four readers of the `space.{spaceId}` KV record.** Replace each with the canonical `ServerConfig` read (server name / description) or eliminate the call:
    - `dm.go` — DM bootstrap no longer needs a Space record.
-   - `mutation.resolvers.go` — the explicit "dual-write until PR(c)" comment is now PR(c); drop the dual-write.
+   - the API mutation path — the explicit "dual-write until PR(c)" comment is now PR(c); drop the dual-write.
    - `opengraph.go` — read `ConfigManager().GetEffectiveInstanceName` / `GetEffectiveDescription` instead.
-   - `space_helpers.go` GraphQL wrapper — delete with the rest of the surface.
+   - the Space API wrapper — delete with the rest of the surface.
 2. **Collapse `spaceID` → `kind` (or drop) across `cli/internal/core/*.go`.** Mechanical refactor; behaviour-preserving. Tests update at the same time.
-3. **Delete `cli/internal/core/spaces.go`, the `Space` Go type, `SpaceMembership` proto message, and `Server.primarySpaceId` GraphQL bridge field** once nothing reads them. The 1070-line `spaces.go` disappears.
+3. **Delete `cli/internal/core/spaces.go`, the `Space` Go type, `SpaceMembership` proto message, and `Server.primarySpaceId` API bridge field** once nothing reads them. The 1070-line `spaces.go` disappears.
 4. **Retire legacy live deployment-scoped proto residue.** Durable `corev1.Event` tags 1030–1032 are reserved as retired live-only variants; the current live envelope keeps only the emitted `ServerUpdatedEvent` and reserves removed lifecycle names/tags.
 5. **Rename `live.server.space.{spaceId}.>` NATS subjects** to `live.server.{eventType}` (or another deployment-scoped pattern — to be decided in Phase 1). Live subjects have no persistence; rename freely.
 6. **Rename `SpaceUserPreferences` → `UserPreferences`** in proto + storage key naming. Same wire-format-safe argument (preferences are a small KV-stored proto, not in JetStream).
@@ -68,9 +68,9 @@ Out of scope (deferred):
 
 | Phase | Scope | Risk | Approx. size |
 |---|---|---|---|
-| 1 | Drop the four readers of `space.{spaceId}` KV (opengraph, mutation dual-write, dm init, GraphQL wrapper). Replace with `ServerConfig` reads where needed. | Low | ~4 files |
+| 1 | Drop the four readers of `space.{spaceId}` KV (opengraph, mutation dual-write, dm init, API wrapper). Replace with `ServerConfig` reads where needed. | Low | ~4 files |
 | 2 | Collapse `spaceID` → `kind` (or drop) across core + tests. | Medium (mechanical but wide) | ~80 signatures, ~15 files |
-| 3 | Delete `spaces.go`, `Space` / `SpaceMembership` proto messages, `Server.primarySpaceId` GraphQL field. Retire legacy live deployment-scoped proto residue and rename `SpaceUserPreferences` to its un-prefixed counterpart. Rename `live.server.space.>` subjects. | Low-medium | ~1100 line net deletion + targeted proto/subject renames |
+| 3 | Delete `spaces.go`, `Space` / `SpaceMembership` proto messages, `Server.primarySpaceId` API field. Retire legacy live deployment-scoped proto residue and rename `SpaceUserPreferences` to its un-prefixed counterpart. Rename `live.server.space.>` subjects. | Low-medium | ~1100 line net deletion + targeted proto/subject renames |
 | 4 | Frontend `$lib/state/space/` → `$lib/state/server/` import sweep. | Low | ~5 files + ~15 importers |
 | 5 | Docs and rules cleanup (stale "space" prose). | Trivial | Small targeted edits |
 
@@ -82,7 +82,7 @@ Each phase is shippable independently. Phases 1 and 2 are good candidates to com
 
 - The core Go API stops lying about its shape: signatures reflect what data they actually depend on.
 - New contributors don't have to learn the Space tier just to find it's not real.
-- `spaces.go` (1070 lines) goes away. The `Space` Go type and `Server.primarySpaceId` GraphQL bridge field go away.
+- `spaces.go` (1070 lines) goes away. The `Space` Go type and `Server.primarySpaceId` API bridge field go away.
 - The DM mechanism gets simpler: normal room code uses `kind == "dm"` directly, while the legacy `space_id` conversion is boxed into explicitly named compatibility helpers.
 - ADR-015 ("DMs as a hidden space") was already marked superseded by ADR-027 at the storage layer. This ADR finishes the job at the API layer.
 

@@ -28,7 +28,7 @@ All public ConnectRPC services live under `proto/chatto/api/v1` and are implemen
 
 The HTTP server owns route mounting and authentication middleware. Public services are mounted without caller injection. Authenticated services are wrapped with Connect-compatible authentication middleware before request decoding and protovalidate validation. Middleware resolves the effective user through the same bearer-token/cookie model used by the rest of the app and stores a `connectapi.Caller` in the Connect auth context.
 
-Connect service methods use `requireCaller` for authenticated methods. They do not read GraphQL auth context or duplicate HTTP session logic.
+Connect service methods use `requireCaller` for authenticated methods. They do not read transport-specific legacy auth context or duplicate HTTP session logic.
 
 Every public Connect handler uses the shared `connectapi.HandlerOptions()` set. That set includes the public request-size limit and the protovalidate interceptor. Authenticated services should authenticate first, then decode and validate requests.
 

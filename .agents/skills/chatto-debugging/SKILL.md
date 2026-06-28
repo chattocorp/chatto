@@ -43,7 +43,7 @@ mise x -- go run -tags bootstrap . run
 
 ## NATS CLI for Production Debugging
 
-This is the **only supported path** for raw NATS inspection. The GraphQL admin surface intentionally exposes only aggregate operational metrics (`Query.admin.systemInfo` returns connection state and account-level usage totals) — it does not expose stream subjects, KV keys, or per-stream/per-bucket breakdowns. Those leaked structural information (room IDs, user IDs, bucket names) without a use case the `nats` CLI doesn't already cover. If you need to inspect a specific stream or bucket, shell into the host with operator credentials and use the commands below.
+This is the **only supported path** for raw NATS inspection. The ConnectRPC admin diagnostics surface intentionally exposes only aggregate operational metrics — it does not expose stream subjects, KV keys, or per-stream/per-bucket breakdowns. Those leak structural information (room IDs, user IDs, bucket names) without a use case the `nats` CLI doesn't already cover. If you need to inspect a specific stream or bucket, shell into the host with operator credentials and use the commands below.
 
 The `nats` CLI can directly inspect streams and KV buckets to debug production issues. Useful commands:
 
@@ -52,25 +52,25 @@ The `nats` CLI can directly inspect streams and KV buckets to debug production i
 nats stream ls
 
 # List subjects in a stream with message counts per subject
-nats stream subjects SPACE_{spaceId}_EVENTS
+nats stream subjects EVT
 
 # Get stream info (config, state, consumer count)
-nats stream info SPACE_{spaceId}_EVENTS --json
+nats stream info EVT --json
 
 # Get a specific message by sequence number
-nats stream get SPACE_{spaceId}_EVENTS 51 --json
+nats stream get EVT 51 --json
 
 # Get the last message for a specific subject
-nats stream get SPACE_{spaceId}_EVENTS -S "space.{spaceId}.room.{roomId}.meta" --json
+nats stream get EVT -S "evt.room.{roomId}.message_posted" --json
 
 # List all KV buckets
 nats kv ls
 
 # List keys in a KV bucket
-nats kv ls SPACE_{spaceId}_CONFIG
+nats kv ls RUNTIME_STATE
 
 # Get a KV entry
-nats kv get SPACE_{spaceId}_CONFIG "room_membership.{userId}.{roomId}"
+nats kv get RUNTIME_STATE "session.{sessionId}"
 ```
 
 ### Decoding Protobuf Events

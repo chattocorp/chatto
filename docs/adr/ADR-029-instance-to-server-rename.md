@@ -17,7 +17,7 @@ The split has bitten us repeatedly:
 
 ## Decision
 
-Rename `Instance` → `Server` in identifiers, types, GraphQL surface, proto messages/fields, frontend modules and routes, and user-facing strings. Persisted-shape names (JetStream stream names, KV bucket names) **stay as-is** for this PR — they're an implementation detail with real migration cost, and the in-code variables that reference them can be renamed independently.
+Rename `Instance` → `Server` in identifiers, types, public API surface, proto messages/fields, frontend modules and routes, and user-facing strings. Persisted-shape names (JetStream stream names, KV bucket names) **stay as-is** for this PR — they're an implementation detail with real migration cost, and the in-code variables that reference them can be renamed independently.
 
 ### Naming rule
 
@@ -28,7 +28,7 @@ Drop the prefix entirely when there's nothing left to disambiguate against (sing
 | `CreateInstanceRole` → `CreateRole` | `IsInstanceAdmin` → `IsServerAdmin` (parallels `IsRoomAdmin` etc.) |
 | `AssignInstanceRole` → `AssignRole` | `HasInstancePermission` → `HasServerPermission` (parallels `HasSpacePermission`, `HasRoomPermission`) |
 | `RevokeInstanceRole` → `RevokeRole` | `GrantInstancePermission` → `GrantServerPermission` (parallels `GrantRoomPermission`) |
-| `ListInstanceRoles` → `ListRoles` | `InstanceEvent` → `ServerEvent` (later consolidated into GraphQL `Event`) |
+| `ListInstanceRoles` → `ListRoles` | `InstanceEvent` → `ServerEvent` (later consolidated into the public event DTO) |
 | `GetInstanceRole` → `GetRole` | `InstanceConfig` → `ServerConfig` (top-level type) |
 | `GetInstanceRolePermissions` → `GetRolePermissions` | |
 | `ReorderInstanceRoles` → `ReorderRoles` | |
@@ -37,7 +37,7 @@ Drop the prefix entirely when there's nothing left to disambiguate against (sing
 ### Scope decisions
 
 1. **Persisted names stay**: JetStream streams (`SERVER_EVENTS`), KV buckets (`KV_INSTANCE*`), `chatto.toml` keys. In-code variables that reference them may be renamed independently. Real migration deferred to a separate PR.
-2. **GraphQL hard rename**: schema breaks. Per early-stage policy ([`AGENTS.md`](../../AGENTS.md)), external consumers re-codegen. Soft deprecation rejected as needless ceremony for this stage.
+2. **Public API hard rename**: API names break. Per early-stage policy ([`AGENTS.md`](../../AGENTS.md)), external consumers re-codegen. Soft deprecation rejected as needless ceremony for this stage.
 3. **Proto field-number stability**: message/field names rename; field numbers stay. Binary wire compat preserved — existing stored payloads decode unchanged. Verified at the end via a backup/restore round-trip.
 4. **`live.*` NATS subjects in scope**: `live.instance.user.{userId}.*` → `live.server.user.{userId}.*`, `live.instance.space.{spaceId}.*` → `live.server.space.{spaceId}.*`. Live events don't persist, so subject rename is free.
 5. **Frontend module path**: `$lib/instance/*` → `$lib/chatto/*` (not `$lib/server/*` — SvelteKit reserves that name for server-only modules).
@@ -54,9 +54,9 @@ Drop the prefix entirely when there's nothing left to disambiguate against (sing
 
 ### Negative / risks
 
-- Big PR — ~100+ files, several thousand lines moved. Mitigated by phased ordering (proto → GraphQL → Go → live subjects → frontend → docs) and re-running all codegen between phases.
-- GraphQL break: any external playground user re-codegens. Acceptable per early-stage policy.
-- urql cache churn from renamed operations across a deploy. Tabs open through deploy may see a brief refetch storm; transient and acceptable.
+- Big PR — ~100+ files, several thousand lines moved. Mitigated by phased ordering (proto/API → Go → live subjects → frontend → docs) and re-running all codegen between phases.
+- Public API break: any external client re-codegens. Acceptable per early-stage policy.
+- Client cache churn from renamed operations across a deploy. Tabs open through deploy may see a brief refetch storm; transient and acceptable.
 - Route redirects: `[instanceId]`-shaped bookmarks become `[serverId]`. SvelteKit redirects cover known shapes; deep links fixed by URL share.
 
 ### Deferred
