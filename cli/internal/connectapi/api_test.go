@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
@@ -341,6 +342,44 @@ func TestAdminServiceUserLifecycle(t *testing.T) {
 	}
 	if _, err := admin.GetUser(ctx, connect.NewRequest(&apiv1.GetAdminUserRequest{UserId: user.GetUserId()})); connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("GetUser after delete err = %v, want not found", err)
+	}
+}
+
+func TestAdminServiceListUsersUsesSharedPageInfo(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	admin := &adminService{api: env.api}
+	ctx := authn.SetInfo(env.ctx, AdminCaller{})
+
+	for i := 1; i <= 2; i++ {
+		login := fmt.Sprintf("admin-api-page-%d", i)
+		if _, err := env.core.CreateUser(env.ctx, core.SystemActorID, login, "Admin API Page", "password123"); err != nil {
+			t.Fatalf("CreateUser %s: %v", login, err)
+		}
+	}
+
+	defaultResp, err := admin.ListUsers(ctx, connect.NewRequest(&apiv1.ListAdminUsersRequest{Search: "admin-api-page"}))
+	if err != nil {
+		t.Fatalf("ListUsers default page: %v", err)
+	}
+	if got := len(defaultResp.Msg.GetUsers()); got != 2 {
+		t.Fatalf("default ListUsers users = %d, want 2", got)
+	}
+	if page := defaultResp.Msg.GetPage(); page.GetTotalCount() != 2 || page.GetHasMore() {
+		t.Fatalf("default ListUsers page = %+v, want total 2 has_more false", page)
+	}
+
+	firstPageResp, err := admin.ListUsers(ctx, connect.NewRequest(&apiv1.ListAdminUsersRequest{
+		Search: "admin-api-page",
+		Page:   &apiv1.PageRequest{Limit: 1},
+	}))
+	if err != nil {
+		t.Fatalf("ListUsers first page: %v", err)
+	}
+	if got := len(firstPageResp.Msg.GetUsers()); got != 1 {
+		t.Fatalf("first page ListUsers users = %d, want 1", got)
+	}
+	if page := firstPageResp.Msg.GetPage(); page.GetTotalCount() != 2 || !page.GetHasMore() {
+		t.Fatalf("first page ListUsers page = %+v, want total 2 has_more true", page)
 	}
 }
 

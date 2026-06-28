@@ -78,8 +78,10 @@ func adminUserListCmd() *cobra.Command {
 			}
 			resp, err := client.ListUsers(cmd.Context(), adminRequest(&apiv1.ListAdminUsersRequest{
 				Search: search,
-				Limit:  limit,
-				Offset: offset,
+				Page: &apiv1.PageRequest{
+					Limit:  limit,
+					Offset: offset,
+				},
 			}))
 			if err != nil {
 				return err
@@ -89,7 +91,8 @@ func adminUserListCmd() *cobra.Command {
 				for _, user := range resp.Msg.GetUsers() {
 					printAdminUserLine(out, user)
 				}
-				fmt.Fprintf(out, "total=%d has_more=%t\n", resp.Msg.GetTotalCount(), resp.Msg.GetHasMore())
+				page := resp.Msg.GetPage()
+				fmt.Fprintf(out, "total=%d has_more=%t\n", page.GetTotalCount(), page.GetHasMore())
 			})
 		},
 	}

@@ -718,8 +718,7 @@ Request to list users for operator administration.
 | Field | Type | Description |
 | --- | --- | --- |
 | `search` | `string` | Optional case-insensitive substring filter for login or display name. |
-| `limit` | `int32` | Maximum number of users to return. Defaults to 20 and is clamped to 100. |
-| `offset` | `int32` | Zero-based result offset. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
 
 
 <a id="chatto-api-v1-ListAdminUsersResponse"></a>
@@ -731,8 +730,7 @@ Result of listing users for operator administration.
 | Field | Type | Description |
 | --- | --- | --- |
 | `users` | repeated [`AdminUser`](#chatto-api-v1-AdminUser) | Users in the requested page. |
-| `total_count` | `int32` | Total number of matching users before pagination. |
-| `has_more` | `bool` | True when another page is available. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
 
 
 <a id="chatto-api-v1-AdminService-GetUser"></a>

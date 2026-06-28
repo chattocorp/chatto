@@ -175,10 +175,8 @@ type ListAdminUsersRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional case-insensitive substring filter for login or display name.
 	Search string `protobuf:"bytes,1,opt,name=search,proto3" json:"search,omitempty"`
-	// Maximum number of users to return. Defaults to 20 and is clamped to 100.
-	Limit int32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
-	// Zero-based result offset.
-	Offset        int32 `protobuf:"varint,3,opt,name=offset,proto3" json:"offset,omitempty"`
+	// Page request. Defaults to 20 results when absent or limit is zero.
+	Page          *PageRequest `protobuf:"bytes,4,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -220,18 +218,11 @@ func (x *ListAdminUsersRequest) GetSearch() string {
 	return ""
 }
 
-func (x *ListAdminUsersRequest) GetLimit() int32 {
+func (x *ListAdminUsersRequest) GetPage() *PageRequest {
 	if x != nil {
-		return x.Limit
+		return x.Page
 	}
-	return 0
-}
-
-func (x *ListAdminUsersRequest) GetOffset() int32 {
-	if x != nil {
-		return x.Offset
-	}
-	return 0
+	return nil
 }
 
 // Result of listing users for operator administration.
@@ -239,10 +230,8 @@ type ListAdminUsersResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Users in the requested page.
 	Users []*AdminUser `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty"`
-	// Total number of matching users before pagination.
-	TotalCount int32 `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
-	// True when another page is available.
-	HasMore       bool `protobuf:"varint,3,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
+	// Page metadata.
+	Page          *PageInfo `protobuf:"bytes,4,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -284,18 +273,11 @@ func (x *ListAdminUsersResponse) GetUsers() []*AdminUser {
 	return nil
 }
 
-func (x *ListAdminUsersResponse) GetTotalCount() int32 {
+func (x *ListAdminUsersResponse) GetPage() *PageInfo {
 	if x != nil {
-		return x.TotalCount
+		return x.Page
 	}
-	return 0
-}
-
-func (x *ListAdminUsersResponse) GetHasMore() bool {
-	if x != nil {
-		return x.HasMore
-	}
-	return false
+	return nil
 }
 
 // Request to fetch a single user by ID or login.
@@ -1128,7 +1110,7 @@ var File_chatto_api_v1_admin_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_admin_proto_rawDesc = "" +
 	"\n" +
-	"\x19chatto/api/v1/admin.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"g\n" +
+	"\x19chatto/api/v1/admin.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"g\n" +
 	"\x12AdminVerifiedEmail\x12\x14\n" +
 	"\x05email\x18\x01 \x01(\tR\x05email\x12;\n" +
 	"\vverified_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
@@ -1141,16 +1123,13 @@ const file_chatto_api_v1_admin_proto_rawDesc = "" +
 	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x1d\n" +
 	"\n" +
 	"role_names\x18\x05 \x03(\tR\troleNames\x12J\n" +
-	"\x0fverified_emails\x18\x06 \x03(\v2!.chatto.api.v1.AdminVerifiedEmailR\x0everifiedEmails\"f\n" +
+	"\x0fverified_emails\x18\x06 \x03(\v2!.chatto.api.v1.AdminVerifiedEmailR\x0everifiedEmails\"\x83\x01\n" +
 	"\x15ListAdminUsersRequest\x12\x1f\n" +
-	"\x06search\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18dR\x06search\x12\x14\n" +
-	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n" +
-	"\x06offset\x18\x03 \x01(\x05R\x06offset\"\x84\x01\n" +
+	"\x06search\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18dR\x06search\x12.\n" +
+	"\x04page\x18\x04 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x05limitR\x06offset\"\x98\x01\n" +
 	"\x16ListAdminUsersResponse\x12.\n" +
-	"\x05users\x18\x01 \x03(\v2\x18.chatto.api.v1.AdminUserR\x05users\x12\x1f\n" +
-	"\vtotal_count\x18\x02 \x01(\x05R\n" +
-	"totalCount\x12\x19\n" +
-	"\bhas_more\x18\x03 \x01(\bR\ahasMore\"D\n" +
+	"\x05users\x18\x01 \x03(\v2\x18.chatto.api.v1.AdminUserR\x05users\x12+\n" +
+	"\x04page\x18\x04 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\vtotal_countR\bhas_more\"D\n" +
 	"\x13GetAdminUserRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\"D\n" +
@@ -1249,42 +1228,46 @@ var file_chatto_api_v1_admin_proto_goTypes = []any{
 	(*RevokeAdminUserRoleRequest)(nil),        // 18: chatto.api.v1.RevokeAdminUserRoleRequest
 	(*RevokeAdminUserRoleResponse)(nil),       // 19: chatto.api.v1.RevokeAdminUserRoleResponse
 	(*timestamppb.Timestamp)(nil),             // 20: google.protobuf.Timestamp
+	(*PageRequest)(nil),                       // 21: chatto.api.v1.PageRequest
+	(*PageInfo)(nil),                          // 22: chatto.api.v1.PageInfo
 }
 var file_chatto_api_v1_admin_proto_depIdxs = []int32{
 	20, // 0: chatto.api.v1.AdminVerifiedEmail.verified_at:type_name -> google.protobuf.Timestamp
 	20, // 1: chatto.api.v1.AdminUser.created_at:type_name -> google.protobuf.Timestamp
 	0,  // 2: chatto.api.v1.AdminUser.verified_emails:type_name -> chatto.api.v1.AdminVerifiedEmail
-	1,  // 3: chatto.api.v1.ListAdminUsersResponse.users:type_name -> chatto.api.v1.AdminUser
-	1,  // 4: chatto.api.v1.GetAdminUserResponse.user:type_name -> chatto.api.v1.AdminUser
-	1,  // 5: chatto.api.v1.CreateAdminUserResponse.user:type_name -> chatto.api.v1.AdminUser
-	1,  // 6: chatto.api.v1.UpdateAdminUserResponse.user:type_name -> chatto.api.v1.AdminUser
-	1,  // 7: chatto.api.v1.SetAdminUserPasswordResponse.user:type_name -> chatto.api.v1.AdminUser
-	1,  // 8: chatto.api.v1.AddAdminUserVerifiedEmailResponse.user:type_name -> chatto.api.v1.AdminUser
-	1,  // 9: chatto.api.v1.AssignAdminUserRoleResponse.user:type_name -> chatto.api.v1.AdminUser
-	1,  // 10: chatto.api.v1.RevokeAdminUserRoleResponse.user:type_name -> chatto.api.v1.AdminUser
-	2,  // 11: chatto.api.v1.AdminService.ListUsers:input_type -> chatto.api.v1.ListAdminUsersRequest
-	4,  // 12: chatto.api.v1.AdminService.GetUser:input_type -> chatto.api.v1.GetAdminUserRequest
-	6,  // 13: chatto.api.v1.AdminService.CreateUser:input_type -> chatto.api.v1.CreateAdminUserRequest
-	8,  // 14: chatto.api.v1.AdminService.UpdateUser:input_type -> chatto.api.v1.UpdateAdminUserRequest
-	10, // 15: chatto.api.v1.AdminService.SetUserPassword:input_type -> chatto.api.v1.SetAdminUserPasswordRequest
-	12, // 16: chatto.api.v1.AdminService.DeleteUser:input_type -> chatto.api.v1.DeleteAdminUserRequest
-	14, // 17: chatto.api.v1.AdminService.AddUserVerifiedEmail:input_type -> chatto.api.v1.AddAdminUserVerifiedEmailRequest
-	16, // 18: chatto.api.v1.AdminService.AssignUserRole:input_type -> chatto.api.v1.AssignAdminUserRoleRequest
-	18, // 19: chatto.api.v1.AdminService.RevokeUserRole:input_type -> chatto.api.v1.RevokeAdminUserRoleRequest
-	3,  // 20: chatto.api.v1.AdminService.ListUsers:output_type -> chatto.api.v1.ListAdminUsersResponse
-	5,  // 21: chatto.api.v1.AdminService.GetUser:output_type -> chatto.api.v1.GetAdminUserResponse
-	7,  // 22: chatto.api.v1.AdminService.CreateUser:output_type -> chatto.api.v1.CreateAdminUserResponse
-	9,  // 23: chatto.api.v1.AdminService.UpdateUser:output_type -> chatto.api.v1.UpdateAdminUserResponse
-	11, // 24: chatto.api.v1.AdminService.SetUserPassword:output_type -> chatto.api.v1.SetAdminUserPasswordResponse
-	13, // 25: chatto.api.v1.AdminService.DeleteUser:output_type -> chatto.api.v1.DeleteAdminUserResponse
-	15, // 26: chatto.api.v1.AdminService.AddUserVerifiedEmail:output_type -> chatto.api.v1.AddAdminUserVerifiedEmailResponse
-	17, // 27: chatto.api.v1.AdminService.AssignUserRole:output_type -> chatto.api.v1.AssignAdminUserRoleResponse
-	19, // 28: chatto.api.v1.AdminService.RevokeUserRole:output_type -> chatto.api.v1.RevokeAdminUserRoleResponse
-	20, // [20:29] is the sub-list for method output_type
-	11, // [11:20] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	21, // 3: chatto.api.v1.ListAdminUsersRequest.page:type_name -> chatto.api.v1.PageRequest
+	1,  // 4: chatto.api.v1.ListAdminUsersResponse.users:type_name -> chatto.api.v1.AdminUser
+	22, // 5: chatto.api.v1.ListAdminUsersResponse.page:type_name -> chatto.api.v1.PageInfo
+	1,  // 6: chatto.api.v1.GetAdminUserResponse.user:type_name -> chatto.api.v1.AdminUser
+	1,  // 7: chatto.api.v1.CreateAdminUserResponse.user:type_name -> chatto.api.v1.AdminUser
+	1,  // 8: chatto.api.v1.UpdateAdminUserResponse.user:type_name -> chatto.api.v1.AdminUser
+	1,  // 9: chatto.api.v1.SetAdminUserPasswordResponse.user:type_name -> chatto.api.v1.AdminUser
+	1,  // 10: chatto.api.v1.AddAdminUserVerifiedEmailResponse.user:type_name -> chatto.api.v1.AdminUser
+	1,  // 11: chatto.api.v1.AssignAdminUserRoleResponse.user:type_name -> chatto.api.v1.AdminUser
+	1,  // 12: chatto.api.v1.RevokeAdminUserRoleResponse.user:type_name -> chatto.api.v1.AdminUser
+	2,  // 13: chatto.api.v1.AdminService.ListUsers:input_type -> chatto.api.v1.ListAdminUsersRequest
+	4,  // 14: chatto.api.v1.AdminService.GetUser:input_type -> chatto.api.v1.GetAdminUserRequest
+	6,  // 15: chatto.api.v1.AdminService.CreateUser:input_type -> chatto.api.v1.CreateAdminUserRequest
+	8,  // 16: chatto.api.v1.AdminService.UpdateUser:input_type -> chatto.api.v1.UpdateAdminUserRequest
+	10, // 17: chatto.api.v1.AdminService.SetUserPassword:input_type -> chatto.api.v1.SetAdminUserPasswordRequest
+	12, // 18: chatto.api.v1.AdminService.DeleteUser:input_type -> chatto.api.v1.DeleteAdminUserRequest
+	14, // 19: chatto.api.v1.AdminService.AddUserVerifiedEmail:input_type -> chatto.api.v1.AddAdminUserVerifiedEmailRequest
+	16, // 20: chatto.api.v1.AdminService.AssignUserRole:input_type -> chatto.api.v1.AssignAdminUserRoleRequest
+	18, // 21: chatto.api.v1.AdminService.RevokeUserRole:input_type -> chatto.api.v1.RevokeAdminUserRoleRequest
+	3,  // 22: chatto.api.v1.AdminService.ListUsers:output_type -> chatto.api.v1.ListAdminUsersResponse
+	5,  // 23: chatto.api.v1.AdminService.GetUser:output_type -> chatto.api.v1.GetAdminUserResponse
+	7,  // 24: chatto.api.v1.AdminService.CreateUser:output_type -> chatto.api.v1.CreateAdminUserResponse
+	9,  // 25: chatto.api.v1.AdminService.UpdateUser:output_type -> chatto.api.v1.UpdateAdminUserResponse
+	11, // 26: chatto.api.v1.AdminService.SetUserPassword:output_type -> chatto.api.v1.SetAdminUserPasswordResponse
+	13, // 27: chatto.api.v1.AdminService.DeleteUser:output_type -> chatto.api.v1.DeleteAdminUserResponse
+	15, // 28: chatto.api.v1.AdminService.AddUserVerifiedEmail:output_type -> chatto.api.v1.AddAdminUserVerifiedEmailResponse
+	17, // 29: chatto.api.v1.AdminService.AssignUserRole:output_type -> chatto.api.v1.AssignAdminUserRoleResponse
+	19, // 30: chatto.api.v1.AdminService.RevokeUserRole:output_type -> chatto.api.v1.RevokeAdminUserRoleResponse
+	22, // [22:31] is the sub-list for method output_type
+	13, // [13:22] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_admin_proto_init() }
@@ -1292,6 +1275,7 @@ func file_chatto_api_v1_admin_proto_init() {
 	if File_chatto_api_v1_admin_proto != nil {
 		return
 	}
+	file_chatto_api_v1_pagination_proto_init()
 	file_chatto_api_v1_admin_proto_msgTypes[8].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

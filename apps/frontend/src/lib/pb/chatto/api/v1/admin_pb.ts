@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { PageInfo, PageRequest } from "./pagination_pb.js";
 
 /**
  * Verified email address attached to an administrative user view.
@@ -151,18 +152,11 @@ export class ListAdminUsersRequest extends Message<ListAdminUsersRequest> {
   search = "";
 
   /**
-   * Maximum number of users to return. Defaults to 20 and is clamped to 100.
+   * Page request. Defaults to 20 results when absent or limit is zero.
    *
-   * @generated from field: int32 limit = 2;
+   * @generated from field: chatto.api.v1.PageRequest page = 4;
    */
-  limit = 0;
-
-  /**
-   * Zero-based result offset.
-   *
-   * @generated from field: int32 offset = 3;
-   */
-  offset = 0;
+  page?: PageRequest;
 
   constructor(data?: PartialMessage<ListAdminUsersRequest>) {
     super();
@@ -173,8 +167,7 @@ export class ListAdminUsersRequest extends Message<ListAdminUsersRequest> {
   static readonly typeName = "chatto.api.v1.ListAdminUsersRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "search", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "limit", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 3, name: "offset", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 4, name: "page", kind: "message", T: PageRequest },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListAdminUsersRequest {
@@ -208,18 +201,11 @@ export class ListAdminUsersResponse extends Message<ListAdminUsersResponse> {
   users: AdminUser[] = [];
 
   /**
-   * Total number of matching users before pagination.
+   * Page metadata.
    *
-   * @generated from field: int32 total_count = 2;
+   * @generated from field: chatto.api.v1.PageInfo page = 4;
    */
-  totalCount = 0;
-
-  /**
-   * True when another page is available.
-   *
-   * @generated from field: bool has_more = 3;
-   */
-  hasMore = false;
+  page?: PageInfo;
 
   constructor(data?: PartialMessage<ListAdminUsersResponse>) {
     super();
@@ -230,8 +216,7 @@ export class ListAdminUsersResponse extends Message<ListAdminUsersResponse> {
   static readonly typeName = "chatto.api.v1.ListAdminUsersResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "users", kind: "message", T: AdminUser, repeated: true },
-    { no: 2, name: "total_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 3, name: "has_more", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 4, name: "page", kind: "message", T: PageInfo },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListAdminUsersResponse {

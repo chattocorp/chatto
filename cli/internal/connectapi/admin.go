@@ -14,19 +14,24 @@ type adminService struct {
 	api *API
 }
 
+const (
+	defaultAdminUserLimit = 20
+	maxAdminUserLimit     = 100
+)
+
 func (s *adminService) ListUsers(ctx context.Context, req *connect.Request[apiv1.ListAdminUsersRequest]) (*connect.Response[apiv1.ListAdminUsersResponse], error) {
 	if _, err := requireAdminCaller(ctx); err != nil {
 		return nil, err
 	}
 
-	users, err := s.api.core.AdminListUsers(ctx, req.Msg.GetSearch(), int(req.Msg.GetLimit()), int(req.Msg.GetOffset()))
+	limit, offset := apiPagination(req.Msg.GetPage(), defaultAdminUserLimit, maxAdminUserLimit)
+	users, err := s.api.core.AdminListUsers(ctx, req.Msg.GetSearch(), limit, offset)
 	if err != nil {
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.ListAdminUsersResponse{
-		Users:      apiAdminUsers(users.Users),
-		TotalCount: int32(users.TotalCount),
-		HasMore:    users.HasMore,
+		Users: apiAdminUsers(users.Users),
+		Page:  apiPageInfo(users.TotalCount, users.HasMore),
 	}), nil
 }
 
