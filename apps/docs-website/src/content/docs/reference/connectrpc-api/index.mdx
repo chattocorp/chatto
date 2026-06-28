@@ -14,709 +14,6 @@ Endpoint paths use the Connect convention:
 
 Use this reference when building clients against Chatto's public ConnectRPC API.
 
-<a id="chatto-api-v1-AdminService"></a>
-
-## AdminService
-
-Operator-only administrative API for user lifecycle and bootstrap tasks.
-
-This service is disabled unless the server operator enables admin_api in
-configuration. It is served only on the dedicated Admin API listener and is
-never mounted on the public web listener. It accepts only configured Admin API
-tokens from each token's allowed CIDR ranges and performs mutations as the
-system actor.
-
-<a id="chatto-api-v1-AdminService-ListUsers"></a>
-
-### ListUsers
-
-Lists users visible to operator administration.
-
-```http
-POST /api/connect/chatto.api.v1.AdminService/ListUsers
-```
-
-<a id="chatto-api-v1-ListAdminUsersRequest"></a>
-
-#### Input: ListAdminUsersRequest
-
-Request to list users for operator administration.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `search` | `string` | Optional case-insensitive substring filter for login or display name. |
-| `limit` | `int32` | Maximum number of users to return. Defaults to 20 and is clamped to 100. |
-| `offset` | `int32` | Zero-based result offset. |
-
-
-<a id="chatto-api-v1-ListAdminUsersResponse"></a>
-
-#### Result: ListAdminUsersResponse
-
-Result of listing users for operator administration.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `users` | repeated [`AdminUser`](#chatto-api-v1-AdminUser) | Users in the requested page. |
-| `total_count` | `int32` | Total number of matching users before pagination. |
-| `has_more` | `bool` | True when another page is available. |
-
-
-<a id="chatto-api-v1-AdminService-GetUser"></a>
-
-### GetUser
-
-Fetches a single user by ID or login.
-
-```http
-POST /api/connect/chatto.api.v1.AdminService/GetUser
-```
-
-<a id="chatto-api-v1-GetAdminUserRequest"></a>
-
-#### Input: GetAdminUserRequest
-
-Request to fetch a single user by ID or login.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user_id` | `string` | User ID to fetch. Provide either user_id or login. |
-| `login` | `string` | Login to fetch. Provide either user_id or login. |
-
-
-<a id="chatto-api-v1-GetAdminUserResponse"></a>
-
-#### Result: GetAdminUserResponse
-
-Result of fetching a single administrative user view.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user` | [`AdminUser`](#chatto-api-v1-AdminUser) | Requested user. |
-
-
-<a id="chatto-api-v1-AdminService-CreateUser"></a>
-
-### CreateUser
-
-Creates a new user, optionally adding a verified email and roles.
-
-```http
-POST /api/connect/chatto.api.v1.AdminService/CreateUser
-```
-
-<a id="chatto-api-v1-CreateAdminUserRequest"></a>
-
-#### Input: CreateAdminUserRequest
-
-Request to create a user as an operator action.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `login` | `string` | Required login for the new user. |
-| `display_name` | `string` | Optional display name. Defaults to login when empty. |
-| `password` | `string` | Optional password. When present, it must satisfy server password policy. |
-| `verified_email` | `string` | Optional email to add as already verified. |
-| `role_names` | `repeated string` | Optional explicit server roles to assign after creation. |
-
-
-<a id="chatto-api-v1-CreateAdminUserResponse"></a>
-
-#### Result: CreateAdminUserResponse
-
-Result of creating a user as an operator action.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user` | [`AdminUser`](#chatto-api-v1-AdminUser) | Created user. |
-
-
-<a id="chatto-api-v1-AdminService-UpdateUser"></a>
-
-### UpdateUser
-
-Updates a user's login and/or display name.
-
-```http
-POST /api/connect/chatto.api.v1.AdminService/UpdateUser
-```
-
-<a id="chatto-api-v1-UpdateAdminUserRequest"></a>
-
-#### Input: UpdateAdminUserRequest
-
-Request to update a user's editable profile fields.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user_id` | `string` | Required user ID. |
-| `login` | `optional string` | Optional new login. |
-| `display_name` | `optional string` | Optional new display name. |
-
-
-<a id="chatto-api-v1-UpdateAdminUserResponse"></a>
-
-#### Result: UpdateAdminUserResponse
-
-Result of updating a user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user` | [`AdminUser`](#chatto-api-v1-AdminUser) | Updated user. |
-
-
-<a id="chatto-api-v1-AdminService-SetUserPassword"></a>
-
-### SetUserPassword
-
-Sets a user's password and revokes existing runtime credentials.
-
-```http
-POST /api/connect/chatto.api.v1.AdminService/SetUserPassword
-```
-
-<a id="chatto-api-v1-SetAdminUserPasswordRequest"></a>
-
-#### Input: SetAdminUserPasswordRequest
-
-Request to set a user's password as an operator action.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user_id` | `string` | Required user ID. |
-| `password` | `string` | New password. |
-
-
-<a id="chatto-api-v1-SetAdminUserPasswordResponse"></a>
-
-#### Result: SetAdminUserPasswordResponse
-
-Result of setting a user's password.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user` | [`AdminUser`](#chatto-api-v1-AdminUser) | Updated user. |
-
-
-<a id="chatto-api-v1-AdminService-DeleteUser"></a>
-
-### DeleteUser
-
-Permanently deletes a user account.
-
-```http
-POST /api/connect/chatto.api.v1.AdminService/DeleteUser
-```
-
-<a id="chatto-api-v1-DeleteAdminUserRequest"></a>
-
-#### Input: DeleteAdminUserRequest
-
-Request to permanently delete a user account.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user_id` | `string` | Required user ID. |
-
-
-<a id="chatto-api-v1-DeleteAdminUserResponse"></a>
-
-#### Result: DeleteAdminUserResponse
-
-Result of permanently deleting a user account.
-
-
-<a id="chatto-api-v1-AdminService-AddUserVerifiedEmail"></a>
-
-### AddUserVerifiedEmail
-
-Adds an already-verified email address to a user.
-
-```http
-POST /api/connect/chatto.api.v1.AdminService/AddUserVerifiedEmail
-```
-
-<a id="chatto-api-v1-AddAdminUserVerifiedEmailRequest"></a>
-
-#### Input: AddAdminUserVerifiedEmailRequest
-
-Request to add a verified email address to a user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user_id` | `string` | Required user ID. |
-| `email` | `string` | Email address to mark as verified. |
-
-
-<a id="chatto-api-v1-AddAdminUserVerifiedEmailResponse"></a>
-
-#### Result: AddAdminUserVerifiedEmailResponse
-
-Result of adding a verified email address.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user` | [`AdminUser`](#chatto-api-v1-AdminUser) | Updated user. |
-
-
-<a id="chatto-api-v1-AdminService-AssignUserRole"></a>
-
-### AssignUserRole
-
-Assigns a server role to a user.
-
-```http
-POST /api/connect/chatto.api.v1.AdminService/AssignUserRole
-```
-
-<a id="chatto-api-v1-AssignAdminUserRoleRequest"></a>
-
-#### Input: AssignAdminUserRoleRequest
-
-Request to assign a server role to a user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user_id` | `string` | Required user ID. |
-| `role_name` | `string` | Role name to assign. |
-
-
-<a id="chatto-api-v1-AssignAdminUserRoleResponse"></a>
-
-#### Result: AssignAdminUserRoleResponse
-
-Result of assigning a server role.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user` | [`AdminUser`](#chatto-api-v1-AdminUser) | Updated user. |
-
-
-<a id="chatto-api-v1-AdminService-RevokeUserRole"></a>
-
-### RevokeUserRole
-
-Revokes a server role from a user.
-
-```http
-POST /api/connect/chatto.api.v1.AdminService/RevokeUserRole
-```
-
-<a id="chatto-api-v1-RevokeAdminUserRoleRequest"></a>
-
-#### Input: RevokeAdminUserRoleRequest
-
-Request to revoke a server role from a user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user_id` | `string` | Required user ID. |
-| `role_name` | `string` | Role name to revoke. |
-
-
-<a id="chatto-api-v1-RevokeAdminUserRoleResponse"></a>
-
-#### Result: RevokeAdminUserRoleResponse
-
-Result of revoking a server role.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user` | [`AdminUser`](#chatto-api-v1-AdminUser) | Updated user. |
-
-
-<a id="chatto-api-v1-RoomTimelineService"></a>
-
-## RoomTimelineService
-
-Reads room and thread timeline pages.
-
-<a id="chatto-api-v1-RoomTimelineService-GetRoomEvents"></a>
-
-### GetRoomEvents
-
-Returns one page of room timeline events, including related user data needed
-to render the page.
-
-```http
-POST /api/connect/chatto.api.v1.RoomTimelineService/GetRoomEvents
-```
-
-<a id="chatto-api-v1-GetRoomEventsRequest"></a>
-
-#### Input: GetRoomEventsRequest
-
-Request for a page of room timeline events.
-
-Omit the cursor to load the initial page. Set before to page toward older
-events, or after to page toward newer events.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room whose timeline should be loaded. |
-| `limit` | `int32` | Maximum number of events to return. The server may clamp very large limits. |
-| `cursor.before` | `string` | Return events older than this cursor. |
-| `cursor.after` | `string` | Return events newer than this cursor. |
-
-
-<a id="chatto-api-v1-GetRoomEventsResponse"></a>
-
-#### Result: GetRoomEventsResponse
-
-Response containing one room timeline page.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `page` | [`RoomTimelinePage`](#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
-
-
-<a id="chatto-api-v1-RoomTimelineService-GetRoomEventsAround"></a>
-
-### GetRoomEventsAround
-
-Returns a room timeline window centered around a specific event. Use this to
-open a permalink, search result, or notification target in context.
-
-```http
-POST /api/connect/chatto.api.v1.RoomTimelineService/GetRoomEventsAround
-```
-
-<a id="chatto-api-v1-GetRoomEventsAroundRequest"></a>
-
-#### Input: GetRoomEventsAroundRequest
-
-Request for room timeline events around a specific event.
-
-Use this when a client needs to jump to a known event and render enough
-context around it.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room whose timeline should be loaded. |
-| `event_id` | `string` | Required. Anchor event ID that should appear in the returned page. |
-| `limit` | `int32` | Maximum number of events to return around the anchor. |
-
-
-<a id="chatto-api-v1-GetRoomEventsAroundResponse"></a>
-
-#### Result: GetRoomEventsAroundResponse
-
-Response containing a room timeline window around a specific event.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `page` | [`RoomTimelinePage`](#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
-| `target_index` | `int32` | Zero-based index of the anchor event within page.events. |
-
-
-<a id="chatto-api-v1-RoomTimelineService-GetThreadEvents"></a>
-
-### GetThreadEvents
-
-Returns one page of events in a message thread. Initial pages include the
-thread root message; cursor pages return replies in the requested direction.
-
-```http
-POST /api/connect/chatto.api.v1.RoomTimelineService/GetThreadEvents
-```
-
-<a id="chatto-api-v1-GetThreadEventsRequest"></a>
-
-#### Input: GetThreadEventsRequest
-
-Request for a page of events in one thread.
-
-Omit the cursor to load the latest visible part of the thread, including the
-root message. Set before to page toward older replies, or after to page toward
-newer replies without repeating the root message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the thread. |
-| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
-| `limit` | `int32` | Maximum number of events to return. The server may clamp very large limits. |
-| `cursor.before` | `string` | Return thread events older than this cursor. |
-| `cursor.after` | `string` | Return thread events newer than this cursor. |
-
-
-<a id="chatto-api-v1-GetThreadEventsResponse"></a>
-
-#### Result: GetThreadEventsResponse
-
-Response containing one thread timeline page.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `page` | [`RoomTimelinePage`](#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
-
-
-<a id="chatto-api-v1-RoomTimelineService-GetThreadEventsAround"></a>
-
-### GetThreadEventsAround
-
-Returns a thread timeline window centered around a specific event. Use this
-to open a reply from a notification or search result in context.
-
-```http
-POST /api/connect/chatto.api.v1.RoomTimelineService/GetThreadEventsAround
-```
-
-<a id="chatto-api-v1-GetThreadEventsAroundRequest"></a>
-
-#### Input: GetThreadEventsAroundRequest
-
-Request for thread events around a specific event.
-
-Use this when a client needs to jump to a known reply and render surrounding
-thread context.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the thread. |
-| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
-| `event_id` | `string` | Required. Anchor event ID inside the thread. The event should belong to the requested thread. |
-| `limit` | `int32` | Maximum number of events to return around the anchor. |
-
-
-<a id="chatto-api-v1-GetThreadEventsAroundResponse"></a>
-
-#### Result: GetThreadEventsAroundResponse
-
-Response containing a thread timeline window around a specific event.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `page` | [`RoomTimelinePage`](#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
-| `target_index` | `int32` | Zero-based index of the anchor event within page.events. |
-
-
-<a id="chatto-api-v1-MessageService"></a>
-
-## MessageService
-
-Posts messages into room and thread timelines.
-
-<a id="chatto-api-v1-MessageService-PostMessage"></a>
-
-### PostMessage
-
-Posts a message for the current user. The user must be a room member and
-must have message.post for room messages or message.post-in-thread for
-thread replies. Echoing a thread reply also requires message.echo and
-message.post.
-
-```http
-POST /api/connect/chatto.api.v1.MessageService/PostMessage
-```
-
-<a id="chatto-api-v1-PostMessageRequest"></a>
-
-#### Input: PostMessageRequest
-
-Request to post a message in a room or thread.
-
-Current browser file uploads still use the legacy GraphQL upload path. This
-request can reference attachment asset IDs that were already declared through
-an upload-capable API, so non-browser clients can compose messages around
-existing room-scoped assets.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room where the message should be posted. |
-| `body` | `string` | Message body text. Required unless attachment_asset_ids is non-empty. |
-| `attachment_asset_ids` | `repeated string` | Existing room-scoped attachment asset IDs to include with the message. |
-| `thread_root_event_id` | `string` | Event ID of the thread root message when posting a thread reply. |
-| `in_reply_to` | `string` | Event ID this message replies to for attribution. |
-| `also_send_to_channel` | `bool` | True to also echo a thread reply into the main room timeline. |
-| `mention_confirmation_token` | `string` | Short-lived token returned by a prior mention confirmation challenge. |
-| `link_preview` | [`MessageLinkPreviewInput`](#chatto-api-v1-MessageLinkPreviewInput) | Link preview selected by the client. |
-
-
-<a id="chatto-api-v1-PostMessageResponse"></a>
-
-#### Result: PostMessageResponse
-
-Result of posting a message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `result.event` | [`RoomTimelineEvent`](#chatto-api-v1-RoomTimelineEvent) | Renderable timeline event for the posted message. |
-| `result.mention_confirmation` | [`MentionConfirmationChallenge`](#chatto-api-v1-MentionConfirmationChallenge) | Challenge shown when a message would notify many people. |
-| `includes` | [`RoomTimelineIncludes`](#chatto-api-v1-RoomTimelineIncludes) | Related entities needed to render event when a message was posted. |
-
-
-<a id="chatto-api-v1-MessageService-UpdateMessage"></a>
-
-### UpdateMessage
-
-Edits a message body. Authors can edit their own messages within the edit
-window. Non-authors need message.manage and cannot change channel echo
-state.
-
-```http
-POST /api/connect/chatto.api.v1.MessageService/UpdateMessage
-```
-
-<a id="chatto-api-v1-UpdateMessageRequest"></a>
-
-#### Input: UpdateMessageRequest
-
-Request to edit a message body.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the message. |
-| `event_id` | `string` | Required. Event ID of the message to edit. |
-| `body` | `string` | New message body text. |
-| `also_send_to_channel` | `optional bool` | For thread replies, whether a channel echo should exist after saving. Omit to preserve the current echo state. |
-
-
-<a id="chatto-api-v1-UpdateMessageResponse"></a>
-
-#### Result: UpdateMessageResponse
-
-Result of editing a message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `updated` | `bool` | True when the edit was accepted. |
-
-
-<a id="chatto-api-v1-MessageService-DeleteMessage"></a>
-
-### DeleteMessage
-
-Retracts a message. Authors can delete their own messages. Non-authors need
-message.manage.
-
-```http
-POST /api/connect/chatto.api.v1.MessageService/DeleteMessage
-```
-
-<a id="chatto-api-v1-DeleteMessageRequest"></a>
-
-#### Input: DeleteMessageRequest
-
-Request to retract a message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the message. |
-| `event_id` | `string` | Required. Event ID of the message to retract. |
-
-
-<a id="chatto-api-v1-DeleteMessageResponse"></a>
-
-#### Result: DeleteMessageResponse
-
-Result of retracting a message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `deleted` | `bool` | True when the delete/retract request was accepted. |
-
-
-<a id="chatto-api-v1-MessageService-DeleteAttachment"></a>
-
-### DeleteAttachment
-
-Removes one attachment from the author's own message.
-
-```http
-POST /api/connect/chatto.api.v1.MessageService/DeleteAttachment
-```
-
-<a id="chatto-api-v1-DeleteAttachmentRequest"></a>
-
-#### Input: DeleteAttachmentRequest
-
-Request to remove one attachment from a message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the message. |
-| `event_id` | `string` | Required. Event ID of the message containing the attachment. |
-| `attachment_id` | `string` | Required. Attachment ID to remove from the message. |
-
-
-<a id="chatto-api-v1-DeleteAttachmentResponse"></a>
-
-#### Result: DeleteAttachmentResponse
-
-Result of removing one attachment from a message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `deleted` | `bool` | True when the attachment removal was accepted. |
-
-
-<a id="chatto-api-v1-MessageService-DeleteLinkPreview"></a>
-
-### DeleteLinkPreview
-
-Removes the accepted link preview from the author's own message.
-
-```http
-POST /api/connect/chatto.api.v1.MessageService/DeleteLinkPreview
-```
-
-<a id="chatto-api-v1-DeleteLinkPreviewRequest"></a>
-
-#### Input: DeleteLinkPreviewRequest
-
-Request to remove the accepted link preview from a message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the message. |
-| `event_id` | `string` | Required. Event ID of the message containing the link preview. |
-| `url` | `string` | Required. URL of the link preview to remove. |
-
-
-<a id="chatto-api-v1-DeleteLinkPreviewResponse"></a>
-
-#### Result: DeleteLinkPreviewResponse
-
-Result of removing a link preview from a message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `deleted` | `bool` | True when the link preview removal was accepted. |
-
-
-<a id="chatto-api-v1-MessageService-SendTypingIndicator"></a>
-
-### SendTypingIndicator
-
-Publishes a live-only typing indicator. Room membership is required; message
-posting permission is not.
-
-```http
-POST /api/connect/chatto.api.v1.MessageService/SendTypingIndicator
-```
-
-<a id="chatto-api-v1-SendTypingIndicatorRequest"></a>
-
-#### Input: SendTypingIndicatorRequest
-
-Request to publish a live-only typing indicator.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room where the current user is typing. |
-| `thread_root_event_id` | `string` | Event ID of the thread root when typing inside a thread. |
-
-
-<a id="chatto-api-v1-SendTypingIndicatorResponse"></a>
-
-#### Result: SendTypingIndicatorResponse
-
-Result of publishing a typing indicator.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `sent` | `bool` | True when the typing indicator was accepted for publish. |
-
 <a id="chatto-api-v1-NotificationPreferencesService"></a>
 
 ## NotificationPreferencesService
@@ -1206,6 +503,317 @@ Result of deleting the authenticated account.
 | Field | Type | Description |
 | --- | --- | --- |
 | `deleted` | `bool` | True when the account was deleted. |
+
+
+<a id="chatto-api-v1-AdminService"></a>
+
+## AdminService
+
+Operator-only administrative API for user lifecycle and bootstrap tasks.
+
+This service is disabled unless the server operator enables admin_api in
+configuration. It is served only on the dedicated Admin API listener and is
+never mounted on the public web listener. It accepts only configured Admin API
+tokens from each token's allowed CIDR ranges and performs mutations as the
+system actor.
+
+<a id="chatto-api-v1-AdminService-ListUsers"></a>
+
+### ListUsers
+
+Lists users visible to operator administration.
+
+```http
+POST /api/connect/chatto.api.v1.AdminService/ListUsers
+```
+
+<a id="chatto-api-v1-ListAdminUsersRequest"></a>
+
+#### Input: ListAdminUsersRequest
+
+Request to list users for operator administration.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `search` | `string` | Optional case-insensitive substring filter for login or display name. |
+| `limit` | `int32` | Maximum number of users to return. Defaults to 20 and is clamped to 100. |
+| `offset` | `int32` | Zero-based result offset. |
+
+
+<a id="chatto-api-v1-ListAdminUsersResponse"></a>
+
+#### Result: ListAdminUsersResponse
+
+Result of listing users for operator administration.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `users` | repeated [`AdminUser`](#chatto-api-v1-AdminUser) | Users in the requested page. |
+| `total_count` | `int32` | Total number of matching users before pagination. |
+| `has_more` | `bool` | True when another page is available. |
+
+
+<a id="chatto-api-v1-AdminService-GetUser"></a>
+
+### GetUser
+
+Fetches a single user by ID or login.
+
+```http
+POST /api/connect/chatto.api.v1.AdminService/GetUser
+```
+
+<a id="chatto-api-v1-GetAdminUserRequest"></a>
+
+#### Input: GetAdminUserRequest
+
+Request to fetch a single user by ID or login.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | User ID to fetch. Provide either user_id or login. |
+| `login` | `string` | Login to fetch. Provide either user_id or login. |
+
+
+<a id="chatto-api-v1-GetAdminUserResponse"></a>
+
+#### Result: GetAdminUserResponse
+
+Result of fetching a single administrative user view.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`AdminUser`](#chatto-api-v1-AdminUser) | Requested user. |
+
+
+<a id="chatto-api-v1-AdminService-CreateUser"></a>
+
+### CreateUser
+
+Creates a new user, optionally adding a verified email and roles.
+
+```http
+POST /api/connect/chatto.api.v1.AdminService/CreateUser
+```
+
+<a id="chatto-api-v1-CreateAdminUserRequest"></a>
+
+#### Input: CreateAdminUserRequest
+
+Request to create a user as an operator action.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `login` | `string` | Required login for the new user. |
+| `display_name` | `string` | Optional display name. Defaults to login when empty. |
+| `password` | `string` | Optional password. When present, it must satisfy server password policy. |
+| `verified_email` | `string` | Optional email to add as already verified. |
+| `role_names` | `repeated string` | Optional explicit server roles to assign after creation. |
+
+
+<a id="chatto-api-v1-CreateAdminUserResponse"></a>
+
+#### Result: CreateAdminUserResponse
+
+Result of creating a user as an operator action.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`AdminUser`](#chatto-api-v1-AdminUser) | Created user. |
+
+
+<a id="chatto-api-v1-AdminService-UpdateUser"></a>
+
+### UpdateUser
+
+Updates a user's login and/or display name.
+
+```http
+POST /api/connect/chatto.api.v1.AdminService/UpdateUser
+```
+
+<a id="chatto-api-v1-UpdateAdminUserRequest"></a>
+
+#### Input: UpdateAdminUserRequest
+
+Request to update a user's editable profile fields.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Required user ID. |
+| `login` | `optional string` | Optional new login. |
+| `display_name` | `optional string` | Optional new display name. |
+
+
+<a id="chatto-api-v1-UpdateAdminUserResponse"></a>
+
+#### Result: UpdateAdminUserResponse
+
+Result of updating a user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`AdminUser`](#chatto-api-v1-AdminUser) | Updated user. |
+
+
+<a id="chatto-api-v1-AdminService-SetUserPassword"></a>
+
+### SetUserPassword
+
+Sets a user's password and revokes existing runtime credentials.
+
+```http
+POST /api/connect/chatto.api.v1.AdminService/SetUserPassword
+```
+
+<a id="chatto-api-v1-SetAdminUserPasswordRequest"></a>
+
+#### Input: SetAdminUserPasswordRequest
+
+Request to set a user's password as an operator action.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Required user ID. |
+| `password` | `string` | New password. |
+
+
+<a id="chatto-api-v1-SetAdminUserPasswordResponse"></a>
+
+#### Result: SetAdminUserPasswordResponse
+
+Result of setting a user's password.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`AdminUser`](#chatto-api-v1-AdminUser) | Updated user. |
+
+
+<a id="chatto-api-v1-AdminService-DeleteUser"></a>
+
+### DeleteUser
+
+Permanently deletes a user account.
+
+```http
+POST /api/connect/chatto.api.v1.AdminService/DeleteUser
+```
+
+<a id="chatto-api-v1-DeleteAdminUserRequest"></a>
+
+#### Input: DeleteAdminUserRequest
+
+Request to permanently delete a user account.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Required user ID. |
+
+
+<a id="chatto-api-v1-DeleteAdminUserResponse"></a>
+
+#### Result: DeleteAdminUserResponse
+
+Result of permanently deleting a user account.
+
+
+<a id="chatto-api-v1-AdminService-AddUserVerifiedEmail"></a>
+
+### AddUserVerifiedEmail
+
+Adds an already-verified email address to a user.
+
+```http
+POST /api/connect/chatto.api.v1.AdminService/AddUserVerifiedEmail
+```
+
+<a id="chatto-api-v1-AddAdminUserVerifiedEmailRequest"></a>
+
+#### Input: AddAdminUserVerifiedEmailRequest
+
+Request to add a verified email address to a user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Required user ID. |
+| `email` | `string` | Email address to mark as verified. |
+
+
+<a id="chatto-api-v1-AddAdminUserVerifiedEmailResponse"></a>
+
+#### Result: AddAdminUserVerifiedEmailResponse
+
+Result of adding a verified email address.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`AdminUser`](#chatto-api-v1-AdminUser) | Updated user. |
+
+
+<a id="chatto-api-v1-AdminService-AssignUserRole"></a>
+
+### AssignUserRole
+
+Assigns a server role to a user.
+
+```http
+POST /api/connect/chatto.api.v1.AdminService/AssignUserRole
+```
+
+<a id="chatto-api-v1-AssignAdminUserRoleRequest"></a>
+
+#### Input: AssignAdminUserRoleRequest
+
+Request to assign a server role to a user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Required user ID. |
+| `role_name` | `string` | Role name to assign. |
+
+
+<a id="chatto-api-v1-AssignAdminUserRoleResponse"></a>
+
+#### Result: AssignAdminUserRoleResponse
+
+Result of assigning a server role.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`AdminUser`](#chatto-api-v1-AdminUser) | Updated user. |
+
+
+<a id="chatto-api-v1-AdminService-RevokeUserRole"></a>
+
+### RevokeUserRole
+
+Revokes a server role from a user.
+
+```http
+POST /api/connect/chatto.api.v1.AdminService/RevokeUserRole
+```
+
+<a id="chatto-api-v1-RevokeAdminUserRoleRequest"></a>
+
+#### Input: RevokeAdminUserRoleRequest
+
+Request to revoke a server role from a user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Required user ID. |
+| `role_name` | `string` | Role name to revoke. |
+
+
+<a id="chatto-api-v1-RevokeAdminUserRoleResponse"></a>
+
+#### Result: RevokeAdminUserRoleResponse
+
+Result of revoking a server role.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`AdminUser`](#chatto-api-v1-AdminUser) | Updated user. |
 
 
 <a id="chatto-api-v1-AdminDiagnosticsService"></a>
@@ -4766,6 +4374,36 @@ Profile fields returned after a self-service profile or avatar command.
 
 
 
+<a id="chatto-api-v1-AdminUser"></a>
+
+### AdminUser
+
+User record returned by the operator-only AdminService.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Stable user ID. |
+| `login` | `string` | Login name used for password sign-in and mentions. |
+| `display_name` | `string` | Display name shown in clients. |
+| `created_at` | `google.protobuf.Timestamp` | When the account was created, if known. |
+| `role_names` | `repeated string` | Explicit server roles assigned to the user. The implicit "everyone" role is not included. |
+| `verified_emails` | repeated [`AdminVerifiedEmail`](#chatto-api-v1-AdminVerifiedEmail) | Verified email addresses attached to this user. |
+
+
+
+<a id="chatto-api-v1-AdminVerifiedEmail"></a>
+
+### AdminVerifiedEmail
+
+Verified email address attached to an administrative user view.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `email` | `string` | Verified email address. |
+| `verified_at` | `google.protobuf.Timestamp` | When the email address was verified. |
+
+
+
 <a id="chatto-api-v1-AdminAccountInfo"></a>
 
 ### AdminAccountInfo
@@ -5200,36 +4838,6 @@ Role summary used by member list filters and badges.
 | --- | --- | --- |
 | `name` | `string` | Stable role name. |
 | `display_name` | `string` | Display name shown in admin UI. |
-
-
-
-<a id="chatto-api-v1-AdminUser"></a>
-
-### AdminUser
-
-User record returned by the operator-only AdminService.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user_id` | `string` | Stable user ID. |
-| `login` | `string` | Login name used for password sign-in and mentions. |
-| `display_name` | `string` | Display name shown in clients. |
-| `created_at` | `google.protobuf.Timestamp` | When the account was created, if known. |
-| `role_names` | `repeated string` | Explicit server roles assigned to the user. The implicit "everyone" role is not included. |
-| `verified_emails` | repeated [`AdminVerifiedEmail`](#chatto-api-v1-AdminVerifiedEmail) | Verified email addresses attached to this user. |
-
-
-
-<a id="chatto-api-v1-AdminVerifiedEmail"></a>
-
-### AdminVerifiedEmail
-
-Verified email address attached to an administrative user view.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `email` | `string` | Verified email address. |
-| `verified_at` | `google.protobuf.Timestamp` | When the email address was verified. |
 
 
 
@@ -6776,4 +6384,3 @@ Fit mode used when generating transformed user avatar URLs.
 | `USER_AVATAR_FIT_MODE_UNSPECIFIED` | `0` | The fit mode was not specified. |
 | `USER_AVATAR_FIT_MODE_CONTAIN` | `1` | Preserve the whole source image within the requested bounds. |
 | `USER_AVATAR_FIT_MODE_COVER` | `2` | Fill the requested bounds, cropping when needed. |
-
