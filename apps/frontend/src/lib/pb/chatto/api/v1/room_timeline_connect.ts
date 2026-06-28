@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetRoomEventsAroundRequest, GetRoomEventsAroundResponse, GetRoomEventsRequest, GetRoomEventsResponse, GetThreadEventsAroundRequest, GetThreadEventsAroundResponse, GetThreadEventsRequest, GetThreadEventsResponse } from "./room_timeline_pb.js";
+import { GetRoomEventsAroundRequest, GetRoomEventsAroundResponse, GetRoomEventsRequest, GetRoomEventsResponse, GetThreadEventsAroundRequest, GetThreadEventsAroundResponse, GetThreadEventsRequest, GetThreadEventsResponse, ResolveMessageLinkTargetRequest, ResolveMessageLinkTargetResponse } from "./room_timeline_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -36,6 +36,18 @@ export const RoomTimelineService = {
       name: "GetRoomEventsAround",
       I: GetRoomEventsAroundRequest,
       O: GetRoomEventsAroundResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Resolves a permalink target to either the room timeline or a message
+     * thread, including thread-only replies that are not room timeline rows.
+     *
+     * @generated from rpc chatto.api.v1.RoomTimelineService.ResolveMessageLinkTarget
+     */
+    resolveMessageLinkTarget: {
+      name: "ResolveMessageLinkTarget",
+      I: ResolveMessageLinkTargetRequest,
+      O: ResolveMessageLinkTargetResponse,
       kind: MethodKind.Unary,
     },
     /**

@@ -9,7 +9,7 @@ import {
 import { withServerUser } from './fixtures/serverUser';
 import { DMPage } from './pages/DMPage';
 import { RoomPage } from './pages/RoomPage';
-import { postMessageViaAPI } from './fixtures/graphqlHelpers';
+import { postMessageViaConnect } from './fixtures/connectHelpers';
 import * as routes from './routes';
 import { TIMEOUTS } from './constants';
 
@@ -315,8 +315,8 @@ test.describe('Direct Messages (room-shaped)', () => {
     test.setTimeout(60_000);
 
     // Admin context: also doubles as the DM partner so the regular user has
-    // a real DM to filter out. All admin-side setup goes through the GraphQL
-    // API to avoid the slow UI-driven path.
+    // a real DM to filter out. All admin-side setup goes through the API to
+    // avoid the slow UI-driven path.
     const adminUser = await loginAsAdmin(page);
 
     await withServerUser(browser, serverURL, async ({ page: regularPage, user: regularUser }) => {
@@ -328,7 +328,7 @@ test.describe('Direct Messages (room-shaped)', () => {
       });
       expect(startResp.ok()).toBe(true);
       const dmRoomId = (await startResp.json()).room.id as string;
-      await postMessageViaAPI(page, dmRoomId, 'seed');
+      await postMessageViaConnect(page, dmRoomId, 'seed');
 
       // Deny message.post BEFORE the regular user navigates. This should stop
       // starting/sending DMs, not reading an existing DM.

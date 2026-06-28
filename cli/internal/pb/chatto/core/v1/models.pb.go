@@ -77,7 +77,6 @@ func (RoomKind) EnumDescriptor() ([]byte, []int) {
 }
 
 // UserPresenceStatus indicates a user's online presence status.
-// Named to avoid conflict with the GraphQL PresenceStatus enum.
 // Note: OFFLINE is not stored - absence of a key means offline.
 type UserPresenceStatus int32
 
@@ -1207,11 +1206,11 @@ func (x *UserPresence) GetManuallySet() bool {
 }
 
 // PresenceChange represents a change in a user's presence status.
-// Used by GraphQL subscriptions - the `user` field is resolved separately.
+// Used by realtime delivery; profile details are resolved separately.
 type PresenceChange struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"` // GraphQL PresenceStatus enum value (ONLINE, OFFLINE, AWAY, DO_NOT_DISTURB)
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"` // Presence status value (ONLINE, OFFLINE, AWAY, DO_NOT_DISTURB)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1359,9 +1358,9 @@ type Attachment struct {
 	// If not set (nil), defaults to NATS ObjectStore for backwards compatibility.
 	Storage *DeprecatedAsset `protobuf:"bytes,9,opt,name=storage,proto3" json:"storage,omitempty"`
 	// Compound key (`{userId}.{bodyId}`) of the MessageBody that owns this
-	// attachment. Set when the body is written in PostMessage; also
-	// populated on read in the GraphQL resolver for legacy bodies that
-	// predate this field. Used to construct signed attachment URLs that
+	// attachment. Set when the body is written in PostMessage; also populated on
+	// read for legacy bodies that predate this field. Used to construct signed
+	// attachment URLs that
 	// the HTTP handler can verify and route without a separate index
 	// lookup. Empty for attachments that don't belong to a body (e.g.
 	// video variants and thumbnails, which carry their parent video's
@@ -1495,9 +1494,9 @@ type MessageBody struct {
 	EncryptionNonce []byte `protobuf:"bytes,21,opt,name=encryption_nonce,json=encryptionNonce,proto3" json:"encryption_nonce,omitempty"`
 	// Legacy embedded attachment protos. Older bodies (and the legacy
 	// import path) carry full Attachment records here. New bodies write
-	// asset_ids instead and the GraphQL resolver hydrates from the
-	// asset projection (see AssetCreatedEvent). Keep this field for decode
-	// until every historical body has been backfilled into the projection.
+	// asset_ids instead and API response mapping hydrates from the asset
+	// projection (see AssetCreatedEvent). Keep this field for decode until
+	// every historical body has been backfilled into the projection.
 	Attachments []*Attachment `protobuf:"bytes,30,rep,name=attachments,proto3" json:"attachments,omitempty"`
 	// Ordered list of asset IDs referenced by this message. Source of truth
 	// for new bodies; their content metadata + storage live on AssetRecord /
@@ -1627,8 +1626,8 @@ type LinkPreview struct {
 	Title       string `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
 	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	SiteName    string `protobuf:"bytes,4,opt,name=site_name,json=siteName,proto3" json:"site_name,omitempty"`
-	// Asset ID for the preview image. Kept for GraphQL/client compatibility;
-	// new previews also carry image_asset with storage metadata.
+	// Asset ID for the preview image. Kept for legacy client compatibility; new
+	// previews also carry image_asset with storage metadata.
 	ImageAssetId *string `protobuf:"bytes,5,opt,name=image_asset_id,json=imageAssetId,proto3,oneof" json:"image_asset_id,omitempty"`
 	// Embed type: "generic", "youtube", "vimeo", etc.
 	EmbedType string `protobuf:"bytes,6,opt,name=embed_type,json=embedType,proto3" json:"embed_type,omitempty"`

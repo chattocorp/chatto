@@ -26,16 +26,26 @@ message MessageLinkPreviewInput {
   string embed_id = 7;
 }
 
-// Request to post a message in a room or thread.
+// Attachment bytes submitted with a message post.
 //
-// Current browser file uploads still use the legacy GraphQL upload path. This
-// request can reference attachment asset IDs that were already declared through
-// an upload-capable API, so non-browser clients can compose messages around
-// existing room-scoped assets.
+// Each attachment is uploaded as a room-scoped asset before the message is
+// committed. The message service validates per-file limits and permissions.
+message MessageAttachmentUpload {
+  // Raw file bytes.
+  bytes content = 1;
+  // Original filename supplied by the client.
+  string filename = 2;
+  // MIME content type supplied by the client. Empty values are treated as
+  // application/octet-stream.
+  string content_type = 3;
+}
+
+// Request to post a message in a room or thread.
 message PostMessageRequest {
   // Required. Room where the message should be posted.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Message body text. Required unless attachment_asset_ids is non-empty.
+  // Message body text. Required unless attachments or attachment_asset_ids is
+  // non-empty.
   string body = 2;
   // Existing room-scoped attachment asset IDs to include with the message.
   repeated string attachment_asset_ids = 3;
@@ -49,6 +59,8 @@ message PostMessageRequest {
   string mention_confirmation_token = 7;
   // Link preview selected by the client.
   MessageLinkPreviewInput link_preview = 8;
+  // Browser-uploaded attachments to include with the message.
+  repeated MessageAttachmentUpload attachments = 9;
 }
 
 // Large mention confirmation details for a message that was not posted.

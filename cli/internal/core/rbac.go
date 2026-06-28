@@ -32,7 +32,7 @@ var (
 )
 
 // RoleWithPermissions represents a role with its grants and denials, used by
-// the GraphQL surface and admin tooling.
+// the public API and admin tooling.
 type RoleWithPermissions struct {
 	Name              string
 	DisplayName       string
@@ -627,7 +627,7 @@ func (c *ChattoCore) DeleteServerRole(ctx context.Context, actorID, name string)
 func (c *ChattoCore) ReorderServerRoles(ctx context.Context, actorID string, roleNames []string) ([]RoleWithPermissions, error) {
 	for _, name := range roleNames {
 		if IsSystemRole(name) {
-			return nil, fmt.Errorf("cannot reorder system role: %s", name)
+			return nil, fmt.Errorf("%w: cannot reorder system role: %s", ErrInvalidArgument, name)
 		}
 	}
 
@@ -641,13 +641,13 @@ func (c *ChattoCore) ReorderServerRoles(ctx context.Context, actorID string, rol
 			customRoles[role.GetName()] = struct{}{}
 		}
 		if len(roleNames) != len(customRoles) {
-			return fmt.Errorf("role reorder must include every custom role exactly once")
+			return fmt.Errorf("%w: role reorder must include every custom role exactly once", ErrInvalidArgument)
 		}
 
 		seen := make(map[string]struct{}, len(roleNames))
 		for _, name := range roleNames {
 			if _, ok := seen[name]; ok {
-				return fmt.Errorf("duplicate role in reorder: %s", name)
+				return fmt.Errorf("%w: duplicate role in reorder: %s", ErrInvalidArgument, name)
 			}
 			seen[name] = struct{}{}
 			if _, ok := customRoles[name]; !ok {

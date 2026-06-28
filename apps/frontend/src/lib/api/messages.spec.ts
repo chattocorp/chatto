@@ -143,7 +143,7 @@ describe('createMessageAPI', () => {
 			event: {
 				id: 'evt-1',
 				actor: { id: 'user-1', displayName: 'Alice' },
-				event: { __typename: 'MessagePostedEvent', body: 'hello' }
+				event: { kind: 'messagePosted', body: 'hello' }
 			}
 		});
 	});
@@ -172,6 +172,47 @@ describe('createMessageAPI', () => {
 			token: 'confirm-token'
 		});
 		expect(mocks.postMessage).toHaveBeenCalledWith(expect.anything(), { headers: undefined });
+	});
+
+	it('maps browser files to protobuf attachment uploads', async () => {
+		mocks.postMessage.mockResolvedValue(
+			new PostMessageResponse({
+				result: {
+					case: 'event',
+					value: new RoomTimelineEvent({
+						id: 'evt-attachment',
+						actorId: 'user-1',
+						event: {
+							case: 'messagePosted',
+							value: new RoomTimelineMessagePosted({
+								roomId: 'room-1',
+								body: 'with file'
+							})
+						}
+					})
+				}
+			})
+		);
+
+		const file = new File(['hello'], 'note.txt', { type: 'text/plain' });
+		const api = createMessageAPI({
+			baseUrl: 'https://remote.example.test/api/connect',
+			bearerToken: null
+		});
+
+		await api.postMessage({
+			roomId: 'room-1',
+			body: 'with file',
+			attachments: [file]
+		});
+
+		const request = mocks.postMessage.mock.calls[0][0];
+		expect(request.attachments).toHaveLength(1);
+		expect(request.attachments[0]).toMatchObject({
+			filename: 'note.txt',
+			contentType: 'text/plain'
+		});
+		expect(Array.from(request.attachments[0].content)).toEqual([104, 101, 108, 108, 111]);
 	});
 
 	it('marks the server authentication stale on unauthenticated Connect errors', async () => {

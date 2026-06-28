@@ -235,15 +235,17 @@ message RoomTimelineEvent {
 
 // Cursor page of room or thread timeline events.
 //
-// Use start_cursor and end_cursor with before/after requests to continue paging
-// in either direction. The has_older and has_newer flags tell clients whether
-// another request can extend the current window.
+// Use opaque start_cursor and end_cursor values with before/after requests to
+// continue paging in either direction. Clients must treat cursor values as
+// server-owned tokens and must not parse or construct them. The has_older and
+// has_newer flags tell clients whether another request can extend the current
+// window.
 message RoomTimelinePage {
   // Events in display order.
   repeated RoomTimelineEvent events = 1;
-  // Cursor for the first event in the page.
+  // Opaque cursor for the first event in the page.
   string start_cursor = 2;
-  // Cursor for the last event in the page.
+  // Opaque cursor for the last event in the page.
   string end_cursor = 3;
   // True when older events are available before start_cursor.
   bool has_older = 4;
@@ -255,8 +257,9 @@ message RoomTimelinePage {
 
 // Request for a page of room timeline events.
 //
-// Omit the cursor to load the initial page. Set before to page toward older
-// events, or after to page toward newer events.
+// Omit the cursor to load the initial page. Set before to a previously returned
+// start_cursor to page toward older events, or after to a previously returned
+// end_cursor to page toward newer events.
 message GetRoomEventsRequest {
   // Required. Room whose timeline should be loaded.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
@@ -264,9 +267,9 @@ message GetRoomEventsRequest {
   int32 limit = 2;
   // Cursor direction for paging.
   oneof cursor {
-    // Return events older than this cursor.
+    // Return events older than this opaque cursor.
     string before = 3;
-    // Return events newer than this cursor.
+    // Return events newer than this opaque cursor.
     string after = 4;
   }
 }
@@ -298,10 +301,33 @@ message GetRoomEventsAroundResponse {
   int32 target_index = 2;
 }
 
+// Request for resolving a message permalink target.
+//
+// Unlike GetRoomEventsAround, this can resolve thread-only replies that do not
+// appear as rows in the room timeline.
+message ResolveMessageLinkTargetRequest {
+  // Required. Room containing the linked event.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required. Linked event ID.
+  string event_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// Response describing where a message permalink should land.
+message ResolveMessageLinkTargetResponse {
+  // Linked event, hydrated with the same shape used by timeline pages.
+  RoomTimelineEvent event = 1;
+  // Event ID of the thread root when event is a thread-only reply. Empty when
+  // the event should open in the room timeline.
+  string thread_root_event_id = 2;
+  // Related entities needed to render the event.
+  RoomTimelineIncludes includes = 3;
+}
+
 // Request for a page of events in one thread.
 //
 // Omit the cursor to load the latest visible part of the thread, including the
-// root message. Set before to page toward older replies, or after to page toward
+// root message. Set before to a previously returned start_cursor to page toward
+// older replies, or after to a previously returned end_cursor to page toward
 // newer replies without repeating the root message.
 message GetThreadEventsRequest {
   // Required. Room containing the thread.
@@ -312,9 +338,9 @@ message GetThreadEventsRequest {
   int32 limit = 3;
   // Cursor direction for paging.
   oneof cursor {
-    // Return thread events older than this cursor.
+    // Return thread events older than this opaque cursor.
     string before = 4;
-    // Return thread events newer than this cursor.
+    // Return thread events newer than this opaque cursor.
     string after = 5;
   }
 }
@@ -357,6 +383,9 @@ service RoomTimelineService {
   // Returns a room timeline window centered around a specific event. Use this to
   // open a permalink, search result, or notification target in context.
   rpc GetRoomEventsAround(GetRoomEventsAroundRequest) returns (GetRoomEventsAroundResponse);
+  // Resolves a permalink target to either the room timeline or a message
+  // thread, including thread-only replies that are not room timeline rows.
+  rpc ResolveMessageLinkTarget(ResolveMessageLinkTargetRequest) returns (ResolveMessageLinkTargetResponse);
   // Returns one page of events in a message thread. Initial pages include the
   // thread root message; cursor pages return replies in the requested direction.
   rpc GetThreadEvents(GetThreadEventsRequest) returns (GetThreadEventsResponse);

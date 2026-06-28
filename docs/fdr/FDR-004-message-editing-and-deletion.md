@@ -18,14 +18,14 @@ Authors can edit and delete their own messages; users with `message.manage` can 
 - Editing or deleting a thread reply that was echoed to the channel propagates to both visible artifacts automatically through the echo's `echoOfEventId` link.
 - Deleting the echo artifact itself hides only the room-timeline echo. The original thread reply remains readable inside the thread.
 - Individual attachments and link previews can be removed from a message by the author without deleting the whole message.
-- GraphQL remains the legacy compatibility path. ConnectRPC `MessageService.UpdateMessage`, `DeleteMessage`, `DeleteAttachment`, and `DeleteLinkPreview` expose the same message-management behavior through the shared core `MessageModel`.
+- ConnectRPC `MessageService.UpdateMessage`, `DeleteMessage`, `DeleteAttachment`, and `DeleteLinkPreview` expose message-management behavior through the shared core `MessageModel`.
 
 ## Design Decisions
 
 ### 1. 3-hour edit window for authors
 
-**Decision:** Authors can edit their own messages only within 3 hours of posting. Moderators have no time limit. The 3-hour value is a Go constant (`core.MessageEditWindow`), exposed read-only over GraphQL as `Server.messageEditWindowSeconds`.
-**Why:** Edits long after the fact (days or weeks later) damage the integrity of the conversation log — readers who already responded would be reacting to text that no longer exists. A short window covers genuine typo-fix cases; the moderation perm covers everything else. Exposing the constant via GraphQL (rather than hardcoding it in the frontend) lets the UI align countdown timers and disable-edit thresholds with the server's actual enforcement.
+**Decision:** Authors can edit their own messages only within 3 hours of posting. Moderators have no time limit. The 3-hour value is a Go constant (`core.MessageEditWindow`) exposed read-only through the public server-state API.
+**Why:** Edits long after the fact (days or weeks later) damage the integrity of the conversation log — readers who already responded would be reacting to text that no longer exists. A short window covers genuine typo-fix cases; the moderation perm covers everything else. Exposing the constant through the API (rather than hardcoding it in the frontend) lets the UI align countdown timers and disable-edit thresholds with the server's actual enforcement.
 **Tradeoff:** Authors who notice a mistake a day later can't fix it themselves. They have to ask a moderator, or live with it. Operators who want a different window currently have to recompile — promoting it to a tunable server config is cheap if demand emerges.
 
 ### 2. Edit/delete changes are durable facts

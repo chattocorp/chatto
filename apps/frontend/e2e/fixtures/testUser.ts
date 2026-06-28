@@ -1,5 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { csrfHeaders } from './csrf';
+import { connectPost } from './connectHelpers';
 import { unloadPageForIdentitySwitch } from './navigation';
 
 export interface TestUser {
@@ -14,6 +15,68 @@ export interface TestUser {
  * Must match what's configured in e2e/fixtures/chatto.toml
  */
 const ADMIN_EMAIL = 'admin@e2e-test.example.com';
+
+interface ViewerResponse {
+  user?: {
+    id?: string;
+  };
+}
+
+interface ServerStateResponse {
+  profile?: {
+    name?: string;
+  };
+}
+
+interface PermissionMutationResponse {
+  ok?: boolean;
+}
+
+interface CreateRoleResponse {
+  role?: {
+    name?: string;
+  };
+}
+
+interface AssignRoleResponse {
+  assigned?: boolean;
+}
+
+interface RevokeRoleResponse {
+  revoked?: boolean;
+}
+
+async function setServerRolePermission(
+  page: Page,
+  roleName: string,
+  permission: string,
+  decision: 'PERMISSION_DECISION_ALLOW' | 'PERMISSION_DECISION_DENY' | 'PERMISSION_DECISION_NONE'
+): Promise<void> {
+  const data = await connectPost<PermissionMutationResponse>(
+    page,
+    'chatto.api.v1.PermissionService/SetRolePermission',
+    { roleName, permission, decision }
+  );
+  expect(data.ok).toBe(true);
+}
+
+async function assignRoleViaConnect(page: Page, userId: string, roleName: string): Promise<void> {
+  const data = await connectPost<AssignRoleResponse>(
+    page,
+    'chatto.api.v1.AdminUserManagementService/AssignRole',
+    { userId, roleName }
+  );
+  expect(data.assigned).toBe(true);
+}
+
+async function revokeRoleViaConnect(page: Page, userId: string, roleName: string): Promise<void> {
+  const data = await connectPost<RevokeRoleResponse>(
+    page,
+    'chatto.api.v1.AdminUserManagementService/RevokeRole',
+    { userId, roleName }
+  );
+  expect(data.revoked).toBe(true);
+}
 
 /**
  * Logs in as the bootstrap admin user.
@@ -40,20 +103,9 @@ export async function loginAsAdmin(page: Page): Promise<TestUser> {
 
   expect(loginResponse.ok()).toBeTruthy();
 
-  // Get the user ID from the viewer query
-  const meResponse = await page.request.post('/api/graphql', {
-    headers: {
-      'Content-Type': 'application/json',
-      'X-REQUEST-TYPE': 'GraphQL'
-    },
-    data: {
-      query: `query { viewer { user { id } } }`
-    }
-  });
-
-  expect(meResponse.ok()).toBeTruthy();
-  const meData = await meResponse.json();
-  adminUser.id = meData.data.viewer.user.id;
+  const viewer = await connectPost<ViewerResponse>(page, 'chatto.api.v1.ViewerService/GetViewer');
+  adminUser.id = viewer.user?.id;
+  expect(adminUser.id).toBeTruthy();
 
   return adminUser;
 }
@@ -80,22 +132,18 @@ export async function loginAsAdminAndUsePrimaryServer(
   page: Page
 ): Promise<{ id: string; name: string }> {
   await loginAsAdmin(page);
-  const resp = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `query { server { profile { name } } }`
-    }
-  });
-  expect(resp.ok()).toBeTruthy();
-  const data = await resp.json();
-  const instance = data.data?.server;
-  if (!instance) {
-    throw new Error('Server query returned no data — bootstrap profile likely broken');
+  const data = await connectPost<ServerStateResponse>(
+    page,
+    'chatto.api.v1.ServerStateService/GetServerState'
+  );
+  const serverName = data.profile?.name;
+  if (!serverName) {
+    throw new Error('Server state returned no profile name - bootstrap profile likely broken');
   }
   // Post-ADR-030 the kind discriminator stands in for legacy spaceId parameters.
   return {
     id: 'server',
-    name: instance.profile.name
+    name: serverName
   };
 }
 
@@ -116,23 +164,7 @@ export async function verifyAdminEmail(page: Page, userId: string): Promise<void
  * Must be called while logged in as an admin user.
  */
 export async function grantPermission(page: Page, role: string, permission: string): Promise<void> {
-  const response = await page.request.post('/api/graphql', {
-    headers: {
-      'Content-Type': 'application/json',
-      'X-REQUEST-TYPE': 'GraphQL'
-    },
-    data: {
-      query: `
-				mutation GrantInstancePermission($input: GrantPermissionInput!) { grantPermission(input: $input)
-				}
-			`,
-      variables: { input: { roleName: role, permission } }
-    }
-  });
-
-  expect(response.ok()).toBeTruthy();
-  const data = await response.json();
-  expect(data.data?.grantPermission).toBe(true);
+  await setServerRolePermission(page, role, permission, 'PERMISSION_DECISION_ALLOW');
 }
 
 /**
@@ -144,23 +176,12 @@ export async function revokePermission(
   role: string,
   permission: string
 ): Promise<void> {
-  const response = await page.request.post('/api/graphql', {
-    headers: {
-      'Content-Type': 'application/json',
-      'X-REQUEST-TYPE': 'GraphQL'
-    },
-    data: {
-      query: `
-				mutation RevokeInstancePermission($input: RevokePermissionInput!) { revokePermission(input: $input)
-				}
-			`,
-      variables: { input: { roleName: role, permission } }
-    }
-  });
-
-  expect(response.ok()).toBeTruthy();
-  const data = await response.json();
-  expect(data.data?.revokePermission).toBe(true);
+  const data = await connectPost<PermissionMutationResponse>(
+    page,
+    'chatto.api.v1.PermissionService/RevokeRolePermissionGrant',
+    { roleName: role, permission }
+  );
+  expect(data.ok).toBe(true);
 }
 
 /**
@@ -169,23 +190,7 @@ export async function revokePermission(
  * Must be called while logged in as an admin user.
  */
 export async function denyPermission(page: Page, role: string, permission: string): Promise<void> {
-  const response = await page.request.post('/api/graphql', {
-    headers: {
-      'Content-Type': 'application/json',
-      'X-REQUEST-TYPE': 'GraphQL'
-    },
-    data: {
-      query: `
-				mutation DenyInstancePermission($input: DenyPermissionInput!) { denyPermission(input: $input)
-				}
-			`,
-      variables: { input: { roleName: role, permission } }
-    }
-  });
-
-  expect(response.ok()).toBeTruthy();
-  const data = await response.json();
-  expect(data.data?.denyPermission).toBe(true);
+  await setServerRolePermission(page, role, permission, 'PERMISSION_DECISION_DENY');
 }
 
 /**
@@ -198,23 +203,7 @@ export async function clearInstancePermissionState(
   role: string,
   permission: string
 ): Promise<void> {
-  const response = await page.request.post('/api/graphql', {
-    headers: {
-      'Content-Type': 'application/json',
-      'X-REQUEST-TYPE': 'GraphQL'
-    },
-    data: {
-      query: `
-				mutation ClearServerPermissionState($input: ClearPermissionStateInput!) { clearPermissionState(input: $input)
-				}
-			`,
-      variables: { input: { roleName: role, permission } }
-    }
-  });
-
-  expect(response.ok()).toBeTruthy();
-  const data = await response.json();
-  expect(data.data?.clearPermissionState).toBe(true);
+  await setServerRolePermission(page, role, permission, 'PERMISSION_DECISION_NONE');
 }
 
 let denyRoleCounter = 0;
@@ -244,30 +233,17 @@ export async function denyUserPermission(
   const roleName = `deny${suffix}`;
   const displayName = `Deny ${permission} #${denyRoleCounter}`;
 
-  // Create role
-  const createResp = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation CreateRole($input: CreateRoleInput!) { createRole(input: $input) { name } }`,
-      variables: {
-        input: { name: roleName, displayName, description: `Auto-created to deny ${permission}` }
-      }
-    }
-  });
-  expect(createResp.ok()).toBeTruthy();
+  const created = await connectPost<CreateRoleResponse>(
+    page,
+    'chatto.api.v1.RoleService/CreateRole',
+    { name: roleName, displayName, description: `Auto-created to deny ${permission}` }
+  );
+  expect(created.role?.name).toBe(roleName);
 
   // Deny permission on role
   await denyPermission(page, roleName, permission);
 
-  // Assign role to user
-  const assignResp = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation AssignRole($input: AssignRoleInput!) { assignRole(input: $input) }`,
-      variables: { input: { userId, roleName } }
-    }
-  });
-  expect(assignResp.ok()).toBeTruthy();
+  await assignRoleViaConnect(page, userId, roleName);
 
   return roleName;
 }
@@ -288,14 +264,7 @@ export async function clearUserPermissionOverride(
     throw new Error('clearUserPermissionOverride requires roleName parameter');
   }
 
-  const resp = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation RevokeRole($input: RevokeRoleInput!) { revokeRole(input: $input) }`,
-      variables: { input: { userId, roleName } }
-    }
-  });
-  expect(resp.ok()).toBeTruthy();
+  await revokeRoleViaConnect(page, userId, roleName);
 }
 
 /**

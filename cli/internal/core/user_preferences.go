@@ -30,7 +30,7 @@ type UserSettingsInput struct {
 
 // GetUserSettings retrieves a user's settings from the config projection.
 // Returns nil, nil if no settings have been saved yet (the user hasn't configured any).
-// Authorization: Caller must verify access (self-only in GraphQL layer).
+// Authorization: Caller must verify access before calling this helper.
 func (c *ChattoCore) GetUserSettings(_ context.Context, userID string) (*corev1.ServerUserPreferences, error) {
 	if c.ServerConfig == nil {
 		return nil, nil
@@ -42,7 +42,7 @@ func (c *ChattoCore) GetUserSettings(_ context.Context, userID string) (*corev1.
 // UpdateUserSettings merges the provided fields into the user's existing settings.
 // Nil fields in the input are ignored (not cleared).
 // To clear the timezone override, pass a pointer to an empty string.
-// Authorization: Caller must verify access (self-only in GraphQL layer).
+// Authorization: Caller must verify access before calling this helper.
 func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, input UserSettingsInput) (*corev1.ServerUserPreferences, error) {
 	if c.configManager == nil || c.configManager.model == nil {
 		return nil, fmt.Errorf("config model not configured")

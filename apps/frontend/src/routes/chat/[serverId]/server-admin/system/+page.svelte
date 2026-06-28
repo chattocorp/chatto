@@ -1,104 +1,28 @@
 <script lang="ts">
-  import { graphql } from '$lib/gql';
-  import { useQuery } from '$lib/hooks';
+  import { onMount } from 'svelte';
+  import { getAdminSystemInfo, type AdminSystemInfo } from '$lib/api/adminDiagnostics';
   import { Panel, StatCard, DataTable, formatBytes, formatNumber } from '$lib/components/admin';
   import { Hint, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
+  import { useConnection } from '$lib/state/server/connection.svelte';
   import * as m from '$lib/i18n/messages';
 
-  const AdminSystemInfoQuery = graphql(`
-    query AdminSystemInfo {
-      admin {
-        systemInfo {
-          connection {
-            connected
-            serverId
-            serverName
-            version
-            maxPayload
-            rtt
-          }
-          account {
-            memory
-            memoryUsed
-            storage
-            storageUsed
-            streams
-            streamsUsed
-            consumers
-            consumersUsed
-          }
-          nats {
-            totalMessages
-            totalBytes
-            totalConsumerPending
-            totalAckPending
-            streams {
-              name
-              description
-              storage
-              messages
-              bytes
-              firstSequence
-              lastSequence
-              consumerCount
-              replicas
-              clusterLeader
-            }
-            consumers {
-              stream
-              name
-              durable
-              filterSubject
-              filterSubjects
-              ackPolicy
-              pullBased
-              pushBound
-              pending
-              ackPending
-              redelivered
-              waiting
-              deliveredConsumerSequence
-              deliveredStreamSequence
-              ackFloorConsumerSequence
-              ackFloorStreamSequence
-            }
-          }
-        }
-        projections {
-          name
-          started
-          startupDurationSeconds
-          lastAppliedSequence
-          matchingStreamSequence
-          streamLastSequence
-          lag
-          failed
-          failedSequence
-          failure
-          entryCount
-          estimatedBytes
-          averageEntryBytes
-        }
-      }
-    }
-  `);
+  const connection = useConnection();
 
-  const systemQuery = useQuery(AdminSystemInfoQuery, () => ({}));
+  let systemInfo = $state.raw<AdminSystemInfo | null>(null);
+  let loading = $state(true);
+  let error = $state<string | null>(null);
 
-  const systemInfo = $derived(systemQuery.data?.admin?.systemInfo ?? null);
   const streams = $derived(systemInfo?.nats.streams ?? []);
   const consumers = $derived(systemInfo?.nats.consumers ?? []);
   const projections = $derived(
-    [...(systemQuery.data?.admin?.projections ?? [])].sort((a, b) => {
+    [...(systemInfo?.projections ?? [])].sort((a, b) => {
       if (a.failed !== b.failed) return a.failed ? -1 : 1;
       if (a.estimatedBytes !== b.estimatedBytes) return b.estimatedBytes - a.estimatedBytes;
       return a.name.localeCompare(b.name);
     })
   );
-  const loading = $derived(systemQuery.loading);
-  const error = $derived(systemQuery.error ?? null);
   const totalEstimatedBytes = $derived(
     projections.reduce((sum, projection) => sum + projection.estimatedBytes, 0)
   );
@@ -138,6 +62,31 @@
       if (!largest || stream.bytes > largest.bytes) largest = stream;
     }
     return largest;
+  });
+
+  function apiConfig() {
+    const conn = connection();
+    return {
+      baseUrl: conn.connectBaseUrl,
+      bearerToken: conn.bearerToken
+    };
+  }
+
+  async function loadSystemInfo() {
+    loading = true;
+    error = null;
+    try {
+      systemInfo = await getAdminSystemInfo(apiConfig());
+    } catch (err) {
+      error = err instanceof Error ? err.message : String(err);
+      systemInfo = null;
+    } finally {
+      loading = false;
+    }
+  }
+
+  onMount(() => {
+    void loadSystemInfo();
   });
 
   function formatLimit(limit: number, formatter: (n: number) => string = String): string {

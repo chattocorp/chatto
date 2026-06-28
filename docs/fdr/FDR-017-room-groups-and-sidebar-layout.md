@@ -58,7 +58,7 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 
 **Decision:** Sidebar links are group-owned entries persisted as durable `evt.group.{groupId}.{eventType}` facts alongside room add/remove/reorder facts.
 **Why:** The sidebar already reads group membership and order from the group aggregate. Keeping external links in that aggregate gives one ordered list of sidebar items without introducing a second layout store or a parallel permission model.
-**Tradeoff:** A group reorder now talks about mixed sidebar entries rather than room IDs alone. The GraphQL API keeps the existing room-specific operations for compatibility and adds mixed-entry operations for link-aware clients.
+**Tradeoff:** A group reorder now talks about mixed sidebar entries rather than room IDs alone. The public API keeps room-specific operations and mixed-entry operations explicit for link-aware clients.
 
 ### 7. DMs are outside the group system
 
@@ -75,8 +75,8 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 ### 9. Room directory reads are available over ConnectRPC
 
 **Decision:** `RoomDirectoryService` is the protobuf-first read surface for room navigation: non-archived visible room lists, ordered room groups, mixed sidebar items, per-room viewer capability state, and the group join-all command.
-**Why:** The room lifecycle commands moved to ConnectRPC first, but clients still needed GraphQL for the room/sidebar data around those commands. Keeping the directory read model in ConnectRPC lets clients render navigation and action affordances without resolver-style per-room GraphQL fields.
-**Tradeoff:** The service repeats the existing GraphQL visibility contract instead of replacing GraphQL immediately. Both surfaces must stay aligned until the bundled web client fully migrates.
+**Why:** Clients need room/sidebar data around lifecycle commands. Keeping the directory read model in ConnectRPC lets clients render navigation and action affordances through one protobuf API surface.
+**Tradeoff:** The service owns the room/sidebar visibility contract directly, so changes to room visibility must update the ConnectRPC mapping and tests.
 
 ## Permissions
 

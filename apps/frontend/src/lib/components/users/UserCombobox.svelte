@@ -1,13 +1,12 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { graphql } from '$lib/gql';
-  import type { UserComboboxMembersQuery } from '$lib/gql/graphql';
+  import { createMemberDirectoryAPI, type DirectoryMember } from '$lib/api/memberDirectory';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { Combobox } from '$lib/ui/form';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import { getAvatarInitials } from '$lib/utils/initials';
 
-  type User = UserComboboxMembersQuery['server']['members']['users'][number];
+  type User = DirectoryMember;
 
   let {
     id,
@@ -24,21 +23,6 @@
   } = $props();
 
   const connection = useConnection();
-
-  const MembersQuery = graphql(`
-    query UserComboboxMembers($search: String) {
-      server {
-        members(search: $search, limit: 10, offset: 0) {
-          users {
-            id
-            login
-            displayName
-            avatarUrl
-          }
-        }
-      }
-    }
-  `);
 
   let users = $state.raw<User[]>([]);
   let loading = $state(false);
@@ -73,11 +57,14 @@
 
   async function searchUsers(search: string, currentRequest: number) {
     try {
-      const result = await connection()
-        .client.query(MembersQuery, { search }, { requestPolicy: 'network-only' })
-        .toPromise();
+      const currentConnection = connection();
+      const api = createMemberDirectoryAPI({
+        baseUrl: currentConnection.connectBaseUrl,
+        bearerToken: currentConnection.bearerToken
+      });
+      const result = await api.listServerMembers(search, 10, 0);
       if (currentRequest !== requestId) return;
-      users = result.data?.server.members.users ?? [];
+      users = result.members;
     } catch {
       if (currentRequest === requestId) {
         users = [];

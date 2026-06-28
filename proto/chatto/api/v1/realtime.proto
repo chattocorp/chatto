@@ -411,7 +411,7 @@ enum RealtimeTimeFormat {
 
 // Room-group layout signal.
 message RealtimeRoomGroupsUpdatedEvent {
-  // Always true; present for GraphQL event-bus compatibility.
+  // Always true; present for event-bus compatibility.
   bool changed = 1;
 }
 

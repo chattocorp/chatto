@@ -14,25 +14,15 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
 - `eventId` - Message body ID (required when canDelete is true, for confirmation dialog)
 -->
 <script lang="ts" module>
-  import { graphql } from '$lib/gql';
+  import { LinkPreviewViewDocument } from '$lib/render/types';
 
-  export const LinkPreviewFragment = graphql(`
-    fragment LinkPreviewView on LinkPreview {
-      url
-      title
-      description
-      imageUrl(width: 600, height: 314, fit: CONTAIN)
-      siteName
-      embedType
-      embedId
-    }
-  `);
+  export const LinkPreviewViewData = LinkPreviewViewDocument;
 </script>
 
 <script lang="ts">
-  /* eslint-disable svelte/no-navigation-without-resolve -- external URL from link preview */
-  import type { FragmentType } from '$lib/gql/fragment-masking';
-  import { useFragment } from '$lib/gql/fragment-masking';
+  import type { LinkPreviewView } from '$lib/render/types';
+  import type { RenderType } from '$lib/render/data';
+  import { useRenderData } from '$lib/render/data';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import { pushState } from '$app/navigation';
   import * as m from '$lib/i18n/messages';
@@ -48,7 +38,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
     roomId,
     eventId
   }: {
-    preview: FragmentType<typeof LinkPreviewFragment>;
+    preview: RenderType<typeof LinkPreviewViewData> | LinkPreviewView;
     onDismiss?: () => void;
     showDismiss?: boolean;
     canDelete?: boolean;
@@ -56,7 +46,9 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
     eventId?: string;
   } = $props();
 
-  const preview = $derived(useFragment(LinkPreviewFragment, rawPreview));
+  const preview = $derived(
+    useRenderData(LinkPreviewViewData, rawPreview as RenderType<typeof LinkPreviewViewData>)
+  );
 
   // Context menu state
   let contextMenuPos = $state<{ x: number; y: number } | null>(null);
@@ -112,6 +104,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
     {eventId}
   />
 {:else if preview.imageUrl || preview.title || preview.description || preview.siteName}
+  <!-- eslint-disable svelte/no-navigation-without-resolve -- preview.url is a third-party URL, not an internal SvelteKit route -->
   <a
     href={preview.url}
     target="_blank"
@@ -170,6 +163,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
       </button>
     {/if}
   </a>
+  <!-- eslint-enable svelte/no-navigation-without-resolve -->
 
   <!-- Context menu (posted message mode only) -->
   {#if contextMenuPos}

@@ -14,20 +14,19 @@ ARCHITECTURE.md follows this exact structure. Preserve all sections and their or
 1. **Table of Contents** - Auto-generated list of all sections with links (see below)
 2. **Overview** - Brief description, Core Concepts cross-reference to `docs/GLOSSARY.md`
 3. **NATS Authentication** - Auth methods table, Embedded/External setup
-4. **Architecture & APIs** - Layer descriptions (NATS, Core, GraphQL, Web Client, Email)
-5. **Core Services** - Current runtime services and their responsibilities
+4. **Architecture & APIs** - Layer descriptions (NATS, Core, ConnectRPC, Realtime WebSocket, Web Client, Email)
+5. **Core Models** - Current core aggregate/model families and their responsibilities
 6. **Projection Inventory** - Registered projections, subject filters, nested read models, and primary readers
 7. **ConnectRPC API Overview** - Protobuf-first public API inventory:
    - General description of the `/api/connect` mount and generated service paths
    - Explicit endpoint inventory table for every public ConnectRPC RPC
    - Authentication/authorization behavior for each endpoint
    - Source-of-truth links to API protos, generated handlers, service implementations, and HTTP mounting
-8. **GraphQL API Overview** - High-level overview of the GraphQL API:
-   - General description of the API's purpose and design
-   - Key queries (spaces, rooms, messages, users, admin)
-   - Key mutations (space/room/message CRUD, membership operations)
-   - Key subscriptions (real-time events, presence updates)
-   - No detailed field documentation - just the most important operations
+8. **Realtime WebSocket API Overview** - High-level overview of `/api/realtime`:
+   - General description of the app-session realtime protocol
+   - Hello/authentication behavior and protobuf frame format
+   - Durable-event and transient-sync delivery shape
+   - Reconnect cursor behavior and authorization filtering
 9. **Architecture Pattern: Event-Sourced Writes** - Write Path table, Consistency Model
 10. **Roles, Permissions, and Direct Messages** - Pointers to the authoritative FDRs/rules/source files
 11. **NATS Resource Inventory** - Current runtime resources only:
@@ -49,13 +48,13 @@ Use parallel research where the active agent environment allows it. If subagents
 
 Recommended independent research slices:
 
-1. **GraphQL Schema**: "Find all GraphQL queries, mutations, and subscriptions in `cli/internal/graph/*.graphqls`. List each operation with a one-line description."
+1. **ConnectRPC API**: "Find all services and RPCs in `proto/chatto/api/v1/*.proto`, all generated handlers registered in `cli/internal/connectapi/api.go`, and the HTTP mount in `cli/internal/http_server/connect.go`. List each `/api/connect/{fully.qualified.Service}/{Method}` endpoint with auth/authorization behavior and a one-line description."
 
-2. **ConnectRPC API**: "Find all services and RPCs in `proto/chatto/api/v1/*.proto`, all generated handlers registered in `cli/internal/connectapi/api.go`, and the HTTP mount in `cli/internal/http_server/connect.go`. List each `/api/connect/{fully.qualified.Service}/{Method}` endpoint with auth/authorization behavior and a one-line description."
+2. **Realtime WebSocket API**: "Read `proto/chatto/api/v1/realtime.proto`, `cli/internal/http_server/realtime.go`, `cli/internal/core/my_events_model.go`, and `apps/frontend/src/lib/state/server/eventBus.svelte.ts`. Summarize hello/auth behavior, frame shape, delivery filtering, and reconnect semantics."
 
 3. **RBAC**: "Find all permission constants in `cli/internal/core/permissions.go` and all `Can*` functions in `cli/internal/core/can.go`. Document each permission and what it controls."
 
-4. **Core Services**: "Read `cli/internal/core/core.go`, `cli/internal/core/*_service.go`, and `cli/internal/video/service.go`. List current services with their responsibilities and lifecycle/readiness role."
+4. **Core Models and Services**: "Read `cli/internal/core/core.go`, `cli/internal/core/*_service.go`, and `cli/internal/video/service.go`. List current services/model families with their responsibilities and lifecycle/readiness role."
 
 5. **Projections**: "Read `NewChattoCore`, all `New*Projection` constructors, `Subjects()` methods, and `projection_subjects_test.go`. List registered projections, nested read models, and subject filters."
 
@@ -80,21 +79,13 @@ Once research completes:
    - Read `cli/internal/events/subjects.go` for durable EVT subject and event-token definitions
    - Read `cli/internal/core/subjects/subjects.go` for transient live subject helpers
    - Read `cli/internal/core/projection_subjects_test.go` for projection subject policy
-   - Read `cli/internal/graph/*.graphqls` for GraphQL schema (queries, mutations, subscriptions)
    - Read `docs/GLOSSARY.md` when changing or relying on canonical vocabulary in the Overview/Core Concepts section
    - Read `cli/internal/core/permissions.go` for permission definitions
    - Read `cli/internal/core/can.go` for permission check functions
    - Search for `CreateOrUpdateKeyValue`, `CreateOrUpdateStream`, `CreateOrUpdateObjectStore` calls
    - Search for `EventPublisher`, `publishLiveEvent`, and `LiveSync*` helpers to find current publish paths
 
-2. **For GraphQL API Overview**:
-
-   - Read all `.graphqls` files in `cli/internal/graph/`
-   - Identify the most important queries, mutations, and subscriptions
-   - Focus on user-facing operations, not internal details
-   - Group by domain (spaces, rooms, messages, users, admin)
-
-3. **For ConnectRPC API Overview**:
+2. **For ConnectRPC API Overview**:
 
    - Read all public API `.proto` files in `proto/chatto/api/v1/`
    - Read `cli/internal/connectapi/api.go` to verify which generated service handlers are registered
@@ -105,11 +96,17 @@ Once research completes:
    - Include service name, RPC name, auth/authorization notes, and a concise behavior description
    - Remove rows for unmounted or deleted RPCs, and add rows whenever a new public ConnectRPC method is registered
 
+3. **For Realtime WebSocket API Overview**:
+
+   - Read `proto/chatto/api/v1/realtime.proto`
+   - Read `cli/internal/http_server/realtime.go` for `/api/realtime` transport behavior
+   - Read `cli/internal/core/my_events_model.go` and live/reconnect delivery code to verify authorization and replay behavior
+   - Keep this section high level; detailed event inventories belong in NATS Resource Inventory and protobuf docs
+
 4. **For RBAC Pointers**:
 
    - Read `cli/internal/core/permissions.go` for all permission constants
    - Read `cli/internal/core/can.go` for all `Can*` functions
-   - Read `cli/internal/graph/authz.go` for GraphQL authorization helpers
    - Check `owners.emails` configuration in server setup
    - Keep `docs/ARCHITECTURE.md` as an inventory: link to the authoritative FDRs/rules/source files instead of duplicating the full RBAC model there
 
@@ -154,7 +151,7 @@ Once research completes:
    - All streams in code appear in Streams table
    - All KV buckets in code appear in KV Buckets table
    - All object stores in code appear in Object Store Buckets table
-   - All core services in `NewChattoCore` appear in Core Services
+   - All core services/model families in `NewChattoCore` appear in Core Models
    - All registered projections appear in Projection Inventory
    - Core Concepts points to `docs/GLOSSARY.md`
    - `docs/GLOSSARY.md` is updated if architecture vocabulary changed
@@ -164,7 +161,7 @@ Once research completes:
    - ConnectRPC API Overview has an `Endpoint Inventory` table
    - Every service/RPC in `proto/chatto/api/v1/*.proto` that is registered by `cli/internal/connectapi/api.go` appears in the ConnectRPC endpoint inventory with its full `/api/connect/...` path
    - ConnectRPC endpoint auth/authorization notes match the implementation in `cli/internal/connectapi/`
-   - Key GraphQL operations are listed
+   - Realtime websocket protocol, authorization, and reconnect semantics are current
    - Subject/key patterns match actual code usage
    - Detailed legacy/pre-0.1 storage inventories are not reintroduced
 
@@ -247,7 +244,8 @@ The Core Services section provides...
 | Core / Architecture | `cli/internal/core/core.go` |
 | Core Services | `cli/internal/core/core.go`, `cli/internal/core/*_service.go`, `cli/internal/video/service.go` |
 | Projection Inventory | `cli/internal/core/core.go`, `cli/internal/core/projection_subjects_test.go`, `cli/internal/events/projector.go` |
-| GraphQL API | `cli/internal/graph/*.graphqls`, `cli/internal/graph/resolver.go` |
+| ConnectRPC API | `proto/chatto/api/v1/*.proto`, `cli/internal/connectapi/api.go`, `cli/internal/http_server/connect.go` |
+| Realtime WebSocket API | `proto/chatto/api/v1/realtime.proto`, `cli/internal/http_server/realtime.go`, `cli/internal/core/my_events_model.go` |
 | Roles and Permissions | `cli/internal/core/permissions.go`, `cli/internal/core/can.go`, `cli/internal/rbac/` |
 | KV Buckets / Streams | `cli/internal/core/core.go`, `cli/internal/events/subjects.go`, `proto/chatto/core/v1/event.proto` |
 | Messages | `cli/internal/core/rooms.go` |

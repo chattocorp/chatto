@@ -17,10 +17,9 @@ import {
   type RemoteTrack,
   type RemoteTrackPublication
 } from 'livekit-client';
-import { graphql } from '$lib/gql';
-import type { Client } from '@urql/svelte';
 import { toast } from '$lib/ui/toast';
 import { playCallSound } from '$lib/audio/callSounds';
+import type { VoiceCallAPI } from '$lib/api/voiceCalls';
 
 export type CallParticipantInfo = {
   identity: string;
@@ -73,9 +72,7 @@ export function getVoiceCallJoinErrorMessage(err: unknown): string {
   if (err instanceof VoiceCallJoinError) return err.userMessage;
 
   const message = errorMessage(err);
-  if (
-    /signal connection|serverunreachable|websocket|web socket|abort handler/i.test(message)
-  ) {
+  if (/signal connection|serverunreachable|websocket|web socket|abort handler/i.test(message)) {
     return signalingFailureMessage;
   }
   if (/e2ee|cryptor|encoded transform|insertable stream/i.test(message)) {
@@ -85,32 +82,8 @@ export function getVoiceCallJoinErrorMessage(err: unknown): string {
   return genericJoinFailureMessage;
 }
 
-const VoiceCallTokenQuery = graphql(`
-  query GetVoiceCallToken($roomId: ID!) {
-    room(roomId: $roomId) {
-      voiceCallToken {
-        token
-        e2eeKey
-        callId
-      }
-    }
-  }
-`);
-
-const JoinVoiceCallMutation = graphql(`
-  mutation JoinVoiceCall($roomId: ID!) {
-    joinVoiceCall(input: { roomId: $roomId })
-  }
-`);
-
-const LeaveVoiceCallMutation = graphql(`
-  mutation LeaveVoiceCall($roomId: ID!) {
-    leaveVoiceCall(input: { roomId: $roomId })
-  }
-`);
-
 export class VoiceCallState {
-  #client: Client;
+  #api: VoiceCallAPI;
 
   // Current call context
   roomId = $state<string | null>(null);
@@ -144,19 +117,15 @@ export class VoiceCallState {
   // Internal LiveKit room instance
   private room: Room | null = null;
   private activeCallId: string | null = null;
-  private pendingOwnJoinSound:
-    | {
-        roomId: string;
-        callId: string;
-      }
-    | null = null;
-  private recentlyDisconnectedCall:
-    | {
-        roomId: string;
-        callId: string;
-        disconnectedAt: number;
-      }
-    | null = null;
+  private pendingOwnJoinSound: {
+    roomId: string;
+    callId: string;
+  } | null = null;
+  private recentlyDisconnectedCall: {
+    roomId: string;
+    callId: string;
+    disconnectedAt: number;
+  } | null = null;
   private joinInFlight: Promise<void> | null = null;
   private joinInFlightRoomId: string | null = null;
   private leaveInFlight: Promise<void> | null = null;
@@ -177,8 +146,8 @@ export class VoiceCallState {
   private analyserSource: MediaStreamAudioSourceNode | null = null;
   private analyserData: Float32Array<ArrayBuffer> | null = null;
 
-  constructor(client: Client) {
-    this.#client = client;
+  constructor(api: VoiceCallAPI) {
+    this.#api = api;
   }
 
   /**
@@ -190,10 +159,7 @@ export class VoiceCallState {
 
   matchesActiveCall(roomId: string, callId: string | null): boolean {
     return (
-      this.connected &&
-      this.roomId === roomId &&
-      callId !== null &&
-      this.activeCallId === callId
+      this.connected && this.roomId === roomId && callId !== null && this.activeCallId === callId
     );
   }
 
@@ -287,26 +253,15 @@ export class VoiceCallState {
     let joinIntentRecorded = false;
 
     try {
-      const intentResult = await this.#client
-        .mutation(JoinVoiceCallMutation, { roomId })
-        .toPromise();
-      if (intentResult.error) {
-        throw intentResult.error;
-      }
+      await this.#api.joinCall(roomId);
       joinIntentRecorded = true;
 
       // Get token from server (pure query, no side effects)
-      const result = await this.#client.query(VoiceCallTokenQuery, { roomId }).toPromise();
-      if (result.error) {
-        throw result.error;
-      }
-
-      const token = result.data?.room?.voiceCallToken?.token;
-      const e2eeKey = result.data?.room?.voiceCallToken?.e2eeKey;
-      const callId = result.data?.room?.voiceCallToken?.callId;
-      if (!token || !e2eeKey || !callId) {
+      const tokenResponse = await this.#api.getCallToken(roomId);
+      if (!tokenResponse) {
         throw new Error('Failed to get voice call token');
       }
+      const { token, e2eeKey, callId } = tokenResponse;
       this.activeCallId = callId;
 
       const keyProvider = new ExternalE2EEKeyProvider();
@@ -435,7 +390,7 @@ export class VoiceCallState {
 
   private async recordLeaveIntent(roomId: string): Promise<void> {
     try {
-      await this.#client.mutation(LeaveVoiceCallMutation, { roomId }).toPromise();
+      await this.#api.leaveCall(roomId);
     } catch {
       // LiveKit disconnect/cleanup should still proceed if the intent write fails.
     }
@@ -820,7 +775,10 @@ export class VoiceCallState {
   private matchesRecentlyDisconnectedCall(roomId: string, callId: string): boolean {
     const recentlyDisconnectedCall = this.recentlyDisconnectedCall;
     if (!recentlyDisconnectedCall) return false;
-    if (Date.now() - recentlyDisconnectedCall.disconnectedAt > RECENTLY_DISCONNECTED_CALL_SOUND_MS) {
+    if (
+      Date.now() - recentlyDisconnectedCall.disconnectedAt >
+      RECENTLY_DISCONNECTED_CALL_SOUND_MS
+    ) {
       this.recentlyDisconnectedCall = null;
       return false;
     }

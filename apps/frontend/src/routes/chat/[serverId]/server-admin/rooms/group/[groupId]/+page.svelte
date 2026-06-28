@@ -3,8 +3,8 @@
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { graphql } from '$lib/gql';
-  import { useQuery } from '$lib/hooks';
+  import { createAdminRoomLayoutAPI, type AdminRoomGroup } from '$lib/api/adminRoomLayout';
+  import { useConnection } from '$lib/state/server/connection.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import Hint from '$lib/ui/Hint.svelte';
@@ -13,25 +13,36 @@
 
   const groupId = $derived(page.params.groupId!);
   const serverSegment = $derived(serverIdToSegment(getActiveServer()));
+  const connection = useConnection();
   const backHref = $derived(
     resolve('/chat/[serverId]/server-admin/rooms', { serverId: serverSegment })
   );
 
-  // Lightweight lookup for the group's display name (the matrix itself
-  // fetches its own data via admin.rbac.rolePermissionTierMatrix).
-  const GroupNameQuery = graphql(`
-    query AdminGroupPermissionsName {
-      server {
-        roomGroups {
-          id
-          name
-        }
-      }
-    }
-  `);
+  let group = $state<AdminRoomGroup | null>(null);
+  let loadId = 0;
 
-  const nameQuery = useQuery(GroupNameQuery, () => ({}));
-  const group = $derived(nameQuery.data?.server?.roomGroups.find((g) => g.id === groupId) ?? null);
+  async function loadGroupName(targetGroupId: string) {
+    const thisId = ++loadId;
+    group = null;
+    try {
+      const conn = connection();
+      const api = createAdminRoomLayoutAPI({
+        serverId: conn.serverId,
+        baseUrl: conn.connectBaseUrl,
+        bearerToken: conn.bearerToken
+      });
+      const groups = await api.listAdminRoomLayout();
+      if (thisId !== loadId) return;
+      group = groups.find((candidate) => candidate.id === targetGroupId) ?? null;
+    } catch {
+      if (thisId === loadId) group = null;
+    }
+  }
+
+  $effect(() => {
+    loadGroupName(groupId);
+  });
+
   const pageTitle = $derived(
     group
       ? m['admin.rooms_admin.permissions_page_title']({ name: group.name })

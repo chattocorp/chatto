@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { queryMock, clearOriginAuthenticationMock } = vi.hoisted(() => ({
-  queryMock: vi.fn(),
+const { getCurrentUserViaConnectMock, clearOriginAuthenticationMock } = vi.hoisted(() => ({
+  getCurrentUserViaConnectMock: vi.fn(),
   clearOriginAuthenticationMock: vi.fn()
 }));
 
@@ -13,16 +13,15 @@ vi.mock('$app/paths', () => ({
   resolve: (path: string) => path
 }));
 
-vi.mock('$lib/gql', () => ({
-  graphql: vi.fn(() => ({}))
+vi.mock('$lib/api/viewer', () => ({
+  getCurrentUserViaConnect: getCurrentUserViaConnectMock
 }));
 
-vi.mock('$lib/state/server/graphqlClient.svelte', () => ({
-  graphqlClientManager: {
+vi.mock('$lib/state/server/serverConnection.svelte', () => ({
+  serverConnectionManager: {
     originClient: {
-      client: {
-        query: queryMock
-      }
+      connectBaseUrl: '/api/connect',
+      bearerToken: null
     }
   }
 }));
@@ -55,56 +54,55 @@ describe('loadCurrentUser', () => {
 
   it('refreshes from the server on each call', async () => {
     const { loadCurrentUser } = await loadModule();
-    queryMock
-      .mockResolvedValueOnce({ data: { viewer: { user } }, error: null })
-      .mockResolvedValueOnce({
-        data: { viewer: { user: { ...user, displayName: 'Alice Fresh' } } },
-        error: null
-      });
+    getCurrentUserViaConnectMock
+      .mockResolvedValueOnce(user)
+      .mockResolvedValueOnce({ ...user, displayName: 'Alice Fresh' });
 
     expect(await loadCurrentUser()).toEqual(user);
     expect(await loadCurrentUser()).toEqual({ ...user, displayName: 'Alice Fresh' });
-    expect(queryMock).toHaveBeenCalledTimes(2);
+    expect(getCurrentUserViaConnectMock).toHaveBeenCalledTimes(2);
+    expect(getCurrentUserViaConnectMock).toHaveBeenCalledWith({
+      baseUrl: '/api/connect',
+      bearerToken: null
+    });
   });
 
   it('keeps the cached user when a later refresh errors', async () => {
     const { loadCurrentUser } = await loadModule();
-    queryMock
-      .mockResolvedValueOnce({ data: { viewer: { user } }, error: null })
-      .mockResolvedValueOnce({ data: undefined, error: { message: 'not found' } });
+    getCurrentUserViaConnectMock
+      .mockResolvedValueOnce(user)
+      .mockRejectedValueOnce(new Error('not found'))
+      .mockRejectedValueOnce(new Error('still not found'));
 
     expect(await loadCurrentUser()).toEqual(user);
     expect(await loadCurrentUser()).toEqual(user);
   });
 
-  it('clears the cached user on a clean viewer=null response', async () => {
+  it('clears the cached user on authentication-required errors', async () => {
     const { loadCurrentUser } = await loadModule();
-    queryMock
-      .mockResolvedValueOnce({ data: { viewer: { user } }, error: null })
-      .mockResolvedValueOnce({ data: { viewer: null }, error: null });
-
-    expect(await loadCurrentUser()).toEqual(user);
-    expect(await loadCurrentUser()).toBeNull();
-  });
-
-  it('returns null when the first load cannot determine a user', async () => {
-    const { loadCurrentUser } = await loadModule();
-    queryMock.mockResolvedValue({ data: undefined, error: { message: 'unreachable' } });
-
-    expect(await loadCurrentUser()).toBeNull();
-  });
-
-  it('clears origin auth on authentication-required errors', async () => {
-    const { loadCurrentUser } = await loadModule();
-    queryMock
-      .mockResolvedValueOnce({ data: { viewer: { user } }, error: null })
-      .mockResolvedValueOnce({
-        data: undefined,
-        error: { graphQLErrors: [{ message: 'authentication required' }] }
-      });
+    getCurrentUserViaConnectMock
+      .mockResolvedValueOnce(user)
+      .mockRejectedValueOnce({ message: 'authentication required' });
 
     expect(await loadCurrentUser()).toEqual(user);
     expect(await loadCurrentUser()).toBeNull();
     expect(clearOriginAuthenticationMock).toHaveBeenCalledOnce();
+  });
+
+  it('returns null when the first load cannot determine a user', async () => {
+    const { loadCurrentUser } = await loadModule();
+    getCurrentUserViaConnectMock.mockRejectedValue(new Error('unreachable'));
+
+    expect(await loadCurrentUser()).toBeNull();
+  });
+
+  it('does not clear origin auth for transient errors after retry', async () => {
+    const { loadCurrentUser } = await loadModule();
+    getCurrentUserViaConnectMock
+      .mockRejectedValueOnce(new Error('network'))
+      .mockResolvedValueOnce(user);
+
+    expect(await loadCurrentUser()).toEqual(user);
+    expect(clearOriginAuthenticationMock).not.toHaveBeenCalled();
   });
 });

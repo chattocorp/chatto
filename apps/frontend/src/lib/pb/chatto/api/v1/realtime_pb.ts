@@ -2159,7 +2159,7 @@ export class RealtimeServerUserPreferencesUpdatedEvent extends Message<RealtimeS
  */
 export class RealtimeRoomGroupsUpdatedEvent extends Message<RealtimeRoomGroupsUpdatedEvent> {
   /**
-   * Always true; present for GraphQL event-bus compatibility.
+   * Always true; present for event-bus compatibility.
    *
    * @generated from field: bool changed = 1;
    */

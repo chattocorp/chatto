@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { DirectoryMember } from "./member_directory_pb.js";
 
 /**
  * Kind of room represented by the public API.
@@ -1038,6 +1039,201 @@ export class UnbanRoomMemberResponse extends Message<UnbanRoomMemberResponse> {
 
   static equals(a: UnbanRoomMemberResponse | PlainMessage<UnbanRoomMemberResponse> | undefined, b: UnbanRoomMemberResponse | PlainMessage<UnbanRoomMemberResponse> | undefined): boolean {
     return proto3.util.equals(UnbanRoomMemberResponse, a, b);
+  }
+}
+
+/**
+ * Active channel room ban with optional hydrated room and user references.
+ *
+ * @generated from message chatto.api.v1.RoomBan
+ */
+export class RoomBan extends Message<RoomBan> {
+  /**
+   * Stable ban event ID.
+   *
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * Channel room ID.
+   *
+   * @generated from field: string room_id = 2;
+   */
+  roomId = "";
+
+  /**
+   * Channel room metadata, when the referenced room still exists.
+   *
+   * @generated from field: chatto.api.v1.Room room = 3;
+   */
+  room?: Room;
+
+  /**
+   * Banned user ID.
+   *
+   * @generated from field: string user_id = 4;
+   */
+  userId = "";
+
+  /**
+   * Banned user profile, when the referenced user still exists.
+   *
+   * @generated from field: chatto.api.v1.DirectoryMember user = 5;
+   */
+  user?: DirectoryMember;
+
+  /**
+   * Moderator user ID that created the ban.
+   *
+   * @generated from field: string moderator_id = 6;
+   */
+  moderatorId = "";
+
+  /**
+   * Moderator profile, when the referenced user still exists.
+   *
+   * @generated from field: chatto.api.v1.DirectoryMember moderator = 7;
+   */
+  moderator?: DirectoryMember;
+
+  /**
+   * Moderator-entered ban reason.
+   *
+   * @generated from field: string reason = 8;
+   */
+  reason = "";
+
+  /**
+   * Time the ban was created.
+   *
+   * @generated from field: google.protobuf.Timestamp created_at = 9;
+   */
+  createdAt?: Timestamp;
+
+  /**
+   * Optional future time when the ban expires.
+   *
+   * @generated from field: google.protobuf.Timestamp expires_at = 10;
+   */
+  expiresAt?: Timestamp;
+
+  constructor(data?: PartialMessage<RoomBan>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.RoomBan";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "room", kind: "message", T: Room },
+    { no: 4, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "user", kind: "message", T: DirectoryMember },
+    { no: 6, name: "moderator_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "moderator", kind: "message", T: DirectoryMember },
+    { no: 8, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 9, name: "created_at", kind: "message", T: Timestamp },
+    { no: 10, name: "expires_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomBan {
+    return new RoomBan().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomBan {
+    return new RoomBan().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomBan {
+    return new RoomBan().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RoomBan | PlainMessage<RoomBan> | undefined, b: RoomBan | PlainMessage<RoomBan> | undefined): boolean {
+    return proto3.util.equals(RoomBan, a, b);
+  }
+}
+
+/**
+ * Request to list active room bans.
+ *
+ * @generated from message chatto.api.v1.ListRoomBansRequest
+ */
+export class ListRoomBansRequest extends Message<ListRoomBansRequest> {
+  /**
+   * Optional channel room filter. Empty lists active bans across all rooms.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  constructor(data?: PartialMessage<ListRoomBansRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ListRoomBansRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListRoomBansRequest {
+    return new ListRoomBansRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListRoomBansRequest {
+    return new ListRoomBansRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListRoomBansRequest {
+    return new ListRoomBansRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListRoomBansRequest | PlainMessage<ListRoomBansRequest> | undefined, b: ListRoomBansRequest | PlainMessage<ListRoomBansRequest> | undefined): boolean {
+    return proto3.util.equals(ListRoomBansRequest, a, b);
+  }
+}
+
+/**
+ * Active room bans visible to the current moderator.
+ *
+ * @generated from message chatto.api.v1.ListRoomBansResponse
+ */
+export class ListRoomBansResponse extends Message<ListRoomBansResponse> {
+  /**
+   * Active bans, newest first.
+   *
+   * @generated from field: repeated chatto.api.v1.RoomBan bans = 1;
+   */
+  bans: RoomBan[] = [];
+
+  constructor(data?: PartialMessage<ListRoomBansResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ListRoomBansResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "bans", kind: "message", T: RoomBan, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListRoomBansResponse {
+    return new ListRoomBansResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListRoomBansResponse {
+    return new ListRoomBansResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListRoomBansResponse {
+    return new ListRoomBansResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListRoomBansResponse | PlainMessage<ListRoomBansResponse> | undefined, b: ListRoomBansResponse | PlainMessage<ListRoomBansResponse> | undefined): boolean {
+    return proto3.util.equals(ListRoomBansResponse, a, b);
   }
 }
 

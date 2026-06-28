@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-22
 
-**Supersedes:** [ADR-003](ADR-003-graphql-as-primary-api.md) for future public API direction. Partially supersedes [ADR-004](ADR-004-authorization-at-api-boundary.md) for new protobuf API work. GraphQL remains the current implemented API until the protobuf-first API is built and migrated.
+**Supersedes:** [ADR-003](ADR-003-graphql-as-primary-api.md) for public API direction and implementation. Supersedes [ADR-004](ADR-004-authorization-at-api-boundary.md) for public API authorization placement.
 
 ## Context
 
@@ -58,9 +58,9 @@ The WebSocket protocol should reserve frame shapes for future multiplexed RPC-ov
 
 JSON is deferred. Chatto may later expose JSON encodings or generated JSON/HTTP convenience endpoints for selected public API protos, but JSON is not the source of truth for the new API contract.
 
-Existing HTTP endpoints that are not GraphQL should be reviewed separately during migration. In particular, `/api/server` remains a high-stability discovery surface, and auth, OAuth, uploads, asset delivery, webhooks, and health/metrics endpoints may remain explicit HTTP APIs where that shape is still appropriate.
+Existing non-RPC HTTP endpoints are reviewed separately from the ConnectRPC API surface. In particular, `/api/server` remains a high-stability discovery surface, and auth, OAuth, uploads, asset delivery, webhooks, and health/metrics endpoints may remain explicit HTTP APIs where that shape is still appropriate.
 
-New protobuf API methods must not duplicate operation-specific authorization in each transport. HTTP ConnectRPC, future RPC-over-WebSocket, and any temporary GraphQL compatibility resolver should call the same internal operation model for the use case. Transports authenticate the caller, decode/encode protocol messages, and map transport-specific errors. Internal models own authorization, validation, domain invariants, OCC/write orchestration, read-your-writes waits, and response shaping for the operation.
+New protobuf API methods must not duplicate operation-specific authorization in each transport. HTTP ConnectRPC and future RPC-over-WebSocket should call the same internal operation model for the use case. Transports authenticate the caller, decode/encode protocol messages, and map transport-specific errors. Internal models own authorization, validation, domain invariants, OCC/write orchestration, read-your-writes waits, and response shaping for the operation.
 
 ## Consequences
 
@@ -76,6 +76,6 @@ Separating public API protos from persisted EVT protos prevents storage compatib
 
 ConnectRPC over HTTP remains the baseline for debuggability, infrastructure compatibility, and non-browser clients. RPC-over-WebSocket is only a latency and connection-count optimization for already-connected clients, so the project can defer its complexity until there is a concrete need.
 
-GraphQL should be retained as a compatibility layer during migration. Removing or deprecating GraphQL requires a separate migration plan, frontend migration, compatibility communication, and release decision.
+The migration plan has completed: the bundled frontend uses ConnectRPC plus the realtime websocket, and the gqlgen GraphQL API is no longer mounted. Historical GraphQL compatibility is not retained in the current runtime.
 
-Moving authorization from GraphQL resolvers into operation models reverses part of ADR-004 for new API work. This is intentional: multiple public transports make resolver-local authorization a drift risk. Lower-level core helpers may still assume trusted callers, but public use cases should get model methods whose names and signatures encode the authorized operation.
+Moving authorization from GraphQL resolvers into operation models reverses part of ADR-004. This is intentional: multiple public transports make resolver-local authorization a drift risk. Lower-level core helpers may still assume trusted callers, but public use cases should get model methods whose names and signatures encode the authorized operation.

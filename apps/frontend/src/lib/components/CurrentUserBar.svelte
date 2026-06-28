@@ -16,7 +16,7 @@ to the user settings page for the active server.
   import { getLiveDisplayName, type CustomUserStatus } from '$lib/state/userProfiles.svelte';
   import { setPresenceMode } from '$lib/presenceTracking';
   import { presencePreference, type PresenceMode } from '$lib/state/presencePreference.svelte';
-  import { PresenceStatus, RoomType } from '$lib/gql/graphql';
+  import { PresenceStatus, RoomType } from '$lib/render/types';
   import {
     roomSidebarPanelStorageSuffix,
     setPendingRoomSidebarPanel,

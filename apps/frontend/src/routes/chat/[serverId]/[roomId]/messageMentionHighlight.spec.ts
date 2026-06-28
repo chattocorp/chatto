@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PresenceStatus } from '$lib/gql/graphql';
+import { PresenceStatus } from '$lib/render/types';
 import type { RoomMember } from '$lib/mentions';
 import { shouldHighlightCurrentUserMention } from './messageMentionHighlight';
 

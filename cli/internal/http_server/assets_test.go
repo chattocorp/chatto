@@ -3,22 +3,20 @@ package http_server
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"image"
 	"image/color"
 	"image/png"
 	"io"
-	"mime/multipart"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
-	"net/textproto"
 	"net/url"
 	"strings"
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/charmbracelet/log"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
@@ -26,6 +24,8 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/email"
+	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
 	"hmans.de/chatto/internal/testutil"
 	"hmans.de/chatto/internal/testutil/fakes3"
 	"hmans.de/chatto/pkg/signedurl"
@@ -128,7 +128,7 @@ func setupAssetTestServerWithConfig(t *testing.T, useS3 bool) *assetTestEnv {
 	}
 
 	s.setupAuthRoutes()
-	s.setupGraphQLAPI(s.buildAllowedOrigins())
+	s.setupConnectAPI()
 	s.setupAssetRoutes()
 
 	ts := httptest.NewServer(router)
@@ -185,93 +185,55 @@ func createAssetTestPNG(t *testing.T, width, height int) []byte {
 	return buf.Bytes()
 }
 
-// doAssetMultipartUpload performs a GraphQL multipart upload request for attachments
-func (env *assetTestEnv) doAssetMultipartUpload(t *testing.T, operations string, fileData []byte, fileName string) *graphqlResponse {
+func (env *assetTestEnv) postAssetMessageWithAttachment(t *testing.T, roomID, body string, fileData []byte, fileName string) (string, *apiv1.RoomTimelineAttachment) {
 	t.Helper()
-	return env.doAssetMultipartUploadWithContentType(t, operations, fileData, fileName, "image/png")
+	return env.postAssetMessageWithAttachmentContentType(t, roomID, body, fileData, fileName, "image/png")
 }
 
-func (env *assetTestEnv) doAssetMultipartUploadWithContentType(t *testing.T, operations string, fileData []byte, fileName, contentType string) *graphqlResponse {
+func (env *assetTestEnv) postAssetMessageWithAttachmentContentType(t *testing.T, roomID, body string, fileData []byte, fileName, contentType string) (string, *apiv1.RoomTimelineAttachment) {
 	t.Helper()
 
-	// Create multipart form
-	var body bytes.Buffer
-	writer := multipart.NewWriter(&body)
-
-	// Add operations field
-	if err := writer.WriteField("operations", operations); err != nil {
-		t.Fatalf("Failed to write operations: %v", err)
-	}
-
-	// Add map field (maps file to variable)
-	if err := writer.WriteField("map", `{"0": ["variables.file"]}`); err != nil {
-		t.Fatalf("Failed to write map: %v", err)
-	}
-
-	// Add file with correct content type header
-	h := make(textproto.MIMEHeader)
-	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="0"; filename="%s"`, fileName))
-	h.Set("Content-Type", contentType)
-	part, err := writer.CreatePart(h)
+	client := apiv1connect.NewMessageServiceClient(env.client, env.server.URL+connectAPIPrefix)
+	req := connect.NewRequest(&apiv1.PostMessageRequest{
+		RoomId: roomID,
+		Body:   body,
+		Attachments: []*apiv1.MessageAttachmentUpload{
+			{
+				Content:     fileData,
+				Filename:    fileName,
+				ContentType: contentType,
+			},
+		},
+	})
+	resp, err := client.PostMessage(env.ctx, req)
 	if err != nil {
-		t.Fatalf("Failed to create form file: %v", err)
+		t.Fatalf("Failed to post message with attachment: %v", err)
 	}
-	if _, err := io.Copy(part, bytes.NewReader(fileData)); err != nil {
-		t.Fatalf("Failed to copy file data: %v", err)
+	event := resp.Msg.GetEvent()
+	if event == nil {
+		t.Fatal("Expected posted message event")
 	}
-
-	if err := writer.Close(); err != nil {
-		t.Fatalf("Failed to close multipart writer: %v", err)
+	message := event.GetMessagePosted()
+	if message == nil {
+		t.Fatalf("Expected message posted event, got %T", event.GetEvent())
 	}
-
-	// Make request
-	req, err := http.NewRequest("POST", env.server.URL+"/api/graphql", &body)
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
+	if len(message.GetAttachments()) == 0 {
+		t.Fatal("Expected at least one attachment")
 	}
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-
-	resp, err := env.client.Do(req)
-	if err != nil {
-		t.Fatalf("Failed to send request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		t.Fatalf("Expected status 200, got %d: %s", resp.StatusCode, string(bodyBytes))
-	}
-
-	var gqlResp graphqlResponse
-	if err := json.NewDecoder(resp.Body).Decode(&gqlResp); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-
-	return &gqlResp
+	return event.GetId(), message.GetAttachments()[0]
 }
 
-// doAssetGraphQL helper for non-upload GraphQL requests
-func (env *assetTestEnv) doAssetGraphQL(t *testing.T, query string, variables map[string]any) *graphqlResponse {
+func (env *assetTestEnv) deleteAssetMessage(t *testing.T, roomID, eventID string) {
 	t.Helper()
 
-	reqBody := graphqlRequest{
-		Query:     query,
-		Variables: variables,
+	client := apiv1connect.NewMessageServiceClient(env.client, env.server.URL+connectAPIPrefix)
+	req := connect.NewRequest(&apiv1.DeleteMessageRequest{
+		RoomId:  roomID,
+		EventId: eventID,
+	})
+	if _, err := client.DeleteMessage(env.ctx, req); err != nil {
+		t.Fatalf("Failed to delete message: %v", err)
 	}
-
-	body, _ := json.Marshal(reqBody)
-	resp, err := env.client.Post(env.server.URL+"/api/graphql", "application/json", bytes.NewReader(body))
-	if err != nil {
-		t.Fatalf("Failed to send request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	var gqlResp graphqlResponse
-	if err := json.NewDecoder(resp.Body).Decode(&gqlResp); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-
-	return &gqlResp
 }
 
 // ============================================================================
@@ -306,40 +268,14 @@ func TestAsset_TransformedImage_CacheHitMiss(t *testing.T) {
 
 	// Upload an attachment via postMessage mutation
 	imageData := createAssetTestPNG(t, 800, 600)
-	operations := fmt.Sprintf(`{
-		"query": "mutation($roomId: ID!, $body: String!, $file: Upload!) { postMessage(input: { roomId: $roomId, body: $body, attachments: [$file] }) { event { ... on MessagePostedEvent { attachments { id url thumbnailUrl(width: 200, height: 200, fit: CONTAIN) } } } } }",
-		"variables": { "roomId": "%s", "body": "Test message with image", "file": null }
-	}`, room.Id)
-
-	resp := env.doAssetMultipartUpload(t, operations, imageData, "test-image.png")
-	if len(resp.Errors) > 0 {
-		t.Fatalf("Failed to post message with attachment: %v", resp.Errors)
+	_, attachment := env.postAssetMessageWithAttachment(t, room.Id, "Test message with image", imageData, "test-image.png")
+	thumbnailURL := attachment.GetThumbnailAssetUrl().GetUrl()
+	if thumbnailURL == "" {
+		t.Fatal("Expected thumbnail asset URL")
 	}
-
-	// Extract attachment info
-	var data struct {
-		PostMessage struct {
-			Event struct {
-				Attachments []struct {
-					ID           string `json:"id"`
-					URL          string `json:"url"`
-					ThumbnailURL string `json:"thumbnailUrl"`
-				} `json:"attachments"`
-			} `json:"event"`
-		} `json:"postMessage"`
-	}
-	if err := json.Unmarshal(resp.Data, &data); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
-
-	if len(data.PostMessage.Event.Attachments) == 0 {
-		t.Fatal("Expected at least one attachment")
-	}
-
-	attachment := data.PostMessage.Event.Attachments[0]
 
 	// First request to transformed URL should be a cache MISS
-	transformResp, err := env.client.Get(env.server.URL + attachment.ThumbnailURL)
+	transformResp, err := env.client.Get(env.server.URL + thumbnailURL)
 	if err != nil {
 		t.Fatalf("Failed to get transformed image: %v", err)
 	}
@@ -353,7 +289,7 @@ func TestAsset_TransformedImage_CacheHitMiss(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Second request should be a cache HIT
-	transformResp2, err := env.client.Get(env.server.URL + attachment.ThumbnailURL)
+	transformResp2, err := env.client.Get(env.server.URL + thumbnailURL)
 	if err != nil {
 		t.Fatalf("Failed to get transformed image: %v", err)
 	}
@@ -397,37 +333,15 @@ func TestAsset_DeleteAttachment_CleansUpCache(t *testing.T) {
 
 	// Upload an attachment
 	imageData := createAssetTestPNG(t, 800, 600)
-	operations := fmt.Sprintf(`{
-		"query": "mutation($roomId: ID!, $body: String!, $file: Upload!) { postMessage(input: { roomId: $roomId, body: $body, attachments: [$file] }) { id event { ... on MessagePostedEvent { attachments { id url thumbnailUrl(width: 200, height: 200, fit: CONTAIN) } } } } }",
-		"variables": { "roomId": "%s", "body": "Test message for cleanup", "file": null }
-	}`, room.Id)
-
-	resp := env.doAssetMultipartUpload(t, operations, imageData, "cleanup-test.png")
-	if len(resp.Errors) > 0 {
-		t.Fatalf("Failed to post message: %v", resp.Errors)
+	eventID, attachment := env.postAssetMessageWithAttachment(t, room.Id, "Test message for cleanup", imageData, "cleanup-test.png")
+	attachmentURL := attachment.GetAssetUrl().GetUrl()
+	thumbnailURL := attachment.GetThumbnailAssetUrl().GetUrl()
+	if attachmentURL == "" || thumbnailURL == "" {
+		t.Fatal("Expected original and thumbnail asset URLs")
 	}
-
-	var data struct {
-		PostMessage struct {
-			ID    string `json:"id"`
-			Event struct {
-				Attachments []struct {
-					ID           string `json:"id"`
-					URL          string `json:"url"`
-					ThumbnailURL string `json:"thumbnailUrl"`
-				} `json:"attachments"`
-			} `json:"event"`
-		} `json:"postMessage"`
-	}
-	if err := json.Unmarshal(resp.Data, &data); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
-
-	eventID := data.PostMessage.ID
-	attachment := data.PostMessage.Event.Attachments[0]
 
 	// Request transformed image to populate cache
-	transformResp, err := env.client.Get(env.server.URL + attachment.ThumbnailURL)
+	transformResp, err := env.client.Get(env.server.URL + thumbnailURL)
 	if err != nil {
 		t.Fatalf("Failed to get transformed image: %v", err)
 	}
@@ -440,7 +354,7 @@ func TestAsset_DeleteAttachment_CleansUpCache(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Verify cache hit
-	transformResp2, err := env.client.Get(env.server.URL + attachment.ThumbnailURL)
+	transformResp2, err := env.client.Get(env.server.URL + thumbnailURL)
 	if err != nil {
 		t.Fatalf("Failed to get transformed image: %v", err)
 	}
@@ -450,21 +364,10 @@ func TestAsset_DeleteAttachment_CleansUpCache(t *testing.T) {
 	}
 
 	// Delete the message (which should delete the attachment and its cache)
-	deleteResp := env.doAssetGraphQL(t, `mutation($input: DeleteMessageInput!) {
-		deleteMessage(input: $input)
-	}`, map[string]any{
-		"input": map[string]any{
-			"roomId":  room.Id,
-			"eventId": eventID,
-		},
-	})
-
-	if len(deleteResp.Errors) > 0 {
-		t.Fatalf("Failed to delete message: %v", deleteResp.Errors)
-	}
+	env.deleteAssetMessage(t, room.Id, eventID)
 
 	// Original attachment URL should now return 404
-	originalResp, err := env.client.Get(env.server.URL + attachment.URL)
+	originalResp, err := env.client.Get(env.server.URL + attachmentURL)
 	if err != nil {
 		t.Fatalf("Failed to get original attachment: %v", err)
 	}
@@ -474,7 +377,7 @@ func TestAsset_DeleteAttachment_CleansUpCache(t *testing.T) {
 	}
 
 	// Transformed URL should also return 404 (not cache hit from stale cache)
-	transformResp3, err := env.client.Get(env.server.URL + attachment.ThumbnailURL)
+	transformResp3, err := env.client.Get(env.server.URL + thumbnailURL)
 	if err != nil {
 		t.Fatalf("Failed to get transformed image: %v", err)
 	}
@@ -512,35 +415,14 @@ func TestAsset_OriginalAttachment_ServesCorrectly(t *testing.T) {
 
 	// Upload an attachment
 	imageData := createAssetTestPNG(t, 400, 300)
-	operations := fmt.Sprintf(`{
-		"query": "mutation($roomId: ID!, $body: String!, $file: Upload!) { postMessage(input: { roomId: $roomId, body: $body, attachments: [$file] }) { event { ... on MessagePostedEvent { attachments { id url contentType } } } } }",
-		"variables": { "roomId": "%s", "body": "Test message", "file": null }
-	}`, room.Id)
-
-	resp := env.doAssetMultipartUpload(t, operations, imageData, "serve-test.png")
-	if len(resp.Errors) > 0 {
-		t.Fatalf("Failed to post message: %v", resp.Errors)
+	_, attachment := env.postAssetMessageWithAttachment(t, room.Id, "Test message", imageData, "serve-test.png")
+	attachmentURL := attachment.GetAssetUrl().GetUrl()
+	if attachmentURL == "" {
+		t.Fatal("Expected original asset URL")
 	}
-
-	var data struct {
-		PostMessage struct {
-			Event struct {
-				Attachments []struct {
-					ID          string `json:"id"`
-					URL         string `json:"url"`
-					ContentType string `json:"contentType"`
-				} `json:"attachments"`
-			} `json:"event"`
-		} `json:"postMessage"`
-	}
-	if err := json.Unmarshal(resp.Data, &data); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
-
-	attachment := data.PostMessage.Event.Attachments[0]
 
 	// Get original attachment
-	originalResp, err := env.client.Get(env.server.URL + attachment.URL)
+	originalResp, err := env.client.Get(env.server.URL + attachmentURL)
 	if err != nil {
 		t.Fatalf("Failed to get original attachment: %v", err)
 	}
@@ -582,41 +464,20 @@ func TestAsset_ActiveAttachment_UsesSandboxHeaders(t *testing.T) {
 	}
 	env.login(t, "sandboxuser", "password123")
 
-	operations := fmt.Sprintf(`{
-		"query": "mutation($roomId: ID!, $body: String!, $file: Upload!) { postMessage(input: { roomId: $roomId, body: $body, attachments: [$file] }) { event { ... on MessagePostedEvent { attachments { id url contentType } } } } }",
-		"variables": { "roomId": "%s", "body": "html attachment", "file": null }
-	}`, room.Id)
-	resp := env.doAssetMultipartUploadWithContentType(
+	_, attachment := env.postAssetMessageWithAttachmentContentType(
 		t,
-		operations,
+		room.Id,
+		"html attachment",
 		[]byte("<!doctype html><script>window.__ran = true</script>"),
 		"demo.html",
 		"text/html; charset=utf-8",
 	)
-	if len(resp.Errors) > 0 {
-		t.Fatalf("Failed to post message with HTML attachment: %v", resp.Errors)
+	attachmentURL := attachment.GetAssetUrl().GetUrl()
+	if attachmentURL == "" {
+		t.Fatal("Expected stable attachment URL")
 	}
 
-	var data struct {
-		PostMessage struct {
-			Event struct {
-				Attachments []struct {
-					ID          string `json:"id"`
-					URL         string `json:"url"`
-					ContentType string `json:"contentType"`
-				} `json:"attachments"`
-			} `json:"event"`
-		} `json:"postMessage"`
-	}
-	if err := json.Unmarshal(resp.Data, &data); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
-	if len(data.PostMessage.Event.Attachments) != 1 {
-		t.Fatalf("Expected one attachment, got %d", len(data.PostMessage.Event.Attachments))
-	}
-	attachment := data.PostMessage.Event.Attachments[0]
-
-	stableResp, err := env.client.Get(env.server.URL + attachment.URL)
+	stableResp, err := env.client.Get(env.server.URL + attachmentURL)
 	if err != nil {
 		t.Fatalf("Failed to fetch stable attachment URL: %v", err)
 	}
@@ -626,7 +487,7 @@ func TestAsset_ActiveAttachment_UsesSandboxHeaders(t *testing.T) {
 	}
 	assertSandboxedOriginalAttachment(t, stableResp)
 
-	loc := signedurl.AttachmentLocator{RoomID: room.Id, AttachmentID: attachment.ID}
+	loc := signedurl.AttachmentLocator{RoomID: room.Id, AttachmentID: attachment.GetId()}
 	signedURL := env.core.GetAttachmentURL(loc, user.Id)
 	legacyResp, err := (&http.Client{}).Get(env.server.URL + signedURL)
 	if err != nil {
@@ -656,38 +517,18 @@ func TestAsset_ActiveAttachmentOnS3_StreamsWithSandboxInsteadOfRedirect(t *testi
 	}
 	env.login(t, "s3sandboxuser", "password123")
 
-	operations := fmt.Sprintf(`{
-		"query": "mutation($roomId: ID!, $body: String!, $file: Upload!) { postMessage(input: { roomId: $roomId, body: $body, attachments: [$file] }) { event { ... on MessagePostedEvent { attachments { id url } } } } }",
-		"variables": { "roomId": "%s", "body": "s3 html attachment", "file": null }
-	}`, room.Id)
-	resp := env.doAssetMultipartUploadWithContentType(
+	_, attachment := env.postAssetMessageWithAttachmentContentType(
 		t,
-		operations,
+		room.Id,
+		"s3 html attachment",
 		[]byte("<!doctype html><script>window.__ran = true</script>"),
 		"s3-demo.html",
 		"text/html",
 	)
-	if len(resp.Errors) > 0 {
-		t.Fatalf("Failed to post message with S3 HTML attachment: %v", resp.Errors)
+	attachmentURL := attachment.GetAssetUrl().GetUrl()
+	if attachmentURL == "" {
+		t.Fatal("Expected stable attachment URL")
 	}
-
-	var data struct {
-		PostMessage struct {
-			Event struct {
-				Attachments []struct {
-					ID  string `json:"id"`
-					URL string `json:"url"`
-				} `json:"attachments"`
-			} `json:"event"`
-		} `json:"postMessage"`
-	}
-	if err := json.Unmarshal(resp.Data, &data); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
-	if len(data.PostMessage.Event.Attachments) != 1 {
-		t.Fatalf("Expected one attachment, got %d", len(data.PostMessage.Event.Attachments))
-	}
-	attachment := data.PostMessage.Event.Attachments[0]
 
 	noRedirectClient := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -695,7 +536,7 @@ func TestAsset_ActiveAttachmentOnS3_StreamsWithSandboxInsteadOfRedirect(t *testi
 		},
 	}
 
-	stableResp, err := noRedirectClient.Get(env.server.URL + attachment.URL)
+	stableResp, err := noRedirectClient.Get(env.server.URL + attachmentURL)
 	if err != nil {
 		t.Fatalf("Failed to fetch S3 stable attachment URL: %v", err)
 	}
@@ -705,7 +546,7 @@ func TestAsset_ActiveAttachmentOnS3_StreamsWithSandboxInsteadOfRedirect(t *testi
 	}
 	assertSandboxedOriginalAttachment(t, stableResp)
 
-	loc := signedurl.AttachmentLocator{RoomID: room.Id, AttachmentID: attachment.ID}
+	loc := signedurl.AttachmentLocator{RoomID: room.Id, AttachmentID: attachment.GetId()}
 	signedURL := env.core.GetAttachmentURL(loc, user.Id)
 	legacyResp, err := noRedirectClient.Get(env.server.URL + signedURL)
 	if err != nil {
@@ -794,34 +635,14 @@ func TestAsset_OriginalAttachment_HasCacheHeaders(t *testing.T) {
 
 	// Upload an attachment
 	imageData := createAssetTestPNG(t, 400, 300)
-	operations := fmt.Sprintf(`{
-		"query": "mutation($roomId: ID!, $body: String!, $file: Upload!) { postMessage(input: { roomId: $roomId, body: $body, attachments: [$file] }) { event { ... on MessagePostedEvent { attachments { id url } } } } }",
-		"variables": { "roomId": "%s", "body": "Test message", "file": null }
-	}`, room.Id)
-
-	resp := env.doAssetMultipartUpload(t, operations, imageData, "cache-header-test.png")
-	if len(resp.Errors) > 0 {
-		t.Fatalf("Failed to post message: %v", resp.Errors)
+	_, attachment := env.postAssetMessageWithAttachment(t, room.Id, "Test message", imageData, "cache-header-test.png")
+	attachmentURL := attachment.GetAssetUrl().GetUrl()
+	if attachmentURL == "" {
+		t.Fatal("Expected original asset URL")
 	}
-
-	var data struct {
-		PostMessage struct {
-			Event struct {
-				Attachments []struct {
-					ID  string `json:"id"`
-					URL string `json:"url"`
-				} `json:"attachments"`
-			} `json:"event"`
-		} `json:"postMessage"`
-	}
-	if err := json.Unmarshal(resp.Data, &data); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
-
-	attachment := data.PostMessage.Event.Attachments[0]
 
 	// Get original attachment
-	originalResp, err := env.client.Get(env.server.URL + attachment.URL)
+	originalResp, err := env.client.Get(env.server.URL + attachmentURL)
 	if err != nil {
 		t.Fatalf("Failed to get original attachment: %v", err)
 	}
@@ -865,36 +686,16 @@ func TestAsset_StableURLAcceptsAccessTicketAndBearerAuth(t *testing.T) {
 
 	env.login(t, "bearerassetuser", "password123")
 	imageData := createAssetTestPNG(t, 120, 90)
-	operations := fmt.Sprintf(`{
-		"query": "mutation($roomId: ID!, $body: String!, $file: Upload!) { postMessage(input: { roomId: $roomId, body: $body, attachments: [$file] }) { event { ... on MessagePostedEvent { attachments { id url thumbnailUrl(width: 80, height: 80, fit: CONTAIN) } } } } }",
-		"variables": { "roomId": "%s", "body": "bearer asset", "file": null }
-	}`, room.Id)
-	resp := env.doAssetMultipartUpload(t, operations, imageData, "bearer.png")
-	if len(resp.Errors) > 0 {
-		t.Fatalf("Failed to post message: %v", resp.Errors)
+	_, attachment := env.postAssetMessageWithAttachment(t, room.Id, "bearer asset", imageData, "bearer.png")
+	attachmentURL := attachment.GetAssetUrl().GetUrl()
+	thumbnailURL := attachment.GetThumbnailAssetUrl().GetUrl()
+	if attachmentURL == "" || thumbnailURL == "" {
+		t.Fatal("Expected original and thumbnail asset URLs")
 	}
 
-	var data struct {
-		PostMessage struct {
-			Event struct {
-				Attachments []struct {
-					URL          string `json:"url"`
-					ThumbnailURL string `json:"thumbnailUrl"`
-				} `json:"attachments"`
-			} `json:"event"`
-		} `json:"postMessage"`
-	}
-	if err := json.Unmarshal(resp.Data, &data); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
-	if len(data.PostMessage.Event.Attachments) == 0 {
-		t.Fatal("Expected one attachment")
-	}
-
-	attachment := data.PostMessage.Event.Attachments[0]
 	unauthClient := &http.Client{}
 
-	withoutAccess, err := url.Parse(attachment.URL)
+	withoutAccess, err := url.Parse(attachmentURL)
 	if err != nil {
 		t.Fatalf("Failed to parse stable URL: %v", err)
 	}
@@ -909,7 +710,7 @@ func TestAsset_StableURLAcceptsAccessTicketAndBearerAuth(t *testing.T) {
 		t.Fatalf("Expected stable URL without credentials to return 401, got %d", unauthResp.StatusCode)
 	}
 
-	ticketResp, err := unauthClient.Get(env.server.URL + attachment.URL)
+	ticketResp, err := unauthClient.Get(env.server.URL + attachmentURL)
 	if err != nil {
 		t.Fatalf("Failed to get stable URL with access ticket: %v", err)
 	}
@@ -936,7 +737,7 @@ func TestAsset_StableURLAcceptsAccessTicketAndBearerAuth(t *testing.T) {
 		t.Fatalf("Expected bearer stable URL request to return 200, got %d", bearerResp.StatusCode)
 	}
 
-	thumbResp, err := unauthClient.Get(env.server.URL + attachment.ThumbnailURL)
+	thumbResp, err := unauthClient.Get(env.server.URL + thumbnailURL)
 	if err != nil {
 		t.Fatalf("Failed to get stable thumbnail URL with access ticket: %v", err)
 	}
@@ -945,7 +746,10 @@ func TestAsset_StableURLAcceptsAccessTicketAndBearerAuth(t *testing.T) {
 		t.Fatalf("Expected stable thumbnail request with access ticket to return 200, got %d", thumbResp.StatusCode)
 	}
 
-	mutatedThumbnailURL := strings.Replace(attachment.ThumbnailURL, "80x80", "81x80", 1)
+	mutatedThumbnailURL := strings.Replace(thumbnailURL, "960x800", "961x800", 1)
+	if mutatedThumbnailURL == thumbnailURL {
+		t.Fatalf("Expected thumbnail URL to contain transform dimensions, got %q", thumbnailURL)
+	}
 	mutatedResp, err := unauthClient.Get(env.server.URL + mutatedThumbnailURL)
 	if err != nil {
 		t.Fatalf("Failed to get mutated stable thumbnail URL: %v", err)
@@ -955,7 +759,7 @@ func TestAsset_StableURLAcceptsAccessTicketAndBearerAuth(t *testing.T) {
 		t.Fatalf("Expected mutated stable thumbnail request to return 403, got %d", mutatedResp.StatusCode)
 	}
 
-	thumbnailWithoutAccess, err := url.Parse(attachment.ThumbnailURL)
+	thumbnailWithoutAccess, err := url.Parse(thumbnailURL)
 	if err != nil {
 		t.Fatalf("Failed to parse stable thumbnail URL: %v", err)
 	}
@@ -1028,7 +832,7 @@ func TestAsset_ServerAsset_HasCacheHeaders(t *testing.T) {
 }
 
 // TestAsset_SignedURLIsCapability covers the legacy signed-locator URL
-// compatibility path. GraphQL now emits authenticated stable URLs, but old
+// compatibility path. The Connect API emits authenticated stable URLs, but old
 // signed links should continue to work until callers have fully migrated.
 func TestAsset_SignedURLIsCapability(t *testing.T) {
 	env := setupAssetTestServer(t)
@@ -1050,33 +854,8 @@ func TestAsset_SignedURLIsCapability(t *testing.T) {
 	env.login(t, "authuser", "password123")
 
 	imageData := createAssetTestPNG(t, 400, 300)
-	operations := fmt.Sprintf(`{
-		"query": "mutation($roomId: ID!, $body: String!, $file: Upload!) { postMessage(input: { roomId: $roomId, body: $body, attachments: [$file] }) { event { ... on MessagePostedEvent { attachments { id url thumbnailUrl(width: 200, height: 200, fit: CONTAIN) } } } } }",
-		"variables": { "roomId": "%s", "body": "Test message", "file": null }
-	}`, room.Id)
-
-	resp := env.doAssetMultipartUpload(t, operations, imageData, "auth-test.png")
-	if len(resp.Errors) > 0 {
-		t.Fatalf("Failed to post message: %v", resp.Errors)
-	}
-
-	var data struct {
-		PostMessage struct {
-			Event struct {
-				Attachments []struct {
-					ID           string `json:"id"`
-					URL          string `json:"url"`
-					ThumbnailURL string `json:"thumbnailUrl"`
-				} `json:"attachments"`
-			} `json:"event"`
-		} `json:"postMessage"`
-	}
-	if err := json.Unmarshal(resp.Data, &data); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
-
-	attachment := data.PostMessage.Event.Attachments[0]
-	loc := signedurl.AttachmentLocator{RoomID: room.Id, AttachmentID: attachment.ID}
+	_, attachment := env.postAssetMessageWithAttachment(t, room.Id, "Test message", imageData, "auth-test.png")
+	loc := signedurl.AttachmentLocator{RoomID: room.Id, AttachmentID: attachment.GetId()}
 	signedURL := env.core.GetAttachmentURL(loc, user.Id)
 	signedThumbnailURL := env.core.GetTransformedAttachmentURL(loc, user.Id, 200, 200, "contain")
 
@@ -1137,35 +916,8 @@ func TestAsset_SignedURLOnS3IsCapability(t *testing.T) {
 	env.login(t, "s3authuser", "password123")
 
 	imageData := createAssetTestPNG(t, 400, 300)
-	operations := fmt.Sprintf(`{
-		"query": "mutation($roomId: ID!, $body: String!, $file: Upload!) { postMessage(input: { roomId: $roomId, body: $body, attachments: [$file] }) { event { ... on MessagePostedEvent { attachments { id url thumbnailUrl(width: 200, height: 200, fit: CONTAIN) } } } } }",
-		"variables": { "roomId": "%s", "body": "Test S3 message", "file": null }
-	}`, room.Id)
-
-	resp := env.doAssetMultipartUpload(t, operations, imageData, "s3-auth-test.png")
-	if len(resp.Errors) > 0 {
-		t.Fatalf("Failed to post message: %v", resp.Errors)
-	}
-
-	var data struct {
-		PostMessage struct {
-			Event struct {
-				Attachments []struct {
-					ID           string `json:"id"`
-					URL          string `json:"url"`
-					ThumbnailURL string `json:"thumbnailUrl"`
-				} `json:"attachments"`
-			} `json:"event"`
-		} `json:"postMessage"`
-	}
-	if err := json.Unmarshal(resp.Data, &data); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
-	if len(data.PostMessage.Event.Attachments) == 0 {
-		t.Fatal("Expected one attachment in S3-backed upload")
-	}
-	attachment := data.PostMessage.Event.Attachments[0]
-	loc := signedurl.AttachmentLocator{RoomID: room.Id, AttachmentID: attachment.ID}
+	_, attachment := env.postAssetMessageWithAttachment(t, room.Id, "Test S3 message", imageData, "s3-auth-test.png")
+	loc := signedurl.AttachmentLocator{RoomID: room.Id, AttachmentID: attachment.GetId()}
 	signedURL := env.core.GetAttachmentURL(loc, user.Id)
 	signedThumbnailURL := env.core.GetTransformedAttachmentURL(loc, user.Id, 200, 200, "contain")
 
@@ -1219,34 +971,10 @@ func TestAsset_RevokedMembership_RevokesSignedURL(t *testing.T) {
 
 	env.login(t, "asset-owner", "password123")
 	imageData := createAssetTestPNG(t, 400, 300)
-	operations := fmt.Sprintf(`{
-		"query": "mutation($roomId: ID!, $body: String!, $file: Upload!) { postMessage(input: { roomId: $roomId, body: $body, attachments: [$file] }) { event { ... on MessagePostedEvent { attachments { id url } } } } }",
-		"variables": { "roomId": "%s", "body": "private", "file": null }
-	}`, room.Id)
-	resp := env.doAssetMultipartUpload(t, operations, imageData, "private.png")
-	if len(resp.Errors) > 0 {
-		t.Fatalf("Failed to post: %v", resp.Errors)
-	}
-	var data struct {
-		PostMessage struct {
-			Event struct {
-				Attachments []struct {
-					ID  string `json:"id"`
-					URL string `json:"url"`
-				} `json:"attachments"`
-			} `json:"event"`
-		} `json:"postMessage"`
-	}
-	if err := json.Unmarshal(resp.Data, &data); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-	if len(data.PostMessage.Event.Attachments) == 0 {
-		t.Fatal("Expected one attachment")
-	}
-	attachment := data.PostMessage.Event.Attachments[0]
+	_, attachment := env.postAssetMessageWithAttachment(t, room.Id, "private", imageData, "private.png")
 	attachmentURL := env.core.GetAttachmentURL(signedurl.AttachmentLocator{
 		RoomID:       room.Id,
-		AttachmentID: attachment.ID,
+		AttachmentID: attachment.GetId(),
 	}, owner.Id)
 
 	// Sanity check: owner can fetch their own URL (cookie not required —

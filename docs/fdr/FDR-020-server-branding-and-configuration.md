@@ -13,7 +13,7 @@ Operators can customize how their Chatto server presents itself. The server's na
 - **Description** — used in OG metadata for link previews when sharing the server URL.
 - **Welcome message** — shown on the login page. Markdown is supported.
 - **MOTD (message of the day)** — appears in a banner across the top of the chat surface for all members. Broadcasts to live clients when changed.
-- **Logo** — shown in the chat header, login page, and OG image fallback. Uploaded as an image; the public GraphQL profile exposes its canonical URL without transform arguments.
+- **Logo** — shown in the chat header, login page, and OG image fallback. Uploaded as an image; the public server profile exposes its canonical URL without transform arguments.
 - **Banner** — shown on the login page and in OG previews. Same upload/serve pipeline as the logo.
 - **Blocked usernames** — newline-separated list checked at signup. Matches are rejected before account creation.
 - Text configuration is bounded before storage: server name 80 bytes, description 500 bytes, MOTD 1,000 bytes, welcome message 10,000 bytes, blocked-usernames field 10,000 bytes, and each blocked username no longer than a normal username.
@@ -62,10 +62,10 @@ Operators can customize how their Chatto server presents itself. The server's na
 **Why:** These values are public presentation/configuration text, not bulk content. Fixed limits keep event payloads and admin forms bounded while preserving enough room for normal operator usage.
 **Tradeoff:** Operators who want unusually large welcome copy or blocklists have to shorten the content instead of raising a config value.
 
-### 8. Edit window is a constant exposed via GraphQL, not a config field
+### 8. Edit window is an API constant, not a config field
 
-**Decision:** `Server.messageEditWindowSeconds` is queryable but read-only. The value comes from a Go constant (`core.MessageEditWindow = 3 * time.Hour`); the GraphQL schema doesn't include it in `UpdateServerConfigInput`.
-**Why:** The frontend needs to know the window to render countdown timers and disable the edit affordance at the right moment, so exposing it via GraphQL is necessary. But making it operator-tunable opens space for inconsistent UX across servers without clear benefit — and the value isn't sensitive enough to need server-by-server control.
+**Decision:** `messageEditWindowSeconds` is queryable but read-only. The value comes from a Go constant (`core.MessageEditWindow = 3 * time.Hour`); server-config update APIs do not accept it.
+**Why:** The frontend needs to know the window to render countdown timers and disable the edit affordance at the right moment, so exposing it through the public API is necessary. But making it operator-tunable opens space for inconsistent UX across servers without clear benefit — and the value isn't sensitive enough to need server-by-server control.
 **Tradeoff:** Operators who want a different window have to recompile. If demand emerges this can be promoted to a config field cheaply.
 
 ## Permissions

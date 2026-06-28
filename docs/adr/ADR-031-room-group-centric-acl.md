@@ -37,7 +37,7 @@ This work evolves the existing `RoomLayout` / `RoomLayoutSection` storage (`prot
 - **Every channel room belongs to exactly one group.** No nullable `groupID`, no "uncategorized" branch in the resolver. (DM rooms do not belong to a group.)
 - **Room groups are operator-managed, not system-protected.** On first boot, one group named "Lobby" is seeded; the auto-created `announcements` and `general` channels go into it. The operator can rename, reorder, or delete this group like any other.
 - **Room group deletion is rejected while rooms exist.** Operators must move all rooms out first. No "delete and reassign" cascade — the rejection is deliberate to avoid surprise.
-- **Room creation requires a group.** When no room group is implied by UI context, the GraphQL API requires one explicitly. Lower-level bootstrap/import paths may still use the seed "Lobby" group while constructing first-boot state.
+- **Room creation requires a group.** When no room group is implied by UI context, the public room-creation API requires one explicitly. Lower-level bootstrap/import paths may still use the seed "Lobby" group while constructing first-boot state.
 - **Room group membership is stored on the room record** (one `groupID` field per room).
 - **Moving a room between groups requires `room.manage` in BOTH the source and target group.** The action changes the room's effective ACL overnight, so the caller must be authorized in both ends of the move.
 - **Room groups are ordered.** Room group order, like room order within a group, is captured in the layout proto (same atomic-OCC pattern as today's `RoomLayout`).
@@ -96,12 +96,12 @@ The three known production-shaped Chatto servers absorb this. Out-of-the-box beh
 - **More KV keys.** Each (group, role, perm) and (room, role, perm) override is its own key. Practical scale (low thousands) is comfortable for JetStream KV, but storage and listing costs grow linearly with groups × rooms.
 - **One-time RBAC reset.** Existing servers need to migrate (`chatto reset rbac` or equivalent). Acceptable at alpha; a non-event for new deployments.
 - **Room creation always needs a group.** Pre-change, a new room could be created with no group affiliation. Post-change, the API and UI must always pick a group. Drop in operator ergonomics is small but real.
-- **Room-move requires two-group authorization.** Moving a room between groups needs `room.manage` in both source and target. UI must surface this clearly (preview affected users, confirmation step) and the GraphQL surface needs to reflect both checks.
+- **Room-move requires two-group authorization.** Moving a room between groups needs `room.manage` in both source and target. UI must surface this clearly (preview affected users, confirmation step) and the public API surface needs to reflect both checks.
 
 ### Relationship to prior ADRs
 
 - **Supersedes ADR-005 for channel-room permissions only.** Hierarchy-wins RBAC still governs server-scope resolution; the room-scope cascade described in ADR-005 ("deny on `everyone` overridden by higher role's grant") is replaced by the room+group per-role walk. ADR-005's announcements example moves from "server-scope grant on everyone, room-scope deny on everyone" to "group-scope grant on everyone, room-scope deny on everyone" — same shape, just scoped to a group instead of cascading from the server.
-- **Builds on ADR-004** (authorization at the API boundary). Core remains pure; GraphQL gates remain the enforcement layer.
+- **Builds on ADR-044** (shared operation models for public API authorization). Public room/group operations enforce these checks in core operation models so ConnectRPC and future transports cannot drift.
 - **Leaves DM room policy outside room groups.** DMs are not part of any room group; their membership-based read access, message-permission send gate, and hardcoded `dmBoundaryDeniedPermissions` list are covered by ADR-037. Room groups are a channel-rooms-only feature.
 - **Compatible with ADR-037.** Removing the DM read permission does not change the group model because DM rooms never inherit group permissions.
 - **Compatible with ADR-027 and ADR-030.** Server consolidation and the retirement of the space tier are preserved; this ADR introduces a *new* container (room group) below the server, not a return to two tiers.

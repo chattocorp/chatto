@@ -1,0 +1,202 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+// Request to read owner-only server diagnostics.
+message GetSystemInfoRequest {}
+
+// Owner-only operational diagnostics for the Chatto server.
+message GetSystemInfoResponse {
+  // Broker connection, account, and JetStream state.
+  AdminSystemInfo system_info = 1;
+  // Event-sourced projection health and memory estimates.
+  repeated AdminProjectionState projections = 2;
+}
+
+// Broker and application diagnostics shown on the server admin system page.
+message AdminSystemInfo {
+  // Current NATS server connection metadata.
+  AdminConnectionInfo connection = 1;
+  // JetStream account limits and usage.
+  AdminAccountInfo account = 2;
+  // JetStream stream and consumer diagnostics.
+  AdminNatsStats nats = 3;
+  // Aggregate Chatto object counts.
+  AdminServerStats stats = 4;
+}
+
+// Current NATS server connection metadata.
+message AdminConnectionInfo {
+  // Whether Chatto is currently connected to NATS.
+  bool connected = 1;
+  // Connected NATS server ID.
+  string server_id = 2;
+  // Connected NATS server name.
+  string server_name = 3;
+  // Connected NATS server version.
+  string version = 4;
+  // Maximum payload accepted by the connected NATS server.
+  int64 max_payload = 5;
+  // Round-trip latency to the connected NATS server.
+  string rtt = 6;
+}
+
+// JetStream account limits and usage.
+message AdminAccountInfo {
+  // Maximum memory storage in bytes. Values less than or equal to zero mean unlimited.
+  int64 memory = 1;
+  // Used memory storage in bytes.
+  int64 memory_used = 2;
+  // Maximum file storage in bytes. Values less than or equal to zero mean unlimited.
+  int64 storage = 3;
+  // Used file storage in bytes.
+  int64 storage_used = 4;
+  // Maximum number of streams. Values less than or equal to zero mean unlimited.
+  int32 streams = 5;
+  // Current number of streams.
+  int32 streams_used = 6;
+  // Maximum number of consumers. Values less than or equal to zero mean unlimited.
+  int32 consumers = 7;
+  // Current number of consumers.
+  int32 consumers_used = 8;
+}
+
+// Aggregate Chatto object counts.
+message AdminServerStats {
+  // Registered user count.
+  int32 user_count = 1;
+  // Channel room count.
+  int32 channel_room_count = 2;
+  // Direct-message room count.
+  int32 dm_room_count = 3;
+}
+
+// JetStream stream and consumer diagnostics.
+message AdminNatsStats {
+  // Total messages stored across all streams.
+  int64 total_messages = 1;
+  // Total bytes stored across all streams.
+  int64 total_bytes = 2;
+  // Total pending messages across all consumers.
+  int64 total_consumer_pending = 3;
+  // Total messages currently waiting for acknowledgement.
+  int32 total_ack_pending = 4;
+  // Streams sorted by name.
+  repeated AdminNatsStreamInfo streams = 5;
+  // Consumers sorted by stream and name.
+  repeated AdminNatsConsumerInfo consumers = 6;
+}
+
+// JetStream stream state.
+message AdminNatsStreamInfo {
+  // Stream name.
+  string name = 1;
+  // Stream description.
+  string description = 2;
+  // Subjects stored in the stream.
+  repeated string subjects = 3;
+  // Storage backend name.
+  string storage = 4;
+  // Number of messages in the stream.
+  int64 messages = 5;
+  // Number of bytes in the stream.
+  int64 bytes = 6;
+  // First stream sequence.
+  string first_sequence = 7;
+  // Last stream sequence.
+  string last_sequence = 8;
+  // Number of stream consumers.
+  int32 consumer_count = 9;
+  // Configured stream replica count.
+  int32 replicas = 10;
+  // Current cluster leader, when reported by NATS.
+  string cluster_leader = 11;
+}
+
+// JetStream consumer state.
+message AdminNatsConsumerInfo {
+  // Stream that owns the consumer.
+  string stream = 1;
+  // Consumer name.
+  string name = 2;
+  // Durable name, when the consumer is durable.
+  string durable = 3;
+  // Single filter subject, when configured.
+  string filter_subject = 4;
+  // Multiple filter subjects, when configured.
+  repeated string filter_subjects = 5;
+  // NATS acknowledgement policy.
+  string ack_policy = 6;
+  // Whether this is a pull consumer.
+  bool pull_based = 7;
+  // Whether this push consumer has an active subscription.
+  bool push_bound = 8;
+  // Pending messages for this consumer.
+  int64 pending = 9;
+  // Messages waiting for acknowledgement.
+  int32 ack_pending = 10;
+  // Redelivered message count.
+  int32 redelivered = 11;
+  // Pull requests waiting for messages.
+  int32 waiting = 12;
+  // Delivered consumer sequence.
+  string delivered_consumer_sequence = 13;
+  // Delivered stream sequence.
+  string delivered_stream_sequence = 14;
+  // Acknowledgement floor consumer sequence.
+  string ack_floor_consumer_sequence = 15;
+  // Acknowledgement floor stream sequence.
+  string ack_floor_stream_sequence = 16;
+}
+
+// Event-sourced projection health and memory estimates.
+message AdminProjectionState {
+  // Stable projection key.
+  string key = 1;
+  // Display name.
+  string name = 2;
+  // EVT subjects consumed by this projection.
+  repeated string subjects = 3;
+  // Whether the projection projector is running.
+  bool started = 4;
+  // Startup duration in seconds, set after startup completes.
+  optional double startup_duration_seconds = 5;
+  // Last event sequence applied by the projection.
+  string last_applied_sequence = 6;
+  // Target sequence among the projection's matching subjects.
+  string matching_stream_sequence = 7;
+  // Current last sequence of the EVT stream.
+  string stream_last_sequence = 8;
+  // Matching-subject lag between target and applied sequence.
+  int64 lag = 9;
+  // Whether the projection failed.
+  bool failed = 10;
+  // Sequence that failed, when failed is true.
+  string failed_sequence = 11;
+  // Failure message, when failed is true.
+  string failure = 12;
+  // Estimated number of entries held by the projection.
+  int64 entry_count = 13;
+  // Estimated memory used by the projection in bytes.
+  int64 estimated_bytes = 14;
+  // Estimated average memory per entry in bytes.
+  int64 average_entry_bytes = 15;
+  // Projection-specific diagnostic metrics.
+  repeated AdminProjectionMetric metrics = 16;
+}
+
+// Projection-specific diagnostic metric.
+message AdminProjectionMetric {
+  // Metric name.
+  string name = 1;
+  // Metric value.
+  int64 value = 2;
+  // Estimated memory represented by this metric in bytes.
+  int64 bytes = 3;
+}
+
+// Provides owner-only server diagnostics for the admin system page.
+service AdminDiagnosticsService {
+  // Returns broker, JetStream, and projection diagnostics.
+  rpc GetSystemInfo(GetSystemInfoRequest) returns (GetSystemInfoResponse);
+}

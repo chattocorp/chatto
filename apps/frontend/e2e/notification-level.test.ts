@@ -1,52 +1,15 @@
 import { expect } from '@playwright/test';
 import { createAndLoginTestUser } from './fixtures/testUser';
-import { graphqlQuery, getRoomIdByName } from './fixtures/graphqlHelpers';
+import {
+  getRoomIdByNameViaConnect,
+  getRoomNotificationPreference,
+  getServerNotificationPreference,
+  setRoomNotificationLevel,
+  setServerNotificationLevel
+} from './fixtures/connectHelpers';
 import { test } from './setup';
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
-
-/**
- * Helper to set a server notification level via GraphQL mutation.
- */
-async function setServerNotificationLevel(
-  page: import('@playwright/test').Page,
-  level: string
-): Promise<void> {
-  const response = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: SetServerNotificationLevelInput!) {
-				setServerNotificationLevel(input: $input) {
-					level effectiveLevel
-				}
-			}`,
-      variables: { input: { level } }
-    }
-  });
-  expect(response.ok()).toBeTruthy();
-}
-
-/**
- * Helper to set a room notification level via GraphQL mutation.
- */
-async function setRoomNotificationLevel(
-  page: import('@playwright/test').Page,
-  roomId: string,
-  level: string
-): Promise<void> {
-  const response = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: SetRoomNotificationLevelInput!) {
-				setRoomNotificationLevel(input: $input) {
-					level effectiveLevel
-				}
-			}`,
-      variables: { input: { roomId, level } }
-    }
-  });
-  expect(response.ok()).toBeTruthy();
-}
 
 test.describe('Notification Level - Notifications Settings', () => {
   test('notifications settings page renders with server-level and room sections', async ({
@@ -162,7 +125,7 @@ test.describe('Notification Level - Notifications Settings', () => {
 });
 
 test.describe('Notification Level - Server-Side Enforcement', () => {
-  test('setting notification level persists via GraphQL roundtrip', async ({ page, chatPage }) => {
+  test('setting notification level persists via Connect roundtrip', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
 
@@ -170,12 +133,10 @@ test.describe('Notification Level - Server-Side Enforcement', () => {
     await setServerNotificationLevel(page, 'MUTED');
 
     // Query it back
-    const data = await graphqlQuery<{
-      server: { viewerNotificationPreference: { level: string; effectiveLevel: string } };
-    }>(page, `query { server { viewerNotificationPreference { level effectiveLevel } } }`);
+    const preference = await getServerNotificationPreference(page);
 
-    expect(data.server.viewerNotificationPreference.level).toBe('MUTED');
-    expect(data.server.viewerNotificationPreference.effectiveLevel).toBe('MUTED');
+    expect(preference.level).toBe('MUTED');
+    expect(preference.effectiveLevel).toBe('MUTED');
   });
 
   test('room inherits server notification level when set to DEFAULT', async ({
@@ -184,31 +145,22 @@ test.describe('Notification Level - Server-Side Enforcement', () => {
   }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const roomId = await getRoomIdByName(page, 'general');
+    const roomId = await getRoomIdByNameViaConnect(page, 'general');
 
     // Set server level to MUTED
     await setServerNotificationLevel(page, 'MUTED');
 
     // Room (with DEFAULT) should inherit MUTED from server
-    const data = await graphqlQuery<{
-      room: { viewerNotificationPreference: { level: string; effectiveLevel: string } };
-    }>(
-      page,
-      `query($roomId: ID!) { room(roomId: $roomId) {
-					viewerNotificationPreference { level effectiveLevel }
-				}
-			}`,
-      { roomId }
-    );
+    const preference = await getRoomNotificationPreference(page, roomId);
 
-    expect(data.room.viewerNotificationPreference.level).toBe('DEFAULT');
-    expect(data.room.viewerNotificationPreference.effectiveLevel).toBe('MUTED');
+    expect(preference.level).toBe('DEFAULT');
+    expect(preference.effectiveLevel).toBe('MUTED');
   });
 
   test('room level overrides server level', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const roomId = await getRoomIdByName(page, 'general');
+    const roomId = await getRoomIdByNameViaConnect(page, 'general');
 
     // Set server level to MUTED
     await setServerNotificationLevel(page, 'MUTED');
@@ -217,18 +169,9 @@ test.describe('Notification Level - Server-Side Enforcement', () => {
     await setRoomNotificationLevel(page, roomId, 'ALL_MESSAGES');
 
     // Room should show ALL_MESSAGES as effective level
-    const data = await graphqlQuery<{
-      room: { viewerNotificationPreference: { level: string; effectiveLevel: string } };
-    }>(
-      page,
-      `query($roomId: ID!) { room(roomId: $roomId) {
-					viewerNotificationPreference { level effectiveLevel }
-				}
-			}`,
-      { roomId }
-    );
+    const preference = await getRoomNotificationPreference(page, roomId);
 
-    expect(data.room.viewerNotificationPreference.level).toBe('ALL_MESSAGES');
-    expect(data.room.viewerNotificationPreference.effectiveLevel).toBe('ALL_MESSAGES');
+    expect(preference.level).toBe('ALL_MESSAGES');
+    expect(preference.effectiveLevel).toBe('ALL_MESSAGES');
   });
 });

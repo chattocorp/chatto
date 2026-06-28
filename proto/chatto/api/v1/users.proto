@@ -1,0 +1,106 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "buf/validate/validate.proto";
+import "chatto/api/v1/member_directory.proto";
+
+// Fit mode used when generating transformed user avatar URLs.
+enum UserAvatarFitMode {
+  // The fit mode was not specified.
+  USER_AVATAR_FIT_MODE_UNSPECIFIED = 0;
+  // Preserve the whole source image within the requested bounds.
+  USER_AVATAR_FIT_MODE_CONTAIN = 1;
+  // Fill the requested bounds, cropping when needed.
+  USER_AVATAR_FIT_MODE_COVER = 2;
+}
+
+// Avatar transform parameters for user profile reads.
+message UserAvatarOptions {
+  // Avatar width in pixels.
+  int32 width = 1 [(buf.validate.field).int32 = {
+    gte: 1,
+    lte: 4096
+  }];
+  // Avatar height in pixels.
+  int32 height = 2 [(buf.validate.field).int32 = {
+    gte: 1,
+    lte: 4096
+  }];
+  // Avatar crop/fit behavior.
+  UserAvatarFitMode fit = 3 [(buf.validate.field).enum.defined_only = true];
+}
+
+// Lightweight public user data for cache-backed render surfaces.
+message UserSummary {
+  // Stable user ID.
+  string id = 1;
+  // Login name.
+  string login = 2;
+  // Display name, when set.
+  string display_name = 3;
+  // True when the user account has been deleted.
+  bool deleted = 4;
+  // Avatar image URL, when available.
+  string avatar_url = 5;
+}
+
+// Request one user by stable user ID.
+message GetUserRequest {
+  // Required user ID.
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Optional avatar URL transform parameters. Omit for the original avatar URL.
+  UserAvatarOptions avatar = 2;
+}
+
+// Request one user by login identifier.
+message GetUserByLoginRequest {
+  // Required login identifier.
+  string login = 1 [(buf.validate.field).string.min_len = 1];
+  // Optional avatar URL transform parameters. Omit for the original avatar URL.
+  UserAvatarOptions avatar = 2;
+}
+
+// Request lightweight summaries for a set of stable user IDs.
+message BatchGetUsersRequest {
+  // Required user IDs. Unknown IDs are omitted from the response.
+  repeated string user_ids = 1 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 100
+    items: {
+      string: {min_len: 1}
+    }
+  }];
+  // Optional avatar URL transform parameters. Omit for the original avatar URL.
+  UserAvatarOptions avatar = 2;
+}
+
+// Public authenticated user profile response.
+message GetUserResponse {
+  // Requested user.
+  DirectoryMember user = 1;
+}
+
+// Public authenticated user profile response for login lookup.
+message GetUserByLoginResponse {
+  // Requested user. Absent when the login is unknown.
+  DirectoryMember user = 1;
+}
+
+// Lightweight batch user summary response.
+message BatchGetUsersResponse {
+  // Found users. The server preserves first-seen request order and de-duplicates
+  // repeated IDs.
+  repeated UserSummary users = 1;
+}
+
+// Provides authenticated public user profile lookups.
+service UserService {
+  // Gets a user by stable ID. Returns NOT_FOUND when the ID is unknown.
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  // Gets a user by login. Returns an empty response when the login is unknown.
+  rpc GetUserByLogin(GetUserByLoginRequest) returns (GetUserByLoginResponse);
+  // Gets lightweight summaries for multiple users, suitable for frontend cache
+  // misses when rendering event-focused payloads.
+  rpc BatchGetUsers(BatchGetUsersRequest) returns (BatchGetUsersResponse);
+}

@@ -994,9 +994,11 @@ export class RoomTimelineEvent extends Message<RoomTimelineEvent> {
 /**
  * Cursor page of room or thread timeline events.
  *
- * Use start_cursor and end_cursor with before/after requests to continue paging
- * in either direction. The has_older and has_newer flags tell clients whether
- * another request can extend the current window.
+ * Use opaque start_cursor and end_cursor values with before/after requests to
+ * continue paging in either direction. Clients must treat cursor values as
+ * server-owned tokens and must not parse or construct them. The has_older and
+ * has_newer flags tell clients whether another request can extend the current
+ * window.
  *
  * @generated from message chatto.api.v1.RoomTimelinePage
  */
@@ -1009,14 +1011,14 @@ export class RoomTimelinePage extends Message<RoomTimelinePage> {
   events: RoomTimelineEvent[] = [];
 
   /**
-   * Cursor for the first event in the page.
+   * Opaque cursor for the first event in the page.
    *
    * @generated from field: string start_cursor = 2;
    */
   startCursor = "";
 
   /**
-   * Cursor for the last event in the page.
+   * Opaque cursor for the last event in the page.
    *
    * @generated from field: string end_cursor = 3;
    */
@@ -1079,8 +1081,9 @@ export class RoomTimelinePage extends Message<RoomTimelinePage> {
 /**
  * Request for a page of room timeline events.
  *
- * Omit the cursor to load the initial page. Set before to page toward older
- * events, or after to page toward newer events.
+ * Omit the cursor to load the initial page. Set before to a previously returned
+ * start_cursor to page toward older events, or after to a previously returned
+ * end_cursor to page toward newer events.
  *
  * @generated from message chatto.api.v1.GetRoomEventsRequest
  */
@@ -1106,7 +1109,7 @@ export class GetRoomEventsRequest extends Message<GetRoomEventsRequest> {
    */
   cursor: {
     /**
-     * Return events older than this cursor.
+     * Return events older than this opaque cursor.
      *
      * @generated from field: string before = 3;
      */
@@ -1114,7 +1117,7 @@ export class GetRoomEventsRequest extends Message<GetRoomEventsRequest> {
     case: "before";
   } | {
     /**
-     * Return events newer than this cursor.
+     * Return events newer than this opaque cursor.
      *
      * @generated from field: string after = 4;
      */
@@ -1304,10 +1307,121 @@ export class GetRoomEventsAroundResponse extends Message<GetRoomEventsAroundResp
 }
 
 /**
+ * Request for resolving a message permalink target.
+ *
+ * Unlike GetRoomEventsAround, this can resolve thread-only replies that do not
+ * appear as rows in the room timeline.
+ *
+ * @generated from message chatto.api.v1.ResolveMessageLinkTargetRequest
+ */
+export class ResolveMessageLinkTargetRequest extends Message<ResolveMessageLinkTargetRequest> {
+  /**
+   * Required. Room containing the linked event.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Required. Linked event ID.
+   *
+   * @generated from field: string event_id = 2;
+   */
+  eventId = "";
+
+  constructor(data?: PartialMessage<ResolveMessageLinkTargetRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ResolveMessageLinkTargetRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ResolveMessageLinkTargetRequest {
+    return new ResolveMessageLinkTargetRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ResolveMessageLinkTargetRequest {
+    return new ResolveMessageLinkTargetRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ResolveMessageLinkTargetRequest {
+    return new ResolveMessageLinkTargetRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ResolveMessageLinkTargetRequest | PlainMessage<ResolveMessageLinkTargetRequest> | undefined, b: ResolveMessageLinkTargetRequest | PlainMessage<ResolveMessageLinkTargetRequest> | undefined): boolean {
+    return proto3.util.equals(ResolveMessageLinkTargetRequest, a, b);
+  }
+}
+
+/**
+ * Response describing where a message permalink should land.
+ *
+ * @generated from message chatto.api.v1.ResolveMessageLinkTargetResponse
+ */
+export class ResolveMessageLinkTargetResponse extends Message<ResolveMessageLinkTargetResponse> {
+  /**
+   * Linked event, hydrated with the same shape used by timeline pages.
+   *
+   * @generated from field: chatto.api.v1.RoomTimelineEvent event = 1;
+   */
+  event?: RoomTimelineEvent;
+
+  /**
+   * Event ID of the thread root when event is a thread-only reply. Empty when
+   * the event should open in the room timeline.
+   *
+   * @generated from field: string thread_root_event_id = 2;
+   */
+  threadRootEventId = "";
+
+  /**
+   * Related entities needed to render the event.
+   *
+   * @generated from field: chatto.api.v1.RoomTimelineIncludes includes = 3;
+   */
+  includes?: RoomTimelineIncludes;
+
+  constructor(data?: PartialMessage<ResolveMessageLinkTargetResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ResolveMessageLinkTargetResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "event", kind: "message", T: RoomTimelineEvent },
+    { no: 2, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "includes", kind: "message", T: RoomTimelineIncludes },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ResolveMessageLinkTargetResponse {
+    return new ResolveMessageLinkTargetResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ResolveMessageLinkTargetResponse {
+    return new ResolveMessageLinkTargetResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ResolveMessageLinkTargetResponse {
+    return new ResolveMessageLinkTargetResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ResolveMessageLinkTargetResponse | PlainMessage<ResolveMessageLinkTargetResponse> | undefined, b: ResolveMessageLinkTargetResponse | PlainMessage<ResolveMessageLinkTargetResponse> | undefined): boolean {
+    return proto3.util.equals(ResolveMessageLinkTargetResponse, a, b);
+  }
+}
+
+/**
  * Request for a page of events in one thread.
  *
  * Omit the cursor to load the latest visible part of the thread, including the
- * root message. Set before to page toward older replies, or after to page toward
+ * root message. Set before to a previously returned start_cursor to page toward
+ * older replies, or after to a previously returned end_cursor to page toward
  * newer replies without repeating the root message.
  *
  * @generated from message chatto.api.v1.GetThreadEventsRequest
@@ -1341,7 +1455,7 @@ export class GetThreadEventsRequest extends Message<GetThreadEventsRequest> {
    */
   cursor: {
     /**
-     * Return thread events older than this cursor.
+     * Return thread events older than this opaque cursor.
      *
      * @generated from field: string before = 4;
      */
@@ -1349,7 +1463,7 @@ export class GetThreadEventsRequest extends Message<GetThreadEventsRequest> {
     case: "before";
   } | {
     /**
-     * Return thread events newer than this cursor.
+     * Return thread events newer than this opaque cursor.
      *
      * @generated from field: string after = 5;
      */

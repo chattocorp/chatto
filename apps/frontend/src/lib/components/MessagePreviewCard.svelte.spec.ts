@@ -2,23 +2,30 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import MessagePreviewCard from './MessagePreviewCard.svelte';
 import type { MessageLink } from '$lib/messageLinks';
-import { FitMode } from '$lib/gql/graphql';
+import { FitMode } from '$lib/render/types';
+import { RoomEventKind } from '$lib/render/eventKinds';
+import type { RefreshedAttachmentUrls } from '$lib/attachments/attachmentUrls';
 
-const { queryMock, queryResults } = vi.hoisted(() => ({
-  queryMock: vi.fn(),
-  queryResults: [] as unknown[]
-}));
+const { getRoomEventsAroundMock, timelineResults, refreshMessageAttachmentUrlsMock } = vi.hoisted(
+  () => ({
+    getRoomEventsAroundMock: vi.fn(),
+    timelineResults: [] as unknown[],
+    refreshMessageAttachmentUrlsMock: vi.fn()
+  })
+);
 
 const transparentGif = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 
-vi.mock('$lib/state/server/graphqlClient.svelte', () => ({
-  graphqlClientManager: {
-    getClient: () => ({
-      client: {
-        query: queryMock
-      }
-    })
-  }
+vi.mock('$lib/api/roomTimeline', () => ({
+  createRoomTimelineAPI: vi.fn(() => ({
+    getRoomEventsAround: getRoomEventsAroundMock
+  }))
+}));
+
+vi.mock('$lib/api/attachments', () => ({
+  createAttachmentAPI: vi.fn(() => ({
+    refreshMessageAttachmentUrls: refreshMessageAttachmentUrlsMock
+  }))
 }));
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
@@ -26,6 +33,9 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
     tryGetStore: () => ({
       currentUser: {
         user: { login: 'viewer' }
+      },
+      rooms: {
+        rooms: [{ id: 'room_1', name: 'general' }]
       }
     }),
     getServer: (id: string) =>
@@ -53,171 +63,124 @@ function link(): MessageLink {
   };
 }
 
-function previewResult(thumbnailUrl: string) {
+function previewPage(event: unknown) {
   return {
-    data: {
-      server: {
-        profile: {
-          name: 'Test Server'
-        }
-      },
-      room: {
-        name: 'general',
-        event: {
-          actor: null,
-          event: {
-            __typename: 'MessagePostedEvent',
-            body: null,
-            attachments: [
-              {
-                id: 'att_1',
-                filename: 'photo.jpg',
-                contentType: 'image/jpeg',
-                thumbnailAssetUrl: {
-                  url: thumbnailUrl,
-                  expiresAt: '2027-05-29T15:00:00Z'
-                },
-                videoProcessing: null
-              }
-            ]
-          }
-        }
+    events: [
+      {
+        id: 'event_1',
+        createdAt: '2027-05-29T15:00:00Z',
+        actor: null,
+        event
       }
-    }
+    ],
+    startCursor: null,
+    endCursor: null,
+    hasOlder: false,
+    hasNewer: false
   };
+}
+
+function previewResult(thumbnailUrl: string) {
+  return previewPage({
+    kind: RoomEventKind.MessagePosted,
+    body: null,
+    attachments: [
+      {
+        id: 'att_1',
+        filename: 'photo.jpg',
+        contentType: 'image/jpeg',
+        thumbnailAssetUrl: {
+          url: thumbnailUrl,
+          expiresAt: '2027-05-29T15:00:00Z'
+        },
+        videoProcessing: null
+      }
+    ]
+  });
 }
 
 function bodyPreviewResult(body: string) {
-  return {
-    data: {
-      server: {
-        profile: {
-          name: 'Test Server'
-        }
-      },
-      room: {
-        name: 'announcements',
-        event: {
-          actor: null,
-          event: {
-            __typename: 'MessagePostedEvent',
-            body,
-            attachments: []
-          }
-        }
-      }
-    }
-  };
+  return previewPage({
+    kind: RoomEventKind.MessagePosted,
+    body,
+    attachments: []
+  });
 }
 
 function videoPreviewResult(videoThumbnailUrl: string | null) {
-  return {
-    data: {
-      server: {
-        profile: {
-          name: 'Test Server'
-        }
-      },
-      room: {
-        name: 'general',
-        event: {
-          actor: null,
-          event: {
-            __typename: 'MessagePostedEvent',
-            body: null,
-            attachments: [
-              {
-                id: 'att_video',
-                filename: 'clip.mp4',
-                contentType: 'video/mp4',
-                thumbnailAssetUrl: null,
-                videoProcessing: videoThumbnailUrl
-                  ? {
-                      thumbnailAssetUrl: {
-                        url: videoThumbnailUrl,
-                        expiresAt: '2027-05-29T15:00:00Z'
-                      }
-                    }
-                  : null
+  return previewPage({
+    kind: RoomEventKind.MessagePosted,
+    body: null,
+    attachments: [
+      {
+        id: 'att_video',
+        filename: 'clip.mp4',
+        contentType: 'video/mp4',
+        thumbnailAssetUrl: null,
+        videoProcessing: videoThumbnailUrl
+          ? {
+              thumbnailAssetUrl: {
+                url: videoThumbnailUrl,
+                expiresAt: '2027-05-29T15:00:00Z'
               }
-            ]
-          }
-        }
+            }
+          : null
       }
-    }
-  };
+    ]
+  });
 }
 
 function refreshResult(thumbnailUrl: string) {
-  return {
-    data: {
-      room: {
-        event: {
-          event: {
-            __typename: 'MessagePostedEvent',
-            attachments: [
-              {
-                id: 'att_1',
-                assetUrl: {
-                  url: '/assets/files/att_1?access=fresh-original',
-                  expiresAt: '2027-05-29T15:00:00Z'
-                },
-                thumbnailAssetUrl: {
-                  url: thumbnailUrl,
-                  expiresAt: '2027-05-29T15:00:00Z'
-                },
-                videoProcessing: null
-              }
-            ]
-          }
-        }
+  return new Map<string, RefreshedAttachmentUrls>([
+    [
+      'att_1',
+      {
+        assetUrl: {
+          url: '/assets/files/att_1?access=fresh-original',
+          expiresAt: '2027-05-29T15:00:00Z'
+        },
+        thumbnailAssetUrl: {
+          url: thumbnailUrl,
+          expiresAt: '2027-05-29T15:00:00Z'
+        },
+        videoThumbnailAssetUrl: null,
+        variantAssetUrls: new Map()
       }
-    }
-  };
+    ]
+  ]);
 }
 
 function videoRefreshResult(videoThumbnailUrl: string) {
-  return {
-    data: {
-      room: {
-        event: {
-          event: {
-            __typename: 'MessagePostedEvent',
-            attachments: [
-              {
-                id: 'att_video',
-                assetUrl: {
-                  url: '/assets/files/att_video?access=fresh-original',
-                  expiresAt: '2027-05-29T15:00:00Z'
-                },
-                thumbnailAssetUrl: null,
-                videoProcessing: {
-                  thumbnailAssetUrl: {
-                    url: videoThumbnailUrl,
-                    expiresAt: '2027-05-29T15:00:00Z'
-                  },
-                  variants: []
-                }
-              }
-            ]
-          }
-        }
+  return new Map<string, RefreshedAttachmentUrls>([
+    [
+      'att_video',
+      {
+        assetUrl: {
+          url: '/assets/files/att_video?access=fresh-original',
+          expiresAt: '2027-05-29T15:00:00Z'
+        },
+        thumbnailAssetUrl: null,
+        videoThumbnailAssetUrl: {
+          url: videoThumbnailUrl,
+          expiresAt: '2027-05-29T15:00:00Z'
+        },
+        variantAssetUrls: new Map()
       }
-    }
-  };
+    ]
+  ]);
 }
 
 beforeEach(() => {
-  queryMock.mockReset();
-  queryResults.length = 0;
-  queryMock.mockImplementation(() => ({
-    toPromise: () => Promise.resolve(queryResults.shift())
-  }));
+  getRoomEventsAroundMock.mockReset();
+  refreshMessageAttachmentUrlsMock.mockReset();
+  timelineResults.length = 0;
+  getRoomEventsAroundMock.mockImplementation(() => Promise.resolve(timelineResults.shift()));
+  refreshMessageAttachmentUrlsMock.mockResolvedValue(new Map());
 });
 
 describe('MessagePreviewCard', () => {
   it('renders the linked message body as markdown in a scrollable preview', async () => {
-    queryResults.push(
+    timelineResults.push(
       bodyPreviewResult('# Release notes\n\n- **Breaking** change\n- More details')
     );
 
@@ -231,9 +194,9 @@ describe('MessagePreviewCard', () => {
       );
     });
 
-    expect(container.querySelector('[data-testid="message-preview-card"] strong')?.textContent).toBe(
-      'Breaking'
-    );
+    expect(
+      container.querySelector('[data-testid="message-preview-card"] strong')?.textContent
+    ).toBe('Breaking');
     expect(container.querySelector('[data-testid="message-preview-card"] ul')).not.toBeNull();
     expect(container.querySelector('.max-h-52.overflow-y-auto')).not.toBeNull();
     expect(container.querySelector('.bg-gradient-to-b')).not.toBeNull();
@@ -241,8 +204,8 @@ describe('MessagePreviewCard', () => {
   });
 
   it('refreshes attachment thumbnail asset URLs after image load failure', async () => {
-    queryResults.push(
-      previewResult(transparentGif),
+    timelineResults.push(previewResult(transparentGif));
+    refreshMessageAttachmentUrlsMock.mockResolvedValueOnce(
       refreshResult(`${transparentGif}#fresh-image`)
     );
 
@@ -262,21 +225,15 @@ describe('MessagePreviewCard', () => {
       const refreshed = container.querySelector<HTMLImageElement>('img[alt="photo.jpg"]');
       expect(refreshed?.getAttribute('src')).toContain('#fresh-image');
     });
-    const refreshCalls = queryMock.mock.calls.filter((call) => call[1]?.thumbnailWidth === 120);
-    expect(refreshCalls.length).toBeGreaterThanOrEqual(1);
-    for (const call of refreshCalls) {
-      expect(call[1]).toMatchObject({
-        roomId: 'room_1',
-        eventId: 'event_1',
-        thumbnailWidth: 120,
-        thumbnailHeight: 120,
-        thumbnailFit: FitMode.Cover
-      });
-    }
+    expect(refreshMessageAttachmentUrlsMock).toHaveBeenCalledWith('room_1', 'event_1', {
+      width: 120,
+      height: 120,
+      fit: FitMode.Cover
+    });
   });
 
   it('renders video attachment thumbnails for linked message previews', async () => {
-    queryResults.push(videoPreviewResult(`${transparentGif}#old-video`));
+    timelineResults.push(videoPreviewResult(`${transparentGif}#old-video`));
 
     const { container } = render(MessagePreviewCard, {
       props: { link: link(), showDismiss: false }
@@ -292,8 +249,8 @@ describe('MessagePreviewCard', () => {
   });
 
   it('refreshes video attachment thumbnail asset URLs after image load failure', async () => {
-    queryResults.push(
-      videoPreviewResult(`${transparentGif}#old-video`),
+    timelineResults.push(videoPreviewResult(`${transparentGif}#old-video`));
+    refreshMessageAttachmentUrlsMock.mockResolvedValueOnce(
       videoRefreshResult(`${transparentGif}#fresh-video`)
     );
 
@@ -316,8 +273,8 @@ describe('MessagePreviewCard', () => {
   });
 
   it('falls back to a video tile when the refreshed video thumbnail also fails', async () => {
-    queryResults.push(
-      videoPreviewResult(`${transparentGif}#old-video`),
+    timelineResults.push(videoPreviewResult(`${transparentGif}#old-video`));
+    refreshMessageAttachmentUrlsMock.mockResolvedValueOnce(
       videoRefreshResult(`${transparentGif}#fresh-video`)
     );
 
@@ -329,7 +286,9 @@ describe('MessagePreviewCard', () => {
       expect(container.querySelector('img[alt="clip.mp4"]')).not.toBeNull();
     });
 
-    container.querySelector<HTMLImageElement>('img[alt="clip.mp4"]')?.dispatchEvent(new Event('error'));
+    container
+      .querySelector<HTMLImageElement>('img[alt="clip.mp4"]')
+      ?.dispatchEvent(new Event('error'));
 
     await vi.waitFor(() => {
       expect(container.querySelector<HTMLImageElement>('img[alt="clip.mp4"]')?.src).toContain(
@@ -337,7 +296,9 @@ describe('MessagePreviewCard', () => {
       );
     });
 
-    container.querySelector<HTMLImageElement>('img[alt="clip.mp4"]')?.dispatchEvent(new Event('error'));
+    container
+      .querySelector<HTMLImageElement>('img[alt="clip.mp4"]')
+      ?.dispatchEvent(new Event('error'));
 
     await vi.waitFor(() => {
       expect(container.querySelector('img[alt="clip.mp4"]')).toBeNull();

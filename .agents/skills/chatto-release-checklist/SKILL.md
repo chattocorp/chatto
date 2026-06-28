@@ -35,7 +35,7 @@ git rev-parse <candidate-ref>
 git log --oneline <baseline>..<candidate-ref>
 git log --first-parent --merges --pretty=format:'%h %s' <baseline>..<candidate-ref>
 git diff --stat <baseline>..<candidate-ref>
-git diff --name-status <baseline>..<candidate-ref> -- proto/chatto/api/v1 proto/chatto/core/v1 cli/internal/graph cli/internal/http_server/server_info.go frontend/src/lib/api/server.ts
+git diff --name-status <baseline>..<candidate-ref> -- proto/chatto/api/v1 proto/chatto/core/v1 cli/internal/connectapi cli/internal/http_server/server_info.go cli/internal/http_server/realtime.go apps/frontend/src/lib/api/server.ts
 gh pr view <number> --json number,title,url,body,mergedAt
 ```
 
@@ -56,10 +56,11 @@ If the candidate version already has a tag, compare `<baseline>..<candidate-tag>
    - Check relevant FDRs/ADRs when a change is user-facing or architectural enough that the announcement would otherwise be guesswork.
    - Build an evidence map that links major announcement bullets to PRs, commits, or docs. Keep this map in the developer checklist, not the announcement.
 3. Review API changes separately:
-   - Public ConnectRPC/protobuf API: inspect diffs under `proto/chatto/api/v1/`, generated frontend files under `frontend/src/lib/pb/chatto/api/v1/`, generated Go files under `cli/internal/pb/chatto/api/v1/`, and generated docs under `docs-website/src/content/docs/reference/connectrpc-api/`.
+   - Public ConnectRPC/protobuf API: inspect diffs under `proto/chatto/api/v1/`, generated frontend files under `apps/frontend/src/lib/pb/chatto/api/v1/`, generated Go files under `cli/internal/pb/chatto/api/v1/`, and generated docs under `apps/docs-website/src/content/docs/reference/connectrpc-api/`.
    - Persisted protobuf/event shapes: inspect `proto/chatto/core/v1/` and call out higher-risk persisted EVT/RUNTIME_STATE compatibility changes. When these files change, read `proto/AGENTS.md` and use `chatto-event-sourcing` guidance. Check removed fields, reused tags/oneof numbers, reserved or retired tags, replay compatibility, and old self-hosted event streams.
-   - GraphQL API: inspect `cli/internal/graph/*.graphqls`, resolver behavior that changes schema semantics, generated GraphQL files under `frontend/src/lib/gql/`, and docs that describe GraphQL behavior.
-   - Server discovery and stable HTTP surfaces: inspect `GET /api/server` implementation in `cli/internal/http_server/server_info.go`, matching tests, and frontend client code in `frontend/src/lib/api/server.ts`.
+   - Realtime websocket API: inspect `proto/chatto/api/v1/realtime.proto`, `cli/internal/http_server/realtime.go`, `cli/internal/core/my_events_model.go`, and frontend event-bus/client code under `apps/frontend/src/lib/state/server/`.
+   - Retired legacy API compatibility: only call this out when a release removes, reintroduces, or changes compatibility behavior for retired public API clients. The current public API is ConnectRPC plus `/api/realtime`.
+   - Server discovery and stable HTTP surfaces: inspect `GET /api/server` implementation in `cli/internal/http_server/server_info.go`, matching tests, and frontend client code in `apps/frontend/src/lib/api/server.ts`.
    - Other client-visible HTTP endpoints: call out auth, upload, asset, webhook, health, metrics, or CORS behavior changes when present.
 4. Classify API changes:
    - Breaking: removed fields/services/endpoints, renamed fields, changed required fields, changed enum/string meanings, tightened validation, changed auth/CORS requirements, incompatible persisted protobuf changes, or behavior that can strand older clients.
@@ -70,7 +71,7 @@ If the candidate version already has a tag, compare `<baseline>..<candidate-tag>
    - `fix` commits go under `Bug Fixes`, using `Fixed an issue ...` phrasing.
    - `perf`, user-visible refactors, UI polish, docs/setup improvements, and behavior changes go under `Changes`.
    - Deployment, config, storage, backup, image, metrics, security, and operational notes go under `Notes for Self-Hosters`.
-   - Public proto, ConnectRPC, GraphQL, `/api/server`, CORS, auth, upload, asset, webhook, health, or metrics compatibility notes go under `Notes for API Users`.
+   - Public proto, ConnectRPC, realtime websocket, retired legacy API compatibility, `/api/server`, CORS, auth, upload, asset, webhook, health, or metrics compatibility notes go under `Notes for API Users`.
 6. Write two files:
    - Developer checklist: `.context/release-checklist-<version>.md`
    - Publishable announcement: `.context/release-announcement-<version>.md`
@@ -107,8 +108,9 @@ Prerelease baseline: `<prerelease-baseline-or-none>`.
 
 - Stable self-hosters upgrading from `<stable-baseline>`: <impact>
 - Beta users upgrading from `<prerelease-baseline>`: <impact or not applicable>
-- GraphQL clients: <impact>
+- Retired legacy API clients: <impact>
 - ConnectRPC clients: <impact>
+- Realtime websocket clients: <impact>
 - Operators using Docker Compose: <impact>
 - Operators using clustered replicas: <impact>
 
@@ -118,7 +120,7 @@ Prerelease baseline: `<prerelease-baseline-or-none>`.
 - Generated Go protobuf/Connect files changed: <yes/no/not applicable>
 - Generated TypeScript protobuf/Connect files changed: <yes/no/not applicable>
 - Generated ConnectRPC docs changed: <yes/no/not applicable>
-- GraphQL generated files changed: <yes/no/not applicable>
+- Retired legacy API compatibility changed: <yes/no/not applicable>
 - Codegen/drift check present: <yes/no/not applicable>
 
 ## Publishable Announcement File
@@ -140,9 +142,13 @@ Prerelease baseline: `<prerelease-baseline-or-none>`.
 
 - <Compatibility notes for durable event/runtime state schemas>
 
-### GraphQL
+### Realtime WebSocket
 
 - <Breaking/Additive/Internal-only classification plus impact>
+
+### Retired Legacy API Compatibility
+
+- <Compatibility notes if retired legacy API behavior changed; otherwise state no change/not applicable>
 
 ### Server Discovery and HTTP Compatibility
 
@@ -163,7 +169,7 @@ Prerelease baseline: `<prerelease-baseline-or-none>`.
 - [ ] Release blockers are resolved or explicitly accepted.
 - [ ] Breaking or upgrade notes are reflected in release notes and PR title/body when needed.
 - [ ] Public protobuf changes have generated outputs and docs.
-- [ ] GraphQL/API documentation is current when behavior changed.
+- [ ] API documentation is current when ConnectRPC, realtime websocket, or retired legacy API compatibility behavior changed.
 - [ ] Announcement wording has been reviewed by a human before publishing.
 ```
 

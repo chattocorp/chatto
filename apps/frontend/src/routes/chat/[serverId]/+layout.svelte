@@ -4,7 +4,7 @@
   import { resolve } from '$app/paths';
   import { browser } from '$app/environment';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
+  import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { provideConnection } from '$lib/state/server/connection.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { provideEventBus } from '$lib/eventBus.svelte';
@@ -47,7 +47,7 @@
   // override the parent's ConnectionProvider with the correct client for
   // this instance — origin paths get the origin client; hostname paths get
   // that instance's client.
-  provideConnection(() => graphqlClientManager.getClient(serverId));
+  provideConnection(() => serverConnectionManager.getClient(serverId));
 
   // Provide the active server's event bus to child components via Svelte
   // context. Passing a getter (not a fixed serverId) means `useEvent` /

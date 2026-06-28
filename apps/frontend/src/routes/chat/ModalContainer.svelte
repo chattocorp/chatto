@@ -4,7 +4,7 @@
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
+  import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import * as m from '$lib/i18n/messages';
   import SignOutDialog from './SignOutDialog.svelte';
@@ -17,6 +17,7 @@
   import CreateRoom from '$lib/CreateRoom.svelte';
   import { createRoomCommandAPI } from '$lib/api/rooms';
   import { createMessageAPI } from '$lib/api/messages';
+  import { createAttachmentAPI } from '$lib/api/attachments';
 
   import ImageModal from '$lib/ui/ImageModal.svelte';
 
@@ -29,14 +30,18 @@
     history.back();
   }
 
-  /** Get the GraphQL client for read/refresh helpers that still use GraphQL. */
-  function getActiveClient() {
-    return graphqlClientManager.getClient(activeInstanceId).client;
+  function getActiveMessageAPI() {
+    const conn = serverConnectionManager.getClient(activeInstanceId);
+    return createMessageAPI({
+      serverId: conn.serverId ?? activeInstanceId,
+      baseUrl: conn.connectBaseUrl,
+      bearerToken: conn.bearerToken
+    });
   }
 
-  function getActiveMessageAPI() {
-    const conn = graphqlClientManager.getClient(activeInstanceId);
-    return createMessageAPI({
+  function getActiveAttachmentAPI() {
+    const conn = serverConnectionManager.getClient(activeInstanceId);
+    return createAttachmentAPI({
       serverId: conn.serverId ?? activeInstanceId,
       baseUrl: conn.connectBaseUrl,
       bearerToken: conn.bearerToken
@@ -60,7 +65,7 @@
   async function handleLeaveRoom(roomId: string) {
     leavingRoom = true;
     try {
-      const conn = graphqlClientManager.getClient(activeInstanceId);
+      const conn = serverConnectionManager.getClient(activeInstanceId);
       const api = createRoomCommandAPI({
         serverId: conn.serverId ?? activeInstanceId,
         baseUrl: conn.connectBaseUrl,
@@ -179,7 +184,7 @@
     const refreshRoomId = roomId;
     const refreshEventId = eventId;
     const freshUrls = await refreshAttachmentUrlsForMessage(
-      getActiveClient(),
+      getActiveAttachmentAPI(),
       refreshRoomId,
       refreshEventId
     );

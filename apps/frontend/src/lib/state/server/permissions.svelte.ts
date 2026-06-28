@@ -3,8 +3,7 @@ import { getActiveServer } from '$lib/state/activeServer.svelte';
 import { serverRegistry } from './registry.svelte';
 
 /**
- * Viewer permissions data from the GraphQL `viewer` query.
- * This matches the shape returned by the Viewer type in the schema.
+ * Viewer permissions data returned by the viewer API.
  */
 export type ViewerData = {
   /** Whether the viewer has at least one admin-capability entry point. */
@@ -54,9 +53,7 @@ const EMPTY_PERMISSIONS: ServerPermissions = {
  * const canViewAdmin = $derived(serverPerms.current.canViewAdmin);
  * ```
  */
-export function getServerPermissions(
-  serverId?: string
-): { readonly current: ServerPermissions } {
+export function getServerPermissions(serverId?: string): { readonly current: ServerPermissions } {
   return {
     get current() {
       const id = serverId ?? getActiveServer();

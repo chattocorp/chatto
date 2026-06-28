@@ -4,7 +4,8 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { RoomTimelineEvent, RoomTimelineIncludes } from "./room_timeline_pb.js";
 
 /**
  * Request to follow one message thread.
@@ -183,6 +184,209 @@ export class UnfollowThreadResponse extends Message<UnfollowThreadResponse> {
 
   static equals(a: UnfollowThreadResponse | PlainMessage<UnfollowThreadResponse> | undefined, b: UnfollowThreadResponse | PlainMessage<UnfollowThreadResponse> | undefined): boolean {
     return proto3.util.equals(UnfollowThreadResponse, a, b);
+  }
+}
+
+/**
+ * One followed thread for the current user.
+ *
+ * @generated from message chatto.api.v1.FollowedThread
+ */
+export class FollowedThread extends Message<FollowedThread> {
+  /**
+   * Room containing the thread.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Current display name of the room.
+   *
+   * @generated from field: string room_name = 2;
+   */
+  roomName = "";
+
+  /**
+   * Event ID of the root message for the thread.
+   *
+   * @generated from field: string thread_root_event_id = 3;
+   */
+  threadRootEventId = "";
+
+  /**
+   * Renderable root message event, when the root is still visible.
+   *
+   * @generated from field: chatto.api.v1.RoomTimelineEvent root_message = 4;
+   */
+  rootMessage?: RoomTimelineEvent;
+
+  /**
+   * Number of replies in the thread.
+   *
+   * @generated from field: int32 reply_count = 5;
+   */
+  replyCount = 0;
+
+  /**
+   * Creation time of the latest reply, when the thread has replies.
+   *
+   * @generated from field: google.protobuf.Timestamp last_reply_at = 6;
+   */
+  lastReplyAt?: Timestamp;
+
+  /**
+   * True when the current user has unread replies in the thread.
+   *
+   * @generated from field: bool has_unread = 7;
+   */
+  hasUnread = false;
+
+  constructor(data?: PartialMessage<FollowedThread>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.FollowedThread";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "room_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "root_message", kind: "message", T: RoomTimelineEvent },
+    { no: 5, name: "reply_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 6, name: "last_reply_at", kind: "message", T: Timestamp },
+    { no: 7, name: "has_unread", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FollowedThread {
+    return new FollowedThread().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FollowedThread {
+    return new FollowedThread().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FollowedThread {
+    return new FollowedThread().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: FollowedThread | PlainMessage<FollowedThread> | undefined, b: FollowedThread | PlainMessage<FollowedThread> | undefined): boolean {
+    return proto3.util.equals(FollowedThread, a, b);
+  }
+}
+
+/**
+ * Request for a page of followed threads for the current user.
+ *
+ * @generated from message chatto.api.v1.ListFollowedThreadsRequest
+ */
+export class ListFollowedThreadsRequest extends Message<ListFollowedThreadsRequest> {
+  /**
+   * Maximum number of followed threads to return.
+   *
+   * @generated from field: int32 limit = 1;
+   */
+  limit = 0;
+
+  /**
+   * Zero-based offset into the followed-thread list.
+   *
+   * @generated from field: int32 offset = 2;
+   */
+  offset = 0;
+
+  constructor(data?: PartialMessage<ListFollowedThreadsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ListFollowedThreadsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "limit", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 2, name: "offset", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListFollowedThreadsRequest {
+    return new ListFollowedThreadsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListFollowedThreadsRequest {
+    return new ListFollowedThreadsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListFollowedThreadsRequest {
+    return new ListFollowedThreadsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListFollowedThreadsRequest | PlainMessage<ListFollowedThreadsRequest> | undefined, b: ListFollowedThreadsRequest | PlainMessage<ListFollowedThreadsRequest> | undefined): boolean {
+    return proto3.util.equals(ListFollowedThreadsRequest, a, b);
+  }
+}
+
+/**
+ * Response containing one followed-thread page.
+ *
+ * @generated from message chatto.api.v1.ListFollowedThreadsResponse
+ */
+export class ListFollowedThreadsResponse extends Message<ListFollowedThreadsResponse> {
+  /**
+   * Followed threads in newest-activity-first order.
+   *
+   * @generated from field: repeated chatto.api.v1.FollowedThread threads = 1;
+   */
+  threads: FollowedThread[] = [];
+
+  /**
+   * Total followed-thread count before pagination.
+   *
+   * @generated from field: int32 total_count = 2;
+   */
+  totalCount = 0;
+
+  /**
+   * True when another page exists after this response.
+   *
+   * @generated from field: bool has_more = 3;
+   */
+  hasMore = false;
+
+  /**
+   * Related entities needed to render root messages.
+   *
+   * @generated from field: chatto.api.v1.RoomTimelineIncludes includes = 4;
+   */
+  includes?: RoomTimelineIncludes;
+
+  constructor(data?: PartialMessage<ListFollowedThreadsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ListFollowedThreadsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "threads", kind: "message", T: FollowedThread, repeated: true },
+    { no: 2, name: "total_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 3, name: "has_more", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 4, name: "includes", kind: "message", T: RoomTimelineIncludes },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListFollowedThreadsResponse {
+    return new ListFollowedThreadsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListFollowedThreadsResponse {
+    return new ListFollowedThreadsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListFollowedThreadsResponse {
+    return new ListFollowedThreadsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListFollowedThreadsResponse | PlainMessage<ListFollowedThreadsResponse> | undefined, b: ListFollowedThreadsResponse | PlainMessage<ListFollowedThreadsResponse> | undefined): boolean {
+    return proto3.util.equals(ListFollowedThreadsResponse, a, b);
   }
 }
 

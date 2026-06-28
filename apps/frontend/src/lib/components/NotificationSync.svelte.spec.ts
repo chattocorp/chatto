@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import NotificationSync from './NotificationSync.svelte';
 import type { EventEnvelope, EventHandler } from '$lib/eventBus.svelte';
+import { RoomEventKind } from '$lib/render/eventKinds';
 
 const { mocks } = vi.hoisted(() => {
   const bus = {
@@ -80,7 +81,7 @@ vi.mock('$lib/notifications/appBadge', () => ({
   syncServiceWorkerUnreadBadgeState: mocks.syncServiceWorkerUnreadBadgeState
 }));
 
-function dispatch(event: NonNullable<EventEnvelope['event']>) {
+function dispatch(event: Record<string, unknown>) {
   const envelope = {
     id: 'event-id',
     createdAt: new Date().toISOString(),
@@ -120,7 +121,7 @@ describe('NotificationSync', () => {
     await renderAndWaitForSubscription();
 
     dispatch({
-      __typename: 'NotificationCreatedEvent',
+      kind: RoomEventKind.NotificationCreated,
       notificationId: 'n1',
       roomId: 'room-1',
       eventId: 'event-1',
@@ -138,7 +139,7 @@ describe('NotificationSync', () => {
     await renderAndWaitForSubscription();
 
     dispatch({
-      __typename: 'NotificationCreatedEvent',
+      kind: RoomEventKind.NotificationCreated,
       notificationId: 'n1',
       roomId: 'room-1',
       eventId: 'event-1',
@@ -156,7 +157,7 @@ describe('NotificationSync', () => {
     await renderAndWaitForSubscription();
 
     dispatch({
-      __typename: 'NotificationDismissedEvent',
+      kind: RoomEventKind.NotificationDismissed,
       notificationId: 'n1'
     });
 
@@ -172,7 +173,7 @@ describe('NotificationSync', () => {
     await renderAndWaitForSubscription();
 
     dispatch({
-      __typename: 'NotificationDismissedEvent',
+      kind: RoomEventKind.NotificationDismissed,
       notificationId: 'unknown-notification'
     });
 

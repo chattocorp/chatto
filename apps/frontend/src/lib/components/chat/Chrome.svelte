@@ -2,11 +2,13 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
+  import { Code, ConnectError } from '@connectrpc/connect';
   import { untrack } from 'svelte';
+  import { getAuthenticatedServerState } from '$lib/api/serverState';
+  import { getViewerStateViaConnect } from '$lib/api/viewer';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverIdToSegment } from '$lib/navigation';
-  import { graphql } from '$lib/gql';
   import { clearLastRoom } from '$lib/storage/lastRoom';
   import { useActiveEvent, useReconnectCallback } from '$lib/hooks';
   import ServerSidebar from '$lib/components/ServerSidebar.svelte';
@@ -21,6 +23,7 @@
   import MyThreadsNavItem from './MyThreadsNavItem.svelte';
   import { getAdminNavItems } from './adminNav';
   import * as m from '$lib/i18n/messages';
+  import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
 
   let { children } = $props();
 
@@ -92,50 +95,37 @@
   // null if the server says it's not accessible, or 'transient' on network
   // failure (treat as "try again later", not as access denial).
   async function validateServer(): Promise<ServerChromeData | null | 'transient'> {
-    const result = await connection()
-      .client.query(
-        graphql(`
-          query ValidateSpaceAccess {
-            server {
-              profile {
-                name
-                bannerUrl
-              }
-              viewerHasAnyAdminPermission
-              viewerCanManageServer
-              viewerCanManageRooms
-              viewerCanManageRoles
-              viewerCanAssignRoles
-              viewerCanManageUserPermissions
-            }
-          }
-        `),
-        {}
-      )
-      .toPromise();
-
-    // Transient network failure (e.g., wake-from-sleep) — caller should
-    // preserve existing data and storage, and rely on the reconnect handler
-    // to revalidate.
-    if (result.error?.networkError) {
-      return 'transient';
-    }
-
-    if (!result.data?.server) {
-      return null;
-    }
-
-    const inst = result.data.server;
-    return {
-      name: inst.profile.name,
-      bannerUrl: inst.profile.bannerUrl ?? null,
-      hasAnyAdminPermission: inst.viewerHasAnyAdminPermission,
-      canManage: inst.viewerCanManageServer,
-      canManageRooms: inst.viewerCanManageRooms,
-      canManageRoles: inst.viewerCanManageRoles,
-      canAssignRoles: inst.viewerCanAssignRoles,
-      canManageUserPermissions: inst.viewerCanManageUserPermissions
+    const currentConnection = connection();
+    const config = {
+      baseUrl: currentConnection.connectBaseUrl,
+      bearerToken: currentConnection.bearerToken
     };
+
+    try {
+      const [server, viewer] = await Promise.all([
+        getAuthenticatedServerState(config),
+        getViewerStateViaConnect(config)
+      ]);
+
+      return {
+        name: server.name,
+        bannerUrl: server.bannerUrl,
+        hasAnyAdminPermission: server.viewerHasAnyAdminPermission,
+        canManage: server.viewerCanManageServer,
+        canManageRooms: server.viewerCanManageRooms,
+        canManageRoles: viewer.canAdminManageRoles,
+        canAssignRoles: viewer.canAdminManageUsers,
+        canManageUserPermissions: viewer.canManageUserPermissions
+      };
+    } catch (error) {
+      if (isTransientValidationError(error)) {
+        return 'transient';
+      }
+      if (isAccessDeniedValidationError(error)) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   // Server validation state - uses $state instead of async $derived to avoid race conditions
@@ -232,7 +222,7 @@
   // instance's bus rather than the home instance's context-based bus.
   useActiveEvent((event) => {
     if (!event.event) return; // Skip unknown event types for forward/backward compatibility
-    if (event.event.__typename === 'ServerUpdatedEvent') {
+    if (roomEventKind(event.event) === RoomEventKind.ServerUpdated) {
       revalidationCounter++;
     }
   });
@@ -252,6 +242,22 @@
 
   function isAdminNavActive(href: string, _items: unknown): boolean {
     return page.url.pathname.startsWith(href);
+  }
+
+  function isTransientValidationError(error: unknown): boolean {
+    if (error instanceof ConnectError) {
+      return error.code === Code.Unavailable || error.code === Code.DeadlineExceeded;
+    }
+    return error instanceof TypeError;
+  }
+
+  function isAccessDeniedValidationError(error: unknown): boolean {
+    return (
+      error instanceof ConnectError &&
+      (error.code === Code.Unauthenticated ||
+        error.code === Code.PermissionDenied ||
+        error.code === Code.NotFound)
+    );
   }
 </script>
 

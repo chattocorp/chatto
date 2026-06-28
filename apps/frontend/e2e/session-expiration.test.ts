@@ -3,6 +3,9 @@ import type { Page } from '@playwright/test';
 import * as routes from './routes';
 import { TIMEOUTS } from './constants';
 
+const VIEWER_RPC_PATH = '/api/connect/chatto.api.v1.ViewerService/GetViewer';
+const VIEWER_RPC_ROUTE = `**${VIEWER_RPC_PATH}`;
+
 /**
  * Navigate to a route and wait for the client-side app to be fully hydrated.
  *
@@ -79,9 +82,7 @@ async function clearCredentialsAndReloadProtectedRoute(page: Page): Promise<void
 
   const currentUserResponse = page.waitForResponse(
     async (resp) => {
-      if (!resp.url().includes('/api/graphql')) return false;
-      const postData = resp.request().postData();
-      return postData !== null && postData.includes('LoadCurrentUser');
+      return resp.url().includes(VIEWER_RPC_PATH);
     },
     { timeout: TIMEOUTS.REALTIME_EVENT }
   );
@@ -237,18 +238,14 @@ test.describe('Session Expiration Handling', () => {
     await gotoAndWaitForHydration(page, '/chat');
     await authPage.expectLoggedIn();
 
-    // Intercept LoadCurrentUser queries to return viewer: null (simulating expired session).
-    await page.route('**/api/graphql', async (route) => {
-      const postData = route.request().postData();
-      if (postData && postData.includes('LoadCurrentUser')) {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ data: { viewer: null } })
-        });
-      } else {
-        await route.continue();
-      }
+    // Intercept GetViewer to return an unauthenticated Connect error.
+    await page.route(VIEWER_RPC_ROUTE, async (route) => {
+      await route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        headers: { 'Connect-Protocol-Version': '1' },
+        body: JSON.stringify({ code: 'unauthenticated', message: 'authentication required' })
+      });
     });
 
     await page.goto(routes.settings);
@@ -264,7 +261,7 @@ test.describe('Session Expiration Handling', () => {
     await authPage.expectLoggedOut();
 
     // Clean up route handler
-    await page.unroute('**/api/graphql');
+    await page.unroute(VIEWER_RPC_ROUTE);
 
     // Page should be stable (not in a redirect loop) — landed at /login, / or /chat
     await expect(async () => {

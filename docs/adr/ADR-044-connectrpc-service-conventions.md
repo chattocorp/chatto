@@ -9,7 +9,7 @@ ADR-042 moves Chatto toward protobuf-first public APIs served over ConnectRPC fo
 Without a shared convention, new ConnectRPC methods can drift in several risky ways:
 
 - public/private exposure can be hidden in HTTP wiring instead of being visible in one registry;
-- authentication can run after request decoding or validation, exposing different behavior than GraphQL compatibility resolvers;
+- authentication can run after request decoding or validation, exposing inconsistent behavior across services;
 - operation-specific authorization can be copied into every transport;
 - request-size limits, protobuf validation, and error mapping can diverge service by service;
 - generated public API docs and client bindings can fall out of sync with service implementation.
@@ -28,13 +28,13 @@ All public ConnectRPC services live under `proto/chatto/api/v1` and are implemen
 
 The HTTP server owns route mounting and authentication middleware. Public services are mounted without caller injection. Authenticated services are wrapped with Connect-compatible authentication middleware before request decoding and protovalidate validation. Middleware resolves the effective user through the same bearer-token/cookie model used by the rest of the app and stores a `connectapi.Caller` in the Connect auth context.
 
-Connect service methods use `requireCaller` for authenticated methods. They do not read GraphQL auth context or duplicate HTTP session logic.
+Connect service methods use `requireCaller` for authenticated methods. They do not read transport-specific legacy auth context or duplicate HTTP session logic.
 
 Every public Connect handler uses the shared `connectapi.HandlerOptions()` set. That set includes the public request-size limit and the protovalidate interceptor. Authenticated services should authenticate first, then decode and validate requests.
 
 Protobuf validation handles stable wire-shape constraints such as required IDs, simple length bounds, enum domains, and pagination limits. Semantic validation remains in core operation models when it depends on permissions, room kind, projections, persisted state, or domain-specific invariants.
 
-Public operation behavior should be centralized in focused core models. ConnectRPC handlers, future protobuf WebSocket RPC handlers, and temporary GraphQL compatibility resolvers should call the same operation model for the same user-facing action. Transports are responsible for:
+Public operation behavior should be centralized in focused core models. ConnectRPC handlers and future protobuf WebSocket RPC handlers should call the same operation model for the same user-facing action. Transports are responsible for:
 
 - authenticating the caller;
 - translating protocol messages into model inputs;
@@ -69,7 +69,7 @@ ConnectRPC services become predictable to review: public surface, auth policy, v
 
 Some small mapping code remains in each handler. That is intentional. The handler layer should be thin and explicit rather than hiding service behavior behind broad reflection or generic transport abstractions.
 
-Authorization moves out of GraphQL resolvers for migrated operations. This reduces transport drift, but it means older core helpers can coexist with newer operation models. Trusted/internal callers may still use lower-level helpers; public transports should use operation models.
+Operation-specific authorization lives in shared core operation models for public API actions. This reduces transport drift, but it means older trusted core helpers can coexist with newer operation models. Trusted/internal callers may still use lower-level helpers; public transports should use operation models.
 
 Authenticated malformed requests return unauthenticated before validation when no caller is present. Authenticated malformed requests then return validation errors. Tests should preserve that ordering because clients and security reviews will depend on it.
 

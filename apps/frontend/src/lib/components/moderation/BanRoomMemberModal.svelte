@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { PresenceStatus } from '$lib/gql/graphql';
+  import type { PresenceStatus } from '$lib/render/types';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { getLiveDisplayName, getLiveLogin } from '$lib/state/userProfiles.svelte';
   import FormDialog from '$lib/ui/FormDialog.svelte';

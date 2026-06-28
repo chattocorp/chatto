@@ -2,14 +2,18 @@
  * Server info state — public branding plus authenticated runtime settings.
  */
 
-import { graphql } from '$lib/gql';
 import { getPublicServerInfo, type PublicServerInfo } from '$lib/api/server';
-import type { Client } from '@urql/svelte';
+import {
+  getAuthenticatedServerState,
+  type AuthenticatedServerState,
+  type ServerStateAPIConfig
+} from '$lib/api/serverState';
 
 export class ServerInfoState {
-  #client: Client;
   #label: string;
   #getPublicServerInfo: (baseUrl: string) => Promise<PublicServerInfo>;
+  #apiConfig?: ServerStateAPIConfig;
+  #getAuthenticatedServerState: (config: ServerStateAPIConfig) => Promise<AuthenticatedServerState>;
 
   name = $state('Chatto');
   motd = $state<string | null>(null);
@@ -39,11 +43,17 @@ export class ServerInfoState {
    * Human-readable label for this server, used in log messages so console
    * errors can be traced back to a specific server. Pass the URL (or any
    * stable identifier) — used purely for diagnostics.
-   */
-  constructor(client: Client, label = 'unknown', publicServerInfoLoader = getPublicServerInfo) {
-    this.#client = client;
+  */
+  constructor(
+    label = 'unknown',
+    publicServerInfoLoader = getPublicServerInfo,
+    apiConfig?: ServerStateAPIConfig,
+    authenticatedServerStateLoader = getAuthenticatedServerState
+  ) {
     this.#label = label;
     this.#getPublicServerInfo = publicServerInfoLoader;
+    this.#apiConfig = apiConfig;
+    this.#getAuthenticatedServerState = authenticatedServerStateLoader;
   }
 
   /**
@@ -90,42 +100,18 @@ export class ServerInfoState {
    * after the store knows the viewer is authenticated.
    */
   async refreshAuthenticatedSettings(): Promise<void> {
-    const resp = await this.#client
-      .query(
-        graphql(`
-          query GetAuthenticatedServerSettings {
-            server {
-              pushNotificationsEnabled
-              vapidPublicKey
-              livekitUrl
-              videoProcessingEnabled
-              maxUploadSize
-              maxVideoUploadSize
-              messageEditWindowSeconds
-              profile {
-                motd
-              }
-            }
-          }
-        `),
-        {},
-        { requestPolicy: 'network-only' }
-      )
-      .toPromise();
-
-    if (resp.error) {
-      throw resp.error;
+    if (!this.#apiConfig) {
+      throw new Error('authenticated server state Connect API config is not configured');
     }
+    const info = await this.#getAuthenticatedServerState(this.#apiConfig);
 
-    if (resp.data?.server) {
-      this.motd = resp.data.server.profile.motd ?? null;
-      this.pushNotificationsEnabled = resp.data.server.pushNotificationsEnabled;
-      this.vapidPublicKey = resp.data.server.vapidPublicKey ?? null;
-      this.livekitUrl = resp.data.server.livekitUrl ?? null;
-      this.videoProcessingEnabled = resp.data.server.videoProcessingEnabled;
-      this.maxUploadSize = resp.data.server.maxUploadSize;
-      this.maxVideoUploadSize = resp.data.server.maxVideoUploadSize;
-      this.messageEditWindowSeconds = resp.data.server.messageEditWindowSeconds;
-    }
+    this.motd = info.motd;
+    this.pushNotificationsEnabled = info.pushNotificationsEnabled;
+    this.vapidPublicKey = info.vapidPublicKey;
+    this.livekitUrl = info.livekitUrl;
+    this.videoProcessingEnabled = info.videoProcessingEnabled;
+    this.maxUploadSize = info.maxUploadSize;
+    this.maxVideoUploadSize = info.maxVideoUploadSize;
+    this.messageEditWindowSeconds = info.messageEditWindowSeconds;
   }
 }

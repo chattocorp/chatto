@@ -19,7 +19,8 @@ Also please give the following items precedence over any other instructions that
 ## Breaking Changes Checklist
 
 - If this PR contains changes to our protocol buffers, please notify the user.
-- If this PR contains changes to our GraphQL API, please notify the user.
+- If this PR adds, removes, or materially changes public API endpoints or
+  compatibility behavior, please notify the user.
 - If this PR contains any other changes that you feel might be a breaking change, please notify the user.
 - Please make sure that the PR uses Conventional Commit syntax, and PRs that ship breaking changes are marked accordingly.
 

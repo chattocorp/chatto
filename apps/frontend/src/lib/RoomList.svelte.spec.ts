@@ -1,13 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
-import { RoomType } from '$lib/gql/graphql';
+import { RoomType } from '$lib/render/types';
+import type { EventEnvelope, EventHandler } from '$lib/eventBus.svelte';
+import { RoomEventKind } from '$lib/render/eventKinds';
+import { NotificationItemKind } from '$lib/api/notifications';
 import { serverStorageKey } from '$lib/storage/serverStorage';
 import {
   consumePendingRoomSidebarPanel,
   roomSidebarPanelStorageSuffix
 } from '$lib/storage/roomSidebarPanel';
 import type { RoomsListGroup } from '$lib/state/server/rooms.svelte';
+import { useEvent } from '$lib/hooks';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -136,7 +140,7 @@ import RoomList from './RoomList.svelte';
 function notification(id: string, roomId: string, isDM = false) {
   if (isDM) {
     return {
-      __typename: 'DMMessageNotificationItem',
+      kind: NotificationItemKind.DirectMessage,
       id,
       createdAt: '2026-06-18T10:00:00Z',
       actor: null,
@@ -146,7 +150,7 @@ function notification(id: string, roomId: string, isDM = false) {
   }
 
   return {
-    __typename: 'MentionNotificationItem',
+    kind: NotificationItemKind.Mention,
     id,
     createdAt: '2026-06-18T10:00:00Z',
     actor: null,
@@ -245,6 +249,18 @@ function setRoomUnread(roomId: string, hasUnread: boolean) {
   const room = rooms.find((item) => item.id === roomId);
   if (!room) throw new Error(`Missing mocked room ${roomId}`);
   room.hasUnread = hasUnread;
+}
+
+function dispatchRoomListEvent(handlerIndex: number, event: Record<string, unknown>) {
+  const handler = vi.mocked(useEvent).mock.calls[handlerIndex]?.[0] as EventHandler | undefined;
+  if (!handler) throw new Error(`RoomList useEvent handler ${handlerIndex} was not registered`);
+  handler({
+    id: 'event-1',
+    createdAt: new Date().toISOString(),
+    actorId: 'other-user',
+    actor: null,
+    event
+  } as EventEnvelope);
 }
 
 beforeEach(() => {
@@ -416,6 +432,35 @@ describe('RoomList', () => {
       )
     ).toBe('call');
     expect(consumePendingRoomSidebarPanel('origin', 'dm-with-participants')).toBe('call');
+  });
+
+  it('updates active call rooms from local event kind', async () => {
+    render(RoomList);
+
+    dispatchRoomListEvent(0, {
+      kind: RoomEventKind.CallParticipantJoined,
+      roomId: 'channel-1',
+      callId: 'call-1'
+    });
+
+    expect(mocks.store.activeCallRooms.handleJoin).toHaveBeenCalledWith(
+      'channel-1',
+      'call-1',
+      null
+    );
+  });
+
+  it('marks inactive rooms unread from local message event kind', async () => {
+    render(RoomList);
+
+    dispatchRoomListEvent(1, {
+      kind: RoomEventKind.MessagePosted,
+      roomId: 'channel-1',
+      threadRootEventId: null
+    });
+
+    expect(mocks.store.rooms.bumpRoom).toHaveBeenCalledWith('channel-1');
+    expect(mocks.store.rooms.setUnread).toHaveBeenCalledWith('channel-1');
   });
 
   it.each([

@@ -1,259 +1,350 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { NotificationLevel, PresenceStatus } from '$lib/render/types';
 import { q } from '$lib/test-utils';
-
-type OperationName = 'ServerSidebarEntryInit' | 'ServerSidebarEntryNotificationCount';
+import type { EventEnvelope, EventHandler } from '$lib/eventBus.svelte';
+import { RoomEventKind } from '$lib/render/eventKinds';
 
 const { mocks } = vi.hoisted(() => {
-	const client = {
-		query: vi.fn()
-	};
-
-	return {
-		mocks: {
-			client,
-			showConnectionLostIcon: false,
-			server: {
-				id: 'remote',
-				url: 'https://remote.example.com',
-				name: 'Remote Chatto',
-				iconUrl: null,
-				token: 'token',
-				userId: 'user-1',
-				userLogin: 'alice',
-				userDisplayName: 'Alice',
-				userAvatarUrl: null,
-				addedAt: 0
-			},
-			store: {
-				notifications: {
-					fetch: vi.fn().mockResolvedValue(undefined),
-					setUnreadNotificationCount: vi.fn()
-				},
-				roomUnread: {
-					clear: vi.fn(),
-					setServerHasUnread: vi.fn(),
-					setRoomUnread: vi.fn(),
-					getFirstUnreadRoomId: vi.fn().mockReturnValue(null)
-				},
-				notificationLevels: {
-					setServerPreference: vi.fn(),
-					setRoomPreference: vi.fn(),
-					isRoomMuted: vi.fn().mockReturnValue(false),
-					isServerMuted: vi.fn().mockReturnValue(false)
-				},
-				pendingHighlights: { set: vi.fn() },
-				serverInfo: {
-					name: 'Chatto',
-					iconUrl: null
-				},
-				setPermissions: vi.fn(),
-				serverIndicator: vi.fn().mockReturnValue(null)
-			}
-		}
-	};
+  const eventHandlers: EventHandler[] = [];
+  return {
+    mocks: {
+      getAuthenticatedServerState: vi.fn(),
+      getViewerStateViaConnect: vi.fn(),
+      createRoomDirectoryAPI: vi.fn(),
+      listRooms: vi.fn(),
+      eventHandlers,
+      registrar: {
+        onEvent: vi.fn((handler: EventHandler) => {
+          eventHandlers.push(handler);
+          return () => {
+            const index = eventHandlers.indexOf(handler);
+            if (index >= 0) eventHandlers.splice(index, 1);
+          };
+        }),
+        onRoomMarkedAsRead: vi.fn(() => vi.fn()),
+        onNotificationLevelChanged: vi.fn(() => vi.fn())
+      },
+      showConnectionLostIcon: false,
+      server: {
+        id: 'remote',
+        url: 'https://remote.example.com',
+        name: 'Remote Chatto',
+        iconUrl: null,
+        token: 'token',
+        userId: 'user-1',
+        userLogin: 'alice',
+        userDisplayName: 'Alice',
+        userAvatarUrl: null,
+        addedAt: 0
+      },
+      store: {
+        notifications: {
+          fetch: vi.fn().mockResolvedValue(undefined),
+          setUnreadNotificationCount: vi.fn()
+        },
+        roomUnread: {
+          clear: vi.fn(),
+          setServerHasUnread: vi.fn(),
+          setRoomUnread: vi.fn(),
+          getFirstUnreadRoomId: vi.fn().mockReturnValue(null)
+        },
+        notificationLevels: {
+          setServerPreference: vi.fn(),
+          setRoomPreference: vi.fn(),
+          isRoomMuted: vi.fn().mockReturnValue(false),
+          isServerMuted: vi.fn().mockReturnValue(false)
+        },
+        pendingHighlights: { set: vi.fn() },
+        serverInfo: {
+          name: 'Chatto',
+          iconUrl: null
+        },
+        setPermissions: vi.fn(),
+        serverIndicator: vi.fn().mockReturnValue(null)
+      }
+    }
+  };
 });
 
 vi.mock('$app/state', () => ({
-	page: {
-		params: {
-			serverId: 'other-server',
-			roomId: undefined
-		}
-	}
+  page: {
+    params: {
+      serverId: 'other-server',
+      roomId: undefined
+    }
+  }
 }));
 
 vi.mock('$app/navigation', () => ({
-	goto: vi.fn()
+  goto: vi.fn()
 }));
 
 vi.mock('$app/paths', () => ({
-	resolve: (path: string, params?: Record<string, string>) =>
-		path
-			.replace('[serverId]', params?.serverId ?? '')
-			.replace('[roomId]', params?.roomId ?? '')
+  resolve: (path: string, params?: Record<string, string>) =>
+    path.replace('[serverId]', params?.serverId ?? '').replace('[roomId]', params?.roomId ?? '')
 }));
 
 vi.mock('$lib/hooks', () => ({
-	useTabResumeCallback: (callback: () => void) => {
-		void callback();
-	}
+  useTabResumeCallback: (callback: () => void) => {
+    void callback();
+  }
 }));
 
 vi.mock('$lib/eventBus.svelte', () => ({
-	createEventBusHandlerRegistrar: vi.fn(() => undefined)
+  createEventBusHandlerRegistrar: vi.fn(() => mocks.registrar)
 }));
 
-vi.mock('$lib/state/server/graphqlClient.svelte', () => ({
-	graphqlClientManager: {
-		getClient: vi.fn(() => ({
-			get showConnectionLostIcon() {
-				return mocks.showConnectionLostIcon;
-			},
-			client: mocks.client
-		}))
-	}
+vi.mock('$lib/state/server/serverConnection.svelte', () => ({
+  serverConnectionManager: {
+    getClient: vi.fn(() => ({
+      get showConnectionLostIcon() {
+        return mocks.showConnectionLostIcon;
+      },
+      connectBaseUrl: 'https://remote.example.com/api/connect',
+      bearerToken: 'token'
+    }))
+  }
 }));
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
-	serverRegistry: {
-		isOriginServer: vi.fn(() => false),
-		getServer: vi.fn(() => mocks.server),
-		getStore: vi.fn(() => mocks.store)
-	}
+  serverRegistry: {
+    isOriginServer: vi.fn(() => false),
+    getServer: vi.fn(() => mocks.server),
+    getStore: vi.fn(() => mocks.store)
+  }
+}));
+
+vi.mock('$lib/api/serverState', () => ({
+  getAuthenticatedServerState: mocks.getAuthenticatedServerState
+}));
+
+vi.mock('$lib/api/viewer', () => ({
+  getViewerStateViaConnect: mocks.getViewerStateViaConnect
+}));
+
+vi.mock('$lib/api/roomDirectory', () => ({
+  RoomDirectoryScope: {
+    CHANNELS: 2,
+    DMS: 3
+  },
+  createRoomDirectoryAPI: mocks.createRoomDirectoryAPI
 }));
 
 import ServerSidebarEntry from './ServerSidebarEntry.svelte';
 
-function operationName(document: unknown): string | undefined {
-	return (
-		document as {
-			definitions?: Array<{ name?: { value?: string } }>;
-		}
-	).definitions?.[0]?.name?.value;
+function serverState(overrides: Record<string, unknown> = {}) {
+  return {
+    name: 'Loaded Remote',
+    logoUrl: null,
+    viewerHasUnreadRooms: false,
+    ...overrides
+  };
 }
 
-function queryResult(data: unknown, error: unknown = null) {
-	return {
-		toPromise: vi.fn().mockResolvedValue({ data, error })
-	};
+function viewerState(overrides: Record<string, unknown> = {}) {
+  return {
+    user: {
+      id: 'user-1',
+      login: 'alice',
+      displayName: 'Alice',
+      presenceStatus: PresenceStatus.Online,
+      hasVerifiedEmail: true
+    },
+    canViewAdmin: false,
+    canStartDMs: true,
+    canAdminViewUsers: false,
+    canAdminManageUsers: false,
+    canAdminViewRoles: false,
+    canAdminManageRoles: false,
+    canAdminViewSystem: false,
+    canAdminViewAudit: false,
+    serverNotificationPreference: {
+      level: NotificationLevel.Default,
+      effectiveLevel: NotificationLevel.Normal
+    },
+    roomNotificationPreferences: [],
+    ...overrides
+  };
 }
 
-function mockSidebarQueries(results: Partial<Record<OperationName, { data: unknown; error?: unknown }>>) {
-	mocks.client.query.mockImplementation((document: unknown) => {
-		const name = operationName(document) as OperationName | undefined;
-		const result = name ? results[name] : undefined;
-		return queryResult(result?.data ?? null, result?.error ?? null);
-	});
-}
-
-function initData(overrides: Record<string, unknown> = {}) {
-	return {
-		server: {
-			profile: {
-				name: 'Loaded Remote',
-				logoUrl: null
-			},
-			viewerNotificationPreference: null,
-			viewerHasUnreadRooms: false,
-			rooms: [],
-			...overrides
-		},
-		viewer: null
-	};
+function dispatchServerEvent(event: Record<string, unknown>, actorId = 'other-user') {
+  const handler = mocks.eventHandlers[0];
+  if (!handler) throw new Error('ServerSidebarEntry event handler was not registered');
+  handler({
+    id: 'event-1',
+    createdAt: new Date().toISOString(),
+    actorId,
+    actor: null,
+    event
+  } as EventEnvelope);
 }
 
 describe('ServerSidebarEntry', () => {
-	let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
-	let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+  let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
 
-	beforeEach(() => {
-		consoleErrorSpy?.mockRestore();
-		consoleWarnSpy?.mockRestore();
-		consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-		consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		mocks.showConnectionLostIcon = false;
-		mocks.client.query.mockReset();
-		mocks.store.notifications.fetch.mockClear();
-		mocks.store.notifications.setUnreadNotificationCount.mockClear();
-		mocks.store.serverIndicator.mockReturnValue(null);
-		mocks.store.serverInfo.name = 'Chatto';
-		mocks.store.serverInfo.iconUrl = null;
-	});
+  beforeEach(() => {
+    consoleErrorSpy?.mockRestore();
+    consoleWarnSpy?.mockRestore();
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    mocks.showConnectionLostIcon = false;
+    mocks.getAuthenticatedServerState.mockReset();
+    mocks.getViewerStateViaConnect.mockReset();
+    mocks.createRoomDirectoryAPI.mockReset();
+    mocks.listRooms.mockReset();
+    mocks.eventHandlers.length = 0;
+    mocks.registrar.onEvent.mockClear();
+    mocks.registrar.onRoomMarkedAsRead.mockClear();
+    mocks.registrar.onNotificationLevelChanged.mockClear();
+    mocks.getAuthenticatedServerState.mockResolvedValue(serverState());
+    mocks.getViewerStateViaConnect.mockResolvedValue(viewerState());
+    mocks.listRooms.mockResolvedValue([]);
+    mocks.createRoomDirectoryAPI.mockReturnValue({ listRooms: mocks.listRooms });
+    mocks.store.notifications.fetch.mockClear();
+    mocks.store.notifications.fetch.mockResolvedValue(undefined);
+    mocks.store.notifications.setUnreadNotificationCount.mockClear();
+    mocks.store.roomUnread.clear.mockClear();
+    mocks.store.roomUnread.setServerHasUnread.mockClear();
+    mocks.store.roomUnread.setRoomUnread.mockClear();
+    mocks.store.notificationLevels.setServerPreference.mockClear();
+    mocks.store.notificationLevels.setRoomPreference.mockClear();
+    mocks.store.setPermissions.mockClear();
+    mocks.store.serverIndicator.mockReturnValue(null);
+    mocks.store.serverInfo.name = 'Chatto';
+    mocks.store.serverInfo.iconUrl = null;
+  });
 
-	afterEach(() => {
-		consoleErrorSpy.mockRestore();
-		consoleWarnSpy.mockRestore();
-	});
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
+    consoleWarnSpy.mockRestore();
+  });
 
-	it('keeps a failed server in the gutter as a dimmed icon', async () => {
-		mocks.client.query.mockReturnValue({
-			toPromise: vi.fn().mockResolvedValue({
-				data: null,
-				error: new Error('connection refused')
-			})
-		});
+  it('keeps a failed server in the gutter as a dimmed icon', async () => {
+    mocks.getAuthenticatedServerState.mockRejectedValue(new Error('connection refused'));
 
-		const { container } = render(ServerSidebarEntry, {
-			props: {
-				serverId: 'remote',
-				currentUserId: 'user-1'
-			}
-		});
+    const { container } = render(ServerSidebarEntry, {
+      props: {
+        serverId: 'remote',
+        currentUserId: 'user-1'
+      }
+    });
 
-		await vi.waitFor(() => {
-			expect(mocks.client.query).toHaveBeenCalled();
-		});
+    await vi.waitFor(() => {
+      expect(mocks.getAuthenticatedServerState).toHaveBeenCalled();
+    });
 
-		const icon = q(container, '[data-testid="server-icon"]');
-		await expect.element(icon).toBeInTheDocument();
-		await expect.element(icon).toHaveClass('opacity-40');
-		await expect.element(icon).toHaveAttribute(
-			'title',
-			'Remote Chatto (connection unavailable)'
-		);
-		expect(container.textContent).toContain('R');
-	});
+    const icon = q(container, '[data-testid="server-icon"]');
+    await expect.element(icon).toBeInTheDocument();
+    await expect.element(icon).toHaveClass('opacity-40');
+    await expect.element(icon).toHaveAttribute('title', 'Remote Chatto (connection unavailable)');
+    expect(container.textContent).toContain('R');
+  });
 
-	it('removes the dimmed state after sidebar init succeeds', async () => {
-		mockSidebarQueries({
-			ServerSidebarEntryInit: { data: initData() },
-			ServerSidebarEntryNotificationCount: {
-				data: {
-					server: {
-						viewerNotifications: { totalCount: 3 }
-					}
-				},
-				error: null
-			}
-		});
+  it('removes the dimmed state after sidebar init succeeds', async () => {
+    mocks.store.notifications.fetch.mockImplementationOnce(async () => {
+      mocks.store.notifications.setUnreadNotificationCount(3);
+    });
+    mocks.getAuthenticatedServerState.mockResolvedValue(
+      serverState({ viewerHasUnreadRooms: true })
+    );
+    mocks.getViewerStateViaConnect.mockResolvedValue(
+      viewerState({
+        canViewAdmin: true,
+        serverNotificationPreference: {
+          level: NotificationLevel.AllMessages,
+          effectiveLevel: NotificationLevel.AllMessages
+        },
+        roomNotificationPreferences: [
+          {
+            roomId: 'dm-1',
+            level: NotificationLevel.Muted,
+            effectiveLevel: NotificationLevel.Muted
+          }
+        ]
+      })
+    );
+    mocks.listRooms.mockResolvedValue([{ id: 'dm-1', hasUnread: true }]);
 
-		const { container } = render(ServerSidebarEntry, {
-			props: {
-				serverId: 'remote',
-				currentUserId: 'user-1'
-			}
-		});
+    const { container } = render(ServerSidebarEntry, {
+      props: {
+        serverId: 'remote',
+        currentUserId: 'user-1'
+      }
+    });
 
-		const icon = q(container, '[data-testid="server-icon"]');
-		await expect.element(icon).toBeInTheDocument();
-		await expect.element(icon).not.toHaveClass('opacity-40');
-		await expect.element(icon).toHaveAttribute('title', 'Loaded Remote');
-		expect(container.textContent).toContain('L');
-		await vi.waitFor(() => {
-			expect(mocks.store.notifications.setUnreadNotificationCount).toHaveBeenLastCalledWith(3);
-		});
-	});
+    const icon = q(container, '[data-testid="server-icon"]');
+    await expect.element(icon).toBeInTheDocument();
+    await expect.element(icon).not.toHaveClass('opacity-40');
+    await expect.element(icon).toHaveAttribute('title', 'Loaded Remote');
+    expect(container.textContent).toContain('L');
+    await vi.waitFor(() => {
+      expect(mocks.store.notifications.setUnreadNotificationCount).toHaveBeenLastCalledWith(3);
+    });
+    expect(mocks.store.notifications.fetch).toHaveBeenCalled();
+    expect(mocks.getAuthenticatedServerState).toHaveBeenCalledWith({
+      serverId: 'remote',
+      baseUrl: 'https://remote.example.com/api/connect',
+      bearerToken: 'token'
+    });
+    expect(mocks.getViewerStateViaConnect).toHaveBeenCalledWith({
+      serverId: 'remote',
+      baseUrl: 'https://remote.example.com/api/connect',
+      bearerToken: 'token'
+    });
+    expect(mocks.store.setPermissions).toHaveBeenCalledWith(
+      expect.objectContaining({ canViewAdmin: true, canStartDMs: true })
+    );
+    expect(mocks.store.notificationLevels.setServerPreference).toHaveBeenCalledWith(
+      NotificationLevel.AllMessages,
+      NotificationLevel.AllMessages
+    );
+    expect(mocks.store.notificationLevels.setRoomPreference).toHaveBeenCalledWith(
+      'dm-1',
+      NotificationLevel.Muted,
+      NotificationLevel.Muted
+    );
+    expect(mocks.store.roomUnread.setServerHasUnread).toHaveBeenCalledWith(true);
+    expect(mocks.store.roomUnread.setRoomUnread).toHaveBeenCalledWith('dm-1', true);
+  });
 
-	it('keeps sidebar init usable when the optional notification count field is unsupported', async () => {
-		mockSidebarQueries({
-			ServerSidebarEntryInit: { data: initData() },
-			ServerSidebarEntryNotificationCount: {
-				data: null,
-				error: {
-					graphQLErrors: [
-						{
-							message: 'Cannot query field "viewerNotifications" on type "Server".'
-						}
-					]
-				}
-			}
-		});
+  it('keeps sidebar init usable when notification fetch returns no count changes', async () => {
+    const { container } = render(ServerSidebarEntry, {
+      props: {
+        serverId: 'remote',
+        currentUserId: 'user-1'
+      }
+    });
 
-		const { container } = render(ServerSidebarEntry, {
-			props: {
-				serverId: 'remote',
-				currentUserId: 'user-1'
-			}
-		});
+    const icon = q(container, '[data-testid="server-icon"]');
+    await expect.element(icon).toBeInTheDocument();
+    await expect.element(icon).not.toHaveClass('opacity-40');
+    await expect.element(icon).toHaveAttribute('title', 'Loaded Remote');
+    await vi.waitFor(() => {
+      expect(mocks.store.notifications.fetch).toHaveBeenCalled();
+    });
+    expect(consoleWarnSpy).not.toHaveBeenCalled();
+  });
 
-		const icon = q(container, '[data-testid="server-icon"]');
-		await expect.element(icon).toBeInTheDocument();
-		await expect.element(icon).not.toHaveClass('opacity-40');
-		await expect.element(icon).toHaveAttribute('title', 'Loaded Remote');
-		await vi.waitFor(() => {
-			expect(mocks.store.notifications.setUnreadNotificationCount).toHaveBeenLastCalledWith(0);
-		});
-		expect(consoleWarnSpy).not.toHaveBeenCalled();
-	});
+  it('marks remote rooms unread from local message event kind', async () => {
+    render(ServerSidebarEntry, {
+      props: {
+        serverId: 'remote',
+        currentUserId: 'user-1'
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(mocks.eventHandlers).toHaveLength(1);
+    });
+
+    dispatchServerEvent({
+      kind: RoomEventKind.MessagePosted,
+      roomId: 'room-1',
+      threadRootEventId: null
+    });
+
+    expect(mocks.store.roomUnread.setRoomUnread).toHaveBeenCalledWith('room-1', true);
+  });
 });

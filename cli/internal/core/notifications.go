@@ -304,6 +304,35 @@ func (c *ChattoCore) GetNotificationCount(ctx context.Context, userID string) (i
 	return count, nil
 }
 
+func (c *ChattoCore) GetRoomNotificationsForMember(ctx context.Context, actorID, roomID string) ([]*corev1.Notification, error) {
+	if err := requireAuthenticatedActor(actorID); err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(roomID) == "" {
+		return nil, invalidArgument("room_id is required")
+	}
+	room, err := c.FindRoomByID(ctx, roomID)
+	if err != nil {
+		return nil, err
+	}
+	isMember, err := c.RoomMembershipExists(ctx, KindOfRoom(room), actorID, room.GetId())
+	if err != nil || !isMember {
+		return []*corev1.Notification{}, nil
+	}
+
+	notifications, err := c.GetNotifications(ctx, actorID)
+	if err != nil {
+		return nil, err
+	}
+	filtered := make([]*corev1.Notification, 0, len(notifications))
+	for _, notification := range notifications {
+		if notificationTargetRoomID(notification) == room.GetId() {
+			filtered = append(filtered, notification)
+		}
+	}
+	return filtered, nil
+}
+
 // ============================================================================
 // Real-time Sync Events
 // ============================================================================
@@ -383,5 +412,23 @@ func notificationTypeName(notif *corev1.Notification) string {
 		return "room_message"
 	default:
 		return "unknown"
+	}
+}
+
+func notificationTargetRoomID(notification *corev1.Notification) string {
+	if notification == nil {
+		return ""
+	}
+	switch payload := notification.GetNotification().(type) {
+	case *corev1.Notification_DmMessage:
+		return payload.DmMessage.GetRoomId()
+	case *corev1.Notification_Mention:
+		return payload.Mention.GetRoomId()
+	case *corev1.Notification_Reply:
+		return payload.Reply.GetRoomId()
+	case *corev1.Notification_RoomMessage:
+		return payload.RoomMessage.GetRoomId()
+	default:
+		return ""
 	}
 }

@@ -3,7 +3,8 @@
   import { fade } from 'svelte/transition';
   import { Virtualizer, type VirtualizerHandle } from 'virtua/svelte';
   import * as m from '$lib/i18n/messages';
-  import type { RoomEventViewFragment } from '$lib/gql/graphql';
+  import type { RoomEventView } from '$lib/render/types';
+  import { isMessagePostedEvent } from '$lib/render/eventKinds';
   import type {
     MessagesStore,
     QuoteInsertionContent,
@@ -73,7 +74,7 @@
   }: {
     roomId: string;
     messageStore: MessagesStore;
-    events: RoomEventViewFragment[];
+    events: RoomEventView[];
     // Scroll behavior
     alwaysScrollToBottom?: boolean;
     showNewMessagesIndicator?: boolean;
@@ -148,7 +149,7 @@
   // Filter events based on configuration
   let filteredEvents = $derived(
     events.filter((e) => {
-      if (e.event?.__typename !== 'MessagePostedEvent') return true;
+      if (!isMessagePostedEvent(e.event)) return true;
 
       const msg = e.event;
 
@@ -716,12 +717,12 @@
 
   // Determine if a message can open a thread
   // Root messages open their own thread; echoes open the original thread
-  function getOpenThreadHandler(event: RoomEventViewFragment) {
+  function getOpenThreadHandler(event: RoomEventView) {
     if (!onOpenThread) return undefined;
 
     const eventData = event.event;
     if (!eventData) return undefined;
-    if (eventData.__typename === 'MessagePostedEvent') {
+    if (isMessagePostedEvent(eventData)) {
       // Echoes open the original thread
       if (eventData.echoOfEventId != null) {
         return (

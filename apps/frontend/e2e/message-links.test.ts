@@ -2,12 +2,12 @@ import { expect } from '@playwright/test';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import {
-  postMessageViaAPI,
-  postMessagesViaAPI,
-  postReplyViaAPI,
-  postThreadReplyViaAPI,
-  getIdsFromUrl
-} from './fixtures/graphqlHelpers';
+  postMessageViaConnect,
+  postMessagesViaConnect,
+  postReplyViaConnect,
+  postThreadReplyViaConnect,
+  getIdsFromUrlViaConnect
+} from './fixtures/connectHelpers';
 import { TIMEOUTS, POLLING_INTERVALS } from './constants';
 import * as routes from './routes';
 
@@ -23,10 +23,10 @@ test.describe('Message links', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    const { roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrlViaConnect(page);
     const timestamp = Date.now();
     const targetBody = `Target room message - ${timestamp}`;
-    const eventId = await postMessageViaAPI(page, roomId, targetBody);
+    const eventId = await postMessageViaConnect(page, roomId, targetBody);
 
     // Navigate directly to the /m/ URL
     await page.goto(routes.messageLink(roomId, eventId));
@@ -60,20 +60,15 @@ test.describe('Message links', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    const { roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrlViaConnect(page);
     const timestamp = Date.now();
 
     // Post root message + thread reply
     const rootBody = `Thread root - ${timestamp}`;
-    const rootEventId = await postMessageViaAPI(page, roomId, rootBody);
+    const rootEventId = await postMessageViaConnect(page, roomId, rootBody);
 
     const replyBody = `Thread reply - ${timestamp}`;
-    const replyEventId = await postThreadReplyViaAPI(
-      page,
-      roomId,
-      replyBody,
-      rootEventId
-    );
+    const replyEventId = await postThreadReplyViaConnect(page, roomId, replyBody, rootEventId);
 
     // Navigate directly to the reply's /m/ URL
     await page.goto(routes.messageLink(roomId, replyEventId));
@@ -103,12 +98,12 @@ test.describe('Message links', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    const { roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrlViaConnect(page);
     const timestamp = Date.now();
 
     // Post the target message
     const targetBody = `Preview target - ${timestamp}`;
-    const targetEventId = await postMessageViaAPI(page, roomId, targetBody);
+    const targetEventId = await postMessageViaConnect(page, roomId, targetBody);
 
     // Post a message containing the target's message link URL
     const linkUrl = `${serverURL}${routes.messageLink(roomId, targetEventId)}`;
@@ -132,7 +127,7 @@ test.describe('Message links', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    const { roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrlViaConnect(page);
 
     // Post an image-only message (no body text)
     const imageMessage = await roomPage.sendAttachment('e2e/fixtures/brighton.jpg');
@@ -151,7 +146,6 @@ test.describe('Message links', () => {
     await expect(previewCard).toContainText('Image');
   });
 
-
   test('Jump to Present dismisses after jumping to old message and returning', async ({
     page,
     chatPage,
@@ -161,19 +155,19 @@ test.describe('Message links', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    const { roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrlViaConnect(page);
     const timestamp = Date.now();
 
     // Post an old target message, then fill to push it out of view
     const targetBody = `Old target - ${timestamp}`;
-    const targetEventId = await postMessageViaAPI(page, roomId, targetBody);
+    const targetEventId = await postMessageViaConnect(page, roomId, targetBody);
 
     const fillerMessages = Array.from({ length: 60 }, (_, i) => `Filler ${i + 1} - ${timestamp}`);
-    await postMessagesViaAPI(page, roomId, fillerMessages);
+    await postMessagesViaConnect(page, roomId, fillerMessages);
 
     // Post a reply referencing the old target (same pattern as jump-to-message tests)
     const replyBody = `Reply to old target - ${timestamp}`;
-    await postReplyViaAPI(page, roomId, replyBody, targetEventId);
+    await postReplyViaConnect(page, roomId, replyBody, targetEventId);
 
     // Reload for clean state, wait for reply to be visible
     await page.reload();
@@ -222,12 +216,12 @@ test.describe('Message links', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    const { roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrlViaConnect(page);
     const timestamp = Date.now();
 
     // Post the target message
     const targetBody = `Navigation target - ${timestamp}`;
-    const targetEventId = await postMessageViaAPI(page, roomId, targetBody);
+    const targetEventId = await postMessageViaConnect(page, roomId, targetBody);
 
     // Post a message containing the message link
     const linkUrl = `${serverURL}${routes.messageLink(roomId, targetEventId)}`;

@@ -26,7 +26,7 @@ under it. Column headers are clickable when `onRoleClick` is provided
   import { Panel, DataTable } from '$lib/components/admin';
   import { Hint, HelpTooltip } from '$lib/ui';
   import { useConnection } from '$lib/state/server/connection.svelte';
-  import { graphql } from '$lib/gql';
+  import { createPermissionAPI } from '$lib/api/permissions';
   import { toast } from '$lib/ui/toast';
   import { getPermissionDescription } from '$lib/permissions';
   import { setRolePermission, type MutationScope } from './permissionMutations';
@@ -131,6 +131,14 @@ under it. Column headers are clickable when `onRoleClick` is provided
 
   const connection = useConnection();
 
+  function permissionAPI() {
+    const conn = connection();
+    return createPermissionAPI({
+      baseUrl: conn.connectBaseUrl,
+      bearerToken: conn.bearerToken
+    });
+  }
+
   let data = $state<TierRoles | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
@@ -147,44 +155,26 @@ under it. Column headers are clickable when `onRoleClick` is provided
     loading = true;
     error = null;
 
-    const resp = await connection().client.query(
-      graphql(`
-        query MatrixTierRoles($roomId: ID, $groupId: ID) {
-          admin {
-            rbac {
-              rolePermissionTierMatrix(roomId: $roomId, groupId: $groupId) {
-                applicablePermissions
-                roles {
-                  roleName
-                  displayName
-                  description
-                  isSystem
-                  position
-                  override {
-                    permissions
-                    permissionDenials
-                  }
-                  inheritedAllows
-                  inheritedDenials
-                }
-              }
-            }
-          }
-        }
-      `),
-      { roomId: rm ?? undefined, groupId: st ?? undefined }
-    );
+    let matrix: TierRoles | null = null;
+    try {
+      matrix = await permissionAPI().getRolePermissionTierMatrix({
+        roomId: rm,
+        groupId: st
+      });
+    } catch (err) {
+      if (s !== (spaceId ?? null) || rm !== (roomId ?? null) || st !== (groupId ?? null)) {
+        return;
+      }
+      loading = false;
+      error = err instanceof Error ? err.message : String(err);
+      return;
+    }
 
     if (s !== (spaceId ?? null) || rm !== (roomId ?? null) || st !== (groupId ?? null)) {
       return;
     }
 
     loading = false;
-    if (resp.error) {
-      error = resp.error.message;
-      return;
-    }
-    const matrix = resp.data?.admin?.rbac.rolePermissionTierMatrix;
     if (!matrix) {
       error = 'No data returned';
       return;
@@ -274,7 +264,7 @@ under it. Column headers are clickable when `onRoleClick` is provided
     updating = cellKey;
     error = null;
 
-    const result = await setRolePermission(connection().client, scopeFor(role), permission, next);
+    const result = await setRolePermission(permissionAPI(), scopeFor(role), permission, next);
     if (result.error) {
       error = result.error;
       toast.error(result.error);

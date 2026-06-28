@@ -322,7 +322,7 @@ type MessageUpdatedEvent struct {
 	InReplyTo string `protobuf:"bytes,5,opt,name=in_reply_to,json=inReplyTo,proto3" json:"in_reply_to,omitempty"`
 	// Threading: event ID of the thread root message (empty = top-level message)
 	InThread string `protobuf:"bytes,6,opt,name=in_thread,json=inThread,proto3" json:"in_thread,omitempty"`
-	// Event ID of the updated message (for GraphQL API consumers).
+	// Event ID of the updated message for legacy live payload consumers.
 	// Populated at publish time from the body key.
 	MessageEventId string `protobuf:"bytes,7,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
 	// Parent event's ID (populated at read time for resolver access)
@@ -411,7 +411,7 @@ type MessageDeletedEvent struct {
 	// Compound key for body storage in KV: {userId}.{eventId}
 	// The userId prefix enables efficient per-user filtering for GDPR deletion.
 	MessageBodyId string `protobuf:"bytes,3,opt,name=message_body_id,json=messageBodyId,proto3" json:"message_body_id,omitempty"`
-	// Event ID of the deleted message (for GraphQL API consumers).
+	// Event ID of the deleted message for legacy live payload consumers.
 	// Populated at publish time from the body key.
 	MessageEventId string `protobuf:"bytes,4,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
 	unknownFields  protoimpl.UnknownFields

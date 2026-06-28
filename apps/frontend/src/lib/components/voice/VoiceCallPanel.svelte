@@ -24,9 +24,11 @@ Room sidebar panel for voice/video calls.
   const activeCallRooms = stores.activeCallRooms;
   const callParticipantsState = stores.callParticipants;
   import { useEvent } from '$lib/hooks';
-  import { useFragment } from '$lib/gql';
-  import { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
-  import type { PresenceStatus } from '$lib/gql/graphql';
+  import { useRenderData } from '$lib/render/data';
+  import { UserAvatarViewData } from '$lib/components/UserAvatar.svelte';
+  import type { PresenceStatus } from '$lib/render/types';
+  import type { EventEnvelope } from '$lib/eventBus.svelte';
+  import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import VideoThumbnail from './VideoThumbnail.svelte';
   import AudioDeviceMenu from './AudioDeviceMenu.svelte';
@@ -51,6 +53,21 @@ Room sidebar panel for voice/video calls.
   let hasActiveCall = $derived(activeCallRooms.has(roomId));
   let deviceMenuAnchor = $state<{ top: number; bottom: number; left: number } | null>(null);
 
+  function callEventPayload(
+    event: EventEnvelope['event']
+  ): { roomId: string; callId: string } | null {
+    if (
+      !event ||
+      !('roomId' in event) ||
+      typeof event.roomId !== 'string' ||
+      !('callId' in event) ||
+      typeof event.callId !== 'string'
+    ) {
+      return null;
+    }
+    return { roomId: event.roomId, callId: event.callId };
+  }
+
   // The call tab can be opened directly from a room even if the sidebar room
   // list has not refreshed its active-call snapshot yet. Refresh here so
   // observers see the active participants before deciding whether to join.
@@ -72,21 +89,29 @@ Room sidebar panel for voice/video calls.
     const event = spaceEvent.event;
     if (!event) return;
 
-    if (event.__typename === 'CallParticipantJoinedEvent' && event.roomId === roomId) {
-      const actor = spaceEvent.actor ? useFragment(UserAvatarFragment, spaceEvent.actor) : null;
-      void callParticipantsState.handleJoin(event.roomId, event.callId, actor);
-    } else if (event.__typename === 'CallParticipantLeftEvent' && event.roomId === roomId) {
-      callParticipantsState.handleLeave(event.roomId, event.callId, spaceEvent.actorId ?? null);
-      voiceCallState.handleParticipantLeftEvent(
-        event.roomId,
-        event.callId,
-        spaceEvent.actorId ?? null,
-        stores.rooms.currentUserId
-      );
-    } else if (event.__typename === 'CallEndedEvent' && event.roomId === roomId) {
-      callParticipantsState.handleEnd(event.roomId, event.callId);
-      activeCallRooms.handleEnd(event.roomId, event.callId);
-      voiceCallState.handleCallEndedEvent(event.roomId, event.callId);
+    const call = callEventPayload(event);
+    if (!call || call.roomId !== roomId) return;
+
+    switch (roomEventKind(event)) {
+      case RoomEventKind.CallParticipantJoined: {
+        const actor = spaceEvent.actor ? useRenderData(UserAvatarViewData, spaceEvent.actor) : null;
+        void callParticipantsState.handleJoin(call.roomId, call.callId, actor);
+        break;
+      }
+      case RoomEventKind.CallParticipantLeft:
+        callParticipantsState.handleLeave(call.roomId, call.callId, spaceEvent.actorId ?? null);
+        voiceCallState.handleParticipantLeftEvent(
+          call.roomId,
+          call.callId,
+          spaceEvent.actorId ?? null,
+          stores.rooms.currentUserId
+        );
+        break;
+      case RoomEventKind.CallEnded:
+        callParticipantsState.handleEnd(call.roomId, call.callId);
+        activeCallRooms.handleEnd(call.roomId, call.callId);
+        voiceCallState.handleCallEndedEvent(call.roomId, call.callId);
+        break;
     }
   });
 

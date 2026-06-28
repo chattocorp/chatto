@@ -169,7 +169,6 @@ message Role {
 }
 
 // UserPresenceStatus indicates a user's online presence status.
-// Named to avoid conflict with the GraphQL PresenceStatus enum.
 // Note: OFFLINE is not stored - absence of a key means offline.
 enum UserPresenceStatus {
   USER_PRESENCE_STATUS_UNSPECIFIED = 0;
@@ -186,10 +185,10 @@ message UserPresence {
 }
 
 // PresenceChange represents a change in a user's presence status.
-// Used by GraphQL subscriptions - the `user` field is resolved separately.
+// Used by realtime delivery; profile details are resolved separately.
 message PresenceChange {
   string user_id = 1;
-  string status = 2; // GraphQL PresenceStatus enum value (ONLINE, OFFLINE, AWAY, DO_NOT_DISTURB)
+  string status = 2; // Presence status value (ONLINE, OFFLINE, AWAY, DO_NOT_DISTURB)
 }
 
 // ThreadMetadata stores aggregated information about a message thread.
@@ -246,9 +245,9 @@ message Attachment {
   DeprecatedAsset storage = 9;
 
   // Compound key (`{userId}.{bodyId}`) of the MessageBody that owns this
-  // attachment. Set when the body is written in PostMessage; also
-  // populated on read in the GraphQL resolver for legacy bodies that
-  // predate this field. Used to construct signed attachment URLs that
+  // attachment. Set when the body is written in PostMessage; also populated on
+  // read for legacy bodies that predate this field. Used to construct signed
+  // attachment URLs that
   // the HTTP handler can verify and route without a separate index
   // lookup. Empty for attachments that don't belong to a body (e.g.
   // video variants and thumbnails, which carry their parent video's
@@ -289,9 +288,9 @@ message MessageBody {
 
   // Legacy embedded attachment protos. Older bodies (and the legacy
   // import path) carry full Attachment records here. New bodies write
-  // asset_ids instead and the GraphQL resolver hydrates from the
-  // asset projection (see AssetCreatedEvent). Keep this field for decode
-  // until every historical body has been backfilled into the projection.
+  // asset_ids instead and API response mapping hydrates from the asset
+  // projection (see AssetCreatedEvent). Keep this field for decode until
+  // every historical body has been backfilled into the projection.
   repeated Attachment attachments = 30;
 
   // Ordered list of asset IDs referenced by this message. Source of truth
@@ -315,8 +314,8 @@ message LinkPreview {
   string description = 3;
   string site_name = 4;
 
-  // Asset ID for the preview image. Kept for GraphQL/client compatibility;
-  // new previews also carry image_asset with storage metadata.
+  // Asset ID for the preview image. Kept for legacy client compatibility; new
+  // previews also carry image_asset with storage metadata.
   optional string image_asset_id = 5;
 
   // Embed type: "generic", "youtube", "vimeo", etc.

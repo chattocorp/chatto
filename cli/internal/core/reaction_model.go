@@ -23,8 +23,7 @@ func (c *ChattoCore) ReactionModel() *ReactionModel {
 
 // ReactionModel owns user-facing reaction mutations. Lower-level ChattoCore
 // helpers still perform the event-sourced write and OCC behavior, while this
-// model centralizes public API authorization during the GraphQL-to-ConnectRPC
-// migration.
+// model centralizes public API authorization.
 type ReactionModel struct {
 	core *ChattoCore
 }

@@ -1,15 +1,19 @@
 import { untrack } from 'svelte';
-import type { Client } from '@urql/svelte';
-import { graphql, useFragment } from '$lib/gql';
-import { isUnsupportedGraphQLFieldError } from '$lib/gql/compatibility';
+import { SvelteMap } from 'svelte/reactivity';
+import { RoomType, type UserAvatarUserView } from '$lib/render/types';
 import {
-  RoomGroupItemType,
-  RoomType,
-  UserAvatarUserFragmentDoc,
-  type UserAvatarUserFragment
-} from '$lib/gql/graphql';
+  isMessagePostedEvent,
+  RoomEventKind,
+  roomEventKind,
+  type RoomEventKindSource
+} from '$lib/render/eventKinds';
+import type { RoomDirectoryAPI, DirectoryRoomSummary } from '$lib/api/roomDirectory';
+import { RoomDirectoryScope, RoomKind } from '$lib/api/roomDirectory';
+import type { MemberDirectoryAPI, DirectoryMember } from '$lib/api/memberDirectory';
+import type { ViewerState } from '$lib/api/viewer';
 import type { NotificationLevelStore } from '$lib/state/server/notificationLevel.svelte';
 import type { RoomUnreadStore } from '$lib/state/server/roomUnread.svelte';
+import type { NotificationAPI } from '$lib/api/notifications';
 
 export type RoomsListItem = {
   id: string;
@@ -21,7 +25,7 @@ export type RoomsListItem = {
   viewerCanJoinRoom: boolean;
   viewerNotificationCount: number;
   // Populated for DM rooms only — used to derive the display name in the sidebar.
-  members: UserAvatarUserFragment[];
+  members: UserAvatarUserView[];
 };
 
 export type RoomsListGroup = {
@@ -49,143 +53,7 @@ export type RoomsListGroupItem =
       link: SidebarLinkListItem;
     };
 
-const MyRoomsQuery = graphql(`
-  query GetMyServerRooms {
-    viewer {
-      user {
-        id
-      }
-    }
-    server {
-      channelRooms: rooms(type: CHANNEL) {
-        id
-        name
-        type
-        isUniversal
-        hasUnread
-        archived
-        viewerIsMember
-        viewerCanJoinRoom
-        viewerNotificationPreference {
-          level
-          effectiveLevel
-        }
-      }
-      dmRooms: rooms(type: DM) {
-        id
-        name
-        type
-        hasUnread
-        archived
-        viewerIsMember
-        viewerCanJoinRoom
-        viewerNotificationPreference {
-          level
-          effectiveLevel
-        }
-        members(limit: 100) {
-          users {
-            ...UserAvatarUser
-          }
-        }
-      }
-      roomGroups {
-        id
-        name
-        rooms {
-          id
-        }
-        items {
-          type
-          id
-          room {
-            id
-          }
-          link {
-            id
-            label
-            url
-          }
-        }
-      }
-    }
-  }
-`);
-
-const MyRoomsCompatibilityQuery = graphql(`
-  query GetMyServerRoomsCompatibility {
-    viewer {
-      user {
-        id
-      }
-    }
-    server {
-      channelRooms: rooms(type: CHANNEL) {
-        id
-        name
-        type
-        hasUnread
-        archived
-        viewerIsMember
-        viewerCanJoinRoom
-        viewerNotificationPreference {
-          level
-          effectiveLevel
-        }
-      }
-      dmRooms: rooms(type: DM) {
-        id
-        name
-        type
-        hasUnread
-        archived
-        viewerIsMember
-        viewerCanJoinRoom
-        viewerNotificationPreference {
-          level
-          effectiveLevel
-        }
-        members(limit: 100) {
-          users {
-            ...UserAvatarUser
-          }
-        }
-      }
-      roomGroups {
-        id
-        name
-        rooms {
-          id
-        }
-        items {
-          type
-          id
-          room {
-            id
-          }
-          link {
-            id
-            label
-            url
-          }
-        }
-      }
-    }
-  }
-`);
-
-const MyRoomNotificationCountsQuery = graphql(`
-  query GetMyServerRoomNotificationCounts {
-    server {
-      rooms {
-        id
-        viewerNotifications(limit: 1) {
-          totalCount
-        }
-      }
-    }
-  }
-`);
+export type ViewerStateLoader = () => Promise<ViewerState>;
 
 function uniqueById<T extends { id: string }>(items: readonly T[] | null | undefined): T[] {
   const seen: Record<string, true> = Object.create(null);
@@ -196,65 +64,43 @@ function uniqueById<T extends { id: string }>(items: readonly T[] | null | undef
   });
 }
 
-function isUniversalRoom(room: object): boolean {
-  return 'isUniversal' in room && room.isUniversal === true;
+function roomType(kind: RoomKind): RoomType {
+  return kind === RoomKind.DM ? RoomType.Dm : RoomType.Channel;
 }
 
-function sidebarItemsFromQuery(group: {
-  rooms: Array<{ id: string }>;
-  items?: Array<{
-    type: RoomGroupItemType;
-    id: string;
-    room?: { id: string } | null;
-    link?: { id: string; label: string; url: string } | null;
-  }> | null;
-}): RoomsListGroupItem[] {
-  if (!group.items || group.items.length === 0) {
-    return uniqueById(group.rooms).map((room) => ({
-      id: `room:${room.id}`,
-      type: 'room',
-      roomId: room.id
-    }));
-  }
-  return group.items
-    .map((item): RoomsListGroupItem | null => {
-      if (item.type === RoomGroupItemType.Room && item.room) {
-        return {
-          id: `room:${item.room.id}`,
-          type: 'room',
-          roomId: item.room.id
-        };
-      }
-      if (item.type === RoomGroupItemType.SidebarLink && item.link) {
-        return {
-          id: `link:${item.link.id}`,
-          type: 'link',
-          link: {
-            id: item.link.id,
-            label: item.link.label,
-            url: item.link.url
-          }
-        };
-      }
-      return null;
-    })
-    .filter((item): item is RoomsListGroupItem => item != null);
+function avatarUserFromDirectoryMember(member: DirectoryMember): UserAvatarUserView {
+  return {
+    id: member.id,
+    login: member.login,
+    displayName: member.displayName,
+    deleted: member.deleted,
+    avatarUrl: member.avatarUrl,
+    presenceStatus: member.presenceStatus,
+    customStatus: member.customStatus
+      ? {
+          emoji: member.customStatus.emoji,
+          text: member.customStatus.text,
+          expiresAt: member.customStatus.expiresAt
+        }
+      : null
+  };
 }
 
-const roomStateRefreshEvents = new Set([
-  'RoomCreatedEvent',
-  'RoomDeletedEvent',
-  'RoomGroupsUpdatedEvent',
-  'RoomUpdatedEvent',
-  'RoomArchivedEvent',
-  'RoomUnarchivedEvent',
-  'RoomUniversalChangedEvent',
-  'UserJoinedRoomEvent',
-  'UserLeftRoomEvent'
+const roomStateRefreshEvents = new Set<RoomEventKind>([
+  RoomEventKind.RoomCreated,
+  RoomEventKind.RoomDeleted,
+  RoomEventKind.RoomGroupsUpdated,
+  RoomEventKind.RoomUpdated,
+  RoomEventKind.RoomArchived,
+  RoomEventKind.RoomUnarchived,
+  RoomEventKind.RoomUniversalChanged,
+  RoomEventKind.UserJoinedRoom,
+  RoomEventKind.UserLeftRoom
 ]);
 
-export function isRoomStateRefreshEvent(typename: string | undefined): boolean {
-  return !!typename && roomStateRefreshEvents.has(typename);
+export function isRoomStateRefreshEvent(event: RoomEventKindSource): boolean {
+  const kind = roomEventKind(event);
+  return kind !== null && roomStateRefreshEvents.has(kind);
 }
 
 /**
@@ -286,9 +132,12 @@ export class RoomsStore {
   private notificationCountsLoadId = 0;
 
   constructor(
-    private readonly client: Client,
+    private readonly roomDirectoryAPI: RoomDirectoryAPI,
+    private readonly memberDirectoryAPI: MemberDirectoryAPI,
+    private readonly viewerStateLoader: ViewerStateLoader,
     private readonly notificationLevels: NotificationLevelStore,
-    private readonly roomUnread: RoomUnreadStore
+    private readonly roomUnread: RoomUnreadStore,
+    private readonly notificationAPI: NotificationAPI
   ) {}
 
   // -------------------------------------------------------------------------
@@ -297,73 +146,70 @@ export class RoomsStore {
 
   async refresh(): Promise<void> {
     const thisLoad = ++this.loadId;
-    const initialResult = await this.client.query(MyRoomsQuery, {}).toPromise();
-    const result =
-      initialResult.error && isUnsupportedGraphQLFieldError(initialResult.error, 'isUniversal')
-        ? await this.client.query(MyRoomsCompatibilityQuery, {}).toPromise()
-        : initialResult;
+    const [viewer, rooms, roomGroups] = await Promise.all([
+      this.viewerStateLoader(),
+      this.roomDirectoryAPI.listRooms(RoomDirectoryScope.ALL),
+      this.roomDirectoryAPI.listRoomGroups()
+    ]);
     if (this.loadId !== thisLoad) return;
 
-    if (result.data?.viewer?.user) {
-      this.currentUserId = result.data.viewer.user.id;
+    this.currentUserId = viewer.user.id;
+    this.notificationLevels.setServerPreference(
+      viewer.serverNotificationPreference.level,
+      viewer.serverNotificationPreference.effectiveLevel
+    );
+    for (const pref of viewer.roomNotificationPreferences) {
+      this.notificationLevels.setRoomPreference(pref.roomId, pref.level, pref.effectiveLevel);
     }
 
-    if (result.data?.server) {
-      const channelRooms = uniqueById(result.data.server.channelRooms);
-      const dmRooms = uniqueById(result.data.server.dmRooms);
-      const allRooms = uniqueById([...channelRooms, ...dmRooms]);
+    const channelRooms = uniqueById(rooms.filter((room) => room.kind === RoomKind.CHANNEL));
+    const dmRooms = uniqueById(rooms.filter((room) => room.kind === RoomKind.DM));
+    const visibleChannels = channelRooms.filter((room) => !room.archived);
+    const visibleDms = dmRooms.filter((room) => !room.archived);
+    const dmMembersByRoomId = new SvelteMap<string, UserAvatarUserView[]>(
+      await Promise.all(
+        visibleDms.map(
+          async (room) =>
+            [
+              room.id,
+              (await this.memberDirectoryAPI.listRoomMembers(room.id, '', 100, 0)).members.map(
+                avatarUserFromDirectoryMember
+              )
+            ] as const
+        )
+      )
+    );
+    if (this.loadId !== thisLoad) return;
 
-      for (const room of allRooms) {
-        const pref = room.viewerNotificationPreference;
-        if (pref) {
-          this.notificationLevels.setRoomPreference(room.id, pref.level, pref.effectiveLevel);
-        }
-      }
+    this.rooms = [
+      ...visibleChannels.map((room) => this.roomListItem(room, [])),
+      ...visibleDms.map((room) => this.roomListItem(room, dmMembersByRoomId.get(room.id) ?? []))
+    ];
+    this.roomUnread.initRooms([...visibleChannels, ...visibleDms]);
+    void this.refreshNotificationCounts();
 
-      const visibleChannels = channelRooms.filter((r) => !r.archived);
-      const visibleDms = dmRooms.filter((r) => !r.archived);
-
-      this.rooms = [
-        ...visibleChannels.map((r) => ({
-          id: r.id,
-          name: r.name,
-          type: r.type,
-          isUniversal: isUniversalRoom(r),
-          hasUnread: r.hasUnread,
-          viewerIsMember: r.viewerIsMember,
-          viewerCanJoinRoom: r.viewerCanJoinRoom,
-          viewerNotificationCount: 0,
-          members: []
-        })),
-        ...visibleDms.map((r) => ({
-          id: r.id,
-          name: r.name,
-          type: r.type,
-          isUniversal: false,
-          hasUnread: r.hasUnread,
-          viewerIsMember: r.viewerIsMember,
-          viewerCanJoinRoom: r.viewerCanJoinRoom,
-          viewerNotificationCount: 0,
-          members: r.members.users.map((m) => useFragment(UserAvatarUserFragmentDoc, m))
-        }))
-      ];
-      this.roomUnread.initRooms([...visibleChannels, ...visibleDms]);
-      void this.refreshNotificationCounts();
-
-      if (result.data.server.roomGroups) {
-        type SetT = (typeof result.data.server.roomGroups)[number];
-        this.roomGroups = result.data.server.roomGroups.map((s: SetT) => ({
-          id: s.id,
-          name: s.name,
-          roomIds: uniqueById(s.rooms).map((r: SetT['rooms'][number]) => r.id),
-          items: sidebarItemsFromQuery(s)
-        }));
-      }
-    } else {
-      this.roomGroups = null;
-    }
+    this.roomGroups = roomGroups.map((group) => ({
+      id: group.id,
+      name: group.name,
+      roomIds: group.roomIds,
+      items: group.items
+    }));
 
     this.isInitialLoading = false;
+  }
+
+  private roomListItem(room: DirectoryRoomSummary, members: UserAvatarUserView[]): RoomsListItem {
+    return {
+      id: room.id,
+      name: room.name,
+      type: roomType(room.kind),
+      isUniversal: room.isUniversal,
+      hasUnread: room.hasUnread,
+      viewerIsMember: room.isMember,
+      viewerCanJoinRoom: room.canJoinRoom,
+      viewerNotificationCount: 0,
+      members
+    };
   }
 
   async refreshNotificationCounts(): Promise<void> {
@@ -371,22 +217,9 @@ export class RoomsStore {
     const notificationCountsLoadId = ++this.notificationCountsLoadId;
 
     try {
-      const result = await this.client.query(MyRoomNotificationCountsQuery, {}).toPromise();
+      const countsByRoomId = await this.notificationAPI.listNotificationCounts();
       if (this.loadId !== loadId || this.notificationCountsLoadId !== notificationCountsLoadId) {
         return;
-      }
-
-      if (result.error) {
-        if (!isUnsupportedGraphQLFieldError(result.error, 'viewerNotifications')) {
-          console.warn('failed to load room notification counts', result.error);
-        }
-        return;
-      }
-
-      const rooms = result.data?.server?.rooms ?? [];
-      const countsByRoomId: Record<string, number> = Object.create(null);
-      for (const room of rooms) {
-        countsByRoomId[room.id] = room.viewerNotifications.totalCount;
       }
 
       untrack(() => {
@@ -480,16 +313,14 @@ export class RoomsStore {
    * member-room DM list until its first message lands) shows up in the
    * sidebar without a manual reload.
    */
-  ingestServerEvent(serverEvent: {
-    event?: { __typename?: string; roomId?: string } | null;
-  }): void {
+  ingestServerEvent(serverEvent: { event?: RoomEventKindSource }): void {
     const event = serverEvent.event;
     if (!event) return;
-    if (isRoomStateRefreshEvent(event.__typename)) {
+    if (isRoomStateRefreshEvent(event)) {
       void this.refresh();
       return;
     }
-    if (event.__typename === 'MessagePostedEvent') {
+    if (isMessagePostedEvent(event)) {
       const roomId = event.roomId;
       if (roomId && !this.rooms.some((r) => r.id === roomId)) {
         void this.refresh();

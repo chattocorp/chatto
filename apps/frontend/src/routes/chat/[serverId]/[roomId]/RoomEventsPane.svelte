@@ -1,5 +1,6 @@
 <script lang="ts">
   import { useEvent } from '$lib/hooks';
+  import { RoomEventKind, roomEventKind, type RoomEventKindSource } from '$lib/render/eventKinds';
   import {
     getComposerContext,
     type QuoteInsertionContent,
@@ -8,6 +9,19 @@
   } from '$lib/state/room';
   import type { MessagesStore } from '$lib/state/room';
   import EventList from './EventList.svelte';
+
+  type MessageRetractedEventPayload = {
+    roomId?: string | null;
+    messageEventId?: string | null;
+  };
+
+  function messageRetractedPayload(
+    event: RoomEventKindSource
+  ): MessageRetractedEventPayload | null {
+    if (roomEventKind(event) !== RoomEventKind.MessageRetracted) return null;
+    if (!event || typeof event !== 'object') return null;
+    return event as MessageRetractedEventPayload;
+  }
 
   let {
     roomId,
@@ -73,14 +87,13 @@
   // Subscribe to server events: route to store, plus handle component-level
   // concerns the store doesn't own (e.g. cancel an in-progress edit).
   useEvent((serverEvent) => {
-    const eventData = serverEvent.event;
-    if (!eventData) return;
+    const eventData = messageRetractedPayload(serverEvent.event);
+    if (!eventData) {
+      store.ingestServerEvent(serverEvent);
+      return;
+    }
 
-    if (
-      eventData.__typename === 'MessageRetractedEvent' &&
-      eventData.roomId === roomId &&
-      editState.eventId === eventData.messageEventId
-    ) {
+    if (eventData.roomId === roomId && editState.eventId === eventData.messageEventId) {
       editState.cancelEdit();
     }
 

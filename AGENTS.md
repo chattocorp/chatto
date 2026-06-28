@@ -6,14 +6,14 @@ path-specific guidance.
 ## Where Context Lives
 
 - [README.md](README.md) — general project overview.
-- [cli/AGENTS.md](cli/AGENTS.md) — Go backend, GraphQL, ConnectRPC, NATS/JetStream, authz, live events, backup/restore, and backend tests.
+- [cli/AGENTS.md](cli/AGENTS.md) — Go backend, ConnectRPC, NATS/JetStream, authz, live events, backup/restore, and backend tests.
 - [apps/frontend/AGENTS.md](apps/frontend/AGENTS.md) — SvelteKit frontend, Tailwind, i18n, browser verification, frontend tests, e2e, and Storybook.
 - [proto/AGENTS.md](proto/AGENTS.md) — protobuf and generated public API reference guidance.
 - [apps/docs-website/AGENTS.md](apps/docs-website/AGENTS.md) — public docs website guidance.
 - `.agents/skills/**` — workflow skills. Use them when the task names one or clearly matches one, especially `chatto-architecture`, `glossary`, Svelte skills, ADR/FDR skills, and security/release workflows.
 - `docs/fdr/INDEX.md` — feature behavior and rationale.
 - `docs/adr/INDEX.md` — cross-cutting architecture decisions.
-- `docs/ARCHITECTURE.md` — current inventory of services, streams, buckets, subjects, projections, GraphQL operations, and ConnectRPC APIs.
+- `docs/ARCHITECTURE.md` — current inventory of services, streams, buckets, subjects, projections, realtime delivery, and ConnectRPC APIs.
 - `docs/GLOSSARY.md` — canonical Chatto terminology.
 
 ## Project Status
@@ -46,9 +46,7 @@ mise test-cli
 mise test-frontend
 mise test-e2e
 mise codegen
-mise codegen-cli
 mise codegen-proto
-mise codegen-frontend
 mise codegen-types
 ```
 
@@ -67,8 +65,7 @@ For ad-hoc tool invocations, use `mise x -- ...` rather than assuming `go`,
 - State interactions should go through the owning service/projection boundary.
   Avoid direct JetStream/KV/projection access from unrelated code.
 - New public API surface should favor ConnectRPC/protobuf or the planned wire
-  protocol. GraphQL remains legacy and should not grow unless there is a
-  deliberate reason.
+  protocol.
 - `GET /api/server` is a high-compatibility discovery endpoint. Prefer additive
   changes and preserve CORS, URL shape, and OAuth discovery semantics.
 
@@ -89,15 +86,10 @@ For ad-hoc tool invocations, use `mise x -- ...` rather than assuming `go`,
 
 ## Public API And Compatibility
 
-- GraphQL introspection and `/api/playground` are intentionally public by
-  default. Do not hide them behind dev/admin flags; sensitive operations belong
-  behind resolver authorization.
-- GraphQL breaking changes are acceptable only when needed and should be called
-  out clearly.
 - Persisted protobuf messages in `EVT`, `RUNTIME_STATE`, `ENCRYPTION_KEYS`, and
   other JetStream resources are comparatively stable. Do not renumber fields or
   change field types; prefer additive evolution and migrations/repair code.
-- Transient protobufs can change more freely, but still consider GraphQL/API
+- Transient protobufs can change more freely, but still consider public API
   behavior and mixed-version clients.
 - When changing room timeline event visibility, update ConnectRPC room timeline
   mapping or explicitly document why the event is hidden. Add tests so visible
@@ -107,7 +99,7 @@ For ad-hoc tool invocations, use `mise x -- ...` rather than assuming `go`,
 
 - Use FDRs for feature behavior/rationale and ADRs for cross-cutting decisions.
 - Update `docs/ARCHITECTURE.md` when changing core services, projections, EVT
-  events or subjects, NATS resources, GraphQL operations, or ConnectRPC APIs.
+  events or subjects, NATS resources, realtime delivery, or ConnectRPC APIs.
 - Update `docs/GLOSSARY.md` when introducing, renaming, or clarifying canonical
   vocabulary.
 - Update the docs website when changing user-facing features, config,
@@ -122,8 +114,6 @@ For ad-hoc tool invocations, use `mise x -- ...` rather than assuming `go`,
   committed.
 - New public ConnectRPC services also need `proto/buf.gen.yaml` and docs sidebar
   entries in `apps/docs-website/astro.config.mjs`.
-- GraphQL schema changes require `mise codegen-cli`; frontend query changes also
-  require `mise codegen-frontend`.
 - Shared Go types used by frontend TypeScript require `mise codegen-types`.
 
 ## Issues, Commits, And PRs

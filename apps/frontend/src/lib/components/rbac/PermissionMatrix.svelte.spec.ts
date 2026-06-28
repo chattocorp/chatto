@@ -3,10 +3,6 @@ import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import PermissionMatrix from './PermissionMatrix.svelte';
 
-// Production urql returns an `OperationResultSource` that's both `await`-able
-// (via `then`) and `.toPromise()`-able. The mocks below return the same
-// shape so the matrix's `await client.query(...)` resolves identically.
-
 type TierRoles = {
   applicablePermissions: string[];
   roles: Array<{
@@ -60,33 +56,33 @@ const HAPPY_TIER_ROLES: TierRoles = {
 // A module-level holder so individual tests can swap the resolver payload
 // before rendering. The `useConnection` mock dereferences it on every call.
 let nextTierRoles: TierRoles | null = HAPPY_TIER_ROLES;
+const permissionMocks = vi.hoisted(() => ({
+  getRolePermissionTierMatrix: vi.fn(),
+  setRolePermission: vi.fn()
+}));
 
-function thenable(value: unknown) {
-  return {
-    then: (resolve: (v: unknown) => void) => Promise.resolve(value).then(resolve),
-    toPromise: () => Promise.resolve(value)
-  };
-}
+vi.mock('$lib/api/permissions', () => ({
+  createPermissionAPI: vi.fn(() => ({
+    getRolePermissionTierMatrix: permissionMocks.getRolePermissionTierMatrix,
+    setRolePermission: permissionMocks.setRolePermission
+  }))
+}));
 
 vi.mock('$lib/state/server/connection.svelte', () => ({
   useConnection: () => () => ({
     isConnected: true,
     showConnectionLostBanner: false,
-    client: {
-      query: vi.fn(() =>
-        thenable({
-          data: { admin: { rbac: { rolePermissionTierMatrix: nextTierRoles } } },
-          error: null
-        })
-      ),
-      mutation: vi.fn(() => thenable({ data: {}, error: null })),
-      subscription: vi.fn()
-    }
+    connectBaseUrl: '/api/connect',
+    bearerToken: 'token'
   })
 }));
 
 beforeEach(() => {
   nextTierRoles = HAPPY_TIER_ROLES;
+  permissionMocks.getRolePermissionTierMatrix.mockReset();
+  permissionMocks.getRolePermissionTierMatrix.mockImplementation(async () => nextTierRoles);
+  permissionMocks.setRolePermission.mockReset();
+  permissionMocks.setRolePermission.mockResolvedValue(true);
 });
 
 async function settle() {

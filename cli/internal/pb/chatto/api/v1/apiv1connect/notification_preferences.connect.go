@@ -34,6 +34,12 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// NotificationPreferencesServiceGetServerNotificationPreferenceProcedure is the fully-qualified
+	// name of the NotificationPreferencesService's GetServerNotificationPreference RPC.
+	NotificationPreferencesServiceGetServerNotificationPreferenceProcedure = "/chatto.api.v1.NotificationPreferencesService/GetServerNotificationPreference"
+	// NotificationPreferencesServiceSetServerNotificationLevelProcedure is the fully-qualified name of
+	// the NotificationPreferencesService's SetServerNotificationLevel RPC.
+	NotificationPreferencesServiceSetServerNotificationLevelProcedure = "/chatto.api.v1.NotificationPreferencesService/SetServerNotificationLevel"
 	// NotificationPreferencesServiceGetRoomNotificationPreferenceProcedure is the fully-qualified name
 	// of the NotificationPreferencesService's GetRoomNotificationPreference RPC.
 	NotificationPreferencesServiceGetRoomNotificationPreferenceProcedure = "/chatto.api.v1.NotificationPreferencesService/GetRoomNotificationPreference"
@@ -45,6 +51,11 @@ const (
 // NotificationPreferencesServiceClient is a client for the
 // chatto.api.v1.NotificationPreferencesService service.
 type NotificationPreferencesServiceClient interface {
+	// Returns the current user's explicit and effective server notification level.
+	GetServerNotificationPreference(context.Context, *connect.Request[v1.GetServerNotificationPreferenceRequest]) (*connect.Response[v1.GetServerNotificationPreferenceResponse], error)
+	// Sets the current user's explicit server notification level and returns the
+	// resulting stored and effective levels.
+	SetServerNotificationLevel(context.Context, *connect.Request[v1.SetServerNotificationLevelRequest]) (*connect.Response[v1.SetServerNotificationLevelResponse], error)
 	// Returns the current user's explicit and effective notification level for a
 	// room. Use this before rendering room notification controls so the UI can
 	// distinguish inherited defaults from an explicit room override.
@@ -66,6 +77,18 @@ func NewNotificationPreferencesServiceClient(httpClient connect.HTTPClient, base
 	baseURL = strings.TrimRight(baseURL, "/")
 	notificationPreferencesServiceMethods := v1.File_chatto_api_v1_notification_preferences_proto.Services().ByName("NotificationPreferencesService").Methods()
 	return &notificationPreferencesServiceClient{
+		getServerNotificationPreference: connect.NewClient[v1.GetServerNotificationPreferenceRequest, v1.GetServerNotificationPreferenceResponse](
+			httpClient,
+			baseURL+NotificationPreferencesServiceGetServerNotificationPreferenceProcedure,
+			connect.WithSchema(notificationPreferencesServiceMethods.ByName("GetServerNotificationPreference")),
+			connect.WithClientOptions(opts...),
+		),
+		setServerNotificationLevel: connect.NewClient[v1.SetServerNotificationLevelRequest, v1.SetServerNotificationLevelResponse](
+			httpClient,
+			baseURL+NotificationPreferencesServiceSetServerNotificationLevelProcedure,
+			connect.WithSchema(notificationPreferencesServiceMethods.ByName("SetServerNotificationLevel")),
+			connect.WithClientOptions(opts...),
+		),
 		getRoomNotificationPreference: connect.NewClient[v1.GetRoomNotificationPreferenceRequest, v1.GetRoomNotificationPreferenceResponse](
 			httpClient,
 			baseURL+NotificationPreferencesServiceGetRoomNotificationPreferenceProcedure,
@@ -83,8 +106,22 @@ func NewNotificationPreferencesServiceClient(httpClient connect.HTTPClient, base
 
 // notificationPreferencesServiceClient implements NotificationPreferencesServiceClient.
 type notificationPreferencesServiceClient struct {
-	getRoomNotificationPreference *connect.Client[v1.GetRoomNotificationPreferenceRequest, v1.GetRoomNotificationPreferenceResponse]
-	setRoomNotificationLevel      *connect.Client[v1.SetRoomNotificationLevelRequest, v1.SetRoomNotificationLevelResponse]
+	getServerNotificationPreference *connect.Client[v1.GetServerNotificationPreferenceRequest, v1.GetServerNotificationPreferenceResponse]
+	setServerNotificationLevel      *connect.Client[v1.SetServerNotificationLevelRequest, v1.SetServerNotificationLevelResponse]
+	getRoomNotificationPreference   *connect.Client[v1.GetRoomNotificationPreferenceRequest, v1.GetRoomNotificationPreferenceResponse]
+	setRoomNotificationLevel        *connect.Client[v1.SetRoomNotificationLevelRequest, v1.SetRoomNotificationLevelResponse]
+}
+
+// GetServerNotificationPreference calls
+// chatto.api.v1.NotificationPreferencesService.GetServerNotificationPreference.
+func (c *notificationPreferencesServiceClient) GetServerNotificationPreference(ctx context.Context, req *connect.Request[v1.GetServerNotificationPreferenceRequest]) (*connect.Response[v1.GetServerNotificationPreferenceResponse], error) {
+	return c.getServerNotificationPreference.CallUnary(ctx, req)
+}
+
+// SetServerNotificationLevel calls
+// chatto.api.v1.NotificationPreferencesService.SetServerNotificationLevel.
+func (c *notificationPreferencesServiceClient) SetServerNotificationLevel(ctx context.Context, req *connect.Request[v1.SetServerNotificationLevelRequest]) (*connect.Response[v1.SetServerNotificationLevelResponse], error) {
+	return c.setServerNotificationLevel.CallUnary(ctx, req)
 }
 
 // GetRoomNotificationPreference calls
@@ -102,6 +139,11 @@ func (c *notificationPreferencesServiceClient) SetRoomNotificationLevel(ctx cont
 // NotificationPreferencesServiceHandler is an implementation of the
 // chatto.api.v1.NotificationPreferencesService service.
 type NotificationPreferencesServiceHandler interface {
+	// Returns the current user's explicit and effective server notification level.
+	GetServerNotificationPreference(context.Context, *connect.Request[v1.GetServerNotificationPreferenceRequest]) (*connect.Response[v1.GetServerNotificationPreferenceResponse], error)
+	// Sets the current user's explicit server notification level and returns the
+	// resulting stored and effective levels.
+	SetServerNotificationLevel(context.Context, *connect.Request[v1.SetServerNotificationLevelRequest]) (*connect.Response[v1.SetServerNotificationLevelResponse], error)
 	// Returns the current user's explicit and effective notification level for a
 	// room. Use this before rendering room notification controls so the UI can
 	// distinguish inherited defaults from an explicit room override.
@@ -118,6 +160,18 @@ type NotificationPreferencesServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewNotificationPreferencesServiceHandler(svc NotificationPreferencesServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	notificationPreferencesServiceMethods := v1.File_chatto_api_v1_notification_preferences_proto.Services().ByName("NotificationPreferencesService").Methods()
+	notificationPreferencesServiceGetServerNotificationPreferenceHandler := connect.NewUnaryHandler(
+		NotificationPreferencesServiceGetServerNotificationPreferenceProcedure,
+		svc.GetServerNotificationPreference,
+		connect.WithSchema(notificationPreferencesServiceMethods.ByName("GetServerNotificationPreference")),
+		connect.WithHandlerOptions(opts...),
+	)
+	notificationPreferencesServiceSetServerNotificationLevelHandler := connect.NewUnaryHandler(
+		NotificationPreferencesServiceSetServerNotificationLevelProcedure,
+		svc.SetServerNotificationLevel,
+		connect.WithSchema(notificationPreferencesServiceMethods.ByName("SetServerNotificationLevel")),
+		connect.WithHandlerOptions(opts...),
+	)
 	notificationPreferencesServiceGetRoomNotificationPreferenceHandler := connect.NewUnaryHandler(
 		NotificationPreferencesServiceGetRoomNotificationPreferenceProcedure,
 		svc.GetRoomNotificationPreference,
@@ -132,6 +186,10 @@ func NewNotificationPreferencesServiceHandler(svc NotificationPreferencesService
 	)
 	return "/chatto.api.v1.NotificationPreferencesService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case NotificationPreferencesServiceGetServerNotificationPreferenceProcedure:
+			notificationPreferencesServiceGetServerNotificationPreferenceHandler.ServeHTTP(w, r)
+		case NotificationPreferencesServiceSetServerNotificationLevelProcedure:
+			notificationPreferencesServiceSetServerNotificationLevelHandler.ServeHTTP(w, r)
 		case NotificationPreferencesServiceGetRoomNotificationPreferenceProcedure:
 			notificationPreferencesServiceGetRoomNotificationPreferenceHandler.ServeHTTP(w, r)
 		case NotificationPreferencesServiceSetRoomNotificationLevelProcedure:
@@ -144,6 +202,14 @@ func NewNotificationPreferencesServiceHandler(svc NotificationPreferencesService
 
 // UnimplementedNotificationPreferencesServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedNotificationPreferencesServiceHandler struct{}
+
+func (UnimplementedNotificationPreferencesServiceHandler) GetServerNotificationPreference(context.Context, *connect.Request[v1.GetServerNotificationPreferenceRequest]) (*connect.Response[v1.GetServerNotificationPreferenceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationPreferencesService.GetServerNotificationPreference is not implemented"))
+}
+
+func (UnimplementedNotificationPreferencesServiceHandler) SetServerNotificationLevel(context.Context, *connect.Request[v1.SetServerNotificationLevelRequest]) (*connect.Response[v1.SetServerNotificationLevelResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationPreferencesService.SetServerNotificationLevel is not implemented"))
+}
 
 func (UnimplementedNotificationPreferencesServiceHandler) GetRoomNotificationPreference(context.Context, *connect.Request[v1.GetRoomNotificationPreferenceRequest]) (*connect.Response[v1.GetRoomNotificationPreferenceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationPreferencesService.GetRoomNotificationPreference is not implemented"))

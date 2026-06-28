@@ -1,0 +1,206 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "buf/validate/validate.proto";
+import "chatto/api/v1/presence.proto";
+import "chatto/api/v1/user_status.proto";
+import "google/protobuf/timestamp.proto";
+
+// User summary embedded in notification responses.
+message NotificationActor {
+  // Stable user ID.
+  string id = 1;
+  // Login identifier.
+  string login = 2;
+  // Display name shown in Chatto.
+  string display_name = 3;
+  // True when this is a tombstone/deleted user representation.
+  bool deleted = 4;
+  // Optional avatar URL.
+  optional string avatar_url = 5;
+  // Current live presence status.
+  PresenceStatus presence_status = 6;
+  // Custom profile status, when set.
+  CustomUserStatus custom_status = 7;
+}
+
+// Room summary embedded in notification responses.
+message NotificationRoom {
+  // Stable room ID.
+  string id = 1;
+  // Room display name. Empty for DM rooms.
+  string name = 2;
+}
+
+// Direct-message notification payload.
+message DirectMessageNotification {
+  // DM room where the message was posted.
+  string room_id = 1;
+  // Message event ID.
+  string event_id = 2;
+}
+
+// Mention notification payload.
+message MentionNotification {
+  // Room where the mention occurred.
+  NotificationRoom room = 1;
+  // Message event ID.
+  string event_id = 2;
+  // Thread root event ID when the mention happened inside a thread.
+  optional string thread_root_event_id = 3;
+}
+
+// Reply notification payload.
+message ReplyNotification {
+  // Room where the reply occurred.
+  NotificationRoom room = 1;
+  // Reply event ID.
+  string event_id = 2;
+  // Event ID of the message being replied to.
+  string in_reply_to_id = 3;
+  // Thread root event ID when the reply happened inside a thread.
+  optional string thread_root_event_id = 4;
+}
+
+// All-messages room notification payload.
+message RoomMessageNotification {
+  // Room where the message was posted.
+  NotificationRoom room = 1;
+  // Message event ID.
+  string event_id = 2;
+}
+
+// One pending notification for the authenticated viewer.
+message NotificationItem {
+  // Stable notification ID.
+  string id = 1;
+  // Creation time.
+  google.protobuf.Timestamp created_at = 2;
+  // User who triggered the notification, when still resolvable.
+  NotificationActor actor = 3;
+  // Short human-readable notification summary.
+  string summary = 4;
+
+  oneof kind {
+    // Direct-message notification.
+    DirectMessageNotification direct_message = 10;
+    // Mention notification.
+    MentionNotification mention = 11;
+    // Reply notification.
+    ReplyNotification reply = 12;
+    // All-messages room notification.
+    RoomMessageNotification room_message = 13;
+  }
+}
+
+// Request for the authenticated viewer's pending notifications.
+message ListNotificationsRequest {
+  // Maximum number of notifications to return.
+  int32 limit = 1 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 100
+  }];
+  // Number of notifications to skip.
+  int32 offset = 2 [(buf.validate.field).int32.gte = 0];
+}
+
+// Request for pending notifications scoped to one room.
+message ListRoomNotificationsRequest {
+  // Required. Room whose notifications should be listed.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Maximum number of notifications to return.
+  int32 limit = 2 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 100
+  }];
+  // Number of notifications to skip.
+  int32 offset = 3 [(buf.validate.field).int32.gte = 0];
+}
+
+// Pending notification page.
+message ListNotificationsResponse {
+  // Page items, newest first.
+  repeated NotificationItem items = 1;
+  // Total count before pagination.
+  int32 total_count = 2;
+  // True when more notifications exist beyond this page.
+  bool has_more = 3;
+  // Current server display name for non-DM location labels.
+  string server_name = 4;
+}
+
+// Pending notification page scoped to one room.
+message ListRoomNotificationsResponse {
+  // Page items, newest first.
+  repeated NotificationItem items = 1;
+  // Total count before pagination.
+  int32 total_count = 2;
+  // True when more notifications exist beyond this page.
+  bool has_more = 3;
+  // Current server display name for non-DM location labels.
+  string server_name = 4;
+}
+
+// Request for a lightweight pending notification check.
+message HasNotificationsRequest {}
+
+// Lightweight pending notification check.
+message HasNotificationsResponse {
+  // True when the authenticated viewer has at least one pending notification.
+  bool has_notifications = 1;
+}
+
+// Pending notification count for one room.
+message RoomNotificationCount {
+  // Room ID.
+  string room_id = 1;
+  // Pending notification count for the authenticated viewer in this room.
+  int32 total_count = 2;
+}
+
+// Request for pending notification counts grouped by room.
+message ListNotificationCountsRequest {}
+
+// Pending notification counts grouped by room.
+message ListNotificationCountsResponse {
+  // Counts for rooms with at least one pending notification.
+  repeated RoomNotificationCount room_counts = 1;
+}
+
+// Request to dismiss one pending notification.
+message DismissNotificationRequest {
+  // Required. Notification to dismiss.
+  string notification_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of dismissing one pending notification.
+message DismissNotificationResponse {
+  // True when the notification existed and was dismissed.
+  bool dismissed = 1;
+}
+
+// Request to dismiss all pending notifications.
+message DismissAllNotificationsRequest {}
+
+// Result of dismissing all pending notifications.
+message DismissAllNotificationsResponse {
+  // Number of notifications dismissed.
+  int32 dismissed_count = 1;
+}
+
+// Reads and dismisses pending notifications for the authenticated viewer.
+service NotificationService {
+  // Lists the authenticated viewer's pending notifications.
+  rpc ListNotifications(ListNotificationsRequest) returns (ListNotificationsResponse);
+  // Lists pending notifications for one room. Non-members receive an empty page.
+  rpc ListRoomNotifications(ListRoomNotificationsRequest) returns (ListRoomNotificationsResponse);
+  // Lists pending notification counts grouped by room.
+  rpc ListNotificationCounts(ListNotificationCountsRequest) returns (ListNotificationCountsResponse);
+  // Checks whether the authenticated viewer has any pending notifications.
+  rpc HasNotifications(HasNotificationsRequest) returns (HasNotificationsResponse);
+  // Dismisses one pending notification.
+  rpc DismissNotification(DismissNotificationRequest) returns (DismissNotificationResponse);
+  // Dismisses all pending notifications.
+  rpc DismissAllNotifications(DismissAllNotificationsRequest) returns (DismissAllNotificationsResponse);
+}

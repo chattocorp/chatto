@@ -5,7 +5,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
-  import { graphql } from '$lib/gql';
+  import { createRoleAPI, type RoleUser } from '$lib/api/roles';
   import { Panel, UserList } from '$lib/components/admin';
   import { Hint } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
@@ -15,7 +15,7 @@
   import { DeleteRoleModal, RolePermissionsMatrix, type Role } from '$lib/components/rbac';
   import * as m from '$lib/i18n/messages';
 
-  type User = { id: string; login: string; displayName: string };
+  type User = RoleUser;
 
   const serverSegment = $derived(serverIdToSegment(getActiveServer()));
   const connection = useConnection();
@@ -37,66 +37,23 @@
   let editDescription = $state('');
   let editPingable = $state(false);
 
-  const UpdateRoleDetailPageMutation = graphql(`
-    mutation UpdateRoleDetailPage($input: UpdateRoleInput!) {
-      updateRole(input: $input) {
-        name
-        displayName
-        description
-        pingable
-      }
-    }
-  `);
-
   async function loadData() {
     loading = true;
     error = null;
 
-    // Metadata + users + viewer permissions. The editor handles its own
-    // permission loading through the RBAC matrix query.
-    const resp = await connection().client.query(
-      graphql(`
-        query SpaceRoleDetail($name: String!) {
-          server {
-            role(name: $name) {
-              name
-              displayName
-              description
-              permissions
-              permissionDenials
-              isSystem
-              position
-              pingable
-            }
-            roleUsers(roleName: $name) {
-              id
-              login
-              displayName
-            }
-            viewerCanManageRoles
-            viewerCanAssignRoles
-          }
-        }
-      `),
-      { name: roleName }
-    );
-
-    if (resp.error) {
-      error = resp.error.message;
+    let resp;
+    try {
+      resp = await roleAPI().getRole(roleName);
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Server not found';
       loading = false;
       return;
     }
 
-    if (!resp.data?.server) {
-      error = 'Server not found';
-      loading = false;
-      return;
-    }
-
-    role = resp.data.server.role ?? null;
-    roleUsers = resp.data.server.roleUsers;
-    canManageRoles = resp.data.server.viewerCanManageRoles;
-    canAssignRoles = resp.data.server.viewerCanAssignRoles;
+    role = resp.role;
+    roleUsers = resp.users;
+    canManageRoles = resp.viewerCanManageRoles;
+    canAssignRoles = resp.viewerCanAssignRoles;
 
     if (role) {
       editDisplayName = role.displayName;
@@ -119,19 +76,16 @@
     saving = true;
     error = null;
 
-    const resp = await connection().client.mutation(UpdateRoleDetailPageMutation, {
-      input: {
+    try {
+      await roleAPI().updateRole({
         name: role.name,
         displayName: editDisplayName,
         description: editDescription
-      }
-    });
-
-    if (resp.error) {
-      error = resp.error.message;
-    } else {
+      });
       // Reload data
       await loadData();
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to update role';
     }
 
     saving = false;
@@ -149,25 +103,22 @@
     savingPingable = true;
     error = null;
 
-    const resp = await connection().client.mutation(UpdateRoleDetailPageMutation, {
-      input: {
+    try {
+      const updated = await roleAPI().updateRole({
         name: role.name,
         displayName: role.displayName,
         description: role.description,
         pingable: nextPingable
-      }
-    });
-
-    if (resp.error || !resp.data?.updateRole) {
-      editPingable = previousPingable;
-      error = resp.error?.message ?? 'Failed to update role ping setting';
-    } else {
+      });
       role = {
         ...role,
-        pingable: resp.data.updateRole.pingable
+        pingable: updated.pingable
       };
-      editPingable = resp.data.updateRole.pingable;
-      toast.success(resp.data.updateRole.pingable ? 'Role pings enabled' : 'Role pings disabled');
+      editPingable = updated.pingable;
+      toast.success(updated.pingable ? 'Role pings enabled' : 'Role pings disabled');
+    } catch (err) {
+      editPingable = previousPingable;
+      error = err instanceof Error ? err.message : 'Failed to update role ping setting';
     }
 
     savingPingable = false;
@@ -179,23 +130,25 @@
     deleting = true;
     error = null;
 
-    const resp = await connection().client.mutation(
-      graphql(`
-        mutation DeleteRoleDetailPage($input: DeleteRoleInput!) {
-          deleteRole(input: $input)
-        }
-      `),
-      { input: { name: role.name } }
-    );
-
-    if (resp.error) {
-      error = resp.error.message;
+    try {
+      await roleAPI().deleteRole(role.name);
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to delete role';
       deleting = false;
       showDeleteConfirm = false;
-    } else {
-      // Navigate back to permissions list
-      goto(resolve('/chat/[serverId]/server-admin/permissions', { serverId: serverSegment }));
+      return;
     }
+
+    // Navigate back to permissions list
+    goto(resolve('/chat/[serverId]/server-admin/permissions', { serverId: serverSegment }));
+  }
+
+  function roleAPI() {
+    const conn = connection();
+    return createRoleAPI({
+      baseUrl: conn.connectBaseUrl,
+      bearerToken: conn.bearerToken
+    });
   }
 
   const permissionsHref = $derived(

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import type { RoomEventViewFragment } from '$lib/gql/graphql';
+import type { RoomEventView } from '$lib/render/types';
+import { RoomEventKind } from '$lib/render/eventKinds';
 import SystemEvent from './SystemEvent.svelte';
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
@@ -16,11 +17,11 @@ vi.mock('$lib/state/presenceCache.svelte', () => ({
 }));
 
 function systemEvent(
-  typename: 'UserJoinedRoomEvent' | 'UserLeftRoomEvent',
+  kind: typeof RoomEventKind.UserJoinedRoom | typeof RoomEventKind.UserLeftRoom,
   actorName = 'Alice'
-): RoomEventViewFragment {
+): RoomEventView {
   return {
-    id: `evt-${typename}`,
+    id: `evt-${kind}`,
     createdAt: '2026-06-15T12:00:00Z',
     actorId: 'user-1',
     actor: {
@@ -31,16 +32,16 @@ function systemEvent(
       presenceStatus: null
     },
     event: {
-      __typename: typename,
+      kind,
       roomId: 'room-1'
     }
-  } as unknown as RoomEventViewFragment;
+  } as unknown as RoomEventView;
 }
 
 describe('SystemEvent', () => {
   it('renders member join copy with the actor name', () => {
     const { container } = render(SystemEvent, {
-      props: { event: systemEvent('UserJoinedRoomEvent', 'Alice') }
+      props: { event: systemEvent(RoomEventKind.UserJoinedRoom, 'Alice') }
     });
 
     expect(container.textContent).toContain('Alice joined the room');
@@ -48,7 +49,7 @@ describe('SystemEvent', () => {
 
   it('renders member leave copy with the actor name', () => {
     const { container } = render(SystemEvent, {
-      props: { event: systemEvent('UserLeftRoomEvent', 'Alice') }
+      props: { event: systemEvent(RoomEventKind.UserLeftRoom, 'Alice') }
     });
 
     expect(container.textContent).toContain('Alice left the room');

@@ -1,5 +1,5 @@
 import { createPresenceAPI, APIPresenceStatus, type PresenceAPIConfig } from '$lib/api/presence';
-import { PresenceStatus } from '$lib/gql/graphql';
+import { PresenceStatus } from '$lib/render/types';
 import { presencePreference, type PresenceMode } from '$lib/state/presencePreference.svelte';
 
 const IDLE_TIMEOUT_MS = 5 * 60 * 1000;

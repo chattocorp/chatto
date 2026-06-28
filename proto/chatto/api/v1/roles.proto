@@ -1,0 +1,147 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "buf/validate/validate.proto";
+
+// Server role metadata and server-scope permission state.
+message Role {
+  // Stable role name used in permission and assignment records.
+  string name = 1;
+  // Display name shown in admin and mention UIs.
+  string display_name = 2;
+  // Optional role description.
+  string description = 3;
+  // Server permissions granted by this role.
+  repeated string permissions = 4;
+  // Server permissions denied by this role.
+  repeated string permission_denials = 5;
+  // Whether this is a built-in role.
+  bool is_system = 6;
+  // Display/order position.
+  int32 position = 7;
+  // Whether messages may notify users assigned to this role.
+  bool pingable = 8;
+}
+
+// User summary for role roster displays.
+message RoleUser {
+  // Stable user ID.
+  string id = 1;
+  // Login identifier.
+  string login = 2;
+  // Display name shown in Chatto.
+  string display_name = 3;
+}
+
+// Request the server role catalog.
+message ListRolesRequest {}
+
+// Server role catalog plus viewer role-management capabilities.
+message ListRolesResponse {
+  // Roles sorted by position.
+  repeated Role roles = 1;
+  // Whether the caller may create/update/delete role definitions.
+  bool viewer_can_manage_roles = 2;
+  // Whether the caller may assign/revoke roles and view role rosters.
+  bool viewer_can_assign_roles = 3;
+}
+
+// Request one server role.
+message GetRoleRequest {
+  // Stable role name.
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// One server role plus role-management metadata.
+message GetRoleResponse {
+  // Requested role, when found.
+  Role role = 1;
+  // Explicit users with this role. Empty unless the caller may assign roles.
+  repeated RoleUser users = 2;
+  // Whether the caller may create/update/delete role definitions.
+  bool viewer_can_manage_roles = 3;
+  // Whether the caller may assign/revoke roles and view role rosters.
+  bool viewer_can_assign_roles = 4;
+}
+
+// Request to create a server role.
+message CreateRoleRequest {
+  // Stable role name.
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+  // Display name shown in admin and mention UIs.
+  string display_name = 2 [(buf.validate.field).string.max_len = 80];
+  // Optional role description.
+  string description = 3 [(buf.validate.field).string.max_len = 500];
+  // Whether messages may notify users assigned to this role.
+  bool pingable = 4;
+}
+
+// Result of creating a server role.
+message CreateRoleResponse {
+  // Created role.
+  Role role = 1;
+}
+
+// Request to update server role metadata.
+message UpdateRoleRequest {
+  // Stable role name.
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+  // Display name shown in admin and mention UIs.
+  string display_name = 2 [(buf.validate.field).string.max_len = 80];
+  // Optional role description.
+  string description = 3 [(buf.validate.field).string.max_len = 500];
+  // Whether messages may notify users assigned to this role, when changing it.
+  optional bool pingable = 4;
+}
+
+// Result of updating a server role.
+message UpdateRoleResponse {
+  // Updated role.
+  Role role = 1;
+}
+
+// Request to delete a server role.
+message DeleteRoleRequest {
+  // Stable role name.
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of deleting a server role.
+message DeleteRoleResponse {
+  // True when the request completed.
+  bool deleted = 1;
+}
+
+// Request to replace custom server role order.
+message ReorderRolesRequest {
+  // Ordered custom role names. The list must include every custom role exactly
+  // once; system roles keep fixed positions and must not be included.
+  repeated string role_names = 1 [(buf.validate.field).repeated = {
+    items: {
+      string: {min_len: 1}
+    }
+  }];
+}
+
+// Result of replacing custom server role order.
+message ReorderRolesResponse {
+  // Full role catalog after reordering.
+  repeated Role roles = 1;
+}
+
+// Provides authenticated role catalog reads and admin role CRUD.
+service RoleService {
+  // Lists the server role catalog. Requires an authenticated user.
+  rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
+  // Gets one server role plus admin detail metadata. Requires an authenticated user.
+  rpc GetRole(GetRoleRequest) returns (GetRoleResponse);
+  // Creates a custom server role. Requires role.manage.
+  rpc CreateRole(CreateRoleRequest) returns (CreateRoleResponse);
+  // Updates role metadata. Requires role.manage.
+  rpc UpdateRole(UpdateRoleRequest) returns (UpdateRoleResponse);
+  // Deletes a custom server role. Requires role.manage.
+  rpc DeleteRole(DeleteRoleRequest) returns (DeleteRoleResponse);
+  // Replaces the custom role order. Requires role.manage.
+  rpc ReorderRoles(ReorderRolesRequest) returns (ReorderRolesResponse);
+}

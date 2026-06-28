@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetRoomNotificationPreferenceRequest, GetRoomNotificationPreferenceResponse, SetRoomNotificationLevelRequest, SetRoomNotificationLevelResponse } from "./notification_preferences_pb.js";
+import { GetRoomNotificationPreferenceRequest, GetRoomNotificationPreferenceResponse, GetServerNotificationPreferenceRequest, GetServerNotificationPreferenceResponse, SetRoomNotificationLevelRequest, SetRoomNotificationLevelResponse, SetServerNotificationLevelRequest, SetServerNotificationLevelResponse } from "./notification_preferences_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -14,6 +14,29 @@ import { MethodKind } from "@bufbuild/protobuf";
 export const NotificationPreferencesService = {
   typeName: "chatto.api.v1.NotificationPreferencesService",
   methods: {
+    /**
+     * Returns the current user's explicit and effective server notification level.
+     *
+     * @generated from rpc chatto.api.v1.NotificationPreferencesService.GetServerNotificationPreference
+     */
+    getServerNotificationPreference: {
+      name: "GetServerNotificationPreference",
+      I: GetServerNotificationPreferenceRequest,
+      O: GetServerNotificationPreferenceResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Sets the current user's explicit server notification level and returns the
+     * resulting stored and effective levels.
+     *
+     * @generated from rpc chatto.api.v1.NotificationPreferencesService.SetServerNotificationLevel
+     */
+    setServerNotificationLevel: {
+      name: "SetServerNotificationLevel",
+      I: SetServerNotificationLevelRequest,
+      O: SetServerNotificationLevelResponse,
+      kind: MethodKind.Unary,
+    },
     /**
      * Returns the current user's explicit and effective notification level for a
      * room. Use this before rendering room notification controls so the UI can

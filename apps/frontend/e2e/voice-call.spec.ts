@@ -5,7 +5,7 @@
  * serverOptions fixture. Token generation is pure JWT signing (no real
  * LiveKit server needed). Actual WebRTC connections cannot be tested in
  * CI — these tests verify the signaling layer, UI visibility, and
- * GraphQL queries.
+ * ConnectRPC calls.
  *
  * Camera/video tests require an actual LiveKit connection (participant mode)
  * which is not available in CI. Camera toggle, video thumbnails, and device
@@ -16,7 +16,13 @@ import type { Page } from '@playwright/test';
 import { test, expect } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
-import { graphqlQuery, getRoomIdByName } from './fixtures/graphqlHelpers';
+import {
+  connectPost,
+  connectPostResponse,
+  getIdsFromUrlViaConnect,
+  getRoomIdByNameViaConnect,
+  joinRoomViaConnect
+} from './fixtures/connectHelpers';
 import { DMPage } from './pages/DMPage';
 import { TIMEOUTS } from './constants';
 
@@ -34,37 +40,65 @@ test.use({
   }
 });
 
-type CallParticipantsData = {
-  room: { callParticipants: { user: { id: string; displayName: string; login: string } }[] } | null;
-};
+interface JoinCallResponse {
+  joined?: boolean;
+}
 
-const CallParticipantsQuery = `query($roomId: ID!) {
-	room(roomId: $roomId) {
-		callParticipants {
-			user {
-				id
-				displayName
-				login
-			}
-		}
-	}
-}`;
+interface GetCallTokenResponse {
+  token?: string;
+  e2eeKey?: string;
+  callId?: string;
+}
 
-async function joinRoomViaAPI(page: Page, roomId: string) {
-  await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) { id } }`,
-      variables: { input: { roomId } }
-    }
+interface ListActiveCallRoomsResponse {
+  roomIds?: string[];
+}
+
+interface ListCallParticipantsResponse {
+  participants?: Array<{ user?: { id?: string; displayName?: string; login?: string } }>;
+}
+
+interface ServerStateResponse {
+  livekitUrl?: string;
+}
+
+async function joinCallViaConnect(page: Page, roomId: string): Promise<boolean> {
+  const data = await connectPost<JoinCallResponse>(
+    page,
+    'chatto.api.v1.VoiceCallService/JoinCall',
+    { roomId }
+  );
+  return data.joined ?? false;
+}
+
+async function getCallTokenViaConnect(page: Page, roomId: string): Promise<GetCallTokenResponse> {
+  return connectPost<GetCallTokenResponse>(page, 'chatto.api.v1.VoiceCallService/GetCallToken', {
+    roomId
   });
 }
 
+async function listActiveCallRoomIdsViaConnect(page: Page): Promise<string[]> {
+  const data = await connectPost<ListActiveCallRoomsResponse>(
+    page,
+    'chatto.api.v1.VoiceCallService/ListActiveCallRooms'
+  );
+  return data.roomIds ?? [];
+}
+
+async function listCallParticipantsViaConnect(
+  page: Page,
+  roomId: string
+): Promise<ListCallParticipantsResponse['participants']> {
+  const data = await connectPost<ListCallParticipantsResponse>(
+    page,
+    'chatto.api.v1.VoiceCallService/ListCallParticipants',
+    { roomId }
+  );
+  return data.participants ?? [];
+}
+
 async function openCallTab(page: Page) {
-  await page
-    .locator('[data-testid="room-sidebar-toggle"]:visible')
-    .getByLabel('Show call')
-    .click();
+  await page.locator('[data-testid="room-sidebar-toggle"]:visible').getByLabel('Show call').click();
 }
 
 test.describe('Voice calls', () => {
@@ -96,43 +130,23 @@ test.describe('Voice calls', () => {
     });
   });
 
-  test('voiceCallToken query returns a valid JWT', async ({ page, chatPage }) => {
+  test('call token RPC returns a valid JWT', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
-    const roomId = await getRoomIdByName(page, 'general');
+    const roomId = await getRoomIdByNameViaConnect(page, 'general');
 
-    const intent = await graphqlQuery<{ joinVoiceCall: boolean }>(
-      page,
-      `mutation($roomId: ID!) {
-				joinVoiceCall(input: { roomId: $roomId })
-			}`,
-      { roomId }
-    );
-    expect(intent.joinVoiceCall).toBe(true);
+    await expect(joinCallViaConnect(page, roomId)).resolves.toBe(true);
 
-    const data = await graphqlQuery<{
-      room: { voiceCallToken: { token: string; e2eeKey: string } | null } | null;
-    }>(
-      page,
-      `query($roomId: ID!) {
-				room(roomId: $roomId) {
-					voiceCallToken { token e2eeKey }
-				}
-			}`,
-      { roomId }
-    );
-
-    expect(data.room).not.toBeNull();
-    const token = data.room!.voiceCallToken;
-    expect(token).not.toBeNull();
-    expect(token!.token).toBeTruthy();
-    expect(token!.e2eeKey).toBeTruthy();
+    const token = await getCallTokenViaConnect(page, roomId);
+    expect(token.token).toBeTruthy();
+    expect(token.e2eeKey).toBeTruthy();
+    expect(token.callId).toBeTruthy();
     // JWT tokens have 3 base64url parts separated by dots
-    expect(token!.token.split('.')).toHaveLength(3);
+    expect(token.token!.split('.')).toHaveLength(3);
   });
 
-  test('voiceCallToken requires room membership', async ({
+  test('call token RPC requires room membership', async ({
     page,
     chatPage,
     browser,
@@ -141,60 +155,27 @@ test.describe('Voice calls', () => {
     // User A loads the server and room
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    await chatPage.enterRoom('general');
-    const roomId = await getRoomIdByName(page, 'general');
+    await chatPage.createRoom(`voice-private-${Date.now()}`);
+    const { roomId } = await getIdsFromUrlViaConnect(page);
+    await expect(joinCallViaConnect(page, roomId)).resolves.toBe(true);
 
-    // User B — auto-opens the bootstrap server at signup (issue #330), so we
-    // must explicitly leave the room to verify non-member rejection.
+    // User B is on the server but not a member of the newly created room.
     await withServerUser(browser!, serverURL, async ({ page: page2 }) => {
-      // Leave the room so user B is genuinely not a member when the test
-      // fires the voiceCallToken query below.
-      await page2.request.post('/api/graphql', {
-        headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-        data: {
-          query: `mutation($input: LeaveRoomInput!) { leaveRoom(input: $input) }`,
-          variables: { input: { roomId } }
-        }
-      });
-
-      // User B tries to get a voice call token — should fail
-      const result = await page2.evaluate(
-        async ({ roomId }) => {
-          const response = await fetch('/api/graphql', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-            credentials: 'include',
-            body: JSON.stringify({
-              query: `query($roomId: ID!) {
-								room(roomId: $roomId) {
-									voiceCallToken { token }
-								}
-							}`,
-              variables: { roomId }
-            })
-          });
-          return response.json();
-        },
+      const response = await connectPostResponse(
+        page2,
+        'chatto.api.v1.VoiceCallService/GetCallToken',
         { roomId }
       );
-
-      // Should have errors (not a room member)
-      expect(result.errors).toBeTruthy();
-      expect(result.errors.length).toBeGreaterThan(0);
+      expect(response.ok()).toBe(false);
+      expect(response.status()).toBe(403);
     });
   });
 
-  test('activeCallRoomIds returns empty when no calls active', async ({ page, chatPage }) => {
+  test('active call room IDs return empty when no calls active', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
 
-    const data = await graphqlQuery<{ activeCallRoomIds: string[] }>(
-      page,
-      `query { activeCallRoomIds }`,
-      {}
-    );
-
-    expect(data.activeCallRoomIds).toEqual([]);
+    await expect(listActiveCallRoomIdsViaConnect(page)).resolves.toEqual([]);
   });
 
   test('call icon appears and disappears via real-time events', async ({
@@ -208,7 +189,7 @@ test.describe('Voice calls', () => {
     await chatPage.goto();
     const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
-    const roomId = await getRoomIdByName(page, 'general');
+    const roomId = await getRoomIdByNameViaConnect(page, 'general');
 
     // The call icon should NOT be visible initially
     const callIcon = chatPage.roomList.getByTestId('room-call-icon');
@@ -216,7 +197,7 @@ test.describe('Voice calls', () => {
 
     // User B joins the same server and room
     await withServerUser(browser!, serverURL, async ({ page: page2, user: userB }) => {
-      await joinRoomViaAPI(page2, roomId);
+      await joinRoomViaConnect(page2, roomId);
 
       // Simulate User B joining a voice call via test webhook endpoint
       // (bypasses LiveKit HMAC — calls core.HandleCallParticipantJoined directly)
@@ -243,12 +224,12 @@ test.describe('Voice calls', () => {
       });
 
       // User A should see the active-call icon disappear
-      // (handleLeave re-queries activeCallRoomIds, which returns [] since KV is now empty)
+      // (handleLeave re-queries active call rooms, which returns [] since KV is now empty)
       await expect(callIcon).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
     });
   });
 
-  test('callParticipants returns participants after webhook join', async ({
+  test('call participants RPC returns participants after webhook join', async ({
     page,
     chatPage,
     browser,
@@ -258,17 +239,14 @@ test.describe('Voice calls', () => {
     await chatPage.goto();
     const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
-    const roomId = await getRoomIdByName(page, 'general');
+    const roomId = await getRoomIdByNameViaConnect(page, 'general');
 
     // Initially empty
-    const before = await graphqlQuery<CallParticipantsData>(page, CallParticipantsQuery, {
-      roomId
-    });
-    expect(before.room?.callParticipants).toEqual([]);
+    await expect(listCallParticipantsViaConnect(page, roomId)).resolves.toEqual([]);
 
     // Create User B and have them join
     await withServerUser(browser!, serverURL, async ({ page: page2, user: userB }) => {
-      await joinRoomViaAPI(page2, roomId);
+      await joinRoomViaConnect(page2, roomId);
 
       // Simulate join via webhook test endpoint
       await page.request.post('/webhooks/test/call-join', {
@@ -282,13 +260,10 @@ test.describe('Voice calls', () => {
       });
 
       // Query participants — should now include User B
-      const after = await graphqlQuery<CallParticipantsData>(page, CallParticipantsQuery, {
-        roomId
-      });
-      const afterParticipants = after.room?.callParticipants ?? [];
+      const afterParticipants = await listCallParticipantsViaConnect(page, roomId);
       expect(afterParticipants).toHaveLength(1);
-      expect(afterParticipants[0].user.id).toBe(userB.id);
-      expect(afterParticipants[0].user.login).toBe(userB.login);
+      expect(afterParticipants[0].user?.id).toBe(userB.id);
+      expect(afterParticipants[0].user?.login).toBe(userB.login);
 
       // Simulate leave
       await page.request.post('/webhooks/test/call-leave', {
@@ -296,10 +271,7 @@ test.describe('Voice calls', () => {
       });
 
       // Query again — should be empty
-      const afterLeave = await graphqlQuery<CallParticipantsData>(page, CallParticipantsQuery, {
-        roomId
-      });
-      expect(afterLeave.room?.callParticipants).toEqual([]);
+      await expect(listCallParticipantsViaConnect(page, roomId)).resolves.toEqual([]);
     });
   });
 
@@ -314,14 +286,14 @@ test.describe('Voice calls', () => {
     await chatPage.goto();
     const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
-    const roomId = await getRoomIdByName(page, 'general');
+    const roomId = await getRoomIdByNameViaConnect(page, 'general');
 
     // Observer panel should NOT be visible initially
     await expect(page.getByTestId('call-observer-panel')).not.toBeVisible();
 
     // User B joins the same server and room
     await withServerUser(browser!, serverURL, async ({ page: page2, user: userB }) => {
-      await joinRoomViaAPI(page2, roomId);
+      await joinRoomViaConnect(page2, roomId);
 
       // Simulate User B joining a voice call via test webhook endpoint
       await page.request.post('/webhooks/test/call-join', {
@@ -367,13 +339,13 @@ test.describe('Voice calls', () => {
     await chatPage.goto();
     const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
-    const roomId = await getRoomIdByName(page, 'general');
+    const roomId = await getRoomIdByNameViaConnect(page, 'general');
 
     await withServerUser(browser!, serverURL, async ({ page: page2, user: userB }) => {
-      await joinRoomViaAPI(page2, roomId);
+      await joinRoomViaConnect(page2, roomId);
 
       await withServerUser(browser!, serverURL, async ({ page: page3, user: userC }) => {
-        await joinRoomViaAPI(page3, roomId);
+        await joinRoomViaConnect(page3, roomId);
 
         // User B joins the call
         await page.request.post('/webhooks/test/call-join', {
@@ -444,7 +416,7 @@ test.describe('Voice calls', () => {
     await chatPage.goto();
     const spaceId = await chatPage.getServerScopeId();
     await chatPage.enterRoom('general');
-    const roomId = await getRoomIdByName(page, 'general');
+    const roomId = await getRoomIdByNameViaConnect(page, 'general');
 
     // No active-call icon in sidebar initially
     const roomList = chatPage.roomList;
@@ -452,7 +424,7 @@ test.describe('Voice calls', () => {
     await expect(callIcon).not.toBeVisible();
 
     await withServerUser(browser!, serverURL, async ({ page: page2, user: userB }) => {
-      await joinRoomViaAPI(page2, roomId);
+      await joinRoomViaConnect(page2, roomId);
 
       // Simulate User B joining a voice call
       await page.request.post('/webhooks/test/call-join', {
@@ -483,11 +455,10 @@ test.describe('Voice calls', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
 
-    const data = await graphqlQuery<{ server: { livekitUrl: string | null } }>(
+    const data = await connectPost<ServerStateResponse>(
       page,
-      `query { server { livekitUrl } }`
+      'chatto.api.v1.ServerStateService/GetServerState'
     );
-
-    expect(data.server.livekitUrl).toBe('ws://localhost:7880');
+    expect(data.livekitUrl).toBe('ws://localhost:7880');
   });
 });

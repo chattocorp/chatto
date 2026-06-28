@@ -3,6 +3,37 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.0-beta.4](https://github.com/chattocorp/chatto/compare/v0.4.0-beta.3...v0.4.0-beta.4) (2026-06-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* **api:** replace GraphQL with ConnectRPC ([#1166](https://github.com/chattocorp/chatto/issues/1166))
+
+### Features
+
+* **api:** add ConnectRPC DM start ([#1157](https://github.com/chattocorp/chatto/issues/1157)) ([c46ef79](https://github.com/chattocorp/chatto/commit/c46ef79ce782fad2f9cd26cb4db42fd7ae581a30))
+* **api:** add protobuf realtime websocket ([#1158](https://github.com/chattocorp/chatto/issues/1158)) ([9e8e34c](https://github.com/chattocorp/chatto/commit/9e8e34cdc778be86007d0f6596468b445cfa4a0e))
+* **api:** replace GraphQL with ConnectRPC ([#1166](https://github.com/chattocorp/chatto/issues/1166)) ([3dd3fa6](https://github.com/chattocorp/chatto/commit/3dd3fa686fc3c89912dcdf02475578389608f627))
+* **config:** configure SMTP TLS verification ([#1159](https://github.com/chattocorp/chatto/issues/1159)) ([1f5c8b0](https://github.com/chattocorp/chatto/commit/1f5c8b09d2f4c13d0c13825c38e2bb5c4807beeb))
+* **connectrpc:** add message management API ([#1146](https://github.com/chattocorp/chatto/issues/1146)) ([c07b049](https://github.com/chattocorp/chatto/commit/c07b0497ab09ae970895809edb5b31fd79c5e093))
+* **connectrpc:** add room directory service ([#1138](https://github.com/chattocorp/chatto/issues/1138)) ([c1f13cf](https://github.com/chattocorp/chatto/commit/c1f13cfb4d0dc9cacb019c430db4f8494026ed02))
+* **connectrpc:** add room lifecycle service ([#1134](https://github.com/chattocorp/chatto/issues/1134)) ([3f2b3a9](https://github.com/chattocorp/chatto/commit/3f2b3a922f97c4f99f20913e4e4d4a944bb79704))
+* **frontend:** refresh admin system dashboard ([#1160](https://github.com/chattocorp/chatto/issues/1160)) ([5c54899](https://github.com/chattocorp/chatto/commit/5c54899f1eb676cff77ca3707b9e98eb36b639c6))
+* **frontend:** send typing indicators with ConnectRPC ([#1155](https://github.com/chattocorp/chatto/issues/1155)) ([1a131ee](https://github.com/chattocorp/chatto/commit/1a131eea08bb32a89462bbd0c010617cc2fdaedb))
+* **frontend:** use ConnectRPC for message writes ([#1153](https://github.com/chattocorp/chatto/issues/1153)) ([4b34f34](https://github.com/chattocorp/chatto/commit/4b34f341f4e96adb87d775c5ea2fc0ae04e12aee))
+* **frontend:** use ConnectRPC for room commands ([#1150](https://github.com/chattocorp/chatto/issues/1150)) ([bfff68e](https://github.com/chattocorp/chatto/commit/bfff68e8d48a2adbd512be249e9482c467b03a88))
+
+
+### Bug Fixes
+
+* **api:** centralize Connect room RBAC in core ([#1149](https://github.com/chattocorp/chatto/issues/1149)) ([8ba5b0c](https://github.com/chattocorp/chatto/commit/8ba5b0c2a3854f1ca7f18084a3225661a5e3d205))
+* **ci:** gate release-please on green ci ([#1135](https://github.com/chattocorp/chatto/issues/1135)) ([4decb0f](https://github.com/chattocorp/chatto/commit/4decb0f1362e876e461ce9436a6ce0f8cb340eab))
+* **frontend:** address svelte guidance review ([#1154](https://github.com/chattocorp/chatto/issues/1154)) ([d8c4010](https://github.com/chattocorp/chatto/commit/d8c4010b1b02ec4b65a15408b07f3800180a2a5e))
+* **frontend:** make scrollbars follow selected theme ([#1152](https://github.com/chattocorp/chatto/issues/1152)) ([9c5fa16](https://github.com/chattocorp/chatto/commit/9c5fa16da9555d38c0331e5876d4b35b025d4371))
+* **frontend:** refresh messages after local deletions ([#1148](https://github.com/chattocorp/chatto/issues/1148)) ([cefc22a](https://github.com/chattocorp/chatto/commit/cefc22a77efee0f333b848a054c0a56078b0a0d6))
+* **frontend:** restyle reply attribution preview ([#1140](https://github.com/chattocorp/chatto/issues/1140)) ([909c1f4](https://github.com/chattocorp/chatto/commit/909c1f4a2d67ba2979be765b9eaecff611e96e90))
+
 ## [0.4.0-beta.3](https://github.com/chattocorp/chatto/compare/v0.4.0-beta.2...v0.4.0-beta.3) (2026-06-25)
 
 

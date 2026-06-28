@@ -9,7 +9,7 @@ Every user has a presence status visible to others as a colored dot on their ava
 
 ## Behavior
 
-- Current clients report their own presence through `PresenceService.ReportPresence` on the ConnectRPC API. Legacy clients that do not opt into Connect-based presence reporting still get compatibility presence refreshes from the GraphQL `myEvents` subscription.
+- Current clients report their own presence through `PresenceService.ReportPresence` on the ConnectRPC API.
 - In automatic mode, users start Online. After 5 minutes without keyboard/mouse/touch input, the client transitions to Away.
 - If the browser tab is hidden for 10 seconds, the client also transitions to Away (debounced to avoid flashing during quick tab switches).
 - Any interaction returns the user to Online only while automatic mode is active.

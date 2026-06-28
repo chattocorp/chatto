@@ -16,7 +16,7 @@ ContextMenu, which handles both modes automatically.
 - `onClose` - Callback to close the popover/sheet
 -->
 <script lang="ts">
-  import type { PresenceStatus } from '$lib/gql/graphql';
+  import type { PresenceStatus } from '$lib/render/types';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';

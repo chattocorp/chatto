@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { APIPresenceStatus } from '$lib/api/presence';
-import { PresenceStatus } from '$lib/gql/graphql';
+import { PresenceStatus } from '$lib/render/types';
 import { presencePreference } from '$lib/state/presencePreference.svelte';
 import { initPresenceTracking, setPresenceMode } from './presenceTracking';
 

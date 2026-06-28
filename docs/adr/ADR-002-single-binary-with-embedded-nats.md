@@ -10,7 +10,7 @@ NATS server is written in Go and can be embedded as a library in the same proces
 
 ## Decision
 
-Embed the NATS server directly in the Chatto Go binary. A single executable starts the NATS server in-process, the HTTP/GraphQL server, and the SvelteKit frontend (served as embedded static files). The only requirement is a port and a data directory.
+Embed the NATS server directly in the Chatto Go binary. A single executable starts the NATS server in-process, the HTTP API/realtime server, and the SvelteKit frontend (served as embedded static files). The only requirement is a port and a data directory.
 
 For advanced deployments, an external NATS cluster can be used instead — the application connects as a regular NATS client regardless of whether the server is in-process or remote.
 

@@ -1,6 +1,6 @@
 # Instructions for Agents Working in `cli/`
 
-This file covers backend code: Go services, GraphQL, ConnectRPC, NATS/JetStream,
+This file covers backend code: Go services, ConnectRPC, NATS/JetStream,
 authorization, live events, backup/restore, and backend tests.
 
 ## Non-Negotiables
@@ -18,7 +18,6 @@ authorization, live events, backup/restore, and backend tests.
 ## Architecture Touchpoints
 
 - `cli/internal/core` is domain logic and service/projection code.
-- `cli/internal/graph` is the legacy GraphQL API.
 - `cli/internal/connectapi` is the protobuf/ConnectRPC API.
 - `proto/chatto/core/v1` holds persisted/internal protobufs.
 - `proto/chatto/api/v1` holds public ConnectRPC API protobufs.
@@ -26,13 +25,13 @@ authorization, live events, backup/restore, and backend tests.
 
 ## Public APIs
 
-- Prefer new public API surface in ConnectRPC/protobuf or the planned wire
-  protocol. GraphQL remains legacy and should not grow unless intentionally
-  chosen.
+- Public RPC API surface lives in ConnectRPC/protobuf or the planned wire
+  protocol.
 - Keep ConnectRPC transport thin: authenticate, decode, map errors/responses,
   and delegate policy/domain work to shared services.
-- Legacy GraphQL resolvers still enforce authorization at the API boundary
-  unless that operation has moved to a shared operation service.
+- Put operation-specific authorization in the core operation model for that
+  behavior. Low-level `ChattoCore` helpers are not public transport entry
+  points and may assume their caller already performed the appropriate gate.
 - REST endpoints are acceptable for OAuth callbacks, webhooks, health checks,
   uploaded assets, and unauthenticated discovery such as `GET /api/server`.
 - `GET /api/server` is compatibility-sensitive. Preserve URL, CORS behavior,
@@ -63,11 +62,12 @@ authorization, live events, backup/restore, and backend tests.
 - Pick one delivery path per conceptual update. Do not double-publish both a
   durable event and a transient live event for the same UI change.
 - Do not publish from projector `Apply` methods; every replica runs projectors.
-- `StreamMyEvents` is the authorized gate. It waits for projection readiness and
-  filters per subscriber before GraphQL delivery.
+- `StreamMyEvents` is the authorized gate for realtime delivery. It waits for
+  projection readiness and filters per subscriber before publishing events.
 - New live event types usually require protobuf, publishing, authorization,
-  GraphQL unwrap/schema support, frontend subscription handling, and tests. If a
-  visible room timeline event is added, update `connectapi/room_timeline.go`.
+  realtime mapping, frontend subscription handling, and tests. If a visible room
+  timeline event is added, update the Connect timeline assembler and mapping
+  tests.
 
 ## Authorization And RBAC
 
@@ -91,8 +91,6 @@ authorization, live events, backup/restore, and backend tests.
 
 ## Admin Interface
 
-- Admin GraphQL lives under `Query.admin`. The namespace returns for
-  authenticated users; child fields enforce their own capabilities.
 - Owners/admins can see operational metadata, not user content. Message/file
   visibility for moderation must be an explicit audited feature.
 - Server admin routes live under `/chat/[serverId]/server-admin/`.
@@ -100,31 +98,11 @@ authorization, live events, backup/restore, and backend tests.
   surfaces; changes affect both.
 - Implicit roles such as `everyone` must not be editable as normal assignments.
 
-## GraphQL
-
-- Schema-first: edit `*.graphqls`, then run `mise codegen-cli`; frontend query
-  changes also require `mise codegen-frontend`.
-- Every public schema type, field, enum, and enum value needs concise
-  user-facing documentation. Do not mention internal buckets, streams, or
-  maintainer workflow unless it is part of the public contract.
-- Fields are authenticated by default. Add `@public` only for anonymous
-  discovery/login metadata.
-- Use `@goField(forceResolver: true)` for computed, lazy, authorization-sensitive,
-  or custom-resolved fields.
-- Prefer unions over interfaces for polymorphic GraphQL shapes unless there is a
-  strong reason otherwise.
-- Match pagination shape to the use case: cursor for timelines, offset+total for
-  admin/directories, `first` only for small previews.
-- If a lookup can legitimately be missing, make the GraphQL field nullable and
-  return absence rather than a resolver error.
-- Keep shared resolver authorization behavior in helpers; do not copy-paste
-  gates that must stay identical.
-
 ## Attachment URL Authorization
 
 - Stable asset URLs use `/assets/files/{assetId}` and image transform variants.
-- Browser-facing GraphQL fields append a signed per-user `access` ticket and
-  expose expiry via `AssetURL`.
+- Browser-facing ConnectRPC attachment URL fields append a signed per-user
+  `access` ticket and expose expiry in the API asset URL object.
 - The ticket is the browser capability: it carries asset/user/expiry/transform
   claims and is accepted without cookies or bearer headers.
 - Asset serving still checks that the signed user remains a member of the asset's

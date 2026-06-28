@@ -98,8 +98,8 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   }
 }));
 
-vi.mock('$lib/state/server/graphqlClient.svelte', () => ({
-  graphqlClientManager: {
+vi.mock('$lib/state/server/serverConnection.svelte', () => ({
+  serverConnectionManager: {
     getClient: vi.fn(() => ({
       serverId: 'origin',
       connectBaseUrl: 'https://origin.example.test/api/connect',

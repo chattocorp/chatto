@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page } from '@playwright/test';
+import { TIMEOUTS } from '../constants';
 import * as routes from '../routes';
 
 /**
@@ -47,8 +48,13 @@ export class NotificationsPage {
    * Navigate to the notifications page by clicking the bell.
    */
   async goto(): Promise<void> {
-    await this.bellButton.click();
-    await this.page.waitForURL(routes.notifications);
+    await expect(this.bellButton).toBeVisible();
+    await expect(async () => {
+      await Promise.all([
+        this.page.waitForURL(routes.notifications, { timeout: TIMEOUTS.UI_STANDARD }),
+        this.bellButton.click()
+      ]);
+    }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });
     await expect(this.pageHeader).toBeVisible();
   }
 

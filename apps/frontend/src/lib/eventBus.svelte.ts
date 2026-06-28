@@ -10,248 +10,198 @@
 
 import { createContext } from 'svelte';
 import { SvelteSet } from 'svelte/reactivity';
-import { graphql, useFragment } from './gql';
+import { useRenderData } from './render/data';
 import {
-  RoomEventViewFragmentDoc,
-  UserAvatarUserFragmentDoc,
-  type MyServerEventsSubscription,
+  RoomEventViewDocument,
+  UserAvatarUserViewDocument,
+  type LinkPreviewView,
+  type MessageAttachmentView,
   type NotificationLevel,
   type PresenceStatus,
-  type TimeFormat
-} from './gql/graphql';
+  type TimeFormat,
+  type UserAvatarUserView
+} from './render/types';
 import { eventBusManager } from './state/server/eventBus.svelte';
 import type { CustomUserStatus } from './state/userProfiles.svelte';
 import type { RealtimeEventEnvelope as RealtimeProtobufEventEnvelope } from '$lib/pb/chatto/api/v1/realtime_pb';
+import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
 
-export const MyServerEventsSubscriptionDoc = graphql(`
-  subscription MyServerEvents {
-    myEvents {
-      id
-      createdAt
-      actorId
-      actor {
-        ...UserAvatarUser
-      }
-      event {
-        __typename
-        # Room payloads — full RoomEventView coverage for the chat surface.
-        ... on MessagePostedEvent {
-          roomId
-          body
-          attachments {
-            ...MessageAttachmentView
-          }
-          linkPreview {
-            ...LinkPreviewView
-          }
-          reactions {
-            emoji
-            count
-            hasReacted
-            users(first: 5) {
-              id
-              displayName
-            }
-          }
-          updatedAt
-          inReplyTo
-          threadRootEventId
-          echoOfEventId
-          echoFromThreadRootEventId
-          channelEchoEventId
-          replyCount
-          lastReplyAt
-          threadParticipants(first: 5) {
-            ...UserAvatarUser
-          }
-          viewerIsFollowingThread
-        }
-        ... on MessageEditedEvent {
-          roomId
-          messageEventId
-          body
-          attachments {
-            ...MessageAttachmentView
-          }
-          linkPreview {
-            ...LinkPreviewView
-          }
-          updatedAt
-        }
-        ... on MessageRetractedEvent {
-          roomId
-          messageEventId
-          retractedReason: reason
-        }
-        ... on UserJoinedRoomEvent {
-          roomId
-        }
-        ... on UserLeftRoomEvent {
-          roomId
-        }
-        ... on RoomCreatedEvent {
-          roomId
-        }
-        ... on RoomUpdatedEvent {
-          roomId
-        }
-        ... on RoomDeletedEvent {
-          roomId
-        }
-        ... on RoomArchivedEvent {
-          roomId
-        }
-        ... on RoomUnarchivedEvent {
-          roomId
-        }
-        ... on RoomUniversalChangedEvent {
-          roomId
-          universal
-        }
-        ... on ReactionAddedEvent {
-          roomId
-          messageEventId
-          emoji
-        }
-        ... on ReactionRemovedEvent {
-          roomId
-          messageEventId
-          emoji
-        }
-        ... on PresenceChangedEvent {
-          status
-        }
-        ... on UserTypingEvent {
-          roomId
-          typingThreadRootEventId: threadRootEventId
-        }
-        ... on AssetProcessingStartedEvent {
-          processingRoomId: roomId
-          assetId
-          processingMessageEventId: messageEventId
-        }
-        ... on AssetProcessingSucceededEvent {
-          processingRoomId: roomId
-          assetId
-          processingMessageEventId: messageEventId
-        }
-        ... on AssetProcessingFailedEvent {
-          processingRoomId: roomId
-          assetId
-          processingMessageEventId: messageEventId
-        }
-        ... on AssetDeletedEvent {
-          deletedRoomId: roomId
-          assetId
-        }
-        ... on ServerMemberDeletedEvent {
-          userId
-        }
-        ... on CallStartedEvent {
-          roomId
-          callId
-        }
-        ... on CallParticipantJoinedEvent {
-          roomId
-          callId
-        }
-        ... on CallParticipantLeftEvent {
-          roomId
-          callId
-        }
-        ... on CallEndedEvent {
-          roomId
-          callId
-        }
-        # Deployment-wide events.
-        ... on ServerUpdatedEvent {
-          name
-          description
-          logoUrl
-          bannerUrl
-        }
-        ... on UserProfileUpdatedEvent {
-          userId
-          displayName
-          avatarUrl
-          login
-        }
-        ... on UserCustomStatusSetEvent {
-          userId
-          setCustomStatus: status {
-            emoji
-            text
-            expiresAt
-          }
-        }
-        ... on UserCustomStatusClearedEvent {
-          userId
-        }
-        ... on ServerUserPreferencesUpdatedEvent {
-          timezone
-          timeFormat
-        }
-        ... on NotificationLevelChangedEvent {
-          nlcRoomId: roomId
-          level
-          effectiveLevel
-        }
-        ... on MentionNotificationEvent {
-          roomId
-          room {
-            name
-          }
-          actor {
-            id
-            displayName
-          }
-        }
-        ... on NewDirectMessageNotificationEvent {
-          roomId
-          sender {
-            id
-            displayName
-            avatarUrl
-          }
-          conversationName
-        }
-        ... on NotificationCreatedEvent {
-          notificationId
-          roomId
-          eventId
-          inReplyToId
-          silent
-        }
-        ... on NotificationDismissedEvent {
-          notificationId
-        }
-        ... on RoomMarkedAsReadEvent {
-          roomId
-        }
-        ... on ThreadFollowChangedEvent {
-          tfcRoomId: roomId
-          tfcThreadRootEventId: threadRootEventId
-          isFollowing
-        }
-        ... on RoomGroupsUpdatedEvent {
-          changed
-        }
-        ... on SessionTerminatedEvent {
-          reason
-        }
-        ... on HeartbeatEvent {
-          alive
-        }
-      }
+type EventEnvelopeReactionSummary = {
+  emoji: string;
+  count: number;
+  hasReacted: boolean;
+  users: Array<{ id: string; displayName: string }>;
+};
+
+type EventEnvelopeEvent =
+  | { kind: typeof RoomEventKind.AssetDeleted; assetId: string; deletedRoomId?: string | null }
+  | {
+      kind: typeof RoomEventKind.AssetProcessingFailed;
+      assetId: string;
+      processingRoomId?: string | null;
+      processingMessageEventId?: string | null;
     }
-  }
-`);
+  | {
+      kind: typeof RoomEventKind.AssetProcessingStarted;
+      assetId: string;
+      processingRoomId?: string | null;
+      processingMessageEventId?: string | null;
+    }
+  | {
+      kind: typeof RoomEventKind.AssetProcessingSucceeded;
+      assetId: string;
+      processingRoomId?: string | null;
+      processingMessageEventId?: string | null;
+    }
+  | { kind: typeof RoomEventKind.CallEnded; roomId: string; callId: string }
+  | { kind: typeof RoomEventKind.CallParticipantJoined; roomId: string; callId: string }
+  | { kind: typeof RoomEventKind.CallParticipantLeft; roomId: string; callId: string }
+  | { kind: typeof RoomEventKind.CallStarted; roomId: string; callId: string }
+  | { kind: typeof RoomEventKind.Heartbeat; alive?: boolean }
+  | {
+      kind: typeof RoomEventKind.MentionNotification;
+      roomId: string;
+      room: { name: string };
+      actor?: { id: string; displayName: string } | null;
+    }
+  | { kind: typeof RoomEventKind.MentionStatusCleared }
+  | {
+      kind: typeof RoomEventKind.MessageEdited;
+      roomId: string;
+      messageEventId: string;
+      body?: string | null;
+      attachments: MessageAttachmentView[];
+      linkPreview?: LinkPreviewView | null;
+      updatedAt?: string | null;
+    }
+  | {
+      kind: typeof RoomEventKind.MessagePosted;
+      roomId: string;
+      messageEventId?: string;
+      body?: string | null;
+      attachments?: MessageAttachmentView[];
+      linkPreview?: LinkPreviewView | null;
+      reactions?: EventEnvelopeReactionSummary[];
+      updatedAt?: string | null;
+      inReplyTo?: string | null;
+      threadRootEventId?: string | null;
+      echoOfEventId?: string | null;
+      echoFromThreadRootEventId?: string | null;
+      channelEchoEventId?: string | null;
+      replyCount?: number;
+      lastReplyAt?: string | null;
+      threadParticipants?: UserAvatarUserView[];
+      viewerIsFollowingThread?: boolean | null;
+    }
+  | {
+      kind: typeof RoomEventKind.MessageRetracted;
+      roomId: string;
+      messageEventId: string;
+      retractedReason?: string | null;
+    }
+  | {
+      kind: typeof RoomEventKind.NewDirectMessageNotification;
+      roomId: string;
+      conversationName: string;
+      sender?: {
+        id: string;
+        displayName: string;
+        avatarUrl?: string | null;
+      } | null;
+    }
+  | {
+      kind: typeof RoomEventKind.NotificationCreated;
+      notificationId: string;
+      roomId: string;
+      eventId?: string | null;
+      inReplyToId?: string | null;
+      silent?: boolean;
+    }
+  | { kind: typeof RoomEventKind.NotificationDismissed; notificationId: string }
+  | {
+      kind: typeof RoomEventKind.NotificationLevelChanged;
+      level: NotificationLevel;
+      effectiveLevel: NotificationLevel;
+      nlcRoomId?: string | null;
+    }
+  | { kind: typeof RoomEventKind.PresenceChanged; status: PresenceStatus }
+  | {
+      kind: typeof RoomEventKind.ReactionAdded;
+      roomId: string;
+      messageEventId: string;
+      emoji: string;
+    }
+  | {
+      kind: typeof RoomEventKind.ReactionRemoved;
+      roomId: string;
+      messageEventId: string;
+      emoji: string;
+    }
+  | { kind: typeof RoomEventKind.RoomArchived; roomId: string }
+  | { kind: typeof RoomEventKind.RoomCreated; roomId: string }
+  | { kind: typeof RoomEventKind.RoomDeleted; roomId: string }
+  | { kind: typeof RoomEventKind.RoomGroupsUpdated; changed?: boolean }
+  | { kind: typeof RoomEventKind.RoomMarkedAsRead; roomId: string }
+  | { kind: typeof RoomEventKind.RoomMemberBanned }
+  | { kind: typeof RoomEventKind.RoomMemberUnbanned }
+  | { kind: typeof RoomEventKind.RoomUnarchived; roomId: string }
+  | { kind: typeof RoomEventKind.RoomUniversalChanged; roomId: string; universal?: boolean }
+  | { kind: typeof RoomEventKind.RoomUpdated; roomId: string }
+  | { kind: typeof RoomEventKind.ServerMemberDeleted; userId: string }
+  | {
+      kind: typeof RoomEventKind.ServerUpdated;
+      name?: string;
+      description?: string | null;
+      logoUrl?: string | null;
+      bannerUrl?: string | null;
+    }
+  | {
+      kind: typeof RoomEventKind.ServerUserPreferencesUpdated;
+      timezone: string | null;
+      timeFormat: TimeFormat;
+    }
+  | { kind: typeof RoomEventKind.SessionTerminated; reason: string }
+  | { kind: typeof RoomEventKind.ThreadCreated; roomId?: string; threadRootEventId?: string }
+  | {
+      kind: typeof RoomEventKind.ThreadFollowChanged;
+      isFollowing: boolean;
+      tfcRoomId: string;
+      tfcThreadRootEventId: string;
+    }
+  | { kind: typeof RoomEventKind.UserCreated }
+  | { kind: typeof RoomEventKind.UserCustomStatusCleared; userId: string }
+  | {
+      kind: typeof RoomEventKind.UserCustomStatusSet;
+      userId: string;
+      setCustomStatus: CustomUserStatus;
+    }
+  | { kind: typeof RoomEventKind.UserDeleted }
+  | { kind: typeof RoomEventKind.UserJoinedRoom; roomId: string }
+  | { kind: typeof RoomEventKind.UserLeftRoom; roomId: string }
+  | {
+      kind: typeof RoomEventKind.UserProfileUpdated;
+      userId: string;
+      displayName: string;
+      avatarUrl: string | null;
+      login: string;
+    }
+  | {
+      kind: typeof RoomEventKind.UserTyping;
+      roomId: string;
+      typingThreadRootEventId?: string | null;
+    };
 
-/** Re-export the urql RoomEventView fragment doc so the chat-event handler can
- *  mask subscription payloads when forwarding to room-history stores. */
-export { RoomEventViewFragmentDoc, useFragment };
+/** Re-export the RoomEventView render document so room-history stores can map
+ * event payloads fetched from the ConnectRPC timeline compatibility DTOs. */
+export { RoomEventViewDocument, useRenderData };
 
-export type EventEnvelope = MyServerEventsSubscription['myEvents'];
+export type EventEnvelope = {
+  id: string;
+  createdAt: string;
+  actorId?: string | null;
+  actor?: unknown;
+  event: EventEnvelopeEvent;
+};
 
 export type EventHandler = (event: EventEnvelope) => void;
 export type EventBusCatchUpReason = 'subscription-ended' | 'ws-reconnected' | 'heartbeat-stalled';
@@ -336,10 +286,9 @@ export function onEvent(handler: EventHandler): () => void {
 // The extractor receives the inner event payload; helpers needing envelope
 // fields (actorId, etc.) read them from the closure instead.
 
-function onTypedEvent<T>(
-  typename: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  extract: (envelope: EventEnvelope, event: any) => T,
+function onTypedEvent<TKind extends EventEnvelopeEvent['kind'], T>(
+  kind: TKind,
+  extract: (envelope: EventEnvelope, event: Extract<EventEnvelopeEvent, { kind: TKind }>) => T,
   handler: (data: T) => void
 ): () => void {
   let getBus: () => EventBus | undefined;
@@ -352,8 +301,8 @@ function onTypedEvent<T>(
   if (!bus) return () => {};
 
   const wrapper: EventHandler = (envelope) => {
-    if (envelope.event?.__typename === typename) {
-      handler(extract(envelope, envelope.event));
+    if (roomEventKind(envelope.event) === kind) {
+      handler(extract(envelope, envelope.event as Extract<EventEnvelopeEvent, { kind: TKind }>));
     }
   };
 
@@ -363,16 +312,15 @@ function onTypedEvent<T>(
   };
 }
 
-function onTypedEventDirect<T>(
+function onTypedEventDirect<TKind extends EventEnvelopeEvent['kind'], T>(
   bus: EventBus,
-  typename: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  extract: (envelope: EventEnvelope, event: any) => T,
+  kind: TKind,
+  extract: (envelope: EventEnvelope, event: Extract<EventEnvelopeEvent, { kind: TKind }>) => T,
   handler: (data: T) => void
 ): () => void {
   const wrapper: EventHandler = (envelope) => {
-    if (envelope.event?.__typename === typename) {
-      handler(extract(envelope, envelope.event));
+    if (roomEventKind(envelope.event) === kind) {
+      handler(extract(envelope, envelope.event as Extract<EventEnvelopeEvent, { kind: TKind }>));
     }
   };
   bus.handlers.add(wrapper);
@@ -394,7 +342,7 @@ export type UserProfileUpdate = {
 
 export function onUserProfileUpdate(handler: (update: UserProfileUpdate) => void): () => void {
   return onTypedEvent(
-    'UserProfileUpdatedEvent',
+    RoomEventKind.UserProfileUpdated,
     (_env, e) => {
       return {
         userId: e.userId,
@@ -416,12 +364,12 @@ export function onUserCustomStatusUpdate(
   handler: (update: UserCustomStatusUpdate) => void
 ): () => void {
   const cleanupSet = onTypedEvent(
-    'UserCustomStatusSetEvent',
+    RoomEventKind.UserCustomStatusSet,
     (_env, e) => ({ userId: e.userId, customStatus: e.setCustomStatus }),
     handler
   );
   const cleanupCleared = onTypedEvent(
-    'UserCustomStatusClearedEvent',
+    RoomEventKind.UserCustomStatusCleared,
     (_env, e) => ({ userId: e.userId, customStatus: null }),
     handler
   );
@@ -441,7 +389,7 @@ export type MentionNotification = {
 
 export function onMention(handler: (notification: MentionNotification) => void): () => void {
   return onTypedEvent(
-    'MentionNotificationEvent',
+    RoomEventKind.MentionNotification,
     (env, e) => {
       const realtime = getRealtimeEventEnvelope(env);
       if (realtime?.event.case === 'mentionNotification') {
@@ -455,7 +403,7 @@ export function onMention(handler: (notification: MentionNotification) => void):
         };
       }
 
-      const envelopeActor = env.actor ? useFragment(UserAvatarUserFragmentDoc, env.actor) : null;
+      const envelopeActor = env.actor ? useRenderData(UserAvatarUserViewDocument, env.actor) : null;
       const actor = e.actor ?? envelopeActor;
 
       return {
@@ -480,7 +428,7 @@ export type DMNotification = {
 
 export function onNewDM(handler: (notification: DMNotification) => void): () => void {
   return onTypedEvent(
-    'NewDirectMessageNotificationEvent',
+    RoomEventKind.NewDirectMessageNotification,
     (env, e) => {
       const realtime = getRealtimeEventEnvelope(env);
       if (realtime?.event.case === 'newDirectMessageNotification') {
@@ -494,7 +442,7 @@ export function onNewDM(handler: (notification: DMNotification) => void): () => 
         };
       }
 
-      const envelopeActor = env.actor ? useFragment(UserAvatarUserFragmentDoc, env.actor) : null;
+      const envelopeActor = env.actor ? useRenderData(UserAvatarUserViewDocument, env.actor) : null;
       const sender = e.sender ?? envelopeActor;
 
       return {
@@ -521,7 +469,7 @@ export function onNotificationCreated(
   handler: (info: NotificationCreatedInfo) => void
 ): () => void {
   return onTypedEvent(
-    'NotificationCreatedEvent',
+    RoomEventKind.NotificationCreated,
     (env, e) => {
       const realtime = getRealtimeEventEnvelope(env);
       if (realtime?.event.case === 'notificationCreated') {
@@ -553,7 +501,7 @@ export function onNotificationDismissed(
   handler: (info: NotificationDismissedInfo) => void
 ): () => void {
   return onTypedEvent(
-    'NotificationDismissedEvent',
+    RoomEventKind.NotificationDismissed,
     (_env, e) => {
       return { notificationId: e.notificationId };
     },
@@ -567,7 +515,7 @@ export type RoomMarkedAsReadInfo = {
 
 export function onRoomMarkedAsRead(handler: (info: RoomMarkedAsReadInfo) => void): () => void {
   return onTypedEvent(
-    'RoomMarkedAsReadEvent',
+    RoomEventKind.RoomMarkedAsRead,
     (_env, e) => {
       return { roomId: e.roomId };
     },
@@ -582,7 +530,7 @@ export type UserSettingsUpdate = {
 
 export function onUserSettingsUpdate(handler: (update: UserSettingsUpdate) => void): () => void {
   return onTypedEvent(
-    'ServerUserPreferencesUpdatedEvent',
+    RoomEventKind.ServerUserPreferencesUpdated,
     (_env, e) => {
       return { timezone: e.timezone, timeFormat: e.timeFormat };
     },
@@ -596,9 +544,13 @@ export type RoomLayoutUpdatedInfo = {
 };
 
 export function onRoomLayoutUpdated(handler: (_info: RoomLayoutUpdatedInfo) => void): () => void {
-  const unsubscribeGroupsUpdated = onTypedEvent('RoomGroupsUpdatedEvent', () => ({}), handler);
+  const unsubscribeGroupsUpdated = onTypedEvent(
+    RoomEventKind.RoomGroupsUpdated,
+    () => ({}),
+    handler
+  );
   const unsubscribeUniversalChanged = onTypedEvent(
-    'RoomUniversalChangedEvent',
+    RoomEventKind.RoomUniversalChanged,
     (_env, e) => ({ roomId: e.roomId, universal: e.universal }),
     handler
   );
@@ -618,7 +570,7 @@ export function onNotificationLevelChanged(
   handler: (update: NotificationLevelChanged) => void
 ): () => void {
   return onTypedEvent(
-    'NotificationLevelChangedEvent',
+    RoomEventKind.NotificationLevelChanged,
     (_env, e) => {
       return {
         roomId: e.nlcRoomId ?? null,
@@ -638,7 +590,7 @@ export type ThreadFollowChanged = {
 
 export function onThreadFollowChanged(handler: (update: ThreadFollowChanged) => void): () => void {
   return onTypedEvent(
-    'ThreadFollowChangedEvent',
+    RoomEventKind.ThreadFollowChanged,
     (_env, e) => {
       return {
         roomId: e.tfcRoomId,
@@ -652,7 +604,7 @@ export function onThreadFollowChanged(handler: (update: ThreadFollowChanged) => 
 
 export function onSessionTerminated(handler: (reason: string) => void): () => void {
   return onTypedEvent(
-    'SessionTerminatedEvent',
+    RoomEventKind.SessionTerminated,
     (_env, e) => {
       return e.reason;
     },
@@ -668,7 +620,7 @@ type PresenceHandler = (userId: string, status: PresenceStatus) => void;
 
 export function onPresenceChange(handler: PresenceHandler): () => void {
   return onTypedEvent(
-    'PresenceChangedEvent',
+    RoomEventKind.PresenceChanged,
     (envelope, e) => {
       return { userId: envelope.actorId, status: e.status as PresenceStatus };
     },
@@ -697,7 +649,7 @@ export function onTypingEvent(handler: TypingHandler): () => void {
   const bus = getBus();
   if (!bus) return () => {};
   const wrapper: EventHandler = (event) => {
-    if (event.event?.__typename !== 'UserTypingEvent') return;
+    if (roomEventKind(event.event) !== RoomEventKind.UserTyping) return;
     if (!event.actorId) return;
     const ev = event.event as { roomId: string; typingThreadRootEventId?: string | null };
     handler({
@@ -736,7 +688,7 @@ export function createEventBusHandlerRegistrar(serverId: string) {
     onRoomMarkedAsRead(handler: (info: RoomMarkedAsReadInfo) => void): () => void {
       return onTypedEventDirect(
         bus,
-        'RoomMarkedAsReadEvent',
+        RoomEventKind.RoomMarkedAsRead,
         (_env, e) => {
           return { roomId: e.roomId };
         },
@@ -746,7 +698,7 @@ export function createEventBusHandlerRegistrar(serverId: string) {
     onNotificationLevelChanged(handler: (update: NotificationLevelChanged) => void): () => void {
       return onTypedEventDirect(
         bus,
-        'NotificationLevelChangedEvent',
+        RoomEventKind.NotificationLevelChanged,
         (_env, e) => {
           return {
             roomId: e.nlcRoomId ?? null,
@@ -760,13 +712,13 @@ export function createEventBusHandlerRegistrar(serverId: string) {
     onRoomLayoutUpdated(handler: (info: RoomLayoutUpdatedInfo) => void): () => void {
       const unsubscribeGroupsUpdated = onTypedEventDirect(
         bus,
-        'RoomGroupsUpdatedEvent',
+        RoomEventKind.RoomGroupsUpdated,
         () => ({}),
         handler
       );
       const unsubscribeUniversalChanged = onTypedEventDirect(
         bus,
-        'RoomUniversalChangedEvent',
+        RoomEventKind.RoomUniversalChanged,
         (_env, e) => ({ roomId: e.roomId, universal: e.universal }),
         handler
       );

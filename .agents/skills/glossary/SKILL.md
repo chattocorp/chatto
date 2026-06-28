@@ -16,7 +16,7 @@ The canonical vocabulary for Chatto. Lives at `docs/GLOSSARY.md`, organised into
 ## What the Glossary Is NOT
 
 - **NOT** a tutorial. Don't explain *how* something works — FDRs, ADRs, and `docs/ARCHITECTURE.md` are for that.
-- **NOT** an API reference. No function signatures, no GraphQL types, no proto fields.
+- **NOT** an API reference. No function signatures, no transport-specific API types, no proto fields.
 - **NOT** a dictionary of standard tech terms. Define "Republish" (a Chatto-specific use of a JetStream feature). Don't define "PostgreSQL" or "WebSocket".
 - **NOT** a changelog. When a term is renamed, rewrite the entry. Don't append "previously known as…" unless old names still appear in stable identifiers (stream names, KV keys, config keys).
 

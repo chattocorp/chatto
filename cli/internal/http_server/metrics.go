@@ -6,36 +6,16 @@ import (
 	"net"
 	"net/http"
 	"net/http/pprof"
-	"sync/atomic"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-type processMetrics struct {
-	activeGraphQLWebSockets atomic.Int64
-}
+type processMetrics struct{}
 
 func newProcessMetrics() *processMetrics {
 	return &processMetrics{}
-}
-
-func (m *processMetrics) openGraphQLWebSocket() func() {
-	m.activeGraphQLWebSockets.Add(1)
-	var closed atomic.Bool
-	return func() {
-		if closed.CompareAndSwap(false, true) {
-			m.activeGraphQLWebSockets.Add(-1)
-		}
-	}
-}
-
-func (m *processMetrics) activeWebSockets() int64 {
-	if m == nil {
-		return 0
-	}
-	return m.activeGraphQLWebSockets.Load()
 }
 
 func (s *HTTPServer) newMetricsServer() (*http.Server, error) {
@@ -73,7 +53,6 @@ type chattoCollector struct {
 
 	buildInfo               *prometheus.Desc
 	ready                   *prometheus.Desc
-	webSockets              *prometheus.Desc
 	myEventsActive          *prometheus.Desc
 	myEventsDelivered       *prometheus.Desc
 	myEventsSlowDisconnects *prometheus.Desc
@@ -114,21 +93,15 @@ func newChattoCollector(server *HTTPServer) *chattoCollector {
 			nil,
 			nil,
 		),
-		webSockets: prometheus.NewDesc(
-			"chatto_graphql_websocket_connections",
-			"Active GraphQL WebSocket connections in this process.",
-			nil,
-			nil,
-		),
 		myEventsActive: prometheus.NewDesc(
 			"chatto_my_events_streams",
-			"Active GraphQL myEvents subscription streams in this process.",
+			"Active live event streams in this process.",
 			nil,
 			nil,
 		),
 		myEventsDelivered: prometheus.NewDesc(
 			"chatto_my_events_delivered_total",
-			"Total GraphQL myEvents envelopes delivered by this process.",
+			"Total live event envelopes delivered by this process.",
 			nil,
 			nil,
 		),
@@ -258,7 +231,6 @@ func newChattoCollector(server *HTTPServer) *chattoCollector {
 func (c *chattoCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.buildInfo
 	ch <- c.ready
-	ch <- c.webSockets
 	ch <- c.myEventsActive
 	ch <- c.myEventsDelivered
 	ch <- c.myEventsSlowDisconnects
@@ -289,13 +261,8 @@ func (c *chattoCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 	ch <- prometheus.MustNewConstMetric(c.buildInfo, prometheus.GaugeValue, 1, version)
 
-	c.collectProcessMetrics(ch)
 	c.collectNATSMetrics(ch)
 	c.collectCoreMetrics(ch)
-}
-
-func (c *chattoCollector) collectProcessMetrics(ch chan<- prometheus.Metric) {
-	ch <- prometheus.MustNewConstMetric(c.webSockets, prometheus.GaugeValue, float64(c.server.metrics.activeWebSockets()))
 }
 
 func (c *chattoCollector) collectNATSMetrics(ch chan<- prometheus.Metric) {

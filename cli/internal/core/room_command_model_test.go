@@ -62,6 +62,41 @@ func TestRoomCommandModelAuthorization(t *testing.T) {
 		t.Fatalf("UpdateRoom with room-scoped room.manage: %v", err)
 	}
 
+	dmParticipant, err := core.CreateUser(ctx, SystemActorID, "room-command-dm-participant", "Room Command DM Participant", "password")
+	if err != nil {
+		t.Fatalf("CreateUser dm participant: %v", err)
+	}
+	dm, created, err := commands.StartDM(ctx, RoomStartDMInput{
+		ActorID:        actor.Id,
+		ParticipantIDs: []string{dmParticipant.Id},
+	})
+	if err != nil {
+		t.Fatalf("StartDM with default DM permission: %v", err)
+	}
+	if !created || KindOfRoom(dm) != KindDM {
+		t.Fatalf("StartDM result created=%v kind=%v, want created DM", created, KindOfRoom(dm))
+	}
+
+	blocked, err := core.CreateUser(ctx, SystemActorID, "room-command-dm-blocked", "Room Command DM Blocked", "password")
+	if err != nil {
+		t.Fatalf("CreateUser blocked: %v", err)
+	}
+	if _, err := core.CreateServerRole(ctx, SystemActorID, "room-command-dm-blocked-role", "Room Command DM Blocked", ""); err != nil {
+		t.Fatalf("CreateServerRole blocked: %v", err)
+	}
+	if err := core.DenyServerPermission(ctx, SystemActorID, "room-command-dm-blocked-role", PermMessagePost); err != nil {
+		t.Fatalf("DenyServerPermission message.post: %v", err)
+	}
+	if err := core.AssignServerRole(ctx, SystemActorID, blocked.Id, "room-command-dm-blocked-role"); err != nil {
+		t.Fatalf("AssignServerRole blocked: %v", err)
+	}
+	if _, _, err := commands.StartDM(ctx, RoomStartDMInput{
+		ActorID:        blocked.Id,
+		ParticipantIDs: []string{dmParticipant.Id},
+	}); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("StartDM denied user error = %v, want ErrPermissionDenied", err)
+	}
+
 	target, err := core.CreateUser(ctx, SystemActorID, "room-command-target", "Room Command Target", "password")
 	if err != nil {
 		t.Fatalf("CreateUser target: %v", err)
@@ -77,9 +112,22 @@ func TestRoomCommandModelAuthorization(t *testing.T) {
 	}); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("BanRoomMember without room.ban-member error = %v, want ErrPermissionDenied", err)
 	}
+	if _, err := commands.ListActiveRoomBans(ctx, RoomBanListInput{
+		ActorID: actor.Id,
+	}); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("ListActiveRoomBans without room.ban-member error = %v, want ErrPermissionDenied", err)
+	}
 
 	if err := core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomMemberBan); err != nil {
 		t.Fatalf("GrantRoomPermission room.ban-member: %v", err)
+	}
+	if _, err := commands.ListActiveRoomBans(ctx, RoomBanListInput{
+		ActorID: actor.Id,
+	}); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("ListActiveRoomBans with only room-scoped room.ban-member error = %v, want ErrPermissionDenied", err)
+	}
+	if err := core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermRoomMemberBan); err != nil {
+		t.Fatalf("GrantServerPermission room.ban-member: %v", err)
 	}
 	if _, err := commands.BanRoomMember(ctx, RoomBanInput{
 		ActorID: actor.Id,
@@ -88,5 +136,16 @@ func TestRoomCommandModelAuthorization(t *testing.T) {
 		Reason:  "test",
 	}); err != nil {
 		t.Fatalf("BanRoomMember with room-scoped room.ban-member: %v", err)
+	}
+	roomID := room.Id
+	bans, err := commands.ListActiveRoomBans(ctx, RoomBanListInput{
+		ActorID: actor.Id,
+		RoomID:  &roomID,
+	})
+	if err != nil {
+		t.Fatalf("ListActiveRoomBans with server-scoped room.ban-member: %v", err)
+	}
+	if got := len(bans); got != 1 {
+		t.Fatalf("ListActiveRoomBans count = %d, want 1", got)
 	}
 }

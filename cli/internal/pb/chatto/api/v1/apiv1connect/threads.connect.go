@@ -33,6 +33,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// ThreadServiceListFollowedThreadsProcedure is the fully-qualified name of the ThreadService's
+	// ListFollowedThreads RPC.
+	ThreadServiceListFollowedThreadsProcedure = "/chatto.api.v1.ThreadService/ListFollowedThreads"
 	// ThreadServiceFollowThreadProcedure is the fully-qualified name of the ThreadService's
 	// FollowThread RPC.
 	ThreadServiceFollowThreadProcedure = "/chatto.api.v1.ThreadService/FollowThread"
@@ -43,6 +46,9 @@ const (
 
 // ThreadServiceClient is a client for the chatto.api.v1.ThreadService service.
 type ThreadServiceClient interface {
+	// Returns followed threads for the current user, including enough root-message
+	// data for clients to render the list without extra per-field fetches.
+	ListFollowedThreads(context.Context, *connect.Request[v1.ListFollowedThreadsRequest]) (*connect.Response[v1.ListFollowedThreadsResponse], error)
 	// Follows a thread for the current user. Followed threads can be surfaced in
 	// clients and can participate in thread notification behavior.
 	FollowThread(context.Context, *connect.Request[v1.FollowThreadRequest]) (*connect.Response[v1.FollowThreadResponse], error)
@@ -62,6 +68,12 @@ func NewThreadServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 	baseURL = strings.TrimRight(baseURL, "/")
 	threadServiceMethods := v1.File_chatto_api_v1_threads_proto.Services().ByName("ThreadService").Methods()
 	return &threadServiceClient{
+		listFollowedThreads: connect.NewClient[v1.ListFollowedThreadsRequest, v1.ListFollowedThreadsResponse](
+			httpClient,
+			baseURL+ThreadServiceListFollowedThreadsProcedure,
+			connect.WithSchema(threadServiceMethods.ByName("ListFollowedThreads")),
+			connect.WithClientOptions(opts...),
+		),
 		followThread: connect.NewClient[v1.FollowThreadRequest, v1.FollowThreadResponse](
 			httpClient,
 			baseURL+ThreadServiceFollowThreadProcedure,
@@ -79,8 +91,14 @@ func NewThreadServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 
 // threadServiceClient implements ThreadServiceClient.
 type threadServiceClient struct {
-	followThread   *connect.Client[v1.FollowThreadRequest, v1.FollowThreadResponse]
-	unfollowThread *connect.Client[v1.UnfollowThreadRequest, v1.UnfollowThreadResponse]
+	listFollowedThreads *connect.Client[v1.ListFollowedThreadsRequest, v1.ListFollowedThreadsResponse]
+	followThread        *connect.Client[v1.FollowThreadRequest, v1.FollowThreadResponse]
+	unfollowThread      *connect.Client[v1.UnfollowThreadRequest, v1.UnfollowThreadResponse]
+}
+
+// ListFollowedThreads calls chatto.api.v1.ThreadService.ListFollowedThreads.
+func (c *threadServiceClient) ListFollowedThreads(ctx context.Context, req *connect.Request[v1.ListFollowedThreadsRequest]) (*connect.Response[v1.ListFollowedThreadsResponse], error) {
+	return c.listFollowedThreads.CallUnary(ctx, req)
 }
 
 // FollowThread calls chatto.api.v1.ThreadService.FollowThread.
@@ -95,6 +113,9 @@ func (c *threadServiceClient) UnfollowThread(ctx context.Context, req *connect.R
 
 // ThreadServiceHandler is an implementation of the chatto.api.v1.ThreadService service.
 type ThreadServiceHandler interface {
+	// Returns followed threads for the current user, including enough root-message
+	// data for clients to render the list without extra per-field fetches.
+	ListFollowedThreads(context.Context, *connect.Request[v1.ListFollowedThreadsRequest]) (*connect.Response[v1.ListFollowedThreadsResponse], error)
 	// Follows a thread for the current user. Followed threads can be surfaced in
 	// clients and can participate in thread notification behavior.
 	FollowThread(context.Context, *connect.Request[v1.FollowThreadRequest]) (*connect.Response[v1.FollowThreadResponse], error)
@@ -110,6 +131,12 @@ type ThreadServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewThreadServiceHandler(svc ThreadServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	threadServiceMethods := v1.File_chatto_api_v1_threads_proto.Services().ByName("ThreadService").Methods()
+	threadServiceListFollowedThreadsHandler := connect.NewUnaryHandler(
+		ThreadServiceListFollowedThreadsProcedure,
+		svc.ListFollowedThreads,
+		connect.WithSchema(threadServiceMethods.ByName("ListFollowedThreads")),
+		connect.WithHandlerOptions(opts...),
+	)
 	threadServiceFollowThreadHandler := connect.NewUnaryHandler(
 		ThreadServiceFollowThreadProcedure,
 		svc.FollowThread,
@@ -124,6 +151,8 @@ func NewThreadServiceHandler(svc ThreadServiceHandler, opts ...connect.HandlerOp
 	)
 	return "/chatto.api.v1.ThreadService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case ThreadServiceListFollowedThreadsProcedure:
+			threadServiceListFollowedThreadsHandler.ServeHTTP(w, r)
 		case ThreadServiceFollowThreadProcedure:
 			threadServiceFollowThreadHandler.ServeHTTP(w, r)
 		case ThreadServiceUnfollowThreadProcedure:
@@ -136,6 +165,10 @@ func NewThreadServiceHandler(svc ThreadServiceHandler, opts ...connect.HandlerOp
 
 // UnimplementedThreadServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedThreadServiceHandler struct{}
+
+func (UnimplementedThreadServiceHandler) ListFollowedThreads(context.Context, *connect.Request[v1.ListFollowedThreadsRequest]) (*connect.Response[v1.ListFollowedThreadsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ThreadService.ListFollowedThreads is not implemented"))
+}
 
 func (UnimplementedThreadServiceHandler) FollowThread(context.Context, *connect.Request[v1.FollowThreadRequest]) (*connect.Response[v1.FollowThreadResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ThreadService.FollowThread is not implemented"))

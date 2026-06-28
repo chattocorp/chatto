@@ -3,6 +3,8 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
+import "chatto/api/v1/room_timeline.proto";
+import "google/protobuf/timestamp.proto";
 
 // Request to follow one message thread.
 message FollowThreadRequest {
@@ -32,8 +34,49 @@ message UnfollowThreadResponse {
   bool following = 1;
 }
 
+// One followed thread for the current user.
+message FollowedThread {
+  // Room containing the thread.
+  string room_id = 1;
+  // Current display name of the room.
+  string room_name = 2;
+  // Event ID of the root message for the thread.
+  string thread_root_event_id = 3;
+  // Renderable root message event, when the root is still visible.
+  RoomTimelineEvent root_message = 4;
+  // Number of replies in the thread.
+  int32 reply_count = 5;
+  // Creation time of the latest reply, when the thread has replies.
+  google.protobuf.Timestamp last_reply_at = 6;
+  // True when the current user has unread replies in the thread.
+  bool has_unread = 7;
+}
+
+// Request for a page of followed threads for the current user.
+message ListFollowedThreadsRequest {
+  // Maximum number of followed threads to return.
+  int32 limit = 1;
+  // Zero-based offset into the followed-thread list.
+  int32 offset = 2;
+}
+
+// Response containing one followed-thread page.
+message ListFollowedThreadsResponse {
+  // Followed threads in newest-activity-first order.
+  repeated FollowedThread threads = 1;
+  // Total followed-thread count before pagination.
+  int32 total_count = 2;
+  // True when another page exists after this response.
+  bool has_more = 3;
+  // Related entities needed to render root messages.
+  RoomTimelineIncludes includes = 4;
+}
+
 // Manages thread follow state for the current user.
 service ThreadService {
+  // Returns followed threads for the current user, including enough root-message
+  // data for clients to render the list without extra per-field fetches.
+  rpc ListFollowedThreads(ListFollowedThreadsRequest) returns (ListFollowedThreadsResponse);
   // Follows a thread for the current user. Followed threads can be surfaced in
   // clients and can participate in thread notification behavior.
   rpc FollowThread(FollowThreadRequest) returns (FollowThreadResponse);

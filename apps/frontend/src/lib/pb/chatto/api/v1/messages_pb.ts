@@ -100,12 +100,68 @@ export class MessageLinkPreviewInput extends Message<MessageLinkPreviewInput> {
 }
 
 /**
- * Request to post a message in a room or thread.
+ * Attachment bytes submitted with a message post.
  *
- * Current browser file uploads still use the legacy GraphQL upload path. This
- * request can reference attachment asset IDs that were already declared through
- * an upload-capable API, so non-browser clients can compose messages around
- * existing room-scoped assets.
+ * Each attachment is uploaded as a room-scoped asset before the message is
+ * committed. The message service validates per-file limits and permissions.
+ *
+ * @generated from message chatto.api.v1.MessageAttachmentUpload
+ */
+export class MessageAttachmentUpload extends Message<MessageAttachmentUpload> {
+  /**
+   * Raw file bytes.
+   *
+   * @generated from field: bytes content = 1;
+   */
+  content = new Uint8Array(0);
+
+  /**
+   * Original filename supplied by the client.
+   *
+   * @generated from field: string filename = 2;
+   */
+  filename = "";
+
+  /**
+   * MIME content type supplied by the client. Empty values are treated as
+   * application/octet-stream.
+   *
+   * @generated from field: string content_type = 3;
+   */
+  contentType = "";
+
+  constructor(data?: PartialMessage<MessageAttachmentUpload>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.MessageAttachmentUpload";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "content", kind: "scalar", T: 12 /* ScalarType.BYTES */ },
+    { no: 2, name: "filename", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "content_type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MessageAttachmentUpload {
+    return new MessageAttachmentUpload().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MessageAttachmentUpload {
+    return new MessageAttachmentUpload().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MessageAttachmentUpload {
+    return new MessageAttachmentUpload().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MessageAttachmentUpload | PlainMessage<MessageAttachmentUpload> | undefined, b: MessageAttachmentUpload | PlainMessage<MessageAttachmentUpload> | undefined): boolean {
+    return proto3.util.equals(MessageAttachmentUpload, a, b);
+  }
+}
+
+/**
+ * Request to post a message in a room or thread.
  *
  * @generated from message chatto.api.v1.PostMessageRequest
  */
@@ -118,7 +174,8 @@ export class PostMessageRequest extends Message<PostMessageRequest> {
   roomId = "";
 
   /**
-   * Message body text. Required unless attachment_asset_ids is non-empty.
+   * Message body text. Required unless attachments or attachment_asset_ids is
+   * non-empty.
    *
    * @generated from field: string body = 2;
    */
@@ -166,6 +223,13 @@ export class PostMessageRequest extends Message<PostMessageRequest> {
    */
   linkPreview?: MessageLinkPreviewInput;
 
+  /**
+   * Browser-uploaded attachments to include with the message.
+   *
+   * @generated from field: repeated chatto.api.v1.MessageAttachmentUpload attachments = 9;
+   */
+  attachments: MessageAttachmentUpload[] = [];
+
   constructor(data?: PartialMessage<PostMessageRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -182,6 +246,7 @@ export class PostMessageRequest extends Message<PostMessageRequest> {
     { no: 6, name: "also_send_to_channel", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 7, name: "mention_confirmation_token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 8, name: "link_preview", kind: "message", T: MessageLinkPreviewInput },
+    { no: 9, name: "attachments", kind: "message", T: MessageAttachmentUpload, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PostMessageRequest {

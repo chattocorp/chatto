@@ -5,25 +5,12 @@
  * the browser is completely closed. Uses the Service Worker and Web Push API.
  */
 
-import { graphql } from '$lib/gql';
+import { createPushNotificationAPI } from '$lib/api/pushNotifications';
 import {
   NOTIFICATION_CLICK_ACK_MESSAGE_TYPE,
   NOTIFICATION_CLICK_MESSAGE_TYPE
 } from '$lib/pwa/notificationClick.worker';
-import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
-
-// GraphQL mutations
-const SubscribeToPushMutationDoc = graphql(`
-  mutation SubscribeToPush($input: PushSubscriptionInput!) {
-    subscribeToPush(input: $input)
-  }
-`);
-
-const UnsubscribeFromPushMutationDoc = graphql(`
-  mutation UnsubscribeFromPush($input: UnsubscribeFromPushInput!) {
-    unsubscribeFromPush(input: $input)
-  }
-`);
+import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
 
 type EnsureRegisteredOptions = {
   prompt: boolean;
@@ -158,27 +145,22 @@ export async function ensureRegistered(
       return false;
     }
 
-    // Send to server
-    const result = await graphqlClientManager.originClient.client
-      .mutation(SubscribeToPushMutationDoc, {
-        input: {
-          endpoint: json.endpoint,
-          p256dh: json.keys.p256dh,
-          auth: json.keys.auth,
-          userAgent: navigator.userAgent
-        }
-      })
-      .toPromise();
+    const saved = await originPushAPI().subscribe({
+      endpoint: json.endpoint,
+      p256dh: json.keys.p256dh,
+      auth: json.keys.auth,
+      userAgent: navigator.userAgent
+    });
 
-    if (result.error) {
-      console.error('Failed to save push subscription:', result.error);
+    if (!saved) {
+      console.error('Failed to save push subscription');
       if (createdSubscription) {
         await subscription.unsubscribe();
       }
       return false;
     }
 
-    return result.data?.subscribeToPush ?? false;
+    return true;
   } catch (error) {
     console.error('Failed to subscribe to push:', error);
     return false;
@@ -212,14 +194,10 @@ export async function unsubscribe(): Promise<boolean> {
 
   try {
     // Remove from server first
-    const result = await graphqlClientManager.originClient.client
-      .mutation(UnsubscribeFromPushMutationDoc, {
-        input: { endpoint: subscription.endpoint }
-      })
-      .toPromise();
+    const removed = await originPushAPI().unsubscribe(subscription.endpoint);
 
-    if (result.error) {
-      console.error('Failed to remove push subscription from server:', result.error);
+    if (!removed) {
+      console.error('Failed to remove push subscription from server');
       // Continue to unsubscribe from browser anyway
     }
 
@@ -230,6 +208,14 @@ export async function unsubscribe(): Promise<boolean> {
     console.error('Failed to unsubscribe from push:', error);
     return false;
   }
+}
+
+function originPushAPI() {
+  const origin = serverConnectionManager.originClient;
+  return createPushNotificationAPI({
+    baseUrl: origin.connectBaseUrl,
+    bearerToken: origin.bearerToken
+  });
 }
 
 /**

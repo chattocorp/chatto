@@ -15,7 +15,7 @@ Run these in parallel via the Skill tool:
 
 - **`/fdr`** (no args) — audit all FDRs against the codebase. Surface discrepancies, stale design decisions, and any user-facing features that should now have an FDR.
 - **`/adr`** — audit ADRs for staleness. Surface cited file paths or APIs that no longer exist; flag superseded ADRs still referenced as authoritative.
-- **`/chatto-architecture`** — refresh `docs/ARCHITECTURE.md` against the current state of core services, projections, EVT event tokens, EVT/live subject patterns, current NATS resources, and GraphQL operations. Report drift; propose updates.
+- **`/chatto-architecture`** — refresh `docs/ARCHITECTURE.md` against the current state of core services, projections, EVT event tokens, EVT/live subject patterns, current NATS resources, ConnectRPC endpoints, and realtime websocket behavior. Report drift; propose updates.
 
 ## How To Run
 

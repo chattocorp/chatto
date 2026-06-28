@@ -3,14 +3,14 @@
   import { startDMWith } from '$lib/dm/startDM';
   import { resolve } from '$app/paths';
   import MessageContent from '$lib/components/MessageContent.svelte';
-  import UserAvatar, { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
+  import UserAvatar, { UserAvatarViewData } from '$lib/components/UserAvatar.svelte';
   import LinkPreviewCard from '$lib/components/LinkPreviewCard.svelte';
   import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
   import BanRoomMemberModal from '$lib/components/moderation/BanRoomMemberModal.svelte';
   import BottomSheet from '$lib/ui/BottomSheet.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
-  import { useFragment } from '$lib/gql/fragment-masking';
-  import type { RoomEventViewFragment } from '$lib/gql/graphql';
+  import { useRenderData } from '$lib/render/data';
+  import type { RoomEventView } from '$lib/render/types';
   import {
     getRoomPermissions,
     getRoomMembers,
@@ -55,6 +55,7 @@
   import { selectedQuoteTextForMessageBody } from './selectedReplyQuote';
   import { createThreadAPI } from '$lib/api/threads';
   import { createRoomCommandAPI } from '$lib/api/rooms';
+  import { isMessagePostedEvent } from '$lib/render/eventKinds';
   import * as m from '$lib/i18n/messages';
 
   // Long-press thresholds in milliseconds
@@ -68,7 +69,7 @@
     messageStore = null,
     onOpenThread
   }: {
-    event: RoomEventViewFragment;
+    event: RoomEventView;
     compact?: boolean;
     roomId: string;
     messageStore?: MessagesStore | null;
@@ -96,7 +97,7 @@
   );
   // Actor may be null if the user has been deleted.
   // Guard with event?. for Svelte 5 reactivity glitch during virtualizer data transitions.
-  const actor = $derived(event?.actor ? useFragment(UserAvatarFragment, event.actor) : null);
+  const actor = $derived(event?.actor ? useRenderData(UserAvatarViewData, event.actor) : null);
 
   // Display name with live updates from profile cache
   const displayName = $derived(
@@ -244,9 +245,7 @@
 
   // MessagePostedEvent-specific data (threading, inReplyTo, etc.)
   // Guard with event?. for Svelte 5 reactivity glitch during virtualizer data transitions
-  const messageEvent = $derived(
-    event?.event?.__typename === 'MessagePostedEvent' ? event.event : null
-  );
+  const messageEvent = $derived(isMessagePostedEvent(event?.event) ? event.event : null);
 
   // Check if this is an echo (MessagePostedEvent with echoOfEventId set)
   const isEcho = $derived(messageEvent?.echoOfEventId != null);
@@ -374,13 +373,12 @@
     if (!replyTarget) return { name: 'a message', body: null as string | null, actor: null };
 
     const repliedActor = replyTarget.actor
-      ? useFragment(UserAvatarFragment, replyTarget.actor)
+      ? useRenderData(UserAvatarViewData, replyTarget.actor)
       : null;
     const name = repliedActor
       ? getLiveDisplayName(repliedActor.id, repliedActor.displayName || repliedActor.login)
       : 'Deleted User';
-    const typename = replyTarget.event?.__typename;
-    const body = typename === 'MessagePostedEvent' ? (replyTarget.event.body ?? null) : null;
+    const body = isMessagePostedEvent(replyTarget.event) ? (replyTarget.event.body ?? null) : null;
     return { name, body, actor: repliedActor };
   });
 

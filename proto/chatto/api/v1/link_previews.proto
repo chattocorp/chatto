@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "buf/validate/validate.proto";
+
+// Request to fetch server-side link preview metadata for a URL.
+message FetchLinkPreviewRequest {
+  // URL to preview.
+  string url = 1 [
+    (buf.validate.field).string.min_len = 1,
+    (buf.validate.field).string.max_len = 2048
+  ];
+}
+
+// Link preview metadata returned to clients before posting a message.
+message FetchedLinkPreview {
+  // Previewed URL.
+  string url = 1;
+  // Page or embed title.
+  string title = 2;
+  // Page or embed description.
+  string description = 3;
+  // Preview image URL, when available.
+  string image_url = 4;
+  // Existing server asset ID for the preview image, when available.
+  string image_asset_id = 5;
+  // Site name, when known.
+  string site_name = 6;
+  // Embed provider or type, when recognized.
+  string embed_type = 7;
+  // Provider-specific embed ID, when recognized.
+  string embed_id = 8;
+}
+
+// Result of fetching link preview metadata.
+message FetchLinkPreviewResponse {
+  // Preview metadata, or absent when the URL cannot be previewed.
+  FetchedLinkPreview preview = 1;
+}
+
+// Fetches link preview metadata for message composers.
+service LinkPreviewService {
+  // Fetches and caches metadata for a URL. Authentication is required to avoid
+  // exposing the preview fetcher as an unauthenticated network proxy.
+  rpc FetchLinkPreview(FetchLinkPreviewRequest) returns (FetchLinkPreviewResponse);
+}

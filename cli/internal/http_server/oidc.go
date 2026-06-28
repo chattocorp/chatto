@@ -24,10 +24,10 @@ import (
 	"github.com/markbates/goth/providers/gitlab"
 	"github.com/markbates/goth/providers/google"
 	"golang.org/x/oauth2"
+	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/core/linkpreview"
-	graphauth "hmans.de/chatto/internal/graph/auth"
 )
 
 const (
@@ -172,7 +172,7 @@ func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authPr
 			}
 		} else {
 			req := s.injectUserIntoContext(c)
-			user := graphauth.ForContext(req.Context())
+			user := authctx.ForContext(req.Context())
 			if user == nil {
 				c.Redirect(http.StatusTemporaryRedirect, "/login?error=authentication_required")
 				return

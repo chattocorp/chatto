@@ -438,7 +438,7 @@ func (c *ChattoCore) KeyWrapper() kms.KeyWrapper {
 }
 
 // ConfigManager returns the runtime configuration manager.
-// Used by GraphQL resolvers to read/write runtime config.
+// Used by API handlers and core services to read/write runtime config.
 func (c *ChattoCore) ConfigManager() *ConfigManager {
 	return c.configManager
 }

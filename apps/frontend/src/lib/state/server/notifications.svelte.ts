@@ -1,135 +1,22 @@
 import { SvelteSet } from 'svelte/reactivity';
-import { graphql, useFragment } from '$lib/gql';
-import {
-  NotificationItemViewFragmentDoc,
-  type NotificationItemViewFragment
-} from '$lib/gql/graphql';
-import type { Client } from '@urql/svelte';
 import { resolve } from '$app/paths';
 import { serverIdToSegment } from '$lib/navigation';
-
-// GraphQL queries and mutations
-const NotificationItemViewFragment = graphql(`
-  fragment NotificationItemView on NotificationItem {
-    __typename
-    ... on DMMessageNotificationItem {
-      id
-      createdAt
-      actor {
-        ...UserAvatarUser
-      }
-      summary
-      room {
-        id
-      }
-    }
-    ... on MentionNotificationItem {
-      id
-      createdAt
-      actor {
-        ...UserAvatarUser
-      }
-      summary
-      mentionRoom: room {
-        id
-        name
-      }
-      mentionEventId: eventId
-      mentionInThread: threadRootEventId
-    }
-    ... on ReplyNotificationItem {
-      id
-      createdAt
-      actor {
-        ...UserAvatarUser
-      }
-      summary
-      replyRoom: room {
-        id
-        name
-      }
-      replyEventId: eventId
-      inReplyToId
-      replyInThread: threadRootEventId
-    }
-    ... on RoomMessageNotificationItem {
-      id
-      createdAt
-      actor {
-        ...UserAvatarUser
-      }
-      summary
-      roomMsgRoom: room {
-        id
-        name
-      }
-      roomMsgEventId: eventId
-    }
-  }
-`);
-
-const NotificationsQueryDoc = graphql(`
-  query Notifications {
-    viewer {
-      notifications(limit: 50) {
-        totalCount
-        items {
-          ...NotificationItemView
-        }
-      }
-    }
-  }
-`);
-
-const RoomNotificationQueryDoc = graphql(`
-  query RoomNotification($roomId: ID!) {
-    room(roomId: $roomId) {
-      viewerNotifications(limit: 1) {
-        totalCount
-        items {
-          ...NotificationItemView
-        }
-      }
-    }
-  }
-`);
-
-const HasNotificationsQueryDoc = graphql(`
-  query HasNotifications {
-    viewer {
-      hasNotifications
-    }
-  }
-`);
-
-const InstanceNameQueryDoc = graphql(`
-  query NotificationInstanceName {
-    server {
-      profile {
-        name
-      }
-    }
-  }
-`);
-
-const DismissNotificationMutationDoc = graphql(`
-  mutation DismissNotification($input: DismissNotificationInput!) {
-    dismissNotification(input: $input)
-  }
-`);
-
-const DismissAllNotificationsMutationDoc = graphql(`
-  mutation DismissAllNotifications {
-    dismissAllNotifications
-  }
-`);
+import {
+  NotificationItemKind,
+  type DirectMessageNotificationItem,
+  type MentionNotificationItem,
+  type NotificationAPI,
+  type NotificationItem,
+  type ReplyNotificationItem,
+  type RoomMessageNotificationItem
+} from '$lib/api/notifications';
 
 // Union type for all notification types
-export type NotificationItem = NotificationItemViewFragment;
+export type { NotificationItem };
 
 /**
  * Normalized view of a notification's target (where it points to in the app).
- * Avoids `__typename` switches at every read site — see {@link notificationTarget}.
+ * Avoids discriminant switches at every read site — see {@link notificationTarget}.
  */
 export type NotificationTarget = {
   isDM: boolean;
@@ -161,58 +48,83 @@ const emptyDismissalCounts = (): NotificationDismissalCounts => ({
   byRoom: {}
 });
 
+function isDMNotification(
+  notification: NotificationItem
+): notification is DirectMessageNotificationItem {
+  return notification.kind === NotificationItemKind.DirectMessage;
+}
+
+function isMentionNotification(
+  notification: NotificationItem
+): notification is MentionNotificationItem {
+  return notification.kind === NotificationItemKind.Mention;
+}
+
+function isReplyNotification(
+  notification: NotificationItem
+): notification is ReplyNotificationItem {
+  return notification.kind === NotificationItemKind.Reply;
+}
+
+function isRoomMessageNotification(
+  notification: NotificationItem
+): notification is RoomMessageNotificationItem {
+  return notification.kind === NotificationItemKind.RoomMessage;
+}
+
 /**
  * Extract the target a notification points to. Adding a new notification type
  * means updating this single function instead of every read site.
  */
 export function notificationTarget(n: NotificationItem): NotificationTarget {
-  switch (n.__typename) {
-    case 'DMMessageNotificationItem':
-      return {
-        isDM: true,
-        spaceName: null,
-        roomId: n.room.id,
-        roomName: null,
-        eventId: null,
-        threadRootId: null
-      };
-    case 'MentionNotificationItem':
-      return {
-        isDM: false,
-        spaceName: null,
-        roomId: n.mentionRoom?.id ?? null,
-        roomName: n.mentionRoom?.name ?? null,
-        eventId: n.mentionEventId ?? null,
-        threadRootId: n.mentionInThread ?? null
-      };
-    case 'ReplyNotificationItem':
-      return {
-        isDM: false,
-        spaceName: null,
-        roomId: n.replyRoom?.id ?? null,
-        roomName: n.replyRoom?.name ?? null,
-        eventId: n.replyEventId ?? null,
-        threadRootId: n.replyInThread ?? null
-      };
-    case 'RoomMessageNotificationItem':
-      return {
-        isDM: false,
-        spaceName: null,
-        roomId: n.roomMsgRoom?.id ?? null,
-        roomName: n.roomMsgRoom?.name ?? null,
-        eventId: n.roomMsgEventId ?? null,
-        threadRootId: null
-      };
-    default:
-      return {
-        isDM: false,
-        spaceName: null,
-        roomId: null,
-        roomName: null,
-        eventId: null,
-        threadRootId: null
-      };
+  if (isDMNotification(n)) {
+    return {
+      isDM: true,
+      spaceName: null,
+      roomId: n.room.id,
+      roomName: null,
+      eventId: null,
+      threadRootId: null
+    };
   }
+  if (isMentionNotification(n)) {
+    return {
+      isDM: false,
+      spaceName: null,
+      roomId: n.mentionRoom?.id ?? null,
+      roomName: n.mentionRoom?.name ?? null,
+      eventId: n.mentionEventId ?? null,
+      threadRootId: n.mentionInThread ?? null
+    };
+  }
+  if (isReplyNotification(n)) {
+    return {
+      isDM: false,
+      spaceName: null,
+      roomId: n.replyRoom?.id ?? null,
+      roomName: n.replyRoom?.name ?? null,
+      eventId: n.replyEventId ?? null,
+      threadRootId: n.replyInThread ?? null
+    };
+  }
+  if (isRoomMessageNotification(n)) {
+    return {
+      isDM: false,
+      spaceName: null,
+      roomId: n.roomMsgRoom?.id ?? null,
+      roomName: n.roomMsgRoom?.name ?? null,
+      eventId: n.roomMsgEventId ?? null,
+      threadRootId: null
+    };
+  }
+  return {
+    isDM: false,
+    spaceName: null,
+    roomId: null,
+    roomName: null,
+    eventId: null,
+    threadRootId: null
+  };
 }
 
 /**
@@ -220,7 +132,7 @@ export function notificationTarget(n: NotificationItem): NotificationTarget {
  * Manages notifications for the current user with real-time sync.
  */
 export class NotificationStore {
-  #client: Client;
+  #api: NotificationAPI;
   #locallyDismissedNotificationIds = new SvelteSet<string>();
   notifications = $state<NotificationItem[]>([]);
   /**
@@ -234,8 +146,8 @@ export class NotificationStore {
   loading = $state(false);
   error = $state<string | null>(null);
 
-  constructor(client: Client) {
-    this.#client = client;
+  constructor(api: NotificationAPI) {
+    this.#api = api;
   }
 
   // Derived properties
@@ -258,7 +170,7 @@ export class NotificationStore {
   get threadsWithNotifications(): SvelteSet<string> {
     const threadIds = new SvelteSet<string>();
     for (const n of this.notifications) {
-      if (n.__typename === 'ReplyNotificationItem' && n.replyInThread) {
+      if (isReplyNotification(n) && n.replyInThread) {
         threadIds.add(n.replyInThread);
       }
     }
@@ -270,7 +182,7 @@ export class NotificationStore {
    */
   hasThreadNotification(threadRootId: string): boolean {
     return this.notifications.some(
-      (n) => n.__typename === 'ReplyNotificationItem' && n.replyInThread === threadRootId
+      (n) => isReplyNotification(n) && n.replyInThread === threadRootId
     );
   }
 
@@ -317,7 +229,7 @@ export class NotificationStore {
    * Check if there are any pending DM notifications.
    */
   hasDMNotifications(): boolean {
-    return this.notifications.some((n) => n.__typename === 'DMMessageNotificationItem');
+    return this.notifications.some((n) => isDMNotification(n));
   }
 
   /**
@@ -325,7 +237,7 @@ export class NotificationStore {
    * Returns undefined if no DM notifications exist.
    */
   getDMNotification(): NotificationItem | undefined {
-    return this.notifications.find((n) => n.__typename === 'DMMessageNotificationItem');
+    return this.notifications.find((n) => isDMNotification(n));
   }
 
   /**
@@ -333,18 +245,14 @@ export class NotificationStore {
    * Counterpart to {@link hasRoomNotification}, which excludes DMs.
    */
   hasDMRoomNotification(roomId: string): boolean {
-    return this.notifications.some(
-      (n) => n.__typename === 'DMMessageNotificationItem' && n.room.id === roomId
-    );
+    return this.notifications.some((n) => isDMNotification(n) && n.room.id === roomId);
   }
 
   /**
    * Get the most recent notification for a DM conversation.
    */
   getDMRoomNotification(roomId: string): NotificationItem | undefined {
-    return this.notifications.find(
-      (n) => n.__typename === 'DMMessageNotificationItem' && n.room.id === roomId
-    );
+    return this.notifications.find((n) => isDMNotification(n) && n.room.id === roomId);
   }
 
   getCachedRoomNotification(
@@ -361,8 +269,8 @@ export class NotificationStore {
   async dismissThreadNotifications(threadRootId: string): Promise<NotificationDismissalCounts> {
     const threadNotifications = this.notifications.filter(
       (n) =>
-        (n.__typename === 'ReplyNotificationItem' && n.replyInThread === threadRootId) ||
-        (n.__typename === 'MentionNotificationItem' && n.mentionInThread === threadRootId)
+        (isReplyNotification(n) && n.replyInThread === threadRootId) ||
+        (isMentionNotification(n) && n.mentionInThread === threadRootId)
     );
 
     return this.#dismissNotifications(threadNotifications);
@@ -376,10 +284,7 @@ export class NotificationStore {
    */
   async dismissMentionNotifications(roomId: string): Promise<NotificationDismissalCounts> {
     const mentionNotifications = this.notifications.filter(
-      (n) =>
-        n.__typename === 'MentionNotificationItem' &&
-        !n.mentionInThread &&
-        n.mentionRoom?.id === roomId
+      (n) => isMentionNotification(n) && !n.mentionInThread && n.mentionRoom?.id === roomId
     );
 
     return this.#dismissNotifications(mentionNotifications);
@@ -393,8 +298,7 @@ export class NotificationStore {
    */
   async dismissRoomReplyNotifications(roomId: string): Promise<NotificationDismissalCounts> {
     const roomReplyNotifications = this.notifications.filter(
-      (n) =>
-        n.__typename === 'ReplyNotificationItem' && !n.replyInThread && n.replyRoom?.id === roomId
+      (n) => isReplyNotification(n) && !n.replyInThread && n.replyRoom?.id === roomId
     );
 
     return this.#dismissNotifications(roomReplyNotifications);
@@ -406,7 +310,7 @@ export class NotificationStore {
    */
   async dismissRoomMessageNotifications(roomId: string): Promise<NotificationDismissalCounts> {
     const roomMsgNotifications = this.notifications.filter(
-      (n) => n.__typename === 'RoomMessageNotificationItem' && n.roomMsgRoom?.id === roomId
+      (n) => isRoomMessageNotification(n) && n.roomMsgRoom?.id === roomId
     );
 
     return this.#dismissNotifications(roomMsgNotifications);
@@ -418,7 +322,7 @@ export class NotificationStore {
    */
   async dismissDMNotifications(roomId: string): Promise<NotificationDismissalCounts> {
     const dmNotifications = this.notifications.filter(
-      (n) => n.__typename === 'DMMessageNotificationItem' && n.room.id === roomId
+      (n) => isDMNotification(n) && n.room.id === roomId
     );
 
     return this.#dismissNotifications(dmNotifications);
@@ -440,32 +344,10 @@ export class NotificationStore {
     this.error = null;
 
     try {
-      const result = await this.#client.query(NotificationsQueryDoc, {}).toPromise();
-
-      if (result.error) {
-        this.error = result.error.message;
-        console.error('Failed to fetch notifications:', result.error);
-        return;
-      }
-
-      if (result.data?.viewer) {
-        this.notifications = useFragment(
-          NotificationItemViewFragmentDoc,
-          result.data.viewer.notifications.items
-        );
-        this.unreadNotificationCount = result.data.viewer.notifications.totalCount;
-      }
-      // Capture the instance display name lazily — used by getLocationString
-      // for non-DM notifications. Failure here is non-fatal; the UI just
-      // omits the "in <name>" suffix.
-      try {
-        const nameRes = await this.#client
-          .query(InstanceNameQueryDoc, {}, { requestPolicy: 'cache-first' })
-          .toPromise();
-        this.serverName = nameRes.data?.server?.profile.name ?? null;
-      } catch {
-        // ignore
-      }
+      const page = await this.#api.listNotifications(50);
+      this.notifications = page.items;
+      this.unreadNotificationCount = page.totalCount;
+      this.serverName = page.serverName;
     } catch (e) {
       this.error = e instanceof Error ? e.message : 'Failed to fetch notifications';
       console.error('Failed to fetch notifications:', e);
@@ -477,35 +359,21 @@ export class NotificationStore {
   /**
    * Fetch the newest pending notification for a single room.
    *
-   * Room sidebar badges are sourced from Room.viewerNotifications.totalCount,
-   * so badge clicks need the same scoped source when the global cached page is
-   * empty, stale, or does not include this room's notification.
+   * Room sidebar badge clicks need the same scoped source as room notification
+   * counts when the global cached page is empty, stale, or does not include
+   * this room's notification.
    */
   async fetchRoomNotification(roomId: string): Promise<RoomNotificationLookup> {
     try {
-      const result = await this.#client.query(RoomNotificationQueryDoc, { roomId }).toPromise();
-
-      if (result.error) {
-        this.error = result.error.message;
-        console.error('Failed to fetch room notification:', result.error);
-        return { ok: false, totalCount: null, notification: null };
-      }
-
-      const connection = result.data?.room?.viewerNotifications;
-      if (!connection) {
-        return { ok: true, totalCount: null, notification: null };
-      }
-
-      const notification = connection.items[0]
-        ? useFragment(NotificationItemViewFragmentDoc, connection.items[0])
-        : null;
+      const page = await this.#api.listRoomNotifications(roomId, 1);
+      const notification = page.items[0] ?? null;
       if (notification) {
         this.#upsertNotification(notification);
       }
 
       return {
         ok: true,
-        totalCount: connection.totalCount,
+        totalCount: page.totalCount,
         notification
       };
     } catch (e) {
@@ -531,8 +399,7 @@ export class NotificationStore {
    */
   async checkHasNotifications(): Promise<boolean> {
     try {
-      const result = await this.#client.query(HasNotificationsQueryDoc, {}).toPromise();
-      return result.data?.viewer?.hasNotifications ?? false;
+      return await this.#api.hasNotifications();
     } catch (e) {
       console.error('Failed to check notifications:', e);
       return false;
@@ -552,11 +419,7 @@ export class NotificationStore {
     this.#markLocalDismissal(notificationId);
 
     try {
-      const result = await this.#client
-        .mutation(DismissNotificationMutationDoc, { input: { notificationId } })
-        .toPromise();
-
-      if (result.error || !result.data?.dismissNotification) {
+      if (!(await this.#api.dismissNotification(notificationId))) {
         this.#locallyDismissedNotificationIds.delete(notificationId);
         this.#restoreNotification(removed);
         this.unreadNotificationCount += 1;
@@ -588,19 +451,7 @@ export class NotificationStore {
     }
 
     try {
-      const result = await this.#client
-        .mutation(DismissAllNotificationsMutationDoc, {})
-        .toPromise();
-
-      if (result.error || result.data?.dismissAllNotifications == null) {
-        for (const notification of original) {
-          this.#locallyDismissedNotificationIds.delete(notification.id);
-        }
-        this.notifications = original;
-        this.unreadNotificationCount = originalCount;
-        return 0;
-      }
-      return result.data.dismissAllNotifications;
+      return await this.#api.dismissAllNotifications();
     } catch (e) {
       console.error('Failed to dismiss all notifications:', e);
       for (const notification of original) {

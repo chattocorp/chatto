@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
 	createClient: vi.fn(),
 	createConnectTransport: vi.fn(),
 	handleAuthenticationRequired: vi.fn(),
+	listFollowedThreads: vi.fn(),
 	followThread: vi.fn(),
 	unfollowThread: vi.fn()
 }));
@@ -33,12 +34,63 @@ describe('createThreadAPI', () => {
 		mocks.createClient.mockReset();
 		mocks.createConnectTransport.mockReset();
 		mocks.handleAuthenticationRequired.mockReset();
+		mocks.listFollowedThreads.mockReset();
 		mocks.followThread.mockReset();
 		mocks.unfollowThread.mockReset();
 		mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
 		mocks.createClient.mockReturnValue({
+			listFollowedThreads: mocks.listFollowedThreads,
 			followThread: mocks.followThread,
 			unfollowThread: mocks.unfollowThread
+		});
+	});
+
+	it('lists followed threads with bearer auth', async () => {
+		const lastReplyAt = new Date('2025-01-02T03:04:05.000Z');
+		mocks.listFollowedThreads.mockResolvedValue({
+			threads: [
+				{
+					roomId: 'room-1',
+					roomName: 'general',
+					threadRootEventId: 'root-1',
+					rootMessage: undefined,
+					replyCount: 2,
+					lastReplyAt: { toDate: () => lastReplyAt },
+					hasUnread: true
+				}
+			],
+			totalCount: 3,
+			hasMore: true,
+			includes: { users: {} }
+		});
+
+		const api = createThreadAPI({
+			serverId: 'remote',
+			baseUrl: 'https://remote.example.test/api/connect',
+			bearerToken: 'remote-token'
+		});
+		const page = await api.listFollowedThreads({ limit: 20, offset: 40 });
+
+		expect(mocks.listFollowedThreads).toHaveBeenCalledWith(
+			{ limit: 20, offset: 40 },
+			{
+				headers: { Authorization: 'Bearer remote-token' }
+			}
+		);
+		expect(page).toEqual({
+			threads: [
+				{
+					roomId: 'room-1',
+					roomName: 'general',
+					threadRootEventId: 'root-1',
+					rootMessage: null,
+					replyCount: 2,
+					lastReplyAt: '2025-01-02T03:04:05.000Z',
+					hasUnread: true
+				}
+			],
+			totalCount: 3,
+			hasMore: true
 		});
 	});
 

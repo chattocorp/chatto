@@ -1,23 +1,24 @@
 <script lang="ts">
-  import type { RoomEventViewFragment, UserAvatarUserFragment } from '$lib/gql/graphql';
-  import UserAvatar, { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
-  import { useFragment } from '$lib/gql/fragment-masking';
+  import type { RoomEventView, UserAvatarUserView } from '$lib/render/types';
+  import UserAvatar, { UserAvatarViewData } from '$lib/components/UserAvatar.svelte';
+  import { useRenderData } from '$lib/render/data';
+  import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
 
-  let { event }: { event: RoomEventViewFragment } = $props();
+  let { event }: { event: RoomEventView } = $props();
 
   type Subject = {
     id: string;
     name: string;
-    user: UserAvatarUserFragment | null;
+    user: UserAvatarUserView | null;
   };
 
-  function displayName(user: UserAvatarUserFragment): string {
+  function displayName(user: UserAvatarUserView): string {
     return getLiveDisplayName(user.id, user.displayName || user.login);
   }
 
   const subject = $derived.by<Subject>(() => {
-    const actor = event?.actor ? useFragment(UserAvatarFragment, event.actor) : null;
+    const actor = event?.actor ? useRenderData(UserAvatarViewData, event.actor) : null;
     if (actor) {
       return { id: actor.id, name: displayName(actor), user: actor };
     }
@@ -27,14 +28,14 @@
 
   const action = $derived.by(() => {
     if (!event?.event) return null;
-    switch (event.event.__typename) {
-      case 'UserJoinedRoomEvent':
+    switch (roomEventKind(event.event)) {
+      case RoomEventKind.UserJoinedRoom:
         return 'joined the room';
-      case 'UserLeftRoomEvent':
+      case RoomEventKind.UserLeftRoom:
         return 'left the room';
-      case 'RoomArchivedEvent':
+      case RoomEventKind.RoomArchived:
         return 'archived the room';
-      case 'RoomUnarchivedEvent':
+      case RoomEventKind.RoomUnarchived:
         return 'unarchived the room';
       default:
         return null;
