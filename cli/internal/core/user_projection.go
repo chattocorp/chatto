@@ -32,16 +32,17 @@ type UserProjection struct {
 }
 
 type projectedUser struct {
-	user           *corev1.User
-	deleted        bool
-	avatar         *corev1.AssetRecord
-	passwordHash   []byte
-	passwordSetAt  time.Time
-	authGeneration uint64
-	verifiedEmail  map[string]VerifiedEmail
-	oauthConsent   map[string]struct{}
-	preferences    *corev1.ServerUserPreferences
-	loginChanged   time.Time
+	user               *corev1.User
+	deleted            bool
+	avatar             *corev1.AssetRecord
+	passwordHash       []byte
+	passwordSetAt      time.Time
+	authGeneration     uint64
+	verifiedEmail      map[string]VerifiedEmail
+	externalIdentities map[string]ExternalIdentity
+	oauthConsent       map[string]struct{}
+	preferences        *corev1.ServerUserPreferences
+	loginChanged       time.Time
 }
 
 func NewUserProjection(keyWrapper kms.KeyWrapper, dekStore dekstore.Reader) *UserProjection {
@@ -124,6 +125,9 @@ func (p *UserProjection) ensureUserLocked(userID string) *projectedUser {
 	}
 	if u.verifiedEmail == nil {
 		u.verifiedEmail = make(map[string]VerifiedEmail)
+	}
+	if u.externalIdentities == nil {
+		u.externalIdentities = make(map[string]ExternalIdentity)
 	}
 	if u.oauthConsent == nil {
 		u.oauthConsent = make(map[string]struct{})
@@ -307,6 +311,14 @@ func (p *UserProjection) applyOIDCSubjectLinked(e *corev1.UserOIDCSubjectLinkedE
 		return
 	}
 	p.identityIndex[hash] = e.GetUserId()
+	u := p.ensureUserLocked(e.GetUserId())
+	u.externalIdentities[hash] = ExternalIdentity{
+		ProviderID:   "oidc",
+		ProviderType: "oidc",
+		Issuer:       e.GetIssuer(),
+		Subject:      e.GetSubject(),
+		SubjectHash:  hash,
+	}
 }
 
 func (p *UserProjection) applyExternalIdentityLinked(e *corev1.UserExternalIdentityLinkedEvent) {
@@ -321,6 +333,22 @@ func (p *UserProjection) applyExternalIdentityLinked(e *corev1.UserExternalIdent
 		return
 	}
 	p.identityIndex[hash] = e.GetUserId()
+	u := p.ensureUserLocked(e.GetUserId())
+	providerID := e.GetProviderId()
+	if providerID == "" {
+		providerID = e.GetIssuer()
+	}
+	providerType := e.GetProviderType()
+	if providerType == "" {
+		providerType = providerID
+	}
+	u.externalIdentities[hash] = ExternalIdentity{
+		ProviderID:   providerID,
+		ProviderType: providerType,
+		Issuer:       e.GetIssuer(),
+		Subject:      e.GetSubject(),
+		SubjectHash:  hash,
+	}
 }
 
 func (p *UserProjection) applyOAuthConsentGranted(e *corev1.OAuthConsentGrantedEvent) {
@@ -408,6 +436,7 @@ func (p *UserProjection) applyAccountDeleted(e *corev1.UserAccountDeletedEvent, 
 		u.user.CustomStatus = nil
 	}
 	u.verifiedEmail = make(map[string]VerifiedEmail)
+	u.externalIdentities = make(map[string]ExternalIdentity)
 	u.oauthConsent = make(map[string]struct{})
 	u.loginChanged = time.Time{}
 	delete(p.contentKeys, e.GetUserId())
@@ -437,6 +466,7 @@ func (p *UserProjection) applyKeyShredded(e *corev1.UserKeyShreddedEvent) {
 	u.passwordSetAt = time.Time{}
 	u.preferences = nil
 	u.verifiedEmail = make(map[string]VerifiedEmail)
+	u.externalIdentities = make(map[string]ExternalIdentity)
 	u.oauthConsent = make(map[string]struct{})
 	u.loginChanged = time.Time{}
 }
@@ -539,6 +569,26 @@ func (p *UserProjection) GetByExternalIdentity(issuer, subject string) (*corev1.
 		return nil, false
 	}
 	return p.Get(userID)
+}
+
+func (p *UserProjection) ExternalIdentities(userID string) []ExternalIdentity {
+	p.RLock()
+	defer p.RUnlock()
+	u := p.users[userID]
+	if u == nil || u.deleted || len(u.externalIdentities) == 0 {
+		return nil
+	}
+	identities := make([]ExternalIdentity, 0, len(u.externalIdentities))
+	for _, identity := range u.externalIdentities {
+		identities = append(identities, identity)
+	}
+	sort.Slice(identities, func(i, j int) bool {
+		if identities[i].ProviderID != identities[j].ProviderID {
+			return identities[i].ProviderID < identities[j].ProviderID
+		}
+		return identities[i].SubjectHash < identities[j].SubjectHash
+	})
+	return identities
 }
 
 func (p *UserProjection) LoginExists(login string) bool {

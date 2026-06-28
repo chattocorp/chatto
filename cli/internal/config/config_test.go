@@ -154,6 +154,7 @@ func TestReadConfig_AuthProvidersFromEnv(t *testing.T) {
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_CLIENT_SECRET", "secret")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_SCOPES", "openid, profile, groups")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_REQUEST_EMAIL", "false")
+	t.Setenv("CHATTO_AUTH_PROVIDERS_0_AUTO_PROVISION", "true")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_PROVIDER_OPTIONS_PROMPT", "select_account")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_1_ID", "github-main")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_1_TYPE", "github")
@@ -172,6 +173,9 @@ func TestReadConfig_AuthProvidersFromEnv(t *testing.T) {
 	}
 	if got := cfg.Auth.Providers[0]; got.RequestEmail == nil || *got.RequestEmail {
 		t.Fatalf("Auth.Providers[0].RequestEmail = %v, want false", got.RequestEmail)
+	}
+	if got := cfg.Auth.Providers[0]; got.AutoProvision == nil || !*got.AutoProvision {
+		t.Fatalf("Auth.Providers[0].AutoProvision = %v, want true", got.AutoProvision)
 	}
 	if got := strings.Join(cfg.Auth.Providers[0].Scopes, ","); got != "openid,profile,groups" {
 		t.Fatalf("Auth.Providers[0].Scopes = %q", got)

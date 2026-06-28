@@ -38,6 +38,8 @@ func TestAPIHandlers(t *testing.T) {
 	sort.Strings(paths)
 
 	want := []string{
+		"/" + apiv1connect.ExternalIdentityFlowServiceName + "/",
+		"/" + apiv1connect.ExternalIdentityServiceName + "/",
 		"/" + apiv1connect.MessageServiceName + "/",
 		"/" + apiv1connect.NotificationPreferencesServiceName + "/",
 		"/" + apiv1connect.PresenceServiceName + "/",
@@ -67,6 +69,8 @@ func TestAPIHandlerAuthPolicies(t *testing.T) {
 	}
 
 	want := map[string]AuthPolicy{
+		"/" + apiv1connect.ExternalIdentityFlowServiceName + "/":    AuthPolicyPublic,
+		"/" + apiv1connect.ExternalIdentityServiceName + "/":        AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.MessageServiceName + "/":                 AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.NotificationPreferencesServiceName + "/": AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.PresenceServiceName + "/":                AuthPolicyAuthenticatedUser,
@@ -173,6 +177,99 @@ func TestServerServiceGetServerPublicMetadata(t *testing.T) {
 	}
 	if provider.LoginUrl != "/auth/providers/hub%20provider" {
 		t.Fatalf("provider LoginUrl = %q, want escaped provider path", provider.LoginUrl)
+	}
+}
+
+func TestExternalIdentityServicesCreateAndLink(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	env.api.config.Auth.Providers = []config.AuthProviderConfig{
+		{ID: "github-main", Type: config.AuthProviderTypeGitHub, Label: "GitHub"},
+		{ID: "discord-main", Type: config.AuthProviderTypeDiscord, Label: "Discord"},
+	}
+
+	createToken, err := env.core.CreatePendingExternalIdentityCreateFlow(env.ctx, core.PendingExternalIdentityFlow{
+		ProviderID:      "github-main",
+		ProviderType:    config.AuthProviderTypeGitHub,
+		ProviderLabel:   "GitHub",
+		Issuer:          "github-main",
+		Subject:         "12345",
+		LoginHint:       "sso-user",
+		DisplayNameHint: "SSO User",
+	})
+	if err != nil {
+		t.Fatalf("CreatePendingExternalIdentityCreateFlow: %v", err)
+	}
+
+	pending, err := env.flow.GetPendingExternalIdentity(env.ctx, connect.NewRequest(&apiv1.GetPendingExternalIdentityRequest{
+		Token: createToken,
+	}))
+	if err != nil {
+		t.Fatalf("GetPendingExternalIdentity: %v", err)
+	}
+	if pending.Msg.Pending.GetKind() != apiv1.ExternalIdentityFlowKind_EXTERNAL_IDENTITY_FLOW_KIND_CREATE_ACCOUNT || pending.Msg.Pending.GetProviderId() != "github-main" {
+		t.Fatalf("pending = %+v", pending.Msg.Pending)
+	}
+
+	created, err := env.flow.CreateExternalIdentityAccount(env.ctx, connect.NewRequest(&apiv1.CreateExternalIdentityAccountRequest{
+		Token: createToken,
+		Login: "sso-user",
+	}))
+	if err != nil {
+		t.Fatalf("CreateExternalIdentityAccount: %v", err)
+	}
+	userID, err := env.core.ValidateAuthToken(env.ctx, created.Msg.GetToken())
+	if err != nil {
+		t.Fatalf("ValidateAuthToken: %v", err)
+	}
+	if userID != created.Msg.GetUserId() {
+		t.Fatalf("created token user = %q, want %q", userID, created.Msg.GetUserId())
+	}
+	createdUser, err := env.core.GetUser(env.ctx, created.Msg.GetUserId())
+	if err != nil {
+		t.Fatalf("GetUser created: %v", err)
+	}
+	if createdUser.GetDisplayName() != "SSO User" {
+		t.Fatalf("created display name = %q, want SSO User", createdUser.GetDisplayName())
+	}
+	if _, err := env.core.GetPendingExternalIdentityFlow(env.ctx, createToken); !errors.Is(err, core.ErrExternalIdentityFlowNotFound) {
+		t.Fatalf("pending create flow after confirmation error = %v, want ErrExternalIdentityFlowNotFound", err)
+	}
+
+	createdCtx := withCaller(env.ctx, &corev1.User{Id: created.Msg.GetUserId()})
+	list, err := env.identity.ListExternalIdentities(createdCtx, connect.NewRequest(&apiv1.ListExternalIdentitiesRequest{}))
+	if err != nil {
+		t.Fatalf("ListExternalIdentities: %v", err)
+	}
+	if len(list.Msg.GetProviders()) != 2 || list.Msg.GetProviders()[0].GetLinkUrl() != "/auth/providers/github-main?intent=link" {
+		t.Fatalf("providers = %+v", list.Msg.GetProviders())
+	}
+	if len(list.Msg.GetLinkedIdentities()) != 1 || list.Msg.GetLinkedIdentities()[0].GetProviderId() != "github-main" {
+		t.Fatalf("linked identities = %+v", list.Msg.GetLinkedIdentities())
+	}
+
+	linkToken, err := env.core.CreatePendingExternalIdentityLinkFlow(env.ctx, core.PendingExternalIdentityFlow{
+		ProviderID:   "discord-main",
+		ProviderType: config.AuthProviderTypeDiscord,
+		Issuer:       "discord-main",
+		Subject:      "abc123",
+	}, env.viewer.Id)
+	if err != nil {
+		t.Fatalf("CreatePendingExternalIdentityLinkFlow: %v", err)
+	}
+	_, err = env.identity.LinkExternalIdentity(createdCtx, connect.NewRequest(&apiv1.LinkExternalIdentityRequest{Token: linkToken}))
+	requireConnectCode(t, err, connect.CodeInvalidArgument)
+
+	linked, err := env.identity.LinkExternalIdentity(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.LinkExternalIdentityRequest{
+		Token: linkToken,
+	}))
+	if err != nil {
+		t.Fatalf("LinkExternalIdentity: %v", err)
+	}
+	if linked.Msg.LinkedIdentity.GetProviderId() != "discord-main" || linked.Msg.LinkedIdentity.GetSubjectHash() == "" {
+		t.Fatalf("linked identity = %+v", linked.Msg.LinkedIdentity)
+	}
+	if _, err := env.core.GetPendingExternalIdentityFlow(env.ctx, linkToken); !errors.Is(err, core.ErrExternalIdentityFlowNotFound) {
+		t.Fatalf("pending link flow after confirmation error = %v, want ErrExternalIdentityFlowNotFound", err)
 	}
 }
 
@@ -2397,6 +2494,8 @@ type connectAPITestEnv struct {
 	nc        *nats.Conn
 	api       *API
 	directory *roomDirectoryService
+	flow      *externalIdentityFlowService
+	identity  *externalIdentityService
 	messages  *messageService
 	prefs     *notificationPreferencesService
 	readState *readStateService
@@ -2438,6 +2537,8 @@ func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
 		nc:        nc,
 		api:       api,
 		directory: &roomDirectoryService{api: api},
+		flow:      &externalIdentityFlowService{api: api},
+		identity:  &externalIdentityService{api: api},
 		messages:  &messageService{api: api},
 		prefs:     &notificationPreferencesService{api: api},
 		readState: &readStateService{api: api},

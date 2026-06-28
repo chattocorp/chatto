@@ -2,7 +2,13 @@
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
+  import { resolve } from '$app/paths';
   import { graphql } from '$lib/gql';
+  import {
+    createExternalIdentityAPI,
+    type LinkedSSOIdentity,
+    type SSOProvider
+  } from '$lib/api/externalIdentities';
   import { PaneHeader, Dialog, FormSection, Hint } from '$lib/ui';
   import { TextInput, Button, FormError } from '$lib/ui/form';
   import { useQuery } from '$lib/hooks';
@@ -12,6 +18,8 @@
 
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
   const connection = useConnection();
+  const serverId = $derived(getActiveServer());
+  const accountSettingsPath = $derived(resolve('/chat/[serverId]/settings/account', { serverId }));
 
   // Check if the user has permission to delete their own account
   const permQuery = useQuery(
@@ -33,8 +41,61 @@
   let confirmText = $state('');
   let isDeleting = $state(false);
   let error = $state('');
+	let ssoProviders = $state.raw<SSOProvider[]>([]);
+	let linkedIdentities = $state.raw<LinkedSSOIdentity[]>([]);
+	let ssoLoading = $state(true);
+	let ssoError = $state('');
 
   const canDelete = $derived(confirmText === 'DELETE');
+  const linkedProviderIds = $derived(new Set(linkedIdentities.map((identity) => identity.providerId)));
+
+	$effect(() => {
+		const client = connection();
+		void loadExternalIdentities(client.serverId, client.connectBaseUrl, client.bearerToken);
+	});
+
+	async function loadExternalIdentities(
+		serverId: string | undefined,
+		baseUrl: string,
+		bearerToken: string | null
+	) {
+		ssoLoading = true;
+		ssoError = '';
+		try {
+			const api = createExternalIdentityAPI({
+				serverId,
+				baseUrl,
+				bearerToken
+			});
+      const result = await api.list();
+      ssoProviders = result.providers;
+      linkedIdentities = result.linkedIdentities;
+    } catch (err) {
+      ssoError = err instanceof Error ? err.message : m['settings.account.sso.load_failed']();
+    } finally {
+      ssoLoading = false;
+    }
+  }
+
+  function providerIcon(type: string): string {
+    switch (type) {
+      case 'github':
+        return 'mdi--github';
+      case 'gitlab':
+        return 'mdi--gitlab';
+      case 'google':
+        return 'mdi--google';
+      case 'discord':
+        return 'mdi--discord';
+      default:
+        return 'mdi--shield-account';
+    }
+  }
+
+  function providerLinkHref(provider: SSOProvider): string {
+    const separator = provider.linkUrl.includes('?') ? '&' : '?';
+    return `${provider.linkUrl}${separator}redirect=${encodeURIComponent(accountSettingsPath)}`;
+  }
 
   function openDeleteModal() {
     confirmText = '';
@@ -134,6 +195,47 @@
         <dd>{currentUser.user?.displayName}</dd>
       </div>
     </dl>
+  </FormSection>
+
+  <FormSection title={m['settings.account.sso.title']()} maxWidth="max-w-md">
+    <div class="flex flex-col gap-4">
+      {#if ssoLoading}
+        <p class="text-sm text-muted">{m['settings.account.sso.loading']()}</p>
+      {:else if ssoError}
+        <Hint tone="danger">{ssoError}</Hint>
+      {:else if ssoProviders.length === 0}
+        <p class="text-sm text-muted">{m['settings.account.sso.none_configured']()}</p>
+      {:else}
+        <div class="flex flex-col gap-3">
+          {#each ssoProviders as provider (provider.id)}
+            {@const linked = linkedProviderIds.has(provider.id)}
+            <div class="flex items-center justify-between gap-3 rounded border border-border p-3">
+              <div class="flex min-w-0 items-center gap-3">
+                <span class={['iconify text-lg text-muted', providerIcon(provider.type)]}></span>
+                <div class="min-w-0">
+                  <div class="truncate text-sm font-medium">{provider.label}</div>
+                  <div class="text-xs text-muted">
+                    {#if linked}
+                      {m['settings.account.sso.linked']()}
+                    {:else}
+                      {m['settings.account.sso.not_linked']()}
+                    {/if}
+                  </div>
+                </div>
+              </div>
+              {#if linked}
+                <span class="text-sm text-muted">{m['settings.account.sso.linked']()}</span>
+							{:else}
+								<Button variant="secondary" size="sm" href={providerLinkHref(provider)}>
+									<span class="iconify uil--link"></span>
+									{m['settings.account.sso.link_button']()}
+								</Button>
+							{/if}
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </div>
   </FormSection>
 
   <!-- Danger Zone (only shown if user has permission to delete their own account) -->

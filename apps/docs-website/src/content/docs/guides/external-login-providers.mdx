@@ -71,6 +71,7 @@ label = "Chatto Hub"
 issuer_url = "https://hub.chatto.dev"
 client_id = "..."
 client_secret = "..."
+auto_provision = true
 ```
 
 `issuer_url` must be an absolute `http` or `https` URL. Chatto uses OIDC discovery from that issuer and verifies the ID token before matching the external identity.
@@ -87,15 +88,17 @@ CHATTO_AUTH_PROVIDERS_0_LABEL="Chatto Hub"
 CHATTO_AUTH_PROVIDERS_0_ISSUER_URL=https://hub.chatto.dev
 CHATTO_AUTH_PROVIDERS_0_CLIENT_ID=...
 CHATTO_AUTH_PROVIDERS_0_CLIENT_SECRET=...
+CHATTO_AUTH_PROVIDERS_0_AUTO_PROVISION=true
 
 CHATTO_AUTH_PROVIDERS_1_ID=github-main
 CHATTO_AUTH_PROVIDERS_1_TYPE=github
 CHATTO_AUTH_PROVIDERS_1_LABEL=GitHub
 CHATTO_AUTH_PROVIDERS_1_CLIENT_ID=...
 CHATTO_AUTH_PROVIDERS_1_CLIENT_SECRET=...
+CHATTO_AUTH_PROVIDERS_1_AUTO_PROVISION=false
 ```
 
-Supported fields are `ID`, `TYPE`, `LABEL`, `CLIENT_ID`, `CLIENT_SECRET`, `ISSUER_URL`, `SCOPES`, `REQUEST_EMAIL`, and `PROVIDER_OPTIONS_<KEY>`. `SCOPES` is comma-separated, for example `CHATTO_AUTH_PROVIDERS_0_SCOPES=openid,profile,groups`.
+Supported fields are `ID`, `TYPE`, `LABEL`, `CLIENT_ID`, `CLIENT_SECRET`, `ISSUER_URL`, `SCOPES`, `REQUEST_EMAIL`, `AUTO_PROVISION`, and `PROVIDER_OPTIONS_<KEY>`. `SCOPES` is comma-separated, for example `CHATTO_AUTH_PROVIDERS_0_SCOPES=openid,profile,groups`.
 
 Any `CHATTO_AUTH_PROVIDERS_<index>_*` variables replace providers from `chatto.toml`.
 
@@ -124,6 +127,7 @@ type = "github"
 label = "GitHub"
 client_id = "..."
 client_secret = "..."
+auto_provision = false
 ```
 
 </TabItem>
@@ -139,6 +143,7 @@ type = "gitlab"
 label = "GitLab"
 client_id = "..."
 client_secret = "..."
+auto_provision = false
 ```
 
 </TabItem>
@@ -154,6 +159,7 @@ type = "google"
 label = "Google"
 client_id = "..."
 client_secret = "..."
+auto_provision = false
 ```
 
 </TabItem>
@@ -169,6 +175,7 @@ type = "discord"
 label = "Discord"
 client_id = "..."
 client_secret = "..."
+auto_provision = false
 ```
 
 </TabItem>
@@ -210,7 +217,11 @@ Chatto matches external logins by provider identity, not by email address.
 - OAuth-only providers are matched by the configured provider ID plus provider user ID.
 - Email claims are treated as profile data and are not used to pick an account.
 
-If a provider callback returns an identity that is not linked to a Chatto account, login is rejected until a future account-linking or account-creation flow explicitly links that identity.
+If a provider callback returns an identity that is not linked to a Chatto account, Chatto does not silently pick an account by email.
+
+Set `auto_provision = true` on a provider to allow new users from that provider to create Chatto accounts. The provider callback sends the user to an explicit confirmation screen where they choose the Chatto username. If `auto_provision` is omitted or `false`, an unlinked provider identity cannot create an account.
+
+Existing users can link providers from their account settings. Linking requires the user to already be signed in, start the provider link flow from Chatto, and confirm the pending link after the provider callback. Pending create and link tokens are short-lived and scoped to that specific action.
 
 ## Discovery fields
 

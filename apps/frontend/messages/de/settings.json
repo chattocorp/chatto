@@ -276,6 +276,15 @@
       "delete_button": "Konto löschen",
       "delete_failed": "Konto konnte nicht gelöscht werden",
       "delete_request_failed": "Kontolöschung konnte nicht angefordert werden",
+      "sso": {
+        "title": "Single Sign-On",
+        "loading": "Anmeldeanbieter werden geladen...",
+        "load_failed": "Anmeldeanbieter konnten nicht geladen werden",
+        "none_configured": "Es sind keine externen Anmeldeanbieter konfiguriert.",
+        "linked": "Verknüpft",
+        "not_linked": "Nicht verknüpft",
+        "link_button": "Verknüpfen"
+      },
       "delete_modal": {
         "title": "Konto löschen",
         "warning_label": "Warnung:",

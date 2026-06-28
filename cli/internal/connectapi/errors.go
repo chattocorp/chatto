@@ -26,16 +26,26 @@ func connectError(err error) error {
 	if errors.Is(err, core.ErrRoomNameExists) {
 		return connect.NewError(connect.CodeAlreadyExists, err)
 	}
+	if errors.Is(err, core.ErrLoginAlreadyTaken) ||
+		errors.Is(err, core.ErrEmailAlreadyVerified) ||
+		errors.Is(err, core.ErrExternalIdentityAlreadyClaimed) {
+		return connect.NewError(connect.CodeAlreadyExists, err)
+	}
 	if errors.Is(err, core.ErrCustomStatusEmojiRequired) ||
 		errors.Is(err, core.ErrCustomStatusTextRequired) ||
 		errors.Is(err, core.ErrCustomStatusEmojiTooLong) ||
 		errors.Is(err, core.ErrCustomStatusTextTooLong) ||
 		errors.Is(err, core.ErrCustomStatusExpiryInPast) ||
 		errors.Is(err, core.ErrCannotBanDMRoomMember) ||
+		errors.Is(err, core.ErrExternalIdentityFlowWrongKind) ||
+		errors.Is(err, core.ErrExternalIdentityFlowUserBound) ||
+		errors.Is(err, core.ErrUsernameBlocked) ||
 		errors.Is(err, core.ErrInvalidArgument) {
 		return connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	if errors.Is(err, core.ErrNotFound) ||
+		errors.Is(err, core.ErrExternalIdentityFlowNotFound) ||
+		errors.Is(err, core.ErrExternalIdentityFlowExpired) ||
 		errors.Is(err, core.ErrRoomGroupNotFound) ||
 		errors.Is(err, core.ErrSidebarLinkNotFound) ||
 		errors.Is(err, core.ErrMessageNotFound) ||
@@ -49,6 +59,7 @@ func connectError(err error) error {
 	}
 	if errors.Is(err, core.ErrRoomArchived) ||
 		errors.Is(err, core.ErrEditWindowExpired) ||
+		errors.Is(err, core.ErrLimitExceeded) ||
 		errors.Is(err, core.ErrCannotLeaveDMConversation) ||
 		errors.Is(err, core.ErrCannotLeaveUniversalRoom) {
 		return connect.NewError(connect.CodeFailedPrecondition, err)

@@ -571,6 +571,30 @@ export class AuthPage {
     return response.json();
   }
 
+  /**
+   * Create a pending external identity flow through the test-only endpoint.
+   * The returned URL drives the production /sso/confirm route and ConnectRPC
+   * confirmation methods.
+   */
+  async createExternalIdentityFlow(input: {
+    kind: 'create' | 'link';
+    providerId: string;
+    providerType: string;
+    providerLabel?: string;
+    issuer?: string;
+    subject: string;
+    verifiedEmail?: string;
+    loginHint?: string;
+    displayNameHint?: string;
+    boundUserId?: string;
+  }): Promise<{ token: string; confirmUrl: string }> {
+    const response = await this.page.request.post('/auth/test/external-identity-flow', {
+      data: input
+    });
+    expect(response.ok()).toBeTruthy();
+    return response.json();
+  }
+
   // --- Assertions ---
 
   /**

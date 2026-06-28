@@ -62,6 +62,8 @@ func (a *API) Handlers() []Handler {
 	serverPath, serverHandler := apiv1connect.NewServerServiceHandler(&serverService{api: a}, options...)
 	presencePath, presenceHandler := apiv1connect.NewPresenceServiceHandler(&presenceService{api: a}, options...)
 	messagePath, messageHandler := apiv1connect.NewMessageServiceHandler(&messageService{api: a}, options...)
+	externalFlowPath, externalFlowHandler := apiv1connect.NewExternalIdentityFlowServiceHandler(&externalIdentityFlowService{api: a}, options...)
+	externalIdentityPath, externalIdentityHandler := apiv1connect.NewExternalIdentityServiceHandler(&externalIdentityService{api: a}, options...)
 	prefsPath, prefsHandler := apiv1connect.NewNotificationPreferencesServiceHandler(&notificationPreferencesService{api: a}, options...)
 	readStatePath, readStateHandler := apiv1connect.NewReadStateServiceHandler(&readStateService{api: a}, options...)
 	reactionPath, reactionHandler := apiv1connect.NewReactionServiceHandler(&reactionService{api: a}, options...)
@@ -71,6 +73,8 @@ func (a *API) Handlers() []Handler {
 	userStatusPath, userStatusHandler := apiv1connect.NewUserStatusServiceHandler(&userStatusService{api: a}, options...)
 	threadPath, threadHandler := apiv1connect.NewThreadServiceHandler(&threadService{api: a}, options...)
 	return []Handler{
+		{ServicePath: externalFlowPath, Handler: externalFlowHandler, AuthPolicy: AuthPolicyPublic},
+		{ServicePath: externalIdentityPath, Handler: externalIdentityHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: messagePath, Handler: messageHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: serverPath, Handler: serverHandler, AuthPolicy: AuthPolicyPublic},
 		{ServicePath: presencePath, Handler: presenceHandler, AuthPolicy: AuthPolicyAuthenticatedUser},

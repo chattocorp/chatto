@@ -314,6 +314,13 @@ const msg_settings_account_danger_description = (): LocalizedString => messages(
 const msg_settings_account_delete_button = (): LocalizedString => messages().settings_account_delete_button(empty());
 const msg_settings_account_delete_failed = (): LocalizedString => messages().settings_account_delete_failed(empty());
 const msg_settings_account_delete_request_failed = (): LocalizedString => messages().settings_account_delete_request_failed(empty());
+const msg_settings_account_sso_title = (): LocalizedString => messages().settings_account_sso_title(empty());
+const msg_settings_account_sso_loading = (): LocalizedString => messages().settings_account_sso_loading(empty());
+const msg_settings_account_sso_load_failed = (): LocalizedString => messages().settings_account_sso_load_failed(empty());
+const msg_settings_account_sso_none_configured = (): LocalizedString => messages().settings_account_sso_none_configured(empty());
+const msg_settings_account_sso_linked = (): LocalizedString => messages().settings_account_sso_linked(empty());
+const msg_settings_account_sso_not_linked = (): LocalizedString => messages().settings_account_sso_not_linked(empty());
+const msg_settings_account_sso_link_button = (): LocalizedString => messages().settings_account_sso_link_button(empty());
 const msg_settings_account_delete_modal_title = (): LocalizedString => messages().settings_account_delete_modal_title(empty());
 const msg_settings_account_delete_modal_warning_label = (): LocalizedString => messages().settings_account_delete_modal_warning_label(empty());
 const msg_settings_account_delete_modal_warning_text = (): LocalizedString => messages().settings_account_delete_modal_warning_text(empty());
@@ -405,6 +412,21 @@ const msg_auth_oauth_allow_remember = (): LocalizedString => messages().auth_oau
 const msg_auth_oauth_authorizing = (): LocalizedString => messages().auth_oauth_authorizing(empty());
 const msg_auth_oauth_denying = (): LocalizedString => messages().auth_oauth_denying(empty());
 const msg_auth_oauth_return_home = (): LocalizedString => messages().auth_oauth_return_home(empty());
+const msg_auth_sso_title = (): LocalizedString => messages().auth_sso_title(empty());
+const msg_auth_sso_loading = (): LocalizedString => messages().auth_sso_loading(empty());
+const msg_auth_sso_invalid = (): LocalizedString => messages().auth_sso_invalid(empty());
+const msg_auth_sso_load_failed = (): LocalizedString => messages().auth_sso_load_failed(empty());
+const msg_auth_sso_create_intro = (
+  inputs: Parameters<LocaleMessages['auth_sso_create_intro']>[0]
+): LocalizedString => messages().auth_sso_create_intro(inputs);
+const msg_auth_sso_creating = (): LocalizedString => messages().auth_sso_creating(empty());
+const msg_auth_sso_create_failed = (): LocalizedString => messages().auth_sso_create_failed(empty());
+const msg_auth_sso_link_intro = (
+  inputs: Parameters<LocaleMessages['auth_sso_link_intro']>[0]
+): LocalizedString => messages().auth_sso_link_intro(inputs);
+const msg_auth_sso_link_button = (): LocalizedString => messages().auth_sso_link_button(empty());
+const msg_auth_sso_linking = (): LocalizedString => messages().auth_sso_linking(empty());
+const msg_auth_sso_link_failed = (): LocalizedString => messages().auth_sso_link_failed(empty());
 const msg_error_page_title = (): LocalizedString => messages().error_page_title(empty());
 const msg_error_page_description = (): LocalizedString => messages().error_page_description(empty());
 const msg_error_page_unknown = (): LocalizedString => messages().error_page_unknown(empty());
@@ -1480,6 +1502,13 @@ export { msg_settings_account_danger_description as 'settings.account.danger_des
 export { msg_settings_account_delete_button as 'settings.account.delete_button' };
 export { msg_settings_account_delete_failed as 'settings.account.delete_failed' };
 export { msg_settings_account_delete_request_failed as 'settings.account.delete_request_failed' };
+export { msg_settings_account_sso_title as 'settings.account.sso.title' };
+export { msg_settings_account_sso_loading as 'settings.account.sso.loading' };
+export { msg_settings_account_sso_load_failed as 'settings.account.sso.load_failed' };
+export { msg_settings_account_sso_none_configured as 'settings.account.sso.none_configured' };
+export { msg_settings_account_sso_linked as 'settings.account.sso.linked' };
+export { msg_settings_account_sso_not_linked as 'settings.account.sso.not_linked' };
+export { msg_settings_account_sso_link_button as 'settings.account.sso.link_button' };
 export { msg_settings_account_delete_modal_title as 'settings.account.delete_modal.title' };
 export { msg_settings_account_delete_modal_warning_label as 'settings.account.delete_modal.warning_label' };
 export { msg_settings_account_delete_modal_warning_text as 'settings.account.delete_modal.warning_text' };
@@ -1565,6 +1594,17 @@ export { msg_auth_oauth_allow_remember as 'auth.oauth.allow_remember' };
 export { msg_auth_oauth_authorizing as 'auth.oauth.authorizing' };
 export { msg_auth_oauth_denying as 'auth.oauth.denying' };
 export { msg_auth_oauth_return_home as 'auth.oauth.return_home' };
+export { msg_auth_sso_title as 'auth.sso.title' };
+export { msg_auth_sso_loading as 'auth.sso.loading' };
+export { msg_auth_sso_invalid as 'auth.sso.invalid' };
+export { msg_auth_sso_load_failed as 'auth.sso.load_failed' };
+export { msg_auth_sso_create_intro as 'auth.sso.create_intro' };
+export { msg_auth_sso_creating as 'auth.sso.creating' };
+export { msg_auth_sso_create_failed as 'auth.sso.create_failed' };
+export { msg_auth_sso_link_intro as 'auth.sso.link_intro' };
+export { msg_auth_sso_link_button as 'auth.sso.link_button' };
+export { msg_auth_sso_linking as 'auth.sso.linking' };
+export { msg_auth_sso_link_failed as 'auth.sso.link_failed' };
 export { msg_error_page_title as 'error_page.title' };
 export { msg_error_page_description as 'error_page.description' };
 export { msg_error_page_unknown as 'error_page.unknown' };

@@ -33,6 +33,7 @@ func createMailer(_ config.SMTPConfig) (*email.MockSender, email.Sender) {
 //   - POST /auth/test/create-user-session - Create, verify, join defaults, and log in a test user
 //   - POST /auth/test/create-registration-code - Create a registration code without email delivery
 //   - POST /auth/test/oauth-callback - Simulate OAuth callback
+//   - POST /auth/test/external-identity-flow - Create a pending external identity confirmation flow
 //   - POST /auth/test/oauth-authorize - Mint an OAuth authorization code without UI interaction
 //   - POST /auth/test/fail-next-asset-proxy-request - Fail upcoming Service Worker asset proxy requests
 func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
@@ -328,6 +329,70 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 				"id":    existingUser.Id,
 				"login": existingUser.Login,
 			},
+		})
+	})
+
+	// Test-only endpoint to create pending external-identity confirmation flows.
+	// This lets E2E tests exercise the production ConnectRPC confirmation UI
+	// without depending on a live OAuth/OIDC provider.
+	auth.POST("test/external-identity-flow", func(c *gin.Context) {
+		var req struct {
+			Kind            string `json:"kind" binding:"required"`
+			ProviderID      string `json:"providerId" binding:"required"`
+			ProviderType    string `json:"providerType" binding:"required"`
+			ProviderLabel   string `json:"providerLabel"`
+			Issuer          string `json:"issuer"`
+			Subject         string `json:"subject" binding:"required"`
+			VerifiedEmail   string `json:"verifiedEmail"`
+			LoginHint       string `json:"loginHint"`
+			DisplayNameHint string `json:"displayNameHint"`
+			BoundUserID     string `json:"boundUserId"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		if req.Issuer == "" {
+			req.Issuer = req.ProviderID
+		}
+
+		flow := core.PendingExternalIdentityFlow{
+			ProviderID:      req.ProviderID,
+			ProviderType:    req.ProviderType,
+			ProviderLabel:   req.ProviderLabel,
+			Issuer:          req.Issuer,
+			Subject:         req.Subject,
+			VerifiedEmail:   req.VerifiedEmail,
+			LoginHint:       req.LoginHint,
+			DisplayNameHint: req.DisplayNameHint,
+		}
+
+		var (
+			token string
+			err   error
+		)
+		switch req.Kind {
+		case core.ExternalIdentityFlowKindCreate:
+			token, err = s.core.CreatePendingExternalIdentityCreateFlow(c.Request.Context(), flow)
+		case core.ExternalIdentityFlowKindLink:
+			if req.BoundUserID == "" {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "boundUserId is required for link flows"})
+				return
+			}
+			token, err = s.core.CreatePendingExternalIdentityLinkFlow(c.Request.Context(), flow, req.BoundUserID)
+		default:
+			c.JSON(http.StatusBadRequest, gin.H{"error": "kind must be create or link"})
+			return
+		}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		confirmURL := "/sso/confirm?token=" + url.QueryEscape(token)
+		c.JSON(http.StatusOK, gin.H{
+			"token":      token,
+			"confirmUrl": confirmURL,
 		})
 	})
 

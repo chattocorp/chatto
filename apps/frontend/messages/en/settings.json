@@ -276,6 +276,15 @@
       "delete_button": "Delete Account",
       "delete_failed": "Failed to delete account",
       "delete_request_failed": "Failed to request account deletion",
+      "sso": {
+        "title": "Single Sign-On",
+        "loading": "Loading sign-on providers...",
+        "load_failed": "Failed to load sign-on providers",
+        "none_configured": "No external sign-on providers are configured.",
+        "linked": "Linked",
+        "not_linked": "Not linked",
+        "link_button": "Link"
+      },
       "delete_modal": {
         "title": "Delete Account",
         "warning_label": "Warning:",

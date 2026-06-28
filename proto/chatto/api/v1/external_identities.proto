@@ -1,0 +1,148 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "buf/validate/validate.proto";
+
+// Mode of a pending external identity confirmation flow.
+enum ExternalIdentityFlowKind {
+  // The flow kind was not specified.
+  EXTERNAL_IDENTITY_FLOW_KIND_UNSPECIFIED = 0;
+  // Create a new passwordless Chatto account and link the provider identity.
+  EXTERNAL_IDENTITY_FLOW_KIND_CREATE_ACCOUNT = 1;
+  // Link the provider identity to the authenticated Chatto account.
+  EXTERNAL_IDENTITY_FLOW_KIND_LINK_ACCOUNT = 2;
+}
+
+// Public metadata for a configured external login provider.
+message ExternalIdentityProvider {
+  // Stable configured provider ID.
+  string id = 1;
+  // Provider type, such as "oidc", "github", or "discord".
+  string type = 2;
+  // Human-readable label.
+  string label = 3;
+  // URL that starts login for this provider.
+  string login_url = 4;
+  // URL that starts authenticated account linking for this provider.
+  string link_url = 5;
+}
+
+// Metadata about a pending external identity flow. The provider subject is not
+// exposed; clients only need user-facing provider/profile hints.
+message PendingExternalIdentity {
+  // Pending flow kind.
+  ExternalIdentityFlowKind kind = 1;
+  // Provider ID that produced the identity.
+  string provider_id = 2;
+  // Provider type that produced the identity.
+  string provider_type = 3;
+  // Provider label shown to the user.
+  string provider_label = 4;
+  // Verified email supplied by the provider, when available.
+  string verified_email = 5;
+  // Suggested Chatto username derived from provider profile hints.
+  string login_hint = 6;
+  // Suggested display name derived from provider profile hints.
+  string display_name_hint = 7;
+  // Chatto user ID this link flow is bound to. Empty for create flows.
+  string bound_user_id = 8;
+}
+
+// Linked provider identity metadata for the authenticated user's settings UI.
+message LinkedExternalIdentity {
+  // Provider ID recorded when the identity was linked.
+  string provider_id = 1;
+  // Provider type recorded when the identity was linked.
+  string provider_type = 2;
+  // Current or fallback provider label.
+  string provider_label = 3;
+  // Stable one-way subject hash, useful only as a UI/list key.
+  string subject_hash = 4;
+}
+
+// Request to inspect a pending external identity flow.
+message GetPendingExternalIdentityRequest {
+  // Raw pending flow token from the provider callback redirect.
+  string token = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of inspecting a pending external identity flow.
+message GetPendingExternalIdentityResponse {
+  // Pending flow metadata.
+  PendingExternalIdentity pending = 1;
+}
+
+// Request to create a new passwordless account from a pending provider identity.
+message CreateExternalIdentityAccountRequest {
+  // Raw pending create token from the provider callback redirect.
+  string token = 1 [(buf.validate.field).string.min_len = 1];
+  // Desired Chatto username.
+  string login = 2 [(buf.validate.field).string = {
+    min_len: 2
+    max_len: 32
+  }];
+}
+
+// Result of creating an account from a pending provider identity.
+message CreateExternalIdentityAccountResponse {
+  // Newly created user ID.
+  string user_id = 1;
+  // Newly created username.
+  string login = 2;
+  // Bearer token for the new session.
+  string token = 3;
+}
+
+// Request to cancel a pending external identity flow.
+message CancelExternalIdentityFlowRequest {
+  // Raw pending flow token.
+  string token = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of cancelling a pending external identity flow.
+message CancelExternalIdentityFlowResponse {
+  // True when a pending flow was removed or already absent.
+  bool cancelled = 1;
+}
+
+// Request to list configured and linked external identities for the current user.
+message ListExternalIdentitiesRequest {}
+
+// Result of listing configured and linked external identities.
+message ListExternalIdentitiesResponse {
+  // Configured providers the user may link.
+  repeated ExternalIdentityProvider providers = 1;
+  // Provider identities already linked to the authenticated user.
+  repeated LinkedExternalIdentity linked_identities = 2;
+}
+
+// Request to link a pending provider identity to the authenticated user.
+message LinkExternalIdentityRequest {
+  // Raw pending link token from the provider callback redirect.
+  string token = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of linking a provider identity.
+message LinkExternalIdentityResponse {
+  // Linked identity metadata.
+  LinkedExternalIdentity linked_identity = 1;
+}
+
+// Public pending external identity flow operations.
+service ExternalIdentityFlowService {
+  // Reads safe metadata for a pending create/link flow.
+  rpc GetPendingExternalIdentity(GetPendingExternalIdentityRequest) returns (GetPendingExternalIdentityResponse);
+  // Creates a passwordless account from a pending provider identity.
+  rpc CreateExternalIdentityAccount(CreateExternalIdentityAccountRequest) returns (CreateExternalIdentityAccountResponse);
+  // Cancels a pending provider identity flow.
+  rpc CancelExternalIdentityFlow(CancelExternalIdentityFlowRequest) returns (CancelExternalIdentityFlowResponse);
+}
+
+// Authenticated external identity management.
+service ExternalIdentityService {
+  // Lists providers and identities linked to the authenticated account.
+  rpc ListExternalIdentities(ListExternalIdentitiesRequest) returns (ListExternalIdentitiesResponse);
+  // Links a pending provider identity to the authenticated account.
+  rpc LinkExternalIdentity(LinkExternalIdentityRequest) returns (LinkExternalIdentityResponse);
+}

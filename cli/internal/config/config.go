@@ -440,6 +440,7 @@ type AuthProviderConfig struct {
 	IssuerURL       string            `toml:"issuer_url,commented" comment:"OIDC issuer URL. Required when type = 'oidc'."`
 	Scopes          []string          `toml:"scopes,commented" comment:"Optional OAuth scopes. Defaults are provider-specific."`
 	RequestEmail    *bool             `toml:"request_email,commented" comment:"Whether to request email scopes for providers that support it. Default: true."`
+	AutoProvision   *bool             `toml:"auto_provision,commented" comment:"Whether unlinked external identities may create a new passwordless Chatto account after explicit confirmation. Default: false."`
 	ProviderOptions map[string]string `toml:"provider_options,commented" comment:"Provider-specific options reserved for future use."`
 }
 
@@ -459,6 +460,13 @@ func (c AuthProviderConfig) RequestEmailOrDefault() bool {
 		return true
 	}
 	return *c.RequestEmail
+}
+
+func (c AuthProviderConfig) AutoProvisionOrDefault() bool {
+	if c.AutoProvision == nil {
+		return false
+	}
+	return *c.AutoProvision
 }
 
 func IsAllowedAuthProviderType(providerType string) bool {
@@ -1339,6 +1347,12 @@ func applyAuthProviderEnvField(provider *AuthProviderConfig, name, field, value 
 			return fmt.Errorf("%s must be a boolean: %w", name, err)
 		}
 		provider.RequestEmail = &requestEmail
+	case "AUTO_PROVISION":
+		autoProvision, err := strconv.ParseBool(value)
+		if err != nil {
+			return fmt.Errorf("%s must be a boolean: %w", name, err)
+		}
+		provider.AutoProvision = &autoProvision
 	default:
 		const providerOptionsPrefix = "PROVIDER_OPTIONS_"
 		if strings.HasPrefix(field, providerOptionsPrefix) {

@@ -25,7 +25,9 @@ import (
 	"github.com/markbates/goth/providers/google"
 	"golang.org/x/oauth2"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/core/linkpreview"
+	graphauth "hmans.de/chatto/internal/graph/auth"
 )
 
 const (
@@ -149,6 +151,20 @@ func (s *HTTPServer) setupOIDCRoutes() {
 
 func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authProviderRuntime) {
 	session := sessions.Default(c)
+	intent := c.Query("intent")
+	if intent == "link" {
+		req := s.injectUserIntoContext(c)
+		user := graphauth.ForContext(req.Context())
+		if user == nil {
+			c.Redirect(http.StatusTemporaryRedirect, "/login?error=authentication_required")
+			return
+		}
+		session.Set(providerSessionKey(providerRuntime.config.ID, "intent"), "link")
+		session.Set(providerSessionKey(providerRuntime.config.ID, "link_user_id"), user.Id)
+	} else {
+		session.Set(providerSessionKey(providerRuntime.config.ID, "intent"), "login")
+		session.Delete(providerSessionKey(providerRuntime.config.ID, "link_user_id"))
+	}
 
 	// Store redirect URL if provided
 	if redirect := c.Query("redirect"); redirect != "" {
@@ -225,6 +241,10 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 	}
 
 	session.Delete(providerSessionKey(providerRuntime.config.ID, "state"))
+	intent, _ := session.Get(providerSessionKey(providerRuntime.config.ID, "intent")).(string)
+	linkUserID, _ := session.Get(providerSessionKey(providerRuntime.config.ID, "link_user_id")).(string)
+	session.Delete(providerSessionKey(providerRuntime.config.ID, "intent"))
+	session.Delete(providerSessionKey(providerRuntime.config.ID, "link_user_id"))
 
 	// Check for error from provider
 	if errCode := c.Query("error"); errCode != "" {
@@ -263,7 +283,16 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 	}
 	if user == nil {
 		log.Info("Provider login has no linked Chatto account", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type)
-		c.Redirect(http.StatusTemporaryRedirect, "/login?error=external_identity_unlinked")
+		s.redirectPendingExternalIdentity(c, session, providerRuntime.config, identity, intent, linkUserID)
+		return
+	}
+
+	if intent == "link" {
+		if linkUserID == "" || linkUserID != user.Id {
+			c.Redirect(http.StatusTemporaryRedirect, providerReturnPath(session, "/?error=external_identity_conflict"))
+			return
+		}
+		c.Redirect(http.StatusTemporaryRedirect, providerReturnPath(session, "/"))
 		return
 	}
 
@@ -293,10 +322,12 @@ type authProviderRuntime struct {
 }
 
 type resolvedProviderIdentity struct {
-	issuer    string
-	subject   string
-	email     string
-	avatarURL string
+	issuer          string
+	subject         string
+	verifiedEmail   string
+	avatarURL       string
+	loginHint       string
+	displayNameHint string
 }
 
 func newAuthProviderRuntime(providerConfig config.AuthProviderConfig, callbackURL string) (*authProviderRuntime, error) {
@@ -447,14 +478,17 @@ func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessio
 		}
 	}
 
+	verifiedEmail := ""
 	if claims.Email != "" && claims.EmailVerified {
-		claims.Email = strings.ToLower(strings.TrimSpace(claims.Email))
+		verifiedEmail = strings.ToLower(strings.TrimSpace(claims.Email))
 	}
 	return resolvedProviderIdentity{
-		issuer:    idToken.Issuer,
-		subject:   idToken.Subject,
-		email:     claims.Email,
-		avatarURL: claims.Picture,
+		issuer:          idToken.Issuer,
+		subject:         idToken.Subject,
+		verifiedEmail:   verifiedEmail,
+		avatarURL:       claims.Picture,
+		loginHint:       loginHintFromParts(claims.PreferredUser, verifiedEmail, claims.Name),
+		displayNameHint: displayNameHintFromParts(claims.Name, claims.PreferredUser, verifiedEmail),
 	}, nil
 }
 
@@ -478,11 +512,121 @@ func (r *authProviderRuntime) resolveGothIdentity(c *gin.Context, session sessio
 		return resolvedProviderIdentity{}, fmt.Errorf("provider returned empty user id")
 	}
 	return resolvedProviderIdentity{
-		issuer:    r.config.ID,
-		subject:   gothUser.UserID,
-		email:     strings.ToLower(strings.TrimSpace(gothUser.Email)),
-		avatarURL: gothUser.AvatarURL,
+		issuer:          r.config.ID,
+		subject:         gothUser.UserID,
+		avatarURL:       gothUser.AvatarURL,
+		loginHint:       loginHintFromParts(gothUser.NickName, gothUser.Email, gothUser.Name),
+		displayNameHint: displayNameHintFromParts(gothUser.Name, gothUser.NickName, gothUser.Email),
 	}, nil
+}
+
+func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session sessions.Session, providerConfig config.AuthProviderConfig, identity resolvedProviderIdentity, intent, linkUserID string) {
+	ctx := c.Request.Context()
+	flow := core.PendingExternalIdentityFlow{
+		ProviderID:      providerConfig.ID,
+		ProviderType:    providerConfig.Type,
+		ProviderLabel:   providerConfig.LabelOrDefault(),
+		Issuer:          identity.issuer,
+		Subject:         identity.subject,
+		VerifiedEmail:   identity.verifiedEmail,
+		AvatarURL:       identity.avatarURL,
+		LoginHint:       identity.loginHint,
+		DisplayNameHint: identity.displayNameHint,
+		RedirectPath:    providerReturnPath(session, "/"),
+	}
+
+	var (
+		token string
+		err   error
+	)
+	if intent == "link" {
+		if linkUserID == "" {
+			c.Redirect(http.StatusTemporaryRedirect, "/login?error=authentication_required")
+			return
+		}
+		token, err = s.core.CreatePendingExternalIdentityLinkFlow(ctx, flow, linkUserID)
+	} else {
+		if !providerConfig.AutoProvisionOrDefault() {
+			c.Redirect(http.StatusTemporaryRedirect, "/login?error=external_identity_unlinked")
+			return
+		}
+		token, err = s.core.CreatePendingExternalIdentityCreateFlow(ctx, flow)
+	}
+	if err != nil {
+		log.Error("Failed to create pending external identity flow", "provider_id", providerConfig.ID, "provider_type", providerConfig.Type, "error", err)
+		c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
+		return
+	}
+	c.Redirect(http.StatusTemporaryRedirect, "/sso/confirm?token="+url.QueryEscape(token))
+}
+
+func providerReturnPath(session sessions.Session, fallback string) string {
+	if redirect := session.Get("oauth_redirect"); redirect != nil {
+		if r, ok := redirect.(string); ok && r != "" && isValidInternalRedirect(r) {
+			session.Delete("oauth_redirect")
+			_ = session.Save()
+			return r
+		}
+	}
+	return fallback
+}
+
+func loginHintFromParts(parts ...string) string {
+	for _, part := range parts {
+		hint := loginHint(part)
+		if hint != "" {
+			return hint
+		}
+	}
+	return ""
+}
+
+func loginHint(value string) string {
+	value = strings.TrimSpace(value)
+	if emailName, _, ok := strings.Cut(value, "@"); ok {
+		value = emailName
+	}
+	value = strings.ToLower(value)
+	var b strings.Builder
+	lastDot := false
+	for _, r := range value {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '_' || r == '-':
+			b.WriteRune(r)
+			lastDot = false
+		case r == '.':
+			if !lastDot {
+				b.WriteRune(r)
+				lastDot = true
+			}
+		case r == ' ':
+			if !lastDot {
+				b.WriteRune('-')
+				lastDot = false
+			}
+		}
+		if b.Len() >= 32 {
+			break
+		}
+	}
+	hint := strings.Trim(b.String(), ".-_")
+	if len(hint) < 2 {
+		return ""
+	}
+	return hint
+}
+
+func displayNameHintFromParts(parts ...string) string {
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if emailName, _, ok := strings.Cut(part, "@"); ok {
+			part = emailName
+		}
+		if part != "" {
+			return part
+		}
+	}
+	return ""
 }
 
 func (s *HTTPServer) completeProviderLogin(c *gin.Context, session sessions.Session, userID string, providerConfig config.AuthProviderConfig) error {
