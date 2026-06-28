@@ -25,13 +25,28 @@ func (s *adminService) ListUsers(ctx context.Context, req *connect.Request[apiv1
 	}
 
 	limit, offset := apiPagination(req.Msg.GetPage(), defaultAdminUserLimit, maxAdminUserLimit)
+	if req.Msg.GetPage() == nil && (req.Msg.GetLimit() > 0 || req.Msg.GetOffset() > 0) {
+		limit = int(req.Msg.GetLimit())
+		if limit <= 0 {
+			limit = defaultAdminUserLimit
+		}
+		if limit > maxAdminUserLimit {
+			limit = maxAdminUserLimit
+		}
+		offset = int(req.Msg.GetOffset())
+		if offset < 0 {
+			offset = 0
+		}
+	}
 	users, err := s.api.core.AdminListUsers(ctx, req.Msg.GetSearch(), limit, offset)
 	if err != nil {
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.ListAdminUsersResponse{
-		Users: apiAdminUsers(users.Users),
-		Page:  apiPageInfo(users.TotalCount, users.HasMore),
+		Users:      apiAdminUsers(users.Users),
+		TotalCount: int32(users.TotalCount),
+		HasMore:    users.HasMore,
+		Page:       apiPageInfo(users.TotalCount, users.HasMore),
 	}), nil
 }
 

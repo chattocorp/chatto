@@ -381,6 +381,23 @@ func TestAdminServiceListUsersUsesSharedPageInfo(t *testing.T) {
 	if page := firstPageResp.Msg.GetPage(); page.GetTotalCount() != 2 || !page.GetHasMore() {
 		t.Fatalf("first page ListUsers page = %+v, want total 2 has_more true", page)
 	}
+	if firstPageResp.Msg.GetTotalCount() != 2 || !firstPageResp.Msg.GetHasMore() {
+		t.Fatalf("first page ListUsers legacy metadata = total %d has_more %v, want total 2 has_more true", firstPageResp.Msg.GetTotalCount(), firstPageResp.Msg.GetHasMore())
+	}
+
+	legacyResp, err := admin.ListUsers(ctx, connect.NewRequest(&apiv1.ListAdminUsersRequest{
+		Search: "admin-api-page",
+		Limit:  1,
+	}))
+	if err != nil {
+		t.Fatalf("ListUsers legacy pagination: %v", err)
+	}
+	if got := len(legacyResp.Msg.GetUsers()); got != 1 {
+		t.Fatalf("legacy ListUsers users = %d, want 1", got)
+	}
+	if page := legacyResp.Msg.GetPage(); page.GetTotalCount() != 2 || !page.GetHasMore() {
+		t.Fatalf("legacy ListUsers page = %+v, want total 2 has_more true", page)
+	}
 }
 
 func TestAdminServiceUpdateUserValidatesAllFieldsBeforeWriting(t *testing.T) {

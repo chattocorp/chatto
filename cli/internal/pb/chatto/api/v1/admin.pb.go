@@ -175,6 +175,14 @@ type ListAdminUsersRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional case-insensitive substring filter for login or display name.
 	Search string `protobuf:"bytes,1,opt,name=search,proto3" json:"search,omitempty"`
+	// Deprecated. Use page.limit.
+	//
+	// Deprecated: Marked as deprecated in chatto/api/v1/admin.proto.
+	Limit int32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	// Deprecated. Use page.offset.
+	//
+	// Deprecated: Marked as deprecated in chatto/api/v1/admin.proto.
+	Offset int32 `protobuf:"varint,3,opt,name=offset,proto3" json:"offset,omitempty"`
 	// Page request. Defaults to 20 results when absent or limit is zero.
 	Page          *PageRequest `protobuf:"bytes,4,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -218,6 +226,22 @@ func (x *ListAdminUsersRequest) GetSearch() string {
 	return ""
 }
 
+// Deprecated: Marked as deprecated in chatto/api/v1/admin.proto.
+func (x *ListAdminUsersRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+// Deprecated: Marked as deprecated in chatto/api/v1/admin.proto.
+func (x *ListAdminUsersRequest) GetOffset() int32 {
+	if x != nil {
+		return x.Offset
+	}
+	return 0
+}
+
 func (x *ListAdminUsersRequest) GetPage() *PageRequest {
 	if x != nil {
 		return x.Page
@@ -230,6 +254,14 @@ type ListAdminUsersResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Users in the requested page.
 	Users []*AdminUser `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty"`
+	// Deprecated. Use page.total_count.
+	//
+	// Deprecated: Marked as deprecated in chatto/api/v1/admin.proto.
+	TotalCount int32 `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	// Deprecated. Use page.has_more.
+	//
+	// Deprecated: Marked as deprecated in chatto/api/v1/admin.proto.
+	HasMore bool `protobuf:"varint,3,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
 	// Page metadata.
 	Page          *PageInfo `protobuf:"bytes,4,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -271,6 +303,22 @@ func (x *ListAdminUsersResponse) GetUsers() []*AdminUser {
 		return x.Users
 	}
 	return nil
+}
+
+// Deprecated: Marked as deprecated in chatto/api/v1/admin.proto.
+func (x *ListAdminUsersResponse) GetTotalCount() int32 {
+	if x != nil {
+		return x.TotalCount
+	}
+	return 0
+}
+
+// Deprecated: Marked as deprecated in chatto/api/v1/admin.proto.
+func (x *ListAdminUsersResponse) GetHasMore() bool {
+	if x != nil {
+		return x.HasMore
+	}
+	return false
 }
 
 func (x *ListAdminUsersResponse) GetPage() *PageInfo {
@@ -1123,13 +1171,18 @@ const file_chatto_api_v1_admin_proto_rawDesc = "" +
 	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x1d\n" +
 	"\n" +
 	"role_names\x18\x05 \x03(\tR\troleNames\x12J\n" +
-	"\x0fverified_emails\x18\x06 \x03(\v2!.chatto.api.v1.AdminVerifiedEmailR\x0everifiedEmails\"\x83\x01\n" +
+	"\x0fverified_emails\x18\x06 \x03(\v2!.chatto.api.v1.AdminVerifiedEmailR\x0everifiedEmails\"\x9e\x01\n" +
 	"\x15ListAdminUsersRequest\x12\x1f\n" +
-	"\x06search\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18dR\x06search\x12.\n" +
-	"\x04page\x18\x04 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x05limitR\x06offset\"\x98\x01\n" +
+	"\x06search\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18dR\x06search\x12\x18\n" +
+	"\x05limit\x18\x02 \x01(\x05B\x02\x18\x01R\x05limit\x12\x1a\n" +
+	"\x06offset\x18\x03 \x01(\x05B\x02\x18\x01R\x06offset\x12.\n" +
+	"\x04page\x18\x04 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\"\xb9\x01\n" +
 	"\x16ListAdminUsersResponse\x12.\n" +
-	"\x05users\x18\x01 \x03(\v2\x18.chatto.api.v1.AdminUserR\x05users\x12+\n" +
-	"\x04page\x18\x04 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\vtotal_countR\bhas_more\"D\n" +
+	"\x05users\x18\x01 \x03(\v2\x18.chatto.api.v1.AdminUserR\x05users\x12#\n" +
+	"\vtotal_count\x18\x02 \x01(\x05B\x02\x18\x01R\n" +
+	"totalCount\x12\x1d\n" +
+	"\bhas_more\x18\x03 \x01(\bB\x02\x18\x01R\ahasMore\x12+\n" +
+	"\x04page\x18\x04 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04page\"D\n" +
 	"\x13GetAdminUserRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\"D\n" +

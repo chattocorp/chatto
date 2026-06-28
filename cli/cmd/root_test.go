@@ -380,7 +380,7 @@ func TestAdminUserCommandsExerciseAdminAPI(t *testing.T) {
 		t.Fatalf("role remove output still contains cli-extra-role: %q", roleRemoveOut)
 	}
 
-	listOut := env.run(t, "admin", "user", "list", "--search", "cli-admin")
+	listOut := env.run(t, "admin", "user", "list", "--search", "cli-admin", "--limit", "101")
 	if !strings.Contains(listOut, "total=1 has_more=false") || !strings.Contains(listOut, "cli-admin-user") {
 		t.Fatalf("list output = %q", listOut)
 	}

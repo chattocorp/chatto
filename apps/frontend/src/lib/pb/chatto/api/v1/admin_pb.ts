@@ -152,6 +152,22 @@ export class ListAdminUsersRequest extends Message<ListAdminUsersRequest> {
   search = "";
 
   /**
+   * Deprecated. Use page.limit.
+   *
+   * @generated from field: int32 limit = 2 [deprecated = true];
+   * @deprecated
+   */
+  limit = 0;
+
+  /**
+   * Deprecated. Use page.offset.
+   *
+   * @generated from field: int32 offset = 3 [deprecated = true];
+   * @deprecated
+   */
+  offset = 0;
+
+  /**
    * Page request. Defaults to 20 results when absent or limit is zero.
    *
    * @generated from field: chatto.api.v1.PageRequest page = 4;
@@ -167,6 +183,8 @@ export class ListAdminUsersRequest extends Message<ListAdminUsersRequest> {
   static readonly typeName = "chatto.api.v1.ListAdminUsersRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "search", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "limit", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 3, name: "offset", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
     { no: 4, name: "page", kind: "message", T: PageRequest },
   ]);
 
@@ -201,6 +219,22 @@ export class ListAdminUsersResponse extends Message<ListAdminUsersResponse> {
   users: AdminUser[] = [];
 
   /**
+   * Deprecated. Use page.total_count.
+   *
+   * @generated from field: int32 total_count = 2 [deprecated = true];
+   * @deprecated
+   */
+  totalCount = 0;
+
+  /**
+   * Deprecated. Use page.has_more.
+   *
+   * @generated from field: bool has_more = 3 [deprecated = true];
+   * @deprecated
+   */
+  hasMore = false;
+
+  /**
    * Page metadata.
    *
    * @generated from field: chatto.api.v1.PageInfo page = 4;
@@ -216,6 +250,8 @@ export class ListAdminUsersResponse extends Message<ListAdminUsersResponse> {
   static readonly typeName = "chatto.api.v1.ListAdminUsersResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "users", kind: "message", T: AdminUser, repeated: true },
+    { no: 2, name: "total_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 3, name: "has_more", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 4, name: "page", kind: "message", T: PageInfo },
   ]);
 
