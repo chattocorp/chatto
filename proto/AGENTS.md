@@ -40,6 +40,10 @@ For `chatto/api/v1`:
   should take `PageRequest page` and return `PageInfo page`; do not add
   service-local `limit`, `offset`, `total_count`, or `has_more` fields for new
   list APIs.
+- Reuse canonical user shapes when they fit: `UserSummary` for lightweight
+  render/cache references, `UserPresenceSummary` when presence/custom status is
+  part of the result, and `DirectoryMember` only for directory/member rows with
+  roles and membership-oriented metadata.
 - For singular lookups, return `NOT_FOUND` when absence means the requested
   resource does not exist. Use optional response fields only when absence is a
   successful, meaningful state. Batch/list APIs may omit missing resources or

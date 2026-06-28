@@ -370,7 +370,7 @@ func (h *timelineHydrator) reactions(messageEventID string) []*apiv1.RoomTimelin
 	return result
 }
 
-func (h *timelineHydrator) users() (map[string]*apiv1.RoomTimelineUser, error) {
+func (h *timelineHydrator) users() (map[string]*apiv1.UserSummary, error) {
 	ids := make([]string, 0, len(h.userIDs))
 	for id := range h.userIDs {
 		ids = append(ids, id)
@@ -380,7 +380,7 @@ func (h *timelineHydrator) users() (map[string]*apiv1.RoomTimelineUser, error) {
 		return nil, err
 	}
 
-	result := make(map[string]*apiv1.RoomTimelineUser, len(ids))
+	result := make(map[string]*apiv1.UserSummary, len(ids))
 	avatarWidth, avatarHeight := 96, 96
 	for i, id := range ids {
 		user := coreUsers[i]
@@ -388,7 +388,7 @@ func (h *timelineHydrator) users() (map[string]*apiv1.RoomTimelineUser, error) {
 			user = core.DeletedUserReference(id)
 		}
 		avatarURL, _ := h.api.core.GetUserAvatarURL(h.ctx, user.Id, &avatarWidth, &avatarHeight, "cover")
-		result[id] = &apiv1.RoomTimelineUser{
+		result[id] = &apiv1.UserSummary{
 			Id:          user.Id,
 			Login:       user.Login,
 			DisplayName: user.DisplayName,

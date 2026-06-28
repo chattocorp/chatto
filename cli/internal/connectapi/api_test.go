@@ -678,12 +678,8 @@ func TestAdminEventLogServiceListsFiltersAndReadsEntries(t *testing.T) {
 		t.Fatalf("GetEvent entry = %+v, want payload for sequence %s", getResp.Msg.GetEntry(), entry.GetSequence())
 	}
 
-	missingResp, err := env.adminEventLog.GetEvent(ctx, connect.NewRequest(&apiv1.GetEventRequest{Sequence: "9999999"}))
-	if err != nil {
-		t.Fatalf("GetEvent missing: %v", err)
-	}
-	if missingResp.Msg.GetEntry() != nil {
-		t.Fatalf("missing entry = %+v, want nil", missingResp.Msg.GetEntry())
+	if _, err := env.adminEventLog.GetEvent(ctx, connect.NewRequest(&apiv1.GetEventRequest{Sequence: "9999999"})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("missing GetEvent code = %v, want not_found", connect.CodeOf(err))
 	}
 	if _, err := env.adminEventLog.GetEvent(ctx, connect.NewRequest(&apiv1.GetEventRequest{Sequence: "not-a-number"})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("invalid sequence code = %v, want invalid_argument", connect.CodeOf(err))

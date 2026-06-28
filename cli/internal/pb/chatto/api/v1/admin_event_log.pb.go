@@ -392,8 +392,8 @@ func (x *GetEventRequest) GetSequence() string {
 // Result of reading one durable EVT entry.
 type GetEventResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Entry is absent when the requested sequence does not exist.
-	Entry         *AdminEventLogEntry `protobuf:"bytes,1,opt,name=entry,proto3,oneof" json:"entry,omitempty"`
+	// Requested event-log entry.
+	Entry         *AdminEventLogEntry `protobuf:"bytes,1,opt,name=entry,proto3" json:"entry,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -586,10 +586,9 @@ const file_chatto_api_v1_admin_event_log_proto_rawDesc = "" +
 	"\vevent_types\x18\x01 \x03(\tR\n" +
 	"eventTypes\"6\n" +
 	"\x0fGetEventRequest\x12#\n" +
-	"\bsequence\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bsequence\"Z\n" +
-	"\x10GetEventResponse\x12<\n" +
-	"\x05entry\x18\x01 \x01(\v2!.chatto.api.v1.AdminEventLogEntryH\x00R\x05entry\x88\x01\x01B\b\n" +
-	"\x06_entry\"\xc7\x02\n" +
+	"\bsequence\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bsequence\"K\n" +
+	"\x10GetEventResponse\x127\n" +
+	"\x05entry\x18\x01 \x01(\v2!.chatto.api.v1.AdminEventLogEntryR\x05entry\"\xc7\x02\n" +
 	"\x12AdminEventLogEntry\x12\x1a\n" +
 	"\bsequence\x18\x01 \x01(\tR\bsequence\x12\x18\n" +
 	"\asubject\x18\x02 \x01(\tR\asubject\x12%\n" +
@@ -660,7 +659,6 @@ func file_chatto_api_v1_admin_event_log_proto_init() {
 	}
 	file_chatto_api_v1_admin_event_log_proto_msgTypes[1].OneofWrappers = []any{}
 	file_chatto_api_v1_admin_event_log_proto_msgTypes[2].OneofWrappers = []any{}
-	file_chatto_api_v1_admin_event_log_proto_msgTypes[6].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

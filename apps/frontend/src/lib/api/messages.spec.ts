@@ -6,9 +6,9 @@ import { MentionConfirmationChallenge, PostMessageResponse } from '$lib/pb/chatt
 import {
 	RoomTimelineEvent,
 	RoomTimelineIncludes,
-	RoomTimelineMessagePosted,
-	RoomTimelineUser
+	RoomTimelineMessagePosted
 } from '$lib/pb/chatto/api/v1/room_timeline_pb';
+import { UserSummary } from '$lib/pb/chatto/api/v1/users_pb';
 
 const mocks = vi.hoisted(() => ({
 	createClient: vi.fn(),
@@ -83,7 +83,7 @@ describe('createMessageAPI', () => {
 				},
 				includes: new RoomTimelineIncludes({
 					users: {
-						'user-1': new RoomTimelineUser({
+						'user-1': new UserSummary({
 							id: 'user-1',
 							login: 'alice',
 							displayName: 'Alice'

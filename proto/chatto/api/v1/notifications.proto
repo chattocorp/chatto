@@ -4,27 +4,8 @@ package chatto.api.v1;
 
 import "buf/validate/validate.proto";
 import "chatto/api/v1/pagination.proto";
-import "chatto/api/v1/presence.proto";
-import "chatto/api/v1/user_status.proto";
+import "chatto/api/v1/users.proto";
 import "google/protobuf/timestamp.proto";
-
-// User summary embedded in notification responses.
-message NotificationActor {
-  // Stable user ID.
-  string id = 1;
-  // Login identifier.
-  string login = 2;
-  // Display name shown in Chatto.
-  string display_name = 3;
-  // True when this is a tombstone/deleted user representation.
-  bool deleted = 4;
-  // Optional avatar URL.
-  optional string avatar_url = 5;
-  // Current live presence status.
-  PresenceStatus presence_status = 6;
-  // Custom profile status, when set.
-  CustomUserStatus custom_status = 7;
-}
 
 // Room summary embedded in notification responses.
 message NotificationRoom {
@@ -79,7 +60,7 @@ message NotificationItem {
   // Creation time.
   google.protobuf.Timestamp created_at = 2;
   // User who triggered the notification, when still resolvable.
-  NotificationActor actor = 3;
+  UserPresenceSummary actor = 3;
   // Short human-readable notification summary.
   string summary = 4;
 

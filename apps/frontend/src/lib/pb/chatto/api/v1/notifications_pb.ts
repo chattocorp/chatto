@@ -5,98 +5,8 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
-import { PresenceStatus } from "./presence_pb.js";
-import { CustomUserStatus } from "./user_status_pb.js";
+import { UserPresenceSummary } from "./users_pb.js";
 import { PageInfo, PageRequest } from "./pagination_pb.js";
-
-/**
- * User summary embedded in notification responses.
- *
- * @generated from message chatto.api.v1.NotificationActor
- */
-export class NotificationActor extends Message<NotificationActor> {
-  /**
-   * Stable user ID.
-   *
-   * @generated from field: string id = 1;
-   */
-  id = "";
-
-  /**
-   * Login identifier.
-   *
-   * @generated from field: string login = 2;
-   */
-  login = "";
-
-  /**
-   * Display name shown in Chatto.
-   *
-   * @generated from field: string display_name = 3;
-   */
-  displayName = "";
-
-  /**
-   * True when this is a tombstone/deleted user representation.
-   *
-   * @generated from field: bool deleted = 4;
-   */
-  deleted = false;
-
-  /**
-   * Optional avatar URL.
-   *
-   * @generated from field: optional string avatar_url = 5;
-   */
-  avatarUrl?: string;
-
-  /**
-   * Current live presence status.
-   *
-   * @generated from field: chatto.api.v1.PresenceStatus presence_status = 6;
-   */
-  presenceStatus = PresenceStatus.UNSPECIFIED;
-
-  /**
-   * Custom profile status, when set.
-   *
-   * @generated from field: chatto.api.v1.CustomUserStatus custom_status = 7;
-   */
-  customStatus?: CustomUserStatus;
-
-  constructor(data?: PartialMessage<NotificationActor>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.NotificationActor";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "deleted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 5, name: "avatar_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 6, name: "presence_status", kind: "enum", T: proto3.getEnumType(PresenceStatus) },
-    { no: 7, name: "custom_status", kind: "message", T: CustomUserStatus },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationActor {
-    return new NotificationActor().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NotificationActor {
-    return new NotificationActor().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NotificationActor {
-    return new NotificationActor().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: NotificationActor | PlainMessage<NotificationActor> | undefined, b: NotificationActor | PlainMessage<NotificationActor> | undefined): boolean {
-    return proto3.util.equals(NotificationActor, a, b);
-  }
-}
 
 /**
  * Room summary embedded in notification responses.
@@ -390,9 +300,9 @@ export class NotificationItem extends Message<NotificationItem> {
   /**
    * User who triggered the notification, when still resolvable.
    *
-   * @generated from field: chatto.api.v1.NotificationActor actor = 3;
+   * @generated from field: chatto.api.v1.UserPresenceSummary actor = 3;
    */
-  actor?: NotificationActor;
+  actor?: UserPresenceSummary;
 
   /**
    * Short human-readable notification summary.
@@ -448,7 +358,7 @@ export class NotificationItem extends Message<NotificationItem> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "created_at", kind: "message", T: Timestamp },
-    { no: 3, name: "actor", kind: "message", T: NotificationActor },
+    { no: 3, name: "actor", kind: "message", T: UserPresenceSummary },
     { no: 4, name: "summary", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 10, name: "direct_message", kind: "message", T: DirectMessageNotification, oneof: "kind" },
     { no: 11, name: "mention", kind: "message", T: MentionNotification, oneof: "kind" },

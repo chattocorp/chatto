@@ -235,7 +235,7 @@ func (s *notificationService) apiNotificationItem(ctx context.Context, notificat
 	return item, nil
 }
 
-func (s *notificationService) notificationActor(ctx context.Context, userID string) (*apiv1.NotificationActor, error) {
+func (s *notificationService) notificationActor(ctx context.Context, userID string) (*apiv1.UserPresenceSummary, error) {
 	if userID == "" {
 		return nil, nil
 	}
@@ -250,7 +250,7 @@ func (s *notificationService) notificationActor(ctx context.Context, userID stri
 	if err != nil {
 		return nil, connectError(err)
 	}
-	actor := &apiv1.NotificationActor{
+	actor := &apiv1.UserPresenceSummary{
 		Id:             user.GetId(),
 		Login:          user.GetLogin(),
 		DisplayName:    user.GetDisplayName(),
@@ -280,7 +280,7 @@ func (s *notificationService) notificationRoom(ctx context.Context, roomID strin
 	}, nil
 }
 
-func notificationSummary(actor *apiv1.NotificationActor, notification *corev1.Notification) string {
+func notificationSummary(actor *apiv1.UserPresenceSummary, notification *corev1.Notification) string {
 	actorName := ""
 	if actor != nil {
 		actorName = actor.GetDisplayName()

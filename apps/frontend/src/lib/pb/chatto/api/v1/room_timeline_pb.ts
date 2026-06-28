@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
+import { UserSummary } from "./users_pb.js";
 
 /**
  * Processing state for a timeline video attachment.
@@ -49,82 +50,6 @@ proto3.util.setEnumType(RoomTimelineVideoProcessingStatus, "chatto.api.v1.RoomTi
 ]);
 
 /**
- * User data included with room timeline events.
- *
- * Timeline events reference users by ID; clients can resolve those IDs through
- * the includes block returned with each page.
- *
- * @generated from message chatto.api.v1.RoomTimelineUser
- */
-export class RoomTimelineUser extends Message<RoomTimelineUser> {
-  /**
-   * Stable user ID.
-   *
-   * @generated from field: string id = 1;
-   */
-  id = "";
-
-  /**
-   * Login name.
-   *
-   * @generated from field: string login = 2;
-   */
-  login = "";
-
-  /**
-   * Display name, when set.
-   *
-   * @generated from field: string display_name = 3;
-   */
-  displayName = "";
-
-  /**
-   * True when the user account has been deleted.
-   *
-   * @generated from field: bool deleted = 4;
-   */
-  deleted = false;
-
-  /**
-   * Avatar image URL, when available.
-   *
-   * @generated from field: string avatar_url = 5;
-   */
-  avatarUrl = "";
-
-  constructor(data?: PartialMessage<RoomTimelineUser>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.RoomTimelineUser";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "deleted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 5, name: "avatar_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomTimelineUser {
-    return new RoomTimelineUser().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomTimelineUser {
-    return new RoomTimelineUser().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomTimelineUser {
-    return new RoomTimelineUser().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RoomTimelineUser | PlainMessage<RoomTimelineUser> | undefined, b: RoomTimelineUser | PlainMessage<RoomTimelineUser> | undefined): boolean {
-    return proto3.util.equals(RoomTimelineUser, a, b);
-  }
-}
-
-/**
  * Related entities included beside timeline events.
  *
  * Includes avoid repeating the same user data on every event in a page.
@@ -135,9 +60,9 @@ export class RoomTimelineIncludes extends Message<RoomTimelineIncludes> {
   /**
    * Users keyed by user ID.
    *
-   * @generated from field: map<string, chatto.api.v1.RoomTimelineUser> users = 1;
+   * @generated from field: map<string, chatto.api.v1.UserSummary> users = 1;
    */
-  users: { [key: string]: RoomTimelineUser } = {};
+  users: { [key: string]: UserSummary } = {};
 
   constructor(data?: PartialMessage<RoomTimelineIncludes>) {
     super();
@@ -147,7 +72,7 @@ export class RoomTimelineIncludes extends Message<RoomTimelineIncludes> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.RoomTimelineIncludes";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "users", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "message", T: RoomTimelineUser} },
+    { no: 1, name: "users", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "message", T: UserSummary} },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomTimelineIncludes {

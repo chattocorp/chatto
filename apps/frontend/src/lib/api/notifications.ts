@@ -4,9 +4,9 @@ import { NotificationService } from '$lib/pb/chatto/api/v1/notifications_connect
 import type {
   ListRoomNotificationsResponse,
   ListNotificationsResponse,
-  NotificationActor as APINotificationActor,
   NotificationItem as APINotificationItem
 } from '$lib/pb/chatto/api/v1/notifications_pb';
+import type { UserPresenceSummary as APIUserPresenceSummary } from '$lib/pb/chatto/api/v1/users_pb';
 import { PresenceStatus as APIPresenceStatus } from '$lib/pb/chatto/api/v1/presence_pb';
 import { PresenceStatus } from '$lib/render/types';
 
@@ -201,7 +201,7 @@ function notificationItem(item: APINotificationItem): NotificationItem | null {
   }
 }
 
-function notificationActor(actor: APINotificationActor | undefined): NotificationActor | null {
+function notificationActor(actor: APIUserPresenceSummary | undefined): NotificationActor | null {
   if (!actor) return null;
   return {
     id: actor.id,

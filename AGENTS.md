@@ -97,6 +97,10 @@ For ad-hoc tool invocations, use `mise x -- ...` rather than assuming `go`,
   use `PageRequest page` and return `PageInfo page`; singular lookups should
   return `NOT_FOUND` when absence is the error result, while batch/list RPCs can
   omit missing items or return empty lists.
+- Reuse canonical API user shapes instead of adding service-local copies:
+  `UserSummary` for lightweight render/cache references,
+  `UserPresenceSummary` when presence/custom status is included, and
+  `DirectoryMember` for directory/member rows with roles.
 - Persisted protobuf messages in `EVT`, `RUNTIME_STATE`, `ENCRYPTION_KEYS`, and
   other JetStream resources are comparatively stable. Do not renumber fields or
   change field types; prefer additive evolution and migrations/repair code.

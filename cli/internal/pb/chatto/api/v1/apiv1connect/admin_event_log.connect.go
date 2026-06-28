@@ -50,7 +50,8 @@ type AdminEventLogServiceClient interface {
 	ListEvents(context.Context, *connect.Request[v1.ListEventsRequest]) (*connect.Response[v1.ListEventsResponse], error)
 	// Lists filterable event type names.
 	ListEventTypes(context.Context, *connect.Request[v1.ListEventTypesRequest]) (*connect.Response[v1.ListEventTypesResponse], error)
-	// Reads one durable EVT entry by stream sequence.
+	// Reads one durable EVT entry by stream sequence. Returns NOT_FOUND when the
+	// requested sequence does not exist.
 	GetEvent(context.Context, *connect.Request[v1.GetEventRequest]) (*connect.Response[v1.GetEventResponse], error)
 }
 
@@ -115,7 +116,8 @@ type AdminEventLogServiceHandler interface {
 	ListEvents(context.Context, *connect.Request[v1.ListEventsRequest]) (*connect.Response[v1.ListEventsResponse], error)
 	// Lists filterable event type names.
 	ListEventTypes(context.Context, *connect.Request[v1.ListEventTypesRequest]) (*connect.Response[v1.ListEventTypesResponse], error)
-	// Reads one durable EVT entry by stream sequence.
+	// Reads one durable EVT entry by stream sequence. Returns NOT_FOUND when the
+	// requested sequence does not exist.
 	GetEvent(context.Context, *connect.Request[v1.GetEventRequest]) (*connect.Response[v1.GetEventResponse], error)
 }
 
