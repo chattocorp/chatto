@@ -9,6 +9,7 @@ type RoleUserSummary struct {
 	ID          string
 	Login       string
 	DisplayName string
+	Deleted     bool
 }
 
 type RoleCatalog struct {
@@ -158,6 +159,7 @@ func (c *ChattoCore) serverRoleUsers(ctx context.Context, roleName string) ([]Ro
 			ID:          user.GetId(),
 			Login:       user.GetLogin(),
 			DisplayName: user.GetDisplayName(),
+			Deleted:     user.GetDeleted(),
 		})
 	}
 	return users, nil

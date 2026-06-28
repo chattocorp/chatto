@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
+import "chatto/api/v1/pagination.proto";
 import "chatto/api/v1/room_timeline.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -34,17 +35,15 @@ message AttachmentThumbnailOptions {
 
 // Request for room-scoped attachment list pages.
 message ListRoomAttachmentsRequest {
+  reserved 2, 3;
+  reserved "limit", "offset";
+
   // Required room ID.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Maximum number of attachments to return.
-  int32 limit = 2 [(buf.validate.field).int32 = {
-    gte: 1,
-    lte: 100
-  }];
-  // Zero-based offset into the newest-first attachment list.
-  int32 offset = 3 [(buf.validate.field).int32.gte = 0];
   // Thumbnail URL options. Defaults are applied when absent.
   AttachmentThumbnailOptions thumbnail = 4;
+  // Page request. Defaults are applied when absent or limit is zero.
+  PageRequest page = 5;
 }
 
 // One current room attachment and its message anchor.
@@ -61,12 +60,13 @@ message RoomAttachmentListItem {
 
 // Room-scoped attachment list response.
 message ListRoomAttachmentsResponse {
+  reserved 2, 3;
+  reserved "total_count", "has_more";
+
   // Current attachments in newest message order.
   repeated RoomAttachmentListItem items = 1;
-  // Total current attachment count for the room.
-  int32 total_count = 2;
-  // True when a later page exists.
-  bool has_more = 3;
+  // Page metadata.
+  PageInfo page = 4;
 }
 
 // Request to refresh signed attachment URLs for one message.

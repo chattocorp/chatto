@@ -1,4 +1,5 @@
 import { protoInt64, Timestamp } from '@bufbuild/protobuf';
+import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createAdminEventLogAPI } from './adminEventLog';
 
@@ -144,5 +145,12 @@ describe('createAdminEventLogAPI', () => {
     });
     expect(mocks.listEventTypes).toHaveBeenCalledWith({}, { headers: undefined });
     expect(mocks.getEvent).toHaveBeenCalledWith({ sequence: '7' }, { headers: undefined });
+  });
+
+  it('maps a missing event to null', async () => {
+    mocks.getEvent.mockRejectedValue(new ConnectError('not found', Code.NotFound));
+    const api = createAdminEventLogAPI({ baseUrl: '/api/connect', bearerToken: null });
+
+    await expect(api.getEvent('404')).resolves.toBeNull();
   });
 });

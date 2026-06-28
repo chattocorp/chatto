@@ -60,6 +60,7 @@ type AdminUserManagementServiceClient interface {
 	// Lists server members for the admin members screen.
 	ListMembers(context.Context, *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error)
 	// Gets one server member plus role/permission metadata for admin details.
+	// Returns NOT_FOUND when the user does not exist.
 	GetMember(context.Context, *connect.Request[v1.GetMemberRequest]) (*connect.Response[v1.GetMemberResponse], error)
 	// Assigns a server role to a user.
 	AssignRole(context.Context, *connect.Request[v1.AssignRoleRequest]) (*connect.Response[v1.AssignRoleResponse], error)
@@ -167,6 +168,7 @@ type AdminUserManagementServiceHandler interface {
 	// Lists server members for the admin members screen.
 	ListMembers(context.Context, *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error)
 	// Gets one server member plus role/permission metadata for admin details.
+	// Returns NOT_FOUND when the user does not exist.
 	GetMember(context.Context, *connect.Request[v1.GetMemberRequest]) (*connect.Response[v1.GetMemberResponse], error)
 	// Assigns a server role to a user.
 	AssignRole(context.Context, *connect.Request[v1.AssignRoleRequest]) (*connect.Response[v1.AssignRoleResponse], error)

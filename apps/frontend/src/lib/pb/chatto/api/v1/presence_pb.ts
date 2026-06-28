@@ -7,11 +7,11 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3 } from "@bufbuild/protobuf";
 
 /**
- * Live presence status a client can report for the current user.
+ * Live presence status returned by public read APIs.
  *
- * Offline is not a reportable status. Clients that want the user to appear
- * offline should stop reporting presence and let the server's live presence
- * record expire.
+ * Offline is a read-side state only. Clients cannot report Offline through
+ * PresenceService.ReportPresence; they should stop reporting presence and let
+ * the server's live presence record expire.
  *
  * @generated from enum chatto.api.v1.PresenceStatus
  */
@@ -43,6 +43,13 @@ export enum PresenceStatus {
    * @generated from enum value: PRESENCE_STATUS_DO_NOT_DISTURB = 3;
    */
   DO_NOT_DISTURB = 3,
+
+  /**
+   * The user has no active live presence record.
+   *
+   * @generated from enum value: PRESENCE_STATUS_OFFLINE = 4;
+   */
+  OFFLINE = 4,
 }
 // Retrieve enum metadata with: proto3.getEnumType(PresenceStatus)
 proto3.util.setEnumType(PresenceStatus, "chatto.api.v1.PresenceStatus", [
@@ -50,6 +57,7 @@ proto3.util.setEnumType(PresenceStatus, "chatto.api.v1.PresenceStatus", [
   { no: 1, name: "PRESENCE_STATUS_ONLINE" },
   { no: 2, name: "PRESENCE_STATUS_AWAY" },
   { no: 3, name: "PRESENCE_STATUS_DO_NOT_DISTURB" },
+  { no: 4, name: "PRESENCE_STATUS_OFFLINE" },
 ]);
 
 /**
@@ -59,7 +67,7 @@ proto3.util.setEnumType(PresenceStatus, "chatto.api.v1.PresenceStatus", [
  */
 export class ReportPresenceRequest extends Message<ReportPresenceRequest> {
   /**
-   * Live status to report for the authenticated user.
+   * Live status to report for the authenticated user. Offline is rejected.
    *
    * @generated from field: chatto.api.v1.PresenceStatus status = 1;
    */
@@ -110,7 +118,7 @@ export class ReportPresenceRequest extends Message<ReportPresenceRequest> {
  */
 export class ReportPresenceResponse extends Message<ReportPresenceResponse> {
   /**
-   * Status accepted and stored by the server.
+   * Reportable status accepted and stored by the server.
    *
    * @generated from field: chatto.api.v1.PresenceStatus status = 1;
    */

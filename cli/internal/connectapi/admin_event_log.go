@@ -55,6 +55,9 @@ func (s *adminEventLogService) GetEvent(ctx context.Context, req *connect.Reques
 	if err != nil {
 		return nil, connectError(err)
 	}
+	if entry == nil {
+		return nil, connectError(core.ErrNotFound)
+	}
 	return connect.NewResponse(&apiv1.GetEventResponse{
 		Entry: adminEventLogEntryToAPI(entry),
 	}), nil

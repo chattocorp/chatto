@@ -135,21 +135,9 @@ func (x *UserSettings) GetTimeFormat() TimeFormat {
 	return TimeFormat_TIME_FORMAT_UNSPECIFIED
 }
 
-// Current authenticated user's public profile and self-only settings.
+// Current authenticated user's public profile plus self-only settings.
 type ViewerUser struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Stable user ID.
-	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Login identifier.
-	Login string `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`
-	// Display name shown in Chatto.
-	DisplayName string `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	// Optional avatar URL.
-	AvatarUrl *string `protobuf:"bytes,4,opt,name=avatar_url,json=avatarUrl,proto3,oneof" json:"avatar_url,omitempty"`
-	// Custom profile status, when set.
-	CustomStatus *CustomUserStatus `protobuf:"bytes,5,opt,name=custom_status,json=customStatus,proto3" json:"custom_status,omitempty"`
-	// Current live presence status.
-	PresenceStatus PresenceStatus `protobuf:"varint,6,opt,name=presence_status,json=presenceStatus,proto3,enum=chatto.api.v1.PresenceStatus" json:"presence_status,omitempty"`
 	// Whether the account has at least one verified email address.
 	HasVerifiedEmail bool `protobuf:"varint,7,opt,name=has_verified_email,json=hasVerifiedEmail,proto3" json:"has_verified_email,omitempty"`
 	// Current user's display settings.
@@ -158,8 +146,10 @@ type ViewerUser struct {
 	ViewerCanDeleteAccount bool `protobuf:"varint,9,opt,name=viewer_can_delete_account,json=viewerCanDeleteAccount,proto3" json:"viewer_can_delete_account,omitempty"`
 	// Last time a login credential changed, when known.
 	LastLoginChange *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=last_login_change,json=lastLoginChange,proto3" json:"last_login_change,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Public profile and live presence fields for the authenticated user.
+	Profile       *UserPresenceSummary `protobuf:"bytes,11,opt,name=profile,proto3" json:"profile,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ViewerUser) Reset() {
@@ -192,48 +182,6 @@ func (*ViewerUser) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *ViewerUser) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *ViewerUser) GetLogin() string {
-	if x != nil {
-		return x.Login
-	}
-	return ""
-}
-
-func (x *ViewerUser) GetDisplayName() string {
-	if x != nil {
-		return x.DisplayName
-	}
-	return ""
-}
-
-func (x *ViewerUser) GetAvatarUrl() string {
-	if x != nil && x.AvatarUrl != nil {
-		return *x.AvatarUrl
-	}
-	return ""
-}
-
-func (x *ViewerUser) GetCustomStatus() *CustomUserStatus {
-	if x != nil {
-		return x.CustomStatus
-	}
-	return nil
-}
-
-func (x *ViewerUser) GetPresenceStatus() PresenceStatus {
-	if x != nil {
-		return x.PresenceStatus
-	}
-	return PresenceStatus_PRESENCE_STATUS_UNSPECIFIED
-}
-
 func (x *ViewerUser) GetHasVerifiedEmail() bool {
 	if x != nil {
 		return x.HasVerifiedEmail
@@ -258,6 +206,13 @@ func (x *ViewerUser) GetViewerCanDeleteAccount() bool {
 func (x *ViewerUser) GetLastLoginChange() *timestamppb.Timestamp {
 	if x != nil {
 		return x.LastLoginChange
+	}
+	return nil
+}
+
+func (x *ViewerUser) GetProfile() *UserPresenceSummary {
+	if x != nil {
+		return x.Profile
 	}
 	return nil
 }
@@ -622,27 +577,21 @@ var File_chatto_api_v1_viewer_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_viewer_proto_rawDesc = "" +
 	"\n" +
-	"\x1achatto/api/v1/viewer.proto\x12\rchatto.api.v1\x1a,chatto/api/v1/notification_preferences.proto\x1a\x1cchatto/api/v1/presence.proto\x1a\x1fchatto/api/v1/user_status.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"x\n" +
+	"\x1achatto/api/v1/viewer.proto\x12\rchatto.api.v1\x1a,chatto/api/v1/notification_preferences.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"x\n" +
 	"\fUserSettings\x12\x1f\n" +
 	"\btimezone\x18\x01 \x01(\tH\x00R\btimezone\x88\x01\x01\x12:\n" +
 	"\vtime_format\x18\x02 \x01(\x0e2\x19.chatto.api.v1.TimeFormatR\n" +
 	"timeFormatB\v\n" +
-	"\t_timezone\"\x80\x04\n" +
+	"\t_timezone\"\xff\x02\n" +
 	"\n" +
-	"ViewerUser\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
-	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
-	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12\"\n" +
-	"\n" +
-	"avatar_url\x18\x04 \x01(\tH\x00R\tavatarUrl\x88\x01\x01\x12D\n" +
-	"\rcustom_status\x18\x05 \x01(\v2\x1f.chatto.api.v1.CustomUserStatusR\fcustomStatus\x12F\n" +
-	"\x0fpresence_status\x18\x06 \x01(\x0e2\x1d.chatto.api.v1.PresenceStatusR\x0epresenceStatus\x12,\n" +
+	"ViewerUser\x12,\n" +
 	"\x12has_verified_email\x18\a \x01(\bR\x10hasVerifiedEmail\x127\n" +
 	"\bsettings\x18\b \x01(\v2\x1b.chatto.api.v1.UserSettingsR\bsettings\x129\n" +
 	"\x19viewer_can_delete_account\x18\t \x01(\bR\x16viewerCanDeleteAccount\x12F\n" +
 	"\x11last_login_change\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\x0flastLoginChangeB\r\n" +
-	"\v_avatar_url\"\x8c\x04\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\x0flastLoginChange\x12<\n" +
+	"\aprofile\x18\v \x01(\v2\".chatto.api.v1.UserPresenceSummaryR\aprofileJ\x04\b\x01\x10\aR\x02idR\x05loginR\fdisplay_nameR\n" +
+	"avatar_urlR\rcustom_statusR\x0fpresence_status\"\x8c\x04\n" +
 	"\x12ViewerCapabilities\x12$\n" +
 	"\x0ecan_view_admin\x18\x01 \x01(\bR\fcanViewAdmin\x12\"\n" +
 	"\rcan_start_dms\x18\x02 \x01(\bR\vcanStartDms\x12/\n" +
@@ -701,32 +650,30 @@ var file_chatto_api_v1_viewer_proto_goTypes = []any{
 	(*RoomNotificationPreference)(nil),   // 5: chatto.api.v1.RoomNotificationPreference
 	(*GetViewerRequest)(nil),             // 6: chatto.api.v1.GetViewerRequest
 	(*GetViewerResponse)(nil),            // 7: chatto.api.v1.GetViewerResponse
-	(*CustomUserStatus)(nil),             // 8: chatto.api.v1.CustomUserStatus
-	(PresenceStatus)(0),                  // 9: chatto.api.v1.PresenceStatus
-	(*timestamppb.Timestamp)(nil),        // 10: google.protobuf.Timestamp
-	(NotificationLevel)(0),               // 11: chatto.api.v1.NotificationLevel
+	(*timestamppb.Timestamp)(nil),        // 8: google.protobuf.Timestamp
+	(*UserPresenceSummary)(nil),          // 9: chatto.api.v1.UserPresenceSummary
+	(NotificationLevel)(0),               // 10: chatto.api.v1.NotificationLevel
 }
 var file_chatto_api_v1_viewer_proto_depIdxs = []int32{
 	0,  // 0: chatto.api.v1.UserSettings.time_format:type_name -> chatto.api.v1.TimeFormat
-	8,  // 1: chatto.api.v1.ViewerUser.custom_status:type_name -> chatto.api.v1.CustomUserStatus
-	9,  // 2: chatto.api.v1.ViewerUser.presence_status:type_name -> chatto.api.v1.PresenceStatus
-	1,  // 3: chatto.api.v1.ViewerUser.settings:type_name -> chatto.api.v1.UserSettings
-	10, // 4: chatto.api.v1.ViewerUser.last_login_change:type_name -> google.protobuf.Timestamp
-	11, // 5: chatto.api.v1.ServerNotificationPreference.level:type_name -> chatto.api.v1.NotificationLevel
-	11, // 6: chatto.api.v1.ServerNotificationPreference.effective_level:type_name -> chatto.api.v1.NotificationLevel
-	11, // 7: chatto.api.v1.RoomNotificationPreference.level:type_name -> chatto.api.v1.NotificationLevel
-	11, // 8: chatto.api.v1.RoomNotificationPreference.effective_level:type_name -> chatto.api.v1.NotificationLevel
-	2,  // 9: chatto.api.v1.GetViewerResponse.user:type_name -> chatto.api.v1.ViewerUser
-	3,  // 10: chatto.api.v1.GetViewerResponse.capabilities:type_name -> chatto.api.v1.ViewerCapabilities
-	4,  // 11: chatto.api.v1.GetViewerResponse.server_notification_preference:type_name -> chatto.api.v1.ServerNotificationPreference
-	5,  // 12: chatto.api.v1.GetViewerResponse.room_notification_preferences:type_name -> chatto.api.v1.RoomNotificationPreference
-	6,  // 13: chatto.api.v1.ViewerService.GetViewer:input_type -> chatto.api.v1.GetViewerRequest
-	7,  // 14: chatto.api.v1.ViewerService.GetViewer:output_type -> chatto.api.v1.GetViewerResponse
-	14, // [14:15] is the sub-list for method output_type
-	13, // [13:14] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	1,  // 1: chatto.api.v1.ViewerUser.settings:type_name -> chatto.api.v1.UserSettings
+	8,  // 2: chatto.api.v1.ViewerUser.last_login_change:type_name -> google.protobuf.Timestamp
+	9,  // 3: chatto.api.v1.ViewerUser.profile:type_name -> chatto.api.v1.UserPresenceSummary
+	10, // 4: chatto.api.v1.ServerNotificationPreference.level:type_name -> chatto.api.v1.NotificationLevel
+	10, // 5: chatto.api.v1.ServerNotificationPreference.effective_level:type_name -> chatto.api.v1.NotificationLevel
+	10, // 6: chatto.api.v1.RoomNotificationPreference.level:type_name -> chatto.api.v1.NotificationLevel
+	10, // 7: chatto.api.v1.RoomNotificationPreference.effective_level:type_name -> chatto.api.v1.NotificationLevel
+	2,  // 8: chatto.api.v1.GetViewerResponse.user:type_name -> chatto.api.v1.ViewerUser
+	3,  // 9: chatto.api.v1.GetViewerResponse.capabilities:type_name -> chatto.api.v1.ViewerCapabilities
+	4,  // 10: chatto.api.v1.GetViewerResponse.server_notification_preference:type_name -> chatto.api.v1.ServerNotificationPreference
+	5,  // 11: chatto.api.v1.GetViewerResponse.room_notification_preferences:type_name -> chatto.api.v1.RoomNotificationPreference
+	6,  // 12: chatto.api.v1.ViewerService.GetViewer:input_type -> chatto.api.v1.GetViewerRequest
+	7,  // 13: chatto.api.v1.ViewerService.GetViewer:output_type -> chatto.api.v1.GetViewerResponse
+	13, // [13:14] is the sub-list for method output_type
+	12, // [12:13] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_viewer_proto_init() }
@@ -735,10 +682,8 @@ func file_chatto_api_v1_viewer_proto_init() {
 		return
 	}
 	file_chatto_api_v1_notification_preferences_proto_init()
-	file_chatto_api_v1_presence_proto_init()
-	file_chatto_api_v1_user_status_proto_init()
+	file_chatto_api_v1_users_proto_init()
 	file_chatto_api_v1_viewer_proto_msgTypes[0].OneofWrappers = []any{}
-	file_chatto_api_v1_viewer_proto_msgTypes[1].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

@@ -7,11 +7,11 @@ import {
   RoomTimelineMessagePosted,
   RoomTimelinePage,
   RoomTimelineRoomEvent,
-  RoomTimelineUser,
   RoomTimelineVideoProcessing,
   RoomTimelineVideoProcessingStatus,
   RoomTimelineVideoVariant
 } from '$lib/pb/chatto/api/v1/room_timeline_pb';
+import { UserSummary } from '$lib/pb/chatto/api/v1/users_pb';
 import { __resetUserSummaryCachesForTests, getUserSummaryCache } from '$lib/state/userSummaries.svelte';
 import { createRoomTimelineAPI, roomTimelinePageToEventConnectionPage } from './roomTimeline';
 
@@ -151,7 +151,7 @@ describe('createRoomTimelineAPI', () => {
       threadRootEventId: 'root-1',
       includes: {
         users: {
-          u1: new RoomTimelineUser({
+          u1: new UserSummary({
             id: 'u1',
             login: 'alice',
             displayName: 'Alice'
@@ -204,14 +204,14 @@ describe('roomTimelinePageToEventConnectionPage', () => {
       hasNewer: false,
       includes: {
         users: {
-          u1: new RoomTimelineUser({
+          u1: new UserSummary({
             id: 'u1',
             login: 'alice',
             displayName: 'Alice',
             avatarUrl: '/avatars/u1',
             deleted: false
           }),
-          u2: new RoomTimelineUser({
+          u2: new UserSummary({
             id: 'u2',
             login: 'bob',
             displayName: 'Bob',

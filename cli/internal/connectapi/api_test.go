@@ -480,6 +480,18 @@ func TestUserServiceReadsPublicProfiles(t *testing.T) {
 	}
 
 	ctx := withCaller(env.ctx, env.viewer)
+	offlineUser, err := env.core.CreateUser(env.ctx, core.SystemActorID, "offline-profile", "Offline Profile", "password")
+	if err != nil {
+		t.Fatalf("CreateUser offline profile: %v", err)
+	}
+	offlineResp, err := env.users.GetUser(ctx, connect.NewRequest(&apiv1.GetUserRequest{UserId: offlineUser.Id}))
+	if err != nil {
+		t.Fatalf("GetUser offline profile: %v", err)
+	}
+	if offlineResp.Msg.GetUser().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE {
+		t.Fatalf("offline profile presence = %v, want OFFLINE", offlineResp.Msg.GetUser().GetPresenceStatus())
+	}
+
 	if _, err := env.core.SetUserCustomStatus(env.ctx, env.viewer.Id, "wave", "around", nil); err != nil {
 		t.Fatalf("SetUserCustomStatus: %v", err)
 	}
@@ -528,12 +540,8 @@ func TestUserServiceReadsPublicProfiles(t *testing.T) {
 		t.Fatalf("GetUserByLogin id = %q, want %q", byLoginResp.Msg.GetUser().GetId(), env.viewer.Id)
 	}
 
-	missingByLoginResp, err := env.users.GetUserByLogin(ctx, connect.NewRequest(&apiv1.GetUserByLoginRequest{Login: "missing-user"}))
-	if err != nil {
-		t.Fatalf("GetUserByLogin missing: %v", err)
-	}
-	if missingByLoginResp.Msg.GetUser() != nil {
-		t.Fatalf("missing GetUserByLogin user = %+v, want nil", missingByLoginResp.Msg.GetUser())
+	if _, err := env.users.GetUserByLogin(ctx, connect.NewRequest(&apiv1.GetUserByLoginRequest{Login: "missing-user"})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("missing GetUserByLogin code = %v, want not found", connect.CodeOf(err))
 	}
 
 	if _, err := env.users.GetUser(ctx, connect.NewRequest(&apiv1.GetUserRequest{UserId: "missing-user"})); connect.CodeOf(err) != connect.CodeNotFound {
@@ -636,6 +644,9 @@ func TestRoleServiceManagesRoles(t *testing.T) {
 	if len(getResp.Msg.GetUsers()) != 1 || getResp.Msg.GetUsers()[0].GetId() != member.Id {
 		t.Fatalf("GetRole users = %+v, want member %s", getResp.Msg.GetUsers(), member.Id)
 	}
+	if _, err := env.roles.GetRole(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetRoleRequest{Name: "missing-role"})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("missing GetRole code = %v, want not found", connect.CodeOf(err))
+	}
 
 	pingable := false
 	updateResp, err := env.roles.UpdateRole(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.UpdateRoleRequest{
@@ -710,6 +721,11 @@ func TestPermissionServiceMatricesAndWrites(t *testing.T) {
 	}
 	if cell := findAPIPermissionCell(roleMatrixResp.Msg.GetMatrix().GetCells(), "server", string(core.PermMessagePost)); cell == nil || cell.GetOverride() != apiv1.PermissionDecision_PERMISSION_DECISION_ALLOW {
 		t.Fatalf("server message.post cell = %+v, want allow override", cell)
+	}
+	if _, err := env.permissions.GetRolePermissionMatrix(ctx, connect.NewRequest(&apiv1.GetRolePermissionMatrixRequest{
+		RoleName: "missing-role",
+	})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("missing GetRolePermissionMatrix code = %v, want not found", connect.CodeOf(err))
 	}
 	if _, err := env.permissions.RevokeRolePermissionGrant(env.ctx, connect.NewRequest(&apiv1.RevokeRolePermissionGrantRequest{
 		RoleName:   core.RoleModerator,
@@ -938,12 +954,8 @@ func TestAdminEventLogServiceListsFiltersAndReadsEntries(t *testing.T) {
 		t.Fatalf("GetEvent entry = %+v, want payload for sequence %s", getResp.Msg.GetEntry(), entry.GetSequence())
 	}
 
-	missingResp, err := env.adminEventLog.GetEvent(ctx, connect.NewRequest(&apiv1.GetEventRequest{Sequence: "9999999"}))
-	if err != nil {
-		t.Fatalf("GetEvent missing: %v", err)
-	}
-	if missingResp.Msg.GetEntry() != nil {
-		t.Fatalf("missing entry = %+v, want nil", missingResp.Msg.GetEntry())
+	if _, err := env.adminEventLog.GetEvent(ctx, connect.NewRequest(&apiv1.GetEventRequest{Sequence: "9999999"})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("missing GetEvent code = %v, want not_found", connect.CodeOf(err))
 	}
 	if _, err := env.adminEventLog.GetEvent(ctx, connect.NewRequest(&apiv1.GetEventRequest{Sequence: "not-a-number"})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("invalid sequence code = %v, want invalid_argument", connect.CodeOf(err))
@@ -1049,6 +1061,14 @@ func TestViewerServiceGetViewerReturnsSelfScopedState(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("UpdateUserSettings: %v", err)
 	}
+	offlineResp, err := env.viewerService.GetViewer(ctx, connect.NewRequest(&apiv1.GetViewerRequest{}))
+	if err != nil {
+		t.Fatalf("GetViewer offline presence: %v", err)
+	}
+	if offlineResp.Msg.GetUser().GetProfile().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE {
+		t.Fatalf("initial viewer presence = %v, want OFFLINE", offlineResp.Msg.GetUser().GetProfile().GetPresenceStatus())
+	}
+
 	if err := env.core.SetPresence(env.ctx, env.viewer.Id, core.PresenceStatusAway); err != nil {
 		t.Fatalf("SetPresence: %v", err)
 	}
@@ -1065,14 +1085,15 @@ func TestViewerServiceGetViewerReturnsSelfScopedState(t *testing.T) {
 		t.Fatalf("GetViewer: %v", err)
 	}
 	user := resp.Msg.GetUser()
-	if user.GetId() != env.viewer.Id || user.GetLogin() != env.viewer.Login || user.GetDisplayName() != env.viewer.DisplayName {
+	profile := user.GetProfile()
+	if profile.GetId() != env.viewer.Id || profile.GetLogin() != env.viewer.Login || profile.GetDisplayName() != env.viewer.DisplayName {
 		t.Fatalf("viewer user = %+v, want id/login/display name from fixture", user)
 	}
 	if !user.GetHasVerifiedEmail() {
 		t.Fatal("HasVerifiedEmail = false, want true")
 	}
-	if user.GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_AWAY {
-		t.Fatalf("PresenceStatus = %v, want AWAY", user.GetPresenceStatus())
+	if profile.GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_AWAY {
+		t.Fatalf("PresenceStatus = %v, want AWAY", profile.GetPresenceStatus())
 	}
 	if settings := user.GetSettings(); settings.GetTimezone() != tz || settings.GetTimeFormat() != apiv1.TimeFormat_TIME_FORMAT_24_HOUR {
 		t.Fatalf("settings = %+v, want timezone %q and 24-hour format", settings, tz)
@@ -1303,18 +1324,18 @@ func TestAdminUserManagementServiceListsAndGetsMembers(t *testing.T) {
 
 	regularCtx := withCaller(env.ctx, regular)
 	listResp, err := env.adminUsers.ListMembers(regularCtx, connect.NewRequest(&apiv1.ListMembersRequest{
-		Search: stringPtr("target"),
-		Limit:  10,
+		Search: "target",
+		Page:   &apiv1.PageRequest{Limit: 10},
 	}))
 	if err != nil {
 		t.Fatalf("ListMembers regular: %v", err)
 	}
-	if listResp.Msg.GetTotalCount() != 1 || len(listResp.Msg.GetUsers()) != 1 {
-		t.Fatalf("ListMembers returned %d/%d users, want 1/1", len(listResp.Msg.GetUsers()), listResp.Msg.GetTotalCount())
+	if listResp.Msg.GetPage().GetTotalCount() != 1 || len(listResp.Msg.GetUsers()) != 1 {
+		t.Fatalf("ListMembers returned %d/%d users, want 1/1", len(listResp.Msg.GetUsers()), listResp.Msg.GetPage().GetTotalCount())
 	}
 	listUser := listResp.Msg.GetUsers()[0]
-	if listUser.GetId() != target.Id {
-		t.Fatalf("ListMembers user ID = %q, want %q", listUser.GetId(), target.Id)
+	if listUser.GetUser().GetId() != target.Id {
+		t.Fatalf("ListMembers user ID = %q, want %q", listUser.GetUser().GetId(), target.Id)
 	}
 	if got := listUser.GetRoles(); len(got) != 1 || got[0] != core.RoleModerator {
 		t.Fatalf("ListMembers roles = %v, want explicit moderator only", got)
@@ -1334,7 +1355,7 @@ func TestAdminUserManagementServiceListsAndGetsMembers(t *testing.T) {
 		t.Fatalf("GetMember admin: %v", err)
 	}
 	member := getResp.Msg.GetMember()
-	if member.GetId() != target.Id || member.GetLogin() != "admin-member-target-renamed" {
+	if member.GetUser().GetId() != target.Id || member.GetUser().GetLogin() != "admin-member-target-renamed" {
 		t.Fatalf("GetMember member = %+v, want renamed target", member)
 	}
 	if !member.GetHasVerifiedEmail() || len(member.GetVerifiedEmails()) != 1 || member.GetVerifiedEmails()[0] != "admin-member-target@example.test" {
@@ -1348,6 +1369,11 @@ func TestAdminUserManagementServiceListsAndGetsMembers(t *testing.T) {
 	}
 	if len(getResp.Msg.GetRoles()) == 0 || len(getResp.Msg.GetAvailablePermissions()) == 0 {
 		t.Fatalf("GetMember roles/perms empty: roles=%d perms=%d", len(getResp.Msg.GetRoles()), len(getResp.Msg.GetAvailablePermissions()))
+	}
+	if _, err := env.adminUsers.GetMember(adminCtx, connect.NewRequest(&apiv1.GetMemberRequest{
+		UserId: "missing-user",
+	})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("missing GetMember code = %v, want not found", connect.CodeOf(err))
 	}
 }
 
@@ -1831,6 +1857,9 @@ func TestRoomServiceMembershipAndModerationCommands(t *testing.T) {
 	if got := len(listResp.Msg.GetBans()); got != 1 {
 		t.Fatalf("ListRoomBans count = %d, want 1", got)
 	}
+	if listResp.Msg.GetPage().GetTotalCount() != 1 || listResp.Msg.GetPage().GetHasMore() {
+		t.Fatalf("ListRoomBans page = %+v, want total_count 1 has_more false", listResp.Msg.GetPage())
+	}
 	listedBan := listResp.Msg.GetBans()[0]
 	if listedBan.GetId() == "" {
 		t.Fatalf("ListRoomBans ban id is empty")
@@ -1860,6 +1889,9 @@ func TestRoomServiceMembershipAndModerationCommands(t *testing.T) {
 	}
 	if got := len(filteredResp.Msg.GetBans()); got != 1 {
 		t.Fatalf("filtered ListRoomBans count = %d, want 1", got)
+	}
+	if filteredResp.Msg.GetPage().GetTotalCount() != 1 || filteredResp.Msg.GetPage().GetHasMore() {
+		t.Fatalf("filtered ListRoomBans page = %+v, want total_count 1 has_more false", filteredResp.Msg.GetPage())
 	}
 
 	unbanResp, err := env.rooms.UnbanRoomMember(ctx, connect.NewRequest(&apiv1.UnbanRoomMemberRequest{
@@ -2112,7 +2144,7 @@ func TestConnectServicesRejectDMOutsiders(t *testing.T) {
 
 	_, err = env.attachments.ListRoomAttachments(ctx, connect.NewRequest(&apiv1.ListRoomAttachmentsRequest{
 		RoomId: dm.Id,
-		Limit:  10,
+		Page:   &apiv1.PageRequest{Limit: 10},
 	}))
 	checkInaccessible("ListRoomAttachments", err)
 
@@ -2480,24 +2512,23 @@ func TestMemberDirectoryServiceListServerMembers(t *testing.T) {
 
 	resp, err := env.members.ListServerMembers(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.ListServerMembersRequest{
 		Search: "member",
-		Limit:  1,
+		Page:   &apiv1.PageRequest{Limit: 1},
 	}))
 	if err != nil {
 		t.Fatalf("ListServerMembers: %v", err)
 	}
-	if resp.Msg.GetTotalCount() != 2 || !resp.Msg.GetHasMore() || len(resp.Msg.GetMembers()) != 1 {
+	if resp.Msg.GetPage().GetTotalCount() != 2 || !resp.Msg.GetPage().GetHasMore() || len(resp.Msg.GetMembers()) != 1 {
 		t.Fatalf("first page = %+v, want total 2, hasMore true, one member", resp.Msg)
 	}
 
 	secondResp, err := env.members.ListServerMembers(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.ListServerMembersRequest{
 		Search: "member",
-		Limit:  1,
-		Offset: 1,
+		Page:   &apiv1.PageRequest{Limit: 1, Offset: 1},
 	}))
 	if err != nil {
 		t.Fatalf("ListServerMembers second page: %v", err)
 	}
-	if secondResp.Msg.GetHasMore() || len(secondResp.Msg.GetMembers()) != 1 {
+	if secondResp.Msg.GetPage().GetHasMore() || len(secondResp.Msg.GetMembers()) != 1 {
 		t.Fatalf("second page = %+v, want hasMore false and one member", secondResp.Msg)
 	}
 
@@ -2507,6 +2538,9 @@ func TestMemberDirectoryServiceListServerMembers(t *testing.T) {
 	}
 	if gotByID[alice.Id].GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_AWAY {
 		t.Fatalf("alice presence = %v, want AWAY", gotByID[alice.Id].GetPresenceStatus())
+	}
+	if gotByID[bob.Id].GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE {
+		t.Fatalf("bob presence = %v, want OFFLINE", gotByID[bob.Id].GetPresenceStatus())
 	}
 	if roles := strings.Join(gotByID[bob.Id].GetRoles(), ","); roles != "everyone,admin" {
 		t.Fatalf("bob roles = %q, want everyone,admin", roles)
@@ -2527,7 +2561,7 @@ func TestMemberDirectoryServiceListRoomMembersRequiresMembership(t *testing.T) {
 		t.Fatalf("SetPresence member: %v", err)
 	}
 
-	req := connect.NewRequest(&apiv1.ListRoomMembersRequest{RoomId: room.Id, Search: "alice", Limit: 10})
+	req := connect.NewRequest(&apiv1.ListRoomMembersRequest{RoomId: room.Id, Search: "alice", Page: &apiv1.PageRequest{Limit: 10}})
 	if _, err := env.members.ListRoomMembers(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated ListRoomMembers code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
 	}
@@ -2543,7 +2577,7 @@ func TestMemberDirectoryServiceListRoomMembersRequiresMembership(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListRoomMembers: %v", err)
 	}
-	if resp.Msg.GetTotalCount() != 1 || resp.Msg.GetHasMore() || len(resp.Msg.GetMembers()) != 1 {
+	if resp.Msg.GetPage().GetTotalCount() != 1 || resp.Msg.GetPage().GetHasMore() || len(resp.Msg.GetMembers()) != 1 {
 		t.Fatalf("room member page = %+v, want one alice result", resp.Msg)
 	}
 	got := resp.Msg.GetMembers()[0]
@@ -2632,11 +2666,11 @@ func TestNotificationServiceListsAndDismissesNotifications(t *testing.T) {
 		t.Fatalf("CreateNotification dm: %v", err)
 	}
 
-	listResp, err := env.notifications.ListNotifications(ctx, connect.NewRequest(&apiv1.ListNotificationsRequest{Limit: 1}))
+	listResp, err := env.notifications.ListNotifications(ctx, connect.NewRequest(&apiv1.ListNotificationsRequest{Page: &apiv1.PageRequest{Limit: 1}}))
 	if err != nil {
 		t.Fatalf("ListNotifications: %v", err)
 	}
-	if listResp.Msg.GetTotalCount() != 2 || !listResp.Msg.GetHasMore() || len(listResp.Msg.GetItems()) != 1 {
+	if listResp.Msg.GetPage().GetTotalCount() != 2 || !listResp.Msg.GetPage().GetHasMore() || len(listResp.Msg.GetItems()) != 1 {
 		t.Fatalf("ListNotifications page = %+v, want total 2, has_more true, one item", listResp.Msg)
 	}
 	item := listResp.Msg.GetItems()[0]
@@ -2648,7 +2682,7 @@ func TestNotificationServiceListsAndDismissesNotifications(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListRoomNotifications: %v", err)
 	}
-	if roomResp.Msg.GetTotalCount() != 1 || len(roomResp.Msg.GetItems()) != 1 {
+	if roomResp.Msg.GetPage().GetTotalCount() != 1 || len(roomResp.Msg.GetItems()) != 1 {
 		t.Fatalf("ListRoomNotifications page = %+v, want one room notification", roomResp.Msg)
 	}
 	mentionItem := roomResp.Msg.GetItems()[0]
@@ -2667,7 +2701,7 @@ func TestNotificationServiceListsAndDismissesNotifications(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListRoomNotifications outsider: %v", err)
 	}
-	if outsiderResp.Msg.GetTotalCount() != 0 || len(outsiderResp.Msg.GetItems()) != 0 {
+	if outsiderResp.Msg.GetPage().GetTotalCount() != 0 || len(outsiderResp.Msg.GetItems()) != 0 {
 		t.Fatalf("outsider room notifications = %+v, want empty page", outsiderResp.Msg)
 	}
 
@@ -2931,6 +2965,11 @@ func TestPresenceServiceReportPresence(t *testing.T) {
 		Status: apiv1.PresenceStatus_PRESENCE_STATUS_UNSPECIFIED,
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("unspecified ReportPresence code = %v, want %v", connect.CodeOf(err), connect.CodeInvalidArgument)
+	}
+	if _, err := env.presence.ReportPresence(ctx, connect.NewRequest(&apiv1.ReportPresenceRequest{
+		Status: apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE,
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("offline ReportPresence code = %v, want %v", connect.CodeOf(err), connect.CodeInvalidArgument)
 	}
 
 	resp, err := env.presence.ReportPresence(ctx, connect.NewRequest(&apiv1.ReportPresenceRequest{
@@ -3276,7 +3315,7 @@ func TestMessageServicePostMessageValidatesInput(t *testing.T) {
 			req: &apiv1.PostMessageRequest{
 				RoomId: room.Id,
 				Body:   "hello",
-				LinkPreview: &apiv1.MessageLinkPreviewInput{
+				LinkPreview: &apiv1.LinkPreview{
 					Url: strings.Repeat("x", core.MaxLinkPreviewURLLength+1),
 				},
 			},
@@ -3501,7 +3540,7 @@ func TestMessageServicePostMessageValidationPreflightDoesNotCreateAssets(t *test
 			req: &apiv1.PostMessageRequest{
 				RoomId: room.Id,
 				Body:   "message with bad preview and file",
-				LinkPreview: &apiv1.MessageLinkPreviewInput{
+				LinkPreview: &apiv1.LinkPreview{
 					Url: strings.Repeat("x", core.MaxLinkPreviewURLLength+1),
 				},
 				Attachments: []*apiv1.MessageAttachmentUpload{{
@@ -3942,14 +3981,14 @@ func TestAttachmentServiceListsAndRefreshesRoomAttachments(t *testing.T) {
 	ctx := withCaller(env.ctx, env.viewer)
 	if _, err := env.attachments.ListRoomAttachments(env.ctx, connect.NewRequest(&apiv1.ListRoomAttachmentsRequest{
 		RoomId: room.Id,
-		Limit:  10,
+		Page:   &apiv1.PageRequest{Limit: 10},
 	})); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated ListRoomAttachments code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
 	}
 
 	resp, err := env.attachments.ListRoomAttachments(ctx, connect.NewRequest(&apiv1.ListRoomAttachmentsRequest{
 		RoomId: room.Id,
-		Limit:  1,
+		Page:   &apiv1.PageRequest{Limit: 1},
 		Thumbnail: &apiv1.AttachmentThumbnailOptions{
 			Width:  120,
 			Height: 120,
@@ -3959,8 +3998,8 @@ func TestAttachmentServiceListsAndRefreshesRoomAttachments(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListRoomAttachments: %v", err)
 	}
-	if resp.Msg.TotalCount != 2 || !resp.Msg.HasMore || len(resp.Msg.Items) != 1 {
-		t.Fatalf("ListRoomAttachments count/hasMore/items = %d/%v/%d, want 2/true/1", resp.Msg.TotalCount, resp.Msg.HasMore, len(resp.Msg.Items))
+	if resp.Msg.GetPage().GetTotalCount() != 2 || !resp.Msg.GetPage().GetHasMore() || len(resp.Msg.Items) != 1 {
+		t.Fatalf("ListRoomAttachments count/hasMore/items = %d/%v/%d, want 2/true/1", resp.Msg.GetPage().GetTotalCount(), resp.Msg.GetPage().GetHasMore(), len(resp.Msg.Items))
 	}
 	first := resp.Msg.Items[0]
 	if first.MessageEventId != reply.Id || first.ThreadRootEventId != root.Id {
@@ -4764,7 +4803,7 @@ func TestThreadServiceListFollowedThreadsReturnsHydratedPage(t *testing.T) {
 	env.post(room.Id, participant.Id, "reply body", root.Id)
 
 	if _, err := env.threads.ListFollowedThreads(env.ctx, connect.NewRequest(&apiv1.ListFollowedThreadsRequest{
-		Limit: 20,
+		Page: &apiv1.PageRequest{Limit: 20},
 	})); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated ListFollowedThreads code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
 	}
@@ -4778,13 +4817,13 @@ func TestThreadServiceListFollowedThreadsReturnsHydratedPage(t *testing.T) {
 	}
 
 	resp, err := env.threads.ListFollowedThreads(ctx, connect.NewRequest(&apiv1.ListFollowedThreadsRequest{
-		Limit: 20,
+		Page: &apiv1.PageRequest{Limit: 20},
 	}))
 	if err != nil {
 		t.Fatalf("ListFollowedThreads: %v", err)
 	}
-	if resp.Msg.GetTotalCount() != 1 || resp.Msg.GetHasMore() {
-		t.Fatalf("ListFollowedThreads page metadata = total %d hasMore %v, want total 1 hasMore false", resp.Msg.GetTotalCount(), resp.Msg.GetHasMore())
+	if resp.Msg.GetPage().GetTotalCount() != 1 || resp.Msg.GetPage().GetHasMore() {
+		t.Fatalf("ListFollowedThreads page metadata = total %d hasMore %v, want total 1 hasMore false", resp.Msg.GetPage().GetTotalCount(), resp.Msg.GetPage().GetHasMore())
 	}
 	if len(resp.Msg.GetThreads()) != 1 {
 		t.Fatalf("ListFollowedThreads returned %d threads, want 1", len(resp.Msg.GetThreads()))

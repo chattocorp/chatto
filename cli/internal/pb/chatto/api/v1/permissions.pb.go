@@ -836,7 +836,7 @@ func (x *GetRolePermissionMatrixRequest) GetRoleName() string {
 // Response containing one role's permission matrix.
 type GetRolePermissionMatrixResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Requested matrix. Nil when the role does not exist.
+	// Requested matrix.
 	Matrix        *RolePermissionMatrix `protobuf:"bytes,1,opt,name=matrix,proto3" json:"matrix,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

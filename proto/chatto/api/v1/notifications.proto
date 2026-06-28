@@ -3,27 +3,9 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
-import "chatto/api/v1/presence.proto";
-import "chatto/api/v1/user_status.proto";
+import "chatto/api/v1/pagination.proto";
+import "chatto/api/v1/users.proto";
 import "google/protobuf/timestamp.proto";
-
-// User summary embedded in notification responses.
-message NotificationActor {
-  // Stable user ID.
-  string id = 1;
-  // Login identifier.
-  string login = 2;
-  // Display name shown in Chatto.
-  string display_name = 3;
-  // True when this is a tombstone/deleted user representation.
-  bool deleted = 4;
-  // Optional avatar URL.
-  optional string avatar_url = 5;
-  // Current live presence status.
-  PresenceStatus presence_status = 6;
-  // Custom profile status, when set.
-  CustomUserStatus custom_status = 7;
-}
 
 // Room summary embedded in notification responses.
 message NotificationRoom {
@@ -78,7 +60,7 @@ message NotificationItem {
   // Creation time.
   google.protobuf.Timestamp created_at = 2;
   // User who triggered the notification, when still resolvable.
-  NotificationActor actor = 3;
+  UserPresenceSummary actor = 3;
   // Short human-readable notification summary.
   string summary = 4;
 
@@ -96,50 +78,48 @@ message NotificationItem {
 
 // Request for the authenticated viewer's pending notifications.
 message ListNotificationsRequest {
-  // Maximum number of notifications to return.
-  int32 limit = 1 [(buf.validate.field).int32 = {
-    gte: 0
-    lte: 100
-  }];
-  // Number of notifications to skip.
-  int32 offset = 2 [(buf.validate.field).int32.gte = 0];
+  reserved 1, 2;
+  reserved "limit", "offset";
+
+  // Page request. Defaults to 50 results when absent or limit is zero.
+  PageRequest page = 3;
 }
 
 // Request for pending notifications scoped to one room.
 message ListRoomNotificationsRequest {
+  reserved 2, 3;
+  reserved "limit", "offset";
+
   // Required. Room whose notifications should be listed.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Maximum number of notifications to return.
-  int32 limit = 2 [(buf.validate.field).int32 = {
-    gte: 0
-    lte: 100
-  }];
-  // Number of notifications to skip.
-  int32 offset = 3 [(buf.validate.field).int32.gte = 0];
+  // Page request. Defaults to 50 results when absent or limit is zero.
+  PageRequest page = 4;
 }
 
 // Pending notification page.
 message ListNotificationsResponse {
+  reserved 2, 3;
+  reserved "total_count", "has_more";
+
   // Page items, newest first.
   repeated NotificationItem items = 1;
-  // Total count before pagination.
-  int32 total_count = 2;
-  // True when more notifications exist beyond this page.
-  bool has_more = 3;
   // Current server display name for non-DM location labels.
   string server_name = 4;
+  // Page metadata.
+  PageInfo page = 5;
 }
 
 // Pending notification page scoped to one room.
 message ListRoomNotificationsResponse {
+  reserved 2, 3;
+  reserved "total_count", "has_more";
+
   // Page items, newest first.
   repeated NotificationItem items = 1;
-  // Total count before pagination.
-  int32 total_count = 2;
-  // True when more notifications exist beyond this page.
-  bool has_more = 3;
   // Current server display name for non-DM location labels.
   string server_name = 4;
+  // Page metadata.
+  PageInfo page = 5;
 }
 
 // Request for a lightweight pending notification check.

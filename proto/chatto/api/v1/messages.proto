@@ -3,28 +3,8 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
+import "chatto/api/v1/link_previews.proto";
 import "chatto/api/v1/room_timeline.proto";
-
-// Link preview metadata submitted with a posted message.
-//
-// The server validates and stores this data with the message body. Clients
-// should omit this field when no preview was selected.
-message MessageLinkPreviewInput {
-  // Previewed URL.
-  string url = 1;
-  // Page or embed title.
-  string title = 2;
-  // Page or embed description.
-  string description = 3;
-  // Site name, when known.
-  string site_name = 4;
-  // Existing server asset ID for the preview image, when available.
-  string image_asset_id = 5;
-  // Embed provider or type, when recognized.
-  string embed_type = 6;
-  // Provider-specific embed ID, when recognized.
-  string embed_id = 7;
-}
 
 // Attachment bytes submitted with a message post.
 //
@@ -57,8 +37,9 @@ message PostMessageRequest {
   bool also_send_to_channel = 6;
   // Short-lived token returned by a prior mention confirmation challenge.
   string mention_confirmation_token = 7;
-  // Link preview selected by the client.
-  MessageLinkPreviewInput link_preview = 8;
+  // Link preview selected by the client. Server response-only LinkPreview
+  // fields are ignored.
+  LinkPreview link_preview = 8;
   // Browser-uploaded attachments to include with the message.
   repeated MessageAttachmentUpload attachments = 9;
 }

@@ -5,6 +5,8 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
+import { UserSummary } from "./users_pb.js";
+import { LinkPreview } from "./link_previews_pb.js";
 
 /**
  * Processing state for a timeline video attachment.
@@ -49,82 +51,6 @@ proto3.util.setEnumType(RoomTimelineVideoProcessingStatus, "chatto.api.v1.RoomTi
 ]);
 
 /**
- * User data included with room timeline events.
- *
- * Timeline events reference users by ID; clients can resolve those IDs through
- * the includes block returned with each page.
- *
- * @generated from message chatto.api.v1.RoomTimelineUser
- */
-export class RoomTimelineUser extends Message<RoomTimelineUser> {
-  /**
-   * Stable user ID.
-   *
-   * @generated from field: string id = 1;
-   */
-  id = "";
-
-  /**
-   * Login name.
-   *
-   * @generated from field: string login = 2;
-   */
-  login = "";
-
-  /**
-   * Display name, when set.
-   *
-   * @generated from field: string display_name = 3;
-   */
-  displayName = "";
-
-  /**
-   * True when the user account has been deleted.
-   *
-   * @generated from field: bool deleted = 4;
-   */
-  deleted = false;
-
-  /**
-   * Avatar image URL, when available.
-   *
-   * @generated from field: string avatar_url = 5;
-   */
-  avatarUrl = "";
-
-  constructor(data?: PartialMessage<RoomTimelineUser>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.RoomTimelineUser";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "deleted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 5, name: "avatar_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomTimelineUser {
-    return new RoomTimelineUser().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomTimelineUser {
-    return new RoomTimelineUser().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomTimelineUser {
-    return new RoomTimelineUser().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RoomTimelineUser | PlainMessage<RoomTimelineUser> | undefined, b: RoomTimelineUser | PlainMessage<RoomTimelineUser> | undefined): boolean {
-    return proto3.util.equals(RoomTimelineUser, a, b);
-  }
-}
-
-/**
  * Related entities included beside timeline events.
  *
  * Includes avoid repeating the same user data on every event in a page.
@@ -135,9 +61,9 @@ export class RoomTimelineIncludes extends Message<RoomTimelineIncludes> {
   /**
    * Users keyed by user ID.
    *
-   * @generated from field: map<string, chatto.api.v1.RoomTimelineUser> users = 1;
+   * @generated from field: map<string, chatto.api.v1.UserSummary> users = 1;
    */
-  users: { [key: string]: RoomTimelineUser } = {};
+  users: { [key: string]: UserSummary } = {};
 
   constructor(data?: PartialMessage<RoomTimelineIncludes>) {
     super();
@@ -147,7 +73,7 @@ export class RoomTimelineIncludes extends Message<RoomTimelineIncludes> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.RoomTimelineIncludes";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "users", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "message", T: RoomTimelineUser} },
+    { no: 1, name: "users", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "message", T: UserSummary} },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomTimelineIncludes {
@@ -494,98 +420,6 @@ export class RoomTimelineAttachment extends Message<RoomTimelineAttachment> {
 }
 
 /**
- * Link preview metadata extracted from a message body.
- *
- * Clients should treat all fields as optional because preview extraction depends
- * on the linked site and the embed provider.
- *
- * @generated from message chatto.api.v1.RoomTimelineLinkPreview
- */
-export class RoomTimelineLinkPreview extends Message<RoomTimelineLinkPreview> {
-  /**
-   * Previewed URL.
-   *
-   * @generated from field: string url = 1;
-   */
-  url = "";
-
-  /**
-   * Page or embed title.
-   *
-   * @generated from field: string title = 2;
-   */
-  title = "";
-
-  /**
-   * Page or embed description.
-   *
-   * @generated from field: string description = 3;
-   */
-  description = "";
-
-  /**
-   * Site name, when known.
-   *
-   * @generated from field: string site_name = 4;
-   */
-  siteName = "";
-
-  /**
-   * Preview image URL, when available.
-   *
-   * @generated from field: string image_url = 5;
-   */
-  imageUrl = "";
-
-  /**
-   * Embed provider or type, when recognized.
-   *
-   * @generated from field: string embed_type = 6;
-   */
-  embedType = "";
-
-  /**
-   * Provider-specific embed ID, when recognized.
-   *
-   * @generated from field: string embed_id = 7;
-   */
-  embedId = "";
-
-  constructor(data?: PartialMessage<RoomTimelineLinkPreview>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.RoomTimelineLinkPreview";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "title", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "site_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 5, name: "image_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 6, name: "embed_type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 7, name: "embed_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomTimelineLinkPreview {
-    return new RoomTimelineLinkPreview().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomTimelineLinkPreview {
-    return new RoomTimelineLinkPreview().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomTimelineLinkPreview {
-    return new RoomTimelineLinkPreview().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RoomTimelineLinkPreview | PlainMessage<RoomTimelineLinkPreview> | undefined, b: RoomTimelineLinkPreview | PlainMessage<RoomTimelineLinkPreview> | undefined): boolean {
-    return proto3.util.equals(RoomTimelineLinkPreview, a, b);
-  }
-}
-
-/**
  * Aggregated reaction state for one emoji on one event.
  *
  * The summary is scoped to the current event and includes whether the current
@@ -688,9 +522,9 @@ export class RoomTimelineMessagePosted extends Message<RoomTimelineMessagePosted
   /**
    * Link preview extracted for the message, when available.
    *
-   * @generated from field: chatto.api.v1.RoomTimelineLinkPreview link_preview = 5;
+   * @generated from field: chatto.api.v1.LinkPreview link_preview = 5;
    */
-  linkPreview?: RoomTimelineLinkPreview;
+  linkPreview?: LinkPreview;
 
   /**
    * Time when the message was last edited.
@@ -781,7 +615,7 @@ export class RoomTimelineMessagePosted extends Message<RoomTimelineMessagePosted
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "body", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 4, name: "attachments", kind: "message", T: RoomTimelineAttachment, repeated: true },
-    { no: 5, name: "link_preview", kind: "message", T: RoomTimelineLinkPreview },
+    { no: 5, name: "link_preview", kind: "message", T: LinkPreview },
     { no: 6, name: "updated_at", kind: "message", T: Timestamp },
     { no: 7, name: "in_reply_to", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 8, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },

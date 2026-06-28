@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { PageInfo, PageRequest } from "./pagination_pb.js";
 import { RoomTimelineAssetUrl, RoomTimelineAttachment, RoomTimelineVideoVariant } from "./room_timeline_pb.js";
 
 /**
@@ -112,25 +113,18 @@ export class ListRoomAttachmentsRequest extends Message<ListRoomAttachmentsReque
   roomId = "";
 
   /**
-   * Maximum number of attachments to return.
-   *
-   * @generated from field: int32 limit = 2;
-   */
-  limit = 0;
-
-  /**
-   * Zero-based offset into the newest-first attachment list.
-   *
-   * @generated from field: int32 offset = 3;
-   */
-  offset = 0;
-
-  /**
    * Thumbnail URL options. Defaults are applied when absent.
    *
    * @generated from field: chatto.api.v1.AttachmentThumbnailOptions thumbnail = 4;
    */
   thumbnail?: AttachmentThumbnailOptions;
+
+  /**
+   * Page request. Defaults are applied when absent or limit is zero.
+   *
+   * @generated from field: chatto.api.v1.PageRequest page = 5;
+   */
+  page?: PageRequest;
 
   constructor(data?: PartialMessage<ListRoomAttachmentsRequest>) {
     super();
@@ -141,9 +135,8 @@ export class ListRoomAttachmentsRequest extends Message<ListRoomAttachmentsReque
   static readonly typeName = "chatto.api.v1.ListRoomAttachmentsRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "limit", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 3, name: "offset", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
     { no: 4, name: "thumbnail", kind: "message", T: AttachmentThumbnailOptions },
+    { no: 5, name: "page", kind: "message", T: PageRequest },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListRoomAttachmentsRequest {
@@ -242,18 +235,11 @@ export class ListRoomAttachmentsResponse extends Message<ListRoomAttachmentsResp
   items: RoomAttachmentListItem[] = [];
 
   /**
-   * Total current attachment count for the room.
+   * Page metadata.
    *
-   * @generated from field: int32 total_count = 2;
+   * @generated from field: chatto.api.v1.PageInfo page = 4;
    */
-  totalCount = 0;
-
-  /**
-   * True when a later page exists.
-   *
-   * @generated from field: bool has_more = 3;
-   */
-  hasMore = false;
+  page?: PageInfo;
 
   constructor(data?: PartialMessage<ListRoomAttachmentsResponse>) {
     super();
@@ -264,8 +250,7 @@ export class ListRoomAttachmentsResponse extends Message<ListRoomAttachmentsResp
   static readonly typeName = "chatto.api.v1.ListRoomAttachmentsResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "items", kind: "message", T: RoomAttachmentListItem, repeated: true },
-    { no: 2, name: "total_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 3, name: "has_more", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 4, name: "page", kind: "message", T: PageInfo },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListRoomAttachmentsResponse {

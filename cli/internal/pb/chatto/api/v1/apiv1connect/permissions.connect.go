@@ -60,7 +60,8 @@ const (
 type PermissionServiceClient interface {
 	// Gets the role-permission matrix for a single tier.
 	GetRolePermissionTierMatrix(context.Context, *connect.Request[v1.GetRolePermissionTierMatrixRequest]) (*connect.Response[v1.GetRolePermissionTierMatrixResponse], error)
-	// Gets one role's full permission matrix. Requires role.manage.
+	// Gets one role's full permission matrix. Requires role.manage. Returns
+	// NOT_FOUND when the role does not exist.
 	GetRolePermissionMatrix(context.Context, *connect.Request[v1.GetRolePermissionMatrixRequest]) (*connect.Response[v1.GetRolePermissionMatrixResponse], error)
 	// Gets one user's full permission matrix. Requires user.manage-permissions.
 	GetUserPermissionMatrix(context.Context, *connect.Request[v1.GetUserPermissionMatrixRequest]) (*connect.Response[v1.GetUserPermissionMatrixResponse], error)
@@ -180,7 +181,8 @@ func (c *permissionServiceClient) SetUserPermission(ctx context.Context, req *co
 type PermissionServiceHandler interface {
 	// Gets the role-permission matrix for a single tier.
 	GetRolePermissionTierMatrix(context.Context, *connect.Request[v1.GetRolePermissionTierMatrixRequest]) (*connect.Response[v1.GetRolePermissionTierMatrixResponse], error)
-	// Gets one role's full permission matrix. Requires role.manage.
+	// Gets one role's full permission matrix. Requires role.manage. Returns
+	// NOT_FOUND when the role does not exist.
 	GetRolePermissionMatrix(context.Context, *connect.Request[v1.GetRolePermissionMatrixRequest]) (*connect.Response[v1.GetRolePermissionMatrixResponse], error)
 	// Gets one user's full permission matrix. Requires user.manage-permissions.
 	GetUserPermissionMatrix(context.Context, *connect.Request[v1.GetUserPermissionMatrixRequest]) (*connect.Response[v1.GetUserPermissionMatrixResponse], error)

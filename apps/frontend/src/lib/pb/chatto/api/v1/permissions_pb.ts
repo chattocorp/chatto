@@ -709,7 +709,7 @@ export class GetRolePermissionMatrixRequest extends Message<GetRolePermissionMat
  */
 export class GetRolePermissionMatrixResponse extends Message<GetRolePermissionMatrixResponse> {
   /**
-   * Requested matrix. Nil when the role does not exist.
+   * Requested matrix.
    *
    * @generated from field: chatto.api.v1.RolePermissionMatrix matrix = 1;
    */

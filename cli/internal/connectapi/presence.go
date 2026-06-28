@@ -44,6 +44,8 @@ func apiPresenceStatusToCore(status apiv1.PresenceStatus) (string, error) {
 		return core.PresenceStatusAway, nil
 	case apiv1.PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB:
 		return core.PresenceStatusDoNotDisturb, nil
+	case apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE:
+		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("status must be ONLINE, AWAY, or DO_NOT_DISTURB"))
 	default:
 		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("status must be ONLINE, AWAY, or DO_NOT_DISTURB"))
 	}
@@ -51,6 +53,8 @@ func apiPresenceStatusToCore(status apiv1.PresenceStatus) (string, error) {
 
 func corePresenceStatusToAPI(status string) apiv1.PresenceStatus {
 	switch status {
+	case core.PresenceStatusOffline:
+		return apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE
 	case core.PresenceStatusAway:
 		return apiv1.PresenceStatus_PRESENCE_STATUS_AWAY
 	case core.PresenceStatusDoNotDisturb:

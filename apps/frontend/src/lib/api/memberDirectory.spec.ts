@@ -51,8 +51,7 @@ describe('createMemberDirectoryAPI', () => {
           createdAt: Timestamp.fromDate(new Date('2026-01-01T09:00:00Z'))
         }
       ],
-      totalCount: 2,
-      hasMore: true
+      page: { totalCount: 2n, hasMore: true }
     });
 
     const api = createMemberDirectoryAPI({
@@ -87,7 +86,7 @@ describe('createMemberDirectoryAPI', () => {
       useBinaryFormat: true
     });
     expect(mocks.listServerMembers).toHaveBeenCalledWith(
-      { search: 'ali', limit: 10, offset: 20 },
+      { search: 'ali', page: { limit: 10, offset: 20 } },
       { headers: { Authorization: 'Bearer token' } }
     );
   });
@@ -104,8 +103,7 @@ describe('createMemberDirectoryAPI', () => {
           roles: []
         }
       ],
-      totalCount: 1,
-      hasMore: false
+      page: { totalCount: 1n, hasMore: false }
     });
 
     const api = createMemberDirectoryAPI({ baseUrl: '/api/connect', bearerToken: null });
@@ -129,8 +127,42 @@ describe('createMemberDirectoryAPI', () => {
     });
 
     expect(mocks.listRoomMembers).toHaveBeenCalledWith(
-      { roomId: 'room-1', search: 'bob', limit: 5, offset: 0 },
+      { roomId: 'room-1', search: 'bob', page: { limit: 5, offset: 0 } },
       { headers: undefined }
     );
+  });
+
+  it('maps offline and unspecified read statuses to offline', async () => {
+    mocks.listServerMembers.mockResolvedValue({
+      members: [
+        {
+          id: 'U3',
+          login: 'carol',
+          displayName: 'Carol',
+          deleted: false,
+          presenceStatus: APIPresenceStatus.OFFLINE,
+          roles: []
+        },
+        {
+          id: 'U4',
+          login: 'dave',
+          displayName: 'Dave',
+          deleted: false,
+          presenceStatus: APIPresenceStatus.UNSPECIFIED,
+          roles: []
+        }
+      ],
+      totalCount: 2,
+      hasMore: false
+    });
+
+    const api = createMemberDirectoryAPI({ baseUrl: '/api/connect', bearerToken: null });
+
+    await expect(api.listServerMembers()).resolves.toMatchObject({
+      members: [
+        { id: 'U3', presenceStatus: PresenceStatus.Offline },
+        { id: 'U4', presenceStatus: PresenceStatus.Offline }
+      ]
+    });
   });
 });

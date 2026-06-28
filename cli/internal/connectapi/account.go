@@ -3,7 +3,6 @@ package connectapi
 import (
 	"bytes"
 	"context"
-	"errors"
 
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/core"
@@ -149,21 +148,11 @@ func (s *accountService) DeleteMyAccount(ctx context.Context, req *connect.Reque
 	return connect.NewResponse(&apiv1.DeleteMyAccountResponse{Deleted: true}), nil
 }
 
-func (s *accountService) accountUser(ctx context.Context, user *corev1.User) (*apiv1.AccountUser, error) {
+func (s *accountService) accountUser(ctx context.Context, user *corev1.User) (*apiv1.UserSummary, error) {
 	if user == nil {
-		return nil, connectError(errors.New("user not found"))
+		return nil, connectError(core.ErrNotFound)
 	}
-	response := &apiv1.AccountUser{
-		Id:          user.GetId(),
-		Login:       user.GetLogin(),
-		DisplayName: user.GetDisplayName(),
-	}
-	if avatarURL, err := s.api.core.GetUserAvatarURL(ctx, user.GetId(), nil, nil, ""); err != nil {
-		return nil, connectError(err)
-	} else if avatarURL != "" {
-		response.AvatarUrl = stringPtr(s.api.absolutizeAssetURL(ctx, avatarURL))
-	}
-	return response, nil
+	return (&userService{api: s.api}).userSummary(ctx, user, nil)
 }
 
 func apiTimeFormatToCore(format apiv1.TimeFormat) corev1.TimeFormat {

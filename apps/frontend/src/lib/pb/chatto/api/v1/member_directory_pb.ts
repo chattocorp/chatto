@@ -7,6 +7,7 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { PresenceStatus } from "./presence_pb.js";
 import { CustomUserStatus } from "./user_status_pb.js";
+import { PageInfo, PageRequest } from "./pagination_pb.js";
 
 /**
  * Public user/member profile used by directory and mention surfaces.
@@ -128,18 +129,11 @@ export class ListServerMembersRequest extends Message<ListServerMembersRequest> 
   search = "";
 
   /**
-   * Maximum results to return. Defaults to 20, maximum 100.
+   * Page request. Defaults to 20 results when absent or limit is zero.
    *
-   * @generated from field: int32 limit = 2;
+   * @generated from field: chatto.api.v1.PageRequest page = 4;
    */
-  limit = 0;
-
-  /**
-   * Zero-based result offset.
-   *
-   * @generated from field: int32 offset = 3;
-   */
-  offset = 0;
+  page?: PageRequest;
 
   constructor(data?: PartialMessage<ListServerMembersRequest>) {
     super();
@@ -150,8 +144,7 @@ export class ListServerMembersRequest extends Message<ListServerMembersRequest> 
   static readonly typeName = "chatto.api.v1.ListServerMembersRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "search", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "limit", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 3, name: "offset", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 4, name: "page", kind: "message", T: PageRequest },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListServerMembersRequest {
@@ -185,18 +178,11 @@ export class ListServerMembersResponse extends Message<ListServerMembersResponse
   members: DirectoryMember[] = [];
 
   /**
-   * Total matching members before pagination.
+   * Page metadata.
    *
-   * @generated from field: int32 total_count = 2;
+   * @generated from field: chatto.api.v1.PageInfo page = 4;
    */
-  totalCount = 0;
-
-  /**
-   * Whether more matching members exist after this page.
-   *
-   * @generated from field: bool has_more = 3;
-   */
-  hasMore = false;
+  page?: PageInfo;
 
   constructor(data?: PartialMessage<ListServerMembersResponse>) {
     super();
@@ -207,8 +193,7 @@ export class ListServerMembersResponse extends Message<ListServerMembersResponse
   static readonly typeName = "chatto.api.v1.ListServerMembersResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "members", kind: "message", T: DirectoryMember, repeated: true },
-    { no: 2, name: "total_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 3, name: "has_more", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 4, name: "page", kind: "message", T: PageInfo },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListServerMembersResponse {
@@ -249,18 +234,11 @@ export class ListRoomMembersRequest extends Message<ListRoomMembersRequest> {
   search = "";
 
   /**
-   * Maximum results to return. Defaults to 20, maximum 100.
+   * Page request. Defaults to 20 results when absent or limit is zero.
    *
-   * @generated from field: int32 limit = 3;
+   * @generated from field: chatto.api.v1.PageRequest page = 5;
    */
-  limit = 0;
-
-  /**
-   * Zero-based result offset.
-   *
-   * @generated from field: int32 offset = 4;
-   */
-  offset = 0;
+  page?: PageRequest;
 
   constructor(data?: PartialMessage<ListRoomMembersRequest>) {
     super();
@@ -272,8 +250,7 @@ export class ListRoomMembersRequest extends Message<ListRoomMembersRequest> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "search", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "limit", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 4, name: "offset", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 5, name: "page", kind: "message", T: PageRequest },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListRoomMembersRequest {
@@ -307,18 +284,11 @@ export class ListRoomMembersResponse extends Message<ListRoomMembersResponse> {
   members: DirectoryMember[] = [];
 
   /**
-   * Total matching members before pagination.
+   * Page metadata.
    *
-   * @generated from field: int32 total_count = 2;
+   * @generated from field: chatto.api.v1.PageInfo page = 4;
    */
-  totalCount = 0;
-
-  /**
-   * Whether more matching members exist after this page.
-   *
-   * @generated from field: bool has_more = 3;
-   */
-  hasMore = false;
+  page?: PageInfo;
 
   constructor(data?: PartialMessage<ListRoomMembersResponse>) {
     super();
@@ -329,8 +299,7 @@ export class ListRoomMembersResponse extends Message<ListRoomMembersResponse> {
   static readonly typeName = "chatto.api.v1.ListRoomMembersResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "members", kind: "message", T: DirectoryMember, repeated: true },
-    { no: 2, name: "total_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 3, name: "has_more", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 4, name: "page", kind: "message", T: PageInfo },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListRoomMembersResponse {

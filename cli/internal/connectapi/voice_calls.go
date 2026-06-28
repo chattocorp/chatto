@@ -161,7 +161,7 @@ func (s *voiceCallService) callParticipant(ctx context.Context, participant core
 	if err != nil {
 		return nil, connectError(err)
 	}
-	apiUser := &apiv1.CallParticipantUser{
+	apiUser := &apiv1.UserPresenceSummary{
 		Id:             user.GetId(),
 		Login:          user.GetLogin(),
 		DisplayName:    user.GetDisplayName(),

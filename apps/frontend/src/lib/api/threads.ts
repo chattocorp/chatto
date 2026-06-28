@@ -1,7 +1,7 @@
 import { Code, ConnectError, createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import { ThreadService } from '$lib/pb/chatto/api/v1/threads_connect';
-import type { RoomTimelineUser } from '$lib/pb/chatto/api/v1/room_timeline_pb';
+import type { UserSummary } from '$lib/pb/chatto/api/v1/users_pb';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 import type { RawEvent } from '$lib/state/room/messages/helpers';
 import { roomTimelineEventToRawEvent } from './roomTimeline';
@@ -47,7 +47,10 @@ export function createThreadAPI(config: ConnectAPIConfig) {
 	return {
 		async listFollowedThreads(input: { limit: number; offset: number }): Promise<FollowedThreadsPage> {
 			try {
-				const response = await client.listFollowedThreads(input, { headers: headers() });
+				const response = await client.listFollowedThreads(
+					{ page: { limit: input.limit, offset: input.offset } },
+					{ headers: headers() }
+				);
 				const users = response.includes?.users ?? {};
 				return {
 					threads: response.threads.map((thread) => ({
@@ -57,15 +60,15 @@ export function createThreadAPI(config: ConnectAPIConfig) {
 						rootMessage: thread.rootMessage
 							? roomTimelineEventToRawEvent(
 									thread.rootMessage,
-									users as Record<string, RoomTimelineUser>
+									users as Record<string, UserSummary>
 								)
 							: null,
 						replyCount: thread.replyCount,
 						lastReplyAt: timestampToISOOrNull(thread.lastReplyAt),
 						hasUnread: thread.hasUnread
 					})),
-					totalCount: response.totalCount,
-					hasMore: response.hasMore
+					totalCount: Number(response.page?.totalCount ?? 0),
+					hasMore: response.page?.hasMore ?? false
 				};
 			} catch (err) {
 				return handleAuthError(err);

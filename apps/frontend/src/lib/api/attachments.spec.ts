@@ -68,8 +68,7 @@ describe('createAttachmentAPI', () => {
   it('lists room attachments with bearer auth and maps attachment metadata', async () => {
     mocks.listRoomAttachments.mockResolvedValue(
       new ListRoomAttachmentsResponse({
-        totalCount: 2,
-        hasMore: true,
+        page: { totalCount: 2n, hasMore: true },
         items: [
           new RoomAttachmentListItem({
             messageEventId: 'event_2',
@@ -126,8 +125,7 @@ describe('createAttachmentAPI', () => {
     expect(mocks.listRoomAttachments).toHaveBeenCalledWith(
       {
         roomId: 'room_1',
-        limit: 50,
-        offset: 0,
+        page: { limit: 50, offset: 0 },
         thumbnail: { width: 120, height: 120, fit: AttachmentFitMode.COVER }
       },
       { headers: { Authorization: 'Bearer token' } }

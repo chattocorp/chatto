@@ -3,8 +3,7 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
-import "chatto/api/v1/presence.proto";
-import "chatto/api/v1/user_status.proto";
+import "chatto/api/v1/users.proto";
 import "google/protobuf/timestamp.proto";
 
 // Voice-call request/response APIs backed by Chatto call-state projections.
@@ -56,28 +55,10 @@ message ListCallParticipantsResponse {
   repeated CallParticipant participants = 1;
 }
 
-// Avatar-display data for a call participant.
-message CallParticipantUser {
-  // Stable user ID.
-  string id = 1;
-  // Login identifier.
-  string login = 2;
-  // Display name shown in Chatto.
-  string display_name = 3;
-  // Whether the user account was deleted.
-  bool deleted = 4;
-  // Optional avatar URL.
-  optional string avatar_url = 5;
-  // Current live presence status.
-  PresenceStatus presence_status = 6;
-  // Custom profile status, when set.
-  CustomUserStatus custom_status = 7;
-}
-
 // User currently participating in a room call.
 message CallParticipant {
   // Participant user.
-  CallParticipantUser user = 1;
+  UserPresenceSummary user = 1;
   // When the user joined this call.
   google.protobuf.Timestamp joined_at = 2;
   // Active call session ID.

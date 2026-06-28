@@ -5,8 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
-import { PresenceStatus } from "./presence_pb.js";
-import { CustomUserStatus } from "./user_status_pb.js";
+import { UserPresenceSummary } from "./users_pb.js";
 
 /**
  * Request for active channel call room IDs.
@@ -165,95 +164,6 @@ export class ListCallParticipantsResponse extends Message<ListCallParticipantsRe
 }
 
 /**
- * Avatar-display data for a call participant.
- *
- * @generated from message chatto.api.v1.CallParticipantUser
- */
-export class CallParticipantUser extends Message<CallParticipantUser> {
-  /**
-   * Stable user ID.
-   *
-   * @generated from field: string id = 1;
-   */
-  id = "";
-
-  /**
-   * Login identifier.
-   *
-   * @generated from field: string login = 2;
-   */
-  login = "";
-
-  /**
-   * Display name shown in Chatto.
-   *
-   * @generated from field: string display_name = 3;
-   */
-  displayName = "";
-
-  /**
-   * Whether the user account was deleted.
-   *
-   * @generated from field: bool deleted = 4;
-   */
-  deleted = false;
-
-  /**
-   * Optional avatar URL.
-   *
-   * @generated from field: optional string avatar_url = 5;
-   */
-  avatarUrl?: string;
-
-  /**
-   * Current live presence status.
-   *
-   * @generated from field: chatto.api.v1.PresenceStatus presence_status = 6;
-   */
-  presenceStatus = PresenceStatus.UNSPECIFIED;
-
-  /**
-   * Custom profile status, when set.
-   *
-   * @generated from field: chatto.api.v1.CustomUserStatus custom_status = 7;
-   */
-  customStatus?: CustomUserStatus;
-
-  constructor(data?: PartialMessage<CallParticipantUser>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.CallParticipantUser";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "deleted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 5, name: "avatar_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 6, name: "presence_status", kind: "enum", T: proto3.getEnumType(PresenceStatus) },
-    { no: 7, name: "custom_status", kind: "message", T: CustomUserStatus },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CallParticipantUser {
-    return new CallParticipantUser().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CallParticipantUser {
-    return new CallParticipantUser().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CallParticipantUser {
-    return new CallParticipantUser().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: CallParticipantUser | PlainMessage<CallParticipantUser> | undefined, b: CallParticipantUser | PlainMessage<CallParticipantUser> | undefined): boolean {
-    return proto3.util.equals(CallParticipantUser, a, b);
-  }
-}
-
-/**
  * User currently participating in a room call.
  *
  * @generated from message chatto.api.v1.CallParticipant
@@ -262,9 +172,9 @@ export class CallParticipant extends Message<CallParticipant> {
   /**
    * Participant user.
    *
-   * @generated from field: chatto.api.v1.CallParticipantUser user = 1;
+   * @generated from field: chatto.api.v1.UserPresenceSummary user = 1;
    */
-  user?: CallParticipantUser;
+  user?: UserPresenceSummary;
 
   /**
    * When the user joined this call.
@@ -288,7 +198,7 @@ export class CallParticipant extends Message<CallParticipant> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.CallParticipant";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "user", kind: "message", T: CallParticipantUser },
+    { no: 1, name: "user", kind: "message", T: UserPresenceSummary },
     { no: 2, name: "joined_at", kind: "message", T: Timestamp },
     { no: 3, name: "call_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);

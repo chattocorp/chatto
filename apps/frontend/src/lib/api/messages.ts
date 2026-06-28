@@ -2,10 +2,8 @@ import { Code, ConnectError, createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import type { LinkPreviewInput, RoomEventView } from '$lib/render/types';
 import { MessageService } from '$lib/pb/chatto/api/v1/messages_connect';
-import {
-	MessageAttachmentUpload,
-	MessageLinkPreviewInput
-} from '$lib/pb/chatto/api/v1/messages_pb';
+import { MessageAttachmentUpload } from '$lib/pb/chatto/api/v1/messages_pb';
+import { LinkPreview } from '$lib/pb/chatto/api/v1/link_previews_pb';
 import { roomTimelineEventToRawEvent } from '$lib/api/roomTimeline';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 
@@ -183,13 +181,13 @@ async function messageAttachmentUploads(files: File[] | null | undefined) {
 
 function messageLinkPreviewInput(input: LinkPreviewInput | null | undefined) {
 	if (!input) return undefined;
-	return new MessageLinkPreviewInput({
+	return new LinkPreview({
 		url: input.url,
-		title: input.title ?? '',
-		description: input.description ?? '',
-		siteName: input.siteName ?? '',
-		imageAssetId: input.imageAssetId ?? '',
-		embedType: input.embedType ?? '',
-		embedId: input.embedId ?? ''
+		title: input.title ?? undefined,
+		description: input.description ?? undefined,
+		siteName: input.siteName ?? undefined,
+		imageAssetId: input.imageAssetId ?? undefined,
+		embedType: input.embedType ?? undefined,
+		embedId: input.embedId ?? undefined
 	});
 }

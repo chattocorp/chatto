@@ -1,10 +1,8 @@
 import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import { RoleService } from '$lib/pb/chatto/api/v1/roles_connect';
-import type {
-  Role as APIRole,
-  RoleUser as APIRoleUser
-} from '$lib/pb/chatto/api/v1/roles_pb';
+import type { Role as APIRole } from '$lib/pb/chatto/api/v1/roles_pb';
+import type { UserSummary as APIUserSummary } from '$lib/pb/chatto/api/v1/users_pb';
 
 export type RoleAPIConfig = {
   baseUrl: string;
@@ -122,7 +120,7 @@ function serverRole(role: APIRole): ServerRole {
   };
 }
 
-function roleUser(user: APIRoleUser): RoleUser {
+function roleUser(user: APIUserSummary): RoleUser {
   return {
     id: user.id,
     login: user.login,

@@ -14,6 +14,11 @@ type attachmentService struct {
 	api *API
 }
 
+const (
+	defaultAttachmentListLimit = 50
+	maxAttachmentListLimit     = 100
+)
+
 type attachmentThumbnailRequest struct {
 	width  int
 	height int
@@ -25,11 +30,12 @@ func (s *attachmentService) ListRoomAttachments(ctx context.Context, req *connec
 	if err != nil {
 		return nil, err
 	}
+	limit, offset := apiPagination(req.Msg.GetPage(), defaultAttachmentListLimit, maxAttachmentListLimit)
 	result, err := s.api.core.ListRoomAttachments(ctx, core.ListRoomAttachmentsInput{
 		ActorID: caller.UserID,
 		RoomID:  req.Msg.RoomId,
-		Limit:   int(req.Msg.Limit),
-		Offset:  int(req.Msg.Offset),
+		Limit:   limit,
+		Offset:  offset,
 	})
 	if err != nil {
 		return nil, connectError(err)
@@ -50,9 +56,8 @@ func (s *attachmentService) ListRoomAttachments(ctx context.Context, req *connec
 	}
 
 	return connect.NewResponse(&apiv1.ListRoomAttachmentsResponse{
-		Items:      items,
-		TotalCount: int32(result.TotalCount),
-		HasMore:    result.HasMore,
+		Items: items,
+		Page:  apiPageInfo(result.TotalCount, result.HasMore),
 	}), nil
 }
 

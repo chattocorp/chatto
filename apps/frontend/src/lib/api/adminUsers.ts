@@ -6,7 +6,7 @@ import type {
   AdminMemberRole as APIAdminMemberRole,
   AdminMemberRoleSummary as APIAdminMemberRoleSummary
 } from '$lib/pb/chatto/api/v1/admin_user_management_pb';
-import type { AccountUser as APIAccountUser } from '$lib/pb/chatto/api/v1/account_pb';
+import type { UserSummary as APIUserSummary } from '$lib/pb/chatto/api/v1/users_pb';
 
 export type AdminUserManagementAPIConfig = {
   baseUrl: string;
@@ -83,16 +83,18 @@ export function createAdminUserManagementAPI(config: AdminUserManagementAPIConfi
       const response = await client.listMembers(
         {
           search: input.search || undefined,
-          limit: input.limit,
-          offset: input.offset
+          page: {
+            limit: input.limit,
+            offset: input.offset
+          }
         },
         { headers: headers() }
       );
       return {
         users: response.users.map(adminMember),
         roles: response.roles.map(adminMemberRoleSummary),
-        totalCount: response.totalCount,
-        hasMore: response.hasMore
+        totalCount: Number(response.page?.totalCount ?? 0),
+        hasMore: response.page?.hasMore ?? false
       };
     },
 
@@ -132,7 +134,7 @@ export function createAdminUserManagementAPI(config: AdminUserManagementAPIConfi
 
 export type AdminUserManagementAPI = ReturnType<typeof createAdminUserManagementAPI>;
 
-function adminManagedUser(user: APIAccountUser | undefined): AdminManagedUser {
+function adminManagedUser(user: APIUserSummary | undefined): AdminManagedUser {
   if (!user) {
     throw new Error('admin user response did not include a user');
   }
@@ -144,19 +146,23 @@ function adminManagedUser(user: APIAccountUser | undefined): AdminManagedUser {
   };
 }
 
-function adminMember(user: APIAdminMember): AdminMember {
+function adminMember(member: APIAdminMember): AdminMember {
+  const summary = member.user;
+  if (!summary) {
+    throw new Error('admin member response did not include a user summary');
+  }
   return {
-    id: user.id,
-    login: user.login,
-    displayName: user.displayName,
-    avatarUrl: user.avatarUrl ?? null,
-    roles: [...user.roles],
-    createdAt: user.createdAt?.toDate().toISOString() ?? null,
-    deleted: user.deleted,
-    hasVerifiedEmail: user.hasVerifiedEmail,
-    verifiedEmails: [...user.verifiedEmails],
-    viewerCanDeleteAccount: user.viewerCanDeleteAccount,
-    lastLoginChange: user.lastLoginChange?.toDate().toISOString() ?? null
+    id: summary.id,
+    login: summary.login,
+    displayName: summary.displayName,
+    avatarUrl: summary.avatarUrl ?? null,
+    roles: [...member.roles],
+    createdAt: member.createdAt?.toDate().toISOString() ?? null,
+    deleted: summary.deleted,
+    hasVerifiedEmail: member.hasVerifiedEmail,
+    verifiedEmails: [...member.verifiedEmails],
+    viewerCanDeleteAccount: member.viewerCanDeleteAccount,
+    lastLoginChange: member.lastLoginChange?.toDate().toISOString() ?? null
   };
 }
 

@@ -328,10 +328,8 @@ func (x *FollowedThread) GetHasUnread() bool {
 // Request for a page of followed threads for the current user.
 type ListFollowedThreadsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Maximum number of followed threads to return.
-	Limit int32 `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
-	// Zero-based offset into the followed-thread list.
-	Offset        int32 `protobuf:"varint,2,opt,name=offset,proto3" json:"offset,omitempty"`
+	// Page request. Defaults to 20 results when absent or limit is zero.
+	Page          *PageRequest `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -366,18 +364,11 @@ func (*ListFollowedThreadsRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_threads_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *ListFollowedThreadsRequest) GetLimit() int32 {
+func (x *ListFollowedThreadsRequest) GetPage() *PageRequest {
 	if x != nil {
-		return x.Limit
+		return x.Page
 	}
-	return 0
-}
-
-func (x *ListFollowedThreadsRequest) GetOffset() int32 {
-	if x != nil {
-		return x.Offset
-	}
-	return 0
+	return nil
 }
 
 // Response containing one followed-thread page.
@@ -385,12 +376,10 @@ type ListFollowedThreadsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Followed threads in newest-activity-first order.
 	Threads []*FollowedThread `protobuf:"bytes,1,rep,name=threads,proto3" json:"threads,omitempty"`
-	// Total followed-thread count before pagination.
-	TotalCount int32 `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
-	// True when another page exists after this response.
-	HasMore bool `protobuf:"varint,3,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
 	// Related entities needed to render root messages.
-	Includes      *RoomTimelineIncludes `protobuf:"bytes,4,opt,name=includes,proto3" json:"includes,omitempty"`
+	Includes *RoomTimelineIncludes `protobuf:"bytes,4,opt,name=includes,proto3" json:"includes,omitempty"`
+	// Page metadata.
+	Page          *PageInfo `protobuf:"bytes,5,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -432,23 +421,16 @@ func (x *ListFollowedThreadsResponse) GetThreads() []*FollowedThread {
 	return nil
 }
 
-func (x *ListFollowedThreadsResponse) GetTotalCount() int32 {
-	if x != nil {
-		return x.TotalCount
-	}
-	return 0
-}
-
-func (x *ListFollowedThreadsResponse) GetHasMore() bool {
-	if x != nil {
-		return x.HasMore
-	}
-	return false
-}
-
 func (x *ListFollowedThreadsResponse) GetIncludes() *RoomTimelineIncludes {
 	if x != nil {
 		return x.Includes
+	}
+	return nil
+}
+
+func (x *ListFollowedThreadsResponse) GetPage() *PageInfo {
+	if x != nil {
+		return x.Page
 	}
 	return nil
 }
@@ -457,7 +439,7 @@ var File_chatto_api_v1_threads_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_threads_proto_rawDesc = "" +
 	"\n" +
-	"\x1bchatto/api/v1/threads.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a!chatto/api/v1/room_timeline.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"q\n" +
+	"\x1bchatto/api/v1/threads.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a!chatto/api/v1/room_timeline.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"q\n" +
 	"\x13FollowThreadRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x128\n" +
 	"\x14thread_root_event_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x11threadRootEventId\"4\n" +
@@ -477,16 +459,13 @@ const file_chatto_api_v1_threads_proto_rawDesc = "" +
 	"replyCount\x12>\n" +
 	"\rlast_reply_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\vlastReplyAt\x12\x1d\n" +
 	"\n" +
-	"has_unread\x18\a \x01(\bR\thasUnread\"J\n" +
-	"\x1aListFollowedThreadsRequest\x12\x14\n" +
-	"\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x16\n" +
-	"\x06offset\x18\x02 \x01(\x05R\x06offset\"\xd3\x01\n" +
+	"has_unread\x18\a \x01(\bR\thasUnread\"g\n" +
+	"\x1aListFollowedThreadsRequest\x12.\n" +
+	"\x04page\x18\x03 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04pageJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\x05limitR\x06offset\"\xe7\x01\n" +
 	"\x1bListFollowedThreadsResponse\x127\n" +
-	"\athreads\x18\x01 \x03(\v2\x1d.chatto.api.v1.FollowedThreadR\athreads\x12\x1f\n" +
-	"\vtotal_count\x18\x02 \x01(\x05R\n" +
-	"totalCount\x12\x19\n" +
-	"\bhas_more\x18\x03 \x01(\bR\ahasMore\x12?\n" +
-	"\bincludes\x18\x04 \x01(\v2#.chatto.api.v1.RoomTimelineIncludesR\bincludes2\xb5\x02\n" +
+	"\athreads\x18\x01 \x03(\v2\x1d.chatto.api.v1.FollowedThreadR\athreads\x12?\n" +
+	"\bincludes\x18\x04 \x01(\v2#.chatto.api.v1.RoomTimelineIncludesR\bincludes\x12+\n" +
+	"\x04page\x18\x05 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\vtotal_countR\bhas_more2\xb5\x02\n" +
 	"\rThreadService\x12l\n" +
 	"\x13ListFollowedThreads\x12).chatto.api.v1.ListFollowedThreadsRequest\x1a*.chatto.api.v1.ListFollowedThreadsResponse\x12W\n" +
 	"\fFollowThread\x12\".chatto.api.v1.FollowThreadRequest\x1a#.chatto.api.v1.FollowThreadResponse\x12]\n" +
@@ -516,24 +495,28 @@ var file_chatto_api_v1_threads_proto_goTypes = []any{
 	(*ListFollowedThreadsResponse)(nil), // 6: chatto.api.v1.ListFollowedThreadsResponse
 	(*RoomTimelineEvent)(nil),           // 7: chatto.api.v1.RoomTimelineEvent
 	(*timestamppb.Timestamp)(nil),       // 8: google.protobuf.Timestamp
-	(*RoomTimelineIncludes)(nil),        // 9: chatto.api.v1.RoomTimelineIncludes
+	(*PageRequest)(nil),                 // 9: chatto.api.v1.PageRequest
+	(*RoomTimelineIncludes)(nil),        // 10: chatto.api.v1.RoomTimelineIncludes
+	(*PageInfo)(nil),                    // 11: chatto.api.v1.PageInfo
 }
 var file_chatto_api_v1_threads_proto_depIdxs = []int32{
-	7, // 0: chatto.api.v1.FollowedThread.root_message:type_name -> chatto.api.v1.RoomTimelineEvent
-	8, // 1: chatto.api.v1.FollowedThread.last_reply_at:type_name -> google.protobuf.Timestamp
-	4, // 2: chatto.api.v1.ListFollowedThreadsResponse.threads:type_name -> chatto.api.v1.FollowedThread
-	9, // 3: chatto.api.v1.ListFollowedThreadsResponse.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
-	5, // 4: chatto.api.v1.ThreadService.ListFollowedThreads:input_type -> chatto.api.v1.ListFollowedThreadsRequest
-	0, // 5: chatto.api.v1.ThreadService.FollowThread:input_type -> chatto.api.v1.FollowThreadRequest
-	2, // 6: chatto.api.v1.ThreadService.UnfollowThread:input_type -> chatto.api.v1.UnfollowThreadRequest
-	6, // 7: chatto.api.v1.ThreadService.ListFollowedThreads:output_type -> chatto.api.v1.ListFollowedThreadsResponse
-	1, // 8: chatto.api.v1.ThreadService.FollowThread:output_type -> chatto.api.v1.FollowThreadResponse
-	3, // 9: chatto.api.v1.ThreadService.UnfollowThread:output_type -> chatto.api.v1.UnfollowThreadResponse
-	7, // [7:10] is the sub-list for method output_type
-	4, // [4:7] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	7,  // 0: chatto.api.v1.FollowedThread.root_message:type_name -> chatto.api.v1.RoomTimelineEvent
+	8,  // 1: chatto.api.v1.FollowedThread.last_reply_at:type_name -> google.protobuf.Timestamp
+	9,  // 2: chatto.api.v1.ListFollowedThreadsRequest.page:type_name -> chatto.api.v1.PageRequest
+	4,  // 3: chatto.api.v1.ListFollowedThreadsResponse.threads:type_name -> chatto.api.v1.FollowedThread
+	10, // 4: chatto.api.v1.ListFollowedThreadsResponse.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
+	11, // 5: chatto.api.v1.ListFollowedThreadsResponse.page:type_name -> chatto.api.v1.PageInfo
+	5,  // 6: chatto.api.v1.ThreadService.ListFollowedThreads:input_type -> chatto.api.v1.ListFollowedThreadsRequest
+	0,  // 7: chatto.api.v1.ThreadService.FollowThread:input_type -> chatto.api.v1.FollowThreadRequest
+	2,  // 8: chatto.api.v1.ThreadService.UnfollowThread:input_type -> chatto.api.v1.UnfollowThreadRequest
+	6,  // 9: chatto.api.v1.ThreadService.ListFollowedThreads:output_type -> chatto.api.v1.ListFollowedThreadsResponse
+	1,  // 10: chatto.api.v1.ThreadService.FollowThread:output_type -> chatto.api.v1.FollowThreadResponse
+	3,  // 11: chatto.api.v1.ThreadService.UnfollowThread:output_type -> chatto.api.v1.UnfollowThreadResponse
+	9,  // [9:12] is the sub-list for method output_type
+	6,  // [6:9] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_threads_proto_init() }
@@ -541,6 +524,7 @@ func file_chatto_api_v1_threads_proto_init() {
 	if File_chatto_api_v1_threads_proto != nil {
 		return
 	}
+	file_chatto_api_v1_pagination_proto_init()
 	file_chatto_api_v1_room_timeline_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{

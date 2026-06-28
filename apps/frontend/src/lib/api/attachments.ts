@@ -100,16 +100,15 @@ export function createAttachmentAPI(config: AttachmentAPIConfig): AttachmentAPI 
         const response = await client.listRoomAttachments(
           {
             roomId,
-            limit,
-            offset,
+            page: { limit, offset },
             thumbnail: thumbnailOptions(thumbnail)
           },
           { headers: headers() }
         );
         return {
           items: response.items.map(roomFileItem),
-          totalCount: response.totalCount,
-          hasMore: response.hasMore
+          totalCount: Number(response.page?.totalCount ?? 0),
+          hasMore: response.page?.hasMore ?? false
         };
       } catch (err) {
         return handleAuthError(err);

@@ -26,7 +26,8 @@ export const PermissionService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gets one role's full permission matrix. Requires role.manage.
+     * Gets one role's full permission matrix. Requires role.manage. Returns
+     * NOT_FOUND when the role does not exist.
      *
      * @generated from rpc chatto.api.v1.PermissionService.GetRolePermissionMatrix
      */

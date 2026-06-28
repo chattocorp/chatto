@@ -339,9 +339,9 @@ export class GetEventRequest extends Message<GetEventRequest> {
  */
 export class GetEventResponse extends Message<GetEventResponse> {
   /**
-   * Entry is absent when the requested sequence does not exist.
+   * Requested event-log entry.
    *
-   * @generated from field: optional chatto.api.v1.AdminEventLogEntry entry = 1;
+   * @generated from field: chatto.api.v1.AdminEventLogEntry entry = 1;
    */
   entry?: AdminEventLogEntry;
 
@@ -353,7 +353,7 @@ export class GetEventResponse extends Message<GetEventResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.GetEventResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "entry", kind: "message", T: AdminEventLogEntry, opt: true },
+    { no: 1, name: "entry", kind: "message", T: AdminEventLogEntry },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetEventResponse {

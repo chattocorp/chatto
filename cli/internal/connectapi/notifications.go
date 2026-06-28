@@ -25,7 +25,7 @@ func (s *notificationService) ListNotifications(ctx context.Context, req *connec
 	if err != nil {
 		return nil, err
 	}
-	return s.notificationPage(ctx, caller.UserID, req.Msg.Limit, req.Msg.Offset, nil)
+	return s.notificationPage(ctx, caller.UserID, req.Msg.GetPage(), nil)
 }
 
 func (s *notificationService) ListRoomNotifications(ctx context.Context, req *connect.Request[apiv1.ListRoomNotificationsRequest]) (*connect.Response[apiv1.ListRoomNotificationsResponse], error) {
@@ -37,15 +37,14 @@ func (s *notificationService) ListRoomNotifications(ctx context.Context, req *co
 	if err != nil {
 		return nil, connectError(err)
 	}
-	page, err := s.notificationPageFromList(ctx, notifications, req.Msg.Limit, req.Msg.Offset)
+	page, err := s.notificationPageFromList(ctx, notifications, req.Msg.GetPage())
 	if err != nil {
 		return nil, err
 	}
 	return connect.NewResponse(&apiv1.ListRoomNotificationsResponse{
 		Items:      page.Msg.GetItems(),
-		TotalCount: page.Msg.GetTotalCount(),
-		HasMore:    page.Msg.GetHasMore(),
 		ServerName: page.Msg.GetServerName(),
+		Page:       page.Msg.GetPage(),
 	}), nil
 }
 
@@ -115,7 +114,7 @@ func (s *notificationService) DismissAllNotifications(ctx context.Context, _ *co
 	return connect.NewResponse(&apiv1.DismissAllNotificationsResponse{DismissedCount: int32(count)}), nil
 }
 
-func (s *notificationService) notificationPage(ctx context.Context, userID string, limit, offset int32, matches func(*corev1.Notification) bool) (*connect.Response[apiv1.ListNotificationsResponse], error) {
+func (s *notificationService) notificationPage(ctx context.Context, userID string, pageRequest *apiv1.PageRequest, matches func(*corev1.Notification) bool) (*connect.Response[apiv1.ListNotificationsResponse], error) {
 	notifications, err := s.api.core.GetNotifications(ctx, userID)
 	if err != nil {
 		return nil, connectError(err)
@@ -131,11 +130,11 @@ func (s *notificationService) notificationPage(ctx context.Context, userID strin
 		}
 	}
 
-	return s.notificationPageFromList(ctx, filtered, limit, offset)
+	return s.notificationPageFromList(ctx, filtered, pageRequest)
 }
 
-func (s *notificationService) notificationPageFromList(ctx context.Context, notifications []*corev1.Notification, limit, offset int32) (*connect.Response[apiv1.ListNotificationsResponse], error) {
-	limitVal, offsetVal := apiPagination(limit, offset, defaultNotificationLimit, maxNotificationLimit)
+func (s *notificationService) notificationPageFromList(ctx context.Context, notifications []*corev1.Notification, pageRequest *apiv1.PageRequest) (*connect.Response[apiv1.ListNotificationsResponse], error) {
+	limitVal, offsetVal := apiPagination(pageRequest, defaultNotificationLimit, maxNotificationLimit)
 	page, totalCount, hasMore := paginateNotifications(notifications, limitVal, offsetVal)
 	items := make([]*apiv1.NotificationItem, 0, len(page))
 	for _, notification := range page {
@@ -150,8 +149,7 @@ func (s *notificationService) notificationPageFromList(ctx context.Context, noti
 
 	response := s.emptyPage(ctx)
 	response.Items = items
-	response.TotalCount = int32(totalCount)
-	response.HasMore = hasMore
+	response.Page = apiPageInfo(totalCount, hasMore)
 	return connect.NewResponse(response), nil
 }
 
@@ -237,7 +235,7 @@ func (s *notificationService) apiNotificationItem(ctx context.Context, notificat
 	return item, nil
 }
 
-func (s *notificationService) notificationActor(ctx context.Context, userID string) (*apiv1.NotificationActor, error) {
+func (s *notificationService) notificationActor(ctx context.Context, userID string) (*apiv1.UserPresenceSummary, error) {
 	if userID == "" {
 		return nil, nil
 	}
@@ -252,7 +250,7 @@ func (s *notificationService) notificationActor(ctx context.Context, userID stri
 	if err != nil {
 		return nil, connectError(err)
 	}
-	actor := &apiv1.NotificationActor{
+	actor := &apiv1.UserPresenceSummary{
 		Id:             user.GetId(),
 		Login:          user.GetLogin(),
 		DisplayName:    user.GetDisplayName(),
@@ -282,7 +280,7 @@ func (s *notificationService) notificationRoom(ctx context.Context, roomID strin
 	}, nil
 }
 
-func notificationSummary(actor *apiv1.NotificationActor, notification *corev1.Notification) string {
+func notificationSummary(actor *apiv1.UserPresenceSummary, notification *corev1.Notification) string {
 	actorName := ""
 	if actor != nil {
 		actorName = actor.GetDisplayName()
@@ -329,21 +327,6 @@ func notificationTargetRoomID(notification *corev1.Notification) string {
 	default:
 		return ""
 	}
-}
-
-func apiPagination(limit, offset int32, defaultLimit, maxLimit int) (int, int) {
-	limitVal := defaultLimit
-	if limit > 0 {
-		limitVal = int(limit)
-	}
-	if limitVal > maxLimit {
-		limitVal = maxLimit
-	}
-	offsetVal := 0
-	if offset > 0 {
-		offsetVal = int(offset)
-	}
-	return limitVal, offsetVal
 }
 
 func paginateNotifications(notifications []*corev1.Notification, limit, offset int) ([]*corev1.Notification, int, bool) {
