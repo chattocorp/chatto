@@ -2,6 +2,9 @@ package core
 
 import (
 	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,6 +14,16 @@ import (
 func TestChattoCore_PendingExternalIdentityCreateFlow(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
+	avatarServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/png")
+		_, _ = w.Write(createTestPNG(64, 64))
+	}))
+	defer avatarServer.Close()
+	previousAvatarClient := providerAvatarClient
+	providerAvatarClient = avatarServer.Client()
+	t.Cleanup(func() {
+		providerAvatarClient = previousAvatarClient
+	})
 
 	token, err := core.CreatePendingExternalIdentityCreateFlow(ctx, PendingExternalIdentityFlow{
 		ProviderID:    "github-main",
@@ -19,6 +32,7 @@ func TestChattoCore_PendingExternalIdentityCreateFlow(t *testing.T) {
 		Issuer:        "github-main",
 		Subject:       "12345",
 		VerifiedEmail: "external@example.com",
+		AvatarURL:     avatarServer.URL,
 		LoginHint:     "external",
 	})
 	if err != nil {
@@ -58,6 +72,13 @@ func TestChattoCore_PendingExternalIdentityCreateFlow(t *testing.T) {
 	if len(emails) != 1 || emails[0].Email != "external@example.com" {
 		t.Fatalf("verified emails = %+v", emails)
 	}
+	avatar, err := core.GetUserAvatar(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("GetUserAvatar: %v", err)
+	}
+	if avatar == nil {
+		t.Fatal("expected provider avatar to be imported")
+	}
 
 	if err := core.DeletePendingExternalIdentityFlow(ctx, token); err != nil {
 		t.Fatalf("DeletePendingExternalIdentityFlow: %v", err)
@@ -92,6 +113,81 @@ func TestChattoCore_PendingExternalIdentityLinkStart(t *testing.T) {
 	}
 	if _, err := core.ConsumePendingExternalIdentityLinkStart(ctx, token); !errors.Is(err, ErrExternalIdentityFlowNotFound) {
 		t.Fatalf("ConsumePendingExternalIdentityLinkStart after delete error = %v, want ErrExternalIdentityFlowNotFound", err)
+	}
+}
+
+func TestChattoCore_CreateUserForExternalIdentityIgnoresProviderAvatarFailure(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	avatarServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/png")
+		_, _ = w.Write([]byte("not an image"))
+	}))
+	defer avatarServer.Close()
+	previousAvatarClient := providerAvatarClient
+	providerAvatarClient = avatarServer.Client()
+	t.Cleanup(func() {
+		providerAvatarClient = previousAvatarClient
+	})
+
+	token, err := core.CreatePendingExternalIdentityCreateFlow(ctx, PendingExternalIdentityFlow{
+		ProviderID:   "github-main",
+		ProviderType: "github",
+		Issuer:       "github-main",
+		Subject:      "bad-avatar",
+		AvatarURL:    avatarServer.URL,
+	})
+	if err != nil {
+		t.Fatalf("CreatePendingExternalIdentityCreateFlow: %v", err)
+	}
+	flow, err := core.GetPendingExternalIdentityCreateFlow(ctx, token)
+	if err != nil {
+		t.Fatalf("GetPendingExternalIdentityCreateFlow: %v", err)
+	}
+	user, err := core.CreateUserForExternalIdentity(ctx, "badavatar", "Bad Avatar", flow)
+	if err != nil {
+		t.Fatalf("CreateUserForExternalIdentity: %v", err)
+	}
+	found, err := core.GetUserByExternalIdentity(ctx, "github-main", "bad-avatar")
+	if err != nil {
+		t.Fatalf("GetUserByExternalIdentity: %v", err)
+	}
+	if found == nil || found.Id != user.Id {
+		t.Fatalf("external identity lookup = %v, want user %s", found, user.Id)
+	}
+	avatar, err := core.GetUserAvatar(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("GetUserAvatar: %v", err)
+	}
+	if avatar != nil {
+		t.Fatalf("avatar = %+v, want none after failed provider import", avatar)
+	}
+}
+
+func TestChattoCore_ImportUserAvatarFromURLRejectsOversizedResponse(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	avatarServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(strings.Repeat("x", int(providerAvatarMaxBytes)+1)))
+	}))
+	defer avatarServer.Close()
+	previousAvatarClient := providerAvatarClient
+	providerAvatarClient = avatarServer.Client()
+	t.Cleanup(func() {
+		providerAvatarClient = previousAvatarClient
+	})
+
+	user, err := core.CreateUser(ctx, SystemActorID, "oversizedavatar", "Oversized Avatar", "")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	err = core.ImportUserAvatarFromURL(ctx, user.Id, avatarServer.URL)
+	if err == nil {
+		t.Fatal("expected oversized avatar response to fail")
+	}
+	if !strings.Contains(err.Error(), "avatar exceeds maximum size") {
+		t.Fatalf("expected oversized avatar error, got %v", err)
 	}
 }
 

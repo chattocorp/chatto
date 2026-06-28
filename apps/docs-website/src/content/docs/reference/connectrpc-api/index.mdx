@@ -592,6 +592,35 @@ Result of deleting the authenticated user's avatar.
 | `user` | [`UserSummary`](#chatto-api-v1-UserSummary) | Updated user profile. |
 
 
+<a id="chatto-api-v1-AccountService-SetPassword"></a>
+
+### SetPassword
+
+Sets or changes the authenticated user's password.
+
+```http
+POST /api/connect/chatto.api.v1.AccountService/SetPassword
+```
+
+<a id="chatto-api-v1-SetPasswordRequest"></a>
+
+#### Input: SetPasswordRequest
+
+Request to set or change the authenticated user's password.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `password` | `string` | New password. The server applies the same password policy as registration and password reset. |
+| `current_password` | `string` | Current password. Required when the account already has a password; omitted when adding the first password to a passwordless account. |
+
+
+<a id="chatto-api-v1-SetPasswordResponse"></a>
+
+#### Result: SetPasswordResponse
+
+Result of setting or changing the authenticated account password.
+
+
 <a id="chatto-api-v1-AccountService-UpdateSettings"></a>
 
 ### UpdateSettings
@@ -1896,6 +1925,39 @@ Result of an admin user update.
 | `user` | [`UserSummary`](#chatto-api-v1-UserSummary) | Updated user profile. |
 
 
+<a id="chatto-api-v1-AdminUserManagementService-SetUserPassword"></a>
+
+### SetUserPassword
+
+Sets a user's password as an admin action.
+
+```http
+POST /api/connect/chatto.api.v1.AdminUserManagementService/SetUserPassword
+```
+
+<a id="chatto-api-v1-SetUserPasswordRequest"></a>
+
+#### Input: SetUserPasswordRequest
+
+Request to set a user's password as a server-admin action.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Target user ID. |
+| `password` | `string` | New password. The server applies the same password policy as registration and password reset. |
+
+
+<a id="chatto-api-v1-SetUserPasswordResponse"></a>
+
+#### Result: SetUserPasswordResponse
+
+Result of an admin password update.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `updated` | `bool` | True when the request completed. |
+
+
 <a id="chatto-api-v1-AdminUserManagementService-ClearUsernameCooldown"></a>
 
 ### ClearUsernameCooldown
@@ -2485,6 +2547,38 @@ Result of linking a provider identity.
 | Field | Type | Description |
 | --- | --- | --- |
 | `linked_identity` | [`LinkedExternalIdentity`](#chatto-api-v1-LinkedExternalIdentity) | Linked identity metadata. |
+
+
+<a id="chatto-api-v1-ExternalIdentityService-DisconnectExternalIdentity"></a>
+
+### DisconnectExternalIdentity
+
+Disconnects a provider identity from the authenticated account.
+
+```http
+POST /api/connect/chatto.api.v1.ExternalIdentityService/DisconnectExternalIdentity
+```
+
+<a id="chatto-api-v1-DisconnectExternalIdentityRequest"></a>
+
+#### Input: DisconnectExternalIdentityRequest
+
+Request to disconnect a linked provider identity from the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `subject_hash` | `string` | Stable one-way subject hash of the linked identity to disconnect. |
+
+
+<a id="chatto-api-v1-DisconnectExternalIdentityResponse"></a>
+
+#### Result: DisconnectExternalIdentityResponse
+
+Result of disconnecting a provider identity.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `disconnected` | `bool` | True when the identity was disconnected. |
 
 
 <a id="chatto-api-v1-MessageService"></a>
@@ -4350,6 +4444,7 @@ Current authenticated user's public profile plus self-only settings.
 | `viewer_can_delete_account` | `bool` | Whether the authenticated user may delete this account. |
 | `last_login_change` | `google.protobuf.Timestamp` | Last time a login credential changed, when known. |
 | `profile` | [`UserPresenceSummary`](#chatto-api-v1-UserPresenceSummary) | Public profile and live presence fields for the authenticated user. |
+| `has_password` | `bool` | Whether this account currently has a password sign-in credential. |
 
 
 
@@ -5050,6 +5145,7 @@ Public metadata for a configured external login provider.
 | `login_url` | `string` | URL that starts login for this provider. |
 | `link_url` | `string` | URL that starts authenticated account linking for this provider. Clients should use StartExternalIdentityLink instead of navigating here directly. |
 | `linked` | `bool` | True when this provider is already linked to the authenticated user. |
+| `linked_identity_subject_hash` | `string` | Linked identity subject hash for this provider, when linked. |
 
 
 

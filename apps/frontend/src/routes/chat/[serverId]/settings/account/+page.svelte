@@ -1,12 +1,18 @@
 <script lang="ts">
+  import { Code, ConnectError } from '@connectrpc/connect';
   import { resolve } from '$app/paths';
   import { createAccountAPI } from '$lib/api/account';
-  import { createExternalIdentityAPI, type SSOProvider } from '$lib/api/externalIdentities';
+  import {
+    createExternalIdentityAPI,
+    type LinkedSSOIdentity,
+    type SSOProvider
+  } from '$lib/api/externalIdentities';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { PaneHeader, Dialog, FormSection, Hint } from '$lib/ui';
-  import { TextInput, Button, FormError } from '$lib/ui/form';
+  import { TextInput, Button, FormError, z, validate } from '$lib/ui/form';
+  import { toast } from '$lib/ui/toast/toastState.svelte';
   import { notifyLogout } from '$lib/auth/sessionChannel';
   import { csrfFetch } from '$lib/auth/csrf';
   import * as m from '$lib/i18n/messages';
@@ -32,11 +38,53 @@
   let isDeleting = $state(false);
   let error = $state('');
   let ssoProviders = $state.raw<SSOProvider[]>([]);
+  let linkedSSOIdentities = $state.raw<LinkedSSOIdentity[]>([]);
   let ssoLoading = $state(true);
   let ssoError = $state('');
   let linkingProviderId = $state('');
+  let disconnectingSubjectHash = $state('');
+  let currentPassword = $state('');
+  let password = $state('');
+  let confirmPassword = $state('');
+  let passwordError = $state('');
+  let passwordSubmitting = $state(false);
 
   const canDelete = $derived(confirmText === 'DELETE');
+  const hasPassword = $derived(currentUser.user?.hasPassword ?? false);
+  const passwordSchema = z.string().min(8, m['common.validation.password_min']());
+  const passwordValidationError = $derived(
+    password ? validate(passwordSchema, password) : undefined
+  );
+  const currentPasswordError = $derived(
+    hasPassword && password && !currentPassword
+      ? m['settings.account.password.current_required']()
+      : undefined
+  );
+  const confirmPasswordError = $derived(
+    confirmPassword && password !== confirmPassword
+      ? m['common.validation.passwords_match']()
+      : undefined
+  );
+  const canSetPassword = $derived(
+    password !== '' &&
+      confirmPassword !== '' &&
+      (!hasPassword || currentPassword !== '') &&
+      !passwordValidationError &&
+      !currentPasswordError &&
+      !confirmPasswordError &&
+      !passwordSubmitting
+  );
+  const unconfiguredLinkedIdentities = $derived(
+    linkedSSOIdentities.filter(
+      (identity) =>
+        !ssoProviders.some(
+          (provider) => provider.linkedIdentitySubjectHash === identity.subjectHash
+        )
+    )
+  );
+  const hasSSORows = $derived(
+    ssoProviders.length > 0 || unconfiguredLinkedIdentities.length > 0
+  );
 
   $effect(() => {
     const client = connection();
@@ -58,6 +106,7 @@
       });
       const result = await api.list();
       ssoProviders = result.providers;
+      linkedSSOIdentities = result.linkedIdentities;
     } catch (err) {
       ssoError = err instanceof Error ? err.message : m['settings.account.sso.load_failed']();
     } finally {
@@ -98,6 +147,77 @@
     } catch (err) {
       ssoError = err instanceof Error ? err.message : m['settings.account.sso.load_failed']();
       linkingProviderId = '';
+    }
+  }
+
+  async function handleDisconnectProvider(provider: SSOProvider) {
+    if (!provider.linkedIdentitySubjectHash) return;
+    await handleDisconnectIdentity(provider.linkedIdentitySubjectHash);
+  }
+
+  async function handleDisconnectIdentity(subjectHash: string) {
+    const client = connection();
+    disconnectingSubjectHash = subjectHash;
+    ssoError = '';
+    try {
+      const api = createExternalIdentityAPI({
+        serverId: client.serverId,
+        baseUrl: client.connectBaseUrl,
+        bearerToken: client.bearerToken
+      });
+      await api.disconnect(subjectHash);
+      await loadExternalIdentities(client.serverId, client.connectBaseUrl, client.bearerToken);
+    } catch (err) {
+      if (err instanceof ConnectError && err.code === Code.FailedPrecondition) {
+        ssoError = m['settings.account.sso.disconnect_last_method']();
+      } else {
+        ssoError =
+          err instanceof Error ? err.message : m['settings.account.sso.disconnect_failed']();
+      }
+    } finally {
+      disconnectingSubjectHash = '';
+    }
+  }
+
+  async function handleSetPassword(e: Event) {
+    e.preventDefault();
+    if (!canSetPassword) {
+      passwordError =
+        passwordValidationError ||
+        currentPasswordError ||
+        confirmPasswordError ||
+        m['common.validation.fix_errors']();
+      return;
+    }
+
+    const wasChangingPassword = hasPassword;
+    passwordSubmitting = true;
+    passwordError = '';
+    try {
+      await accountAPI().setPassword({
+        password,
+        currentPassword: wasChangingPassword ? currentPassword : undefined
+      });
+      currentPassword = '';
+      password = '';
+      confirmPassword = '';
+      if (!wasChangingPassword) {
+        await currentUser.load();
+      }
+      toast.success(
+        wasChangingPassword
+          ? m['settings.account.password.changed']()
+          : m['settings.account.password.saved']()
+      );
+    } catch (err) {
+      if (err instanceof ConnectError && err.code === Code.FailedPrecondition) {
+        passwordError = m['settings.account.password.already_set']();
+      } else {
+        passwordError =
+          err instanceof Error ? err.message : m['settings.account.password.save_failed']();
+      }
+    } finally {
+      passwordSubmitting = false;
     }
   }
 
@@ -169,48 +289,149 @@
     </dl>
   </FormSection>
 
+  <FormSection title={m['settings.account.password.title']()} maxWidth="max-w-md">
+    <form class="flex flex-col gap-4" onsubmit={handleSetPassword}>
+      <p class="text-sm text-muted">
+        {hasPassword
+          ? m['settings.account.password.change_description']()
+          : m['settings.account.password.add_description']()}
+      </p>
+      {#if hasPassword}
+        <TextInput
+          id="current-password"
+          label={m['settings.account.password.current_label']()}
+          type="password"
+          bind:value={currentPassword}
+          disabled={passwordSubmitting}
+          autocomplete="current-password"
+          error={currentPasswordError}
+        />
+      {/if}
+      <TextInput
+        id="add-password"
+        label={m['common.new_password']()}
+        type="password"
+        bind:value={password}
+        placeholder={m['common.password_min_placeholder']()}
+        disabled={passwordSubmitting}
+        autocomplete="new-password"
+        error={passwordValidationError}
+      />
+      <TextInput
+        id="add-password-confirm"
+        label={m['common.confirm_password']()}
+        type="password"
+        bind:value={confirmPassword}
+        placeholder={m['common.password_confirm_placeholder']()}
+        disabled={passwordSubmitting}
+        autocomplete="new-password"
+        error={confirmPasswordError}
+      />
+      {#if passwordError}
+        <FormError error={passwordError} />
+      {/if}
+      <div>
+        <Button
+          type="submit"
+          loading={passwordSubmitting}
+          loadingText={m['settings.account.password.saving']()}
+          disabled={!canSetPassword}
+        >
+          <span class="iconify mdi--key-plus"></span>
+          {hasPassword
+            ? m['settings.account.password.change_button']()
+            : m['settings.account.password.add_button']()}
+        </Button>
+      </div>
+    </form>
+  </FormSection>
+
   <FormSection title={m['settings.account.sso.title']()} maxWidth="max-w-md">
     <div class="flex flex-col gap-4">
       {#if ssoLoading}
         <p class="text-sm text-muted">{m['settings.account.sso.loading']()}</p>
-      {:else if ssoError}
-        <Hint tone="danger">{ssoError}</Hint>
-      {:else if ssoProviders.length === 0}
-        <p class="text-sm text-muted">{m['settings.account.sso.none_configured']()}</p>
       {:else}
-        <div class="flex flex-col gap-3">
-          {#each ssoProviders as provider (provider.id)}
-            <div class="flex items-center justify-between gap-3 rounded border border-border p-3">
-              <div class="flex min-w-0 items-center gap-3">
-                <span class={['iconify text-lg text-muted', providerIcon(provider.type)]}></span>
-                <div class="min-w-0">
-                  <div class="truncate text-sm font-medium">{provider.label}</div>
-                  <div class="text-xs text-muted">
-                    {#if provider.linked}
-                      {m['settings.account.sso.linked']()}
-                    {:else}
-                      {m['settings.account.sso.not_linked']()}
-                    {/if}
+        {#if ssoError}
+          <Hint tone="danger">{ssoError}</Hint>
+        {/if}
+        {#if !hasSSORows}
+          <p class="text-sm text-muted">{m['settings.account.sso.none_configured']()}</p>
+        {:else}
+          <div class="flex flex-col gap-3">
+            {#each ssoProviders as provider (provider.id)}
+              <div class="flex items-center justify-between gap-3 rounded border border-border p-3">
+                <div class="flex min-w-0 items-center gap-3">
+                  <span class={['iconify text-lg text-muted', providerIcon(provider.type)]}></span>
+                  <div class="min-w-0">
+                    <div class="truncate text-sm font-medium">{provider.label}</div>
+                    <div class="text-xs text-muted">
+                      {#if provider.linked}
+                        {m['settings.account.sso.linked']()}
+                      {:else}
+                        {m['settings.account.sso.not_linked']()}
+                      {/if}
+                    </div>
                   </div>
                 </div>
+                {#if provider.linked}
+                  {#if provider.linkedIdentitySubjectHash}
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      loading={disconnectingSubjectHash === provider.linkedIdentitySubjectHash}
+                      loadingText={m['settings.account.sso.disconnecting']()}
+                      disabled={linkingProviderId !== '' || disconnectingSubjectHash !== ''}
+                      onclick={() => handleDisconnectProvider(provider)}
+                    >
+                      <span class="iconify uil--link-broken"></span>
+                      {m['settings.account.sso.disconnect_button']()}
+                    </Button>
+                  {:else}
+                    <span class="text-sm text-muted">{m['settings.account.sso.linked']()}</span>
+                  {/if}
+                {:else}
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    loading={linkingProviderId === provider.id}
+                    disabled={linkingProviderId !== '' || disconnectingSubjectHash !== ''}
+                    onclick={() => handleStartProviderLink(provider)}
+                  >
+                    <span class="iconify uil--link"></span>
+                    {m['settings.account.sso.link_button']()}
+                  </Button>
+                {/if}
               </div>
-              {#if provider.linked}
-                <span class="text-sm text-muted">{m['settings.account.sso.linked']()}</span>
-              {:else}
+            {/each}
+
+            {#each unconfiguredLinkedIdentities as identity (identity.subjectHash)}
+              <div class="flex items-center justify-between gap-3 rounded border border-border p-3">
+                <div class="flex min-w-0 items-center gap-3">
+                  <span
+                    class={['iconify text-lg text-muted', providerIcon(identity.providerType)]}
+                  ></span>
+                  <div class="min-w-0">
+                    <div class="truncate text-sm font-medium">{identity.providerLabel}</div>
+                    <div class="text-xs text-muted">
+                      {m['settings.account.sso.provider_unconfigured']()}
+                    </div>
+                  </div>
+                </div>
                 <Button
                   variant="secondary"
                   size="sm"
-                  loading={linkingProviderId === provider.id}
-                  disabled={linkingProviderId !== ''}
-                  onclick={() => handleStartProviderLink(provider)}
+                  loading={disconnectingSubjectHash === identity.subjectHash}
+                  loadingText={m['settings.account.sso.disconnecting']()}
+                  disabled={linkingProviderId !== '' || disconnectingSubjectHash !== ''}
+                  onclick={() => handleDisconnectIdentity(identity.subjectHash)}
                 >
-                  <span class="iconify uil--link"></span>
-                  {m['settings.account.sso.link_button']()}
+                  <span class="iconify uil--link-broken"></span>
+                  {m['settings.account.sso.disconnect_button']()}
                 </Button>
-              {/if}
-            </div>
-          {/each}
-        </div>
+              </div>
+            {/each}
+          </div>
+        {/if}
       {/if}
     </div>
   </FormSection>

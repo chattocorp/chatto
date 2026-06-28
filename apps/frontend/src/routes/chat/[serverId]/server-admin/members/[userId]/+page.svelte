@@ -16,7 +16,7 @@
   import { Hint, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
-  import { Button, Form, FormError, TextInput } from '$lib/ui/form';
+  import { Button, Form, FormError, TextInput, z, validate } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { getAvatarInitials } from '$lib/utils/initials';
   import { formatDate, formatDateTime } from '$lib/utils/formatTime';
@@ -58,6 +58,10 @@
   let identityError = $state<string | null>(null);
   let lastLoginChange = $state<Date | null>(null);
   let clearingCooldown = $state(false);
+  let adminPassword = $state('');
+  let adminConfirmPassword = $state('');
+  let passwordError = $state<string | null>(null);
+  let settingPassword = $state(false);
 
   async function loadData() {
     error = null;
@@ -87,6 +91,23 @@
   const identityModified = $derived(loginModified || displayNameModified);
   const cooldownRemaining = $derived(getLoginChangeCooldownRemaining(lastLoginChange));
   const cooldownActive = $derived(cooldownRemaining > 0);
+  const passwordSchema = z.string().min(8, m['common.validation.password_min']());
+  const adminPasswordValidationError = $derived(
+    adminPassword ? validate(passwordSchema, adminPassword) : undefined
+  );
+  const adminConfirmPasswordError = $derived(
+    adminConfirmPassword && adminPassword !== adminConfirmPassword
+      ? m['common.validation.passwords_match']()
+      : undefined
+  );
+  const canSetMemberPassword = $derived(
+    !!member &&
+      adminPassword !== '' &&
+      adminConfirmPassword !== '' &&
+      !adminPasswordValidationError &&
+      !adminConfirmPasswordError &&
+      !settingPassword
+  );
 
   function adminUsersAPI() {
     const conn = connection();
@@ -170,6 +191,34 @@
     }
     lastLoginChange = null;
     toast.success('Username change cooldown cleared');
+  }
+
+  async function setMemberPassword(e?: Event) {
+    e?.preventDefault();
+    if (!member || !canSetMemberPassword) {
+      passwordError =
+        adminPasswordValidationError ||
+        adminConfirmPasswordError ||
+        m['common.validation.fix_errors']();
+      return;
+    }
+
+    settingPassword = true;
+    passwordError = null;
+    let updated = false;
+    try {
+      updated = await adminUsersAPI().setUserPassword(member.id, adminPassword);
+    } catch (err) {
+      passwordError = err instanceof Error ? err.message : m['admin.members.set_password_failed']();
+    }
+    settingPassword = false;
+
+    if (!updated) {
+      return;
+    }
+    adminPassword = '';
+    adminConfirmPassword = '';
+    toast.success(m['admin.members.password_set']());
   }
 
   // Check if user has a specific role (explicit assignment)
@@ -441,6 +490,48 @@
               </Button>
             </div>
           </Form>
+          <form class="mt-6 flex flex-col gap-4 border-t border-border pt-6" onsubmit={setMemberPassword}>
+            <div>
+              <h4 class="text-sm font-semibold">{m['admin.members.set_password']()}</h4>
+              <p class="mt-1 text-sm text-muted">
+                {m['admin.members.set_password_description']()}
+              </p>
+            </div>
+            <TextInput
+              id="admin-member-password"
+              label={m['common.new_password']()}
+              type="password"
+              bind:value={adminPassword}
+              placeholder={m['common.password_min_placeholder']()}
+              disabled={settingPassword}
+              autocomplete="new-password"
+              error={adminPasswordValidationError}
+            />
+            <TextInput
+              id="admin-member-password-confirm"
+              label={m['common.confirm_password']()}
+              type="password"
+              bind:value={adminConfirmPassword}
+              placeholder={m['common.password_confirm_placeholder']()}
+              disabled={settingPassword}
+              autocomplete="new-password"
+              error={adminConfirmPasswordError}
+            />
+            {#if passwordError}
+              <FormError error={passwordError} />
+            {/if}
+            <div>
+              <Button
+                type="submit"
+                loading={settingPassword}
+                loadingText={m['admin.members.setting_password']()}
+                disabled={!canSetMemberPassword}
+              >
+                <span class="iconify mdi--key-change"></span>
+                {m['admin.members.set_password']()}
+              </Button>
+            </div>
+          </form>
         </Panel>
       {/if}
 

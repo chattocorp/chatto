@@ -137,6 +137,23 @@ func (s *adminUserManagementService) UpdateUser(ctx context.Context, req *connec
 	return connect.NewResponse(&apiv1.UpdateUserResponse{User: user}), nil
 }
 
+func (s *adminUserManagementService) SetUserPassword(ctx context.Context, req *connect.Request[apiv1.SetUserPasswordRequest]) (*connect.Response[apiv1.SetUserPasswordResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if req.Msg.GetUserId() == "" {
+		return nil, invalidArgument("user_id is required")
+	}
+	if req.Msg.GetPassword() == "" {
+		return nil, invalidArgument("password is required")
+	}
+	if err := s.api.core.AdminSetUserPassword(ctx, caller.UserID, req.Msg.GetUserId(), req.Msg.GetPassword()); err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.SetUserPasswordResponse{Updated: true}), nil
+}
+
 func (s *adminUserManagementService) ClearUsernameCooldown(ctx context.Context, req *connect.Request[apiv1.ClearUsernameCooldownRequest]) (*connect.Response[apiv1.ClearUsernameCooldownResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {

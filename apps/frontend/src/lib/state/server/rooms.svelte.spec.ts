@@ -59,6 +59,7 @@ function makeViewer(overrides: Partial<ViewerState> = {}): ViewerState {
       customStatus: null,
       presenceStatus: PresenceStatus.Online,
       hasVerifiedEmail: true,
+      hasPassword: true,
       viewerCanDeleteAccount: true,
       lastLoginChange: null,
       settings: null

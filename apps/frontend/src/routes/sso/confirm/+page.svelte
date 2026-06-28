@@ -194,7 +194,14 @@
     </form>
 
     <div class="mt-3">
-      <Button variant="secondary" fullWidth onclick={handleCancel} disabled={submitting}>
+      <Button variant="secondary" fullWidth href={resolve('/login')} disabled={submitting}>
+        <span class="iconify mdi--login"></span>
+        {m['auth.sso.sign_in_existing']()}
+      </Button>
+    </div>
+
+    <div class="mt-3">
+      <Button variant="ghost" fullWidth onclick={handleCancel} disabled={submitting}>
         {m['common.cancel']()}
       </Button>
     </div>

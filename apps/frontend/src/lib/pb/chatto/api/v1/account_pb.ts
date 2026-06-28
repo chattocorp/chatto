@@ -272,6 +272,90 @@ export class DeleteAvatarResponse extends Message<DeleteAvatarResponse> {
 }
 
 /**
+ * Request to set or change the authenticated user's password.
+ *
+ * @generated from message chatto.api.v1.SetPasswordRequest
+ */
+export class SetPasswordRequest extends Message<SetPasswordRequest> {
+  /**
+   * New password. The server applies the same password policy as registration
+   * and password reset.
+   *
+   * @generated from field: string password = 1;
+   */
+  password = "";
+
+  /**
+   * Current password. Required when the account already has a password; omitted
+   * when adding the first password to a passwordless account.
+   *
+   * @generated from field: string current_password = 2;
+   */
+  currentPassword = "";
+
+  constructor(data?: PartialMessage<SetPasswordRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.SetPasswordRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "password", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "current_password", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetPasswordRequest {
+    return new SetPasswordRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetPasswordRequest {
+    return new SetPasswordRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetPasswordRequest {
+    return new SetPasswordRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetPasswordRequest | PlainMessage<SetPasswordRequest> | undefined, b: SetPasswordRequest | PlainMessage<SetPasswordRequest> | undefined): boolean {
+    return proto3.util.equals(SetPasswordRequest, a, b);
+  }
+}
+
+/**
+ * Result of setting or changing the authenticated account password.
+ *
+ * @generated from message chatto.api.v1.SetPasswordResponse
+ */
+export class SetPasswordResponse extends Message<SetPasswordResponse> {
+  constructor(data?: PartialMessage<SetPasswordResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.SetPasswordResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetPasswordResponse {
+    return new SetPasswordResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetPasswordResponse {
+    return new SetPasswordResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetPasswordResponse {
+    return new SetPasswordResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetPasswordResponse | PlainMessage<SetPasswordResponse> | undefined, b: SetPasswordResponse | PlainMessage<SetPasswordResponse> | undefined): boolean {
+    return proto3.util.equals(SetPasswordResponse, a, b);
+  }
+}
+
+/**
  * Request to update the authenticated user's display preferences. Omitted
  * fields are left unchanged. An empty timezone clears the explicit timezone.
  *

@@ -267,6 +267,16 @@ func TestUserProjection_VerifiedEmailAvatarOIDCAndDelete(t *testing.T) {
 	byExternal, ok := p.GetByExternalIdentity("github-main", "12345")
 	require.True(t, ok)
 	require.Equal(t, "U1", byExternal.GetId())
+	require.NoError(t, p.Apply(&corev1.Event{
+		Id: "E5c",
+		Event: &corev1.Event_UserExternalIdentityUnlinked{UserExternalIdentityUnlinked: &corev1.UserExternalIdentityUnlinkedEvent{
+			UserId:      "U1",
+			SubjectHash: externalIdentityHash("github-main", "12345"),
+		}},
+	}, 5))
+	_, ok = p.GetByExternalIdentity("github-main", "12345")
+	require.False(t, ok)
+	require.Len(t, p.ExternalIdentities("U1"), 1)
 	avatar, ok := p.Avatar("U1")
 	require.True(t, ok)
 	require.Equal(t, "avatars/U1", avatar.GetS3().GetKey())

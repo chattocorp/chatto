@@ -279,12 +279,19 @@ func TestExternalIdentityServicesCreateAndLink(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListExternalIdentities: %v", err)
 	}
-	if len(list.Msg.GetProviders()) != 3 || list.Msg.GetProviders()[0].GetLinkUrl() != "/auth/providers/github-main?intent=link" || !list.Msg.GetProviders()[0].GetLinked() {
+	if len(list.Msg.GetProviders()) != 3 ||
+		list.Msg.GetProviders()[0].GetLinkUrl() != "/auth/providers/github-main?intent=link" ||
+		!list.Msg.GetProviders()[0].GetLinked() ||
+		list.Msg.GetProviders()[0].GetLinkedIdentitySubjectHash() == "" {
 		t.Fatalf("providers = %+v", list.Msg.GetProviders())
 	}
 	if len(list.Msg.GetLinkedIdentities()) != 1 || list.Msg.GetLinkedIdentities()[0].GetProviderId() != "github-main" {
 		t.Fatalf("linked identities = %+v", list.Msg.GetLinkedIdentities())
 	}
+	_, err = env.identity.DisconnectExternalIdentity(createdCtx, connect.NewRequest(&apiv1.DisconnectExternalIdentityRequest{
+		SubjectHash: list.Msg.GetProviders()[0].GetLinkedIdentitySubjectHash(),
+	}))
+	requireConnectCode(t, err, connect.CodeFailedPrecondition)
 
 	started, err := env.identity.StartExternalIdentityLink(createdCtx, connect.NewRequest(&apiv1.StartExternalIdentityLinkRequest{
 		ProviderId:   "discord-main",
@@ -328,6 +335,22 @@ func TestExternalIdentityServicesCreateAndLink(t *testing.T) {
 	}
 	if linked.Msg.LinkedIdentity.GetProviderId() != "discord-main" || linked.Msg.LinkedIdentity.GetSubjectHash() == "" {
 		t.Fatalf("linked identity = %+v", linked.Msg.LinkedIdentity)
+	}
+	disconnected, err := env.identity.DisconnectExternalIdentity(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.DisconnectExternalIdentityRequest{
+		SubjectHash: linked.Msg.LinkedIdentity.GetSubjectHash(),
+	}))
+	if err != nil {
+		t.Fatalf("DisconnectExternalIdentity: %v", err)
+	}
+	if !disconnected.Msg.GetDisconnected() {
+		t.Fatalf("DisconnectExternalIdentity disconnected = false")
+	}
+	found, err := env.core.GetUserByExternalIdentity(env.ctx, "discord-main", "abc123")
+	if err != nil {
+		t.Fatalf("GetUserByExternalIdentity after disconnect: %v", err)
+	}
+	if found != nil {
+		t.Fatalf("GetUserByExternalIdentity after disconnect = %+v, want nil", found)
 	}
 	if _, err := env.core.GetPendingExternalIdentityFlow(env.ctx, linkToken); !errors.Is(err, core.ErrExternalIdentityFlowNotFound) {
 		t.Fatalf("pending link flow after confirmation error = %v, want ErrExternalIdentityFlowNotFound", err)
@@ -976,6 +999,9 @@ func TestViewerServiceGetViewerReturnsSelfScopedState(t *testing.T) {
 	if !user.GetHasVerifiedEmail() {
 		t.Fatal("HasVerifiedEmail = false, want true")
 	}
+	if !user.GetHasPassword() {
+		t.Fatal("HasPassword = false, want true")
+	}
 	if profile.GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_AWAY {
 		t.Fatalf("PresenceStatus = %v, want AWAY", profile.GetPresenceStatus())
 	}
@@ -1044,6 +1070,58 @@ func TestAccountServiceUpdatesSelfProfileAndSettings(t *testing.T) {
 	}
 	if clearResp.Msg.GetSettings().Timezone != nil {
 		t.Fatalf("cleared timezone = %q, want nil", clearResp.Msg.GetSettings().GetTimezone())
+	}
+}
+
+func TestAccountServiceSetsPassword(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	passwordless, err := env.core.CreateUser(env.ctx, core.SystemActorID, "connect-passwordless", "Connect Passwordless", "")
+	if err != nil {
+		t.Fatalf("CreateUser passwordless: %v", err)
+	}
+	ctx := withCaller(env.ctx, passwordless)
+
+	if _, err := env.account.SetPassword(env.ctx, connect.NewRequest(&apiv1.SetPasswordRequest{
+		Password: "newpassword456",
+	})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated SetPassword code = %v, want unauthenticated", connect.CodeOf(err))
+	}
+	if _, err := env.account.SetPassword(ctx, connect.NewRequest(&apiv1.SetPasswordRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty SetPassword code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	if _, err := env.account.SetPassword(ctx, connect.NewRequest(&apiv1.SetPasswordRequest{
+		Password: "short",
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("short SetPassword code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+
+	if _, err := env.account.SetPassword(ctx, connect.NewRequest(&apiv1.SetPasswordRequest{
+		Password: "newpassword456",
+	})); err != nil {
+		t.Fatalf("SetPassword: %v", err)
+	}
+	if _, err := env.core.VerifyPassword(env.ctx, passwordless.Login, "newpassword456"); err != nil {
+		t.Fatalf("VerifyPassword: %v", err)
+	}
+	if _, err := env.account.SetPassword(ctx, connect.NewRequest(&apiv1.SetPasswordRequest{
+		Password: "anotherpassword456",
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("second SetPassword without current code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	if _, err := env.account.SetPassword(ctx, connect.NewRequest(&apiv1.SetPasswordRequest{
+		Password:        "anotherpassword456",
+		CurrentPassword: "wrongpassword",
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("second SetPassword wrong current code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	if _, err := env.account.SetPassword(ctx, connect.NewRequest(&apiv1.SetPasswordRequest{
+		Password:        "anotherpassword456",
+		CurrentPassword: "newpassword456",
+	})); err != nil {
+		t.Fatalf("SetPassword with current: %v", err)
+	}
+	if _, err := env.core.VerifyPassword(env.ctx, passwordless.Login, "anotherpassword456"); err != nil {
+		t.Fatalf("VerifyPassword changed: %v", err)
 	}
 }
 
@@ -1122,11 +1200,23 @@ func TestAdminUserManagementServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	})); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated UpdateUser code = %v, want unauthenticated", connect.CodeOf(err))
 	}
+	if _, err := env.adminUsers.SetUserPassword(env.ctx, connect.NewRequest(&apiv1.SetUserPasswordRequest{
+		UserId:   target.Id,
+		Password: "newpassword456",
+	})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated SetUserPassword code = %v, want unauthenticated", connect.CodeOf(err))
+	}
 	if _, err := env.adminUsers.UpdateUser(withCaller(env.ctx, regular), connect.NewRequest(&apiv1.UpdateUserRequest{
 		UserId:      target.Id,
 		DisplayName: stringPtr("Denied"),
 	})); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("regular UpdateUser code = %v, want permission_denied", connect.CodeOf(err))
+	}
+	if _, err := env.adminUsers.SetUserPassword(withCaller(env.ctx, regular), connect.NewRequest(&apiv1.SetUserPasswordRequest{
+		UserId:   target.Id,
+		Password: "newpassword456",
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("regular SetUserPassword code = %v, want permission_denied", connect.CodeOf(err))
 	}
 
 	admin, err := env.core.CreateUser(env.ctx, core.SystemActorID, "admin-user-admin", "Admin User Admin", "password")
@@ -1143,6 +1233,17 @@ func TestAdminUserManagementServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty UpdateUser code = %v, want invalid_argument", connect.CodeOf(err))
 	}
+	if _, err := env.adminUsers.SetUserPassword(adminCtx, connect.NewRequest(&apiv1.SetUserPasswordRequest{
+		UserId: target.Id,
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty SetUserPassword code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	if _, err := env.adminUsers.SetUserPassword(adminCtx, connect.NewRequest(&apiv1.SetUserPasswordRequest{
+		UserId:   target.Id,
+		Password: "short",
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("short SetUserPassword code = %v, want invalid_argument", connect.CodeOf(err))
+	}
 	resp, err := env.adminUsers.UpdateUser(adminCtx, connect.NewRequest(&apiv1.UpdateUserRequest{
 		UserId:      target.Id,
 		DisplayName: stringPtr("Managed Target"),
@@ -1153,6 +1254,19 @@ func TestAdminUserManagementServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	}
 	if user := resp.Msg.GetUser(); user.GetId() != target.Id || user.GetDisplayName() != "Managed Target" || user.GetLogin() != "managed-target" {
 		t.Fatalf("updated user = %+v, want managed target", user)
+	}
+	passwordResp, err := env.adminUsers.SetUserPassword(adminCtx, connect.NewRequest(&apiv1.SetUserPasswordRequest{
+		UserId:   target.Id,
+		Password: "adminpassword456",
+	}))
+	if err != nil {
+		t.Fatalf("SetUserPassword: %v", err)
+	}
+	if !passwordResp.Msg.GetUpdated() {
+		t.Fatal("Updated = false, want true")
+	}
+	if _, err := env.core.VerifyPassword(env.ctx, "managed-target", "adminpassword456"); err != nil {
+		t.Fatalf("admin password should verify: %v", err)
 	}
 
 	if _, err := env.core.UpdateUserLogin(env.ctx, target.Id, "target-self-rename"); err != nil {

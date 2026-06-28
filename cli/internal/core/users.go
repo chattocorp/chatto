@@ -319,6 +319,79 @@ func (c *ChattoCore) GetUserByLogin(ctx context.Context, login string) (*corev1.
 // SetPasswordHash hashes and stores a password for a user.
 // Password hashes are stored separately from user profile data in the user event stream.
 func (c *ChattoCore) SetPasswordHash(ctx context.Context, userID string, password string) error {
+	return c.setPasswordHash(ctx, userID, password, true, nil)
+}
+
+// SetInitialPasswordHash adds the first password credential for a passwordless
+// account. It refuses to overwrite an existing password.
+func (c *ChattoCore) SetInitialPasswordHash(ctx context.Context, userID string, password string) error {
+	return c.setPasswordHash(ctx, userID, password, false, func() error {
+		if _, hasPassword := c.Users.PasswordHash(userID); hasPassword {
+			return ErrPasswordAlreadySet
+		}
+		return nil
+	})
+}
+
+// SetOwnPassword sets or changes a user's own password. Existing password
+// credentials require current password proof; adding the first password keeps
+// existing runtime credentials valid so SSO-only users are not logged out.
+func (c *ChattoCore) SetOwnPassword(ctx context.Context, userID, currentPassword, newPassword string) error {
+	hasPassword, err := c.HasPassword(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if !hasPassword {
+		return c.SetInitialPasswordHash(ctx, userID, newPassword)
+	}
+	if currentPassword == "" {
+		return ErrCurrentPasswordRequired
+	}
+	if err := c.VerifyUserPassword(ctx, userID, currentPassword); err != nil {
+		return err
+	}
+	return c.SetPasswordHash(ctx, userID, newPassword)
+}
+
+// AdminSetUserPassword sets a password for the target account without requiring
+// the old password. Changing another account requires the same admin-management
+// gate used by admin identity changes.
+func (c *ChattoCore) AdminSetUserPassword(ctx context.Context, actorID, targetUserID, password string) error {
+	if err := c.requireCanAdminManageUser(ctx, actorID, targetUserID); err != nil {
+		return err
+	}
+	return c.SetPasswordHash(ctx, targetUserID, password)
+}
+
+func (c *ChattoCore) HasPassword(ctx context.Context, userID string) (bool, error) {
+	if err := c.userModel.waitForUsersCurrent(ctx, "user password", events.UserAggregate(userID).AllEventsFilter()); err != nil {
+		return false, err
+	}
+	if _, ok := c.Users.Get(userID); !ok {
+		return false, ErrNotFound
+	}
+	_, hasPassword := c.Users.PasswordHash(userID)
+	return hasPassword, nil
+}
+
+func (c *ChattoCore) VerifyUserPassword(ctx context.Context, userID, password string) error {
+	if err := c.userModel.waitForUsersCurrent(ctx, "user password", events.UserAggregate(userID).AllEventsFilter()); err != nil {
+		return err
+	}
+	if _, ok := c.Users.Get(userID); !ok {
+		return ErrNotFound
+	}
+	passwordHash, ok := c.Users.PasswordHash(userID)
+	if !ok {
+		return ErrCurrentPasswordRequired
+	}
+	if err := bcrypt.CompareHashAndPassword(passwordHash, []byte(password)); err != nil {
+		return ErrCurrentPasswordInvalid
+	}
+	return nil
+}
+
+func (c *ChattoCore) setPasswordHash(ctx context.Context, userID string, password string, revokeCredentials bool, check func() error) error {
 	// Validate password strength
 	if err := ValidatePassword(password); err != nil {
 		return err
@@ -338,12 +411,16 @@ func (c *ChattoCore) SetPasswordHash(ctx context.Context, userID string, passwor
 
 	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserPasswordHashChanged{
 		UserPasswordHashChanged: &corev1.UserPasswordHashChangedEvent{
-			UserId:       userID,
-			PasswordHash: hashedPassword,
+			UserId:                      userID,
+			PasswordHash:                hashedPassword,
+			PreserveExistingCredentials: !revokeCredentials,
 		},
 	}})
-	if _, err := c.appendUserEvent(ctx, userID, event, "", nil); err != nil {
+	if _, err := c.appendUserEvent(ctx, userID, event, "", check); err != nil {
 		return err
+	}
+	if !revokeCredentials {
+		return nil
 	}
 	if _, err := c.RevokeRuntimeCredentialsForUser(ctx, userID, "password_changed"); err != nil {
 		c.logger.Warn("Failed to clean up runtime credentials after password change", "user_id", userID, "error", err)

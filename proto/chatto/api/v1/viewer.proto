@@ -42,6 +42,8 @@ message ViewerUser {
   google.protobuf.Timestamp last_login_change = 10;
   // Public profile and live presence fields for the authenticated user.
   UserPresenceSummary profile = 11;
+  // Whether this account currently has a password sign-in credential.
+  bool has_password = 12;
 }
 
 // Permission-derived capabilities for the authenticated user.

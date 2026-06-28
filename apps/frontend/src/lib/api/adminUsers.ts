@@ -125,6 +125,11 @@ export function createAdminUserManagementAPI(config: AdminUserManagementAPIConfi
       return adminManagedUser(response.user);
     },
 
+    async setUserPassword(userId: string, password: string): Promise<boolean> {
+      const response = await client.setUserPassword({ userId, password }, { headers: headers() });
+      return response.updated;
+    },
+
     async clearUsernameCooldown(userId: string): Promise<boolean> {
       const response = await client.clearUsernameCooldown({ userId }, { headers: headers() });
       return response.cleared;

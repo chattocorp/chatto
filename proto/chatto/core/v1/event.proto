@@ -173,6 +173,7 @@ message Event {
     UserExternalIdentityLinkedEvent user_external_identity_linked = 714;
     UserCustomStatusSetEvent user_custom_status_set = 715;
     UserCustomStatusClearedEvent user_custom_status_cleared = 716;
+    UserExternalIdentityUnlinkedEvent user_external_identity_unlinked = 717;
 
     // ----- RBAC (800-839, durable, evt.rbac.>) -----
     RbacRoleCreatedEvent rbac_role_created = 800;

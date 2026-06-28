@@ -89,6 +89,13 @@ export class ExternalIdentityProvider extends Message<ExternalIdentityProvider> 
    */
   linked = false;
 
+  /**
+   * Linked identity subject hash for this provider, when linked.
+   *
+   * @generated from field: string linked_identity_subject_hash = 7;
+   */
+  linkedIdentitySubjectHash = "";
+
   constructor(data?: PartialMessage<ExternalIdentityProvider>) {
     super();
     proto3.util.initPartial(data, this);
@@ -103,6 +110,7 @@ export class ExternalIdentityProvider extends Message<ExternalIdentityProvider> 
     { no: 4, name: "login_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "link_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 6, name: "linked", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 7, name: "linked_identity_subject_hash", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ExternalIdentityProvider {
@@ -896,6 +904,88 @@ export class LinkExternalIdentityResponse extends Message<LinkExternalIdentityRe
 
   static equals(a: LinkExternalIdentityResponse | PlainMessage<LinkExternalIdentityResponse> | undefined, b: LinkExternalIdentityResponse | PlainMessage<LinkExternalIdentityResponse> | undefined): boolean {
     return proto3.util.equals(LinkExternalIdentityResponse, a, b);
+  }
+}
+
+/**
+ * Request to disconnect a linked provider identity from the authenticated user.
+ *
+ * @generated from message chatto.api.v1.DisconnectExternalIdentityRequest
+ */
+export class DisconnectExternalIdentityRequest extends Message<DisconnectExternalIdentityRequest> {
+  /**
+   * Stable one-way subject hash of the linked identity to disconnect.
+   *
+   * @generated from field: string subject_hash = 1;
+   */
+  subjectHash = "";
+
+  constructor(data?: PartialMessage<DisconnectExternalIdentityRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.DisconnectExternalIdentityRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "subject_hash", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DisconnectExternalIdentityRequest {
+    return new DisconnectExternalIdentityRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DisconnectExternalIdentityRequest {
+    return new DisconnectExternalIdentityRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DisconnectExternalIdentityRequest {
+    return new DisconnectExternalIdentityRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DisconnectExternalIdentityRequest | PlainMessage<DisconnectExternalIdentityRequest> | undefined, b: DisconnectExternalIdentityRequest | PlainMessage<DisconnectExternalIdentityRequest> | undefined): boolean {
+    return proto3.util.equals(DisconnectExternalIdentityRequest, a, b);
+  }
+}
+
+/**
+ * Result of disconnecting a provider identity.
+ *
+ * @generated from message chatto.api.v1.DisconnectExternalIdentityResponse
+ */
+export class DisconnectExternalIdentityResponse extends Message<DisconnectExternalIdentityResponse> {
+  /**
+   * True when the identity was disconnected.
+   *
+   * @generated from field: bool disconnected = 1;
+   */
+  disconnected = false;
+
+  constructor(data?: PartialMessage<DisconnectExternalIdentityResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.DisconnectExternalIdentityResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "disconnected", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DisconnectExternalIdentityResponse {
+    return new DisconnectExternalIdentityResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DisconnectExternalIdentityResponse {
+    return new DisconnectExternalIdentityResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DisconnectExternalIdentityResponse {
+    return new DisconnectExternalIdentityResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DisconnectExternalIdentityResponse | PlainMessage<DisconnectExternalIdentityResponse> | undefined, b: DisconnectExternalIdentityResponse | PlainMessage<DisconnectExternalIdentityResponse> | undefined): boolean {
+    return proto3.util.equals(DisconnectExternalIdentityResponse, a, b);
   }
 }
 

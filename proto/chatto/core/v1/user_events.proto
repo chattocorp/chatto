@@ -101,6 +101,10 @@ message UserVerifiedEmailAddedEvent {
 message UserPasswordHashChangedEvent {
   string user_id = 1;
   bytes password_hash = 2;
+  // True when adding the first password to a passwordless account. Existing
+  // sessions remain valid; later password changes and password resets leave
+  // this false so they advance auth generation and revoke old credentials.
+  bool preserve_existing_credentials = 3;
 }
 
 message UserOIDCSubjectLinkedEvent {
@@ -128,6 +132,13 @@ message UserExternalIdentityLinkedEvent {
   // may be renamed, removed, or reconfigured without changing existing links.
   string provider_id = 5;
   string provider_type = 6;
+}
+
+message UserExternalIdentityUnlinkedEvent {
+  string user_id = 1;
+  // Stable one-way identity hash previously written by
+  // UserExternalIdentityLinkedEvent or legacy UserOIDCSubjectLinkedEvent.
+  string subject_hash = 2;
 }
 
 message UserServerPreferencesChangedEvent {

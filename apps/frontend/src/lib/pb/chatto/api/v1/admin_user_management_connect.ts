@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AssignRoleRequest, AssignRoleResponse, ClearUsernameCooldownRequest, ClearUsernameCooldownResponse, GetMemberRequest, GetMemberResponse, ListMembersRequest, ListMembersResponse, RevokeRoleRequest, RevokeRoleResponse, UpdateUserRequest, UpdateUserResponse } from "./admin_user_management_pb.js";
+import { AssignRoleRequest, AssignRoleResponse, ClearUsernameCooldownRequest, ClearUsernameCooldownResponse, GetMemberRequest, GetMemberResponse, ListMembersRequest, ListMembersResponse, RevokeRoleRequest, RevokeRoleResponse, SetUserPasswordRequest, SetUserPasswordResponse, UpdateUserRequest, UpdateUserResponse } from "./admin_user_management_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -68,6 +68,17 @@ export const AdminUserManagementService = {
       name: "UpdateUser",
       I: UpdateUserRequest,
       O: UpdateUserResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Sets a user's password as an admin action.
+     *
+     * @generated from rpc chatto.api.v1.AdminUserManagementService.SetUserPassword
+     */
+    setUserPassword: {
+      name: "SetUserPassword",
+      I: SetUserPasswordRequest,
+      O: SetUserPasswordResponse,
       kind: MethodKind.Unary,
     },
     /**

@@ -42,6 +42,9 @@ const (
 	// AccountServiceDeleteAvatarProcedure is the fully-qualified name of the AccountService's
 	// DeleteAvatar RPC.
 	AccountServiceDeleteAvatarProcedure = "/chatto.api.v1.AccountService/DeleteAvatar"
+	// AccountServiceSetPasswordProcedure is the fully-qualified name of the AccountService's
+	// SetPassword RPC.
+	AccountServiceSetPasswordProcedure = "/chatto.api.v1.AccountService/SetPassword"
 	// AccountServiceUpdateSettingsProcedure is the fully-qualified name of the AccountService's
 	// UpdateSettings RPC.
 	AccountServiceUpdateSettingsProcedure = "/chatto.api.v1.AccountService/UpdateSettings"
@@ -61,6 +64,8 @@ type AccountServiceClient interface {
 	UploadAvatar(context.Context, *connect.Request[v1.UploadAvatarRequest]) (*connect.Response[v1.UploadAvatarResponse], error)
 	// Deletes the authenticated user's avatar. The call is idempotent.
 	DeleteAvatar(context.Context, *connect.Request[v1.DeleteAvatarRequest]) (*connect.Response[v1.DeleteAvatarResponse], error)
+	// Sets or changes the authenticated user's password.
+	SetPassword(context.Context, *connect.Request[v1.SetPasswordRequest]) (*connect.Response[v1.SetPasswordResponse], error)
 	// Updates the authenticated user's display preferences.
 	UpdateSettings(context.Context, *connect.Request[v1.UpdateSettingsRequest]) (*connect.Response[v1.UpdateSettingsResponse], error)
 	// Issues a short-lived token used to confirm self-deletion.
@@ -98,6 +103,12 @@ func NewAccountServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(accountServiceMethods.ByName("DeleteAvatar")),
 			connect.WithClientOptions(opts...),
 		),
+		setPassword: connect.NewClient[v1.SetPasswordRequest, v1.SetPasswordResponse](
+			httpClient,
+			baseURL+AccountServiceSetPasswordProcedure,
+			connect.WithSchema(accountServiceMethods.ByName("SetPassword")),
+			connect.WithClientOptions(opts...),
+		),
 		updateSettings: connect.NewClient[v1.UpdateSettingsRequest, v1.UpdateSettingsResponse](
 			httpClient,
 			baseURL+AccountServiceUpdateSettingsProcedure,
@@ -124,6 +135,7 @@ type accountServiceClient struct {
 	updateProfile          *connect.Client[v1.UpdateProfileRequest, v1.UpdateProfileResponse]
 	uploadAvatar           *connect.Client[v1.UploadAvatarRequest, v1.UploadAvatarResponse]
 	deleteAvatar           *connect.Client[v1.DeleteAvatarRequest, v1.DeleteAvatarResponse]
+	setPassword            *connect.Client[v1.SetPasswordRequest, v1.SetPasswordResponse]
 	updateSettings         *connect.Client[v1.UpdateSettingsRequest, v1.UpdateSettingsResponse]
 	requestAccountDeletion *connect.Client[v1.RequestAccountDeletionRequest, v1.RequestAccountDeletionResponse]
 	deleteMyAccount        *connect.Client[v1.DeleteMyAccountRequest, v1.DeleteMyAccountResponse]
@@ -142,6 +154,11 @@ func (c *accountServiceClient) UploadAvatar(ctx context.Context, req *connect.Re
 // DeleteAvatar calls chatto.api.v1.AccountService.DeleteAvatar.
 func (c *accountServiceClient) DeleteAvatar(ctx context.Context, req *connect.Request[v1.DeleteAvatarRequest]) (*connect.Response[v1.DeleteAvatarResponse], error) {
 	return c.deleteAvatar.CallUnary(ctx, req)
+}
+
+// SetPassword calls chatto.api.v1.AccountService.SetPassword.
+func (c *accountServiceClient) SetPassword(ctx context.Context, req *connect.Request[v1.SetPasswordRequest]) (*connect.Response[v1.SetPasswordResponse], error) {
+	return c.setPassword.CallUnary(ctx, req)
 }
 
 // UpdateSettings calls chatto.api.v1.AccountService.UpdateSettings.
@@ -167,6 +184,8 @@ type AccountServiceHandler interface {
 	UploadAvatar(context.Context, *connect.Request[v1.UploadAvatarRequest]) (*connect.Response[v1.UploadAvatarResponse], error)
 	// Deletes the authenticated user's avatar. The call is idempotent.
 	DeleteAvatar(context.Context, *connect.Request[v1.DeleteAvatarRequest]) (*connect.Response[v1.DeleteAvatarResponse], error)
+	// Sets or changes the authenticated user's password.
+	SetPassword(context.Context, *connect.Request[v1.SetPasswordRequest]) (*connect.Response[v1.SetPasswordResponse], error)
 	// Updates the authenticated user's display preferences.
 	UpdateSettings(context.Context, *connect.Request[v1.UpdateSettingsRequest]) (*connect.Response[v1.UpdateSettingsResponse], error)
 	// Issues a short-lived token used to confirm self-deletion.
@@ -200,6 +219,12 @@ func NewAccountServiceHandler(svc AccountServiceHandler, opts ...connect.Handler
 		connect.WithSchema(accountServiceMethods.ByName("DeleteAvatar")),
 		connect.WithHandlerOptions(opts...),
 	)
+	accountServiceSetPasswordHandler := connect.NewUnaryHandler(
+		AccountServiceSetPasswordProcedure,
+		svc.SetPassword,
+		connect.WithSchema(accountServiceMethods.ByName("SetPassword")),
+		connect.WithHandlerOptions(opts...),
+	)
 	accountServiceUpdateSettingsHandler := connect.NewUnaryHandler(
 		AccountServiceUpdateSettingsProcedure,
 		svc.UpdateSettings,
@@ -226,6 +251,8 @@ func NewAccountServiceHandler(svc AccountServiceHandler, opts ...connect.Handler
 			accountServiceUploadAvatarHandler.ServeHTTP(w, r)
 		case AccountServiceDeleteAvatarProcedure:
 			accountServiceDeleteAvatarHandler.ServeHTTP(w, r)
+		case AccountServiceSetPasswordProcedure:
+			accountServiceSetPasswordHandler.ServeHTTP(w, r)
 		case AccountServiceUpdateSettingsProcedure:
 			accountServiceUpdateSettingsHandler.ServeHTTP(w, r)
 		case AccountServiceRequestAccountDeletionProcedure:
@@ -251,6 +278,10 @@ func (UnimplementedAccountServiceHandler) UploadAvatar(context.Context, *connect
 
 func (UnimplementedAccountServiceHandler) DeleteAvatar(context.Context, *connect.Request[v1.DeleteAvatarRequest]) (*connect.Response[v1.DeleteAvatarResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.AccountService.DeleteAvatar is not implemented"))
+}
+
+func (UnimplementedAccountServiceHandler) SetPassword(context.Context, *connect.Request[v1.SetPasswordRequest]) (*connect.Response[v1.SetPasswordResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.AccountService.SetPassword is not implemented"))
 }
 
 func (UnimplementedAccountServiceHandler) UpdateSettings(context.Context, *connect.Request[v1.UpdateSettingsRequest]) (*connect.Response[v1.UpdateSettingsResponse], error) {

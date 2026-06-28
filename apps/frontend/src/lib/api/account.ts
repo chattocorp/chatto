@@ -35,6 +35,11 @@ export type UpdateSettingsInput = {
   timeFormat?: TimeFormat;
 };
 
+export type SetPasswordInput = {
+  password: string;
+  currentPassword?: string;
+};
+
 export function createAccountAPI(config: AccountAPIConfig) {
   const transport = createConnectTransport({
     baseUrl: config.baseUrl,
@@ -65,6 +70,13 @@ export function createAccountAPI(config: AccountAPIConfig) {
     async deleteAvatar(): Promise<AccountUser> {
       const response = await client.deleteAvatar({}, { headers: headers() });
       return accountUser(response.user);
+    },
+
+    async setPassword(input: SetPasswordInput): Promise<void> {
+      await client.setPassword(
+        { password: input.password, currentPassword: input.currentPassword },
+        { headers: headers() }
+      );
     },
 
     async updateSettings(input: UpdateSettingsInput): Promise<AccountUserSettings> {

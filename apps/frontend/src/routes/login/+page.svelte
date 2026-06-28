@@ -8,7 +8,7 @@
   import Divider from '$lib/ui/Divider.svelte';
   import Hint from '$lib/ui/Hint.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
-  import { TextInput, FormError, Button, Form } from '$lib/ui/form';
+  import { TextInput, Button, Form } from '$lib/ui/form';
 
   const { data } = $props();
 
@@ -16,6 +16,8 @@
   let password = $state('');
   let error = $state('');
   let isLoading = $state(false);
+  let selectedProviderId = $state<string | null>(null);
+  let pageErrorDismissed = $state(false);
   let addServerDialogVisible = $state(false);
   let addServerDialogModule: Promise<
     typeof import('$lib/components/AddServerDialog.svelte')
@@ -29,6 +31,11 @@
   const canSubmit = $derived(identifier.trim() && password);
   const authProviders = $derived(data.serverInfo?.authProviders ?? []);
   const directRegistrationEnabled = $derived(data.serverInfo?.directRegistrationEnabled ?? true);
+  const isAuthenticating = $derived(isLoading || selectedProviderId !== null);
+  const pageError = $derived(
+    pageErrorDismissed ? '' : loginErrorMessage(data.loginErrorCode || '')
+  );
+  const displayedError = $derived(error || pageError);
 
   // Standalone detection: if public server info failed to load, there is no local
   // backend to log in to. Redirect URLs are backend-driven flows, so keep the
@@ -63,7 +70,7 @@
     if (target.startsWith('/oauth/')) {
       window.location.href = target;
     } else {
-      // eslint-disable-next-line svelte/no-navigation-without-resolve -- target is validated by isSafeInternalPath; backend routes (e.g. /oauth/...) are not SvelteKit routes
+      // eslint-disable-next-line svelte/no-navigation-without-resolve -- target is validated by isSafeInternalPath; backend routes are handled above
       goto(target);
     }
   }
@@ -87,6 +94,35 @@
     return `${provider.loginUrl}?redirect=${encodeURIComponent(data.redirectUrl)}`;
   }
 
+  function loginErrorMessage(code: string): string {
+    switch (code) {
+      case 'provider_not_found':
+        return m['auth.login.error.provider_not_found']();
+      case 'provider_failed':
+        return m['auth.login.error.provider_failed']();
+      case 'provider_denied':
+        return m['auth.login.error.provider_denied']();
+      case 'authentication_required':
+        return m['auth.login.error.authentication_required']();
+      case 'external_identity_unlinked':
+        return m['auth.login.error.external_identity_unlinked']();
+      case 'external_identity_conflict':
+        return m['auth.login.error.external_identity_conflict']();
+      default:
+        return '';
+    }
+  }
+
+  function handleProviderClick(e: MouseEvent, provider: PublicAuthProvider) {
+    e.preventDefault();
+    error = '';
+    pageErrorDismissed = true;
+    selectedProviderId = provider.id;
+    window.setTimeout(() => {
+      window.location.href = providerLoginHref(provider);
+    }, 250);
+  }
+
   async function authenticateOrigin(
     token: string,
     user: AuthenticatedUserSummary | null
@@ -102,6 +138,7 @@
   async function handleSubmit(e: Event) {
     e.preventDefault();
     error = '';
+    pageErrorDismissed = true;
     isLoading = true;
 
     try {
@@ -173,7 +210,16 @@
     {#if authProviders.length > 0}
       <div class="flex flex-col gap-3">
         {#each authProviders as provider (provider.id)}
-          <Button variant="secondary" size="lg" fullWidth href={providerLoginHref(provider)}>
+          <Button
+            variant="secondary"
+            size="lg"
+            fullWidth
+            href={providerLoginHref(provider)}
+            disabled={selectedProviderId !== null && selectedProviderId !== provider.id}
+            loading={selectedProviderId === provider.id}
+            loadingText={m['auth.login.connecting_provider']({ provider: provider.label })}
+            onclick={(e) => handleProviderClick(e, provider)}
+          >
             <span class={['iconify text-lg', providerIcon(provider.type)]}></span>
             {m['auth.login.continue_with_provider']({ provider: provider.label })}
           </Button>
@@ -189,7 +235,7 @@
         label={m['auth.login.identifier_label']()}
         bind:value={identifier}
         placeholder={m['common.email_placeholder']()}
-        disabled={isLoading}
+        disabled={isAuthenticating}
         required
         autocomplete="username"
         autofocus
@@ -201,17 +247,19 @@
         type="password"
         bind:value={password}
         placeholder={m['common.password_placeholder']()}
-        disabled={isLoading}
+        disabled={isAuthenticating}
         required
         autocomplete="current-password"
       />
 
-      <FormError {error} />
+      {#if displayedError}
+        <Hint tone="danger">{displayedError}</Hint>
+      {/if}
 
       <Button
         type="submit"
         size="lg"
-        disabled={!canSubmit}
+        disabled={!canSubmit || isAuthenticating}
         loading={isLoading}
         loadingText={m['auth.login.signing_in']()}
       >

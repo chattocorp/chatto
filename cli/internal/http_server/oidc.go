@@ -1,18 +1,15 @@
 package http_server
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -27,15 +24,7 @@ import (
 	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/core/linkpreview"
 )
-
-const (
-	oidcAvatarFetchTimeout = 10 * time.Second
-	oidcAvatarMaxBytes     = 5 * 1024 * 1024
-)
-
-var oidcAvatarClient = linkpreview.NewSSRFSafeClient(oidcAvatarFetchTimeout)
 
 // oidcProvider holds the lazily-initialized OIDC provider, oauth2 config, and
 // token verifier. Initialized on first login attempt. Retries on failure.
@@ -322,8 +311,8 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 	if identity.avatarURL != "" {
 		existingAvatar, _ := s.core.GetUserAvatar(ctx, user.Id)
 		if existingAvatar == nil {
-			if err := fetchAndUploadAvatarFromURL(ctx, identity.avatarURL, s, user.Id); err != nil {
-				log.Error("Failed to fetch provider avatar", "provider_id", providerRuntime.config.ID, "error", err)
+			if err := s.core.ImportUserAvatarFromURL(ctx, user.Id, identity.avatarURL); err != nil {
+				log.Warn("Failed to import provider avatar", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type, "userId", user.Id, "error", err)
 			}
 		}
 	}
@@ -729,43 +718,4 @@ func randomString(n int) (string, error) {
 func s256Challenge(verifier string) string {
 	h := sha256.Sum256([]byte(verifier))
 	return base64.RawURLEncoding.EncodeToString(h[:])
-}
-
-// fetchAndUploadAvatarFromURL downloads an avatar from a URL and uploads it.
-func fetchAndUploadAvatarFromURL(ctx context.Context, avatarURL string, s *HTTPServer, userID string) error {
-	// Validate the URL before making a request
-	u, err := url.Parse(avatarURL)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
-		return nil // silently skip invalid URLs
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, avatarURL, nil)
-	if err != nil {
-		return err
-	}
-
-	resp, err := oidcAvatarClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil
-	}
-
-	avatarData, err := io.ReadAll(io.LimitReader(resp.Body, oidcAvatarMaxBytes+1))
-	if err != nil {
-		return err
-	}
-	if len(avatarData) > oidcAvatarMaxBytes {
-		return fmt.Errorf("avatar exceeds maximum size of %d bytes", oidcAvatarMaxBytes)
-	}
-
-	asset, err := s.core.UploadUserAvatar(ctx, userID, bytes.NewReader(avatarData))
-	if err != nil {
-		return err
-	}
-
-	return s.core.SetUserAvatar(ctx, userID, asset)
 }

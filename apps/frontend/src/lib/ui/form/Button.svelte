@@ -41,6 +41,15 @@
     md: '',
     lg: 'btn-lg'
   };
+
+  function handleClick(e: MouseEvent) {
+    if (disabled || loading) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    onclick?.(e);
+  }
 </script>
 
 {#snippet content()}
@@ -62,18 +71,26 @@
 {#if href}
   <a
     {href}
+    onclick={handleClick}
     aria-busy={loading || undefined}
-    class="{variantClasses[variant]} {sizeClasses[size]} {fullWidth ? 'w-full' : ''}"
+    aria-disabled={disabled || loading || undefined}
+    tabindex={disabled || loading ? -1 : undefined}
+    class={[
+      variantClasses[variant],
+      sizeClasses[size],
+      fullWidth ? 'w-full' : '',
+      disabled || loading ? 'pointer-events-none opacity-60' : ''
+    ]}
   >
     {@render content()}
   </a>
 {:else}
   <button
     {type}
-    {onclick}
+    onclick={handleClick}
     disabled={disabled || loading}
     aria-busy={loading || undefined}
-    class="{variantClasses[variant]} {sizeClasses[size]} {fullWidth ? 'w-full' : ''}"
+    class={[variantClasses[variant], sizeClasses[size], fullWidth ? 'w-full' : '']}
   >
     {@render content()}
   </button>

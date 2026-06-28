@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   updateProfile: vi.fn(),
   uploadAvatar: vi.fn(),
   deleteAvatar: vi.fn(),
+  setPassword: vi.fn(),
   updateSettings: vi.fn(),
   requestAccountDeletion: vi.fn(),
   deleteMyAccount: vi.fn()
@@ -33,6 +34,7 @@ describe('createAccountAPI', () => {
     mocks.updateProfile.mockReset();
     mocks.uploadAvatar.mockReset();
     mocks.deleteAvatar.mockReset();
+    mocks.setPassword.mockReset();
     mocks.updateSettings.mockReset();
     mocks.requestAccountDeletion.mockReset();
     mocks.deleteMyAccount.mockReset();
@@ -41,6 +43,7 @@ describe('createAccountAPI', () => {
       updateProfile: mocks.updateProfile,
       uploadAvatar: mocks.uploadAvatar,
       deleteAvatar: mocks.deleteAvatar,
+      setPassword: mocks.setPassword,
       updateSettings: mocks.updateSettings,
       requestAccountDeletion: mocks.requestAccountDeletion,
       deleteMyAccount: mocks.deleteMyAccount
@@ -151,6 +154,24 @@ describe('createAccountAPI', () => {
         timeFormat: APITimeFormat.TIME_FORMAT_24_HOUR
       },
       { headers: undefined }
+    );
+  });
+
+  it('sets a password with bearer auth', async () => {
+    mocks.setPassword.mockResolvedValue({});
+
+    const api = createAccountAPI({
+      baseUrl: '/api/connect',
+      bearerToken: 'token'
+    });
+
+    await expect(
+      api.setPassword({ password: 'newpassword456', currentPassword: 'oldpassword123' })
+    ).resolves.toBeUndefined();
+
+    expect(mocks.setPassword).toHaveBeenCalledWith(
+      { password: 'newpassword456', currentPassword: 'oldpassword123' },
+      { headers: { Authorization: 'Bearer token' } }
     );
   });
 

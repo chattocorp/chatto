@@ -276,6 +276,20 @@
       "delete_button": "Konto löschen",
       "delete_failed": "Konto konnte nicht gelöscht werden",
       "delete_request_failed": "Kontolöschung konnte nicht angefordert werden",
+      "password": {
+        "title": "Passwort",
+        "add_description": "Füge ein Passwort hinzu, damit du dich direkt anmelden und deinen letzten SSO-Anbieter trennen kannst.",
+        "change_description": "Ändere das Passwort für die direkte Anmeldung.",
+        "current_label": "Aktuelles Passwort",
+        "current_required": "Gib dein aktuelles Passwort ein.",
+        "add_button": "Passwort hinzufügen",
+        "change_button": "Passwort ändern",
+        "saving": "Passwort wird gespeichert...",
+        "saved": "Passwort hinzugefügt",
+        "changed": "Passwort geändert",
+        "save_failed": "Passwort konnte nicht gespeichert werden",
+        "already_set": "Dieses Konto hat bereits ein Passwort."
+      },
       "sso": {
         "title": "Single Sign-On",
         "loading": "Anmeldeanbieter werden geladen...",
@@ -283,7 +297,12 @@
         "none_configured": "Es sind keine externen Anmeldeanbieter konfiguriert.",
         "linked": "Verknüpft",
         "not_linked": "Nicht verknüpft",
-        "link_button": "Verknüpfen"
+        "link_button": "Verknüpfen",
+        "provider_unconfigured": "Anbieter ist nicht mehr konfiguriert",
+        "disconnect_button": "Trennen",
+        "disconnecting": "Wird getrennt...",
+        "disconnect_failed": "Anmeldeanbieter konnte nicht getrennt werden",
+        "disconnect_last_method": "Füge ein Passwort oder eine weitere Anmeldemethode hinzu, bevor du diesen Anbieter trennst."
       },
       "delete_modal": {
         "title": "Konto löschen",

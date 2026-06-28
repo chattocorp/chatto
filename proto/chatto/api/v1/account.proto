@@ -45,6 +45,19 @@ message DeleteAvatarResponse {
   UserSummary user = 1;
 }
 
+// Request to set or change the authenticated user's password.
+message SetPasswordRequest {
+  // New password. The server applies the same password policy as registration
+  // and password reset.
+  string password = 1;
+  // Current password. Required when the account already has a password; omitted
+  // when adding the first password to a passwordless account.
+  string current_password = 2;
+}
+
+// Result of setting or changing the authenticated account password.
+message SetPasswordResponse {}
+
 // Request to update the authenticated user's display preferences. Omitted
 // fields are left unchanged. An empty timezone clears the explicit timezone.
 message UpdateSettingsRequest {
@@ -90,6 +103,8 @@ service AccountService {
   rpc UploadAvatar(UploadAvatarRequest) returns (UploadAvatarResponse);
   // Deletes the authenticated user's avatar. The call is idempotent.
   rpc DeleteAvatar(DeleteAvatarRequest) returns (DeleteAvatarResponse);
+  // Sets or changes the authenticated user's password.
+  rpc SetPassword(SetPasswordRequest) returns (SetPasswordResponse);
   // Updates the authenticated user's display preferences.
   rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsResponse);
   // Issues a short-lived token used to confirm self-deletion.

@@ -141,6 +141,13 @@ export class ViewerUser extends Message<ViewerUser> {
    */
   profile?: UserPresenceSummary;
 
+  /**
+   * Whether this account currently has a password sign-in credential.
+   *
+   * @generated from field: bool has_password = 12;
+   */
+  hasPassword = false;
+
   constructor(data?: PartialMessage<ViewerUser>) {
     super();
     proto3.util.initPartial(data, this);
@@ -154,6 +161,7 @@ export class ViewerUser extends Message<ViewerUser> {
     { no: 9, name: "viewer_can_delete_account", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 10, name: "last_login_change", kind: "message", T: Timestamp },
     { no: 11, name: "profile", kind: "message", T: UserPresenceSummary },
+    { no: 12, name: "has_password", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ViewerUser {

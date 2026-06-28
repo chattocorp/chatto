@@ -141,6 +141,17 @@ func (s *externalIdentityService) LinkExternalIdentity(ctx context.Context, req 
 	}), nil
 }
 
+func (s *externalIdentityService) DisconnectExternalIdentity(ctx context.Context, req *connect.Request[apiv1.DisconnectExternalIdentityRequest]) (*connect.Response[apiv1.DisconnectExternalIdentityResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.api.core.DisconnectExternalIdentity(ctx, caller.UserID, req.Msg.GetSubjectHash()); err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.DisconnectExternalIdentityResponse{Disconnected: true}), nil
+}
+
 func apiPendingExternalIdentity(flow *core.PendingExternalIdentityFlow) *apiv1.PendingExternalIdentity {
 	if flow == nil {
 		return nil
@@ -169,13 +180,15 @@ func apiExternalIdentityProviders(providers []config.AuthProviderConfig, identit
 	result := make([]*apiv1.ExternalIdentityProvider, 0, len(providers))
 	for _, provider := range providers {
 		escapedID := url.PathEscape(provider.ID)
+		linkedIdentity, linked := providerLinkedIdentity(provider, identities)
 		result = append(result, &apiv1.ExternalIdentityProvider{
-			Id:       provider.ID,
-			Type:     provider.Type,
-			Label:    provider.LabelOrDefault(),
-			LoginUrl: "/auth/providers/" + escapedID,
-			LinkUrl:  "/auth/providers/" + escapedID + "?intent=link",
-			Linked:   providerLinked(provider, identities),
+			Id:                        provider.ID,
+			Type:                      provider.Type,
+			Label:                     provider.LabelOrDefault(),
+			LoginUrl:                  "/auth/providers/" + escapedID,
+			LinkUrl:                   "/auth/providers/" + escapedID + "?intent=link",
+			Linked:                    linked,
+			LinkedIdentitySubjectHash: linkedIdentity.SubjectHash,
 		})
 	}
 	return result
@@ -231,18 +244,18 @@ func (a *API) externalIdentityLinkStartURL(ctx context.Context, providerID, toke
 	return baseURL + path + "?" + values.Encode()
 }
 
-func providerLinked(provider config.AuthProviderConfig, identities []core.ExternalIdentity) bool {
+func providerLinkedIdentity(provider config.AuthProviderConfig, identities []core.ExternalIdentity) (core.ExternalIdentity, bool) {
 	for _, identity := range identities {
 		if identity.ProviderID == provider.ID {
-			return true
+			return identity, true
 		}
 		if provider.Type == config.AuthProviderTypeOpenIDConnect &&
 			identity.ProviderType == config.AuthProviderTypeOpenIDConnect &&
 			identity.Issuer == provider.IssuerURL {
-			return true
+			return identity, true
 		}
 	}
-	return false
+	return core.ExternalIdentity{}, false
 }
 
 func isValidInternalRedirectPath(redirect string) bool {

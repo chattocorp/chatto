@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   assignRole: vi.fn(),
   revokeRole: vi.fn(),
   updateUser: vi.fn(),
+  setUserPassword: vi.fn(),
   clearUsernameCooldown: vi.fn()
 }));
 
@@ -33,6 +34,7 @@ describe('createAdminUserManagementAPI', () => {
     mocks.assignRole.mockReset();
     mocks.revokeRole.mockReset();
     mocks.updateUser.mockReset();
+    mocks.setUserPassword.mockReset();
     mocks.clearUsernameCooldown.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
@@ -41,6 +43,7 @@ describe('createAdminUserManagementAPI', () => {
       assignRole: mocks.assignRole,
       revokeRole: mocks.revokeRole,
       updateUser: mocks.updateUser,
+      setUserPassword: mocks.setUserPassword,
       clearUsernameCooldown: mocks.clearUsernameCooldown
     });
   });
@@ -241,6 +244,21 @@ describe('createAdminUserManagementAPI', () => {
     expect(mocks.clearUsernameCooldown).toHaveBeenCalledWith(
       { userId: 'user-1' },
       { headers: undefined }
+    );
+  });
+
+  it('sets a user password with auth headers', async () => {
+    mocks.setUserPassword.mockResolvedValue({ updated: true });
+    const api = createAdminUserManagementAPI({
+      baseUrl: '/api/connect',
+      bearerToken: 'token'
+    });
+
+    await expect(api.setUserPassword('user-1', 'newpassword456')).resolves.toBe(true);
+
+    expect(mocks.setUserPassword).toHaveBeenCalledWith(
+      { userId: 'user-1', password: 'newpassword456' },
+      { headers: { Authorization: 'Bearer token' } }
     );
   });
 });

@@ -147,7 +147,9 @@ type ViewerUser struct {
 	// Last time a login credential changed, when known.
 	LastLoginChange *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=last_login_change,json=lastLoginChange,proto3" json:"last_login_change,omitempty"`
 	// Public profile and live presence fields for the authenticated user.
-	Profile       *UserPresenceSummary `protobuf:"bytes,11,opt,name=profile,proto3" json:"profile,omitempty"`
+	Profile *UserPresenceSummary `protobuf:"bytes,11,opt,name=profile,proto3" json:"profile,omitempty"`
+	// Whether this account currently has a password sign-in credential.
+	HasPassword   bool `protobuf:"varint,12,opt,name=has_password,json=hasPassword,proto3" json:"has_password,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -215,6 +217,13 @@ func (x *ViewerUser) GetProfile() *UserPresenceSummary {
 		return x.Profile
 	}
 	return nil
+}
+
+func (x *ViewerUser) GetHasPassword() bool {
+	if x != nil {
+		return x.HasPassword
+	}
+	return false
 }
 
 // Permission-derived capabilities for the authenticated user.
@@ -582,7 +591,7 @@ const file_chatto_api_v1_viewer_proto_rawDesc = "" +
 	"\btimezone\x18\x01 \x01(\tH\x00R\btimezone\x88\x01\x01\x12:\n" +
 	"\vtime_format\x18\x02 \x01(\x0e2\x19.chatto.api.v1.TimeFormatR\n" +
 	"timeFormatB\v\n" +
-	"\t_timezone\"\xff\x02\n" +
+	"\t_timezone\"\xa2\x03\n" +
 	"\n" +
 	"ViewerUser\x12,\n" +
 	"\x12has_verified_email\x18\a \x01(\bR\x10hasVerifiedEmail\x127\n" +
@@ -590,7 +599,8 @@ const file_chatto_api_v1_viewer_proto_rawDesc = "" +
 	"\x19viewer_can_delete_account\x18\t \x01(\bR\x16viewerCanDeleteAccount\x12F\n" +
 	"\x11last_login_change\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\x0flastLoginChange\x12<\n" +
-	"\aprofile\x18\v \x01(\v2\".chatto.api.v1.UserPresenceSummaryR\aprofileJ\x04\b\x01\x10\aR\x02idR\x05loginR\fdisplay_nameR\n" +
+	"\aprofile\x18\v \x01(\v2\".chatto.api.v1.UserPresenceSummaryR\aprofile\x12!\n" +
+	"\fhas_password\x18\f \x01(\bR\vhasPasswordJ\x04\b\x01\x10\aR\x02idR\x05loginR\fdisplay_nameR\n" +
 	"avatar_urlR\rcustom_statusR\x0fpresence_status\"\x8c\x04\n" +
 	"\x12ViewerCapabilities\x12$\n" +
 	"\x0ecan_view_admin\x18\x01 \x01(\bR\fcanViewAdmin\x12\"\n" +

@@ -29,6 +29,8 @@ var (
 	ErrExternalIdentityFlowExpired   = errors.New("external identity flow expired")
 	ErrExternalIdentityFlowWrongKind = errors.New("external identity flow has the wrong kind")
 	ErrExternalIdentityFlowUserBound = errors.New("external identity flow is bound to a different user")
+	ErrExternalIdentityNotFound      = errors.New("external identity is not linked to this account")
+	ErrExternalIdentityLastMethod    = errors.New("cannot disconnect the last sign-in method")
 )
 
 type ExternalIdentity struct {
@@ -270,6 +272,11 @@ func (c *ChattoCore) CreateUserForExternalIdentity(ctx context.Context, login, d
 	if err := c.LinkExternalIdentity(ctx, flow.ProviderID, flow.ProviderType, flow.Issuer, flow.Subject, user.Id); err != nil {
 		return nil, err
 	}
+	if flow.AvatarURL != "" {
+		if err := c.ImportUserAvatarFromURL(ctx, user.Id, flow.AvatarURL); err != nil {
+			c.logger.Warn("Failed to import provider avatar", "provider_id", flow.ProviderID, "provider_type", flow.ProviderType, "user_id", user.Id, "error", err)
+		}
+	}
 	rollback = false
 	return user, nil
 }
@@ -317,4 +324,42 @@ func (c *ChattoCore) ExternalIdentitiesForUser(ctx context.Context, userID strin
 		return nil, err
 	}
 	return c.Users.ExternalIdentities(userID), nil
+}
+
+// DisconnectExternalIdentity removes a linked provider identity from a user.
+// It refuses to remove the last available sign-in method for passwordless
+// accounts so users created through SSO cannot lock themselves out.
+func (c *ChattoCore) DisconnectExternalIdentity(ctx context.Context, userID, subjectHash string) error {
+	userID = strings.TrimSpace(userID)
+	subjectHash = strings.TrimSpace(subjectHash)
+	if userID == "" || subjectHash == "" {
+		return ErrInvalidArgument
+	}
+	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserExternalIdentityUnlinked{
+		UserExternalIdentityUnlinked: &corev1.UserExternalIdentityUnlinkedEvent{
+			UserId:      userID,
+			SubjectHash: subjectHash,
+		},
+	}})
+	_, err := c.appendUserEvent(ctx, userID, event, events.UserSubjectFilter(), func() error {
+		if _, ok := c.Users.Get(userID); !ok {
+			return ErrNotFound
+		}
+		identities := c.Users.ExternalIdentities(userID)
+		found := false
+		for _, identity := range identities {
+			if identity.SubjectHash == subjectHash {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return ErrExternalIdentityNotFound
+		}
+		if _, hasPassword := c.Users.PasswordHash(userID); !hasPassword && len(identities) <= 1 {
+			return ErrExternalIdentityLastMethod
+		}
+		return nil
+	})
+	return err
 }

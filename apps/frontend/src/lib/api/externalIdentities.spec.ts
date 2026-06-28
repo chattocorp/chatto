@@ -13,7 +13,8 @@ const mocks = vi.hoisted(() => ({
   confirmExternalIdentityLink: vi.fn(),
   listExternalIdentities: vi.fn(),
   startExternalIdentityLink: vi.fn(),
-  linkExternalIdentity: vi.fn()
+  linkExternalIdentity: vi.fn(),
+  disconnectExternalIdentity: vi.fn()
 }));
 
 vi.mock('@connectrpc/connect', async (importOriginal) => {
@@ -90,11 +91,13 @@ describe('createExternalIdentityAPI', () => {
     mocks.listExternalIdentities.mockReset();
     mocks.startExternalIdentityLink.mockReset();
     mocks.linkExternalIdentity.mockReset();
+    mocks.disconnectExternalIdentity.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
       listExternalIdentities: mocks.listExternalIdentities,
       startExternalIdentityLink: mocks.startExternalIdentityLink,
-      linkExternalIdentity: mocks.linkExternalIdentity
+      linkExternalIdentity: mocks.linkExternalIdentity,
+      disconnectExternalIdentity: mocks.disconnectExternalIdentity
     });
   });
 
@@ -107,7 +110,8 @@ describe('createExternalIdentityAPI', () => {
           label: 'GitHub',
           loginUrl: '/auth/providers/github-main',
           linkUrl: '/auth/providers/github-main?intent=link',
-          linked: true
+          linked: true,
+          linkedIdentitySubjectHash: 'abc123'
         }
       ],
       linkedIdentities: [
@@ -134,7 +138,8 @@ describe('createExternalIdentityAPI', () => {
           label: 'GitHub',
           loginUrl: 'https://remote.example.test/auth/providers/github-main',
           linkUrl: 'https://remote.example.test/auth/providers/github-main?intent=link',
-          linked: true
+          linked: true,
+          linkedIdentitySubjectHash: 'abc123'
         }
       ],
       linkedIdentities: [
@@ -184,6 +189,22 @@ describe('createExternalIdentityAPI', () => {
     );
     expect(mocks.startExternalIdentityLink).toHaveBeenCalledWith(
       { providerId: 'github-main', redirectPath: '/chat/-/settings/account' },
+      { headers: { Authorization: 'Bearer token' } }
+    );
+  });
+
+  it('disconnects a linked identity with bearer auth', async () => {
+    mocks.disconnectExternalIdentity.mockResolvedValue({ disconnected: true });
+
+    const api = createExternalIdentityAPI({
+      serverId: 'remote',
+      baseUrl: 'https://remote.example.test/api/connect',
+      bearerToken: 'token'
+    });
+
+    await expect(api.disconnect('abc123')).resolves.toBeUndefined();
+    expect(mocks.disconnectExternalIdentity).toHaveBeenCalledWith(
+      { subjectHash: 'abc123' },
       { headers: { Authorization: 'Bearer token' } }
     );
   });

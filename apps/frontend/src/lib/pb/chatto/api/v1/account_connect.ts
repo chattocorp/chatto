@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { DeleteAvatarRequest, DeleteAvatarResponse, DeleteMyAccountRequest, DeleteMyAccountResponse, RequestAccountDeletionRequest, RequestAccountDeletionResponse, UpdateProfileRequest, UpdateProfileResponse, UpdateSettingsRequest, UpdateSettingsResponse, UploadAvatarRequest, UploadAvatarResponse } from "./account_pb.js";
+import { DeleteAvatarRequest, DeleteAvatarResponse, DeleteMyAccountRequest, DeleteMyAccountResponse, RequestAccountDeletionRequest, RequestAccountDeletionResponse, SetPasswordRequest, SetPasswordResponse, UpdateProfileRequest, UpdateProfileResponse, UpdateSettingsRequest, UpdateSettingsResponse, UploadAvatarRequest, UploadAvatarResponse } from "./account_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -45,6 +45,17 @@ export const AccountService = {
       name: "DeleteAvatar",
       I: DeleteAvatarRequest,
       O: DeleteAvatarResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Sets or changes the authenticated user's password.
+     *
+     * @generated from rpc chatto.api.v1.AccountService.SetPassword
+     */
+    setPassword: {
+      name: "SetPassword",
+      I: SetPasswordRequest,
+      O: SetPasswordResponse,
       kind: MethodKind.Unary,
     },
     /**

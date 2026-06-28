@@ -57,6 +57,9 @@ const (
 	// ExternalIdentityServiceLinkExternalIdentityProcedure is the fully-qualified name of the
 	// ExternalIdentityService's LinkExternalIdentity RPC.
 	ExternalIdentityServiceLinkExternalIdentityProcedure = "/chatto.api.v1.ExternalIdentityService/LinkExternalIdentity"
+	// ExternalIdentityServiceDisconnectExternalIdentityProcedure is the fully-qualified name of the
+	// ExternalIdentityService's DisconnectExternalIdentity RPC.
+	ExternalIdentityServiceDisconnectExternalIdentityProcedure = "/chatto.api.v1.ExternalIdentityService/DisconnectExternalIdentity"
 )
 
 // ExternalIdentityFlowServiceClient is a client for the chatto.api.v1.ExternalIdentityFlowService
@@ -229,6 +232,8 @@ type ExternalIdentityServiceClient interface {
 	StartExternalIdentityLink(context.Context, *connect.Request[v1.StartExternalIdentityLinkRequest]) (*connect.Response[v1.StartExternalIdentityLinkResponse], error)
 	// Links a pending provider identity to the authenticated account.
 	LinkExternalIdentity(context.Context, *connect.Request[v1.LinkExternalIdentityRequest]) (*connect.Response[v1.LinkExternalIdentityResponse], error)
+	// Disconnects a provider identity from the authenticated account.
+	DisconnectExternalIdentity(context.Context, *connect.Request[v1.DisconnectExternalIdentityRequest]) (*connect.Response[v1.DisconnectExternalIdentityResponse], error)
 }
 
 // NewExternalIdentityServiceClient constructs a client for the
@@ -260,14 +265,21 @@ func NewExternalIdentityServiceClient(httpClient connect.HTTPClient, baseURL str
 			connect.WithSchema(externalIdentityServiceMethods.ByName("LinkExternalIdentity")),
 			connect.WithClientOptions(opts...),
 		),
+		disconnectExternalIdentity: connect.NewClient[v1.DisconnectExternalIdentityRequest, v1.DisconnectExternalIdentityResponse](
+			httpClient,
+			baseURL+ExternalIdentityServiceDisconnectExternalIdentityProcedure,
+			connect.WithSchema(externalIdentityServiceMethods.ByName("DisconnectExternalIdentity")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // externalIdentityServiceClient implements ExternalIdentityServiceClient.
 type externalIdentityServiceClient struct {
-	listExternalIdentities    *connect.Client[v1.ListExternalIdentitiesRequest, v1.ListExternalIdentitiesResponse]
-	startExternalIdentityLink *connect.Client[v1.StartExternalIdentityLinkRequest, v1.StartExternalIdentityLinkResponse]
-	linkExternalIdentity      *connect.Client[v1.LinkExternalIdentityRequest, v1.LinkExternalIdentityResponse]
+	listExternalIdentities     *connect.Client[v1.ListExternalIdentitiesRequest, v1.ListExternalIdentitiesResponse]
+	startExternalIdentityLink  *connect.Client[v1.StartExternalIdentityLinkRequest, v1.StartExternalIdentityLinkResponse]
+	linkExternalIdentity       *connect.Client[v1.LinkExternalIdentityRequest, v1.LinkExternalIdentityResponse]
+	disconnectExternalIdentity *connect.Client[v1.DisconnectExternalIdentityRequest, v1.DisconnectExternalIdentityResponse]
 }
 
 // ListExternalIdentities calls chatto.api.v1.ExternalIdentityService.ListExternalIdentities.
@@ -285,6 +297,12 @@ func (c *externalIdentityServiceClient) LinkExternalIdentity(ctx context.Context
 	return c.linkExternalIdentity.CallUnary(ctx, req)
 }
 
+// DisconnectExternalIdentity calls
+// chatto.api.v1.ExternalIdentityService.DisconnectExternalIdentity.
+func (c *externalIdentityServiceClient) DisconnectExternalIdentity(ctx context.Context, req *connect.Request[v1.DisconnectExternalIdentityRequest]) (*connect.Response[v1.DisconnectExternalIdentityResponse], error) {
+	return c.disconnectExternalIdentity.CallUnary(ctx, req)
+}
+
 // ExternalIdentityServiceHandler is an implementation of the chatto.api.v1.ExternalIdentityService
 // service.
 type ExternalIdentityServiceHandler interface {
@@ -294,6 +312,8 @@ type ExternalIdentityServiceHandler interface {
 	StartExternalIdentityLink(context.Context, *connect.Request[v1.StartExternalIdentityLinkRequest]) (*connect.Response[v1.StartExternalIdentityLinkResponse], error)
 	// Links a pending provider identity to the authenticated account.
 	LinkExternalIdentity(context.Context, *connect.Request[v1.LinkExternalIdentityRequest]) (*connect.Response[v1.LinkExternalIdentityResponse], error)
+	// Disconnects a provider identity from the authenticated account.
+	DisconnectExternalIdentity(context.Context, *connect.Request[v1.DisconnectExternalIdentityRequest]) (*connect.Response[v1.DisconnectExternalIdentityResponse], error)
 }
 
 // NewExternalIdentityServiceHandler builds an HTTP handler from the service implementation. It
@@ -321,6 +341,12 @@ func NewExternalIdentityServiceHandler(svc ExternalIdentityServiceHandler, opts 
 		connect.WithSchema(externalIdentityServiceMethods.ByName("LinkExternalIdentity")),
 		connect.WithHandlerOptions(opts...),
 	)
+	externalIdentityServiceDisconnectExternalIdentityHandler := connect.NewUnaryHandler(
+		ExternalIdentityServiceDisconnectExternalIdentityProcedure,
+		svc.DisconnectExternalIdentity,
+		connect.WithSchema(externalIdentityServiceMethods.ByName("DisconnectExternalIdentity")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/chatto.api.v1.ExternalIdentityService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ExternalIdentityServiceListExternalIdentitiesProcedure:
@@ -329,6 +355,8 @@ func NewExternalIdentityServiceHandler(svc ExternalIdentityServiceHandler, opts 
 			externalIdentityServiceStartExternalIdentityLinkHandler.ServeHTTP(w, r)
 		case ExternalIdentityServiceLinkExternalIdentityProcedure:
 			externalIdentityServiceLinkExternalIdentityHandler.ServeHTTP(w, r)
+		case ExternalIdentityServiceDisconnectExternalIdentityProcedure:
+			externalIdentityServiceDisconnectExternalIdentityHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -348,4 +376,8 @@ func (UnimplementedExternalIdentityServiceHandler) StartExternalIdentityLink(con
 
 func (UnimplementedExternalIdentityServiceHandler) LinkExternalIdentity(context.Context, *connect.Request[v1.LinkExternalIdentityRequest]) (*connect.Response[v1.LinkExternalIdentityResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ExternalIdentityService.LinkExternalIdentity is not implemented"))
+}
+
+func (UnimplementedExternalIdentityServiceHandler) DisconnectExternalIdentity(context.Context, *connect.Request[v1.DisconnectExternalIdentityRequest]) (*connect.Response[v1.DisconnectExternalIdentityResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ExternalIdentityService.DisconnectExternalIdentity is not implemented"))
 }

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CancelExternalIdentityFlowRequest, CancelExternalIdentityFlowResponse, ConfirmExternalIdentityLinkRequest, ConfirmExternalIdentityLinkResponse, CreateExternalIdentityAccountRequest, CreateExternalIdentityAccountResponse, GetPendingExternalIdentityRequest, GetPendingExternalIdentityResponse, LinkExternalIdentityRequest, LinkExternalIdentityResponse, ListExternalIdentitiesRequest, ListExternalIdentitiesResponse, StartExternalIdentityLinkRequest, StartExternalIdentityLinkResponse } from "./external_identities_pb.js";
+import { CancelExternalIdentityFlowRequest, CancelExternalIdentityFlowResponse, ConfirmExternalIdentityLinkRequest, ConfirmExternalIdentityLinkResponse, CreateExternalIdentityAccountRequest, CreateExternalIdentityAccountResponse, DisconnectExternalIdentityRequest, DisconnectExternalIdentityResponse, GetPendingExternalIdentityRequest, GetPendingExternalIdentityResponse, LinkExternalIdentityRequest, LinkExternalIdentityResponse, ListExternalIdentitiesRequest, ListExternalIdentitiesResponse, StartExternalIdentityLinkRequest, StartExternalIdentityLinkResponse } from "./external_identities_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -100,6 +100,17 @@ export const ExternalIdentityService = {
       name: "LinkExternalIdentity",
       I: LinkExternalIdentityRequest,
       O: LinkExternalIdentityResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Disconnects a provider identity from the authenticated account.
+     *
+     * @generated from rpc chatto.api.v1.ExternalIdentityService.DisconnectExternalIdentity
+     */
+    disconnectExternalIdentity: {
+      name: "DisconnectExternalIdentity",
+      I: DisconnectExternalIdentityRequest,
+      O: DisconnectExternalIdentityResponse,
       kind: MethodKind.Unary,
     },
   }

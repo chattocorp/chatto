@@ -729,6 +729,97 @@ export class UpdateUserResponse extends Message<UpdateUserResponse> {
 }
 
 /**
+ * Request to set a user's password as a server-admin action.
+ *
+ * @generated from message chatto.api.v1.SetUserPasswordRequest
+ */
+export class SetUserPasswordRequest extends Message<SetUserPasswordRequest> {
+  /**
+   * Target user ID.
+   *
+   * @generated from field: string user_id = 1;
+   */
+  userId = "";
+
+  /**
+   * New password. The server applies the same password policy as registration
+   * and password reset.
+   *
+   * @generated from field: string password = 2;
+   */
+  password = "";
+
+  constructor(data?: PartialMessage<SetUserPasswordRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.SetUserPasswordRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "password", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetUserPasswordRequest {
+    return new SetUserPasswordRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetUserPasswordRequest {
+    return new SetUserPasswordRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetUserPasswordRequest {
+    return new SetUserPasswordRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetUserPasswordRequest | PlainMessage<SetUserPasswordRequest> | undefined, b: SetUserPasswordRequest | PlainMessage<SetUserPasswordRequest> | undefined): boolean {
+    return proto3.util.equals(SetUserPasswordRequest, a, b);
+  }
+}
+
+/**
+ * Result of an admin password update.
+ *
+ * @generated from message chatto.api.v1.SetUserPasswordResponse
+ */
+export class SetUserPasswordResponse extends Message<SetUserPasswordResponse> {
+  /**
+   * True when the request completed.
+   *
+   * @generated from field: bool updated = 1;
+   */
+  updated = false;
+
+  constructor(data?: PartialMessage<SetUserPasswordResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.SetUserPasswordResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "updated", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetUserPasswordResponse {
+    return new SetUserPasswordResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetUserPasswordResponse {
+    return new SetUserPasswordResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetUserPasswordResponse {
+    return new SetUserPasswordResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetUserPasswordResponse | PlainMessage<SetUserPasswordResponse> | undefined, b: SetUserPasswordResponse | PlainMessage<SetUserPasswordResponse> | undefined): boolean {
+    return proto3.util.equals(SetUserPasswordResponse, a, b);
+  }
+}
+
+/**
  * Request to clear a user's self-service username-change cooldown.
  *
  * @generated from message chatto.api.v1.ClearUsernameCooldownRequest

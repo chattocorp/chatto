@@ -49,6 +49,9 @@ const (
 	// AdminUserManagementServiceUpdateUserProcedure is the fully-qualified name of the
 	// AdminUserManagementService's UpdateUser RPC.
 	AdminUserManagementServiceUpdateUserProcedure = "/chatto.api.v1.AdminUserManagementService/UpdateUser"
+	// AdminUserManagementServiceSetUserPasswordProcedure is the fully-qualified name of the
+	// AdminUserManagementService's SetUserPassword RPC.
+	AdminUserManagementServiceSetUserPasswordProcedure = "/chatto.api.v1.AdminUserManagementService/SetUserPassword"
 	// AdminUserManagementServiceClearUsernameCooldownProcedure is the fully-qualified name of the
 	// AdminUserManagementService's ClearUsernameCooldown RPC.
 	AdminUserManagementServiceClearUsernameCooldownProcedure = "/chatto.api.v1.AdminUserManagementService/ClearUsernameCooldown"
@@ -68,6 +71,8 @@ type AdminUserManagementServiceClient interface {
 	RevokeRole(context.Context, *connect.Request[v1.RevokeRoleRequest]) (*connect.Response[v1.RevokeRoleResponse], error)
 	// Updates a user's login and/or display name as an admin action.
 	UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error)
+	// Sets a user's password as an admin action.
+	SetUserPassword(context.Context, *connect.Request[v1.SetUserPasswordRequest]) (*connect.Response[v1.SetUserPasswordResponse], error)
 	// Clears the target user's self-service username-change cooldown.
 	ClearUsernameCooldown(context.Context, *connect.Request[v1.ClearUsernameCooldownRequest]) (*connect.Response[v1.ClearUsernameCooldownResponse], error)
 }
@@ -113,6 +118,12 @@ func NewAdminUserManagementServiceClient(httpClient connect.HTTPClient, baseURL 
 			connect.WithSchema(adminUserManagementServiceMethods.ByName("UpdateUser")),
 			connect.WithClientOptions(opts...),
 		),
+		setUserPassword: connect.NewClient[v1.SetUserPasswordRequest, v1.SetUserPasswordResponse](
+			httpClient,
+			baseURL+AdminUserManagementServiceSetUserPasswordProcedure,
+			connect.WithSchema(adminUserManagementServiceMethods.ByName("SetUserPassword")),
+			connect.WithClientOptions(opts...),
+		),
 		clearUsernameCooldown: connect.NewClient[v1.ClearUsernameCooldownRequest, v1.ClearUsernameCooldownResponse](
 			httpClient,
 			baseURL+AdminUserManagementServiceClearUsernameCooldownProcedure,
@@ -129,6 +140,7 @@ type adminUserManagementServiceClient struct {
 	assignRole            *connect.Client[v1.AssignRoleRequest, v1.AssignRoleResponse]
 	revokeRole            *connect.Client[v1.RevokeRoleRequest, v1.RevokeRoleResponse]
 	updateUser            *connect.Client[v1.UpdateUserRequest, v1.UpdateUserResponse]
+	setUserPassword       *connect.Client[v1.SetUserPasswordRequest, v1.SetUserPasswordResponse]
 	clearUsernameCooldown *connect.Client[v1.ClearUsernameCooldownRequest, v1.ClearUsernameCooldownResponse]
 }
 
@@ -157,6 +169,11 @@ func (c *adminUserManagementServiceClient) UpdateUser(ctx context.Context, req *
 	return c.updateUser.CallUnary(ctx, req)
 }
 
+// SetUserPassword calls chatto.api.v1.AdminUserManagementService.SetUserPassword.
+func (c *adminUserManagementServiceClient) SetUserPassword(ctx context.Context, req *connect.Request[v1.SetUserPasswordRequest]) (*connect.Response[v1.SetUserPasswordResponse], error) {
+	return c.setUserPassword.CallUnary(ctx, req)
+}
+
 // ClearUsernameCooldown calls chatto.api.v1.AdminUserManagementService.ClearUsernameCooldown.
 func (c *adminUserManagementServiceClient) ClearUsernameCooldown(ctx context.Context, req *connect.Request[v1.ClearUsernameCooldownRequest]) (*connect.Response[v1.ClearUsernameCooldownResponse], error) {
 	return c.clearUsernameCooldown.CallUnary(ctx, req)
@@ -176,6 +193,8 @@ type AdminUserManagementServiceHandler interface {
 	RevokeRole(context.Context, *connect.Request[v1.RevokeRoleRequest]) (*connect.Response[v1.RevokeRoleResponse], error)
 	// Updates a user's login and/or display name as an admin action.
 	UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error)
+	// Sets a user's password as an admin action.
+	SetUserPassword(context.Context, *connect.Request[v1.SetUserPasswordRequest]) (*connect.Response[v1.SetUserPasswordResponse], error)
 	// Clears the target user's self-service username-change cooldown.
 	ClearUsernameCooldown(context.Context, *connect.Request[v1.ClearUsernameCooldownRequest]) (*connect.Response[v1.ClearUsernameCooldownResponse], error)
 }
@@ -217,6 +236,12 @@ func NewAdminUserManagementServiceHandler(svc AdminUserManagementServiceHandler,
 		connect.WithSchema(adminUserManagementServiceMethods.ByName("UpdateUser")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminUserManagementServiceSetUserPasswordHandler := connect.NewUnaryHandler(
+		AdminUserManagementServiceSetUserPasswordProcedure,
+		svc.SetUserPassword,
+		connect.WithSchema(adminUserManagementServiceMethods.ByName("SetUserPassword")),
+		connect.WithHandlerOptions(opts...),
+	)
 	adminUserManagementServiceClearUsernameCooldownHandler := connect.NewUnaryHandler(
 		AdminUserManagementServiceClearUsernameCooldownProcedure,
 		svc.ClearUsernameCooldown,
@@ -235,6 +260,8 @@ func NewAdminUserManagementServiceHandler(svc AdminUserManagementServiceHandler,
 			adminUserManagementServiceRevokeRoleHandler.ServeHTTP(w, r)
 		case AdminUserManagementServiceUpdateUserProcedure:
 			adminUserManagementServiceUpdateUserHandler.ServeHTTP(w, r)
+		case AdminUserManagementServiceSetUserPasswordProcedure:
+			adminUserManagementServiceSetUserPasswordHandler.ServeHTTP(w, r)
 		case AdminUserManagementServiceClearUsernameCooldownProcedure:
 			adminUserManagementServiceClearUsernameCooldownHandler.ServeHTTP(w, r)
 		default:
@@ -264,6 +291,10 @@ func (UnimplementedAdminUserManagementServiceHandler) RevokeRole(context.Context
 
 func (UnimplementedAdminUserManagementServiceHandler) UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.AdminUserManagementService.UpdateUser is not implemented"))
+}
+
+func (UnimplementedAdminUserManagementServiceHandler) SetUserPassword(context.Context, *connect.Request[v1.SetUserPasswordRequest]) (*connect.Response[v1.SetUserPasswordResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.AdminUserManagementService.SetUserPassword is not implemented"))
 }
 
 func (UnimplementedAdminUserManagementServiceHandler) ClearUsernameCooldown(context.Context, *connect.Request[v1.ClearUsernameCooldownRequest]) (*connect.Response[v1.ClearUsernameCooldownResponse], error) {

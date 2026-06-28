@@ -97,6 +97,8 @@ func (p *UserProjection) Apply(event *corev1.Event, seq uint64) error {
 		p.applyOIDCSubjectLinked(e.UserOidcSubjectLinked)
 	case *corev1.Event_UserExternalIdentityLinked:
 		p.applyExternalIdentityLinked(e.UserExternalIdentityLinked)
+	case *corev1.Event_UserExternalIdentityUnlinked:
+		p.applyExternalIdentityUnlinked(e.UserExternalIdentityUnlinked)
 	case *corev1.Event_UserServerPreferencesChanged:
 		p.applyServerPreferencesChanged(e.UserServerPreferencesChanged)
 	case *corev1.Event_UserLoginCooldownStarted:
@@ -291,11 +293,13 @@ func (p *UserProjection) applyPasswordHashChanged(e *corev1.UserPasswordHashChan
 	}
 	u := p.ensureUserLocked(e.GetUserId())
 	u.passwordHash = append(u.passwordHash[:0], e.GetPasswordHash()...)
-	u.authGeneration = seq
-	if envelopeCreatedAt != nil {
-		u.passwordSetAt = envelopeCreatedAt.AsTime()
-	} else {
-		u.passwordSetAt = time.Time{}
+	if !e.GetPreserveExistingCredentials() {
+		u.authGeneration = seq
+		if envelopeCreatedAt != nil {
+			u.passwordSetAt = envelopeCreatedAt.AsTime()
+		} else {
+			u.passwordSetAt = time.Time{}
+		}
 	}
 }
 
@@ -349,6 +353,17 @@ func (p *UserProjection) applyExternalIdentityLinked(e *corev1.UserExternalIdent
 		Subject:      e.GetSubject(),
 		SubjectHash:  hash,
 	}
+}
+
+func (p *UserProjection) applyExternalIdentityUnlinked(e *corev1.UserExternalIdentityUnlinkedEvent) {
+	if e == nil || e.GetUserId() == "" || e.GetSubjectHash() == "" {
+		return
+	}
+	if p.identityIndex[e.GetSubjectHash()] == e.GetUserId() {
+		delete(p.identityIndex, e.GetSubjectHash())
+	}
+	u := p.ensureUserLocked(e.GetUserId())
+	delete(u.externalIdentities, e.GetSubjectHash())
 }
 
 func (p *UserProjection) applyOAuthConsentGranted(e *corev1.OAuthConsentGrantedEvent) {

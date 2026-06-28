@@ -23,6 +23,7 @@ export type CurrentUser = {
   } | null;
   presenceStatus: PresenceStatus;
   hasVerifiedEmail: boolean;
+  hasPassword: boolean;
   viewerCanDeleteAccount: boolean;
   lastLoginChange?: string | null;
   settings?: {
@@ -93,6 +94,7 @@ export async function getViewerStateViaConnect(config: ViewerAPIConfig): Promise
         : null,
       presenceStatus: apiPresenceStatus(user.presenceStatus),
       hasVerifiedEmail: response.user.hasVerifiedEmail,
+      hasPassword: response.user.hasPassword ?? false,
       viewerCanDeleteAccount: response.user.viewerCanDeleteAccount ?? false,
       lastLoginChange: response.user.lastLoginChange?.toDate().toISOString() ?? null,
       settings: response.user.settings

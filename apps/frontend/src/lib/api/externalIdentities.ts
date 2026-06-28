@@ -44,6 +44,7 @@ export type SSOProvider = {
   loginUrl: string;
   linkUrl: string;
   linked: boolean;
+  linkedIdentitySubjectHash: string | null;
 };
 
 export function createExternalIdentityFlowAPI(baseUrl = '/api/connect') {
@@ -127,6 +128,14 @@ export function createExternalIdentityAPI(config: ExternalIdentityAPIConfig) {
       } catch (err) {
         return handleAuthError(err);
       }
+    },
+
+    async disconnect(subjectHash: string): Promise<void> {
+      try {
+        await client.disconnectExternalIdentity({ subjectHash }, { headers: headers() });
+      } catch (err) {
+        return handleAuthError(err);
+      }
     }
   };
 }
@@ -155,7 +164,8 @@ function ssoProvider(provider: ExternalIdentityProvider, baseUrl: string): SSOPr
     label: provider.label,
     loginUrl: resolveServerUrl(provider.loginUrl, baseUrl),
     linkUrl: resolveServerUrl(provider.linkUrl, baseUrl),
-    linked: provider.linked
+    linked: provider.linked,
+    linkedIdentitySubjectHash: provider.linkedIdentitySubjectHash || null
   };
 }
 

@@ -49,6 +49,7 @@ describe('getCurrentUserViaConnect', () => {
           presenceStatus: APIPresenceStatus.AWAY
         },
         hasVerifiedEmail: true,
+        hasPassword: true,
         viewerCanDeleteAccount: true,
         lastLoginChange: Timestamp.fromDate(new Date('2026-05-20T09:30:00Z')),
         settings: {
@@ -84,6 +85,7 @@ describe('getCurrentUserViaConnect', () => {
       },
       presenceStatus: PresenceStatus.Away,
       hasVerifiedEmail: true,
+      hasPassword: true,
       viewerCanDeleteAccount: true,
       lastLoginChange: '2026-05-20T09:30:00.000Z',
       settings: {
@@ -117,6 +119,7 @@ describe('getCurrentUserViaConnect', () => {
     expect(user.presenceStatus).toBe(PresenceStatus.Offline);
     expect(user.settings?.timeFormat).toBe(TimeFormat.Auto);
     expect(user.customStatus).toBeNull();
+    expect(user.hasPassword).toBe(false);
     expect(user.viewerCanDeleteAccount).toBe(false);
     expect(user.lastLoginChange).toBeNull();
   });

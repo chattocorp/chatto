@@ -36,6 +36,9 @@ export const load: PageLoad = async ({ parent, url }) => {
 		/** URL to redirect to after login (default: /). Must be a same-origin path. */
 		redirectUrl,
 
+		/** Known provider/auth redirect error code to render on the login page. */
+		loginErrorCode: url.searchParams.get('error') ?? '',
+
 		/** Whether the user just completed a password reset */
 		passwordResetSuccess: url.searchParams.get('reset') === 'success'
 	};

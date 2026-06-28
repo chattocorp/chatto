@@ -314,6 +314,18 @@ const msg_settings_account_danger_description = (): LocalizedString => messages(
 const msg_settings_account_delete_button = (): LocalizedString => messages().settings_account_delete_button(empty());
 const msg_settings_account_delete_failed = (): LocalizedString => messages().settings_account_delete_failed(empty());
 const msg_settings_account_delete_request_failed = (): LocalizedString => messages().settings_account_delete_request_failed(empty());
+const msg_settings_account_password_title = (): LocalizedString => messages().settings_account_password_title(empty());
+const msg_settings_account_password_add_description = (): LocalizedString => messages().settings_account_password_add_description(empty());
+const msg_settings_account_password_change_description = (): LocalizedString => messages().settings_account_password_change_description(empty());
+const msg_settings_account_password_current_label = (): LocalizedString => messages().settings_account_password_current_label(empty());
+const msg_settings_account_password_current_required = (): LocalizedString => messages().settings_account_password_current_required(empty());
+const msg_settings_account_password_add_button = (): LocalizedString => messages().settings_account_password_add_button(empty());
+const msg_settings_account_password_change_button = (): LocalizedString => messages().settings_account_password_change_button(empty());
+const msg_settings_account_password_saving = (): LocalizedString => messages().settings_account_password_saving(empty());
+const msg_settings_account_password_saved = (): LocalizedString => messages().settings_account_password_saved(empty());
+const msg_settings_account_password_changed = (): LocalizedString => messages().settings_account_password_changed(empty());
+const msg_settings_account_password_save_failed = (): LocalizedString => messages().settings_account_password_save_failed(empty());
+const msg_settings_account_password_already_set = (): LocalizedString => messages().settings_account_password_already_set(empty());
 const msg_settings_account_sso_title = (): LocalizedString => messages().settings_account_sso_title(empty());
 const msg_settings_account_sso_loading = (): LocalizedString => messages().settings_account_sso_loading(empty());
 const msg_settings_account_sso_load_failed = (): LocalizedString => messages().settings_account_sso_load_failed(empty());
@@ -321,6 +333,11 @@ const msg_settings_account_sso_none_configured = (): LocalizedString => messages
 const msg_settings_account_sso_linked = (): LocalizedString => messages().settings_account_sso_linked(empty());
 const msg_settings_account_sso_not_linked = (): LocalizedString => messages().settings_account_sso_not_linked(empty());
 const msg_settings_account_sso_link_button = (): LocalizedString => messages().settings_account_sso_link_button(empty());
+const msg_settings_account_sso_provider_unconfigured = (): LocalizedString => messages().settings_account_sso_provider_unconfigured(empty());
+const msg_settings_account_sso_disconnect_button = (): LocalizedString => messages().settings_account_sso_disconnect_button(empty());
+const msg_settings_account_sso_disconnecting = (): LocalizedString => messages().settings_account_sso_disconnecting(empty());
+const msg_settings_account_sso_disconnect_failed = (): LocalizedString => messages().settings_account_sso_disconnect_failed(empty());
+const msg_settings_account_sso_disconnect_last_method = (): LocalizedString => messages().settings_account_sso_disconnect_last_method(empty());
 const msg_settings_account_delete_modal_title = (): LocalizedString => messages().settings_account_delete_modal_title(empty());
 const msg_settings_account_delete_modal_warning_label = (): LocalizedString => messages().settings_account_delete_modal_warning_label(empty());
 const msg_settings_account_delete_modal_warning_text = (): LocalizedString => messages().settings_account_delete_modal_warning_text(empty());
@@ -341,11 +358,20 @@ const msg_auth_login_password_reset_success = (): LocalizedString => messages().
 const msg_auth_login_continue_with_provider = (
   inputs: Parameters<LocaleMessages['auth_login_continue_with_provider']>[0]
 ): LocalizedString => messages().auth_login_continue_with_provider(inputs);
+const msg_auth_login_connecting_provider = (
+  inputs: Parameters<LocaleMessages['auth_login_connecting_provider']>[0]
+): LocalizedString => messages().auth_login_connecting_provider(inputs);
 const msg_auth_login_identifier_label = (): LocalizedString => messages().auth_login_identifier_label(empty());
 const msg_auth_login_signing_in = (): LocalizedString => messages().auth_login_signing_in(empty());
 const msg_auth_login_forgot_password = (): LocalizedString => messages().auth_login_forgot_password(empty());
 const msg_auth_login_failed = (): LocalizedString => messages().auth_login_failed(empty());
 const msg_auth_login_missing_token = (): LocalizedString => messages().auth_login_missing_token(empty());
+const msg_auth_login_error_provider_not_found = (): LocalizedString => messages().auth_login_error_provider_not_found(empty());
+const msg_auth_login_error_provider_failed = (): LocalizedString => messages().auth_login_error_provider_failed(empty());
+const msg_auth_login_error_provider_denied = (): LocalizedString => messages().auth_login_error_provider_denied(empty());
+const msg_auth_login_error_authentication_required = (): LocalizedString => messages().auth_login_error_authentication_required(empty());
+const msg_auth_login_error_external_identity_unlinked = (): LocalizedString => messages().auth_login_error_external_identity_unlinked(empty());
+const msg_auth_login_error_external_identity_conflict = (): LocalizedString => messages().auth_login_error_external_identity_conflict(empty());
 const msg_auth_forgot_password_title = (): LocalizedString => messages().auth_forgot_password_title(empty());
 const msg_auth_forgot_password_submitted_title = (): LocalizedString => messages().auth_forgot_password_submitted_title(empty());
 const msg_auth_forgot_password_submitted_text = (): LocalizedString => messages().auth_forgot_password_submitted_text(empty());
@@ -421,6 +447,7 @@ const msg_auth_sso_create_intro = (
 ): LocalizedString => messages().auth_sso_create_intro(inputs);
 const msg_auth_sso_creating = (): LocalizedString => messages().auth_sso_creating(empty());
 const msg_auth_sso_create_failed = (): LocalizedString => messages().auth_sso_create_failed(empty());
+const msg_auth_sso_sign_in_existing = (): LocalizedString => messages().auth_sso_sign_in_existing(empty());
 const msg_auth_sso_link_intro = (
   inputs: Parameters<LocaleMessages['auth_sso_link_intro']>[0]
 ): LocalizedString => messages().auth_sso_link_intro(inputs);
@@ -958,6 +985,11 @@ const msg_admin_members_last_self_rename = (
 const msg_admin_members_never_renamed = (): LocalizedString => messages().admin_members_never_renamed(empty());
 const msg_admin_members_clearing = (): LocalizedString => messages().admin_members_clearing(empty());
 const msg_admin_members_reset_cooldown = (): LocalizedString => messages().admin_members_reset_cooldown(empty());
+const msg_admin_members_set_password = (): LocalizedString => messages().admin_members_set_password(empty());
+const msg_admin_members_set_password_description = (): LocalizedString => messages().admin_members_set_password_description(empty());
+const msg_admin_members_setting_password = (): LocalizedString => messages().admin_members_setting_password(empty());
+const msg_admin_members_password_set = (): LocalizedString => messages().admin_members_password_set(empty());
+const msg_admin_members_set_password_failed = (): LocalizedString => messages().admin_members_set_password_failed(empty());
 const msg_admin_members_assign_roles_description = (): LocalizedString => messages().admin_members_assign_roles_description(empty());
 const msg_admin_members_view_roles_description = (): LocalizedString => messages().admin_members_view_roles_description(empty());
 const msg_admin_members_implicit_role_tooltip = (): LocalizedString => messages().admin_members_implicit_role_tooltip(empty());
@@ -1503,6 +1535,18 @@ export { msg_settings_account_danger_description as 'settings.account.danger_des
 export { msg_settings_account_delete_button as 'settings.account.delete_button' };
 export { msg_settings_account_delete_failed as 'settings.account.delete_failed' };
 export { msg_settings_account_delete_request_failed as 'settings.account.delete_request_failed' };
+export { msg_settings_account_password_title as 'settings.account.password.title' };
+export { msg_settings_account_password_add_description as 'settings.account.password.add_description' };
+export { msg_settings_account_password_change_description as 'settings.account.password.change_description' };
+export { msg_settings_account_password_current_label as 'settings.account.password.current_label' };
+export { msg_settings_account_password_current_required as 'settings.account.password.current_required' };
+export { msg_settings_account_password_add_button as 'settings.account.password.add_button' };
+export { msg_settings_account_password_change_button as 'settings.account.password.change_button' };
+export { msg_settings_account_password_saving as 'settings.account.password.saving' };
+export { msg_settings_account_password_saved as 'settings.account.password.saved' };
+export { msg_settings_account_password_changed as 'settings.account.password.changed' };
+export { msg_settings_account_password_save_failed as 'settings.account.password.save_failed' };
+export { msg_settings_account_password_already_set as 'settings.account.password.already_set' };
 export { msg_settings_account_sso_title as 'settings.account.sso.title' };
 export { msg_settings_account_sso_loading as 'settings.account.sso.loading' };
 export { msg_settings_account_sso_load_failed as 'settings.account.sso.load_failed' };
@@ -1510,6 +1554,11 @@ export { msg_settings_account_sso_none_configured as 'settings.account.sso.none_
 export { msg_settings_account_sso_linked as 'settings.account.sso.linked' };
 export { msg_settings_account_sso_not_linked as 'settings.account.sso.not_linked' };
 export { msg_settings_account_sso_link_button as 'settings.account.sso.link_button' };
+export { msg_settings_account_sso_provider_unconfigured as 'settings.account.sso.provider_unconfigured' };
+export { msg_settings_account_sso_disconnect_button as 'settings.account.sso.disconnect_button' };
+export { msg_settings_account_sso_disconnecting as 'settings.account.sso.disconnecting' };
+export { msg_settings_account_sso_disconnect_failed as 'settings.account.sso.disconnect_failed' };
+export { msg_settings_account_sso_disconnect_last_method as 'settings.account.sso.disconnect_last_method' };
 export { msg_settings_account_delete_modal_title as 'settings.account.delete_modal.title' };
 export { msg_settings_account_delete_modal_warning_label as 'settings.account.delete_modal.warning_label' };
 export { msg_settings_account_delete_modal_warning_text as 'settings.account.delete_modal.warning_text' };
@@ -1528,11 +1577,18 @@ export { msg_auth_login_welcome_description as 'auth.login.welcome_description' 
 export { msg_auth_login_add_server as 'auth.login.add_server' };
 export { msg_auth_login_password_reset_success as 'auth.login.password_reset_success' };
 export { msg_auth_login_continue_with_provider as 'auth.login.continue_with_provider' };
+export { msg_auth_login_connecting_provider as 'auth.login.connecting_provider' };
 export { msg_auth_login_identifier_label as 'auth.login.identifier_label' };
 export { msg_auth_login_signing_in as 'auth.login.signing_in' };
 export { msg_auth_login_forgot_password as 'auth.login.forgot_password' };
 export { msg_auth_login_failed as 'auth.login.failed' };
 export { msg_auth_login_missing_token as 'auth.login.missing_token' };
+export { msg_auth_login_error_provider_not_found as 'auth.login.error.provider_not_found' };
+export { msg_auth_login_error_provider_failed as 'auth.login.error.provider_failed' };
+export { msg_auth_login_error_provider_denied as 'auth.login.error.provider_denied' };
+export { msg_auth_login_error_authentication_required as 'auth.login.error.authentication_required' };
+export { msg_auth_login_error_external_identity_unlinked as 'auth.login.error.external_identity_unlinked' };
+export { msg_auth_login_error_external_identity_conflict as 'auth.login.error.external_identity_conflict' };
 export { msg_auth_forgot_password_title as 'auth.forgot_password.title' };
 export { msg_auth_forgot_password_submitted_title as 'auth.forgot_password.submitted_title' };
 export { msg_auth_forgot_password_submitted_text as 'auth.forgot_password.submitted_text' };
@@ -1602,6 +1658,7 @@ export { msg_auth_sso_load_failed as 'auth.sso.load_failed' };
 export { msg_auth_sso_create_intro as 'auth.sso.create_intro' };
 export { msg_auth_sso_creating as 'auth.sso.creating' };
 export { msg_auth_sso_create_failed as 'auth.sso.create_failed' };
+export { msg_auth_sso_sign_in_existing as 'auth.sso.sign_in_existing' };
 export { msg_auth_sso_link_intro as 'auth.sso.link_intro' };
 export { msg_auth_sso_link_button as 'auth.sso.link_button' };
 export { msg_auth_sso_linking as 'auth.sso.linking' };
@@ -2049,6 +2106,11 @@ export { msg_admin_members_last_self_rename as 'admin.members.last_self_rename' 
 export { msg_admin_members_never_renamed as 'admin.members.never_renamed' };
 export { msg_admin_members_clearing as 'admin.members.clearing' };
 export { msg_admin_members_reset_cooldown as 'admin.members.reset_cooldown' };
+export { msg_admin_members_set_password as 'admin.members.set_password' };
+export { msg_admin_members_set_password_description as 'admin.members.set_password_description' };
+export { msg_admin_members_setting_password as 'admin.members.setting_password' };
+export { msg_admin_members_password_set as 'admin.members.password_set' };
+export { msg_admin_members_set_password_failed as 'admin.members.set_password_failed' };
 export { msg_admin_members_assign_roles_description as 'admin.members.assign_roles_description' };
 export { msg_admin_members_view_roles_description as 'admin.members.view_roles_description' };
 export { msg_admin_members_implicit_role_tooltip as 'admin.members.implicit_role_tooltip' };

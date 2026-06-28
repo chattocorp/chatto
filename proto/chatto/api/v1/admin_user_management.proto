@@ -145,6 +145,21 @@ message UpdateUserResponse {
   UserSummary user = 1;
 }
 
+// Request to set a user's password as a server-admin action.
+message SetUserPasswordRequest {
+  // Target user ID.
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+  // New password. The server applies the same password policy as registration
+  // and password reset.
+  string password = 2;
+}
+
+// Result of an admin password update.
+message SetUserPasswordResponse {
+  // True when the request completed.
+  bool updated = 1;
+}
+
 // Request to clear a user's self-service username-change cooldown.
 message ClearUsernameCooldownRequest {
   // Target user ID.
@@ -170,6 +185,8 @@ service AdminUserManagementService {
   rpc RevokeRole(RevokeRoleRequest) returns (RevokeRoleResponse);
   // Updates a user's login and/or display name as an admin action.
   rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
+  // Sets a user's password as an admin action.
+  rpc SetUserPassword(SetUserPasswordRequest) returns (SetUserPasswordResponse);
   // Clears the target user's self-service username-change cooldown.
   rpc ClearUsernameCooldown(ClearUsernameCooldownRequest) returns (ClearUsernameCooldownResponse);
 }

@@ -276,6 +276,20 @@
       "delete_button": "Delete Account",
       "delete_failed": "Failed to delete account",
       "delete_request_failed": "Failed to request account deletion",
+      "password": {
+        "title": "Password",
+        "add_description": "Add a password so you can sign in directly and disconnect your last SSO provider.",
+        "change_description": "Change the password used for direct sign-in.",
+        "current_label": "Current Password",
+        "current_required": "Enter your current password.",
+        "add_button": "Add Password",
+        "change_button": "Change Password",
+        "saving": "Saving password...",
+        "saved": "Password added",
+        "changed": "Password changed",
+        "save_failed": "Failed to save password",
+        "already_set": "This account already has a password."
+      },
       "sso": {
         "title": "Single Sign-On",
         "loading": "Loading sign-on providers...",
@@ -283,7 +297,12 @@
         "none_configured": "No external sign-on providers are configured.",
         "linked": "Linked",
         "not_linked": "Not linked",
-        "link_button": "Link"
+        "link_button": "Link",
+        "provider_unconfigured": "Provider no longer configured",
+        "disconnect_button": "Disconnect",
+        "disconnecting": "Disconnecting...",
+        "disconnect_failed": "Failed to disconnect sign-on provider",
+        "disconnect_last_method": "Add a password or another sign-in method before disconnecting this provider."
       },
       "delete_modal": {
         "title": "Delete Account",

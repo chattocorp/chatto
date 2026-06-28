@@ -29,6 +29,8 @@ message ExternalIdentityProvider {
   string link_url = 5;
   // True when this provider is already linked to the authenticated user.
   bool linked = 6;
+  // Linked identity subject hash for this provider, when linked.
+  string linked_identity_subject_hash = 7;
 }
 
 // Metadata about a pending external identity flow. The provider subject is not
@@ -160,6 +162,18 @@ message LinkExternalIdentityResponse {
   LinkedExternalIdentity linked_identity = 1;
 }
 
+// Request to disconnect a linked provider identity from the authenticated user.
+message DisconnectExternalIdentityRequest {
+  // Stable one-way subject hash of the linked identity to disconnect.
+  string subject_hash = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of disconnecting a provider identity.
+message DisconnectExternalIdentityResponse {
+  // True when the identity was disconnected.
+  bool disconnected = 1;
+}
+
 // Public pending external identity flow operations.
 service ExternalIdentityFlowService {
   // Reads safe metadata for a pending create/link flow.
@@ -180,4 +194,6 @@ service ExternalIdentityService {
   rpc StartExternalIdentityLink(StartExternalIdentityLinkRequest) returns (StartExternalIdentityLinkResponse);
   // Links a pending provider identity to the authenticated account.
   rpc LinkExternalIdentity(LinkExternalIdentityRequest) returns (LinkExternalIdentityResponse);
+  // Disconnects a provider identity from the authenticated account.
+  rpc DisconnectExternalIdentity(DisconnectExternalIdentityRequest) returns (DisconnectExternalIdentityResponse);
 }
