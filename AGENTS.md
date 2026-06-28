@@ -22,6 +22,9 @@ path-specific guidance.
 - The project is pre-1.0, so breaking changes can be acceptable, but storage,
   protobuf, discovery, and client compatibility still need an explicit plan.
 - Some self-hosters track `:latest`; assume mixed deployed versions can exist.
+- The ConnectRPC API is still settling. Prefer making `chatto.api.v1` a clean,
+  broad base API with explicit compatibility notes over moving ordinary
+  frontend-used features into an app-only namespace.
 
 ## Prime Directives
 
@@ -86,6 +89,14 @@ For ad-hoc tool invocations, use `mise x -- ...` rather than assuming `go`,
 
 ## Public API And Compatibility
 
+- Public ConnectRPC services should live in `chatto.api.v1` unless there is a
+  clear reason a method is not suitable for external integrations. App-specific
+  API should be exceptional, explicitly documented, and still stable enough for
+  mixed bundled client/server versions.
+- Reuse public protobuf shapes for repeated semantics. Offset list RPCs should
+  use `PageRequest page` and return `PageInfo page`; singular lookups should
+  return `NOT_FOUND` when absence is the error result, while batch/list RPCs can
+  omit missing items or return empty lists.
 - Persisted protobuf messages in `EVT`, `RUNTIME_STATE`, `ENCRYPTION_KEYS`, and
   other JetStream resources are comparatively stable. Do not renumber fields or
   change field types; prefer additive evolution and migrations/repair code.

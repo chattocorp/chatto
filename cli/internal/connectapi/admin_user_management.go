@@ -9,6 +9,11 @@ import (
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 )
 
+const (
+	defaultAdminMemberLimit = 20
+	maxAdminMemberLimit     = 100
+)
+
 type adminUserManagementService struct {
 	api *API
 }
@@ -18,19 +23,19 @@ func (s *adminUserManagementService) ListMembers(ctx context.Context, req *conne
 	if err != nil {
 		return nil, err
 	}
+	limit, offset := apiPagination(req.Msg.GetPage(), defaultAdminMemberLimit, maxAdminMemberLimit)
 	members, err := s.api.core.ListAdminMembers(ctx, caller.UserID, core.AdminMemberListInput{
 		Search: req.Msg.GetSearch(),
-		Limit:  int(req.Msg.GetLimit()),
-		Offset: int(req.Msg.GetOffset()),
+		Limit:  limit,
+		Offset: offset,
 	})
 	if err != nil {
 		return nil, connectError(err)
 	}
 	response := &apiv1.ListMembersResponse{
-		Users:      make([]*apiv1.AdminMember, 0, len(members.Users)),
-		Roles:      make([]*apiv1.AdminMemberRoleSummary, 0, len(members.Roles)),
-		TotalCount: int32(members.TotalCount),
-		HasMore:    members.HasMore,
+		Users: make([]*apiv1.AdminMember, 0, len(members.Users)),
+		Roles: make([]*apiv1.AdminMemberRoleSummary, 0, len(members.Roles)),
+		Page:  apiPageInfo(members.TotalCount, members.HasMore),
 	}
 	for _, user := range members.Users {
 		response.Users = append(response.Users, s.adminMember(ctx, user))

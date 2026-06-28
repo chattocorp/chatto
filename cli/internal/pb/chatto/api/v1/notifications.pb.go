@@ -583,10 +583,8 @@ func (*NotificationItem_RoomMessage) isNotificationItem_Kind() {}
 // Request for the authenticated viewer's pending notifications.
 type ListNotificationsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Maximum number of notifications to return.
-	Limit int32 `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
-	// Number of notifications to skip.
-	Offset        int32 `protobuf:"varint,2,opt,name=offset,proto3" json:"offset,omitempty"`
+	// Page request. Defaults to 50 results when absent or limit is zero.
+	Page          *PageRequest `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -621,18 +619,11 @@ func (*ListNotificationsRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *ListNotificationsRequest) GetLimit() int32 {
+func (x *ListNotificationsRequest) GetPage() *PageRequest {
 	if x != nil {
-		return x.Limit
+		return x.Page
 	}
-	return 0
-}
-
-func (x *ListNotificationsRequest) GetOffset() int32 {
-	if x != nil {
-		return x.Offset
-	}
-	return 0
+	return nil
 }
 
 // Request for pending notifications scoped to one room.
@@ -640,10 +631,8 @@ type ListRoomNotificationsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required. Room whose notifications should be listed.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Maximum number of notifications to return.
-	Limit int32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
-	// Number of notifications to skip.
-	Offset        int32 `protobuf:"varint,3,opt,name=offset,proto3" json:"offset,omitempty"`
+	// Page request. Defaults to 50 results when absent or limit is zero.
+	Page          *PageRequest `protobuf:"bytes,4,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -685,18 +674,11 @@ func (x *ListRoomNotificationsRequest) GetRoomId() string {
 	return ""
 }
 
-func (x *ListRoomNotificationsRequest) GetLimit() int32 {
+func (x *ListRoomNotificationsRequest) GetPage() *PageRequest {
 	if x != nil {
-		return x.Limit
+		return x.Page
 	}
-	return 0
-}
-
-func (x *ListRoomNotificationsRequest) GetOffset() int32 {
-	if x != nil {
-		return x.Offset
-	}
-	return 0
+	return nil
 }
 
 // Pending notification page.
@@ -704,12 +686,10 @@ type ListNotificationsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Page items, newest first.
 	Items []*NotificationItem `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
-	// Total count before pagination.
-	TotalCount int32 `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
-	// True when more notifications exist beyond this page.
-	HasMore bool `protobuf:"varint,3,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
 	// Current server display name for non-DM location labels.
-	ServerName    string `protobuf:"bytes,4,opt,name=server_name,json=serverName,proto3" json:"server_name,omitempty"`
+	ServerName string `protobuf:"bytes,4,opt,name=server_name,json=serverName,proto3" json:"server_name,omitempty"`
+	// Page metadata.
+	Page          *PageInfo `protobuf:"bytes,5,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -751,20 +731,6 @@ func (x *ListNotificationsResponse) GetItems() []*NotificationItem {
 	return nil
 }
 
-func (x *ListNotificationsResponse) GetTotalCount() int32 {
-	if x != nil {
-		return x.TotalCount
-	}
-	return 0
-}
-
-func (x *ListNotificationsResponse) GetHasMore() bool {
-	if x != nil {
-		return x.HasMore
-	}
-	return false
-}
-
 func (x *ListNotificationsResponse) GetServerName() string {
 	if x != nil {
 		return x.ServerName
@@ -772,17 +738,22 @@ func (x *ListNotificationsResponse) GetServerName() string {
 	return ""
 }
 
+func (x *ListNotificationsResponse) GetPage() *PageInfo {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
 // Pending notification page scoped to one room.
 type ListRoomNotificationsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Page items, newest first.
 	Items []*NotificationItem `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
-	// Total count before pagination.
-	TotalCount int32 `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
-	// True when more notifications exist beyond this page.
-	HasMore bool `protobuf:"varint,3,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
 	// Current server display name for non-DM location labels.
-	ServerName    string `protobuf:"bytes,4,opt,name=server_name,json=serverName,proto3" json:"server_name,omitempty"`
+	ServerName string `protobuf:"bytes,4,opt,name=server_name,json=serverName,proto3" json:"server_name,omitempty"`
+	// Page metadata.
+	Page          *PageInfo `protobuf:"bytes,5,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -824,25 +795,18 @@ func (x *ListRoomNotificationsResponse) GetItems() []*NotificationItem {
 	return nil
 }
 
-func (x *ListRoomNotificationsResponse) GetTotalCount() int32 {
-	if x != nil {
-		return x.TotalCount
-	}
-	return 0
-}
-
-func (x *ListRoomNotificationsResponse) GetHasMore() bool {
-	if x != nil {
-		return x.HasMore
-	}
-	return false
-}
-
 func (x *ListRoomNotificationsResponse) GetServerName() string {
 	if x != nil {
 		return x.ServerName
 	}
 	return ""
+}
+
+func (x *ListRoomNotificationsResponse) GetPage() *PageInfo {
+	if x != nil {
+		return x.Page
+	}
+	return nil
 }
 
 // Request for a lightweight pending notification check.
@@ -1245,7 +1209,7 @@ var File_chatto_api_v1_notifications_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	"\n" +
-	"!chatto/api/v1/notifications.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cchatto/api/v1/presence.proto\x1a\x1fchatto/api/v1/user_status.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb7\x02\n" +
+	"!chatto/api/v1/notifications.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x1cchatto/api/v1/presence.proto\x1a\x1fchatto/api/v1/user_status.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb7\x02\n" +
 	"\x11NotificationActor\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
@@ -1287,28 +1251,22 @@ const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	"\amention\x18\v \x01(\v2\".chatto.api.v1.MentionNotificationH\x00R\amention\x128\n" +
 	"\x05reply\x18\f \x01(\v2 .chatto.api.v1.ReplyNotificationH\x00R\x05reply\x12K\n" +
 	"\froom_message\x18\r \x01(\v2&.chatto.api.v1.RoomMessageNotificationH\x00R\vroomMessageB\x06\n" +
-	"\x04kind\"\\\n" +
-	"\x18ListNotificationsRequest\x12\x1f\n" +
-	"\x05limit\x18\x01 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x00R\x05limit\x12\x1f\n" +
-	"\x06offset\x18\x02 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x06offset\"\x82\x01\n" +
+	"\x04kind\"e\n" +
+	"\x18ListNotificationsRequest\x12.\n" +
+	"\x04page\x18\x03 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04pageJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\x05limitR\x06offset\"\x8b\x01\n" +
 	"\x1cListRoomNotificationsRequest\x12 \n" +
-	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\x1f\n" +
-	"\x05limit\x18\x02 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x00R\x05limit\x12\x1f\n" +
-	"\x06offset\x18\x03 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x06offset\"\xaf\x01\n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12.\n" +
+	"\x04page\x18\x04 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x05limitR\x06offset\"\xc3\x01\n" +
 	"\x19ListNotificationsResponse\x125\n" +
 	"\x05items\x18\x01 \x03(\v2\x1f.chatto.api.v1.NotificationItemR\x05items\x12\x1f\n" +
-	"\vtotal_count\x18\x02 \x01(\x05R\n" +
-	"totalCount\x12\x19\n" +
-	"\bhas_more\x18\x03 \x01(\bR\ahasMore\x12\x1f\n" +
 	"\vserver_name\x18\x04 \x01(\tR\n" +
-	"serverName\"\xb3\x01\n" +
+	"serverName\x12+\n" +
+	"\x04page\x18\x05 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\vtotal_countR\bhas_more\"\xc7\x01\n" +
 	"\x1dListRoomNotificationsResponse\x125\n" +
 	"\x05items\x18\x01 \x03(\v2\x1f.chatto.api.v1.NotificationItemR\x05items\x12\x1f\n" +
-	"\vtotal_count\x18\x02 \x01(\x05R\n" +
-	"totalCount\x12\x19\n" +
-	"\bhas_more\x18\x03 \x01(\bR\ahasMore\x12\x1f\n" +
 	"\vserver_name\x18\x04 \x01(\tR\n" +
-	"serverName\"\x19\n" +
+	"serverName\x12+\n" +
+	"\x04page\x18\x05 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\vtotal_countR\bhas_more\"\x19\n" +
 	"\x17HasNotificationsRequest\"G\n" +
 	"\x18HasNotificationsResponse\x12+\n" +
 	"\x11has_notifications\x18\x01 \x01(\bR\x10hasNotifications\"Q\n" +
@@ -1373,6 +1331,8 @@ var file_chatto_api_v1_notifications_proto_goTypes = []any{
 	(PresenceStatus)(0),                     // 20: chatto.api.v1.PresenceStatus
 	(*CustomUserStatus)(nil),                // 21: chatto.api.v1.CustomUserStatus
 	(*timestamppb.Timestamp)(nil),           // 22: google.protobuf.Timestamp
+	(*PageRequest)(nil),                     // 23: chatto.api.v1.PageRequest
+	(*PageInfo)(nil),                        // 24: chatto.api.v1.PageInfo
 }
 var file_chatto_api_v1_notifications_proto_depIdxs = []int32{
 	20, // 0: chatto.api.v1.NotificationActor.presence_status:type_name -> chatto.api.v1.PresenceStatus
@@ -1386,26 +1346,30 @@ var file_chatto_api_v1_notifications_proto_depIdxs = []int32{
 	3,  // 8: chatto.api.v1.NotificationItem.mention:type_name -> chatto.api.v1.MentionNotification
 	4,  // 9: chatto.api.v1.NotificationItem.reply:type_name -> chatto.api.v1.ReplyNotification
 	5,  // 10: chatto.api.v1.NotificationItem.room_message:type_name -> chatto.api.v1.RoomMessageNotification
-	6,  // 11: chatto.api.v1.ListNotificationsResponse.items:type_name -> chatto.api.v1.NotificationItem
-	6,  // 12: chatto.api.v1.ListRoomNotificationsResponse.items:type_name -> chatto.api.v1.NotificationItem
-	13, // 13: chatto.api.v1.ListNotificationCountsResponse.room_counts:type_name -> chatto.api.v1.RoomNotificationCount
-	7,  // 14: chatto.api.v1.NotificationService.ListNotifications:input_type -> chatto.api.v1.ListNotificationsRequest
-	8,  // 15: chatto.api.v1.NotificationService.ListRoomNotifications:input_type -> chatto.api.v1.ListRoomNotificationsRequest
-	14, // 16: chatto.api.v1.NotificationService.ListNotificationCounts:input_type -> chatto.api.v1.ListNotificationCountsRequest
-	11, // 17: chatto.api.v1.NotificationService.HasNotifications:input_type -> chatto.api.v1.HasNotificationsRequest
-	16, // 18: chatto.api.v1.NotificationService.DismissNotification:input_type -> chatto.api.v1.DismissNotificationRequest
-	18, // 19: chatto.api.v1.NotificationService.DismissAllNotifications:input_type -> chatto.api.v1.DismissAllNotificationsRequest
-	9,  // 20: chatto.api.v1.NotificationService.ListNotifications:output_type -> chatto.api.v1.ListNotificationsResponse
-	10, // 21: chatto.api.v1.NotificationService.ListRoomNotifications:output_type -> chatto.api.v1.ListRoomNotificationsResponse
-	15, // 22: chatto.api.v1.NotificationService.ListNotificationCounts:output_type -> chatto.api.v1.ListNotificationCountsResponse
-	12, // 23: chatto.api.v1.NotificationService.HasNotifications:output_type -> chatto.api.v1.HasNotificationsResponse
-	17, // 24: chatto.api.v1.NotificationService.DismissNotification:output_type -> chatto.api.v1.DismissNotificationResponse
-	19, // 25: chatto.api.v1.NotificationService.DismissAllNotifications:output_type -> chatto.api.v1.DismissAllNotificationsResponse
-	20, // [20:26] is the sub-list for method output_type
-	14, // [14:20] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	23, // 11: chatto.api.v1.ListNotificationsRequest.page:type_name -> chatto.api.v1.PageRequest
+	23, // 12: chatto.api.v1.ListRoomNotificationsRequest.page:type_name -> chatto.api.v1.PageRequest
+	6,  // 13: chatto.api.v1.ListNotificationsResponse.items:type_name -> chatto.api.v1.NotificationItem
+	24, // 14: chatto.api.v1.ListNotificationsResponse.page:type_name -> chatto.api.v1.PageInfo
+	6,  // 15: chatto.api.v1.ListRoomNotificationsResponse.items:type_name -> chatto.api.v1.NotificationItem
+	24, // 16: chatto.api.v1.ListRoomNotificationsResponse.page:type_name -> chatto.api.v1.PageInfo
+	13, // 17: chatto.api.v1.ListNotificationCountsResponse.room_counts:type_name -> chatto.api.v1.RoomNotificationCount
+	7,  // 18: chatto.api.v1.NotificationService.ListNotifications:input_type -> chatto.api.v1.ListNotificationsRequest
+	8,  // 19: chatto.api.v1.NotificationService.ListRoomNotifications:input_type -> chatto.api.v1.ListRoomNotificationsRequest
+	14, // 20: chatto.api.v1.NotificationService.ListNotificationCounts:input_type -> chatto.api.v1.ListNotificationCountsRequest
+	11, // 21: chatto.api.v1.NotificationService.HasNotifications:input_type -> chatto.api.v1.HasNotificationsRequest
+	16, // 22: chatto.api.v1.NotificationService.DismissNotification:input_type -> chatto.api.v1.DismissNotificationRequest
+	18, // 23: chatto.api.v1.NotificationService.DismissAllNotifications:input_type -> chatto.api.v1.DismissAllNotificationsRequest
+	9,  // 24: chatto.api.v1.NotificationService.ListNotifications:output_type -> chatto.api.v1.ListNotificationsResponse
+	10, // 25: chatto.api.v1.NotificationService.ListRoomNotifications:output_type -> chatto.api.v1.ListRoomNotificationsResponse
+	15, // 26: chatto.api.v1.NotificationService.ListNotificationCounts:output_type -> chatto.api.v1.ListNotificationCountsResponse
+	12, // 27: chatto.api.v1.NotificationService.HasNotifications:output_type -> chatto.api.v1.HasNotificationsResponse
+	17, // 28: chatto.api.v1.NotificationService.DismissNotification:output_type -> chatto.api.v1.DismissNotificationResponse
+	19, // 29: chatto.api.v1.NotificationService.DismissAllNotifications:output_type -> chatto.api.v1.DismissAllNotificationsResponse
+	24, // [24:30] is the sub-list for method output_type
+	18, // [18:24] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_notifications_proto_init() }
@@ -1413,6 +1377,7 @@ func file_chatto_api_v1_notifications_proto_init() {
 	if File_chatto_api_v1_notifications_proto != nil {
 		return
 	}
+	file_chatto_api_v1_pagination_proto_init()
 	file_chatto_api_v1_presence_proto_init()
 	file_chatto_api_v1_user_status_proto_init()
 	file_chatto_api_v1_notifications_proto_msgTypes[0].OneofWrappers = []any{}

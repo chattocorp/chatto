@@ -33,6 +33,17 @@ For `chatto/api/v1`:
 
 ## Presence And API Shape
 
+- Public ConnectRPC API protos should default to `package chatto.api.v1`. Do not
+  introduce an app-only namespace for ordinary frontend-used features unless the
+  shape is clearly unsuitable for external integrations.
+- Reuse shared messages when the semantics are shared. Offset-based list RPCs
+  should take `PageRequest page` and return `PageInfo page`; do not add
+  service-local `limit`, `offset`, `total_count`, or `has_more` fields for new
+  list APIs.
+- For singular lookups, return `NOT_FOUND` when absence means the requested
+  resource does not exist. Use optional response fields only when absence is a
+  successful, meaningful state. Batch/list APIs may omit missing resources or
+  return empty result lists.
 - For public API messages under `chatto/api/v1`, use proto3 `optional` scalar
   fields when clients must distinguish absent/unhydrated/unknown from a scalar
   default.

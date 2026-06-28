@@ -435,7 +435,7 @@ func (x *GetUserResponse) GetUser() *DirectoryMember {
 // Public authenticated user profile response for login lookup.
 type GetUserByLoginResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Requested user. Absent when the login is unknown.
+	// Requested user.
 	User          *DirectoryMember `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

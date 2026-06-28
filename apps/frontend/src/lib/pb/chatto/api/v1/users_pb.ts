@@ -366,7 +366,7 @@ export class GetUserResponse extends Message<GetUserResponse> {
  */
 export class GetUserByLoginResponse extends Message<GetUserByLoginResponse> {
   /**
-   * Requested user. Absent when the login is unknown.
+   * Requested user.
    *
    * @generated from field: chatto.api.v1.DirectoryMember user = 1;
    */

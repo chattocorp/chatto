@@ -47,7 +47,10 @@ export function createThreadAPI(config: ConnectAPIConfig) {
 	return {
 		async listFollowedThreads(input: { limit: number; offset: number }): Promise<FollowedThreadsPage> {
 			try {
-				const response = await client.listFollowedThreads(input, { headers: headers() });
+				const response = await client.listFollowedThreads(
+					{ page: { limit: input.limit, offset: input.offset } },
+					{ headers: headers() }
+				);
 				const users = response.includes?.users ?? {};
 				return {
 					threads: response.threads.map((thread) => ({
@@ -64,8 +67,8 @@ export function createThreadAPI(config: ConnectAPIConfig) {
 						lastReplyAt: timestampToISOOrNull(thread.lastReplyAt),
 						hasUnread: thread.hasUnread
 					})),
-					totalCount: response.totalCount,
-					hasMore: response.hasMore
+					totalCount: response.page?.totalCount ?? 0,
+					hasMore: response.page?.hasMore ?? false
 				};
 			} catch (err) {
 				return handleAuthError(err);

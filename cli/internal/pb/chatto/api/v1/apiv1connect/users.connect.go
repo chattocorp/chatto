@@ -47,7 +47,7 @@ const (
 type UserServiceClient interface {
 	// Gets a user by stable ID. Returns NOT_FOUND when the ID is unknown.
 	GetUser(context.Context, *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.GetUserResponse], error)
-	// Gets a user by login. Returns an empty response when the login is unknown.
+	// Gets a user by login. Returns NOT_FOUND when the login is unknown.
 	GetUserByLogin(context.Context, *connect.Request[v1.GetUserByLoginRequest]) (*connect.Response[v1.GetUserByLoginResponse], error)
 	// Gets lightweight summaries for multiple users, suitable for frontend cache
 	// misses when rendering event-focused payloads.
@@ -112,7 +112,7 @@ func (c *userServiceClient) BatchGetUsers(ctx context.Context, req *connect.Requ
 type UserServiceHandler interface {
 	// Gets a user by stable ID. Returns NOT_FOUND when the ID is unknown.
 	GetUser(context.Context, *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.GetUserResponse], error)
-	// Gets a user by login. Returns an empty response when the login is unknown.
+	// Gets a user by login. Returns NOT_FOUND when the login is unknown.
 	GetUserByLogin(context.Context, *connect.Request[v1.GetUserByLoginRequest]) (*connect.Response[v1.GetUserByLoginResponse], error)
 	// Gets lightweight summaries for multiple users, suitable for frontend cache
 	// misses when rendering event-focused payloads.

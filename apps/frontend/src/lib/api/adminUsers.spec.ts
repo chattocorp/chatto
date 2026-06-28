@@ -64,8 +64,7 @@ describe('createAdminUserManagementAPI', () => {
         }
       ],
       roles: [{ name: 'admin', displayName: 'Admin' }],
-      totalCount: 1,
-      hasMore: false
+      page: { totalCount: 1, hasMore: false }
     });
     const api = createAdminUserManagementAPI({
       baseUrl: '/api/connect',
@@ -77,8 +76,7 @@ describe('createAdminUserManagementAPI', () => {
     expect(mocks.listMembers).toHaveBeenCalledWith(
       {
         search: 'alice',
-        limit: 20,
-        offset: 0
+        page: { limit: 20, offset: 0 }
       },
       { headers: { Authorization: 'Bearer token' } }
     );

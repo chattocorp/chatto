@@ -145,12 +145,10 @@ type ListRoomAttachmentsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required room ID.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Maximum number of attachments to return.
-	Limit int32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
-	// Zero-based offset into the newest-first attachment list.
-	Offset int32 `protobuf:"varint,3,opt,name=offset,proto3" json:"offset,omitempty"`
 	// Thumbnail URL options. Defaults are applied when absent.
-	Thumbnail     *AttachmentThumbnailOptions `protobuf:"bytes,4,opt,name=thumbnail,proto3" json:"thumbnail,omitempty"`
+	Thumbnail *AttachmentThumbnailOptions `protobuf:"bytes,4,opt,name=thumbnail,proto3" json:"thumbnail,omitempty"`
+	// Page request. Defaults are applied when absent or limit is zero.
+	Page          *PageRequest `protobuf:"bytes,5,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -192,23 +190,16 @@ func (x *ListRoomAttachmentsRequest) GetRoomId() string {
 	return ""
 }
 
-func (x *ListRoomAttachmentsRequest) GetLimit() int32 {
-	if x != nil {
-		return x.Limit
-	}
-	return 0
-}
-
-func (x *ListRoomAttachmentsRequest) GetOffset() int32 {
-	if x != nil {
-		return x.Offset
-	}
-	return 0
-}
-
 func (x *ListRoomAttachmentsRequest) GetThumbnail() *AttachmentThumbnailOptions {
 	if x != nil {
 		return x.Thumbnail
+	}
+	return nil
+}
+
+func (x *ListRoomAttachmentsRequest) GetPage() *PageRequest {
+	if x != nil {
+		return x.Page
 	}
 	return nil
 }
@@ -291,10 +282,8 @@ type ListRoomAttachmentsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Current attachments in newest message order.
 	Items []*RoomAttachmentListItem `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
-	// Total current attachment count for the room.
-	TotalCount int32 `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
-	// True when a later page exists.
-	HasMore       bool `protobuf:"varint,3,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
+	// Page metadata.
+	Page          *PageInfo `protobuf:"bytes,4,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -336,18 +325,11 @@ func (x *ListRoomAttachmentsResponse) GetItems() []*RoomAttachmentListItem {
 	return nil
 }
 
-func (x *ListRoomAttachmentsResponse) GetTotalCount() int32 {
+func (x *ListRoomAttachmentsResponse) GetPage() *PageInfo {
 	if x != nil {
-		return x.TotalCount
+		return x.Page
 	}
-	return 0
-}
-
-func (x *ListRoomAttachmentsResponse) GetHasMore() bool {
-	if x != nil {
-		return x.HasMore
-	}
-	return false
+	return nil
 }
 
 // Request to refresh signed attachment URLs for one message.
@@ -546,18 +528,17 @@ var File_chatto_api_v1_attachments_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_attachments_proto_rawDesc = "" +
 	"\n" +
-	"\x1fchatto/api/v1/attachments.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a!chatto/api/v1/room_timeline.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa0\x01\n" +
+	"\x1fchatto/api/v1/attachments.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a!chatto/api/v1/room_timeline.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa0\x01\n" +
 	"\x1aAttachmentThumbnailOptions\x12 \n" +
 	"\x05width\x18\x01 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\x80 (\x01R\x05width\x12\"\n" +
 	"\x06height\x18\x02 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\x80 (\x01R\x06height\x12<\n" +
-	"\x03fit\x18\x03 \x01(\x0e2 .chatto.api.v1.AttachmentFitModeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x03fit\"\xc9\x01\n" +
+	"\x03fit\x18\x03 \x01(\x0e2 .chatto.api.v1.AttachmentFitModeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x03fit\"\xd2\x01\n" +
 	"\x1aListRoomAttachmentsRequest\x12 \n" +
-	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\x1f\n" +
-	"\x05limit\x18\x02 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x01R\x05limit\x12\x1f\n" +
-	"\x06offset\x18\x03 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x06offset\x12G\n" +
-	"\tthumbnail\x18\x04 \x01(\v2).chatto.api.v1.AttachmentThumbnailOptionsR\tthumbnail\"\xf5\x01\n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12G\n" +
+	"\tthumbnail\x18\x04 \x01(\v2).chatto.api.v1.AttachmentThumbnailOptionsR\tthumbnail\x12.\n" +
+	"\x04page\x18\x05 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x05limitR\x06offset\"\xf5\x01\n" +
 	"\x16RoomAttachmentListItem\x12E\n" +
 	"\n" +
 	"attachment\x18\x01 \x01(\v2%.chatto.api.v1.RoomTimelineAttachmentR\n" +
@@ -565,12 +546,10 @@ const file_chatto_api_v1_attachments_proto_rawDesc = "" +
 	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventId\x12/\n" +
 	"\x14thread_root_event_id\x18\x03 \x01(\tR\x11threadRootEventId\x129\n" +
 	"\n" +
-	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\x96\x01\n" +
+	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xaa\x01\n" +
 	"\x1bListRoomAttachmentsResponse\x12;\n" +
-	"\x05items\x18\x01 \x03(\v2%.chatto.api.v1.RoomAttachmentListItemR\x05items\x12\x1f\n" +
-	"\vtotal_count\x18\x02 \x01(\x05R\n" +
-	"totalCount\x12\x19\n" +
-	"\bhas_more\x18\x03 \x01(\bR\ahasMore\"\xb4\x01\n" +
+	"\x05items\x18\x01 \x03(\v2%.chatto.api.v1.RoomAttachmentListItemR\x05items\x12+\n" +
+	"\x04page\x18\x04 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\vtotal_countR\bhas_more\"\xb4\x01\n" +
 	"#RefreshMessageAttachmentUrlsRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\"\n" +
 	"\bevent_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aeventId\x12G\n" +
@@ -615,32 +594,36 @@ var file_chatto_api_v1_attachments_proto_goTypes = []any{
 	(*RefreshMessageAttachmentUrlsRequest)(nil),  // 5: chatto.api.v1.RefreshMessageAttachmentUrlsRequest
 	(*RefreshedAttachmentUrls)(nil),              // 6: chatto.api.v1.RefreshedAttachmentUrls
 	(*RefreshMessageAttachmentUrlsResponse)(nil), // 7: chatto.api.v1.RefreshMessageAttachmentUrlsResponse
-	(*RoomTimelineAttachment)(nil),               // 8: chatto.api.v1.RoomTimelineAttachment
-	(*timestamppb.Timestamp)(nil),                // 9: google.protobuf.Timestamp
-	(*RoomTimelineAssetUrl)(nil),                 // 10: chatto.api.v1.RoomTimelineAssetUrl
-	(*RoomTimelineVideoVariant)(nil),             // 11: chatto.api.v1.RoomTimelineVideoVariant
+	(*PageRequest)(nil),                          // 8: chatto.api.v1.PageRequest
+	(*RoomTimelineAttachment)(nil),               // 9: chatto.api.v1.RoomTimelineAttachment
+	(*timestamppb.Timestamp)(nil),                // 10: google.protobuf.Timestamp
+	(*PageInfo)(nil),                             // 11: chatto.api.v1.PageInfo
+	(*RoomTimelineAssetUrl)(nil),                 // 12: chatto.api.v1.RoomTimelineAssetUrl
+	(*RoomTimelineVideoVariant)(nil),             // 13: chatto.api.v1.RoomTimelineVideoVariant
 }
 var file_chatto_api_v1_attachments_proto_depIdxs = []int32{
 	0,  // 0: chatto.api.v1.AttachmentThumbnailOptions.fit:type_name -> chatto.api.v1.AttachmentFitMode
 	1,  // 1: chatto.api.v1.ListRoomAttachmentsRequest.thumbnail:type_name -> chatto.api.v1.AttachmentThumbnailOptions
-	8,  // 2: chatto.api.v1.RoomAttachmentListItem.attachment:type_name -> chatto.api.v1.RoomTimelineAttachment
-	9,  // 3: chatto.api.v1.RoomAttachmentListItem.created_at:type_name -> google.protobuf.Timestamp
-	3,  // 4: chatto.api.v1.ListRoomAttachmentsResponse.items:type_name -> chatto.api.v1.RoomAttachmentListItem
-	1,  // 5: chatto.api.v1.RefreshMessageAttachmentUrlsRequest.thumbnail:type_name -> chatto.api.v1.AttachmentThumbnailOptions
-	10, // 6: chatto.api.v1.RefreshedAttachmentUrls.asset_url:type_name -> chatto.api.v1.RoomTimelineAssetUrl
-	10, // 7: chatto.api.v1.RefreshedAttachmentUrls.thumbnail_asset_url:type_name -> chatto.api.v1.RoomTimelineAssetUrl
-	10, // 8: chatto.api.v1.RefreshedAttachmentUrls.video_thumbnail_asset_url:type_name -> chatto.api.v1.RoomTimelineAssetUrl
-	11, // 9: chatto.api.v1.RefreshedAttachmentUrls.variants:type_name -> chatto.api.v1.RoomTimelineVideoVariant
-	6,  // 10: chatto.api.v1.RefreshMessageAttachmentUrlsResponse.attachments:type_name -> chatto.api.v1.RefreshedAttachmentUrls
-	2,  // 11: chatto.api.v1.AttachmentService.ListRoomAttachments:input_type -> chatto.api.v1.ListRoomAttachmentsRequest
-	5,  // 12: chatto.api.v1.AttachmentService.RefreshMessageAttachmentUrls:input_type -> chatto.api.v1.RefreshMessageAttachmentUrlsRequest
-	4,  // 13: chatto.api.v1.AttachmentService.ListRoomAttachments:output_type -> chatto.api.v1.ListRoomAttachmentsResponse
-	7,  // 14: chatto.api.v1.AttachmentService.RefreshMessageAttachmentUrls:output_type -> chatto.api.v1.RefreshMessageAttachmentUrlsResponse
-	13, // [13:15] is the sub-list for method output_type
-	11, // [11:13] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	8,  // 2: chatto.api.v1.ListRoomAttachmentsRequest.page:type_name -> chatto.api.v1.PageRequest
+	9,  // 3: chatto.api.v1.RoomAttachmentListItem.attachment:type_name -> chatto.api.v1.RoomTimelineAttachment
+	10, // 4: chatto.api.v1.RoomAttachmentListItem.created_at:type_name -> google.protobuf.Timestamp
+	3,  // 5: chatto.api.v1.ListRoomAttachmentsResponse.items:type_name -> chatto.api.v1.RoomAttachmentListItem
+	11, // 6: chatto.api.v1.ListRoomAttachmentsResponse.page:type_name -> chatto.api.v1.PageInfo
+	1,  // 7: chatto.api.v1.RefreshMessageAttachmentUrlsRequest.thumbnail:type_name -> chatto.api.v1.AttachmentThumbnailOptions
+	12, // 8: chatto.api.v1.RefreshedAttachmentUrls.asset_url:type_name -> chatto.api.v1.RoomTimelineAssetUrl
+	12, // 9: chatto.api.v1.RefreshedAttachmentUrls.thumbnail_asset_url:type_name -> chatto.api.v1.RoomTimelineAssetUrl
+	12, // 10: chatto.api.v1.RefreshedAttachmentUrls.video_thumbnail_asset_url:type_name -> chatto.api.v1.RoomTimelineAssetUrl
+	13, // 11: chatto.api.v1.RefreshedAttachmentUrls.variants:type_name -> chatto.api.v1.RoomTimelineVideoVariant
+	6,  // 12: chatto.api.v1.RefreshMessageAttachmentUrlsResponse.attachments:type_name -> chatto.api.v1.RefreshedAttachmentUrls
+	2,  // 13: chatto.api.v1.AttachmentService.ListRoomAttachments:input_type -> chatto.api.v1.ListRoomAttachmentsRequest
+	5,  // 14: chatto.api.v1.AttachmentService.RefreshMessageAttachmentUrls:input_type -> chatto.api.v1.RefreshMessageAttachmentUrlsRequest
+	4,  // 15: chatto.api.v1.AttachmentService.ListRoomAttachments:output_type -> chatto.api.v1.ListRoomAttachmentsResponse
+	7,  // 16: chatto.api.v1.AttachmentService.RefreshMessageAttachmentUrls:output_type -> chatto.api.v1.RefreshMessageAttachmentUrlsResponse
+	15, // [15:17] is the sub-list for method output_type
+	13, // [13:15] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_attachments_proto_init() }
@@ -648,6 +631,7 @@ func file_chatto_api_v1_attachments_proto_init() {
 	if File_chatto_api_v1_attachments_proto != nil {
 		return
 	}
+	file_chatto_api_v1_pagination_proto_init()
 	file_chatto_api_v1_room_timeline_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{

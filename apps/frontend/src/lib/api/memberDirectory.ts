@@ -44,13 +44,13 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
   return {
     async listServerMembers(search = '', limit = 20, offset = 0): Promise<MemberDirectoryPage> {
       const response = await client.listServerMembers(
-        { search, limit, offset },
+        { search, page: { limit, offset } },
         { headers: headers() }
       );
       return {
         members: response.members.map(mapDirectoryMember),
-        totalCount: response.totalCount,
-        hasMore: response.hasMore
+        totalCount: response.page?.totalCount ?? 0,
+        hasMore: response.page?.hasMore ?? false
       };
     },
 
@@ -61,13 +61,13 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
       offset = 0
     ): Promise<MemberDirectoryPage> {
       const response = await client.listRoomMembers(
-        { roomId, search, limit, offset },
+        { roomId, search, page: { limit, offset } },
         { headers: headers() }
       );
       return {
         members: response.members.map(mapDirectoryMember),
-        totalCount: response.totalCount,
-        hasMore: response.hasMore
+        totalCount: response.page?.totalCount ?? 0,
+        hasMore: response.page?.hasMore ?? false
       };
     }
   };

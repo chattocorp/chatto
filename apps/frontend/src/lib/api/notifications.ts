@@ -2,6 +2,7 @@ import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import { NotificationService } from '$lib/pb/chatto/api/v1/notifications_connect';
 import type {
+  ListRoomNotificationsResponse,
   ListNotificationsResponse,
   NotificationActor as APINotificationActor,
   NotificationItem as APINotificationItem
@@ -104,13 +105,13 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
   return {
     async listNotifications(limit = 50, offset = 0): Promise<NotificationPage> {
       return notificationPage(
-        await client.listNotifications({ limit, offset }, { headers: headers() })
+        await client.listNotifications({ page: { limit, offset } }, { headers: headers() })
       );
     },
 
     async listRoomNotifications(roomId: string, limit = 1, offset = 0): Promise<NotificationPage> {
       return notificationPage(
-        await client.listRoomNotifications({ roomId, limit, offset }, { headers: headers() })
+        await client.listRoomNotifications({ roomId, page: { limit, offset } }, { headers: headers() })
       );
     },
 
@@ -138,14 +139,14 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
 
 export type NotificationAPI = ReturnType<typeof createNotificationAPI>;
 
-function notificationPage(response: ListNotificationsResponse): NotificationPage {
+function notificationPage(response: ListNotificationsResponse | ListRoomNotificationsResponse): NotificationPage {
   return {
     items: response.items.flatMap((item) => {
       const mapped = notificationItem(item);
       return mapped ? [mapped] : [];
     }),
-    totalCount: response.totalCount,
-    hasMore: response.hasMore,
+    totalCount: response.page?.totalCount ?? 0,
+    hasMore: response.page?.hasMore ?? false,
     serverName: response.serverName || null
   };
 }

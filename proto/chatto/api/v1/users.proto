@@ -83,7 +83,7 @@ message GetUserResponse {
 
 // Public authenticated user profile response for login lookup.
 message GetUserByLoginResponse {
-  // Requested user. Absent when the login is unknown.
+  // Requested user.
   DirectoryMember user = 1;
 }
 
@@ -98,7 +98,7 @@ message BatchGetUsersResponse {
 service UserService {
   // Gets a user by stable ID. Returns NOT_FOUND when the ID is unknown.
   rpc GetUser(GetUserRequest) returns (GetUserResponse);
-  // Gets a user by login. Returns an empty response when the login is unknown.
+  // Gets a user by login. Returns NOT_FOUND when the login is unknown.
   rpc GetUserByLogin(GetUserByLoginRequest) returns (GetUserByLoginResponse);
   // Gets lightweight summaries for multiple users, suitable for frontend cache
   // misses when rendering event-focused payloads.

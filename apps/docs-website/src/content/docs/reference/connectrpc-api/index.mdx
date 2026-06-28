@@ -672,8 +672,7 @@ Request for server members visible to the authenticated user.
 | Field | Type | Description |
 | --- | --- | --- |
 | `search` | `string` | Optional case-insensitive search against login and display name. |
-| `limit` | `int32` | Maximum results to return. Defaults to 20, maximum 100. |
-| `offset` | `int32` | Zero-based result offset. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
 
 
 <a id="chatto-api-v1-ListServerMembersResponse"></a>
@@ -685,8 +684,7 @@ Server member page.
 | Field | Type | Description |
 | --- | --- | --- |
 | `members` | repeated [`DirectoryMember`](#chatto-api-v1-DirectoryMember) | Members in the requested page. |
-| `total_count` | `int32` | Total matching members before pagination. |
-| `has_more` | `bool` | Whether more matching members exist after this page. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
 
 
 <a id="chatto-api-v1-MemberDirectoryService-ListRoomMembers"></a>
@@ -709,8 +707,7 @@ Request for members of one room.
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room whose explicit members should be listed. |
 | `search` | `string` | Optional case-insensitive search against login and display name. |
-| `limit` | `int32` | Maximum results to return. Defaults to 20, maximum 100. |
-| `offset` | `int32` | Zero-based result offset. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
 
 
 <a id="chatto-api-v1-ListRoomMembersResponse"></a>
@@ -722,8 +719,7 @@ Room member page.
 | Field | Type | Description |
 | --- | --- | --- |
 | `members` | repeated [`DirectoryMember`](#chatto-api-v1-DirectoryMember) | Members in the requested page. |
-| `total_count` | `int32` | Total matching members before pagination. |
-| `has_more` | `bool` | Whether more matching members exist after this page. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
 
 
 <a id="chatto-api-v1-RoomService"></a>
@@ -1637,8 +1633,7 @@ Request server-admin member rows.
 | Field | Type | Description |
 | --- | --- | --- |
 | `search` | `optional string` | Optional case-insensitive login/display-name search term. |
-| `limit` | `int32` | Maximum rows to return. Defaults to 20 and is capped at 100. |
-| `offset` | `int32` | Number of matching rows to skip. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
 
 
 <a id="chatto-api-v1-ListMembersResponse"></a>
@@ -1651,8 +1646,7 @@ Server-admin member rows plus role summaries.
 | --- | --- | --- |
 | `users` | repeated [`AdminMember`](#chatto-api-v1-AdminMember) | Matching users. |
 | `roles` | repeated [`AdminMemberRoleSummary`](#chatto-api-v1-AdminMemberRoleSummary) | Server roles for display-name lookup. |
-| `total_count` | `int32` | Total matching user count before pagination. |
-| `has_more` | `bool` | Whether more matching rows exist after this page. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
 
 
 <a id="chatto-api-v1-AdminUserManagementService-GetMember"></a>
@@ -2056,9 +2050,8 @@ Request for room-scoped attachment list pages.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Required room ID. |
-| `limit` | `int32` | Maximum number of attachments to return. |
-| `offset` | `int32` | Zero-based offset into the newest-first attachment list. |
 | `thumbnail` | [`AttachmentThumbnailOptions`](#chatto-api-v1-AttachmentThumbnailOptions) | Thumbnail URL options. Defaults are applied when absent. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults are applied when absent or limit is zero. |
 
 
 <a id="chatto-api-v1-ListRoomAttachmentsResponse"></a>
@@ -2070,8 +2063,7 @@ Room-scoped attachment list response.
 | Field | Type | Description |
 | --- | --- | --- |
 | `items` | repeated [`RoomAttachmentListItem`](#chatto-api-v1-RoomAttachmentListItem) | Current attachments in newest message order. |
-| `total_count` | `int32` | Total current attachment count for the room. |
-| `has_more` | `bool` | True when a later page exists. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
 
 
 <a id="chatto-api-v1-AttachmentService-RefreshMessageAttachmentUrls"></a>
@@ -2396,8 +2388,7 @@ Request for the authenticated viewer's pending notifications.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `limit` | `int32` | Maximum number of notifications to return. |
-| `offset` | `int32` | Number of notifications to skip. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 50 results when absent or limit is zero. |
 
 
 <a id="chatto-api-v1-ListNotificationsResponse"></a>
@@ -2409,9 +2400,8 @@ Pending notification page.
 | Field | Type | Description |
 | --- | --- | --- |
 | `items` | repeated [`NotificationItem`](#chatto-api-v1-NotificationItem) | Page items, newest first. |
-| `total_count` | `int32` | Total count before pagination. |
-| `has_more` | `bool` | True when more notifications exist beyond this page. |
 | `server_name` | `string` | Current server display name for non-DM location labels. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
 
 
 <a id="chatto-api-v1-NotificationService-ListRoomNotifications"></a>
@@ -2433,8 +2423,7 @@ Request for pending notifications scoped to one room.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room whose notifications should be listed. |
-| `limit` | `int32` | Maximum number of notifications to return. |
-| `offset` | `int32` | Number of notifications to skip. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 50 results when absent or limit is zero. |
 
 
 <a id="chatto-api-v1-ListRoomNotificationsResponse"></a>
@@ -2446,9 +2435,8 @@ Pending notification page scoped to one room.
 | Field | Type | Description |
 | --- | --- | --- |
 | `items` | repeated [`NotificationItem`](#chatto-api-v1-NotificationItem) | Page items, newest first. |
-| `total_count` | `int32` | Total count before pagination. |
-| `has_more` | `bool` | True when more notifications exist beyond this page. |
 | `server_name` | `string` | Current server display name for non-DM location labels. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
 
 
 <a id="chatto-api-v1-NotificationService-ListNotificationCounts"></a>
@@ -3583,8 +3571,7 @@ Request for a page of followed threads for the current user.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `limit` | `int32` | Maximum number of followed threads to return. |
-| `offset` | `int32` | Zero-based offset into the followed-thread list. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
 
 
 <a id="chatto-api-v1-ListFollowedThreadsResponse"></a>
@@ -3596,9 +3583,8 @@ Response containing one followed-thread page.
 | Field | Type | Description |
 | --- | --- | --- |
 | `threads` | repeated [`FollowedThread`](#chatto-api-v1-FollowedThread) | Followed threads in newest-activity-first order. |
-| `total_count` | `int32` | Total followed-thread count before pagination. |
-| `has_more` | `bool` | True when another page exists after this response. |
 | `includes` | [`RoomTimelineIncludes`](#chatto-api-v1-RoomTimelineIncludes) | Related entities needed to render root messages. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
 
 
 <a id="chatto-api-v1-ThreadService-FollowThread"></a>
@@ -3712,7 +3698,7 @@ Public authenticated user profile response.
 
 ### GetUserByLogin
 
-Gets a user by login. Returns an empty response when the login is unknown.
+Gets a user by login. Returns NOT_FOUND when the login is unknown.
 
 ```http
 POST /api/connect/chatto.api.v1.UserService/GetUserByLogin
@@ -3738,7 +3724,7 @@ Public authenticated user profile response for login lookup.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `user` | [`DirectoryMember`](#chatto-api-v1-DirectoryMember) | Requested user. Absent when the login is unknown. |
+| `user` | [`DirectoryMember`](#chatto-api-v1-DirectoryMember) | Requested user. |
 
 
 <a id="chatto-api-v1-UserService-BatchGetUsers"></a>
@@ -4247,6 +4233,19 @@ Filter for owner/auditor event-log inspection.
 | `actor_id` | `string` | Actor user ID. |
 | `created_at_from` | `google.protobuf.Timestamp` | Inclusive lower creation timestamp bound. |
 | `created_at_to` | `google.protobuf.Timestamp` | Inclusive upper creation timestamp bound. |
+
+
+
+<a id="chatto-api-v1-PageInfo"></a>
+
+### PageInfo
+
+Offset-based page metadata returned by list RPCs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `total_count` | `int32` | Total matching item count before pagination. |
+| `has_more` | `bool` | True when another page exists after this response. |
 
 
 

@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { PageInfo, PageRequest } from "./pagination_pb.js";
 import { AccountUser } from "./account_pb.js";
 
 /**
@@ -264,18 +265,11 @@ export class ListMembersRequest extends Message<ListMembersRequest> {
   search?: string;
 
   /**
-   * Maximum rows to return. Defaults to 20 and is capped at 100.
+   * Page request. Defaults to 20 results when absent or limit is zero.
    *
-   * @generated from field: int32 limit = 2;
+   * @generated from field: chatto.api.v1.PageRequest page = 4;
    */
-  limit = 0;
-
-  /**
-   * Number of matching rows to skip.
-   *
-   * @generated from field: int32 offset = 3;
-   */
-  offset = 0;
+  page?: PageRequest;
 
   constructor(data?: PartialMessage<ListMembersRequest>) {
     super();
@@ -286,8 +280,7 @@ export class ListMembersRequest extends Message<ListMembersRequest> {
   static readonly typeName = "chatto.api.v1.ListMembersRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "search", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 2, name: "limit", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 3, name: "offset", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 4, name: "page", kind: "message", T: PageRequest },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListMembersRequest {
@@ -328,18 +321,11 @@ export class ListMembersResponse extends Message<ListMembersResponse> {
   roles: AdminMemberRoleSummary[] = [];
 
   /**
-   * Total matching user count before pagination.
+   * Page metadata.
    *
-   * @generated from field: int32 total_count = 3;
+   * @generated from field: chatto.api.v1.PageInfo page = 5;
    */
-  totalCount = 0;
-
-  /**
-   * Whether more matching rows exist after this page.
-   *
-   * @generated from field: bool has_more = 4;
-   */
-  hasMore = false;
+  page?: PageInfo;
 
   constructor(data?: PartialMessage<ListMembersResponse>) {
     super();
@@ -351,8 +337,7 @@ export class ListMembersResponse extends Message<ListMembersResponse> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "users", kind: "message", T: AdminMember, repeated: true },
     { no: 2, name: "roles", kind: "message", T: AdminMemberRoleSummary, repeated: true },
-    { no: 3, name: "total_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 4, name: "has_more", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 5, name: "page", kind: "message", T: PageInfo },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListMembersResponse {

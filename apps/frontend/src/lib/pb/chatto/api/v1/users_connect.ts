@@ -26,7 +26,7 @@ export const UserService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gets a user by login. Returns an empty response when the login is unknown.
+     * Gets a user by login. Returns NOT_FOUND when the login is unknown.
      *
      * @generated from rpc chatto.api.v1.UserService.GetUserByLogin
      */

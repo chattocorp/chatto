@@ -7,6 +7,7 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { PresenceStatus } from "./presence_pb.js";
 import { CustomUserStatus } from "./user_status_pb.js";
+import { PageInfo, PageRequest } from "./pagination_pb.js";
 
 /**
  * User summary embedded in notification responses.
@@ -479,18 +480,11 @@ export class NotificationItem extends Message<NotificationItem> {
  */
 export class ListNotificationsRequest extends Message<ListNotificationsRequest> {
   /**
-   * Maximum number of notifications to return.
+   * Page request. Defaults to 50 results when absent or limit is zero.
    *
-   * @generated from field: int32 limit = 1;
+   * @generated from field: chatto.api.v1.PageRequest page = 3;
    */
-  limit = 0;
-
-  /**
-   * Number of notifications to skip.
-   *
-   * @generated from field: int32 offset = 2;
-   */
-  offset = 0;
+  page?: PageRequest;
 
   constructor(data?: PartialMessage<ListNotificationsRequest>) {
     super();
@@ -500,8 +494,7 @@ export class ListNotificationsRequest extends Message<ListNotificationsRequest> 
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.ListNotificationsRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "limit", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 2, name: "offset", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 3, name: "page", kind: "message", T: PageRequest },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListNotificationsRequest {
@@ -535,18 +528,11 @@ export class ListRoomNotificationsRequest extends Message<ListRoomNotificationsR
   roomId = "";
 
   /**
-   * Maximum number of notifications to return.
+   * Page request. Defaults to 50 results when absent or limit is zero.
    *
-   * @generated from field: int32 limit = 2;
+   * @generated from field: chatto.api.v1.PageRequest page = 4;
    */
-  limit = 0;
-
-  /**
-   * Number of notifications to skip.
-   *
-   * @generated from field: int32 offset = 3;
-   */
-  offset = 0;
+  page?: PageRequest;
 
   constructor(data?: PartialMessage<ListRoomNotificationsRequest>) {
     super();
@@ -557,8 +543,7 @@ export class ListRoomNotificationsRequest extends Message<ListRoomNotificationsR
   static readonly typeName = "chatto.api.v1.ListRoomNotificationsRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "limit", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 3, name: "offset", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 4, name: "page", kind: "message", T: PageRequest },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListRoomNotificationsRequest {
@@ -592,25 +577,18 @@ export class ListNotificationsResponse extends Message<ListNotificationsResponse
   items: NotificationItem[] = [];
 
   /**
-   * Total count before pagination.
-   *
-   * @generated from field: int32 total_count = 2;
-   */
-  totalCount = 0;
-
-  /**
-   * True when more notifications exist beyond this page.
-   *
-   * @generated from field: bool has_more = 3;
-   */
-  hasMore = false;
-
-  /**
    * Current server display name for non-DM location labels.
    *
    * @generated from field: string server_name = 4;
    */
   serverName = "";
+
+  /**
+   * Page metadata.
+   *
+   * @generated from field: chatto.api.v1.PageInfo page = 5;
+   */
+  page?: PageInfo;
 
   constructor(data?: PartialMessage<ListNotificationsResponse>) {
     super();
@@ -621,9 +599,8 @@ export class ListNotificationsResponse extends Message<ListNotificationsResponse
   static readonly typeName = "chatto.api.v1.ListNotificationsResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "items", kind: "message", T: NotificationItem, repeated: true },
-    { no: 2, name: "total_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 3, name: "has_more", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 4, name: "server_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "page", kind: "message", T: PageInfo },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListNotificationsResponse {
@@ -657,25 +634,18 @@ export class ListRoomNotificationsResponse extends Message<ListRoomNotifications
   items: NotificationItem[] = [];
 
   /**
-   * Total count before pagination.
-   *
-   * @generated from field: int32 total_count = 2;
-   */
-  totalCount = 0;
-
-  /**
-   * True when more notifications exist beyond this page.
-   *
-   * @generated from field: bool has_more = 3;
-   */
-  hasMore = false;
-
-  /**
    * Current server display name for non-DM location labels.
    *
    * @generated from field: string server_name = 4;
    */
   serverName = "";
+
+  /**
+   * Page metadata.
+   *
+   * @generated from field: chatto.api.v1.PageInfo page = 5;
+   */
+  page?: PageInfo;
 
   constructor(data?: PartialMessage<ListRoomNotificationsResponse>) {
     super();
@@ -686,9 +656,8 @@ export class ListRoomNotificationsResponse extends Message<ListRoomNotifications
   static readonly typeName = "chatto.api.v1.ListRoomNotificationsResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "items", kind: "message", T: NotificationItem, repeated: true },
-    { no: 2, name: "total_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 3, name: "has_more", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 4, name: "server_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "page", kind: "message", T: PageInfo },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListRoomNotificationsResponse {

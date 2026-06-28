@@ -83,16 +83,18 @@ export function createAdminUserManagementAPI(config: AdminUserManagementAPIConfi
       const response = await client.listMembers(
         {
           search: input.search || undefined,
-          limit: input.limit,
-          offset: input.offset
+          page: {
+            limit: input.limit,
+            offset: input.offset
+          }
         },
         { headers: headers() }
       );
       return {
         users: response.users.map(adminMember),
         roles: response.roles.map(adminMemberRoleSummary),
-        totalCount: response.totalCount,
-        hasMore: response.hasMore
+        totalCount: response.page?.totalCount ?? 0,
+        hasMore: response.page?.hasMore ?? false
       };
     },
 
