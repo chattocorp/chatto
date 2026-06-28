@@ -137,9 +137,9 @@ export class UserSummary extends Message<UserSummary> {
   /**
    * Avatar image URL, when available.
    *
-   * @generated from field: string avatar_url = 5;
+   * @generated from field: optional string avatar_url = 5;
    */
-  avatarUrl = "";
+  avatarUrl?: string;
 
   constructor(data?: PartialMessage<UserSummary>) {
     super();
@@ -153,7 +153,7 @@ export class UserSummary extends Message<UserSummary> {
     { no: 2, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "deleted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 5, name: "avatar_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "avatar_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UserSummary {

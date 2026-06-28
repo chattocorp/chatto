@@ -151,7 +151,7 @@ type UserSummary struct {
 	// True when the user account has been deleted.
 	Deleted bool `protobuf:"varint,4,opt,name=deleted,proto3" json:"deleted,omitempty"`
 	// Avatar image URL, when available.
-	AvatarUrl     string `protobuf:"bytes,5,opt,name=avatar_url,json=avatarUrl,proto3" json:"avatar_url,omitempty"`
+	AvatarUrl     *string `protobuf:"bytes,5,opt,name=avatar_url,json=avatarUrl,proto3,oneof" json:"avatar_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -215,8 +215,8 @@ func (x *UserSummary) GetDeleted() bool {
 }
 
 func (x *UserSummary) GetAvatarUrl() string {
-	if x != nil {
-		return x.AvatarUrl
+	if x != nil && x.AvatarUrl != nil {
+		return *x.AvatarUrl
 	}
 	return ""
 }
@@ -635,14 +635,15 @@ const file_chatto_api_v1_users_proto_rawDesc = "" +
 	"\xbaH\a\x1a\x05\x18\x80 (\x01R\x05width\x12\"\n" +
 	"\x06height\x18\x02 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\x80 (\x01R\x06height\x12<\n" +
-	"\x03fit\x18\x03 \x01(\x0e2 .chatto.api.v1.UserAvatarFitModeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x03fit\"\x8f\x01\n" +
+	"\x03fit\x18\x03 \x01(\x0e2 .chatto.api.v1.UserAvatarFitModeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x03fit\"\xa3\x01\n" +
 	"\vUserSummary\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12\x18\n" +
-	"\adeleted\x18\x04 \x01(\bR\adeleted\x12\x1d\n" +
+	"\adeleted\x18\x04 \x01(\bR\adeleted\x12\"\n" +
 	"\n" +
-	"avatar_url\x18\x05 \x01(\tR\tavatarUrl\"\xb9\x02\n" +
+	"avatar_url\x18\x05 \x01(\tH\x00R\tavatarUrl\x88\x01\x01B\r\n" +
+	"\v_avatar_url\"\xb9\x02\n" +
 	"\x13UserPresenceSummary\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
@@ -740,6 +741,7 @@ func file_chatto_api_v1_users_proto_init() {
 	file_chatto_api_v1_member_directory_proto_init()
 	file_chatto_api_v1_presence_proto_init()
 	file_chatto_api_v1_user_status_proto_init()
+	file_chatto_api_v1_users_proto_msgTypes[1].OneofWrappers = []any{}
 	file_chatto_api_v1_users_proto_msgTypes[2].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

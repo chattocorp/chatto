@@ -108,7 +108,7 @@ func (s *userService) userSummary(ctx context.Context, user *corev1.User, avatar
 		return nil, err
 	}
 	if avatarURL != "" {
-		summary.AvatarUrl = s.api.absolutizeAssetURL(ctx, avatarURL)
+		summary.AvatarUrl = stringPtr(s.api.absolutizeAssetURL(ctx, avatarURL))
 	}
 	return summary, nil
 }

@@ -387,14 +387,17 @@ func (h *timelineHydrator) users() (map[string]*apiv1.UserSummary, error) {
 		if user == nil {
 			user = core.DeletedUserReference(id)
 		}
-		avatarURL, _ := h.api.core.GetUserAvatarURL(h.ctx, user.Id, &avatarWidth, &avatarHeight, "cover")
-		result[id] = &apiv1.UserSummary{
+		summary := &apiv1.UserSummary{
 			Id:          user.Id,
 			Login:       user.Login,
 			DisplayName: user.DisplayName,
 			Deleted:     user.Deleted,
-			AvatarUrl:   avatarURL,
 		}
+		avatarURL, _ := h.api.core.GetUserAvatarURL(h.ctx, user.Id, &avatarWidth, &avatarHeight, "cover")
+		if avatarURL != "" {
+			summary.AvatarUrl = stringPtr(avatarURL)
+		}
+		result[id] = summary
 	}
 	return result, nil
 }

@@ -44,7 +44,7 @@ message UserSummary {
   // True when the user account has been deleted.
   bool deleted = 4;
   // Avatar image URL, when available.
-  string avatar_url = 5;
+  optional string avatar_url = 5;
 }
 
 // Lightweight public user data plus live profile state.
