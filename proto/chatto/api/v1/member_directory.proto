@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
+import "chatto/api/v1/pagination.proto";
 import "chatto/api/v1/presence.proto";
 import "chatto/api/v1/user_status.proto";
 import "google/protobuf/timestamp.proto";
@@ -32,44 +33,48 @@ message DirectoryMember {
 
 // Request for server members visible to the authenticated user.
 message ListServerMembersRequest {
+  reserved 2, 3;
+  reserved "limit", "offset";
+
   // Optional case-insensitive search against login and display name.
   string search = 1 [(buf.validate.field).string.max_len = 100];
-  // Maximum results to return. Defaults to 20, maximum 100.
-  int32 limit = 2 [(buf.validate.field).int32.gte = 0];
-  // Zero-based result offset.
-  int32 offset = 3 [(buf.validate.field).int32.gte = 0];
+  // Page request. Defaults to 20 results when absent or limit is zero.
+  PageRequest page = 4;
 }
 
 // Server member page.
 message ListServerMembersResponse {
+  reserved 2, 3;
+  reserved "total_count", "has_more";
+
   // Members in the requested page.
   repeated DirectoryMember members = 1;
-  // Total matching members before pagination.
-  int32 total_count = 2;
-  // Whether more matching members exist after this page.
-  bool has_more = 3;
+  // Page metadata.
+  PageInfo page = 4;
 }
 
 // Request for members of one room.
 message ListRoomMembersRequest {
+  reserved 3, 4;
+  reserved "limit", "offset";
+
   // Required. Room whose explicit members should be listed.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
   // Optional case-insensitive search against login and display name.
   string search = 2 [(buf.validate.field).string.max_len = 100];
-  // Maximum results to return. Defaults to 20, maximum 100.
-  int32 limit = 3 [(buf.validate.field).int32.gte = 0];
-  // Zero-based result offset.
-  int32 offset = 4 [(buf.validate.field).int32.gte = 0];
+  // Page request. Defaults to 20 results when absent or limit is zero.
+  PageRequest page = 5;
 }
 
 // Room member page.
 message ListRoomMembersResponse {
+  reserved 2, 3;
+  reserved "total_count", "has_more";
+
   // Members in the requested page.
   repeated DirectoryMember members = 1;
-  // Total matching members before pagination.
-  int32 total_count = 2;
-  // Whether more matching members exist after this page.
-  bool has_more = 3;
+  // Page metadata.
+  PageInfo page = 4;
 }
 
 // Reads server and room member directories.

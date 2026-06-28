@@ -23,106 +23,6 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// User summary embedded in notification responses.
-type NotificationActor struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Stable user ID.
-	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Login identifier.
-	Login string `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`
-	// Display name shown in Chatto.
-	DisplayName string `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	// True when this is a tombstone/deleted user representation.
-	Deleted bool `protobuf:"varint,4,opt,name=deleted,proto3" json:"deleted,omitempty"`
-	// Optional avatar URL.
-	AvatarUrl *string `protobuf:"bytes,5,opt,name=avatar_url,json=avatarUrl,proto3,oneof" json:"avatar_url,omitempty"`
-	// Current live presence status.
-	PresenceStatus PresenceStatus `protobuf:"varint,6,opt,name=presence_status,json=presenceStatus,proto3,enum=chatto.api.v1.PresenceStatus" json:"presence_status,omitempty"`
-	// Custom profile status, when set.
-	CustomStatus  *CustomUserStatus `protobuf:"bytes,7,opt,name=custom_status,json=customStatus,proto3" json:"custom_status,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *NotificationActor) Reset() {
-	*x = NotificationActor{}
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *NotificationActor) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*NotificationActor) ProtoMessage() {}
-
-func (x *NotificationActor) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use NotificationActor.ProtoReflect.Descriptor instead.
-func (*NotificationActor) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *NotificationActor) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *NotificationActor) GetLogin() string {
-	if x != nil {
-		return x.Login
-	}
-	return ""
-}
-
-func (x *NotificationActor) GetDisplayName() string {
-	if x != nil {
-		return x.DisplayName
-	}
-	return ""
-}
-
-func (x *NotificationActor) GetDeleted() bool {
-	if x != nil {
-		return x.Deleted
-	}
-	return false
-}
-
-func (x *NotificationActor) GetAvatarUrl() string {
-	if x != nil && x.AvatarUrl != nil {
-		return *x.AvatarUrl
-	}
-	return ""
-}
-
-func (x *NotificationActor) GetPresenceStatus() PresenceStatus {
-	if x != nil {
-		return x.PresenceStatus
-	}
-	return PresenceStatus_PRESENCE_STATUS_UNSPECIFIED
-}
-
-func (x *NotificationActor) GetCustomStatus() *CustomUserStatus {
-	if x != nil {
-		return x.CustomStatus
-	}
-	return nil
-}
-
 // Room summary embedded in notification responses.
 type NotificationRoom struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -136,7 +36,7 @@ type NotificationRoom struct {
 
 func (x *NotificationRoom) Reset() {
 	*x = NotificationRoom{}
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[1]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -148,7 +48,7 @@ func (x *NotificationRoom) String() string {
 func (*NotificationRoom) ProtoMessage() {}
 
 func (x *NotificationRoom) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[1]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -161,7 +61,7 @@ func (x *NotificationRoom) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NotificationRoom.ProtoReflect.Descriptor instead.
 func (*NotificationRoom) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{1}
+	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *NotificationRoom) GetId() string {
@@ -191,7 +91,7 @@ type DirectMessageNotification struct {
 
 func (x *DirectMessageNotification) Reset() {
 	*x = DirectMessageNotification{}
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -203,7 +103,7 @@ func (x *DirectMessageNotification) String() string {
 func (*DirectMessageNotification) ProtoMessage() {}
 
 func (x *DirectMessageNotification) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -216,7 +116,7 @@ func (x *DirectMessageNotification) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DirectMessageNotification.ProtoReflect.Descriptor instead.
 func (*DirectMessageNotification) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{2}
+	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *DirectMessageNotification) GetRoomId() string {
@@ -248,7 +148,7 @@ type MentionNotification struct {
 
 func (x *MentionNotification) Reset() {
 	*x = MentionNotification{}
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -260,7 +160,7 @@ func (x *MentionNotification) String() string {
 func (*MentionNotification) ProtoMessage() {}
 
 func (x *MentionNotification) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -273,7 +173,7 @@ func (x *MentionNotification) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MentionNotification.ProtoReflect.Descriptor instead.
 func (*MentionNotification) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{3}
+	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *MentionNotification) GetRoom() *NotificationRoom {
@@ -314,7 +214,7 @@ type ReplyNotification struct {
 
 func (x *ReplyNotification) Reset() {
 	*x = ReplyNotification{}
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[4]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -326,7 +226,7 @@ func (x *ReplyNotification) String() string {
 func (*ReplyNotification) ProtoMessage() {}
 
 func (x *ReplyNotification) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[4]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -339,7 +239,7 @@ func (x *ReplyNotification) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplyNotification.ProtoReflect.Descriptor instead.
 func (*ReplyNotification) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{4}
+	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ReplyNotification) GetRoom() *NotificationRoom {
@@ -383,7 +283,7 @@ type RoomMessageNotification struct {
 
 func (x *RoomMessageNotification) Reset() {
 	*x = RoomMessageNotification{}
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[5]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -395,7 +295,7 @@ func (x *RoomMessageNotification) String() string {
 func (*RoomMessageNotification) ProtoMessage() {}
 
 func (x *RoomMessageNotification) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[5]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -408,7 +308,7 @@ func (x *RoomMessageNotification) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoomMessageNotification.ProtoReflect.Descriptor instead.
 func (*RoomMessageNotification) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{5}
+	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *RoomMessageNotification) GetRoom() *NotificationRoom {
@@ -433,7 +333,7 @@ type NotificationItem struct {
 	// Creation time.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// User who triggered the notification, when still resolvable.
-	Actor *NotificationActor `protobuf:"bytes,3,opt,name=actor,proto3" json:"actor,omitempty"`
+	Actor *UserPresenceSummary `protobuf:"bytes,3,opt,name=actor,proto3" json:"actor,omitempty"`
 	// Short human-readable notification summary.
 	Summary string `protobuf:"bytes,4,opt,name=summary,proto3" json:"summary,omitempty"`
 	// Types that are valid to be assigned to Kind:
@@ -449,7 +349,7 @@ type NotificationItem struct {
 
 func (x *NotificationItem) Reset() {
 	*x = NotificationItem{}
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[6]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -461,7 +361,7 @@ func (x *NotificationItem) String() string {
 func (*NotificationItem) ProtoMessage() {}
 
 func (x *NotificationItem) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[6]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -474,7 +374,7 @@ func (x *NotificationItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NotificationItem.ProtoReflect.Descriptor instead.
 func (*NotificationItem) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{6}
+	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *NotificationItem) GetId() string {
@@ -491,7 +391,7 @@ func (x *NotificationItem) GetCreatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-func (x *NotificationItem) GetActor() *NotificationActor {
+func (x *NotificationItem) GetActor() *UserPresenceSummary {
 	if x != nil {
 		return x.Actor
 	}
@@ -583,17 +483,15 @@ func (*NotificationItem_RoomMessage) isNotificationItem_Kind() {}
 // Request for the authenticated viewer's pending notifications.
 type ListNotificationsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Maximum number of notifications to return.
-	Limit int32 `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
-	// Number of notifications to skip.
-	Offset        int32 `protobuf:"varint,2,opt,name=offset,proto3" json:"offset,omitempty"`
+	// Page request. Defaults to 50 results when absent or limit is zero.
+	Page          *PageRequest `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListNotificationsRequest) Reset() {
 	*x = ListNotificationsRequest{}
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[7]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -605,7 +503,7 @@ func (x *ListNotificationsRequest) String() string {
 func (*ListNotificationsRequest) ProtoMessage() {}
 
 func (x *ListNotificationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[7]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -618,21 +516,14 @@ func (x *ListNotificationsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListNotificationsRequest.ProtoReflect.Descriptor instead.
 func (*ListNotificationsRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{7}
+	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *ListNotificationsRequest) GetLimit() int32 {
+func (x *ListNotificationsRequest) GetPage() *PageRequest {
 	if x != nil {
-		return x.Limit
+		return x.Page
 	}
-	return 0
-}
-
-func (x *ListNotificationsRequest) GetOffset() int32 {
-	if x != nil {
-		return x.Offset
-	}
-	return 0
+	return nil
 }
 
 // Request for pending notifications scoped to one room.
@@ -640,17 +531,15 @@ type ListRoomNotificationsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required. Room whose notifications should be listed.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Maximum number of notifications to return.
-	Limit int32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
-	// Number of notifications to skip.
-	Offset        int32 `protobuf:"varint,3,opt,name=offset,proto3" json:"offset,omitempty"`
+	// Page request. Defaults to 50 results when absent or limit is zero.
+	Page          *PageRequest `protobuf:"bytes,4,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListRoomNotificationsRequest) Reset() {
 	*x = ListRoomNotificationsRequest{}
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[8]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -662,7 +551,7 @@ func (x *ListRoomNotificationsRequest) String() string {
 func (*ListRoomNotificationsRequest) ProtoMessage() {}
 
 func (x *ListRoomNotificationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[8]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -675,7 +564,7 @@ func (x *ListRoomNotificationsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRoomNotificationsRequest.ProtoReflect.Descriptor instead.
 func (*ListRoomNotificationsRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{8}
+	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListRoomNotificationsRequest) GetRoomId() string {
@@ -685,18 +574,11 @@ func (x *ListRoomNotificationsRequest) GetRoomId() string {
 	return ""
 }
 
-func (x *ListRoomNotificationsRequest) GetLimit() int32 {
+func (x *ListRoomNotificationsRequest) GetPage() *PageRequest {
 	if x != nil {
-		return x.Limit
+		return x.Page
 	}
-	return 0
-}
-
-func (x *ListRoomNotificationsRequest) GetOffset() int32 {
-	if x != nil {
-		return x.Offset
-	}
-	return 0
+	return nil
 }
 
 // Pending notification page.
@@ -704,19 +586,17 @@ type ListNotificationsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Page items, newest first.
 	Items []*NotificationItem `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
-	// Total count before pagination.
-	TotalCount int32 `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
-	// True when more notifications exist beyond this page.
-	HasMore bool `protobuf:"varint,3,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
 	// Current server display name for non-DM location labels.
-	ServerName    string `protobuf:"bytes,4,opt,name=server_name,json=serverName,proto3" json:"server_name,omitempty"`
+	ServerName string `protobuf:"bytes,4,opt,name=server_name,json=serverName,proto3" json:"server_name,omitempty"`
+	// Page metadata.
+	Page          *PageInfo `protobuf:"bytes,5,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListNotificationsResponse) Reset() {
 	*x = ListNotificationsResponse{}
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[9]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -728,7 +608,7 @@ func (x *ListNotificationsResponse) String() string {
 func (*ListNotificationsResponse) ProtoMessage() {}
 
 func (x *ListNotificationsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[9]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -741,7 +621,7 @@ func (x *ListNotificationsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListNotificationsResponse.ProtoReflect.Descriptor instead.
 func (*ListNotificationsResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{9}
+	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ListNotificationsResponse) GetItems() []*NotificationItem {
@@ -751,20 +631,6 @@ func (x *ListNotificationsResponse) GetItems() []*NotificationItem {
 	return nil
 }
 
-func (x *ListNotificationsResponse) GetTotalCount() int32 {
-	if x != nil {
-		return x.TotalCount
-	}
-	return 0
-}
-
-func (x *ListNotificationsResponse) GetHasMore() bool {
-	if x != nil {
-		return x.HasMore
-	}
-	return false
-}
-
 func (x *ListNotificationsResponse) GetServerName() string {
 	if x != nil {
 		return x.ServerName
@@ -772,24 +638,29 @@ func (x *ListNotificationsResponse) GetServerName() string {
 	return ""
 }
 
+func (x *ListNotificationsResponse) GetPage() *PageInfo {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
 // Pending notification page scoped to one room.
 type ListRoomNotificationsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Page items, newest first.
 	Items []*NotificationItem `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
-	// Total count before pagination.
-	TotalCount int32 `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
-	// True when more notifications exist beyond this page.
-	HasMore bool `protobuf:"varint,3,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
 	// Current server display name for non-DM location labels.
-	ServerName    string `protobuf:"bytes,4,opt,name=server_name,json=serverName,proto3" json:"server_name,omitempty"`
+	ServerName string `protobuf:"bytes,4,opt,name=server_name,json=serverName,proto3" json:"server_name,omitempty"`
+	// Page metadata.
+	Page          *PageInfo `protobuf:"bytes,5,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListRoomNotificationsResponse) Reset() {
 	*x = ListRoomNotificationsResponse{}
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[10]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -801,7 +672,7 @@ func (x *ListRoomNotificationsResponse) String() string {
 func (*ListRoomNotificationsResponse) ProtoMessage() {}
 
 func (x *ListRoomNotificationsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[10]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -814,7 +685,7 @@ func (x *ListRoomNotificationsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRoomNotificationsResponse.ProtoReflect.Descriptor instead.
 func (*ListRoomNotificationsResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{10}
+	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ListRoomNotificationsResponse) GetItems() []*NotificationItem {
@@ -824,25 +695,18 @@ func (x *ListRoomNotificationsResponse) GetItems() []*NotificationItem {
 	return nil
 }
 
-func (x *ListRoomNotificationsResponse) GetTotalCount() int32 {
-	if x != nil {
-		return x.TotalCount
-	}
-	return 0
-}
-
-func (x *ListRoomNotificationsResponse) GetHasMore() bool {
-	if x != nil {
-		return x.HasMore
-	}
-	return false
-}
-
 func (x *ListRoomNotificationsResponse) GetServerName() string {
 	if x != nil {
 		return x.ServerName
 	}
 	return ""
+}
+
+func (x *ListRoomNotificationsResponse) GetPage() *PageInfo {
+	if x != nil {
+		return x.Page
+	}
+	return nil
 }
 
 // Request for a lightweight pending notification check.
@@ -854,7 +718,7 @@ type HasNotificationsRequest struct {
 
 func (x *HasNotificationsRequest) Reset() {
 	*x = HasNotificationsRequest{}
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[11]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -866,7 +730,7 @@ func (x *HasNotificationsRequest) String() string {
 func (*HasNotificationsRequest) ProtoMessage() {}
 
 func (x *HasNotificationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[11]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -879,7 +743,7 @@ func (x *HasNotificationsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HasNotificationsRequest.ProtoReflect.Descriptor instead.
 func (*HasNotificationsRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{11}
+	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{10}
 }
 
 // Lightweight pending notification check.
@@ -893,7 +757,7 @@ type HasNotificationsResponse struct {
 
 func (x *HasNotificationsResponse) Reset() {
 	*x = HasNotificationsResponse{}
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[12]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -905,7 +769,7 @@ func (x *HasNotificationsResponse) String() string {
 func (*HasNotificationsResponse) ProtoMessage() {}
 
 func (x *HasNotificationsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[12]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -918,7 +782,7 @@ func (x *HasNotificationsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HasNotificationsResponse.ProtoReflect.Descriptor instead.
 func (*HasNotificationsResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{12}
+	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *HasNotificationsResponse) GetHasNotifications() bool {
@@ -941,7 +805,7 @@ type RoomNotificationCount struct {
 
 func (x *RoomNotificationCount) Reset() {
 	*x = RoomNotificationCount{}
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[13]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -953,7 +817,7 @@ func (x *RoomNotificationCount) String() string {
 func (*RoomNotificationCount) ProtoMessage() {}
 
 func (x *RoomNotificationCount) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[13]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -966,7 +830,7 @@ func (x *RoomNotificationCount) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoomNotificationCount.ProtoReflect.Descriptor instead.
 func (*RoomNotificationCount) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{13}
+	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *RoomNotificationCount) GetRoomId() string {
@@ -992,7 +856,7 @@ type ListNotificationCountsRequest struct {
 
 func (x *ListNotificationCountsRequest) Reset() {
 	*x = ListNotificationCountsRequest{}
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[14]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1004,7 +868,7 @@ func (x *ListNotificationCountsRequest) String() string {
 func (*ListNotificationCountsRequest) ProtoMessage() {}
 
 func (x *ListNotificationCountsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[14]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1017,7 +881,7 @@ func (x *ListNotificationCountsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListNotificationCountsRequest.ProtoReflect.Descriptor instead.
 func (*ListNotificationCountsRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{14}
+	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{13}
 }
 
 // Pending notification counts grouped by room.
@@ -1031,7 +895,7 @@ type ListNotificationCountsResponse struct {
 
 func (x *ListNotificationCountsResponse) Reset() {
 	*x = ListNotificationCountsResponse{}
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[15]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1043,7 +907,7 @@ func (x *ListNotificationCountsResponse) String() string {
 func (*ListNotificationCountsResponse) ProtoMessage() {}
 
 func (x *ListNotificationCountsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[15]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1056,7 +920,7 @@ func (x *ListNotificationCountsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListNotificationCountsResponse.ProtoReflect.Descriptor instead.
 func (*ListNotificationCountsResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{15}
+	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ListNotificationCountsResponse) GetRoomCounts() []*RoomNotificationCount {
@@ -1077,7 +941,7 @@ type DismissNotificationRequest struct {
 
 func (x *DismissNotificationRequest) Reset() {
 	*x = DismissNotificationRequest{}
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[16]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1089,7 +953,7 @@ func (x *DismissNotificationRequest) String() string {
 func (*DismissNotificationRequest) ProtoMessage() {}
 
 func (x *DismissNotificationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[16]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1102,7 +966,7 @@ func (x *DismissNotificationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DismissNotificationRequest.ProtoReflect.Descriptor instead.
 func (*DismissNotificationRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{16}
+	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *DismissNotificationRequest) GetNotificationId() string {
@@ -1123,7 +987,7 @@ type DismissNotificationResponse struct {
 
 func (x *DismissNotificationResponse) Reset() {
 	*x = DismissNotificationResponse{}
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[17]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1135,7 +999,7 @@ func (x *DismissNotificationResponse) String() string {
 func (*DismissNotificationResponse) ProtoMessage() {}
 
 func (x *DismissNotificationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[17]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1148,7 +1012,7 @@ func (x *DismissNotificationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DismissNotificationResponse.ProtoReflect.Descriptor instead.
 func (*DismissNotificationResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{17}
+	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *DismissNotificationResponse) GetDismissed() bool {
@@ -1167,7 +1031,7 @@ type DismissAllNotificationsRequest struct {
 
 func (x *DismissAllNotificationsRequest) Reset() {
 	*x = DismissAllNotificationsRequest{}
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[18]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1179,7 +1043,7 @@ func (x *DismissAllNotificationsRequest) String() string {
 func (*DismissAllNotificationsRequest) ProtoMessage() {}
 
 func (x *DismissAllNotificationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[18]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1192,7 +1056,7 @@ func (x *DismissAllNotificationsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DismissAllNotificationsRequest.ProtoReflect.Descriptor instead.
 func (*DismissAllNotificationsRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{18}
+	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{17}
 }
 
 // Result of dismissing all pending notifications.
@@ -1206,7 +1070,7 @@ type DismissAllNotificationsResponse struct {
 
 func (x *DismissAllNotificationsResponse) Reset() {
 	*x = DismissAllNotificationsResponse{}
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[19]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1218,7 +1082,7 @@ func (x *DismissAllNotificationsResponse) String() string {
 func (*DismissAllNotificationsResponse) ProtoMessage() {}
 
 func (x *DismissAllNotificationsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[19]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1231,7 +1095,7 @@ func (x *DismissAllNotificationsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DismissAllNotificationsResponse.ProtoReflect.Descriptor instead.
 func (*DismissAllNotificationsResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{19}
+	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *DismissAllNotificationsResponse) GetDismissedCount() int32 {
@@ -1245,17 +1109,7 @@ var File_chatto_api_v1_notifications_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	"\n" +
-	"!chatto/api/v1/notifications.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cchatto/api/v1/presence.proto\x1a\x1fchatto/api/v1/user_status.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb7\x02\n" +
-	"\x11NotificationActor\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
-	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
-	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12\x18\n" +
-	"\adeleted\x18\x04 \x01(\bR\adeleted\x12\"\n" +
-	"\n" +
-	"avatar_url\x18\x05 \x01(\tH\x00R\tavatarUrl\x88\x01\x01\x12F\n" +
-	"\x0fpresence_status\x18\x06 \x01(\x0e2\x1d.chatto.api.v1.PresenceStatusR\x0epresenceStatus\x12D\n" +
-	"\rcustom_status\x18\a \x01(\v2\x1f.chatto.api.v1.CustomUserStatusR\fcustomStatusB\r\n" +
-	"\v_avatar_url\"6\n" +
+	"!chatto/api/v1/notifications.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"6\n" +
 	"\x10NotificationRoom\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\"O\n" +
@@ -1275,40 +1129,34 @@ const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	"\x15_thread_root_event_id\"i\n" +
 	"\x17RoomMessageNotification\x123\n" +
 	"\x04room\x18\x01 \x01(\v2\x1f.chatto.api.v1.NotificationRoomR\x04room\x12\x19\n" +
-	"\bevent_id\x18\x02 \x01(\tR\aeventId\"\xd1\x03\n" +
+	"\bevent_id\x18\x02 \x01(\tR\aeventId\"\xd3\x03\n" +
 	"\x10NotificationItem\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
-	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x126\n" +
-	"\x05actor\x18\x03 \x01(\v2 .chatto.api.v1.NotificationActorR\x05actor\x12\x18\n" +
+	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x128\n" +
+	"\x05actor\x18\x03 \x01(\v2\".chatto.api.v1.UserPresenceSummaryR\x05actor\x12\x18\n" +
 	"\asummary\x18\x04 \x01(\tR\asummary\x12Q\n" +
 	"\x0edirect_message\x18\n" +
 	" \x01(\v2(.chatto.api.v1.DirectMessageNotificationH\x00R\rdirectMessage\x12>\n" +
 	"\amention\x18\v \x01(\v2\".chatto.api.v1.MentionNotificationH\x00R\amention\x128\n" +
 	"\x05reply\x18\f \x01(\v2 .chatto.api.v1.ReplyNotificationH\x00R\x05reply\x12K\n" +
 	"\froom_message\x18\r \x01(\v2&.chatto.api.v1.RoomMessageNotificationH\x00R\vroomMessageB\x06\n" +
-	"\x04kind\"\\\n" +
-	"\x18ListNotificationsRequest\x12\x1f\n" +
-	"\x05limit\x18\x01 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x00R\x05limit\x12\x1f\n" +
-	"\x06offset\x18\x02 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x06offset\"\x82\x01\n" +
+	"\x04kind\"e\n" +
+	"\x18ListNotificationsRequest\x12.\n" +
+	"\x04page\x18\x03 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04pageJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\x05limitR\x06offset\"\x8b\x01\n" +
 	"\x1cListRoomNotificationsRequest\x12 \n" +
-	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\x1f\n" +
-	"\x05limit\x18\x02 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x00R\x05limit\x12\x1f\n" +
-	"\x06offset\x18\x03 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x06offset\"\xaf\x01\n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12.\n" +
+	"\x04page\x18\x04 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x05limitR\x06offset\"\xc3\x01\n" +
 	"\x19ListNotificationsResponse\x125\n" +
 	"\x05items\x18\x01 \x03(\v2\x1f.chatto.api.v1.NotificationItemR\x05items\x12\x1f\n" +
-	"\vtotal_count\x18\x02 \x01(\x05R\n" +
-	"totalCount\x12\x19\n" +
-	"\bhas_more\x18\x03 \x01(\bR\ahasMore\x12\x1f\n" +
 	"\vserver_name\x18\x04 \x01(\tR\n" +
-	"serverName\"\xb3\x01\n" +
+	"serverName\x12+\n" +
+	"\x04page\x18\x05 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\vtotal_countR\bhas_more\"\xc7\x01\n" +
 	"\x1dListRoomNotificationsResponse\x125\n" +
 	"\x05items\x18\x01 \x03(\v2\x1f.chatto.api.v1.NotificationItemR\x05items\x12\x1f\n" +
-	"\vtotal_count\x18\x02 \x01(\x05R\n" +
-	"totalCount\x12\x19\n" +
-	"\bhas_more\x18\x03 \x01(\bR\ahasMore\x12\x1f\n" +
 	"\vserver_name\x18\x04 \x01(\tR\n" +
-	"serverName\"\x19\n" +
+	"serverName\x12+\n" +
+	"\x04page\x18\x05 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\vtotal_countR\bhas_more\"\x19\n" +
 	"\x17HasNotificationsRequest\"G\n" +
 	"\x18HasNotificationsResponse\x12+\n" +
 	"\x11has_notifications\x18\x01 \x01(\bR\x10hasNotifications\"Q\n" +
@@ -1348,64 +1196,66 @@ func file_chatto_api_v1_notifications_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_notifications_proto_rawDescData
 }
 
-var file_chatto_api_v1_notifications_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_chatto_api_v1_notifications_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_chatto_api_v1_notifications_proto_goTypes = []any{
-	(*NotificationActor)(nil),               // 0: chatto.api.v1.NotificationActor
-	(*NotificationRoom)(nil),                // 1: chatto.api.v1.NotificationRoom
-	(*DirectMessageNotification)(nil),       // 2: chatto.api.v1.DirectMessageNotification
-	(*MentionNotification)(nil),             // 3: chatto.api.v1.MentionNotification
-	(*ReplyNotification)(nil),               // 4: chatto.api.v1.ReplyNotification
-	(*RoomMessageNotification)(nil),         // 5: chatto.api.v1.RoomMessageNotification
-	(*NotificationItem)(nil),                // 6: chatto.api.v1.NotificationItem
-	(*ListNotificationsRequest)(nil),        // 7: chatto.api.v1.ListNotificationsRequest
-	(*ListRoomNotificationsRequest)(nil),    // 8: chatto.api.v1.ListRoomNotificationsRequest
-	(*ListNotificationsResponse)(nil),       // 9: chatto.api.v1.ListNotificationsResponse
-	(*ListRoomNotificationsResponse)(nil),   // 10: chatto.api.v1.ListRoomNotificationsResponse
-	(*HasNotificationsRequest)(nil),         // 11: chatto.api.v1.HasNotificationsRequest
-	(*HasNotificationsResponse)(nil),        // 12: chatto.api.v1.HasNotificationsResponse
-	(*RoomNotificationCount)(nil),           // 13: chatto.api.v1.RoomNotificationCount
-	(*ListNotificationCountsRequest)(nil),   // 14: chatto.api.v1.ListNotificationCountsRequest
-	(*ListNotificationCountsResponse)(nil),  // 15: chatto.api.v1.ListNotificationCountsResponse
-	(*DismissNotificationRequest)(nil),      // 16: chatto.api.v1.DismissNotificationRequest
-	(*DismissNotificationResponse)(nil),     // 17: chatto.api.v1.DismissNotificationResponse
-	(*DismissAllNotificationsRequest)(nil),  // 18: chatto.api.v1.DismissAllNotificationsRequest
-	(*DismissAllNotificationsResponse)(nil), // 19: chatto.api.v1.DismissAllNotificationsResponse
-	(PresenceStatus)(0),                     // 20: chatto.api.v1.PresenceStatus
-	(*CustomUserStatus)(nil),                // 21: chatto.api.v1.CustomUserStatus
-	(*timestamppb.Timestamp)(nil),           // 22: google.protobuf.Timestamp
+	(*NotificationRoom)(nil),                // 0: chatto.api.v1.NotificationRoom
+	(*DirectMessageNotification)(nil),       // 1: chatto.api.v1.DirectMessageNotification
+	(*MentionNotification)(nil),             // 2: chatto.api.v1.MentionNotification
+	(*ReplyNotification)(nil),               // 3: chatto.api.v1.ReplyNotification
+	(*RoomMessageNotification)(nil),         // 4: chatto.api.v1.RoomMessageNotification
+	(*NotificationItem)(nil),                // 5: chatto.api.v1.NotificationItem
+	(*ListNotificationsRequest)(nil),        // 6: chatto.api.v1.ListNotificationsRequest
+	(*ListRoomNotificationsRequest)(nil),    // 7: chatto.api.v1.ListRoomNotificationsRequest
+	(*ListNotificationsResponse)(nil),       // 8: chatto.api.v1.ListNotificationsResponse
+	(*ListRoomNotificationsResponse)(nil),   // 9: chatto.api.v1.ListRoomNotificationsResponse
+	(*HasNotificationsRequest)(nil),         // 10: chatto.api.v1.HasNotificationsRequest
+	(*HasNotificationsResponse)(nil),        // 11: chatto.api.v1.HasNotificationsResponse
+	(*RoomNotificationCount)(nil),           // 12: chatto.api.v1.RoomNotificationCount
+	(*ListNotificationCountsRequest)(nil),   // 13: chatto.api.v1.ListNotificationCountsRequest
+	(*ListNotificationCountsResponse)(nil),  // 14: chatto.api.v1.ListNotificationCountsResponse
+	(*DismissNotificationRequest)(nil),      // 15: chatto.api.v1.DismissNotificationRequest
+	(*DismissNotificationResponse)(nil),     // 16: chatto.api.v1.DismissNotificationResponse
+	(*DismissAllNotificationsRequest)(nil),  // 17: chatto.api.v1.DismissAllNotificationsRequest
+	(*DismissAllNotificationsResponse)(nil), // 18: chatto.api.v1.DismissAllNotificationsResponse
+	(*timestamppb.Timestamp)(nil),           // 19: google.protobuf.Timestamp
+	(*UserPresenceSummary)(nil),             // 20: chatto.api.v1.UserPresenceSummary
+	(*PageRequest)(nil),                     // 21: chatto.api.v1.PageRequest
+	(*PageInfo)(nil),                        // 22: chatto.api.v1.PageInfo
 }
 var file_chatto_api_v1_notifications_proto_depIdxs = []int32{
-	20, // 0: chatto.api.v1.NotificationActor.presence_status:type_name -> chatto.api.v1.PresenceStatus
-	21, // 1: chatto.api.v1.NotificationActor.custom_status:type_name -> chatto.api.v1.CustomUserStatus
-	1,  // 2: chatto.api.v1.MentionNotification.room:type_name -> chatto.api.v1.NotificationRoom
-	1,  // 3: chatto.api.v1.ReplyNotification.room:type_name -> chatto.api.v1.NotificationRoom
-	1,  // 4: chatto.api.v1.RoomMessageNotification.room:type_name -> chatto.api.v1.NotificationRoom
-	22, // 5: chatto.api.v1.NotificationItem.created_at:type_name -> google.protobuf.Timestamp
-	0,  // 6: chatto.api.v1.NotificationItem.actor:type_name -> chatto.api.v1.NotificationActor
-	2,  // 7: chatto.api.v1.NotificationItem.direct_message:type_name -> chatto.api.v1.DirectMessageNotification
-	3,  // 8: chatto.api.v1.NotificationItem.mention:type_name -> chatto.api.v1.MentionNotification
-	4,  // 9: chatto.api.v1.NotificationItem.reply:type_name -> chatto.api.v1.ReplyNotification
-	5,  // 10: chatto.api.v1.NotificationItem.room_message:type_name -> chatto.api.v1.RoomMessageNotification
-	6,  // 11: chatto.api.v1.ListNotificationsResponse.items:type_name -> chatto.api.v1.NotificationItem
-	6,  // 12: chatto.api.v1.ListRoomNotificationsResponse.items:type_name -> chatto.api.v1.NotificationItem
-	13, // 13: chatto.api.v1.ListNotificationCountsResponse.room_counts:type_name -> chatto.api.v1.RoomNotificationCount
-	7,  // 14: chatto.api.v1.NotificationService.ListNotifications:input_type -> chatto.api.v1.ListNotificationsRequest
-	8,  // 15: chatto.api.v1.NotificationService.ListRoomNotifications:input_type -> chatto.api.v1.ListRoomNotificationsRequest
-	14, // 16: chatto.api.v1.NotificationService.ListNotificationCounts:input_type -> chatto.api.v1.ListNotificationCountsRequest
-	11, // 17: chatto.api.v1.NotificationService.HasNotifications:input_type -> chatto.api.v1.HasNotificationsRequest
-	16, // 18: chatto.api.v1.NotificationService.DismissNotification:input_type -> chatto.api.v1.DismissNotificationRequest
-	18, // 19: chatto.api.v1.NotificationService.DismissAllNotifications:input_type -> chatto.api.v1.DismissAllNotificationsRequest
-	9,  // 20: chatto.api.v1.NotificationService.ListNotifications:output_type -> chatto.api.v1.ListNotificationsResponse
-	10, // 21: chatto.api.v1.NotificationService.ListRoomNotifications:output_type -> chatto.api.v1.ListRoomNotificationsResponse
-	15, // 22: chatto.api.v1.NotificationService.ListNotificationCounts:output_type -> chatto.api.v1.ListNotificationCountsResponse
-	12, // 23: chatto.api.v1.NotificationService.HasNotifications:output_type -> chatto.api.v1.HasNotificationsResponse
-	17, // 24: chatto.api.v1.NotificationService.DismissNotification:output_type -> chatto.api.v1.DismissNotificationResponse
-	19, // 25: chatto.api.v1.NotificationService.DismissAllNotifications:output_type -> chatto.api.v1.DismissAllNotificationsResponse
-	20, // [20:26] is the sub-list for method output_type
-	14, // [14:20] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	0,  // 0: chatto.api.v1.MentionNotification.room:type_name -> chatto.api.v1.NotificationRoom
+	0,  // 1: chatto.api.v1.ReplyNotification.room:type_name -> chatto.api.v1.NotificationRoom
+	0,  // 2: chatto.api.v1.RoomMessageNotification.room:type_name -> chatto.api.v1.NotificationRoom
+	19, // 3: chatto.api.v1.NotificationItem.created_at:type_name -> google.protobuf.Timestamp
+	20, // 4: chatto.api.v1.NotificationItem.actor:type_name -> chatto.api.v1.UserPresenceSummary
+	1,  // 5: chatto.api.v1.NotificationItem.direct_message:type_name -> chatto.api.v1.DirectMessageNotification
+	2,  // 6: chatto.api.v1.NotificationItem.mention:type_name -> chatto.api.v1.MentionNotification
+	3,  // 7: chatto.api.v1.NotificationItem.reply:type_name -> chatto.api.v1.ReplyNotification
+	4,  // 8: chatto.api.v1.NotificationItem.room_message:type_name -> chatto.api.v1.RoomMessageNotification
+	21, // 9: chatto.api.v1.ListNotificationsRequest.page:type_name -> chatto.api.v1.PageRequest
+	21, // 10: chatto.api.v1.ListRoomNotificationsRequest.page:type_name -> chatto.api.v1.PageRequest
+	5,  // 11: chatto.api.v1.ListNotificationsResponse.items:type_name -> chatto.api.v1.NotificationItem
+	22, // 12: chatto.api.v1.ListNotificationsResponse.page:type_name -> chatto.api.v1.PageInfo
+	5,  // 13: chatto.api.v1.ListRoomNotificationsResponse.items:type_name -> chatto.api.v1.NotificationItem
+	22, // 14: chatto.api.v1.ListRoomNotificationsResponse.page:type_name -> chatto.api.v1.PageInfo
+	12, // 15: chatto.api.v1.ListNotificationCountsResponse.room_counts:type_name -> chatto.api.v1.RoomNotificationCount
+	6,  // 16: chatto.api.v1.NotificationService.ListNotifications:input_type -> chatto.api.v1.ListNotificationsRequest
+	7,  // 17: chatto.api.v1.NotificationService.ListRoomNotifications:input_type -> chatto.api.v1.ListRoomNotificationsRequest
+	13, // 18: chatto.api.v1.NotificationService.ListNotificationCounts:input_type -> chatto.api.v1.ListNotificationCountsRequest
+	10, // 19: chatto.api.v1.NotificationService.HasNotifications:input_type -> chatto.api.v1.HasNotificationsRequest
+	15, // 20: chatto.api.v1.NotificationService.DismissNotification:input_type -> chatto.api.v1.DismissNotificationRequest
+	17, // 21: chatto.api.v1.NotificationService.DismissAllNotifications:input_type -> chatto.api.v1.DismissAllNotificationsRequest
+	8,  // 22: chatto.api.v1.NotificationService.ListNotifications:output_type -> chatto.api.v1.ListNotificationsResponse
+	9,  // 23: chatto.api.v1.NotificationService.ListRoomNotifications:output_type -> chatto.api.v1.ListRoomNotificationsResponse
+	14, // 24: chatto.api.v1.NotificationService.ListNotificationCounts:output_type -> chatto.api.v1.ListNotificationCountsResponse
+	11, // 25: chatto.api.v1.NotificationService.HasNotifications:output_type -> chatto.api.v1.HasNotificationsResponse
+	16, // 26: chatto.api.v1.NotificationService.DismissNotification:output_type -> chatto.api.v1.DismissNotificationResponse
+	18, // 27: chatto.api.v1.NotificationService.DismissAllNotifications:output_type -> chatto.api.v1.DismissAllNotificationsResponse
+	22, // [22:28] is the sub-list for method output_type
+	16, // [16:22] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_notifications_proto_init() }
@@ -1413,12 +1263,11 @@ func file_chatto_api_v1_notifications_proto_init() {
 	if File_chatto_api_v1_notifications_proto != nil {
 		return
 	}
-	file_chatto_api_v1_presence_proto_init()
-	file_chatto_api_v1_user_status_proto_init()
-	file_chatto_api_v1_notifications_proto_msgTypes[0].OneofWrappers = []any{}
+	file_chatto_api_v1_pagination_proto_init()
+	file_chatto_api_v1_users_proto_init()
+	file_chatto_api_v1_notifications_proto_msgTypes[2].OneofWrappers = []any{}
 	file_chatto_api_v1_notifications_proto_msgTypes[3].OneofWrappers = []any{}
-	file_chatto_api_v1_notifications_proto_msgTypes[4].OneofWrappers = []any{}
-	file_chatto_api_v1_notifications_proto_msgTypes[6].OneofWrappers = []any{
+	file_chatto_api_v1_notifications_proto_msgTypes[5].OneofWrappers = []any{
 		(*NotificationItem_DirectMessage)(nil),
 		(*NotificationItem_Mention)(nil),
 		(*NotificationItem_Reply)(nil),
@@ -1430,7 +1279,7 @@ func file_chatto_api_v1_notifications_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_notifications_proto_rawDesc), len(file_chatto_api_v1_notifications_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   20,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

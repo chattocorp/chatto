@@ -13,30 +13,37 @@ message FetchLinkPreviewRequest {
   ];
 }
 
-// Link preview metadata returned to clients before posting a message.
-message FetchedLinkPreview {
+// Link preview metadata used by message composers and room timeline events.
+//
+// On message-post requests, the server accepts url, title, description,
+// site_name, image_asset_id, embed_type, and embed_id. The image_url field is
+// response-only and ignored on input. Clients should treat optional metadata as
+// unavailable when absent.
+message LinkPreview {
   // Previewed URL.
   string url = 1;
   // Page or embed title.
-  string title = 2;
+  optional string title = 2;
   // Page or embed description.
-  string description = 3;
-  // Preview image URL, when available.
-  string image_url = 4;
-  // Existing server asset ID for the preview image, when available.
-  string image_asset_id = 5;
+  optional string description = 3;
+  // Preview image URL, when available. Response-only; ignored on message-post
+  // input.
+  optional string image_url = 4;
+  // Existing server asset ID for the preview image, when selected by the client
+  // or stored with the message.
+  optional string image_asset_id = 5;
   // Site name, when known.
-  string site_name = 6;
+  optional string site_name = 6;
   // Embed provider or type, when recognized.
-  string embed_type = 7;
+  optional string embed_type = 7;
   // Provider-specific embed ID, when recognized.
-  string embed_id = 8;
+  optional string embed_id = 8;
 }
 
 // Result of fetching link preview metadata.
 message FetchLinkPreviewResponse {
   // Preview metadata, or absent when the URL cannot be previewed.
-  FetchedLinkPreview preview = 1;
+  LinkPreview preview = 1;
 }
 
 // Fetches link preview metadata for message composers.

@@ -59,8 +59,7 @@ describe('createThreadAPI', () => {
 					hasUnread: true
 				}
 			],
-			totalCount: 3,
-			hasMore: true,
+			page: { totalCount: 3n, hasMore: true },
 			includes: { users: {} }
 		});
 
@@ -72,7 +71,7 @@ describe('createThreadAPI', () => {
 		const page = await api.listFollowedThreads({ limit: 20, offset: 40 });
 
 		expect(mocks.listFollowedThreads).toHaveBeenCalledWith(
-			{ limit: 20, offset: 40 },
+			{ page: { limit: 20, offset: 40 } },
 			{
 				headers: { Authorization: 'Bearer remote-token' }
 			}

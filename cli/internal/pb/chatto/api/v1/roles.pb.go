@@ -131,70 +131,6 @@ func (x *Role) GetPingable() bool {
 	return false
 }
 
-// User summary for role roster displays.
-type RoleUser struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Stable user ID.
-	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Login identifier.
-	Login string `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`
-	// Display name shown in Chatto.
-	DisplayName   string `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RoleUser) Reset() {
-	*x = RoleUser{}
-	mi := &file_chatto_api_v1_roles_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RoleUser) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RoleUser) ProtoMessage() {}
-
-func (x *RoleUser) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_roles_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RoleUser.ProtoReflect.Descriptor instead.
-func (*RoleUser) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_roles_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *RoleUser) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *RoleUser) GetLogin() string {
-	if x != nil {
-		return x.Login
-	}
-	return ""
-}
-
-func (x *RoleUser) GetDisplayName() string {
-	if x != nil {
-		return x.DisplayName
-	}
-	return ""
-}
-
 // Request the server role catalog.
 type ListRolesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -204,7 +140,7 @@ type ListRolesRequest struct {
 
 func (x *ListRolesRequest) Reset() {
 	*x = ListRolesRequest{}
-	mi := &file_chatto_api_v1_roles_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_roles_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -216,7 +152,7 @@ func (x *ListRolesRequest) String() string {
 func (*ListRolesRequest) ProtoMessage() {}
 
 func (x *ListRolesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_roles_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_roles_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -229,7 +165,7 @@ func (x *ListRolesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRolesRequest.ProtoReflect.Descriptor instead.
 func (*ListRolesRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_roles_proto_rawDescGZIP(), []int{2}
+	return file_chatto_api_v1_roles_proto_rawDescGZIP(), []int{1}
 }
 
 // Server role catalog plus viewer role-management capabilities.
@@ -247,7 +183,7 @@ type ListRolesResponse struct {
 
 func (x *ListRolesResponse) Reset() {
 	*x = ListRolesResponse{}
-	mi := &file_chatto_api_v1_roles_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_roles_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -259,7 +195,7 @@ func (x *ListRolesResponse) String() string {
 func (*ListRolesResponse) ProtoMessage() {}
 
 func (x *ListRolesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_roles_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_roles_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -272,7 +208,7 @@ func (x *ListRolesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRolesResponse.ProtoReflect.Descriptor instead.
 func (*ListRolesResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_roles_proto_rawDescGZIP(), []int{3}
+	return file_chatto_api_v1_roles_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ListRolesResponse) GetRoles() []*Role {
@@ -307,7 +243,7 @@ type GetRoleRequest struct {
 
 func (x *GetRoleRequest) Reset() {
 	*x = GetRoleRequest{}
-	mi := &file_chatto_api_v1_roles_proto_msgTypes[4]
+	mi := &file_chatto_api_v1_roles_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -319,7 +255,7 @@ func (x *GetRoleRequest) String() string {
 func (*GetRoleRequest) ProtoMessage() {}
 
 func (x *GetRoleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_roles_proto_msgTypes[4]
+	mi := &file_chatto_api_v1_roles_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -332,7 +268,7 @@ func (x *GetRoleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRoleRequest.ProtoReflect.Descriptor instead.
 func (*GetRoleRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_roles_proto_rawDescGZIP(), []int{4}
+	return file_chatto_api_v1_roles_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetRoleRequest) GetName() string {
@@ -345,10 +281,10 @@ func (x *GetRoleRequest) GetName() string {
 // One server role plus role-management metadata.
 type GetRoleResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Requested role, when found.
+	// Requested role.
 	Role *Role `protobuf:"bytes,1,opt,name=role,proto3" json:"role,omitempty"`
 	// Explicit users with this role. Empty unless the caller may assign roles.
-	Users []*RoleUser `protobuf:"bytes,2,rep,name=users,proto3" json:"users,omitempty"`
+	Users []*UserSummary `protobuf:"bytes,2,rep,name=users,proto3" json:"users,omitempty"`
 	// Whether the caller may create/update/delete role definitions.
 	ViewerCanManageRoles bool `protobuf:"varint,3,opt,name=viewer_can_manage_roles,json=viewerCanManageRoles,proto3" json:"viewer_can_manage_roles,omitempty"`
 	// Whether the caller may assign/revoke roles and view role rosters.
@@ -359,7 +295,7 @@ type GetRoleResponse struct {
 
 func (x *GetRoleResponse) Reset() {
 	*x = GetRoleResponse{}
-	mi := &file_chatto_api_v1_roles_proto_msgTypes[5]
+	mi := &file_chatto_api_v1_roles_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -371,7 +307,7 @@ func (x *GetRoleResponse) String() string {
 func (*GetRoleResponse) ProtoMessage() {}
 
 func (x *GetRoleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_roles_proto_msgTypes[5]
+	mi := &file_chatto_api_v1_roles_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -384,7 +320,7 @@ func (x *GetRoleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRoleResponse.ProtoReflect.Descriptor instead.
 func (*GetRoleResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_roles_proto_rawDescGZIP(), []int{5}
+	return file_chatto_api_v1_roles_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetRoleResponse) GetRole() *Role {
@@ -394,7 +330,7 @@ func (x *GetRoleResponse) GetRole() *Role {
 	return nil
 }
 
-func (x *GetRoleResponse) GetUsers() []*RoleUser {
+func (x *GetRoleResponse) GetUsers() []*UserSummary {
 	if x != nil {
 		return x.Users
 	}
@@ -432,7 +368,7 @@ type CreateRoleRequest struct {
 
 func (x *CreateRoleRequest) Reset() {
 	*x = CreateRoleRequest{}
-	mi := &file_chatto_api_v1_roles_proto_msgTypes[6]
+	mi := &file_chatto_api_v1_roles_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -444,7 +380,7 @@ func (x *CreateRoleRequest) String() string {
 func (*CreateRoleRequest) ProtoMessage() {}
 
 func (x *CreateRoleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_roles_proto_msgTypes[6]
+	mi := &file_chatto_api_v1_roles_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -457,7 +393,7 @@ func (x *CreateRoleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateRoleRequest.ProtoReflect.Descriptor instead.
 func (*CreateRoleRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_roles_proto_rawDescGZIP(), []int{6}
+	return file_chatto_api_v1_roles_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *CreateRoleRequest) GetName() string {
@@ -499,7 +435,7 @@ type CreateRoleResponse struct {
 
 func (x *CreateRoleResponse) Reset() {
 	*x = CreateRoleResponse{}
-	mi := &file_chatto_api_v1_roles_proto_msgTypes[7]
+	mi := &file_chatto_api_v1_roles_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -511,7 +447,7 @@ func (x *CreateRoleResponse) String() string {
 func (*CreateRoleResponse) ProtoMessage() {}
 
 func (x *CreateRoleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_roles_proto_msgTypes[7]
+	mi := &file_chatto_api_v1_roles_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -524,7 +460,7 @@ func (x *CreateRoleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateRoleResponse.ProtoReflect.Descriptor instead.
 func (*CreateRoleResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_roles_proto_rawDescGZIP(), []int{7}
+	return file_chatto_api_v1_roles_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *CreateRoleResponse) GetRole() *Role {
@@ -551,7 +487,7 @@ type UpdateRoleRequest struct {
 
 func (x *UpdateRoleRequest) Reset() {
 	*x = UpdateRoleRequest{}
-	mi := &file_chatto_api_v1_roles_proto_msgTypes[8]
+	mi := &file_chatto_api_v1_roles_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -563,7 +499,7 @@ func (x *UpdateRoleRequest) String() string {
 func (*UpdateRoleRequest) ProtoMessage() {}
 
 func (x *UpdateRoleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_roles_proto_msgTypes[8]
+	mi := &file_chatto_api_v1_roles_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -576,7 +512,7 @@ func (x *UpdateRoleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateRoleRequest.ProtoReflect.Descriptor instead.
 func (*UpdateRoleRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_roles_proto_rawDescGZIP(), []int{8}
+	return file_chatto_api_v1_roles_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *UpdateRoleRequest) GetName() string {
@@ -618,7 +554,7 @@ type UpdateRoleResponse struct {
 
 func (x *UpdateRoleResponse) Reset() {
 	*x = UpdateRoleResponse{}
-	mi := &file_chatto_api_v1_roles_proto_msgTypes[9]
+	mi := &file_chatto_api_v1_roles_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -630,7 +566,7 @@ func (x *UpdateRoleResponse) String() string {
 func (*UpdateRoleResponse) ProtoMessage() {}
 
 func (x *UpdateRoleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_roles_proto_msgTypes[9]
+	mi := &file_chatto_api_v1_roles_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -643,7 +579,7 @@ func (x *UpdateRoleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateRoleResponse.ProtoReflect.Descriptor instead.
 func (*UpdateRoleResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_roles_proto_rawDescGZIP(), []int{9}
+	return file_chatto_api_v1_roles_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *UpdateRoleResponse) GetRole() *Role {
@@ -664,7 +600,7 @@ type DeleteRoleRequest struct {
 
 func (x *DeleteRoleRequest) Reset() {
 	*x = DeleteRoleRequest{}
-	mi := &file_chatto_api_v1_roles_proto_msgTypes[10]
+	mi := &file_chatto_api_v1_roles_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -676,7 +612,7 @@ func (x *DeleteRoleRequest) String() string {
 func (*DeleteRoleRequest) ProtoMessage() {}
 
 func (x *DeleteRoleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_roles_proto_msgTypes[10]
+	mi := &file_chatto_api_v1_roles_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -689,7 +625,7 @@ func (x *DeleteRoleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteRoleRequest.ProtoReflect.Descriptor instead.
 func (*DeleteRoleRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_roles_proto_rawDescGZIP(), []int{10}
+	return file_chatto_api_v1_roles_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *DeleteRoleRequest) GetName() string {
@@ -710,7 +646,7 @@ type DeleteRoleResponse struct {
 
 func (x *DeleteRoleResponse) Reset() {
 	*x = DeleteRoleResponse{}
-	mi := &file_chatto_api_v1_roles_proto_msgTypes[11]
+	mi := &file_chatto_api_v1_roles_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -722,7 +658,7 @@ func (x *DeleteRoleResponse) String() string {
 func (*DeleteRoleResponse) ProtoMessage() {}
 
 func (x *DeleteRoleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_roles_proto_msgTypes[11]
+	mi := &file_chatto_api_v1_roles_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -735,7 +671,7 @@ func (x *DeleteRoleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteRoleResponse.ProtoReflect.Descriptor instead.
 func (*DeleteRoleResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_roles_proto_rawDescGZIP(), []int{11}
+	return file_chatto_api_v1_roles_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *DeleteRoleResponse) GetDeleted() bool {
@@ -757,7 +693,7 @@ type ReorderRolesRequest struct {
 
 func (x *ReorderRolesRequest) Reset() {
 	*x = ReorderRolesRequest{}
-	mi := &file_chatto_api_v1_roles_proto_msgTypes[12]
+	mi := &file_chatto_api_v1_roles_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -769,7 +705,7 @@ func (x *ReorderRolesRequest) String() string {
 func (*ReorderRolesRequest) ProtoMessage() {}
 
 func (x *ReorderRolesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_roles_proto_msgTypes[12]
+	mi := &file_chatto_api_v1_roles_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -782,7 +718,7 @@ func (x *ReorderRolesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReorderRolesRequest.ProtoReflect.Descriptor instead.
 func (*ReorderRolesRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_roles_proto_rawDescGZIP(), []int{12}
+	return file_chatto_api_v1_roles_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ReorderRolesRequest) GetRoleNames() []string {
@@ -803,7 +739,7 @@ type ReorderRolesResponse struct {
 
 func (x *ReorderRolesResponse) Reset() {
 	*x = ReorderRolesResponse{}
-	mi := &file_chatto_api_v1_roles_proto_msgTypes[13]
+	mi := &file_chatto_api_v1_roles_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -815,7 +751,7 @@ func (x *ReorderRolesResponse) String() string {
 func (*ReorderRolesResponse) ProtoMessage() {}
 
 func (x *ReorderRolesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_roles_proto_msgTypes[13]
+	mi := &file_chatto_api_v1_roles_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -828,7 +764,7 @@ func (x *ReorderRolesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReorderRolesResponse.ProtoReflect.Descriptor instead.
 func (*ReorderRolesResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_roles_proto_rawDescGZIP(), []int{13}
+	return file_chatto_api_v1_roles_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ReorderRolesResponse) GetRoles() []*Role {
@@ -842,7 +778,7 @@ var File_chatto_api_v1_roles_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_roles_proto_rawDesc = "" +
 	"\n" +
-	"\x19chatto/api/v1/roles.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"\x85\x02\n" +
+	"\x19chatto/api/v1/roles.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x19chatto/api/v1/users.proto\"\x85\x02\n" +
 	"\x04Role\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12 \n" +
@@ -851,21 +787,17 @@ const file_chatto_api_v1_roles_proto_rawDesc = "" +
 	"\x12permission_denials\x18\x05 \x03(\tR\x11permissionDenials\x12\x1b\n" +
 	"\tis_system\x18\x06 \x01(\bR\bisSystem\x12\x1a\n" +
 	"\bposition\x18\a \x01(\x05R\bposition\x12\x1a\n" +
-	"\bpingable\x18\b \x01(\bR\bpingable\"S\n" +
-	"\bRoleUser\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
-	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
-	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\"\x12\n" +
+	"\bpingable\x18\b \x01(\bR\bpingable\"\x12\n" +
 	"\x10ListRolesRequest\"\xac\x01\n" +
 	"\x11ListRolesResponse\x12)\n" +
 	"\x05roles\x18\x01 \x03(\v2\x13.chatto.api.v1.RoleR\x05roles\x125\n" +
 	"\x17viewer_can_manage_roles\x18\x02 \x01(\bR\x14viewerCanManageRoles\x125\n" +
 	"\x17viewer_can_assign_roles\x18\x03 \x01(\bR\x14viewerCanAssignRoles\"-\n" +
 	"\x0eGetRoleRequest\x12\x1b\n" +
-	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\"\xd7\x01\n" +
+	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\"\xda\x01\n" +
 	"\x0fGetRoleResponse\x12'\n" +
-	"\x04role\x18\x01 \x01(\v2\x13.chatto.api.v1.RoleR\x04role\x12-\n" +
-	"\x05users\x18\x02 \x03(\v2\x17.chatto.api.v1.RoleUserR\x05users\x125\n" +
+	"\x04role\x18\x01 \x01(\v2\x13.chatto.api.v1.RoleR\x04role\x120\n" +
+	"\x05users\x18\x02 \x03(\v2\x1a.chatto.api.v1.UserSummaryR\x05users\x125\n" +
 	"\x17viewer_can_manage_roles\x18\x03 \x01(\bR\x14viewerCanManageRoles\x125\n" +
 	"\x17viewer_can_assign_roles\x18\x04 \x01(\bR\x14viewerCanAssignRoles\"\xa4\x01\n" +
 	"\x11CreateRoleRequest\x12\x1b\n" +
@@ -917,42 +849,42 @@ func file_chatto_api_v1_roles_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_roles_proto_rawDescData
 }
 
-var file_chatto_api_v1_roles_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_chatto_api_v1_roles_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_chatto_api_v1_roles_proto_goTypes = []any{
 	(*Role)(nil),                 // 0: chatto.api.v1.Role
-	(*RoleUser)(nil),             // 1: chatto.api.v1.RoleUser
-	(*ListRolesRequest)(nil),     // 2: chatto.api.v1.ListRolesRequest
-	(*ListRolesResponse)(nil),    // 3: chatto.api.v1.ListRolesResponse
-	(*GetRoleRequest)(nil),       // 4: chatto.api.v1.GetRoleRequest
-	(*GetRoleResponse)(nil),      // 5: chatto.api.v1.GetRoleResponse
-	(*CreateRoleRequest)(nil),    // 6: chatto.api.v1.CreateRoleRequest
-	(*CreateRoleResponse)(nil),   // 7: chatto.api.v1.CreateRoleResponse
-	(*UpdateRoleRequest)(nil),    // 8: chatto.api.v1.UpdateRoleRequest
-	(*UpdateRoleResponse)(nil),   // 9: chatto.api.v1.UpdateRoleResponse
-	(*DeleteRoleRequest)(nil),    // 10: chatto.api.v1.DeleteRoleRequest
-	(*DeleteRoleResponse)(nil),   // 11: chatto.api.v1.DeleteRoleResponse
-	(*ReorderRolesRequest)(nil),  // 12: chatto.api.v1.ReorderRolesRequest
-	(*ReorderRolesResponse)(nil), // 13: chatto.api.v1.ReorderRolesResponse
+	(*ListRolesRequest)(nil),     // 1: chatto.api.v1.ListRolesRequest
+	(*ListRolesResponse)(nil),    // 2: chatto.api.v1.ListRolesResponse
+	(*GetRoleRequest)(nil),       // 3: chatto.api.v1.GetRoleRequest
+	(*GetRoleResponse)(nil),      // 4: chatto.api.v1.GetRoleResponse
+	(*CreateRoleRequest)(nil),    // 5: chatto.api.v1.CreateRoleRequest
+	(*CreateRoleResponse)(nil),   // 6: chatto.api.v1.CreateRoleResponse
+	(*UpdateRoleRequest)(nil),    // 7: chatto.api.v1.UpdateRoleRequest
+	(*UpdateRoleResponse)(nil),   // 8: chatto.api.v1.UpdateRoleResponse
+	(*DeleteRoleRequest)(nil),    // 9: chatto.api.v1.DeleteRoleRequest
+	(*DeleteRoleResponse)(nil),   // 10: chatto.api.v1.DeleteRoleResponse
+	(*ReorderRolesRequest)(nil),  // 11: chatto.api.v1.ReorderRolesRequest
+	(*ReorderRolesResponse)(nil), // 12: chatto.api.v1.ReorderRolesResponse
+	(*UserSummary)(nil),          // 13: chatto.api.v1.UserSummary
 }
 var file_chatto_api_v1_roles_proto_depIdxs = []int32{
 	0,  // 0: chatto.api.v1.ListRolesResponse.roles:type_name -> chatto.api.v1.Role
 	0,  // 1: chatto.api.v1.GetRoleResponse.role:type_name -> chatto.api.v1.Role
-	1,  // 2: chatto.api.v1.GetRoleResponse.users:type_name -> chatto.api.v1.RoleUser
+	13, // 2: chatto.api.v1.GetRoleResponse.users:type_name -> chatto.api.v1.UserSummary
 	0,  // 3: chatto.api.v1.CreateRoleResponse.role:type_name -> chatto.api.v1.Role
 	0,  // 4: chatto.api.v1.UpdateRoleResponse.role:type_name -> chatto.api.v1.Role
 	0,  // 5: chatto.api.v1.ReorderRolesResponse.roles:type_name -> chatto.api.v1.Role
-	2,  // 6: chatto.api.v1.RoleService.ListRoles:input_type -> chatto.api.v1.ListRolesRequest
-	4,  // 7: chatto.api.v1.RoleService.GetRole:input_type -> chatto.api.v1.GetRoleRequest
-	6,  // 8: chatto.api.v1.RoleService.CreateRole:input_type -> chatto.api.v1.CreateRoleRequest
-	8,  // 9: chatto.api.v1.RoleService.UpdateRole:input_type -> chatto.api.v1.UpdateRoleRequest
-	10, // 10: chatto.api.v1.RoleService.DeleteRole:input_type -> chatto.api.v1.DeleteRoleRequest
-	12, // 11: chatto.api.v1.RoleService.ReorderRoles:input_type -> chatto.api.v1.ReorderRolesRequest
-	3,  // 12: chatto.api.v1.RoleService.ListRoles:output_type -> chatto.api.v1.ListRolesResponse
-	5,  // 13: chatto.api.v1.RoleService.GetRole:output_type -> chatto.api.v1.GetRoleResponse
-	7,  // 14: chatto.api.v1.RoleService.CreateRole:output_type -> chatto.api.v1.CreateRoleResponse
-	9,  // 15: chatto.api.v1.RoleService.UpdateRole:output_type -> chatto.api.v1.UpdateRoleResponse
-	11, // 16: chatto.api.v1.RoleService.DeleteRole:output_type -> chatto.api.v1.DeleteRoleResponse
-	13, // 17: chatto.api.v1.RoleService.ReorderRoles:output_type -> chatto.api.v1.ReorderRolesResponse
+	1,  // 6: chatto.api.v1.RoleService.ListRoles:input_type -> chatto.api.v1.ListRolesRequest
+	3,  // 7: chatto.api.v1.RoleService.GetRole:input_type -> chatto.api.v1.GetRoleRequest
+	5,  // 8: chatto.api.v1.RoleService.CreateRole:input_type -> chatto.api.v1.CreateRoleRequest
+	7,  // 9: chatto.api.v1.RoleService.UpdateRole:input_type -> chatto.api.v1.UpdateRoleRequest
+	9,  // 10: chatto.api.v1.RoleService.DeleteRole:input_type -> chatto.api.v1.DeleteRoleRequest
+	11, // 11: chatto.api.v1.RoleService.ReorderRoles:input_type -> chatto.api.v1.ReorderRolesRequest
+	2,  // 12: chatto.api.v1.RoleService.ListRoles:output_type -> chatto.api.v1.ListRolesResponse
+	4,  // 13: chatto.api.v1.RoleService.GetRole:output_type -> chatto.api.v1.GetRoleResponse
+	6,  // 14: chatto.api.v1.RoleService.CreateRole:output_type -> chatto.api.v1.CreateRoleResponse
+	8,  // 15: chatto.api.v1.RoleService.UpdateRole:output_type -> chatto.api.v1.UpdateRoleResponse
+	10, // 16: chatto.api.v1.RoleService.DeleteRole:output_type -> chatto.api.v1.DeleteRoleResponse
+	12, // 17: chatto.api.v1.RoleService.ReorderRoles:output_type -> chatto.api.v1.ReorderRolesResponse
 	12, // [12:18] is the sub-list for method output_type
 	6,  // [6:12] is the sub-list for method input_type
 	6,  // [6:6] is the sub-list for extension type_name
@@ -965,14 +897,15 @@ func file_chatto_api_v1_roles_proto_init() {
 	if File_chatto_api_v1_roles_proto != nil {
 		return
 	}
-	file_chatto_api_v1_roles_proto_msgTypes[8].OneofWrappers = []any{}
+	file_chatto_api_v1_users_proto_init()
+	file_chatto_api_v1_roles_proto_msgTypes[7].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_roles_proto_rawDesc), len(file_chatto_api_v1_roles_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

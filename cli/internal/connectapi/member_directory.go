@@ -27,7 +27,7 @@ func (s *memberDirectoryService) ListServerMembers(ctx context.Context, req *con
 		return nil, err
 	}
 
-	limit, offset := apiPagination(req.Msg.GetLimit(), req.Msg.GetOffset(), defaultMemberDirectoryLimit, maxMemberDirectoryLimit)
+	limit, offset := apiPagination(req.Msg.GetPage(), defaultMemberDirectoryLimit, maxMemberDirectoryLimit)
 	members, totalCount, err := s.api.core.GetServerMembers(ctx, req.Msg.GetSearch(), limit, offset)
 	if err != nil {
 		return nil, connectError(err)
@@ -50,9 +50,8 @@ func (s *memberDirectoryService) ListServerMembers(ctx context.Context, req *con
 	}
 
 	return connect.NewResponse(&apiv1.ListServerMembersResponse{
-		Members:    out,
-		TotalCount: int32(totalCount),
-		HasMore:    offset+len(out) < totalCount,
+		Members: out,
+		Page:    apiPageInfo(totalCount, offset+len(out) < totalCount),
 	}), nil
 }
 
@@ -88,7 +87,7 @@ func (s *memberDirectoryService) ListRoomMembers(ctx context.Context, req *conne
 		return left < right
 	})
 
-	limit, offset := apiPagination(req.Msg.GetLimit(), req.Msg.GetOffset(), defaultMemberDirectoryLimit, maxMemberDirectoryLimit)
+	limit, offset := apiPagination(req.Msg.GetPage(), defaultMemberDirectoryLimit, maxMemberDirectoryLimit)
 	page, totalCount, hasMore := paginateDirectoryUsers(users, limit, offset)
 	out := make([]*apiv1.DirectoryMember, 0, len(page))
 	for _, user := range page {
@@ -100,9 +99,8 @@ func (s *memberDirectoryService) ListRoomMembers(ctx context.Context, req *conne
 	}
 
 	return connect.NewResponse(&apiv1.ListRoomMembersResponse{
-		Members:    out,
-		TotalCount: int32(totalCount),
-		HasMore:    hasMore,
+		Members: out,
+		Page:    apiPageInfo(totalCount, hasMore),
 	}), nil
 }
 

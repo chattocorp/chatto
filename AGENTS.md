@@ -9,6 +9,7 @@ path-specific guidance.
 - [cli/AGENTS.md](cli/AGENTS.md) — Go backend, ConnectRPC, NATS/JetStream, authz, live events, backup/restore, and backend tests.
 - [apps/frontend/AGENTS.md](apps/frontend/AGENTS.md) — SvelteKit frontend, Tailwind, i18n, browser verification, frontend tests, e2e, and Storybook.
 - [proto/AGENTS.md](proto/AGENTS.md) — protobuf and generated public API reference guidance.
+- [proto/chatto/api/v1/AGENTS.md](proto/chatto/api/v1/AGENTS.md) — public ConnectRPC API consistency rules for `chatto.api.v1`.
 - [apps/docs-website/AGENTS.md](apps/docs-website/AGENTS.md) — public docs website guidance.
 - `.agents/skills/**` — workflow skills. Use them when the task names one or clearly matches one, especially `chatto-architecture`, `glossary`, Svelte skills, ADR/FDR skills, and security/release workflows.
 - `docs/fdr/INDEX.md` — feature behavior and rationale.
@@ -22,6 +23,9 @@ path-specific guidance.
 - The project is pre-1.0, so breaking changes can be acceptable, but storage,
   protobuf, discovery, and client compatibility still need an explicit plan.
 - Some self-hosters track `:latest`; assume mixed deployed versions can exist.
+- The ConnectRPC API is still settling. Prefer making `chatto.api.v1` a clean,
+  broad base API with explicit compatibility notes over moving ordinary
+  frontend-used features into an app-only namespace.
 
 ## Prime Directives
 
@@ -86,6 +90,18 @@ For ad-hoc tool invocations, use `mise x -- ...` rather than assuming `go`,
 
 ## Public API And Compatibility
 
+- Public ConnectRPC services should live in `chatto.api.v1` unless there is a
+  clear reason a method is not suitable for external integrations. App-specific
+  API should be exceptional, explicitly documented, and still stable enough for
+  mixed bundled client/server versions.
+- Reuse public protobuf shapes for repeated semantics. Offset list RPCs should
+  use `PageRequest page` and return `PageInfo page`; singular lookups should
+  return `NOT_FOUND` when absence is the error result, while batch/list RPCs can
+  omit missing items or return empty lists.
+- Reuse canonical API user shapes instead of adding service-local copies:
+  `UserSummary` for lightweight render/cache references,
+  `UserPresenceSummary` when presence/custom status is included, and
+  `DirectoryMember` for directory/member rows with roles.
 - Persisted protobuf messages in `EVT`, `RUNTIME_STATE`, `ENCRYPTION_KEYS`, and
   other JetStream resources are comparatively stable. Do not renumber fields or
   change field types; prefer additive evolution and migrations/repair code.

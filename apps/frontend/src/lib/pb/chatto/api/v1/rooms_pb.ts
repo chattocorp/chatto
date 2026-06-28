@@ -6,6 +6,7 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { DirectoryMember } from "./member_directory_pb.js";
+import { PageInfo, PageRequest } from "./pagination_pb.js";
 
 /**
  * Kind of room represented by the public API.
@@ -1168,6 +1169,13 @@ export class ListRoomBansRequest extends Message<ListRoomBansRequest> {
    */
   roomId = "";
 
+  /**
+   * Page request. Defaults are applied when absent or limit is zero.
+   *
+   * @generated from field: chatto.api.v1.PageRequest page = 2;
+   */
+  page?: PageRequest;
+
   constructor(data?: PartialMessage<ListRoomBansRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1177,6 +1185,7 @@ export class ListRoomBansRequest extends Message<ListRoomBansRequest> {
   static readonly typeName = "chatto.api.v1.ListRoomBansRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "page", kind: "message", T: PageRequest },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListRoomBansRequest {
@@ -1209,6 +1218,13 @@ export class ListRoomBansResponse extends Message<ListRoomBansResponse> {
    */
   bans: RoomBan[] = [];
 
+  /**
+   * Page metadata.
+   *
+   * @generated from field: chatto.api.v1.PageInfo page = 2;
+   */
+  page?: PageInfo;
+
   constructor(data?: PartialMessage<ListRoomBansResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1218,6 +1234,7 @@ export class ListRoomBansResponse extends Message<ListRoomBansResponse> {
   static readonly typeName = "chatto.api.v1.ListRoomBansResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "bans", kind: "message", T: RoomBan, repeated: true },
+    { no: 2, name: "page", kind: "message", T: PageInfo },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListRoomBansResponse {

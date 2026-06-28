@@ -3,31 +3,16 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
+import "chatto/api/v1/link_previews.proto";
+import "chatto/api/v1/users.proto";
 import "google/protobuf/timestamp.proto";
-
-// User data included with room timeline events.
-//
-// Timeline events reference users by ID; clients can resolve those IDs through
-// the includes block returned with each page.
-message RoomTimelineUser {
-  // Stable user ID.
-  string id = 1;
-  // Login name.
-  string login = 2;
-  // Display name, when set.
-  string display_name = 3;
-  // True when the user account has been deleted.
-  bool deleted = 4;
-  // Avatar image URL, when available.
-  string avatar_url = 5;
-}
 
 // Related entities included beside timeline events.
 //
 // Includes avoid repeating the same user data on every event in a page.
 message RoomTimelineIncludes {
   // Users keyed by user ID.
-  map<string, RoomTimelineUser> users = 1;
+  map<string, UserSummary> users = 1;
 }
 
 // Time-limited URL for a room timeline asset.
@@ -114,27 +99,6 @@ message RoomTimelineAttachment {
   RoomTimelineVideoProcessing video_processing = 8;
 }
 
-// Link preview metadata extracted from a message body.
-//
-// Clients should treat all fields as optional because preview extraction depends
-// on the linked site and the embed provider.
-message RoomTimelineLinkPreview {
-  // Previewed URL.
-  string url = 1;
-  // Page or embed title.
-  string title = 2;
-  // Page or embed description.
-  string description = 3;
-  // Site name, when known.
-  string site_name = 4;
-  // Preview image URL, when available.
-  string image_url = 5;
-  // Embed provider or type, when recognized.
-  string embed_type = 6;
-  // Provider-specific embed ID, when recognized.
-  string embed_id = 7;
-}
-
 // Aggregated reaction state for one emoji on one event.
 //
 // The summary is scoped to the current event and includes whether the current
@@ -169,7 +133,7 @@ message RoomTimelineMessagePosted {
   // Attachments sent with the message.
   repeated RoomTimelineAttachment attachments = 4;
   // Link preview extracted for the message, when available.
-  RoomTimelineLinkPreview link_preview = 5;
+  LinkPreview link_preview = 5;
   // Time when the message was last edited.
   google.protobuf.Timestamp updated_at = 6;
   // Event ID this message directly replies to, when this is a reply.

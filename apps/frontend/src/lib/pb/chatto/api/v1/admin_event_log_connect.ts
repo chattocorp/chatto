@@ -37,7 +37,8 @@ export const AdminEventLogService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Reads one durable EVT entry by stream sequence.
+     * Reads one durable EVT entry by stream sequence. Returns NOT_FOUND when the
+     * requested sequence does not exist.
      *
      * @generated from rpc chatto.api.v1.AdminEventLogService.GetEvent
      */

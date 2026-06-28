@@ -5,42 +5,18 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
-import { AccountUser } from "./account_pb.js";
+import { UserSummary } from "./users_pb.js";
+import { PageInfo, PageRequest } from "./pagination_pb.js";
 
 /**
  * User row returned by server-admin member management reads.
  *
+ * The embedded user summary carries public identity fields; remaining fields are
+ * admin/member metadata with visibility controlled by the service.
+ *
  * @generated from message chatto.api.v1.AdminMember
  */
 export class AdminMember extends Message<AdminMember> {
-  /**
-   * Stable user ID.
-   *
-   * @generated from field: string id = 1;
-   */
-  id = "";
-
-  /**
-   * Login identifier.
-   *
-   * @generated from field: string login = 2;
-   */
-  login = "";
-
-  /**
-   * Display name shown in Chatto.
-   *
-   * @generated from field: string display_name = 3;
-   */
-  displayName = "";
-
-  /**
-   * Optional avatar URL.
-   *
-   * @generated from field: optional string avatar_url = 4;
-   */
-  avatarUrl?: string;
-
   /**
    * Explicit server role assignments. The implicit everyone role is omitted.
    *
@@ -54,13 +30,6 @@ export class AdminMember extends Message<AdminMember> {
    * @generated from field: google.protobuf.Timestamp created_at = 6;
    */
   createdAt?: Timestamp;
-
-  /**
-   * Whether the account has been deleted.
-   *
-   * @generated from field: bool deleted = 7;
-   */
-  deleted = false;
 
   /**
    * Whether the caller may see that the user has a verified email and one exists.
@@ -90,6 +59,13 @@ export class AdminMember extends Message<AdminMember> {
    */
   lastLoginChange?: Timestamp;
 
+  /**
+   * Public identity fields for this user.
+   *
+   * @generated from field: chatto.api.v1.UserSummary user = 12;
+   */
+  user?: UserSummary;
+
   constructor(data?: PartialMessage<AdminMember>) {
     super();
     proto3.util.initPartial(data, this);
@@ -98,17 +74,13 @@ export class AdminMember extends Message<AdminMember> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.AdminMember";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "avatar_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 5, name: "roles", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 6, name: "created_at", kind: "message", T: Timestamp },
-    { no: 7, name: "deleted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 8, name: "has_verified_email", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 9, name: "verified_emails", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 10, name: "viewer_can_delete_account", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 11, name: "last_login_change", kind: "message", T: Timestamp },
+    { no: 12, name: "user", kind: "message", T: UserSummary },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminMember {
@@ -257,25 +229,18 @@ export class AdminMemberRole extends Message<AdminMemberRole> {
  */
 export class ListMembersRequest extends Message<ListMembersRequest> {
   /**
-   * Optional case-insensitive login/display-name search term.
+   * Case-insensitive login/display-name search term. Empty disables search.
    *
-   * @generated from field: optional string search = 1;
+   * @generated from field: string search = 1;
    */
-  search?: string;
+  search = "";
 
   /**
-   * Maximum rows to return. Defaults to 20 and is capped at 100.
+   * Page request. Defaults to 20 results when absent or limit is zero.
    *
-   * @generated from field: int32 limit = 2;
+   * @generated from field: chatto.api.v1.PageRequest page = 4;
    */
-  limit = 0;
-
-  /**
-   * Number of matching rows to skip.
-   *
-   * @generated from field: int32 offset = 3;
-   */
-  offset = 0;
+  page?: PageRequest;
 
   constructor(data?: PartialMessage<ListMembersRequest>) {
     super();
@@ -285,9 +250,8 @@ export class ListMembersRequest extends Message<ListMembersRequest> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.ListMembersRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "search", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 2, name: "limit", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 3, name: "offset", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 1, name: "search", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "page", kind: "message", T: PageRequest },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListMembersRequest {
@@ -328,18 +292,11 @@ export class ListMembersResponse extends Message<ListMembersResponse> {
   roles: AdminMemberRoleSummary[] = [];
 
   /**
-   * Total matching user count before pagination.
+   * Page metadata.
    *
-   * @generated from field: int32 total_count = 3;
+   * @generated from field: chatto.api.v1.PageInfo page = 5;
    */
-  totalCount = 0;
-
-  /**
-   * Whether more matching rows exist after this page.
-   *
-   * @generated from field: bool has_more = 4;
-   */
-  hasMore = false;
+  page?: PageInfo;
 
   constructor(data?: PartialMessage<ListMembersResponse>) {
     super();
@@ -351,8 +308,7 @@ export class ListMembersResponse extends Message<ListMembersResponse> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "users", kind: "message", T: AdminMember, repeated: true },
     { no: 2, name: "roles", kind: "message", T: AdminMemberRoleSummary, repeated: true },
-    { no: 3, name: "total_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 4, name: "has_more", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 5, name: "page", kind: "message", T: PageInfo },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListMembersResponse {
@@ -420,7 +376,7 @@ export class GetMemberRequest extends Message<GetMemberRequest> {
  */
 export class GetMemberResponse extends Message<GetMemberResponse> {
   /**
-   * Member record, when found.
+   * Member record.
    *
    * @generated from field: chatto.api.v1.AdminMember member = 1;
    */
@@ -740,9 +696,9 @@ export class UpdateUserResponse extends Message<UpdateUserResponse> {
   /**
    * Updated user profile.
    *
-   * @generated from field: chatto.api.v1.AccountUser user = 1;
+   * @generated from field: chatto.api.v1.UserSummary user = 1;
    */
-  user?: AccountUser;
+  user?: UserSummary;
 
   constructor(data?: PartialMessage<UpdateUserResponse>) {
     super();
@@ -752,7 +708,7 @@ export class UpdateUserResponse extends Message<UpdateUserResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.UpdateUserResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "user", kind: "message", T: AccountUser },
+    { no: 1, name: "user", kind: "message", T: UserSummary },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateUserResponse {

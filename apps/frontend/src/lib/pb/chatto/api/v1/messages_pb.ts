@@ -5,99 +5,8 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
+import { LinkPreview } from "./link_previews_pb.js";
 import { RoomTimelineEvent, RoomTimelineIncludes } from "./room_timeline_pb.js";
-
-/**
- * Link preview metadata submitted with a posted message.
- *
- * The server validates and stores this data with the message body. Clients
- * should omit this field when no preview was selected.
- *
- * @generated from message chatto.api.v1.MessageLinkPreviewInput
- */
-export class MessageLinkPreviewInput extends Message<MessageLinkPreviewInput> {
-  /**
-   * Previewed URL.
-   *
-   * @generated from field: string url = 1;
-   */
-  url = "";
-
-  /**
-   * Page or embed title.
-   *
-   * @generated from field: string title = 2;
-   */
-  title = "";
-
-  /**
-   * Page or embed description.
-   *
-   * @generated from field: string description = 3;
-   */
-  description = "";
-
-  /**
-   * Site name, when known.
-   *
-   * @generated from field: string site_name = 4;
-   */
-  siteName = "";
-
-  /**
-   * Existing server asset ID for the preview image, when available.
-   *
-   * @generated from field: string image_asset_id = 5;
-   */
-  imageAssetId = "";
-
-  /**
-   * Embed provider or type, when recognized.
-   *
-   * @generated from field: string embed_type = 6;
-   */
-  embedType = "";
-
-  /**
-   * Provider-specific embed ID, when recognized.
-   *
-   * @generated from field: string embed_id = 7;
-   */
-  embedId = "";
-
-  constructor(data?: PartialMessage<MessageLinkPreviewInput>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.MessageLinkPreviewInput";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "title", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "site_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 5, name: "image_asset_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 6, name: "embed_type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 7, name: "embed_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MessageLinkPreviewInput {
-    return new MessageLinkPreviewInput().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MessageLinkPreviewInput {
-    return new MessageLinkPreviewInput().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MessageLinkPreviewInput {
-    return new MessageLinkPreviewInput().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: MessageLinkPreviewInput | PlainMessage<MessageLinkPreviewInput> | undefined, b: MessageLinkPreviewInput | PlainMessage<MessageLinkPreviewInput> | undefined): boolean {
-    return proto3.util.equals(MessageLinkPreviewInput, a, b);
-  }
-}
 
 /**
  * Attachment bytes submitted with a message post.
@@ -217,11 +126,12 @@ export class PostMessageRequest extends Message<PostMessageRequest> {
   mentionConfirmationToken = "";
 
   /**
-   * Link preview selected by the client.
+   * Link preview selected by the client. Server response-only LinkPreview
+   * fields are ignored.
    *
-   * @generated from field: chatto.api.v1.MessageLinkPreviewInput link_preview = 8;
+   * @generated from field: chatto.api.v1.LinkPreview link_preview = 8;
    */
-  linkPreview?: MessageLinkPreviewInput;
+  linkPreview?: LinkPreview;
 
   /**
    * Browser-uploaded attachments to include with the message.
@@ -245,7 +155,7 @@ export class PostMessageRequest extends Message<PostMessageRequest> {
     { no: 5, name: "in_reply_to", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 6, name: "also_send_to_channel", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 7, name: "mention_confirmation_token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 8, name: "link_preview", kind: "message", T: MessageLinkPreviewInput },
+    { no: 8, name: "link_preview", kind: "message", T: LinkPreview },
     { no: 9, name: "attachments", kind: "message", T: MessageAttachmentUpload, repeated: true },
   ]);
 

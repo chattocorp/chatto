@@ -2,11 +2,11 @@ syntax = "proto3";
 
 package chatto.api.v1;
 
-// Live presence status a client can report for the current user.
+// Live presence status returned by public read APIs.
 //
-// Offline is not a reportable status. Clients that want the user to appear
-// offline should stop reporting presence and let the server's live presence
-// record expire.
+// Offline is a read-side state only. Clients cannot report Offline through
+// PresenceService.ReportPresence; they should stop reporting presence and let
+// the server's live presence record expire.
 enum PresenceStatus {
   // No presence status was specified.
   PRESENCE_STATUS_UNSPECIFIED = 0;
@@ -16,11 +16,13 @@ enum PresenceStatus {
   PRESENCE_STATUS_AWAY = 2;
   // The user does not want notifications while this live status is active.
   PRESENCE_STATUS_DO_NOT_DISTURB = 3;
+  // The user has no active live presence record.
+  PRESENCE_STATUS_OFFLINE = 4;
 }
 
 // Request to report the current user's live presence status.
 message ReportPresenceRequest {
-  // Live status to report for the authenticated user.
+  // Live status to report for the authenticated user. Offline is rejected.
   PresenceStatus status = 1;
   // True when this report comes from a deliberate user selection rather than
   // automatic idle/refresh reporting. Automatic reports do not overwrite an
@@ -30,7 +32,7 @@ message ReportPresenceRequest {
 
 // Result of reporting live presence.
 message ReportPresenceResponse {
-  // Status accepted and stored by the server.
+  // Reportable status accepted and stored by the server.
   PresenceStatus status = 1;
 }
 

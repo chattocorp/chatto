@@ -10,14 +10,14 @@ import {
   RoomTimelinePage,
   RoomTimelineVideoProcessingStatus
 } from '$lib/pb/chatto/api/v1/room_timeline_pb';
+import type { LinkPreview } from '$lib/pb/chatto/api/v1/link_previews_pb';
 import type {
   RoomTimelineAssetUrl,
   RoomTimelineEvent,
-  RoomTimelineLinkPreview,
   RoomTimelineMessagePosted,
-  RoomTimelineUser,
   RoomTimelineVideoProcessing
 } from '$lib/pb/chatto/api/v1/room_timeline_pb';
+import type { UserSummary } from '$lib/pb/chatto/api/v1/users_pb';
 
 export type RoomTimelineAPIConfig = {
   serverId?: string;
@@ -162,7 +162,7 @@ export function createRoomTimelineAPI(config: RoomTimelineAPIConfig): RoomTimeli
 
 function primeTimelineUserIncludes(
   serverId: string | undefined,
-  users: Record<string, RoomTimelineUser>
+  users: Record<string, UserSummary>
 ) {
   primeUserSummaryCache(
     serverId,
@@ -201,7 +201,7 @@ export function roomTimelinePageToEventConnectionPage(page: RoomTimelinePage): E
 
 export function roomTimelineEventToRawEvent(
   event: RoomTimelineEvent,
-  users: Record<string, RoomTimelineUser>
+  users: Record<string, UserSummary>
 ): RawEvent | null {
   const payload = timelinePayload(event, users);
   if (!payload) return null;
@@ -216,7 +216,7 @@ export function roomTimelineEventToRawEvent(
 
 function timelinePayload(
   event: RoomTimelineEvent,
-  users: Record<string, RoomTimelineUser>
+  users: Record<string, UserSummary>
 ): RoomEventView['event'] | null {
   switch (event.event.case) {
     case 'messagePosted':
@@ -263,7 +263,7 @@ function timelinePayload(
 
 function messagePostedPayload(
   message: RoomTimelineMessagePosted,
-  users: Record<string, RoomTimelineUser>
+  users: Record<string, UserSummary>
 ) {
   return {
     kind: RoomEventKind.MessagePosted,
@@ -295,7 +295,7 @@ function messagePostedPayload(
   };
 }
 
-function userView(userId: string, users: Record<string, RoomTimelineUser>) {
+function userView(userId: string, users: Record<string, UserSummary>) {
   if (!userId) return null;
   const user = users[userId];
   if (!user) {
@@ -376,7 +376,7 @@ function videoProcessingStatusView(status: RoomTimelineVideoProcessingStatus) {
   }
 }
 
-function linkPreviewView(preview?: RoomTimelineLinkPreview) {
+function linkPreviewView(preview?: LinkPreview) {
   if (!preview) return null;
   return {
     url: preview.url,

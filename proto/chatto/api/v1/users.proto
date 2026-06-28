@@ -4,6 +4,8 @@ package chatto.api.v1;
 
 import "buf/validate/validate.proto";
 import "chatto/api/v1/member_directory.proto";
+import "chatto/api/v1/presence.proto";
+import "chatto/api/v1/user_status.proto";
 
 // Fit mode used when generating transformed user avatar URLs.
 enum UserAvatarFitMode {
@@ -42,7 +44,25 @@ message UserSummary {
   // True when the user account has been deleted.
   bool deleted = 4;
   // Avatar image URL, when available.
-  string avatar_url = 5;
+  optional string avatar_url = 5;
+}
+
+// Lightweight public user data plus live profile state.
+message UserPresenceSummary {
+  // Stable user ID.
+  string id = 1;
+  // Login name.
+  string login = 2;
+  // Display name, when set.
+  string display_name = 3;
+  // True when the user account has been deleted.
+  bool deleted = 4;
+  // Avatar image URL, when available.
+  optional string avatar_url = 5;
+  // Current live presence status.
+  PresenceStatus presence_status = 6;
+  // Custom profile status, when set.
+  CustomUserStatus custom_status = 7;
 }
 
 // Request one user by stable user ID.
@@ -83,7 +103,7 @@ message GetUserResponse {
 
 // Public authenticated user profile response for login lookup.
 message GetUserByLoginResponse {
-  // Requested user. Absent when the login is unknown.
+  // Requested user.
   DirectoryMember user = 1;
 }
 
@@ -98,7 +118,7 @@ message BatchGetUsersResponse {
 service UserService {
   // Gets a user by stable ID. Returns NOT_FOUND when the ID is unknown.
   rpc GetUser(GetUserRequest) returns (GetUserResponse);
-  // Gets a user by login. Returns an empty response when the login is unknown.
+  // Gets a user by login. Returns NOT_FOUND when the login is unknown.
   rpc GetUserByLogin(GetUserByLoginRequest) returns (GetUserByLoginResponse);
   // Gets lightweight summaries for multiple users, suitable for frontend cache
   // misses when rendering event-focused payloads.

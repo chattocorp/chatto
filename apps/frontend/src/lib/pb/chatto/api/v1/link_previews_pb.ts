@@ -48,11 +48,16 @@ export class FetchLinkPreviewRequest extends Message<FetchLinkPreviewRequest> {
 }
 
 /**
- * Link preview metadata returned to clients before posting a message.
+ * Link preview metadata used by message composers and room timeline events.
  *
- * @generated from message chatto.api.v1.FetchedLinkPreview
+ * On message-post requests, the server accepts url, title, description,
+ * site_name, image_asset_id, embed_type, and embed_id. The image_url field is
+ * response-only and ignored on input. Clients should treat optional metadata as
+ * unavailable when absent.
+ *
+ * @generated from message chatto.api.v1.LinkPreview
  */
-export class FetchedLinkPreview extends Message<FetchedLinkPreview> {
+export class LinkPreview extends Message<LinkPreview> {
   /**
    * Previewed URL.
    *
@@ -63,84 +68,86 @@ export class FetchedLinkPreview extends Message<FetchedLinkPreview> {
   /**
    * Page or embed title.
    *
-   * @generated from field: string title = 2;
+   * @generated from field: optional string title = 2;
    */
-  title = "";
+  title?: string;
 
   /**
    * Page or embed description.
    *
-   * @generated from field: string description = 3;
+   * @generated from field: optional string description = 3;
    */
-  description = "";
+  description?: string;
 
   /**
-   * Preview image URL, when available.
+   * Preview image URL, when available. Response-only; ignored on message-post
+   * input.
    *
-   * @generated from field: string image_url = 4;
+   * @generated from field: optional string image_url = 4;
    */
-  imageUrl = "";
+  imageUrl?: string;
 
   /**
-   * Existing server asset ID for the preview image, when available.
+   * Existing server asset ID for the preview image, when selected by the client
+   * or stored with the message.
    *
-   * @generated from field: string image_asset_id = 5;
+   * @generated from field: optional string image_asset_id = 5;
    */
-  imageAssetId = "";
+  imageAssetId?: string;
 
   /**
    * Site name, when known.
    *
-   * @generated from field: string site_name = 6;
+   * @generated from field: optional string site_name = 6;
    */
-  siteName = "";
+  siteName?: string;
 
   /**
    * Embed provider or type, when recognized.
    *
-   * @generated from field: string embed_type = 7;
+   * @generated from field: optional string embed_type = 7;
    */
-  embedType = "";
+  embedType?: string;
 
   /**
    * Provider-specific embed ID, when recognized.
    *
-   * @generated from field: string embed_id = 8;
+   * @generated from field: optional string embed_id = 8;
    */
-  embedId = "";
+  embedId?: string;
 
-  constructor(data?: PartialMessage<FetchedLinkPreview>) {
+  constructor(data?: PartialMessage<LinkPreview>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.FetchedLinkPreview";
+  static readonly typeName = "chatto.api.v1.LinkPreview";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "title", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "image_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 5, name: "image_asset_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 6, name: "site_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 7, name: "embed_type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 8, name: "embed_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "title", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 4, name: "image_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 5, name: "image_asset_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 6, name: "site_name", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 7, name: "embed_type", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 8, name: "embed_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FetchedLinkPreview {
-    return new FetchedLinkPreview().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LinkPreview {
+    return new LinkPreview().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FetchedLinkPreview {
-    return new FetchedLinkPreview().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): LinkPreview {
+    return new LinkPreview().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FetchedLinkPreview {
-    return new FetchedLinkPreview().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): LinkPreview {
+    return new LinkPreview().fromJsonString(jsonString, options);
   }
 
-  static equals(a: FetchedLinkPreview | PlainMessage<FetchedLinkPreview> | undefined, b: FetchedLinkPreview | PlainMessage<FetchedLinkPreview> | undefined): boolean {
-    return proto3.util.equals(FetchedLinkPreview, a, b);
+  static equals(a: LinkPreview | PlainMessage<LinkPreview> | undefined, b: LinkPreview | PlainMessage<LinkPreview> | undefined): boolean {
+    return proto3.util.equals(LinkPreview, a, b);
   }
 }
 
@@ -153,9 +160,9 @@ export class FetchLinkPreviewResponse extends Message<FetchLinkPreviewResponse> 
   /**
    * Preview metadata, or absent when the URL cannot be previewed.
    *
-   * @generated from field: chatto.api.v1.FetchedLinkPreview preview = 1;
+   * @generated from field: chatto.api.v1.LinkPreview preview = 1;
    */
-  preview?: FetchedLinkPreview;
+  preview?: LinkPreview;
 
   constructor(data?: PartialMessage<FetchLinkPreviewResponse>) {
     super();
@@ -165,7 +172,7 @@ export class FetchLinkPreviewResponse extends Message<FetchLinkPreviewResponse> 
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.FetchLinkPreviewResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "preview", kind: "message", T: FetchedLinkPreview },
+    { no: 1, name: "preview", kind: "message", T: LinkPreview },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FetchLinkPreviewResponse {

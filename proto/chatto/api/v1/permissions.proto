@@ -130,7 +130,7 @@ message GetRolePermissionMatrixRequest {
 
 // Response containing one role's permission matrix.
 message GetRolePermissionMatrixResponse {
-  // Requested matrix. Nil when the role does not exist.
+  // Requested matrix.
   RolePermissionMatrix matrix = 1;
 }
 
@@ -264,7 +264,8 @@ message SetUserPermissionResponse {
 service PermissionService {
   // Gets the role-permission matrix for a single tier.
   rpc GetRolePermissionTierMatrix(GetRolePermissionTierMatrixRequest) returns (GetRolePermissionTierMatrixResponse);
-  // Gets one role's full permission matrix. Requires role.manage.
+  // Gets one role's full permission matrix. Requires role.manage. Returns
+  // NOT_FOUND when the role does not exist.
   rpc GetRolePermissionMatrix(GetRolePermissionMatrixRequest) returns (GetRolePermissionMatrixResponse);
   // Gets one user's full permission matrix. Requires user.manage-permissions.
   rpc GetUserPermissionMatrix(GetUserPermissionMatrixRequest) returns (GetUserPermissionMatrixResponse);

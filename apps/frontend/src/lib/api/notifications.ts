@@ -2,10 +2,11 @@ import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import { NotificationService } from '$lib/pb/chatto/api/v1/notifications_connect';
 import type {
+  ListRoomNotificationsResponse,
   ListNotificationsResponse,
-  NotificationActor as APINotificationActor,
   NotificationItem as APINotificationItem
 } from '$lib/pb/chatto/api/v1/notifications_pb';
+import type { UserPresenceSummary as APIUserPresenceSummary } from '$lib/pb/chatto/api/v1/users_pb';
 import { PresenceStatus as APIPresenceStatus } from '$lib/pb/chatto/api/v1/presence_pb';
 import { PresenceStatus } from '$lib/render/types';
 
@@ -104,13 +105,13 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
   return {
     async listNotifications(limit = 50, offset = 0): Promise<NotificationPage> {
       return notificationPage(
-        await client.listNotifications({ limit, offset }, { headers: headers() })
+        await client.listNotifications({ page: { limit, offset } }, { headers: headers() })
       );
     },
 
     async listRoomNotifications(roomId: string, limit = 1, offset = 0): Promise<NotificationPage> {
       return notificationPage(
-        await client.listRoomNotifications({ roomId, limit, offset }, { headers: headers() })
+        await client.listRoomNotifications({ roomId, page: { limit, offset } }, { headers: headers() })
       );
     },
 
@@ -138,14 +139,14 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
 
 export type NotificationAPI = ReturnType<typeof createNotificationAPI>;
 
-function notificationPage(response: ListNotificationsResponse): NotificationPage {
+function notificationPage(response: ListNotificationsResponse | ListRoomNotificationsResponse): NotificationPage {
   return {
     items: response.items.flatMap((item) => {
       const mapped = notificationItem(item);
       return mapped ? [mapped] : [];
     }),
-    totalCount: response.totalCount,
-    hasMore: response.hasMore,
+    totalCount: Number(response.page?.totalCount ?? 0),
+    hasMore: response.page?.hasMore ?? false,
     serverName: response.serverName || null
   };
 }
@@ -200,7 +201,7 @@ function notificationItem(item: APINotificationItem): NotificationItem | null {
   }
 }
 
-function notificationActor(actor: APINotificationActor | undefined): NotificationActor | null {
+function notificationActor(actor: APIUserPresenceSummary | undefined): NotificationActor | null {
   if (!actor) return null;
   return {
     id: actor.id,
@@ -226,8 +227,10 @@ function apiPresenceStatus(status: APIPresenceStatus): PresenceStatus {
     case APIPresenceStatus.DO_NOT_DISTURB:
       return PresenceStatus.DoNotDisturb;
     case APIPresenceStatus.ONLINE:
+      return PresenceStatus.Online;
+    case APIPresenceStatus.OFFLINE:
     case APIPresenceStatus.UNSPECIFIED:
     default:
-      return PresenceStatus.Online;
+      return PresenceStatus.Offline;
   }
 }

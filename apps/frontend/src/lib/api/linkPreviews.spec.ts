@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Code, ConnectError } from '@connectrpc/connect';
-import { FetchedLinkPreview, FetchLinkPreviewResponse } from '$lib/pb/chatto/api/v1/link_previews_pb';
+import { LinkPreview, FetchLinkPreviewResponse } from '$lib/pb/chatto/api/v1/link_previews_pb';
 import { createLinkPreviewAPI } from './linkPreviews';
 
 const mocks = vi.hoisted(() => ({
@@ -43,7 +43,7 @@ describe('createLinkPreviewAPI', () => {
   it('fetches a preview with bearer auth and maps optional fields', async () => {
     mocks.fetchLinkPreview.mockResolvedValue(
       new FetchLinkPreviewResponse({
-        preview: new FetchedLinkPreview({
+        preview: new LinkPreview({
           url: 'https://example.com/story',
           title: 'Story',
           description: 'Description',

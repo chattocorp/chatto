@@ -35,6 +35,12 @@ export type RoomBanSummary = {
   expiresAt: string | null;
 };
 
+export type RoomBanList = {
+  bans: RoomBanSummary[];
+  totalCount: number;
+  hasMore: boolean;
+};
+
 export type RoomCommandAPI = ReturnType<typeof createRoomCommandAPI>;
 
 const ROOM_NAME_MAX_LENGTH = 30;
@@ -197,10 +203,20 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
       }
     },
 
-    async listRoomBans(roomId?: string): Promise<RoomBanSummary[]> {
+    async listRoomBans(input: { roomId?: string; limit?: number; offset?: number } = {}): Promise<RoomBanList> {
       try {
-        const response = await rooms.listRoomBans({ roomId: roomId ?? '' }, { headers: headers() });
-        return response.bans.map(roomBan);
+        const response = await rooms.listRoomBans(
+          {
+            roomId: input.roomId ?? '',
+            page: { limit: input.limit ?? 100, offset: input.offset ?? 0 }
+          },
+          { headers: headers() }
+        );
+        return {
+          bans: response.bans.map(roomBan),
+          totalCount: Number(response.page?.totalCount ?? 0),
+          hasMore: response.page?.hasMore ?? false
+        };
       } catch (err) {
         return handleAuthError(err);
       }

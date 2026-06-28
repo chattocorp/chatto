@@ -40,7 +40,17 @@
     loading = true;
     error = null;
     try {
-      const nextBans = await roomAPI().listRoomBans();
+      const api = roomAPI();
+      const nextBans: RoomBanSummary[] = [];
+      let offset = 0;
+      let hasMore = true;
+      while (hasMore) {
+        const page = await api.listRoomBans({ limit: 100, offset });
+        nextBans.push(...page.bans);
+        hasMore = page.hasMore;
+        offset += page.bans.length;
+        if (page.bans.length === 0) break;
+      }
       if (request !== loadRequest) return;
       bans = nextBans;
     } catch (err) {

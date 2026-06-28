@@ -5,6 +5,8 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
+import { PresenceStatus } from "./presence_pb.js";
+import { CustomUserStatus } from "./user_status_pb.js";
 import { DirectoryMember } from "./member_directory_pb.js";
 
 /**
@@ -135,9 +137,9 @@ export class UserSummary extends Message<UserSummary> {
   /**
    * Avatar image URL, when available.
    *
-   * @generated from field: string avatar_url = 5;
+   * @generated from field: optional string avatar_url = 5;
    */
-  avatarUrl = "";
+  avatarUrl?: string;
 
   constructor(data?: PartialMessage<UserSummary>) {
     super();
@@ -151,7 +153,7 @@ export class UserSummary extends Message<UserSummary> {
     { no: 2, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "deleted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 5, name: "avatar_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "avatar_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UserSummary {
@@ -168,6 +170,95 @@ export class UserSummary extends Message<UserSummary> {
 
   static equals(a: UserSummary | PlainMessage<UserSummary> | undefined, b: UserSummary | PlainMessage<UserSummary> | undefined): boolean {
     return proto3.util.equals(UserSummary, a, b);
+  }
+}
+
+/**
+ * Lightweight public user data plus live profile state.
+ *
+ * @generated from message chatto.api.v1.UserPresenceSummary
+ */
+export class UserPresenceSummary extends Message<UserPresenceSummary> {
+  /**
+   * Stable user ID.
+   *
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * Login name.
+   *
+   * @generated from field: string login = 2;
+   */
+  login = "";
+
+  /**
+   * Display name, when set.
+   *
+   * @generated from field: string display_name = 3;
+   */
+  displayName = "";
+
+  /**
+   * True when the user account has been deleted.
+   *
+   * @generated from field: bool deleted = 4;
+   */
+  deleted = false;
+
+  /**
+   * Avatar image URL, when available.
+   *
+   * @generated from field: optional string avatar_url = 5;
+   */
+  avatarUrl?: string;
+
+  /**
+   * Current live presence status.
+   *
+   * @generated from field: chatto.api.v1.PresenceStatus presence_status = 6;
+   */
+  presenceStatus = PresenceStatus.UNSPECIFIED;
+
+  /**
+   * Custom profile status, when set.
+   *
+   * @generated from field: chatto.api.v1.CustomUserStatus custom_status = 7;
+   */
+  customStatus?: CustomUserStatus;
+
+  constructor(data?: PartialMessage<UserPresenceSummary>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.UserPresenceSummary";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "deleted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 5, name: "avatar_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 6, name: "presence_status", kind: "enum", T: proto3.getEnumType(PresenceStatus) },
+    { no: 7, name: "custom_status", kind: "message", T: CustomUserStatus },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UserPresenceSummary {
+    return new UserPresenceSummary().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UserPresenceSummary {
+    return new UserPresenceSummary().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UserPresenceSummary {
+    return new UserPresenceSummary().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UserPresenceSummary | PlainMessage<UserPresenceSummary> | undefined, b: UserPresenceSummary | PlainMessage<UserPresenceSummary> | undefined): boolean {
+    return proto3.util.equals(UserPresenceSummary, a, b);
   }
 }
 
@@ -366,7 +457,7 @@ export class GetUserResponse extends Message<GetUserResponse> {
  */
 export class GetUserByLoginResponse extends Message<GetUserByLoginResponse> {
   /**
-   * Requested user. Absent when the login is unknown.
+   * Requested user.
    *
    * @generated from field: chatto.api.v1.DirectoryMember user = 1;
    */

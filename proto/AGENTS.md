@@ -7,6 +7,8 @@ ConnectRPC services, and the public API reference.
 
 For `chatto/api/v1`:
 
+- Follow [chatto/api/v1/AGENTS.md](chatto/api/v1/AGENTS.md) for public
+  ConnectRPC API consistency rules.
 - Write comments for API consumers, not Chatto maintainers.
 - Every public service, RPC, message, enum, enum value, and important field
   should have useful comments.

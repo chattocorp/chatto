@@ -147,10 +147,8 @@ type ListServerMembersRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional case-insensitive search against login and display name.
 	Search string `protobuf:"bytes,1,opt,name=search,proto3" json:"search,omitempty"`
-	// Maximum results to return. Defaults to 20, maximum 100.
-	Limit int32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
-	// Zero-based result offset.
-	Offset        int32 `protobuf:"varint,3,opt,name=offset,proto3" json:"offset,omitempty"`
+	// Page request. Defaults to 20 results when absent or limit is zero.
+	Page          *PageRequest `protobuf:"bytes,4,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -192,18 +190,11 @@ func (x *ListServerMembersRequest) GetSearch() string {
 	return ""
 }
 
-func (x *ListServerMembersRequest) GetLimit() int32 {
+func (x *ListServerMembersRequest) GetPage() *PageRequest {
 	if x != nil {
-		return x.Limit
+		return x.Page
 	}
-	return 0
-}
-
-func (x *ListServerMembersRequest) GetOffset() int32 {
-	if x != nil {
-		return x.Offset
-	}
-	return 0
+	return nil
 }
 
 // Server member page.
@@ -211,10 +202,8 @@ type ListServerMembersResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Members in the requested page.
 	Members []*DirectoryMember `protobuf:"bytes,1,rep,name=members,proto3" json:"members,omitempty"`
-	// Total matching members before pagination.
-	TotalCount int32 `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
-	// Whether more matching members exist after this page.
-	HasMore       bool `protobuf:"varint,3,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
+	// Page metadata.
+	Page          *PageInfo `protobuf:"bytes,4,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -256,18 +245,11 @@ func (x *ListServerMembersResponse) GetMembers() []*DirectoryMember {
 	return nil
 }
 
-func (x *ListServerMembersResponse) GetTotalCount() int32 {
+func (x *ListServerMembersResponse) GetPage() *PageInfo {
 	if x != nil {
-		return x.TotalCount
+		return x.Page
 	}
-	return 0
-}
-
-func (x *ListServerMembersResponse) GetHasMore() bool {
-	if x != nil {
-		return x.HasMore
-	}
-	return false
+	return nil
 }
 
 // Request for members of one room.
@@ -277,10 +259,8 @@ type ListRoomMembersRequest struct {
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Optional case-insensitive search against login and display name.
 	Search string `protobuf:"bytes,2,opt,name=search,proto3" json:"search,omitempty"`
-	// Maximum results to return. Defaults to 20, maximum 100.
-	Limit int32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
-	// Zero-based result offset.
-	Offset        int32 `protobuf:"varint,4,opt,name=offset,proto3" json:"offset,omitempty"`
+	// Page request. Defaults to 20 results when absent or limit is zero.
+	Page          *PageRequest `protobuf:"bytes,5,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -329,18 +309,11 @@ func (x *ListRoomMembersRequest) GetSearch() string {
 	return ""
 }
 
-func (x *ListRoomMembersRequest) GetLimit() int32 {
+func (x *ListRoomMembersRequest) GetPage() *PageRequest {
 	if x != nil {
-		return x.Limit
+		return x.Page
 	}
-	return 0
-}
-
-func (x *ListRoomMembersRequest) GetOffset() int32 {
-	if x != nil {
-		return x.Offset
-	}
-	return 0
+	return nil
 }
 
 // Room member page.
@@ -348,10 +321,8 @@ type ListRoomMembersResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Members in the requested page.
 	Members []*DirectoryMember `protobuf:"bytes,1,rep,name=members,proto3" json:"members,omitempty"`
-	// Total matching members before pagination.
-	TotalCount int32 `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
-	// Whether more matching members exist after this page.
-	HasMore       bool `protobuf:"varint,3,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
+	// Page metadata.
+	Page          *PageInfo `protobuf:"bytes,4,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -393,25 +364,18 @@ func (x *ListRoomMembersResponse) GetMembers() []*DirectoryMember {
 	return nil
 }
 
-func (x *ListRoomMembersResponse) GetTotalCount() int32 {
+func (x *ListRoomMembersResponse) GetPage() *PageInfo {
 	if x != nil {
-		return x.TotalCount
+		return x.Page
 	}
-	return 0
-}
-
-func (x *ListRoomMembersResponse) GetHasMore() bool {
-	if x != nil {
-		return x.HasMore
-	}
-	return false
+	return nil
 }
 
 var File_chatto_api_v1_member_directory_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_member_directory_proto_rawDesc = "" +
 	"\n" +
-	"$chatto/api/v1/member_directory.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cchatto/api/v1/presence.proto\x1a\x1fchatto/api/v1/user_status.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x86\x03\n" +
+	"$chatto/api/v1/member_directory.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x1cchatto/api/v1/presence.proto\x1a\x1fchatto/api/v1/user_status.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x86\x03\n" +
 	"\x0fDirectoryMember\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
@@ -424,26 +388,20 @@ const file_chatto_api_v1_member_directory_proto_rawDesc = "" +
 	"\x05roles\x18\b \x03(\tR\x05roles\x129\n" +
 	"\n" +
 	"created_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAtB\r\n" +
-	"\v_avatar_url\"{\n" +
+	"\v_avatar_url\"\x86\x01\n" +
 	"\x18ListServerMembersRequest\x12\x1f\n" +
-	"\x06search\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18dR\x06search\x12\x1d\n" +
-	"\x05limit\x18\x02 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x05limit\x12\x1f\n" +
-	"\x06offset\x18\x03 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x06offset\"\x91\x01\n" +
+	"\x06search\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18dR\x06search\x12.\n" +
+	"\x04page\x18\x04 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x05limitR\x06offset\"\xa5\x01\n" +
 	"\x19ListServerMembersResponse\x128\n" +
-	"\amembers\x18\x01 \x03(\v2\x1e.chatto.api.v1.DirectoryMemberR\amembers\x12\x1f\n" +
-	"\vtotal_count\x18\x02 \x01(\x05R\n" +
-	"totalCount\x12\x19\n" +
-	"\bhas_more\x18\x03 \x01(\bR\ahasMore\"\x9b\x01\n" +
+	"\amembers\x18\x01 \x03(\v2\x1e.chatto.api.v1.DirectoryMemberR\amembers\x12+\n" +
+	"\x04page\x18\x04 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\vtotal_countR\bhas_more\"\xa6\x01\n" +
 	"\x16ListRoomMembersRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\x1f\n" +
-	"\x06search\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18dR\x06search\x12\x1d\n" +
-	"\x05limit\x18\x03 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x05limit\x12\x1f\n" +
-	"\x06offset\x18\x04 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x06offset\"\x8f\x01\n" +
+	"\x06search\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18dR\x06search\x12.\n" +
+	"\x04page\x18\x05 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04pageJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05R\x05limitR\x06offset\"\xa3\x01\n" +
 	"\x17ListRoomMembersResponse\x128\n" +
-	"\amembers\x18\x01 \x03(\v2\x1e.chatto.api.v1.DirectoryMemberR\amembers\x12\x1f\n" +
-	"\vtotal_count\x18\x02 \x01(\x05R\n" +
-	"totalCount\x12\x19\n" +
-	"\bhas_more\x18\x03 \x01(\bR\ahasMore2\xe2\x01\n" +
+	"\amembers\x18\x01 \x03(\v2\x1e.chatto.api.v1.DirectoryMemberR\amembers\x12+\n" +
+	"\x04page\x18\x04 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\vtotal_countR\bhas_more2\xe2\x01\n" +
 	"\x16MemberDirectoryService\x12f\n" +
 	"\x11ListServerMembers\x12'.chatto.api.v1.ListServerMembersRequest\x1a(.chatto.api.v1.ListServerMembersResponse\x12`\n" +
 	"\x0fListRoomMembers\x12%.chatto.api.v1.ListRoomMembersRequest\x1a&.chatto.api.v1.ListRoomMembersResponseB\xb0\x01\n" +
@@ -471,22 +429,28 @@ var file_chatto_api_v1_member_directory_proto_goTypes = []any{
 	(PresenceStatus)(0),               // 5: chatto.api.v1.PresenceStatus
 	(*CustomUserStatus)(nil),          // 6: chatto.api.v1.CustomUserStatus
 	(*timestamppb.Timestamp)(nil),     // 7: google.protobuf.Timestamp
+	(*PageRequest)(nil),               // 8: chatto.api.v1.PageRequest
+	(*PageInfo)(nil),                  // 9: chatto.api.v1.PageInfo
 }
 var file_chatto_api_v1_member_directory_proto_depIdxs = []int32{
-	5, // 0: chatto.api.v1.DirectoryMember.presence_status:type_name -> chatto.api.v1.PresenceStatus
-	6, // 1: chatto.api.v1.DirectoryMember.custom_status:type_name -> chatto.api.v1.CustomUserStatus
-	7, // 2: chatto.api.v1.DirectoryMember.created_at:type_name -> google.protobuf.Timestamp
-	0, // 3: chatto.api.v1.ListServerMembersResponse.members:type_name -> chatto.api.v1.DirectoryMember
-	0, // 4: chatto.api.v1.ListRoomMembersResponse.members:type_name -> chatto.api.v1.DirectoryMember
-	1, // 5: chatto.api.v1.MemberDirectoryService.ListServerMembers:input_type -> chatto.api.v1.ListServerMembersRequest
-	3, // 6: chatto.api.v1.MemberDirectoryService.ListRoomMembers:input_type -> chatto.api.v1.ListRoomMembersRequest
-	2, // 7: chatto.api.v1.MemberDirectoryService.ListServerMembers:output_type -> chatto.api.v1.ListServerMembersResponse
-	4, // 8: chatto.api.v1.MemberDirectoryService.ListRoomMembers:output_type -> chatto.api.v1.ListRoomMembersResponse
-	7, // [7:9] is the sub-list for method output_type
-	5, // [5:7] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	5,  // 0: chatto.api.v1.DirectoryMember.presence_status:type_name -> chatto.api.v1.PresenceStatus
+	6,  // 1: chatto.api.v1.DirectoryMember.custom_status:type_name -> chatto.api.v1.CustomUserStatus
+	7,  // 2: chatto.api.v1.DirectoryMember.created_at:type_name -> google.protobuf.Timestamp
+	8,  // 3: chatto.api.v1.ListServerMembersRequest.page:type_name -> chatto.api.v1.PageRequest
+	0,  // 4: chatto.api.v1.ListServerMembersResponse.members:type_name -> chatto.api.v1.DirectoryMember
+	9,  // 5: chatto.api.v1.ListServerMembersResponse.page:type_name -> chatto.api.v1.PageInfo
+	8,  // 6: chatto.api.v1.ListRoomMembersRequest.page:type_name -> chatto.api.v1.PageRequest
+	0,  // 7: chatto.api.v1.ListRoomMembersResponse.members:type_name -> chatto.api.v1.DirectoryMember
+	9,  // 8: chatto.api.v1.ListRoomMembersResponse.page:type_name -> chatto.api.v1.PageInfo
+	1,  // 9: chatto.api.v1.MemberDirectoryService.ListServerMembers:input_type -> chatto.api.v1.ListServerMembersRequest
+	3,  // 10: chatto.api.v1.MemberDirectoryService.ListRoomMembers:input_type -> chatto.api.v1.ListRoomMembersRequest
+	2,  // 11: chatto.api.v1.MemberDirectoryService.ListServerMembers:output_type -> chatto.api.v1.ListServerMembersResponse
+	4,  // 12: chatto.api.v1.MemberDirectoryService.ListRoomMembers:output_type -> chatto.api.v1.ListRoomMembersResponse
+	11, // [11:13] is the sub-list for method output_type
+	9,  // [9:11] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_member_directory_proto_init() }
@@ -494,6 +458,7 @@ func file_chatto_api_v1_member_directory_proto_init() {
 	if File_chatto_api_v1_member_directory_proto != nil {
 		return
 	}
+	file_chatto_api_v1_pagination_proto_init()
 	file_chatto_api_v1_presence_proto_init()
 	file_chatto_api_v1_user_status_proto_init()
 	file_chatto_api_v1_member_directory_proto_msgTypes[0].OneofWrappers = []any{}

@@ -73,19 +73,22 @@ func (s *viewerService) viewerUser(ctx context.Context, user *corev1.User) (*api
 	}
 
 	response := &apiv1.ViewerUser{
-		Id:                     user.GetId(),
-		Login:                  user.GetLogin(),
-		DisplayName:            user.GetDisplayName(),
-		CustomStatus:           coreCustomStatusToAPI(user.GetCustomStatus()),
-		PresenceStatus:         corePresenceStatusToAPI(presence),
 		HasVerifiedEmail:       hasVerifiedEmail,
 		Settings:               coreUserSettingsToAPI(settings),
 		ViewerCanDeleteAccount: canDeleteAccount,
+		Profile: &apiv1.UserPresenceSummary{
+			Id:             user.GetId(),
+			Login:          user.GetLogin(),
+			DisplayName:    user.GetDisplayName(),
+			Deleted:        user.GetDeleted(),
+			CustomStatus:   coreCustomStatusToAPI(user.GetCustomStatus()),
+			PresenceStatus: corePresenceStatusToAPI(presence),
+		},
 	}
 	if avatarURL, err := s.api.core.GetUserAvatarURL(ctx, user.GetId(), nil, nil, ""); err != nil {
 		return nil, connectError(err)
 	} else if avatarURL != "" {
-		response.AvatarUrl = stringPtr(s.api.absolutizeAssetURL(ctx, avatarURL))
+		response.Profile.AvatarUrl = stringPtr(s.api.absolutizeAssetURL(ctx, avatarURL))
 	}
 	if !lastLoginChange.IsZero() {
 		response.LastLoginChange = timestamppb.New(lastLoginChange)

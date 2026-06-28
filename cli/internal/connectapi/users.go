@@ -37,9 +37,6 @@ func (s *userService) GetUserByLogin(ctx context.Context, req *connect.Request[a
 
 	user, err := s.api.core.GetUserByLogin(ctx, req.Msg.GetLogin())
 	if err != nil {
-		if errors.Is(err, core.ErrNotFound) {
-			return connect.NewResponse(&apiv1.GetUserByLoginResponse{}), nil
-		}
 		return nil, connectError(err)
 	}
 	profile, err := s.userProfile(ctx, user, req.Msg.GetAvatar())
@@ -111,7 +108,7 @@ func (s *userService) userSummary(ctx context.Context, user *corev1.User, avatar
 		return nil, err
 	}
 	if avatarURL != "" {
-		summary.AvatarUrl = s.api.absolutizeAssetURL(ctx, avatarURL)
+		summary.AvatarUrl = stringPtr(s.api.absolutizeAssetURL(ctx, avatarURL))
 	}
 	return summary, nil
 }

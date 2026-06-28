@@ -24,7 +24,7 @@ func (s *threadService) ListFollowedThreads(ctx context.Context, req *connect.Re
 		return nil, err
 	}
 
-	limit, offset := apiPagination(req.Msg.GetLimit(), req.Msg.GetOffset(), defaultFollowedThreadLimit, maxFollowedThreadLimit)
+	limit, offset := apiPagination(req.Msg.GetPage(), defaultFollowedThreadLimit, maxFollowedThreadLimit)
 	page, err := s.api.core.ThreadFollows().ListFollowedThreads(ctx, caller.UserID, limit, offset)
 	if err != nil {
 		return nil, connectError(err)
@@ -62,7 +62,8 @@ func (s *threadService) UnfollowThread(ctx context.Context, req *connect.Request
 func (s *threadService) followedThreadsResponse(ctx context.Context, viewerID string, page *core.FollowedThreadsPage) (*apiv1.ListFollowedThreadsResponse, error) {
 	if page == nil {
 		return &apiv1.ListFollowedThreadsResponse{
-			Includes: &apiv1.RoomTimelineIncludes{Users: map[string]*apiv1.RoomTimelineUser{}},
+			Includes: &apiv1.RoomTimelineIncludes{Users: map[string]*apiv1.UserSummary{}},
+			Page:     apiPageInfo(0, false),
 		}, nil
 	}
 
@@ -131,9 +132,8 @@ func (s *threadService) followedThreadsResponse(ctx context.Context, viewerID st
 	}
 
 	return &apiv1.ListFollowedThreadsResponse{
-		Threads:    threads,
-		TotalCount: int32(page.TotalCount),
-		HasMore:    page.HasMore,
-		Includes:   &apiv1.RoomTimelineIncludes{Users: users},
+		Threads:  threads,
+		Includes: &apiv1.RoomTimelineIncludes{Users: users},
+		Page:     apiPageInfo(page.TotalCount, page.HasMore),
 	}, nil
 }

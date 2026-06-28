@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
+import "chatto/api/v1/pagination.proto";
 import "chatto/api/v1/room_timeline.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -54,22 +55,24 @@ message FollowedThread {
 
 // Request for a page of followed threads for the current user.
 message ListFollowedThreadsRequest {
-  // Maximum number of followed threads to return.
-  int32 limit = 1;
-  // Zero-based offset into the followed-thread list.
-  int32 offset = 2;
+  reserved 1, 2;
+  reserved "limit", "offset";
+
+  // Page request. Defaults to 20 results when absent or limit is zero.
+  PageRequest page = 3;
 }
 
 // Response containing one followed-thread page.
 message ListFollowedThreadsResponse {
+  reserved 2, 3;
+  reserved "total_count", "has_more";
+
   // Followed threads in newest-activity-first order.
   repeated FollowedThread threads = 1;
-  // Total followed-thread count before pagination.
-  int32 total_count = 2;
-  // True when another page exists after this response.
-  bool has_more = 3;
   // Related entities needed to render root messages.
   RoomTimelineIncludes includes = 4;
+  // Page metadata.
+  PageInfo page = 5;
 }
 
 // Manages thread follow state for the current user.

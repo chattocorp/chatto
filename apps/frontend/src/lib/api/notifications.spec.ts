@@ -50,8 +50,7 @@ describe('createNotificationAPI', () => {
 
   it('maps notification pages and sends bearer auth', async () => {
     mocks.listNotifications.mockResolvedValue({
-      totalCount: 2,
-      hasMore: true,
+      page: { totalCount: 2n, hasMore: true },
       serverName: 'Remote',
       items: [
         {
@@ -63,7 +62,7 @@ describe('createNotificationAPI', () => {
             displayName: 'Alice',
             deleted: false,
             avatarUrl: 'https://cdn/avatar.webp',
-            presenceStatus: APIPresenceStatus.AWAY
+            presenceStatus: APIPresenceStatus.OFFLINE
           },
           summary: 'Alice mentioned you',
           kind: {
@@ -89,7 +88,7 @@ describe('createNotificationAPI', () => {
       useBinaryFormat: true
     });
     expect(mocks.listNotifications).toHaveBeenCalledWith(
-      { limit: 50, offset: 0 },
+      { page: { limit: 50, offset: 0 } },
       { headers: { Authorization: 'Bearer token' } }
     );
     expect(page).toEqual({
@@ -107,7 +106,7 @@ describe('createNotificationAPI', () => {
             displayName: 'Alice',
             deleted: false,
             avatarUrl: 'https://cdn/avatar.webp',
-            presenceStatus: PresenceStatus.Away,
+            presenceStatus: PresenceStatus.Offline,
             customStatus: null
           },
           summary: 'Alice mentioned you',
@@ -121,8 +120,7 @@ describe('createNotificationAPI', () => {
 
   it('maps room notification reads and dismiss mutations without auth headers', async () => {
     mocks.listRoomNotifications.mockResolvedValue({
-      totalCount: 1,
-      hasMore: false,
+      page: { totalCount: 1n, hasMore: false },
       items: [
         {
           id: 'n2',
@@ -158,7 +156,7 @@ describe('createNotificationAPI', () => {
     await expect(api.dismissAllNotifications()).resolves.toBe(3);
 
     expect(mocks.listRoomNotifications).toHaveBeenCalledWith(
-      { roomId: 'dm-1', limit: 1, offset: 0 },
+      { roomId: 'dm-1', page: { limit: 1, offset: 0 } },
       { headers: undefined }
     );
   });

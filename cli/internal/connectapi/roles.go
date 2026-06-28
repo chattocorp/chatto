@@ -130,13 +130,14 @@ func apiRole(role *core.RoleWithPermissions) *apiv1.Role {
 	}
 }
 
-func apiRoleUsers(users []core.RoleUserSummary) []*apiv1.RoleUser {
-	out := make([]*apiv1.RoleUser, 0, len(users))
+func apiRoleUsers(users []core.RoleUserSummary) []*apiv1.UserSummary {
+	out := make([]*apiv1.UserSummary, 0, len(users))
 	for _, user := range users {
-		out = append(out, &apiv1.RoleUser{
+		out = append(out, &apiv1.UserSummary{
 			Id:          user.ID,
 			Login:       user.Login,
 			DisplayName: user.DisplayName,
+			Deleted:     user.Deleted,
 		})
 	}
 	return out

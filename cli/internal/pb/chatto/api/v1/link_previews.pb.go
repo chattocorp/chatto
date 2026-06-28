@@ -68,43 +68,50 @@ func (x *FetchLinkPreviewRequest) GetUrl() string {
 	return ""
 }
 
-// Link preview metadata returned to clients before posting a message.
-type FetchedLinkPreview struct {
+// Link preview metadata used by message composers and room timeline events.
+//
+// On message-post requests, the server accepts url, title, description,
+// site_name, image_asset_id, embed_type, and embed_id. The image_url field is
+// response-only and ignored on input. Clients should treat optional metadata as
+// unavailable when absent.
+type LinkPreview struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Previewed URL.
 	Url string `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
 	// Page or embed title.
-	Title string `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	Title *string `protobuf:"bytes,2,opt,name=title,proto3,oneof" json:"title,omitempty"`
 	// Page or embed description.
-	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	// Preview image URL, when available.
-	ImageUrl string `protobuf:"bytes,4,opt,name=image_url,json=imageUrl,proto3" json:"image_url,omitempty"`
-	// Existing server asset ID for the preview image, when available.
-	ImageAssetId string `protobuf:"bytes,5,opt,name=image_asset_id,json=imageAssetId,proto3" json:"image_asset_id,omitempty"`
+	Description *string `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	// Preview image URL, when available. Response-only; ignored on message-post
+	// input.
+	ImageUrl *string `protobuf:"bytes,4,opt,name=image_url,json=imageUrl,proto3,oneof" json:"image_url,omitempty"`
+	// Existing server asset ID for the preview image, when selected by the client
+	// or stored with the message.
+	ImageAssetId *string `protobuf:"bytes,5,opt,name=image_asset_id,json=imageAssetId,proto3,oneof" json:"image_asset_id,omitempty"`
 	// Site name, when known.
-	SiteName string `protobuf:"bytes,6,opt,name=site_name,json=siteName,proto3" json:"site_name,omitempty"`
+	SiteName *string `protobuf:"bytes,6,opt,name=site_name,json=siteName,proto3,oneof" json:"site_name,omitempty"`
 	// Embed provider or type, when recognized.
-	EmbedType string `protobuf:"bytes,7,opt,name=embed_type,json=embedType,proto3" json:"embed_type,omitempty"`
+	EmbedType *string `protobuf:"bytes,7,opt,name=embed_type,json=embedType,proto3,oneof" json:"embed_type,omitempty"`
 	// Provider-specific embed ID, when recognized.
-	EmbedId       string `protobuf:"bytes,8,opt,name=embed_id,json=embedId,proto3" json:"embed_id,omitempty"`
+	EmbedId       *string `protobuf:"bytes,8,opt,name=embed_id,json=embedId,proto3,oneof" json:"embed_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *FetchedLinkPreview) Reset() {
-	*x = FetchedLinkPreview{}
+func (x *LinkPreview) Reset() {
+	*x = LinkPreview{}
 	mi := &file_chatto_api_v1_link_previews_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *FetchedLinkPreview) String() string {
+func (x *LinkPreview) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*FetchedLinkPreview) ProtoMessage() {}
+func (*LinkPreview) ProtoMessage() {}
 
-func (x *FetchedLinkPreview) ProtoReflect() protoreflect.Message {
+func (x *LinkPreview) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_link_previews_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -116,63 +123,63 @@ func (x *FetchedLinkPreview) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use FetchedLinkPreview.ProtoReflect.Descriptor instead.
-func (*FetchedLinkPreview) Descriptor() ([]byte, []int) {
+// Deprecated: Use LinkPreview.ProtoReflect.Descriptor instead.
+func (*LinkPreview) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_link_previews_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *FetchedLinkPreview) GetUrl() string {
+func (x *LinkPreview) GetUrl() string {
 	if x != nil {
 		return x.Url
 	}
 	return ""
 }
 
-func (x *FetchedLinkPreview) GetTitle() string {
-	if x != nil {
-		return x.Title
+func (x *LinkPreview) GetTitle() string {
+	if x != nil && x.Title != nil {
+		return *x.Title
 	}
 	return ""
 }
 
-func (x *FetchedLinkPreview) GetDescription() string {
-	if x != nil {
-		return x.Description
+func (x *LinkPreview) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
 	}
 	return ""
 }
 
-func (x *FetchedLinkPreview) GetImageUrl() string {
-	if x != nil {
-		return x.ImageUrl
+func (x *LinkPreview) GetImageUrl() string {
+	if x != nil && x.ImageUrl != nil {
+		return *x.ImageUrl
 	}
 	return ""
 }
 
-func (x *FetchedLinkPreview) GetImageAssetId() string {
-	if x != nil {
-		return x.ImageAssetId
+func (x *LinkPreview) GetImageAssetId() string {
+	if x != nil && x.ImageAssetId != nil {
+		return *x.ImageAssetId
 	}
 	return ""
 }
 
-func (x *FetchedLinkPreview) GetSiteName() string {
-	if x != nil {
-		return x.SiteName
+func (x *LinkPreview) GetSiteName() string {
+	if x != nil && x.SiteName != nil {
+		return *x.SiteName
 	}
 	return ""
 }
 
-func (x *FetchedLinkPreview) GetEmbedType() string {
-	if x != nil {
-		return x.EmbedType
+func (x *LinkPreview) GetEmbedType() string {
+	if x != nil && x.EmbedType != nil {
+		return *x.EmbedType
 	}
 	return ""
 }
 
-func (x *FetchedLinkPreview) GetEmbedId() string {
-	if x != nil {
-		return x.EmbedId
+func (x *LinkPreview) GetEmbedId() string {
+	if x != nil && x.EmbedId != nil {
+		return *x.EmbedId
 	}
 	return ""
 }
@@ -181,7 +188,7 @@ func (x *FetchedLinkPreview) GetEmbedId() string {
 type FetchLinkPreviewResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Preview metadata, or absent when the URL cannot be previewed.
-	Preview       *FetchedLinkPreview `protobuf:"bytes,1,opt,name=preview,proto3" json:"preview,omitempty"`
+	Preview       *LinkPreview `protobuf:"bytes,1,opt,name=preview,proto3" json:"preview,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -216,7 +223,7 @@ func (*FetchLinkPreviewResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_link_previews_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *FetchLinkPreviewResponse) GetPreview() *FetchedLinkPreview {
+func (x *FetchLinkPreviewResponse) GetPreview() *LinkPreview {
 	if x != nil {
 		return x.Preview
 	}
@@ -230,19 +237,28 @@ const file_chatto_api_v1_link_previews_proto_rawDesc = "" +
 	"!chatto/api/v1/link_previews.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"7\n" +
 	"\x17FetchLinkPreviewRequest\x12\x1c\n" +
 	"\x03url\x18\x01 \x01(\tB\n" +
-	"\xbaH\ar\x05\x10\x01\x18\x80\x10R\x03url\"\xf8\x01\n" +
-	"\x12FetchedLinkPreview\x12\x10\n" +
-	"\x03url\x18\x01 \x01(\tR\x03url\x12\x14\n" +
-	"\x05title\x18\x02 \x01(\tR\x05title\x12 \n" +
-	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x1b\n" +
-	"\timage_url\x18\x04 \x01(\tR\bimageUrl\x12$\n" +
-	"\x0eimage_asset_id\x18\x05 \x01(\tR\fimageAssetId\x12\x1b\n" +
-	"\tsite_name\x18\x06 \x01(\tR\bsiteName\x12\x1d\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x10R\x03url\"\xf9\x02\n" +
+	"\vLinkPreview\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\x12\x19\n" +
+	"\x05title\x18\x02 \x01(\tH\x00R\x05title\x88\x01\x01\x12%\n" +
+	"\vdescription\x18\x03 \x01(\tH\x01R\vdescription\x88\x01\x01\x12 \n" +
+	"\timage_url\x18\x04 \x01(\tH\x02R\bimageUrl\x88\x01\x01\x12)\n" +
+	"\x0eimage_asset_id\x18\x05 \x01(\tH\x03R\fimageAssetId\x88\x01\x01\x12 \n" +
+	"\tsite_name\x18\x06 \x01(\tH\x04R\bsiteName\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"embed_type\x18\a \x01(\tR\tembedType\x12\x19\n" +
-	"\bembed_id\x18\b \x01(\tR\aembedId\"W\n" +
-	"\x18FetchLinkPreviewResponse\x12;\n" +
-	"\apreview\x18\x01 \x01(\v2!.chatto.api.v1.FetchedLinkPreviewR\apreview2y\n" +
+	"embed_type\x18\a \x01(\tH\x05R\tembedType\x88\x01\x01\x12\x1e\n" +
+	"\bembed_id\x18\b \x01(\tH\x06R\aembedId\x88\x01\x01B\b\n" +
+	"\x06_titleB\x0e\n" +
+	"\f_descriptionB\f\n" +
+	"\n" +
+	"_image_urlB\x11\n" +
+	"\x0f_image_asset_idB\f\n" +
+	"\n" +
+	"_site_nameB\r\n" +
+	"\v_embed_typeB\v\n" +
+	"\t_embed_id\"P\n" +
+	"\x18FetchLinkPreviewResponse\x124\n" +
+	"\apreview\x18\x01 \x01(\v2\x1a.chatto.api.v1.LinkPreviewR\apreview2y\n" +
 	"\x12LinkPreviewService\x12c\n" +
 	"\x10FetchLinkPreview\x12&.chatto.api.v1.FetchLinkPreviewRequest\x1a'.chatto.api.v1.FetchLinkPreviewResponseB\xad\x01\n" +
 	"\x11com.chatto.api.v1B\x11LinkPreviewsProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
@@ -262,11 +278,11 @@ func file_chatto_api_v1_link_previews_proto_rawDescGZIP() []byte {
 var file_chatto_api_v1_link_previews_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_chatto_api_v1_link_previews_proto_goTypes = []any{
 	(*FetchLinkPreviewRequest)(nil),  // 0: chatto.api.v1.FetchLinkPreviewRequest
-	(*FetchedLinkPreview)(nil),       // 1: chatto.api.v1.FetchedLinkPreview
+	(*LinkPreview)(nil),              // 1: chatto.api.v1.LinkPreview
 	(*FetchLinkPreviewResponse)(nil), // 2: chatto.api.v1.FetchLinkPreviewResponse
 }
 var file_chatto_api_v1_link_previews_proto_depIdxs = []int32{
-	1, // 0: chatto.api.v1.FetchLinkPreviewResponse.preview:type_name -> chatto.api.v1.FetchedLinkPreview
+	1, // 0: chatto.api.v1.FetchLinkPreviewResponse.preview:type_name -> chatto.api.v1.LinkPreview
 	0, // 1: chatto.api.v1.LinkPreviewService.FetchLinkPreview:input_type -> chatto.api.v1.FetchLinkPreviewRequest
 	2, // 2: chatto.api.v1.LinkPreviewService.FetchLinkPreview:output_type -> chatto.api.v1.FetchLinkPreviewResponse
 	2, // [2:3] is the sub-list for method output_type
@@ -281,6 +297,7 @@ func file_chatto_api_v1_link_previews_proto_init() {
 	if File_chatto_api_v1_link_previews_proto != nil {
 		return
 	}
+	file_chatto_api_v1_link_previews_proto_msgTypes[1].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

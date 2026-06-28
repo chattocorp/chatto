@@ -6,6 +6,7 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { RoomTimelineEvent, RoomTimelineIncludes } from "./room_timeline_pb.js";
+import { PageInfo, PageRequest } from "./pagination_pb.js";
 
 /**
  * Request to follow one message thread.
@@ -283,18 +284,11 @@ export class FollowedThread extends Message<FollowedThread> {
  */
 export class ListFollowedThreadsRequest extends Message<ListFollowedThreadsRequest> {
   /**
-   * Maximum number of followed threads to return.
+   * Page request. Defaults to 20 results when absent or limit is zero.
    *
-   * @generated from field: int32 limit = 1;
+   * @generated from field: chatto.api.v1.PageRequest page = 3;
    */
-  limit = 0;
-
-  /**
-   * Zero-based offset into the followed-thread list.
-   *
-   * @generated from field: int32 offset = 2;
-   */
-  offset = 0;
+  page?: PageRequest;
 
   constructor(data?: PartialMessage<ListFollowedThreadsRequest>) {
     super();
@@ -304,8 +298,7 @@ export class ListFollowedThreadsRequest extends Message<ListFollowedThreadsReque
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.ListFollowedThreadsRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "limit", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 2, name: "offset", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 3, name: "page", kind: "message", T: PageRequest },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListFollowedThreadsRequest {
@@ -339,25 +332,18 @@ export class ListFollowedThreadsResponse extends Message<ListFollowedThreadsResp
   threads: FollowedThread[] = [];
 
   /**
-   * Total followed-thread count before pagination.
-   *
-   * @generated from field: int32 total_count = 2;
-   */
-  totalCount = 0;
-
-  /**
-   * True when another page exists after this response.
-   *
-   * @generated from field: bool has_more = 3;
-   */
-  hasMore = false;
-
-  /**
    * Related entities needed to render root messages.
    *
    * @generated from field: chatto.api.v1.RoomTimelineIncludes includes = 4;
    */
   includes?: RoomTimelineIncludes;
+
+  /**
+   * Page metadata.
+   *
+   * @generated from field: chatto.api.v1.PageInfo page = 5;
+   */
+  page?: PageInfo;
 
   constructor(data?: PartialMessage<ListFollowedThreadsResponse>) {
     super();
@@ -368,9 +354,8 @@ export class ListFollowedThreadsResponse extends Message<ListFollowedThreadsResp
   static readonly typeName = "chatto.api.v1.ListFollowedThreadsResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "threads", kind: "message", T: FollowedThread, repeated: true },
-    { no: 2, name: "total_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 3, name: "has_more", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 4, name: "includes", kind: "message", T: RoomTimelineIncludes },
+    { no: 5, name: "page", kind: "message", T: PageInfo },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListFollowedThreadsResponse {

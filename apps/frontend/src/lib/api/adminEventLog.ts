@@ -1,5 +1,5 @@
 import { Timestamp } from '@bufbuild/protobuf';
-import { createClient } from '@connectrpc/connect';
+import { Code, ConnectError, createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import { AdminEventLogService } from '$lib/pb/chatto/api/v1/admin_event_log_connect';
 import type { AdminEventLogEntry as APIAdminEventLogEntry } from '$lib/pb/chatto/api/v1/admin_event_log_pb';
@@ -87,8 +87,13 @@ export function createAdminEventLogAPI(config: AdminEventLogAPIConfig) {
     },
 
     async getEvent(sequence: string): Promise<AdminEventLogEntry | null> {
-      const response = await client.getEvent({ sequence }, { headers: headers() });
-      return optionalAdminEventLogEntry(response.entry);
+      try {
+        const response = await client.getEvent({ sequence }, { headers: headers() });
+        return response.entry ? adminEventLogEntry(response.entry) : null;
+      } catch (error) {
+        if (error instanceof ConnectError && error.code === Code.NotFound) return null;
+        throw error;
+      }
     }
   };
 }
@@ -110,12 +115,6 @@ function hasActiveEventLogFilter(filter: AdminEventLogFilter): boolean {
 function timestampFromISO(value: string): Timestamp | undefined {
   if (!value) return undefined;
   return Timestamp.fromDate(new Date(value));
-}
-
-function optionalAdminEventLogEntry(
-  entry: APIAdminEventLogEntry | undefined
-): AdminEventLogEntry | null {
-  return entry ? adminEventLogEntry(entry) : null;
 }
 
 function adminEventLogEntry(entry: APIAdminEventLogEntry): AdminEventLogEntry {

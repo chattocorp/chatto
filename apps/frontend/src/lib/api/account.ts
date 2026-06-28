@@ -1,7 +1,7 @@
 import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import { AccountService } from '$lib/pb/chatto/api/v1/account_connect';
-import type { AccountUser as APIAccountUser } from '$lib/pb/chatto/api/v1/account_pb';
+import type { UserSummary as APIUserSummary } from '$lib/pb/chatto/api/v1/users_pb';
 import {
   TimeFormat as APITimeFormat,
   type UserSettings as APIUserSettings
@@ -98,7 +98,7 @@ export function createAccountAPI(config: AccountAPIConfig) {
 
 export type AccountAPI = ReturnType<typeof createAccountAPI>;
 
-function accountUser(user: APIAccountUser | undefined): AccountUser {
+function accountUser(user: APIUserSummary | undefined): AccountUser {
   if (!user) {
     throw new Error('account response did not include a user');
   }

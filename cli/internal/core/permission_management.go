@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sort"
 )
@@ -440,13 +439,10 @@ func (c *ChattoCore) buildTierRole(ctx context.Context, role RoleWithPermissions
 func (c *ChattoCore) buildRolePermissionMatrix(ctx context.Context, roleName string) (*RolePermissionMatrix, error) {
 	role, err := c.GetServerRole(ctx, roleName)
 	if err != nil {
-		if errors.Is(err, ErrRoleNotFound) {
-			return nil, nil
-		}
 		return nil, fmt.Errorf("load role: %w", err)
 	}
 	if role == nil {
-		return nil, nil
+		return nil, ErrRoleNotFound
 	}
 
 	applicable := matrixApplicablePermissions()

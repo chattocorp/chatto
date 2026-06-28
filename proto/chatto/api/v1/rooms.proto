@@ -4,6 +4,7 @@ package chatto.api.v1;
 
 import "buf/validate/validate.proto";
 import "chatto/api/v1/member_directory.proto";
+import "chatto/api/v1/pagination.proto";
 import "google/protobuf/timestamp.proto";
 
 // Kind of room represented by the public API.
@@ -225,12 +226,16 @@ message RoomBan {
 message ListRoomBansRequest {
   // Optional channel room filter. Empty lists active bans across all rooms.
   string room_id = 1;
+  // Page request. Defaults are applied when absent or limit is zero.
+  PageRequest page = 2;
 }
 
 // Active room bans visible to the current moderator.
 message ListRoomBansResponse {
   // Active bans, newest first.
   repeated RoomBan bans = 1;
+  // Page metadata.
+  PageInfo page = 2;
 }
 
 // Manages channel room lifecycle and room membership for the current user.
