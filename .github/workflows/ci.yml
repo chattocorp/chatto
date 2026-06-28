@@ -19,7 +19,8 @@ permissions:
 
 jobs:
   codegen-proto-drift:
-    runs-on: ubicloud-standard-4
+    # runs-on: ubicloud-standard-4
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -38,7 +39,8 @@ jobs:
           fi
 
   test-frontend-unit:
-    runs-on: ubicloud-standard-4
+    # runs-on: ubicloud-standard-4
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -70,7 +72,8 @@ jobs:
         run: cd apps/frontend && pnpm vitest --run
 
   test-cli:
-    runs-on: ubicloud-standard-4
+    # runs-on: ubicloud-standard-4
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -85,7 +88,8 @@ jobs:
         run: cd cli && go test -trimpath -p 1 -tags test_endpoints ./...
 
   test-e2e:
-    runs-on: ubicloud-standard-4
+    # runs-on: ubicloud-standard-4
+    runs-on: ubuntu-latest
     name: test-e2e (${{ matrix.shard }}/4)
     strategy:
       fail-fast: false
@@ -125,7 +129,8 @@ jobs:
           retention-days: 14
 
   test-e2e-media:
-    runs-on: ubicloud-standard-4
+    # runs-on: ubicloud-standard-4
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
