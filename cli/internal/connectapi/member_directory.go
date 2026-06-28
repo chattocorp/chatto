@@ -9,7 +9,7 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	appv1 "hmans.de/chatto/internal/pb/chatto/app/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -22,7 +22,7 @@ type memberDirectoryService struct {
 	api *API
 }
 
-func (s *memberDirectoryService) ListServerMembers(ctx context.Context, req *connect.Request[apiv1.ListServerMembersRequest]) (*connect.Response[apiv1.ListServerMembersResponse], error) {
+func (s *memberDirectoryService) ListServerMembers(ctx context.Context, req *connect.Request[appv1.ListServerMembersRequest]) (*connect.Response[appv1.ListServerMembersResponse], error) {
 	if _, err := requireCaller(ctx); err != nil {
 		return nil, err
 	}
@@ -33,7 +33,7 @@ func (s *memberDirectoryService) ListServerMembers(ctx context.Context, req *con
 		return nil, connectError(err)
 	}
 
-	out := make([]*apiv1.DirectoryMember, 0, len(members))
+	out := make([]*appv1.DirectoryMember, 0, len(members))
 	for _, member := range members {
 		user, err := s.api.core.GetUser(ctx, member.UserID)
 		if err != nil {
@@ -49,14 +49,14 @@ func (s *memberDirectoryService) ListServerMembers(ctx context.Context, req *con
 		out = append(out, apiMember)
 	}
 
-	return connect.NewResponse(&apiv1.ListServerMembersResponse{
+	return connect.NewResponse(&appv1.ListServerMembersResponse{
 		Members:    out,
 		TotalCount: int32(totalCount),
 		HasMore:    offset+len(out) < totalCount,
 	}), nil
 }
 
-func (s *memberDirectoryService) ListRoomMembers(ctx context.Context, req *connect.Request[apiv1.ListRoomMembersRequest]) (*connect.Response[apiv1.ListRoomMembersResponse], error) {
+func (s *memberDirectoryService) ListRoomMembers(ctx context.Context, req *connect.Request[appv1.ListRoomMembersRequest]) (*connect.Response[appv1.ListRoomMembersResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -90,7 +90,7 @@ func (s *memberDirectoryService) ListRoomMembers(ctx context.Context, req *conne
 
 	limit, offset := apiPagination(req.Msg.GetLimit(), req.Msg.GetOffset(), defaultMemberDirectoryLimit, maxMemberDirectoryLimit)
 	page, totalCount, hasMore := paginateDirectoryUsers(users, limit, offset)
-	out := make([]*apiv1.DirectoryMember, 0, len(page))
+	out := make([]*appv1.DirectoryMember, 0, len(page))
 	for _, user := range page {
 		apiMember, err := s.directoryMember(ctx, user, nil)
 		if err != nil {
@@ -99,19 +99,19 @@ func (s *memberDirectoryService) ListRoomMembers(ctx context.Context, req *conne
 		out = append(out, apiMember)
 	}
 
-	return connect.NewResponse(&apiv1.ListRoomMembersResponse{
+	return connect.NewResponse(&appv1.ListRoomMembersResponse{
 		Members:    out,
 		TotalCount: int32(totalCount),
 		HasMore:    hasMore,
 	}), nil
 }
 
-func (s *memberDirectoryService) directoryMember(ctx context.Context, user *corev1.User, roles []string) (*apiv1.DirectoryMember, error) {
+func (s *memberDirectoryService) directoryMember(ctx context.Context, user *corev1.User, roles []string) (*appv1.DirectoryMember, error) {
 	presence, err := s.api.core.GetUserPresence(ctx, user.GetId())
 	if err != nil {
 		return nil, connectError(err)
 	}
-	member := &apiv1.DirectoryMember{
+	member := &appv1.DirectoryMember{
 		Id:             user.GetId(),
 		Login:          user.GetLogin(),
 		DisplayName:    user.GetDisplayName(),

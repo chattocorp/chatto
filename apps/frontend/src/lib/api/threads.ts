@@ -1,7 +1,7 @@
 import { Code, ConnectError, createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { ThreadService } from '$lib/pb/chatto/api/v1/threads_connect';
-import type { RoomTimelineUser } from '$lib/pb/chatto/api/v1/room_timeline_pb';
+import { ThreadService } from '$lib/pb/chatto/app/v1/threads_connect';
+import type { RoomTimelineUser } from '$lib/pb/chatto/app/v1/room_timeline_pb';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 import type { RawEvent } from '$lib/state/room/messages/helpers';
 import { roomTimelineEventToRawEvent } from './roomTimeline';

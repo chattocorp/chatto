@@ -5,7 +5,15 @@ ConnectRPC services, and the public API reference.
 
 ## Public API Protos
 
-For `chatto/api/v1`:
+Current API packages:
+
+- `chatto/app/v1` is the first-party app ConnectRPC API used by the bundled
+  frontend.
+- `chatto/realtime/v1` is the binary websocket realtime protocol.
+- `chatto/integration/v1` is reserved for the stricter long-lived external
+  integration API.
+
+For public API protos:
 
 - Write comments for API consumers, not Chatto maintainers.
 - Every public service, RPC, message, enum, enum value, and important field
@@ -33,9 +41,9 @@ For `chatto/api/v1`:
 
 ## Presence And API Shape
 
-- For public API messages under `chatto/api/v1`, use proto3 `optional` scalar
-  fields when clients must distinguish absent/unhydrated/unknown from a scalar
-  default.
+- For public API messages under app, realtime, or integration packages, use
+  proto3 `optional` scalar fields when clients must distinguish
+  absent/unhydrated/unknown from a scalar default.
 - Avoid parallel `*_present` booleans for simple scalar presence.
 - Use enums or oneofs only when modeling multiple meaningful availability states.
 

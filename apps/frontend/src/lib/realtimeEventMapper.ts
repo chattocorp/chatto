@@ -4,13 +4,13 @@ import {
   TimeFormat
 } from '$lib/render/types';
 import { RoomEventKind } from '$lib/render/eventKinds';
-import { NotificationLevel as ApiNotificationLevel } from '$lib/pb/chatto/api/v1/notification_preferences_pb';
+import { NotificationLevel as ApiNotificationLevel } from '$lib/pb/chatto/app/v1/notification_preferences_pb';
 import {
   RealtimeEventEnvelope,
   RealtimeHeartbeat,
   RealtimePresenceStatus,
   RealtimeTimeFormat
-} from '$lib/pb/chatto/api/v1/realtime_pb';
+} from '$lib/pb/chatto/realtime/v1/realtime_pb';
 import type { EventEnvelope } from '$lib/eventBus.svelte';
 
 function timestampToISO(value: { toDate(): Date } | undefined): string {

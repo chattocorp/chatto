@@ -96,7 +96,7 @@ export async function getRoomIdByNameViaConnect(
 ): Promise<string> {
   const data = await connectPost<ListRoomsResponse>(
     client,
-    'chatto.api.v1.RoomDirectoryService/ListRooms'
+    'chatto.app.v1.RoomDirectoryService/ListRooms'
   );
   const room = data.rooms?.find((entry) => entry.room?.name === roomName)?.room;
   if (!room?.id) {
@@ -108,7 +108,7 @@ export async function getRoomIdByNameViaConnect(
 async function getRoomUnreadViaConnect(client: ConnectClient, roomId: string): Promise<boolean> {
   const data = await connectPost<ListRoomsResponse>(
     client,
-    'chatto.api.v1.RoomDirectoryService/ListRooms'
+    'chatto.app.v1.RoomDirectoryService/ListRooms'
   );
   const room = data.rooms?.find((entry) => entry.room?.id === roomId);
   if (!room) {
@@ -125,7 +125,7 @@ export async function waitForServerUnreadViaConnect(
   await expect(async () => {
     const data = await connectPost<ServerStateResponse>(
       page,
-      'chatto.api.v1.ServerStateService/GetServerState'
+      'chatto.app.v1.ServerStateService/GetServerState'
     );
     expect(data.viewerCapabilities?.hasUnreadRooms ?? false).toBe(expected);
   }).toPass({ timeout, intervals: [100, 250, 500, 1000] });
@@ -156,7 +156,7 @@ export async function waitForUserDeletedViaConnect(
   timeout = DEFAULT_POLL_TIMEOUT
 ): Promise<void> {
   await expect(async () => {
-    const response = await connectPostResponse(page, 'chatto.api.v1.UserService/GetUser', {
+    const response = await connectPostResponse(page, 'chatto.app.v1.UserService/GetUser', {
       userId
     });
     if (response.ok()) {
@@ -173,7 +173,7 @@ export async function waitForUserDeletedViaConnect(
 export async function getDefaultRoomGroupIdViaConnect(client: ConnectClient): Promise<string> {
   const data = await connectPost<ListRoomGroupsResponse>(
     client,
-    'chatto.api.v1.RoomDirectoryService/ListRoomGroups'
+    'chatto.app.v1.RoomDirectoryService/ListRoomGroups'
   );
   const groupId = data.groups?.[0]?.id;
   if (!groupId) {
@@ -190,7 +190,7 @@ export async function createRoomViaConnect(
 ): Promise<string> {
   const data = await connectPost<CreateRoomResponse>(
     client,
-    'chatto.api.v1.RoomService/CreateRoom',
+    'chatto.app.v1.RoomService/CreateRoom',
     {
       name,
       groupId,
@@ -205,7 +205,7 @@ export async function createRoomViaConnect(
 }
 
 export async function joinRoomViaConnect(client: ConnectClient, roomId: string): Promise<string> {
-  const data = await connectPost<JoinRoomResponse>(client, 'chatto.api.v1.RoomService/JoinRoom', {
+  const data = await connectPost<JoinRoomResponse>(client, 'chatto.app.v1.RoomService/JoinRoom', {
     roomId
   });
   const joinedRoomId = data.room?.id;
@@ -284,7 +284,7 @@ export async function postThreadReplyWithEchoViaConnect(
 async function postMessageWithConnectInput(page: Page, input: ConnectRequest): Promise<string> {
   const data = await connectPost<PostMessageResponse>(
     page,
-    'chatto.api.v1.MessageService/PostMessage',
+    'chatto.app.v1.MessageService/PostMessage',
     input
   );
   const eventId = data.event?.id;
@@ -299,7 +299,7 @@ export async function getServerNotificationPreference(
 ): Promise<E2ENotificationPreference> {
   const data = await connectPost<NotificationPreferenceResponse>(
     page,
-    'chatto.api.v1.NotificationPreferencesService/GetServerNotificationPreference'
+    'chatto.app.v1.NotificationPreferencesService/GetServerNotificationPreference'
   );
   return normalizeNotificationPreference(data);
 }
@@ -310,7 +310,7 @@ export async function setServerNotificationLevel(
 ): Promise<E2ENotificationPreference> {
   const data = await connectPost<NotificationPreferenceResponse>(
     page,
-    'chatto.api.v1.NotificationPreferencesService/SetServerNotificationLevel',
+    'chatto.app.v1.NotificationPreferencesService/SetServerNotificationLevel',
     { level: notificationLevelToProtoName[level] }
   );
   return normalizeNotificationPreference(data);
@@ -322,7 +322,7 @@ export async function getRoomNotificationPreference(
 ): Promise<E2ENotificationPreference> {
   const data = await connectPost<NotificationPreferenceResponse>(
     page,
-    'chatto.api.v1.NotificationPreferencesService/GetRoomNotificationPreference',
+    'chatto.app.v1.NotificationPreferencesService/GetRoomNotificationPreference',
     { roomId }
   );
   return normalizeNotificationPreference(data);
@@ -335,7 +335,7 @@ export async function setRoomNotificationLevel(
 ): Promise<E2ENotificationPreference> {
   const data = await connectPost<NotificationPreferenceResponse>(
     page,
-    'chatto.api.v1.NotificationPreferencesService/SetRoomNotificationLevel',
+    'chatto.app.v1.NotificationPreferencesService/SetRoomNotificationLevel',
     { roomId, level: notificationLevelToProtoName[level] }
   );
   return normalizeNotificationPreference(data);

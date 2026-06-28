@@ -44,7 +44,7 @@ export class DMPage {
     // Look up user by login
     const userData = await connectPost<GetUserByLoginResponse>(
       this.page,
-      'chatto.api.v1.UserService/GetUserByLogin',
+      'chatto.app.v1.UserService/GetUserByLogin',
       { login: username }
     );
     const userId = userData.user?.id;
@@ -55,7 +55,7 @@ export class DMPage {
     // Start DM
     const dmData = await connectPost<StartDMResponse>(
       this.page,
-      'chatto.api.v1.RoomService/StartDM',
+      'chatto.app.v1.RoomService/StartDM',
       { participantIds: [userId] }
     );
     const conversationId = dmData.room?.id;

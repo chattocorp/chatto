@@ -7,14 +7,14 @@ import (
 
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/config"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	appv1 "hmans.de/chatto/internal/pb/chatto/app/v1"
 )
 
 type serverService struct {
 	api *API
 }
 
-func (s *serverService) GetServer(ctx context.Context, _ *connect.Request[apiv1.GetServerRequest]) (*connect.Response[apiv1.GetServerResponse], error) {
+func (s *serverService) GetServer(ctx context.Context, _ *connect.Request[appv1.GetServerRequest]) (*connect.Response[appv1.GetServerResponse], error) {
 	authMethods := s.api.config.Auth.EnabledProviderMethods()
 	if s.api.config.Auth.DirectRegistrationOrDefault() {
 		authMethods = append([]string{"password"}, authMethods...)
@@ -23,7 +23,7 @@ func (s *serverService) GetServer(ctx context.Context, _ *connect.Request[apiv1.
 		authMethods = []string{}
 	}
 
-	response := &apiv1.GetServerResponse{
+	response := &appv1.GetServerResponse{
 		Name:             s.api.effectiveServerName(ctx),
 		Version:          s.api.version,
 		AuthMethods:      authMethods,
@@ -61,10 +61,10 @@ func (a *API) effectiveServerName(ctx context.Context) string {
 	return "Chatto"
 }
 
-func apiAuthProviders(providers []config.AuthProviderConfig) []*apiv1.AuthProvider {
-	result := make([]*apiv1.AuthProvider, 0, len(providers))
+func apiAuthProviders(providers []config.AuthProviderConfig) []*appv1.AuthProvider {
+	result := make([]*appv1.AuthProvider, 0, len(providers))
 	for _, provider := range providers {
-		result = append(result, &apiv1.AuthProvider{
+		result = append(result, &appv1.AuthProvider{
 			Id:       provider.ID,
 			Type:     provider.Type,
 			Label:    provider.LabelOrDefault(),

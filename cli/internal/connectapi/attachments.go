@@ -6,7 +6,7 @@ import (
 
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	appv1 "hmans.de/chatto/internal/pb/chatto/app/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -20,7 +20,7 @@ type attachmentThumbnailRequest struct {
 	fit    string
 }
 
-func (s *attachmentService) ListRoomAttachments(ctx context.Context, req *connect.Request[apiv1.ListRoomAttachmentsRequest]) (*connect.Response[apiv1.ListRoomAttachmentsResponse], error) {
+func (s *attachmentService) ListRoomAttachments(ctx context.Context, req *connect.Request[appv1.ListRoomAttachmentsRequest]) (*connect.Response[appv1.ListRoomAttachmentsResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -36,12 +36,12 @@ func (s *attachmentService) ListRoomAttachments(ctx context.Context, req *connec
 	}
 
 	thumbnail := attachmentThumbnailOptions(req.Msg.Thumbnail)
-	items := make([]*apiv1.RoomAttachmentListItem, 0, len(result.Items))
+	items := make([]*appv1.RoomAttachmentListItem, 0, len(result.Items))
 	for _, item := range result.Items {
 		if item == nil {
 			continue
 		}
-		items = append(items, &apiv1.RoomAttachmentListItem{
+		items = append(items, &appv1.RoomAttachmentListItem{
 			Attachment:        s.attachment(item.Attachment, caller.UserID, thumbnail),
 			MessageEventId:    item.MessageEventID,
 			ThreadRootEventId: item.ThreadRootEventID,
@@ -49,14 +49,14 @@ func (s *attachmentService) ListRoomAttachments(ctx context.Context, req *connec
 		})
 	}
 
-	return connect.NewResponse(&apiv1.ListRoomAttachmentsResponse{
+	return connect.NewResponse(&appv1.ListRoomAttachmentsResponse{
 		Items:      items,
 		TotalCount: int32(result.TotalCount),
 		HasMore:    result.HasMore,
 	}), nil
 }
 
-func (s *attachmentService) RefreshMessageAttachmentUrls(ctx context.Context, req *connect.Request[apiv1.RefreshMessageAttachmentUrlsRequest]) (*connect.Response[apiv1.RefreshMessageAttachmentUrlsResponse], error) {
+func (s *attachmentService) RefreshMessageAttachmentUrls(ctx context.Context, req *connect.Request[appv1.RefreshMessageAttachmentUrlsRequest]) (*connect.Response[appv1.RefreshMessageAttachmentUrlsResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -71,7 +71,7 @@ func (s *attachmentService) RefreshMessageAttachmentUrls(ctx context.Context, re
 	}
 
 	thumbnail := attachmentThumbnailOptions(req.Msg.Thumbnail)
-	items := make([]*apiv1.RefreshedAttachmentUrls, 0, len(attachments))
+	items := make([]*appv1.RefreshedAttachmentUrls, 0, len(attachments))
 	for _, attachment := range attachments {
 		if attachment == nil {
 			continue
@@ -80,7 +80,7 @@ func (s *attachmentService) RefreshMessageAttachmentUrls(ctx context.Context, re
 			api:      s.api,
 			viewerID: caller.UserID,
 		}).videoProcessing(attachment)
-		items = append(items, &apiv1.RefreshedAttachmentUrls{
+		items = append(items, &appv1.RefreshedAttachmentUrls{
 			AttachmentId:           attachment.Id,
 			AssetUrl:               assetURLView(s.api.core.GetStableAttachmentAssetURL(attachment.Id, caller.UserID)),
 			ThumbnailAssetUrl:      assetURLView(s.api.core.GetStableTransformedAttachmentAssetURL(attachment.Id, caller.UserID, thumbnail.width, thumbnail.height, thumbnail.fit)),
@@ -89,19 +89,19 @@ func (s *attachmentService) RefreshMessageAttachmentUrls(ctx context.Context, re
 		})
 	}
 
-	return connect.NewResponse(&apiv1.RefreshMessageAttachmentUrlsResponse{
+	return connect.NewResponse(&appv1.RefreshMessageAttachmentUrlsResponse{
 		Attachments: items,
 	}), nil
 }
 
-func refreshedVideoVariants(processing *apiv1.RoomTimelineVideoProcessing) []*apiv1.RoomTimelineVideoVariant {
+func refreshedVideoVariants(processing *appv1.RoomTimelineVideoProcessing) []*appv1.RoomTimelineVideoVariant {
 	if processing == nil {
 		return nil
 	}
 	return processing.GetVariants()
 }
 
-func (s *attachmentService) attachment(attachment *corev1.Attachment, viewerID string, thumbnail attachmentThumbnailRequest) *apiv1.RoomTimelineAttachment {
+func (s *attachmentService) attachment(attachment *corev1.Attachment, viewerID string, thumbnail attachmentThumbnailRequest) *appv1.RoomTimelineAttachment {
 	if attachment == nil {
 		return nil
 	}
@@ -109,7 +109,7 @@ func (s *attachmentService) attachment(attachment *corev1.Attachment, viewerID s
 		api:      s.api,
 		viewerID: viewerID,
 	}
-	return &apiv1.RoomTimelineAttachment{
+	return &appv1.RoomTimelineAttachment{
 		Id:                attachment.Id,
 		Filename:          attachment.Filename,
 		ContentType:       attachment.ContentType,
@@ -121,7 +121,7 @@ func (s *attachmentService) attachment(attachment *corev1.Attachment, viewerID s
 	}
 }
 
-func (s *attachmentService) videoThumbnailAssetURL(attachment *corev1.Attachment, viewerID string) *apiv1.RoomTimelineAssetUrl {
+func (s *attachmentService) videoThumbnailAssetURL(attachment *corev1.Attachment, viewerID string) *appv1.RoomTimelineAssetUrl {
 	if attachment == nil || (!strings.HasPrefix(attachment.GetContentType(), "video/") && attachment.GetContentType() != "image/gif") {
 		return nil
 	}
@@ -136,7 +136,7 @@ func (s *attachmentService) videoThumbnailAssetURL(attachment *corev1.Attachment
 	return assetURLView(s.api.core.GetStableAttachmentAssetURL(thumbnailID, viewerID))
 }
 
-func attachmentThumbnailOptions(options *apiv1.AttachmentThumbnailOptions) attachmentThumbnailRequest {
+func attachmentThumbnailOptions(options *appv1.AttachmentThumbnailOptions) attachmentThumbnailRequest {
 	width, height := 120, 120
 	fit := "cover"
 	if options != nil {
@@ -147,9 +147,9 @@ func attachmentThumbnailOptions(options *apiv1.AttachmentThumbnailOptions) attac
 			height = int(options.GetHeight())
 		}
 		switch options.GetFit() {
-		case apiv1.AttachmentFitMode_ATTACHMENT_FIT_MODE_CONTAIN:
+		case appv1.AttachmentFitMode_ATTACHMENT_FIT_MODE_CONTAIN:
 			fit = "contain"
-		case apiv1.AttachmentFitMode_ATTACHMENT_FIT_MODE_COVER:
+		case appv1.AttachmentFitMode_ATTACHMENT_FIT_MODE_COVER:
 			fit = "cover"
 		}
 	}

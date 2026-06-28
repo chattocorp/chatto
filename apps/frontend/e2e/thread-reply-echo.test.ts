@@ -567,7 +567,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       const deleteRequestPromise = page.waitForRequest((request) => {
         return (
           request.method() === 'POST' &&
-          request.url().includes('/api/connect/chatto.api.v1.MessageService/DeleteMessage')
+          request.url().includes('/api/connect/chatto.app.v1.MessageService/DeleteMessage')
         );
       });
 
@@ -843,7 +843,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
         const seedSetId = await getDefaultRoomGroupIdViaConnect(adminRequest);
         const response = await connectPost<{ ok?: boolean }>(
           adminRequest,
-          'chatto.api.v1.PermissionService/SetRolePermission',
+          'chatto.app.v1.PermissionService/SetRolePermission',
           {
             roleName: 'everyone',
             permission: 'message.echo',

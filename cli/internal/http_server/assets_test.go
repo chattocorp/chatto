@@ -24,8 +24,8 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/email"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
+	appv1 "hmans.de/chatto/internal/pb/chatto/app/v1"
+	"hmans.de/chatto/internal/pb/chatto/app/v1/appv1connect"
 	"hmans.de/chatto/internal/testutil"
 	"hmans.de/chatto/internal/testutil/fakes3"
 	"hmans.de/chatto/pkg/signedurl"
@@ -185,19 +185,19 @@ func createAssetTestPNG(t *testing.T, width, height int) []byte {
 	return buf.Bytes()
 }
 
-func (env *assetTestEnv) postAssetMessageWithAttachment(t *testing.T, roomID, body string, fileData []byte, fileName string) (string, *apiv1.RoomTimelineAttachment) {
+func (env *assetTestEnv) postAssetMessageWithAttachment(t *testing.T, roomID, body string, fileData []byte, fileName string) (string, *appv1.RoomTimelineAttachment) {
 	t.Helper()
 	return env.postAssetMessageWithAttachmentContentType(t, roomID, body, fileData, fileName, "image/png")
 }
 
-func (env *assetTestEnv) postAssetMessageWithAttachmentContentType(t *testing.T, roomID, body string, fileData []byte, fileName, contentType string) (string, *apiv1.RoomTimelineAttachment) {
+func (env *assetTestEnv) postAssetMessageWithAttachmentContentType(t *testing.T, roomID, body string, fileData []byte, fileName, contentType string) (string, *appv1.RoomTimelineAttachment) {
 	t.Helper()
 
-	client := apiv1connect.NewMessageServiceClient(env.client, env.server.URL+connectAPIPrefix)
-	req := connect.NewRequest(&apiv1.PostMessageRequest{
+	client := appv1connect.NewMessageServiceClient(env.client, env.server.URL+connectAPIPrefix)
+	req := connect.NewRequest(&appv1.PostMessageRequest{
 		RoomId: roomID,
 		Body:   body,
-		Attachments: []*apiv1.MessageAttachmentUpload{
+		Attachments: []*appv1.MessageAttachmentUpload{
 			{
 				Content:     fileData,
 				Filename:    fileName,
@@ -226,8 +226,8 @@ func (env *assetTestEnv) postAssetMessageWithAttachmentContentType(t *testing.T,
 func (env *assetTestEnv) deleteAssetMessage(t *testing.T, roomID, eventID string) {
 	t.Helper()
 
-	client := apiv1connect.NewMessageServiceClient(env.client, env.server.URL+connectAPIPrefix)
-	req := connect.NewRequest(&apiv1.DeleteMessageRequest{
+	client := appv1connect.NewMessageServiceClient(env.client, env.server.URL+connectAPIPrefix)
+	req := connect.NewRequest(&appv1.DeleteMessageRequest{
 		RoomId:  roomID,
 		EventId: eventID,
 	})

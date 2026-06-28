@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Code, ConnectError } from '@connectrpc/connect';
-import { FetchedLinkPreview, FetchLinkPreviewResponse } from '$lib/pb/chatto/api/v1/link_previews_pb';
+import { FetchedLinkPreview, FetchLinkPreviewResponse } from '$lib/pb/chatto/app/v1/link_previews_pb';
 import { createLinkPreviewAPI } from './linkPreviews';
 
 const mocks = vi.hoisted(() => ({

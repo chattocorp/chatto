@@ -6,7 +6,7 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	appv1 "hmans.de/chatto/internal/pb/chatto/app/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -14,7 +14,7 @@ type viewerService struct {
 	api *API
 }
 
-func (s *viewerService) GetViewer(ctx context.Context, _ *connect.Request[apiv1.GetViewerRequest]) (*connect.Response[apiv1.GetViewerResponse], error) {
+func (s *viewerService) GetViewer(ctx context.Context, _ *connect.Request[appv1.GetViewerRequest]) (*connect.Response[appv1.GetViewerResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -42,7 +42,7 @@ func (s *viewerService) GetViewer(ctx context.Context, _ *connect.Request[apiv1.
 		return nil, err
 	}
 
-	return connect.NewResponse(&apiv1.GetViewerResponse{
+	return connect.NewResponse(&appv1.GetViewerResponse{
 		User:                         responseUser,
 		Capabilities:                 capabilities,
 		ServerNotificationPreference: serverPreference,
@@ -50,7 +50,7 @@ func (s *viewerService) GetViewer(ctx context.Context, _ *connect.Request[apiv1.
 	}), nil
 }
 
-func (s *viewerService) viewerUser(ctx context.Context, user *corev1.User) (*apiv1.ViewerUser, error) {
+func (s *viewerService) viewerUser(ctx context.Context, user *corev1.User) (*appv1.ViewerUser, error) {
 	hasVerifiedEmail, err := s.api.core.HasVerifiedEmail(ctx, user.GetId())
 	if err != nil {
 		return nil, connectError(err)
@@ -72,7 +72,7 @@ func (s *viewerService) viewerUser(ctx context.Context, user *corev1.User) (*api
 		return nil, connectError(err)
 	}
 
-	response := &apiv1.ViewerUser{
+	response := &appv1.ViewerUser{
 		Id:                     user.GetId(),
 		Login:                  user.GetLogin(),
 		DisplayName:            user.GetDisplayName(),
@@ -94,7 +94,7 @@ func (s *viewerService) viewerUser(ctx context.Context, user *corev1.User) (*api
 	return response, nil
 }
 
-func (s *viewerService) viewerCapabilities(ctx context.Context, userID string) (*apiv1.ViewerCapabilities, error) {
+func (s *viewerService) viewerCapabilities(ctx context.Context, userID string) (*appv1.ViewerCapabilities, error) {
 	canViewAdmin, err := s.api.core.HasAnyAdminPermission(ctx, userID)
 	if err != nil {
 		return nil, connectError(err)
@@ -132,7 +132,7 @@ func (s *viewerService) viewerCapabilities(ctx context.Context, userID string) (
 		return nil, connectError(err)
 	}
 
-	return &apiv1.ViewerCapabilities{
+	return &appv1.ViewerCapabilities{
 		CanViewAdmin:             canViewAdmin,
 		CanStartDms:              canStartDMs,
 		CanAdminViewUsers:        canAdminViewUsers,
@@ -146,7 +146,7 @@ func (s *viewerService) viewerCapabilities(ctx context.Context, userID string) (
 	}, nil
 }
 
-func (s *viewerService) serverNotificationPreference(ctx context.Context, userID string) (*apiv1.ServerNotificationPreference, error) {
+func (s *viewerService) serverNotificationPreference(ctx context.Context, userID string) (*appv1.ServerNotificationPreference, error) {
 	level, err := s.api.core.GetSpaceNotificationLevel(ctx, userID)
 	if err != nil {
 		return nil, connectError(err)
@@ -155,20 +155,20 @@ func (s *viewerService) serverNotificationPreference(ctx context.Context, userID
 	if effectiveLevel == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
 		effectiveLevel = corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL
 	}
-	return &apiv1.ServerNotificationPreference{
+	return &appv1.ServerNotificationPreference{
 		Level:          coreNotificationLevelToAPI(level),
 		EffectiveLevel: coreNotificationLevelToAPI(effectiveLevel),
 	}, nil
 }
 
-func (s *viewerService) roomNotificationPreferences(ctx context.Context, userID string) ([]*apiv1.RoomNotificationPreference, error) {
+func (s *viewerService) roomNotificationPreferences(ctx context.Context, userID string) ([]*appv1.RoomNotificationPreference, error) {
 	prefs, err := s.api.core.GetAllRoomNotificationPreferences(ctx, userID)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	result := make([]*apiv1.RoomNotificationPreference, 0, len(prefs))
+	result := make([]*appv1.RoomNotificationPreference, 0, len(prefs))
 	for _, pref := range prefs {
-		result = append(result, &apiv1.RoomNotificationPreference{
+		result = append(result, &appv1.RoomNotificationPreference{
 			RoomId:         pref.RoomID,
 			Level:          coreNotificationLevelToAPI(pref.Level),
 			EffectiveLevel: coreNotificationLevelToAPI(pref.EffectiveLevel),
@@ -177,8 +177,8 @@ func (s *viewerService) roomNotificationPreferences(ctx context.Context, userID 
 	return result, nil
 }
 
-func coreUserSettingsToAPI(settings *corev1.ServerUserPreferences) *apiv1.UserSettings {
-	response := &apiv1.UserSettings{TimeFormat: apiv1.TimeFormat_TIME_FORMAT_AUTO}
+func coreUserSettingsToAPI(settings *corev1.ServerUserPreferences) *appv1.UserSettings {
+	response := &appv1.UserSettings{TimeFormat: appv1.TimeFormat_TIME_FORMAT_AUTO}
 	if settings == nil {
 		return response
 	}
@@ -189,14 +189,14 @@ func coreUserSettingsToAPI(settings *corev1.ServerUserPreferences) *apiv1.UserSe
 	return response
 }
 
-func coreTimeFormatToAPI(format corev1.TimeFormat) apiv1.TimeFormat {
+func coreTimeFormatToAPI(format corev1.TimeFormat) appv1.TimeFormat {
 	switch format {
 	case corev1.TimeFormat_TIME_FORMAT_12H:
-		return apiv1.TimeFormat_TIME_FORMAT_12_HOUR
+		return appv1.TimeFormat_TIME_FORMAT_12_HOUR
 	case corev1.TimeFormat_TIME_FORMAT_24H:
-		return apiv1.TimeFormat_TIME_FORMAT_24_HOUR
+		return appv1.TimeFormat_TIME_FORMAT_24_HOUR
 	default:
-		return apiv1.TimeFormat_TIME_FORMAT_AUTO
+		return appv1.TimeFormat_TIME_FORMAT_AUTO
 	}
 }
 

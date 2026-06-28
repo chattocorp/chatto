@@ -9,7 +9,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	appv1 "hmans.de/chatto/internal/pb/chatto/app/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -17,7 +17,7 @@ type roomService struct {
 	api *API
 }
 
-func (s *roomService) CreateRoom(ctx context.Context, req *connect.Request[apiv1.CreateRoomRequest]) (*connect.Response[apiv1.CreateRoomResponse], error) {
+func (s *roomService) CreateRoom(ctx context.Context, req *connect.Request[appv1.CreateRoomRequest]) (*connect.Response[appv1.CreateRoomResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -33,10 +33,10 @@ func (s *roomService) CreateRoom(ctx context.Context, req *connect.Request[apiv1
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.CreateRoomResponse{Room: apiRoom(room)}), nil
+	return connect.NewResponse(&appv1.CreateRoomResponse{Room: apiRoom(room)}), nil
 }
 
-func (s *roomService) UpdateRoom(ctx context.Context, req *connect.Request[apiv1.UpdateRoomRequest]) (*connect.Response[apiv1.UpdateRoomResponse], error) {
+func (s *roomService) UpdateRoom(ctx context.Context, req *connect.Request[appv1.UpdateRoomRequest]) (*connect.Response[appv1.UpdateRoomResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -51,10 +51,10 @@ func (s *roomService) UpdateRoom(ctx context.Context, req *connect.Request[apiv1
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.UpdateRoomResponse{Room: apiRoom(room)}), nil
+	return connect.NewResponse(&appv1.UpdateRoomResponse{Room: apiRoom(room)}), nil
 }
 
-func (s *roomService) ArchiveRoom(ctx context.Context, req *connect.Request[apiv1.ArchiveRoomRequest]) (*connect.Response[apiv1.ArchiveRoomResponse], error) {
+func (s *roomService) ArchiveRoom(ctx context.Context, req *connect.Request[appv1.ArchiveRoomRequest]) (*connect.Response[appv1.ArchiveRoomResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -67,10 +67,10 @@ func (s *roomService) ArchiveRoom(ctx context.Context, req *connect.Request[apiv
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.ArchiveRoomResponse{Room: apiRoom(room)}), nil
+	return connect.NewResponse(&appv1.ArchiveRoomResponse{Room: apiRoom(room)}), nil
 }
 
-func (s *roomService) UnarchiveRoom(ctx context.Context, req *connect.Request[apiv1.UnarchiveRoomRequest]) (*connect.Response[apiv1.UnarchiveRoomResponse], error) {
+func (s *roomService) UnarchiveRoom(ctx context.Context, req *connect.Request[appv1.UnarchiveRoomRequest]) (*connect.Response[appv1.UnarchiveRoomResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -83,10 +83,10 @@ func (s *roomService) UnarchiveRoom(ctx context.Context, req *connect.Request[ap
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.UnarchiveRoomResponse{Room: apiRoom(room)}), nil
+	return connect.NewResponse(&appv1.UnarchiveRoomResponse{Room: apiRoom(room)}), nil
 }
 
-func (s *roomService) SetRoomUniversal(ctx context.Context, req *connect.Request[apiv1.SetRoomUniversalRequest]) (*connect.Response[apiv1.SetRoomUniversalResponse], error) {
+func (s *roomService) SetRoomUniversal(ctx context.Context, req *connect.Request[appv1.SetRoomUniversalRequest]) (*connect.Response[appv1.SetRoomUniversalResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -100,10 +100,10 @@ func (s *roomService) SetRoomUniversal(ctx context.Context, req *connect.Request
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.SetRoomUniversalResponse{Room: apiRoom(room)}), nil
+	return connect.NewResponse(&appv1.SetRoomUniversalResponse{Room: apiRoom(room)}), nil
 }
 
-func (s *roomService) JoinRoom(ctx context.Context, req *connect.Request[apiv1.JoinRoomRequest]) (*connect.Response[apiv1.JoinRoomResponse], error) {
+func (s *roomService) JoinRoom(ctx context.Context, req *connect.Request[appv1.JoinRoomRequest]) (*connect.Response[appv1.JoinRoomResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -116,10 +116,10 @@ func (s *roomService) JoinRoom(ctx context.Context, req *connect.Request[apiv1.J
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.JoinRoomResponse{Room: apiRoom(room)}), nil
+	return connect.NewResponse(&appv1.JoinRoomResponse{Room: apiRoom(room)}), nil
 }
 
-func (s *roomService) StartDM(ctx context.Context, req *connect.Request[apiv1.StartDMRequest]) (*connect.Response[apiv1.StartDMResponse], error) {
+func (s *roomService) StartDM(ctx context.Context, req *connect.Request[appv1.StartDMRequest]) (*connect.Response[appv1.StartDMResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -132,10 +132,10 @@ func (s *roomService) StartDM(ctx context.Context, req *connect.Request[apiv1.St
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.StartDMResponse{Room: apiRoom(room)}), nil
+	return connect.NewResponse(&appv1.StartDMResponse{Room: apiRoom(room)}), nil
 }
 
-func (s *roomService) LeaveRoom(ctx context.Context, req *connect.Request[apiv1.LeaveRoomRequest]) (*connect.Response[apiv1.LeaveRoomResponse], error) {
+func (s *roomService) LeaveRoom(ctx context.Context, req *connect.Request[appv1.LeaveRoomRequest]) (*connect.Response[appv1.LeaveRoomResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -146,10 +146,10 @@ func (s *roomService) LeaveRoom(ctx context.Context, req *connect.Request[apiv1.
 	}); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.LeaveRoomResponse{Left: true}), nil
+	return connect.NewResponse(&appv1.LeaveRoomResponse{Left: true}), nil
 }
 
-func (s *roomService) ListRoomBans(ctx context.Context, req *connect.Request[apiv1.ListRoomBansRequest]) (*connect.Response[apiv1.ListRoomBansResponse], error) {
+func (s *roomService) ListRoomBans(ctx context.Context, req *connect.Request[appv1.ListRoomBansRequest]) (*connect.Response[appv1.ListRoomBansResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -169,7 +169,7 @@ func (s *roomService) ListRoomBans(ctx context.Context, req *connect.Request[api
 	}
 
 	directory := memberDirectoryService{api: s.api}
-	out := make([]*apiv1.RoomBan, 0, len(bans))
+	out := make([]*appv1.RoomBan, 0, len(bans))
 	for _, ban := range bans {
 		apiBan, err := s.apiRoomBan(ctx, directory, ban)
 		if err != nil {
@@ -177,10 +177,10 @@ func (s *roomService) ListRoomBans(ctx context.Context, req *connect.Request[api
 		}
 		out = append(out, apiBan)
 	}
-	return connect.NewResponse(&apiv1.ListRoomBansResponse{Bans: out}), nil
+	return connect.NewResponse(&appv1.ListRoomBansResponse{Bans: out}), nil
 }
 
-func (s *roomService) BanRoomMember(ctx context.Context, req *connect.Request[apiv1.BanRoomMemberRequest]) (*connect.Response[apiv1.BanRoomMemberResponse], error) {
+func (s *roomService) BanRoomMember(ctx context.Context, req *connect.Request[appv1.BanRoomMemberRequest]) (*connect.Response[appv1.BanRoomMemberResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -200,10 +200,10 @@ func (s *roomService) BanRoomMember(ctx context.Context, req *connect.Request[ap
 	}); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.BanRoomMemberResponse{Banned: true}), nil
+	return connect.NewResponse(&appv1.BanRoomMemberResponse{Banned: true}), nil
 }
 
-func (s *roomService) UnbanRoomMember(ctx context.Context, req *connect.Request[apiv1.UnbanRoomMemberRequest]) (*connect.Response[apiv1.UnbanRoomMemberResponse], error) {
+func (s *roomService) UnbanRoomMember(ctx context.Context, req *connect.Request[appv1.UnbanRoomMemberRequest]) (*connect.Response[appv1.UnbanRoomMemberResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -216,15 +216,15 @@ func (s *roomService) UnbanRoomMember(ctx context.Context, req *connect.Request[
 	}); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.UnbanRoomMemberResponse{Unbanned: true}), nil
+	return connect.NewResponse(&appv1.UnbanRoomMemberResponse{Unbanned: true}), nil
 }
 
-func (s *roomService) apiRoomBan(ctx context.Context, directory memberDirectoryService, ban core.RoomBan) (*apiv1.RoomBan, error) {
+func (s *roomService) apiRoomBan(ctx context.Context, directory memberDirectoryService, ban core.RoomBan) (*appv1.RoomBan, error) {
 	var expiresAt *timestamppb.Timestamp
 	if ban.ExpiresAt != nil {
 		expiresAt = timestamppb.New(*ban.ExpiresAt)
 	}
-	out := &apiv1.RoomBan{
+	out := &appv1.RoomBan{
 		Id:          ban.EventID,
 		RoomId:      ban.RoomID,
 		UserId:      ban.UserID,
@@ -272,11 +272,11 @@ func (s *roomService) apiRoomBan(ctx context.Context, directory memberDirectoryS
 	return out, nil
 }
 
-func apiRoom(room *corev1.Room) *apiv1.Room {
+func apiRoom(room *corev1.Room) *appv1.Room {
 	if room == nil {
 		return nil
 	}
-	return &apiv1.Room{
+	return &appv1.Room{
 		Id:          room.Id,
 		Kind:        apiRoomKind(room.Kind),
 		Name:        room.Name,
@@ -287,13 +287,13 @@ func apiRoom(room *corev1.Room) *apiv1.Room {
 	}
 }
 
-func apiRoomKind(kind corev1.RoomKind) apiv1.RoomKind {
+func apiRoomKind(kind corev1.RoomKind) appv1.RoomKind {
 	switch kind {
 	case corev1.RoomKind_ROOM_KIND_CHANNEL:
-		return apiv1.RoomKind_ROOM_KIND_CHANNEL
+		return appv1.RoomKind_ROOM_KIND_CHANNEL
 	case corev1.RoomKind_ROOM_KIND_DM:
-		return apiv1.RoomKind_ROOM_KIND_DM
+		return appv1.RoomKind_ROOM_KIND_DM
 	default:
-		return apiv1.RoomKind_ROOM_KIND_UNSPECIFIED
+		return appv1.RoomKind_ROOM_KIND_UNSPECIFIED
 	}
 }

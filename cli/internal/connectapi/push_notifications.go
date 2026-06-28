@@ -5,14 +5,14 @@ import (
 	"errors"
 
 	"connectrpc.com/connect"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	appv1 "hmans.de/chatto/internal/pb/chatto/app/v1"
 )
 
 type pushNotificationService struct {
 	api *API
 }
 
-func (s *pushNotificationService) Subscribe(ctx context.Context, req *connect.Request[apiv1.SubscribeRequest]) (*connect.Response[apiv1.SubscribeResponse], error) {
+func (s *pushNotificationService) Subscribe(ctx context.Context, req *connect.Request[appv1.SubscribeRequest]) (*connect.Response[appv1.SubscribeResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -29,10 +29,10 @@ func (s *pushNotificationService) Subscribe(ctx context.Context, req *connect.Re
 		return nil, connectError(err)
 	}
 
-	return connect.NewResponse(&apiv1.SubscribeResponse{Subscribed: true}), nil
+	return connect.NewResponse(&appv1.SubscribeResponse{Subscribed: true}), nil
 }
 
-func (s *pushNotificationService) Unsubscribe(ctx context.Context, req *connect.Request[apiv1.UnsubscribeRequest]) (*connect.Response[apiv1.UnsubscribeResponse], error) {
+func (s *pushNotificationService) Unsubscribe(ctx context.Context, req *connect.Request[appv1.UnsubscribeRequest]) (*connect.Response[appv1.UnsubscribeResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -42,5 +42,5 @@ func (s *pushNotificationService) Unsubscribe(ctx context.Context, req *connect.
 		return nil, connectError(err)
 	}
 
-	return connect.NewResponse(&apiv1.UnsubscribeResponse{Unsubscribed: true}), nil
+	return connect.NewResponse(&appv1.UnsubscribeResponse{Unsubscribed: true}), nil
 }

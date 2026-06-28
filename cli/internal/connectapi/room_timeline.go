@@ -11,7 +11,7 @@ import (
 
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	appv1 "hmans.de/chatto/internal/pb/chatto/app/v1"
 )
 
 const (
@@ -25,7 +25,7 @@ type roomTimelineService struct {
 	api *API
 }
 
-func (s *roomTimelineService) GetRoomEvents(ctx context.Context, req *connect.Request[apiv1.GetRoomEventsRequest]) (*connect.Response[apiv1.GetRoomEventsResponse], error) {
+func (s *roomTimelineService) GetRoomEvents(ctx context.Context, req *connect.Request[appv1.GetRoomEventsRequest]) (*connect.Response[appv1.GetRoomEventsResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -55,10 +55,10 @@ func (s *roomTimelineService) GetRoomEvents(ctx context.Context, req *connect.Re
 	}
 	resp.StartCursor = formatRoomTimelineCursor(page.StartCursorSeq)
 	resp.EndCursor = formatRoomTimelineCursor(page.EndCursorSeq)
-	return connect.NewResponse(&apiv1.GetRoomEventsResponse{Page: resp}), nil
+	return connect.NewResponse(&appv1.GetRoomEventsResponse{Page: resp}), nil
 }
 
-func (s *roomTimelineService) GetRoomEventsAround(ctx context.Context, req *connect.Request[apiv1.GetRoomEventsAroundRequest]) (*connect.Response[apiv1.GetRoomEventsAroundResponse], error) {
+func (s *roomTimelineService) GetRoomEventsAround(ctx context.Context, req *connect.Request[appv1.GetRoomEventsAroundRequest]) (*connect.Response[appv1.GetRoomEventsAroundResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -77,13 +77,13 @@ func (s *roomTimelineService) GetRoomEventsAround(ctx context.Context, req *conn
 		page.EndCursor = formatRoomTimelineCursor(around.Events[len(around.Events)-1].Sequence)
 	}
 
-	return connect.NewResponse(&apiv1.GetRoomEventsAroundResponse{
+	return connect.NewResponse(&appv1.GetRoomEventsAroundResponse{
 		Page:        page,
 		TargetIndex: int32(around.TargetIndex),
 	}), nil
 }
 
-func (s *roomTimelineService) ResolveMessageLinkTarget(ctx context.Context, req *connect.Request[apiv1.ResolveMessageLinkTargetRequest]) (*connect.Response[apiv1.ResolveMessageLinkTargetResponse], error) {
+func (s *roomTimelineService) ResolveMessageLinkTarget(ctx context.Context, req *connect.Request[appv1.ResolveMessageLinkTargetRequest]) (*connect.Response[appv1.ResolveMessageLinkTargetResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -97,14 +97,14 @@ func (s *roomTimelineService) ResolveMessageLinkTarget(ctx context.Context, req 
 		return nil, connectError(err)
 	}
 
-	return connect.NewResponse(&apiv1.ResolveMessageLinkTargetResponse{
+	return connect.NewResponse(&appv1.ResolveMessageLinkTargetResponse{
 		Event:             event,
 		ThreadRootEventId: result.ThreadRootEventID,
 		Includes:          includes,
 	}), nil
 }
 
-func (s *roomTimelineService) GetThreadEvents(ctx context.Context, req *connect.Request[apiv1.GetThreadEventsRequest]) (*connect.Response[apiv1.GetThreadEventsResponse], error) {
+func (s *roomTimelineService) GetThreadEvents(ctx context.Context, req *connect.Request[appv1.GetThreadEventsRequest]) (*connect.Response[appv1.GetThreadEventsResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -132,10 +132,10 @@ func (s *roomTimelineService) GetThreadEvents(ctx context.Context, req *connect.
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.GetThreadEventsResponse{Page: page}), nil
+	return connect.NewResponse(&appv1.GetThreadEventsResponse{Page: page}), nil
 }
 
-func (s *roomTimelineService) GetThreadEventsAround(ctx context.Context, req *connect.Request[apiv1.GetThreadEventsAroundRequest]) (*connect.Response[apiv1.GetThreadEventsAroundResponse], error) {
+func (s *roomTimelineService) GetThreadEventsAround(ctx context.Context, req *connect.Request[appv1.GetThreadEventsAroundRequest]) (*connect.Response[appv1.GetThreadEventsAroundResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -149,7 +149,7 @@ func (s *roomTimelineService) GetThreadEventsAround(ctx context.Context, req *co
 		return nil, connectError(err)
 	}
 
-	return connect.NewResponse(&apiv1.GetThreadEventsAroundResponse{
+	return connect.NewResponse(&appv1.GetThreadEventsAroundResponse{
 		Page:        page,
 		TargetIndex: int32(result.TargetIndex),
 	}), nil
@@ -194,25 +194,25 @@ func roomTimelineCursorBounds(cursor any) (afterSeq, beforeSeq *uint64, err erro
 	switch cursor := cursor.(type) {
 	case nil:
 		return nil, nil, nil
-	case *apiv1.GetRoomEventsRequest_After:
+	case *appv1.GetRoomEventsRequest_After:
 		seq, err := parseRoomTimelineCursor(cursor.After)
 		if err != nil {
 			return nil, nil, err
 		}
 		return &seq, nil, nil
-	case *apiv1.GetRoomEventsRequest_Before:
+	case *appv1.GetRoomEventsRequest_Before:
 		seq, err := parseRoomTimelineCursor(cursor.Before)
 		if err != nil {
 			return nil, nil, err
 		}
 		return nil, &seq, nil
-	case *apiv1.GetThreadEventsRequest_After:
+	case *appv1.GetThreadEventsRequest_After:
 		seq, err := parseRoomTimelineCursor(cursor.After)
 		if err != nil {
 			return nil, nil, err
 		}
 		return &seq, nil, nil
-	case *apiv1.GetThreadEventsRequest_Before:
+	case *appv1.GetThreadEventsRequest_Before:
 		seq, err := parseRoomTimelineCursor(cursor.Before)
 		if err != nil {
 			return nil, nil, err

@@ -65,7 +65,7 @@ async function denyRoomPermissionViaAPI(
 ): Promise<void> {
   const data = await connectPost<{ ok?: boolean }>(
     page,
-    'chatto.api.v1.PermissionService/SetRolePermission',
+    'chatto.app.v1.PermissionService/SetRolePermission',
     {
       roleName,
       permission,
@@ -104,7 +104,7 @@ async function updateRoomLayoutViaAPI(page: Page, groups: RoomGroup[]): Promise<
     const existing = currentById.get(desired.id);
     if (existing) {
       if (existing.name !== desired.name) {
-        await connectPost(page, 'chatto.api.v1.AdminRoomLayoutService/UpdateRoomGroup', {
+        await connectPost(page, 'chatto.app.v1.AdminRoomLayoutService/UpdateRoomGroup', {
           groupId: existing.id,
           name: desired.name
         });
@@ -113,7 +113,7 @@ async function updateRoomLayoutViaAPI(page: Page, groups: RoomGroup[]): Promise<
     } else {
       const created = await connectPost<{ group?: { id?: string } }>(
         page,
-        'chatto.api.v1.AdminRoomLayoutService/CreateRoomGroup',
+        'chatto.app.v1.AdminRoomLayoutService/CreateRoomGroup',
         { name: desired.name }
       );
       const newId = created.group?.id;
@@ -151,7 +151,7 @@ async function updateRoomLayoutViaAPI(page: Page, groups: RoomGroup[]): Promise<
       }
     }
     if (currentGroup === targetId) continue;
-    await connectPost(page, 'chatto.api.v1.AdminRoomLayoutService/MoveRoomToGroup', {
+    await connectPost(page, 'chatto.app.v1.AdminRoomLayoutService/MoveRoomToGroup', {
       roomId,
       groupId: targetId
     });
@@ -174,7 +174,7 @@ async function updateRoomLayoutViaAPI(page: Page, groups: RoomGroup[]): Promise<
     const after = refreshedRooms.get(targetId) ?? [];
     const same = desired.length === after.length && desired.every((id, j) => id === after[j]);
     if (same) continue;
-    await connectPost(page, 'chatto.api.v1.AdminRoomLayoutService/ReorderSidebarItemsInGroup', {
+    await connectPost(page, 'chatto.app.v1.AdminRoomLayoutService/ReorderSidebarItemsInGroup', {
       groupId: targetId,
       items: desired.map((id) => ({ kind: 'ADMIN_ROOM_LAYOUT_ITEM_KIND_ROOM', id }))
     });
@@ -191,7 +191,7 @@ async function updateRoomLayoutViaAPI(page: Page, groups: RoomGroup[]): Promise<
     if (fresh.length > 0) continue;
     const response = await connectPost<{ deleted?: boolean }>(
       page,
-      'chatto.api.v1.AdminRoomLayoutService/DeleteRoomGroup',
+      'chatto.app.v1.AdminRoomLayoutService/DeleteRoomGroup',
       { groupId: g.id }
     );
     expect(response.deleted).toBe(true);
@@ -199,7 +199,7 @@ async function updateRoomLayoutViaAPI(page: Page, groups: RoomGroup[]): Promise<
 
   // Finally, force the layout's group order to match the input.
   if (resolvedIds.length > 1) {
-    await connectPost(page, 'chatto.api.v1.AdminRoomLayoutService/ReorderRoomGroups', {
+    await connectPost(page, 'chatto.app.v1.AdminRoomLayoutService/ReorderRoomGroups', {
       orderedGroupIds: resolvedIds
     });
   }
@@ -210,7 +210,7 @@ async function getRoomLayoutViaAPI(page: Page): Promise<{
 } | null> {
   const data = await connectPost<AdminRoomLayoutResponse>(
     page,
-    'chatto.api.v1.AdminRoomLayoutService/ListAdminRoomLayout'
+    'chatto.app.v1.AdminRoomLayoutService/ListAdminRoomLayout'
   );
   return {
     groups: (data.groups ?? []).map((group) => ({
@@ -241,7 +241,7 @@ async function getSeedSetId(page: Page): Promise<string> {
 async function archiveRoomViaAPI(page: Page, roomId: string): Promise<void> {
   const data = await connectPost<{ room?: { archived?: boolean } }>(
     page,
-    'chatto.api.v1.RoomService/ArchiveRoom',
+    'chatto.app.v1.RoomService/ArchiveRoom',
     { roomId }
   );
   expect(data.room?.archived).toBe(true);
@@ -250,7 +250,7 @@ async function archiveRoomViaAPI(page: Page, roomId: string): Promise<void> {
 async function unarchiveRoomViaAPI(page: Page, roomId: string): Promise<void> {
   const data = await connectPost<{ room?: { archived?: boolean } }>(
     page,
-    'chatto.api.v1.RoomService/UnarchiveRoom',
+    'chatto.app.v1.RoomService/UnarchiveRoom',
     { roomId }
   );
   expect(data.room).toBeTruthy();
@@ -576,7 +576,7 @@ test.describe('Room Layout', () => {
         void generalId;
         const resp = await connectPostResponse(
           page2,
-          'chatto.api.v1.AdminRoomLayoutService/CreateRoomGroup',
+          'chatto.app.v1.AdminRoomLayoutService/CreateRoomGroup',
           { name: 'Hacked' }
         );
 

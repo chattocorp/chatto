@@ -1,7 +1,7 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { RoomDirectoryScope } from '$lib/pb/chatto/api/v1/room_directory_pb';
-import { RoomKind } from '$lib/pb/chatto/api/v1/rooms_pb';
+import { RoomDirectoryScope } from '$lib/pb/chatto/app/v1/room_directory_pb';
+import { RoomKind } from '$lib/pb/chatto/app/v1/rooms_pb';
 import { createRoomDirectoryAPI } from './roomDirectory';
 
 const mocks = vi.hoisted(() => ({

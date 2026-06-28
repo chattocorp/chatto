@@ -5,14 +5,14 @@ import (
 
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	appv1 "hmans.de/chatto/internal/pb/chatto/app/v1"
 )
 
 type reactionService struct {
 	api *API
 }
 
-func (s *reactionService) AddReaction(ctx context.Context, req *connect.Request[apiv1.AddReactionRequest]) (*connect.Response[apiv1.AddReactionResponse], error) {
+func (s *reactionService) AddReaction(ctx context.Context, req *connect.Request[appv1.AddReactionRequest]) (*connect.Response[appv1.AddReactionResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -27,10 +27,10 @@ func (s *reactionService) AddReaction(ctx context.Context, req *connect.Request[
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.AddReactionResponse{Added: added}), nil
+	return connect.NewResponse(&appv1.AddReactionResponse{Added: added}), nil
 }
 
-func (s *reactionService) RemoveReaction(ctx context.Context, req *connect.Request[apiv1.RemoveReactionRequest]) (*connect.Response[apiv1.RemoveReactionResponse], error) {
+func (s *reactionService) RemoveReaction(ctx context.Context, req *connect.Request[appv1.RemoveReactionRequest]) (*connect.Response[appv1.RemoveReactionResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -45,5 +45,5 @@ func (s *reactionService) RemoveReaction(ctx context.Context, req *connect.Reque
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.RemoveReactionResponse{Removed: removed}), nil
+	return connect.NewResponse(&appv1.RemoveReactionResponse{Removed: removed}), nil
 }

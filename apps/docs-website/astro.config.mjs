@@ -44,7 +44,9 @@ export default defineConfig({
         {
           label: "Reference",
           items: [
-            "reference/connectrpc-api",
+            "reference/integration-api",
+            "reference/app-connectrpc-api",
+            "reference/realtime-protocol",
             "reference/environment-variables",
           ],
         },

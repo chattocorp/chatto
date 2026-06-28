@@ -7,7 +7,7 @@ import (
 
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	appv1 "hmans.de/chatto/internal/pb/chatto/app/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -15,7 +15,7 @@ type accountService struct {
 	api *API
 }
 
-func (s *accountService) UpdateProfile(ctx context.Context, req *connect.Request[apiv1.UpdateProfileRequest]) (*connect.Response[apiv1.UpdateProfileResponse], error) {
+func (s *accountService) UpdateProfile(ctx context.Context, req *connect.Request[appv1.UpdateProfileRequest]) (*connect.Response[appv1.UpdateProfileResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -41,10 +41,10 @@ func (s *accountService) UpdateProfile(ctx context.Context, req *connect.Request
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&apiv1.UpdateProfileResponse{User: user}), nil
+	return connect.NewResponse(&appv1.UpdateProfileResponse{User: user}), nil
 }
 
-func (s *accountService) UploadAvatar(ctx context.Context, req *connect.Request[apiv1.UploadAvatarRequest]) (*connect.Response[apiv1.UploadAvatarResponse], error) {
+func (s *accountService) UploadAvatar(ctx context.Context, req *connect.Request[appv1.UploadAvatarRequest]) (*connect.Response[appv1.UploadAvatarResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -69,10 +69,10 @@ func (s *accountService) UploadAvatar(ctx context.Context, req *connect.Request[
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&apiv1.UploadAvatarResponse{User: responseUser}), nil
+	return connect.NewResponse(&appv1.UploadAvatarResponse{User: responseUser}), nil
 }
 
-func (s *accountService) DeleteAvatar(ctx context.Context, _ *connect.Request[apiv1.DeleteAvatarRequest]) (*connect.Response[apiv1.DeleteAvatarResponse], error) {
+func (s *accountService) DeleteAvatar(ctx context.Context, _ *connect.Request[appv1.DeleteAvatarRequest]) (*connect.Response[appv1.DeleteAvatarResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -89,10 +89,10 @@ func (s *accountService) DeleteAvatar(ctx context.Context, _ *connect.Request[ap
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&apiv1.DeleteAvatarResponse{User: responseUser}), nil
+	return connect.NewResponse(&appv1.DeleteAvatarResponse{User: responseUser}), nil
 }
 
-func (s *accountService) UpdateSettings(ctx context.Context, req *connect.Request[apiv1.UpdateSettingsRequest]) (*connect.Response[apiv1.UpdateSettingsResponse], error) {
+func (s *accountService) UpdateSettings(ctx context.Context, req *connect.Request[appv1.UpdateSettingsRequest]) (*connect.Response[appv1.UpdateSettingsResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -111,12 +111,12 @@ func (s *accountService) UpdateSettings(ctx context.Context, req *connect.Reques
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.UpdateSettingsResponse{
+	return connect.NewResponse(&appv1.UpdateSettingsResponse{
 		Settings: coreUserSettingsToAPI(settings),
 	}), nil
 }
 
-func (s *accountService) RequestAccountDeletion(ctx context.Context, _ *connect.Request[apiv1.RequestAccountDeletionRequest]) (*connect.Response[apiv1.RequestAccountDeletionResponse], error) {
+func (s *accountService) RequestAccountDeletion(ctx context.Context, _ *connect.Request[appv1.RequestAccountDeletionRequest]) (*connect.Response[appv1.RequestAccountDeletionResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -126,12 +126,12 @@ func (s *accountService) RequestAccountDeletion(ctx context.Context, _ *connect.
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.RequestAccountDeletionResponse{
+	return connect.NewResponse(&appv1.RequestAccountDeletionResponse{
 		ConfirmationToken: token,
 	}), nil
 }
 
-func (s *accountService) DeleteMyAccount(ctx context.Context, req *connect.Request[apiv1.DeleteMyAccountRequest]) (*connect.Response[apiv1.DeleteMyAccountResponse], error) {
+func (s *accountService) DeleteMyAccount(ctx context.Context, req *connect.Request[appv1.DeleteMyAccountRequest]) (*connect.Response[appv1.DeleteMyAccountResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -146,14 +146,14 @@ func (s *accountService) DeleteMyAccount(ctx context.Context, req *connect.Reque
 	if err := s.api.core.DeleteUser(ctx, caller.UserID, caller.UserID); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.DeleteMyAccountResponse{Deleted: true}), nil
+	return connect.NewResponse(&appv1.DeleteMyAccountResponse{Deleted: true}), nil
 }
 
-func (s *accountService) accountUser(ctx context.Context, user *corev1.User) (*apiv1.AccountUser, error) {
+func (s *accountService) accountUser(ctx context.Context, user *corev1.User) (*appv1.AccountUser, error) {
 	if user == nil {
 		return nil, connectError(errors.New("user not found"))
 	}
-	response := &apiv1.AccountUser{
+	response := &appv1.AccountUser{
 		Id:          user.GetId(),
 		Login:       user.GetLogin(),
 		DisplayName: user.GetDisplayName(),
@@ -166,11 +166,11 @@ func (s *accountService) accountUser(ctx context.Context, user *corev1.User) (*a
 	return response, nil
 }
 
-func apiTimeFormatToCore(format apiv1.TimeFormat) corev1.TimeFormat {
+func apiTimeFormatToCore(format appv1.TimeFormat) corev1.TimeFormat {
 	switch format {
-	case apiv1.TimeFormat_TIME_FORMAT_12_HOUR:
+	case appv1.TimeFormat_TIME_FORMAT_12_HOUR:
 		return corev1.TimeFormat_TIME_FORMAT_12H
-	case apiv1.TimeFormat_TIME_FORMAT_24_HOUR:
+	case appv1.TimeFormat_TIME_FORMAT_24_HOUR:
 		return corev1.TimeFormat_TIME_FORMAT_24H
 	default:
 		return corev1.TimeFormat_TIME_FORMAT_UNSPECIFIED

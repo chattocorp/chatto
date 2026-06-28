@@ -10,7 +10,7 @@ import (
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/assets"
 	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	appv1 "hmans.de/chatto/internal/pb/chatto/app/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -18,7 +18,7 @@ type messageService struct {
 	api *API
 }
 
-func (s *messageService) PostMessage(ctx context.Context, req *connect.Request[apiv1.PostMessageRequest]) (*connect.Response[apiv1.PostMessageResponse], error) {
+func (s *messageService) PostMessage(ctx context.Context, req *connect.Request[appv1.PostMessageRequest]) (*connect.Response[appv1.PostMessageResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -29,9 +29,9 @@ func (s *messageService) PostMessage(ctx context.Context, req *connect.Request[a
 		return nil, connectError(err)
 	}
 	if challenge != nil {
-		return connect.NewResponse(&apiv1.PostMessageResponse{
-			Result: &apiv1.PostMessageResponse_MentionConfirmation{
-				MentionConfirmation: &apiv1.MentionConfirmationChallenge{
+		return connect.NewResponse(&appv1.PostMessageResponse{
+			Result: &appv1.PostMessageResponse_MentionConfirmation{
+				MentionConfirmation: &appv1.MentionConfirmationChallenge{
 					RecipientCount: int32(challenge.RecipientCount),
 					Token:          challenge.Token,
 				},
@@ -58,9 +58,9 @@ func (s *messageService) PostMessage(ctx context.Context, req *connect.Request[a
 		return nil, connect.NewError(connect.CodeInternal, errors.New("message post returned no result"))
 	}
 	if challenge := result.MentionConfirmation; challenge != nil {
-		return connect.NewResponse(&apiv1.PostMessageResponse{
-			Result: &apiv1.PostMessageResponse_MentionConfirmation{
-				MentionConfirmation: &apiv1.MentionConfirmationChallenge{
+		return connect.NewResponse(&appv1.PostMessageResponse{
+			Result: &appv1.PostMessageResponse_MentionConfirmation{
+				MentionConfirmation: &appv1.MentionConfirmationChallenge{
 					RecipientCount: int32(challenge.RecipientCount),
 					Token:          challenge.Token,
 				},
@@ -80,13 +80,13 @@ func (s *messageService) PostMessage(ctx context.Context, req *connect.Request[a
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.PostMessageResponse{
-		Result:   &apiv1.PostMessageResponse_Event{Event: apiEvent},
+	return connect.NewResponse(&appv1.PostMessageResponse{
+		Result:   &appv1.PostMessageResponse_Event{Event: apiEvent},
 		Includes: includes,
 	}), nil
 }
 
-func (s *messageService) uploadPostAttachments(ctx context.Context, actorID string, req *apiv1.PostMessageRequest) ([]string, []string, *core.MentionConfirmationChallenge, error) {
+func (s *messageService) uploadPostAttachments(ctx context.Context, actorID string, req *appv1.PostMessageRequest) ([]string, []string, *core.MentionConfirmationChallenge, error) {
 	attachmentAssetIDs := append([]string(nil), req.GetAttachmentAssetIds()...)
 	if len(req.GetAttachments()) == 0 {
 		return attachmentAssetIDs, nil, nil, nil
@@ -144,7 +144,7 @@ func (s *messageService) uploadPostAttachments(ctx context.Context, actorID stri
 	return attachmentAssetIDs, videoProcessingAssetIDs, nil, nil
 }
 
-func (s *messageService) UpdateMessage(ctx context.Context, req *connect.Request[apiv1.UpdateMessageRequest]) (*connect.Response[apiv1.UpdateMessageResponse], error) {
+func (s *messageService) UpdateMessage(ctx context.Context, req *connect.Request[appv1.UpdateMessageRequest]) (*connect.Response[appv1.UpdateMessageResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -159,10 +159,10 @@ func (s *messageService) UpdateMessage(ctx context.Context, req *connect.Request
 	}); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.UpdateMessageResponse{Updated: true}), nil
+	return connect.NewResponse(&appv1.UpdateMessageResponse{Updated: true}), nil
 }
 
-func (s *messageService) DeleteMessage(ctx context.Context, req *connect.Request[apiv1.DeleteMessageRequest]) (*connect.Response[apiv1.DeleteMessageResponse], error) {
+func (s *messageService) DeleteMessage(ctx context.Context, req *connect.Request[appv1.DeleteMessageRequest]) (*connect.Response[appv1.DeleteMessageResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -175,10 +175,10 @@ func (s *messageService) DeleteMessage(ctx context.Context, req *connect.Request
 	}); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.DeleteMessageResponse{Deleted: true}), nil
+	return connect.NewResponse(&appv1.DeleteMessageResponse{Deleted: true}), nil
 }
 
-func (s *messageService) DeleteAttachment(ctx context.Context, req *connect.Request[apiv1.DeleteAttachmentRequest]) (*connect.Response[apiv1.DeleteAttachmentResponse], error) {
+func (s *messageService) DeleteAttachment(ctx context.Context, req *connect.Request[appv1.DeleteAttachmentRequest]) (*connect.Response[appv1.DeleteAttachmentResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -192,10 +192,10 @@ func (s *messageService) DeleteAttachment(ctx context.Context, req *connect.Requ
 	}); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.DeleteAttachmentResponse{Deleted: true}), nil
+	return connect.NewResponse(&appv1.DeleteAttachmentResponse{Deleted: true}), nil
 }
 
-func (s *messageService) DeleteLinkPreview(ctx context.Context, req *connect.Request[apiv1.DeleteLinkPreviewRequest]) (*connect.Response[apiv1.DeleteLinkPreviewResponse], error) {
+func (s *messageService) DeleteLinkPreview(ctx context.Context, req *connect.Request[appv1.DeleteLinkPreviewRequest]) (*connect.Response[appv1.DeleteLinkPreviewResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -209,10 +209,10 @@ func (s *messageService) DeleteLinkPreview(ctx context.Context, req *connect.Req
 	}); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.DeleteLinkPreviewResponse{Deleted: true}), nil
+	return connect.NewResponse(&appv1.DeleteLinkPreviewResponse{Deleted: true}), nil
 }
 
-func (s *messageService) SendTypingIndicator(ctx context.Context, req *connect.Request[apiv1.SendTypingIndicatorRequest]) (*connect.Response[apiv1.SendTypingIndicatorResponse], error) {
+func (s *messageService) SendTypingIndicator(ctx context.Context, req *connect.Request[appv1.SendTypingIndicatorRequest]) (*connect.Response[appv1.SendTypingIndicatorResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -229,10 +229,10 @@ func (s *messageService) SendTypingIndicator(ctx context.Context, req *connect.R
 	}); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.SendTypingIndicatorResponse{Sent: true}), nil
+	return connect.NewResponse(&appv1.SendTypingIndicatorResponse{Sent: true}), nil
 }
 
-func (s *messageService) hydratePostedEvent(ctx context.Context, viewerID string, kind core.RoomKind, event *corev1.Event) (*apiv1.RoomTimelineEvent, *apiv1.RoomTimelineIncludes, error) {
+func (s *messageService) hydratePostedEvent(ctx context.Context, viewerID string, kind core.RoomKind, event *corev1.Event) (*appv1.RoomTimelineEvent, *appv1.RoomTimelineIncludes, error) {
 	reactionsByMessageID, err := s.api.core.GetReactionsBatch(ctx, []string{event.Id})
 	if err != nil {
 		return nil, nil, err
@@ -253,10 +253,10 @@ func (s *messageService) hydratePostedEvent(ctx context.Context, viewerID string
 	if err != nil {
 		return nil, nil, err
 	}
-	return apiEvent, &apiv1.RoomTimelineIncludes{Users: users}, nil
+	return apiEvent, &appv1.RoomTimelineIncludes{Users: users}, nil
 }
 
-func apiMessageLinkPreviewToCore(input *apiv1.MessageLinkPreviewInput) *corev1.LinkPreview {
+func apiMessageLinkPreviewToCore(input *appv1.MessageLinkPreviewInput) *corev1.LinkPreview {
 	if input == nil {
 		return nil
 	}

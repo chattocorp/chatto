@@ -1,12 +1,12 @@
 import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { AdminUserManagementService } from '$lib/pb/chatto/api/v1/admin_user_management_connect';
+import { AdminUserManagementService } from '$lib/pb/chatto/app/v1/admin_user_management_connect';
 import type {
   AdminMember as APIAdminMember,
   AdminMemberRole as APIAdminMemberRole,
   AdminMemberRoleSummary as APIAdminMemberRoleSummary
-} from '$lib/pb/chatto/api/v1/admin_user_management_pb';
-import type { AccountUser as APIAccountUser } from '$lib/pb/chatto/api/v1/account_pb';
+} from '$lib/pb/chatto/app/v1/admin_user_management_pb';
+import type { AccountUser as APIAccountUser } from '$lib/pb/chatto/app/v1/account_pb';
 
 export type AdminUserManagementAPIConfig = {
   baseUrl: string;

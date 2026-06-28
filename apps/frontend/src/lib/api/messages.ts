@@ -1,11 +1,11 @@
 import { Code, ConnectError, createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import type { LinkPreviewInput, RoomEventView } from '$lib/render/types';
-import { MessageService } from '$lib/pb/chatto/api/v1/messages_connect';
+import { MessageService } from '$lib/pb/chatto/app/v1/messages_connect';
 import {
 	MessageAttachmentUpload,
 	MessageLinkPreviewInput
-} from '$lib/pb/chatto/api/v1/messages_pb';
+} from '$lib/pb/chatto/app/v1/messages_pb';
 import { roomTimelineEventToRawEvent } from '$lib/api/roomTimeline';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 

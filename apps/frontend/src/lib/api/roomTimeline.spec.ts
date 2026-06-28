@@ -11,7 +11,7 @@ import {
   RoomTimelineVideoProcessing,
   RoomTimelineVideoProcessingStatus,
   RoomTimelineVideoVariant
-} from '$lib/pb/chatto/api/v1/room_timeline_pb';
+} from '$lib/pb/chatto/app/v1/room_timeline_pb';
 import { __resetUserSummaryCachesForTests, getUserSummaryCache } from '$lib/state/userSummaries.svelte';
 import { createRoomTimelineAPI, roomTimelinePageToEventConnectionPage } from './roomTimeline';
 

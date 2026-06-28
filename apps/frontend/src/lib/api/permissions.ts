@@ -1,6 +1,6 @@
 import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { PermissionService } from '$lib/pb/chatto/api/v1/permissions_connect';
+import { PermissionService } from '$lib/pb/chatto/app/v1/permissions_connect';
 import {
   PermissionDecision,
   PermissionScopeKind,
@@ -10,7 +10,7 @@ import {
   type TierRole as APITierRole,
   type TierRoles as APITierRoles,
   type UserPermissionMatrix as APIUserPermissionMatrix
-} from '$lib/pb/chatto/api/v1/permissions_pb';
+} from '$lib/pb/chatto/app/v1/permissions_pb';
 
 export type PermissionAPIConfig = {
   baseUrl: string;

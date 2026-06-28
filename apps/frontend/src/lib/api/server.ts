@@ -1,6 +1,6 @@
 import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { ServerService } from '$lib/pb/chatto/api/v1/server_connect';
+import { ServerService } from '$lib/pb/chatto/app/v1/server_connect';
 
 export type PublicAuthProvider = {
   id: string;

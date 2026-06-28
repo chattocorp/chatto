@@ -18,7 +18,7 @@ ConnectRPC should remain a transport boundary. Chatto's domain behavior still be
 
 ## Decision
 
-All public ConnectRPC services live under `proto/chatto/api/v1` and are implemented through generated Connect handlers. Public API protobuf comments are part of the API documentation and should describe caller-visible behavior, not implementation workflow.
+Current first-party ConnectRPC services live under `proto/chatto/app/v1` and are implemented through generated Connect handlers. Public API protobuf comments are part of the API documentation and should describe caller-visible behavior, not implementation workflow. ADR-045 splits app, realtime, and future integration API packages by stability tier; these conventions apply to any mounted ConnectRPC service unless a stricter package-specific convention supersedes them.
 
 `connectapi.API.Handlers()` is the authoritative registry for mounted ConnectRPC services. Each registered handler includes:
 

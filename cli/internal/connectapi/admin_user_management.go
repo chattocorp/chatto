@@ -6,14 +6,14 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	appv1 "hmans.de/chatto/internal/pb/chatto/app/v1"
 )
 
 type adminUserManagementService struct {
 	api *API
 }
 
-func (s *adminUserManagementService) ListMembers(ctx context.Context, req *connect.Request[apiv1.ListMembersRequest]) (*connect.Response[apiv1.ListMembersResponse], error) {
+func (s *adminUserManagementService) ListMembers(ctx context.Context, req *connect.Request[appv1.ListMembersRequest]) (*connect.Response[appv1.ListMembersResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -26,9 +26,9 @@ func (s *adminUserManagementService) ListMembers(ctx context.Context, req *conne
 	if err != nil {
 		return nil, connectError(err)
 	}
-	response := &apiv1.ListMembersResponse{
-		Users:      make([]*apiv1.AdminMember, 0, len(members.Users)),
-		Roles:      make([]*apiv1.AdminMemberRoleSummary, 0, len(members.Roles)),
+	response := &appv1.ListMembersResponse{
+		Users:      make([]*appv1.AdminMember, 0, len(members.Users)),
+		Roles:      make([]*appv1.AdminMemberRoleSummary, 0, len(members.Roles)),
 		TotalCount: int32(members.TotalCount),
 		HasMore:    members.HasMore,
 	}
@@ -36,7 +36,7 @@ func (s *adminUserManagementService) ListMembers(ctx context.Context, req *conne
 		response.Users = append(response.Users, s.adminMember(ctx, user))
 	}
 	for _, role := range members.Roles {
-		response.Roles = append(response.Roles, &apiv1.AdminMemberRoleSummary{
+		response.Roles = append(response.Roles, &appv1.AdminMemberRoleSummary{
 			Name:        role.Name,
 			DisplayName: role.DisplayName,
 		})
@@ -44,7 +44,7 @@ func (s *adminUserManagementService) ListMembers(ctx context.Context, req *conne
 	return connect.NewResponse(response), nil
 }
 
-func (s *adminUserManagementService) GetMember(ctx context.Context, req *connect.Request[apiv1.GetMemberRequest]) (*connect.Response[apiv1.GetMemberResponse], error) {
+func (s *adminUserManagementService) GetMember(ctx context.Context, req *connect.Request[appv1.GetMemberRequest]) (*connect.Response[appv1.GetMemberResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -56,16 +56,16 @@ func (s *adminUserManagementService) GetMember(ctx context.Context, req *connect
 	if err != nil {
 		return nil, connectError(err)
 	}
-	response := &apiv1.GetMemberResponse{
+	response := &appv1.GetMemberResponse{
 		Member:                         s.adminMember(ctx, *details.Member),
-		Roles:                          make([]*apiv1.AdminMemberRole, 0, len(details.Roles)),
+		Roles:                          make([]*appv1.AdminMemberRole, 0, len(details.Roles)),
 		AvailablePermissions:           corePermissionsToStrings(details.AvailablePermissions),
 		ViewerCanAssignRoles:           details.ViewerCanAssignRoles,
 		ViewerCanManageRoles:           details.ViewerCanManageRoles,
 		ViewerCanManageUserPermissions: details.ViewerCanManageUserPermissions,
 	}
 	for _, role := range details.Roles {
-		response.Roles = append(response.Roles, &apiv1.AdminMemberRole{
+		response.Roles = append(response.Roles, &appv1.AdminMemberRole{
 			Name:              role.Name,
 			DisplayName:       role.DisplayName,
 			Position:          role.Position,
@@ -76,7 +76,7 @@ func (s *adminUserManagementService) GetMember(ctx context.Context, req *connect
 	return connect.NewResponse(response), nil
 }
 
-func (s *adminUserManagementService) AssignRole(ctx context.Context, req *connect.Request[apiv1.AssignRoleRequest]) (*connect.Response[apiv1.AssignRoleResponse], error) {
+func (s *adminUserManagementService) AssignRole(ctx context.Context, req *connect.Request[appv1.AssignRoleRequest]) (*connect.Response[appv1.AssignRoleResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -90,10 +90,10 @@ func (s *adminUserManagementService) AssignRole(ctx context.Context, req *connec
 	if err := s.api.core.AdminAssignServerRole(ctx, caller.UserID, req.Msg.GetUserId(), req.Msg.GetRoleName()); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.AssignRoleResponse{Assigned: true}), nil
+	return connect.NewResponse(&appv1.AssignRoleResponse{Assigned: true}), nil
 }
 
-func (s *adminUserManagementService) RevokeRole(ctx context.Context, req *connect.Request[apiv1.RevokeRoleRequest]) (*connect.Response[apiv1.RevokeRoleResponse], error) {
+func (s *adminUserManagementService) RevokeRole(ctx context.Context, req *connect.Request[appv1.RevokeRoleRequest]) (*connect.Response[appv1.RevokeRoleResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -107,10 +107,10 @@ func (s *adminUserManagementService) RevokeRole(ctx context.Context, req *connec
 	if err := s.api.core.AdminRevokeServerRole(ctx, caller.UserID, req.Msg.GetUserId(), req.Msg.GetRoleName()); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.RevokeRoleResponse{Revoked: true}), nil
+	return connect.NewResponse(&appv1.RevokeRoleResponse{Revoked: true}), nil
 }
 
-func (s *adminUserManagementService) UpdateUser(ctx context.Context, req *connect.Request[apiv1.UpdateUserRequest]) (*connect.Response[apiv1.UpdateUserResponse], error) {
+func (s *adminUserManagementService) UpdateUser(ctx context.Context, req *connect.Request[appv1.UpdateUserRequest]) (*connect.Response[appv1.UpdateUserResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -129,10 +129,10 @@ func (s *adminUserManagementService) UpdateUser(ctx context.Context, req *connec
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&apiv1.UpdateUserResponse{User: user}), nil
+	return connect.NewResponse(&appv1.UpdateUserResponse{User: user}), nil
 }
 
-func (s *adminUserManagementService) ClearUsernameCooldown(ctx context.Context, req *connect.Request[apiv1.ClearUsernameCooldownRequest]) (*connect.Response[apiv1.ClearUsernameCooldownResponse], error) {
+func (s *adminUserManagementService) ClearUsernameCooldown(ctx context.Context, req *connect.Request[appv1.ClearUsernameCooldownRequest]) (*connect.Response[appv1.ClearUsernameCooldownResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -143,11 +143,11 @@ func (s *adminUserManagementService) ClearUsernameCooldown(ctx context.Context, 
 	if err := s.api.core.AdminClearLoginChangeCooldown(ctx, caller.UserID, req.Msg.GetUserId()); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.ClearUsernameCooldownResponse{Cleared: true}), nil
+	return connect.NewResponse(&appv1.ClearUsernameCooldownResponse{Cleared: true}), nil
 }
 
-func (s *adminUserManagementService) adminMember(ctx context.Context, member core.AdminMember) *apiv1.AdminMember {
-	response := &apiv1.AdminMember{
+func (s *adminUserManagementService) adminMember(ctx context.Context, member core.AdminMember) *appv1.AdminMember {
+	response := &appv1.AdminMember{
 		Id:                     member.ID,
 		Login:                  member.Login,
 		DisplayName:            member.DisplayName,

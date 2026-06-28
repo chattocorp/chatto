@@ -65,14 +65,14 @@ interface ServerStateResponse {
 async function joinCallViaConnect(page: Page, roomId: string): Promise<boolean> {
   const data = await connectPost<JoinCallResponse>(
     page,
-    'chatto.api.v1.VoiceCallService/JoinCall',
+    'chatto.app.v1.VoiceCallService/JoinCall',
     { roomId }
   );
   return data.joined ?? false;
 }
 
 async function getCallTokenViaConnect(page: Page, roomId: string): Promise<GetCallTokenResponse> {
-  return connectPost<GetCallTokenResponse>(page, 'chatto.api.v1.VoiceCallService/GetCallToken', {
+  return connectPost<GetCallTokenResponse>(page, 'chatto.app.v1.VoiceCallService/GetCallToken', {
     roomId
   });
 }
@@ -80,7 +80,7 @@ async function getCallTokenViaConnect(page: Page, roomId: string): Promise<GetCa
 async function listActiveCallRoomIdsViaConnect(page: Page): Promise<string[]> {
   const data = await connectPost<ListActiveCallRoomsResponse>(
     page,
-    'chatto.api.v1.VoiceCallService/ListActiveCallRooms'
+    'chatto.app.v1.VoiceCallService/ListActiveCallRooms'
   );
   return data.roomIds ?? [];
 }
@@ -91,7 +91,7 @@ async function listCallParticipantsViaConnect(
 ): Promise<ListCallParticipantsResponse['participants']> {
   const data = await connectPost<ListCallParticipantsResponse>(
     page,
-    'chatto.api.v1.VoiceCallService/ListCallParticipants',
+    'chatto.app.v1.VoiceCallService/ListCallParticipants',
     { roomId }
   );
   return data.participants ?? [];
@@ -163,7 +163,7 @@ test.describe('Voice calls', () => {
     await withServerUser(browser!, serverURL, async ({ page: page2 }) => {
       const response = await connectPostResponse(
         page2,
-        'chatto.api.v1.VoiceCallService/GetCallToken',
+        'chatto.app.v1.VoiceCallService/GetCallToken',
         { roomId }
       );
       expect(response.ok()).toBe(false);
@@ -457,7 +457,7 @@ test.describe('Voice calls', () => {
 
     const data = await connectPost<ServerStateResponse>(
       page,
-      'chatto.api.v1.ServerStateService/GetServerState'
+      'chatto.app.v1.ServerStateService/GetServerState'
     );
     expect(data.livekitUrl).toBe('ws://localhost:7880');
   });

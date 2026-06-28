@@ -21,16 +21,25 @@ plugins:
     opt:
       - target=ts
     types:
-      - chatto.api.v1
+      - chatto.app.v1
+      - chatto.realtime.v1
   - local: ../apps/frontend/node_modules/.bin/protoc-gen-connect-es
     out: ../apps/frontend/src/lib/pb
     opt:
       - target=ts
     types:
-      - chatto.api.v1
+      - chatto.app.v1
   - local: ["go", "tool", "-C", "../cli", "protoc-gen-doc"]
-    out: ../apps/docs-website/src/content/docs/reference/connectrpc-api
+    out: ../apps/docs-website/src/content/docs/reference
+    strategy: all
     opt:
-      - ../proto/templates/connectrpc-starlight.md.tmpl,index.mdx
+      - ../proto/templates/connectrpc-starlight.md.tmpl,app-connectrpc-api.mdx
     types:
-      - chatto.api.v1
+      - chatto.app.v1
+  - local: ["go", "tool", "-C", "../cli", "protoc-gen-doc"]
+    out: ../apps/docs-website/src/content/docs/reference
+    strategy: all
+    opt:
+      - ../proto/templates/protobuf-reference-starlight.md.tmpl,realtime-protocol.mdx
+    types:
+      - chatto.realtime.v1

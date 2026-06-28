@@ -1,10 +1,10 @@
 import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { RoleService } from '$lib/pb/chatto/api/v1/roles_connect';
+import { RoleService } from '$lib/pb/chatto/app/v1/roles_connect';
 import type {
   Role as APIRole,
   RoleUser as APIRoleUser
-} from '$lib/pb/chatto/api/v1/roles_pb';
+} from '$lib/pb/chatto/app/v1/roles_pb';
 
 export type RoleAPIConfig = {
   baseUrl: string;

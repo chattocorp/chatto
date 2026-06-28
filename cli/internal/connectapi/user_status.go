@@ -6,7 +6,7 @@ import (
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	appv1 "hmans.de/chatto/internal/pb/chatto/app/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -14,7 +14,7 @@ type userStatusService struct {
 	api *API
 }
 
-func (s *userStatusService) SetCustomStatus(ctx context.Context, req *connect.Request[apiv1.SetCustomStatusRequest]) (*connect.Response[apiv1.SetCustomStatusResponse], error) {
+func (s *userStatusService) SetCustomStatus(ctx context.Context, req *connect.Request[appv1.SetCustomStatusRequest]) (*connect.Response[appv1.SetCustomStatusResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -29,12 +29,12 @@ func (s *userStatusService) SetCustomStatus(ctx context.Context, req *connect.Re
 		return nil, connectError(err)
 	}
 
-	return connect.NewResponse(&apiv1.SetCustomStatusResponse{
+	return connect.NewResponse(&appv1.SetCustomStatusResponse{
 		Status: coreCustomStatusToAPI(updated.GetCustomStatus()),
 	}), nil
 }
 
-func (s *userStatusService) ClearCustomStatus(ctx context.Context, _ *connect.Request[apiv1.ClearCustomStatusRequest]) (*connect.Response[apiv1.ClearCustomStatusResponse], error) {
+func (s *userStatusService) ClearCustomStatus(ctx context.Context, _ *connect.Request[appv1.ClearCustomStatusRequest]) (*connect.Response[appv1.ClearCustomStatusResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -44,7 +44,7 @@ func (s *userStatusService) ClearCustomStatus(ctx context.Context, _ *connect.Re
 		return nil, connectError(err)
 	}
 
-	return connect.NewResponse(&apiv1.ClearCustomStatusResponse{
+	return connect.NewResponse(&appv1.ClearCustomStatusResponse{
 		Status: coreCustomStatusToAPI(updated.GetCustomStatus()),
 	}), nil
 }
@@ -60,11 +60,11 @@ func apiTimestampToTime(ts *timestamppb.Timestamp) (*time.Time, error) {
 	return &expiresAt, nil
 }
 
-func coreCustomStatusToAPI(status *corev1.CustomUserStatus) *apiv1.CustomUserStatus {
+func coreCustomStatusToAPI(status *corev1.CustomUserStatus) *appv1.CustomUserStatus {
 	if status == nil {
 		return nil
 	}
-	return &apiv1.CustomUserStatus{
+	return &appv1.CustomUserStatus{
 		Emoji:     status.GetEmoji(),
 		Text:      status.GetText(),
 		ExpiresAt: status.GetExpiresAt(),

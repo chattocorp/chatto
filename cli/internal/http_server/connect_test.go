@@ -15,8 +15,8 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
+	appv1 "hmans.de/chatto/internal/pb/chatto/app/v1"
+	"hmans.de/chatto/internal/pb/chatto/app/v1/appv1connect"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -41,8 +41,8 @@ func TestConnectServerServiceGetServer(t *testing.T) {
 			},
 		})
 
-		client := apiv1connect.NewServerServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-		resp, err := client.GetServer(context.Background(), connect.NewRequest(&apiv1.GetServerRequest{}))
+		client := appv1connect.NewServerServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		resp, err := client.GetServer(context.Background(), connect.NewRequest(&appv1.GetServerRequest{}))
 		if err != nil {
 			t.Fatalf("GetServer: %v", err)
 		}
@@ -76,7 +76,7 @@ func TestConnectServerServiceGetServer(t *testing.T) {
 		_, ts := setupConnectTestServer(t, config.AuthConfig{})
 
 		body := strings.NewReader("")
-		req, err := http.NewRequest(http.MethodPost, ts.URL+connectAPIPrefix+apiv1connect.ServerServiceGetServerProcedure, body)
+		req, err := http.NewRequest(http.MethodPost, ts.URL+connectAPIPrefix+appv1connect.ServerServiceGetServerProcedure, body)
 		if err != nil {
 			t.Fatalf("new request: %v", err)
 		}
@@ -98,7 +98,7 @@ func TestConnectServerServiceGetServer(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read body: %v", err)
 		}
-		var msg apiv1.GetServerResponse
+		var msg appv1.GetServerResponse
 		if err := proto.Unmarshal(data, &msg); err != nil {
 			t.Fatalf("unmarshal response: %v", err)
 		}
@@ -106,6 +106,7 @@ func TestConnectServerServiceGetServer(t *testing.T) {
 			t.Fatalf("Name = %q, want Chatto", msg.Name)
 		}
 	})
+
 }
 
 func TestConnectAPIRejectsOversizedRequestMessages(t *testing.T) {
@@ -120,8 +121,8 @@ func TestConnectAPIRejectsOversizedRequestMessages(t *testing.T) {
 		t.Fatalf("CreateAuthToken: %v", err)
 	}
 
-	client := apiv1connect.NewRoomTimelineServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-	req := connect.NewRequest(&apiv1.GetRoomEventsRequest{
+	client := appv1connect.NewRoomTimelineServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+	req := connect.NewRequest(&appv1.GetRoomEventsRequest{
 		RoomId: strings.Repeat("a", connectapi.MaxRequestMessageBytes+1),
 	})
 	req.Header().Set("Authorization", "Bearer "+token)
@@ -154,32 +155,32 @@ func TestConnectAPIValidatesRequiredRequestFields(t *testing.T) {
 	}
 
 	t.Run("message room id", func(t *testing.T) {
-		client := apiv1connect.NewMessageServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-		req := connect.NewRequest(&apiv1.PostMessageRequest{Body: "hello"})
+		client := appv1connect.NewMessageServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		req := connect.NewRequest(&appv1.PostMessageRequest{Body: "hello"})
 		authorize(req)
 		_, err := client.PostMessage(ctx, req)
 		requireInvalidArgument(t, err)
 	})
 
 	t.Run("read state room id", func(t *testing.T) {
-		client := apiv1connect.NewReadStateServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-		req := connect.NewRequest(&apiv1.MarkRoomAsReadRequest{})
+		client := appv1connect.NewReadStateServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		req := connect.NewRequest(&appv1.MarkRoomAsReadRequest{})
 		authorize(req)
 		_, err := client.MarkRoomAsRead(ctx, req)
 		requireInvalidArgument(t, err)
 	})
 
 	t.Run("read state thread root id", func(t *testing.T) {
-		client := apiv1connect.NewReadStateServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-		req := connect.NewRequest(&apiv1.MarkThreadAsReadRequest{RoomId: "room"})
+		client := appv1connect.NewReadStateServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		req := connect.NewRequest(&appv1.MarkThreadAsReadRequest{RoomId: "room"})
 		authorize(req)
 		_, err := client.MarkThreadAsRead(ctx, req)
 		requireInvalidArgument(t, err)
 	})
 
 	t.Run("reaction room id", func(t *testing.T) {
-		client := apiv1connect.NewReactionServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-		req := connect.NewRequest(&apiv1.AddReactionRequest{
+		client := appv1connect.NewReactionServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		req := connect.NewRequest(&appv1.AddReactionRequest{
 			MessageEventId: "event",
 			Emoji:          "thumbsup",
 		})
@@ -189,8 +190,8 @@ func TestConnectAPIValidatesRequiredRequestFields(t *testing.T) {
 	})
 
 	t.Run("reaction message event id", func(t *testing.T) {
-		client := apiv1connect.NewReactionServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-		req := connect.NewRequest(&apiv1.AddReactionRequest{
+		client := appv1connect.NewReactionServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		req := connect.NewRequest(&appv1.AddReactionRequest{
 			RoomId: "room",
 			Emoji:  "thumbsup",
 		})
@@ -200,8 +201,8 @@ func TestConnectAPIValidatesRequiredRequestFields(t *testing.T) {
 	})
 
 	t.Run("reaction emoji", func(t *testing.T) {
-		client := apiv1connect.NewReactionServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-		req := connect.NewRequest(&apiv1.RemoveReactionRequest{
+		client := appv1connect.NewReactionServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		req := connect.NewRequest(&appv1.RemoveReactionRequest{
 			RoomId:         "room",
 			MessageEventId: "event",
 		})
@@ -211,32 +212,32 @@ func TestConnectAPIValidatesRequiredRequestFields(t *testing.T) {
 	})
 
 	t.Run("timeline room id", func(t *testing.T) {
-		client := apiv1connect.NewRoomTimelineServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-		req := connect.NewRequest(&apiv1.GetRoomEventsRequest{})
+		client := appv1connect.NewRoomTimelineServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		req := connect.NewRequest(&appv1.GetRoomEventsRequest{})
 		authorize(req)
 		_, err := client.GetRoomEvents(ctx, req)
 		requireInvalidArgument(t, err)
 	})
 
 	t.Run("timeline event id", func(t *testing.T) {
-		client := apiv1connect.NewRoomTimelineServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-		req := connect.NewRequest(&apiv1.GetRoomEventsAroundRequest{RoomId: "room"})
+		client := appv1connect.NewRoomTimelineServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		req := connect.NewRequest(&appv1.GetRoomEventsAroundRequest{RoomId: "room"})
 		authorize(req)
 		_, err := client.GetRoomEventsAround(ctx, req)
 		requireInvalidArgument(t, err)
 	})
 
 	t.Run("thread timeline root id", func(t *testing.T) {
-		client := apiv1connect.NewRoomTimelineServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-		req := connect.NewRequest(&apiv1.GetThreadEventsRequest{RoomId: "room"})
+		client := appv1connect.NewRoomTimelineServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		req := connect.NewRequest(&appv1.GetThreadEventsRequest{RoomId: "room"})
 		authorize(req)
 		_, err := client.GetThreadEvents(ctx, req)
 		requireInvalidArgument(t, err)
 	})
 
 	t.Run("thread timeline event id", func(t *testing.T) {
-		client := apiv1connect.NewRoomTimelineServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-		req := connect.NewRequest(&apiv1.GetThreadEventsAroundRequest{
+		client := appv1connect.NewRoomTimelineServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		req := connect.NewRequest(&appv1.GetThreadEventsAroundRequest{
 			RoomId:            "room",
 			ThreadRootEventId: "root",
 		})
@@ -246,16 +247,16 @@ func TestConnectAPIValidatesRequiredRequestFields(t *testing.T) {
 	})
 
 	t.Run("thread follow room id", func(t *testing.T) {
-		client := apiv1connect.NewThreadServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-		req := connect.NewRequest(&apiv1.FollowThreadRequest{ThreadRootEventId: "root"})
+		client := appv1connect.NewThreadServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		req := connect.NewRequest(&appv1.FollowThreadRequest{ThreadRootEventId: "root"})
 		authorize(req)
 		_, err := client.FollowThread(ctx, req)
 		requireInvalidArgument(t, err)
 	})
 
 	t.Run("thread unfollow root id", func(t *testing.T) {
-		client := apiv1connect.NewThreadServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-		req := connect.NewRequest(&apiv1.UnfollowThreadRequest{RoomId: "room"})
+		client := appv1connect.NewThreadServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		req := connect.NewRequest(&appv1.UnfollowThreadRequest{RoomId: "room"})
 		authorize(req)
 		_, err := client.UnfollowThread(ctx, req)
 		requireInvalidArgument(t, err)
@@ -265,8 +266,8 @@ func TestConnectAPIValidatesRequiredRequestFields(t *testing.T) {
 func TestConnectAPIAuthenticatesBeforeValidation(t *testing.T) {
 	_, ts := setupConnectTestServer(t, config.AuthConfig{})
 
-	client := apiv1connect.NewMessageServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-	_, err := client.PostMessage(context.Background(), connect.NewRequest(&apiv1.PostMessageRequest{}))
+	client := appv1connect.NewMessageServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+	_, err := client.PostMessage(context.Background(), connect.NewRequest(&appv1.PostMessageRequest{}))
 	if connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("PostMessage err = %v, want unauthenticated", err)
 	}
@@ -348,16 +349,16 @@ func TestConnectNotificationPreferencesService(t *testing.T) {
 			t.Fatalf("JoinRoom: %v", err)
 		}
 
-		client := apiv1connect.NewNotificationPreferencesServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-		_, err = client.SetRoomNotificationLevel(ctx, connect.NewRequest(&apiv1.SetRoomNotificationLevelRequest{
+		client := appv1connect.NewNotificationPreferencesServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		_, err = client.SetRoomNotificationLevel(ctx, connect.NewRequest(&appv1.SetRoomNotificationLevelRequest{
 			RoomId: room.Id,
-			Level:  apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED,
+			Level:  appv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED,
 		}))
 		if connect.CodeOf(err) != connect.CodeUnauthenticated {
 			t.Fatalf("SetRoomNotificationLevel err = %v, want unauthenticated", err)
 		}
 
-		_, err = client.GetRoomNotificationPreference(ctx, connect.NewRequest(&apiv1.GetRoomNotificationPreferenceRequest{
+		_, err = client.GetRoomNotificationPreference(ctx, connect.NewRequest(&appv1.GetRoomNotificationPreferenceRequest{
 			RoomId: room.Id,
 		}))
 		if connect.CodeOf(err) != connect.CodeUnauthenticated {
@@ -388,10 +389,10 @@ func TestConnectNotificationPreferencesService(t *testing.T) {
 			t.Fatalf("CreateAuthToken: %v", err)
 		}
 
-		client := apiv1connect.NewNotificationPreferencesServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-		req := connect.NewRequest(&apiv1.SetRoomNotificationLevelRequest{
+		client := appv1connect.NewNotificationPreferencesServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		req := connect.NewRequest(&appv1.SetRoomNotificationLevelRequest{
 			RoomId: room.Id,
-			Level:  apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED,
+			Level:  appv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED,
 		})
 		req.Header().Set("Authorization", "Bearer "+token)
 		_, err = client.SetRoomNotificationLevel(ctx, req)
@@ -399,7 +400,7 @@ func TestConnectNotificationPreferencesService(t *testing.T) {
 			t.Fatalf("SetRoomNotificationLevel err = %v, want permission denied", err)
 		}
 
-		getReq := connect.NewRequest(&apiv1.GetRoomNotificationPreferenceRequest{
+		getReq := connect.NewRequest(&appv1.GetRoomNotificationPreferenceRequest{
 			RoomId: room.Id,
 		})
 		getReq.Header().Set("Authorization", "Bearer "+token)
@@ -421,10 +422,10 @@ func TestConnectNotificationPreferencesService(t *testing.T) {
 			t.Fatalf("CreateAuthToken: %v", err)
 		}
 
-		client := apiv1connect.NewNotificationPreferencesServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-		req := connect.NewRequest(&apiv1.SetRoomNotificationLevelRequest{
+		client := appv1connect.NewNotificationPreferencesServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		req := connect.NewRequest(&appv1.SetRoomNotificationLevelRequest{
 			RoomId: "",
-			Level:  apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED,
+			Level:  appv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED,
 		})
 		req.Header().Set("Authorization", "Bearer "+token)
 		_, err = client.SetRoomNotificationLevel(ctx, req)
@@ -432,9 +433,9 @@ func TestConnectNotificationPreferencesService(t *testing.T) {
 			t.Fatalf("SetRoomNotificationLevel empty room err = %v, want invalid argument", err)
 		}
 
-		req = connect.NewRequest(&apiv1.SetRoomNotificationLevelRequest{
+		req = connect.NewRequest(&appv1.SetRoomNotificationLevelRequest{
 			RoomId: "missing-room",
-			Level:  apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED,
+			Level:  appv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED,
 		})
 		req.Header().Set("Authorization", "Bearer "+token)
 		_, err = client.SetRoomNotificationLevel(ctx, req)
@@ -442,9 +443,9 @@ func TestConnectNotificationPreferencesService(t *testing.T) {
 			t.Fatalf("SetRoomNotificationLevel missing room err = %v, want not found", err)
 		}
 
-		req = connect.NewRequest(&apiv1.SetRoomNotificationLevelRequest{
+		req = connect.NewRequest(&appv1.SetRoomNotificationLevelRequest{
 			RoomId: "missing-room",
-			Level:  apiv1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED,
+			Level:  appv1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED,
 		})
 		req.Header().Set("Authorization", "Bearer "+token)
 		_, err = client.SetRoomNotificationLevel(ctx, req)
@@ -452,7 +453,7 @@ func TestConnectNotificationPreferencesService(t *testing.T) {
 			t.Fatalf("SetRoomNotificationLevel unspecified level err = %v, want invalid argument", err)
 		}
 
-		getReq := connect.NewRequest(&apiv1.GetRoomNotificationPreferenceRequest{
+		getReq := connect.NewRequest(&appv1.GetRoomNotificationPreferenceRequest{
 			RoomId: "",
 		})
 		getReq.Header().Set("Authorization", "Bearer "+token)
@@ -481,24 +482,24 @@ func TestConnectNotificationPreferencesService(t *testing.T) {
 			t.Fatalf("CreateAuthToken: %v", err)
 		}
 
-		client := apiv1connect.NewNotificationPreferencesServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-		req := connect.NewRequest(&apiv1.SetRoomNotificationLevelRequest{
+		client := appv1connect.NewNotificationPreferencesServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		req := connect.NewRequest(&appv1.SetRoomNotificationLevelRequest{
 			RoomId: room.Id,
-			Level:  apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED,
+			Level:  appv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED,
 		})
 		req.Header().Set("Authorization", "Bearer "+token)
 		resp, err := client.SetRoomNotificationLevel(ctx, req)
 		if err != nil {
 			t.Fatalf("SetRoomNotificationLevel: %v", err)
 		}
-		if resp.Msg.Level != apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
+		if resp.Msg.Level != appv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
 			t.Fatalf("Level = %v, want muted", resp.Msg.Level)
 		}
-		if resp.Msg.EffectiveLevel != apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
+		if resp.Msg.EffectiveLevel != appv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
 			t.Fatalf("EffectiveLevel = %v, want muted", resp.Msg.EffectiveLevel)
 		}
 
-		getReq := connect.NewRequest(&apiv1.GetRoomNotificationPreferenceRequest{
+		getReq := connect.NewRequest(&appv1.GetRoomNotificationPreferenceRequest{
 			RoomId: room.Id,
 		})
 		getReq.Header().Set("Authorization", "Bearer "+token)
@@ -506,10 +507,10 @@ func TestConnectNotificationPreferencesService(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GetRoomNotificationPreference: %v", err)
 		}
-		if getResp.Msg.Level != apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
+		if getResp.Msg.Level != appv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
 			t.Fatalf("Get level = %v, want muted", getResp.Msg.Level)
 		}
-		if getResp.Msg.EffectiveLevel != apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
+		if getResp.Msg.EffectiveLevel != appv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
 			t.Fatalf("Get effective level = %v, want muted", getResp.Msg.EffectiveLevel)
 		}
 

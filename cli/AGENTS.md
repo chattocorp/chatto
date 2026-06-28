@@ -18,9 +18,10 @@ authorization, live events, backup/restore, and backend tests.
 ## Architecture Touchpoints
 
 - `cli/internal/core` is domain logic and service/projection code.
-- `cli/internal/connectapi` is the protobuf/ConnectRPC API.
+- `cli/internal/connectapi` is the protobuf/ConnectRPC app API.
 - `proto/chatto/core/v1` holds persisted/internal protobufs.
-- `proto/chatto/api/v1` holds public ConnectRPC API protobufs.
+- `proto/chatto/app/v1` holds first-party app ConnectRPC protobufs.
+- `proto/chatto/realtime/v1` holds websocket realtime protobufs.
 - `docs/ARCHITECTURE.md`, FDRs, and ADRs should move with architectural changes.
 
 ## Public APIs

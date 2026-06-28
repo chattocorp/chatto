@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test';
 import * as routes from './routes';
 import { TIMEOUTS } from './constants';
 
-const VIEWER_RPC_PATH = '/api/connect/chatto.api.v1.ViewerService/GetViewer';
+const VIEWER_RPC_PATH = '/api/connect/chatto.app.v1.ViewerService/GetViewer';
 const VIEWER_RPC_ROUTE = `**${VIEWER_RPC_PATH}`;
 
 /**

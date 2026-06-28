@@ -7,7 +7,7 @@ import (
 
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	appv1 "hmans.de/chatto/internal/pb/chatto/app/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -20,7 +20,7 @@ type notificationService struct {
 	api *API
 }
 
-func (s *notificationService) ListNotifications(ctx context.Context, req *connect.Request[apiv1.ListNotificationsRequest]) (*connect.Response[apiv1.ListNotificationsResponse], error) {
+func (s *notificationService) ListNotifications(ctx context.Context, req *connect.Request[appv1.ListNotificationsRequest]) (*connect.Response[appv1.ListNotificationsResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -28,7 +28,7 @@ func (s *notificationService) ListNotifications(ctx context.Context, req *connec
 	return s.notificationPage(ctx, caller.UserID, req.Msg.Limit, req.Msg.Offset, nil)
 }
 
-func (s *notificationService) ListRoomNotifications(ctx context.Context, req *connect.Request[apiv1.ListRoomNotificationsRequest]) (*connect.Response[apiv1.ListRoomNotificationsResponse], error) {
+func (s *notificationService) ListRoomNotifications(ctx context.Context, req *connect.Request[appv1.ListRoomNotificationsRequest]) (*connect.Response[appv1.ListRoomNotificationsResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -41,7 +41,7 @@ func (s *notificationService) ListRoomNotifications(ctx context.Context, req *co
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&apiv1.ListRoomNotificationsResponse{
+	return connect.NewResponse(&appv1.ListRoomNotificationsResponse{
 		Items:      page.Msg.GetItems(),
 		TotalCount: page.Msg.GetTotalCount(),
 		HasMore:    page.Msg.GetHasMore(),
@@ -49,7 +49,7 @@ func (s *notificationService) ListRoomNotifications(ctx context.Context, req *co
 	}), nil
 }
 
-func (s *notificationService) HasNotifications(ctx context.Context, _ *connect.Request[apiv1.HasNotificationsRequest]) (*connect.Response[apiv1.HasNotificationsResponse], error) {
+func (s *notificationService) HasNotifications(ctx context.Context, _ *connect.Request[appv1.HasNotificationsRequest]) (*connect.Response[appv1.HasNotificationsResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -58,10 +58,10 @@ func (s *notificationService) HasNotifications(ctx context.Context, _ *connect.R
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.HasNotificationsResponse{HasNotifications: has}), nil
+	return connect.NewResponse(&appv1.HasNotificationsResponse{HasNotifications: has}), nil
 }
 
-func (s *notificationService) ListNotificationCounts(ctx context.Context, _ *connect.Request[apiv1.ListNotificationCountsRequest]) (*connect.Response[apiv1.ListNotificationCountsResponse], error) {
+func (s *notificationService) ListNotificationCounts(ctx context.Context, _ *connect.Request[appv1.ListNotificationCountsRequest]) (*connect.Response[appv1.ListNotificationCountsResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -78,17 +78,17 @@ func (s *notificationService) ListNotificationCounts(ctx context.Context, _ *con
 		}
 		countsByRoom[roomID]++
 	}
-	roomCounts := make([]*apiv1.RoomNotificationCount, 0, len(countsByRoom))
+	roomCounts := make([]*appv1.RoomNotificationCount, 0, len(countsByRoom))
 	for roomID, count := range countsByRoom {
-		roomCounts = append(roomCounts, &apiv1.RoomNotificationCount{
+		roomCounts = append(roomCounts, &appv1.RoomNotificationCount{
 			RoomId:     roomID,
 			TotalCount: count,
 		})
 	}
-	return connect.NewResponse(&apiv1.ListNotificationCountsResponse{RoomCounts: roomCounts}), nil
+	return connect.NewResponse(&appv1.ListNotificationCountsResponse{RoomCounts: roomCounts}), nil
 }
 
-func (s *notificationService) DismissNotification(ctx context.Context, req *connect.Request[apiv1.DismissNotificationRequest]) (*connect.Response[apiv1.DismissNotificationResponse], error) {
+func (s *notificationService) DismissNotification(ctx context.Context, req *connect.Request[appv1.DismissNotificationRequest]) (*connect.Response[appv1.DismissNotificationResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -100,10 +100,10 @@ func (s *notificationService) DismissNotification(ctx context.Context, req *conn
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.DismissNotificationResponse{Dismissed: dismissed}), nil
+	return connect.NewResponse(&appv1.DismissNotificationResponse{Dismissed: dismissed}), nil
 }
 
-func (s *notificationService) DismissAllNotifications(ctx context.Context, _ *connect.Request[apiv1.DismissAllNotificationsRequest]) (*connect.Response[apiv1.DismissAllNotificationsResponse], error) {
+func (s *notificationService) DismissAllNotifications(ctx context.Context, _ *connect.Request[appv1.DismissAllNotificationsRequest]) (*connect.Response[appv1.DismissAllNotificationsResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -112,10 +112,10 @@ func (s *notificationService) DismissAllNotifications(ctx context.Context, _ *co
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.DismissAllNotificationsResponse{DismissedCount: int32(count)}), nil
+	return connect.NewResponse(&appv1.DismissAllNotificationsResponse{DismissedCount: int32(count)}), nil
 }
 
-func (s *notificationService) notificationPage(ctx context.Context, userID string, limit, offset int32, matches func(*corev1.Notification) bool) (*connect.Response[apiv1.ListNotificationsResponse], error) {
+func (s *notificationService) notificationPage(ctx context.Context, userID string, limit, offset int32, matches func(*corev1.Notification) bool) (*connect.Response[appv1.ListNotificationsResponse], error) {
 	notifications, err := s.api.core.GetNotifications(ctx, userID)
 	if err != nil {
 		return nil, connectError(err)
@@ -134,10 +134,10 @@ func (s *notificationService) notificationPage(ctx context.Context, userID strin
 	return s.notificationPageFromList(ctx, filtered, limit, offset)
 }
 
-func (s *notificationService) notificationPageFromList(ctx context.Context, notifications []*corev1.Notification, limit, offset int32) (*connect.Response[apiv1.ListNotificationsResponse], error) {
+func (s *notificationService) notificationPageFromList(ctx context.Context, notifications []*corev1.Notification, limit, offset int32) (*connect.Response[appv1.ListNotificationsResponse], error) {
 	limitVal, offsetVal := apiPagination(limit, offset, defaultNotificationLimit, maxNotificationLimit)
 	page, totalCount, hasMore := paginateNotifications(notifications, limitVal, offsetVal)
-	items := make([]*apiv1.NotificationItem, 0, len(page))
+	items := make([]*appv1.NotificationItem, 0, len(page))
 	for _, notification := range page {
 		item, err := s.apiNotificationItem(ctx, notification)
 		if err != nil {
@@ -155,20 +155,20 @@ func (s *notificationService) notificationPageFromList(ctx context.Context, noti
 	return connect.NewResponse(response), nil
 }
 
-func (s *notificationService) emptyPage(ctx context.Context) *apiv1.ListNotificationsResponse {
+func (s *notificationService) emptyPage(ctx context.Context) *appv1.ListNotificationsResponse {
 	name := "Chatto"
 	if cm := s.api.core.ConfigManager(); cm != nil {
 		if configuredName, err := cm.GetEffectiveServerName(ctx); err == nil && configuredName != "" {
 			name = configuredName
 		}
 	}
-	return &apiv1.ListNotificationsResponse{
-		Items:      []*apiv1.NotificationItem{},
+	return &appv1.ListNotificationsResponse{
+		Items:      []*appv1.NotificationItem{},
 		ServerName: name,
 	}
 }
 
-func (s *notificationService) apiNotificationItem(ctx context.Context, notification *corev1.Notification) (*apiv1.NotificationItem, error) {
+func (s *notificationService) apiNotificationItem(ctx context.Context, notification *corev1.Notification) (*appv1.NotificationItem, error) {
 	if notification == nil {
 		return nil, nil
 	}
@@ -177,7 +177,7 @@ func (s *notificationService) apiNotificationItem(ctx context.Context, notificat
 	if err != nil {
 		return nil, err
 	}
-	item := &apiv1.NotificationItem{
+	item := &appv1.NotificationItem{
 		Id:        notification.GetId(),
 		CreatedAt: notification.GetCreatedAt(),
 		Actor:     actor,
@@ -186,8 +186,8 @@ func (s *notificationService) apiNotificationItem(ctx context.Context, notificat
 
 	switch payload := notification.GetNotification().(type) {
 	case *corev1.Notification_DmMessage:
-		item.Kind = &apiv1.NotificationItem_DirectMessage{
-			DirectMessage: &apiv1.DirectMessageNotification{
+		item.Kind = &appv1.NotificationItem_DirectMessage{
+			DirectMessage: &appv1.DirectMessageNotification{
 				RoomId:  payload.DmMessage.GetRoomId(),
 				EventId: payload.DmMessage.GetEventId(),
 			},
@@ -197,20 +197,20 @@ func (s *notificationService) apiNotificationItem(ctx context.Context, notificat
 		if err != nil {
 			return nil, err
 		}
-		mention := &apiv1.MentionNotification{
+		mention := &appv1.MentionNotification{
 			Room:    room,
 			EventId: payload.Mention.GetEventId(),
 		}
 		if threadID := payload.Mention.GetInThread(); threadID != "" {
 			mention.ThreadRootEventId = &threadID
 		}
-		item.Kind = &apiv1.NotificationItem_Mention{Mention: mention}
+		item.Kind = &appv1.NotificationItem_Mention{Mention: mention}
 	case *corev1.Notification_Reply:
 		room, err := s.notificationRoom(ctx, payload.Reply.GetRoomId())
 		if err != nil {
 			return nil, err
 		}
-		reply := &apiv1.ReplyNotification{
+		reply := &appv1.ReplyNotification{
 			Room:        room,
 			EventId:     payload.Reply.GetEventId(),
 			InReplyToId: payload.Reply.GetInReplyToId(),
@@ -218,14 +218,14 @@ func (s *notificationService) apiNotificationItem(ctx context.Context, notificat
 		if threadID := payload.Reply.GetInThread(); threadID != "" {
 			reply.ThreadRootEventId = &threadID
 		}
-		item.Kind = &apiv1.NotificationItem_Reply{Reply: reply}
+		item.Kind = &appv1.NotificationItem_Reply{Reply: reply}
 	case *corev1.Notification_RoomMessage:
 		room, err := s.notificationRoom(ctx, payload.RoomMessage.GetRoomId())
 		if err != nil {
 			return nil, err
 		}
-		item.Kind = &apiv1.NotificationItem_RoomMessage{
-			RoomMessage: &apiv1.RoomMessageNotification{
+		item.Kind = &appv1.NotificationItem_RoomMessage{
+			RoomMessage: &appv1.RoomMessageNotification{
 				Room:    room,
 				EventId: payload.RoomMessage.GetEventId(),
 			},
@@ -237,7 +237,7 @@ func (s *notificationService) apiNotificationItem(ctx context.Context, notificat
 	return item, nil
 }
 
-func (s *notificationService) notificationActor(ctx context.Context, userID string) (*apiv1.NotificationActor, error) {
+func (s *notificationService) notificationActor(ctx context.Context, userID string) (*appv1.NotificationActor, error) {
 	if userID == "" {
 		return nil, nil
 	}
@@ -252,7 +252,7 @@ func (s *notificationService) notificationActor(ctx context.Context, userID stri
 	if err != nil {
 		return nil, connectError(err)
 	}
-	actor := &apiv1.NotificationActor{
+	actor := &appv1.NotificationActor{
 		Id:             user.GetId(),
 		Login:          user.GetLogin(),
 		DisplayName:    user.GetDisplayName(),
@@ -268,7 +268,7 @@ func (s *notificationService) notificationActor(ctx context.Context, userID stri
 	return actor, nil
 }
 
-func (s *notificationService) notificationRoom(ctx context.Context, roomID string) (*apiv1.NotificationRoom, error) {
+func (s *notificationService) notificationRoom(ctx context.Context, roomID string) (*appv1.NotificationRoom, error) {
 	if roomID == "" {
 		return nil, nil
 	}
@@ -276,13 +276,13 @@ func (s *notificationService) notificationRoom(ctx context.Context, roomID strin
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return &apiv1.NotificationRoom{
+	return &appv1.NotificationRoom{
 		Id:   room.GetId(),
 		Name: room.GetName(),
 	}, nil
 }
 
-func notificationSummary(actor *apiv1.NotificationActor, notification *corev1.Notification) string {
+func notificationSummary(actor *appv1.NotificationActor, notification *corev1.Notification) string {
 	actorName := ""
 	if actor != nil {
 		actorName = actor.GetDisplayName()

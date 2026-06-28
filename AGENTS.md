@@ -20,8 +20,18 @@ path-specific guidance.
 
 - Chatto is public, self-hosted, and has real user data.
 - The project is pre-1.0, so breaking changes can be acceptable, but storage,
-  protobuf, discovery, and client compatibility still need an explicit plan.
+  protobuf, discovery, and client compatibility still need explicit judgment.
 - Some self-hosters track `:latest`; assume mixed deployed versions can exist.
+- The first-party app ConnectRPC API lives in `chatto.app.v1`. It is used by
+  the bundled frontend and may change before 1.0 when server and bundled client
+  move together.
+- The websocket realtime protocol lives in `chatto.realtime.v1`.
+- The long-lived external integration API is not the app API. Introduce it as a
+  separate, deliberately designed surface with stricter compatibility promises.
+- Do not add backwards-compatibility aliases, legacy routes, migrations, or
+  redirects just because a pre-1.0 app/internal API path changed. Add them only
+  when the old surface was intentionally promised stable, persisted, externally
+  documented as supported, or the user explicitly asks for compatibility.
 
 ## Prime Directives
 
@@ -89,8 +99,18 @@ For ad-hoc tool invocations, use `mise x -- ...` rather than assuming `go`,
 - Persisted protobuf messages in `EVT`, `RUNTIME_STATE`, `ENCRYPTION_KEYS`, and
   other JetStream resources are comparatively stable. Do not renumber fields or
   change field types; prefer additive evolution and migrations/repair code.
-- Transient protobufs can change more freely, but still consider public API
-  behavior and mixed-version clients.
+- Distinguish compatibility tiers before preserving or breaking an API:
+  persisted protobuf/storage schemas require strong additive evolution;
+  `/api/server` is high-compatibility discovery; `chatto.app.v1` is the
+  first-party app API and can break before 1.0 when the bundled client moves
+  with the server; future integration APIs should be small, canonical, and
+  strongly stable.
+- Transient protobufs can change more freely, but still consider caller impact
+  and mixed-version deployments. Mixed versions are a reason to think through
+  compatibility, not a default reason to preserve every old frontend RPC path.
+- Before preserving an old API path, verify that it is actually a promised
+  compatibility surface. Do not create compatibility bridges for frontend-only
+  package renames by default.
 - When changing room timeline event visibility, update ConnectRPC room timeline
   mapping or explicitly document why the event is hidden. Add tests so visible
   events cannot be silently dropped.

@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	appv1 "hmans.de/chatto/internal/pb/chatto/app/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -13,7 +13,7 @@ type notificationPreferencesService struct {
 	api *API
 }
 
-func (s *notificationPreferencesService) GetServerNotificationPreference(ctx context.Context, _ *connect.Request[apiv1.GetServerNotificationPreferenceRequest]) (*connect.Response[apiv1.GetServerNotificationPreferenceResponse], error) {
+func (s *notificationPreferencesService) GetServerNotificationPreference(ctx context.Context, _ *connect.Request[appv1.GetServerNotificationPreferenceRequest]) (*connect.Response[appv1.GetServerNotificationPreferenceResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -27,13 +27,13 @@ func (s *notificationPreferencesService) GetServerNotificationPreference(ctx con
 	if effectiveLevel == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
 		effectiveLevel = corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL
 	}
-	return connect.NewResponse(&apiv1.GetServerNotificationPreferenceResponse{
+	return connect.NewResponse(&appv1.GetServerNotificationPreferenceResponse{
 		Level:          coreNotificationLevelToAPI(level),
 		EffectiveLevel: coreNotificationLevelToAPI(effectiveLevel),
 	}), nil
 }
 
-func (s *notificationPreferencesService) SetServerNotificationLevel(ctx context.Context, req *connect.Request[apiv1.SetServerNotificationLevelRequest]) (*connect.Response[apiv1.SetServerNotificationLevelResponse], error) {
+func (s *notificationPreferencesService) SetServerNotificationLevel(ctx context.Context, req *connect.Request[appv1.SetServerNotificationLevelRequest]) (*connect.Response[appv1.SetServerNotificationLevelResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -50,13 +50,13 @@ func (s *notificationPreferencesService) SetServerNotificationLevel(ctx context.
 	if effectiveLevel == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
 		effectiveLevel = corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL
 	}
-	return connect.NewResponse(&apiv1.SetServerNotificationLevelResponse{
+	return connect.NewResponse(&appv1.SetServerNotificationLevelResponse{
 		Level:          coreNotificationLevelToAPI(level),
 		EffectiveLevel: coreNotificationLevelToAPI(effectiveLevel),
 	}), nil
 }
 
-func (s *notificationPreferencesService) GetRoomNotificationPreference(ctx context.Context, req *connect.Request[apiv1.GetRoomNotificationPreferenceRequest]) (*connect.Response[apiv1.GetRoomNotificationPreferenceResponse], error) {
+func (s *notificationPreferencesService) GetRoomNotificationPreference(ctx context.Context, req *connect.Request[appv1.GetRoomNotificationPreferenceRequest]) (*connect.Response[appv1.GetRoomNotificationPreferenceResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -69,13 +69,13 @@ func (s *notificationPreferencesService) GetRoomNotificationPreference(ctx conte
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.GetRoomNotificationPreferenceResponse{
+	return connect.NewResponse(&appv1.GetRoomNotificationPreferenceResponse{
 		Level:          coreNotificationLevelToAPI(pref.Level),
 		EffectiveLevel: coreNotificationLevelToAPI(pref.EffectiveLevel),
 	}), nil
 }
 
-func (s *notificationPreferencesService) SetRoomNotificationLevel(ctx context.Context, req *connect.Request[apiv1.SetRoomNotificationLevelRequest]) (*connect.Response[apiv1.SetRoomNotificationLevelResponse], error) {
+func (s *notificationPreferencesService) SetRoomNotificationLevel(ctx context.Context, req *connect.Request[appv1.SetRoomNotificationLevelRequest]) (*connect.Response[appv1.SetRoomNotificationLevelResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -92,36 +92,36 @@ func (s *notificationPreferencesService) SetRoomNotificationLevel(ctx context.Co
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.SetRoomNotificationLevelResponse{
+	return connect.NewResponse(&appv1.SetRoomNotificationLevelResponse{
 		Level:          coreNotificationLevelToAPI(pref.Level),
 		EffectiveLevel: coreNotificationLevelToAPI(pref.EffectiveLevel),
 	}), nil
 }
 
-func apiNotificationLevelToCore(level apiv1.NotificationLevel) (corev1.NotificationLevel, error) {
+func apiNotificationLevelToCore(level appv1.NotificationLevel) (corev1.NotificationLevel, error) {
 	switch level {
-	case apiv1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT:
+	case appv1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT:
 		return corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED, nil
-	case apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED:
+	case appv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED:
 		return corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED, nil
-	case apiv1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL:
+	case appv1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL:
 		return corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL, nil
-	case apiv1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES:
+	case appv1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES:
 		return corev1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES, nil
 	default:
 		return corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED, invalidArgument("notification level must be DEFAULT, MUTED, NORMAL, or ALL_MESSAGES")
 	}
 }
 
-func coreNotificationLevelToAPI(level corev1.NotificationLevel) apiv1.NotificationLevel {
+func coreNotificationLevelToAPI(level corev1.NotificationLevel) appv1.NotificationLevel {
 	switch level {
 	case corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED:
-		return apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED
+		return appv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED
 	case corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL:
-		return apiv1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL
+		return appv1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL
 	case corev1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES:
-		return apiv1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES
+		return appv1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES
 	default:
-		return apiv1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT
+		return appv1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT
 	}
 }

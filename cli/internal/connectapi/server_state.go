@@ -7,7 +7,7 @@ import (
 
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	appv1 "hmans.de/chatto/internal/pb/chatto/app/v1"
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 )
 
@@ -15,7 +15,7 @@ type serverStateService struct {
 	api *API
 }
 
-func (s *serverStateService) GetServerState(ctx context.Context, _ *connect.Request[apiv1.GetServerStateRequest]) (*connect.Response[apiv1.GetServerStateResponse], error) {
+func (s *serverStateService) GetServerState(ctx context.Context, _ *connect.Request[appv1.GetServerStateRequest]) (*connect.Response[appv1.GetServerStateResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -35,7 +35,7 @@ func (s *serverStateService) GetServerState(ctx context.Context, _ *connect.Requ
 	if s.api.config.Video.Enabled {
 		maxVideoUploadSize = int64(s.api.config.Video.MaxUploadSizeOrDefault())
 	}
-	response := &apiv1.GetServerStateResponse{
+	response := &appv1.GetServerStateResponse{
 		Profile:                   profile,
 		PushNotificationsEnabled:  s.api.config.Push.IsConfigured(),
 		DirectRegistrationEnabled: s.api.config.Auth.DirectRegistrationOrDefault(),
@@ -55,7 +55,7 @@ func (s *serverStateService) GetServerState(ctx context.Context, _ *connect.Requ
 	return connect.NewResponse(response), nil
 }
 
-func (s *serverStateService) UpdateServerConfig(ctx context.Context, req *connect.Request[apiv1.UpdateServerConfigRequest]) (*connect.Response[apiv1.UpdateServerConfigResponse], error) {
+func (s *serverStateService) UpdateServerConfig(ctx context.Context, req *connect.Request[appv1.UpdateServerConfigRequest]) (*connect.Response[appv1.UpdateServerConfigResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -71,12 +71,12 @@ func (s *serverStateService) UpdateServerConfig(ctx context.Context, req *connec
 		return nil, connectError(err)
 	}
 
-	return connect.NewResponse(&apiv1.UpdateServerConfigResponse{
+	return connect.NewResponse(&appv1.UpdateServerConfigResponse{
 		Profile: s.serverProfileFromConfig(ctx, cfg),
 	}), nil
 }
 
-func (s *serverStateService) UploadServerLogo(ctx context.Context, req *connect.Request[apiv1.UploadServerLogoRequest]) (*connect.Response[apiv1.UploadServerLogoResponse], error) {
+func (s *serverStateService) UploadServerLogo(ctx context.Context, req *connect.Request[appv1.UploadServerLogoRequest]) (*connect.Response[appv1.UploadServerLogoResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -92,10 +92,10 @@ func (s *serverStateService) UploadServerLogo(ctx context.Context, req *connect.
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&apiv1.UploadServerLogoResponse{Profile: profile}), nil
+	return connect.NewResponse(&appv1.UploadServerLogoResponse{Profile: profile}), nil
 }
 
-func (s *serverStateService) DeleteServerLogo(ctx context.Context, _ *connect.Request[apiv1.DeleteServerLogoRequest]) (*connect.Response[apiv1.DeleteServerLogoResponse], error) {
+func (s *serverStateService) DeleteServerLogo(ctx context.Context, _ *connect.Request[appv1.DeleteServerLogoRequest]) (*connect.Response[appv1.DeleteServerLogoResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -107,10 +107,10 @@ func (s *serverStateService) DeleteServerLogo(ctx context.Context, _ *connect.Re
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&apiv1.DeleteServerLogoResponse{Profile: profile}), nil
+	return connect.NewResponse(&appv1.DeleteServerLogoResponse{Profile: profile}), nil
 }
 
-func (s *serverStateService) UploadServerBanner(ctx context.Context, req *connect.Request[apiv1.UploadServerBannerRequest]) (*connect.Response[apiv1.UploadServerBannerResponse], error) {
+func (s *serverStateService) UploadServerBanner(ctx context.Context, req *connect.Request[appv1.UploadServerBannerRequest]) (*connect.Response[appv1.UploadServerBannerResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -126,10 +126,10 @@ func (s *serverStateService) UploadServerBanner(ctx context.Context, req *connec
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&apiv1.UploadServerBannerResponse{Profile: profile}), nil
+	return connect.NewResponse(&appv1.UploadServerBannerResponse{Profile: profile}), nil
 }
 
-func (s *serverStateService) DeleteServerBanner(ctx context.Context, _ *connect.Request[apiv1.DeleteServerBannerRequest]) (*connect.Response[apiv1.DeleteServerBannerResponse], error) {
+func (s *serverStateService) DeleteServerBanner(ctx context.Context, _ *connect.Request[appv1.DeleteServerBannerRequest]) (*connect.Response[appv1.DeleteServerBannerResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -141,10 +141,10 @@ func (s *serverStateService) DeleteServerBanner(ctx context.Context, _ *connect.
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&apiv1.DeleteServerBannerResponse{Profile: profile}), nil
+	return connect.NewResponse(&appv1.DeleteServerBannerResponse{Profile: profile}), nil
 }
 
-func (s *serverStateService) GetServerSecurityConfig(ctx context.Context, _ *connect.Request[apiv1.GetServerSecurityConfigRequest]) (*connect.Response[apiv1.GetServerSecurityConfigResponse], error) {
+func (s *serverStateService) GetServerSecurityConfig(ctx context.Context, _ *connect.Request[appv1.GetServerSecurityConfigRequest]) (*connect.Response[appv1.GetServerSecurityConfigResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -155,12 +155,12 @@ func (s *serverStateService) GetServerSecurityConfig(ctx context.Context, _ *con
 		return nil, connectError(err)
 	}
 
-	return connect.NewResponse(&apiv1.GetServerSecurityConfigResponse{
+	return connect.NewResponse(&appv1.GetServerSecurityConfigResponse{
 		BlockedUsernames: blockedUsernames,
 	}), nil
 }
 
-func (s *serverStateService) UpdateBlockedUsernames(ctx context.Context, req *connect.Request[apiv1.UpdateBlockedUsernamesRequest]) (*connect.Response[apiv1.UpdateBlockedUsernamesResponse], error) {
+func (s *serverStateService) UpdateBlockedUsernames(ctx context.Context, req *connect.Request[appv1.UpdateBlockedUsernamesRequest]) (*connect.Response[appv1.UpdateBlockedUsernamesResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -171,13 +171,13 @@ func (s *serverStateService) UpdateBlockedUsernames(ctx context.Context, req *co
 		return nil, connectError(err)
 	}
 
-	return connect.NewResponse(&apiv1.UpdateBlockedUsernamesResponse{
+	return connect.NewResponse(&appv1.UpdateBlockedUsernamesResponse{
 		BlockedUsernames: blockedUsernames,
 	}), nil
 }
 
-func (s *serverStateService) serverProfile(ctx context.Context) (*apiv1.ServerProfile, error) {
-	profile := &apiv1.ServerProfile{Name: s.api.effectiveServerName(ctx)}
+func (s *serverStateService) serverProfile(ctx context.Context) (*appv1.ServerProfile, error) {
+	profile := &appv1.ServerProfile{Name: s.api.effectiveServerName(ctx)}
 
 	if cm := s.api.core.ConfigManager(); cm != nil {
 		if welcome, err := cm.GetEffectiveWelcomeMessage(ctx); err != nil {
@@ -213,8 +213,8 @@ func (s *serverStateService) serverProfile(ctx context.Context) (*apiv1.ServerPr
 	return profile, nil
 }
 
-func (s *serverStateService) serverProfileFromConfig(ctx context.Context, cfg *configv1.ServerConfig) *apiv1.ServerProfile {
-	profile := &apiv1.ServerProfile{Name: s.api.effectiveServerName(ctx)}
+func (s *serverStateService) serverProfileFromConfig(ctx context.Context, cfg *configv1.ServerConfig) *appv1.ServerProfile {
+	profile := &appv1.ServerProfile{Name: s.api.effectiveServerName(ctx)}
 	if cfg != nil {
 		if cfg.GetServerName() != "" {
 			profile.Name = cfg.GetServerName()
@@ -239,7 +239,7 @@ func (s *serverStateService) serverProfileFromConfig(ctx context.Context, cfg *c
 	return profile
 }
 
-func (s *serverStateService) serverViewerCapabilities(ctx context.Context, userID string) (*apiv1.ServerViewerCapabilities, error) {
+func (s *serverStateService) serverViewerCapabilities(ctx context.Context, userID string) (*appv1.ServerViewerCapabilities, error) {
 	hasAnyAdminPermission, err := s.api.core.HasAnyAdminPermission(ctx, userID)
 	if err != nil {
 		return nil, connectError(err)
@@ -261,7 +261,7 @@ func (s *serverStateService) serverViewerCapabilities(ctx context.Context, userI
 		return nil, err
 	}
 
-	return &apiv1.ServerViewerCapabilities{
+	return &appv1.ServerViewerCapabilities{
 		HasAnyAdminPermission: hasAnyAdminPermission,
 		CanManageServer:       canManageServer,
 		CanCreateRoom:         canCreateRoom,

@@ -5,14 +5,14 @@ import (
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	appv1 "hmans.de/chatto/internal/pb/chatto/app/v1"
 )
 
 type readStateService struct {
 	api *API
 }
 
-func (s *readStateService) MarkRoomAsRead(ctx context.Context, req *connect.Request[apiv1.MarkRoomAsReadRequest]) (*connect.Response[apiv1.MarkRoomAsReadResponse], error) {
+func (s *readStateService) MarkRoomAsRead(ctx context.Context, req *connect.Request[appv1.MarkRoomAsReadRequest]) (*connect.Response[appv1.MarkRoomAsReadResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -23,7 +23,7 @@ func (s *readStateService) MarkRoomAsRead(ctx context.Context, req *connect.Requ
 		return nil, connectError(err)
 	}
 
-	resp := &apiv1.MarkRoomAsReadResponse{}
+	resp := &appv1.MarkRoomAsReadResponse{}
 	if !result.LastReadAt.IsZero() {
 		resp.LastReadAt = timestamppb.New(result.LastReadAt)
 	}
@@ -33,7 +33,7 @@ func (s *readStateService) MarkRoomAsRead(ctx context.Context, req *connect.Requ
 	return connect.NewResponse(resp), nil
 }
 
-func (s *readStateService) MarkThreadAsRead(ctx context.Context, req *connect.Request[apiv1.MarkThreadAsReadRequest]) (*connect.Response[apiv1.MarkThreadAsReadResponse], error) {
+func (s *readStateService) MarkThreadAsRead(ctx context.Context, req *connect.Request[appv1.MarkThreadAsReadRequest]) (*connect.Response[appv1.MarkThreadAsReadResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -44,7 +44,7 @@ func (s *readStateService) MarkThreadAsRead(ctx context.Context, req *connect.Re
 		return nil, connectError(err)
 	}
 
-	resp := &apiv1.MarkThreadAsReadResponse{}
+	resp := &appv1.MarkThreadAsReadResponse{}
 	if !result.PreviousReadAt.IsZero() {
 		resp.PreviousReadAt = timestamppb.New(result.PreviousReadAt)
 	}

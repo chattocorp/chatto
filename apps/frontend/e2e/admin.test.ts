@@ -43,7 +43,7 @@ async function createRoleViaAPI(page: Page, name: string, displayName: string): 
 async function assignRoleViaAPI(page: Page, userId: string, roleName: string): Promise<void> {
   const data = await connectPost<{ assigned?: boolean }>(
     page,
-    'chatto.api.v1.AdminUserManagementService/AssignRole',
+    'chatto.app.v1.AdminUserManagementService/AssignRole',
     { userId, roleName }
   );
   expect(data.assigned).toBe(true);
@@ -52,7 +52,7 @@ async function assignRoleViaAPI(page: Page, userId: string, roleName: string): P
 async function revokeRoleViaAPI(page: Page, userId: string, roleName: string): Promise<void> {
   const data = await connectPost<{ revoked?: boolean }>(
     page,
-    'chatto.api.v1.AdminUserManagementService/RevokeRole',
+    'chatto.app.v1.AdminUserManagementService/RevokeRole',
     { userId, roleName }
   );
   expect(data.revoked).toBe(true);
@@ -66,7 +66,7 @@ async function createRoleViaConnect(
 ): Promise<{ name?: string; permissionDenials?: string[] }> {
   const data = await connectPost<{ role?: { name?: string; permissionDenials?: string[] } }>(
     page,
-    'chatto.api.v1.RoleService/CreateRole',
+    'chatto.app.v1.RoleService/CreateRole',
     { name, displayName, description }
   );
   if (!data.role?.name) {
@@ -78,7 +78,7 @@ async function createRoleViaConnect(
 async function deleteRoleViaConnect(page: Page, name: string): Promise<void> {
   const data = await connectPost<{ deleted?: boolean }>(
     page,
-    'chatto.api.v1.RoleService/DeleteRole',
+    'chatto.app.v1.RoleService/DeleteRole',
     { name }
   );
   expect(data.deleted).toBe(true);
@@ -90,7 +90,7 @@ async function getRoleViaConnect(
 ): Promise<{ name?: string; permissionDenials?: string[] }> {
   const data = await connectPost<{ role?: { name?: string; permissionDenials?: string[] } }>(
     page,
-    'chatto.api.v1.RoleService/GetRole',
+    'chatto.app.v1.RoleService/GetRole',
     { name }
   );
   if (!data.role?.name) {
@@ -107,7 +107,7 @@ async function setRolePermissionViaConnect(
 ): Promise<void> {
   const data = await connectPost<{ ok?: boolean }>(
     page,
-    'chatto.api.v1.PermissionService/SetRolePermission',
+    'chatto.app.v1.PermissionService/SetRolePermission',
     {
       roleName,
       permission,
@@ -124,7 +124,7 @@ async function updateOwnProfileViaConnect(
 ): Promise<{ login?: string; displayName?: string }> {
   const data = await connectPost<{ user?: { login?: string; displayName?: string } }>(
     page,
-    'chatto.api.v1.AccountService/UpdateProfile',
+    'chatto.app.v1.AccountService/UpdateProfile',
     input
   );
   if (!data.user) {

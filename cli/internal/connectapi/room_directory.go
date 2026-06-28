@@ -5,7 +5,7 @@ import (
 
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	appv1 "hmans.de/chatto/internal/pb/chatto/app/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -13,7 +13,7 @@ type roomDirectoryService struct {
 	api *API
 }
 
-func (s *roomDirectoryService) ListRooms(ctx context.Context, req *connect.Request[apiv1.ListRoomsRequest]) (*connect.Response[apiv1.ListRoomsResponse], error) {
+func (s *roomDirectoryService) ListRooms(ctx context.Context, req *connect.Request[appv1.ListRoomsRequest]) (*connect.Response[appv1.ListRoomsResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -27,15 +27,15 @@ func (s *roomDirectoryService) ListRooms(ctx context.Context, req *connect.Reque
 		return nil, connectError(err)
 	}
 
-	apiRooms := make([]*apiv1.DirectoryRoom, 0, len(rooms))
+	apiRooms := make([]*appv1.DirectoryRoom, 0, len(rooms))
 	for _, room := range rooms {
 		apiRooms = append(apiRooms, apiDirectoryRoom(room))
 	}
 
-	return connect.NewResponse(&apiv1.ListRoomsResponse{Rooms: apiRooms}), nil
+	return connect.NewResponse(&appv1.ListRoomsResponse{Rooms: apiRooms}), nil
 }
 
-func (s *roomDirectoryService) ListRoomGroups(ctx context.Context, _ *connect.Request[apiv1.ListRoomGroupsRequest]) (*connect.Response[apiv1.ListRoomGroupsResponse], error) {
+func (s *roomDirectoryService) ListRoomGroups(ctx context.Context, _ *connect.Request[appv1.ListRoomGroupsRequest]) (*connect.Response[appv1.ListRoomGroupsResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -46,14 +46,14 @@ func (s *roomDirectoryService) ListRoomGroups(ctx context.Context, _ *connect.Re
 		return nil, connectError(err)
 	}
 
-	apiGroups := make([]*apiv1.RoomGroup, 0, len(groups))
+	apiGroups := make([]*appv1.RoomGroup, 0, len(groups))
 	for _, group := range groups {
 		apiGroups = append(apiGroups, apiRoomGroup(group))
 	}
-	return connect.NewResponse(&apiv1.ListRoomGroupsResponse{Groups: apiGroups}), nil
+	return connect.NewResponse(&appv1.ListRoomGroupsResponse{Groups: apiGroups}), nil
 }
 
-func (s *roomDirectoryService) GetRoom(ctx context.Context, req *connect.Request[apiv1.GetRoomRequest]) (*connect.Response[apiv1.GetRoomResponse], error) {
+func (s *roomDirectoryService) GetRoom(ctx context.Context, req *connect.Request[appv1.GetRoomRequest]) (*connect.Response[appv1.GetRoomResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -63,10 +63,10 @@ func (s *roomDirectoryService) GetRoom(ctx context.Context, req *connect.Request
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.GetRoomResponse{Room: apiDirectoryRoom(room)}), nil
+	return connect.NewResponse(&appv1.GetRoomResponse{Room: apiDirectoryRoom(room)}), nil
 }
 
-func (s *roomDirectoryService) JoinGroup(ctx context.Context, req *connect.Request[apiv1.JoinGroupRequest]) (*connect.Response[apiv1.JoinGroupResponse], error) {
+func (s *roomDirectoryService) JoinGroup(ctx context.Context, req *connect.Request[appv1.JoinGroupRequest]) (*connect.Response[appv1.JoinGroupResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -77,21 +77,21 @@ func (s *roomDirectoryService) JoinGroup(ctx context.Context, req *connect.Reque
 		return nil, connectError(err)
 	}
 
-	return connect.NewResponse(&apiv1.JoinGroupResponse{JoinedRoomIds: joined}), nil
+	return connect.NewResponse(&appv1.JoinGroupResponse{JoinedRoomIds: joined}), nil
 }
 
-func apiDirectoryRoom(room *core.DirectoryRoom) *apiv1.DirectoryRoom {
+func apiDirectoryRoom(room *core.DirectoryRoom) *appv1.DirectoryRoom {
 	if room == nil {
 		return nil
 	}
-	return &apiv1.DirectoryRoom{
+	return &appv1.DirectoryRoom{
 		Room:        apiRoom(room.Room),
 		ViewerState: apiRoomViewerState(room.ViewerState),
 	}
 }
 
-func apiRoomViewerState(state core.DirectoryRoomViewerState) *apiv1.RoomViewerState {
-	return &apiv1.RoomViewerState{
+func apiRoomViewerState(state core.DirectoryRoomViewerState) *appv1.RoomViewerState {
+	return &appv1.RoomViewerState{
 		IsMember:               state.IsMember,
 		HasUnread:              state.HasUnread,
 		CanListRoom:            state.CanListRoom,
@@ -107,11 +107,11 @@ func apiRoomViewerState(state core.DirectoryRoomViewerState) *apiv1.RoomViewerSt
 	}
 }
 
-func apiRoomGroup(group *core.DirectoryRoomGroup) *apiv1.RoomGroup {
+func apiRoomGroup(group *core.DirectoryRoomGroup) *appv1.RoomGroup {
 	if group == nil || group.Group == nil {
 		return nil
 	}
-	apiGroup := &apiv1.RoomGroup{
+	apiGroup := &appv1.RoomGroup{
 		Id:          group.Group.GetId(),
 		Name:        group.Group.GetName(),
 		Description: group.Group.GetDescription(),
@@ -122,35 +122,35 @@ func apiRoomGroup(group *core.DirectoryRoomGroup) *apiv1.RoomGroup {
 	for _, item := range group.Items {
 		switch {
 		case item.Room != nil:
-			apiGroup.Items = append(apiGroup.Items, &apiv1.RoomGroupItem{
-				Item: &apiv1.RoomGroupItem_Room{Room: apiDirectoryRoom(item.Room)},
+			apiGroup.Items = append(apiGroup.Items, &appv1.RoomGroupItem{
+				Item: &appv1.RoomGroupItem_Room{Room: apiDirectoryRoom(item.Room)},
 			})
 		case item.SidebarLink != nil:
-			apiGroup.Items = append(apiGroup.Items, &apiv1.RoomGroupItem{
-				Item: &apiv1.RoomGroupItem_SidebarLink{SidebarLink: apiSidebarLink(item.SidebarLink)},
+			apiGroup.Items = append(apiGroup.Items, &appv1.RoomGroupItem{
+				Item: &appv1.RoomGroupItem_SidebarLink{SidebarLink: apiSidebarLink(item.SidebarLink)},
 			})
 		}
 	}
 	return apiGroup
 }
 
-func roomDirectoryScopeIncludesChannels(scope apiv1.RoomDirectoryScope) bool {
-	return scope == apiv1.RoomDirectoryScope_ROOM_DIRECTORY_SCOPE_UNSPECIFIED ||
-		scope == apiv1.RoomDirectoryScope_ROOM_DIRECTORY_SCOPE_ALL ||
-		scope == apiv1.RoomDirectoryScope_ROOM_DIRECTORY_SCOPE_CHANNELS
+func roomDirectoryScopeIncludesChannels(scope appv1.RoomDirectoryScope) bool {
+	return scope == appv1.RoomDirectoryScope_ROOM_DIRECTORY_SCOPE_UNSPECIFIED ||
+		scope == appv1.RoomDirectoryScope_ROOM_DIRECTORY_SCOPE_ALL ||
+		scope == appv1.RoomDirectoryScope_ROOM_DIRECTORY_SCOPE_CHANNELS
 }
 
-func roomDirectoryScopeIncludesDMs(scope apiv1.RoomDirectoryScope) bool {
-	return scope == apiv1.RoomDirectoryScope_ROOM_DIRECTORY_SCOPE_UNSPECIFIED ||
-		scope == apiv1.RoomDirectoryScope_ROOM_DIRECTORY_SCOPE_ALL ||
-		scope == apiv1.RoomDirectoryScope_ROOM_DIRECTORY_SCOPE_DMS
+func roomDirectoryScopeIncludesDMs(scope appv1.RoomDirectoryScope) bool {
+	return scope == appv1.RoomDirectoryScope_ROOM_DIRECTORY_SCOPE_UNSPECIFIED ||
+		scope == appv1.RoomDirectoryScope_ROOM_DIRECTORY_SCOPE_ALL ||
+		scope == appv1.RoomDirectoryScope_ROOM_DIRECTORY_SCOPE_DMS
 }
 
-func apiSidebarLink(link *corev1.SidebarLink) *apiv1.SidebarLink {
+func apiSidebarLink(link *corev1.SidebarLink) *appv1.SidebarLink {
 	if link == nil {
 		return nil
 	}
-	return &apiv1.SidebarLink{
+	return &appv1.SidebarLink{
 		Id:    link.GetId(),
 		Label: link.GetLabel(),
 		Url:   link.GetUrl(),

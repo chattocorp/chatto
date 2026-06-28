@@ -10,7 +10,7 @@ import {
   RealtimeEventEnvelope,
   RealtimeServerFrame,
   RealtimeSubscribeEvents
-} from '$lib/pb/chatto/api/v1/realtime_pb';
+} from '$lib/pb/chatto/realtime/v1/realtime_pb';
 
 class RealtimeProtobufClient {
   readonly #socket: WebSocket;

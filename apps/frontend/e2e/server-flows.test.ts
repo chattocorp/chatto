@@ -73,7 +73,7 @@ test.describe('Landing Page', () => {
 
         const viewer = await connectPost<ViewerResponse>(
           freshPage,
-          'chatto.api.v1.ViewerService/GetViewer'
+          'chatto.app.v1.ViewerService/GetViewer'
         );
         expect(viewer.user?.id).toBeTruthy();
 

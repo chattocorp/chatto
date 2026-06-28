@@ -322,7 +322,7 @@ test.describe('Direct Messages (room-shaped)', () => {
     await withServerUser(browser, serverURL, async ({ page: regularPage, user: regularUser }) => {
       // Admin starts a DM with the regular user (via API) and seeds it so
       // the conversation isn't filtered by the active DM-room list.
-      const startResp = await page.request.post('/api/connect/chatto.api.v1.RoomService/StartDM', {
+      const startResp = await page.request.post('/api/connect/chatto.app.v1.RoomService/StartDM', {
         headers: { 'Content-Type': 'application/json', 'Connect-Protocol-Version': '1' },
         data: { participantIds: [regularUser.id] }
       });
@@ -335,7 +335,7 @@ test.describe('Direct Messages (room-shaped)', () => {
       const denyRole = await denyUserPermission(page, regularUser.id!, 'message.post');
       try {
         const deniedStartResp = await regularPage.request.post(
-          '/api/connect/chatto.api.v1.RoomService/StartDM',
+          '/api/connect/chatto.app.v1.RoomService/StartDM',
           {
             headers: { 'Content-Type': 'application/json', 'Connect-Protocol-Version': '1' },
             data: { participantIds: [adminUser.id!] }

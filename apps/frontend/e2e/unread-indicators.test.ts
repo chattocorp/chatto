@@ -888,7 +888,7 @@ test.describe('Unread dot stability after loadRooms refresh', () => {
         // bootstrap server, so do the rename as e2eadmin through a side request
         // context that leaves user A's page session intact.
         await withBootstrapAdminRequest(serverURL, async (adminRequest) => {
-          await connectPost(adminRequest, 'chatto.api.v1.RoomService/UpdateRoom', {
+          await connectPost(adminRequest, 'chatto.app.v1.RoomService/UpdateRoom', {
             roomId: generalRoomId,
             name: 'general-renamed',
             description: ''

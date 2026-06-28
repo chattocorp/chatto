@@ -112,7 +112,7 @@ async function setRolePermission(
 ): Promise<void> {
   const data = await connectPost<{ ok?: boolean }>(
     page,
-    'chatto.api.v1.PermissionService/SetRolePermission',
+    'chatto.app.v1.PermissionService/SetRolePermission',
     {
       roleName,
       permission,
@@ -130,7 +130,7 @@ async function postMessageViaAPI(
   roomId: string,
   body: string
 ): Promise<{ id: string } | null> {
-  const resp = await connectPostResponse(page, 'chatto.api.v1.MessageService/PostMessage', {
+  const resp = await connectPostResponse(page, 'chatto.app.v1.MessageService/PostMessage', {
     roomId,
     body
   });
@@ -147,7 +147,7 @@ async function replyToMessageViaAPI(
   inThread: string,
   body: string
 ): Promise<{ id: string } | null> {
-  const resp = await connectPostResponse(page, 'chatto.api.v1.MessageService/PostMessage', {
+  const resp = await connectPostResponse(page, 'chatto.app.v1.MessageService/PostMessage', {
     roomId,
     body,
     threadRootEventId: inThread
@@ -165,7 +165,7 @@ async function addReactionViaAPI(
   messageEventId: string,
   emoji: string
 ): Promise<boolean> {
-  const resp = await connectPostResponse(page, 'chatto.api.v1.ReactionService/AddReaction', {
+  const resp = await connectPostResponse(page, 'chatto.app.v1.ReactionService/AddReaction', {
     roomId,
     messageEventId,
     emoji
@@ -463,7 +463,7 @@ async function createServerRole(
 ): Promise<void> {
   const data = await connectPost<{ role?: { name?: string } }>(
     page,
-    'chatto.api.v1.RoleService/CreateRole',
+    'chatto.app.v1.RoleService/CreateRole',
     {
       name,
       displayName,
@@ -478,7 +478,7 @@ async function createServerRole(
 async function assignServerRole(page: Page, userId: string, roleName: string): Promise<void> {
   const data = await connectPost<{ assigned?: boolean }>(
     page,
-    'chatto.api.v1.AdminUserManagementService/AssignRole',
+    'chatto.app.v1.AdminUserManagementService/AssignRole',
     { userId, roleName }
   );
   expect(data.assigned).toBe(true);
@@ -487,7 +487,7 @@ async function assignServerRole(page: Page, userId: string, roleName: string): P
 async function reorderServerRoles(page: Page, roleNames: string[]): Promise<void> {
   const data = await connectPost<{ roles?: Array<{ name?: string }> }>(
     page,
-    'chatto.api.v1.RoleService/ReorderRoles',
+    'chatto.app.v1.RoleService/ReorderRoles',
     { roleNames }
   );
   for (const roleName of roleNames) {

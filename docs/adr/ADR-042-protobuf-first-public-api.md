@@ -21,7 +21,7 @@ Chatto needs a public API contract that is typed, efficient, SDK-friendly, and c
 
 Chatto will move toward a protobuf-first public API.
 
-Public API `.proto` files will be the authoritative contract for the next API generation. They should live separately from persisted event protos, for example under `proto/chatto/api/v1/`. Public API messages may reuse concepts from core models, but they are compatibility contracts for callers and must not simply expose durable EVT payloads.
+Public API `.proto` files will be the authoritative contract for the next API generation. They should live separately from persisted event protos, in API-specific packages such as `proto/chatto/app/v1`, `proto/chatto/realtime/v1`, or a future integration package. Public API messages may reuse concepts from core models, but they are compatibility contracts for callers and must not simply expose durable EVT payloads.
 
 The API has two primary transports:
 

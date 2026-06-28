@@ -7,7 +7,7 @@ import (
 	"connectrpc.com/validate"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
+	"hmans.de/chatto/internal/pb/chatto/app/v1/appv1connect"
 )
 
 // Prefix is the HTTP mount point for Chatto's ConnectRPC public API.
@@ -69,33 +69,33 @@ func (a *API) Handlers() []Handler {
 		messageUploadOptions = handlerOptionsWithReadMax(messageUploadRequestMaxBytes(a.core.AssetsConfig().MaxUploadSize))
 	}
 
-	accountPath, accountHandler := apiv1connect.NewAccountServiceHandler(&accountService{api: a}, uploadOptions...)
-	attachmentPath, attachmentHandler := apiv1connect.NewAttachmentServiceHandler(&attachmentService{api: a}, options...)
-	adminDiagnosticsPath, adminDiagnosticsHandler := apiv1connect.NewAdminDiagnosticsServiceHandler(&adminDiagnosticsService{api: a}, options...)
-	adminEventLogPath, adminEventLogHandler := apiv1connect.NewAdminEventLogServiceHandler(&adminEventLogService{api: a}, options...)
-	adminUserManagementPath, adminUserManagementHandler := apiv1connect.NewAdminUserManagementServiceHandler(&adminUserManagementService{api: a}, options...)
-	serverPath, serverHandler := apiv1connect.NewServerServiceHandler(&serverService{api: a}, options...)
-	serverStatePath, serverStateHandler := apiv1connect.NewServerStateServiceHandler(&serverStateService{api: a}, uploadOptions...)
-	viewerPath, viewerHandler := apiv1connect.NewViewerServiceHandler(&viewerService{api: a}, options...)
-	presencePath, presenceHandler := apiv1connect.NewPresenceServiceHandler(&presenceService{api: a}, options...)
-	permissionPath, permissionHandler := apiv1connect.NewPermissionServiceHandler(&permissionService{api: a}, options...)
-	linkPreviewPath, linkPreviewHandler := apiv1connect.NewLinkPreviewServiceHandler(&linkPreviewService{api: a}, options...)
-	messagePath, messageHandler := apiv1connect.NewMessageServiceHandler(&messageService{api: a}, messageUploadOptions...)
-	memberDirectoryPath, memberDirectoryHandler := apiv1connect.NewMemberDirectoryServiceHandler(&memberDirectoryService{api: a}, options...)
-	notificationPath, notificationHandler := apiv1connect.NewNotificationServiceHandler(&notificationService{api: a}, options...)
-	prefsPath, prefsHandler := apiv1connect.NewNotificationPreferencesServiceHandler(&notificationPreferencesService{api: a}, options...)
-	pushPath, pushHandler := apiv1connect.NewPushNotificationServiceHandler(&pushNotificationService{api: a}, options...)
-	readStatePath, readStateHandler := apiv1connect.NewReadStateServiceHandler(&readStateService{api: a}, options...)
-	reactionPath, reactionHandler := apiv1connect.NewReactionServiceHandler(&reactionService{api: a}, options...)
-	rolePath, roleHandler := apiv1connect.NewRoleServiceHandler(&roleService{api: a}, options...)
-	timelinePath, timelineHandler := apiv1connect.NewRoomTimelineServiceHandler(&roomTimelineService{api: a}, options...)
-	roomPath, roomHandler := apiv1connect.NewRoomServiceHandler(&roomService{api: a}, options...)
-	roomDirectoryPath, roomDirectoryHandler := apiv1connect.NewRoomDirectoryServiceHandler(&roomDirectoryService{api: a}, options...)
-	adminRoomLayoutPath, adminRoomLayoutHandler := apiv1connect.NewAdminRoomLayoutServiceHandler(&adminRoomLayoutService{api: a}, options...)
-	userStatusPath, userStatusHandler := apiv1connect.NewUserStatusServiceHandler(&userStatusService{api: a}, options...)
-	threadPath, threadHandler := apiv1connect.NewThreadServiceHandler(&threadService{api: a}, options...)
-	userPath, userHandler := apiv1connect.NewUserServiceHandler(&userService{api: a}, options...)
-	voicePath, voiceHandler := apiv1connect.NewVoiceCallServiceHandler(&voiceCallService{api: a}, options...)
+	accountPath, accountHandler := appv1connect.NewAccountServiceHandler(&accountService{api: a}, uploadOptions...)
+	attachmentPath, attachmentHandler := appv1connect.NewAttachmentServiceHandler(&attachmentService{api: a}, options...)
+	adminDiagnosticsPath, adminDiagnosticsHandler := appv1connect.NewAdminDiagnosticsServiceHandler(&adminDiagnosticsService{api: a}, options...)
+	adminEventLogPath, adminEventLogHandler := appv1connect.NewAdminEventLogServiceHandler(&adminEventLogService{api: a}, options...)
+	adminUserManagementPath, adminUserManagementHandler := appv1connect.NewAdminUserManagementServiceHandler(&adminUserManagementService{api: a}, options...)
+	serverPath, serverHandler := appv1connect.NewServerServiceHandler(&serverService{api: a}, options...)
+	serverStatePath, serverStateHandler := appv1connect.NewServerStateServiceHandler(&serverStateService{api: a}, uploadOptions...)
+	viewerPath, viewerHandler := appv1connect.NewViewerServiceHandler(&viewerService{api: a}, options...)
+	presencePath, presenceHandler := appv1connect.NewPresenceServiceHandler(&presenceService{api: a}, options...)
+	permissionPath, permissionHandler := appv1connect.NewPermissionServiceHandler(&permissionService{api: a}, options...)
+	linkPreviewPath, linkPreviewHandler := appv1connect.NewLinkPreviewServiceHandler(&linkPreviewService{api: a}, options...)
+	messagePath, messageHandler := appv1connect.NewMessageServiceHandler(&messageService{api: a}, messageUploadOptions...)
+	memberDirectoryPath, memberDirectoryHandler := appv1connect.NewMemberDirectoryServiceHandler(&memberDirectoryService{api: a}, options...)
+	notificationPath, notificationHandler := appv1connect.NewNotificationServiceHandler(&notificationService{api: a}, options...)
+	prefsPath, prefsHandler := appv1connect.NewNotificationPreferencesServiceHandler(&notificationPreferencesService{api: a}, options...)
+	pushPath, pushHandler := appv1connect.NewPushNotificationServiceHandler(&pushNotificationService{api: a}, options...)
+	readStatePath, readStateHandler := appv1connect.NewReadStateServiceHandler(&readStateService{api: a}, options...)
+	reactionPath, reactionHandler := appv1connect.NewReactionServiceHandler(&reactionService{api: a}, options...)
+	rolePath, roleHandler := appv1connect.NewRoleServiceHandler(&roleService{api: a}, options...)
+	timelinePath, timelineHandler := appv1connect.NewRoomTimelineServiceHandler(&roomTimelineService{api: a}, options...)
+	roomPath, roomHandler := appv1connect.NewRoomServiceHandler(&roomService{api: a}, options...)
+	roomDirectoryPath, roomDirectoryHandler := appv1connect.NewRoomDirectoryServiceHandler(&roomDirectoryService{api: a}, options...)
+	adminRoomLayoutPath, adminRoomLayoutHandler := appv1connect.NewAdminRoomLayoutServiceHandler(&adminRoomLayoutService{api: a}, options...)
+	userStatusPath, userStatusHandler := appv1connect.NewUserStatusServiceHandler(&userStatusService{api: a}, options...)
+	threadPath, threadHandler := appv1connect.NewThreadServiceHandler(&threadService{api: a}, options...)
+	userPath, userHandler := appv1connect.NewUserServiceHandler(&userService{api: a}, options...)
+	voicePath, voiceHandler := appv1connect.NewVoiceCallServiceHandler(&voiceCallService{api: a}, options...)
 	return []Handler{
 		{ServicePath: accountPath, Handler: accountHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: attachmentPath, Handler: attachmentHandler, AuthPolicy: AuthPolicyAuthenticatedUser},

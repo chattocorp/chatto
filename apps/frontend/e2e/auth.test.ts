@@ -499,7 +499,7 @@ test.describe('Authentication', () => {
 
       const viewer = await connectPost<E2EViewerResponse>(
         page,
-        'chatto.api.v1.ViewerService/GetViewer'
+        'chatto.app.v1.ViewerService/GetViewer'
       );
       expect(viewer.user?.hasVerifiedEmail).toBe(true);
     });
@@ -519,7 +519,7 @@ test.describe('Authentication', () => {
 
       const viewer = await connectPost<E2EViewerResponse>(
         page,
-        'chatto.api.v1.ViewerService/GetViewer'
+        'chatto.app.v1.ViewerService/GetViewer'
       );
       expect(viewer.user?.hasVerifiedEmail).toBe(true);
     });

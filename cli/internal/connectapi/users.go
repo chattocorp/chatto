@@ -6,7 +6,7 @@ import (
 
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	appv1 "hmans.de/chatto/internal/pb/chatto/app/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -14,7 +14,7 @@ type userService struct {
 	api *API
 }
 
-func (s *userService) GetUser(ctx context.Context, req *connect.Request[apiv1.GetUserRequest]) (*connect.Response[apiv1.GetUserResponse], error) {
+func (s *userService) GetUser(ctx context.Context, req *connect.Request[appv1.GetUserRequest]) (*connect.Response[appv1.GetUserResponse], error) {
 	if _, err := requireCaller(ctx); err != nil {
 		return nil, err
 	}
@@ -27,10 +27,10 @@ func (s *userService) GetUser(ctx context.Context, req *connect.Request[apiv1.Ge
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&apiv1.GetUserResponse{User: profile}), nil
+	return connect.NewResponse(&appv1.GetUserResponse{User: profile}), nil
 }
 
-func (s *userService) GetUserByLogin(ctx context.Context, req *connect.Request[apiv1.GetUserByLoginRequest]) (*connect.Response[apiv1.GetUserByLoginResponse], error) {
+func (s *userService) GetUserByLogin(ctx context.Context, req *connect.Request[appv1.GetUserByLoginRequest]) (*connect.Response[appv1.GetUserByLoginResponse], error) {
 	if _, err := requireCaller(ctx); err != nil {
 		return nil, err
 	}
@@ -38,7 +38,7 @@ func (s *userService) GetUserByLogin(ctx context.Context, req *connect.Request[a
 	user, err := s.api.core.GetUserByLogin(ctx, req.Msg.GetLogin())
 	if err != nil {
 		if errors.Is(err, core.ErrNotFound) {
-			return connect.NewResponse(&apiv1.GetUserByLoginResponse{}), nil
+			return connect.NewResponse(&appv1.GetUserByLoginResponse{}), nil
 		}
 		return nil, connectError(err)
 	}
@@ -46,16 +46,16 @@ func (s *userService) GetUserByLogin(ctx context.Context, req *connect.Request[a
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&apiv1.GetUserByLoginResponse{User: profile}), nil
+	return connect.NewResponse(&appv1.GetUserByLoginResponse{User: profile}), nil
 }
 
-func (s *userService) BatchGetUsers(ctx context.Context, req *connect.Request[apiv1.BatchGetUsersRequest]) (*connect.Response[apiv1.BatchGetUsersResponse], error) {
+func (s *userService) BatchGetUsers(ctx context.Context, req *connect.Request[appv1.BatchGetUsersRequest]) (*connect.Response[appv1.BatchGetUsersResponse], error) {
 	if _, err := requireCaller(ctx); err != nil {
 		return nil, err
 	}
 
 	seen := make(map[string]struct{}, len(req.Msg.GetUserIds()))
-	users := make([]*apiv1.UserSummary, 0, len(req.Msg.GetUserIds()))
+	users := make([]*appv1.UserSummary, 0, len(req.Msg.GetUserIds()))
 	for _, userID := range req.Msg.GetUserIds() {
 		if _, ok := seen[userID]; ok {
 			continue
@@ -76,10 +76,10 @@ func (s *userService) BatchGetUsers(ctx context.Context, req *connect.Request[ap
 		users = append(users, summary)
 	}
 
-	return connect.NewResponse(&apiv1.BatchGetUsersResponse{Users: users}), nil
+	return connect.NewResponse(&appv1.BatchGetUsersResponse{Users: users}), nil
 }
 
-func (s *userService) userProfile(ctx context.Context, user *corev1.User, avatar *apiv1.UserAvatarOptions) (*apiv1.DirectoryMember, error) {
+func (s *userService) userProfile(ctx context.Context, user *corev1.User, avatar *appv1.UserAvatarOptions) (*appv1.DirectoryMember, error) {
 	roles, err := s.api.core.GetUserRoles(ctx, user.GetId())
 	if err != nil {
 		return nil, connectError(err)
@@ -99,8 +99,8 @@ func (s *userService) userProfile(ctx context.Context, user *corev1.User, avatar
 	return member, nil
 }
 
-func (s *userService) userSummary(ctx context.Context, user *corev1.User, avatar *apiv1.UserAvatarOptions) (*apiv1.UserSummary, error) {
-	summary := &apiv1.UserSummary{
+func (s *userService) userSummary(ctx context.Context, user *corev1.User, avatar *appv1.UserAvatarOptions) (*appv1.UserSummary, error) {
+	summary := &appv1.UserSummary{
 		Id:          user.GetId(),
 		Login:       user.GetLogin(),
 		DisplayName: user.GetDisplayName(),
@@ -116,7 +116,7 @@ func (s *userService) userSummary(ctx context.Context, user *corev1.User, avatar
 	return summary, nil
 }
 
-func (s *userService) userAvatarURL(ctx context.Context, userID string, avatar *apiv1.UserAvatarOptions) (string, error) {
+func (s *userService) userAvatarURL(ctx context.Context, userID string, avatar *appv1.UserAvatarOptions) (string, error) {
 	if avatar == nil {
 		url, err := s.api.core.GetUserAvatarURL(ctx, userID, nil, nil, "")
 		if err != nil {
@@ -127,7 +127,7 @@ func (s *userService) userAvatarURL(ctx context.Context, userID string, avatar *
 
 	width, height := int(avatar.GetWidth()), int(avatar.GetHeight())
 	fit := "cover"
-	if avatar.GetFit() == apiv1.UserAvatarFitMode_USER_AVATAR_FIT_MODE_CONTAIN {
+	if avatar.GetFit() == appv1.UserAvatarFitMode_USER_AVATAR_FIT_MODE_CONTAIN {
 		fit = "contain"
 	}
 	url, err := s.api.core.GetUserAvatarURL(ctx, userID, &width, &height, fit)

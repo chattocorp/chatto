@@ -5,11 +5,11 @@ import { RoomEventKind } from '$lib/render/eventKinds';
 import { PresenceStatus, type RoomEventView } from '$lib/render/types';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 import { primeUserSummaryCache } from '$lib/state/userSummaries.svelte';
-import { RoomTimelineService } from '$lib/pb/chatto/api/v1/room_timeline_connect';
+import { RoomTimelineService } from '$lib/pb/chatto/app/v1/room_timeline_connect';
 import {
   RoomTimelinePage,
   RoomTimelineVideoProcessingStatus
-} from '$lib/pb/chatto/api/v1/room_timeline_pb';
+} from '$lib/pb/chatto/app/v1/room_timeline_pb';
 import type {
   RoomTimelineAssetUrl,
   RoomTimelineEvent,
@@ -17,7 +17,7 @@ import type {
   RoomTimelineMessagePosted,
   RoomTimelineUser,
   RoomTimelineVideoProcessing
-} from '$lib/pb/chatto/api/v1/room_timeline_pb';
+} from '$lib/pb/chatto/app/v1/room_timeline_pb';
 
 export type RoomTimelineAPIConfig = {
   serverId?: string;

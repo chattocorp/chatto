@@ -671,7 +671,7 @@ test.describe('Server Permission Enforcement', () => {
       await loginUser(page, member.login, member.password);
       const data = await connectPost<E2EListRoomsResponse>(
         page,
-        'chatto.api.v1.RoomDirectoryService/ListRooms',
+        'chatto.app.v1.RoomDirectoryService/ListRooms',
         { scope: 'ROOM_DIRECTORY_SCOPE_CHANNELS' }
       );
 
@@ -696,7 +696,7 @@ test.describe('Server Permission Enforcement', () => {
       await loginUser(page, member.login, member.password);
       const data = await connectPost<E2EListRoomsResponse>(
         page,
-        'chatto.api.v1.RoomDirectoryService/ListRooms',
+        'chatto.app.v1.RoomDirectoryService/ListRooms',
         { scope: 'ROOM_DIRECTORY_SCOPE_CHANNELS' }
       );
 
@@ -738,7 +738,7 @@ test.describe('Server Permission Enforcement', () => {
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      const joinResponse = await connectPostResponse(page, 'chatto.api.v1.RoomService/JoinRoom', {
+      const joinResponse = await connectPostResponse(page, 'chatto.app.v1.RoomService/JoinRoom', {
         roomId
       });
 

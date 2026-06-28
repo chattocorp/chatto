@@ -6,7 +6,7 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	appv1 "hmans.de/chatto/internal/pb/chatto/app/v1"
 )
 
 const (
@@ -18,7 +18,7 @@ type threadService struct {
 	api *API
 }
 
-func (s *threadService) ListFollowedThreads(ctx context.Context, req *connect.Request[apiv1.ListFollowedThreadsRequest]) (*connect.Response[apiv1.ListFollowedThreadsResponse], error) {
+func (s *threadService) ListFollowedThreads(ctx context.Context, req *connect.Request[appv1.ListFollowedThreadsRequest]) (*connect.Response[appv1.ListFollowedThreadsResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -37,7 +37,7 @@ func (s *threadService) ListFollowedThreads(ctx context.Context, req *connect.Re
 	return connect.NewResponse(resp), nil
 }
 
-func (s *threadService) FollowThread(ctx context.Context, req *connect.Request[apiv1.FollowThreadRequest]) (*connect.Response[apiv1.FollowThreadResponse], error) {
+func (s *threadService) FollowThread(ctx context.Context, req *connect.Request[appv1.FollowThreadRequest]) (*connect.Response[appv1.FollowThreadResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -45,10 +45,10 @@ func (s *threadService) FollowThread(ctx context.Context, req *connect.Request[a
 	if err := s.api.core.ThreadFollows().FollowThread(ctx, caller.UserID, req.Msg.RoomId, req.Msg.ThreadRootEventId); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.FollowThreadResponse{Following: true}), nil
+	return connect.NewResponse(&appv1.FollowThreadResponse{Following: true}), nil
 }
 
-func (s *threadService) UnfollowThread(ctx context.Context, req *connect.Request[apiv1.UnfollowThreadRequest]) (*connect.Response[apiv1.UnfollowThreadResponse], error) {
+func (s *threadService) UnfollowThread(ctx context.Context, req *connect.Request[appv1.UnfollowThreadRequest]) (*connect.Response[appv1.UnfollowThreadResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -56,13 +56,13 @@ func (s *threadService) UnfollowThread(ctx context.Context, req *connect.Request
 	if err := s.api.core.ThreadFollows().UnfollowThread(ctx, caller.UserID, req.Msg.RoomId, req.Msg.ThreadRootEventId); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.UnfollowThreadResponse{Following: false}), nil
+	return connect.NewResponse(&appv1.UnfollowThreadResponse{Following: false}), nil
 }
 
-func (s *threadService) followedThreadsResponse(ctx context.Context, viewerID string, page *core.FollowedThreadsPage) (*apiv1.ListFollowedThreadsResponse, error) {
+func (s *threadService) followedThreadsResponse(ctx context.Context, viewerID string, page *core.FollowedThreadsPage) (*appv1.ListFollowedThreadsResponse, error) {
 	if page == nil {
-		return &apiv1.ListFollowedThreadsResponse{
-			Includes: &apiv1.RoomTimelineIncludes{Users: map[string]*apiv1.RoomTimelineUser{}},
+		return &appv1.ListFollowedThreadsResponse{
+			Includes: &appv1.RoomTimelineIncludes{Users: map[string]*appv1.RoomTimelineUser{}},
 		}, nil
 	}
 
@@ -86,7 +86,7 @@ func (s *threadService) followedThreadsResponse(ctx context.Context, viewerID st
 		userIDs:              make(map[string]struct{}),
 	}
 
-	threads := make([]*apiv1.FollowedThread, 0, len(page.Threads))
+	threads := make([]*appv1.FollowedThread, 0, len(page.Threads))
 	for _, thread := range page.Threads {
 		if thread == nil {
 			continue
@@ -102,7 +102,7 @@ func (s *threadService) followedThreadsResponse(ctx context.Context, viewerID st
 		if err != nil {
 			return nil, err
 		}
-		var rootMessage *apiv1.RoomTimelineEvent
+		var rootMessage *appv1.RoomTimelineEvent
 		if event != nil {
 			rootMessage, err = h.event(&core.RoomEvent{Event: event})
 			if err != nil {
@@ -114,7 +114,7 @@ func (s *threadService) followedThreadsResponse(ctx context.Context, viewerID st
 		if thread.LastReplyAt != nil {
 			lastReplyAt = timestamppb.New(*thread.LastReplyAt)
 		}
-		threads = append(threads, &apiv1.FollowedThread{
+		threads = append(threads, &appv1.FollowedThread{
 			RoomId:            thread.RoomID,
 			RoomName:          room.GetName(),
 			ThreadRootEventId: thread.ThreadRootEventID,
@@ -130,10 +130,10 @@ func (s *threadService) followedThreadsResponse(ctx context.Context, viewerID st
 		return nil, err
 	}
 
-	return &apiv1.ListFollowedThreadsResponse{
+	return &appv1.ListFollowedThreadsResponse{
 		Threads:    threads,
 		TotalCount: int32(page.TotalCount),
 		HasMore:    page.HasMore,
-		Includes:   &apiv1.RoomTimelineIncludes{Users: users},
+		Includes:   &appv1.RoomTimelineIncludes{Users: users},
 	}, nil
 }
