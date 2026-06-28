@@ -309,6 +309,22 @@ describe('Room local message echo', () => {
     expect(mocks.noteReadCursor).not.toHaveBeenCalled();
   });
 
+  it('clears pending in-room reply state when the room changes', async () => {
+    const rendered = render(Room, { props: { roomId: 'room-1' } });
+    const { container } = rendered;
+
+    await expect.element(q(container, '[data-testid="composer-in-reply-to"]')).toHaveTextContent('');
+
+    (q(container, '[data-testid="start-composer-reply"]') as HTMLButtonElement).click();
+    await expect
+      .element(q(container, '[data-testid="composer-in-reply-to"]'))
+      .toHaveTextContent('reply-target');
+
+    await rendered.rerender({ roomId: 'room-2' });
+
+    await expect.element(q(container, '[data-testid="composer-in-reply-to"]')).toHaveTextContent('');
+  });
+
   it('opens a pending call panel request as a mobile sidebar after navigation', async () => {
     mocks.livekitUrl = 'wss://livekit.example.test';
     vi.stubGlobal(

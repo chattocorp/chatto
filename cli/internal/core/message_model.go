@@ -225,6 +225,19 @@ func (s *MessageModel) validatePostBeforeUpload(ctx context.Context, input Messa
 		return err
 	}
 
+	if inReplyTo := strings.TrimSpace(input.InReplyTo); inReplyTo != "" {
+		targetEvent, err := s.core.GetRoomEventByEventID(ctx, authorization.Kind, authorization.Room.Id, inReplyTo)
+		if err != nil {
+			return fmt.Errorf("failed to get in-reply-to message: %w", err)
+		}
+		if targetEvent == nil {
+			return invalidArgument("in_reply_to message not found in room")
+		}
+		if targetEvent.GetMessagePosted() == nil {
+			return invalidArgument("in_reply_to target is not a message event")
+		}
+	}
+
 	if input.ThreadRootEventID == "" {
 		return nil
 	}

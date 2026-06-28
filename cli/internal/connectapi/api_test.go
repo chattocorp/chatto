@@ -3011,6 +3011,8 @@ func TestMessageServicePostMessageValidatesInput(t *testing.T) {
 	ctx := withCaller(env.ctx, env.viewer)
 	root := env.post(room.Id, env.viewer.Id, "root", "")
 	reply := env.post(room.Id, env.viewer.Id, "reply", root.Id)
+	otherRoom := env.createJoinedRoom("message-post-validation-other")
+	otherRoomMessage := env.post(otherRoom.Id, env.viewer.Id, "other room", "")
 
 	tests := []struct {
 		name string
@@ -3051,6 +3053,24 @@ func TestMessageServicePostMessageValidatesInput(t *testing.T) {
 				RoomId:            room.Id,
 				Body:              "reply",
 				ThreadRootEventId: reply.Id,
+			},
+			code: connect.CodeInvalidArgument,
+		},
+		{
+			name: "missing in-reply-to target",
+			req: &apiv1.PostMessageRequest{
+				RoomId:    room.Id,
+				Body:      "reply",
+				InReplyTo: "missing-reply-target",
+			},
+			code: connect.CodeInvalidArgument,
+		},
+		{
+			name: "other room in-reply-to target",
+			req: &apiv1.PostMessageRequest{
+				RoomId:    room.Id,
+				Body:      "reply",
+				InReplyTo: otherRoomMessage.Id,
 			},
 			code: connect.CodeInvalidArgument,
 		},
@@ -3245,6 +3265,8 @@ func TestMessageServicePostMessageValidationPreflightDoesNotCreateAssets(t *test
 
 	root := env.post(room.Id, env.viewer.Id, "root", "")
 	reply := env.post(room.Id, env.viewer.Id, "reply", root.Id)
+	otherRoom := env.createJoinedRoom("upload-validation-other")
+	otherRoomMessage := env.post(otherRoom.Id, env.viewer.Id, "other room", "")
 
 	tests := []struct {
 		name string
@@ -3275,6 +3297,34 @@ func TestMessageServicePostMessageValidationPreflightDoesNotCreateAssets(t *test
 					Filename:    "note.txt",
 					ContentType: "text/plain",
 					Content:     []byte("bad root upload"),
+				}},
+			},
+			code: connect.CodeInvalidArgument,
+		},
+		{
+			name: "missing in-reply-to target",
+			req: &apiv1.PostMessageRequest{
+				RoomId:    room.Id,
+				Body:      "reply with file",
+				InReplyTo: "missing-reply-target",
+				Attachments: []*apiv1.MessageAttachmentUpload{{
+					Filename:    "note.txt",
+					ContentType: "text/plain",
+					Content:     []byte("missing reply upload"),
+				}},
+			},
+			code: connect.CodeInvalidArgument,
+		},
+		{
+			name: "other room in-reply-to target",
+			req: &apiv1.PostMessageRequest{
+				RoomId:    room.Id,
+				Body:      "reply with file",
+				InReplyTo: otherRoomMessage.Id,
+				Attachments: []*apiv1.MessageAttachmentUpload{{
+					Filename:    "note.txt",
+					ContentType: "text/plain",
+					Content:     []byte("other room reply upload"),
 				}},
 			},
 			code: connect.CodeInvalidArgument,
