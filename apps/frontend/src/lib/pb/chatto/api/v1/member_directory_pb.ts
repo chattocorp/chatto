@@ -5,8 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
-import { PresenceStatus } from "./presence_pb.js";
-import { CustomUserStatus } from "./user_status_pb.js";
+import { UserPresenceSummary } from "./users_pb.js";
 import { PageInfo, PageRequest } from "./pagination_pb.js";
 
 /**
@@ -16,66 +15,24 @@ import { PageInfo, PageRequest } from "./pagination_pb.js";
  */
 export class DirectoryMember extends Message<DirectoryMember> {
   /**
-   * Stable user ID.
+   * Public profile and live presence fields.
    *
-   * @generated from field: string id = 1;
+   * @generated from field: chatto.api.v1.UserPresenceSummary profile = 1;
    */
-  id = "";
-
-  /**
-   * Login identifier.
-   *
-   * @generated from field: string login = 2;
-   */
-  login = "";
-
-  /**
-   * Display name shown in Chatto.
-   *
-   * @generated from field: string display_name = 3;
-   */
-  displayName = "";
-
-  /**
-   * Whether this row represents a deleted account tombstone.
-   *
-   * @generated from field: bool deleted = 4;
-   */
-  deleted = false;
-
-  /**
-   * Optional avatar URL.
-   *
-   * @generated from field: optional string avatar_url = 5;
-   */
-  avatarUrl?: string;
-
-  /**
-   * Current live presence status.
-   *
-   * @generated from field: chatto.api.v1.PresenceStatus presence_status = 6;
-   */
-  presenceStatus = PresenceStatus.UNSPECIFIED;
-
-  /**
-   * Custom profile status, when set.
-   *
-   * @generated from field: chatto.api.v1.CustomUserStatus custom_status = 7;
-   */
-  customStatus?: CustomUserStatus;
+  profile?: UserPresenceSummary;
 
   /**
    * Explicit server roles assigned to the user. Server member listings include
    * the virtual `everyone` role for parity with Chatto's permission model.
    *
-   * @generated from field: repeated string roles = 8;
+   * @generated from field: repeated string roles = 2;
    */
   roles: string[] = [];
 
   /**
    * Account creation time when known.
    *
-   * @generated from field: google.protobuf.Timestamp created_at = 9;
+   * @generated from field: google.protobuf.Timestamp created_at = 3;
    */
   createdAt?: Timestamp;
 
@@ -87,15 +44,9 @@ export class DirectoryMember extends Message<DirectoryMember> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.DirectoryMember";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "deleted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 5, name: "avatar_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 6, name: "presence_status", kind: "enum", T: proto3.getEnumType(PresenceStatus) },
-    { no: 7, name: "custom_status", kind: "message", T: CustomUserStatus },
-    { no: 8, name: "roles", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 9, name: "created_at", kind: "message", T: Timestamp },
+    { no: 1, name: "profile", kind: "message", T: UserPresenceSummary },
+    { no: 2, name: "roles", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 3, name: "created_at", kind: "message", T: Timestamp },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DirectoryMember {

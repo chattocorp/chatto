@@ -251,7 +251,8 @@ func TestUserServiceReadsPublicProfiles(t *testing.T) {
 		t.Fatalf("GetUser: %v", err)
 	}
 	user := resp.Msg.GetUser()
-	if user.GetId() != env.viewer.Id || user.GetLogin() != env.viewer.Login || user.GetDisplayName() != env.viewer.DisplayName {
+	summary := user.GetUser()
+	if summary.GetId() != env.viewer.Id || summary.GetLogin() != env.viewer.Login || summary.GetDisplayName() != env.viewer.DisplayName {
 		t.Fatalf("GetUser user = %+v, want viewer public profile", user)
 	}
 	if user.GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_ONLINE {
@@ -260,10 +261,6 @@ func TestUserServiceReadsPublicProfiles(t *testing.T) {
 	if user.GetCustomStatus().GetText() != "around" {
 		t.Fatalf("CustomStatus = %+v, want status text", user.GetCustomStatus())
 	}
-	if strings.Join(user.GetRoles(), ",") != "admin" {
-		t.Fatalf("Roles = %v, want admin", user.GetRoles())
-	}
-
 	batchResp, err := env.users.BatchGetUsers(ctx, connect.NewRequest(&apiv1.BatchGetUsersRequest{
 		UserIds: []string{env.viewer.Id, "missing-user", env.viewer.Id},
 	}))
@@ -280,8 +277,8 @@ func TestUserServiceReadsPublicProfiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetUserByLogin: %v", err)
 	}
-	if byLoginResp.Msg.GetUser().GetId() != env.viewer.Id {
-		t.Fatalf("GetUserByLogin id = %q, want %q", byLoginResp.Msg.GetUser().GetId(), env.viewer.Id)
+	if byLoginResp.Msg.GetUser().GetUser().GetId() != env.viewer.Id {
+		t.Fatalf("GetUserByLogin id = %q, want %q", byLoginResp.Msg.GetUser().GetUser().GetId(), env.viewer.Id)
 	}
 
 	if _, err := env.users.GetUserByLogin(ctx, connect.NewRequest(&apiv1.GetUserByLoginRequest{Login: "missing-user"})); connect.CodeOf(err) != connect.CodeNotFound {
@@ -471,21 +468,25 @@ func TestPermissionServiceMatricesAndWrites(t *testing.T) {
 	})); connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("missing GetRolePermissionMatrix code = %v, want not found", connect.CodeOf(err))
 	}
-	if _, err := env.permissions.RevokeRolePermissionGrant(env.ctx, connect.NewRequest(&apiv1.RevokeRolePermissionGrantRequest{
+	if _, err := env.permissions.SetRolePermission(env.ctx, connect.NewRequest(&apiv1.SetRolePermissionRequest{
 		RoleName:   core.RoleModerator,
 		Permission: string(core.PermMessagePost),
+		Decision:   apiv1.PermissionDecision_PERMISSION_DECISION_NONE,
+		Scope:      &apiv1.PermissionScope{Kind: apiv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_SERVER},
 	})); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated RevokeRolePermissionGrant code = %v, want unauthenticated", connect.CodeOf(err))
+		t.Fatalf("unauthenticated SetRolePermission clear code = %v, want unauthenticated", connect.CodeOf(err))
 	}
-	revokeResp, err := env.permissions.RevokeRolePermissionGrant(ctx, connect.NewRequest(&apiv1.RevokeRolePermissionGrantRequest{
+	clearResp, err := env.permissions.SetRolePermission(ctx, connect.NewRequest(&apiv1.SetRolePermissionRequest{
 		RoleName:   core.RoleModerator,
 		Permission: string(core.PermMessagePost),
+		Decision:   apiv1.PermissionDecision_PERMISSION_DECISION_NONE,
+		Scope:      &apiv1.PermissionScope{Kind: apiv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_SERVER},
 	}))
 	if err != nil {
-		t.Fatalf("RevokeRolePermissionGrant: %v", err)
+		t.Fatalf("SetRolePermission clear: %v", err)
 	}
-	if !revokeResp.Msg.GetOk() {
-		t.Fatal("RevokeRolePermissionGrant Ok = false, want true")
+	if !clearResp.Msg.GetOk() {
+		t.Fatal("SetRolePermission clear Ok = false, want true")
 	}
 	roleMatrixResp, err = env.permissions.GetRolePermissionMatrix(ctx, connect.NewRequest(&apiv1.GetRolePermissionMatrixRequest{
 		RoleName: core.RoleModerator,
@@ -495,6 +496,14 @@ func TestPermissionServiceMatricesAndWrites(t *testing.T) {
 	}
 	if cell := findAPIPermissionCell(roleMatrixResp.Msg.GetMatrix().GetCells(), "server", string(core.PermMessagePost)); cell == nil || cell.GetOverride() != apiv1.PermissionDecision_PERMISSION_DECISION_NONE {
 		t.Fatalf("server message.post cell after revoke = %+v, want no override", cell)
+	}
+	if _, err := env.permissions.SetRolePermission(ctx, connect.NewRequest(&apiv1.SetRolePermissionRequest{
+		RoleName:   core.RoleModerator,
+		Permission: string(core.PermMessagePost),
+		Decision:   apiv1.PermissionDecision_PERMISSION_DECISION_ALLOW,
+		Scope:      &apiv1.PermissionScope{Kind: apiv1.PermissionScopeKind(99), Id: "future"},
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("future scope SetRolePermission code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 
 	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermUserManagePermissions); err != nil {
@@ -566,7 +575,10 @@ func TestPermissionServiceMatricesAndWrites(t *testing.T) {
 		t.Fatalf("SetRolePermission room manager deny: %v", err)
 	}
 	roomTierResp, err := env.permissions.GetRolePermissionTierMatrix(roomManagerCtx, connect.NewRequest(&apiv1.GetRolePermissionTierMatrixRequest{
-		RoomId: room.Id,
+		Scope: &apiv1.PermissionScope{
+			Kind: apiv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_ROOM,
+			Id:   room.Id,
+		},
 	}))
 	if err != nil {
 		t.Fatalf("GetRolePermissionTierMatrix room manager: %v", err)
@@ -830,7 +842,8 @@ func TestViewerServiceGetViewerReturnsSelfScopedState(t *testing.T) {
 	}
 	user := resp.Msg.GetUser()
 	profile := user.GetProfile()
-	if profile.GetId() != env.viewer.Id || profile.GetLogin() != env.viewer.Login || profile.GetDisplayName() != env.viewer.DisplayName {
+	summary := profile.GetUser()
+	if summary.GetId() != env.viewer.Id || summary.GetLogin() != env.viewer.Login || summary.GetDisplayName() != env.viewer.DisplayName {
 		t.Fatalf("viewer user = %+v, want id/login/display name from fixture", user)
 	}
 	if !user.GetHasVerifiedEmail() {
@@ -1611,10 +1624,10 @@ func TestRoomServiceMembershipAndModerationCommands(t *testing.T) {
 	if listedBan.GetRoomId() != room.Id || listedBan.GetRoom().GetName() != room.Name {
 		t.Fatalf("ListRoomBans room = %+v, want id %s name %q", listedBan.GetRoom(), room.Id, room.Name)
 	}
-	if listedBan.GetUserId() != target.Id || listedBan.GetUser().GetDisplayName() != target.DisplayName {
+	if listedBan.GetUserId() != target.Id || listedBan.GetUser().GetProfile().GetUser().GetDisplayName() != target.DisplayName {
 		t.Fatalf("ListRoomBans user = %+v, want target %s", listedBan.GetUser(), target.Id)
 	}
-	if listedBan.GetModeratorId() != env.viewer.Id || listedBan.GetModerator().GetDisplayName() != env.viewer.DisplayName {
+	if listedBan.GetModeratorId() != env.viewer.Id || listedBan.GetModerator().GetProfile().GetUser().GetDisplayName() != env.viewer.DisplayName {
 		t.Fatalf("ListRoomBans moderator = %+v, want viewer %s", listedBan.GetModerator(), env.viewer.Id)
 	}
 	if listedBan.GetReason() != "moderation test" {
@@ -2182,7 +2195,7 @@ func TestRoomDirectoryServiceListRoomGroupsFiltersHiddenRoomsAndKeepsLinks(t *te
 	}
 }
 
-func TestRoomDirectoryServiceJoinGroup(t *testing.T) {
+func TestRoomServiceJoinRoomGroup(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 
 	caller, err := env.core.CreateUser(env.ctx, core.SystemActorID, "directory-join-caller", "Directory Join Caller", "password")
@@ -2212,11 +2225,11 @@ func TestRoomDirectoryServiceJoinGroup(t *testing.T) {
 		t.Fatalf("ArchiveRoom: %v", err)
 	}
 
-	resp, err := env.directory.JoinGroup(withCaller(env.ctx, caller), connect.NewRequest(&apiv1.JoinGroupRequest{
+	resp, err := env.rooms.JoinRoomGroup(withCaller(env.ctx, caller), connect.NewRequest(&apiv1.JoinRoomGroupRequest{
 		GroupId: group.Id,
 	}))
 	if err != nil {
-		t.Fatalf("JoinGroup: %v", err)
+		t.Fatalf("JoinRoomGroup: %v", err)
 	}
 	if got, want := strings.Join(resp.Msg.GetJoinedRoomIds(), ","), openRoom.Id; got != want {
 		t.Fatalf("joined room ids = %q, want %q", got, want)
@@ -2278,13 +2291,13 @@ func TestMemberDirectoryServiceListServerMembers(t *testing.T) {
 
 	gotByID := map[string]*apiv1.DirectoryMember{}
 	for _, member := range append(resp.Msg.GetMembers(), secondResp.Msg.GetMembers()...) {
-		gotByID[member.GetId()] = member
+		gotByID[member.GetProfile().GetUser().GetId()] = member
 	}
-	if gotByID[alice.Id].GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_AWAY {
-		t.Fatalf("alice presence = %v, want AWAY", gotByID[alice.Id].GetPresenceStatus())
+	if gotByID[alice.Id].GetProfile().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_AWAY {
+		t.Fatalf("alice presence = %v, want AWAY", gotByID[alice.Id].GetProfile().GetPresenceStatus())
 	}
-	if gotByID[bob.Id].GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE {
-		t.Fatalf("bob presence = %v, want OFFLINE", gotByID[bob.Id].GetPresenceStatus())
+	if gotByID[bob.Id].GetProfile().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE {
+		t.Fatalf("bob presence = %v, want OFFLINE", gotByID[bob.Id].GetProfile().GetPresenceStatus())
 	}
 	if roles := strings.Join(gotByID[bob.Id].GetRoles(), ","); roles != "everyone,admin" {
 		t.Fatalf("bob roles = %q, want everyone,admin", roles)
@@ -2325,7 +2338,7 @@ func TestMemberDirectoryServiceListRoomMembersRequiresMembership(t *testing.T) {
 		t.Fatalf("room member page = %+v, want one alice result", resp.Msg)
 	}
 	got := resp.Msg.GetMembers()[0]
-	if got.GetId() != member.Id || got.GetDisplayName() != "Room Alice" || got.GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB {
+	if got.GetProfile().GetUser().GetId() != member.Id || got.GetProfile().GetUser().GetDisplayName() != "Room Alice" || got.GetProfile().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB {
 		t.Fatalf("room member = %+v, want hydrated Room Alice", got)
 	}
 }
@@ -2418,7 +2431,7 @@ func TestNotificationServiceListsAndDismissesNotifications(t *testing.T) {
 		t.Fatalf("ListNotifications page = %+v, want total 2, has_more true, one item", listResp.Msg)
 	}
 	item := listResp.Msg.GetItems()[0]
-	if item.GetActor().GetDisplayName() != "Notification Actor" || item.GetActor().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_AWAY {
+	if item.GetActor().GetUser().GetDisplayName() != "Notification Actor" || item.GetActor().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_AWAY {
 		t.Fatalf("notification actor = %+v, want hydrated actor", item.GetActor())
 	}
 
@@ -2525,7 +2538,7 @@ func TestPushNotificationServiceSubscribeAndUnsubscribe(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 
-	if _, err := env.push.Subscribe(env.ctx, connect.NewRequest(&apiv1.SubscribeRequest{
+	if _, err := env.push.Subscribe(env.ctx, connect.NewRequest(&apiv1.SubscribePushRequest{
 		Endpoint: "https://push.example.test/sub",
 		P256Dh:   "p256dh-key",
 		Auth:     "auth-secret",
@@ -2533,7 +2546,7 @@ func TestPushNotificationServiceSubscribeAndUnsubscribe(t *testing.T) {
 		t.Fatalf("unauthenticated Subscribe code = %v, want unauthenticated", connect.CodeOf(err))
 	}
 
-	if _, err := env.push.Subscribe(ctx, connect.NewRequest(&apiv1.SubscribeRequest{
+	if _, err := env.push.Subscribe(ctx, connect.NewRequest(&apiv1.SubscribePushRequest{
 		Endpoint: "https://push.example.test/sub",
 		P256Dh:   "p256dh-key",
 		Auth:     "auth-secret",
@@ -2547,7 +2560,7 @@ func TestPushNotificationServiceSubscribeAndUnsubscribe(t *testing.T) {
 		VAPIDPrivateKey: "private-key",
 		VAPIDSubject:    "mailto:admin@example.com",
 	}
-	subResp, err := env.push.Subscribe(ctx, connect.NewRequest(&apiv1.SubscribeRequest{
+	subResp, err := env.push.Subscribe(ctx, connect.NewRequest(&apiv1.SubscribePushRequest{
 		Endpoint:  "https://push.example.test/sub",
 		P256Dh:    "p256dh-key",
 		Auth:      "auth-secret",
@@ -2567,7 +2580,7 @@ func TestPushNotificationServiceSubscribeAndUnsubscribe(t *testing.T) {
 		t.Fatalf("stored subscriptions = %+v, want one saved subscription", subs)
 	}
 
-	unsubResp, err := env.push.Unsubscribe(ctx, connect.NewRequest(&apiv1.UnsubscribeRequest{
+	unsubResp, err := env.push.Unsubscribe(ctx, connect.NewRequest(&apiv1.UnsubscribePushRequest{
 		Endpoint: "https://push.example.test/sub",
 	}))
 	if err != nil {
@@ -2584,7 +2597,7 @@ func TestPushNotificationServiceSubscribeAndUnsubscribe(t *testing.T) {
 		t.Fatalf("subscriptions after unsubscribe = %+v, want none", subs)
 	}
 
-	if _, err := env.push.Unsubscribe(ctx, connect.NewRequest(&apiv1.UnsubscribeRequest{
+	if _, err := env.push.Unsubscribe(ctx, connect.NewRequest(&apiv1.UnsubscribePushRequest{
 		Endpoint: "https://push.example.test/sub",
 	})); err != nil {
 		t.Fatalf("idempotent Unsubscribe: %v", err)
@@ -2661,7 +2674,7 @@ func TestVoiceCallServiceRecordsAndListsCalls(t *testing.T) {
 		t.Fatalf("ListCallParticipants: %v", err)
 	}
 	participants := participantsResp.Msg.GetParticipants()
-	if len(participants) != 1 || participants[0].GetUser().GetId() != env.viewer.Id || participants[0].GetCallId() == "" || participants[0].GetJoinedAt() == nil {
+	if len(participants) != 1 || participants[0].GetUser().GetUser().GetId() != env.viewer.Id || participants[0].GetCallId() == "" || participants[0].GetJoinedAt() == nil {
 		t.Fatalf("participants = %+v, want viewer participant with call metadata", participants)
 	}
 

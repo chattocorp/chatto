@@ -251,17 +251,19 @@ func (s *notificationService) notificationActor(ctx context.Context, userID stri
 		return nil, connectError(err)
 	}
 	actor := &apiv1.UserPresenceSummary{
-		Id:             user.GetId(),
-		Login:          user.GetLogin(),
-		DisplayName:    user.GetDisplayName(),
-		Deleted:        user.GetDeleted(),
+		User: &apiv1.UserSummary{
+			Id:          user.GetId(),
+			Login:       user.GetLogin(),
+			DisplayName: user.GetDisplayName(),
+			Deleted:     user.GetDeleted(),
+		},
 		PresenceStatus: corePresenceStatusToAPI(presence),
 		CustomStatus:   coreCustomStatusToAPI(user.GetCustomStatus()),
 	}
 	if avatarURL, err := s.api.core.GetUserAvatarURL(ctx, userID, nil, nil, ""); err != nil {
 		return nil, connectError(err)
 	} else if avatarURL != "" {
-		actor.AvatarUrl = stringPtr(s.api.absolutizeAssetURL(ctx, avatarURL))
+		actor.User.AvatarUrl = stringPtr(s.api.absolutizeAssetURL(ctx, avatarURL))
 	}
 	return actor, nil
 }
@@ -282,8 +284,8 @@ func (s *notificationService) notificationRoom(ctx context.Context, roomID strin
 
 func notificationSummary(actor *apiv1.UserPresenceSummary, notification *corev1.Notification) string {
 	actorName := ""
-	if actor != nil {
-		actorName = actor.GetDisplayName()
+	if actor != nil && actor.GetUser() != nil {
+		actorName = actor.GetUser().GetDisplayName()
 	}
 	switch notification.GetNotification().(type) {
 	case *corev1.Notification_DmMessage:

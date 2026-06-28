@@ -470,10 +470,8 @@ func (x *TierRoles) GetRoles() []*TierRole {
 // Request a role-permission tier matrix.
 type GetRolePermissionTierMatrixRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Optional room scope. Mutually exclusive with group_id.
-	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Optional room-group scope. Mutually exclusive with room_id.
-	GroupId       string `protobuf:"bytes,2,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	// Target scope. Omit or use SERVER for server scope.
+	Scope         *PermissionScope `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -508,18 +506,11 @@ func (*GetRolePermissionTierMatrixRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_permissions_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *GetRolePermissionTierMatrixRequest) GetRoomId() string {
+func (x *GetRolePermissionTierMatrixRequest) GetScope() *PermissionScope {
 	if x != nil {
-		return x.RoomId
+		return x.Scope
 	}
-	return ""
-}
-
-func (x *GetRolePermissionTierMatrixRequest) GetGroupId() string {
-	if x != nil {
-		return x.GroupId
-	}
-	return ""
+	return nil
 }
 
 // Response containing a role-permission tier matrix.
@@ -1419,107 +1410,6 @@ func (x *SetRolePermissionResponse) GetOk() bool {
 	return false
 }
 
-// Request to remove only one server-scope role permission grant.
-type RevokeRolePermissionGrantRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Role name.
-	RoleName string `protobuf:"bytes,1,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
-	// Permission identifier.
-	Permission    string `protobuf:"bytes,2,opt,name=permission,proto3" json:"permission,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RevokeRolePermissionGrantRequest) Reset() {
-	*x = RevokeRolePermissionGrantRequest{}
-	mi := &file_chatto_api_v1_permissions_proto_msgTypes[20]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RevokeRolePermissionGrantRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RevokeRolePermissionGrantRequest) ProtoMessage() {}
-
-func (x *RevokeRolePermissionGrantRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_permissions_proto_msgTypes[20]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RevokeRolePermissionGrantRequest.ProtoReflect.Descriptor instead.
-func (*RevokeRolePermissionGrantRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_permissions_proto_rawDescGZIP(), []int{20}
-}
-
-func (x *RevokeRolePermissionGrantRequest) GetRoleName() string {
-	if x != nil {
-		return x.RoleName
-	}
-	return ""
-}
-
-func (x *RevokeRolePermissionGrantRequest) GetPermission() string {
-	if x != nil {
-		return x.Permission
-	}
-	return ""
-}
-
-// Result of removing one server-scope role permission grant.
-type RevokeRolePermissionGrantResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the request completed.
-	Ok            bool `protobuf:"varint,1,opt,name=ok,proto3" json:"ok,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RevokeRolePermissionGrantResponse) Reset() {
-	*x = RevokeRolePermissionGrantResponse{}
-	mi := &file_chatto_api_v1_permissions_proto_msgTypes[21]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RevokeRolePermissionGrantResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RevokeRolePermissionGrantResponse) ProtoMessage() {}
-
-func (x *RevokeRolePermissionGrantResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_permissions_proto_msgTypes[21]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RevokeRolePermissionGrantResponse.ProtoReflect.Descriptor instead.
-func (*RevokeRolePermissionGrantResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_permissions_proto_rawDescGZIP(), []int{21}
-}
-
-func (x *RevokeRolePermissionGrantResponse) GetOk() bool {
-	if x != nil {
-		return x.Ok
-	}
-	return false
-}
-
 // Request to set one user permission state.
 type SetUserPermissionRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1537,7 +1427,7 @@ type SetUserPermissionRequest struct {
 
 func (x *SetUserPermissionRequest) Reset() {
 	*x = SetUserPermissionRequest{}
-	mi := &file_chatto_api_v1_permissions_proto_msgTypes[22]
+	mi := &file_chatto_api_v1_permissions_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1549,7 +1439,7 @@ func (x *SetUserPermissionRequest) String() string {
 func (*SetUserPermissionRequest) ProtoMessage() {}
 
 func (x *SetUserPermissionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_permissions_proto_msgTypes[22]
+	mi := &file_chatto_api_v1_permissions_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1562,7 +1452,7 @@ func (x *SetUserPermissionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetUserPermissionRequest.ProtoReflect.Descriptor instead.
 func (*SetUserPermissionRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_permissions_proto_rawDescGZIP(), []int{22}
+	return file_chatto_api_v1_permissions_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *SetUserPermissionRequest) GetUserId() string {
@@ -1604,7 +1494,7 @@ type SetUserPermissionResponse struct {
 
 func (x *SetUserPermissionResponse) Reset() {
 	*x = SetUserPermissionResponse{}
-	mi := &file_chatto_api_v1_permissions_proto_msgTypes[23]
+	mi := &file_chatto_api_v1_permissions_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1616,7 +1506,7 @@ func (x *SetUserPermissionResponse) String() string {
 func (*SetUserPermissionResponse) ProtoMessage() {}
 
 func (x *SetUserPermissionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_permissions_proto_msgTypes[23]
+	mi := &file_chatto_api_v1_permissions_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1629,7 +1519,7 @@ func (x *SetUserPermissionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetUserPermissionResponse.ProtoReflect.Descriptor instead.
 func (*SetUserPermissionResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_permissions_proto_rawDescGZIP(), []int{23}
+	return file_chatto_api_v1_permissions_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *SetUserPermissionResponse) GetOk() bool {
@@ -1643,9 +1533,9 @@ var File_chatto_api_v1_permissions_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_permissions_proto_rawDesc = "" +
 	"\n" +
-	"\x1fchatto/api/v1/permissions.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"Y\n" +
-	"\x0fPermissionScope\x126\n" +
-	"\x04kind\x18\x01 \x01(\x0e2\".chatto.api.v1.PermissionScopeKindR\x04kind\x12\x0e\n" +
+	"\x1fchatto/api/v1/permissions.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"c\n" +
+	"\x0fPermissionScope\x12@\n" +
+	"\x04kind\x18\x01 \x01(\x0e2\".chatto.api.v1.PermissionScopeKindB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04kind\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\"b\n" +
 	"\x0fTierPermissions\x12 \n" +
 	"\vpermissions\x18\x01 \x03(\tR\vpermissions\x12-\n" +
@@ -1661,10 +1551,9 @@ const file_chatto_api_v1_permissions_proto_rawDesc = "" +
 	"\x11inherited_denials\x18\b \x03(\tR\x10inheritedDenials\"q\n" +
 	"\tTierRoles\x125\n" +
 	"\x16applicable_permissions\x18\x01 \x03(\tR\x15applicablePermissions\x12-\n" +
-	"\x05roles\x18\x02 \x03(\v2\x17.chatto.api.v1.TierRoleR\x05roles\"X\n" +
-	"\"GetRolePermissionTierMatrixRequest\x12\x17\n" +
-	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
-	"\bgroup_id\x18\x02 \x01(\tR\agroupId\"W\n" +
+	"\x05roles\x18\x02 \x03(\v2\x17.chatto.api.v1.TierRoleR\x05roles\"Z\n" +
+	"\"GetRolePermissionTierMatrixRequest\x124\n" +
+	"\x05scope\x18\x01 \x01(\v2\x1e.chatto.api.v1.PermissionScopeR\x05scope\"W\n" +
 	"#GetRolePermissionTierMatrixResponse\x120\n" +
 	"\x06matrix\x18\x01 \x01(\v2\x18.chatto.api.v1.TierRolesR\x06matrix\"\x9d\x01\n" +
 	"\x15PermissionMatrixScope\x12\x0e\n" +
@@ -1724,13 +1613,6 @@ const file_chatto_api_v1_permissions_proto_rawDesc = "" +
 	"\bdecision\x18\x03 \x01(\x0e2!.chatto.api.v1.PermissionDecisionR\bdecision\x124\n" +
 	"\x05scope\x18\x04 \x01(\v2\x1e.chatto.api.v1.PermissionScopeR\x05scope\"+\n" +
 	"\x19SetRolePermissionResponse\x12\x0e\n" +
-	"\x02ok\x18\x01 \x01(\bR\x02ok\"q\n" +
-	" RevokeRolePermissionGrantRequest\x12$\n" +
-	"\trole_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\broleName\x12'\n" +
-	"\n" +
-	"permission\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
-	"permission\"3\n" +
-	"!RevokeRolePermissionGrantResponse\x12\x0e\n" +
 	"\x02ok\x18\x01 \x01(\bR\x02ok\"\xda\x01\n" +
 	"\x18SetUserPermissionRequest\x12 \n" +
 	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\x12'\n" +
@@ -1755,14 +1637,13 @@ const file_chatto_api_v1_permissions_proto_rawDesc = "" +
 	"%PERMISSION_DECISION_LEVEL_UNSPECIFIED\x10\x00\x12$\n" +
 	" PERMISSION_DECISION_LEVEL_SERVER\x10\x01\x12#\n" +
 	"\x1fPERMISSION_DECISION_LEVEL_GROUP\x10\x02\x12\"\n" +
-	"\x1ePERMISSION_DECISION_LEVEL_ROOM\x10\x032\xc9\x06\n" +
+	"\x1ePERMISSION_DECISION_LEVEL_ROOM\x10\x032\xc9\x05\n" +
 	"\x11PermissionService\x12\x84\x01\n" +
 	"\x1bGetRolePermissionTierMatrix\x121.chatto.api.v1.GetRolePermissionTierMatrixRequest\x1a2.chatto.api.v1.GetRolePermissionTierMatrixResponse\x12x\n" +
 	"\x17GetRolePermissionMatrix\x12-.chatto.api.v1.GetRolePermissionMatrixRequest\x1a..chatto.api.v1.GetRolePermissionMatrixResponse\x12x\n" +
 	"\x17GetUserPermissionMatrix\x12-.chatto.api.v1.GetUserPermissionMatrixRequest\x1a..chatto.api.v1.GetUserPermissionMatrixResponse\x12i\n" +
 	"\x12ExplainPermissions\x12(.chatto.api.v1.ExplainPermissionsRequest\x1a).chatto.api.v1.ExplainPermissionsResponse\x12f\n" +
-	"\x11SetRolePermission\x12'.chatto.api.v1.SetRolePermissionRequest\x1a(.chatto.api.v1.SetRolePermissionResponse\x12~\n" +
-	"\x19RevokeRolePermissionGrant\x12/.chatto.api.v1.RevokeRolePermissionGrantRequest\x1a0.chatto.api.v1.RevokeRolePermissionGrantResponse\x12f\n" +
+	"\x11SetRolePermission\x12'.chatto.api.v1.SetRolePermissionRequest\x1a(.chatto.api.v1.SetRolePermissionResponse\x12f\n" +
 	"\x11SetUserPermission\x12'.chatto.api.v1.SetUserPermissionRequest\x1a(.chatto.api.v1.SetUserPermissionResponseB\xac\x01\n" +
 	"\x11com.chatto.api.v1B\x10PermissionsProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
@@ -1779,7 +1660,7 @@ func file_chatto_api_v1_permissions_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_api_v1_permissions_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_chatto_api_v1_permissions_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
+var file_chatto_api_v1_permissions_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_chatto_api_v1_permissions_proto_goTypes = []any{
 	(PermissionDecision)(0),                     // 0: chatto.api.v1.PermissionDecision
 	(PermissionScopeKind)(0),                    // 1: chatto.api.v1.PermissionScopeKind
@@ -1804,54 +1685,51 @@ var file_chatto_api_v1_permissions_proto_goTypes = []any{
 	(*GetUserPermissionMatrixResponse)(nil),     // 20: chatto.api.v1.GetUserPermissionMatrixResponse
 	(*SetRolePermissionRequest)(nil),            // 21: chatto.api.v1.SetRolePermissionRequest
 	(*SetRolePermissionResponse)(nil),           // 22: chatto.api.v1.SetRolePermissionResponse
-	(*RevokeRolePermissionGrantRequest)(nil),    // 23: chatto.api.v1.RevokeRolePermissionGrantRequest
-	(*RevokeRolePermissionGrantResponse)(nil),   // 24: chatto.api.v1.RevokeRolePermissionGrantResponse
-	(*SetUserPermissionRequest)(nil),            // 25: chatto.api.v1.SetUserPermissionRequest
-	(*SetUserPermissionResponse)(nil),           // 26: chatto.api.v1.SetUserPermissionResponse
+	(*SetUserPermissionRequest)(nil),            // 23: chatto.api.v1.SetUserPermissionRequest
+	(*SetUserPermissionResponse)(nil),           // 24: chatto.api.v1.SetUserPermissionResponse
 }
 var file_chatto_api_v1_permissions_proto_depIdxs = []int32{
 	1,  // 0: chatto.api.v1.PermissionScope.kind:type_name -> chatto.api.v1.PermissionScopeKind
 	4,  // 1: chatto.api.v1.TierRole.override:type_name -> chatto.api.v1.TierPermissions
 	5,  // 2: chatto.api.v1.TierRoles.roles:type_name -> chatto.api.v1.TierRole
-	6,  // 3: chatto.api.v1.GetRolePermissionTierMatrixResponse.matrix:type_name -> chatto.api.v1.TierRoles
-	1,  // 4: chatto.api.v1.PermissionMatrixScope.kind:type_name -> chatto.api.v1.PermissionScopeKind
-	0,  // 5: chatto.api.v1.PermissionMatrixCell.override:type_name -> chatto.api.v1.PermissionDecision
-	0,  // 6: chatto.api.v1.PermissionMatrixCell.effective:type_name -> chatto.api.v1.PermissionDecision
-	9,  // 7: chatto.api.v1.RolePermissionMatrix.scopes:type_name -> chatto.api.v1.PermissionMatrixScope
-	10, // 8: chatto.api.v1.RolePermissionMatrix.cells:type_name -> chatto.api.v1.PermissionMatrixCell
-	11, // 9: chatto.api.v1.GetRolePermissionMatrixResponse.matrix:type_name -> chatto.api.v1.RolePermissionMatrix
-	9,  // 10: chatto.api.v1.UserPermissionMatrix.scopes:type_name -> chatto.api.v1.PermissionMatrixScope
-	10, // 11: chatto.api.v1.UserPermissionMatrix.cells:type_name -> chatto.api.v1.PermissionMatrixCell
-	2,  // 12: chatto.api.v1.PermissionTraceEntry.level:type_name -> chatto.api.v1.PermissionDecisionLevel
-	0,  // 13: chatto.api.v1.PermissionTraceEntry.decision:type_name -> chatto.api.v1.PermissionDecision
-	0,  // 14: chatto.api.v1.PermissionExplanation.state:type_name -> chatto.api.v1.PermissionDecision
-	2,  // 15: chatto.api.v1.PermissionExplanation.decided_at:type_name -> chatto.api.v1.PermissionDecisionLevel
-	15, // 16: chatto.api.v1.PermissionExplanation.trace:type_name -> chatto.api.v1.PermissionTraceEntry
-	16, // 17: chatto.api.v1.ExplainPermissionsResponse.explanations:type_name -> chatto.api.v1.PermissionExplanation
-	14, // 18: chatto.api.v1.GetUserPermissionMatrixResponse.matrix:type_name -> chatto.api.v1.UserPermissionMatrix
-	0,  // 19: chatto.api.v1.SetRolePermissionRequest.decision:type_name -> chatto.api.v1.PermissionDecision
-	3,  // 20: chatto.api.v1.SetRolePermissionRequest.scope:type_name -> chatto.api.v1.PermissionScope
-	0,  // 21: chatto.api.v1.SetUserPermissionRequest.decision:type_name -> chatto.api.v1.PermissionDecision
-	3,  // 22: chatto.api.v1.SetUserPermissionRequest.scope:type_name -> chatto.api.v1.PermissionScope
-	7,  // 23: chatto.api.v1.PermissionService.GetRolePermissionTierMatrix:input_type -> chatto.api.v1.GetRolePermissionTierMatrixRequest
-	12, // 24: chatto.api.v1.PermissionService.GetRolePermissionMatrix:input_type -> chatto.api.v1.GetRolePermissionMatrixRequest
-	19, // 25: chatto.api.v1.PermissionService.GetUserPermissionMatrix:input_type -> chatto.api.v1.GetUserPermissionMatrixRequest
-	17, // 26: chatto.api.v1.PermissionService.ExplainPermissions:input_type -> chatto.api.v1.ExplainPermissionsRequest
-	21, // 27: chatto.api.v1.PermissionService.SetRolePermission:input_type -> chatto.api.v1.SetRolePermissionRequest
-	23, // 28: chatto.api.v1.PermissionService.RevokeRolePermissionGrant:input_type -> chatto.api.v1.RevokeRolePermissionGrantRequest
-	25, // 29: chatto.api.v1.PermissionService.SetUserPermission:input_type -> chatto.api.v1.SetUserPermissionRequest
+	3,  // 3: chatto.api.v1.GetRolePermissionTierMatrixRequest.scope:type_name -> chatto.api.v1.PermissionScope
+	6,  // 4: chatto.api.v1.GetRolePermissionTierMatrixResponse.matrix:type_name -> chatto.api.v1.TierRoles
+	1,  // 5: chatto.api.v1.PermissionMatrixScope.kind:type_name -> chatto.api.v1.PermissionScopeKind
+	0,  // 6: chatto.api.v1.PermissionMatrixCell.override:type_name -> chatto.api.v1.PermissionDecision
+	0,  // 7: chatto.api.v1.PermissionMatrixCell.effective:type_name -> chatto.api.v1.PermissionDecision
+	9,  // 8: chatto.api.v1.RolePermissionMatrix.scopes:type_name -> chatto.api.v1.PermissionMatrixScope
+	10, // 9: chatto.api.v1.RolePermissionMatrix.cells:type_name -> chatto.api.v1.PermissionMatrixCell
+	11, // 10: chatto.api.v1.GetRolePermissionMatrixResponse.matrix:type_name -> chatto.api.v1.RolePermissionMatrix
+	9,  // 11: chatto.api.v1.UserPermissionMatrix.scopes:type_name -> chatto.api.v1.PermissionMatrixScope
+	10, // 12: chatto.api.v1.UserPermissionMatrix.cells:type_name -> chatto.api.v1.PermissionMatrixCell
+	2,  // 13: chatto.api.v1.PermissionTraceEntry.level:type_name -> chatto.api.v1.PermissionDecisionLevel
+	0,  // 14: chatto.api.v1.PermissionTraceEntry.decision:type_name -> chatto.api.v1.PermissionDecision
+	0,  // 15: chatto.api.v1.PermissionExplanation.state:type_name -> chatto.api.v1.PermissionDecision
+	2,  // 16: chatto.api.v1.PermissionExplanation.decided_at:type_name -> chatto.api.v1.PermissionDecisionLevel
+	15, // 17: chatto.api.v1.PermissionExplanation.trace:type_name -> chatto.api.v1.PermissionTraceEntry
+	16, // 18: chatto.api.v1.ExplainPermissionsResponse.explanations:type_name -> chatto.api.v1.PermissionExplanation
+	14, // 19: chatto.api.v1.GetUserPermissionMatrixResponse.matrix:type_name -> chatto.api.v1.UserPermissionMatrix
+	0,  // 20: chatto.api.v1.SetRolePermissionRequest.decision:type_name -> chatto.api.v1.PermissionDecision
+	3,  // 21: chatto.api.v1.SetRolePermissionRequest.scope:type_name -> chatto.api.v1.PermissionScope
+	0,  // 22: chatto.api.v1.SetUserPermissionRequest.decision:type_name -> chatto.api.v1.PermissionDecision
+	3,  // 23: chatto.api.v1.SetUserPermissionRequest.scope:type_name -> chatto.api.v1.PermissionScope
+	7,  // 24: chatto.api.v1.PermissionService.GetRolePermissionTierMatrix:input_type -> chatto.api.v1.GetRolePermissionTierMatrixRequest
+	12, // 25: chatto.api.v1.PermissionService.GetRolePermissionMatrix:input_type -> chatto.api.v1.GetRolePermissionMatrixRequest
+	19, // 26: chatto.api.v1.PermissionService.GetUserPermissionMatrix:input_type -> chatto.api.v1.GetUserPermissionMatrixRequest
+	17, // 27: chatto.api.v1.PermissionService.ExplainPermissions:input_type -> chatto.api.v1.ExplainPermissionsRequest
+	21, // 28: chatto.api.v1.PermissionService.SetRolePermission:input_type -> chatto.api.v1.SetRolePermissionRequest
+	23, // 29: chatto.api.v1.PermissionService.SetUserPermission:input_type -> chatto.api.v1.SetUserPermissionRequest
 	8,  // 30: chatto.api.v1.PermissionService.GetRolePermissionTierMatrix:output_type -> chatto.api.v1.GetRolePermissionTierMatrixResponse
 	13, // 31: chatto.api.v1.PermissionService.GetRolePermissionMatrix:output_type -> chatto.api.v1.GetRolePermissionMatrixResponse
 	20, // 32: chatto.api.v1.PermissionService.GetUserPermissionMatrix:output_type -> chatto.api.v1.GetUserPermissionMatrixResponse
 	18, // 33: chatto.api.v1.PermissionService.ExplainPermissions:output_type -> chatto.api.v1.ExplainPermissionsResponse
 	22, // 34: chatto.api.v1.PermissionService.SetRolePermission:output_type -> chatto.api.v1.SetRolePermissionResponse
-	24, // 35: chatto.api.v1.PermissionService.RevokeRolePermissionGrant:output_type -> chatto.api.v1.RevokeRolePermissionGrantResponse
-	26, // 36: chatto.api.v1.PermissionService.SetUserPermission:output_type -> chatto.api.v1.SetUserPermissionResponse
-	30, // [30:37] is the sub-list for method output_type
-	23, // [23:30] is the sub-list for method input_type
-	23, // [23:23] is the sub-list for extension type_name
-	23, // [23:23] is the sub-list for extension extendee
-	0,  // [0:23] is the sub-list for field type_name
+	24, // 35: chatto.api.v1.PermissionService.SetUserPermission:output_type -> chatto.api.v1.SetUserPermissionResponse
+	30, // [30:36] is the sub-list for method output_type
+	24, // [24:30] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_permissions_proto_init() }
@@ -1865,7 +1743,7 @@ func file_chatto_api_v1_permissions_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_permissions_proto_rawDesc), len(file_chatto_api_v1_permissions_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   24,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

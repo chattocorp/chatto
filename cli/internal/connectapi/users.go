@@ -23,7 +23,7 @@ func (s *userService) GetUser(ctx context.Context, req *connect.Request[apiv1.Ge
 	if err != nil {
 		return nil, connectError(err)
 	}
-	profile, err := s.userProfile(ctx, user, req.Msg.GetAvatar())
+	profile, err := s.userPresenceSummary(ctx, user, req.Msg.GetAvatar())
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func (s *userService) GetUserByLogin(ctx context.Context, req *connect.Request[a
 	if err != nil {
 		return nil, connectError(err)
 	}
-	profile, err := s.userProfile(ctx, user, req.Msg.GetAvatar())
+	profile, err := s.userPresenceSummary(ctx, user, req.Msg.GetAvatar())
 	if err != nil {
 		return nil, err
 	}
@@ -76,24 +76,20 @@ func (s *userService) BatchGetUsers(ctx context.Context, req *connect.Request[ap
 	return connect.NewResponse(&apiv1.BatchGetUsersResponse{Users: users}), nil
 }
 
-func (s *userService) userProfile(ctx context.Context, user *corev1.User, avatar *apiv1.UserAvatarOptions) (*apiv1.DirectoryMember, error) {
-	roles, err := s.api.core.GetUserRoles(ctx, user.GetId())
+func (s *userService) userPresenceSummary(ctx context.Context, user *corev1.User, avatar *apiv1.UserAvatarOptions) (*apiv1.UserPresenceSummary, error) {
+	summary, err := s.userSummary(ctx, user, avatar)
+	if err != nil {
+		return nil, err
+	}
+	presence, err := s.api.core.GetUserPresence(ctx, user.GetId())
 	if err != nil {
 		return nil, connectError(err)
 	}
-	member, err := (&memberDirectoryService{api: s.api}).directoryMember(ctx, user, roles)
-	if err != nil {
-		return nil, err
-	}
-
-	avatarURL, err := s.userAvatarURL(ctx, user.GetId(), avatar)
-	if err != nil {
-		return nil, err
-	}
-	if avatarURL != "" {
-		member.AvatarUrl = stringPtr(s.api.absolutizeAssetURL(ctx, avatarURL))
-	}
-	return member, nil
+	return &apiv1.UserPresenceSummary{
+		User:           summary,
+		PresenceStatus: corePresenceStatusToAPI(presence),
+		CustomStatus:   coreCustomStatusToAPI(user.GetCustomStatus()),
+	}, nil
 }
 
 func (s *userService) userSummary(ctx context.Context, user *corev1.User, avatar *apiv1.UserAvatarOptions) (*apiv1.UserSummary, error) {

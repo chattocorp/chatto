@@ -17,7 +17,11 @@ func (s *permissionService) GetRolePermissionTierMatrix(ctx context.Context, req
 	if err != nil {
 		return nil, err
 	}
-	matrix, err := s.api.core.GetRolePermissionTierMatrix(ctx, caller.UserID, req.Msg.GetRoomId(), req.Msg.GetGroupId())
+	roomID, groupID, err := permissionScopeIDs(req.Msg.GetScope())
+	if err != nil {
+		return nil, err
+	}
+	matrix, err := s.api.core.GetRolePermissionTierMatrix(ctx, caller.UserID, roomID, groupID)
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -69,22 +73,14 @@ func (s *permissionService) SetRolePermission(ctx context.Context, req *connect.
 	if err != nil {
 		return nil, err
 	}
-	scope := corePermissionTargetScope(req.Msg.GetScope())
+	scope, err := corePermissionTargetScope(req.Msg.GetScope())
+	if err != nil {
+		return nil, err
+	}
 	if err := s.api.core.SetRolePermissionState(ctx, caller.UserID, req.Msg.GetRoleName(), scope, core.Permission(req.Msg.GetPermission()), state); err != nil {
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.SetRolePermissionResponse{Ok: true}), nil
-}
-
-func (s *permissionService) RevokeRolePermissionGrant(ctx context.Context, req *connect.Request[apiv1.RevokeRolePermissionGrantRequest]) (*connect.Response[apiv1.RevokeRolePermissionGrantResponse], error) {
-	caller, err := requireCaller(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if err := s.api.core.AdminRevokeRolePermissionGrant(ctx, caller.UserID, req.Msg.GetRoleName(), core.Permission(req.Msg.GetPermission())); err != nil {
-		return nil, connectError(err)
-	}
-	return connect.NewResponse(&apiv1.RevokeRolePermissionGrantResponse{Ok: true}), nil
 }
 
 func (s *permissionService) SetUserPermission(ctx context.Context, req *connect.Request[apiv1.SetUserPermissionRequest]) (*connect.Response[apiv1.SetUserPermissionResponse], error) {
@@ -96,7 +92,10 @@ func (s *permissionService) SetUserPermission(ctx context.Context, req *connect.
 	if err != nil {
 		return nil, err
 	}
-	scope := corePermissionTargetScope(req.Msg.GetScope())
+	scope, err := corePermissionTargetScope(req.Msg.GetScope())
+	if err != nil {
+		return nil, err
+	}
 	if err := s.api.core.SetUserPermissionState(ctx, caller.UserID, req.Msg.GetUserId(), scope, core.Permission(req.Msg.GetPermission()), state); err != nil {
 		return nil, connectError(err)
 	}
@@ -269,16 +268,42 @@ func corePermissionState(decision apiv1.PermissionDecision) (core.PermissionStat
 	}
 }
 
-func corePermissionTargetScope(scope *apiv1.PermissionScope) core.PermissionTargetScope {
+func permissionScopeIDs(scope *apiv1.PermissionScope) (roomID string, groupID string, err error) {
 	if scope == nil {
-		return core.PermissionTargetScope{}
+		return "", "", nil
 	}
 	switch scope.GetKind() {
+	case apiv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_SERVER:
+		if scope.GetId() != "" {
+			return "", "", invalidArgument("server scope id must be empty")
+		}
+		return "", "", nil
 	case apiv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_GROUP:
-		return core.PermissionTargetScope{Kind: core.MatrixScopeGroup, ID: scope.GetId()}
+		if scope.GetId() == "" {
+			return "", "", invalidArgument("group scope id is required")
+		}
+		return "", scope.GetId(), nil
 	case apiv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_ROOM:
-		return core.PermissionTargetScope{Kind: core.MatrixScopeRoom, ID: scope.GetId()}
+		if scope.GetId() == "" {
+			return "", "", invalidArgument("room scope id is required")
+		}
+		return scope.GetId(), "", nil
 	default:
-		return core.PermissionTargetScope{}
+		return "", "", invalidArgument("unsupported permission scope kind")
+	}
+}
+
+func corePermissionTargetScope(scope *apiv1.PermissionScope) (core.PermissionTargetScope, error) {
+	roomID, groupID, err := permissionScopeIDs(scope)
+	if err != nil {
+		return core.PermissionTargetScope{}, err
+	}
+	switch {
+	case roomID != "":
+		return core.PermissionTargetScope{Kind: core.MatrixScopeRoom, ID: roomID}, nil
+	case groupID != "":
+		return core.PermissionTargetScope{Kind: core.MatrixScopeGroup, ID: groupID}, nil
+	default:
+		return core.PermissionTargetScope{}, nil
 	}
 }

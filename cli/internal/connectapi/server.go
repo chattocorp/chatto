@@ -33,20 +33,20 @@ func (s *serverService) GetServer(ctx context.Context, _ *connect.Request[apiv1.
 	}
 	if s.api.core != nil && s.api.core.ConfigManager() != nil {
 		if welcome, err := s.api.core.ConfigManager().GetEffectiveWelcomeMessage(ctx); err == nil {
-			response.WelcomeMessage = welcome
+			response.WelcomeMessage = stringPtr(welcome)
 		}
 		if cfg, err := s.api.core.ConfigManager().GetServerConfig(ctx); err == nil && cfg != nil {
-			response.Description = cfg.Description
+			response.Description = stringPtr(cfg.Description)
 		}
 	}
 	if s.api.core != nil {
 		bw, bh := 1200, 630
 		if u, err := s.api.core.GetServerBannerURL(ctx, &bw, &bh, "cover"); err == nil {
-			response.BannerUrl = s.api.absolutizeAssetURL(ctx, u)
+			response.BannerUrl = stringPtr(s.api.absolutizeAssetURL(ctx, u))
 		}
 		lw, lh := 256, 256
 		if u, err := s.api.core.GetServerLogoURL(ctx, &lw, &lh, "cover"); err == nil {
-			response.IconUrl = s.api.absolutizeAssetURL(ctx, u)
+			response.LogoUrl = stringPtr(s.api.absolutizeAssetURL(ctx, u))
 		}
 	}
 	return connect.NewResponse(response), nil

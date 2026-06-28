@@ -367,9 +367,9 @@ the browser grants notification permission and returns a PushSubscription.
 POST /api/connect/chatto.api.v1.PushNotificationService/Subscribe
 ```
 
-<a id="chatto-api-v1-SubscribeRequest"></a>
+<a id="chatto-api-v1-SubscribePushRequest"></a>
 
-#### Input: SubscribeRequest
+#### Input: SubscribePushRequest
 
 Request to store a PushSubscription returned by the browser Push API.
 
@@ -381,9 +381,9 @@ Request to store a PushSubscription returned by the browser Push API.
 | `user_agent` | `optional string` | Optional browser user-agent string for device identification. |
 
 
-<a id="chatto-api-v1-SubscribeResponse"></a>
+<a id="chatto-api-v1-SubscribePushResponse"></a>
 
-#### Result: SubscribeResponse
+#### Result: SubscribePushResponse
 
 Response from storing a browser push subscription.
 
@@ -404,9 +404,9 @@ The call is idempotent: removing an unknown endpoint still succeeds.
 POST /api/connect/chatto.api.v1.PushNotificationService/Unsubscribe
 ```
 
-<a id="chatto-api-v1-UnsubscribeRequest"></a>
+<a id="chatto-api-v1-UnsubscribePushRequest"></a>
 
-#### Input: UnsubscribeRequest
+#### Input: UnsubscribePushRequest
 
 Request to remove a browser push subscription.
 
@@ -415,9 +415,9 @@ Request to remove a browser push subscription.
 | `endpoint` | `string` | Push service endpoint URL to remove. |
 
 
-<a id="chatto-api-v1-UnsubscribeResponse"></a>
+<a id="chatto-api-v1-UnsubscribePushResponse"></a>
 
-#### Result: UnsubscribeResponse
+#### Result: UnsubscribePushResponse
 
 Response from removing a browser push subscription.
 

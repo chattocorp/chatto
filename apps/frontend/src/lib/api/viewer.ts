@@ -77,13 +77,17 @@ export async function getViewerStateViaConnect(config: ViewerAPIConfig): Promise
     throw new Error('viewer response did not include a user profile');
   }
   const user = response.user.profile;
+  if (!user.user) {
+    throw new Error('viewer response did not include a user summary');
+  }
+  const summary = user.user;
   const capabilities = response.capabilities;
   return {
     user: {
-      id: user.id,
-      login: user.login,
-      displayName: user.displayName,
-      avatarUrl: user.avatarUrl ?? null,
+      id: summary.id,
+      login: summary.login,
+      displayName: summary.displayName,
+      avatarUrl: summary.avatarUrl ?? null,
       customStatus: user.customStatus
         ? {
             emoji: user.customStatus.emoji,

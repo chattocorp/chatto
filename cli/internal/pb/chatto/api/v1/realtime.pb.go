@@ -22,120 +22,6 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Presence status delivered by the realtime stream.
-type RealtimePresenceStatus int32
-
-const (
-	// No presence status was specified.
-	RealtimePresenceStatus_REALTIME_PRESENCE_STATUS_UNSPECIFIED RealtimePresenceStatus = 0
-	// The user is offline.
-	RealtimePresenceStatus_REALTIME_PRESENCE_STATUS_OFFLINE RealtimePresenceStatus = 1
-	// The user is actively available.
-	RealtimePresenceStatus_REALTIME_PRESENCE_STATUS_ONLINE RealtimePresenceStatus = 2
-	// The user is connected but away or idle.
-	RealtimePresenceStatus_REALTIME_PRESENCE_STATUS_AWAY RealtimePresenceStatus = 3
-	// The user does not want notifications while this live status is active.
-	RealtimePresenceStatus_REALTIME_PRESENCE_STATUS_DO_NOT_DISTURB RealtimePresenceStatus = 4
-)
-
-// Enum value maps for RealtimePresenceStatus.
-var (
-	RealtimePresenceStatus_name = map[int32]string{
-		0: "REALTIME_PRESENCE_STATUS_UNSPECIFIED",
-		1: "REALTIME_PRESENCE_STATUS_OFFLINE",
-		2: "REALTIME_PRESENCE_STATUS_ONLINE",
-		3: "REALTIME_PRESENCE_STATUS_AWAY",
-		4: "REALTIME_PRESENCE_STATUS_DO_NOT_DISTURB",
-	}
-	RealtimePresenceStatus_value = map[string]int32{
-		"REALTIME_PRESENCE_STATUS_UNSPECIFIED":    0,
-		"REALTIME_PRESENCE_STATUS_OFFLINE":        1,
-		"REALTIME_PRESENCE_STATUS_ONLINE":         2,
-		"REALTIME_PRESENCE_STATUS_AWAY":           3,
-		"REALTIME_PRESENCE_STATUS_DO_NOT_DISTURB": 4,
-	}
-)
-
-func (x RealtimePresenceStatus) Enum() *RealtimePresenceStatus {
-	p := new(RealtimePresenceStatus)
-	*p = x
-	return p
-}
-
-func (x RealtimePresenceStatus) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (RealtimePresenceStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_chatto_api_v1_realtime_proto_enumTypes[0].Descriptor()
-}
-
-func (RealtimePresenceStatus) Type() protoreflect.EnumType {
-	return &file_chatto_api_v1_realtime_proto_enumTypes[0]
-}
-
-func (x RealtimePresenceStatus) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use RealtimePresenceStatus.Descriptor instead.
-func (RealtimePresenceStatus) EnumDescriptor() ([]byte, []int) {
-	return file_chatto_api_v1_realtime_proto_rawDescGZIP(), []int{0}
-}
-
-// Time-display format used by realtime preference events.
-type RealtimeTimeFormat int32
-
-const (
-	// Use browser or locale default.
-	RealtimeTimeFormat_REALTIME_TIME_FORMAT_UNSPECIFIED RealtimeTimeFormat = 0
-	// 12-hour clock.
-	RealtimeTimeFormat_REALTIME_TIME_FORMAT_12H RealtimeTimeFormat = 1
-	// 24-hour clock.
-	RealtimeTimeFormat_REALTIME_TIME_FORMAT_24H RealtimeTimeFormat = 2
-)
-
-// Enum value maps for RealtimeTimeFormat.
-var (
-	RealtimeTimeFormat_name = map[int32]string{
-		0: "REALTIME_TIME_FORMAT_UNSPECIFIED",
-		1: "REALTIME_TIME_FORMAT_12H",
-		2: "REALTIME_TIME_FORMAT_24H",
-	}
-	RealtimeTimeFormat_value = map[string]int32{
-		"REALTIME_TIME_FORMAT_UNSPECIFIED": 0,
-		"REALTIME_TIME_FORMAT_12H":         1,
-		"REALTIME_TIME_FORMAT_24H":         2,
-	}
-)
-
-func (x RealtimeTimeFormat) Enum() *RealtimeTimeFormat {
-	p := new(RealtimeTimeFormat)
-	*p = x
-	return p
-}
-
-func (x RealtimeTimeFormat) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (RealtimeTimeFormat) Descriptor() protoreflect.EnumDescriptor {
-	return file_chatto_api_v1_realtime_proto_enumTypes[1].Descriptor()
-}
-
-func (RealtimeTimeFormat) Type() protoreflect.EnumType {
-	return &file_chatto_api_v1_realtime_proto_enumTypes[1]
-}
-
-func (x RealtimeTimeFormat) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use RealtimeTimeFormat.Descriptor instead.
-func (RealtimeTimeFormat) EnumDescriptor() ([]byte, []int) {
-	return file_chatto_api_v1_realtime_proto_rawDescGZIP(), []int{1}
-}
-
 // Source that produced a realtime voice-call transition.
 type RealtimeCallEventSource int32
 
@@ -177,11 +63,11 @@ func (x RealtimeCallEventSource) String() string {
 }
 
 func (RealtimeCallEventSource) Descriptor() protoreflect.EnumDescriptor {
-	return file_chatto_api_v1_realtime_proto_enumTypes[2].Descriptor()
+	return file_chatto_api_v1_realtime_proto_enumTypes[0].Descriptor()
 }
 
 func (RealtimeCallEventSource) Type() protoreflect.EnumType {
-	return &file_chatto_api_v1_realtime_proto_enumTypes[2]
+	return &file_chatto_api_v1_realtime_proto_enumTypes[0]
 }
 
 func (x RealtimeCallEventSource) Number() protoreflect.EnumNumber {
@@ -190,7 +76,7 @@ func (x RealtimeCallEventSource) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RealtimeCallEventSource.Descriptor instead.
 func (RealtimeCallEventSource) EnumDescriptor() ([]byte, []int) {
-	return file_chatto_api_v1_realtime_proto_rawDescGZIP(), []int{2}
+	return file_chatto_api_v1_realtime_proto_rawDescGZIP(), []int{0}
 }
 
 // Client-to-server frame for Chatto's protobuf WebSocket realtime protocol.
@@ -1995,7 +1881,7 @@ type RealtimePresenceChangedEvent struct {
 	// User whose presence changed.
 	UserId string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	// Latest presence status.
-	Status        RealtimePresenceStatus `protobuf:"varint,2,opt,name=status,proto3,enum=chatto.api.v1.RealtimePresenceStatus" json:"status,omitempty"`
+	Status        PresenceStatus `protobuf:"varint,2,opt,name=status,proto3,enum=chatto.api.v1.PresenceStatus" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2037,11 +1923,11 @@ func (x *RealtimePresenceChangedEvent) GetUserId() string {
 	return ""
 }
 
-func (x *RealtimePresenceChangedEvent) GetStatus() RealtimePresenceStatus {
+func (x *RealtimePresenceChangedEvent) GetStatus() PresenceStatus {
 	if x != nil {
 		return x.Status
 	}
-	return RealtimePresenceStatus_REALTIME_PRESENCE_STATUS_UNSPECIFIED
+	return PresenceStatus_PRESENCE_STATUS_UNSPECIFIED
 }
 
 // Room lifecycle or membership signal.
@@ -2773,7 +2659,7 @@ type RealtimeServerUserPreferencesUpdatedEvent struct {
 	// IANA timezone name, when the user has selected a fixed timezone.
 	Timezone *string `protobuf:"bytes,1,opt,name=timezone,proto3,oneof" json:"timezone,omitempty"`
 	// Preferred time display format.
-	TimeFormat    RealtimeTimeFormat `protobuf:"varint,2,opt,name=time_format,json=timeFormat,proto3,enum=chatto.api.v1.RealtimeTimeFormat" json:"time_format,omitempty"`
+	TimeFormat    TimeFormat `protobuf:"varint,2,opt,name=time_format,json=timeFormat,proto3,enum=chatto.api.v1.TimeFormat" json:"time_format,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2815,11 +2701,11 @@ func (x *RealtimeServerUserPreferencesUpdatedEvent) GetTimezone() string {
 	return ""
 }
 
-func (x *RealtimeServerUserPreferencesUpdatedEvent) GetTimeFormat() RealtimeTimeFormat {
+func (x *RealtimeServerUserPreferencesUpdatedEvent) GetTimeFormat() TimeFormat {
 	if x != nil {
 		return x.TimeFormat
 	}
-	return RealtimeTimeFormat_REALTIME_TIME_FORMAT_UNSPECIFIED
+	return TimeFormat_TIME_FORMAT_UNSPECIFIED
 }
 
 // Room-group layout signal.
@@ -3302,7 +3188,7 @@ var File_chatto_api_v1_realtime_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_realtime_proto_rawDesc = "" +
 	"\n" +
-	"\x1cchatto/api/v1/realtime.proto\x12\rchatto.api.v1\x1a,chatto/api/v1/notification_preferences.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xed\x01\n" +
+	"\x1cchatto/api/v1/realtime.proto\x12\rchatto.api.v1\x1a,chatto/api/v1/notification_preferences.proto\x1a\x1cchatto/api/v1/presence.proto\x1a\x1achatto/api/v1/viewer.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xed\x01\n" +
 	"\x13RealtimeClientFrame\x12:\n" +
 	"\x05hello\x18\x01 \x01(\v2\".chatto.api.v1.RealtimeClientHelloH\x00R\x05hello\x12S\n" +
 	"\x10subscribe_events\x18\x02 \x01(\v2&.chatto.api.v1.RealtimeSubscribeEventsH\x00R\x0fsubscribeEvents\x121\n" +
@@ -3415,10 +3301,10 @@ const file_chatto_api_v1_realtime_proto_rawDesc = "" +
 	"\x13RealtimeTypingEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x124\n" +
 	"\x14thread_root_event_id\x18\x02 \x01(\tH\x00R\x11threadRootEventId\x88\x01\x01B\x17\n" +
-	"\x15_thread_root_event_id\"v\n" +
+	"\x15_thread_root_event_id\"n\n" +
 	"\x1cRealtimePresenceChangedEvent\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\x12=\n" +
-	"\x06status\x18\x02 \x01(\x0e2%.chatto.api.v1.RealtimePresenceStatusR\x06status\",\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x125\n" +
+	"\x06status\x18\x02 \x01(\x0e2\x1d.chatto.api.v1.PresenceStatusR\x06status\",\n" +
 	"\x11RealtimeRoomEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\"Z\n" +
 	"!RealtimeRoomUniversalChangedEvent\x12\x17\n" +
@@ -3471,10 +3357,10 @@ const file_chatto_api_v1_realtime_proto_rawDesc = "" +
 	"\n" +
 	"expires_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"?\n" +
 	"$RealtimeUserCustomStatusClearedEvent\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\"\x9d\x01\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"\x95\x01\n" +
 	")RealtimeServerUserPreferencesUpdatedEvent\x12\x1f\n" +
-	"\btimezone\x18\x01 \x01(\tH\x00R\btimezone\x88\x01\x01\x12B\n" +
-	"\vtime_format\x18\x02 \x01(\x0e2!.chatto.api.v1.RealtimeTimeFormatR\n" +
+	"\btimezone\x18\x01 \x01(\tH\x00R\btimezone\x88\x01\x01\x12:\n" +
+	"\vtime_format\x18\x02 \x01(\x0e2\x19.chatto.api.v1.TimeFormatR\n" +
 	"timeFormatB\v\n" +
 	"\t_timezone\":\n" +
 	"\x1eRealtimeRoomGroupsUpdatedEvent\x12\x18\n" +
@@ -3515,17 +3401,7 @@ const file_chatto_api_v1_realtime_proto_rawDesc = "" +
 	"\x12_sender_avatar_urlB\x14\n" +
 	"\x12_conversation_name\"8\n" +
 	"\x1eRealtimeSessionTerminatedEvent\x12\x16\n" +
-	"\x06reason\x18\x01 \x01(\tR\x06reason*\xdd\x01\n" +
-	"\x16RealtimePresenceStatus\x12(\n" +
-	"$REALTIME_PRESENCE_STATUS_UNSPECIFIED\x10\x00\x12$\n" +
-	" REALTIME_PRESENCE_STATUS_OFFLINE\x10\x01\x12#\n" +
-	"\x1fREALTIME_PRESENCE_STATUS_ONLINE\x10\x02\x12!\n" +
-	"\x1dREALTIME_PRESENCE_STATUS_AWAY\x10\x03\x12+\n" +
-	"'REALTIME_PRESENCE_STATUS_DO_NOT_DISTURB\x10\x04*v\n" +
-	"\x12RealtimeTimeFormat\x12$\n" +
-	" REALTIME_TIME_FORMAT_UNSPECIFIED\x10\x00\x12\x1c\n" +
-	"\x18REALTIME_TIME_FORMAT_12H\x10\x01\x12\x1c\n" +
-	"\x18REALTIME_TIME_FORMAT_24H\x10\x02*\xc1\x01\n" +
+	"\x06reason\x18\x01 \x01(\tR\x06reason*\xc1\x01\n" +
 	"\x17RealtimeCallEventSource\x12*\n" +
 	"&REALTIME_CALL_EVENT_SOURCE_UNSPECIFIED\x10\x00\x12#\n" +
 	"\x1fREALTIME_CALL_EVENT_SOURCE_USER\x10\x01\x12&\n" +
@@ -3545,112 +3421,112 @@ func file_chatto_api_v1_realtime_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_realtime_proto_rawDescData
 }
 
-var file_chatto_api_v1_realtime_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_chatto_api_v1_realtime_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_chatto_api_v1_realtime_proto_msgTypes = make([]protoimpl.MessageInfo, 39)
 var file_chatto_api_v1_realtime_proto_goTypes = []any{
-	(RealtimePresenceStatus)(0),                       // 0: chatto.api.v1.RealtimePresenceStatus
-	(RealtimeTimeFormat)(0),                           // 1: chatto.api.v1.RealtimeTimeFormat
-	(RealtimeCallEventSource)(0),                      // 2: chatto.api.v1.RealtimeCallEventSource
-	(*RealtimeClientFrame)(nil),                       // 3: chatto.api.v1.RealtimeClientFrame
-	(*RealtimeServerFrame)(nil),                       // 4: chatto.api.v1.RealtimeServerFrame
-	(*RealtimeClientHello)(nil),                       // 5: chatto.api.v1.RealtimeClientHello
-	(*RealtimeServerHello)(nil),                       // 6: chatto.api.v1.RealtimeServerHello
-	(*RealtimeSubscribeEvents)(nil),                   // 7: chatto.api.v1.RealtimeSubscribeEvents
-	(*RealtimeSubscribed)(nil),                        // 8: chatto.api.v1.RealtimeSubscribed
-	(*RealtimePing)(nil),                              // 9: chatto.api.v1.RealtimePing
-	(*RealtimePong)(nil),                              // 10: chatto.api.v1.RealtimePong
-	(*RealtimeHeartbeat)(nil),                         // 11: chatto.api.v1.RealtimeHeartbeat
-	(*RealtimeError)(nil),                             // 12: chatto.api.v1.RealtimeError
-	(*RealtimeClose)(nil),                             // 13: chatto.api.v1.RealtimeClose
-	(*RealtimeEventEnvelope)(nil),                     // 14: chatto.api.v1.RealtimeEventEnvelope
-	(*RealtimeMessagePostedEvent)(nil),                // 15: chatto.api.v1.RealtimeMessagePostedEvent
-	(*RealtimeMessageEditedEvent)(nil),                // 16: chatto.api.v1.RealtimeMessageEditedEvent
-	(*RealtimeMessageRetractedEvent)(nil),             // 17: chatto.api.v1.RealtimeMessageRetractedEvent
-	(*RealtimeReactionEvent)(nil),                     // 18: chatto.api.v1.RealtimeReactionEvent
-	(*RealtimeTypingEvent)(nil),                       // 19: chatto.api.v1.RealtimeTypingEvent
-	(*RealtimePresenceChangedEvent)(nil),              // 20: chatto.api.v1.RealtimePresenceChangedEvent
-	(*RealtimeRoomEvent)(nil),                         // 21: chatto.api.v1.RealtimeRoomEvent
-	(*RealtimeRoomUniversalChangedEvent)(nil),         // 22: chatto.api.v1.RealtimeRoomUniversalChangedEvent
-	(*RealtimeNotificationCreatedEvent)(nil),          // 23: chatto.api.v1.RealtimeNotificationCreatedEvent
-	(*RealtimeNotificationDismissedEvent)(nil),        // 24: chatto.api.v1.RealtimeNotificationDismissedEvent
-	(*RealtimeNotificationLevelChangedEvent)(nil),     // 25: chatto.api.v1.RealtimeNotificationLevelChangedEvent
-	(*RealtimeThreadFollowChangedEvent)(nil),          // 26: chatto.api.v1.RealtimeThreadFollowChangedEvent
-	(*RealtimeThreadCreatedEvent)(nil),                // 27: chatto.api.v1.RealtimeThreadCreatedEvent
-	(*RealtimeRoomMarkedAsReadEvent)(nil),             // 28: chatto.api.v1.RealtimeRoomMarkedAsReadEvent
-	(*RealtimeServerUpdatedEvent)(nil),                // 29: chatto.api.v1.RealtimeServerUpdatedEvent
-	(*RealtimeUserProfileUpdatedEvent)(nil),           // 30: chatto.api.v1.RealtimeUserProfileUpdatedEvent
-	(*RealtimeUserCustomStatusSetEvent)(nil),          // 31: chatto.api.v1.RealtimeUserCustomStatusSetEvent
-	(*RealtimeUserCustomStatusClearedEvent)(nil),      // 32: chatto.api.v1.RealtimeUserCustomStatusClearedEvent
-	(*RealtimeServerUserPreferencesUpdatedEvent)(nil), // 33: chatto.api.v1.RealtimeServerUserPreferencesUpdatedEvent
-	(*RealtimeRoomGroupsUpdatedEvent)(nil),            // 34: chatto.api.v1.RealtimeRoomGroupsUpdatedEvent
-	(*RealtimeServerMemberDeletedEvent)(nil),          // 35: chatto.api.v1.RealtimeServerMemberDeletedEvent
-	(*RealtimeAssetProcessingEvent)(nil),              // 36: chatto.api.v1.RealtimeAssetProcessingEvent
-	(*RealtimeAssetDeletedEvent)(nil),                 // 37: chatto.api.v1.RealtimeAssetDeletedEvent
-	(*RealtimeCallEvent)(nil),                         // 38: chatto.api.v1.RealtimeCallEvent
-	(*RealtimeMentionNotificationEvent)(nil),          // 39: chatto.api.v1.RealtimeMentionNotificationEvent
-	(*RealtimeNewDirectMessageNotificationEvent)(nil), // 40: chatto.api.v1.RealtimeNewDirectMessageNotificationEvent
-	(*RealtimeSessionTerminatedEvent)(nil),            // 41: chatto.api.v1.RealtimeSessionTerminatedEvent
-	(*timestamppb.Timestamp)(nil),                     // 42: google.protobuf.Timestamp
-	(NotificationLevel)(0),                            // 43: chatto.api.v1.NotificationLevel
+	(RealtimeCallEventSource)(0),                      // 0: chatto.api.v1.RealtimeCallEventSource
+	(*RealtimeClientFrame)(nil),                       // 1: chatto.api.v1.RealtimeClientFrame
+	(*RealtimeServerFrame)(nil),                       // 2: chatto.api.v1.RealtimeServerFrame
+	(*RealtimeClientHello)(nil),                       // 3: chatto.api.v1.RealtimeClientHello
+	(*RealtimeServerHello)(nil),                       // 4: chatto.api.v1.RealtimeServerHello
+	(*RealtimeSubscribeEvents)(nil),                   // 5: chatto.api.v1.RealtimeSubscribeEvents
+	(*RealtimeSubscribed)(nil),                        // 6: chatto.api.v1.RealtimeSubscribed
+	(*RealtimePing)(nil),                              // 7: chatto.api.v1.RealtimePing
+	(*RealtimePong)(nil),                              // 8: chatto.api.v1.RealtimePong
+	(*RealtimeHeartbeat)(nil),                         // 9: chatto.api.v1.RealtimeHeartbeat
+	(*RealtimeError)(nil),                             // 10: chatto.api.v1.RealtimeError
+	(*RealtimeClose)(nil),                             // 11: chatto.api.v1.RealtimeClose
+	(*RealtimeEventEnvelope)(nil),                     // 12: chatto.api.v1.RealtimeEventEnvelope
+	(*RealtimeMessagePostedEvent)(nil),                // 13: chatto.api.v1.RealtimeMessagePostedEvent
+	(*RealtimeMessageEditedEvent)(nil),                // 14: chatto.api.v1.RealtimeMessageEditedEvent
+	(*RealtimeMessageRetractedEvent)(nil),             // 15: chatto.api.v1.RealtimeMessageRetractedEvent
+	(*RealtimeReactionEvent)(nil),                     // 16: chatto.api.v1.RealtimeReactionEvent
+	(*RealtimeTypingEvent)(nil),                       // 17: chatto.api.v1.RealtimeTypingEvent
+	(*RealtimePresenceChangedEvent)(nil),              // 18: chatto.api.v1.RealtimePresenceChangedEvent
+	(*RealtimeRoomEvent)(nil),                         // 19: chatto.api.v1.RealtimeRoomEvent
+	(*RealtimeRoomUniversalChangedEvent)(nil),         // 20: chatto.api.v1.RealtimeRoomUniversalChangedEvent
+	(*RealtimeNotificationCreatedEvent)(nil),          // 21: chatto.api.v1.RealtimeNotificationCreatedEvent
+	(*RealtimeNotificationDismissedEvent)(nil),        // 22: chatto.api.v1.RealtimeNotificationDismissedEvent
+	(*RealtimeNotificationLevelChangedEvent)(nil),     // 23: chatto.api.v1.RealtimeNotificationLevelChangedEvent
+	(*RealtimeThreadFollowChangedEvent)(nil),          // 24: chatto.api.v1.RealtimeThreadFollowChangedEvent
+	(*RealtimeThreadCreatedEvent)(nil),                // 25: chatto.api.v1.RealtimeThreadCreatedEvent
+	(*RealtimeRoomMarkedAsReadEvent)(nil),             // 26: chatto.api.v1.RealtimeRoomMarkedAsReadEvent
+	(*RealtimeServerUpdatedEvent)(nil),                // 27: chatto.api.v1.RealtimeServerUpdatedEvent
+	(*RealtimeUserProfileUpdatedEvent)(nil),           // 28: chatto.api.v1.RealtimeUserProfileUpdatedEvent
+	(*RealtimeUserCustomStatusSetEvent)(nil),          // 29: chatto.api.v1.RealtimeUserCustomStatusSetEvent
+	(*RealtimeUserCustomStatusClearedEvent)(nil),      // 30: chatto.api.v1.RealtimeUserCustomStatusClearedEvent
+	(*RealtimeServerUserPreferencesUpdatedEvent)(nil), // 31: chatto.api.v1.RealtimeServerUserPreferencesUpdatedEvent
+	(*RealtimeRoomGroupsUpdatedEvent)(nil),            // 32: chatto.api.v1.RealtimeRoomGroupsUpdatedEvent
+	(*RealtimeServerMemberDeletedEvent)(nil),          // 33: chatto.api.v1.RealtimeServerMemberDeletedEvent
+	(*RealtimeAssetProcessingEvent)(nil),              // 34: chatto.api.v1.RealtimeAssetProcessingEvent
+	(*RealtimeAssetDeletedEvent)(nil),                 // 35: chatto.api.v1.RealtimeAssetDeletedEvent
+	(*RealtimeCallEvent)(nil),                         // 36: chatto.api.v1.RealtimeCallEvent
+	(*RealtimeMentionNotificationEvent)(nil),          // 37: chatto.api.v1.RealtimeMentionNotificationEvent
+	(*RealtimeNewDirectMessageNotificationEvent)(nil), // 38: chatto.api.v1.RealtimeNewDirectMessageNotificationEvent
+	(*RealtimeSessionTerminatedEvent)(nil),            // 39: chatto.api.v1.RealtimeSessionTerminatedEvent
+	(*timestamppb.Timestamp)(nil),                     // 40: google.protobuf.Timestamp
+	(PresenceStatus)(0),                               // 41: chatto.api.v1.PresenceStatus
+	(NotificationLevel)(0),                            // 42: chatto.api.v1.NotificationLevel
+	(TimeFormat)(0),                                   // 43: chatto.api.v1.TimeFormat
 }
 var file_chatto_api_v1_realtime_proto_depIdxs = []int32{
-	5,  // 0: chatto.api.v1.RealtimeClientFrame.hello:type_name -> chatto.api.v1.RealtimeClientHello
-	7,  // 1: chatto.api.v1.RealtimeClientFrame.subscribe_events:type_name -> chatto.api.v1.RealtimeSubscribeEvents
-	9,  // 2: chatto.api.v1.RealtimeClientFrame.ping:type_name -> chatto.api.v1.RealtimePing
-	6,  // 3: chatto.api.v1.RealtimeServerFrame.hello:type_name -> chatto.api.v1.RealtimeServerHello
-	8,  // 4: chatto.api.v1.RealtimeServerFrame.subscribed:type_name -> chatto.api.v1.RealtimeSubscribed
-	14, // 5: chatto.api.v1.RealtimeServerFrame.event:type_name -> chatto.api.v1.RealtimeEventEnvelope
-	11, // 6: chatto.api.v1.RealtimeServerFrame.heartbeat:type_name -> chatto.api.v1.RealtimeHeartbeat
-	12, // 7: chatto.api.v1.RealtimeServerFrame.error:type_name -> chatto.api.v1.RealtimeError
-	13, // 8: chatto.api.v1.RealtimeServerFrame.close:type_name -> chatto.api.v1.RealtimeClose
-	10, // 9: chatto.api.v1.RealtimeServerFrame.pong:type_name -> chatto.api.v1.RealtimePong
-	42, // 10: chatto.api.v1.RealtimeHeartbeat.created_at:type_name -> google.protobuf.Timestamp
-	42, // 11: chatto.api.v1.RealtimeEventEnvelope.created_at:type_name -> google.protobuf.Timestamp
-	15, // 12: chatto.api.v1.RealtimeEventEnvelope.message_posted:type_name -> chatto.api.v1.RealtimeMessagePostedEvent
-	16, // 13: chatto.api.v1.RealtimeEventEnvelope.message_edited:type_name -> chatto.api.v1.RealtimeMessageEditedEvent
-	17, // 14: chatto.api.v1.RealtimeEventEnvelope.message_retracted:type_name -> chatto.api.v1.RealtimeMessageRetractedEvent
-	18, // 15: chatto.api.v1.RealtimeEventEnvelope.reaction_added:type_name -> chatto.api.v1.RealtimeReactionEvent
-	18, // 16: chatto.api.v1.RealtimeEventEnvelope.reaction_removed:type_name -> chatto.api.v1.RealtimeReactionEvent
-	19, // 17: chatto.api.v1.RealtimeEventEnvelope.user_typing:type_name -> chatto.api.v1.RealtimeTypingEvent
-	20, // 18: chatto.api.v1.RealtimeEventEnvelope.presence_changed:type_name -> chatto.api.v1.RealtimePresenceChangedEvent
-	21, // 19: chatto.api.v1.RealtimeEventEnvelope.room_created:type_name -> chatto.api.v1.RealtimeRoomEvent
-	21, // 20: chatto.api.v1.RealtimeEventEnvelope.room_updated:type_name -> chatto.api.v1.RealtimeRoomEvent
-	21, // 21: chatto.api.v1.RealtimeEventEnvelope.room_deleted:type_name -> chatto.api.v1.RealtimeRoomEvent
-	21, // 22: chatto.api.v1.RealtimeEventEnvelope.room_archived:type_name -> chatto.api.v1.RealtimeRoomEvent
-	21, // 23: chatto.api.v1.RealtimeEventEnvelope.room_unarchived:type_name -> chatto.api.v1.RealtimeRoomEvent
-	21, // 24: chatto.api.v1.RealtimeEventEnvelope.user_joined_room:type_name -> chatto.api.v1.RealtimeRoomEvent
-	21, // 25: chatto.api.v1.RealtimeEventEnvelope.user_left_room:type_name -> chatto.api.v1.RealtimeRoomEvent
-	22, // 26: chatto.api.v1.RealtimeEventEnvelope.room_universal_changed:type_name -> chatto.api.v1.RealtimeRoomUniversalChangedEvent
-	23, // 27: chatto.api.v1.RealtimeEventEnvelope.notification_created:type_name -> chatto.api.v1.RealtimeNotificationCreatedEvent
-	24, // 28: chatto.api.v1.RealtimeEventEnvelope.notification_dismissed:type_name -> chatto.api.v1.RealtimeNotificationDismissedEvent
-	25, // 29: chatto.api.v1.RealtimeEventEnvelope.notification_level_changed:type_name -> chatto.api.v1.RealtimeNotificationLevelChangedEvent
-	26, // 30: chatto.api.v1.RealtimeEventEnvelope.thread_follow_changed:type_name -> chatto.api.v1.RealtimeThreadFollowChangedEvent
-	28, // 31: chatto.api.v1.RealtimeEventEnvelope.room_marked_as_read:type_name -> chatto.api.v1.RealtimeRoomMarkedAsReadEvent
-	27, // 32: chatto.api.v1.RealtimeEventEnvelope.thread_created:type_name -> chatto.api.v1.RealtimeThreadCreatedEvent
-	29, // 33: chatto.api.v1.RealtimeEventEnvelope.server_updated:type_name -> chatto.api.v1.RealtimeServerUpdatedEvent
-	30, // 34: chatto.api.v1.RealtimeEventEnvelope.user_profile_updated:type_name -> chatto.api.v1.RealtimeUserProfileUpdatedEvent
-	31, // 35: chatto.api.v1.RealtimeEventEnvelope.user_custom_status_set:type_name -> chatto.api.v1.RealtimeUserCustomStatusSetEvent
-	32, // 36: chatto.api.v1.RealtimeEventEnvelope.user_custom_status_cleared:type_name -> chatto.api.v1.RealtimeUserCustomStatusClearedEvent
-	33, // 37: chatto.api.v1.RealtimeEventEnvelope.server_user_preferences_updated:type_name -> chatto.api.v1.RealtimeServerUserPreferencesUpdatedEvent
-	34, // 38: chatto.api.v1.RealtimeEventEnvelope.room_groups_updated:type_name -> chatto.api.v1.RealtimeRoomGroupsUpdatedEvent
-	35, // 39: chatto.api.v1.RealtimeEventEnvelope.server_member_deleted:type_name -> chatto.api.v1.RealtimeServerMemberDeletedEvent
-	36, // 40: chatto.api.v1.RealtimeEventEnvelope.asset_processing_started:type_name -> chatto.api.v1.RealtimeAssetProcessingEvent
-	36, // 41: chatto.api.v1.RealtimeEventEnvelope.asset_processing_succeeded:type_name -> chatto.api.v1.RealtimeAssetProcessingEvent
-	36, // 42: chatto.api.v1.RealtimeEventEnvelope.asset_processing_failed:type_name -> chatto.api.v1.RealtimeAssetProcessingEvent
-	37, // 43: chatto.api.v1.RealtimeEventEnvelope.asset_deleted:type_name -> chatto.api.v1.RealtimeAssetDeletedEvent
-	38, // 44: chatto.api.v1.RealtimeEventEnvelope.call_started:type_name -> chatto.api.v1.RealtimeCallEvent
-	38, // 45: chatto.api.v1.RealtimeEventEnvelope.call_participant_joined:type_name -> chatto.api.v1.RealtimeCallEvent
-	38, // 46: chatto.api.v1.RealtimeEventEnvelope.call_participant_left:type_name -> chatto.api.v1.RealtimeCallEvent
-	38, // 47: chatto.api.v1.RealtimeEventEnvelope.call_ended:type_name -> chatto.api.v1.RealtimeCallEvent
-	39, // 48: chatto.api.v1.RealtimeEventEnvelope.mention_notification:type_name -> chatto.api.v1.RealtimeMentionNotificationEvent
-	40, // 49: chatto.api.v1.RealtimeEventEnvelope.new_direct_message_notification:type_name -> chatto.api.v1.RealtimeNewDirectMessageNotificationEvent
-	41, // 50: chatto.api.v1.RealtimeEventEnvelope.session_terminated:type_name -> chatto.api.v1.RealtimeSessionTerminatedEvent
-	0,  // 51: chatto.api.v1.RealtimePresenceChangedEvent.status:type_name -> chatto.api.v1.RealtimePresenceStatus
-	43, // 52: chatto.api.v1.RealtimeNotificationLevelChangedEvent.level:type_name -> chatto.api.v1.NotificationLevel
-	43, // 53: chatto.api.v1.RealtimeNotificationLevelChangedEvent.effective_level:type_name -> chatto.api.v1.NotificationLevel
-	42, // 54: chatto.api.v1.RealtimeUserCustomStatusSetEvent.expires_at:type_name -> google.protobuf.Timestamp
-	1,  // 55: chatto.api.v1.RealtimeServerUserPreferencesUpdatedEvent.time_format:type_name -> chatto.api.v1.RealtimeTimeFormat
-	2,  // 56: chatto.api.v1.RealtimeCallEvent.source:type_name -> chatto.api.v1.RealtimeCallEventSource
+	3,  // 0: chatto.api.v1.RealtimeClientFrame.hello:type_name -> chatto.api.v1.RealtimeClientHello
+	5,  // 1: chatto.api.v1.RealtimeClientFrame.subscribe_events:type_name -> chatto.api.v1.RealtimeSubscribeEvents
+	7,  // 2: chatto.api.v1.RealtimeClientFrame.ping:type_name -> chatto.api.v1.RealtimePing
+	4,  // 3: chatto.api.v1.RealtimeServerFrame.hello:type_name -> chatto.api.v1.RealtimeServerHello
+	6,  // 4: chatto.api.v1.RealtimeServerFrame.subscribed:type_name -> chatto.api.v1.RealtimeSubscribed
+	12, // 5: chatto.api.v1.RealtimeServerFrame.event:type_name -> chatto.api.v1.RealtimeEventEnvelope
+	9,  // 6: chatto.api.v1.RealtimeServerFrame.heartbeat:type_name -> chatto.api.v1.RealtimeHeartbeat
+	10, // 7: chatto.api.v1.RealtimeServerFrame.error:type_name -> chatto.api.v1.RealtimeError
+	11, // 8: chatto.api.v1.RealtimeServerFrame.close:type_name -> chatto.api.v1.RealtimeClose
+	8,  // 9: chatto.api.v1.RealtimeServerFrame.pong:type_name -> chatto.api.v1.RealtimePong
+	40, // 10: chatto.api.v1.RealtimeHeartbeat.created_at:type_name -> google.protobuf.Timestamp
+	40, // 11: chatto.api.v1.RealtimeEventEnvelope.created_at:type_name -> google.protobuf.Timestamp
+	13, // 12: chatto.api.v1.RealtimeEventEnvelope.message_posted:type_name -> chatto.api.v1.RealtimeMessagePostedEvent
+	14, // 13: chatto.api.v1.RealtimeEventEnvelope.message_edited:type_name -> chatto.api.v1.RealtimeMessageEditedEvent
+	15, // 14: chatto.api.v1.RealtimeEventEnvelope.message_retracted:type_name -> chatto.api.v1.RealtimeMessageRetractedEvent
+	16, // 15: chatto.api.v1.RealtimeEventEnvelope.reaction_added:type_name -> chatto.api.v1.RealtimeReactionEvent
+	16, // 16: chatto.api.v1.RealtimeEventEnvelope.reaction_removed:type_name -> chatto.api.v1.RealtimeReactionEvent
+	17, // 17: chatto.api.v1.RealtimeEventEnvelope.user_typing:type_name -> chatto.api.v1.RealtimeTypingEvent
+	18, // 18: chatto.api.v1.RealtimeEventEnvelope.presence_changed:type_name -> chatto.api.v1.RealtimePresenceChangedEvent
+	19, // 19: chatto.api.v1.RealtimeEventEnvelope.room_created:type_name -> chatto.api.v1.RealtimeRoomEvent
+	19, // 20: chatto.api.v1.RealtimeEventEnvelope.room_updated:type_name -> chatto.api.v1.RealtimeRoomEvent
+	19, // 21: chatto.api.v1.RealtimeEventEnvelope.room_deleted:type_name -> chatto.api.v1.RealtimeRoomEvent
+	19, // 22: chatto.api.v1.RealtimeEventEnvelope.room_archived:type_name -> chatto.api.v1.RealtimeRoomEvent
+	19, // 23: chatto.api.v1.RealtimeEventEnvelope.room_unarchived:type_name -> chatto.api.v1.RealtimeRoomEvent
+	19, // 24: chatto.api.v1.RealtimeEventEnvelope.user_joined_room:type_name -> chatto.api.v1.RealtimeRoomEvent
+	19, // 25: chatto.api.v1.RealtimeEventEnvelope.user_left_room:type_name -> chatto.api.v1.RealtimeRoomEvent
+	20, // 26: chatto.api.v1.RealtimeEventEnvelope.room_universal_changed:type_name -> chatto.api.v1.RealtimeRoomUniversalChangedEvent
+	21, // 27: chatto.api.v1.RealtimeEventEnvelope.notification_created:type_name -> chatto.api.v1.RealtimeNotificationCreatedEvent
+	22, // 28: chatto.api.v1.RealtimeEventEnvelope.notification_dismissed:type_name -> chatto.api.v1.RealtimeNotificationDismissedEvent
+	23, // 29: chatto.api.v1.RealtimeEventEnvelope.notification_level_changed:type_name -> chatto.api.v1.RealtimeNotificationLevelChangedEvent
+	24, // 30: chatto.api.v1.RealtimeEventEnvelope.thread_follow_changed:type_name -> chatto.api.v1.RealtimeThreadFollowChangedEvent
+	26, // 31: chatto.api.v1.RealtimeEventEnvelope.room_marked_as_read:type_name -> chatto.api.v1.RealtimeRoomMarkedAsReadEvent
+	25, // 32: chatto.api.v1.RealtimeEventEnvelope.thread_created:type_name -> chatto.api.v1.RealtimeThreadCreatedEvent
+	27, // 33: chatto.api.v1.RealtimeEventEnvelope.server_updated:type_name -> chatto.api.v1.RealtimeServerUpdatedEvent
+	28, // 34: chatto.api.v1.RealtimeEventEnvelope.user_profile_updated:type_name -> chatto.api.v1.RealtimeUserProfileUpdatedEvent
+	29, // 35: chatto.api.v1.RealtimeEventEnvelope.user_custom_status_set:type_name -> chatto.api.v1.RealtimeUserCustomStatusSetEvent
+	30, // 36: chatto.api.v1.RealtimeEventEnvelope.user_custom_status_cleared:type_name -> chatto.api.v1.RealtimeUserCustomStatusClearedEvent
+	31, // 37: chatto.api.v1.RealtimeEventEnvelope.server_user_preferences_updated:type_name -> chatto.api.v1.RealtimeServerUserPreferencesUpdatedEvent
+	32, // 38: chatto.api.v1.RealtimeEventEnvelope.room_groups_updated:type_name -> chatto.api.v1.RealtimeRoomGroupsUpdatedEvent
+	33, // 39: chatto.api.v1.RealtimeEventEnvelope.server_member_deleted:type_name -> chatto.api.v1.RealtimeServerMemberDeletedEvent
+	34, // 40: chatto.api.v1.RealtimeEventEnvelope.asset_processing_started:type_name -> chatto.api.v1.RealtimeAssetProcessingEvent
+	34, // 41: chatto.api.v1.RealtimeEventEnvelope.asset_processing_succeeded:type_name -> chatto.api.v1.RealtimeAssetProcessingEvent
+	34, // 42: chatto.api.v1.RealtimeEventEnvelope.asset_processing_failed:type_name -> chatto.api.v1.RealtimeAssetProcessingEvent
+	35, // 43: chatto.api.v1.RealtimeEventEnvelope.asset_deleted:type_name -> chatto.api.v1.RealtimeAssetDeletedEvent
+	36, // 44: chatto.api.v1.RealtimeEventEnvelope.call_started:type_name -> chatto.api.v1.RealtimeCallEvent
+	36, // 45: chatto.api.v1.RealtimeEventEnvelope.call_participant_joined:type_name -> chatto.api.v1.RealtimeCallEvent
+	36, // 46: chatto.api.v1.RealtimeEventEnvelope.call_participant_left:type_name -> chatto.api.v1.RealtimeCallEvent
+	36, // 47: chatto.api.v1.RealtimeEventEnvelope.call_ended:type_name -> chatto.api.v1.RealtimeCallEvent
+	37, // 48: chatto.api.v1.RealtimeEventEnvelope.mention_notification:type_name -> chatto.api.v1.RealtimeMentionNotificationEvent
+	38, // 49: chatto.api.v1.RealtimeEventEnvelope.new_direct_message_notification:type_name -> chatto.api.v1.RealtimeNewDirectMessageNotificationEvent
+	39, // 50: chatto.api.v1.RealtimeEventEnvelope.session_terminated:type_name -> chatto.api.v1.RealtimeSessionTerminatedEvent
+	41, // 51: chatto.api.v1.RealtimePresenceChangedEvent.status:type_name -> chatto.api.v1.PresenceStatus
+	42, // 52: chatto.api.v1.RealtimeNotificationLevelChangedEvent.level:type_name -> chatto.api.v1.NotificationLevel
+	42, // 53: chatto.api.v1.RealtimeNotificationLevelChangedEvent.effective_level:type_name -> chatto.api.v1.NotificationLevel
+	40, // 54: chatto.api.v1.RealtimeUserCustomStatusSetEvent.expires_at:type_name -> google.protobuf.Timestamp
+	43, // 55: chatto.api.v1.RealtimeServerUserPreferencesUpdatedEvent.time_format:type_name -> chatto.api.v1.TimeFormat
+	0,  // 56: chatto.api.v1.RealtimeCallEvent.source:type_name -> chatto.api.v1.RealtimeCallEventSource
 	57, // [57:57] is the sub-list for method output_type
 	57, // [57:57] is the sub-list for method input_type
 	57, // [57:57] is the sub-list for extension type_name
@@ -3664,6 +3540,8 @@ func file_chatto_api_v1_realtime_proto_init() {
 		return
 	}
 	file_chatto_api_v1_notification_preferences_proto_init()
+	file_chatto_api_v1_presence_proto_init()
+	file_chatto_api_v1_viewer_proto_init()
 	file_chatto_api_v1_realtime_proto_msgTypes[0].OneofWrappers = []any{
 		(*RealtimeClientFrame_Hello)(nil),
 		(*RealtimeClientFrame_SubscribeEvents)(nil),
@@ -3736,7 +3614,7 @@ func file_chatto_api_v1_realtime_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_realtime_proto_rawDesc), len(file_chatto_api_v1_realtime_proto_rawDesc)),
-			NumEnums:      3,
+			NumEnums:      1,
 			NumMessages:   39,
 			NumExtensions: 0,
 			NumServices:   0,

@@ -3,11 +3,11 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetRoomRequest, GetRoomResponse, JoinGroupRequest, JoinGroupResponse, ListRoomGroupsRequest, ListRoomGroupsResponse, ListRoomsRequest, ListRoomsResponse } from "./room_directory_pb.js";
+import { GetRoomRequest, GetRoomResponse, ListRoomGroupsRequest, ListRoomGroupsResponse, ListRoomsRequest, ListRoomsResponse } from "./room_directory_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Reads room directory data and performs directory-adjacent commands.
+ * Reads room directory data.
  *
  * @generated from service chatto.api.v1.RoomDirectoryService
  */
@@ -48,18 +48,6 @@ export const RoomDirectoryService = {
       name: "GetRoom",
       I: GetRoomRequest,
       O: GetRoomResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Joins every unarchived room in a group that the current user can join.
-     * Already-joined and non-joinable rooms are skipped.
-     *
-     * @generated from rpc chatto.api.v1.RoomDirectoryService.JoinGroup
-     */
-    joinGroup: {
-      name: "JoinGroup",
-      I: JoinGroupRequest,
-      O: JoinGroupResponse,
       kind: MethodKind.Unary,
     },
   }

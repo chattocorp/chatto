@@ -106,7 +106,7 @@ export async function loginAsAdmin(page: Page): Promise<TestUser> {
   expect(loginResponse.ok()).toBeTruthy();
 
   const viewer = await connectPost<ViewerResponse>(page, 'chatto.api.v1.ViewerService/GetViewer');
-  adminUser.id = viewer.user?.profile?.id;
+  adminUser.id = viewer.user?.profile?.user?.id;
   expect(adminUser.id).toBeTruthy();
 
   return adminUser;
@@ -178,12 +178,7 @@ export async function revokePermission(
   role: string,
   permission: string
 ): Promise<void> {
-  const data = await connectPost<PermissionMutationResponse>(
-    page,
-    'chatto.api.v1.PermissionService/RevokeRolePermissionGrant',
-    { roleName: role, permission }
-  );
-  expect(data.ok).toBe(true);
+  await setServerRolePermission(page, role, permission, 'PERMISSION_DECISION_NONE');
 }
 
 /**

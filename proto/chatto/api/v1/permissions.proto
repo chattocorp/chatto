@@ -31,7 +31,7 @@ enum PermissionScopeKind {
 // Permission scope reference.
 message PermissionScope {
   // Scope tier.
-  PermissionScopeKind kind = 1;
+  PermissionScopeKind kind = 1 [(buf.validate.field).enum.defined_only = true];
   // Scope ID for group or room scope. Empty for server scope.
   string id = 2;
 }
@@ -74,10 +74,8 @@ message TierRoles {
 
 // Request a role-permission tier matrix.
 message GetRolePermissionTierMatrixRequest {
-  // Optional room scope. Mutually exclusive with group_id.
-  string room_id = 1;
-  // Optional room-group scope. Mutually exclusive with room_id.
-  string group_id = 2;
+  // Target scope. Omit or use SERVER for server scope.
+  PermissionScope scope = 1;
 }
 
 // Response containing a role-permission tier matrix.
@@ -228,20 +226,6 @@ message SetRolePermissionResponse {
   bool ok = 1;
 }
 
-// Request to remove only one server-scope role permission grant.
-message RevokeRolePermissionGrantRequest {
-  // Role name.
-  string role_name = 1 [(buf.validate.field).string.min_len = 1];
-  // Permission identifier.
-  string permission = 2 [(buf.validate.field).string.min_len = 1];
-}
-
-// Result of removing one server-scope role permission grant.
-message RevokeRolePermissionGrantResponse {
-  // True when the request completed.
-  bool ok = 1;
-}
-
 // Request to set one user permission state.
 message SetUserPermissionRequest {
   // Target user ID.
@@ -273,8 +257,6 @@ service PermissionService {
   rpc ExplainPermissions(ExplainPermissionsRequest) returns (ExplainPermissionsResponse);
   // Sets one role permission decision. Requires role.manage or scoped room.manage for room scope.
   rpc SetRolePermission(SetRolePermissionRequest) returns (SetRolePermissionResponse);
-  // Removes only a server-scope allow grant from a role. Requires role.manage.
-  rpc RevokeRolePermissionGrant(RevokeRolePermissionGrantRequest) returns (RevokeRolePermissionGrantResponse);
   // Sets one user permission decision. Requires user.manage-permissions.
   rpc SetUserPermission(SetUserPermissionRequest) returns (SetUserPermissionResponse);
 }

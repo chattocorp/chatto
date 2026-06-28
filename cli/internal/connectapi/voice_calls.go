@@ -162,10 +162,12 @@ func (s *voiceCallService) callParticipant(ctx context.Context, participant core
 		return nil, connectError(err)
 	}
 	apiUser := &apiv1.UserPresenceSummary{
-		Id:             user.GetId(),
-		Login:          user.GetLogin(),
-		DisplayName:    user.GetDisplayName(),
-		Deleted:        user.GetDeleted(),
+		User: &apiv1.UserSummary{
+			Id:          user.GetId(),
+			Login:       user.GetLogin(),
+			DisplayName: user.GetDisplayName(),
+			Deleted:     user.GetDeleted(),
+		},
 		PresenceStatus: corePresenceStatusToAPI(presence),
 		CustomStatus:   coreCustomStatusToAPI(user.GetCustomStatus()),
 	}
@@ -173,7 +175,7 @@ func (s *voiceCallService) callParticipant(ctx context.Context, participant core
 	if avatarURL, err := s.api.core.GetUserAvatarURL(ctx, user.GetId(), &avatarSize, &avatarSize, "cover"); err != nil {
 		return nil, connectError(err)
 	} else if avatarURL != "" {
-		apiUser.AvatarUrl = stringPtr(s.api.absolutizeAssetURL(ctx, avatarURL))
+		apiUser.User.AvatarUrl = stringPtr(s.api.absolutizeAssetURL(ctx, avatarURL))
 	}
 
 	return &apiv1.CallParticipant{

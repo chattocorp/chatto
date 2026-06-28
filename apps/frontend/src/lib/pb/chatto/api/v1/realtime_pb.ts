@@ -5,91 +5,9 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { PresenceStatus } from "./presence_pb.js";
 import { NotificationLevel } from "./notification_preferences_pb.js";
-
-/**
- * Presence status delivered by the realtime stream.
- *
- * @generated from enum chatto.api.v1.RealtimePresenceStatus
- */
-export enum RealtimePresenceStatus {
-  /**
-   * No presence status was specified.
-   *
-   * @generated from enum value: REALTIME_PRESENCE_STATUS_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * The user is offline.
-   *
-   * @generated from enum value: REALTIME_PRESENCE_STATUS_OFFLINE = 1;
-   */
-  OFFLINE = 1,
-
-  /**
-   * The user is actively available.
-   *
-   * @generated from enum value: REALTIME_PRESENCE_STATUS_ONLINE = 2;
-   */
-  ONLINE = 2,
-
-  /**
-   * The user is connected but away or idle.
-   *
-   * @generated from enum value: REALTIME_PRESENCE_STATUS_AWAY = 3;
-   */
-  AWAY = 3,
-
-  /**
-   * The user does not want notifications while this live status is active.
-   *
-   * @generated from enum value: REALTIME_PRESENCE_STATUS_DO_NOT_DISTURB = 4;
-   */
-  DO_NOT_DISTURB = 4,
-}
-// Retrieve enum metadata with: proto3.getEnumType(RealtimePresenceStatus)
-proto3.util.setEnumType(RealtimePresenceStatus, "chatto.api.v1.RealtimePresenceStatus", [
-  { no: 0, name: "REALTIME_PRESENCE_STATUS_UNSPECIFIED" },
-  { no: 1, name: "REALTIME_PRESENCE_STATUS_OFFLINE" },
-  { no: 2, name: "REALTIME_PRESENCE_STATUS_ONLINE" },
-  { no: 3, name: "REALTIME_PRESENCE_STATUS_AWAY" },
-  { no: 4, name: "REALTIME_PRESENCE_STATUS_DO_NOT_DISTURB" },
-]);
-
-/**
- * Time-display format used by realtime preference events.
- *
- * @generated from enum chatto.api.v1.RealtimeTimeFormat
- */
-export enum RealtimeTimeFormat {
-  /**
-   * Use browser or locale default.
-   *
-   * @generated from enum value: REALTIME_TIME_FORMAT_UNSPECIFIED = 0;
-   */
-  REALTIME_TIME_FORMAT_UNSPECIFIED = 0,
-
-  /**
-   * 12-hour clock.
-   *
-   * @generated from enum value: REALTIME_TIME_FORMAT_12H = 1;
-   */
-  REALTIME_TIME_FORMAT_12H = 1,
-
-  /**
-   * 24-hour clock.
-   *
-   * @generated from enum value: REALTIME_TIME_FORMAT_24H = 2;
-   */
-  REALTIME_TIME_FORMAT_24H = 2,
-}
-// Retrieve enum metadata with: proto3.getEnumType(RealtimeTimeFormat)
-proto3.util.setEnumType(RealtimeTimeFormat, "chatto.api.v1.RealtimeTimeFormat", [
-  { no: 0, name: "REALTIME_TIME_FORMAT_UNSPECIFIED" },
-  { no: 1, name: "REALTIME_TIME_FORMAT_12H" },
-  { no: 2, name: "REALTIME_TIME_FORMAT_24H" },
-]);
+import { TimeFormat } from "./viewer_pb.js";
 
 /**
  * Source that produced a realtime voice-call transition.
@@ -1426,9 +1344,9 @@ export class RealtimePresenceChangedEvent extends Message<RealtimePresenceChange
   /**
    * Latest presence status.
    *
-   * @generated from field: chatto.api.v1.RealtimePresenceStatus status = 2;
+   * @generated from field: chatto.api.v1.PresenceStatus status = 2;
    */
-  status = RealtimePresenceStatus.UNSPECIFIED;
+  status = PresenceStatus.UNSPECIFIED;
 
   constructor(data?: PartialMessage<RealtimePresenceChangedEvent>) {
     super();
@@ -1439,7 +1357,7 @@ export class RealtimePresenceChangedEvent extends Message<RealtimePresenceChange
   static readonly typeName = "chatto.api.v1.RealtimePresenceChangedEvent";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "status", kind: "enum", T: proto3.getEnumType(RealtimePresenceStatus) },
+    { no: 2, name: "status", kind: "enum", T: proto3.getEnumType(PresenceStatus) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimePresenceChangedEvent {
@@ -2119,9 +2037,9 @@ export class RealtimeServerUserPreferencesUpdatedEvent extends Message<RealtimeS
   /**
    * Preferred time display format.
    *
-   * @generated from field: chatto.api.v1.RealtimeTimeFormat time_format = 2;
+   * @generated from field: chatto.api.v1.TimeFormat time_format = 2;
    */
-  timeFormat = RealtimeTimeFormat.REALTIME_TIME_FORMAT_UNSPECIFIED;
+  timeFormat = TimeFormat.TIME_FORMAT_UNSPECIFIED;
 
   constructor(data?: PartialMessage<RealtimeServerUserPreferencesUpdatedEvent>) {
     super();
@@ -2132,7 +2050,7 @@ export class RealtimeServerUserPreferencesUpdatedEvent extends Message<RealtimeS
   static readonly typeName = "chatto.api.v1.RealtimeServerUserPreferencesUpdatedEvent";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "timezone", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 2, name: "time_format", kind: "enum", T: proto3.getEnumType(RealtimeTimeFormat) },
+    { no: 2, name: "time_format", kind: "enum", T: proto3.getEnumType(TimeFormat) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeServerUserPreferencesUpdatedEvent {

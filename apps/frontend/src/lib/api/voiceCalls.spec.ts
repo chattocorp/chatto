@@ -49,11 +49,13 @@ describe('createVoiceCallAPI', () => {
       participants: [
         {
           user: {
-            id: 'U1',
-            login: 'alice',
-            displayName: 'Alice',
-            deleted: false,
-            avatarUrl: 'https://cdn/avatar.webp'
+            user: {
+              id: 'U1',
+              login: 'alice',
+              displayName: 'Alice',
+              deleted: false,
+              avatarUrl: 'https://cdn/avatar.webp'
+            }
           },
           joinedAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z')),
           callId: 'call-1'

@@ -270,82 +270,6 @@ Result of clearing the current user's custom status.
 | `status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Current custom status after the operation. Usually absent after a clear. |
 
 
-<a id="chatto-api-v1-MemberDirectoryService"></a>
-
-## MemberDirectoryService
-
-Reads server and room member directories.
-
-<a id="chatto-api-v1-MemberDirectoryService-ListServerMembers"></a>
-
-### ListServerMembers
-
-Lists authenticated server members. Every authenticated user is a server
-member; admin-sensitive fields stay out of this public row shape.
-
-```http
-POST /api/connect/chatto.api.v1.MemberDirectoryService/ListServerMembers
-```
-
-<a id="chatto-api-v1-ListServerMembersRequest"></a>
-
-#### Input: ListServerMembersRequest
-
-Request for server members visible to the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `search` | `string` | Optional case-insensitive search against login and display name. |
-| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
-
-
-<a id="chatto-api-v1-ListServerMembersResponse"></a>
-
-#### Result: ListServerMembersResponse
-
-Server member page.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `members` | repeated [`DirectoryMember`](#chatto-api-v1-DirectoryMember) | Members in the requested page. |
-| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
-
-
-<a id="chatto-api-v1-MemberDirectoryService-ListRoomMembers"></a>
-
-### ListRoomMembers
-
-Lists explicit members of a room. The caller must be a member of the room.
-
-```http
-POST /api/connect/chatto.api.v1.MemberDirectoryService/ListRoomMembers
-```
-
-<a id="chatto-api-v1-ListRoomMembersRequest"></a>
-
-#### Input: ListRoomMembersRequest
-
-Request for members of one room.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room whose explicit members should be listed. |
-| `search` | `string` | Optional case-insensitive search against login and display name. |
-| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
-
-
-<a id="chatto-api-v1-ListRoomMembersResponse"></a>
-
-#### Result: ListRoomMembersResponse
-
-Room member page.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `members` | repeated [`DirectoryMember`](#chatto-api-v1-DirectoryMember) | Members in the requested page. |
-| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
-
-
 <a id="chatto-api-v1-UserService"></a>
 
 ## UserService
@@ -382,7 +306,7 @@ Public authenticated user profile response.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `user` | [`DirectoryMember`](#chatto-api-v1-DirectoryMember) | Requested user. |
+| `user` | [`UserPresenceSummary`](#chatto-api-v1-UserPresenceSummary) | Requested user. |
 
 
 <a id="chatto-api-v1-UserService-GetUserByLogin"></a>
@@ -415,7 +339,7 @@ Public authenticated user profile response for login lookup.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `user` | [`DirectoryMember`](#chatto-api-v1-DirectoryMember) | Requested user. |
+| `user` | [`UserPresenceSummary`](#chatto-api-v1-UserPresenceSummary) | Requested user. |
 
 
 <a id="chatto-api-v1-UserService-BatchGetUsers"></a>
@@ -829,6 +753,82 @@ Result of reading one durable EVT entry.
 | `entry` | [`AdminEventLogEntry`](#chatto-api-v1-AdminEventLogEntry) | Requested event-log entry. |
 
 
+<a id="chatto-api-v1-MemberDirectoryService"></a>
+
+## MemberDirectoryService
+
+Reads server and room member directories.
+
+<a id="chatto-api-v1-MemberDirectoryService-ListServerMembers"></a>
+
+### ListServerMembers
+
+Lists authenticated server members. Every authenticated user is a server
+member; admin-sensitive fields stay out of this public row shape.
+
+```http
+POST /api/connect/chatto.api.v1.MemberDirectoryService/ListServerMembers
+```
+
+<a id="chatto-api-v1-ListServerMembersRequest"></a>
+
+#### Input: ListServerMembersRequest
+
+Request for server members visible to the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `search` | `string` | Optional case-insensitive search against login and display name. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListServerMembersResponse"></a>
+
+#### Result: ListServerMembersResponse
+
+Server member page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `members` | repeated [`DirectoryMember`](#chatto-api-v1-DirectoryMember) | Members in the requested page. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
+
+
+<a id="chatto-api-v1-MemberDirectoryService-ListRoomMembers"></a>
+
+### ListRoomMembers
+
+Lists explicit members of a room. The caller must be a member of the room.
+
+```http
+POST /api/connect/chatto.api.v1.MemberDirectoryService/ListRoomMembers
+```
+
+<a id="chatto-api-v1-ListRoomMembersRequest"></a>
+
+#### Input: ListRoomMembersRequest
+
+Request for members of one room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room whose explicit members should be listed. |
+| `search` | `string` | Optional case-insensitive search against login and display name. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListRoomMembersResponse"></a>
+
+#### Result: ListRoomMembersResponse
+
+Room member page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `members` | repeated [`DirectoryMember`](#chatto-api-v1-DirectoryMember) | Members in the requested page. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
+
+
 <a id="chatto-api-v1-RoomService"></a>
 
 ## RoomService
@@ -1038,6 +1038,39 @@ Result of joining a room.
 | `room` | [`Room`](#chatto-api-v1-Room) | Joined room. |
 
 
+<a id="chatto-api-v1-RoomService-JoinRoomGroup"></a>
+
+### JoinRoomGroup
+
+Joins every unarchived room in a group that the current user can join.
+Already-joined and non-joinable rooms are skipped.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/JoinRoomGroup
+```
+
+<a id="chatto-api-v1-JoinRoomGroupRequest"></a>
+
+#### Input: JoinRoomGroupRequest
+
+Request to join all joinable rooms in one room group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group_id` | `string` | Required. Room group whose rooms should be joined. |
+
+
+<a id="chatto-api-v1-JoinRoomGroupResponse"></a>
+
+#### Result: JoinRoomGroupResponse
+
+Result of joining all joinable rooms in one room group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `joined_room_ids` | `repeated string` | Room IDs that transitioned from not joined to joined. |
+
+
 <a id="chatto-api-v1-RoomService-StartDM"></a>
 
 ### StartDM
@@ -1214,7 +1247,7 @@ Result of removing a room ban.
 
 ## RoomDirectoryService
 
-Reads room directory data and performs directory-adjacent commands.
+Reads room directory data.
 
 <a id="chatto-api-v1-RoomDirectoryService-ListRooms"></a>
 
@@ -1311,39 +1344,6 @@ Room visible to the current user.
 | `room` | [`DirectoryRoom`](#chatto-api-v1-DirectoryRoom) | Resolved room and viewer state. |
 
 
-<a id="chatto-api-v1-RoomDirectoryService-JoinGroup"></a>
-
-### JoinGroup
-
-Joins every unarchived room in a group that the current user can join.
-Already-joined and non-joinable rooms are skipped.
-
-```http
-POST /api/connect/chatto.api.v1.RoomDirectoryService/JoinGroup
-```
-
-<a id="chatto-api-v1-JoinGroupRequest"></a>
-
-#### Input: JoinGroupRequest
-
-Request to join all joinable rooms in one room group.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `group_id` | `string` | Required. Room group whose rooms should be joined. |
-
-
-<a id="chatto-api-v1-JoinGroupResponse"></a>
-
-#### Result: JoinGroupResponse
-
-Result of joining all joinable rooms in one room group.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `joined_room_ids` | `repeated string` | Room IDs that transitioned from not joined to joined. |
-
-
 <a id="chatto-api-v1-AdminRoomLayoutService"></a>
 
 ## AdminRoomLayoutService
@@ -1383,7 +1383,7 @@ Current admin room layout.
 
 ### CreateRoomGroup
 
-Creates a room group. The caller must be allowed to manage roles.
+Creates a room group. The caller must be allowed to manage rooms.
 
 ```http
 POST /api/connect/chatto.api.v1.AdminRoomLayoutService/CreateRoomGroup
@@ -1417,7 +1417,7 @@ Result of creating a room group.
 ### UpdateRoomGroup
 
 Updates a room group's metadata. The caller must be allowed to manage
-roles.
+rooms.
 
 ```http
 POST /api/connect/chatto.api.v1.AdminRoomLayoutService/UpdateRoomGroup
@@ -1451,7 +1451,7 @@ Result of updating a room group.
 
 ### DeleteRoomGroup
 
-Deletes an empty room group. The caller must be allowed to manage roles.
+Deletes an empty room group. The caller must be allowed to manage rooms.
 
 ```http
 POST /api/connect/chatto.api.v1.AdminRoomLayoutService/DeleteRoomGroup
@@ -1484,7 +1484,7 @@ Result of deleting a room group.
 ### ReorderRoomGroups
 
 Replaces the global room group order. The caller must be allowed to manage
-roles.
+rooms.
 
 ```http
 POST /api/connect/chatto.api.v1.AdminRoomLayoutService/ReorderRoomGroups
@@ -2689,8 +2689,7 @@ Request a role-permission tier matrix.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | Optional room scope. Mutually exclusive with group_id. |
-| `group_id` | `string` | Optional room-group scope. Mutually exclusive with room_id. |
+| `scope` | [`PermissionScope`](#chatto-api-v1-PermissionScope) | Target scope. Omit or use SERVER for server scope. |
 
 
 <a id="chatto-api-v1-GetRolePermissionTierMatrixResponse"></a>
@@ -2837,39 +2836,6 @@ Result of setting one role permission state.
 | `ok` | `bool` | True when the request completed. |
 
 
-<a id="chatto-api-v1-PermissionService-RevokeRolePermissionGrant"></a>
-
-### RevokeRolePermissionGrant
-
-Removes only a server-scope allow grant from a role. Requires role.manage.
-
-```http
-POST /api/connect/chatto.api.v1.PermissionService/RevokeRolePermissionGrant
-```
-
-<a id="chatto-api-v1-RevokeRolePermissionGrantRequest"></a>
-
-#### Input: RevokeRolePermissionGrantRequest
-
-Request to remove only one server-scope role permission grant.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `role_name` | `string` | Role name. |
-| `permission` | `string` | Permission identifier. |
-
-
-<a id="chatto-api-v1-RevokeRolePermissionGrantResponse"></a>
-
-#### Result: RevokeRolePermissionGrantResponse
-
-Result of removing one server-scope role permission grant.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `ok` | `bool` | True when the request completed. |
-
-
 <a id="chatto-api-v1-PermissionService-SetUserPermission"></a>
 
 ### SetUserPermission
@@ -2924,9 +2890,9 @@ the browser grants notification permission and returns a PushSubscription.
 POST /api/connect/chatto.api.v1.PushNotificationService/Subscribe
 ```
 
-<a id="chatto-api-v1-SubscribeRequest"></a>
+<a id="chatto-api-v1-SubscribePushRequest"></a>
 
-#### Input: SubscribeRequest
+#### Input: SubscribePushRequest
 
 Request to store a PushSubscription returned by the browser Push API.
 
@@ -2938,9 +2904,9 @@ Request to store a PushSubscription returned by the browser Push API.
 | `user_agent` | `optional string` | Optional browser user-agent string for device identification. |
 
 
-<a id="chatto-api-v1-SubscribeResponse"></a>
+<a id="chatto-api-v1-SubscribePushResponse"></a>
 
-#### Result: SubscribeResponse
+#### Result: SubscribePushResponse
 
 Response from storing a browser push subscription.
 
@@ -2961,9 +2927,9 @@ The call is idempotent: removing an unknown endpoint still succeeds.
 POST /api/connect/chatto.api.v1.PushNotificationService/Unsubscribe
 ```
 
-<a id="chatto-api-v1-UnsubscribeRequest"></a>
+<a id="chatto-api-v1-UnsubscribePushRequest"></a>
 
-#### Input: UnsubscribeRequest
+#### Input: UnsubscribePushRequest
 
 Request to remove a browser push subscription.
 
@@ -2972,9 +2938,9 @@ Request to remove a browser push subscription.
 | `endpoint` | `string` | Push service endpoint URL to remove. |
 
 
-<a id="chatto-api-v1-UnsubscribeResponse"></a>
+<a id="chatto-api-v1-UnsubscribePushResponse"></a>
 
-#### Result: UnsubscribeResponse
+#### Result: UnsubscribePushResponse
 
 Response from removing a browser push subscription.
 
@@ -3386,10 +3352,10 @@ initial server view.
 | `auth_providers` | repeated [`AuthProvider`](#chatto-api-v1-AuthProvider) | Configured login providers. |
 | `registration_open` | `bool` | Whether users can create accounts through the public UI. |
 | `authorize_url` | `string` | URL for the legacy authorization flow, when enabled. |
-| `welcome_message` | `string` | Optional welcome message configured by the server administrator. |
-| `description` | `string` | Optional server description configured by the server administrator. |
-| `icon_url` | `string` | Optional server icon URL suitable for branding the server in client UI. |
-| `banner_url` | `string` | Optional server banner URL suitable for larger server branding surfaces. |
+| `welcome_message` | `optional string` | Optional welcome message configured by the server administrator. |
+| `description` | `optional string` | Optional server description configured by the server administrator. |
+| `logo_url` | `optional string` | Optional server logo URL suitable for branding the server in client UI. |
+| `banner_url` | `optional string` | Optional server banner URL suitable for larger server branding surfaces. |
 
 
 <a id="chatto-api-v1-ServerStateService"></a>
@@ -3944,33 +3910,6 @@ Response from recording a leave intent.
 
 ## Supporting Types
 
-<a id="chatto-api-v1-PageInfo"></a>
-
-### PageInfo
-
-Offset-based page metadata returned by list RPCs.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `total_count` | `int64` | Total matching item count before pagination. |
-| `has_more` | `bool` | True when another page exists after this response. |
-
-
-
-<a id="chatto-api-v1-PageRequest"></a>
-
-### PageRequest
-
-Offset-based page request for list RPCs whose result order is stable enough
-for simple list browsing.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `limit` | `int32` | Maximum number of items to return. Each RPC defines its default; the common maximum for public API list pages is 100. |
-| `offset` | `int32` | Zero-based number of matching items to skip. |
-
-
-
 <a id="chatto-api-v1-CustomUserStatus"></a>
 
 ### CustomUserStatus
@@ -3982,26 +3921,6 @@ Custom status shown on a user profile, separate from presence.
 | `emoji` | `string` | Short emoji marker displayed with the status. |
 | `text` | `string` | User-written status text. |
 | `expires_at` | `google.protobuf.Timestamp` | Optional time after which clients should stop showing the status. |
-
-
-
-<a id="chatto-api-v1-DirectoryMember"></a>
-
-### DirectoryMember
-
-Public user/member profile used by directory and mention surfaces.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Stable user ID. |
-| `login` | `string` | Login identifier. |
-| `display_name` | `string` | Display name shown in Chatto. |
-| `deleted` | `bool` | Whether this row represents a deleted account tombstone. |
-| `avatar_url` | `optional string` | Optional avatar URL. |
-| `presence_status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Current live presence status. |
-| `custom_status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Custom profile status, when set. |
-| `roles` | `repeated string` | Explicit server roles assigned to the user. Server member listings include the virtual `everyone` role for parity with Chatto's permission model. |
-| `created_at` | `google.protobuf.Timestamp` | Account creation time when known. |
 
 
 
@@ -4027,11 +3946,7 @@ Lightweight public user data plus live profile state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `id` | `string` | Stable user ID. |
-| `login` | `string` | Login name. |
-| `display_name` | `string` | Display name, when set. |
-| `deleted` | `bool` | True when the user account has been deleted. |
-| `avatar_url` | `optional string` | Avatar image URL, when available. |
+| `user` | [`UserSummary`](#chatto-api-v1-UserSummary) | Public identity fields. |
 | `presence_status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Current live presence status. |
 | `custom_status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Custom profile status, when set. |
 
@@ -4334,6 +4249,47 @@ Filter for owner/auditor event-log inspection.
 | `actor_id` | `string` | Actor user ID. |
 | `created_at_from` | `google.protobuf.Timestamp` | Inclusive lower creation timestamp bound. |
 | `created_at_to` | `google.protobuf.Timestamp` | Inclusive upper creation timestamp bound. |
+
+
+
+<a id="chatto-api-v1-PageInfo"></a>
+
+### PageInfo
+
+Offset-based page metadata returned by list RPCs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `total_count` | `int64` | Total matching item count before pagination. |
+| `has_more` | `bool` | True when another page exists after this response. |
+
+
+
+<a id="chatto-api-v1-PageRequest"></a>
+
+### PageRequest
+
+Offset-based page request for list RPCs whose result order is stable enough
+for simple list browsing.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `limit` | `int32` | Maximum number of items to return. Each RPC defines its default; the common maximum for public API list pages is 100. |
+| `offset` | `int32` | Zero-based number of matching items to skip. |
+
+
+
+<a id="chatto-api-v1-DirectoryMember"></a>
+
+### DirectoryMember
+
+Public user/member profile used by directory and mention surfaces.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `profile` | [`UserPresenceSummary`](#chatto-api-v1-UserPresenceSummary) | Public profile and live presence fields. |
+| `roles` | `repeated string` | Explicit server roles assigned to the user. Server member listings include the virtual `everyone` role for parity with Chatto's permission model. |
+| `created_at` | `google.protobuf.Timestamp` | Account creation time when known. |
 
 
 
@@ -5426,7 +5382,7 @@ Presence-changed signal.
 | Field | Type | Description |
 | --- | --- | --- |
 | `user_id` | `string` | User whose presence changed. |
-| `status` | [`RealtimePresenceStatus`](#chatto-api-v1-RealtimePresenceStatus) | Latest presence status. |
+| `status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Latest presence status. |
 
 
 
@@ -5561,7 +5517,7 @@ User display-preferences signal for the connected user.
 | Field | Type | Description |
 | --- | --- | --- |
 | `timezone` | `optional string` | IANA timezone name, when the user has selected a fixed timezone. |
-| `time_format` | [`RealtimeTimeFormat`](#chatto-api-v1-RealtimeTimeFormat) | Preferred time display format. |
+| `time_format` | [`TimeFormat`](#chatto-api-v1-TimeFormat) | Preferred time display format. |
 
 
 
@@ -5961,33 +5917,5 @@ Source that produced a realtime voice-call transition.
 | `REALTIME_CALL_EVENT_SOURCE_USER` | `1` | The user explicitly requested the transition through Chatto. |
 | `REALTIME_CALL_EVENT_SOURCE_LIVEKIT` | `2` | LiveKit reported the transition through a webhook. |
 | `REALTIME_CALL_EVENT_SOURCE_RECONCILIATION` | `3` | Chatto reconciled its local state against LiveKit's current room state. |
-
-
-<a id="chatto-api-v1-RealtimePresenceStatus"></a>
-
-### RealtimePresenceStatus
-
-Presence status delivered by the realtime stream.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `REALTIME_PRESENCE_STATUS_UNSPECIFIED` | `0` | No presence status was specified. |
-| `REALTIME_PRESENCE_STATUS_OFFLINE` | `1` | The user is offline. |
-| `REALTIME_PRESENCE_STATUS_ONLINE` | `2` | The user is actively available. |
-| `REALTIME_PRESENCE_STATUS_AWAY` | `3` | The user is connected but away or idle. |
-| `REALTIME_PRESENCE_STATUS_DO_NOT_DISTURB` | `4` | The user does not want notifications while this live status is active. |
-
-
-<a id="chatto-api-v1-RealtimeTimeFormat"></a>
-
-### RealtimeTimeFormat
-
-Time-display format used by realtime preference events.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `REALTIME_TIME_FORMAT_UNSPECIFIED` | `0` | Use browser or locale default. |
-| `REALTIME_TIME_FORMAT_12H` | `1` | 12-hour clock. |
-| `REALTIME_TIME_FORMAT_24H` | `2` | 24-hour clock. |
 
 

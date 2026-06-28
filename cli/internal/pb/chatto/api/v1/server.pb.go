@@ -151,13 +151,13 @@ type GetServerResponse struct {
 	// URL for the legacy authorization flow, when enabled.
 	AuthorizeUrl string `protobuf:"bytes,6,opt,name=authorize_url,json=authorizeUrl,proto3" json:"authorize_url,omitempty"`
 	// Optional welcome message configured by the server administrator.
-	WelcomeMessage string `protobuf:"bytes,7,opt,name=welcome_message,json=welcomeMessage,proto3" json:"welcome_message,omitempty"`
+	WelcomeMessage *string `protobuf:"bytes,7,opt,name=welcome_message,json=welcomeMessage,proto3,oneof" json:"welcome_message,omitempty"`
 	// Optional server description configured by the server administrator.
-	Description string `protobuf:"bytes,8,opt,name=description,proto3" json:"description,omitempty"`
-	// Optional server icon URL suitable for branding the server in client UI.
-	IconUrl string `protobuf:"bytes,9,opt,name=icon_url,json=iconUrl,proto3" json:"icon_url,omitempty"`
+	Description *string `protobuf:"bytes,8,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	// Optional server logo URL suitable for branding the server in client UI.
+	LogoUrl *string `protobuf:"bytes,9,opt,name=logo_url,json=logoUrl,proto3,oneof" json:"logo_url,omitempty"`
 	// Optional server banner URL suitable for larger server branding surfaces.
-	BannerUrl     string `protobuf:"bytes,10,opt,name=banner_url,json=bannerUrl,proto3" json:"banner_url,omitempty"`
+	BannerUrl     *string `protobuf:"bytes,10,opt,name=banner_url,json=bannerUrl,proto3,oneof" json:"banner_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -235,29 +235,29 @@ func (x *GetServerResponse) GetAuthorizeUrl() string {
 }
 
 func (x *GetServerResponse) GetWelcomeMessage() string {
-	if x != nil {
-		return x.WelcomeMessage
+	if x != nil && x.WelcomeMessage != nil {
+		return *x.WelcomeMessage
 	}
 	return ""
 }
 
 func (x *GetServerResponse) GetDescription() string {
-	if x != nil {
-		return x.Description
+	if x != nil && x.Description != nil {
+		return *x.Description
 	}
 	return ""
 }
 
-func (x *GetServerResponse) GetIconUrl() string {
-	if x != nil {
-		return x.IconUrl
+func (x *GetServerResponse) GetLogoUrl() string {
+	if x != nil && x.LogoUrl != nil {
+		return *x.LogoUrl
 	}
 	return ""
 }
 
 func (x *GetServerResponse) GetBannerUrl() string {
-	if x != nil {
-		return x.BannerUrl
+	if x != nil && x.BannerUrl != nil {
+		return *x.BannerUrl
 	}
 	return ""
 }
@@ -272,20 +272,24 @@ const file_chatto_api_v1_server_proto_rawDesc = "" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x14\n" +
 	"\x05label\x18\x03 \x01(\tR\x05label\x12\x1b\n" +
 	"\tlogin_url\x18\x04 \x01(\tR\bloginUrl\"\x12\n" +
-	"\x10GetServerRequest\"\xff\x02\n" +
+	"\x10GetServerRequest\"\xd3\x03\n" +
 	"\x11GetServerResponse\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x12!\n" +
 	"\fauth_methods\x18\x03 \x03(\tR\vauthMethods\x12B\n" +
 	"\x0eauth_providers\x18\x04 \x03(\v2\x1b.chatto.api.v1.AuthProviderR\rauthProviders\x12+\n" +
 	"\x11registration_open\x18\x05 \x01(\bR\x10registrationOpen\x12#\n" +
-	"\rauthorize_url\x18\x06 \x01(\tR\fauthorizeUrl\x12'\n" +
-	"\x0fwelcome_message\x18\a \x01(\tR\x0ewelcomeMessage\x12 \n" +
-	"\vdescription\x18\b \x01(\tR\vdescription\x12\x19\n" +
-	"\bicon_url\x18\t \x01(\tR\aiconUrl\x12\x1d\n" +
+	"\rauthorize_url\x18\x06 \x01(\tR\fauthorizeUrl\x12,\n" +
+	"\x0fwelcome_message\x18\a \x01(\tH\x00R\x0ewelcomeMessage\x88\x01\x01\x12%\n" +
+	"\vdescription\x18\b \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x1e\n" +
+	"\blogo_url\x18\t \x01(\tH\x02R\alogoUrl\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"banner_url\x18\n" +
-	" \x01(\tR\tbannerUrl2_\n" +
+	" \x01(\tH\x03R\tbannerUrl\x88\x01\x01B\x12\n" +
+	"\x10_welcome_messageB\x0e\n" +
+	"\f_descriptionB\v\n" +
+	"\t_logo_urlB\r\n" +
+	"\v_banner_url2_\n" +
 	"\rServerService\x12N\n" +
 	"\tGetServer\x12\x1f.chatto.api.v1.GetServerRequest\x1a .chatto.api.v1.GetServerResponseB\xa7\x01\n" +
 	"\x11com.chatto.api.v1B\vServerProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
@@ -324,6 +328,7 @@ func file_chatto_api_v1_server_proto_init() {
 	if File_chatto_api_v1_server_proto != nil {
 		return
 	}
+	file_chatto_api_v1_server_proto_msgTypes[2].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

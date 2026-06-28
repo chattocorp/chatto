@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({
   startDM: vi.fn(),
   leaveRoom: vi.fn(),
   listRoomBans: vi.fn(),
-  joinGroup: vi.fn(),
+  joinRoomGroup: vi.fn(),
   banRoomMember: vi.fn(),
   unbanRoomMember: vi.fn()
 }));
@@ -47,7 +47,7 @@ describe('createRoomCommandAPI', () => {
     mocks.startDM.mockReset();
     mocks.leaveRoom.mockReset();
     mocks.listRoomBans.mockReset();
-    mocks.joinGroup.mockReset();
+    mocks.joinRoomGroup.mockReset();
     mocks.banRoomMember.mockReset();
     mocks.unbanRoomMember.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
@@ -57,7 +57,7 @@ describe('createRoomCommandAPI', () => {
       startDM: mocks.startDM,
       leaveRoom: mocks.leaveRoom,
       listRoomBans: mocks.listRoomBans,
-      joinGroup: mocks.joinGroup,
+      joinRoomGroup: mocks.joinRoomGroup,
       banRoomMember: mocks.banRoomMember,
       unbanRoomMember: mocks.unbanRoomMember
     });
@@ -114,7 +114,7 @@ describe('createRoomCommandAPI', () => {
     mocks.joinRoom.mockResolvedValue({ room: { id: 'room-1', name: 'general' } });
     mocks.startDM.mockResolvedValue({ room: { id: 'dm-1', name: '' } });
     mocks.leaveRoom.mockResolvedValue({ left: true });
-    mocks.joinGroup.mockResolvedValue({ joinedRoomIds: ['room-1', 'room-2'] });
+    mocks.joinRoomGroup.mockResolvedValue({ joinedRoomIds: ['room-1', 'room-2'] });
 
     const api = createRoomCommandAPI({
       baseUrl: 'https://remote.example.test/api/connect',
@@ -132,7 +132,10 @@ describe('createRoomCommandAPI', () => {
       { headers: undefined }
     );
     expect(mocks.leaveRoom).toHaveBeenCalledWith({ roomId: 'room-1' }, { headers: undefined });
-    expect(mocks.joinGroup).toHaveBeenCalledWith({ groupId: 'group-1' }, { headers: undefined });
+    expect(mocks.joinRoomGroup).toHaveBeenCalledWith(
+      { groupId: 'group-1' },
+      { headers: undefined }
+    );
   });
 
   it('sends ban and unban commands through RoomService', async () => {
@@ -187,22 +190,30 @@ describe('createRoomCommandAPI', () => {
           },
           userId: 'user-1',
           user: {
-            id: 'user-1',
-            login: 'alice',
-            displayName: 'Alice',
-            deleted: false,
-            avatarUrl: 'https://cdn/avatar.webp',
-            presenceStatus: APIPresenceStatus.AWAY,
+            profile: {
+              user: {
+                id: 'user-1',
+                login: 'alice',
+                displayName: 'Alice',
+                deleted: false,
+                avatarUrl: 'https://cdn/avatar.webp'
+              },
+              presenceStatus: APIPresenceStatus.AWAY
+            },
             roles: [],
             createdAt: Timestamp.fromDate(new Date('2026-01-01T09:00:00Z'))
           },
           moderatorId: 'mod-1',
           moderator: {
-            id: 'mod-1',
-            login: 'mod',
-            displayName: 'Moderator',
-            deleted: false,
-            presenceStatus: APIPresenceStatus.OFFLINE,
+            profile: {
+              user: {
+                id: 'mod-1',
+                login: 'mod',
+                displayName: 'Moderator',
+                deleted: false
+              },
+              presenceStatus: APIPresenceStatus.OFFLINE
+            },
             roles: []
           },
           reason: 'policy',

@@ -202,13 +202,14 @@ function notificationItem(item: APINotificationItem): NotificationItem | null {
 }
 
 function notificationActor(actor: APIUserPresenceSummary | undefined): NotificationActor | null {
-  if (!actor) return null;
+  const summary = actor?.user;
+  if (!actor || !summary) return null;
   return {
-    id: actor.id,
-    login: actor.login,
-    displayName: actor.displayName,
-    deleted: actor.deleted,
-    avatarUrl: actor.avatarUrl ?? null,
+    id: summary.id,
+    login: summary.login,
+    displayName: summary.displayName,
+    deleted: summary.deleted,
+    avatarUrl: summary.avatarUrl ?? null,
     presenceStatus: apiPresenceStatus(actor.presenceStatus),
     customStatus: actor.customStatus
       ? {

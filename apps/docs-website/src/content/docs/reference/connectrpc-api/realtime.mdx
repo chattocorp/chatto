@@ -294,7 +294,7 @@ Presence-changed signal.
 | Field | Type | Description |
 | --- | --- | --- |
 | `user_id` | `string` | User whose presence changed. |
-| `status` | [`RealtimePresenceStatus`](#chatto-api-v1-RealtimePresenceStatus) | Latest presence status. |
+| `status` | [`PresenceStatus`](/reference/connectrpc-api/types/#chatto-api-v1-PresenceStatus) | Latest presence status. |
 
 <a id="chatto-api-v1-RealtimeReactionEvent"></a>
 
@@ -409,7 +409,7 @@ User display-preferences signal for the connected user.
 | Field | Type | Description |
 | --- | --- | --- |
 | `timezone` | `optional string` | IANA timezone name, when the user has selected a fixed timezone. |
-| `time_format` | [`RealtimeTimeFormat`](#chatto-api-v1-RealtimeTimeFormat) | Preferred time display format. |
+| `time_format` | [`TimeFormat`](/reference/connectrpc-api/types/#chatto-api-v1-TimeFormat) | Preferred time display format. |
 
 <a id="chatto-api-v1-RealtimeSessionTerminatedEvent"></a>
 
@@ -521,29 +521,3 @@ Source that produced a realtime voice-call transition.
 | `REALTIME_CALL_EVENT_SOURCE_USER` | `1` | The user explicitly requested the transition through Chatto. |
 | `REALTIME_CALL_EVENT_SOURCE_LIVEKIT` | `2` | LiveKit reported the transition through a webhook. |
 | `REALTIME_CALL_EVENT_SOURCE_RECONCILIATION` | `3` | Chatto reconciled its local state against LiveKit's current room state. |
-
-<a id="chatto-api-v1-RealtimePresenceStatus"></a>
-
-### RealtimePresenceStatus
-
-Presence status delivered by the realtime stream.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `REALTIME_PRESENCE_STATUS_UNSPECIFIED` | `0` | No presence status was specified. |
-| `REALTIME_PRESENCE_STATUS_OFFLINE` | `1` | The user is offline. |
-| `REALTIME_PRESENCE_STATUS_ONLINE` | `2` | The user is actively available. |
-| `REALTIME_PRESENCE_STATUS_AWAY` | `3` | The user is connected but away or idle. |
-| `REALTIME_PRESENCE_STATUS_DO_NOT_DISTURB` | `4` | The user does not want notifications while this live status is active. |
-
-<a id="chatto-api-v1-RealtimeTimeFormat"></a>
-
-### RealtimeTimeFormat
-
-Time-display format used by realtime preference events.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `REALTIME_TIME_FORMAT_UNSPECIFIED` | `0` | Use browser or locale default. |
-| `REALTIME_TIME_FORMAT_12H` | `1` | 12-hour clock. |
-| `REALTIME_TIME_FORMAT_24H` | `2` | 24-hour clock. |

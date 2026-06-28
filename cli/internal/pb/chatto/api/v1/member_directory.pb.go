@@ -26,25 +26,13 @@ const (
 // Public user/member profile used by directory and mention surfaces.
 type DirectoryMember struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Stable user ID.
-	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Login identifier.
-	Login string `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`
-	// Display name shown in Chatto.
-	DisplayName string `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	// Whether this row represents a deleted account tombstone.
-	Deleted bool `protobuf:"varint,4,opt,name=deleted,proto3" json:"deleted,omitempty"`
-	// Optional avatar URL.
-	AvatarUrl *string `protobuf:"bytes,5,opt,name=avatar_url,json=avatarUrl,proto3,oneof" json:"avatar_url,omitempty"`
-	// Current live presence status.
-	PresenceStatus PresenceStatus `protobuf:"varint,6,opt,name=presence_status,json=presenceStatus,proto3,enum=chatto.api.v1.PresenceStatus" json:"presence_status,omitempty"`
-	// Custom profile status, when set.
-	CustomStatus *CustomUserStatus `protobuf:"bytes,7,opt,name=custom_status,json=customStatus,proto3" json:"custom_status,omitempty"`
+	// Public profile and live presence fields.
+	Profile *UserPresenceSummary `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
 	// Explicit server roles assigned to the user. Server member listings include
 	// the virtual `everyone` role for parity with Chatto's permission model.
-	Roles []string `protobuf:"bytes,8,rep,name=roles,proto3" json:"roles,omitempty"`
+	Roles []string `protobuf:"bytes,2,rep,name=roles,proto3" json:"roles,omitempty"`
 	// Account creation time when known.
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -79,51 +67,9 @@ func (*DirectoryMember) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_member_directory_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *DirectoryMember) GetId() string {
+func (x *DirectoryMember) GetProfile() *UserPresenceSummary {
 	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *DirectoryMember) GetLogin() string {
-	if x != nil {
-		return x.Login
-	}
-	return ""
-}
-
-func (x *DirectoryMember) GetDisplayName() string {
-	if x != nil {
-		return x.DisplayName
-	}
-	return ""
-}
-
-func (x *DirectoryMember) GetDeleted() bool {
-	if x != nil {
-		return x.Deleted
-	}
-	return false
-}
-
-func (x *DirectoryMember) GetAvatarUrl() string {
-	if x != nil && x.AvatarUrl != nil {
-		return *x.AvatarUrl
-	}
-	return ""
-}
-
-func (x *DirectoryMember) GetPresenceStatus() PresenceStatus {
-	if x != nil {
-		return x.PresenceStatus
-	}
-	return PresenceStatus_PRESENCE_STATUS_UNSPECIFIED
-}
-
-func (x *DirectoryMember) GetCustomStatus() *CustomUserStatus {
-	if x != nil {
-		return x.CustomStatus
+		return x.Profile
 	}
 	return nil
 }
@@ -375,20 +321,12 @@ var File_chatto_api_v1_member_directory_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_member_directory_proto_rawDesc = "" +
 	"\n" +
-	"$chatto/api/v1/member_directory.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x1cchatto/api/v1/presence.proto\x1a\x1fchatto/api/v1/user_status.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x86\x03\n" +
-	"\x0fDirectoryMember\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
-	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
-	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12\x18\n" +
-	"\adeleted\x18\x04 \x01(\bR\adeleted\x12\"\n" +
+	"$chatto/api/v1/member_directory.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa0\x01\n" +
+	"\x0fDirectoryMember\x12<\n" +
+	"\aprofile\x18\x01 \x01(\v2\".chatto.api.v1.UserPresenceSummaryR\aprofile\x12\x14\n" +
+	"\x05roles\x18\x02 \x03(\tR\x05roles\x129\n" +
 	"\n" +
-	"avatar_url\x18\x05 \x01(\tH\x00R\tavatarUrl\x88\x01\x01\x12F\n" +
-	"\x0fpresence_status\x18\x06 \x01(\x0e2\x1d.chatto.api.v1.PresenceStatusR\x0epresenceStatus\x12D\n" +
-	"\rcustom_status\x18\a \x01(\v2\x1f.chatto.api.v1.CustomUserStatusR\fcustomStatus\x12\x14\n" +
-	"\x05roles\x18\b \x03(\tR\x05roles\x129\n" +
-	"\n" +
-	"created_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAtB\r\n" +
-	"\v_avatar_url\"\x86\x01\n" +
+	"created_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\x86\x01\n" +
 	"\x18ListServerMembersRequest\x12\x1f\n" +
 	"\x06search\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18dR\x06search\x12.\n" +
 	"\x04page\x18\x04 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x05limitR\x06offset\"\xa5\x01\n" +
@@ -426,31 +364,29 @@ var file_chatto_api_v1_member_directory_proto_goTypes = []any{
 	(*ListServerMembersResponse)(nil), // 2: chatto.api.v1.ListServerMembersResponse
 	(*ListRoomMembersRequest)(nil),    // 3: chatto.api.v1.ListRoomMembersRequest
 	(*ListRoomMembersResponse)(nil),   // 4: chatto.api.v1.ListRoomMembersResponse
-	(PresenceStatus)(0),               // 5: chatto.api.v1.PresenceStatus
-	(*CustomUserStatus)(nil),          // 6: chatto.api.v1.CustomUserStatus
-	(*timestamppb.Timestamp)(nil),     // 7: google.protobuf.Timestamp
-	(*PageRequest)(nil),               // 8: chatto.api.v1.PageRequest
-	(*PageInfo)(nil),                  // 9: chatto.api.v1.PageInfo
+	(*UserPresenceSummary)(nil),       // 5: chatto.api.v1.UserPresenceSummary
+	(*timestamppb.Timestamp)(nil),     // 6: google.protobuf.Timestamp
+	(*PageRequest)(nil),               // 7: chatto.api.v1.PageRequest
+	(*PageInfo)(nil),                  // 8: chatto.api.v1.PageInfo
 }
 var file_chatto_api_v1_member_directory_proto_depIdxs = []int32{
-	5,  // 0: chatto.api.v1.DirectoryMember.presence_status:type_name -> chatto.api.v1.PresenceStatus
-	6,  // 1: chatto.api.v1.DirectoryMember.custom_status:type_name -> chatto.api.v1.CustomUserStatus
-	7,  // 2: chatto.api.v1.DirectoryMember.created_at:type_name -> google.protobuf.Timestamp
-	8,  // 3: chatto.api.v1.ListServerMembersRequest.page:type_name -> chatto.api.v1.PageRequest
-	0,  // 4: chatto.api.v1.ListServerMembersResponse.members:type_name -> chatto.api.v1.DirectoryMember
-	9,  // 5: chatto.api.v1.ListServerMembersResponse.page:type_name -> chatto.api.v1.PageInfo
-	8,  // 6: chatto.api.v1.ListRoomMembersRequest.page:type_name -> chatto.api.v1.PageRequest
-	0,  // 7: chatto.api.v1.ListRoomMembersResponse.members:type_name -> chatto.api.v1.DirectoryMember
-	9,  // 8: chatto.api.v1.ListRoomMembersResponse.page:type_name -> chatto.api.v1.PageInfo
-	1,  // 9: chatto.api.v1.MemberDirectoryService.ListServerMembers:input_type -> chatto.api.v1.ListServerMembersRequest
-	3,  // 10: chatto.api.v1.MemberDirectoryService.ListRoomMembers:input_type -> chatto.api.v1.ListRoomMembersRequest
-	2,  // 11: chatto.api.v1.MemberDirectoryService.ListServerMembers:output_type -> chatto.api.v1.ListServerMembersResponse
-	4,  // 12: chatto.api.v1.MemberDirectoryService.ListRoomMembers:output_type -> chatto.api.v1.ListRoomMembersResponse
-	11, // [11:13] is the sub-list for method output_type
-	9,  // [9:11] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	5,  // 0: chatto.api.v1.DirectoryMember.profile:type_name -> chatto.api.v1.UserPresenceSummary
+	6,  // 1: chatto.api.v1.DirectoryMember.created_at:type_name -> google.protobuf.Timestamp
+	7,  // 2: chatto.api.v1.ListServerMembersRequest.page:type_name -> chatto.api.v1.PageRequest
+	0,  // 3: chatto.api.v1.ListServerMembersResponse.members:type_name -> chatto.api.v1.DirectoryMember
+	8,  // 4: chatto.api.v1.ListServerMembersResponse.page:type_name -> chatto.api.v1.PageInfo
+	7,  // 5: chatto.api.v1.ListRoomMembersRequest.page:type_name -> chatto.api.v1.PageRequest
+	0,  // 6: chatto.api.v1.ListRoomMembersResponse.members:type_name -> chatto.api.v1.DirectoryMember
+	8,  // 7: chatto.api.v1.ListRoomMembersResponse.page:type_name -> chatto.api.v1.PageInfo
+	1,  // 8: chatto.api.v1.MemberDirectoryService.ListServerMembers:input_type -> chatto.api.v1.ListServerMembersRequest
+	3,  // 9: chatto.api.v1.MemberDirectoryService.ListRoomMembers:input_type -> chatto.api.v1.ListRoomMembersRequest
+	2,  // 10: chatto.api.v1.MemberDirectoryService.ListServerMembers:output_type -> chatto.api.v1.ListServerMembersResponse
+	4,  // 11: chatto.api.v1.MemberDirectoryService.ListRoomMembers:output_type -> chatto.api.v1.ListRoomMembersResponse
+	10, // [10:12] is the sub-list for method output_type
+	8,  // [8:10] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_member_directory_proto_init() }
@@ -459,9 +395,7 @@ func file_chatto_api_v1_member_directory_proto_init() {
 		return
 	}
 	file_chatto_api_v1_pagination_proto_init()
-	file_chatto_api_v1_presence_proto_init()
-	file_chatto_api_v1_user_status_proto_init()
-	file_chatto_api_v1_member_directory_proto_msgTypes[0].OneofWrappers = []any{}
+	file_chatto_api_v1_users_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

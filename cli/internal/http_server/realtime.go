@@ -588,18 +588,18 @@ func (s *HTTPServer) viewerCanReadRealtimeRoomLabel(ctx context.Context, viewerI
 	return err == nil && ok
 }
 
-func apiPresenceStatus(status string) apiv1.RealtimePresenceStatus {
+func apiPresenceStatus(status string) apiv1.PresenceStatus {
 	switch status {
 	case core.PresenceStatusOffline:
-		return apiv1.RealtimePresenceStatus_REALTIME_PRESENCE_STATUS_OFFLINE
+		return apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE
 	case core.PresenceStatusOnline:
-		return apiv1.RealtimePresenceStatus_REALTIME_PRESENCE_STATUS_ONLINE
+		return apiv1.PresenceStatus_PRESENCE_STATUS_ONLINE
 	case core.PresenceStatusAway:
-		return apiv1.RealtimePresenceStatus_REALTIME_PRESENCE_STATUS_AWAY
+		return apiv1.PresenceStatus_PRESENCE_STATUS_AWAY
 	case core.PresenceStatusDoNotDisturb:
-		return apiv1.RealtimePresenceStatus_REALTIME_PRESENCE_STATUS_DO_NOT_DISTURB
+		return apiv1.PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB
 	default:
-		return apiv1.RealtimePresenceStatus_REALTIME_PRESENCE_STATUS_UNSPECIFIED
+		return apiv1.PresenceStatus_PRESENCE_STATUS_UNSPECIFIED
 	}
 }
 
@@ -618,13 +618,13 @@ func apiNotificationLevel(level corev1.NotificationLevel) apiv1.NotificationLeve
 	}
 }
 
-func apiRealtimeTimeFormat(format corev1.TimeFormat) apiv1.RealtimeTimeFormat {
+func apiRealtimeTimeFormat(format corev1.TimeFormat) apiv1.TimeFormat {
 	switch format {
 	case corev1.TimeFormat_TIME_FORMAT_12H:
-		return apiv1.RealtimeTimeFormat_REALTIME_TIME_FORMAT_12H
+		return apiv1.TimeFormat_TIME_FORMAT_12_HOUR
 	case corev1.TimeFormat_TIME_FORMAT_24H:
-		return apiv1.RealtimeTimeFormat_REALTIME_TIME_FORMAT_24H
+		return apiv1.TimeFormat_TIME_FORMAT_24_HOUR
 	default:
-		return apiv1.RealtimeTimeFormat_REALTIME_TIME_FORMAT_UNSPECIFIED
+		return apiv1.TimeFormat_TIME_FORMAT_AUTO
 	}
 }

@@ -14,29 +14,6 @@ Shared message and enum definitions used by the ConnectRPC service pages.
 
 
 
-<a id="chatto-api-v1-PageInfo"></a>
-
-### PageInfo
-
-Offset-based page metadata returned by list RPCs.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `total_count` | `int64` | Total matching item count before pagination. |
-| `has_more` | `bool` | True when another page exists after this response. |
-
-<a id="chatto-api-v1-PageRequest"></a>
-
-### PageRequest
-
-Offset-based page request for list RPCs whose result order is stable enough
-for simple list browsing.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `limit` | `int32` | Maximum number of items to return. Each RPC defines its default; the common maximum for public API list pages is 100. |
-| `offset` | `int32` | Zero-based number of matching items to skip. |
-
 <a id="chatto-api-v1-CustomUserStatus"></a>
 
 ### CustomUserStatus
@@ -48,24 +25,6 @@ Custom status shown on a user profile, separate from presence.
 | `emoji` | `string` | Short emoji marker displayed with the status. |
 | `text` | `string` | User-written status text. |
 | `expires_at` | `google.protobuf.Timestamp` | Optional time after which clients should stop showing the status. |
-
-<a id="chatto-api-v1-DirectoryMember"></a>
-
-### DirectoryMember
-
-Public user/member profile used by directory and mention surfaces.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Stable user ID. |
-| `login` | `string` | Login identifier. |
-| `display_name` | `string` | Display name shown in Chatto. |
-| `deleted` | `bool` | Whether this row represents a deleted account tombstone. |
-| `avatar_url` | `optional string` | Optional avatar URL. |
-| `presence_status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Current live presence status. |
-| `custom_status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Custom profile status, when set. |
-| `roles` | `repeated string` | Explicit server roles assigned to the user. Server member listings include the virtual `everyone` role for parity with Chatto's permission model. |
-| `created_at` | `google.protobuf.Timestamp` | Account creation time when known. |
 
 <a id="chatto-api-v1-UserAvatarOptions"></a>
 
@@ -87,11 +46,7 @@ Lightweight public user data plus live profile state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `id` | `string` | Stable user ID. |
-| `login` | `string` | Login name. |
-| `display_name` | `string` | Display name, when set. |
-| `deleted` | `bool` | True when the user account has been deleted. |
-| `avatar_url` | `optional string` | Avatar image URL, when available. |
+| `user` | [`UserSummary`](#chatto-api-v1-UserSummary) | Public identity fields. |
 | `presence_status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Current live presence status. |
 | `custom_status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Custom profile status, when set. |
 
@@ -360,6 +315,41 @@ Filter for owner/auditor event-log inspection.
 | `actor_id` | `string` | Actor user ID. |
 | `created_at_from` | `google.protobuf.Timestamp` | Inclusive lower creation timestamp bound. |
 | `created_at_to` | `google.protobuf.Timestamp` | Inclusive upper creation timestamp bound. |
+
+<a id="chatto-api-v1-PageInfo"></a>
+
+### PageInfo
+
+Offset-based page metadata returned by list RPCs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `total_count` | `int64` | Total matching item count before pagination. |
+| `has_more` | `bool` | True when another page exists after this response. |
+
+<a id="chatto-api-v1-PageRequest"></a>
+
+### PageRequest
+
+Offset-based page request for list RPCs whose result order is stable enough
+for simple list browsing.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `limit` | `int32` | Maximum number of items to return. Each RPC defines its default; the common maximum for public API list pages is 100. |
+| `offset` | `int32` | Zero-based number of matching items to skip. |
+
+<a id="chatto-api-v1-DirectoryMember"></a>
+
+### DirectoryMember
+
+Public user/member profile used by directory and mention surfaces.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `profile` | [`UserPresenceSummary`](#chatto-api-v1-UserPresenceSummary) | Public profile and live presence fields. |
+| `roles` | `repeated string` | Explicit server roles assigned to the user. Server member listings include the virtual `everyone` role for parity with Chatto's permission model. |
+| `created_at` | `google.protobuf.Timestamp` | Account creation time when known. |
 
 <a id="chatto-api-v1-Room"></a>
 

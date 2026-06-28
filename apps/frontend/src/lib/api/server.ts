@@ -32,7 +32,7 @@ export async function getPublicServerInfo(baseUrl: string): Promise<PublicServer
     directRegistrationEnabled: response.registrationOpen,
     welcomeMessage: response.welcomeMessage || null,
     description: response.description || null,
-    iconUrl: response.iconUrl || null,
+    iconUrl: response.logoUrl || null,
     bannerUrl: response.bannerUrl || null,
     authProviders: response.authProviders.map((provider) => ({
       id: provider.id,

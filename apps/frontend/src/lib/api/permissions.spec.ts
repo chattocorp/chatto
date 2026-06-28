@@ -66,7 +66,7 @@ describe('createPermissionAPI', () => {
     const result = await api.getRolePermissionTierMatrix({ roomId: 'R1', groupId: null });
 
     expect(mocks.getRolePermissionTierMatrix).toHaveBeenCalledWith(
-      { roomId: 'R1', groupId: '' },
+      { scope: { kind: PermissionScopeKind.ROOM, id: 'R1' } },
       { headers: { Authorization: 'Bearer token' } }
     );
     expect(result).toEqual({

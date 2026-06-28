@@ -9,9 +9,9 @@ import { Message, proto3 } from "@bufbuild/protobuf";
 /**
  * Request to store a PushSubscription returned by the browser Push API.
  *
- * @generated from message chatto.api.v1.SubscribeRequest
+ * @generated from message chatto.api.v1.SubscribePushRequest
  */
-export class SubscribeRequest extends Message<SubscribeRequest> {
+export class SubscribePushRequest extends Message<SubscribePushRequest> {
   /**
    * Push service endpoint URL.
    *
@@ -40,13 +40,13 @@ export class SubscribeRequest extends Message<SubscribeRequest> {
    */
   userAgent?: string;
 
-  constructor(data?: PartialMessage<SubscribeRequest>) {
+  constructor(data?: PartialMessage<SubscribePushRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.SubscribeRequest";
+  static readonly typeName = "chatto.api.v1.SubscribePushRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "endpoint", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "p256dh", kind: "scalar", T: 9 /* ScalarType.STRING */ },
@@ -54,29 +54,29 @@ export class SubscribeRequest extends Message<SubscribeRequest> {
     { no: 4, name: "user_agent", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SubscribeRequest {
-    return new SubscribeRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SubscribePushRequest {
+    return new SubscribePushRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SubscribeRequest {
-    return new SubscribeRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SubscribePushRequest {
+    return new SubscribePushRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SubscribeRequest {
-    return new SubscribeRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SubscribePushRequest {
+    return new SubscribePushRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: SubscribeRequest | PlainMessage<SubscribeRequest> | undefined, b: SubscribeRequest | PlainMessage<SubscribeRequest> | undefined): boolean {
-    return proto3.util.equals(SubscribeRequest, a, b);
+  static equals(a: SubscribePushRequest | PlainMessage<SubscribePushRequest> | undefined, b: SubscribePushRequest | PlainMessage<SubscribePushRequest> | undefined): boolean {
+    return proto3.util.equals(SubscribePushRequest, a, b);
   }
 }
 
 /**
  * Response from storing a browser push subscription.
  *
- * @generated from message chatto.api.v1.SubscribeResponse
+ * @generated from message chatto.api.v1.SubscribePushResponse
  */
-export class SubscribeResponse extends Message<SubscribeResponse> {
+export class SubscribePushResponse extends Message<SubscribePushResponse> {
   /**
    * True when the subscription was stored.
    *
@@ -84,40 +84,40 @@ export class SubscribeResponse extends Message<SubscribeResponse> {
    */
   subscribed = false;
 
-  constructor(data?: PartialMessage<SubscribeResponse>) {
+  constructor(data?: PartialMessage<SubscribePushResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.SubscribeResponse";
+  static readonly typeName = "chatto.api.v1.SubscribePushResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "subscribed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SubscribeResponse {
-    return new SubscribeResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SubscribePushResponse {
+    return new SubscribePushResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SubscribeResponse {
-    return new SubscribeResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SubscribePushResponse {
+    return new SubscribePushResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SubscribeResponse {
-    return new SubscribeResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SubscribePushResponse {
+    return new SubscribePushResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: SubscribeResponse | PlainMessage<SubscribeResponse> | undefined, b: SubscribeResponse | PlainMessage<SubscribeResponse> | undefined): boolean {
-    return proto3.util.equals(SubscribeResponse, a, b);
+  static equals(a: SubscribePushResponse | PlainMessage<SubscribePushResponse> | undefined, b: SubscribePushResponse | PlainMessage<SubscribePushResponse> | undefined): boolean {
+    return proto3.util.equals(SubscribePushResponse, a, b);
   }
 }
 
 /**
  * Request to remove a browser push subscription.
  *
- * @generated from message chatto.api.v1.UnsubscribeRequest
+ * @generated from message chatto.api.v1.UnsubscribePushRequest
  */
-export class UnsubscribeRequest extends Message<UnsubscribeRequest> {
+export class UnsubscribePushRequest extends Message<UnsubscribePushRequest> {
   /**
    * Push service endpoint URL to remove.
    *
@@ -125,40 +125,40 @@ export class UnsubscribeRequest extends Message<UnsubscribeRequest> {
    */
   endpoint = "";
 
-  constructor(data?: PartialMessage<UnsubscribeRequest>) {
+  constructor(data?: PartialMessage<UnsubscribePushRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.UnsubscribeRequest";
+  static readonly typeName = "chatto.api.v1.UnsubscribePushRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "endpoint", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UnsubscribeRequest {
-    return new UnsubscribeRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UnsubscribePushRequest {
+    return new UnsubscribePushRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UnsubscribeRequest {
-    return new UnsubscribeRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UnsubscribePushRequest {
+    return new UnsubscribePushRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UnsubscribeRequest {
-    return new UnsubscribeRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UnsubscribePushRequest {
+    return new UnsubscribePushRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: UnsubscribeRequest | PlainMessage<UnsubscribeRequest> | undefined, b: UnsubscribeRequest | PlainMessage<UnsubscribeRequest> | undefined): boolean {
-    return proto3.util.equals(UnsubscribeRequest, a, b);
+  static equals(a: UnsubscribePushRequest | PlainMessage<UnsubscribePushRequest> | undefined, b: UnsubscribePushRequest | PlainMessage<UnsubscribePushRequest> | undefined): boolean {
+    return proto3.util.equals(UnsubscribePushRequest, a, b);
   }
 }
 
 /**
  * Response from removing a browser push subscription.
  *
- * @generated from message chatto.api.v1.UnsubscribeResponse
+ * @generated from message chatto.api.v1.UnsubscribePushResponse
  */
-export class UnsubscribeResponse extends Message<UnsubscribeResponse> {
+export class UnsubscribePushResponse extends Message<UnsubscribePushResponse> {
   /**
    * True when the request completed.
    *
@@ -166,31 +166,31 @@ export class UnsubscribeResponse extends Message<UnsubscribeResponse> {
    */
   unsubscribed = false;
 
-  constructor(data?: PartialMessage<UnsubscribeResponse>) {
+  constructor(data?: PartialMessage<UnsubscribePushResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.UnsubscribeResponse";
+  static readonly typeName = "chatto.api.v1.UnsubscribePushResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "unsubscribed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UnsubscribeResponse {
-    return new UnsubscribeResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UnsubscribePushResponse {
+    return new UnsubscribePushResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UnsubscribeResponse {
-    return new UnsubscribeResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UnsubscribePushResponse {
+    return new UnsubscribePushResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UnsubscribeResponse {
-    return new UnsubscribeResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UnsubscribePushResponse {
+    return new UnsubscribePushResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: UnsubscribeResponse | PlainMessage<UnsubscribeResponse> | undefined, b: UnsubscribeResponse | PlainMessage<UnsubscribeResponse> | undefined): boolean {
-    return proto3.util.equals(UnsubscribeResponse, a, b);
+  static equals(a: UnsubscribePushResponse | PlainMessage<UnsubscribePushResponse> | undefined, b: UnsubscribePushResponse | PlainMessage<UnsubscribePushResponse> | undefined): boolean {
+    return proto3.util.equals(UnsubscribePushResponse, a, b);
   }
 }
 

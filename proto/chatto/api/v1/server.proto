@@ -36,13 +36,13 @@ message GetServerResponse {
   // URL for the legacy authorization flow, when enabled.
   string authorize_url = 6;
   // Optional welcome message configured by the server administrator.
-  string welcome_message = 7;
+  optional string welcome_message = 7;
   // Optional server description configured by the server administrator.
-  string description = 8;
-  // Optional server icon URL suitable for branding the server in client UI.
-  string icon_url = 9;
+  optional string description = 8;
+  // Optional server logo URL suitable for branding the server in client UI.
+  optional string logo_url = 9;
   // Optional server banner URL suitable for larger server branding surfaces.
-  string banner_url = 10;
+  optional string banner_url = 10;
 }
 
 // Provides public server discovery metadata.

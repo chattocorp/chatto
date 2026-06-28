@@ -18,7 +18,7 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 
 ## RoomDirectoryService
 
-Reads room directory data and performs directory-adjacent commands.
+Reads room directory data.
 
 <a id="chatto-api-v1-RoomDirectoryService-ListRooms"></a>
 
@@ -113,39 +113,6 @@ Room visible to the current user.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room` | [`DirectoryRoom`](/reference/connectrpc-api/types/#chatto-api-v1-DirectoryRoom) | Resolved room and viewer state. |
-
-
-<a id="chatto-api-v1-RoomDirectoryService-JoinGroup"></a>
-
-### JoinGroup
-
-Joins every unarchived room in a group that the current user can join.
-Already-joined and non-joinable rooms are skipped.
-
-```http
-POST /api/connect/chatto.api.v1.RoomDirectoryService/JoinGroup
-```
-
-<a id="chatto-api-v1-JoinGroupRequest"></a>
-
-#### Input: JoinGroupRequest
-
-Request to join all joinable rooms in one room group.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `group_id` | `string` | Required. Room group whose rooms should be joined. |
-
-
-<a id="chatto-api-v1-JoinGroupResponse"></a>
-
-#### Result: JoinGroupResponse
-
-Result of joining all joinable rooms in one room group.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `joined_room_ids` | `repeated string` | Room IDs that transitioned from not joined to joined. |
 
 <a id="chatto-api-v1-RoomService"></a>
 
@@ -354,6 +321,39 @@ Result of joining a room.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room` | [`Room`](/reference/connectrpc-api/types/#chatto-api-v1-Room) | Joined room. |
+
+
+<a id="chatto-api-v1-RoomService-JoinRoomGroup"></a>
+
+### JoinRoomGroup
+
+Joins every unarchived room in a group that the current user can join.
+Already-joined and non-joinable rooms are skipped.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/JoinRoomGroup
+```
+
+<a id="chatto-api-v1-JoinRoomGroupRequest"></a>
+
+#### Input: JoinRoomGroupRequest
+
+Request to join all joinable rooms in one room group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group_id` | `string` | Required. Room group whose rooms should be joined. |
+
+
+<a id="chatto-api-v1-JoinRoomGroupResponse"></a>
+
+#### Result: JoinRoomGroupResponse
+
+Result of joining all joinable rooms in one room group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `joined_room_ids` | `repeated string` | Room IDs that transitioned from not joined to joined. |
 
 
 <a id="chatto-api-v1-RoomService-StartDM"></a>

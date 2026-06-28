@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ExplainPermissionsRequest, ExplainPermissionsResponse, GetRolePermissionMatrixRequest, GetRolePermissionMatrixResponse, GetRolePermissionTierMatrixRequest, GetRolePermissionTierMatrixResponse, GetUserPermissionMatrixRequest, GetUserPermissionMatrixResponse, RevokeRolePermissionGrantRequest, RevokeRolePermissionGrantResponse, SetRolePermissionRequest, SetRolePermissionResponse, SetUserPermissionRequest, SetUserPermissionResponse } from "./permissions_pb.js";
+import { ExplainPermissionsRequest, ExplainPermissionsResponse, GetRolePermissionMatrixRequest, GetRolePermissionMatrixResponse, GetRolePermissionTierMatrixRequest, GetRolePermissionTierMatrixResponse, GetUserPermissionMatrixRequest, GetUserPermissionMatrixResponse, SetRolePermissionRequest, SetRolePermissionResponse, SetUserPermissionRequest, SetUserPermissionResponse } from "./permissions_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -68,17 +68,6 @@ export const PermissionService = {
       name: "SetRolePermission",
       I: SetRolePermissionRequest,
       O: SetRolePermissionResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Removes only a server-scope allow grant from a role. Requires role.manage.
-     *
-     * @generated from rpc chatto.api.v1.PermissionService.RevokeRolePermissionGrant
-     */
-    revokeRolePermissionGrant: {
-      name: "RevokeRolePermissionGrant",
-      I: RevokeRolePermissionGrantRequest,
-      O: RevokeRolePermissionGrantResponse,
       kind: MethodKind.Unary,
     },
     /**

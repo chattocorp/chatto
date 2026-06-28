@@ -48,9 +48,6 @@ const (
 	// PermissionServiceSetRolePermissionProcedure is the fully-qualified name of the
 	// PermissionService's SetRolePermission RPC.
 	PermissionServiceSetRolePermissionProcedure = "/chatto.api.v1.PermissionService/SetRolePermission"
-	// PermissionServiceRevokeRolePermissionGrantProcedure is the fully-qualified name of the
-	// PermissionService's RevokeRolePermissionGrant RPC.
-	PermissionServiceRevokeRolePermissionGrantProcedure = "/chatto.api.v1.PermissionService/RevokeRolePermissionGrant"
 	// PermissionServiceSetUserPermissionProcedure is the fully-qualified name of the
 	// PermissionService's SetUserPermission RPC.
 	PermissionServiceSetUserPermissionProcedure = "/chatto.api.v1.PermissionService/SetUserPermission"
@@ -69,8 +66,6 @@ type PermissionServiceClient interface {
 	ExplainPermissions(context.Context, *connect.Request[v1.ExplainPermissionsRequest]) (*connect.Response[v1.ExplainPermissionsResponse], error)
 	// Sets one role permission decision. Requires role.manage or scoped room.manage for room scope.
 	SetRolePermission(context.Context, *connect.Request[v1.SetRolePermissionRequest]) (*connect.Response[v1.SetRolePermissionResponse], error)
-	// Removes only a server-scope allow grant from a role. Requires role.manage.
-	RevokeRolePermissionGrant(context.Context, *connect.Request[v1.RevokeRolePermissionGrantRequest]) (*connect.Response[v1.RevokeRolePermissionGrantResponse], error)
 	// Sets one user permission decision. Requires user.manage-permissions.
 	SetUserPermission(context.Context, *connect.Request[v1.SetUserPermissionRequest]) (*connect.Response[v1.SetUserPermissionResponse], error)
 }
@@ -116,12 +111,6 @@ func NewPermissionServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(permissionServiceMethods.ByName("SetRolePermission")),
 			connect.WithClientOptions(opts...),
 		),
-		revokeRolePermissionGrant: connect.NewClient[v1.RevokeRolePermissionGrantRequest, v1.RevokeRolePermissionGrantResponse](
-			httpClient,
-			baseURL+PermissionServiceRevokeRolePermissionGrantProcedure,
-			connect.WithSchema(permissionServiceMethods.ByName("RevokeRolePermissionGrant")),
-			connect.WithClientOptions(opts...),
-		),
 		setUserPermission: connect.NewClient[v1.SetUserPermissionRequest, v1.SetUserPermissionResponse](
 			httpClient,
 			baseURL+PermissionServiceSetUserPermissionProcedure,
@@ -138,7 +127,6 @@ type permissionServiceClient struct {
 	getUserPermissionMatrix     *connect.Client[v1.GetUserPermissionMatrixRequest, v1.GetUserPermissionMatrixResponse]
 	explainPermissions          *connect.Client[v1.ExplainPermissionsRequest, v1.ExplainPermissionsResponse]
 	setRolePermission           *connect.Client[v1.SetRolePermissionRequest, v1.SetRolePermissionResponse]
-	revokeRolePermissionGrant   *connect.Client[v1.RevokeRolePermissionGrantRequest, v1.RevokeRolePermissionGrantResponse]
 	setUserPermission           *connect.Client[v1.SetUserPermissionRequest, v1.SetUserPermissionResponse]
 }
 
@@ -167,11 +155,6 @@ func (c *permissionServiceClient) SetRolePermission(ctx context.Context, req *co
 	return c.setRolePermission.CallUnary(ctx, req)
 }
 
-// RevokeRolePermissionGrant calls chatto.api.v1.PermissionService.RevokeRolePermissionGrant.
-func (c *permissionServiceClient) RevokeRolePermissionGrant(ctx context.Context, req *connect.Request[v1.RevokeRolePermissionGrantRequest]) (*connect.Response[v1.RevokeRolePermissionGrantResponse], error) {
-	return c.revokeRolePermissionGrant.CallUnary(ctx, req)
-}
-
 // SetUserPermission calls chatto.api.v1.PermissionService.SetUserPermission.
 func (c *permissionServiceClient) SetUserPermission(ctx context.Context, req *connect.Request[v1.SetUserPermissionRequest]) (*connect.Response[v1.SetUserPermissionResponse], error) {
 	return c.setUserPermission.CallUnary(ctx, req)
@@ -190,8 +173,6 @@ type PermissionServiceHandler interface {
 	ExplainPermissions(context.Context, *connect.Request[v1.ExplainPermissionsRequest]) (*connect.Response[v1.ExplainPermissionsResponse], error)
 	// Sets one role permission decision. Requires role.manage or scoped room.manage for room scope.
 	SetRolePermission(context.Context, *connect.Request[v1.SetRolePermissionRequest]) (*connect.Response[v1.SetRolePermissionResponse], error)
-	// Removes only a server-scope allow grant from a role. Requires role.manage.
-	RevokeRolePermissionGrant(context.Context, *connect.Request[v1.RevokeRolePermissionGrantRequest]) (*connect.Response[v1.RevokeRolePermissionGrantResponse], error)
 	// Sets one user permission decision. Requires user.manage-permissions.
 	SetUserPermission(context.Context, *connect.Request[v1.SetUserPermissionRequest]) (*connect.Response[v1.SetUserPermissionResponse], error)
 }
@@ -233,12 +214,6 @@ func NewPermissionServiceHandler(svc PermissionServiceHandler, opts ...connect.H
 		connect.WithSchema(permissionServiceMethods.ByName("SetRolePermission")),
 		connect.WithHandlerOptions(opts...),
 	)
-	permissionServiceRevokeRolePermissionGrantHandler := connect.NewUnaryHandler(
-		PermissionServiceRevokeRolePermissionGrantProcedure,
-		svc.RevokeRolePermissionGrant,
-		connect.WithSchema(permissionServiceMethods.ByName("RevokeRolePermissionGrant")),
-		connect.WithHandlerOptions(opts...),
-	)
 	permissionServiceSetUserPermissionHandler := connect.NewUnaryHandler(
 		PermissionServiceSetUserPermissionProcedure,
 		svc.SetUserPermission,
@@ -257,8 +232,6 @@ func NewPermissionServiceHandler(svc PermissionServiceHandler, opts ...connect.H
 			permissionServiceExplainPermissionsHandler.ServeHTTP(w, r)
 		case PermissionServiceSetRolePermissionProcedure:
 			permissionServiceSetRolePermissionHandler.ServeHTTP(w, r)
-		case PermissionServiceRevokeRolePermissionGrantProcedure:
-			permissionServiceRevokeRolePermissionGrantHandler.ServeHTTP(w, r)
 		case PermissionServiceSetUserPermissionProcedure:
 			permissionServiceSetUserPermissionHandler.ServeHTTP(w, r)
 		default:
@@ -288,10 +261,6 @@ func (UnimplementedPermissionServiceHandler) ExplainPermissions(context.Context,
 
 func (UnimplementedPermissionServiceHandler) SetRolePermission(context.Context, *connect.Request[v1.SetRolePermissionRequest]) (*connect.Response[v1.SetRolePermissionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.PermissionService.SetRolePermission is not implemented"))
-}
-
-func (UnimplementedPermissionServiceHandler) RevokeRolePermissionGrant(context.Context, *connect.Request[v1.RevokeRolePermissionGrantRequest]) (*connect.Response[v1.RevokeRolePermissionGrantResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.PermissionService.RevokeRolePermissionGrant is not implemented"))
 }
 
 func (UnimplementedPermissionServiceHandler) SetUserPermission(context.Context, *connect.Request[v1.SetUserPermissionRequest]) (*connect.Response[v1.SetUserPermissionResponse], error) {

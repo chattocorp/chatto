@@ -3,6 +3,8 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "chatto/api/v1/notification_preferences.proto";
+import "chatto/api/v1/presence.proto";
+import "chatto/api/v1/viewer.proto";
 import "google/protobuf/timestamp.proto";
 
 // Client-to-server frame for Chatto's protobuf WebSocket realtime protocol.
@@ -264,21 +266,7 @@ message RealtimePresenceChangedEvent {
   // User whose presence changed.
   string user_id = 1;
   // Latest presence status.
-  RealtimePresenceStatus status = 2;
-}
-
-// Presence status delivered by the realtime stream.
-enum RealtimePresenceStatus {
-  // No presence status was specified.
-  REALTIME_PRESENCE_STATUS_UNSPECIFIED = 0;
-  // The user is offline.
-  REALTIME_PRESENCE_STATUS_OFFLINE = 1;
-  // The user is actively available.
-  REALTIME_PRESENCE_STATUS_ONLINE = 2;
-  // The user is connected but away or idle.
-  REALTIME_PRESENCE_STATUS_AWAY = 3;
-  // The user does not want notifications while this live status is active.
-  REALTIME_PRESENCE_STATUS_DO_NOT_DISTURB = 4;
+  PresenceStatus status = 2;
 }
 
 // Room lifecycle or membership signal.
@@ -396,17 +384,7 @@ message RealtimeServerUserPreferencesUpdatedEvent {
   // IANA timezone name, when the user has selected a fixed timezone.
   optional string timezone = 1;
   // Preferred time display format.
-  RealtimeTimeFormat time_format = 2;
-}
-
-// Time-display format used by realtime preference events.
-enum RealtimeTimeFormat {
-  // Use browser or locale default.
-  REALTIME_TIME_FORMAT_UNSPECIFIED = 0;
-  // 12-hour clock.
-  REALTIME_TIME_FORMAT_12H = 1;
-  // 24-hour clock.
-  REALTIME_TIME_FORMAT_24H = 2;
+  TimeFormat time_format = 2;
 }
 
 // Room-group layout signal.

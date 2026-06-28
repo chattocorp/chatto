@@ -23,7 +23,7 @@ const (
 )
 
 // Request to store a PushSubscription returned by the browser Push API.
-type SubscribeRequest struct {
+type SubscribePushRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Push service endpoint URL.
 	Endpoint string `protobuf:"bytes,1,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
@@ -37,20 +37,20 @@ type SubscribeRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SubscribeRequest) Reset() {
-	*x = SubscribeRequest{}
+func (x *SubscribePushRequest) Reset() {
+	*x = SubscribePushRequest{}
 	mi := &file_chatto_api_v1_push_notifications_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SubscribeRequest) String() string {
+func (x *SubscribePushRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SubscribeRequest) ProtoMessage() {}
+func (*SubscribePushRequest) ProtoMessage() {}
 
-func (x *SubscribeRequest) ProtoReflect() protoreflect.Message {
+func (x *SubscribePushRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_push_notifications_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -62,33 +62,33 @@ func (x *SubscribeRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SubscribeRequest.ProtoReflect.Descriptor instead.
-func (*SubscribeRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use SubscribePushRequest.ProtoReflect.Descriptor instead.
+func (*SubscribePushRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_push_notifications_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *SubscribeRequest) GetEndpoint() string {
+func (x *SubscribePushRequest) GetEndpoint() string {
 	if x != nil {
 		return x.Endpoint
 	}
 	return ""
 }
 
-func (x *SubscribeRequest) GetP256Dh() string {
+func (x *SubscribePushRequest) GetP256Dh() string {
 	if x != nil {
 		return x.P256Dh
 	}
 	return ""
 }
 
-func (x *SubscribeRequest) GetAuth() string {
+func (x *SubscribePushRequest) GetAuth() string {
 	if x != nil {
 		return x.Auth
 	}
 	return ""
 }
 
-func (x *SubscribeRequest) GetUserAgent() string {
+func (x *SubscribePushRequest) GetUserAgent() string {
 	if x != nil && x.UserAgent != nil {
 		return *x.UserAgent
 	}
@@ -96,7 +96,7 @@ func (x *SubscribeRequest) GetUserAgent() string {
 }
 
 // Response from storing a browser push subscription.
-type SubscribeResponse struct {
+type SubscribePushResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// True when the subscription was stored.
 	Subscribed    bool `protobuf:"varint,1,opt,name=subscribed,proto3" json:"subscribed,omitempty"`
@@ -104,20 +104,20 @@ type SubscribeResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SubscribeResponse) Reset() {
-	*x = SubscribeResponse{}
+func (x *SubscribePushResponse) Reset() {
+	*x = SubscribePushResponse{}
 	mi := &file_chatto_api_v1_push_notifications_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SubscribeResponse) String() string {
+func (x *SubscribePushResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SubscribeResponse) ProtoMessage() {}
+func (*SubscribePushResponse) ProtoMessage() {}
 
-func (x *SubscribeResponse) ProtoReflect() protoreflect.Message {
+func (x *SubscribePushResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_push_notifications_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -129,12 +129,12 @@ func (x *SubscribeResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SubscribeResponse.ProtoReflect.Descriptor instead.
-func (*SubscribeResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use SubscribePushResponse.ProtoReflect.Descriptor instead.
+func (*SubscribePushResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_push_notifications_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *SubscribeResponse) GetSubscribed() bool {
+func (x *SubscribePushResponse) GetSubscribed() bool {
 	if x != nil {
 		return x.Subscribed
 	}
@@ -142,7 +142,7 @@ func (x *SubscribeResponse) GetSubscribed() bool {
 }
 
 // Request to remove a browser push subscription.
-type UnsubscribeRequest struct {
+type UnsubscribePushRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Push service endpoint URL to remove.
 	Endpoint      string `protobuf:"bytes,1,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
@@ -150,20 +150,20 @@ type UnsubscribeRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *UnsubscribeRequest) Reset() {
-	*x = UnsubscribeRequest{}
+func (x *UnsubscribePushRequest) Reset() {
+	*x = UnsubscribePushRequest{}
 	mi := &file_chatto_api_v1_push_notifications_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *UnsubscribeRequest) String() string {
+func (x *UnsubscribePushRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*UnsubscribeRequest) ProtoMessage() {}
+func (*UnsubscribePushRequest) ProtoMessage() {}
 
-func (x *UnsubscribeRequest) ProtoReflect() protoreflect.Message {
+func (x *UnsubscribePushRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_push_notifications_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -175,12 +175,12 @@ func (x *UnsubscribeRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use UnsubscribeRequest.ProtoReflect.Descriptor instead.
-func (*UnsubscribeRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use UnsubscribePushRequest.ProtoReflect.Descriptor instead.
+func (*UnsubscribePushRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_push_notifications_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *UnsubscribeRequest) GetEndpoint() string {
+func (x *UnsubscribePushRequest) GetEndpoint() string {
 	if x != nil {
 		return x.Endpoint
 	}
@@ -188,7 +188,7 @@ func (x *UnsubscribeRequest) GetEndpoint() string {
 }
 
 // Response from removing a browser push subscription.
-type UnsubscribeResponse struct {
+type UnsubscribePushResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// True when the request completed.
 	Unsubscribed  bool `protobuf:"varint,1,opt,name=unsubscribed,proto3" json:"unsubscribed,omitempty"`
@@ -196,20 +196,20 @@ type UnsubscribeResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *UnsubscribeResponse) Reset() {
-	*x = UnsubscribeResponse{}
+func (x *UnsubscribePushResponse) Reset() {
+	*x = UnsubscribePushResponse{}
 	mi := &file_chatto_api_v1_push_notifications_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *UnsubscribeResponse) String() string {
+func (x *UnsubscribePushResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*UnsubscribeResponse) ProtoMessage() {}
+func (*UnsubscribePushResponse) ProtoMessage() {}
 
-func (x *UnsubscribeResponse) ProtoReflect() protoreflect.Message {
+func (x *UnsubscribePushResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_push_notifications_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -221,12 +221,12 @@ func (x *UnsubscribeResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use UnsubscribeResponse.ProtoReflect.Descriptor instead.
-func (*UnsubscribeResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use UnsubscribePushResponse.ProtoReflect.Descriptor instead.
+func (*UnsubscribePushResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_push_notifications_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *UnsubscribeResponse) GetUnsubscribed() bool {
+func (x *UnsubscribePushResponse) GetUnsubscribed() bool {
 	if x != nil {
 		return x.Unsubscribed
 	}
@@ -237,25 +237,25 @@ var File_chatto_api_v1_push_notifications_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_push_notifications_proto_rawDesc = "" +
 	"\n" +
-	"&chatto/api/v1/push_notifications.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"\xb5\x01\n" +
-	"\x10SubscribeRequest\x12$\n" +
+	"&chatto/api/v1/push_notifications.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"\xb9\x01\n" +
+	"\x14SubscribePushRequest\x12$\n" +
 	"\bendpoint\x18\x01 \x01(\tB\b\xbaH\x05r\x03\x18\x80 R\bendpoint\x12 \n" +
 	"\x06p256dh\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\x06p256dh\x12\x1c\n" +
 	"\x04auth\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x04auth\x12,\n" +
 	"\n" +
 	"user_agent\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04H\x00R\tuserAgent\x88\x01\x01B\r\n" +
-	"\v_user_agent\"3\n" +
-	"\x11SubscribeResponse\x12\x1e\n" +
+	"\v_user_agent\"7\n" +
+	"\x15SubscribePushResponse\x12\x1e\n" +
 	"\n" +
 	"subscribed\x18\x01 \x01(\bR\n" +
-	"subscribed\":\n" +
-	"\x12UnsubscribeRequest\x12$\n" +
-	"\bendpoint\x18\x01 \x01(\tB\b\xbaH\x05r\x03\x18\x80 R\bendpoint\"9\n" +
-	"\x13UnsubscribeResponse\x12\"\n" +
-	"\funsubscribed\x18\x01 \x01(\bR\funsubscribed2\xbf\x01\n" +
-	"\x17PushNotificationService\x12N\n" +
-	"\tSubscribe\x12\x1f.chatto.api.v1.SubscribeRequest\x1a .chatto.api.v1.SubscribeResponse\x12T\n" +
-	"\vUnsubscribe\x12!.chatto.api.v1.UnsubscribeRequest\x1a\".chatto.api.v1.UnsubscribeResponseB\xb2\x01\n" +
+	"subscribed\">\n" +
+	"\x16UnsubscribePushRequest\x12$\n" +
+	"\bendpoint\x18\x01 \x01(\tB\b\xbaH\x05r\x03\x18\x80 R\bendpoint\"=\n" +
+	"\x17UnsubscribePushResponse\x12\"\n" +
+	"\funsubscribed\x18\x01 \x01(\bR\funsubscribed2\xcf\x01\n" +
+	"\x17PushNotificationService\x12V\n" +
+	"\tSubscribe\x12#.chatto.api.v1.SubscribePushRequest\x1a$.chatto.api.v1.SubscribePushResponse\x12\\\n" +
+	"\vUnsubscribe\x12%.chatto.api.v1.UnsubscribePushRequest\x1a&.chatto.api.v1.UnsubscribePushResponseB\xb2\x01\n" +
 	"\x11com.chatto.api.v1B\x16PushNotificationsProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
@@ -272,16 +272,16 @@ func file_chatto_api_v1_push_notifications_proto_rawDescGZIP() []byte {
 
 var file_chatto_api_v1_push_notifications_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_chatto_api_v1_push_notifications_proto_goTypes = []any{
-	(*SubscribeRequest)(nil),    // 0: chatto.api.v1.SubscribeRequest
-	(*SubscribeResponse)(nil),   // 1: chatto.api.v1.SubscribeResponse
-	(*UnsubscribeRequest)(nil),  // 2: chatto.api.v1.UnsubscribeRequest
-	(*UnsubscribeResponse)(nil), // 3: chatto.api.v1.UnsubscribeResponse
+	(*SubscribePushRequest)(nil),    // 0: chatto.api.v1.SubscribePushRequest
+	(*SubscribePushResponse)(nil),   // 1: chatto.api.v1.SubscribePushResponse
+	(*UnsubscribePushRequest)(nil),  // 2: chatto.api.v1.UnsubscribePushRequest
+	(*UnsubscribePushResponse)(nil), // 3: chatto.api.v1.UnsubscribePushResponse
 }
 var file_chatto_api_v1_push_notifications_proto_depIdxs = []int32{
-	0, // 0: chatto.api.v1.PushNotificationService.Subscribe:input_type -> chatto.api.v1.SubscribeRequest
-	2, // 1: chatto.api.v1.PushNotificationService.Unsubscribe:input_type -> chatto.api.v1.UnsubscribeRequest
-	1, // 2: chatto.api.v1.PushNotificationService.Subscribe:output_type -> chatto.api.v1.SubscribeResponse
-	3, // 3: chatto.api.v1.PushNotificationService.Unsubscribe:output_type -> chatto.api.v1.UnsubscribeResponse
+	0, // 0: chatto.api.v1.PushNotificationService.Subscribe:input_type -> chatto.api.v1.SubscribePushRequest
+	2, // 1: chatto.api.v1.PushNotificationService.Unsubscribe:input_type -> chatto.api.v1.UnsubscribePushRequest
+	1, // 2: chatto.api.v1.PushNotificationService.Subscribe:output_type -> chatto.api.v1.SubscribePushResponse
+	3, // 3: chatto.api.v1.PushNotificationService.Unsubscribe:output_type -> chatto.api.v1.UnsubscribePushResponse
 	2, // [2:4] is the sub-list for method output_type
 	0, // [0:2] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name

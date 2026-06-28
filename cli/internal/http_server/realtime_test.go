@@ -124,7 +124,7 @@ func TestRealtimeMapperMapsOfflinePresence(t *testing.T) {
 	if presence == nil {
 		t.Fatalf("event = %T, want presence_changed", frame.GetEvent())
 	}
-	if presence.Status != apiv1.RealtimePresenceStatus_REALTIME_PRESENCE_STATUS_OFFLINE {
+	if presence.Status != apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE {
 		t.Fatalf("presence status = %v, want OFFLINE", presence.Status)
 	}
 }

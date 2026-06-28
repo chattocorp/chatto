@@ -73,15 +73,15 @@ type AdminRoomLayoutServiceClient interface {
 	// Lists the current room groups, rooms, and sidebar links for the admin
 	// layout editor.
 	ListAdminRoomLayout(context.Context, *connect.Request[v1.ListAdminRoomLayoutRequest]) (*connect.Response[v1.ListAdminRoomLayoutResponse], error)
-	// Creates a room group. The caller must be allowed to manage roles.
+	// Creates a room group. The caller must be allowed to manage rooms.
 	CreateRoomGroup(context.Context, *connect.Request[v1.CreateRoomGroupRequest]) (*connect.Response[v1.CreateRoomGroupResponse], error)
 	// Updates a room group's metadata. The caller must be allowed to manage
-	// roles.
+	// rooms.
 	UpdateRoomGroup(context.Context, *connect.Request[v1.UpdateRoomGroupRequest]) (*connect.Response[v1.UpdateRoomGroupResponse], error)
-	// Deletes an empty room group. The caller must be allowed to manage roles.
+	// Deletes an empty room group. The caller must be allowed to manage rooms.
 	DeleteRoomGroup(context.Context, *connect.Request[v1.DeleteRoomGroupRequest]) (*connect.Response[v1.DeleteRoomGroupResponse], error)
 	// Replaces the global room group order. The caller must be allowed to manage
-	// roles.
+	// rooms.
 	ReorderRoomGroups(context.Context, *connect.Request[v1.ReorderRoomGroupsRequest]) (*connect.Response[v1.ReorderRoomGroupsResponse], error)
 	// Moves a channel room to another room group. The caller must be allowed to
 	// manage rooms in both source and destination groups.
@@ -259,15 +259,15 @@ type AdminRoomLayoutServiceHandler interface {
 	// Lists the current room groups, rooms, and sidebar links for the admin
 	// layout editor.
 	ListAdminRoomLayout(context.Context, *connect.Request[v1.ListAdminRoomLayoutRequest]) (*connect.Response[v1.ListAdminRoomLayoutResponse], error)
-	// Creates a room group. The caller must be allowed to manage roles.
+	// Creates a room group. The caller must be allowed to manage rooms.
 	CreateRoomGroup(context.Context, *connect.Request[v1.CreateRoomGroupRequest]) (*connect.Response[v1.CreateRoomGroupResponse], error)
 	// Updates a room group's metadata. The caller must be allowed to manage
-	// roles.
+	// rooms.
 	UpdateRoomGroup(context.Context, *connect.Request[v1.UpdateRoomGroupRequest]) (*connect.Response[v1.UpdateRoomGroupResponse], error)
-	// Deletes an empty room group. The caller must be allowed to manage roles.
+	// Deletes an empty room group. The caller must be allowed to manage rooms.
 	DeleteRoomGroup(context.Context, *connect.Request[v1.DeleteRoomGroupRequest]) (*connect.Response[v1.DeleteRoomGroupResponse], error)
 	// Replaces the global room group order. The caller must be allowed to manage
-	// roles.
+	// rooms.
 	ReorderRoomGroups(context.Context, *connect.Request[v1.ReorderRoomGroupsRequest]) (*connect.Response[v1.ReorderRoomGroupsResponse], error)
 	// Moves a channel room to another room group. The caller must be allowed to
 	// manage rooms in both source and destination groups.

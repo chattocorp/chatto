@@ -54,10 +54,10 @@ initial server view.
 | `auth_providers` | repeated [`AuthProvider`](/reference/connectrpc-api/types/#chatto-api-v1-AuthProvider) | Configured login providers. |
 | `registration_open` | `bool` | Whether users can create accounts through the public UI. |
 | `authorize_url` | `string` | URL for the legacy authorization flow, when enabled. |
-| `welcome_message` | `string` | Optional welcome message configured by the server administrator. |
-| `description` | `string` | Optional server description configured by the server administrator. |
-| `icon_url` | `string` | Optional server icon URL suitable for branding the server in client UI. |
-| `banner_url` | `string` | Optional server banner URL suitable for larger server branding surfaces. |
+| `welcome_message` | `optional string` | Optional welcome message configured by the server administrator. |
+| `description` | `optional string` | Optional server description configured by the server administrator. |
+| `logo_url` | `optional string` | Optional server logo URL suitable for branding the server in client UI. |
+| `banner_url` | `optional string` | Optional server banner URL suitable for larger server branding surfaces. |
 
 <a id="chatto-api-v1-ServerStateService"></a>
 
@@ -363,7 +363,7 @@ Current admin room layout.
 
 ### CreateRoomGroup
 
-Creates a room group. The caller must be allowed to manage roles.
+Creates a room group. The caller must be allowed to manage rooms.
 
 ```http
 POST /api/connect/chatto.api.v1.AdminRoomLayoutService/CreateRoomGroup
@@ -397,7 +397,7 @@ Result of creating a room group.
 ### UpdateRoomGroup
 
 Updates a room group's metadata. The caller must be allowed to manage
-roles.
+rooms.
 
 ```http
 POST /api/connect/chatto.api.v1.AdminRoomLayoutService/UpdateRoomGroup
@@ -431,7 +431,7 @@ Result of updating a room group.
 
 ### DeleteRoomGroup
 
-Deletes an empty room group. The caller must be allowed to manage roles.
+Deletes an empty room group. The caller must be allowed to manage rooms.
 
 ```http
 POST /api/connect/chatto.api.v1.AdminRoomLayoutService/DeleteRoomGroup
@@ -464,7 +464,7 @@ Result of deleting a room group.
 ### ReorderRoomGroups
 
 Replaces the global room group order. The caller must be allowed to manage
-roles.
+rooms.
 
 ```http
 POST /api/connect/chatto.api.v1.AdminRoomLayoutService/ReorderRoomGroups
@@ -1135,8 +1135,7 @@ Request a role-permission tier matrix.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | Optional room scope. Mutually exclusive with group_id. |
-| `group_id` | `string` | Optional room-group scope. Mutually exclusive with room_id. |
+| `scope` | [`PermissionScope`](/reference/connectrpc-api/types/#chatto-api-v1-PermissionScope) | Target scope. Omit or use SERVER for server scope. |
 
 
 <a id="chatto-api-v1-GetRolePermissionTierMatrixResponse"></a>
@@ -1277,39 +1276,6 @@ Request to set one role permission state.
 #### Result: SetRolePermissionResponse
 
 Result of setting one role permission state.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `ok` | `bool` | True when the request completed. |
-
-
-<a id="chatto-api-v1-PermissionService-RevokeRolePermissionGrant"></a>
-
-### RevokeRolePermissionGrant
-
-Removes only a server-scope allow grant from a role. Requires role.manage.
-
-```http
-POST /api/connect/chatto.api.v1.PermissionService/RevokeRolePermissionGrant
-```
-
-<a id="chatto-api-v1-RevokeRolePermissionGrantRequest"></a>
-
-#### Input: RevokeRolePermissionGrantRequest
-
-Request to remove only one server-scope role permission grant.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `role_name` | `string` | Role name. |
-| `permission` | `string` | Permission identifier. |
-
-
-<a id="chatto-api-v1-RevokeRolePermissionGrantResponse"></a>
-
-#### Result: RevokeRolePermissionGrantResponse
-
-Result of removing one server-scope role permission grant.
 
 | Field | Type | Description |
 | --- | --- | --- |

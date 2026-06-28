@@ -91,8 +91,7 @@ export function createPermissionAPI(config: PermissionAPIConfig) {
     }): Promise<TierRoles | null> {
       const response = await client.getRolePermissionTierMatrix(
         {
-          roomId: input.roomId ?? '',
-          groupId: input.groupId ?? ''
+          scope: apiTierMatrixScope(input)
         },
         { headers: headers() }
       );
@@ -232,6 +231,19 @@ function apiScope(scope: PermissionScope): { kind: PermissionScopeKind; id: stri
   }
   if (scope.tier === 'room') {
     return { kind: PermissionScopeKind.ROOM, id: scope.roomId };
+  }
+  return { kind: PermissionScopeKind.SERVER, id: '' };
+}
+
+function apiTierMatrixScope(input: {
+  roomId?: string | null;
+  groupId?: string | null;
+}): { kind: PermissionScopeKind; id: string } {
+  if (input.roomId) {
+    return { kind: PermissionScopeKind.ROOM, id: input.roomId };
+  }
+  if (input.groupId) {
+    return { kind: PermissionScopeKind.GROUP, id: input.groupId };
   }
   return { kind: PermissionScopeKind.SERVER, id: '' };
 }

@@ -127,6 +127,18 @@ message JoinRoomResponse {
   Room room = 1;
 }
 
+// Request to join all joinable rooms in one room group.
+message JoinRoomGroupRequest {
+  // Required. Room group whose rooms should be joined.
+  string group_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of joining all joinable rooms in one room group.
+message JoinRoomGroupResponse {
+  // Room IDs that transitioned from not joined to joined.
+  repeated string joined_room_ids = 1;
+}
+
 // Request to start or fetch a direct-message room.
 message StartDMRequest {
   // Other participants to include in the direct-message room. The current user
@@ -257,6 +269,9 @@ service RoomService {
   rpc SetRoomUniversal(SetRoomUniversalRequest) returns (SetRoomUniversalResponse);
   // Joins the room as the current user when room permissions allow it.
   rpc JoinRoom(JoinRoomRequest) returns (JoinRoomResponse);
+  // Joins every unarchived room in a group that the current user can join.
+  // Already-joined and non-joinable rooms are skipped.
+  rpc JoinRoomGroup(JoinRoomGroupRequest) returns (JoinRoomGroupResponse);
   // Starts or fetches a direct-message room for the current user and the
   // requested participant set. The caller must be allowed to start DMs.
   rpc StartDM(StartDMRequest) returns (StartDMResponse);

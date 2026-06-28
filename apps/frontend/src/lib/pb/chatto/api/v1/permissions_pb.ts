@@ -383,18 +383,11 @@ export class TierRoles extends Message<TierRoles> {
  */
 export class GetRolePermissionTierMatrixRequest extends Message<GetRolePermissionTierMatrixRequest> {
   /**
-   * Optional room scope. Mutually exclusive with group_id.
+   * Target scope. Omit or use SERVER for server scope.
    *
-   * @generated from field: string room_id = 1;
+   * @generated from field: chatto.api.v1.PermissionScope scope = 1;
    */
-  roomId = "";
-
-  /**
-   * Optional room-group scope. Mutually exclusive with room_id.
-   *
-   * @generated from field: string group_id = 2;
-   */
-  groupId = "";
+  scope?: PermissionScope;
 
   constructor(data?: PartialMessage<GetRolePermissionTierMatrixRequest>) {
     super();
@@ -404,8 +397,7 @@ export class GetRolePermissionTierMatrixRequest extends Message<GetRolePermissio
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.GetRolePermissionTierMatrixRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "group_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: "scope", kind: "message", T: PermissionScope },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRolePermissionTierMatrixRequest {
@@ -1221,96 +1213,6 @@ export class SetRolePermissionResponse extends Message<SetRolePermissionResponse
 
   static equals(a: SetRolePermissionResponse | PlainMessage<SetRolePermissionResponse> | undefined, b: SetRolePermissionResponse | PlainMessage<SetRolePermissionResponse> | undefined): boolean {
     return proto3.util.equals(SetRolePermissionResponse, a, b);
-  }
-}
-
-/**
- * Request to remove only one server-scope role permission grant.
- *
- * @generated from message chatto.api.v1.RevokeRolePermissionGrantRequest
- */
-export class RevokeRolePermissionGrantRequest extends Message<RevokeRolePermissionGrantRequest> {
-  /**
-   * Role name.
-   *
-   * @generated from field: string role_name = 1;
-   */
-  roleName = "";
-
-  /**
-   * Permission identifier.
-   *
-   * @generated from field: string permission = 2;
-   */
-  permission = "";
-
-  constructor(data?: PartialMessage<RevokeRolePermissionGrantRequest>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.RevokeRolePermissionGrantRequest";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "role_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "permission", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RevokeRolePermissionGrantRequest {
-    return new RevokeRolePermissionGrantRequest().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RevokeRolePermissionGrantRequest {
-    return new RevokeRolePermissionGrantRequest().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RevokeRolePermissionGrantRequest {
-    return new RevokeRolePermissionGrantRequest().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RevokeRolePermissionGrantRequest | PlainMessage<RevokeRolePermissionGrantRequest> | undefined, b: RevokeRolePermissionGrantRequest | PlainMessage<RevokeRolePermissionGrantRequest> | undefined): boolean {
-    return proto3.util.equals(RevokeRolePermissionGrantRequest, a, b);
-  }
-}
-
-/**
- * Result of removing one server-scope role permission grant.
- *
- * @generated from message chatto.api.v1.RevokeRolePermissionGrantResponse
- */
-export class RevokeRolePermissionGrantResponse extends Message<RevokeRolePermissionGrantResponse> {
-  /**
-   * True when the request completed.
-   *
-   * @generated from field: bool ok = 1;
-   */
-  ok = false;
-
-  constructor(data?: PartialMessage<RevokeRolePermissionGrantResponse>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.RevokeRolePermissionGrantResponse";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "ok", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RevokeRolePermissionGrantResponse {
-    return new RevokeRolePermissionGrantResponse().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RevokeRolePermissionGrantResponse {
-    return new RevokeRolePermissionGrantResponse().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RevokeRolePermissionGrantResponse {
-    return new RevokeRolePermissionGrantResponse().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RevokeRolePermissionGrantResponse | PlainMessage<RevokeRolePermissionGrantResponse> | undefined, b: RevokeRolePermissionGrantResponse | PlainMessage<RevokeRolePermissionGrantResponse> | undefined): boolean {
-    return proto3.util.equals(RevokeRolePermissionGrantResponse, a, b);
   }
 }
 

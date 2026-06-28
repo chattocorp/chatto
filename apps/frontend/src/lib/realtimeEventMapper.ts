@@ -7,10 +7,10 @@ import { RoomEventKind } from '$lib/render/eventKinds';
 import { NotificationLevel as ApiNotificationLevel } from '$lib/pb/chatto/api/v1/notification_preferences_pb';
 import {
   RealtimeEventEnvelope,
-  RealtimeHeartbeat,
-  RealtimePresenceStatus,
-  RealtimeTimeFormat
+  RealtimeHeartbeat
 } from '$lib/pb/chatto/api/v1/realtime_pb';
+import { PresenceStatus as ApiPresenceStatus } from '$lib/pb/chatto/api/v1/presence_pb';
+import { TimeFormat as ApiTimeFormat } from '$lib/pb/chatto/api/v1/viewer_pb';
 import type { EventEnvelope } from '$lib/eventBus.svelte';
 
 function timestampToISO(value: { toDate(): Date } | undefined): string {
@@ -36,28 +36,29 @@ function notificationLevel(level: ApiNotificationLevel): GqlNotificationLevel {
   }
 }
 
-function presenceStatus(status: RealtimePresenceStatus): GqlPresenceStatus {
+function presenceStatus(status: ApiPresenceStatus): GqlPresenceStatus {
   switch (status) {
-    case RealtimePresenceStatus.AWAY:
+    case ApiPresenceStatus.AWAY:
       return GqlPresenceStatus.Away;
-    case RealtimePresenceStatus.DO_NOT_DISTURB:
+    case ApiPresenceStatus.DO_NOT_DISTURB:
       return GqlPresenceStatus.DoNotDisturb;
-    case RealtimePresenceStatus.ONLINE:
+    case ApiPresenceStatus.ONLINE:
       return GqlPresenceStatus.Online;
-    case RealtimePresenceStatus.OFFLINE:
-    case RealtimePresenceStatus.UNSPECIFIED:
+    case ApiPresenceStatus.OFFLINE:
+    case ApiPresenceStatus.UNSPECIFIED:
     default:
       return GqlPresenceStatus.Offline;
   }
 }
 
-function timeFormat(format: RealtimeTimeFormat): TimeFormat {
+function timeFormat(format: ApiTimeFormat): TimeFormat {
   switch (format) {
-    case RealtimeTimeFormat.REALTIME_TIME_FORMAT_12H:
+    case ApiTimeFormat.TIME_FORMAT_12_HOUR:
       return TimeFormat.TwelveHour;
-    case RealtimeTimeFormat.REALTIME_TIME_FORMAT_24H:
+    case ApiTimeFormat.TIME_FORMAT_24_HOUR:
       return TimeFormat.TwentyFourHour;
-    case RealtimeTimeFormat.REALTIME_TIME_FORMAT_UNSPECIFIED:
+    case ApiTimeFormat.TIME_FORMAT_AUTO:
+    case ApiTimeFormat.TIME_FORMAT_UNSPECIFIED:
     default:
       return TimeFormat.Auto;
   }

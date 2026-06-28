@@ -66,20 +66,6 @@ func (s *roomDirectoryService) GetRoom(ctx context.Context, req *connect.Request
 	return connect.NewResponse(&apiv1.GetRoomResponse{Room: apiDirectoryRoom(room)}), nil
 }
 
-func (s *roomDirectoryService) JoinGroup(ctx context.Context, req *connect.Request[apiv1.JoinGroupRequest]) (*connect.Response[apiv1.JoinGroupResponse], error) {
-	caller, err := requireCaller(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	joined, err := s.api.core.RoomDirectoryReads().JoinGroup(ctx, caller.UserID, req.Msg.GetGroupId())
-	if err != nil {
-		return nil, connectError(err)
-	}
-
-	return connect.NewResponse(&apiv1.JoinGroupResponse{JoinedRoomIds: joined}), nil
-}
-
 func apiDirectoryRoom(room *core.DirectoryRoom) *apiv1.DirectoryRoom {
 	if room == nil {
 		return nil
