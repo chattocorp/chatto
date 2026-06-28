@@ -87,6 +87,38 @@ Result of creating an account from a pending provider identity.
 | `token` | `string` | Bearer token for the new session. |
 
 
+<a id="chatto-api-v1-ExternalIdentityFlowService-ConfirmExternalIdentityLink"></a>
+
+### ConfirmExternalIdentityLink
+
+Links a provider identity using a pending link-flow capability token.
+
+```http
+POST /api/connect/chatto.api.v1.ExternalIdentityFlowService/ConfirmExternalIdentityLink
+```
+
+<a id="chatto-api-v1-ConfirmExternalIdentityLinkRequest"></a>
+
+#### Input: ConfirmExternalIdentityLinkRequest
+
+Request to confirm a pending provider link using the flow capability token.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `token` | `string` | Raw pending link token from the provider callback redirect. |
+
+
+<a id="chatto-api-v1-ConfirmExternalIdentityLinkResponse"></a>
+
+#### Result: ConfirmExternalIdentityLinkResponse
+
+Result of confirming a provider identity link.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `linked_identity` | [`LinkedExternalIdentity`](#chatto-api-v1-LinkedExternalIdentity) | Linked identity metadata. |
+
+
 <a id="chatto-api-v1-ExternalIdentityFlowService-CancelExternalIdentityFlow"></a>
 
 ### CancelExternalIdentityFlow
@@ -152,6 +184,39 @@ Result of listing configured and linked external identities.
 | --- | --- | --- |
 | `providers` | repeated [`ExternalIdentityProvider`](#chatto-api-v1-ExternalIdentityProvider) | Configured providers the user may link. |
 | `linked_identities` | repeated [`LinkedExternalIdentity`](#chatto-api-v1-LinkedExternalIdentity) | Provider identities already linked to the authenticated user. |
+
+
+<a id="chatto-api-v1-ExternalIdentityService-StartExternalIdentityLink"></a>
+
+### StartExternalIdentityLink
+
+Creates a short-lived browser handoff URL for linking a provider identity.
+
+```http
+POST /api/connect/chatto.api.v1.ExternalIdentityService/StartExternalIdentityLink
+```
+
+<a id="chatto-api-v1-StartExternalIdentityLinkRequest"></a>
+
+#### Input: StartExternalIdentityLinkRequest
+
+Request to start linking a configured provider to the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `provider_id` | `string` | Provider ID to link. |
+| `redirect_path` | `string` | Internal path to return to after confirmation. |
+
+
+<a id="chatto-api-v1-StartExternalIdentityLinkResponse"></a>
+
+#### Result: StartExternalIdentityLinkResponse
+
+Result of preparing an external identity link flow.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `start_url` | `string` | Browser URL that starts provider authorization on the target server origin. |
 
 
 <a id="chatto-api-v1-ExternalIdentityService-LinkExternalIdentity"></a>
@@ -1544,7 +1609,8 @@ Public metadata for a configured external login provider.
 | `type` | `string` | Provider type, such as "oidc", "github", or "discord". |
 | `label` | `string` | Human-readable label. |
 | `login_url` | `string` | URL that starts login for this provider. |
-| `link_url` | `string` | URL that starts authenticated account linking for this provider. |
+| `link_url` | `string` | URL that starts authenticated account linking for this provider. Clients should use StartExternalIdentityLink instead of navigating here directly. |
+| `linked` | `bool` | True when this provider is already linked to the authenticated user. |
 
 
 
@@ -1580,6 +1646,7 @@ exposed; clients only need user-facing provider/profile hints.
 | `login_hint` | `string` | Suggested Chatto username derived from provider profile hints. |
 | `display_name_hint` | `string` | Suggested display name derived from provider profile hints. |
 | `bound_user_id` | `string` | Chatto user ID this link flow is bound to. Empty for create flows. |
+| `redirect_path` | `string` | Internal path the client should return to after confirmation. |
 
 
 

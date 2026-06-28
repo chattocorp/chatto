@@ -4,155 +4,187 @@ import { createExternalIdentityAPI, createExternalIdentityFlowAPI } from './exte
 import { ExternalIdentityFlowKind } from '$lib/pb/chatto/api/v1/external_identities_pb';
 
 const mocks = vi.hoisted(() => ({
-	createClient: vi.fn(),
-	createConnectTransport: vi.fn(),
-	handleAuthenticationRequired: vi.fn(),
-	getPendingExternalIdentity: vi.fn(),
-	createExternalIdentityAccount: vi.fn(),
-	cancelExternalIdentityFlow: vi.fn(),
-	listExternalIdentities: vi.fn(),
-	linkExternalIdentity: vi.fn()
+  createClient: vi.fn(),
+  createConnectTransport: vi.fn(),
+  handleAuthenticationRequired: vi.fn(),
+  getPendingExternalIdentity: vi.fn(),
+  createExternalIdentityAccount: vi.fn(),
+  cancelExternalIdentityFlow: vi.fn(),
+  confirmExternalIdentityLink: vi.fn(),
+  listExternalIdentities: vi.fn(),
+  startExternalIdentityLink: vi.fn(),
+  linkExternalIdentity: vi.fn()
 }));
 
 vi.mock('@connectrpc/connect', async (importOriginal) => {
-	const actual = await importOriginal<typeof import('@connectrpc/connect')>();
-	return {
-		...actual,
-		createClient: mocks.createClient
-	};
+  const actual = await importOriginal<typeof import('@connectrpc/connect')>();
+  return {
+    ...actual,
+    createClient: mocks.createClient
+  };
 });
 
 vi.mock('@connectrpc/connect-web', () => ({
-	createConnectTransport: mocks.createConnectTransport
+  createConnectTransport: mocks.createConnectTransport
 }));
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
-	serverRegistry: {
-		handleAuthenticationRequired: mocks.handleAuthenticationRequired
-	}
+  serverRegistry: {
+    handleAuthenticationRequired: mocks.handleAuthenticationRequired
+  }
 }));
 
 describe('createExternalIdentityFlowAPI', () => {
-	beforeEach(() => {
-		mocks.createClient.mockReset();
-		mocks.createConnectTransport.mockReset();
-		mocks.getPendingExternalIdentity.mockReset();
-		mocks.createExternalIdentityAccount.mockReset();
-		mocks.cancelExternalIdentityFlow.mockReset();
-		mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-		mocks.createClient.mockReturnValue({
-			getPendingExternalIdentity: mocks.getPendingExternalIdentity,
-			createExternalIdentityAccount: mocks.createExternalIdentityAccount,
-			cancelExternalIdentityFlow: mocks.cancelExternalIdentityFlow
-		});
-	});
+  beforeEach(() => {
+    mocks.createClient.mockReset();
+    mocks.createConnectTransport.mockReset();
+    mocks.getPendingExternalIdentity.mockReset();
+    mocks.createExternalIdentityAccount.mockReset();
+    mocks.cancelExternalIdentityFlow.mockReset();
+    mocks.confirmExternalIdentityLink.mockReset();
+    mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
+    mocks.createClient.mockReturnValue({
+      getPendingExternalIdentity: mocks.getPendingExternalIdentity,
+      createExternalIdentityAccount: mocks.createExternalIdentityAccount,
+      cancelExternalIdentityFlow: mocks.cancelExternalIdentityFlow,
+      confirmExternalIdentityLink: mocks.confirmExternalIdentityLink
+    });
+  });
 
-	it('maps pending external identity metadata', async () => {
-		mocks.getPendingExternalIdentity.mockResolvedValue({
-			pending: {
-				kind: ExternalIdentityFlowKind.CREATE_ACCOUNT,
-				providerId: 'github-main',
-				providerType: 'github',
-				providerLabel: 'GitHub',
-				verifiedEmail: '',
-				loginHint: 'octo',
-				displayNameHint: 'Octo',
-				boundUserId: ''
-			}
-		});
+  it('maps pending external identity metadata', async () => {
+    mocks.getPendingExternalIdentity.mockResolvedValue({
+      pending: {
+        kind: ExternalIdentityFlowKind.CREATE_ACCOUNT,
+        providerId: 'github-main',
+        providerType: 'github',
+        providerLabel: 'GitHub',
+        verifiedEmail: '',
+        loginHint: 'octo',
+        displayNameHint: 'Octo',
+        boundUserId: '',
+        redirectPath: '/chat/-/settings/account'
+      }
+    });
 
-		const api = createExternalIdentityFlowAPI();
-		await expect(api.getPending('token-1')).resolves.toEqual({
-			kind: ExternalIdentityFlowKind.CREATE_ACCOUNT,
-			providerId: 'github-main',
-			providerType: 'github',
-			providerLabel: 'GitHub',
-			verifiedEmail: null,
-			loginHint: 'octo',
-			displayNameHint: 'Octo',
-			boundUserId: null
-		});
-		expect(mocks.getPendingExternalIdentity).toHaveBeenCalledWith({ token: 'token-1' });
-	});
+    const api = createExternalIdentityFlowAPI();
+    await expect(api.getPending('token-1')).resolves.toEqual({
+      kind: ExternalIdentityFlowKind.CREATE_ACCOUNT,
+      providerId: 'github-main',
+      providerType: 'github',
+      providerLabel: 'GitHub',
+      verifiedEmail: null,
+      loginHint: 'octo',
+      displayNameHint: 'Octo',
+      boundUserId: null,
+      redirectPath: '/chat/-/settings/account'
+    });
+    expect(mocks.getPendingExternalIdentity).toHaveBeenCalledWith({ token: 'token-1' });
+  });
 });
 
 describe('createExternalIdentityAPI', () => {
-	beforeEach(() => {
-		mocks.createClient.mockReset();
-		mocks.createConnectTransport.mockReset();
-		mocks.handleAuthenticationRequired.mockReset();
-		mocks.listExternalIdentities.mockReset();
-		mocks.linkExternalIdentity.mockReset();
-		mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-		mocks.createClient.mockReturnValue({
-			listExternalIdentities: mocks.listExternalIdentities,
-			linkExternalIdentity: mocks.linkExternalIdentity
-		});
-	});
+  beforeEach(() => {
+    mocks.createClient.mockReset();
+    mocks.createConnectTransport.mockReset();
+    mocks.handleAuthenticationRequired.mockReset();
+    mocks.listExternalIdentities.mockReset();
+    mocks.startExternalIdentityLink.mockReset();
+    mocks.linkExternalIdentity.mockReset();
+    mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
+    mocks.createClient.mockReturnValue({
+      listExternalIdentities: mocks.listExternalIdentities,
+      startExternalIdentityLink: mocks.startExternalIdentityLink,
+      linkExternalIdentity: mocks.linkExternalIdentity
+    });
+  });
 
-	it('lists providers and resolves provider links against the server origin', async () => {
-		mocks.listExternalIdentities.mockResolvedValue({
-			providers: [
-				{
-					id: 'github-main',
-					type: 'github',
-					label: 'GitHub',
-					loginUrl: '/auth/providers/github-main',
-					linkUrl: '/auth/providers/github-main?intent=link'
-				}
-			],
-			linkedIdentities: [
-				{
-					providerId: 'github-main',
-					providerType: 'github',
-					providerLabel: 'GitHub',
-					subjectHash: 'abc123'
-				}
-			]
-		});
+  it('lists providers and resolves provider links against the server origin', async () => {
+    mocks.listExternalIdentities.mockResolvedValue({
+      providers: [
+        {
+          id: 'github-main',
+          type: 'github',
+          label: 'GitHub',
+          loginUrl: '/auth/providers/github-main',
+          linkUrl: '/auth/providers/github-main?intent=link',
+          linked: true
+        }
+      ],
+      linkedIdentities: [
+        {
+          providerId: 'github-main',
+          providerType: 'github',
+          providerLabel: 'GitHub',
+          subjectHash: 'abc123'
+        }
+      ]
+    });
 
-		const api = createExternalIdentityAPI({
-			serverId: 'remote',
-			baseUrl: 'https://remote.example.test/api/connect',
-			bearerToken: 'token'
-		});
+    const api = createExternalIdentityAPI({
+      serverId: 'remote',
+      baseUrl: 'https://remote.example.test/api/connect',
+      bearerToken: 'token'
+    });
 
-		await expect(api.list()).resolves.toEqual({
-			providers: [
-				{
-					id: 'github-main',
-					type: 'github',
-					label: 'GitHub',
-					loginUrl: 'https://remote.example.test/auth/providers/github-main',
-					linkUrl: 'https://remote.example.test/auth/providers/github-main?intent=link'
-				}
-			],
-			linkedIdentities: [
-				{
-					providerId: 'github-main',
-					providerType: 'github',
-					providerLabel: 'GitHub',
-					subjectHash: 'abc123'
-				}
-			]
-		});
-		expect(mocks.listExternalIdentities).toHaveBeenCalledWith(
-			{},
-			{ headers: { Authorization: 'Bearer token' } }
-		);
-	});
+    await expect(api.list()).resolves.toEqual({
+      providers: [
+        {
+          id: 'github-main',
+          type: 'github',
+          label: 'GitHub',
+          loginUrl: 'https://remote.example.test/auth/providers/github-main',
+          linkUrl: 'https://remote.example.test/auth/providers/github-main?intent=link',
+          linked: true
+        }
+      ],
+      linkedIdentities: [
+        {
+          providerId: 'github-main',
+          providerType: 'github',
+          providerLabel: 'GitHub',
+          subjectHash: 'abc123'
+        }
+      ]
+    });
+    expect(mocks.listExternalIdentities).toHaveBeenCalledWith(
+      {},
+      { headers: { Authorization: 'Bearer token' } }
+    );
+  });
 
-	it('notifies the registry when authenticated calls are rejected', async () => {
-		const err = new ConnectError('nope', Code.Unauthenticated);
-		mocks.listExternalIdentities.mockRejectedValue(err);
+  it('notifies the registry when authenticated calls are rejected', async () => {
+    const err = new ConnectError('nope', Code.Unauthenticated);
+    mocks.listExternalIdentities.mockRejectedValue(err);
 
-		const api = createExternalIdentityAPI({
-			serverId: 'remote',
-			baseUrl: 'https://remote.example.test/api/connect',
-			bearerToken: 'stale'
-		});
+    const api = createExternalIdentityAPI({
+      serverId: 'remote',
+      baseUrl: 'https://remote.example.test/api/connect',
+      bearerToken: 'stale'
+    });
 
-		await expect(api.list()).rejects.toBe(err);
-		expect(mocks.handleAuthenticationRequired).toHaveBeenCalledWith('remote');
-	});
+    await expect(api.list()).rejects.toBe(err);
+    expect(mocks.handleAuthenticationRequired).toHaveBeenCalledWith('remote');
+  });
+
+  it('starts provider linking with bearer auth', async () => {
+    mocks.startExternalIdentityLink.mockResolvedValue({
+      startUrl: 'https://remote.example.test/auth/providers/github-main?intent=link&link_start=tok'
+    });
+
+    const api = createExternalIdentityAPI({
+      serverId: 'remote',
+      baseUrl: 'https://remote.example.test/api/connect',
+      bearerToken: 'token'
+    });
+
+    await expect(
+      api.startLink({ providerId: 'github-main', redirectPath: '/chat/-/settings/account' })
+    ).resolves.toBe(
+      'https://remote.example.test/auth/providers/github-main?intent=link&link_start=tok'
+    );
+    expect(mocks.startExternalIdentityLink).toHaveBeenCalledWith(
+      { providerId: 'github-main', redirectPath: '/chat/-/settings/account' },
+      { headers: { Authorization: 'Bearer token' } }
+    );
+  });
 });

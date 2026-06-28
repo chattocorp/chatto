@@ -27,6 +27,7 @@ export type PendingSSOIdentity = {
   loginHint: string;
   displayNameHint: string;
   boundUserId: string | null;
+  redirectPath: string | null;
 };
 
 export type LinkedSSOIdentity = {
@@ -42,6 +43,7 @@ export type SSOProvider = {
   label: string;
   loginUrl: string;
   linkUrl: string;
+  linked: boolean;
 };
 
 export function createExternalIdentityFlowAPI(baseUrl = '/api/connect') {
@@ -71,6 +73,11 @@ export function createExternalIdentityFlowAPI(baseUrl = '/api/connect') {
 
     async cancel(token: string): Promise<void> {
       await client.cancelExternalIdentityFlow({ token });
+    },
+
+    async confirmLink(token: string): Promise<LinkedSSOIdentity | null> {
+      const response = await client.confirmExternalIdentityLink({ token });
+      return linkedIdentity(response.linkedIdentity);
     }
   };
 }
@@ -104,6 +111,15 @@ export function createExternalIdentityAPI(config: ExternalIdentityAPIConfig) {
       }
     },
 
+    async startLink(input: { providerId: string; redirectPath: string }): Promise<string> {
+      try {
+        const response = await client.startExternalIdentityLink(input, { headers: headers() });
+        return response.startUrl;
+      } catch (err) {
+        return handleAuthError(err);
+      }
+    },
+
     async link(token: string): Promise<LinkedSSOIdentity | null> {
       try {
         const response = await client.linkExternalIdentity({ token }, { headers: headers() });
@@ -127,7 +143,8 @@ function pendingIdentity(pending?: PendingExternalIdentity): PendingSSOIdentity 
     verifiedEmail: pending.verifiedEmail || null,
     loginHint: pending.loginHint,
     displayNameHint: pending.displayNameHint,
-    boundUserId: pending.boundUserId || null
+    boundUserId: pending.boundUserId || null,
+    redirectPath: pending.redirectPath || null
   };
 }
 
@@ -137,7 +154,8 @@ function ssoProvider(provider: ExternalIdentityProvider, baseUrl: string): SSOPr
     type: provider.type,
     label: provider.label,
     loginUrl: resolveServerUrl(provider.loginUrl, baseUrl),
-    linkUrl: resolveServerUrl(provider.linkUrl, baseUrl)
+    linkUrl: resolveServerUrl(provider.linkUrl, baseUrl),
+    linked: provider.linked
   };
 }
 

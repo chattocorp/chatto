@@ -152,22 +152,43 @@ func (s *HTTPServer) setupOIDCRoutes() {
 func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authProviderRuntime) {
 	session := sessions.Default(c)
 	intent := c.Query("intent")
+	linkStartRedirect := ""
 	if intent == "link" {
-		req := s.injectUserIntoContext(c)
-		user := graphauth.ForContext(req.Context())
-		if user == nil {
-			c.Redirect(http.StatusTemporaryRedirect, "/login?error=authentication_required")
-			return
+		if linkStartToken := c.Query("link_start"); linkStartToken != "" {
+			start, err := s.core.ConsumePendingExternalIdentityLinkStart(c.Request.Context(), linkStartToken)
+			if err != nil || start.ProviderID != providerRuntime.config.ID {
+				if err != nil {
+					log.Warn("Provider link start token failed", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type, "error", err)
+				} else {
+					log.Warn("Provider link start token provider mismatch", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type)
+				}
+				c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
+				return
+			}
+			session.Set(providerSessionKey(providerRuntime.config.ID, "intent"), "link")
+			session.Set(providerSessionKey(providerRuntime.config.ID, "link_user_id"), start.BoundUserID)
+			if isValidInternalRedirect(start.RedirectPath) {
+				linkStartRedirect = start.RedirectPath
+			}
+		} else {
+			req := s.injectUserIntoContext(c)
+			user := graphauth.ForContext(req.Context())
+			if user == nil {
+				c.Redirect(http.StatusTemporaryRedirect, "/login?error=authentication_required")
+				return
+			}
+			session.Set(providerSessionKey(providerRuntime.config.ID, "intent"), "link")
+			session.Set(providerSessionKey(providerRuntime.config.ID, "link_user_id"), user.Id)
 		}
-		session.Set(providerSessionKey(providerRuntime.config.ID, "intent"), "link")
-		session.Set(providerSessionKey(providerRuntime.config.ID, "link_user_id"), user.Id)
 	} else {
 		session.Set(providerSessionKey(providerRuntime.config.ID, "intent"), "login")
 		session.Delete(providerSessionKey(providerRuntime.config.ID, "link_user_id"))
 	}
 
 	// Store redirect URL if provided
-	if redirect := c.Query("redirect"); redirect != "" {
+	if linkStartRedirect != "" {
+		session.Set("oauth_redirect", linkStartRedirect)
+	} else if redirect := c.Query("redirect"); redirect != "" {
 		if isValidInternalRedirect(redirect) {
 			session.Set("oauth_redirect", redirect)
 		}
@@ -514,10 +535,19 @@ func (r *authProviderRuntime) resolveGothIdentity(c *gin.Context, session sessio
 	return resolvedProviderIdentity{
 		issuer:          r.config.ID,
 		subject:         gothUser.UserID,
+		verifiedEmail:   verifiedEmailHint(gothUser.Email),
 		avatarURL:       gothUser.AvatarURL,
 		loginHint:       loginHintFromParts(gothUser.NickName, gothUser.Email, gothUser.Name),
 		displayNameHint: displayNameHintFromParts(gothUser.Name, gothUser.NickName, gothUser.Email),
 	}, nil
+}
+
+func verifiedEmailHint(email string) string {
+	email = strings.ToLower(strings.TrimSpace(email))
+	if email == "" {
+		return ""
+	}
+	return email
 }
 
 func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session sessions.Session, providerConfig config.AuthProviderConfig, identity resolvedProviderIdentity, intent, linkUserID string) {

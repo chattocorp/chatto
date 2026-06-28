@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CancelExternalIdentityFlowRequest, CancelExternalIdentityFlowResponse, CreateExternalIdentityAccountRequest, CreateExternalIdentityAccountResponse, GetPendingExternalIdentityRequest, GetPendingExternalIdentityResponse, LinkExternalIdentityRequest, LinkExternalIdentityResponse, ListExternalIdentitiesRequest, ListExternalIdentitiesResponse } from "./external_identities_pb.js";
+import { CancelExternalIdentityFlowRequest, CancelExternalIdentityFlowResponse, ConfirmExternalIdentityLinkRequest, ConfirmExternalIdentityLinkResponse, CreateExternalIdentityAccountRequest, CreateExternalIdentityAccountResponse, GetPendingExternalIdentityRequest, GetPendingExternalIdentityResponse, LinkExternalIdentityRequest, LinkExternalIdentityResponse, ListExternalIdentitiesRequest, ListExternalIdentitiesResponse, StartExternalIdentityLinkRequest, StartExternalIdentityLinkResponse } from "./external_identities_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -37,6 +37,17 @@ export const ExternalIdentityFlowService = {
       kind: MethodKind.Unary,
     },
     /**
+     * Links a provider identity using a pending link-flow capability token.
+     *
+     * @generated from rpc chatto.api.v1.ExternalIdentityFlowService.ConfirmExternalIdentityLink
+     */
+    confirmExternalIdentityLink: {
+      name: "ConfirmExternalIdentityLink",
+      I: ConfirmExternalIdentityLinkRequest,
+      O: ConfirmExternalIdentityLinkResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
      * Cancels a pending provider identity flow.
      *
      * @generated from rpc chatto.api.v1.ExternalIdentityFlowService.CancelExternalIdentityFlow
@@ -67,6 +78,17 @@ export const ExternalIdentityService = {
       name: "ListExternalIdentities",
       I: ListExternalIdentitiesRequest,
       O: ListExternalIdentitiesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Creates a short-lived browser handoff URL for linking a provider identity.
+     *
+     * @generated from rpc chatto.api.v1.ExternalIdentityService.StartExternalIdentityLink
+     */
+    startExternalIdentityLink: {
+      name: "StartExternalIdentityLink",
+      I: StartExternalIdentityLinkRequest,
+      O: StartExternalIdentityLinkResponse,
       kind: MethodKind.Unary,
     },
     /**

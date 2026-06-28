@@ -36,15 +36,12 @@
     .refine((val) => !val.includes('..'), m['common.validation.username_no_consecutive_periods']());
 
   const loginError = $derived(login ? validate(loginSchema, login) : undefined);
-  const isCreate = $derived(
-    pending?.kind === ExternalIdentityFlowKind.CREATE_ACCOUNT
-  );
+  const isCreate = $derived(pending?.kind === ExternalIdentityFlowKind.CREATE_ACCOUNT);
   const isLink = $derived(pending?.kind === ExternalIdentityFlowKind.LINK_ACCOUNT);
   const canSubmit = $derived(
-    pending &&
-      !submitting &&
-      ((isCreate && login.trim() && !loginError) || isLink)
+    pending && !submitting && ((isCreate && login.trim() && !loginError) || isLink)
   );
+  const returnPath = $derived(pending?.redirectPath || resolve('/'));
 
   $effect(() => {
     const token = data.token;
@@ -104,7 +101,7 @@
         login: result.login
       });
       await invalidateAll();
-      goto(resolve('/'), { replaceState: true });
+      goto(returnPath, { replaceState: true });
     } catch (err) {
       actionError = err instanceof Error ? err.message : m['auth.sso.create_failed']();
     } finally {
@@ -118,13 +115,24 @@
     actionError = '';
     try {
       const client = connection();
-      const api = createExternalIdentityAPI({
-        serverId: client.serverId,
-        baseUrl: client.connectBaseUrl,
-        bearerToken: client.bearerToken
-      });
-      await api.link(data.token);
-      goto(resolve('/chat'), { replaceState: true });
+      if (client.bearerToken) {
+        try {
+          const api = createExternalIdentityAPI({
+            serverId: client.serverId,
+            baseUrl: client.connectBaseUrl,
+            bearerToken: client.bearerToken
+          });
+          await api.link(data.token);
+        } catch (err) {
+          if (!(err instanceof ConnectError && err.code === Code.Unauthenticated)) {
+            throw err;
+          }
+          await flowAPI.confirmLink(data.token);
+        }
+      } else {
+        await flowAPI.confirmLink(data.token);
+      }
+      goto(returnPath, { replaceState: true });
     } catch (err) {
       actionError = err instanceof Error ? err.message : m['auth.sso.link_failed']();
     } finally {
@@ -140,7 +148,7 @@
         // Cancelling is best-effort; leaving the page is enough for the user.
       }
     }
-    goto(resolve('/login'), { replaceState: true });
+    goto(pending?.redirectPath || resolve('/login'), { replaceState: true });
   }
 </script>
 

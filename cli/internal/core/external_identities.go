@@ -18,6 +18,7 @@ const (
 
 	externalIdentityCreateTokenKeyPrefix = "external_identity_create."
 	externalIdentityLinkTokenKeyPrefix   = "external_identity_link."
+	externalIdentityLinkStartKeyPrefix   = "external_identity_link_start."
 
 	ExternalIdentityFlowKindCreate = "create"
 	ExternalIdentityFlowKindLink   = "link"
@@ -36,6 +37,13 @@ type ExternalIdentity struct {
 	Issuer       string
 	Subject      string
 	SubjectHash  string
+}
+
+type PendingExternalIdentityLinkStart struct {
+	ProviderID   string    `json:"provider_id"`
+	RedirectPath string    `json:"redirect_path,omitempty"`
+	BoundUserID  string    `json:"bound_user_id"`
+	CreatedAt    time.Time `json:"created_at"`
 }
 
 type PendingExternalIdentityFlow struct {
@@ -61,6 +69,55 @@ func (c *ChattoCore) externalIdentityCreateTokenKey(token string) string {
 
 func (c *ChattoCore) externalIdentityLinkTokenKey(token string) string {
 	return c.runtimeTokenKey(externalIdentityLinkTokenKeyPrefix, token)
+}
+
+func (c *ChattoCore) externalIdentityLinkStartKey(token string) string {
+	return c.runtimeTokenKey(externalIdentityLinkStartKeyPrefix, token)
+}
+
+func (c *ChattoCore) CreatePendingExternalIdentityLinkStart(ctx context.Context, providerID, redirectPath, userID string) (string, error) {
+	start := PendingExternalIdentityLinkStart{
+		ProviderID:   strings.TrimSpace(providerID),
+		RedirectPath: strings.TrimSpace(redirectPath),
+		BoundUserID:  strings.TrimSpace(userID),
+		CreatedAt:    time.Now(),
+	}
+	if start.ProviderID == "" || start.BoundUserID == "" {
+		return "", ErrInvalidArgument
+	}
+	token := NewExternalIdentityLinkStartToken()
+	data, err := json.Marshal(start)
+	if err != nil {
+		return "", fmt.Errorf("marshal external identity link start: %w", err)
+	}
+	_, err = c.storage.runtimeStateKV.Create(ctx, c.externalIdentityLinkStartKey(token), data, jetstream.KeyTTL(ExternalIdentityFlowTTL))
+	if err != nil {
+		return "", fmt.Errorf("store external identity link start: %w", err)
+	}
+	return token, nil
+}
+
+func (c *ChattoCore) ConsumePendingExternalIdentityLinkStart(ctx context.Context, token string) (*PendingExternalIdentityLinkStart, error) {
+	key := c.externalIdentityLinkStartKey(token)
+	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+			return nil, ErrExternalIdentityFlowNotFound
+		}
+		return nil, fmt.Errorf("get external identity link start: %w", err)
+	}
+	var start PendingExternalIdentityLinkStart
+	if err := json.Unmarshal(entry.Value(), &start); err != nil {
+		return nil, fmt.Errorf("unmarshal external identity link start: %w", err)
+	}
+	if time.Since(start.CreatedAt) > ExternalIdentityFlowTTL {
+		_ = c.storage.runtimeStateKV.Delete(ctx, key)
+		return nil, ErrExternalIdentityFlowExpired
+	}
+	if err := c.storage.runtimeStateKV.Delete(ctx, key); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) && !errors.Is(err, jetstream.ErrKeyDeleted) {
+		return nil, fmt.Errorf("delete external identity link start: %w", err)
+	}
+	return &start, nil
 }
 
 func (c *ChattoCore) CreatePendingExternalIdentityCreateFlow(ctx context.Context, flow PendingExternalIdentityFlow) (string, error) {
@@ -225,6 +282,25 @@ func (c *ChattoCore) LinkPendingExternalIdentity(ctx context.Context, userID str
 		return ExternalIdentity{}, ErrExternalIdentityFlowUserBound
 	}
 	if err := c.LinkExternalIdentity(ctx, flow.ProviderID, flow.ProviderType, flow.Issuer, flow.Subject, userID); err != nil {
+		return ExternalIdentity{}, err
+	}
+	return ExternalIdentity{
+		ProviderID:   flow.ProviderID,
+		ProviderType: flow.ProviderType,
+		Issuer:       flow.Issuer,
+		Subject:      flow.Subject,
+		SubjectHash:  flow.SubjectHash,
+	}, nil
+}
+
+func (c *ChattoCore) ConfirmPendingExternalIdentityLink(ctx context.Context, flow *PendingExternalIdentityFlow) (ExternalIdentity, error) {
+	if flow == nil || flow.Kind != ExternalIdentityFlowKindLink {
+		return ExternalIdentity{}, ErrExternalIdentityFlowWrongKind
+	}
+	if flow.BoundUserID == "" {
+		return ExternalIdentity{}, ErrExternalIdentityFlowUserBound
+	}
+	if err := c.LinkExternalIdentity(ctx, flow.ProviderID, flow.ProviderType, flow.Issuer, flow.Subject, flow.BoundUserID); err != nil {
 		return ExternalIdentity{}, err
 	}
 	return ExternalIdentity{

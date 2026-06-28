@@ -3,6 +3,7 @@ package connectapi
 import (
 	"context"
 	"net/url"
+	"strings"
 
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/config"
@@ -58,6 +59,23 @@ func (s *externalIdentityFlowService) CreateExternalIdentityAccount(ctx context.
 	}), nil
 }
 
+func (s *externalIdentityFlowService) ConfirmExternalIdentityLink(ctx context.Context, req *connect.Request[apiv1.ConfirmExternalIdentityLinkRequest]) (*connect.Response[apiv1.ConfirmExternalIdentityLinkResponse], error) {
+	flow, err := s.api.core.GetPendingExternalIdentityFlow(ctx, req.Msg.GetToken())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	identity, err := s.api.core.ConfirmPendingExternalIdentityLink(ctx, flow)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	if err := s.api.core.DeletePendingExternalIdentityFlow(ctx, req.Msg.GetToken()); err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.ConfirmExternalIdentityLinkResponse{
+		LinkedIdentity: apiLinkedExternalIdentity(identity, s.api.providerLabels()),
+	}), nil
+}
+
 func (s *externalIdentityFlowService) CancelExternalIdentityFlow(ctx context.Context, req *connect.Request[apiv1.CancelExternalIdentityFlowRequest]) (*connect.Response[apiv1.CancelExternalIdentityFlowResponse], error) {
 	if err := s.api.core.DeletePendingExternalIdentityFlow(ctx, req.Msg.GetToken()); err != nil {
 		return nil, connectError(err)
@@ -75,8 +93,30 @@ func (s *externalIdentityService) ListExternalIdentities(ctx context.Context, _ 
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.ListExternalIdentitiesResponse{
-		Providers:        apiExternalIdentityProviders(s.api.config.Auth.PublicProviders()),
+		Providers:        apiExternalIdentityProviders(s.api.config.Auth.PublicProviders(), identities),
 		LinkedIdentities: apiLinkedExternalIdentities(identities, s.api.providerLabels()),
+	}), nil
+}
+
+func (s *externalIdentityService) StartExternalIdentityLink(ctx context.Context, req *connect.Request[apiv1.StartExternalIdentityLinkRequest]) (*connect.Response[apiv1.StartExternalIdentityLinkResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	provider, ok := s.api.authProvider(req.Msg.GetProviderId())
+	if !ok {
+		return nil, connectError(core.ErrNotFound)
+	}
+	redirectPath := req.Msg.GetRedirectPath()
+	if redirectPath != "" && !isValidInternalRedirectPath(redirectPath) {
+		return nil, connectError(core.ErrInvalidArgument)
+	}
+	token, err := s.api.core.CreatePendingExternalIdentityLinkStart(ctx, provider.ID, redirectPath, caller.UserID)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.StartExternalIdentityLinkResponse{
+		StartUrl: s.api.externalIdentityLinkStartURL(ctx, provider.ID, token),
 	}), nil
 }
 
@@ -121,10 +161,11 @@ func apiPendingExternalIdentity(flow *core.PendingExternalIdentityFlow) *apiv1.P
 		LoginHint:       flow.LoginHint,
 		DisplayNameHint: flow.DisplayNameHint,
 		BoundUserId:     flow.BoundUserID,
+		RedirectPath:    flow.RedirectPath,
 	}
 }
 
-func apiExternalIdentityProviders(providers []config.AuthProviderConfig) []*apiv1.ExternalIdentityProvider {
+func apiExternalIdentityProviders(providers []config.AuthProviderConfig, identities []core.ExternalIdentity) []*apiv1.ExternalIdentityProvider {
 	result := make([]*apiv1.ExternalIdentityProvider, 0, len(providers))
 	for _, provider := range providers {
 		escapedID := url.PathEscape(provider.ID)
@@ -134,6 +175,7 @@ func apiExternalIdentityProviders(providers []config.AuthProviderConfig) []*apiv
 			Label:    provider.LabelOrDefault(),
 			LoginUrl: "/auth/providers/" + escapedID,
 			LinkUrl:  "/auth/providers/" + escapedID + "?intent=link",
+			Linked:   providerLinked(provider, identities),
 		})
 	}
 	return result
@@ -166,4 +208,43 @@ func (a *API) providerLabels() map[string]string {
 		labels[provider.ID] = provider.LabelOrDefault()
 	}
 	return labels
+}
+
+func (a *API) authProvider(providerID string) (config.AuthProviderConfig, bool) {
+	for _, provider := range a.config.Auth.Providers {
+		if provider.ID == providerID {
+			return provider, true
+		}
+	}
+	return config.AuthProviderConfig{}, false
+}
+
+func (a *API) externalIdentityLinkStartURL(ctx context.Context, providerID, token string) string {
+	baseURL := strings.TrimRight(requestBaseURLFromContext(ctx), "/")
+	if baseURL == "" {
+		baseURL = strings.TrimRight(a.config.Webserver.URL, "/")
+	}
+	path := "/auth/providers/" + url.PathEscape(providerID)
+	values := url.Values{}
+	values.Set("intent", "link")
+	values.Set("link_start", token)
+	return baseURL + path + "?" + values.Encode()
+}
+
+func providerLinked(provider config.AuthProviderConfig, identities []core.ExternalIdentity) bool {
+	for _, identity := range identities {
+		if identity.ProviderID == provider.ID {
+			return true
+		}
+		if provider.Type == config.AuthProviderTypeOpenIDConnect &&
+			identity.ProviderType == config.AuthProviderTypeOpenIDConnect &&
+			identity.Issuer == provider.IssuerURL {
+			return true
+		}
+	}
+	return false
+}
+
+func isValidInternalRedirectPath(redirect string) bool {
+	return strings.HasPrefix(redirect, "/") && !strings.HasPrefix(redirect, "//") && !strings.Contains(redirect, "\\")
 }

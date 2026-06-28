@@ -86,8 +86,11 @@ type ExternalIdentityProvider struct {
 	Label string `protobuf:"bytes,3,opt,name=label,proto3" json:"label,omitempty"`
 	// URL that starts login for this provider.
 	LoginUrl string `protobuf:"bytes,4,opt,name=login_url,json=loginUrl,proto3" json:"login_url,omitempty"`
-	// URL that starts authenticated account linking for this provider.
-	LinkUrl       string `protobuf:"bytes,5,opt,name=link_url,json=linkUrl,proto3" json:"link_url,omitempty"`
+	// URL that starts authenticated account linking for this provider. Clients
+	// should use StartExternalIdentityLink instead of navigating here directly.
+	LinkUrl string `protobuf:"bytes,5,opt,name=link_url,json=linkUrl,proto3" json:"link_url,omitempty"`
+	// True when this provider is already linked to the authenticated user.
+	Linked        bool `protobuf:"varint,6,opt,name=linked,proto3" json:"linked,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -157,6 +160,13 @@ func (x *ExternalIdentityProvider) GetLinkUrl() string {
 	return ""
 }
 
+func (x *ExternalIdentityProvider) GetLinked() bool {
+	if x != nil {
+		return x.Linked
+	}
+	return false
+}
+
 // Metadata about a pending external identity flow. The provider subject is not
 // exposed; clients only need user-facing provider/profile hints.
 type PendingExternalIdentity struct {
@@ -176,7 +186,9 @@ type PendingExternalIdentity struct {
 	// Suggested display name derived from provider profile hints.
 	DisplayNameHint string `protobuf:"bytes,7,opt,name=display_name_hint,json=displayNameHint,proto3" json:"display_name_hint,omitempty"`
 	// Chatto user ID this link flow is bound to. Empty for create flows.
-	BoundUserId   string `protobuf:"bytes,8,opt,name=bound_user_id,json=boundUserId,proto3" json:"bound_user_id,omitempty"`
+	BoundUserId string `protobuf:"bytes,8,opt,name=bound_user_id,json=boundUserId,proto3" json:"bound_user_id,omitempty"`
+	// Internal path the client should return to after confirmation.
+	RedirectPath  string `protobuf:"bytes,9,opt,name=redirect_path,json=redirectPath,proto3" json:"redirect_path,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -263,6 +275,13 @@ func (x *PendingExternalIdentity) GetDisplayNameHint() string {
 func (x *PendingExternalIdentity) GetBoundUserId() string {
 	if x != nil {
 		return x.BoundUserId
+	}
+	return ""
+}
+
+func (x *PendingExternalIdentity) GetRedirectPath() string {
+	if x != nil {
+		return x.RedirectPath
 	}
 	return ""
 }
@@ -643,6 +662,98 @@ func (x *CancelExternalIdentityFlowResponse) GetCancelled() bool {
 	return false
 }
 
+// Request to confirm a pending provider link using the flow capability token.
+type ConfirmExternalIdentityLinkRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Raw pending link token from the provider callback redirect.
+	Token         string `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfirmExternalIdentityLinkRequest) Reset() {
+	*x = ConfirmExternalIdentityLinkRequest{}
+	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfirmExternalIdentityLinkRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfirmExternalIdentityLinkRequest) ProtoMessage() {}
+
+func (x *ConfirmExternalIdentityLinkRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfirmExternalIdentityLinkRequest.ProtoReflect.Descriptor instead.
+func (*ConfirmExternalIdentityLinkRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_external_identities_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ConfirmExternalIdentityLinkRequest) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+// Result of confirming a provider identity link.
+type ConfirmExternalIdentityLinkResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Linked identity metadata.
+	LinkedIdentity *LinkedExternalIdentity `protobuf:"bytes,1,opt,name=linked_identity,json=linkedIdentity,proto3" json:"linked_identity,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ConfirmExternalIdentityLinkResponse) Reset() {
+	*x = ConfirmExternalIdentityLinkResponse{}
+	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfirmExternalIdentityLinkResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfirmExternalIdentityLinkResponse) ProtoMessage() {}
+
+func (x *ConfirmExternalIdentityLinkResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfirmExternalIdentityLinkResponse.ProtoReflect.Descriptor instead.
+func (*ConfirmExternalIdentityLinkResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_external_identities_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ConfirmExternalIdentityLinkResponse) GetLinkedIdentity() *LinkedExternalIdentity {
+	if x != nil {
+		return x.LinkedIdentity
+	}
+	return nil
+}
+
 // Request to list configured and linked external identities for the current user.
 type ListExternalIdentitiesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -652,7 +763,7 @@ type ListExternalIdentitiesRequest struct {
 
 func (x *ListExternalIdentitiesRequest) Reset() {
 	*x = ListExternalIdentitiesRequest{}
-	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[9]
+	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -664,7 +775,7 @@ func (x *ListExternalIdentitiesRequest) String() string {
 func (*ListExternalIdentitiesRequest) ProtoMessage() {}
 
 func (x *ListExternalIdentitiesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[9]
+	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -677,7 +788,7 @@ func (x *ListExternalIdentitiesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListExternalIdentitiesRequest.ProtoReflect.Descriptor instead.
 func (*ListExternalIdentitiesRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_external_identities_proto_rawDescGZIP(), []int{9}
+	return file_chatto_api_v1_external_identities_proto_rawDescGZIP(), []int{11}
 }
 
 // Result of listing configured and linked external identities.
@@ -693,7 +804,7 @@ type ListExternalIdentitiesResponse struct {
 
 func (x *ListExternalIdentitiesResponse) Reset() {
 	*x = ListExternalIdentitiesResponse{}
-	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[10]
+	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -705,7 +816,7 @@ func (x *ListExternalIdentitiesResponse) String() string {
 func (*ListExternalIdentitiesResponse) ProtoMessage() {}
 
 func (x *ListExternalIdentitiesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[10]
+	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -718,7 +829,7 @@ func (x *ListExternalIdentitiesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListExternalIdentitiesResponse.ProtoReflect.Descriptor instead.
 func (*ListExternalIdentitiesResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_external_identities_proto_rawDescGZIP(), []int{10}
+	return file_chatto_api_v1_external_identities_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ListExternalIdentitiesResponse) GetProviders() []*ExternalIdentityProvider {
@@ -735,6 +846,107 @@ func (x *ListExternalIdentitiesResponse) GetLinkedIdentities() []*LinkedExternal
 	return nil
 }
 
+// Request to start linking a configured provider to the current user.
+type StartExternalIdentityLinkRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Provider ID to link.
+	ProviderId string `protobuf:"bytes,1,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	// Internal path to return to after confirmation.
+	RedirectPath  string `protobuf:"bytes,2,opt,name=redirect_path,json=redirectPath,proto3" json:"redirect_path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartExternalIdentityLinkRequest) Reset() {
+	*x = StartExternalIdentityLinkRequest{}
+	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartExternalIdentityLinkRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartExternalIdentityLinkRequest) ProtoMessage() {}
+
+func (x *StartExternalIdentityLinkRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartExternalIdentityLinkRequest.ProtoReflect.Descriptor instead.
+func (*StartExternalIdentityLinkRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_external_identities_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *StartExternalIdentityLinkRequest) GetProviderId() string {
+	if x != nil {
+		return x.ProviderId
+	}
+	return ""
+}
+
+func (x *StartExternalIdentityLinkRequest) GetRedirectPath() string {
+	if x != nil {
+		return x.RedirectPath
+	}
+	return ""
+}
+
+// Result of preparing an external identity link flow.
+type StartExternalIdentityLinkResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Browser URL that starts provider authorization on the target server origin.
+	StartUrl      string `protobuf:"bytes,1,opt,name=start_url,json=startUrl,proto3" json:"start_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartExternalIdentityLinkResponse) Reset() {
+	*x = StartExternalIdentityLinkResponse{}
+	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartExternalIdentityLinkResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartExternalIdentityLinkResponse) ProtoMessage() {}
+
+func (x *StartExternalIdentityLinkResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartExternalIdentityLinkResponse.ProtoReflect.Descriptor instead.
+func (*StartExternalIdentityLinkResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_external_identities_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *StartExternalIdentityLinkResponse) GetStartUrl() string {
+	if x != nil {
+		return x.StartUrl
+	}
+	return ""
+}
+
 // Request to link a pending provider identity to the authenticated user.
 type LinkExternalIdentityRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -746,7 +958,7 @@ type LinkExternalIdentityRequest struct {
 
 func (x *LinkExternalIdentityRequest) Reset() {
 	*x = LinkExternalIdentityRequest{}
-	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[11]
+	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -758,7 +970,7 @@ func (x *LinkExternalIdentityRequest) String() string {
 func (*LinkExternalIdentityRequest) ProtoMessage() {}
 
 func (x *LinkExternalIdentityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[11]
+	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -771,7 +983,7 @@ func (x *LinkExternalIdentityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LinkExternalIdentityRequest.ProtoReflect.Descriptor instead.
 func (*LinkExternalIdentityRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_external_identities_proto_rawDescGZIP(), []int{11}
+	return file_chatto_api_v1_external_identities_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *LinkExternalIdentityRequest) GetToken() string {
@@ -792,7 +1004,7 @@ type LinkExternalIdentityResponse struct {
 
 func (x *LinkExternalIdentityResponse) Reset() {
 	*x = LinkExternalIdentityResponse{}
-	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[12]
+	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -804,7 +1016,7 @@ func (x *LinkExternalIdentityResponse) String() string {
 func (*LinkExternalIdentityResponse) ProtoMessage() {}
 
 func (x *LinkExternalIdentityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[12]
+	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -817,7 +1029,7 @@ func (x *LinkExternalIdentityResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LinkExternalIdentityResponse.ProtoReflect.Descriptor instead.
 func (*LinkExternalIdentityResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_external_identities_proto_rawDescGZIP(), []int{12}
+	return file_chatto_api_v1_external_identities_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *LinkExternalIdentityResponse) GetLinkedIdentity() *LinkedExternalIdentity {
@@ -831,13 +1043,14 @@ var File_chatto_api_v1_external_identities_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_external_identities_proto_rawDesc = "" +
 	"\n" +
-	"'chatto/api/v1/external_identities.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"\x8c\x01\n" +
+	"'chatto/api/v1/external_identities.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"\xa4\x01\n" +
 	"\x18ExternalIdentityProvider\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x14\n" +
 	"\x05label\x18\x03 \x01(\tR\x05label\x12\x1b\n" +
 	"\tlogin_url\x18\x04 \x01(\tR\bloginUrl\x12\x19\n" +
-	"\blink_url\x18\x05 \x01(\tR\alinkUrl\"\xd9\x02\n" +
+	"\blink_url\x18\x05 \x01(\tR\alinkUrl\x12\x16\n" +
+	"\x06linked\x18\x06 \x01(\bR\x06linked\"\xfe\x02\n" +
 	"\x17PendingExternalIdentity\x12;\n" +
 	"\x04kind\x18\x01 \x01(\x0e2'.chatto.api.v1.ExternalIdentityFlowKindR\x04kind\x12\x1f\n" +
 	"\vprovider_id\x18\x02 \x01(\tR\n" +
@@ -848,7 +1061,8 @@ const file_chatto_api_v1_external_identities_proto_rawDesc = "" +
 	"\n" +
 	"login_hint\x18\x06 \x01(\tR\tloginHint\x12*\n" +
 	"\x11display_name_hint\x18\a \x01(\tR\x0fdisplayNameHint\x12\"\n" +
-	"\rbound_user_id\x18\b \x01(\tR\vboundUserId\"\xa8\x01\n" +
+	"\rbound_user_id\x18\b \x01(\tR\vboundUserId\x12#\n" +
+	"\rredirect_path\x18\t \x01(\tR\fredirectPath\"\xa8\x01\n" +
 	"\x16LinkedExternalIdentity\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\x12#\n" +
@@ -869,11 +1083,21 @@ const file_chatto_api_v1_external_identities_proto_rawDesc = "" +
 	"!CancelExternalIdentityFlowRequest\x12\x1d\n" +
 	"\x05token\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05token\"B\n" +
 	"\"CancelExternalIdentityFlowResponse\x12\x1c\n" +
-	"\tcancelled\x18\x01 \x01(\bR\tcancelled\"\x1f\n" +
+	"\tcancelled\x18\x01 \x01(\bR\tcancelled\"C\n" +
+	"\"ConfirmExternalIdentityLinkRequest\x12\x1d\n" +
+	"\x05token\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05token\"u\n" +
+	"#ConfirmExternalIdentityLinkResponse\x12N\n" +
+	"\x0flinked_identity\x18\x01 \x01(\v2%.chatto.api.v1.LinkedExternalIdentityR\x0elinkedIdentity\"\x1f\n" +
 	"\x1dListExternalIdentitiesRequest\"\xbb\x01\n" +
 	"\x1eListExternalIdentitiesResponse\x12E\n" +
 	"\tproviders\x18\x01 \x03(\v2'.chatto.api.v1.ExternalIdentityProviderR\tproviders\x12R\n" +
-	"\x11linked_identities\x18\x02 \x03(\v2%.chatto.api.v1.LinkedExternalIdentityR\x10linkedIdentities\"<\n" +
+	"\x11linked_identities\x18\x02 \x03(\v2%.chatto.api.v1.LinkedExternalIdentityR\x10linkedIdentities\"q\n" +
+	" StartExternalIdentityLinkRequest\x12(\n" +
+	"\vprovider_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
+	"providerId\x12#\n" +
+	"\rredirect_path\x18\x02 \x01(\tR\fredirectPath\"@\n" +
+	"!StartExternalIdentityLinkResponse\x12\x1b\n" +
+	"\tstart_url\x18\x01 \x01(\tR\bstartUrl\"<\n" +
 	"\x1bLinkExternalIdentityRequest\x12\x1d\n" +
 	"\x05token\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05token\"n\n" +
 	"\x1cLinkExternalIdentityResponse\x12N\n" +
@@ -881,13 +1105,15 @@ const file_chatto_api_v1_external_identities_proto_rawDesc = "" +
 	"\x18ExternalIdentityFlowKind\x12+\n" +
 	"'EXTERNAL_IDENTITY_FLOW_KIND_UNSPECIFIED\x10\x00\x12.\n" +
 	"*EXTERNAL_IDENTITY_FLOW_KIND_CREATE_ACCOUNT\x10\x01\x12,\n" +
-	"(EXTERNAL_IDENTITY_FLOW_KIND_LINK_ACCOUNT\x10\x022\xb2\x03\n" +
+	"(EXTERNAL_IDENTITY_FLOW_KIND_LINK_ACCOUNT\x10\x022\xb9\x04\n" +
 	"\x1bExternalIdentityFlowService\x12\x81\x01\n" +
 	"\x1aGetPendingExternalIdentity\x120.chatto.api.v1.GetPendingExternalIdentityRequest\x1a1.chatto.api.v1.GetPendingExternalIdentityResponse\x12\x8a\x01\n" +
-	"\x1dCreateExternalIdentityAccount\x123.chatto.api.v1.CreateExternalIdentityAccountRequest\x1a4.chatto.api.v1.CreateExternalIdentityAccountResponse\x12\x81\x01\n" +
-	"\x1aCancelExternalIdentityFlow\x120.chatto.api.v1.CancelExternalIdentityFlowRequest\x1a1.chatto.api.v1.CancelExternalIdentityFlowResponse2\x81\x02\n" +
+	"\x1dCreateExternalIdentityAccount\x123.chatto.api.v1.CreateExternalIdentityAccountRequest\x1a4.chatto.api.v1.CreateExternalIdentityAccountResponse\x12\x84\x01\n" +
+	"\x1bConfirmExternalIdentityLink\x121.chatto.api.v1.ConfirmExternalIdentityLinkRequest\x1a2.chatto.api.v1.ConfirmExternalIdentityLinkResponse\x12\x81\x01\n" +
+	"\x1aCancelExternalIdentityFlow\x120.chatto.api.v1.CancelExternalIdentityFlowRequest\x1a1.chatto.api.v1.CancelExternalIdentityFlowResponse2\x81\x03\n" +
 	"\x17ExternalIdentityService\x12u\n" +
-	"\x16ListExternalIdentities\x12,.chatto.api.v1.ListExternalIdentitiesRequest\x1a-.chatto.api.v1.ListExternalIdentitiesResponse\x12o\n" +
+	"\x16ListExternalIdentities\x12,.chatto.api.v1.ListExternalIdentitiesRequest\x1a-.chatto.api.v1.ListExternalIdentitiesResponse\x12~\n" +
+	"\x19StartExternalIdentityLink\x12/.chatto.api.v1.StartExternalIdentityLinkRequest\x1a0.chatto.api.v1.StartExternalIdentityLinkResponse\x12o\n" +
 	"\x14LinkExternalIdentity\x12*.chatto.api.v1.LinkExternalIdentityRequest\x1a+.chatto.api.v1.LinkExternalIdentityResponseB\xb3\x01\n" +
 	"\x11com.chatto.api.v1B\x17ExternalIdentitiesProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
@@ -904,7 +1130,7 @@ func file_chatto_api_v1_external_identities_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_api_v1_external_identities_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_api_v1_external_identities_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_chatto_api_v1_external_identities_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_chatto_api_v1_external_identities_proto_goTypes = []any{
 	(ExternalIdentityFlowKind)(0),                 // 0: chatto.api.v1.ExternalIdentityFlowKind
 	(*ExternalIdentityProvider)(nil),              // 1: chatto.api.v1.ExternalIdentityProvider
@@ -916,32 +1142,41 @@ var file_chatto_api_v1_external_identities_proto_goTypes = []any{
 	(*CreateExternalIdentityAccountResponse)(nil), // 7: chatto.api.v1.CreateExternalIdentityAccountResponse
 	(*CancelExternalIdentityFlowRequest)(nil),     // 8: chatto.api.v1.CancelExternalIdentityFlowRequest
 	(*CancelExternalIdentityFlowResponse)(nil),    // 9: chatto.api.v1.CancelExternalIdentityFlowResponse
-	(*ListExternalIdentitiesRequest)(nil),         // 10: chatto.api.v1.ListExternalIdentitiesRequest
-	(*ListExternalIdentitiesResponse)(nil),        // 11: chatto.api.v1.ListExternalIdentitiesResponse
-	(*LinkExternalIdentityRequest)(nil),           // 12: chatto.api.v1.LinkExternalIdentityRequest
-	(*LinkExternalIdentityResponse)(nil),          // 13: chatto.api.v1.LinkExternalIdentityResponse
+	(*ConfirmExternalIdentityLinkRequest)(nil),    // 10: chatto.api.v1.ConfirmExternalIdentityLinkRequest
+	(*ConfirmExternalIdentityLinkResponse)(nil),   // 11: chatto.api.v1.ConfirmExternalIdentityLinkResponse
+	(*ListExternalIdentitiesRequest)(nil),         // 12: chatto.api.v1.ListExternalIdentitiesRequest
+	(*ListExternalIdentitiesResponse)(nil),        // 13: chatto.api.v1.ListExternalIdentitiesResponse
+	(*StartExternalIdentityLinkRequest)(nil),      // 14: chatto.api.v1.StartExternalIdentityLinkRequest
+	(*StartExternalIdentityLinkResponse)(nil),     // 15: chatto.api.v1.StartExternalIdentityLinkResponse
+	(*LinkExternalIdentityRequest)(nil),           // 16: chatto.api.v1.LinkExternalIdentityRequest
+	(*LinkExternalIdentityResponse)(nil),          // 17: chatto.api.v1.LinkExternalIdentityResponse
 }
 var file_chatto_api_v1_external_identities_proto_depIdxs = []int32{
 	0,  // 0: chatto.api.v1.PendingExternalIdentity.kind:type_name -> chatto.api.v1.ExternalIdentityFlowKind
 	2,  // 1: chatto.api.v1.GetPendingExternalIdentityResponse.pending:type_name -> chatto.api.v1.PendingExternalIdentity
-	1,  // 2: chatto.api.v1.ListExternalIdentitiesResponse.providers:type_name -> chatto.api.v1.ExternalIdentityProvider
-	3,  // 3: chatto.api.v1.ListExternalIdentitiesResponse.linked_identities:type_name -> chatto.api.v1.LinkedExternalIdentity
-	3,  // 4: chatto.api.v1.LinkExternalIdentityResponse.linked_identity:type_name -> chatto.api.v1.LinkedExternalIdentity
-	4,  // 5: chatto.api.v1.ExternalIdentityFlowService.GetPendingExternalIdentity:input_type -> chatto.api.v1.GetPendingExternalIdentityRequest
-	6,  // 6: chatto.api.v1.ExternalIdentityFlowService.CreateExternalIdentityAccount:input_type -> chatto.api.v1.CreateExternalIdentityAccountRequest
-	8,  // 7: chatto.api.v1.ExternalIdentityFlowService.CancelExternalIdentityFlow:input_type -> chatto.api.v1.CancelExternalIdentityFlowRequest
-	10, // 8: chatto.api.v1.ExternalIdentityService.ListExternalIdentities:input_type -> chatto.api.v1.ListExternalIdentitiesRequest
-	12, // 9: chatto.api.v1.ExternalIdentityService.LinkExternalIdentity:input_type -> chatto.api.v1.LinkExternalIdentityRequest
-	5,  // 10: chatto.api.v1.ExternalIdentityFlowService.GetPendingExternalIdentity:output_type -> chatto.api.v1.GetPendingExternalIdentityResponse
-	7,  // 11: chatto.api.v1.ExternalIdentityFlowService.CreateExternalIdentityAccount:output_type -> chatto.api.v1.CreateExternalIdentityAccountResponse
-	9,  // 12: chatto.api.v1.ExternalIdentityFlowService.CancelExternalIdentityFlow:output_type -> chatto.api.v1.CancelExternalIdentityFlowResponse
-	11, // 13: chatto.api.v1.ExternalIdentityService.ListExternalIdentities:output_type -> chatto.api.v1.ListExternalIdentitiesResponse
-	13, // 14: chatto.api.v1.ExternalIdentityService.LinkExternalIdentity:output_type -> chatto.api.v1.LinkExternalIdentityResponse
-	10, // [10:15] is the sub-list for method output_type
-	5,  // [5:10] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	3,  // 2: chatto.api.v1.ConfirmExternalIdentityLinkResponse.linked_identity:type_name -> chatto.api.v1.LinkedExternalIdentity
+	1,  // 3: chatto.api.v1.ListExternalIdentitiesResponse.providers:type_name -> chatto.api.v1.ExternalIdentityProvider
+	3,  // 4: chatto.api.v1.ListExternalIdentitiesResponse.linked_identities:type_name -> chatto.api.v1.LinkedExternalIdentity
+	3,  // 5: chatto.api.v1.LinkExternalIdentityResponse.linked_identity:type_name -> chatto.api.v1.LinkedExternalIdentity
+	4,  // 6: chatto.api.v1.ExternalIdentityFlowService.GetPendingExternalIdentity:input_type -> chatto.api.v1.GetPendingExternalIdentityRequest
+	6,  // 7: chatto.api.v1.ExternalIdentityFlowService.CreateExternalIdentityAccount:input_type -> chatto.api.v1.CreateExternalIdentityAccountRequest
+	10, // 8: chatto.api.v1.ExternalIdentityFlowService.ConfirmExternalIdentityLink:input_type -> chatto.api.v1.ConfirmExternalIdentityLinkRequest
+	8,  // 9: chatto.api.v1.ExternalIdentityFlowService.CancelExternalIdentityFlow:input_type -> chatto.api.v1.CancelExternalIdentityFlowRequest
+	12, // 10: chatto.api.v1.ExternalIdentityService.ListExternalIdentities:input_type -> chatto.api.v1.ListExternalIdentitiesRequest
+	14, // 11: chatto.api.v1.ExternalIdentityService.StartExternalIdentityLink:input_type -> chatto.api.v1.StartExternalIdentityLinkRequest
+	16, // 12: chatto.api.v1.ExternalIdentityService.LinkExternalIdentity:input_type -> chatto.api.v1.LinkExternalIdentityRequest
+	5,  // 13: chatto.api.v1.ExternalIdentityFlowService.GetPendingExternalIdentity:output_type -> chatto.api.v1.GetPendingExternalIdentityResponse
+	7,  // 14: chatto.api.v1.ExternalIdentityFlowService.CreateExternalIdentityAccount:output_type -> chatto.api.v1.CreateExternalIdentityAccountResponse
+	11, // 15: chatto.api.v1.ExternalIdentityFlowService.ConfirmExternalIdentityLink:output_type -> chatto.api.v1.ConfirmExternalIdentityLinkResponse
+	9,  // 16: chatto.api.v1.ExternalIdentityFlowService.CancelExternalIdentityFlow:output_type -> chatto.api.v1.CancelExternalIdentityFlowResponse
+	13, // 17: chatto.api.v1.ExternalIdentityService.ListExternalIdentities:output_type -> chatto.api.v1.ListExternalIdentitiesResponse
+	15, // 18: chatto.api.v1.ExternalIdentityService.StartExternalIdentityLink:output_type -> chatto.api.v1.StartExternalIdentityLinkResponse
+	17, // 19: chatto.api.v1.ExternalIdentityService.LinkExternalIdentity:output_type -> chatto.api.v1.LinkExternalIdentityResponse
+	13, // [13:20] is the sub-list for method output_type
+	6,  // [6:13] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_external_identities_proto_init() }
@@ -955,7 +1190,7 @@ func file_chatto_api_v1_external_identities_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_external_identities_proto_rawDesc), len(file_chatto_api_v1_external_identities_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   13,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

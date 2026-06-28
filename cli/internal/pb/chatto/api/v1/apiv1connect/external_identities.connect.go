@@ -42,12 +42,18 @@ const (
 	// ExternalIdentityFlowServiceCreateExternalIdentityAccountProcedure is the fully-qualified name of
 	// the ExternalIdentityFlowService's CreateExternalIdentityAccount RPC.
 	ExternalIdentityFlowServiceCreateExternalIdentityAccountProcedure = "/chatto.api.v1.ExternalIdentityFlowService/CreateExternalIdentityAccount"
+	// ExternalIdentityFlowServiceConfirmExternalIdentityLinkProcedure is the fully-qualified name of
+	// the ExternalIdentityFlowService's ConfirmExternalIdentityLink RPC.
+	ExternalIdentityFlowServiceConfirmExternalIdentityLinkProcedure = "/chatto.api.v1.ExternalIdentityFlowService/ConfirmExternalIdentityLink"
 	// ExternalIdentityFlowServiceCancelExternalIdentityFlowProcedure is the fully-qualified name of the
 	// ExternalIdentityFlowService's CancelExternalIdentityFlow RPC.
 	ExternalIdentityFlowServiceCancelExternalIdentityFlowProcedure = "/chatto.api.v1.ExternalIdentityFlowService/CancelExternalIdentityFlow"
 	// ExternalIdentityServiceListExternalIdentitiesProcedure is the fully-qualified name of the
 	// ExternalIdentityService's ListExternalIdentities RPC.
 	ExternalIdentityServiceListExternalIdentitiesProcedure = "/chatto.api.v1.ExternalIdentityService/ListExternalIdentities"
+	// ExternalIdentityServiceStartExternalIdentityLinkProcedure is the fully-qualified name of the
+	// ExternalIdentityService's StartExternalIdentityLink RPC.
+	ExternalIdentityServiceStartExternalIdentityLinkProcedure = "/chatto.api.v1.ExternalIdentityService/StartExternalIdentityLink"
 	// ExternalIdentityServiceLinkExternalIdentityProcedure is the fully-qualified name of the
 	// ExternalIdentityService's LinkExternalIdentity RPC.
 	ExternalIdentityServiceLinkExternalIdentityProcedure = "/chatto.api.v1.ExternalIdentityService/LinkExternalIdentity"
@@ -60,6 +66,8 @@ type ExternalIdentityFlowServiceClient interface {
 	GetPendingExternalIdentity(context.Context, *connect.Request[v1.GetPendingExternalIdentityRequest]) (*connect.Response[v1.GetPendingExternalIdentityResponse], error)
 	// Creates a passwordless account from a pending provider identity.
 	CreateExternalIdentityAccount(context.Context, *connect.Request[v1.CreateExternalIdentityAccountRequest]) (*connect.Response[v1.CreateExternalIdentityAccountResponse], error)
+	// Links a provider identity using a pending link-flow capability token.
+	ConfirmExternalIdentityLink(context.Context, *connect.Request[v1.ConfirmExternalIdentityLinkRequest]) (*connect.Response[v1.ConfirmExternalIdentityLinkResponse], error)
 	// Cancels a pending provider identity flow.
 	CancelExternalIdentityFlow(context.Context, *connect.Request[v1.CancelExternalIdentityFlowRequest]) (*connect.Response[v1.CancelExternalIdentityFlowResponse], error)
 }
@@ -87,6 +95,12 @@ func NewExternalIdentityFlowServiceClient(httpClient connect.HTTPClient, baseURL
 			connect.WithSchema(externalIdentityFlowServiceMethods.ByName("CreateExternalIdentityAccount")),
 			connect.WithClientOptions(opts...),
 		),
+		confirmExternalIdentityLink: connect.NewClient[v1.ConfirmExternalIdentityLinkRequest, v1.ConfirmExternalIdentityLinkResponse](
+			httpClient,
+			baseURL+ExternalIdentityFlowServiceConfirmExternalIdentityLinkProcedure,
+			connect.WithSchema(externalIdentityFlowServiceMethods.ByName("ConfirmExternalIdentityLink")),
+			connect.WithClientOptions(opts...),
+		),
 		cancelExternalIdentityFlow: connect.NewClient[v1.CancelExternalIdentityFlowRequest, v1.CancelExternalIdentityFlowResponse](
 			httpClient,
 			baseURL+ExternalIdentityFlowServiceCancelExternalIdentityFlowProcedure,
@@ -100,6 +114,7 @@ func NewExternalIdentityFlowServiceClient(httpClient connect.HTTPClient, baseURL
 type externalIdentityFlowServiceClient struct {
 	getPendingExternalIdentity    *connect.Client[v1.GetPendingExternalIdentityRequest, v1.GetPendingExternalIdentityResponse]
 	createExternalIdentityAccount *connect.Client[v1.CreateExternalIdentityAccountRequest, v1.CreateExternalIdentityAccountResponse]
+	confirmExternalIdentityLink   *connect.Client[v1.ConfirmExternalIdentityLinkRequest, v1.ConfirmExternalIdentityLinkResponse]
 	cancelExternalIdentityFlow    *connect.Client[v1.CancelExternalIdentityFlowRequest, v1.CancelExternalIdentityFlowResponse]
 }
 
@@ -115,6 +130,12 @@ func (c *externalIdentityFlowServiceClient) CreateExternalIdentityAccount(ctx co
 	return c.createExternalIdentityAccount.CallUnary(ctx, req)
 }
 
+// ConfirmExternalIdentityLink calls
+// chatto.api.v1.ExternalIdentityFlowService.ConfirmExternalIdentityLink.
+func (c *externalIdentityFlowServiceClient) ConfirmExternalIdentityLink(ctx context.Context, req *connect.Request[v1.ConfirmExternalIdentityLinkRequest]) (*connect.Response[v1.ConfirmExternalIdentityLinkResponse], error) {
+	return c.confirmExternalIdentityLink.CallUnary(ctx, req)
+}
+
 // CancelExternalIdentityFlow calls
 // chatto.api.v1.ExternalIdentityFlowService.CancelExternalIdentityFlow.
 func (c *externalIdentityFlowServiceClient) CancelExternalIdentityFlow(ctx context.Context, req *connect.Request[v1.CancelExternalIdentityFlowRequest]) (*connect.Response[v1.CancelExternalIdentityFlowResponse], error) {
@@ -128,6 +149,8 @@ type ExternalIdentityFlowServiceHandler interface {
 	GetPendingExternalIdentity(context.Context, *connect.Request[v1.GetPendingExternalIdentityRequest]) (*connect.Response[v1.GetPendingExternalIdentityResponse], error)
 	// Creates a passwordless account from a pending provider identity.
 	CreateExternalIdentityAccount(context.Context, *connect.Request[v1.CreateExternalIdentityAccountRequest]) (*connect.Response[v1.CreateExternalIdentityAccountResponse], error)
+	// Links a provider identity using a pending link-flow capability token.
+	ConfirmExternalIdentityLink(context.Context, *connect.Request[v1.ConfirmExternalIdentityLinkRequest]) (*connect.Response[v1.ConfirmExternalIdentityLinkResponse], error)
 	// Cancels a pending provider identity flow.
 	CancelExternalIdentityFlow(context.Context, *connect.Request[v1.CancelExternalIdentityFlowRequest]) (*connect.Response[v1.CancelExternalIdentityFlowResponse], error)
 }
@@ -151,6 +174,12 @@ func NewExternalIdentityFlowServiceHandler(svc ExternalIdentityFlowServiceHandle
 		connect.WithSchema(externalIdentityFlowServiceMethods.ByName("CreateExternalIdentityAccount")),
 		connect.WithHandlerOptions(opts...),
 	)
+	externalIdentityFlowServiceConfirmExternalIdentityLinkHandler := connect.NewUnaryHandler(
+		ExternalIdentityFlowServiceConfirmExternalIdentityLinkProcedure,
+		svc.ConfirmExternalIdentityLink,
+		connect.WithSchema(externalIdentityFlowServiceMethods.ByName("ConfirmExternalIdentityLink")),
+		connect.WithHandlerOptions(opts...),
+	)
 	externalIdentityFlowServiceCancelExternalIdentityFlowHandler := connect.NewUnaryHandler(
 		ExternalIdentityFlowServiceCancelExternalIdentityFlowProcedure,
 		svc.CancelExternalIdentityFlow,
@@ -163,6 +192,8 @@ func NewExternalIdentityFlowServiceHandler(svc ExternalIdentityFlowServiceHandle
 			externalIdentityFlowServiceGetPendingExternalIdentityHandler.ServeHTTP(w, r)
 		case ExternalIdentityFlowServiceCreateExternalIdentityAccountProcedure:
 			externalIdentityFlowServiceCreateExternalIdentityAccountHandler.ServeHTTP(w, r)
+		case ExternalIdentityFlowServiceConfirmExternalIdentityLinkProcedure:
+			externalIdentityFlowServiceConfirmExternalIdentityLinkHandler.ServeHTTP(w, r)
 		case ExternalIdentityFlowServiceCancelExternalIdentityFlowProcedure:
 			externalIdentityFlowServiceCancelExternalIdentityFlowHandler.ServeHTTP(w, r)
 		default:
@@ -182,6 +213,10 @@ func (UnimplementedExternalIdentityFlowServiceHandler) CreateExternalIdentityAcc
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ExternalIdentityFlowService.CreateExternalIdentityAccount is not implemented"))
 }
 
+func (UnimplementedExternalIdentityFlowServiceHandler) ConfirmExternalIdentityLink(context.Context, *connect.Request[v1.ConfirmExternalIdentityLinkRequest]) (*connect.Response[v1.ConfirmExternalIdentityLinkResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ExternalIdentityFlowService.ConfirmExternalIdentityLink is not implemented"))
+}
+
 func (UnimplementedExternalIdentityFlowServiceHandler) CancelExternalIdentityFlow(context.Context, *connect.Request[v1.CancelExternalIdentityFlowRequest]) (*connect.Response[v1.CancelExternalIdentityFlowResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ExternalIdentityFlowService.CancelExternalIdentityFlow is not implemented"))
 }
@@ -190,6 +225,8 @@ func (UnimplementedExternalIdentityFlowServiceHandler) CancelExternalIdentityFlo
 type ExternalIdentityServiceClient interface {
 	// Lists providers and identities linked to the authenticated account.
 	ListExternalIdentities(context.Context, *connect.Request[v1.ListExternalIdentitiesRequest]) (*connect.Response[v1.ListExternalIdentitiesResponse], error)
+	// Creates a short-lived browser handoff URL for linking a provider identity.
+	StartExternalIdentityLink(context.Context, *connect.Request[v1.StartExternalIdentityLinkRequest]) (*connect.Response[v1.StartExternalIdentityLinkResponse], error)
 	// Links a pending provider identity to the authenticated account.
 	LinkExternalIdentity(context.Context, *connect.Request[v1.LinkExternalIdentityRequest]) (*connect.Response[v1.LinkExternalIdentityResponse], error)
 }
@@ -211,6 +248,12 @@ func NewExternalIdentityServiceClient(httpClient connect.HTTPClient, baseURL str
 			connect.WithSchema(externalIdentityServiceMethods.ByName("ListExternalIdentities")),
 			connect.WithClientOptions(opts...),
 		),
+		startExternalIdentityLink: connect.NewClient[v1.StartExternalIdentityLinkRequest, v1.StartExternalIdentityLinkResponse](
+			httpClient,
+			baseURL+ExternalIdentityServiceStartExternalIdentityLinkProcedure,
+			connect.WithSchema(externalIdentityServiceMethods.ByName("StartExternalIdentityLink")),
+			connect.WithClientOptions(opts...),
+		),
 		linkExternalIdentity: connect.NewClient[v1.LinkExternalIdentityRequest, v1.LinkExternalIdentityResponse](
 			httpClient,
 			baseURL+ExternalIdentityServiceLinkExternalIdentityProcedure,
@@ -222,13 +265,19 @@ func NewExternalIdentityServiceClient(httpClient connect.HTTPClient, baseURL str
 
 // externalIdentityServiceClient implements ExternalIdentityServiceClient.
 type externalIdentityServiceClient struct {
-	listExternalIdentities *connect.Client[v1.ListExternalIdentitiesRequest, v1.ListExternalIdentitiesResponse]
-	linkExternalIdentity   *connect.Client[v1.LinkExternalIdentityRequest, v1.LinkExternalIdentityResponse]
+	listExternalIdentities    *connect.Client[v1.ListExternalIdentitiesRequest, v1.ListExternalIdentitiesResponse]
+	startExternalIdentityLink *connect.Client[v1.StartExternalIdentityLinkRequest, v1.StartExternalIdentityLinkResponse]
+	linkExternalIdentity      *connect.Client[v1.LinkExternalIdentityRequest, v1.LinkExternalIdentityResponse]
 }
 
 // ListExternalIdentities calls chatto.api.v1.ExternalIdentityService.ListExternalIdentities.
 func (c *externalIdentityServiceClient) ListExternalIdentities(ctx context.Context, req *connect.Request[v1.ListExternalIdentitiesRequest]) (*connect.Response[v1.ListExternalIdentitiesResponse], error) {
 	return c.listExternalIdentities.CallUnary(ctx, req)
+}
+
+// StartExternalIdentityLink calls chatto.api.v1.ExternalIdentityService.StartExternalIdentityLink.
+func (c *externalIdentityServiceClient) StartExternalIdentityLink(ctx context.Context, req *connect.Request[v1.StartExternalIdentityLinkRequest]) (*connect.Response[v1.StartExternalIdentityLinkResponse], error) {
+	return c.startExternalIdentityLink.CallUnary(ctx, req)
 }
 
 // LinkExternalIdentity calls chatto.api.v1.ExternalIdentityService.LinkExternalIdentity.
@@ -241,6 +290,8 @@ func (c *externalIdentityServiceClient) LinkExternalIdentity(ctx context.Context
 type ExternalIdentityServiceHandler interface {
 	// Lists providers and identities linked to the authenticated account.
 	ListExternalIdentities(context.Context, *connect.Request[v1.ListExternalIdentitiesRequest]) (*connect.Response[v1.ListExternalIdentitiesResponse], error)
+	// Creates a short-lived browser handoff URL for linking a provider identity.
+	StartExternalIdentityLink(context.Context, *connect.Request[v1.StartExternalIdentityLinkRequest]) (*connect.Response[v1.StartExternalIdentityLinkResponse], error)
 	// Links a pending provider identity to the authenticated account.
 	LinkExternalIdentity(context.Context, *connect.Request[v1.LinkExternalIdentityRequest]) (*connect.Response[v1.LinkExternalIdentityResponse], error)
 }
@@ -258,6 +309,12 @@ func NewExternalIdentityServiceHandler(svc ExternalIdentityServiceHandler, opts 
 		connect.WithSchema(externalIdentityServiceMethods.ByName("ListExternalIdentities")),
 		connect.WithHandlerOptions(opts...),
 	)
+	externalIdentityServiceStartExternalIdentityLinkHandler := connect.NewUnaryHandler(
+		ExternalIdentityServiceStartExternalIdentityLinkProcedure,
+		svc.StartExternalIdentityLink,
+		connect.WithSchema(externalIdentityServiceMethods.ByName("StartExternalIdentityLink")),
+		connect.WithHandlerOptions(opts...),
+	)
 	externalIdentityServiceLinkExternalIdentityHandler := connect.NewUnaryHandler(
 		ExternalIdentityServiceLinkExternalIdentityProcedure,
 		svc.LinkExternalIdentity,
@@ -268,6 +325,8 @@ func NewExternalIdentityServiceHandler(svc ExternalIdentityServiceHandler, opts 
 		switch r.URL.Path {
 		case ExternalIdentityServiceListExternalIdentitiesProcedure:
 			externalIdentityServiceListExternalIdentitiesHandler.ServeHTTP(w, r)
+		case ExternalIdentityServiceStartExternalIdentityLinkProcedure:
+			externalIdentityServiceStartExternalIdentityLinkHandler.ServeHTTP(w, r)
 		case ExternalIdentityServiceLinkExternalIdentityProcedure:
 			externalIdentityServiceLinkExternalIdentityHandler.ServeHTTP(w, r)
 		default:
@@ -281,6 +340,10 @@ type UnimplementedExternalIdentityServiceHandler struct{}
 
 func (UnimplementedExternalIdentityServiceHandler) ListExternalIdentities(context.Context, *connect.Request[v1.ListExternalIdentitiesRequest]) (*connect.Response[v1.ListExternalIdentitiesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ExternalIdentityService.ListExternalIdentities is not implemented"))
+}
+
+func (UnimplementedExternalIdentityServiceHandler) StartExternalIdentityLink(context.Context, *connect.Request[v1.StartExternalIdentityLinkRequest]) (*connect.Response[v1.StartExternalIdentityLinkResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ExternalIdentityService.StartExternalIdentityLink is not implemented"))
 }
 
 func (UnimplementedExternalIdentityServiceHandler) LinkExternalIdentity(context.Context, *connect.Request[v1.LinkExternalIdentityRequest]) (*connect.Response[v1.LinkExternalIdentityResponse], error) {

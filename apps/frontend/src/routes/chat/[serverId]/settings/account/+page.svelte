@@ -4,11 +4,7 @@
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { resolve } from '$app/paths';
   import { graphql } from '$lib/gql';
-  import {
-    createExternalIdentityAPI,
-    type LinkedSSOIdentity,
-    type SSOProvider
-  } from '$lib/api/externalIdentities';
+  import { createExternalIdentityAPI, type SSOProvider } from '$lib/api/externalIdentities';
   import { PaneHeader, Dialog, FormSection, Hint } from '$lib/ui';
   import { TextInput, Button, FormError } from '$lib/ui/form';
   import { useQuery } from '$lib/hooks';
@@ -41,35 +37,33 @@
   let confirmText = $state('');
   let isDeleting = $state(false);
   let error = $state('');
-	let ssoProviders = $state.raw<SSOProvider[]>([]);
-	let linkedIdentities = $state.raw<LinkedSSOIdentity[]>([]);
-	let ssoLoading = $state(true);
-	let ssoError = $state('');
+  let ssoProviders = $state.raw<SSOProvider[]>([]);
+  let ssoLoading = $state(true);
+  let ssoError = $state('');
+  let linkingProviderId = $state('');
 
   const canDelete = $derived(confirmText === 'DELETE');
-  const linkedProviderIds = $derived(new Set(linkedIdentities.map((identity) => identity.providerId)));
 
-	$effect(() => {
-		const client = connection();
-		void loadExternalIdentities(client.serverId, client.connectBaseUrl, client.bearerToken);
-	});
+  $effect(() => {
+    const client = connection();
+    void loadExternalIdentities(client.serverId, client.connectBaseUrl, client.bearerToken);
+  });
 
-	async function loadExternalIdentities(
-		serverId: string | undefined,
-		baseUrl: string,
-		bearerToken: string | null
-	) {
-		ssoLoading = true;
-		ssoError = '';
-		try {
-			const api = createExternalIdentityAPI({
-				serverId,
-				baseUrl,
-				bearerToken
-			});
+  async function loadExternalIdentities(
+    serverId: string | undefined,
+    baseUrl: string,
+    bearerToken: string | null
+  ) {
+    ssoLoading = true;
+    ssoError = '';
+    try {
+      const api = createExternalIdentityAPI({
+        serverId,
+        baseUrl,
+        bearerToken
+      });
       const result = await api.list();
       ssoProviders = result.providers;
-      linkedIdentities = result.linkedIdentities;
     } catch (err) {
       ssoError = err instanceof Error ? err.message : m['settings.account.sso.load_failed']();
     } finally {
@@ -92,9 +86,25 @@
     }
   }
 
-  function providerLinkHref(provider: SSOProvider): string {
-    const separator = provider.linkUrl.includes('?') ? '&' : '?';
-    return `${provider.linkUrl}${separator}redirect=${encodeURIComponent(accountSettingsPath)}`;
+  async function handleStartProviderLink(provider: SSOProvider) {
+    const client = connection();
+    linkingProviderId = provider.id;
+    ssoError = '';
+    try {
+      const api = createExternalIdentityAPI({
+        serverId: client.serverId,
+        baseUrl: client.connectBaseUrl,
+        bearerToken: client.bearerToken
+      });
+      const startUrl = await api.startLink({
+        providerId: provider.id,
+        redirectPath: accountSettingsPath
+      });
+      window.location.href = startUrl;
+    } catch (err) {
+      ssoError = err instanceof Error ? err.message : m['settings.account.sso.load_failed']();
+      linkingProviderId = '';
+    }
   }
 
   function openDeleteModal() {
@@ -208,14 +218,13 @@
       {:else}
         <div class="flex flex-col gap-3">
           {#each ssoProviders as provider (provider.id)}
-            {@const linked = linkedProviderIds.has(provider.id)}
             <div class="flex items-center justify-between gap-3 rounded border border-border p-3">
               <div class="flex min-w-0 items-center gap-3">
                 <span class={['iconify text-lg text-muted', providerIcon(provider.type)]}></span>
                 <div class="min-w-0">
                   <div class="truncate text-sm font-medium">{provider.label}</div>
                   <div class="text-xs text-muted">
-                    {#if linked}
+                    {#if provider.linked}
                       {m['settings.account.sso.linked']()}
                     {:else}
                       {m['settings.account.sso.not_linked']()}
@@ -223,14 +232,20 @@
                   </div>
                 </div>
               </div>
-              {#if linked}
+              {#if provider.linked}
                 <span class="text-sm text-muted">{m['settings.account.sso.linked']()}</span>
-							{:else}
-								<Button variant="secondary" size="sm" href={providerLinkHref(provider)}>
-									<span class="iconify uil--link"></span>
-									{m['settings.account.sso.link_button']()}
-								</Button>
-							{/if}
+              {:else}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  loading={linkingProviderId === provider.id}
+                  disabled={linkingProviderId !== ''}
+                  onclick={() => handleStartProviderLink(provider)}
+                >
+                  <span class="iconify uil--link"></span>
+                  {m['settings.account.sso.link_button']()}
+                </Button>
+              {/if}
             </div>
           {/each}
         </div>

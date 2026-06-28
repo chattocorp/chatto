@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"sort"
 	"strings"
 	"testing"
@@ -185,6 +186,7 @@ func TestExternalIdentityServicesCreateAndLink(t *testing.T) {
 	env.api.config.Auth.Providers = []config.AuthProviderConfig{
 		{ID: "github-main", Type: config.AuthProviderTypeGitHub, Label: "GitHub"},
 		{ID: "discord-main", Type: config.AuthProviderTypeDiscord, Label: "Discord"},
+		{ID: "gitlab-main", Type: config.AuthProviderTypeGitLab, Label: "GitLab"},
 	}
 
 	createToken, err := env.core.CreatePendingExternalIdentityCreateFlow(env.ctx, core.PendingExternalIdentityFlow{
@@ -240,11 +242,33 @@ func TestExternalIdentityServicesCreateAndLink(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListExternalIdentities: %v", err)
 	}
-	if len(list.Msg.GetProviders()) != 2 || list.Msg.GetProviders()[0].GetLinkUrl() != "/auth/providers/github-main?intent=link" {
+	if len(list.Msg.GetProviders()) != 3 || list.Msg.GetProviders()[0].GetLinkUrl() != "/auth/providers/github-main?intent=link" || !list.Msg.GetProviders()[0].GetLinked() {
 		t.Fatalf("providers = %+v", list.Msg.GetProviders())
 	}
 	if len(list.Msg.GetLinkedIdentities()) != 1 || list.Msg.GetLinkedIdentities()[0].GetProviderId() != "github-main" {
 		t.Fatalf("linked identities = %+v", list.Msg.GetLinkedIdentities())
+	}
+
+	started, err := env.identity.StartExternalIdentityLink(createdCtx, connect.NewRequest(&apiv1.StartExternalIdentityLinkRequest{
+		ProviderId:   "discord-main",
+		RedirectPath: "/chat/-/settings/account",
+	}))
+	if err != nil {
+		t.Fatalf("StartExternalIdentityLink: %v", err)
+	}
+	startURL, err := url.Parse(started.Msg.GetStartUrl())
+	if err != nil {
+		t.Fatalf("start url parse: %v", err)
+	}
+	if startURL.Path != "/auth/providers/discord-main" || startURL.Query().Get("intent") != "link" || startURL.Query().Get("link_start") == "" {
+		t.Fatalf("start url = %q", started.Msg.GetStartUrl())
+	}
+	linkStart, err := env.core.ConsumePendingExternalIdentityLinkStart(env.ctx, startURL.Query().Get("link_start"))
+	if err != nil {
+		t.Fatalf("ConsumePendingExternalIdentityLinkStart: %v", err)
+	}
+	if linkStart.BoundUserID != created.Msg.GetUserId() || linkStart.ProviderID != "discord-main" || linkStart.RedirectPath != "/chat/-/settings/account" {
+		t.Fatalf("link start = %+v", linkStart)
 	}
 
 	linkToken, err := env.core.CreatePendingExternalIdentityLinkFlow(env.ctx, core.PendingExternalIdentityFlow{
@@ -270,6 +294,25 @@ func TestExternalIdentityServicesCreateAndLink(t *testing.T) {
 	}
 	if _, err := env.core.GetPendingExternalIdentityFlow(env.ctx, linkToken); !errors.Is(err, core.ErrExternalIdentityFlowNotFound) {
 		t.Fatalf("pending link flow after confirmation error = %v, want ErrExternalIdentityFlowNotFound", err)
+	}
+
+	publicLinkToken, err := env.core.CreatePendingExternalIdentityLinkFlow(env.ctx, core.PendingExternalIdentityFlow{
+		ProviderID:   "gitlab-main",
+		ProviderType: config.AuthProviderTypeGitLab,
+		Issuer:       "gitlab-main",
+		Subject:      "gitlab-123",
+	}, env.viewer.Id)
+	if err != nil {
+		t.Fatalf("CreatePendingExternalIdentityLinkFlow public: %v", err)
+	}
+	publicLinked, err := env.flow.ConfirmExternalIdentityLink(env.ctx, connect.NewRequest(&apiv1.ConfirmExternalIdentityLinkRequest{
+		Token: publicLinkToken,
+	}))
+	if err != nil {
+		t.Fatalf("ConfirmExternalIdentityLink: %v", err)
+	}
+	if publicLinked.Msg.LinkedIdentity.GetProviderId() != "gitlab-main" {
+		t.Fatalf("public linked identity = %+v", publicLinked.Msg.LinkedIdentity)
 	}
 }
 

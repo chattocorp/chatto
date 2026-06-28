@@ -67,6 +67,34 @@ func TestChattoCore_PendingExternalIdentityCreateFlow(t *testing.T) {
 	}
 }
 
+func TestChattoCore_PendingExternalIdentityLinkStart(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	token, err := core.CreatePendingExternalIdentityLinkStart(ctx, "github-main", "/chat/-/settings/account", "U1")
+	if err != nil {
+		t.Fatalf("CreatePendingExternalIdentityLinkStart: %v", err)
+	}
+
+	key := core.externalIdentityLinkStartKey(token)
+	if _, err := core.storage.runtimeStateKV.Get(ctx, key); err != nil {
+		t.Fatalf("expected pending external identity link start in RUNTIME_STATE: %v", err)
+	}
+	assertRuntimeKVHasTTL(t, core, key)
+	assertRawRuntimeTokenKeyAbsent(t, core, externalIdentityLinkStartKeyPrefix+token)
+
+	start, err := core.ConsumePendingExternalIdentityLinkStart(ctx, token)
+	if err != nil {
+		t.Fatalf("ConsumePendingExternalIdentityLinkStart: %v", err)
+	}
+	if start.ProviderID != "github-main" || start.BoundUserID != "U1" || start.RedirectPath != "/chat/-/settings/account" {
+		t.Fatalf("link start = %+v", start)
+	}
+	if _, err := core.ConsumePendingExternalIdentityLinkStart(ctx, token); !errors.Is(err, ErrExternalIdentityFlowNotFound) {
+		t.Fatalf("ConsumePendingExternalIdentityLinkStart after delete error = %v, want ErrExternalIdentityFlowNotFound", err)
+	}
+}
+
 func TestChattoCore_PendingExternalIdentityLinkFlowIsUserBound(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

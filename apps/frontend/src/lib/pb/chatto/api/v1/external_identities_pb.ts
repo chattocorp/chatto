@@ -75,11 +75,19 @@ export class ExternalIdentityProvider extends Message<ExternalIdentityProvider> 
   loginUrl = "";
 
   /**
-   * URL that starts authenticated account linking for this provider.
+   * URL that starts authenticated account linking for this provider. Clients
+   * should use StartExternalIdentityLink instead of navigating here directly.
    *
    * @generated from field: string link_url = 5;
    */
   linkUrl = "";
+
+  /**
+   * True when this provider is already linked to the authenticated user.
+   *
+   * @generated from field: bool linked = 6;
+   */
+  linked = false;
 
   constructor(data?: PartialMessage<ExternalIdentityProvider>) {
     super();
@@ -94,6 +102,7 @@ export class ExternalIdentityProvider extends Message<ExternalIdentityProvider> 
     { no: 3, name: "label", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "login_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "link_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 6, name: "linked", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ExternalIdentityProvider {
@@ -176,6 +185,13 @@ export class PendingExternalIdentity extends Message<PendingExternalIdentity> {
    */
   boundUserId = "";
 
+  /**
+   * Internal path the client should return to after confirmation.
+   *
+   * @generated from field: string redirect_path = 9;
+   */
+  redirectPath = "";
+
   constructor(data?: PartialMessage<PendingExternalIdentity>) {
     super();
     proto3.util.initPartial(data, this);
@@ -192,6 +208,7 @@ export class PendingExternalIdentity extends Message<PendingExternalIdentity> {
     { no: 6, name: "login_hint", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 7, name: "display_name_hint", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 8, name: "bound_user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 9, name: "redirect_path", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PendingExternalIdentity {
@@ -547,6 +564,88 @@ export class CancelExternalIdentityFlowResponse extends Message<CancelExternalId
 }
 
 /**
+ * Request to confirm a pending provider link using the flow capability token.
+ *
+ * @generated from message chatto.api.v1.ConfirmExternalIdentityLinkRequest
+ */
+export class ConfirmExternalIdentityLinkRequest extends Message<ConfirmExternalIdentityLinkRequest> {
+  /**
+   * Raw pending link token from the provider callback redirect.
+   *
+   * @generated from field: string token = 1;
+   */
+  token = "";
+
+  constructor(data?: PartialMessage<ConfirmExternalIdentityLinkRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ConfirmExternalIdentityLinkRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ConfirmExternalIdentityLinkRequest {
+    return new ConfirmExternalIdentityLinkRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ConfirmExternalIdentityLinkRequest {
+    return new ConfirmExternalIdentityLinkRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ConfirmExternalIdentityLinkRequest {
+    return new ConfirmExternalIdentityLinkRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ConfirmExternalIdentityLinkRequest | PlainMessage<ConfirmExternalIdentityLinkRequest> | undefined, b: ConfirmExternalIdentityLinkRequest | PlainMessage<ConfirmExternalIdentityLinkRequest> | undefined): boolean {
+    return proto3.util.equals(ConfirmExternalIdentityLinkRequest, a, b);
+  }
+}
+
+/**
+ * Result of confirming a provider identity link.
+ *
+ * @generated from message chatto.api.v1.ConfirmExternalIdentityLinkResponse
+ */
+export class ConfirmExternalIdentityLinkResponse extends Message<ConfirmExternalIdentityLinkResponse> {
+  /**
+   * Linked identity metadata.
+   *
+   * @generated from field: chatto.api.v1.LinkedExternalIdentity linked_identity = 1;
+   */
+  linkedIdentity?: LinkedExternalIdentity;
+
+  constructor(data?: PartialMessage<ConfirmExternalIdentityLinkResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ConfirmExternalIdentityLinkResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "linked_identity", kind: "message", T: LinkedExternalIdentity },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ConfirmExternalIdentityLinkResponse {
+    return new ConfirmExternalIdentityLinkResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ConfirmExternalIdentityLinkResponse {
+    return new ConfirmExternalIdentityLinkResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ConfirmExternalIdentityLinkResponse {
+    return new ConfirmExternalIdentityLinkResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ConfirmExternalIdentityLinkResponse | PlainMessage<ConfirmExternalIdentityLinkResponse> | undefined, b: ConfirmExternalIdentityLinkResponse | PlainMessage<ConfirmExternalIdentityLinkResponse> | undefined): boolean {
+    return proto3.util.equals(ConfirmExternalIdentityLinkResponse, a, b);
+  }
+}
+
+/**
  * Request to list configured and linked external identities for the current user.
  *
  * @generated from message chatto.api.v1.ListExternalIdentitiesRequest
@@ -625,6 +724,96 @@ export class ListExternalIdentitiesResponse extends Message<ListExternalIdentiti
 
   static equals(a: ListExternalIdentitiesResponse | PlainMessage<ListExternalIdentitiesResponse> | undefined, b: ListExternalIdentitiesResponse | PlainMessage<ListExternalIdentitiesResponse> | undefined): boolean {
     return proto3.util.equals(ListExternalIdentitiesResponse, a, b);
+  }
+}
+
+/**
+ * Request to start linking a configured provider to the current user.
+ *
+ * @generated from message chatto.api.v1.StartExternalIdentityLinkRequest
+ */
+export class StartExternalIdentityLinkRequest extends Message<StartExternalIdentityLinkRequest> {
+  /**
+   * Provider ID to link.
+   *
+   * @generated from field: string provider_id = 1;
+   */
+  providerId = "";
+
+  /**
+   * Internal path to return to after confirmation.
+   *
+   * @generated from field: string redirect_path = 2;
+   */
+  redirectPath = "";
+
+  constructor(data?: PartialMessage<StartExternalIdentityLinkRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.StartExternalIdentityLinkRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "provider_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "redirect_path", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StartExternalIdentityLinkRequest {
+    return new StartExternalIdentityLinkRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): StartExternalIdentityLinkRequest {
+    return new StartExternalIdentityLinkRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): StartExternalIdentityLinkRequest {
+    return new StartExternalIdentityLinkRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: StartExternalIdentityLinkRequest | PlainMessage<StartExternalIdentityLinkRequest> | undefined, b: StartExternalIdentityLinkRequest | PlainMessage<StartExternalIdentityLinkRequest> | undefined): boolean {
+    return proto3.util.equals(StartExternalIdentityLinkRequest, a, b);
+  }
+}
+
+/**
+ * Result of preparing an external identity link flow.
+ *
+ * @generated from message chatto.api.v1.StartExternalIdentityLinkResponse
+ */
+export class StartExternalIdentityLinkResponse extends Message<StartExternalIdentityLinkResponse> {
+  /**
+   * Browser URL that starts provider authorization on the target server origin.
+   *
+   * @generated from field: string start_url = 1;
+   */
+  startUrl = "";
+
+  constructor(data?: PartialMessage<StartExternalIdentityLinkResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.StartExternalIdentityLinkResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "start_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StartExternalIdentityLinkResponse {
+    return new StartExternalIdentityLinkResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): StartExternalIdentityLinkResponse {
+    return new StartExternalIdentityLinkResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): StartExternalIdentityLinkResponse {
+    return new StartExternalIdentityLinkResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: StartExternalIdentityLinkResponse | PlainMessage<StartExternalIdentityLinkResponse> | undefined, b: StartExternalIdentityLinkResponse | PlainMessage<StartExternalIdentityLinkResponse> | undefined): boolean {
+    return proto3.util.equals(StartExternalIdentityLinkResponse, a, b);
   }
 }
 

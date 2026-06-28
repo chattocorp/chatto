@@ -24,8 +24,11 @@ message ExternalIdentityProvider {
   string label = 3;
   // URL that starts login for this provider.
   string login_url = 4;
-  // URL that starts authenticated account linking for this provider.
+  // URL that starts authenticated account linking for this provider. Clients
+  // should use StartExternalIdentityLink instead of navigating here directly.
   string link_url = 5;
+  // True when this provider is already linked to the authenticated user.
+  bool linked = 6;
 }
 
 // Metadata about a pending external identity flow. The provider subject is not
@@ -47,6 +50,8 @@ message PendingExternalIdentity {
   string display_name_hint = 7;
   // Chatto user ID this link flow is bound to. Empty for create flows.
   string bound_user_id = 8;
+  // Internal path the client should return to after confirmation.
+  string redirect_path = 9;
 }
 
 // Linked provider identity metadata for the authenticated user's settings UI.
@@ -106,6 +111,18 @@ message CancelExternalIdentityFlowResponse {
   bool cancelled = 1;
 }
 
+// Request to confirm a pending provider link using the flow capability token.
+message ConfirmExternalIdentityLinkRequest {
+  // Raw pending link token from the provider callback redirect.
+  string token = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of confirming a provider identity link.
+message ConfirmExternalIdentityLinkResponse {
+  // Linked identity metadata.
+  LinkedExternalIdentity linked_identity = 1;
+}
+
 // Request to list configured and linked external identities for the current user.
 message ListExternalIdentitiesRequest {}
 
@@ -115,6 +132,20 @@ message ListExternalIdentitiesResponse {
   repeated ExternalIdentityProvider providers = 1;
   // Provider identities already linked to the authenticated user.
   repeated LinkedExternalIdentity linked_identities = 2;
+}
+
+// Request to start linking a configured provider to the current user.
+message StartExternalIdentityLinkRequest {
+  // Provider ID to link.
+  string provider_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Internal path to return to after confirmation.
+  string redirect_path = 2;
+}
+
+// Result of preparing an external identity link flow.
+message StartExternalIdentityLinkResponse {
+  // Browser URL that starts provider authorization on the target server origin.
+  string start_url = 1;
 }
 
 // Request to link a pending provider identity to the authenticated user.
@@ -135,6 +166,8 @@ service ExternalIdentityFlowService {
   rpc GetPendingExternalIdentity(GetPendingExternalIdentityRequest) returns (GetPendingExternalIdentityResponse);
   // Creates a passwordless account from a pending provider identity.
   rpc CreateExternalIdentityAccount(CreateExternalIdentityAccountRequest) returns (CreateExternalIdentityAccountResponse);
+  // Links a provider identity using a pending link-flow capability token.
+  rpc ConfirmExternalIdentityLink(ConfirmExternalIdentityLinkRequest) returns (ConfirmExternalIdentityLinkResponse);
   // Cancels a pending provider identity flow.
   rpc CancelExternalIdentityFlow(CancelExternalIdentityFlowRequest) returns (CancelExternalIdentityFlowResponse);
 }
@@ -143,6 +176,8 @@ service ExternalIdentityFlowService {
 service ExternalIdentityService {
   // Lists providers and identities linked to the authenticated account.
   rpc ListExternalIdentities(ListExternalIdentitiesRequest) returns (ListExternalIdentitiesResponse);
+  // Creates a short-lived browser handoff URL for linking a provider identity.
+  rpc StartExternalIdentityLink(StartExternalIdentityLinkRequest) returns (StartExternalIdentityLinkResponse);
   // Links a pending provider identity to the authenticated account.
   rpc LinkExternalIdentity(LinkExternalIdentityRequest) returns (LinkExternalIdentityResponse);
 }
