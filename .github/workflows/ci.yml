@@ -29,8 +29,9 @@ jobs:
 
       - name: Check protobuf breaking changes
         run: |
-          git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main
-          mise x -- buf breaking proto --against '.git#branch=origin/main,subdir=proto'
+          base_ref="${GITHUB_BASE_REF:-main}"
+          git fetch --no-tags --depth=1 origin "${base_ref}:refs/remotes/origin/${base_ref}"
+          mise x -- buf breaking proto --against ".git#branch=origin/${base_ref},subdir=proto"
 
       - name: Regenerate protobuf bindings
         run: mise codegen-proto
