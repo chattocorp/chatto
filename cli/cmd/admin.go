@@ -77,8 +77,14 @@ func adminUserListCmd() *cobra.Command {
 				return err
 			}
 			requestLimit := limit
+			if requestLimit < 0 {
+				requestLimit = 0
+			}
 			if requestLimit > 100 {
 				requestLimit = 100
+			}
+			if offset < 0 {
+				return errors.New("--offset must be greater than or equal to 0")
 			}
 			resp, err := client.ListUsers(cmd.Context(), adminRequest(&apiv1.ListAdminUsersRequest{
 				Search: search,

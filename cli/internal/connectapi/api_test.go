@@ -398,6 +398,14 @@ func TestAdminServiceListUsersUsesSharedPageInfo(t *testing.T) {
 	if page := legacyResp.Msg.GetPage(); page.GetTotalCount() != 2 || !page.GetHasMore() {
 		t.Fatalf("legacy ListUsers page = %+v, want total 2 has_more true", page)
 	}
+
+	_, err = admin.ListUsers(ctx, connect.NewRequest(&apiv1.ListAdminUsersRequest{
+		Search: "admin-api-page",
+		Offset: -1,
+	}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("legacy negative offset code = %v, want invalid argument", connect.CodeOf(err))
+	}
 }
 
 func TestAdminServiceUpdateUserValidatesAllFieldsBeforeWriting(t *testing.T) {

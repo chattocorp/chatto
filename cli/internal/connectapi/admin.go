@@ -25,7 +25,7 @@ func (s *adminService) ListUsers(ctx context.Context, req *connect.Request[apiv1
 	}
 
 	limit, offset := apiPagination(req.Msg.GetPage(), defaultAdminUserLimit, maxAdminUserLimit)
-	if req.Msg.GetPage() == nil && (req.Msg.GetLimit() > 0 || req.Msg.GetOffset() > 0) {
+	if req.Msg.GetPage() == nil && (req.Msg.GetLimit() != 0 || req.Msg.GetOffset() != 0) {
 		limit = int(req.Msg.GetLimit())
 		if limit <= 0 {
 			limit = defaultAdminUserLimit
@@ -35,7 +35,7 @@ func (s *adminService) ListUsers(ctx context.Context, req *connect.Request[apiv1
 		}
 		offset = int(req.Msg.GetOffset())
 		if offset < 0 {
-			offset = 0
+			return nil, connectError(core.ErrInvalidArgument)
 		}
 	}
 	users, err := s.api.core.AdminListUsers(ctx, req.Msg.GetSearch(), limit, offset)

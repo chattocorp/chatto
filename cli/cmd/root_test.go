@@ -384,6 +384,10 @@ func TestAdminUserCommandsExerciseAdminAPI(t *testing.T) {
 	if !strings.Contains(listOut, "total=1 has_more=false") || !strings.Contains(listOut, "cli-admin-user") {
 		t.Fatalf("list output = %q", listOut)
 	}
+	negativeLimitListOut := env.run(t, "admin", "user", "list", "--search", "cli-admin", "--limit", "-1")
+	if !strings.Contains(negativeLimitListOut, "total=1 has_more=false") || !strings.Contains(negativeLimitListOut, "cli-admin-user") {
+		t.Fatalf("list with negative limit output = %q", negativeLimitListOut)
+	}
 
 	deleteOut := env.run(t, "admin", "user", "delete", user.Id, "--yes")
 	if !strings.Contains(deleteOut, "deleted user "+user.Id) {
