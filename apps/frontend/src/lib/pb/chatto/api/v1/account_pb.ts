@@ -5,72 +5,8 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
+import { UserSummary } from "./users_pb.js";
 import { TimeFormat, UserSettings } from "./viewer_pb.js";
-
-/**
- * Profile fields returned after a self-service profile or avatar command.
- *
- * @generated from message chatto.api.v1.AccountUser
- */
-export class AccountUser extends Message<AccountUser> {
-  /**
-   * Stable user ID.
-   *
-   * @generated from field: string id = 1;
-   */
-  id = "";
-
-  /**
-   * Login identifier.
-   *
-   * @generated from field: string login = 2;
-   */
-  login = "";
-
-  /**
-   * Display name shown in Chatto.
-   *
-   * @generated from field: string display_name = 3;
-   */
-  displayName = "";
-
-  /**
-   * Optional avatar URL.
-   *
-   * @generated from field: optional string avatar_url = 4;
-   */
-  avatarUrl?: string;
-
-  constructor(data?: PartialMessage<AccountUser>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.AccountUser";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "avatar_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AccountUser {
-    return new AccountUser().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AccountUser {
-    return new AccountUser().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AccountUser {
-    return new AccountUser().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: AccountUser | PlainMessage<AccountUser> | undefined, b: AccountUser | PlainMessage<AccountUser> | undefined): boolean {
-    return proto3.util.equals(AccountUser, a, b);
-  }
-}
 
 /**
  * Request to update the authenticated user's profile. At least one field must
@@ -131,9 +67,9 @@ export class UpdateProfileResponse extends Message<UpdateProfileResponse> {
   /**
    * Updated user profile.
    *
-   * @generated from field: chatto.api.v1.AccountUser user = 1;
+   * @generated from field: chatto.api.v1.UserSummary user = 1;
    */
-  user?: AccountUser;
+  user?: UserSummary;
 
   constructor(data?: PartialMessage<UpdateProfileResponse>) {
     super();
@@ -143,7 +79,7 @@ export class UpdateProfileResponse extends Message<UpdateProfileResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.UpdateProfileResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "user", kind: "message", T: AccountUser },
+    { no: 1, name: "user", kind: "message", T: UserSummary },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateProfileResponse {
@@ -229,9 +165,9 @@ export class UploadAvatarResponse extends Message<UploadAvatarResponse> {
   /**
    * Updated user profile.
    *
-   * @generated from field: chatto.api.v1.AccountUser user = 1;
+   * @generated from field: chatto.api.v1.UserSummary user = 1;
    */
-  user?: AccountUser;
+  user?: UserSummary;
 
   constructor(data?: PartialMessage<UploadAvatarResponse>) {
     super();
@@ -241,7 +177,7 @@ export class UploadAvatarResponse extends Message<UploadAvatarResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.UploadAvatarResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "user", kind: "message", T: AccountUser },
+    { no: 1, name: "user", kind: "message", T: UserSummary },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UploadAvatarResponse {
@@ -303,9 +239,9 @@ export class DeleteAvatarResponse extends Message<DeleteAvatarResponse> {
   /**
    * Updated user profile.
    *
-   * @generated from field: chatto.api.v1.AccountUser user = 1;
+   * @generated from field: chatto.api.v1.UserSummary user = 1;
    */
-  user?: AccountUser;
+  user?: UserSummary;
 
   constructor(data?: PartialMessage<DeleteAvatarResponse>) {
     super();
@@ -315,7 +251,7 @@ export class DeleteAvatarResponse extends Message<DeleteAvatarResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.DeleteAvatarResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "user", kind: "message", T: AccountUser },
+    { no: 1, name: "user", kind: "message", T: UserSummary },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteAvatarResponse {

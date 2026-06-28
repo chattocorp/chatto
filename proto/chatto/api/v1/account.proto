@@ -3,18 +3,7 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "chatto/api/v1/viewer.proto";
-
-// Profile fields returned after a self-service profile or avatar command.
-message AccountUser {
-  // Stable user ID.
-  string id = 1;
-  // Login identifier.
-  string login = 2;
-  // Display name shown in Chatto.
-  string display_name = 3;
-  // Optional avatar URL.
-  optional string avatar_url = 4;
-}
+import "chatto/api/v1/users.proto";
 
 // Request to update the authenticated user's profile. At least one field must
 // be present.
@@ -28,7 +17,7 @@ message UpdateProfileRequest {
 // Result of a profile update.
 message UpdateProfileResponse {
   // Updated user profile.
-  AccountUser user = 1;
+  UserSummary user = 1;
 }
 
 // Request to upload and set the authenticated user's avatar.
@@ -44,7 +33,7 @@ message UploadAvatarRequest {
 // Result of uploading the authenticated user's avatar.
 message UploadAvatarResponse {
   // Updated user profile.
-  AccountUser user = 1;
+  UserSummary user = 1;
 }
 
 // Request to delete the authenticated user's avatar.
@@ -53,7 +42,7 @@ message DeleteAvatarRequest {}
 // Result of deleting the authenticated user's avatar.
 message DeleteAvatarResponse {
   // Updated user profile.
-  AccountUser user = 1;
+  UserSummary user = 1;
 }
 
 // Request to update the authenticated user's display preferences. Omitted

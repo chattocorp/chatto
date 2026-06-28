@@ -6,7 +6,7 @@ import type {
   AdminMemberRole as APIAdminMemberRole,
   AdminMemberRoleSummary as APIAdminMemberRoleSummary
 } from '$lib/pb/chatto/api/v1/admin_user_management_pb';
-import type { AccountUser as APIAccountUser } from '$lib/pb/chatto/api/v1/account_pb';
+import type { UserSummary as APIUserSummary } from '$lib/pb/chatto/api/v1/users_pb';
 
 export type AdminUserManagementAPIConfig = {
   baseUrl: string;
@@ -134,7 +134,7 @@ export function createAdminUserManagementAPI(config: AdminUserManagementAPIConfi
 
 export type AdminUserManagementAPI = ReturnType<typeof createAdminUserManagementAPI>;
 
-function adminManagedUser(user: APIAccountUser | undefined): AdminManagedUser {
+function adminManagedUser(user: APIUserSummary | undefined): AdminManagedUser {
   if (!user) {
     throw new Error('admin user response did not include a user');
   }

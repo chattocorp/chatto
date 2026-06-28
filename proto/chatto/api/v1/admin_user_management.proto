@@ -3,8 +3,8 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
-import "chatto/api/v1/account.proto";
 import "chatto/api/v1/pagination.proto";
+import "chatto/api/v1/users.proto";
 import "google/protobuf/timestamp.proto";
 
 // User row returned by server-admin member management reads.
@@ -142,7 +142,7 @@ message UpdateUserRequest {
 // Result of an admin user update.
 message UpdateUserResponse {
   // Updated user profile.
-  AccountUser user = 1;
+  UserSummary user = 1;
 }
 
 // Request to clear a user's self-service username-change cooldown.

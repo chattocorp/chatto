@@ -29,8 +29,11 @@ first consumer.
   - `UserPresenceSummary` when presence/custom status is part of the result.
   - `DirectoryMember` for directory/member rows with roles and
     membership-oriented metadata.
-- Keep `ViewerUser`, `AccountUser`, and `AdminMember` separate when their
-  self-service or admin visibility rules differ from public directory reads.
+- Add a new user-shaped message only when shared shapes cannot represent the
+  visibility or lifecycle semantics. Prefer embedding or returning a canonical
+  shape plus extra fields over copying identity fields into another local type.
+- When a separate user-shaped message is still needed, explain the visibility
+  reason in the message comment.
 
 ## Absence Semantics
 

@@ -822,7 +822,7 @@ func (x *UpdateUserRequest) GetLogin() string {
 type UpdateUserResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Updated user profile.
-	User          *AccountUser `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	User          *UserSummary `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -857,7 +857,7 @@ func (*UpdateUserResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_admin_user_management_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *UpdateUserResponse) GetUser() *AccountUser {
+func (x *UpdateUserResponse) GetUser() *UserSummary {
 	if x != nil {
 		return x.User
 	}
@@ -960,7 +960,7 @@ var File_chatto_api_v1_admin_user_management_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_admin_user_management_proto_rawDesc = "" +
 	"\n" +
-	")chatto/api/v1/admin_user_management.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1bchatto/api/v1/account.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xce\x03\n" +
+	")chatto/api/v1/admin_user_management.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xce\x03\n" +
 	"\vAdminMember\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
@@ -1020,7 +1020,7 @@ const file_chatto_api_v1_admin_user_management_proto_rawDesc = "" +
 	"\r_display_nameB\b\n" +
 	"\x06_login\"D\n" +
 	"\x12UpdateUserResponse\x12.\n" +
-	"\x04user\x18\x01 \x01(\v2\x1a.chatto.api.v1.AccountUserR\x04user\"@\n" +
+	"\x04user\x18\x01 \x01(\v2\x1a.chatto.api.v1.UserSummaryR\x04user\"@\n" +
 	"\x1cClearUsernameCooldownRequest\x12 \n" +
 	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\"9\n" +
 	"\x1dClearUsernameCooldownResponse\x12\x18\n" +
@@ -1069,7 +1069,7 @@ var file_chatto_api_v1_admin_user_management_proto_goTypes = []any{
 	(*timestamppb.Timestamp)(nil),         // 15: google.protobuf.Timestamp
 	(*PageRequest)(nil),                   // 16: chatto.api.v1.PageRequest
 	(*PageInfo)(nil),                      // 17: chatto.api.v1.PageInfo
-	(*AccountUser)(nil),                   // 18: chatto.api.v1.AccountUser
+	(*UserSummary)(nil),                   // 18: chatto.api.v1.UserSummary
 }
 var file_chatto_api_v1_admin_user_management_proto_depIdxs = []int32{
 	15, // 0: chatto.api.v1.AdminMember.created_at:type_name -> google.protobuf.Timestamp
@@ -1080,7 +1080,7 @@ var file_chatto_api_v1_admin_user_management_proto_depIdxs = []int32{
 	17, // 5: chatto.api.v1.ListMembersResponse.page:type_name -> chatto.api.v1.PageInfo
 	0,  // 6: chatto.api.v1.GetMemberResponse.member:type_name -> chatto.api.v1.AdminMember
 	2,  // 7: chatto.api.v1.GetMemberResponse.roles:type_name -> chatto.api.v1.AdminMemberRole
-	18, // 8: chatto.api.v1.UpdateUserResponse.user:type_name -> chatto.api.v1.AccountUser
+	18, // 8: chatto.api.v1.UpdateUserResponse.user:type_name -> chatto.api.v1.UserSummary
 	3,  // 9: chatto.api.v1.AdminUserManagementService.ListMembers:input_type -> chatto.api.v1.ListMembersRequest
 	5,  // 10: chatto.api.v1.AdminUserManagementService.GetMember:input_type -> chatto.api.v1.GetMemberRequest
 	7,  // 11: chatto.api.v1.AdminUserManagementService.AssignRole:input_type -> chatto.api.v1.AssignRoleRequest
@@ -1105,8 +1105,8 @@ func file_chatto_api_v1_admin_user_management_proto_init() {
 	if File_chatto_api_v1_admin_user_management_proto != nil {
 		return
 	}
-	file_chatto_api_v1_account_proto_init()
 	file_chatto_api_v1_pagination_proto_init()
+	file_chatto_api_v1_users_proto_init()
 	file_chatto_api_v1_admin_user_management_proto_msgTypes[0].OneofWrappers = []any{}
 	file_chatto_api_v1_admin_user_management_proto_msgTypes[3].OneofWrappers = []any{}
 	file_chatto_api_v1_admin_user_management_proto_msgTypes[11].OneofWrappers = []any{}

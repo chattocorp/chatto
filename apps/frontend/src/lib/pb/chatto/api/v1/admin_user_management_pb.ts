@@ -6,7 +6,7 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { PageInfo, PageRequest } from "./pagination_pb.js";
-import { AccountUser } from "./account_pb.js";
+import { UserSummary } from "./users_pb.js";
 
 /**
  * User row returned by server-admin member management reads.
@@ -725,9 +725,9 @@ export class UpdateUserResponse extends Message<UpdateUserResponse> {
   /**
    * Updated user profile.
    *
-   * @generated from field: chatto.api.v1.AccountUser user = 1;
+   * @generated from field: chatto.api.v1.UserSummary user = 1;
    */
-  user?: AccountUser;
+  user?: UserSummary;
 
   constructor(data?: PartialMessage<UpdateUserResponse>) {
     super();
@@ -737,7 +737,7 @@ export class UpdateUserResponse extends Message<UpdateUserResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.UpdateUserResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "user", kind: "message", T: AccountUser },
+    { no: 1, name: "user", kind: "message", T: UserSummary },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateUserResponse {
