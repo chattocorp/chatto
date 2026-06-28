@@ -48,7 +48,6 @@ export default defineConfig({
               label: "API Reference",
               items: [
                 "reference/connectrpc-api",
-                "reference/connectrpc-api/stability",
                 "reference/connectrpc-api/identity",
                 "reference/connectrpc-api/rooms-and-messages",
                 "reference/connectrpc-api/notifications",
