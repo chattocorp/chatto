@@ -124,7 +124,7 @@ function renderLanding() {
     '',
     '`/api/connect/<fully-qualified-service>/<method>`',
     '',
-    'The public service package is `chatto.api.v1`. It is the integration-first base API and also serves the bundled web client when the semantics are useful outside that client.',
+    'Use this reference when building integrations, bots, admin tools, or alternate clients for a Chatto server. All services in this reference use the `chatto.api.v1` protobuf package.',
     '',
     'Chatto is still pre-1.0. This reference is generated from the current protobuf contract and may change between releases.',
     '',

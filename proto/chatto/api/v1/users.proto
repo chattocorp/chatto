@@ -120,7 +120,7 @@ service UserService {
   rpc GetUser(GetUserRequest) returns (GetUserResponse);
   // Gets a user by login. Returns NOT_FOUND when the login is unknown.
   rpc GetUserByLogin(GetUserByLoginRequest) returns (GetUserByLoginResponse);
-  // Gets lightweight summaries for multiple users, suitable for frontend cache
-  // misses when rendering event-focused payloads.
+  // Gets lightweight summaries for multiple users referenced by event-focused
+  // payloads.
   rpc BatchGetUsers(BatchGetUsersRequest) returns (BatchGetUsersResponse);
 }

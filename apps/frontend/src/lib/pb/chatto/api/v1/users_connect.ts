@@ -37,8 +37,8 @@ export const UserService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gets lightweight summaries for multiple users, suitable for frontend cache
-     * misses when rendering event-focused payloads.
+     * Gets lightweight summaries for multiple users referenced by event-focused
+     * payloads.
      *
      * @generated from rpc chatto.api.v1.UserService.BatchGetUsers
      */
