@@ -153,18 +153,20 @@ func (s *adminUserManagementService) ClearUsernameCooldown(ctx context.Context, 
 
 func (s *adminUserManagementService) adminMember(ctx context.Context, member core.AdminMember) *apiv1.AdminMember {
 	response := &apiv1.AdminMember{
-		Id:                     member.ID,
-		Login:                  member.Login,
-		DisplayName:            member.DisplayName,
 		Roles:                  append([]string{}, member.Roles...),
 		CreatedAt:              member.CreatedAt,
-		Deleted:                member.Deleted,
 		HasVerifiedEmail:       member.HasVerifiedEmail,
 		VerifiedEmails:         append([]string{}, member.VerifiedEmails...),
 		ViewerCanDeleteAccount: member.ViewerCanDeleteAccount,
+		User: &apiv1.UserSummary{
+			Id:          member.ID,
+			Login:       member.Login,
+			DisplayName: member.DisplayName,
+			Deleted:     member.Deleted,
+		},
 	}
 	if member.AvatarURL != "" {
-		response.AvatarUrl = stringPtr(s.api.absolutizeAssetURL(ctx, member.AvatarURL))
+		response.User.AvatarUrl = stringPtr(s.api.absolutizeAssetURL(ctx, member.AvatarURL))
 	}
 	if member.LastLoginChange != nil {
 		response.LastLoginChange = timestamppb.New(*member.LastLoginChange)

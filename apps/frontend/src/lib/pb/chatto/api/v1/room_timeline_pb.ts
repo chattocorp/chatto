@@ -6,6 +6,7 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
 import { UserSummary } from "./users_pb.js";
+import { LinkPreview } from "./link_previews_pb.js";
 
 /**
  * Processing state for a timeline video attachment.
@@ -419,98 +420,6 @@ export class RoomTimelineAttachment extends Message<RoomTimelineAttachment> {
 }
 
 /**
- * Link preview metadata extracted from a message body.
- *
- * Clients should treat all fields as optional because preview extraction depends
- * on the linked site and the embed provider.
- *
- * @generated from message chatto.api.v1.RoomTimelineLinkPreview
- */
-export class RoomTimelineLinkPreview extends Message<RoomTimelineLinkPreview> {
-  /**
-   * Previewed URL.
-   *
-   * @generated from field: string url = 1;
-   */
-  url = "";
-
-  /**
-   * Page or embed title.
-   *
-   * @generated from field: string title = 2;
-   */
-  title = "";
-
-  /**
-   * Page or embed description.
-   *
-   * @generated from field: string description = 3;
-   */
-  description = "";
-
-  /**
-   * Site name, when known.
-   *
-   * @generated from field: string site_name = 4;
-   */
-  siteName = "";
-
-  /**
-   * Preview image URL, when available.
-   *
-   * @generated from field: string image_url = 5;
-   */
-  imageUrl = "";
-
-  /**
-   * Embed provider or type, when recognized.
-   *
-   * @generated from field: string embed_type = 6;
-   */
-  embedType = "";
-
-  /**
-   * Provider-specific embed ID, when recognized.
-   *
-   * @generated from field: string embed_id = 7;
-   */
-  embedId = "";
-
-  constructor(data?: PartialMessage<RoomTimelineLinkPreview>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.RoomTimelineLinkPreview";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "title", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "site_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 5, name: "image_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 6, name: "embed_type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 7, name: "embed_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomTimelineLinkPreview {
-    return new RoomTimelineLinkPreview().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomTimelineLinkPreview {
-    return new RoomTimelineLinkPreview().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomTimelineLinkPreview {
-    return new RoomTimelineLinkPreview().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RoomTimelineLinkPreview | PlainMessage<RoomTimelineLinkPreview> | undefined, b: RoomTimelineLinkPreview | PlainMessage<RoomTimelineLinkPreview> | undefined): boolean {
-    return proto3.util.equals(RoomTimelineLinkPreview, a, b);
-  }
-}
-
-/**
  * Aggregated reaction state for one emoji on one event.
  *
  * The summary is scoped to the current event and includes whether the current
@@ -613,9 +522,9 @@ export class RoomTimelineMessagePosted extends Message<RoomTimelineMessagePosted
   /**
    * Link preview extracted for the message, when available.
    *
-   * @generated from field: chatto.api.v1.RoomTimelineLinkPreview link_preview = 5;
+   * @generated from field: chatto.api.v1.LinkPreview link_preview = 5;
    */
-  linkPreview?: RoomTimelineLinkPreview;
+  linkPreview?: LinkPreview;
 
   /**
    * Time when the message was last edited.
@@ -706,7 +615,7 @@ export class RoomTimelineMessagePosted extends Message<RoomTimelineMessagePosted
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "body", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 4, name: "attachments", kind: "message", T: RoomTimelineAttachment, repeated: true },
-    { no: 5, name: "link_preview", kind: "message", T: RoomTimelineLinkPreview },
+    { no: 5, name: "link_preview", kind: "message", T: LinkPreview },
     { no: 6, name: "updated_at", kind: "message", T: Timestamp },
     { no: 7, name: "in_reply_to", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 8, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },

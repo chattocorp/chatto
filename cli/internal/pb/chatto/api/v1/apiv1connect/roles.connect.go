@@ -52,7 +52,8 @@ const (
 type RoleServiceClient interface {
 	// Lists the server role catalog. Requires an authenticated user.
 	ListRoles(context.Context, *connect.Request[v1.ListRolesRequest]) (*connect.Response[v1.ListRolesResponse], error)
-	// Gets one server role plus admin detail metadata. Requires an authenticated user.
+	// Gets one server role plus admin detail metadata. Returns NOT_FOUND when the
+	// role does not exist.
 	GetRole(context.Context, *connect.Request[v1.GetRoleRequest]) (*connect.Response[v1.GetRoleResponse], error)
 	// Creates a custom server role. Requires role.manage.
 	CreateRole(context.Context, *connect.Request[v1.CreateRoleRequest]) (*connect.Response[v1.CreateRoleResponse], error)
@@ -158,7 +159,8 @@ func (c *roleServiceClient) ReorderRoles(ctx context.Context, req *connect.Reque
 type RoleServiceHandler interface {
 	// Lists the server role catalog. Requires an authenticated user.
 	ListRoles(context.Context, *connect.Request[v1.ListRolesRequest]) (*connect.Response[v1.ListRolesResponse], error)
-	// Gets one server role plus admin detail metadata. Requires an authenticated user.
+	// Gets one server role plus admin detail metadata. Returns NOT_FOUND when the
+	// role does not exist.
 	GetRole(context.Context, *connect.Request[v1.GetRoleRequest]) (*connect.Response[v1.GetRoleResponse], error)
 	// Creates a custom server role. Requires role.manage.
 	CreateRole(context.Context, *connect.Request[v1.CreateRoleRequest]) (*connect.Response[v1.CreateRoleResponse], error)

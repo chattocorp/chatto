@@ -10,10 +10,10 @@ import {
   RoomTimelinePage,
   RoomTimelineVideoProcessingStatus
 } from '$lib/pb/chatto/api/v1/room_timeline_pb';
+import type { LinkPreview } from '$lib/pb/chatto/api/v1/link_previews_pb';
 import type {
   RoomTimelineAssetUrl,
   RoomTimelineEvent,
-  RoomTimelineLinkPreview,
   RoomTimelineMessagePosted,
   RoomTimelineVideoProcessing
 } from '$lib/pb/chatto/api/v1/room_timeline_pb';
@@ -376,7 +376,7 @@ function videoProcessingStatusView(status: RoomTimelineVideoProcessingStatus) {
   }
 }
 
-function linkPreviewView(preview?: RoomTimelineLinkPreview) {
+function linkPreviewView(preview?: LinkPreview) {
   if (!preview) return null;
   return {
     url: preview.url,

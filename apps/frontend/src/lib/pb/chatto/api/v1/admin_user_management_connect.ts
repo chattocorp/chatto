@@ -27,6 +27,7 @@ export const AdminUserManagementService = {
     },
     /**
      * Gets one server member plus role/permission metadata for admin details.
+     * Returns NOT_FOUND when the user does not exist.
      *
      * @generated from rpc chatto.api.v1.AdminUserManagementService.GetMember
      */

@@ -23,11 +23,11 @@ func (s *linkPreviewService) FetchLinkPreview(ctx context.Context, req *connect.
 	}
 
 	return connect.NewResponse(&apiv1.FetchLinkPreviewResponse{
-		Preview: apiFetchedLinkPreview(s.api, preview),
+		Preview: apiLinkPreview(s.api, preview),
 	}), nil
 }
 
-func apiFetchedLinkPreview(api *API, preview *corev1.LinkPreview) *apiv1.FetchedLinkPreview {
+func apiLinkPreview(api *API, preview *corev1.LinkPreview) *apiv1.LinkPreview {
 	if preview == nil {
 		return nil
 	}
@@ -42,14 +42,29 @@ func apiFetchedLinkPreview(api *API, preview *corev1.LinkPreview) *apiv1.Fetched
 		imageURL = api.core.GetTransformedServerAssetURL(imageAssetID, 600, 314, "contain")
 	}
 
-	return &apiv1.FetchedLinkPreview{
-		Url:          preview.GetUrl(),
-		Title:        preview.GetTitle(),
-		Description:  preview.GetDescription(),
-		ImageUrl:     imageURL,
-		ImageAssetId: imageAssetID,
-		SiteName:     preview.GetSiteName(),
-		EmbedType:    preview.GetEmbedType(),
-		EmbedId:      preview.GetEmbedId(),
+	out := &apiv1.LinkPreview{
+		Url: preview.GetUrl(),
 	}
+	if title := preview.GetTitle(); title != "" {
+		out.Title = stringPtr(title)
+	}
+	if description := preview.GetDescription(); description != "" {
+		out.Description = stringPtr(description)
+	}
+	if imageURL != "" {
+		out.ImageUrl = stringPtr(imageURL)
+	}
+	if imageAssetID != "" {
+		out.ImageAssetId = stringPtr(imageAssetID)
+	}
+	if siteName := preview.GetSiteName(); siteName != "" {
+		out.SiteName = stringPtr(siteName)
+	}
+	if embedType := preview.GetEmbedType(); embedType != "" {
+		out.EmbedType = stringPtr(embedType)
+	}
+	if embedID := preview.GetEmbedId(); embedID != "" {
+		out.EmbedId = stringPtr(embedID)
+	}
+	return out
 }

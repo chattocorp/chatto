@@ -19,7 +19,19 @@ func apiPagination(page *apiv1.PageRequest, defaultLimit, maxLimit int) (int, in
 
 func apiPageInfo(totalCount int, hasMore bool) *apiv1.PageInfo {
 	return &apiv1.PageInfo{
-		TotalCount: int32(totalCount),
+		TotalCount: int64(totalCount),
 		HasMore:    hasMore,
 	}
+}
+
+func apiSlicePage[T any](items []T, limit, offset int) ([]T, int, bool) {
+	total := len(items)
+	if offset >= total {
+		return []T{}, total, false
+	}
+	end := offset + limit
+	if end > total {
+		end = total
+	}
+	return items[offset:end], total, end < total
 }

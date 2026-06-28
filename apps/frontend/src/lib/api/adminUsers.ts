@@ -93,7 +93,7 @@ export function createAdminUserManagementAPI(config: AdminUserManagementAPIConfi
       return {
         users: response.users.map(adminMember),
         roles: response.roles.map(adminMemberRoleSummary),
-        totalCount: response.page?.totalCount ?? 0,
+        totalCount: Number(response.page?.totalCount ?? 0),
         hasMore: response.page?.hasMore ?? false
       };
     },
@@ -146,19 +146,23 @@ function adminManagedUser(user: APIUserSummary | undefined): AdminManagedUser {
   };
 }
 
-function adminMember(user: APIAdminMember): AdminMember {
+function adminMember(member: APIAdminMember): AdminMember {
+  const summary = member.user;
+  if (!summary) {
+    throw new Error('admin member response did not include a user summary');
+  }
   return {
-    id: user.id,
-    login: user.login,
-    displayName: user.displayName,
-    avatarUrl: user.avatarUrl ?? null,
-    roles: [...user.roles],
-    createdAt: user.createdAt?.toDate().toISOString() ?? null,
-    deleted: user.deleted,
-    hasVerifiedEmail: user.hasVerifiedEmail,
-    verifiedEmails: [...user.verifiedEmails],
-    viewerCanDeleteAccount: user.viewerCanDeleteAccount,
-    lastLoginChange: user.lastLoginChange?.toDate().toISOString() ?? null
+    id: summary.id,
+    login: summary.login,
+    displayName: summary.displayName,
+    avatarUrl: summary.avatarUrl ?? null,
+    roles: [...member.roles],
+    createdAt: member.createdAt?.toDate().toISOString() ?? null,
+    deleted: summary.deleted,
+    hasVerifiedEmail: member.hasVerifiedEmail,
+    verifiedEmails: [...member.verifiedEmails],
+    viewerCanDeleteAccount: member.viewerCanDeleteAccount,
+    lastLoginChange: member.lastLoginChange?.toDate().toISOString() ?? null
   };
 }
 

@@ -270,44 +270,6 @@ Result of clearing the current user's custom status.
 | `status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Current custom status after the operation. Usually absent after a clear. |
 
 
-<a id="chatto-api-v1-ViewerService"></a>
-
-## ViewerService
-
-Provides authenticated user profile, preferences, and capability state.
-
-<a id="chatto-api-v1-ViewerService-GetViewer"></a>
-
-### GetViewer
-
-Returns the current authenticated viewer. This RPC requires a logged-in
-user; unauthenticated callers receive an UNAUTHENTICATED error.
-
-```http
-POST /api/connect/chatto.api.v1.ViewerService/GetViewer
-```
-
-<a id="chatto-api-v1-GetViewerRequest"></a>
-
-#### Input: GetViewerRequest
-
-Request for the authenticated viewer snapshot.
-
-
-<a id="chatto-api-v1-GetViewerResponse"></a>
-
-#### Result: GetViewerResponse
-
-Authenticated viewer snapshot needed by application shells.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user` | [`ViewerUser`](#chatto-api-v1-ViewerUser) | Current authenticated user. |
-| `capabilities` | [`ViewerCapabilities`](#chatto-api-v1-ViewerCapabilities) | Permission-derived capabilities. |
-| `server_notification_preference` | [`ServerNotificationPreference`](#chatto-api-v1-ServerNotificationPreference) | Server-wide notification preference. |
-| `room_notification_preferences` | repeated [`RoomNotificationPreference`](#chatto-api-v1-RoomNotificationPreference) | Notification preferences for rooms the user participates in. |
-
-
 <a id="chatto-api-v1-MemberDirectoryService"></a>
 
 ## MemberDirectoryService
@@ -488,6 +450,44 @@ Lightweight batch user summary response.
 | Field | Type | Description |
 | --- | --- | --- |
 | `users` | repeated [`UserSummary`](#chatto-api-v1-UserSummary) | Found users. The server preserves first-seen request order and de-duplicates repeated IDs. |
+
+
+<a id="chatto-api-v1-ViewerService"></a>
+
+## ViewerService
+
+Provides authenticated user profile, preferences, and capability state.
+
+<a id="chatto-api-v1-ViewerService-GetViewer"></a>
+
+### GetViewer
+
+Returns the current authenticated viewer. This RPC requires a logged-in
+user; unauthenticated callers receive an UNAUTHENTICATED error.
+
+```http
+POST /api/connect/chatto.api.v1.ViewerService/GetViewer
+```
+
+<a id="chatto-api-v1-GetViewerRequest"></a>
+
+#### Input: GetViewerRequest
+
+Request for the authenticated viewer snapshot.
+
+
+<a id="chatto-api-v1-GetViewerResponse"></a>
+
+#### Result: GetViewerResponse
+
+Authenticated viewer snapshot needed by application shells.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`ViewerUser`](#chatto-api-v1-ViewerUser) | Current authenticated user. |
+| `capabilities` | [`ViewerCapabilities`](#chatto-api-v1-ViewerCapabilities) | Permission-derived capabilities. |
+| `server_notification_preference` | [`ServerNotificationPreference`](#chatto-api-v1-ServerNotificationPreference) | Server-wide notification preference. |
+| `room_notification_preferences` | repeated [`RoomNotificationPreference`](#chatto-api-v1-RoomNotificationPreference) | Notification preferences for rooms the user participates in. |
 
 
 <a id="chatto-api-v1-AccountService"></a>
@@ -1124,6 +1124,7 @@ Request to list active room bans.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Optional channel room filter. Empty lists active bans across all rooms. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults are applied when absent or limit is zero. |
 
 
 <a id="chatto-api-v1-ListRoomBansResponse"></a>
@@ -1135,6 +1136,7 @@ Active room bans visible to the current moderator.
 | Field | Type | Description |
 | --- | --- | --- |
 | `bans` | repeated [`RoomBan`](#chatto-api-v1-RoomBan) | Active bans, newest first. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
 
 
 <a id="chatto-api-v1-RoomService-BanRoomMember"></a>
@@ -1739,7 +1741,7 @@ Request server-admin member rows.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `search` | `optional string` | Optional case-insensitive login/display-name search term. |
+| `search` | `string` | Case-insensitive login/display-name search term. Empty disables search. |
 | `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
 
 
@@ -1761,6 +1763,7 @@ Server-admin member rows plus role summaries.
 ### GetMember
 
 Gets one server member plus role/permission metadata for admin details.
+Returns NOT_FOUND when the user does not exist.
 
 ```http
 POST /api/connect/chatto.api.v1.AdminUserManagementService/GetMember
@@ -1785,7 +1788,7 @@ Server-admin member detail payload.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `member` | [`AdminMember`](#chatto-api-v1-AdminMember) | Member record, when found. |
+| `member` | [`AdminMember`](#chatto-api-v1-AdminMember) | Member record. |
 | `roles` | repeated [`AdminMemberRole`](#chatto-api-v1-AdminMemberRole) | Server roles for assignment UI. |
 | `available_permissions` | `repeated string` | Server permissions available for per-user overrides. |
 | `viewer_can_assign_roles` | `bool` | Whether the caller may assign/revoke roles. |
@@ -1923,6 +1926,45 @@ Result of clearing a user's username-change cooldown.
 | Field | Type | Description |
 | --- | --- | --- |
 | `cleared` | `bool` | True when the request completed. |
+
+
+<a id="chatto-api-v1-LinkPreviewService"></a>
+
+## LinkPreviewService
+
+Fetches link preview metadata for message composers.
+
+<a id="chatto-api-v1-LinkPreviewService-FetchLinkPreview"></a>
+
+### FetchLinkPreview
+
+Fetches and caches metadata for a URL. Authentication is required to avoid
+exposing the preview fetcher as an unauthenticated network proxy.
+
+```http
+POST /api/connect/chatto.api.v1.LinkPreviewService/FetchLinkPreview
+```
+
+<a id="chatto-api-v1-FetchLinkPreviewRequest"></a>
+
+#### Input: FetchLinkPreviewRequest
+
+Request to fetch server-side link preview metadata for a URL.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `url` | `string` | URL to preview. |
+
+
+<a id="chatto-api-v1-FetchLinkPreviewResponse"></a>
+
+#### Result: FetchLinkPreviewResponse
+
+Result of fetching link preview metadata.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `preview` | [`LinkPreview`](#chatto-api-v1-LinkPreview) | Preview metadata, or absent when the URL cannot be previewed. |
 
 
 <a id="chatto-api-v1-RoomTimelineService"></a>
@@ -2208,45 +2250,6 @@ Response containing fresh signed URLs for the current message attachments.
 | `attachments` | repeated [`RefreshedAttachmentUrls`](#chatto-api-v1-RefreshedAttachmentUrls) | Fresh URL bundle for each current attachment on the message. |
 
 
-<a id="chatto-api-v1-LinkPreviewService"></a>
-
-## LinkPreviewService
-
-Fetches link preview metadata for message composers.
-
-<a id="chatto-api-v1-LinkPreviewService-FetchLinkPreview"></a>
-
-### FetchLinkPreview
-
-Fetches and caches metadata for a URL. Authentication is required to avoid
-exposing the preview fetcher as an unauthenticated network proxy.
-
-```http
-POST /api/connect/chatto.api.v1.LinkPreviewService/FetchLinkPreview
-```
-
-<a id="chatto-api-v1-FetchLinkPreviewRequest"></a>
-
-#### Input: FetchLinkPreviewRequest
-
-Request to fetch server-side link preview metadata for a URL.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `url` | `string` | URL to preview. |
-
-
-<a id="chatto-api-v1-FetchLinkPreviewResponse"></a>
-
-#### Result: FetchLinkPreviewResponse
-
-Result of fetching link preview metadata.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `preview` | [`FetchedLinkPreview`](#chatto-api-v1-FetchedLinkPreview) | Preview metadata, or absent when the URL cannot be previewed. |
-
-
 <a id="chatto-api-v1-MessageService"></a>
 
 ## MessageService
@@ -2281,7 +2284,7 @@ Request to post a message in a room or thread.
 | `in_reply_to` | `string` | Event ID this message replies to for attribution. |
 | `also_send_to_channel` | `bool` | True to also echo a thread reply into the main room timeline. |
 | `mention_confirmation_token` | `string` | Short-lived token returned by a prior mention confirmation challenge. |
-| `link_preview` | [`MessageLinkPreviewInput`](#chatto-api-v1-MessageLinkPreviewInput) | Link preview selected by the client. |
+| `link_preview` | [`LinkPreview`](#chatto-api-v1-LinkPreview) | Link preview selected by the client. Server response-only LinkPreview fields are ignored. |
 | `attachments` | repeated [`MessageAttachmentUpload`](#chatto-api-v1-MessageAttachmentUpload) | Browser-uploaded attachments to include with the message. |
 
 
@@ -2705,7 +2708,8 @@ Response containing a role-permission tier matrix.
 
 ### GetRolePermissionMatrix
 
-Gets one role's full permission matrix. Requires role.manage.
+Gets one role's full permission matrix. Requires role.manage. Returns
+NOT_FOUND when the role does not exist.
 
 ```http
 POST /api/connect/chatto.api.v1.PermissionService/GetRolePermissionMatrix
@@ -2730,7 +2734,7 @@ Response containing one role's permission matrix.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `matrix` | [`RolePermissionMatrix`](#chatto-api-v1-RolePermissionMatrix) | Requested matrix. Nil when the role does not exist. |
+| `matrix` | [`RolePermissionMatrix`](#chatto-api-v1-RolePermissionMatrix) | Requested matrix. |
 
 
 <a id="chatto-api-v1-PermissionService-GetUserPermissionMatrix"></a>
@@ -3176,7 +3180,8 @@ Server role catalog plus viewer role-management capabilities.
 
 ### GetRole
 
-Gets one server role plus admin detail metadata. Requires an authenticated user.
+Gets one server role plus admin detail metadata. Returns NOT_FOUND when the
+role does not exist.
 
 ```http
 POST /api/connect/chatto.api.v1.RoleService/GetRole
@@ -3201,8 +3206,8 @@ One server role plus role-management metadata.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `role` | [`Role`](#chatto-api-v1-Role) | Requested role, when found. |
-| `users` | repeated [`RoleUser`](#chatto-api-v1-RoleUser) | Explicit users with this role. Empty unless the caller may assign roles. |
+| `role` | [`Role`](#chatto-api-v1-Role) | Requested role. |
+| `users` | repeated [`UserSummary`](#chatto-api-v1-UserSummary) | Explicit users with this role. Empty unless the caller may assign roles. |
 | `viewer_can_manage_roles` | `bool` | Whether the caller may create/update/delete role definitions. |
 | `viewer_can_assign_roles` | `bool` | Whether the caller may assign/revoke roles and view role rosters. |
 
@@ -3939,6 +3944,19 @@ Response from recording a leave intent.
 
 ## Supporting Types
 
+<a id="chatto-api-v1-PageInfo"></a>
+
+### PageInfo
+
+Offset-based page metadata returned by list RPCs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `total_count` | `int64` | Total matching item count before pagination. |
+| `has_more` | `bool` | True when another page exists after this response. |
+
+
+
 <a id="chatto-api-v1-CustomUserStatus"></a>
 
 ### CustomUserStatus
@@ -3950,101 +3968,6 @@ Custom status shown on a user profile, separate from presence.
 | `emoji` | `string` | Short emoji marker displayed with the status. |
 | `text` | `string` | User-written status text. |
 | `expires_at` | `google.protobuf.Timestamp` | Optional time after which clients should stop showing the status. |
-
-
-
-<a id="chatto-api-v1-RoomNotificationPreference"></a>
-
-### RoomNotificationPreference
-
-Room notification preference for one joined room.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Room whose preference is represented. |
-| `level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Explicit room-level setting. |
-| `effective_level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Level after applying room/server/system defaults. |
-
-
-
-<a id="chatto-api-v1-ServerNotificationPreference"></a>
-
-### ServerNotificationPreference
-
-Server-wide notification preference for the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Explicit server-level setting. |
-| `effective_level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Level after applying system defaults. |
-
-
-
-<a id="chatto-api-v1-UserSettings"></a>
-
-### UserSettings
-
-Server-level display settings for the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `timezone` | `optional string` | Optional IANA timezone override. Absent means the client should use the browser's local timezone. |
-| `time_format` | [`TimeFormat`](#chatto-api-v1-TimeFormat) | Preferred time format. |
-
-
-
-<a id="chatto-api-v1-ViewerCapabilities"></a>
-
-### ViewerCapabilities
-
-Permission-derived capabilities for the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `can_view_admin` | `bool` | Whether the user has at least one server-admin permission. |
-| `can_start_dms` | `bool` | Whether the user may start direct-message conversations. |
-| `can_admin_view_users` | `bool` | Whether the user may view the admin users screen. |
-| `can_admin_manage_users` | `bool` | Whether the user may manage users. |
-| `can_admin_view_roles` | `bool` | Whether the user may view role administration. |
-| `can_admin_manage_roles` | `bool` | Whether the user may manage roles. |
-| `can_admin_view_system` | `bool` | Whether the user may view system administration. |
-| `can_admin_view_audit` | `bool` | Whether the user may view the audit log. |
-| `has_unread_followed_threads` | `bool` | Whether the user has unread followed threads. |
-| `can_manage_user_permissions` | `bool` | Whether the user may edit direct per-user permission overrides. |
-
-
-
-<a id="chatto-api-v1-ViewerUser"></a>
-
-### ViewerUser
-
-Current authenticated user's public profile and self-only settings.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Stable user ID. |
-| `login` | `string` | Login identifier. |
-| `display_name` | `string` | Display name shown in Chatto. |
-| `avatar_url` | `optional string` | Optional avatar URL. |
-| `custom_status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Custom profile status, when set. |
-| `presence_status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Current live presence status. |
-| `has_verified_email` | `bool` | Whether the account has at least one verified email address. |
-| `settings` | [`UserSettings`](#chatto-api-v1-UserSettings) | Current user's display settings. |
-| `viewer_can_delete_account` | `bool` | Whether the authenticated user may delete this account. |
-| `last_login_change` | `google.protobuf.Timestamp` | Last time a login credential changed, when known. |
-
-
-
-<a id="chatto-api-v1-PageInfo"></a>
-
-### PageInfo
-
-Offset-based page metadata returned by list RPCs.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `total_count` | `int32` | Total matching item count before pagination. |
-| `has_more` | `bool` | True when another page exists after this response. |
 
 
 
@@ -4113,6 +4036,83 @@ Lightweight public user data for cache-backed render surfaces.
 | `display_name` | `string` | Display name, when set. |
 | `deleted` | `bool` | True when the user account has been deleted. |
 | `avatar_url` | `optional string` | Avatar image URL, when available. |
+
+
+
+<a id="chatto-api-v1-RoomNotificationPreference"></a>
+
+### RoomNotificationPreference
+
+Room notification preference for one joined room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room whose preference is represented. |
+| `level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Explicit room-level setting. |
+| `effective_level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Level after applying room/server/system defaults. |
+
+
+
+<a id="chatto-api-v1-ServerNotificationPreference"></a>
+
+### ServerNotificationPreference
+
+Server-wide notification preference for the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Explicit server-level setting. |
+| `effective_level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Level after applying system defaults. |
+
+
+
+<a id="chatto-api-v1-UserSettings"></a>
+
+### UserSettings
+
+Server-level display settings for the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `timezone` | `optional string` | Optional IANA timezone override. Absent means the client should use the browser's local timezone. |
+| `time_format` | [`TimeFormat`](#chatto-api-v1-TimeFormat) | Preferred time format. |
+
+
+
+<a id="chatto-api-v1-ViewerCapabilities"></a>
+
+### ViewerCapabilities
+
+Permission-derived capabilities for the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `can_view_admin` | `bool` | Whether the user has at least one server-admin permission. |
+| `can_start_dms` | `bool` | Whether the user may start direct-message conversations. |
+| `can_admin_view_users` | `bool` | Whether the user may view the admin users screen. |
+| `can_admin_manage_users` | `bool` | Whether the user may manage users. |
+| `can_admin_view_roles` | `bool` | Whether the user may view role administration. |
+| `can_admin_manage_roles` | `bool` | Whether the user may manage roles. |
+| `can_admin_view_system` | `bool` | Whether the user may view system administration. |
+| `can_admin_view_audit` | `bool` | Whether the user may view the audit log. |
+| `has_unread_followed_threads` | `bool` | Whether the user has unread followed threads. |
+| `can_manage_user_permissions` | `bool` | Whether the user may edit direct per-user permission overrides. |
+
+
+
+<a id="chatto-api-v1-ViewerUser"></a>
+
+### ViewerUser
+
+Current authenticated user's public profile plus self-only settings.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `has_verified_email` | `bool` | Whether the account has at least one verified email address. |
+| `settings` | [`UserSettings`](#chatto-api-v1-UserSettings) | Current user's display settings. |
+| `viewer_can_delete_account` | `bool` | Whether the authenticated user may delete this account. |
+| `last_login_change` | `google.protobuf.Timestamp` | Last time a login credential changed, when known. |
+| `profile` | [`UserPresenceSummary`](#chatto-api-v1-UserPresenceSummary) | Public profile and live presence fields for the authenticated user. |
 
 
 
@@ -4488,19 +4488,18 @@ Room metadata used by server administrators when editing channel layout.
 
 User row returned by server-admin member management reads.
 
+The embedded user summary carries public identity fields; remaining fields are
+admin/member metadata with visibility controlled by the service.
+
 | Field | Type | Description |
 | --- | --- | --- |
-| `id` | `string` | Stable user ID. |
-| `login` | `string` | Login identifier. |
-| `display_name` | `string` | Display name shown in Chatto. |
-| `avatar_url` | `optional string` | Optional avatar URL. |
 | `roles` | `repeated string` | Explicit server role assignments. The implicit everyone role is omitted. |
 | `created_at` | `google.protobuf.Timestamp` | Account creation time, when known. |
-| `deleted` | `bool` | Whether the account has been deleted. |
 | `has_verified_email` | `bool` | Whether the caller may see that the user has a verified email and one exists. |
 | `verified_emails` | `repeated string` | Verified email addresses visible to the caller. |
 | `viewer_can_delete_account` | `bool` | Whether the caller may delete this account. |
 | `last_login_change` | `google.protobuf.Timestamp` | Last self-service username change, when visible and known. |
+| `user` | [`UserSummary`](#chatto-api-v1-UserSummary) | Public identity fields for this user. |
 
 
 
@@ -4530,6 +4529,30 @@ Role summary used by member list filters and badges.
 | --- | --- | --- |
 | `name` | `string` | Stable role name. |
 | `display_name` | `string` | Display name shown in admin UI. |
+
+
+
+<a id="chatto-api-v1-LinkPreview"></a>
+
+### LinkPreview
+
+Link preview metadata used by message composers and room timeline events.
+
+On message-post requests, the server accepts url, title, description,
+site_name, image_asset_id, embed_type, and embed_id. The image_url field is
+response-only and ignored on input. Clients should treat optional metadata as
+unavailable when absent.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `url` | `string` | Previewed URL. |
+| `title` | `optional string` | Page or embed title. |
+| `description` | `optional string` | Page or embed description. |
+| `image_url` | `optional string` | Preview image URL, when available. Response-only; ignored on message-post input. |
+| `image_asset_id` | `optional string` | Existing server asset ID for the preview image, when selected by the client or stored with the message. |
+| `site_name` | `optional string` | Site name, when known. |
+| `embed_type` | `optional string` | Embed provider or type, when recognized. |
+| `embed_id` | `optional string` | Provider-specific embed ID, when recognized. |
 
 
 
@@ -4609,27 +4632,6 @@ Includes avoid repeating the same user data on every event in a page.
 
 
 
-<a id="chatto-api-v1-RoomTimelineLinkPreview"></a>
-
-### RoomTimelineLinkPreview
-
-Link preview metadata extracted from a message body.
-
-Clients should treat all fields as optional because preview extraction depends
-on the linked site and the embed provider.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `url` | `string` | Previewed URL. |
-| `title` | `string` | Page or embed title. |
-| `description` | `string` | Page or embed description. |
-| `site_name` | `string` | Site name, when known. |
-| `image_url` | `string` | Preview image URL, when available. |
-| `embed_type` | `string` | Embed provider or type, when recognized. |
-| `embed_id` | `string` | Provider-specific embed ID, when recognized. |
-
-
-
 <a id="chatto-api-v1-RoomTimelineMessagePosted"></a>
 
 ### RoomTimelineMessagePosted
@@ -4645,7 +4647,7 @@ participants, and follow state without additional per-message requests.
 | `room_id` | `string` | Room containing the message. |
 | `body` | `optional string` | Message body text, when available. A present empty string is distinct from an absent body. |
 | `attachments` | repeated [`RoomTimelineAttachment`](#chatto-api-v1-RoomTimelineAttachment) | Attachments sent with the message. |
-| `link_preview` | [`RoomTimelineLinkPreview`](#chatto-api-v1-RoomTimelineLinkPreview) | Link preview extracted for the message, when available. |
+| `link_preview` | [`LinkPreview`](#chatto-api-v1-LinkPreview) | Link preview extracted for the message, when available. |
 | `updated_at` | `google.protobuf.Timestamp` | Time when the message was last edited. |
 | `in_reply_to` | `string` | Event ID this message directly replies to, when this is a reply. |
 | `thread_root_event_id` | `string` | Event ID of the root message for the thread this message belongs to. |
@@ -4797,25 +4799,6 @@ One current room attachment and its message anchor.
 
 
 
-<a id="chatto-api-v1-FetchedLinkPreview"></a>
-
-### FetchedLinkPreview
-
-Link preview metadata returned to clients before posting a message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `url` | `string` | Previewed URL. |
-| `title` | `string` | Page or embed title. |
-| `description` | `string` | Page or embed description. |
-| `image_url` | `string` | Preview image URL, when available. |
-| `image_asset_id` | `string` | Existing server asset ID for the preview image, when available. |
-| `site_name` | `string` | Site name, when known. |
-| `embed_type` | `string` | Embed provider or type, when recognized. |
-| `embed_id` | `string` | Provider-specific embed ID, when recognized. |
-
-
-
 <a id="chatto-api-v1-MentionConfirmationChallenge"></a>
 
 ### MentionConfirmationChallenge
@@ -4843,27 +4826,6 @@ committed. The message service validates per-file limits and permissions.
 | `content` | `bytes` | Raw file bytes. |
 | `filename` | `string` | Original filename supplied by the client. |
 | `content_type` | `string` | MIME content type supplied by the client. Empty values are treated as application/octet-stream. |
-
-
-
-<a id="chatto-api-v1-MessageLinkPreviewInput"></a>
-
-### MessageLinkPreviewInput
-
-Link preview metadata submitted with a posted message.
-
-The server validates and stores this data with the message body. Clients
-should omit this field when no preview was selected.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `url` | `string` | Previewed URL. |
-| `title` | `string` | Page or embed title. |
-| `description` | `string` | Page or embed description. |
-| `site_name` | `string` | Site name, when known. |
-| `image_asset_id` | `string` | Existing server asset ID for the preview image, when available. |
-| `embed_type` | `string` | Embed provider or type, when recognized. |
-| `embed_id` | `string` | Provider-specific embed ID, when recognized. |
 
 
 
@@ -5683,20 +5645,6 @@ Server role metadata and server-scope permission state.
 
 
 
-<a id="chatto-api-v1-RoleUser"></a>
-
-### RoleUser
-
-User summary for role roster displays.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Stable user ID. |
-| `login` | `string` | Login identifier. |
-| `display_name` | `string` | Display name shown in Chatto. |
-
-
-
 <a id="chatto-api-v1-AuthProvider"></a>
 
 ### AuthProvider
@@ -5815,6 +5763,19 @@ record expire.
 | `PRESENCE_STATUS_DO_NOT_DISTURB` | `3` | The user does not want notifications while this live status is active. |
 
 
+<a id="chatto-api-v1-UserAvatarFitMode"></a>
+
+### UserAvatarFitMode
+
+Fit mode used when generating transformed user avatar URLs.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `USER_AVATAR_FIT_MODE_UNSPECIFIED` | `0` | The fit mode was not specified. |
+| `USER_AVATAR_FIT_MODE_CONTAIN` | `1` | Preserve the whole source image within the requested bounds. |
+| `USER_AVATAR_FIT_MODE_COVER` | `2` | Fill the requested bounds, cropping when needed. |
+
+
 <a id="chatto-api-v1-TimeFormat"></a>
 
 ### TimeFormat
@@ -5827,19 +5788,6 @@ User preference for rendering times in clients.
 | `TIME_FORMAT_AUTO` | `1` | Let the client choose based on locale and browser settings. |
 | `TIME_FORMAT_12_HOUR` | `2` | Render times using a 12-hour clock. |
 | `TIME_FORMAT_24_HOUR` | `3` | Render times using a 24-hour clock. |
-
-
-<a id="chatto-api-v1-UserAvatarFitMode"></a>
-
-### UserAvatarFitMode
-
-Fit mode used when generating transformed user avatar URLs.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `USER_AVATAR_FIT_MODE_UNSPECIFIED` | `0` | The fit mode was not specified. |
-| `USER_AVATAR_FIT_MODE_CONTAIN` | `1` | Preserve the whole source image within the requested bounds. |
-| `USER_AVATAR_FIT_MODE_COVER` | `2` | Fill the requested bounds, cropping when needed. |
 
 
 <a id="chatto-api-v1-RoomKind"></a>

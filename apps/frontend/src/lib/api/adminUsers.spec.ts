@@ -50,13 +50,15 @@ describe('createAdminUserManagementAPI', () => {
     mocks.listMembers.mockResolvedValue({
       users: [
         {
-          id: 'user-1',
-          login: 'alice',
-          displayName: 'Alice',
-          avatarUrl: undefined,
+          user: {
+            id: 'user-1',
+            login: 'alice',
+            displayName: 'Alice',
+            avatarUrl: undefined,
+            deleted: false
+          },
           roles: ['admin'],
           createdAt: { toDate: () => createdAt },
-          deleted: false,
           hasVerifiedEmail: true,
           verifiedEmails: ['alice@example.test'],
           viewerCanDeleteAccount: true,
@@ -64,7 +66,7 @@ describe('createAdminUserManagementAPI', () => {
         }
       ],
       roles: [{ name: 'admin', displayName: 'Admin' }],
-      page: { totalCount: 1, hasMore: false }
+      page: { totalCount: 1n, hasMore: false }
     });
     const api = createAdminUserManagementAPI({
       baseUrl: '/api/connect',
@@ -106,13 +108,15 @@ describe('createAdminUserManagementAPI', () => {
     const lastLoginChange = new Date('2026-02-03T04:05:06.000Z');
     mocks.getMember.mockResolvedValue({
       member: {
-        id: 'user-2',
-        login: 'bob',
-        displayName: 'Bob',
-        avatarUrl: '/assets/bob.png',
+        user: {
+          id: 'user-2',
+          login: 'bob',
+          displayName: 'Bob',
+          avatarUrl: '/assets/bob.png',
+          deleted: false
+        },
         roles: ['moderator'],
         createdAt: undefined,
-        deleted: false,
         hasVerifiedEmail: false,
         verifiedEmails: [],
         viewerCanDeleteAccount: false,

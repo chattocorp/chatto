@@ -209,7 +209,8 @@ describe('createRoomCommandAPI', () => {
           createdAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z')),
           expiresAt: Timestamp.fromDate(new Date('2026-06-02T12:00:00Z'))
         }
-      ]
+      ],
+      page: { totalCount: 1n, hasMore: false }
     });
 
     const api = createRoomCommandAPI({
@@ -217,50 +218,54 @@ describe('createRoomCommandAPI', () => {
       bearerToken: 'remote-token'
     });
 
-    await expect(api.listRoomBans('room-1')).resolves.toEqual([
-      {
-        id: 'ban-1',
-        roomId: 'room-1',
-        room: {
-          id: 'room-1',
-          name: 'general',
-          description: 'General chat',
-          archived: false,
-          groupId: 'group-1',
-          universal: false
-        },
-        userId: 'user-1',
-        user: {
-          id: 'user-1',
-          login: 'alice',
-          displayName: 'Alice',
-          deleted: false,
-          avatarUrl: 'https://cdn/avatar.webp',
-          presenceStatus: PresenceStatus.Away,
-          customStatus: null,
-          roles: [],
-          createdAt: '2026-01-01T09:00:00.000Z'
-        },
-        moderatorId: 'mod-1',
-        moderator: {
-          id: 'mod-1',
-          login: 'mod',
-          displayName: 'Moderator',
-          deleted: false,
-          avatarUrl: null,
-          presenceStatus: PresenceStatus.Online,
-          customStatus: null,
-          roles: [],
-          createdAt: null
-        },
-        reason: 'policy',
-        createdAt: '2026-06-01T12:00:00.000Z',
-        expiresAt: '2026-06-02T12:00:00.000Z'
-      }
-    ]);
+    await expect(api.listRoomBans({ roomId: 'room-1' })).resolves.toEqual({
+      bans: [
+        {
+          id: 'ban-1',
+          roomId: 'room-1',
+          room: {
+            id: 'room-1',
+            name: 'general',
+            description: 'General chat',
+            archived: false,
+            groupId: 'group-1',
+            universal: false
+          },
+          userId: 'user-1',
+          user: {
+            id: 'user-1',
+            login: 'alice',
+            displayName: 'Alice',
+            deleted: false,
+            avatarUrl: 'https://cdn/avatar.webp',
+            presenceStatus: PresenceStatus.Away,
+            customStatus: null,
+            roles: [],
+            createdAt: '2026-01-01T09:00:00.000Z'
+          },
+          moderatorId: 'mod-1',
+          moderator: {
+            id: 'mod-1',
+            login: 'mod',
+            displayName: 'Moderator',
+            deleted: false,
+            avatarUrl: null,
+            presenceStatus: PresenceStatus.Online,
+            customStatus: null,
+            roles: [],
+            createdAt: null
+          },
+          reason: 'policy',
+          createdAt: '2026-06-01T12:00:00.000Z',
+          expiresAt: '2026-06-02T12:00:00.000Z'
+        }
+      ],
+      totalCount: 1,
+      hasMore: false
+    });
 
     expect(mocks.listRoomBans).toHaveBeenCalledWith(
-      { roomId: 'room-1' },
+      { roomId: 'room-1', page: { limit: 100, offset: 0 } },
       { headers: { Authorization: 'Bearer remote-token' } }
     );
   });

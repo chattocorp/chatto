@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
+import { UserSummary } from "./users_pb.js";
 
 /**
  * Server role metadata and server-scope permission state.
@@ -100,63 +101,6 @@ export class Role extends Message<Role> {
 
   static equals(a: Role | PlainMessage<Role> | undefined, b: Role | PlainMessage<Role> | undefined): boolean {
     return proto3.util.equals(Role, a, b);
-  }
-}
-
-/**
- * User summary for role roster displays.
- *
- * @generated from message chatto.api.v1.RoleUser
- */
-export class RoleUser extends Message<RoleUser> {
-  /**
-   * Stable user ID.
-   *
-   * @generated from field: string id = 1;
-   */
-  id = "";
-
-  /**
-   * Login identifier.
-   *
-   * @generated from field: string login = 2;
-   */
-  login = "";
-
-  /**
-   * Display name shown in Chatto.
-   *
-   * @generated from field: string display_name = 3;
-   */
-  displayName = "";
-
-  constructor(data?: PartialMessage<RoleUser>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.RoleUser";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoleUser {
-    return new RoleUser().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoleUser {
-    return new RoleUser().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoleUser {
-    return new RoleUser().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RoleUser | PlainMessage<RoleUser> | undefined, b: RoleUser | PlainMessage<RoleUser> | undefined): boolean {
-    return proto3.util.equals(RoleUser, a, b);
   }
 }
 
@@ -298,7 +242,7 @@ export class GetRoleRequest extends Message<GetRoleRequest> {
  */
 export class GetRoleResponse extends Message<GetRoleResponse> {
   /**
-   * Requested role, when found.
+   * Requested role.
    *
    * @generated from field: chatto.api.v1.Role role = 1;
    */
@@ -307,9 +251,9 @@ export class GetRoleResponse extends Message<GetRoleResponse> {
   /**
    * Explicit users with this role. Empty unless the caller may assign roles.
    *
-   * @generated from field: repeated chatto.api.v1.RoleUser users = 2;
+   * @generated from field: repeated chatto.api.v1.UserSummary users = 2;
    */
-  users: RoleUser[] = [];
+  users: UserSummary[] = [];
 
   /**
    * Whether the caller may create/update/delete role definitions.
@@ -334,7 +278,7 @@ export class GetRoleResponse extends Message<GetRoleResponse> {
   static readonly typeName = "chatto.api.v1.GetRoleResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "role", kind: "message", T: Role },
-    { no: 2, name: "users", kind: "message", T: RoleUser, repeated: true },
+    { no: 2, name: "users", kind: "message", T: UserSummary, repeated: true },
     { no: 3, name: "viewer_can_manage_roles", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 4, name: "viewer_can_assign_roles", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);

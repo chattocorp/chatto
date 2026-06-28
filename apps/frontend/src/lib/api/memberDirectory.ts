@@ -49,7 +49,7 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
       );
       return {
         members: response.members.map(mapDirectoryMember),
-        totalCount: response.page?.totalCount ?? 0,
+        totalCount: Number(response.page?.totalCount ?? 0),
         hasMore: response.page?.hasMore ?? false
       };
     },
@@ -66,7 +66,7 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
       );
       return {
         members: response.members.map(mapDirectoryMember),
-        totalCount: response.page?.totalCount ?? 0,
+        totalCount: Number(response.page?.totalCount ?? 0),
         hasMore: response.page?.hasMore ?? false
       };
     }

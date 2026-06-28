@@ -36,16 +36,18 @@ describe('getCurrentUserViaConnect', () => {
   it('loads current user state with bearer auth and maps protobuf fields', async () => {
     mocks.getViewer.mockResolvedValue({
       user: {
-        id: 'U1',
-        login: 'alice',
-        displayName: 'Alice',
-        avatarUrl: 'https://cdn/avatar.webp',
-        customStatus: {
-          emoji: ':wave:',
-          text: 'here',
-          expiresAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z'))
+        profile: {
+          id: 'U1',
+          login: 'alice',
+          displayName: 'Alice',
+          avatarUrl: 'https://cdn/avatar.webp',
+          customStatus: {
+            emoji: ':wave:',
+            text: 'here',
+            expiresAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z'))
+          },
+          presenceStatus: APIPresenceStatus.AWAY
         },
-        presenceStatus: APIPresenceStatus.AWAY,
         hasVerifiedEmail: true,
         viewerCanDeleteAccount: true,
         lastLoginChange: Timestamp.fromDate(new Date('2026-05-20T09:30:00Z')),
@@ -94,10 +96,12 @@ describe('getCurrentUserViaConnect', () => {
   it('omits auth headers and defaults unspecified enum values', async () => {
     mocks.getViewer.mockResolvedValue({
       user: {
-        id: 'U2',
-        login: 'bob',
-        displayName: 'Bob',
-        presenceStatus: APIPresenceStatus.UNSPECIFIED,
+        profile: {
+          id: 'U2',
+          login: 'bob',
+          displayName: 'Bob',
+          presenceStatus: APIPresenceStatus.UNSPECIFIED
+        },
         hasVerifiedEmail: false,
         settings: { timeFormat: APITimeFormat.TIME_FORMAT_UNSPECIFIED }
       },
@@ -120,10 +124,12 @@ describe('getCurrentUserViaConnect', () => {
   it('loads viewer capabilities and notification preferences', async () => {
     mocks.getViewer.mockResolvedValue({
       user: {
-        id: 'U3',
-        login: 'carol',
-        displayName: 'Carol',
-        presenceStatus: APIPresenceStatus.ONLINE,
+        profile: {
+          id: 'U3',
+          login: 'carol',
+          displayName: 'Carol',
+          presenceStatus: APIPresenceStatus.ONLINE
+        },
         hasVerifiedEmail: true
       },
       capabilities: {

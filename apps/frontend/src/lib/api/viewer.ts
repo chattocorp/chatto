@@ -73,21 +73,25 @@ export async function getViewerStateViaConnect(config: ViewerAPIConfig): Promise
   if (!response.user) {
     throw new Error('viewer response did not include a user');
   }
+  if (!response.user.profile) {
+    throw new Error('viewer response did not include a user profile');
+  }
+  const user = response.user.profile;
   const capabilities = response.capabilities;
   return {
     user: {
-      id: response.user.id,
-      login: response.user.login,
-      displayName: response.user.displayName,
-      avatarUrl: response.user.avatarUrl ?? null,
-      customStatus: response.user.customStatus
+      id: user.id,
+      login: user.login,
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl ?? null,
+      customStatus: user.customStatus
         ? {
-            emoji: response.user.customStatus.emoji,
-            text: response.user.customStatus.text,
-            expiresAt: response.user.customStatus.expiresAt?.toDate().toISOString() ?? null
+            emoji: user.customStatus.emoji,
+            text: user.customStatus.text,
+            expiresAt: user.customStatus.expiresAt?.toDate().toISOString() ?? null
           }
         : null,
-      presenceStatus: apiPresenceStatus(response.user.presenceStatus),
+      presenceStatus: apiPresenceStatus(user.presenceStatus),
       hasVerifiedEmail: response.user.hasVerifiedEmail,
       viewerCanDeleteAccount: response.user.viewerCanDeleteAccount ?? false,
       lastLoginChange: response.user.lastLoginChange?.toDate().toISOString() ?? null,

@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
+import "chatto/api/v1/link_previews.proto";
 import "chatto/api/v1/users.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -98,27 +99,6 @@ message RoomTimelineAttachment {
   RoomTimelineVideoProcessing video_processing = 8;
 }
 
-// Link preview metadata extracted from a message body.
-//
-// Clients should treat all fields as optional because preview extraction depends
-// on the linked site and the embed provider.
-message RoomTimelineLinkPreview {
-  // Previewed URL.
-  string url = 1;
-  // Page or embed title.
-  string title = 2;
-  // Page or embed description.
-  string description = 3;
-  // Site name, when known.
-  string site_name = 4;
-  // Preview image URL, when available.
-  string image_url = 5;
-  // Embed provider or type, when recognized.
-  string embed_type = 6;
-  // Provider-specific embed ID, when recognized.
-  string embed_id = 7;
-}
-
 // Aggregated reaction state for one emoji on one event.
 //
 // The summary is scoped to the current event and includes whether the current
@@ -153,7 +133,7 @@ message RoomTimelineMessagePosted {
   // Attachments sent with the message.
   repeated RoomTimelineAttachment attachments = 4;
   // Link preview extracted for the message, when available.
-  RoomTimelineLinkPreview link_preview = 5;
+  LinkPreview link_preview = 5;
   // Time when the message was last edited.
   google.protobuf.Timestamp updated_at = 6;
   // Event ID this message directly replies to, when this is a reply.

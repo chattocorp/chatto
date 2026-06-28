@@ -51,7 +51,7 @@ describe('createMemberDirectoryAPI', () => {
           createdAt: Timestamp.fromDate(new Date('2026-01-01T09:00:00Z'))
         }
       ],
-      page: { totalCount: 2, hasMore: true }
+      page: { totalCount: 2n, hasMore: true }
     });
 
     const api = createMemberDirectoryAPI({
@@ -103,7 +103,7 @@ describe('createMemberDirectoryAPI', () => {
           roles: []
         }
       ],
-      page: { totalCount: 1, hasMore: false }
+      page: { totalCount: 1n, hasMore: false }
     });
 
     const api = createMemberDirectoryAPI({ baseUrl: '/api/connect', bearerToken: null });

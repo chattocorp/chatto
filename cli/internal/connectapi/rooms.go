@@ -17,6 +17,11 @@ type roomService struct {
 	api *API
 }
 
+const (
+	defaultRoomBanListLimit = 50
+	maxRoomBanListLimit     = 100
+)
+
 func (s *roomService) CreateRoom(ctx context.Context, req *connect.Request[apiv1.CreateRoomRequest]) (*connect.Response[apiv1.CreateRoomResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
@@ -168,16 +173,22 @@ func (s *roomService) ListRoomBans(ctx context.Context, req *connect.Request[api
 		return nil, connectError(err)
 	}
 
+	limit, offset := apiPagination(req.Msg.GetPage(), defaultRoomBanListLimit, maxRoomBanListLimit)
+	page, totalCount, hasMore := apiSlicePage(bans, limit, offset)
+
 	directory := memberDirectoryService{api: s.api}
-	out := make([]*apiv1.RoomBan, 0, len(bans))
-	for _, ban := range bans {
+	out := make([]*apiv1.RoomBan, 0, len(page))
+	for _, ban := range page {
 		apiBan, err := s.apiRoomBan(ctx, directory, ban)
 		if err != nil {
 			return nil, err
 		}
 		out = append(out, apiBan)
 	}
-	return connect.NewResponse(&apiv1.ListRoomBansResponse{Bans: out}), nil
+	return connect.NewResponse(&apiv1.ListRoomBansResponse{
+		Bans: out,
+		Page: apiPageInfo(totalCount, hasMore),
+	}), nil
 }
 
 func (s *roomService) BanRoomMember(ctx context.Context, req *connect.Request[apiv1.BanRoomMemberRequest]) (*connect.Response[apiv1.BanRoomMemberResponse], error) {

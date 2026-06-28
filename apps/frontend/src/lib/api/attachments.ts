@@ -107,7 +107,7 @@ export function createAttachmentAPI(config: AttachmentAPIConfig): AttachmentAPI 
         );
         return {
           items: response.items.map(roomFileItem),
-          totalCount: response.page?.totalCount ?? 0,
+          totalCount: Number(response.page?.totalCount ?? 0),
           hasMore: response.page?.hasMore ?? false
         };
       } catch (err) {

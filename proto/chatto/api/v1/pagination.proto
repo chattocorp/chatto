@@ -20,7 +20,7 @@ message PageRequest {
 // Offset-based page metadata returned by list RPCs.
 message PageInfo {
   // Total matching item count before pagination.
-  int32 total_count = 1;
+  int64 total_count = 1;
   // True when another page exists after this response.
   bool has_more = 2;
 }

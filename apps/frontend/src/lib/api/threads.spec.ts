@@ -59,7 +59,7 @@ describe('createThreadAPI', () => {
 					hasUnread: true
 				}
 			],
-			page: { totalCount: 3, hasMore: true },
+			page: { totalCount: 3n, hasMore: true },
 			includes: { users: {} }
 		});
 

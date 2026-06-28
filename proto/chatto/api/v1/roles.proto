@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
+import "chatto/api/v1/users.proto";
 
 // Server role metadata and server-scope permission state.
 message Role {
@@ -22,16 +23,6 @@ message Role {
   int32 position = 7;
   // Whether messages may notify users assigned to this role.
   bool pingable = 8;
-}
-
-// User summary for role roster displays.
-message RoleUser {
-  // Stable user ID.
-  string id = 1;
-  // Login identifier.
-  string login = 2;
-  // Display name shown in Chatto.
-  string display_name = 3;
 }
 
 // Request the server role catalog.
@@ -55,10 +46,10 @@ message GetRoleRequest {
 
 // One server role plus role-management metadata.
 message GetRoleResponse {
-  // Requested role, when found.
+  // Requested role.
   Role role = 1;
   // Explicit users with this role. Empty unless the caller may assign roles.
-  repeated RoleUser users = 2;
+  repeated UserSummary users = 2;
   // Whether the caller may create/update/delete role definitions.
   bool viewer_can_manage_roles = 3;
   // Whether the caller may assign/revoke roles and view role rosters.
@@ -134,7 +125,8 @@ message ReorderRolesResponse {
 service RoleService {
   // Lists the server role catalog. Requires an authenticated user.
   rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
-  // Gets one server role plus admin detail metadata. Requires an authenticated user.
+  // Gets one server role plus admin detail metadata. Returns NOT_FOUND when the
+  // role does not exist.
   rpc GetRole(GetRoleRequest) returns (GetRoleResponse);
   // Creates a custom server role. Requires role.manage.
   rpc CreateRole(CreateRoleRequest) returns (CreateRoleResponse);

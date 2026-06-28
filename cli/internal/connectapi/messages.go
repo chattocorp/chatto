@@ -256,22 +256,22 @@ func (s *messageService) hydratePostedEvent(ctx context.Context, viewerID string
 	return apiEvent, &apiv1.RoomTimelineIncludes{Users: users}, nil
 }
 
-func apiMessageLinkPreviewToCore(input *apiv1.MessageLinkPreviewInput) *corev1.LinkPreview {
+func apiMessageLinkPreviewToCore(input *apiv1.LinkPreview) *corev1.LinkPreview {
 	if input == nil {
 		return nil
 	}
 	preview := &corev1.LinkPreview{
-		Url:         input.Url,
-		Title:       input.Title,
-		Description: input.Description,
-		SiteName:    input.SiteName,
-		EmbedType:   input.EmbedType,
+		Url:         input.GetUrl(),
+		Title:       input.GetTitle(),
+		Description: input.GetDescription(),
+		SiteName:    input.GetSiteName(),
+		EmbedType:   input.GetEmbedType(),
 	}
-	if input.ImageAssetId != "" {
-		preview.ImageAssetId = &input.ImageAssetId
+	if imageAssetID := input.GetImageAssetId(); imageAssetID != "" {
+		preview.ImageAssetId = &imageAssetID
 	}
-	if input.EmbedId != "" {
-		preview.EmbedId = &input.EmbedId
+	if embedID := input.GetEmbedId(); embedID != "" {
+		preview.EmbedId = &embedID
 	}
 	return preview
 }

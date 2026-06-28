@@ -3,8 +3,7 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "chatto/api/v1/notification_preferences.proto";
-import "chatto/api/v1/presence.proto";
-import "chatto/api/v1/user_status.proto";
+import "chatto/api/v1/users.proto";
 import "google/protobuf/timestamp.proto";
 
 // User preference for rendering times in clients.
@@ -28,20 +27,11 @@ message UserSettings {
   TimeFormat time_format = 2;
 }
 
-// Current authenticated user's public profile and self-only settings.
+// Current authenticated user's public profile plus self-only settings.
 message ViewerUser {
-  // Stable user ID.
-  string id = 1;
-  // Login identifier.
-  string login = 2;
-  // Display name shown in Chatto.
-  string display_name = 3;
-  // Optional avatar URL.
-  optional string avatar_url = 4;
-  // Custom profile status, when set.
-  CustomUserStatus custom_status = 5;
-  // Current live presence status.
-  PresenceStatus presence_status = 6;
+  reserved 1 to 6;
+  reserved "id", "login", "display_name", "avatar_url", "custom_status", "presence_status";
+
   // Whether the account has at least one verified email address.
   bool has_verified_email = 7;
   // Current user's display settings.
@@ -50,6 +40,8 @@ message ViewerUser {
   bool viewer_can_delete_account = 9;
   // Last time a login credential changed, when known.
   google.protobuf.Timestamp last_login_change = 10;
+  // Public profile and live presence fields for the authenticated user.
+  UserPresenceSummary profile = 11;
 }
 
 // Permission-derived capabilities for the authenticated user.

@@ -67,7 +67,7 @@ export function createThreadAPI(config: ConnectAPIConfig) {
 						lastReplyAt: timestampToISOOrNull(thread.lastReplyAt),
 						hasUnread: thread.hasUnread
 					})),
-					totalCount: response.page?.totalCount ?? 0,
+					totalCount: Number(response.page?.totalCount ?? 0),
 					hasMore: response.page?.hasMore ?? false
 				};
 			} catch (err) {

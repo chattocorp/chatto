@@ -68,7 +68,7 @@ describe('createAttachmentAPI', () => {
   it('lists room attachments with bearer auth and maps attachment metadata', async () => {
     mocks.listRoomAttachments.mockResolvedValue(
       new ListRoomAttachmentsResponse({
-        page: { totalCount: 2, hasMore: true },
+        page: { totalCount: 2n, hasMore: true },
         items: [
           new RoomAttachmentListItem({
             messageEventId: 'event_2',

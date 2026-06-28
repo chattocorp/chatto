@@ -376,6 +376,9 @@ func TestRoleServiceManagesRoles(t *testing.T) {
 	if len(getResp.Msg.GetUsers()) != 1 || getResp.Msg.GetUsers()[0].GetId() != member.Id {
 		t.Fatalf("GetRole users = %+v, want member %s", getResp.Msg.GetUsers(), member.Id)
 	}
+	if _, err := env.roles.GetRole(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetRoleRequest{Name: "missing-role"})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("missing GetRole code = %v, want not found", connect.CodeOf(err))
+	}
 
 	pingable := false
 	updateResp, err := env.roles.UpdateRole(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.UpdateRoleRequest{
@@ -450,6 +453,11 @@ func TestPermissionServiceMatricesAndWrites(t *testing.T) {
 	}
 	if cell := findAPIPermissionCell(roleMatrixResp.Msg.GetMatrix().GetCells(), "server", string(core.PermMessagePost)); cell == nil || cell.GetOverride() != apiv1.PermissionDecision_PERMISSION_DECISION_ALLOW {
 		t.Fatalf("server message.post cell = %+v, want allow override", cell)
+	}
+	if _, err := env.permissions.GetRolePermissionMatrix(ctx, connect.NewRequest(&apiv1.GetRolePermissionMatrixRequest{
+		RoleName: "missing-role",
+	})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("missing GetRolePermissionMatrix code = %v, want not found", connect.CodeOf(err))
 	}
 	if _, err := env.permissions.RevokeRolePermissionGrant(env.ctx, connect.NewRequest(&apiv1.RevokeRolePermissionGrantRequest{
 		RoleName:   core.RoleModerator,
@@ -801,14 +809,15 @@ func TestViewerServiceGetViewerReturnsSelfScopedState(t *testing.T) {
 		t.Fatalf("GetViewer: %v", err)
 	}
 	user := resp.Msg.GetUser()
-	if user.GetId() != env.viewer.Id || user.GetLogin() != env.viewer.Login || user.GetDisplayName() != env.viewer.DisplayName {
+	profile := user.GetProfile()
+	if profile.GetId() != env.viewer.Id || profile.GetLogin() != env.viewer.Login || profile.GetDisplayName() != env.viewer.DisplayName {
 		t.Fatalf("viewer user = %+v, want id/login/display name from fixture", user)
 	}
 	if !user.GetHasVerifiedEmail() {
 		t.Fatal("HasVerifiedEmail = false, want true")
 	}
-	if user.GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_AWAY {
-		t.Fatalf("PresenceStatus = %v, want AWAY", user.GetPresenceStatus())
+	if profile.GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_AWAY {
+		t.Fatalf("PresenceStatus = %v, want AWAY", profile.GetPresenceStatus())
 	}
 	if settings := user.GetSettings(); settings.GetTimezone() != tz || settings.GetTimeFormat() != apiv1.TimeFormat_TIME_FORMAT_24_HOUR {
 		t.Fatalf("settings = %+v, want timezone %q and 24-hour format", settings, tz)
@@ -1039,7 +1048,7 @@ func TestAdminUserManagementServiceListsAndGetsMembers(t *testing.T) {
 
 	regularCtx := withCaller(env.ctx, regular)
 	listResp, err := env.adminUsers.ListMembers(regularCtx, connect.NewRequest(&apiv1.ListMembersRequest{
-		Search: stringPtr("target"),
+		Search: "target",
 		Page:   &apiv1.PageRequest{Limit: 10},
 	}))
 	if err != nil {
@@ -1049,8 +1058,8 @@ func TestAdminUserManagementServiceListsAndGetsMembers(t *testing.T) {
 		t.Fatalf("ListMembers returned %d/%d users, want 1/1", len(listResp.Msg.GetUsers()), listResp.Msg.GetPage().GetTotalCount())
 	}
 	listUser := listResp.Msg.GetUsers()[0]
-	if listUser.GetId() != target.Id {
-		t.Fatalf("ListMembers user ID = %q, want %q", listUser.GetId(), target.Id)
+	if listUser.GetUser().GetId() != target.Id {
+		t.Fatalf("ListMembers user ID = %q, want %q", listUser.GetUser().GetId(), target.Id)
 	}
 	if got := listUser.GetRoles(); len(got) != 1 || got[0] != core.RoleModerator {
 		t.Fatalf("ListMembers roles = %v, want explicit moderator only", got)
@@ -1070,7 +1079,7 @@ func TestAdminUserManagementServiceListsAndGetsMembers(t *testing.T) {
 		t.Fatalf("GetMember admin: %v", err)
 	}
 	member := getResp.Msg.GetMember()
-	if member.GetId() != target.Id || member.GetLogin() != "admin-member-target-renamed" {
+	if member.GetUser().GetId() != target.Id || member.GetUser().GetLogin() != "admin-member-target-renamed" {
 		t.Fatalf("GetMember member = %+v, want renamed target", member)
 	}
 	if !member.GetHasVerifiedEmail() || len(member.GetVerifiedEmails()) != 1 || member.GetVerifiedEmails()[0] != "admin-member-target@example.test" {
@@ -1084,6 +1093,11 @@ func TestAdminUserManagementServiceListsAndGetsMembers(t *testing.T) {
 	}
 	if len(getResp.Msg.GetRoles()) == 0 || len(getResp.Msg.GetAvailablePermissions()) == 0 {
 		t.Fatalf("GetMember roles/perms empty: roles=%d perms=%d", len(getResp.Msg.GetRoles()), len(getResp.Msg.GetAvailablePermissions()))
+	}
+	if _, err := env.adminUsers.GetMember(adminCtx, connect.NewRequest(&apiv1.GetMemberRequest{
+		UserId: "missing-user",
+	})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("missing GetMember code = %v, want not found", connect.CodeOf(err))
 	}
 }
 
@@ -1567,6 +1581,9 @@ func TestRoomServiceMembershipAndModerationCommands(t *testing.T) {
 	if got := len(listResp.Msg.GetBans()); got != 1 {
 		t.Fatalf("ListRoomBans count = %d, want 1", got)
 	}
+	if listResp.Msg.GetPage().GetTotalCount() != 1 || listResp.Msg.GetPage().GetHasMore() {
+		t.Fatalf("ListRoomBans page = %+v, want total_count 1 has_more false", listResp.Msg.GetPage())
+	}
 	listedBan := listResp.Msg.GetBans()[0]
 	if listedBan.GetId() == "" {
 		t.Fatalf("ListRoomBans ban id is empty")
@@ -1596,6 +1613,9 @@ func TestRoomServiceMembershipAndModerationCommands(t *testing.T) {
 	}
 	if got := len(filteredResp.Msg.GetBans()); got != 1 {
 		t.Fatalf("filtered ListRoomBans count = %d, want 1", got)
+	}
+	if filteredResp.Msg.GetPage().GetTotalCount() != 1 || filteredResp.Msg.GetPage().GetHasMore() {
+		t.Fatalf("filtered ListRoomBans page = %+v, want total_count 1 has_more false", filteredResp.Msg.GetPage())
 	}
 
 	unbanResp, err := env.rooms.UnbanRoomMember(ctx, connect.NewRequest(&apiv1.UnbanRoomMemberRequest{
@@ -3011,7 +3031,7 @@ func TestMessageServicePostMessageValidatesInput(t *testing.T) {
 			req: &apiv1.PostMessageRequest{
 				RoomId: room.Id,
 				Body:   "hello",
-				LinkPreview: &apiv1.MessageLinkPreviewInput{
+				LinkPreview: &apiv1.LinkPreview{
 					Url: strings.Repeat("x", core.MaxLinkPreviewURLLength+1),
 				},
 			},
@@ -3236,7 +3256,7 @@ func TestMessageServicePostMessageValidationPreflightDoesNotCreateAssets(t *test
 			req: &apiv1.PostMessageRequest{
 				RoomId: room.Id,
 				Body:   "message with bad preview and file",
-				LinkPreview: &apiv1.MessageLinkPreviewInput{
+				LinkPreview: &apiv1.LinkPreview{
 					Url: strings.Repeat("x", core.MaxLinkPreviewURLLength+1),
 				},
 				Attachments: []*apiv1.MessageAttachmentUpload{{

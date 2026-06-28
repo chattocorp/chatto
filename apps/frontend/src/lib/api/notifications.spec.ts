@@ -50,7 +50,7 @@ describe('createNotificationAPI', () => {
 
   it('maps notification pages and sends bearer auth', async () => {
     mocks.listNotifications.mockResolvedValue({
-      page: { totalCount: 2, hasMore: true },
+      page: { totalCount: 2n, hasMore: true },
       serverName: 'Remote',
       items: [
         {
@@ -120,7 +120,7 @@ describe('createNotificationAPI', () => {
 
   it('maps room notification reads and dismiss mutations without auth headers', async () => {
     mocks.listRoomNotifications.mockResolvedValue({
-      page: { totalCount: 1, hasMore: false },
+      page: { totalCount: 1n, hasMore: false },
       items: [
         {
           id: 'n2',

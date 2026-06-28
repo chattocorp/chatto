@@ -24,22 +24,15 @@ const (
 )
 
 // User row returned by server-admin member management reads.
+//
+// The embedded user summary carries public identity fields; remaining fields are
+// admin/member metadata with visibility controlled by the service.
 type AdminMember struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Stable user ID.
-	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Login identifier.
-	Login string `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`
-	// Display name shown in Chatto.
-	DisplayName string `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	// Optional avatar URL.
-	AvatarUrl *string `protobuf:"bytes,4,opt,name=avatar_url,json=avatarUrl,proto3,oneof" json:"avatar_url,omitempty"`
 	// Explicit server role assignments. The implicit everyone role is omitted.
 	Roles []string `protobuf:"bytes,5,rep,name=roles,proto3" json:"roles,omitempty"`
 	// Account creation time, when known.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	// Whether the account has been deleted.
-	Deleted bool `protobuf:"varint,7,opt,name=deleted,proto3" json:"deleted,omitempty"`
 	// Whether the caller may see that the user has a verified email and one exists.
 	HasVerifiedEmail bool `protobuf:"varint,8,opt,name=has_verified_email,json=hasVerifiedEmail,proto3" json:"has_verified_email,omitempty"`
 	// Verified email addresses visible to the caller.
@@ -48,8 +41,10 @@ type AdminMember struct {
 	ViewerCanDeleteAccount bool `protobuf:"varint,10,opt,name=viewer_can_delete_account,json=viewerCanDeleteAccount,proto3" json:"viewer_can_delete_account,omitempty"`
 	// Last self-service username change, when visible and known.
 	LastLoginChange *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=last_login_change,json=lastLoginChange,proto3" json:"last_login_change,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Public identity fields for this user.
+	User          *UserSummary `protobuf:"bytes,12,opt,name=user,proto3" json:"user,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AdminMember) Reset() {
@@ -82,34 +77,6 @@ func (*AdminMember) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_admin_user_management_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *AdminMember) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *AdminMember) GetLogin() string {
-	if x != nil {
-		return x.Login
-	}
-	return ""
-}
-
-func (x *AdminMember) GetDisplayName() string {
-	if x != nil {
-		return x.DisplayName
-	}
-	return ""
-}
-
-func (x *AdminMember) GetAvatarUrl() string {
-	if x != nil && x.AvatarUrl != nil {
-		return *x.AvatarUrl
-	}
-	return ""
-}
-
 func (x *AdminMember) GetRoles() []string {
 	if x != nil {
 		return x.Roles
@@ -122,13 +89,6 @@ func (x *AdminMember) GetCreatedAt() *timestamppb.Timestamp {
 		return x.CreatedAt
 	}
 	return nil
-}
-
-func (x *AdminMember) GetDeleted() bool {
-	if x != nil {
-		return x.Deleted
-	}
-	return false
 }
 
 func (x *AdminMember) GetHasVerifiedEmail() bool {
@@ -155,6 +115,13 @@ func (x *AdminMember) GetViewerCanDeleteAccount() bool {
 func (x *AdminMember) GetLastLoginChange() *timestamppb.Timestamp {
 	if x != nil {
 		return x.LastLoginChange
+	}
+	return nil
+}
+
+func (x *AdminMember) GetUser() *UserSummary {
+	if x != nil {
+		return x.User
 	}
 	return nil
 }
@@ -299,8 +266,8 @@ func (x *AdminMemberRole) GetPermissionDenials() []string {
 // Request server-admin member rows.
 type ListMembersRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Optional case-insensitive login/display-name search term.
-	Search *string `protobuf:"bytes,1,opt,name=search,proto3,oneof" json:"search,omitempty"`
+	// Case-insensitive login/display-name search term. Empty disables search.
+	Search string `protobuf:"bytes,1,opt,name=search,proto3" json:"search,omitempty"`
 	// Page request. Defaults to 20 results when absent or limit is zero.
 	Page          *PageRequest `protobuf:"bytes,4,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -338,8 +305,8 @@ func (*ListMembersRequest) Descriptor() ([]byte, []int) {
 }
 
 func (x *ListMembersRequest) GetSearch() string {
-	if x != nil && x.Search != nil {
-		return *x.Search
+	if x != nil {
+		return x.Search
 	}
 	return ""
 }
@@ -464,7 +431,7 @@ func (x *GetMemberRequest) GetUserId() string {
 // Server-admin member detail payload.
 type GetMemberResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Member record, when found.
+	// Member record.
 	Member *AdminMember `protobuf:"bytes,1,opt,name=member,proto3" json:"member,omitempty"`
 	// Server roles for assignment UI.
 	Roles []*AdminMemberRole `protobuf:"bytes,2,rep,name=roles,proto3" json:"roles,omitempty"`
@@ -960,23 +927,18 @@ var File_chatto_api_v1_admin_user_management_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_admin_user_management_proto_rawDesc = "" +
 	"\n" +
-	")chatto/api/v1/admin_user_management.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xce\x03\n" +
-	"\vAdminMember\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
-	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
-	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12\"\n" +
-	"\n" +
-	"avatar_url\x18\x04 \x01(\tH\x00R\tavatarUrl\x88\x01\x01\x12\x14\n" +
+	")chatto/api/v1/admin_user_management.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa2\x03\n" +
+	"\vAdminMember\x12\x14\n" +
 	"\x05roles\x18\x05 \x03(\tR\x05roles\x129\n" +
 	"\n" +
-	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x18\n" +
-	"\adeleted\x18\a \x01(\bR\adeleted\x12,\n" +
+	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12,\n" +
 	"\x12has_verified_email\x18\b \x01(\bR\x10hasVerifiedEmail\x12'\n" +
 	"\x0fverified_emails\x18\t \x03(\tR\x0everifiedEmails\x129\n" +
 	"\x19viewer_can_delete_account\x18\n" +
 	" \x01(\bR\x16viewerCanDeleteAccount\x12F\n" +
-	"\x11last_login_change\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\x0flastLoginChangeB\r\n" +
-	"\v_avatar_url\"O\n" +
+	"\x11last_login_change\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\x0flastLoginChange\x12.\n" +
+	"\x04user\x18\f \x01(\v2\x1a.chatto.api.v1.UserSummaryR\x04userJ\x04\b\x01\x10\x05J\x04\b\a\x10\bR\x02idR\x05loginR\fdisplay_nameR\n" +
+	"avatar_urlR\adeleted\"O\n" +
 	"\x16AdminMemberRoleSummary\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\"\xb5\x01\n" +
@@ -985,11 +947,10 @@ const file_chatto_api_v1_admin_user_management_proto_rawDesc = "" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12\x1a\n" +
 	"\bposition\x18\x03 \x01(\x05R\bposition\x12 \n" +
 	"\vpermissions\x18\x04 \x03(\tR\vpermissions\x12-\n" +
-	"\x12permission_denials\x18\x05 \x03(\tR\x11permissionDenials\"\x87\x01\n" +
-	"\x12ListMembersRequest\x12\x1b\n" +
-	"\x06search\x18\x01 \x01(\tH\x00R\x06search\x88\x01\x01\x12.\n" +
-	"\x04page\x18\x04 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04pageB\t\n" +
-	"\a_searchJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x05limitR\x06offset\"\xd4\x01\n" +
+	"\x12permission_denials\x18\x05 \x03(\tR\x11permissionDenials\"w\n" +
+	"\x12ListMembersRequest\x12\x16\n" +
+	"\x06search\x18\x01 \x01(\tR\x06search\x12.\n" +
+	"\x04page\x18\x04 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x05limitR\x06offset\"\xd4\x01\n" +
 	"\x13ListMembersResponse\x120\n" +
 	"\x05users\x18\x01 \x03(\v2\x1a.chatto.api.v1.AdminMemberR\x05users\x12;\n" +
 	"\x05roles\x18\x02 \x03(\v2%.chatto.api.v1.AdminMemberRoleSummaryR\x05roles\x12+\n" +
@@ -1067,37 +1028,38 @@ var file_chatto_api_v1_admin_user_management_proto_goTypes = []any{
 	(*ClearUsernameCooldownRequest)(nil),  // 13: chatto.api.v1.ClearUsernameCooldownRequest
 	(*ClearUsernameCooldownResponse)(nil), // 14: chatto.api.v1.ClearUsernameCooldownResponse
 	(*timestamppb.Timestamp)(nil),         // 15: google.protobuf.Timestamp
-	(*PageRequest)(nil),                   // 16: chatto.api.v1.PageRequest
-	(*PageInfo)(nil),                      // 17: chatto.api.v1.PageInfo
-	(*UserSummary)(nil),                   // 18: chatto.api.v1.UserSummary
+	(*UserSummary)(nil),                   // 16: chatto.api.v1.UserSummary
+	(*PageRequest)(nil),                   // 17: chatto.api.v1.PageRequest
+	(*PageInfo)(nil),                      // 18: chatto.api.v1.PageInfo
 }
 var file_chatto_api_v1_admin_user_management_proto_depIdxs = []int32{
 	15, // 0: chatto.api.v1.AdminMember.created_at:type_name -> google.protobuf.Timestamp
 	15, // 1: chatto.api.v1.AdminMember.last_login_change:type_name -> google.protobuf.Timestamp
-	16, // 2: chatto.api.v1.ListMembersRequest.page:type_name -> chatto.api.v1.PageRequest
-	0,  // 3: chatto.api.v1.ListMembersResponse.users:type_name -> chatto.api.v1.AdminMember
-	1,  // 4: chatto.api.v1.ListMembersResponse.roles:type_name -> chatto.api.v1.AdminMemberRoleSummary
-	17, // 5: chatto.api.v1.ListMembersResponse.page:type_name -> chatto.api.v1.PageInfo
-	0,  // 6: chatto.api.v1.GetMemberResponse.member:type_name -> chatto.api.v1.AdminMember
-	2,  // 7: chatto.api.v1.GetMemberResponse.roles:type_name -> chatto.api.v1.AdminMemberRole
-	18, // 8: chatto.api.v1.UpdateUserResponse.user:type_name -> chatto.api.v1.UserSummary
-	3,  // 9: chatto.api.v1.AdminUserManagementService.ListMembers:input_type -> chatto.api.v1.ListMembersRequest
-	5,  // 10: chatto.api.v1.AdminUserManagementService.GetMember:input_type -> chatto.api.v1.GetMemberRequest
-	7,  // 11: chatto.api.v1.AdminUserManagementService.AssignRole:input_type -> chatto.api.v1.AssignRoleRequest
-	9,  // 12: chatto.api.v1.AdminUserManagementService.RevokeRole:input_type -> chatto.api.v1.RevokeRoleRequest
-	11, // 13: chatto.api.v1.AdminUserManagementService.UpdateUser:input_type -> chatto.api.v1.UpdateUserRequest
-	13, // 14: chatto.api.v1.AdminUserManagementService.ClearUsernameCooldown:input_type -> chatto.api.v1.ClearUsernameCooldownRequest
-	4,  // 15: chatto.api.v1.AdminUserManagementService.ListMembers:output_type -> chatto.api.v1.ListMembersResponse
-	6,  // 16: chatto.api.v1.AdminUserManagementService.GetMember:output_type -> chatto.api.v1.GetMemberResponse
-	8,  // 17: chatto.api.v1.AdminUserManagementService.AssignRole:output_type -> chatto.api.v1.AssignRoleResponse
-	10, // 18: chatto.api.v1.AdminUserManagementService.RevokeRole:output_type -> chatto.api.v1.RevokeRoleResponse
-	12, // 19: chatto.api.v1.AdminUserManagementService.UpdateUser:output_type -> chatto.api.v1.UpdateUserResponse
-	14, // 20: chatto.api.v1.AdminUserManagementService.ClearUsernameCooldown:output_type -> chatto.api.v1.ClearUsernameCooldownResponse
-	15, // [15:21] is the sub-list for method output_type
-	9,  // [9:15] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	16, // 2: chatto.api.v1.AdminMember.user:type_name -> chatto.api.v1.UserSummary
+	17, // 3: chatto.api.v1.ListMembersRequest.page:type_name -> chatto.api.v1.PageRequest
+	0,  // 4: chatto.api.v1.ListMembersResponse.users:type_name -> chatto.api.v1.AdminMember
+	1,  // 5: chatto.api.v1.ListMembersResponse.roles:type_name -> chatto.api.v1.AdminMemberRoleSummary
+	18, // 6: chatto.api.v1.ListMembersResponse.page:type_name -> chatto.api.v1.PageInfo
+	0,  // 7: chatto.api.v1.GetMemberResponse.member:type_name -> chatto.api.v1.AdminMember
+	2,  // 8: chatto.api.v1.GetMemberResponse.roles:type_name -> chatto.api.v1.AdminMemberRole
+	16, // 9: chatto.api.v1.UpdateUserResponse.user:type_name -> chatto.api.v1.UserSummary
+	3,  // 10: chatto.api.v1.AdminUserManagementService.ListMembers:input_type -> chatto.api.v1.ListMembersRequest
+	5,  // 11: chatto.api.v1.AdminUserManagementService.GetMember:input_type -> chatto.api.v1.GetMemberRequest
+	7,  // 12: chatto.api.v1.AdminUserManagementService.AssignRole:input_type -> chatto.api.v1.AssignRoleRequest
+	9,  // 13: chatto.api.v1.AdminUserManagementService.RevokeRole:input_type -> chatto.api.v1.RevokeRoleRequest
+	11, // 14: chatto.api.v1.AdminUserManagementService.UpdateUser:input_type -> chatto.api.v1.UpdateUserRequest
+	13, // 15: chatto.api.v1.AdminUserManagementService.ClearUsernameCooldown:input_type -> chatto.api.v1.ClearUsernameCooldownRequest
+	4,  // 16: chatto.api.v1.AdminUserManagementService.ListMembers:output_type -> chatto.api.v1.ListMembersResponse
+	6,  // 17: chatto.api.v1.AdminUserManagementService.GetMember:output_type -> chatto.api.v1.GetMemberResponse
+	8,  // 18: chatto.api.v1.AdminUserManagementService.AssignRole:output_type -> chatto.api.v1.AssignRoleResponse
+	10, // 19: chatto.api.v1.AdminUserManagementService.RevokeRole:output_type -> chatto.api.v1.RevokeRoleResponse
+	12, // 20: chatto.api.v1.AdminUserManagementService.UpdateUser:output_type -> chatto.api.v1.UpdateUserResponse
+	14, // 21: chatto.api.v1.AdminUserManagementService.ClearUsernameCooldown:output_type -> chatto.api.v1.ClearUsernameCooldownResponse
+	16, // [16:22] is the sub-list for method output_type
+	10, // [10:16] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_admin_user_management_proto_init() }
@@ -1107,8 +1069,6 @@ func file_chatto_api_v1_admin_user_management_proto_init() {
 	}
 	file_chatto_api_v1_pagination_proto_init()
 	file_chatto_api_v1_users_proto_init()
-	file_chatto_api_v1_admin_user_management_proto_msgTypes[0].OneofWrappers = []any{}
-	file_chatto_api_v1_admin_user_management_proto_msgTypes[3].OneofWrappers = []any{}
 	file_chatto_api_v1_admin_user_management_proto_msgTypes[11].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

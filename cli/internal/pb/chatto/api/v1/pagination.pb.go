@@ -83,7 +83,7 @@ func (x *PageRequest) GetOffset() int32 {
 type PageInfo struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Total matching item count before pagination.
-	TotalCount int32 `protobuf:"varint,1,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	TotalCount int64 `protobuf:"varint,1,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
 	// True when another page exists after this response.
 	HasMore       bool `protobuf:"varint,2,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -120,7 +120,7 @@ func (*PageInfo) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_pagination_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *PageInfo) GetTotalCount() int32 {
+func (x *PageInfo) GetTotalCount() int64 {
 	if x != nil {
 		return x.TotalCount
 	}
@@ -143,7 +143,7 @@ const file_chatto_api_v1_pagination_proto_rawDesc = "" +
 	"\x05limit\x18\x01 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x00R\x05limit\x12\x1f\n" +
 	"\x06offset\x18\x02 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x06offset\"F\n" +
 	"\bPageInfo\x12\x1f\n" +
-	"\vtotal_count\x18\x01 \x01(\x05R\n" +
+	"\vtotal_count\x18\x01 \x01(\x03R\n" +
 	"totalCount\x12\x19\n" +
 	"\bhas_more\x18\x02 \x01(\bR\ahasMoreB\xab\x01\n" +
 	"\x11com.chatto.api.v1B\x0fPaginationProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"

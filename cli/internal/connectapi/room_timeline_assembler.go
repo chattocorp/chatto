@@ -331,27 +331,8 @@ func assetProcessingFailureReasonCode(code corev1.AssetProcessingFailureCode) st
 	}
 }
 
-func (h *timelineHydrator) linkPreview(preview *corev1.LinkPreview) *apiv1.RoomTimelineLinkPreview {
-	if preview == nil {
-		return nil
-	}
-	imageAssetID := preview.GetImageAssetId()
-	if image := preview.GetImageAsset(); image != nil && image.GetId() != "" {
-		imageAssetID = image.GetId()
-	}
-	imageURL := ""
-	if imageAssetID != "" {
-		imageURL = h.api.core.GetTransformedServerAssetURL(imageAssetID, 600, 314, "contain")
-	}
-	return &apiv1.RoomTimelineLinkPreview{
-		Url:         preview.GetUrl(),
-		Title:       preview.GetTitle(),
-		Description: preview.GetDescription(),
-		SiteName:    preview.GetSiteName(),
-		ImageUrl:    imageURL,
-		EmbedType:   preview.GetEmbedType(),
-		EmbedId:     preview.GetEmbedId(),
-	}
+func (h *timelineHydrator) linkPreview(preview *corev1.LinkPreview) *apiv1.LinkPreview {
+	return apiLinkPreview(h.api, preview)
 }
 
 func (h *timelineHydrator) reactions(messageEventID string) []*apiv1.RoomTimelineReactionSummary {

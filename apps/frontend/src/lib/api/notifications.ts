@@ -145,7 +145,7 @@ function notificationPage(response: ListNotificationsResponse | ListRoomNotifica
       const mapped = notificationItem(item);
       return mapped ? [mapped] : [];
     }),
-    totalCount: response.page?.totalCount ?? 0,
+    totalCount: Number(response.page?.totalCount ?? 0),
     hasMore: response.page?.hasMore ?? false,
     serverName: response.serverName || null
   };

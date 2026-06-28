@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
 
 /**
  * Offset-based page request for list RPCs whose result order is stable enough
@@ -66,9 +66,9 @@ export class PageInfo extends Message<PageInfo> {
   /**
    * Total matching item count before pagination.
    *
-   * @generated from field: int32 total_count = 1;
+   * @generated from field: int64 total_count = 1;
    */
-  totalCount = 0;
+  totalCount = protoInt64.zero;
 
   /**
    * True when another page exists after this response.
@@ -85,7 +85,7 @@ export class PageInfo extends Message<PageInfo> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.PageInfo";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "total_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 1, name: "total_count", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
     { no: 2, name: "has_more", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 

@@ -5,8 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
-import { CustomUserStatus } from "./user_status_pb.js";
-import { PresenceStatus } from "./presence_pb.js";
+import { UserPresenceSummary } from "./users_pb.js";
 import { NotificationLevel } from "./notification_preferences_pb.js";
 
 /**
@@ -102,53 +101,11 @@ export class UserSettings extends Message<UserSettings> {
 }
 
 /**
- * Current authenticated user's public profile and self-only settings.
+ * Current authenticated user's public profile plus self-only settings.
  *
  * @generated from message chatto.api.v1.ViewerUser
  */
 export class ViewerUser extends Message<ViewerUser> {
-  /**
-   * Stable user ID.
-   *
-   * @generated from field: string id = 1;
-   */
-  id = "";
-
-  /**
-   * Login identifier.
-   *
-   * @generated from field: string login = 2;
-   */
-  login = "";
-
-  /**
-   * Display name shown in Chatto.
-   *
-   * @generated from field: string display_name = 3;
-   */
-  displayName = "";
-
-  /**
-   * Optional avatar URL.
-   *
-   * @generated from field: optional string avatar_url = 4;
-   */
-  avatarUrl?: string;
-
-  /**
-   * Custom profile status, when set.
-   *
-   * @generated from field: chatto.api.v1.CustomUserStatus custom_status = 5;
-   */
-  customStatus?: CustomUserStatus;
-
-  /**
-   * Current live presence status.
-   *
-   * @generated from field: chatto.api.v1.PresenceStatus presence_status = 6;
-   */
-  presenceStatus = PresenceStatus.UNSPECIFIED;
-
   /**
    * Whether the account has at least one verified email address.
    *
@@ -177,6 +134,13 @@ export class ViewerUser extends Message<ViewerUser> {
    */
   lastLoginChange?: Timestamp;
 
+  /**
+   * Public profile and live presence fields for the authenticated user.
+   *
+   * @generated from field: chatto.api.v1.UserPresenceSummary profile = 11;
+   */
+  profile?: UserPresenceSummary;
+
   constructor(data?: PartialMessage<ViewerUser>) {
     super();
     proto3.util.initPartial(data, this);
@@ -185,16 +149,11 @@ export class ViewerUser extends Message<ViewerUser> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.ViewerUser";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "avatar_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 5, name: "custom_status", kind: "message", T: CustomUserStatus },
-    { no: 6, name: "presence_status", kind: "enum", T: proto3.getEnumType(PresenceStatus) },
     { no: 7, name: "has_verified_email", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 8, name: "settings", kind: "message", T: UserSettings },
     { no: 9, name: "viewer_can_delete_account", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 10, name: "last_login_change", kind: "message", T: Timestamp },
+    { no: 11, name: "profile", kind: "message", T: UserPresenceSummary },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ViewerUser {

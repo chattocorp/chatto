@@ -26,7 +26,8 @@ export const RoleService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gets one server role plus admin detail metadata. Requires an authenticated user.
+     * Gets one server role plus admin detail metadata. Returns NOT_FOUND when the
+     * role does not exist.
      *
      * @generated from rpc chatto.api.v1.RoleService.GetRole
      */
