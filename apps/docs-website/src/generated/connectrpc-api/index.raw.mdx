@@ -3957,6 +3957,20 @@ Offset-based page metadata returned by list RPCs.
 
 
 
+<a id="chatto-api-v1-PageRequest"></a>
+
+### PageRequest
+
+Offset-based page request for list RPCs whose result order is stable enough
+for simple list browsing.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `limit` | `int32` | Maximum number of items to return. Each RPC defines its default; the common maximum for public API list pages is 100. |
+| `offset` | `int32` | Zero-based number of matching items to skip. |
+
+
+
 <a id="chatto-api-v1-CustomUserStatus"></a>
 
 ### CustomUserStatus
@@ -4285,6 +4299,26 @@ Broker and application diagnostics shown on the server admin system page.
 | `account` | [`AdminAccountInfo`](#chatto-api-v1-AdminAccountInfo) | JetStream account limits and usage. |
 | `nats` | [`AdminNatsStats`](#chatto-api-v1-AdminNatsStats) | JetStream stream and consumer diagnostics. |
 | `stats` | [`AdminServerStats`](#chatto-api-v1-AdminServerStats) | Aggregate Chatto object counts. |
+
+
+
+<a id="chatto-api-v1-AdminEventLogEntry"></a>
+
+### AdminEventLogEntry
+
+One durable EVT entry decoded for operator inspection.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `sequence` | `string` | EVT stream sequence. |
+| `subject` | `string` | NATS subject. |
+| `aggregate_type` | `string` | Aggregate type parsed from the subject. |
+| `aggregate_id` | `string` | Aggregate ID parsed from the subject. |
+| `event_type` | `string` | Event oneof payload type, or decode-error when decoding failed. |
+| `event_id` | `string` | Durable event ID. |
+| `actor_id` | `string` | Actor user ID stored on the event. |
+| `created_at` | `google.protobuf.Timestamp` | Event creation timestamp. |
+| `payload_json` | `string` | Pretty-printed JSON representation of the event payload. |
 
 
 
@@ -4985,6 +5019,21 @@ Permission scope reference.
 | --- | --- | --- |
 | `kind` | [`PermissionScopeKind`](#chatto-api-v1-PermissionScopeKind) | Scope tier. |
 | `id` | `string` | Scope ID for group or room scope. Empty for server scope. |
+
+
+
+<a id="chatto-api-v1-PermissionTraceEntry"></a>
+
+### PermissionTraceEntry
+
+One explicit decision encountered while explaining a permission.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `level` | [`PermissionDecisionLevel`](#chatto-api-v1-PermissionDecisionLevel) | Level at which this decision was observed. |
+| `role_name` | `string` | Role name or policy marker that produced the decision. |
+| `decision` | [`PermissionDecision`](#chatto-api-v1-PermissionDecision) | Decision observed at this trace step. |
+| `applied` | `bool` | Whether this entry is the winning decision. |
 
 
 

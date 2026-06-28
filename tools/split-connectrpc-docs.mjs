@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -211,6 +211,63 @@ function renderRealtimePage(typeSections, enumSections) {
   );
 }
 
+function collectAnchors(content) {
+  return new Set([...content.matchAll(/<a id="([^"]+)"><\/a>/g)].map((match) => match[1]));
+}
+
+function collectLocalLinks(content) {
+  return [...content.matchAll(/\]\(#([^)]+)\)/g)].map((match) => match[1]);
+}
+
+function collectTypePageLinks(content) {
+  return [...content.matchAll(/\]\(\/reference\/connectrpc-api\/types\/#([^)]+)\)/g)].map(
+    (match) => match[1]
+  );
+}
+
+function validateGeneratedPages(pages) {
+  const typeAnchors = collectAnchors(pages.get('types.mdx') ?? '');
+  const problems = [];
+  for (const [filename, content] of pages.entries()) {
+    const anchors = collectAnchors(content);
+    for (const anchor of collectLocalLinks(content)) {
+      if (!anchors.has(anchor)) {
+        problems.push(`${filename} links to missing local anchor #${anchor}`);
+      }
+    }
+    for (const anchor of collectTypePageLinks(content)) {
+      if (!typeAnchors.has(anchor)) {
+        problems.push(`${filename} links to missing shared type anchor #${anchor}`);
+      }
+    }
+  }
+  if (problems.length > 0) {
+    throw new Error(`Generated API docs contain broken links:\n${problems.join('\n')}`);
+  }
+}
+
+async function removeStaleGeneratedPages(expectedFilenames) {
+  let entries = [];
+  try {
+    entries = await readdir(outputDir, { withFileTypes: true });
+  } catch (error) {
+    if (error.code !== 'ENOENT') {
+      throw error;
+    }
+  }
+
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith('.mdx') || expectedFilenames.has(entry.name)) {
+      continue;
+    }
+    const fullPath = path.join(outputDir, entry.name);
+    const content = await readFile(fullPath, 'utf8');
+    if (content.includes(generatedNotice().trim())) {
+      await unlink(fullPath);
+    }
+  }
+}
+
 const raw = await readFile(rawReferencePath, 'utf8');
 const supportingStart = raw.indexOf('\n## Supporting Types\n');
 const enumsStart = raw.indexOf('\n## Enums\n');
@@ -241,10 +298,17 @@ if (missing.length > 0 || unmapped.length > 0) {
   );
 }
 
-await mkdir(outputDir, { recursive: true });
-await writeFile(path.join(outputDir, 'index.mdx'), renderLanding());
+const generatedPages = new Map([['index.mdx', renderLanding()]]);
 for (const group of groups) {
-  await writeFile(path.join(outputDir, `${group.slug}.mdx`), renderServiceGroup(group, serviceSections));
+  generatedPages.set(`${group.slug}.mdx`, renderServiceGroup(group, serviceSections));
 }
-await writeFile(path.join(outputDir, 'types.mdx'), renderTypesPage(typeSections, enumSections));
-await writeFile(path.join(outputDir, 'realtime.mdx'), renderRealtimePage(typeSections, enumSections));
+generatedPages.set('types.mdx', renderTypesPage(typeSections, enumSections));
+generatedPages.set('realtime.mdx', renderRealtimePage(typeSections, enumSections));
+
+validateGeneratedPages(generatedPages);
+
+await mkdir(outputDir, { recursive: true });
+await removeStaleGeneratedPages(new Set(generatedPages.keys()));
+for (const [filename, content] of generatedPages.entries()) {
+  await writeFile(path.join(outputDir, filename), content);
+}
