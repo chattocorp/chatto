@@ -1,0 +1,426 @@
+---
+title: Notifications
+description: Notification listing, preferences, counts, dismissal, and web push RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/api/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes these notifications services below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-NotificationPreferencesService"></a>
+
+## NotificationPreferencesService
+
+Reads and updates per-room notification preferences for the current user.
+
+<a id="chatto-api-v1-NotificationPreferencesService-GetServerNotificationPreference"></a>
+
+### GetServerNotificationPreference
+
+Returns the current user's explicit and effective server notification level.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationPreferencesService/GetServerNotificationPreference
+```
+
+<a id="chatto-api-v1-GetServerNotificationPreferenceRequest"></a>
+
+#### Input: GetServerNotificationPreferenceRequest
+
+Request for the current user's server-level notification preference.
+
+
+<a id="chatto-api-v1-GetServerNotificationPreferenceResponse"></a>
+
+#### Result: GetServerNotificationPreferenceResponse
+
+Current server-level notification preference.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `level` | [`NotificationLevel`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationLevel) | Explicit server-level setting. |
+| `effective_level` | [`NotificationLevel`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationLevel) | Level after applying system defaults. |
+
+
+<a id="chatto-api-v1-NotificationPreferencesService-SetServerNotificationLevel"></a>
+
+### SetServerNotificationLevel
+
+Sets the current user's explicit server notification level and returns the
+resulting stored and effective levels.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationPreferencesService/SetServerNotificationLevel
+```
+
+<a id="chatto-api-v1-SetServerNotificationLevelRequest"></a>
+
+#### Input: SetServerNotificationLevelRequest
+
+Request to update the current user's server-level notification level.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `level` | [`NotificationLevel`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationLevel) | Required. New explicit notification level. Use NOTIFICATION_LEVEL_DEFAULT to return the server to default behavior. |
+
+
+<a id="chatto-api-v1-SetServerNotificationLevelResponse"></a>
+
+#### Result: SetServerNotificationLevelResponse
+
+Updated server-level notification preference.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `level` | [`NotificationLevel`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationLevel) | Explicit server-level setting. |
+| `effective_level` | [`NotificationLevel`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationLevel) | Level after applying system defaults. |
+
+
+<a id="chatto-api-v1-NotificationPreferencesService-GetRoomNotificationPreference"></a>
+
+### GetRoomNotificationPreference
+
+Returns the current user's explicit and effective notification level for a
+room. Use this before rendering room notification controls so the UI can
+distinguish inherited defaults from an explicit room override.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationPreferencesService/GetRoomNotificationPreference
+```
+
+<a id="chatto-api-v1-GetRoomNotificationPreferenceRequest"></a>
+
+#### Input: GetRoomNotificationPreferenceRequest
+
+Request for the current user's notification preference in one room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room whose notification preference should be loaded for the current user. |
+
+
+<a id="chatto-api-v1-GetRoomNotificationPreferenceResponse"></a>
+
+#### Result: GetRoomNotificationPreferenceResponse
+
+Current notification preference for a room.
+
+Clients can show both the stored room-level setting and the effective setting
+the server will apply after defaults are resolved.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `level` | [`NotificationLevel`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationLevel) | Explicit level stored for the current user and room. |
+| `effective_level` | [`NotificationLevel`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationLevel) | Level after applying defaults and inheritance. |
+
+
+<a id="chatto-api-v1-NotificationPreferencesService-SetRoomNotificationLevel"></a>
+
+### SetRoomNotificationLevel
+
+Sets the current user's explicit notification level for a room and returns
+the resulting stored and effective levels.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationPreferencesService/SetRoomNotificationLevel
+```
+
+<a id="chatto-api-v1-SetRoomNotificationLevelRequest"></a>
+
+#### Input: SetRoomNotificationLevelRequest
+
+Request to update the current user's notification level in one room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room whose notification level should be changed for the current user. |
+| `level` | [`NotificationLevel`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationLevel) | Required. New explicit notification level. Use NOTIFICATION_LEVEL_DEFAULT to return the room to inherited/default behavior. |
+
+
+<a id="chatto-api-v1-SetRoomNotificationLevelResponse"></a>
+
+#### Result: SetRoomNotificationLevelResponse
+
+Updated notification preference for a room.
+
+The response mirrors the read shape so clients can update local state without
+issuing a second read request.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `level` | [`NotificationLevel`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationLevel) | Explicit level stored for the current user and room. |
+| `effective_level` | [`NotificationLevel`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationLevel) | Level after applying defaults and inheritance. |
+
+<a id="chatto-api-v1-NotificationService"></a>
+
+## NotificationService
+
+Reads and dismisses pending notifications for the authenticated viewer.
+
+<a id="chatto-api-v1-NotificationService-ListNotifications"></a>
+
+### ListNotifications
+
+Lists the authenticated viewer's pending notifications.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/ListNotifications
+```
+
+<a id="chatto-api-v1-ListNotificationsRequest"></a>
+
+#### Input: ListNotificationsRequest
+
+Request for the authenticated viewer's pending notifications.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | Page request. Defaults to 50 results when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListNotificationsResponse"></a>
+
+#### Result: ListNotificationsResponse
+
+Pending notification page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `items` | repeated [`NotificationItem`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationItem) | Page items, newest first. |
+| `server_name` | `string` | Current server display name for non-DM location labels. |
+| `page` | [`PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Page metadata. |
+
+
+<a id="chatto-api-v1-NotificationService-ListRoomNotifications"></a>
+
+### ListRoomNotifications
+
+Lists pending notifications for one room. Non-members receive an empty page.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/ListRoomNotifications
+```
+
+<a id="chatto-api-v1-ListRoomNotificationsRequest"></a>
+
+#### Input: ListRoomNotificationsRequest
+
+Request for pending notifications scoped to one room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room whose notifications should be listed. |
+| `page` | [`PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | Page request. Defaults to 50 results when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListRoomNotificationsResponse"></a>
+
+#### Result: ListRoomNotificationsResponse
+
+Pending notification page scoped to one room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `items` | repeated [`NotificationItem`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationItem) | Page items, newest first. |
+| `server_name` | `string` | Current server display name for non-DM location labels. |
+| `page` | [`PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Page metadata. |
+
+
+<a id="chatto-api-v1-NotificationService-ListNotificationCounts"></a>
+
+### ListNotificationCounts
+
+Lists pending notification counts grouped by room.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/ListNotificationCounts
+```
+
+<a id="chatto-api-v1-ListNotificationCountsRequest"></a>
+
+#### Input: ListNotificationCountsRequest
+
+Request for pending notification counts grouped by room.
+
+
+<a id="chatto-api-v1-ListNotificationCountsResponse"></a>
+
+#### Result: ListNotificationCountsResponse
+
+Pending notification counts grouped by room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_counts` | repeated [`RoomNotificationCount`](/reference/connectrpc-api/types/#chatto-api-v1-RoomNotificationCount) | Counts for rooms with at least one pending notification. |
+
+
+<a id="chatto-api-v1-NotificationService-HasNotifications"></a>
+
+### HasNotifications
+
+Checks whether the authenticated viewer has any pending notifications.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/HasNotifications
+```
+
+<a id="chatto-api-v1-HasNotificationsRequest"></a>
+
+#### Input: HasNotificationsRequest
+
+Request for a lightweight pending notification check.
+
+
+<a id="chatto-api-v1-HasNotificationsResponse"></a>
+
+#### Result: HasNotificationsResponse
+
+Lightweight pending notification check.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `has_notifications` | `bool` | True when the authenticated viewer has at least one pending notification. |
+
+
+<a id="chatto-api-v1-NotificationService-DismissNotification"></a>
+
+### DismissNotification
+
+Dismisses one pending notification.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/DismissNotification
+```
+
+<a id="chatto-api-v1-DismissNotificationRequest"></a>
+
+#### Input: DismissNotificationRequest
+
+Request to dismiss one pending notification.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notification_id` | `string` | Required. Notification to dismiss. |
+
+
+<a id="chatto-api-v1-DismissNotificationResponse"></a>
+
+#### Result: DismissNotificationResponse
+
+Result of dismissing one pending notification.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `dismissed` | `bool` | True when the notification existed and was dismissed. |
+
+
+<a id="chatto-api-v1-NotificationService-DismissAllNotifications"></a>
+
+### DismissAllNotifications
+
+Dismisses all pending notifications.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/DismissAllNotifications
+```
+
+<a id="chatto-api-v1-DismissAllNotificationsRequest"></a>
+
+#### Input: DismissAllNotificationsRequest
+
+Request to dismiss all pending notifications.
+
+
+<a id="chatto-api-v1-DismissAllNotificationsResponse"></a>
+
+#### Result: DismissAllNotificationsResponse
+
+Result of dismissing all pending notifications.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `dismissed_count` | `int32` | Number of notifications dismissed. |
+
+<a id="chatto-api-v1-PushNotificationService"></a>
+
+## PushNotificationService
+
+Browser Web Push subscription commands for the current user.
+
+<a id="chatto-api-v1-PushNotificationService-Subscribe"></a>
+
+### Subscribe
+
+Stores or updates the caller's browser push subscription.
+
+The server must have Web Push configured. Clients normally call this after
+the browser grants notification permission and returns a PushSubscription.
+
+```http
+POST /api/connect/chatto.api.v1.PushNotificationService/Subscribe
+```
+
+<a id="chatto-api-v1-SubscribeRequest"></a>
+
+#### Input: SubscribeRequest
+
+Request to store a PushSubscription returned by the browser Push API.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `endpoint` | `string` | Push service endpoint URL. |
+| `p256dh` | `string` | Client P-256 ECDH public key from PushSubscription.keys.p256dh. |
+| `auth` | `string` | Authentication secret from PushSubscription.keys.auth. |
+| `user_agent` | `optional string` | Optional browser user-agent string for device identification. |
+
+
+<a id="chatto-api-v1-SubscribeResponse"></a>
+
+#### Result: SubscribeResponse
+
+Response from storing a browser push subscription.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `subscribed` | `bool` | True when the subscription was stored. |
+
+
+<a id="chatto-api-v1-PushNotificationService-Unsubscribe"></a>
+
+### Unsubscribe
+
+Removes the caller's browser push subscription by endpoint.
+
+The call is idempotent: removing an unknown endpoint still succeeds.
+
+```http
+POST /api/connect/chatto.api.v1.PushNotificationService/Unsubscribe
+```
+
+<a id="chatto-api-v1-UnsubscribeRequest"></a>
+
+#### Input: UnsubscribeRequest
+
+Request to remove a browser push subscription.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `endpoint` | `string` | Push service endpoint URL to remove. |
+
+
+<a id="chatto-api-v1-UnsubscribeResponse"></a>
+
+#### Result: UnsubscribeResponse
+
+Response from removing a browser push subscription.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `unsubscribed` | `bool` | True when the request completed. |

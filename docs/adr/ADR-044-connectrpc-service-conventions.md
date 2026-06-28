@@ -20,7 +20,7 @@ ConnectRPC should remain a transport boundary. Chatto's domain behavior still be
 
 All public ConnectRPC services live under `proto/chatto/api/v1` and are implemented through generated Connect handlers. Public API protobuf comments are part of the API documentation and should describe caller-visible behavior, not implementation workflow.
 
-`chatto.api.v1` is the broad base API surface for both integrations and the bundled web client. Frontend-used features should stay in this base API when their semantics can be made coherent for external clients. A separate app-specific API namespace is acceptable only for behavior that is inherently tied to one bundled client implementation; those APIs still need enough stability for mixed bundled client/server versions.
+`chatto.api.v1` is the broad base API surface for both integrations and the bundled web client. Frontend-used features should stay in this base API when their semantics can be made coherent for external clients. A separate app-specific API namespace is acceptable only for behavior that is inherently tied to one bundled client implementation; those APIs still need enough stability for mixed bundled client/server versions. ADR-045 defines the integration API, bundled app API, and realtime protocol stability tiers.
 
 Repeated public semantics should use shared protobuf shapes instead of service-local copies. Offset-based list RPCs use `PageRequest page` and return `PageInfo page` unless they need a cursor/window model such as room timeline reads. Singular lookup RPCs return `NOT_FOUND` when the requested resource is absent. Batch/list RPCs may omit missing resources or return empty lists. Optional response fields should represent a successful nullable result, not a hidden not-found status.
 
@@ -67,6 +67,7 @@ Adding a new public ConnectRPC service requires the same change set:
 - transport tests for auth-before-validation and validation behavior where applicable;
 - operation tests for authorization and response semantics at the shared core model boundary;
 - updates to `docs/ARCHITECTURE.md` and relevant FDRs;
+- generated docs grouping in `tools/split-connectrpc-docs.mjs`;
 - docs website sidebar/reference wiring when a new generated reference page is introduced.
 
 ## Consequences

@@ -27,6 +27,11 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup
 
+      - name: Check protobuf breaking changes
+        run: |
+          git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main
+          mise x -- buf breaking proto --against '.git#branch=origin/main,subdir=proto'
+
       - name: Regenerate protobuf bindings
         run: mise codegen-proto
 

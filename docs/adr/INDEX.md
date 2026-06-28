@@ -52,3 +52,4 @@ For more about ADRs, see [Michael Nygard's article](https://cognitect.com/blog/2
 | [ADR-042](ADR-042-protobuf-first-public-api.md) | Protobuf-First Public API with ConnectRPC and Realtime WebSocket | 2026-06-22 |
 | [ADR-043](ADR-043-client-shell-internationalization.md) | Client-Shell Internationalization | 2026-06-22 |
 | [ADR-044](ADR-044-connectrpc-service-conventions.md) | ConnectRPC Service Conventions | 2026-06-25 |
+| [ADR-045](ADR-045-public-api-stability-tiers.md) | Public API Stability Tiers | 2026-06-28 |

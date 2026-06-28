@@ -76,11 +76,16 @@ first consumer.
   same change.
 - The project is pre-1.0, but public API breakage still needs an explicit plan
   and PR compatibility note.
+- Follow [ADR-045](../../../../docs/adr/ADR-045-public-api-stability-tiers.md)
+  for integration API, bundled app API, and realtime protocol stability tiers.
 
 ## Code Generation
 
 - Public `.proto` or ConnectRPC service changes require `mise codegen-proto`.
 - Commit all generated Go/TypeScript bindings and docs-website ConnectRPC
   reference outputs.
-- New public services also need entries in `proto/buf.gen.yaml` and the docs
-  sidebar in `apps/docs-website/astro.config.mjs`.
+- New public services also need generated docs grouping in
+  `tools/split-connectrpc-docs.mjs`; the splitter fails codegen when a service
+  is not assigned to a reference page.
+- New generated reference pages need docs sidebar entries in
+  `apps/docs-website/astro.config.mjs`.

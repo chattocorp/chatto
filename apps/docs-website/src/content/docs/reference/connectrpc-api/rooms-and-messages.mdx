@@ -1,0 +1,1506 @@
+---
+title: Rooms And Messages
+description: Room navigation, timelines, messages, attachments, reactions, reads, threads, and calls.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/api/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes these rooms and messages services below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-RoomDirectoryService"></a>
+
+## RoomDirectoryService
+
+Reads room directory data and performs directory-adjacent commands.
+
+<a id="chatto-api-v1-RoomDirectoryService-ListRooms"></a>
+
+### ListRooms
+
+Lists rooms visible to the current user. Channel rooms are non-archived
+rooms visible through membership or room.list. DM rooms are membership-only
+and empty DM conversations are omitted.
+
+```http
+POST /api/connect/chatto.api.v1.RoomDirectoryService/ListRooms
+```
+
+<a id="chatto-api-v1-ListRoomsRequest"></a>
+
+#### Input: ListRoomsRequest
+
+Request for rooms visible to the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `scope` | [`RoomDirectoryScope`](/reference/connectrpc-api/types/#chatto-api-v1-RoomDirectoryScope) | Which room kinds to include. Defaults to all. |
+
+
+<a id="chatto-api-v1-ListRoomsResponse"></a>
+
+#### Result: ListRoomsResponse
+
+Visible rooms for the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `rooms` | repeated [`DirectoryRoom`](/reference/connectrpc-api/types/#chatto-api-v1-DirectoryRoom) | Rooms matching the requested scope. |
+
+
+<a id="chatto-api-v1-RoomDirectoryService-ListRoomGroups"></a>
+
+### ListRoomGroups
+
+Lists ordered channel room groups and sidebar items visible to the current
+user. Archived and hidden room entries are omitted from group results.
+
+```http
+POST /api/connect/chatto.api.v1.RoomDirectoryService/ListRoomGroups
+```
+
+<a id="chatto-api-v1-ListRoomGroupsRequest"></a>
+
+#### Input: ListRoomGroupsRequest
+
+Request for ordered room groups visible to the current user.
+
+
+<a id="chatto-api-v1-ListRoomGroupsResponse"></a>
+
+#### Result: ListRoomGroupsResponse
+
+Ordered room groups visible to the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `groups` | repeated [`RoomGroup`](/reference/connectrpc-api/types/#chatto-api-v1-RoomGroup) | Channel room groups in sidebar order. |
+
+
+<a id="chatto-api-v1-RoomDirectoryService-GetRoom"></a>
+
+### GetRoom
+
+Returns one visible room by ID. DM rooms require membership.
+
+```http
+POST /api/connect/chatto.api.v1.RoomDirectoryService/GetRoom
+```
+
+<a id="chatto-api-v1-GetRoomRequest"></a>
+
+#### Input: GetRoomRequest
+
+Request for one room visible to the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room to resolve. |
+
+
+<a id="chatto-api-v1-GetRoomResponse"></a>
+
+#### Result: GetRoomResponse
+
+Room visible to the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`DirectoryRoom`](/reference/connectrpc-api/types/#chatto-api-v1-DirectoryRoom) | Resolved room and viewer state. |
+
+
+<a id="chatto-api-v1-RoomDirectoryService-JoinGroup"></a>
+
+### JoinGroup
+
+Joins every unarchived room in a group that the current user can join.
+Already-joined and non-joinable rooms are skipped.
+
+```http
+POST /api/connect/chatto.api.v1.RoomDirectoryService/JoinGroup
+```
+
+<a id="chatto-api-v1-JoinGroupRequest"></a>
+
+#### Input: JoinGroupRequest
+
+Request to join all joinable rooms in one room group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group_id` | `string` | Required. Room group whose rooms should be joined. |
+
+
+<a id="chatto-api-v1-JoinGroupResponse"></a>
+
+#### Result: JoinGroupResponse
+
+Result of joining all joinable rooms in one room group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `joined_room_ids` | `repeated string` | Room IDs that transitioned from not joined to joined. |
+
+<a id="chatto-api-v1-RoomService"></a>
+
+## RoomService
+
+Manages channel room lifecycle and room membership for the current user.
+
+<a id="chatto-api-v1-RoomService-CreateRoom"></a>
+
+### CreateRoom
+
+Creates a new channel room in a room group. The caller must be allowed to
+create rooms in the target group.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/CreateRoom
+```
+
+<a id="chatto-api-v1-CreateRoomRequest"></a>
+
+#### Input: CreateRoomRequest
+
+Request to create a channel room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Required. Name of the new channel room. |
+| `description` | `string` | Optional room description. |
+| `group_id` | `string` | Required. Room group that should contain the new channel. |
+| `universal` | `bool` | Whether the new channel should grant effective membership to eligible server members. |
+
+
+<a id="chatto-api-v1-CreateRoomResponse"></a>
+
+#### Result: CreateRoomResponse
+
+Result of creating a room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`Room`](/reference/connectrpc-api/types/#chatto-api-v1-Room) | Created room. |
+
+
+<a id="chatto-api-v1-RoomService-UpdateRoom"></a>
+
+### UpdateRoom
+
+Updates a room's name and description. The caller must be allowed to manage
+rooms.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/UpdateRoom
+```
+
+<a id="chatto-api-v1-UpdateRoomRequest"></a>
+
+#### Input: UpdateRoomRequest
+
+Request to update a room's editable metadata.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room to update. |
+| `name` | `string` | Required. New room name. |
+| `description` | `string` | Optional new room description. |
+
+
+<a id="chatto-api-v1-UpdateRoomResponse"></a>
+
+#### Result: UpdateRoomResponse
+
+Result of updating a room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`Room`](/reference/connectrpc-api/types/#chatto-api-v1-Room) | Updated room. |
+
+
+<a id="chatto-api-v1-RoomService-ArchiveRoom"></a>
+
+### ArchiveRoom
+
+Archives a room so it is hidden from active room lists. The caller must be
+allowed to manage rooms.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/ArchiveRoom
+```
+
+<a id="chatto-api-v1-ArchiveRoomRequest"></a>
+
+#### Input: ArchiveRoomRequest
+
+Request to archive a room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room to archive. |
+
+
+<a id="chatto-api-v1-ArchiveRoomResponse"></a>
+
+#### Result: ArchiveRoomResponse
+
+Result of archiving a room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`Room`](/reference/connectrpc-api/types/#chatto-api-v1-Room) | Archived room. |
+
+
+<a id="chatto-api-v1-RoomService-UnarchiveRoom"></a>
+
+### UnarchiveRoom
+
+Restores an archived room to active room lists. The caller must be allowed
+to manage rooms.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/UnarchiveRoom
+```
+
+<a id="chatto-api-v1-UnarchiveRoomRequest"></a>
+
+#### Input: UnarchiveRoomRequest
+
+Request to unarchive a room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room to unarchive. |
+
+
+<a id="chatto-api-v1-UnarchiveRoomResponse"></a>
+
+#### Result: UnarchiveRoomResponse
+
+Result of unarchiving a room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`Room`](/reference/connectrpc-api/types/#chatto-api-v1-Room) | Unarchived room. |
+
+
+<a id="chatto-api-v1-RoomService-SetRoomUniversal"></a>
+
+### SetRoomUniversal
+
+Changes whether a channel room grants effective membership to eligible
+server members. Direct-message rooms cannot be universal.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/SetRoomUniversal
+```
+
+<a id="chatto-api-v1-SetRoomUniversalRequest"></a>
+
+#### Input: SetRoomUniversalRequest
+
+Request to change a channel room's universal membership flag.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Channel room to update. |
+| `universal` | `bool` | New universal membership state. |
+
+
+<a id="chatto-api-v1-SetRoomUniversalResponse"></a>
+
+#### Result: SetRoomUniversalResponse
+
+Result of changing a channel room's universal membership flag.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`Room`](/reference/connectrpc-api/types/#chatto-api-v1-Room) | Updated room. |
+
+
+<a id="chatto-api-v1-RoomService-JoinRoom"></a>
+
+### JoinRoom
+
+Joins the room as the current user when room permissions allow it.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/JoinRoom
+```
+
+<a id="chatto-api-v1-JoinRoomRequest"></a>
+
+#### Input: JoinRoomRequest
+
+Request to join a room as the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room to join. |
+
+
+<a id="chatto-api-v1-JoinRoomResponse"></a>
+
+#### Result: JoinRoomResponse
+
+Result of joining a room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`Room`](/reference/connectrpc-api/types/#chatto-api-v1-Room) | Joined room. |
+
+
+<a id="chatto-api-v1-RoomService-StartDM"></a>
+
+### StartDM
+
+Starts or fetches a direct-message room for the current user and the
+requested participant set. The caller must be allowed to start DMs.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/StartDM
+```
+
+<a id="chatto-api-v1-StartDMRequest"></a>
+
+#### Input: StartDMRequest
+
+Request to start or fetch a direct-message room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `participant_ids` | `repeated string` | Other participants to include in the direct-message room. The current user is always included by the server. An empty list creates or fetches the caller's self-DM. |
+
+
+<a id="chatto-api-v1-StartDMResponse"></a>
+
+#### Result: StartDMResponse
+
+Result of starting or fetching a direct-message room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`Room`](/reference/connectrpc-api/types/#chatto-api-v1-Room) | Direct-message room for the participant set. |
+
+
+<a id="chatto-api-v1-RoomService-LeaveRoom"></a>
+
+### LeaveRoom
+
+Leaves the room as the current user. Direct-message and universal rooms
+cannot be left.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/LeaveRoom
+```
+
+<a id="chatto-api-v1-LeaveRoomRequest"></a>
+
+#### Input: LeaveRoomRequest
+
+Request to leave a room as the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room to leave. |
+
+
+<a id="chatto-api-v1-LeaveRoomResponse"></a>
+
+#### Result: LeaveRoomResponse
+
+Result of leaving a room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `left` | `bool` | True when the current user is no longer an explicit member after the call. |
+
+
+<a id="chatto-api-v1-RoomService-ListRoomBans"></a>
+
+### ListRoomBans
+
+Lists active channel room bans. The caller must be allowed to moderate room
+membership bans.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/ListRoomBans
+```
+
+<a id="chatto-api-v1-ListRoomBansRequest"></a>
+
+#### Input: ListRoomBansRequest
+
+Request to list active room bans.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Optional channel room filter. Empty lists active bans across all rooms. |
+| `page` | [`PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | Page request. Defaults are applied when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListRoomBansResponse"></a>
+
+#### Result: ListRoomBansResponse
+
+Active room bans visible to the current moderator.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bans` | repeated [`RoomBan`](/reference/connectrpc-api/types/#chatto-api-v1-RoomBan) | Active bans, newest first. |
+| `page` | [`PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Page metadata. |
+
+
+<a id="chatto-api-v1-RoomService-BanRoomMember"></a>
+
+### BanRoomMember
+
+Bans a member from a channel room. Direct-message rooms cannot be moderated
+this way, and the target must currently be a room member.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/BanRoomMember
+```
+
+<a id="chatto-api-v1-BanRoomMemberRequest"></a>
+
+#### Input: BanRoomMemberRequest
+
+Request to ban a member from a channel room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Channel room to ban the user from. |
+| `user_id` | `string` | Required. User to ban from the room. |
+| `reason` | `string` | Required moderator-entered reason stored for audit. |
+| `expires_at` | `google.protobuf.Timestamp` | Optional future time when the ban expires. |
+
+
+<a id="chatto-api-v1-BanRoomMemberResponse"></a>
+
+#### Result: BanRoomMemberResponse
+
+Result of banning a room member.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `banned` | `bool` | True when the ban operation completed. |
+
+
+<a id="chatto-api-v1-RoomService-UnbanRoomMember"></a>
+
+### UnbanRoomMember
+
+Removes an active channel room ban. Calling this when no active ban exists
+is allowed and still returns success.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/UnbanRoomMember
+```
+
+<a id="chatto-api-v1-UnbanRoomMemberRequest"></a>
+
+#### Input: UnbanRoomMemberRequest
+
+Request to remove a channel room ban.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Channel room to unban the user from. |
+| `user_id` | `string` | Required. User to unban. |
+| `reason` | `string` | Required moderator-entered reason stored for audit. |
+
+
+<a id="chatto-api-v1-UnbanRoomMemberResponse"></a>
+
+#### Result: UnbanRoomMemberResponse
+
+Result of removing a room ban.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `unbanned` | `bool` | True when the unban operation completed. |
+
+<a id="chatto-api-v1-RoomTimelineService"></a>
+
+## RoomTimelineService
+
+Reads room and thread timeline pages.
+
+<a id="chatto-api-v1-RoomTimelineService-GetRoomEvents"></a>
+
+### GetRoomEvents
+
+Returns one page of room timeline events, including related user data needed
+to render the page.
+
+```http
+POST /api/connect/chatto.api.v1.RoomTimelineService/GetRoomEvents
+```
+
+<a id="chatto-api-v1-GetRoomEventsRequest"></a>
+
+#### Input: GetRoomEventsRequest
+
+Request for a page of room timeline events.
+
+Omit the cursor to load the initial page. Set before to a previously returned
+start_cursor to page toward older events, or after to a previously returned
+end_cursor to page toward newer events.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room whose timeline should be loaded. |
+| `limit` | `int32` | Maximum number of events to return. The server may clamp very large limits. |
+| `cursor.before` | `string` | Return events older than this opaque cursor. |
+| `cursor.after` | `string` | Return events newer than this opaque cursor. |
+
+
+<a id="chatto-api-v1-GetRoomEventsResponse"></a>
+
+#### Result: GetRoomEventsResponse
+
+Response containing one room timeline page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`RoomTimelinePage`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
+
+
+<a id="chatto-api-v1-RoomTimelineService-GetRoomEventsAround"></a>
+
+### GetRoomEventsAround
+
+Returns a room timeline window centered around a specific event. Use this to
+open a permalink, search result, or notification target in context.
+
+```http
+POST /api/connect/chatto.api.v1.RoomTimelineService/GetRoomEventsAround
+```
+
+<a id="chatto-api-v1-GetRoomEventsAroundRequest"></a>
+
+#### Input: GetRoomEventsAroundRequest
+
+Request for room timeline events around a specific event.
+
+Use this when a client needs to jump to a known event and render enough
+context around it.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room whose timeline should be loaded. |
+| `event_id` | `string` | Required. Anchor event ID that should appear in the returned page. |
+| `limit` | `int32` | Maximum number of events to return around the anchor. |
+
+
+<a id="chatto-api-v1-GetRoomEventsAroundResponse"></a>
+
+#### Result: GetRoomEventsAroundResponse
+
+Response containing a room timeline window around a specific event.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`RoomTimelinePage`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
+| `target_index` | `int32` | Zero-based index of the anchor event within page.events. |
+
+
+<a id="chatto-api-v1-RoomTimelineService-ResolveMessageLinkTarget"></a>
+
+### ResolveMessageLinkTarget
+
+Resolves a permalink target to either the room timeline or a message
+thread, including thread-only replies that are not room timeline rows.
+
+```http
+POST /api/connect/chatto.api.v1.RoomTimelineService/ResolveMessageLinkTarget
+```
+
+<a id="chatto-api-v1-ResolveMessageLinkTargetRequest"></a>
+
+#### Input: ResolveMessageLinkTargetRequest
+
+Request for resolving a message permalink target.
+
+Unlike GetRoomEventsAround, this can resolve thread-only replies that do not
+appear as rows in the room timeline.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the linked event. |
+| `event_id` | `string` | Required. Linked event ID. |
+
+
+<a id="chatto-api-v1-ResolveMessageLinkTargetResponse"></a>
+
+#### Result: ResolveMessageLinkTargetResponse
+
+Response describing where a message permalink should land.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `event` | [`RoomTimelineEvent`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineEvent) | Linked event, hydrated with the same shape used by timeline pages. |
+| `thread_root_event_id` | `string` | Event ID of the thread root when event is a thread-only reply. Empty when the event should open in the room timeline. |
+| `includes` | [`RoomTimelineIncludes`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineIncludes) | Related entities needed to render the event. |
+
+
+<a id="chatto-api-v1-RoomTimelineService-GetThreadEvents"></a>
+
+### GetThreadEvents
+
+Returns one page of events in a message thread. Initial pages include the
+thread root message; cursor pages return replies in the requested direction.
+
+```http
+POST /api/connect/chatto.api.v1.RoomTimelineService/GetThreadEvents
+```
+
+<a id="chatto-api-v1-GetThreadEventsRequest"></a>
+
+#### Input: GetThreadEventsRequest
+
+Request for a page of events in one thread.
+
+Omit the cursor to load the latest visible part of the thread, including the
+root message. Set before to a previously returned start_cursor to page toward
+older replies, or after to a previously returned end_cursor to page toward
+newer replies without repeating the root message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
+| `limit` | `int32` | Maximum number of events to return. The server may clamp very large limits. |
+| `cursor.before` | `string` | Return thread events older than this opaque cursor. |
+| `cursor.after` | `string` | Return thread events newer than this opaque cursor. |
+
+
+<a id="chatto-api-v1-GetThreadEventsResponse"></a>
+
+#### Result: GetThreadEventsResponse
+
+Response containing one thread timeline page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`RoomTimelinePage`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
+
+
+<a id="chatto-api-v1-RoomTimelineService-GetThreadEventsAround"></a>
+
+### GetThreadEventsAround
+
+Returns a thread timeline window centered around a specific event. Use this
+to open a reply from a notification or search result in context.
+
+```http
+POST /api/connect/chatto.api.v1.RoomTimelineService/GetThreadEventsAround
+```
+
+<a id="chatto-api-v1-GetThreadEventsAroundRequest"></a>
+
+#### Input: GetThreadEventsAroundRequest
+
+Request for thread events around a specific event.
+
+Use this when a client needs to jump to a known reply and render surrounding
+thread context.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
+| `event_id` | `string` | Required. Anchor event ID inside the thread. The event should belong to the requested thread. |
+| `limit` | `int32` | Maximum number of events to return around the anchor. |
+
+
+<a id="chatto-api-v1-GetThreadEventsAroundResponse"></a>
+
+#### Result: GetThreadEventsAroundResponse
+
+Response containing a thread timeline window around a specific event.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`RoomTimelinePage`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
+| `target_index` | `int32` | Zero-based index of the anchor event within page.events. |
+
+<a id="chatto-api-v1-MessageService"></a>
+
+## MessageService
+
+Posts messages into room and thread timelines.
+
+<a id="chatto-api-v1-MessageService-PostMessage"></a>
+
+### PostMessage
+
+Posts a message for the current user. The user must be a room member and
+must have message.post for room messages or message.post-in-thread for
+thread replies. Echoing a thread reply also requires message.echo and
+message.post.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/PostMessage
+```
+
+<a id="chatto-api-v1-PostMessageRequest"></a>
+
+#### Input: PostMessageRequest
+
+Request to post a message in a room or thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room where the message should be posted. |
+| `body` | `string` | Message body text. Required unless attachments or attachment_asset_ids is non-empty. |
+| `attachment_asset_ids` | `repeated string` | Existing room-scoped attachment asset IDs to include with the message. |
+| `thread_root_event_id` | `string` | Event ID of the thread root message when posting a thread reply. |
+| `in_reply_to` | `string` | Event ID this message replies to for attribution. |
+| `also_send_to_channel` | `bool` | True to also echo a thread reply into the main room timeline. |
+| `mention_confirmation_token` | `string` | Short-lived token returned by a prior mention confirmation challenge. |
+| `link_preview` | [`LinkPreview`](/reference/connectrpc-api/types/#chatto-api-v1-LinkPreview) | Link preview selected by the client. Server response-only LinkPreview fields are ignored. |
+| `attachments` | repeated [`MessageAttachmentUpload`](/reference/connectrpc-api/types/#chatto-api-v1-MessageAttachmentUpload) | Browser-uploaded attachments to include with the message. |
+
+
+<a id="chatto-api-v1-PostMessageResponse"></a>
+
+#### Result: PostMessageResponse
+
+Result of posting a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `result.event` | [`RoomTimelineEvent`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineEvent) | Renderable timeline event for the posted message. |
+| `result.mention_confirmation` | [`MentionConfirmationChallenge`](/reference/connectrpc-api/types/#chatto-api-v1-MentionConfirmationChallenge) | Challenge shown when a message would notify many people. |
+| `includes` | [`RoomTimelineIncludes`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineIncludes) | Related entities needed to render event when a message was posted. |
+
+
+<a id="chatto-api-v1-MessageService-UpdateMessage"></a>
+
+### UpdateMessage
+
+Edits a message body. Authors can edit their own messages within the edit
+window. Non-authors need message.manage and cannot change channel echo
+state.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/UpdateMessage
+```
+
+<a id="chatto-api-v1-UpdateMessageRequest"></a>
+
+#### Input: UpdateMessageRequest
+
+Request to edit a message body.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message. |
+| `event_id` | `string` | Required. Event ID of the message to edit. |
+| `body` | `string` | New message body text. |
+| `also_send_to_channel` | `optional bool` | For thread replies, whether a channel echo should exist after saving. Omit to preserve the current echo state. |
+
+
+<a id="chatto-api-v1-UpdateMessageResponse"></a>
+
+#### Result: UpdateMessageResponse
+
+Result of editing a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `updated` | `bool` | True when the edit was accepted. |
+
+
+<a id="chatto-api-v1-MessageService-DeleteMessage"></a>
+
+### DeleteMessage
+
+Retracts a message. Authors can delete their own messages. Non-authors need
+message.manage.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/DeleteMessage
+```
+
+<a id="chatto-api-v1-DeleteMessageRequest"></a>
+
+#### Input: DeleteMessageRequest
+
+Request to retract a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message. |
+| `event_id` | `string` | Required. Event ID of the message to retract. |
+
+
+<a id="chatto-api-v1-DeleteMessageResponse"></a>
+
+#### Result: DeleteMessageResponse
+
+Result of retracting a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when the delete/retract request was accepted. |
+
+
+<a id="chatto-api-v1-MessageService-DeleteAttachment"></a>
+
+### DeleteAttachment
+
+Removes one attachment from the author's own message.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/DeleteAttachment
+```
+
+<a id="chatto-api-v1-DeleteAttachmentRequest"></a>
+
+#### Input: DeleteAttachmentRequest
+
+Request to remove one attachment from a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message. |
+| `event_id` | `string` | Required. Event ID of the message containing the attachment. |
+| `attachment_id` | `string` | Required. Attachment ID to remove from the message. |
+
+
+<a id="chatto-api-v1-DeleteAttachmentResponse"></a>
+
+#### Result: DeleteAttachmentResponse
+
+Result of removing one attachment from a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when the attachment removal was accepted. |
+
+
+<a id="chatto-api-v1-MessageService-DeleteLinkPreview"></a>
+
+### DeleteLinkPreview
+
+Removes the accepted link preview from the author's own message.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/DeleteLinkPreview
+```
+
+<a id="chatto-api-v1-DeleteLinkPreviewRequest"></a>
+
+#### Input: DeleteLinkPreviewRequest
+
+Request to remove the accepted link preview from a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message. |
+| `event_id` | `string` | Required. Event ID of the message containing the link preview. |
+| `url` | `string` | Required. URL of the link preview to remove. |
+
+
+<a id="chatto-api-v1-DeleteLinkPreviewResponse"></a>
+
+#### Result: DeleteLinkPreviewResponse
+
+Result of removing a link preview from a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when the link preview removal was accepted. |
+
+
+<a id="chatto-api-v1-MessageService-SendTypingIndicator"></a>
+
+### SendTypingIndicator
+
+Publishes a live-only typing indicator. Room membership is required; message
+posting permission is not.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/SendTypingIndicator
+```
+
+<a id="chatto-api-v1-SendTypingIndicatorRequest"></a>
+
+#### Input: SendTypingIndicatorRequest
+
+Request to publish a live-only typing indicator.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room where the current user is typing. |
+| `thread_root_event_id` | `string` | Event ID of the thread root when typing inside a thread. |
+
+
+<a id="chatto-api-v1-SendTypingIndicatorResponse"></a>
+
+#### Result: SendTypingIndicatorResponse
+
+Result of publishing a typing indicator.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `sent` | `bool` | True when the typing indicator was accepted for publish. |
+
+<a id="chatto-api-v1-AttachmentService"></a>
+
+## AttachmentService
+
+Reads room attachments and refreshes expiring signed attachment URLs.
+
+<a id="chatto-api-v1-AttachmentService-ListRoomAttachments"></a>
+
+### ListRoomAttachments
+
+Lists current message-owned room attachments. Authentication and room
+membership are required.
+
+```http
+POST /api/connect/chatto.api.v1.AttachmentService/ListRoomAttachments
+```
+
+<a id="chatto-api-v1-ListRoomAttachmentsRequest"></a>
+
+#### Input: ListRoomAttachmentsRequest
+
+Request for room-scoped attachment list pages.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required room ID. |
+| `thumbnail` | [`AttachmentThumbnailOptions`](/reference/connectrpc-api/types/#chatto-api-v1-AttachmentThumbnailOptions) | Thumbnail URL options. Defaults are applied when absent. |
+| `page` | [`PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | Page request. Defaults are applied when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListRoomAttachmentsResponse"></a>
+
+#### Result: ListRoomAttachmentsResponse
+
+Room-scoped attachment list response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `items` | repeated [`RoomAttachmentListItem`](/reference/connectrpc-api/types/#chatto-api-v1-RoomAttachmentListItem) | Current attachments in newest message order. |
+| `page` | [`PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Page metadata. |
+
+
+<a id="chatto-api-v1-AttachmentService-RefreshMessageAttachmentUrls"></a>
+
+### RefreshMessageAttachmentUrls
+
+Refreshes signed URLs for the current attachments on one message.
+Authentication and room membership are required.
+
+```http
+POST /api/connect/chatto.api.v1.AttachmentService/RefreshMessageAttachmentUrls
+```
+
+<a id="chatto-api-v1-RefreshMessageAttachmentUrlsRequest"></a>
+
+#### Input: RefreshMessageAttachmentUrlsRequest
+
+Request to refresh signed attachment URLs for one message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required room ID. |
+| `event_id` | `string` | Required message event ID. |
+| `thumbnail` | [`AttachmentThumbnailOptions`](/reference/connectrpc-api/types/#chatto-api-v1-AttachmentThumbnailOptions) | Thumbnail URL options. Defaults are applied when absent. |
+
+
+<a id="chatto-api-v1-RefreshMessageAttachmentUrlsResponse"></a>
+
+#### Result: RefreshMessageAttachmentUrlsResponse
+
+Response containing fresh signed URLs for the current message attachments.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `attachments` | repeated [`RefreshedAttachmentUrls`](/reference/connectrpc-api/types/#chatto-api-v1-RefreshedAttachmentUrls) | Fresh URL bundle for each current attachment on the message. |
+
+<a id="chatto-api-v1-ReactionService"></a>
+
+## ReactionService
+
+Manages message reactions for the current user.
+
+<a id="chatto-api-v1-ReactionService-AddReaction"></a>
+
+### AddReaction
+
+Adds a reaction to a message. The user must be a room member and have
+message.react in the target room.
+
+```http
+POST /api/connect/chatto.api.v1.ReactionService/AddReaction
+```
+
+<a id="chatto-api-v1-AddReactionRequest"></a>
+
+#### Input: AddReactionRequest
+
+Request to add the current user's reaction to a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message event. |
+| `message_event_id` | `string` | Required. Event ID of the message being reacted to. |
+| `emoji` | `string` | Required. Emoji shortcode name, such as "thumbsup" or "heart". |
+
+
+<a id="chatto-api-v1-AddReactionResponse"></a>
+
+#### Result: AddReactionResponse
+
+Result of adding a reaction.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `added` | `bool` | True when the reaction was newly added, false when it already existed. |
+
+
+<a id="chatto-api-v1-ReactionService-RemoveReaction"></a>
+
+### RemoveReaction
+
+Removes a reaction from a message. The user must be a room member and have
+message.react in the target room.
+
+```http
+POST /api/connect/chatto.api.v1.ReactionService/RemoveReaction
+```
+
+<a id="chatto-api-v1-RemoveReactionRequest"></a>
+
+#### Input: RemoveReactionRequest
+
+Request to remove the current user's reaction from a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message event. |
+| `message_event_id` | `string` | Required. Event ID of the message whose reaction should be removed. |
+| `emoji` | `string` | Required. Emoji shortcode name, such as "thumbsup" or "heart". |
+
+
+<a id="chatto-api-v1-RemoveReactionResponse"></a>
+
+#### Result: RemoveReactionResponse
+
+Result of removing a reaction.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `removed` | `bool` | True when the reaction was removed, false when it did not exist. |
+
+<a id="chatto-api-v1-ReadStateService"></a>
+
+## ReadStateService
+
+Updates room and thread read state for the current user.
+
+<a id="chatto-api-v1-ReadStateService-MarkRoomAsRead"></a>
+
+### MarkRoomAsRead
+
+Marks a room timeline as read through the supplied event. If no event is
+supplied, the server marks through the room's latest root event. Clients
+usually call this after the user has viewed the latest visible event in the
+room.
+
+```http
+POST /api/connect/chatto.api.v1.ReadStateService/MarkRoomAsRead
+```
+
+<a id="chatto-api-v1-MarkRoomAsReadRequest"></a>
+
+#### Input: MarkRoomAsReadRequest
+
+Request to mark a room timeline as read.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room whose timeline should be marked read. |
+| `up_to_event_id` | `string` | Highest room event ID the current user has read. When set, the event must exist as a root event in the room timeline. Leave empty to mark through the room's current latest root event. |
+
+
+<a id="chatto-api-v1-MarkRoomAsReadResponse"></a>
+
+#### Result: MarkRoomAsReadResponse
+
+Result of marking a room timeline as read.
+
+Clients can use the previous timestamp to decide whether unread badges or
+local notification state need to be reconciled.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `last_read_at` | `google.protobuf.Timestamp` | New room read timestamp stored for the current user. |
+| `previous_last_read_at` | `google.protobuf.Timestamp` | Previous room read timestamp, when one existed. |
+
+
+<a id="chatto-api-v1-ReadStateService-MarkThreadAsRead"></a>
+
+### MarkThreadAsRead
+
+Marks a thread timeline as read through the supplied event without changing
+the room-level read marker.
+
+```http
+POST /api/connect/chatto.api.v1.ReadStateService/MarkThreadAsRead
+```
+
+<a id="chatto-api-v1-MarkThreadAsReadRequest"></a>
+
+#### Input: MarkThreadAsReadRequest
+
+Request to mark a message thread as read.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
+| `up_to_event_id` | `string` | Highest thread event ID the current user has read. The event should belong to the thread identified by thread_root_event_id. |
+
+
+<a id="chatto-api-v1-MarkThreadAsReadResponse"></a>
+
+#### Result: MarkThreadAsReadResponse
+
+Result of marking a message thread as read.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `previous_read_at` | `google.protobuf.Timestamp` | Previous thread read timestamp, when one existed. |
+
+<a id="chatto-api-v1-ThreadService"></a>
+
+## ThreadService
+
+Manages thread follow state for the current user.
+
+<a id="chatto-api-v1-ThreadService-ListFollowedThreads"></a>
+
+### ListFollowedThreads
+
+Returns followed threads for the current user, including enough root-message
+data for clients to render the list without extra per-field fetches.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/ListFollowedThreads
+```
+
+<a id="chatto-api-v1-ListFollowedThreadsRequest"></a>
+
+#### Input: ListFollowedThreadsRequest
+
+Request for a page of followed threads for the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListFollowedThreadsResponse"></a>
+
+#### Result: ListFollowedThreadsResponse
+
+Response containing one followed-thread page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `threads` | repeated [`FollowedThread`](/reference/connectrpc-api/types/#chatto-api-v1-FollowedThread) | Followed threads in newest-activity-first order. |
+| `includes` | [`RoomTimelineIncludes`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineIncludes) | Related entities needed to render root messages. |
+| `page` | [`PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Page metadata. |
+
+
+<a id="chatto-api-v1-ThreadService-FollowThread"></a>
+
+### FollowThread
+
+Follows a thread for the current user. Followed threads can be surfaced in
+clients and can participate in thread notification behavior.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/FollowThread
+```
+
+<a id="chatto-api-v1-FollowThreadRequest"></a>
+
+#### Input: FollowThreadRequest
+
+Request to follow one message thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
+
+
+<a id="chatto-api-v1-FollowThreadResponse"></a>
+
+#### Result: FollowThreadResponse
+
+Result of following a thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `following` | `bool` | True when the current user follows the thread after the operation. |
+
+
+<a id="chatto-api-v1-ThreadService-UnfollowThread"></a>
+
+### UnfollowThread
+
+Stops following a thread for the current user. The response reports the
+resulting follow state so clients can update local UI immediately.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/UnfollowThread
+```
+
+<a id="chatto-api-v1-UnfollowThreadRequest"></a>
+
+#### Input: UnfollowThreadRequest
+
+Request to stop following one message thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
+
+
+<a id="chatto-api-v1-UnfollowThreadResponse"></a>
+
+#### Result: UnfollowThreadResponse
+
+Result of unfollowing a thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `following` | `bool` | True when the current user follows the thread after the operation. |
+
+<a id="chatto-api-v1-LinkPreviewService"></a>
+
+## LinkPreviewService
+
+Fetches link preview metadata for message composers.
+
+<a id="chatto-api-v1-LinkPreviewService-FetchLinkPreview"></a>
+
+### FetchLinkPreview
+
+Fetches and caches metadata for a URL. Authentication is required to avoid
+exposing the preview fetcher as an unauthenticated network proxy.
+
+```http
+POST /api/connect/chatto.api.v1.LinkPreviewService/FetchLinkPreview
+```
+
+<a id="chatto-api-v1-FetchLinkPreviewRequest"></a>
+
+#### Input: FetchLinkPreviewRequest
+
+Request to fetch server-side link preview metadata for a URL.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `url` | `string` | URL to preview. |
+
+
+<a id="chatto-api-v1-FetchLinkPreviewResponse"></a>
+
+#### Result: FetchLinkPreviewResponse
+
+Result of fetching link preview metadata.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `preview` | [`LinkPreview`](/reference/connectrpc-api/types/#chatto-api-v1-LinkPreview) | Preview metadata, or absent when the URL cannot be previewed. |
+
+<a id="chatto-api-v1-VoiceCallService"></a>
+
+## VoiceCallService
+
+Voice-call request/response APIs backed by Chatto call-state projections.
+
+<a id="chatto-api-v1-VoiceCallService-ListActiveCallRooms"></a>
+
+### ListActiveCallRooms
+
+Lists channel room IDs that currently have active calls.
+
+Returns an empty list when LiveKit is not configured.
+
+```http
+POST /api/connect/chatto.api.v1.VoiceCallService/ListActiveCallRooms
+```
+
+<a id="chatto-api-v1-ListActiveCallRoomsRequest"></a>
+
+#### Input: ListActiveCallRoomsRequest
+
+Request for active channel call room IDs.
+
+
+<a id="chatto-api-v1-ListActiveCallRoomsResponse"></a>
+
+#### Result: ListActiveCallRoomsResponse
+
+Active channel call room IDs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_ids` | `repeated string` | Room IDs with active calls. |
+
+
+<a id="chatto-api-v1-VoiceCallService-ListCallParticipants"></a>
+
+### ListCallParticipants
+
+Lists participants currently observed in a room's active call.
+
+The caller must be a member of the room.
+
+```http
+POST /api/connect/chatto.api.v1.VoiceCallService/ListCallParticipants
+```
+
+<a id="chatto-api-v1-ListCallParticipantsRequest"></a>
+
+#### Input: ListCallParticipantsRequest
+
+Request for participants in a room call.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room whose active call should be inspected. |
+
+
+<a id="chatto-api-v1-ListCallParticipantsResponse"></a>
+
+#### Result: ListCallParticipantsResponse
+
+Participants in one room call.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `participants` | repeated [`CallParticipant`](/reference/connectrpc-api/types/#chatto-api-v1-CallParticipant) | Participants currently projected for the room call. |
+
+
+<a id="chatto-api-v1-VoiceCallService-JoinCall"></a>
+
+### JoinCall
+
+Records the caller's intent to join a room call.
+
+Returns joined=false when LiveKit is not configured.
+
+```http
+POST /api/connect/chatto.api.v1.VoiceCallService/JoinCall
+```
+
+<a id="chatto-api-v1-JoinCallRequest"></a>
+
+#### Input: JoinCallRequest
+
+Request to record joining a room call.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room whose call is being joined. |
+
+
+<a id="chatto-api-v1-JoinCallResponse"></a>
+
+#### Result: JoinCallResponse
+
+Response from recording a join intent.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `joined` | `bool` | True when a join fact was recorded. |
+
+
+<a id="chatto-api-v1-VoiceCallService-GetCallToken"></a>
+
+### GetCallToken
+
+Issues a LiveKit token for joining the room's active call.
+
+The caller must be a member of the room and a call must already be active.
+
+```http
+POST /api/connect/chatto.api.v1.VoiceCallService/GetCallToken
+```
+
+<a id="chatto-api-v1-GetCallTokenRequest"></a>
+
+#### Input: GetCallTokenRequest
+
+Request for a LiveKit token for a room call.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room whose active call should be joined. |
+
+
+<a id="chatto-api-v1-GetCallTokenResponse"></a>
+
+#### Result: GetCallTokenResponse
+
+LiveKit token details for joining a room call.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `token` | `string` | LiveKit JWT token. |
+| `e2ee_key` | `string` | Shared E2EE key for this active call. |
+| `call_id` | `string` | Active call session ID. |
+
+
+<a id="chatto-api-v1-VoiceCallService-LeaveCall"></a>
+
+### LeaveCall
+
+Records the caller's intent to leave a room call.
+
+Returns left=false when LiveKit is not configured.
+
+```http
+POST /api/connect/chatto.api.v1.VoiceCallService/LeaveCall
+```
+
+<a id="chatto-api-v1-LeaveCallRequest"></a>
+
+#### Input: LeaveCallRequest
+
+Request to record leaving a room call.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room whose call is being left. |
+
+
+<a id="chatto-api-v1-LeaveCallResponse"></a>
+
+#### Result: LeaveCallResponse
+
+Response from recording a leave intent.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `left` | `bool` | True when a leave fact was recorded. |

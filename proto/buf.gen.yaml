@@ -29,8 +29,8 @@ plugins:
     types:
       - chatto.api.v1
   - local: ["go", "tool", "-C", "../cli", "protoc-gen-doc"]
-    out: ../apps/docs-website/src/content/docs/reference/connectrpc-api
+    out: ../apps/docs-website/src/generated/connectrpc-api
     opt:
-      - ../proto/templates/connectrpc-starlight.md.tmpl,index.mdx
+      - ../proto/templates/connectrpc-starlight.md.tmpl,index.raw.mdx
     types:
       - chatto.api.v1
